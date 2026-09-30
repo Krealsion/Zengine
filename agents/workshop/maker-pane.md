@@ -16,8 +16,8 @@ DOES NOT MEAN
 - that a widget set, controls, anchors, fill, nesting or a second renderer may grow on this value.
 
 PROVEN BY — `workshop/pane_definition.hpp` `PaneDefinition`, `TextRegion`, `region_kind::kText`,
-`WeaverPane`, `kMaxRegions`, `kMaxWeaverPaneNameLen`, `kRegionSubMax`; `workshop/panel.hpp`
-`Panels::weaver`; `tests/test_workshop_panels_creator.cpp` case `"a definition is a name and a
+`WeaverPane`, `kMaxRegions`, `kMaxWeaverPaneNameLen`, `kRegionSubMax`; `workshop/panes.hpp`
+`Panes::weaver`; `tests/test_workshop_host_creator.cpp` case `"a definition is a name and a
 list of text regions with stable ids"`, case `"the whole-definition law refuses what no
 door could have made"`, case `"a code-backed subject's interior is a read-only
 capture, and an unresolved one is nothing to inspect"`.
@@ -32,9 +32,9 @@ MEANS
 - a definition not open leaves every row naming it retained and `unresolved`, as a stranger's;
 - there is no singleton `Defined` ref whose meaning follows the open file.
 
-PROVEN BY — `workshop/panel.hpp` `kMakerPaneProvider`, `zengine.workshop.maker`,
+PROVEN BY — `workshop/panes.hpp` `kMakerPaneProvider`, `zengine.workshop.maker`,
 `kWeaverPaneKind`; `workshop/setup.hpp` `admit_pane_offer`, `resolve_pane`, `weaver_pane_ref`;
-`workshop/pane_definition.hpp` `PaneDefinition::name`; `tests/test_workshop_panels_creator.cpp`
+`workshop/pane_definition.hpp` `PaneDefinition::name`; `tests/test_workshop_host_creator.cpp`
 case `"a weaver pane's identity is its name under Workshop's namespace -- not a singleton that
 follows the open file"`, case `"save, quit, relaunch -- the same pane returns on
 the same layout by its reference; remove the file and the row is kept unresolved"`.
@@ -42,16 +42,16 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-04 — `kWeaverPaneKind` is a handle, not an identity
 
-LAW — `kWeaverPaneKind` is a third kind class beside built-ins and runtime handles; the resolution table takes the whole `Panels`, or a weaver's pane would count as unresolved beneath a pane they can see.
+LAW — `kWeaverPaneKind` is a third kind class beside built-ins and runtime handles; the resolution table takes the whole `Panes`, or a weaver's pane would count as unresolved beneath a pane they can see.
 
 MEANS
 - `is_weaver_kind`, `kind_takes_keyboard` and `placement_of` are the arms; nothing else switches;
-- `resolve_pane`, `resolvable`, `seat_panes`, `unresolved_panes`, `setup_rest_text` take `Panels`.
+- `resolve_pane`, `resolvable`, `seat_panes`, `unresolved_panes`, `setup_rest_text` take `Panes`.
 
-PROVEN BY — `workshop/panel.hpp` `kWeaverPaneKind`, `is_weaver_kind`, `kind_takes_keyboard`,
+PROVEN BY — `workshop/panes.hpp` `kWeaverPaneKind`, `is_weaver_kind`, `kind_takes_keyboard`,
 `placement_of`, `kFirstRuntimeKind`; `workshop/setup.hpp` `resolve_pane`, `resolvable`,
 `seat_panes`, `unresolved_panes`, `resolve_builtin_pane`; `workshop/screen_layouts.cpp`
-`setup_rest_text`; `tests/test_workshop_panels_creator.cpp` case `"the weaver door makes a named
+`setup_rest_text`; `tests/test_workshop_host_creator.cpp` case `"the weaver door makes a named
 pane from data, and it lives on the desk exactly as every other pane does"`, case `"a run with no
 weaver pane is the run it always was"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
@@ -65,10 +65,10 @@ MEANS
 - a region authored at 126 px sits at pixel 126 of the interior; a terminal reads `~10 cells`;
 - too small for the face is the face's own answer; nothing rewrites the authored number to fit.
 
-PROVEN BY — `workshop/screen_compose.cpp` `paint_panels`; `workshop/screen_pane_subject.cpp`
+PROVEN BY — `workshop/screen_compose.cpp` `paint_panes`; `workshop/screen_pane_subject.cpp`
 `paint_weaver_pane`, `present_region`; `workshop/screen_chrome.cpp` `bounds_of`, `pane_inside`,
 `fit_region_subs`; `workshop/screen.hpp` `clip_to_fine`; `surface/vocabulary.hpp` `kGroundOwn`;
-`tests/test_workshop_panels_creator.cpp` case `"a region is placed relative to the pane's INTERIOR
+`tests/test_workshop_host_creator.cpp` case `"a region is placed relative to the pane's INTERIOR
 and painted through the ordinary pane path in cells"`, case `"one authored fine
 value, read in pixels on the window and projected to cells on a terminal, and looking writes
 nothing back"`, case `"a region too small for the face is the face's own answer,
@@ -85,7 +85,7 @@ MEANS
 
 PROVEN BY — `workshop/screen_pane_subject.cpp` `weaver_region`, `present_region`,
 `paint_creator_region_mark`; `workshop/pane_definition_persist.hpp` `to_text`, `to_file`;
-`tests/test_workshop_panels_creator.cpp` case `"the Pane Creator marks the region it is editing on
+`tests/test_workshop_host_creator.cpp` case `"the Pane Creator marks the region it is editing on
 the pane itself, from the same resolution, and writes nothing"`, case `"one authored
 fine value, read in pixels on the window and projected to cells on a terminal, and looking
 writes nothing back"`.
@@ -102,7 +102,7 @@ MEANS
 PROVEN BY — `workshop/screen_pane_subject.cpp` `write_region_text`, `write_region_axis`;
 `workshop/screen_pane_state.cpp` `parse_face_amount`; `workshop/pane_definition.hpp`
 `set_region_text`, `author_region_axis`, `check_weaver_pane_name`;
-`tests/test_workshop_panels_creator.cpp` case `"Text and the four numbers are edited through the
+`tests/test_workshop_host_creator.cpp` case `"Text and the four numbers are edited through the
 definition's doors, refused in words, and clamped never"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
@@ -111,7 +111,7 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 LAW — One session-owned open definition, dirty derived by comparison with its saved copy; a dirty definition refuses a new pane, a replacing open and an orderly quit, and there is one open door.
 
 MEANS
-- `close_panel` never touches `Panels::weaver`; a never-saved pane is dirty by arithmetic;
+- `close_kind` never touches `Panes::weaver`; a never-saved pane is dirty by arithmetic;
 - a refusal names the presenter's declared keys; `open_weaver_pane` is spent by startup alone;
 - a refused file at the host's path is a wall (`kPaneWallKey`, `pane_refused_`) the save honours.
 
@@ -120,8 +120,8 @@ PROVEN BY — `workshop/weave_run.cpp` `quit`; `workshop/weave_maker.cpp` `open_
 `weaver_pane_dirty_sentence`; `workshop/weave.hpp`
 `WorkshopWeave::pane_refused_`, `HostContext::pane_path`; `workshop/weave_handlers.cpp`
 `host_pane_path`, `load_pane_definition`; `workshop/screen.hpp` `kPaneWallKey`;
-`workshop/pane_definition_persist.hpp` `LoadedDefinition`; `workshop/panel.hpp` `Panels::weaver`;
-`workshop/pane_definition.hpp` `WeaverPane`; `tests/test_workshop_panels_creator.cpp` case
+`workshop/pane_definition_persist.hpp` `LoadedDefinition`; `workshop/panes.hpp` `Panes::weaver`;
+`workshop/pane_definition.hpp` `WeaverPane`; `tests/test_workshop_host_creator.cpp` case
 `"dirty pane truth refuses the quit, a second new pane and a replacing open until the weaver saves
 or discards"`, case `"the discard door puts a saved pane back to its file, and
 closes a pane that was never saved while keeping its row"`, case `"a malformed file
@@ -134,7 +134,7 @@ LAW — The pane definition is loaded before the last session is restored, becau
 
 PROVEN BY — `workshop/weave_session.cpp` `apply_setup`, `restore_last_session`;
 `workshop/weave_handlers.cpp` `load_pane_definition`; `workshop/weave.hpp`
-`WorkshopWeave::pane_loaded_`; `tests/test_workshop_panels_creator.cpp` case `"save, quit,
+`WorkshopWeave::pane_loaded_`; `tests/test_workshop_host_creator.cpp` case `"save, quit,
 relaunch -- the same pane returns on the same layout by its reference; remove the file and the row
 is kept unresolved"`, case `"the weaver's pane is edited, ordered and removed by the
 doors every pane has, and comes back through the session by its reference"`.
@@ -151,7 +151,7 @@ MEANS
 
 PROVEN BY — `workshop/pane_definition_persist.hpp` `zengine-workshop-pane`, `kFormatVersion`,
 `WorkshopPaneDefinition`, `WorkshopPaneRegion`, `kMaxPaneDefinitionBytes`, `kMaxRegionFileBytes`,
-`from_text`; `tests/test_workshop_panels_creator.cpp` case `"the pane file round-trips, refuses by
+`from_text`; `tests/test_workshop_host_creator.cpp` case `"the pane file round-trips, refuses by
 number and by shape, and holds nothing but the definition"`, case
 `"the definition and its file are structurally unable to act"`, case `"loading a
 definition mounts nothing, offers nothing and sends nothing through the provider seam"`.
@@ -169,7 +169,7 @@ MEANS
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `WeaverPaneRequested`, `WeaverPaneAnswered`,
 `kCreatorNewId`; `workshop/weave_maker.cpp` `new_weaver_pane`, `on(WeaverPaneRequested)`;
 `desktop-pane/pane.cpp` `open_naming`, `ask_weaver`; `workshop/pane_definition.hpp`
-`kNewRegionX`; `tests/test_workshop_panels_creator.cpp` case `"the weaver door refuses a bad name
+`kNewRegionX`; `tests/test_workshop_host_creator.cpp` case `"the weaver door refuses a bad name
 in words and makes nothing"`, case `"at the minimum composition a new pane lands waiting,
 is still the subject, and is still editable"`; `tests/test_workshop_panes_actions.cpp`
 case `"WL-MAKER-11: the shipped Pane Manager makes a pane from a typed name -- `n` opens its line,
@@ -186,7 +186,7 @@ DOES NOT MEAN
 - that anything is decompiled or inferred: no controls, no pretence.
 
 PROVEN BY — `workshop/screen_pane_subject.cpp` `interior_capture_text`;
-`tests/test_workshop_panels_creator.cpp` case `"a code-backed subject's interior is a read-only
+`tests/test_workshop_host_creator.cpp` case `"a code-backed subject's interior is a read-only
 capture, and an unresolved one is nothing to inspect"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
@@ -195,7 +195,7 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 LAW — A definition's name is present, at most `kMaxWeaverPaneNameLen` bytes, plain ASCII with no space or control character, and has no `/`, so `provider/name` stays one token in a notice and a file.
 
 PROVEN BY — `workshop/pane_definition.hpp` `check_weaver_pane_name`, `kMaxWeaverPaneNameLen`;
-`tests/test_workshop_panels_creator.cpp` case `"the whole-definition law refuses what no door
+`tests/test_workshop_host_creator.cpp` case `"the whole-definition law refuses what no door
 could have made"`, case `"the pane file round-trips, refuses by number and by shape, and
 holds nothing but the definition"`.
 WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
@@ -234,6 +234,6 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## Do not assume
 
-- That a pane made by the Pane Creator is an external pane, or that `Panels::weaver` is a
+- That a pane made by the Pane Creator is an external pane, or that `Panes::weaver` is a
   presentation's copy: it is Workshop-owned authored material presented through the ordinary pane
-  path, and `close_panel` never touches it (WL-MAKER-03, WL-MAKER-08).
+  path, and `close_kind` never touches it (WL-MAKER-03, WL-MAKER-08).

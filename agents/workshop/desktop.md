@@ -134,7 +134,7 @@ DOES NOT MEAN
 PROVEN BY — `workshop/pane_vocabulary.hpp` `ActionsJudged`, `ActionsWithdrawn`;
 `workshop/weave.hpp` `answer_declaration`, `say_withdrawn`, `rejoin_app_rows`;
 `workshop/weave_desktop.cpp` `answer_declaration`, `say_withdrawn`, `rejoin_app_rows`;
-`workshop/weave_seam.cpp` `declare_pane_actions`, `rejoin_pane_rows`; `workshop/panel.hpp`
+`workshop/weave_seam.cpp` `declare_pane_actions`, `rejoin_pane_rows`; `workshop/panes.hpp`
 `RuntimePane::declaration`; `desktop-pane/pane.cpp` `DesktopWeave`;
 `tests/test_workshop_panes_actions.cpp` case `"a verdict answers the declaration it judges: a
 refused attempt is named by its own number after a later one was accepted, and an accepted one

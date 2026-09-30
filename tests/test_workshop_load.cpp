@@ -3402,7 +3402,7 @@ namespace {
 
 /// ANYTHING ON THIS BUS THAT ACCEPTS `ArtifactRealized`.
 ///
-/// The Builder panel is one such thing and this is another, and the participant
+/// The Builder pane is one such thing and this is another, and the participant
 /// that publishes it cannot tell them apart -- which is the property that keeps
 /// realization's answer a published FACT rather than a reply to a presentation.
 struct RealizedHeardState {

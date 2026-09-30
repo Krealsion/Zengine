@@ -317,7 +317,7 @@ TEST_CASE("portable slots: invoking a configured hotkey checks current actor aut
         if (allowed) {
             s.r.bus.office_send_to_role_as(s.r.bus.role_holder(slots::kRole), slots::kRole,
                 kWorkshopProvider, loom::Message(loom::to_value(PaneCloseRequested{slots::kRole,"inventory"})));
-            s.r.bus.drain_until_idle(); REQUIRE_FALSE(s.r.session().panels.has(s.source));
+            s.r.bus.drain_until_idle(); REQUIRE_FALSE(s.r.session().panes.has(s.source));
         }
         s.r.pick({"zengine.info","info"}); // current actor survives the Desktop hop, including a hidden source pane
         s.key(30,input::mod::kAlt);
@@ -344,7 +344,7 @@ TEST_CASE("portable slots: invalid target and incomplete preset are attributable
 
 TEST_CASE("portable slots: one batched drag moves into a row and a forged transfer cannot move it") {
     InventoryStory s(191,true); s.append(1,"A"); const auto a=s.entry("A").reference;
-    const auto row=s.create("row"); const auto kind=s.r.session().panels.runtime.find(slots::kRole,row)->kind;
+    const auto row=s.create("row"); const auto kind=s.r.session().panes.runtime.find(slots::kRole,row)->kind;
     for(auto& p:s.r.session().setup.active.panes) if(p.ref.pane==row) {
         p.place={pane_unit::kSubcells,2*surface::kCellSubs,34*surface::kCellSubs};
         p.width={pane_unit::kSubcells,72*surface::kCellSubs}; p.height={pane_unit::kSubcells,10*surface::kCellSubs};
@@ -356,7 +356,7 @@ TEST_CASE("portable slots: one batched drag moves into a row and a forged transf
     CHECK_MESSAGE(slots::placed(s.layout(),a)==row,(s.shown(s.source)+s.shown(kind)));
     CHECK(s.saved_entries().size()==1);
     const auto before=s.layout();
-    const auto picture=s.r.session().panels.external_pane(s.source)->picture;
+    const auto picture=s.r.session().panes.external_pane(s.source)->picture;
     s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider),kWorkshopProvider,slots::kRole,
         loom::Message(loom::to_value(v2::PaneValueDrop{"inventory",s.pair(88),0,0,picture,slots::kRole,row,"made up"})));
     s.r.bus.drain_until_idle(); CHECK(slots::placed(s.layout(),a)==slots::placed(before,a));
@@ -479,7 +479,7 @@ TEST_CASE("inventory Info: a departed input actor cannot leave the weaver trappe
     t.r.bus.unregister_weave(t.hand_id).reset();
     t.hand = nullptr;
     t.physical_click(t.info);
-    REQUIRE(t.r.session().panels.keyboard == t.info);
+    REQUIRE(t.r.session().panes.keyboard == t.info);
     CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
     t.physical_click(t.source);
     t.physical->push_back(input::KeyPressed{input::scan::kReturn, "", input::mod::kCtrl});
@@ -655,7 +655,7 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         REQUIRE(r.load_refusals.empty());
         r.pick({"zengine.info", "info"}); // give Compose the right-hand area
         r.pick(composer_ref());
-        const auto compose_kind = r.session().panels.runtime.find(kComposerOffice, "compose")->kind;
+        const auto compose_kind = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
         for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
             p.place = {pane_unit::kSubcells, 85*surface::kCellSubs, 4*surface::kCellSubs};
             p.width = {pane_unit::kSubcells, 80*surface::kCellSubs};
@@ -681,7 +681,7 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
             inv::InventoryAdd{loom::Bytes(bytes.begin(), bytes.end()), "rename command"})));
         r.bus.drain_until_idle();
         const auto untouched = s.shown(compose_kind);
-        const auto current_picture = r.session().panels.external_pane(compose_kind)->picture;
+        const auto current_picture = r.session().panes.external_pane(compose_kind)->picture;
         const PaneValueDrop forged{"compose", loom::Bytes(bytes.begin(), bytes.end()), 0, 0, current_picture};
         r.bus.send_to_role(kComposerOffice, loom::Message(loom::to_value(forged)));
         r.bus.drain_until_idle();
@@ -718,7 +718,7 @@ TEST_CASE("pane view reports the painter's rows and refuses hidden content") {
         PaneViewRequested{"zengine.inventory-pane", "inventory"}); }); };
     query(); REQUIRE(s.hand->views.size() == 1);
     for (const auto& row : s.hand->views.back().rows) {
-        const auto at = external_press_at(s.r.session().panels, s.r.session().setup.active,
+        const auto at = external_press_at(s.r.session().panes, s.r.session().setup.active,
             screen_of(s.r.session()), s.source, s.r.session().pane_titles, row.space, row.x, row.y);
         CHECK(at.named); CHECK(at.row == row.row);
     }
@@ -743,7 +743,7 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         InventoryStory s(allowed ? 127 : 111, true);
         auto& r = s.r;
         r.pick(composer_ref());
-        const auto compose = r.session().panels.runtime.find(kComposerOffice, "compose")->kind;
+        const auto compose = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
         REQUIRE(r.session().keymap.app_row_of_id("desktop.deselect") != nullptr);
         REQUIRE(r.session().keymap.app_row_of_id("desktop.panes") != nullptr);
         for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
@@ -837,7 +837,7 @@ TEST_CASE("terminal capture: primary drag stores exact authored content and name
     artifact.weave = load::WeaveIntent{"zengine.terminal"}; plan.artifacts.push_back(artifact);
     REQUIRE(s.r.run_plan(plan).ok);
     s.r.pick({"zengine.terminal", "terminal"});
-    const auto kind = s.r.session().panels.runtime.find("zengine.terminal", "terminal")->kind;
+    const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
     for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.terminal") {
         p.place = {pane_unit::kSubcells, 2 * surface::kCellSubs, 31 * surface::kCellSubs};
         p.width = {pane_unit::kSubcells, 80 * surface::kCellSubs};
@@ -890,7 +890,7 @@ TEST_CASE("terminal capture: retrieval and Inventory storage need separate curre
         load::LoadPlan plan; load::ArtifactIntent artifact;
         artifact.stem="zengine-terminal-pane"; artifact.weave=load::WeaveIntent{"zengine.terminal"}; plan.artifacts.push_back(artifact);
         REQUIRE(s.r.run_plan(plan).ok); s.r.pick({"zengine.terminal","terminal"});
-        const auto kind=s.r.session().panels.runtime.find("zengine.terminal","terminal")->kind;
+        const auto kind=s.r.session().panes.runtime.find("zengine.terminal","terminal")->kind;
         for(auto& p:s.r.session().setup.active.panes) if(p.ref.provider=="zengine.terminal") {
             p.place={pane_unit::kSubcells,2*surface::kCellSubs,31*surface::kCellSubs};
             p.width={pane_unit::kSubcells,80*surface::kCellSubs}; p.height={pane_unit::kSubcells,24*surface::kCellSubs};
@@ -917,7 +917,7 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     artifact.stem = "zengine-terminal-pane"; artifact.weave = load::WeaveIntent{"zengine.terminal"};
     plan.artifacts.push_back(artifact); REQUIRE(s.r.run_plan(plan).ok);
     s.r.pick({"zengine.terminal", "terminal"});
-    const auto kind = s.r.session().panels.runtime.find("zengine.terminal", "terminal")->kind;
+    const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
     for (auto& pane : s.r.session().setup.active.panes) if (pane.ref.provider == "zengine.terminal") {
         pane.place = {pane_unit::kSubcells, 2 * surface::kCellSubs, 31 * surface::kCellSubs};
         pane.width = {pane_unit::kSubcells, 24 * surface::kCellSubs};
@@ -936,7 +936,7 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     REQUIRE_MESSAGE(s.saved_entries().size()==1,(s.shown(kind)+s.shown(s.source)));
     CHECK(s.saved_entries().front().item.get("text")->as_text()=="wrapped");
     s.key(input::scan::kEscape); // keep the generated copy name
-    const auto old_picture=s.r.session().panels.external_pane(kind)->picture;
+    const auto old_picture=s.r.session().panes.external_pane(kind)->picture;
     s.r.bus.send(terminal->id(),loom::Message(loom::to_value(loom::Ack{}))); s.r.extent(182,60);
     s.r.bus.office_send_to_role_as(s.r.workshop_id,kWorkshopProvider,"zengine.terminal",
         loom::Message(loom::to_value(v3::PanePressed{"terminal",at+1,0,false,old_picture})));

@@ -44,10 +44,10 @@ SEEN — nowhere yet
 
 ## VM-CHECK-05 — A mass edit goes sheet, applier, proof
 
-METHOD — A mass edit goes sheet → applier → proof, regenerated from the start commit: the sheet is the review, the applier converges from a clean checkout, and the proof is mechanical and travels with the commit.
+METHOD — A mass edit goes sheet → applier → proof, regenerated from the start commit: the sheet is the review, the applier converges from a clean checkout, and the proof is mechanical and quoted in the pull request.
 BECAUSE — the sheet is the review, one row per declaration; an applier that starts from the
-working tree drifts on a rerun, and a proof that is not mechanical does not travel with the
-commit.
+working tree drifts on a rerun, and a proof that is not mechanical cannot be rerun by the
+reviewer who reads its verdict.
 SEEN — nowhere yet
 
 ## VM-CHECK-06 — A sheet carries the whole pointer group; an index is stale at the first rewrite

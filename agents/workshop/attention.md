@@ -15,7 +15,7 @@ PROVEN BY — `workshop/screen.hpp` `Session::notice`, `Session::conditions`, `k
 `workshop/weave_run.cpp` `say`; `workshop/attention.hpp` `HeldConditions`, `Condition`,
 `unavailable_tool`; `workshop/weave.hpp` `HostContext::standing_conditions`,
 `WorkshopWeave::prefs_bad_`; `workshop/weave_handlers.cpp` `take_host_conditions`;
-`tests/test_workshop_panels.cpp` case `"event sentences stay events, and a condition needs no
+`tests/test_workshop_host.cpp` case `"event sentences stay events, and a condition needs no
 sentence"`, case `"a held condition stands until its owner retracts it"`, case `"an
 unavailable tool is named by its artifact on the host's own condition row, which no tool
 paints"`.
@@ -27,7 +27,7 @@ LAW — The standing truths (a refused keymap or prefs file, a shadowed legacy f
 
 PROVEN BY — `workshop/weave_handlers.cpp` `speak_startup_notes`, `take_host_conditions`;
 `workshop/weave_document.cpp` `say`; `workshop/weave.hpp` `HostContext::transition_note`;
-`tests/test_workshop_panels.cpp` case `"event sentences stay events, and a condition needs no
+`tests/test_workshop_host.cpp` case `"event sentences stay events, and a condition needs no
 sentence"`; `tests/test_workshop_persistence.cpp` case `"a refused prefs file is spoken,
 stands, and is never overwritten"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
@@ -41,7 +41,7 @@ MEANS
 - so the compact chip says what is true, and the pane says what this weaver is looking at.
 
 PROVEN BY — `workshop/screen_attention.cpp` `attention_conditions`;
-`tests/test_workshop_panels.cpp` case `"a held condition stands until its owner retracts it"`,
+`tests/test_workshop_host.cpp` case `"a held condition stands until its owner retracts it"`,
 case `"the compact line is ranked by truth, and says how many it is not saying"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
@@ -56,13 +56,13 @@ MEANS
 DOES NOT MEAN
 - that the reason follows the room — it quotes the grant the refused content was judged against.
 
-PROVEN BY — `workshop/panel.hpp` `ExternalPane`, `ExternalPane::refusal`,
+PROVEN BY — `workshop/panes.hpp` `ExternalPane`, `ExternalPane::refusal`,
 `ExternalPane::refusal_why`, `ProjectFrontier`, `ExternalPane::clear_refusal`;
 `workshop/screen_pane_state.cpp` `pane_state_of`; `workshop/screen_compose.cpp` `paint`;
 `workshop/weave_external.cpp` `refresh_external_rooms`; `workshop/weave_seam.cpp` `judge_content`;
 `workshop/screen_attention.cpp` `attention_conditions`; `workshop/attention.hpp` `HeldConditions`;
 `workshop/weave.hpp` `HostContext::frontier`; `workshop/weave_run.cpp` `frontier_now`;
-`tests/test_workshop_panels.cpp` case `"a derived condition enters and leaves attention with its
+`tests/test_workshop_host.cpp` case `"a derived condition enters and leaves attention with its
 subject"`, case `"the project frontier is a condition while it waits and nothing after"`;
 `tests/test_workshop_panes_seam.cpp` case `"a refusal stands until ACCEPTED CONTENT
 replaces it, a new room included"`.
@@ -73,7 +73,7 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 LAW — `refused`, `waiting` and `off-room` are conditions; `closed` is the weaver's choice, `unresolved` is already counted on the Layouts row, `covered` has something visible, and `open` is nothing.
 
 PROVEN BY — `workshop/screen_attention.cpp` `attention_conditions`;
-`workshop/screen_pane_state.cpp` `pane_state_of`; `tests/test_workshop_panels.cpp` case `"not
+`workshop/screen_pane_state.cpp` `pane_state_of`; `tests/test_workshop_host.cpp` case `"not
 every true pane state deserves ambient attention"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
@@ -87,7 +87,7 @@ MEANS
 
 PROVEN BY — `workshop/weave_run.cpp` `kSlotScore`; `surface/vocabulary.hpp` `kSlotScore`,
 `SurfaceText`; `workshop/screen_attention.cpp` `attention_compact`;
-`tests/test_workshop_panels.cpp` case `"a healthy Workshop says nothing on the attention slot at
+`tests/test_workshop_host.cpp` case `"a healthy Workshop says nothing on the attention slot at
 all"`, case `"the compact line is ranked by truth, and says how many it is not saying"`;
 `tests/test_surface.cpp` case `"the attention chip is a region in the picture, and
 empty draws nothing"`.
@@ -98,7 +98,7 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 LAW — `attention_rank` is the one place this application claims one role is more urgent than another: total, with an unknown role last.
 
 PROVEN BY — `workshop/attention.hpp` `ranks_before`, `attention_rank`;
-`tests/test_workshop_panels.cpp` case `"the compact line is ranked by truth, and says how many it
+`tests/test_workshop_host.cpp` case `"the compact line is ranked by truth, and says how many it
 is not saying"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
@@ -139,7 +139,7 @@ MEANS
 - nothing puts this pane on a screen but a weaver launching it from the Pane Manager.
 
 PROVEN BY — `workshop/attention.hpp` `Condition::action`; `workshop/keymap.hpp` `ActionRow`;
-`workshop/screen_attention.cpp` `standing_conditions`; `tests/test_workshop_panels.cpp` case
+`workshop/screen_attention.cpp` `standing_conditions`; `tests/test_workshop_host.cpp` case
 `"a condition names an action and what crosses is the weaver's own gesture"`, case
 `"an alert condition opens nothing"`; `tests/test_workshop_panes_attention.cpp` case
 `"the action a condition names arrives as words and not as a name"`.
@@ -153,7 +153,7 @@ MEANS
 - the wire form is the SEAM's; the internal type still crosses nothing;
 - an observer can see what the host says, and that grants nobody observation authority.
 
-PROVEN BY — `workshop/attention.hpp` `HeldConditions`; `tests/test_workshop_panels.cpp` case
+PROVEN BY — `workshop/attention.hpp` `HeldConditions`; `tests/test_workshop_host.cpp` case
 `"the condition path carries no timer, no callback and no history"`, case `"showing a
 condition writes no history"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
@@ -173,7 +173,7 @@ PROVEN BY — `workshop/attention_seam_vocabulary.hpp` `StandingCondition`,
 `StandingCondition::suggestion`, `StandingConditions`; `workshop/screen_attention.cpp`
 `standing_conditions`, `same_conditions`; `workshop/weave_run.cpp`
 `WorkshopWeave::say_conditions`; `workshop/weave.hpp` `WorkshopWeave::said_conditions_`,
-`WorkshopWeave::conditions_said_`; `tests/test_workshop_panels.cpp` case `"what is true is said
+`WorkshopWeave::conditions_said_`; `tests/test_workshop_host.cpp` case `"what is true is said
 across the seam, in the host's own order and words"`, case `"nothing new is nothing
 said, which is what stops the seam looping"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`

@@ -173,19 +173,19 @@ law is witnessed in the *document* suite, keyboard focus in *panes_input*, the I
 
 | register | witnessed by |
 |---|---|
-| arrangement, chrome, geometry, planes, pointer, tab-run, terminal | `workshop_screen`, then `workshop_panes` (window) and `workshop_panels` |
-| attention, info-body, info-controls, pane-manager | `workshop_panels`, then `workshop_document` |
+| arrangement, chrome, geometry, planes, pointer, tab-run, terminal | `workshop_screen`, then `workshop_panes` (window) and `workshop_host` |
+| attention, info-body, info-controls, pane-manager | `workshop_host`, then `workshop_document` |
 | catalog, panes-and-windows, setup-file | `workshop_panes` (seam, window), then `workshop_screen` |
-| contextual, press-chain | `workshop_panels`, `workshop_screen`, `workshop_document` |
+| contextual, press-chain | `workshop_host`, `workshop_screen`, `workshop_document` |
 | code | `workshop_panes` (code), then `workshop_files` (the entry's format, the development catalog, runtime and launch) |
 | build-output | `builder` (the runner's bytes, the kept record), then `workshop_panes` (output) |
 | document | `workshop_document`; the file half (document-file) in `workshop_persistence` |
-| editor, files, project | `workshop_panes` (editor) and `workshop_files`; the buffer in `editor`; project also `workshop_panels` |
-| authoring | `workshop_files` (the chooser), `workshop_panels` (`o`), `workshop_load` (the append door and the plan writer) |
+| editor, files, project | `workshop_panes` (editor) and `workshop_files`; the buffer in `editor`; project also `workshop_host` |
+| authoring | `workshop_files` (the chooser), `workshop_host` (`o`), `workshop_load` (the append door and the plan writer) |
 | focus | `workshop_panes` (input, editor), then `workshop_files`, `workshop_document` |
 | keyboard, text-box | `workshop_document`; text-box also `component` |
-| layouts, migration, session | `workshop_persistence`, then `workshop_screen` and `workshop_panels` |
-| weaver-pane | `workshop_panels` (the creator source) |
+| layouts, migration, session | `workshop_persistence`, then `workshop_screen` and `workshop_host` |
+| weaver-pane | `workshop_host` (the creator source) |
 | regions | `workshop_screen`, `workshop_document` |
 | session-restore | `workshop_persistence`, then `surface` and `workshop_files` |
 | editor-transfers | `workshop_panes` (editor transfers), then `source_transfer`; the `open` power in `workshop_guests` |

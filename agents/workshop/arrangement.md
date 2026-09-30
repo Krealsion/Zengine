@@ -58,7 +58,7 @@ MEANS
 - a default pane resolving to 89 cells with four on screen answers one rightward step by five.
 
 PROVEN BY — `workshop/weave_arrange.cpp` `managed_bounds`, `managed_window_base`;
-`workshop/screen.hpp` `PanelBounds`, `PanelBounds::rect`; `workshop/screen_gestures.cpp`
+`workshop/screen.hpp` `PaneBounds`, `PaneBounds::rect`; `workshop/screen_gestures.cpp`
 `pane_window_proposal`; `tests/test_workshop_screen.cpp` case `"a clipped default resize begins
 from the full resolved size"`.
 WHY — `agents/decisions/anchors-and-axes.md`
@@ -108,7 +108,7 @@ PROVEN BY — `workshop/screen.hpp` `PaneArrange`, `Session::arrange`;
 `workshop/weave_arrange.cpp` `enter_arrange_pane`, `take_pane_hold`, `arrange_geometry_ready`,
 `open_arrange_desk`, `arrange_press`; `tests/test_workshop_panes_window.cpp` case `"the one-pane
 scope is bound -- another pane cannot be drawn into it"`, case `"the desk manipulates
-panes directly, and a press is its own targeting"`; `tests/test_workshop_panels.cpp`
+panes directly, and a press is its own targeting"`; `tests/test_workshop_host.cpp`
 case `"contextual Arrange admission precedes binding"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
@@ -130,7 +130,7 @@ WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-09 — Arranging a pane is choosing it, and the rings are its statement
 
-LAW — `enter_arrange_pane` writes `Panels::selected` from the addressed reference after admission and nothing else; the state's visible statement is the rings, the legend and the notice.
+LAW — `enter_arrange_pane` writes `Panes::selected` from the addressed reference after admission and nothing else; the state's visible statement is the rings, the legend and the notice.
 
 MEANS
 - rings: accent in the one-pane scope; over the desk muted, with accent on the target;
@@ -180,7 +180,7 @@ WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 
 ## WL-ARR-13 — Escape is back, not cancel, and its last meaning puts the pane down
 
-LAW — After every mode, overlay and draft has answered, a bare Escape where a list or nothing holds the keys sheds `Panels::selected` and the keyboard candidate, moving nothing else.
+LAW — After every mode, overlay and draft has answered, a bare Escape where a list or nothing holds the keys sheds `Panes::selected` and the keyboard candidate, moving nothing else.
 
 MEANS
 - every immediate-commit gesture is reversible only by its inverse; there is no undo;
@@ -188,7 +188,7 @@ MEANS
 - it is not a keymap action: a recovery gesture must not be authorable into a lockout.
 
 PROVEN BY — `workshop/weave_external.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
-`default_row_context`; `tests/test_workshop_panels.cpp` case `"Escape clears the ordinary
+`default_row_context`; `tests/test_workshop_host.cpp` case `"Escape clears the ordinary
 selection last, and the inspected subject stands"`, case `"every more-specific
 Escape meaning answers first, and deselection waits"`, case `"a desk with no
 unoccupied cell still reaches selection = none"`.

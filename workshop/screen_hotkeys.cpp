@@ -20,9 +20,9 @@ std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     case KeyContext::kArrangeDesk: return "arranging the desk";
     case KeyContext::kArrangeReset: return "arranging -- reset";
     case KeyContext::kPane: {
-        const std::int64_t typing = keyboard_pane(s.panels);
+        const std::int64_t typing = keyboard_pane(s.panes);
         const RuntimePane* row =
-            typing == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typing);
+            typing == kNoPaneKind ? nullptr : s.panes.runtime.of_kind(typing);
         return row != nullptr ? "pane " + row->name + " @" + row->provider
                               : "a focused pane";
     }
@@ -107,7 +107,7 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
     }
     // ...THEN EVERY PANE'S ROWS IN FORCE, under the name its office offered it by.
     for (const PaneRows& p : k.panes) {
-        const RuntimePane* named = s.panels.runtime.of_kind(p.pane);
+        const RuntimePane* named = s.panes.runtime.of_kind(p.pane);
         const std::string group =
             named != nullptr ? "pane " + named->name + " @" + named->provider : "a pane";
         for (const PaneRow& row : p.rows) {

@@ -276,7 +276,7 @@ group, staying beside the click), `Esc` backs out of a group or closes the menu,
 click outside dismisses it — a click spent on closing the menu never also operates
 whatever it landed on. **`a`** opens the same menu from the keyboard for the room, so the
 capability does not depend on a mouse; with no pointer position to open beside, it opens at
-the panel column's corner.
+the right column's corner.
 
 **Pointing is not selecting.** Opening the menu on a pane or a tab changes no
 selection and moves no keyboard focus — the menu holds the pointed thing only for the one
@@ -303,7 +303,7 @@ Where a single line does not fit the room it has, Workshop cuts it and says so w
 Pointing at such a line used to scroll the text under your pointer so you could read the rest.
 
 **That is gone, and it is a loss rather than a move.** It only ever worked where Workshop
-itself held the longer value and had cut it — the Info panel's object and property rows, and
+itself held the longer value and had cut it — the Info pane's object and property rows, and
 before them the browser's. Every one of those is a loaded pane now, and a pane sends rows it
 has *already* cut: Workshop never receives the longer value, so there is nothing left in its
 hand to reveal. Widening the pane protocol so a pane could be asked for a longer text is the
@@ -606,7 +606,7 @@ Creator](#the-pane-creator--a-pane-made-of-data) above: no code, no weave, a pro
 If you want to *add* a pane that does something, that is [Making a Workshop
 tool](../guides/make-a-workshop-tool.md): start with a loaded, office-authored pane built against
 the installed package. It receives a bounded room, presses, keys, text, the wheel and declared
-actions. Workshop's remaining native Layouts panel is a host implementation detail.
+actions. Workshop's remaining native Layouts pane is a host implementation detail.
 
 The exact wire shapes are
 [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp), installed with the package

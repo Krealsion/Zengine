@@ -17,7 +17,7 @@ furniture the host is giving up. The reservation had to go before Info could bec
 it is its own change rather than a clause of that one.
 
 **Decision.** The room is the surface. `room_w` is the screen's width with nothing taken off it;
-the right column is a PLACE at `w - kPanelCols`, resolving to the rectangle it always resolved
+the right column is a PLACE at `w - kSideCols`, resolving to the rectangle it always resolved
 to, standing OVER the room rather than beside it. Every place is the weaver's to author, so
 `place_is_authorable` is gone rather than always-true, and the two refusals that read "is in the
 reserved side column — the screen owns its place" are gone with it. A desk row may name the
@@ -41,7 +41,7 @@ where it has always been and the strip beneath it is ordinary room.
   `PanePlace::mode` already carries a named place: `kDefault` does not say what unit `x` and `y`
   are in, it says "put this where its place puts it". A second named answer belongs beside the
   first, and a separate field would have had to answer what a named place plus coordinates means.
-- *Keeping the terminal pane's right edge at `w - kPanelCols`* — rejected: it is the reservation
+- *Keeping the terminal pane's right edge at `w - kSideCols`* — rejected: it is the reservation
   surviving under another name, in the one file that had just stopped making it. What it would
   have bought is real and is named under Consequences.
 
@@ -52,10 +52,10 @@ removable, and the reason it refused it does not apply here: it refused a room t
 which panes were open, so that hiding a list of names would resize a weaver's material. This room
 does not change with anything; it is the surface, at every moment, whatever stands on it. The
 terminal overlay is eight cells wider at the minimum screen — it asked for 56 columns and was
-given 48 because thirty of the surface's were spoken for. A stacked panel is wider too, and
+given 48 because thirty of the surface's were spoken for. A stacked pane is wider too, and
 gained the reachable columns to its right that the minimum screen never had: 48 of 48 left the
-weaver nothing, and 63 of 78 leaves fifteen. A panel now meets the right column at the smallest
-screens, which is what an overlay is, and it is legible because a panel wears a boundary.
+weaver nothing, and 63 of 78 leaves fifteen. A pane now meets the right column at the smallest
+screens, which is what an overlay is, and it is legible because a pane wears a boundary.
 
 **One cost this record did not pay for, and how it was paid.** The terminal pane reached the
 screen's right edge, so with the shipped desk an open terminal covered the pane standing there —

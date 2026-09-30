@@ -853,6 +853,5 @@ Terms that are **not** synonyms, and must not be flattened:
 | **operator** vs **power** | the same thing from two sides: an operator is the definition, a power is one entry in a host's catalog as introspection names it |
 | **setup** vs **session** | an arrangement you named and saved, versus the desk Workshop keeps for you between runs |
 | **close** vs **unload** | closing takes a pane off the desk and its tool keeps running; unloading ends the tool. The Pane Manager only closes |
-| **pane** vs **panel** | a pane is any region; *panel* is the compiled-in kind. A weaver needs neither word |
 | **authored** vs **resolved** | what a person wrote, versus what a viewport made of it. Held apart by a compile-time fence |
 | **Zen** | the umbrella name for Loom + Zengine + Workshop together. It is not a component, a namespace, or a directory you need |

@@ -185,9 +185,9 @@ Drained drain(RunningRecipe& process,
     return out;
 }
 
-/// Anything on this bus that accepts a BuildStatus. The Builder panel is one
+/// Anything on this bus that accepts a BuildStatus. The Builder pane is one
 /// such thing; this is another, and the tool cannot tell them apart, which is
-/// the property that makes the panel a presentation rather than an owner.
+/// the property that makes the pane a presentation rather than an owner.
 struct HeardState {
     std::int64_t heard = 0;
     ZEN_SHAPE(HeardState, 1, ZEN_FIELD(heard));
@@ -206,8 +206,8 @@ public:
     /// WHAT BECAME OF EACH ASK, in the tool's own word -- one per `BuildRequested` it heard.
     void on(const BuildAsked& a, loom::Mail&) { asked.push_back(a); }
     /// THE SECOND AND THIRD PUBLICATIONS, HEARD BY THE SAME ORDINARY LISTENER -- which is the
-    /// property: nothing about `RecipeCatalog` or `OfferArtifact` is addressed to a panel, so
-    /// anything on this bus that accepts them sees exactly what a panel sees.
+    /// property: nothing about `RecipeCatalog` or `OfferArtifact` is addressed to a pane, so
+    /// anything on this bus that accepts them sees exactly what a pane sees.
     void on(const RecipeCatalog& c, loom::Mail&) { catalogs.push_back(c); }
     void on(const OfferArtifact& a, loom::Mail&) { built.push_back(a); }
     /// ...AND THE REALIZATION OWNER'S ANSWER, for one case's sake. A Logger captures a
@@ -647,7 +647,7 @@ TEST_CASE("contract: nothing a build conversation carries is a command") {
 
     // THE HARD BOUNDARY, asserted as a SHAPE rather than a check: both shapes that can cause
     // work carry exactly one field, a target NAME -- no program, argument list, working directory
-    // or shell line anywhere on this wire -- so "the panel sent a command" is not a sentence this
+    // or shell line anywhere on this wire -- so "the pane sent a command" is not a sentence this
     // vocabulary can express, and making it one would change these declarations and this case.
     const auto requested = SchemaBuilder("BuildRequested", 2)
                                .field("recipe", Kind::Text)
@@ -658,7 +658,7 @@ TEST_CASE("contract: nothing a build conversation carries is a command") {
     const auto order = SchemaBuilder("RunBuild", 2).field("recipe", Kind::Text).build();
     CHECK(schema_of<RunBuild>()->content_id() == order->content_id());
 
-    // The ask that opens a panel carries nothing at all: there is one tool at
+    // The ask that opens a pane carries nothing at all: there is one tool at
     // the office and it has one condition, so the question has no parameters.
     const auto describe = SchemaBuilder("StatusRequested", 1).build();
     CHECK(schema_of<StatusRequested>()->content_id() == describe->content_id());
@@ -839,7 +839,7 @@ TEST_CASE("abandoning custody does not wait for the build, and leaves nothing be
     CHECK_FALSE(begun.process.holds());
 }
 
-TEST_CASE("the tail a panel is shown keeps whole lines, and keeps them APART") {
+TEST_CASE("the tail a pane is shown keeps whole lines, and keeps them APART") {
     // Lines joined with a space make one sentence that never happened -- `Built target
     // SDL3-shared [100%] Built target zengine-snake`, as a live run once showed; the separator
     // keeps two lines two.
@@ -861,7 +861,7 @@ TEST_CASE("the tail a panel is shown keeps whole lines, and keeps them APART") {
 TEST_CASE("a fragment waits for its newline, and the ending releases it") {
     // WHOLE LINES, SO A WEAVER IS NEVER SHOWN HALF A PATH. A look lands wherever
     // the child happened to be writing, so the tail of a drain is routinely a
-    // fragment -- and a panel that showed `/usr/include/foo` when the build said
+    // fragment -- and a pane that showed `/usr/include/foo` when the build said
     // `/usr/include/foobar.h: No such file` would be worse than one that waited
     // a beat.
     std::string buffer = "one\ntwo\nthr";
@@ -1187,7 +1187,7 @@ TEST_CASE("a failing build is reported as a failure, with its own exit status") 
     CHECK(live.runner->ran() == 1);
     // THE BUILD SYSTEM'S OWN REFUSAL SURVIVED to the tool's bounded tail. The
     // build's INNERMOST last words -- the script's own `asked to fail` -- are
-    // several lines further up than a three-row panel can hold once the build
+    // several lines further up than a three-row pane can hold once the build
     // system has added its own; that they reached the office at all is pinned
     // one layer down, at the Bench, where the whole stream is visible.
     CHECK_FALSE(done.detail.empty());
@@ -1201,7 +1201,7 @@ TEST_CASE("a failing build is reported as a failure, with its own exit status") 
 
 TEST_CASE("a failing build's OWN last words reach the office that asked") {
     // "THE DIAGNOSTIC WRITTEN JUST BEFORE THE CHILD EXITED WAS NOT LOST", MEASURED WHERE THE
-    // WHOLE STREAM IS: the tool publishes a bounded tail for a three-row panel, while the
+    // WHOLE STREAM IS: the tool publishes a bounded tail for a three-row pane, while the
     // `BuildOutput` facts carry everything to the office that receives them, with no row budget.
     Bench bench({cmake_recipe("brk", "fixture-broken")});
     bench.order("brk");
@@ -1625,7 +1625,7 @@ TEST_CASE("the tool says where it stands to one asker alone, and that moves noth
 }
 
 TEST_CASE("a presentation opened mid-build learns from the TOOL that one is running") {
-    // THE PANEL/TOOL SPLIT'S QUESTION -- "what is happening right now" -- answered by the tool,
+    // THE PANE/TOOL SPLIT'S QUESTION -- "what is happening right now" -- answered by the tool,
     // mid-build, to a reader that arrived after the ask.
     Live live({cmake_recipe("slow", "fixture-slow5")});
     live.tell_tool(BuildRequested{"slow"});
@@ -1935,7 +1935,7 @@ TEST_CASE("a finished build is durable; the thousand lines it printed are not") 
 }
 
 TEST_CASE("the realize refusal a row and a notice both cut is durable, whole") {
-    // WHERE A REFUSAL CAN BE READ WHOLE: the realization outcome is ONE row of a narrow panel and
+    // WHERE A REFUSAL CAN BE READ WHOLE: the realization outcome is ONE row of a narrow pane and
     // the notice ONE row of the bottom band, so a load refused deep in the Loom reaches a weaver
     // cut twice, and the half naming WHICH schema collided does not fit. The host keeps
     // `ArtifactRealized`, the owner's once-per-realize answer -- rare by construction, unlike

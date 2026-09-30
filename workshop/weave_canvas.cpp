@@ -8,8 +8,8 @@
 namespace zengine::workshop {
 
 bool WorkshopWeave::canvas_owner_current(std::int64_t kind) const {
-    const auto* row = session_.panels.runtime.of_kind(kind);
-    const auto* pane = session_.panels.external_pane(kind);
+    const auto* row = session_.panes.runtime.of_kind(kind);
+    const auto* pane = session_.panes.external_pane(kind);
     return row && pane && pane->canvas.grant > 0 && pane->canvas.owner.valid() &&
         host_->role_holder && host_->role_holder(row->provider) == pane->canvas.owner;
 }
@@ -28,8 +28,8 @@ void WorkshopWeave::end_canvas_holds(loom::Mail& mail) {
     for (std::size_t i = 0; i < 3; ++i) {
         const auto& held = canvas_holds_[i];
         if (!held.active) continue;
-        const auto* pane = session_.panels.external_pane(held.kind);
-        if (!session_.panels.has(held.kind) || !canvas_owner_current(held.kind) ||
+        const auto* pane = session_.panes.external_pane(held.kind);
+        if (!session_.panes.has(held.kind) || !canvas_owner_current(held.kind) ||
             !pane || pane->canvas.grant != held.event.grant || session_.arrange.open ||
             session_.context.open || session_.presented.open)
             lose_canvas_hold(i, mail);
@@ -38,17 +38,17 @@ void WorkshopWeave::end_canvas_holds(loom::Mail& mail) {
 
 void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
     const auto sc = screen_of(session_);
-    for (auto& pane : session_.panels.external) {
-        const auto* row = session_.panels.runtime.of_kind(pane.kind);
+    for (auto& pane : session_.panes.external) {
+        const auto* row = session_.panes.runtime.of_kind(pane.kind);
         if (!row) continue;
         const auto owner = host_->role_holder ? host_->role_holder(row->provider) : loom::WeaveId{};
         const bool capable = owner.valid() && host_->holder_accepts &&
             host_->holder_accepts(row->provider, *loom::schema_of<PaneCanvasRoom>()) &&
             host_->holder_accepts(row->provider, *loom::schema_of<PaneCanvasPointer>());
-        const auto where = bounds_of(session_.panels, session_.setup.active, pane.kind, sc);
+        const auto where = bounds_of(session_.panes, session_.setup.active, pane.kind, sc);
         const auto body = capable && where.open
             ? canvas_body_place(where.rect, sc,
-                external_title_rows(session_.panels, pane.kind, session_.pane_titles)) : FineRect{};
+                external_title_rows(session_.panes, pane.kind, session_.pane_titles)) : FineRect{};
         auto& c = pane.canvas;
         const auto grain = chrome_grain(sc);
         const bool graphical = sc.cell_px > 0;
@@ -90,9 +90,9 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const PaneCanvasContent& content, loom::Mail& mail) {
-    const auto* row = session_.panels.runtime.find(mail.authored_role(), content.pane);
+    const auto* row = session_.panes.runtime.find(mail.authored_role(), content.pane);
     if (!row || mail.authored_role().empty()) return;
-    auto* pane = session_.panels.external_pane(row->kind);
+    auto* pane = session_.panes.external_pane(row->kind);
     std::string_view reason;
     if (!pane || !canvas_owner_current(row->kind) || pane->canvas.owner != mail.sender())
         reason = "canvas provider no longer holds this pane";
@@ -120,8 +120,8 @@ void WorkshopWeave::on(const PaneCanvasContent& content, loom::Mail& mail) {
 
 bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& b,
                                  bool keys_went_here, loom::Mail& mail) {
-    const auto* row = session_.panels.runtime.of_kind(kind);
-    const auto* pane = session_.panels.external_pane(kind);
+    const auto* row = session_.panes.runtime.of_kind(kind);
+    const auto* pane = session_.panes.external_pane(kind);
     const auto at = canvas_point_of(b.space, b.x, b.y);
     if (!row || !pane || pane->canvas.grant == 0 || !at.understood || b.button < 1 || b.button > 3)
         return false;
@@ -195,8 +195,8 @@ bool WorkshopWeave::canvas_motion(const input::PointerMoved& m, loom::Mail& mail
 }
 
 bool WorkshopWeave::canvas_wheel(std::int64_t kind, const input::PointerWheel& w, loom::Mail& mail) {
-    const auto* row = session_.panels.runtime.of_kind(kind);
-    const auto* pane = session_.panels.external_pane(kind);
+    const auto* row = session_.panes.runtime.of_kind(kind);
+    const auto* pane = session_.panes.external_pane(kind);
     if (!row || !pane || pane->canvas.grant == 0) return false;
     const auto at = canvas_point_of(w.space, w.x, w.y);
     const auto& c = pane->canvas;

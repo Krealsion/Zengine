@@ -29,7 +29,7 @@ namespace pane = zengine::info_pane;
 inline PaneRef pane_info_ref() { return PaneRef{pane::kInfoPaneRole, pane::kInfoPane}; }
 
 /// THE SUBJECT MOST CASES EDIT: the host's own Layouts pane, on every desk.
-inline PaneRef layouts_ref() { return pane_ref_of(panel::kLayouts); }
+inline PaneRef layouts_ref() { return pane_ref_of(pane_kind::kLayouts); }
 
 const std::vector<std::string> kResting{pane::kActionDown, pane::kActionEdit, pane::kActionSwitch,
                                         pane::kActionUp, pane::kActionViewNew};
@@ -56,7 +56,7 @@ struct InfoRig {
         r.extent(width, height);
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `info` pane");
         kind = row()->kind;
-        REQUIRE(r.session().panels.has(kind));
+        REQUIRE(r.session().panes.has(kind));
     }
 
     /// A WORKSHOP WITH NO INFO IMAGE AT ALL -- the other half of the shipped desk.
@@ -67,7 +67,7 @@ struct InfoRig {
     }
 
     const RuntimePane* row() {
-        return r.session().panels.runtime.find(pane::kInfoPaneRole, pane::kInfoPane);
+        return r.session().panes.runtime.find(pane::kInfoPaneRole, pane::kInfoPane);
     }
 
     /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard. The first body
@@ -75,12 +75,12 @@ struct InfoRig {
     void focus() {
         const ui::Rect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
-        REQUIRE(r.session().panels.keyboard == kind);
+        REQUIRE(r.session().panes.keyboard == kind);
     }
 
     void unfocus() {
         r.press_cell(0, screen_of(r.session()).h - 1);
-        REQUIRE(r.session().panels.keyboard != kind);
+        REQUIRE(r.session().panes.keyboard != kind);
     }
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
@@ -219,7 +219,7 @@ struct InfoRig {
     /// THE ROWS WORKSHOP HOLDS FOR THIS PANE -- the content it admitted, which the next repaint
     /// paints. `shown()` is that picture painted, a turn behind; a spent notice leaves THESE.
     std::vector<std::string> admitted() {
-        const ExternalPane* seat = r.session().panels.external_pane(kind);
+        const ExternalPane* seat = r.session().panes.external_pane(kind);
         REQUIRE(seat != nullptr);
         std::vector<std::string> rows;
         for (const surface::SurfaceTextRow& one : seat->shown) {
@@ -242,15 +242,15 @@ struct InfoRig {
     /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
     /// private. Required to be a real grant, so the case cannot pass on a deduplicated extent.
     void regrant() {
-        const ExternalPane* seat = r.session().panels.external_pane(kind);
+        const ExternalPane* seat = r.session().panes.external_pane(kind);
         REQUIRE(seat != nullptr);
         const std::int64_t rows = seat->rows;
         const auto columns = seat->columns;
         wide_ = !wide_;
         author_test_pane_room(r, kind, rows + 1, columns);
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
-        REQUIRE(r.session().panels.external_pane(kind) != nullptr);
-        REQUIRE_MESSAGE(r.session().panels.external_pane(kind)->rows != rows,
+        REQUIRE(r.session().panes.external_pane(kind) != nullptr);
+        REQUIRE_MESSAGE(r.session().panes.external_pane(kind)->rows != rows,
                         "the surface changed and the pane's room did not");
     }
     bool wide_ = true;
@@ -427,7 +427,7 @@ TEST_CASE("the pane arrives by a plan row and resolves a row the desk already ha
 
     // ...AND THE HOST'S OWN CATALOG DOES NOT OFFER IT. There is one Info pane in this
     // process and it belongs to the image that was loaded.
-    for (const PanelKind& built_in : kPanelCatalog) {
+    for (const BuiltinPane& built_in : kBuiltinPanes) {
         CHECK(std::string(built_in.pane) != std::string(pane::kInfoPane));
     }
     CHECK(kinds_placed_in(placement::kSideRegion) == 0);
@@ -435,7 +435,7 @@ TEST_CASE("the pane arrives by a plan row and resolves a row the desk already ha
     // THE DESK NAMED IT BEFORE THE OFFICE EXISTED: the row was authored by `default_setup`,
     // and the office's arrival RESOLVED it rather than adding it.
     CHECK(has_pane(f.r.session().setup.active, pane_info_ref()));
-    CHECK(unresolved_panes(f.r.session().setup.active, f.r.session().panels).empty());
+    CHECK(unresolved_panes(f.r.session().setup.active, f.r.session().panes).empty());
 }
 
 TEST_CASE("the shipped desk puts it at the right column, by name and not by number") {
@@ -451,8 +451,8 @@ TEST_CASE("the shipped desk puts it at the right column, by name and not by numb
     CHECK(seated->place.y == 0);
 
     const Screen sc = screen_of(f.r.session());
-    const PanelBounds where =
-        bounds_of(f.r.session().panels, f.r.session().setup.active, f.kind, sc);
+    const PaneBounds where =
+        bounds_of(f.r.session().panes, f.r.session().setup.active, f.kind, sc);
     REQUIRE(where.open);
     CHECK(where.placed_in == placement::kSideRegion);
     CHECK(cells_covered(where.rect).w == 60); // 58 body columns plus borders
@@ -473,10 +473,10 @@ TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {
     CHECK(has_pane(f.r.session().setup.active, pane_info_ref()));
 
     const std::vector<PaneRef> waiting =
-        unresolved_panes(f.r.session().setup.active, f.r.session().panels);
+        unresolved_panes(f.r.session().setup.active, f.r.session().panes);
     REQUIRE(waiting.size() == 1);
     CHECK(waiting[0] == pane_info_ref());
-    CHECK(setup_rest_text(f.r.session().setup, f.r.session().panels, f.r.session().keymap)
+    CHECK(setup_rest_text(f.r.session().setup, f.r.session().panes, f.r.session().keymap)
               .find("1 unresolved") != std::string::npos);
 
     // ...AND NOTHING IS INSPECTED: the host holds a subject only when an inspector names one.
@@ -520,7 +520,7 @@ TEST_CASE("the two headings and both lists are the pane's rows, over the host's 
     author_test_pane_room(f.r, f.kind, 35, 58);
     f.r.extent(161, 48);
     const std::vector<CatalogRow> inventory =
-        inventory_rows(f.r.session().setup.active, f.r.session().panels);
+        inventory_rows(f.r.session().setup.active, f.r.session().panes);
     REQUIRE(inventory.size() >= 2); // three while the host's Pane Manager was a built-in
 
     std::string all = f.text();
@@ -584,7 +584,7 @@ TEST_CASE("the picture is PUBLISHED, so a gesture that never touched the pane mo
 }
 
 TEST_CASE("with nothing inspected, the properties say so and say what to do next") {
-    // A PANEL THAT MERELY GOES BLANK is indistinguishable from a tool that has broken.
+    // A PANE THAT MERELY GOES BLANK is indistinguishable from a tool that has broken.
     InfoRig f;
     f.open();
     CHECK(f.text().find("(no subject") != std::string::npos);
@@ -657,7 +657,7 @@ TEST_CASE("Info's lost list choice survives its own reload: Return inspects noth
     REQUIRE(add_pane(s.setup.active, ghost)); // authored, and offered by nobody: unresolved
 
     // THE LIST CURSOR ON THE UNRESOLVED ROW, by the list's own keys.
-    const std::vector<CatalogRow> rows = inventory_rows(s.setup.active, s.panels);
+    const std::vector<CatalogRow> rows = inventory_rows(s.setup.active, s.panes);
     std::size_t at = rows.size();
     for (std::size_t i = 0; i < rows.size(); ++i) {
         at = rows[i].ref == ghost ? i : at;
@@ -706,7 +706,7 @@ TEST_CASE("Info's lost list choice survives its own reload: Return inspects noth
     CHECK(f.text().find("Return inspected no") != std::string::npos);
 
     // A ROW CHOSEN NOW IS THE CHOICE -- Layouts -- and Return inspects it.
-    const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panels);
+    const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panes);
     std::size_t layouts_at = now.size();
     for (std::size_t i = 0; i < now.size(); ++i) {
         layouts_at = now[i].ref == layouts_ref() ? i : layouts_at;
@@ -884,7 +884,7 @@ TEST_CASE("the subject is Info's to name: the keys leaving, Escape and a press e
     f.unfocus();                  // a press elsewhere: the keys leave, the selection moves
     f.r.key(input::scan::kEscape); // the host's own Escape, with nothing more specific to do
     f.r.key(input::scan::kDown);   // command mode's arrows
-    CHECK(f.r.session().panels.keyboard != f.kind);
+    CHECK(f.r.session().panes.keyboard != f.kind);
 
     CHECK(f.r.session().inspected.ref == layouts_ref());
     CHECK(f.picture().subject == named);
@@ -914,7 +914,7 @@ TEST_CASE("a press on an Info row while a notice stands names the row painted th
 
     // A FULL ROOM: every granted row is published, and the last is the counted omission.
     const std::vector<std::string> rows = f.shown();
-    const ExternalPane* seat = f.r.session().panels.external_pane(f.kind);
+    const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
     REQUIRE(seat != nullptr);
     REQUIRE(static_cast<std::int64_t>(rows.size()) == seat->rows);
     CHECK(rows.back().rfind("... ", 0) == 0);
@@ -1577,7 +1577,7 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         widen(f.r.session().setup.active);
         widen(f.r.session().setup.shelved.front().desk);
         f.r.extent(150, 44);
-        const ExternalPane* seat = f.r.session().panels.external_pane(f.kind);
+        const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
         REQUIRE(seat != nullptr);
         REQUIRE(seat->columns > 90);
         REQUIRE(f.declared() == kDrafting);
@@ -2429,7 +2429,7 @@ TEST_CASE("the image that inspects a pane holds no desk") {
 
     // THE HOST'S PRESENTATION AND ITS DESK ARE NOT REACHABLE FROM HERE, asked of the INCLUDE.
     for (const char* forbidden : {"#include \"workshop/screen.hpp\"",
-                                  "#include \"workshop/panel.hpp\"",
+                                  "#include \"workshop/panes.hpp\"",
                                   "#include \"workshop/setup.hpp\"",
                                   "#include \"workshop/screen_info", "#include \"ui/"}) {
         INFO("includes ", forbidden);

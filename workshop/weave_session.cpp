@@ -17,12 +17,12 @@ void WorkshopWeave::on(const SetupApplyRequested& request, loom::Mail& mail) {
     if (!loaded.outcome.accepted) {
         (void)mail.answer(loom::Refused{loaded.outcome.refusal}); return;
     }
-    const auto seating = seat_panes(loaded.setup, session_.panels, stack_capacity(screen_of(session_)));
+    const auto seating = seat_panes(loaded.setup, session_.panes, stack_capacity(screen_of(session_)));
     if (seating.unresolved) {
         // The first pane this Workshop cannot present, by name: a caller preparing its providers
         // learns which one is missing from the owner's own words.
         for (const SetupPane& row : loaded.setup.panes) {
-            if (!resolve_pane(row.ref, session_.panels).has_value()) {
+            if (!resolve_pane(row.ref, session_.panes).has_value()) {
                 (void)mail.answer(loom::Refused{"setup names a pane this Workshop cannot present: " +
                                                 row.ref.provider + " " + row.ref.pane});
                 return;
@@ -35,8 +35,8 @@ void WorkshopWeave::on(const SetupApplyRequested& request, loom::Mail& mail) {
     session_.setup.active = loaded.setup;
     session_.setup.active_link = {};
     ++session_.setup.put_live;
-    session_.panels.selected = kNoPaneKind;
-    session_.panels.keyboard = kNoPaneKind;
+    session_.panes.selected = kNoPaneKind;
+    session_.panes.keyboard = kNoPaneKind;
     apply_setup(mail);
     say("applied setup " + quoted_setup_name(loaded.setup.name), false);
     repaint(mail);
@@ -62,7 +62,7 @@ void WorkshopWeave::apply_setup_now() {
     // Membership-dependent session state first: every membership change comes through this door,
     // so it is the one place that notices a selection whose pane is no longer named.
     forget_removed_selection();
-    const Reconciled done = reconcile(session_.panels, session_.setup.active,
+    const Reconciled done = reconcile(session_.panes, session_.setup.active,
                                       stack_capacity(screen_of(session_)));
 }
 
@@ -309,7 +309,7 @@ void WorkshopWeave::shift_layout(std::size_t at, std::int64_t by) {
 
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md
 std::string WorkshopWeave::unresolved_note(const Setup& s) const {
-    const std::vector<PaneRef> waiting = unresolved_panes(s, session_.panels);
+    const std::vector<PaneRef> waiting = unresolved_panes(s, session_.panes);
     if (waiting.empty()) {
         return {};
     }

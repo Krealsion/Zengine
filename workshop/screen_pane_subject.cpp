@@ -45,7 +45,7 @@ surface::SurfaceTextRegion region_over(const FineRect& r) {
 }
 
 const TextRegion* weaver_region(const Session& s, const PaneRef& ref, std::int64_t id) {
-    const WeaverPane& m = s.panels.weaver;
+    const WeaverPane& m = s.panes.weaver;
     if (!m.open() || !(weaver_pane_ref(m.definition.name) == ref)) {
         return nullptr;
     }
@@ -53,7 +53,7 @@ const TextRegion* weaver_region(const Session& s, const PaneRef& ref, std::int64
 }
 
 FineRect weaver_pane_interior(const Session& s, const Screen& sc) {
-    const PanelBounds where = bounds_of(s.panels, s.setup.active, kWeaverPaneKind, sc);
+    const PaneBounds where = bounds_of(s.panes, s.setup.active, kWeaverPaneKind, sc);
     if (!where.open || where.rect.empty()) {
         return FineRect{};
     }
@@ -96,7 +96,7 @@ Written write_region_axis(Session& s, const PaneRef& ref, std::int64_t id,
     if (!typed.accepted) {
         return Written::no(typed.refusal);
     }
-    return author_region_axis(s.panels.weaver.definition, id, axis, typed.subs);
+    return author_region_axis(s.panes.weaver.definition, id, axis, typed.subs);
 }
 
 Written write_region_text(Session& s, const PaneRef& ref, std::int64_t id,
@@ -104,7 +104,7 @@ Written write_region_text(Session& s, const PaneRef& ref, std::int64_t id,
     if (weaver_region(s, ref, id) == nullptr) {
         return Written::no(ref_text(ref) + " is not the open pane definition -- nothing to author");
     }
-    return set_region_text(s.panels.weaver.definition, id, std::move(text));
+    return set_region_text(s.panes.weaver.definition, id, std::move(text));
 }
 
 std::string region_resolved_text(const Session& s, const PaneRef& ref, std::int64_t id) {
@@ -142,7 +142,7 @@ std::string region_shown_text(const Session& s, const PaneRef& ref, std::int64_t
 }
 
 std::string interior_capture_text(const Session& s, const PaneRef& ref) {
-    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels);
+    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);
     if (!kind.has_value()) {
         if (ref.provider == kMakerPaneProvider) {
             return "no open definition is named " + ref.pane + " -- nothing to show";
@@ -150,12 +150,12 @@ std::string interior_capture_text(const Session& s, const PaneRef& ref) {
         return "unresolved -- nothing to inspect";
     }
     const Screen sc = screen_of(s);
-    const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, sc);
+    const PaneBounds where = bounds_of(s.panes, s.setup.active, *kind, sc);
     const char* whose = is_runtime_kind(*kind) ? "a provider's own" : "code-backed";
     if (!where.open || where.rect.empty()) {
         return std::string(whose) + " -- not presented; no authored interior";
     }
-    const PanelProsePlace place = panel_prose_place(where.rect, sc);
+    const ProsePlace place = prose_place(where.rect, sc);
     if (!place.present) {
         return std::string(whose) + " -- body " + fine_rect_text(place.inside, s.cell_px) +
                ", no room for a row; no authored interior";
@@ -169,13 +169,13 @@ std::string interior_capture_text(const Session& s, const PaneRef& ref) {
 // WL-MAKER-05 -- agents/workshop/maker-pane.md
 void paint_weaver_pane(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
                       const Screen& sc, std::int64_t chrome) {
-    paint_panel_frame(layer, b, chrome);
+    paint_pane_frame(layer, b, chrome);
     const PaneInside inside = pane_inside(b, sc);
     if (inside.rect.empty()) {
         return;
     }
     layer.texts.push_back(region_over(inside.rect));
-    const WeaverPane& m = s.panels.weaver;
+    const WeaverPane& m = s.panes.weaver;
     if (!m.open()) {
         return;
     }
@@ -192,7 +192,7 @@ void paint_weaver_pane(surface::SurfaceLayer& layer, const Session& s, const Fin
 }
 
 const TextRegion* creator_subject_region(const Session& s) {
-    const WeaverPane& m = s.panels.weaver;
+    const WeaverPane& m = s.panes.weaver;
     if (!m.open() || m.definition.regions.empty()) {
         return nullptr;
     }
@@ -211,9 +211,9 @@ void paint_creator_region_mark(surface::SurfaceLayer& layer, const Session& s,
     if (r == nullptr) {
         return;
     }
-    const PanelBounds where = bounds_of(s.panels, s.setup.active, kWeaverPaneKind, sc);
+    const PaneBounds where = bounds_of(s.panes, s.setup.active, kWeaverPaneKind, sc);
     if (!where.open || where.rect.empty() ||
-        pane_is_covered(s.panels, s.setup.active, sc, kWeaverPaneKind, where.rect)) {
+        pane_is_covered(s.panes, s.setup.active, sc, kWeaverPaneKind, where.rect)) {
         return;
     }
     const RegionPresentation p = present_region(*r, pane_inside(where.rect, sc).rect, sc);
@@ -235,9 +235,9 @@ void paint_creator_region_mark(surface::SurfaceLayer& layer, const Session& s,
 // WL-PED-05 -- agents/workshop/pane-manager.md
 FineRect pane_window_base(const Session& s, const PaneRef& ref) {
     FineRect out;
-    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels);
+    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);
     if (kind.has_value()) {
-        out = bounds_of(s.panels, s.setup.active, *kind, screen_of(s)).resolved;
+        out = bounds_of(s.panes, s.setup.active, *kind, screen_of(s)).resolved;
     }
     const SetupPane* row = pane_of(s.setup.active, ref);
     if (row != nullptr && row->place.mode == pane_unit::kSubcells) {
@@ -258,7 +258,7 @@ Written pane_geometry_typeable(const Session& s, const PaneRef& ref) {
     if (!has_pane(s.setup.active, ref)) {
         return Written::no(ref_text(ref) + " is not in this layout -- open it first");
     }
-    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels);
+    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);
     if (!kind.has_value()) {
         return Written::no(ref_text(ref) +
                            " is unresolved -- its window cannot be measured; `-` resets an "
@@ -266,9 +266,9 @@ Written pane_geometry_typeable(const Session& s, const PaneRef& ref) {
     }
     // No refusal for the right column: the screen reserves nothing, so typed geometry reaches the
     // pane standing there like any other.
-    const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, screen_of(s));
+    const PaneBounds where = bounds_of(s.panes, s.setup.active, *kind, screen_of(s));
     if (!where.open) {
-        return Written::no(kind_name(s.panels, *kind) +
+        return Written::no(kind_name(s.panes, *kind) +
                            " has no room on this screen yet -- `-` resets an axis");
     }
     return Written::ok();
@@ -359,11 +359,11 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 
 // WL-INFO-14 -- agents/workshop/info-body.md
 std::int64_t inspected_region(const Session& s, const PaneRef& ref) {
-    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels);
-    if (!kind.has_value() || !is_weaver_kind(*kind) || s.panels.weaver.definition.regions.empty()) {
+    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);
+    if (!kind.has_value() || !is_weaver_kind(*kind) || s.panes.weaver.definition.regions.empty()) {
         return 0;
     }
-    return s.panels.weaver.definition.regions.front().id;
+    return s.panes.weaver.definition.regions.front().id;
 }
 
 // WL-INFO-14 -- agents/workshop/info-body.md
@@ -376,7 +376,7 @@ PaneSubjectShown pane_subject_shown(const Session& s) {
     shown.office = in.ref.provider;
     shown.pane = in.ref.pane;
     shown.name = in.ref.pane;
-    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
+    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panes)) {
         if (row.ref == in.ref && row.kind != kNoPaneKind) {
             shown.name = row.name;
             break;
@@ -416,7 +416,7 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
     }
     Session* sp = &s;
     const auto found = [sp, ref]() -> std::optional<CatalogRow> {
-        for (const CatalogRow& row : inventory_rows(sp->setup.active, sp->panels)) {
+        for (const CatalogRow& row : inventory_rows(sp->setup.active, sp->panes)) {
             if (row.ref == ref) {
                 return row;
             }
@@ -478,12 +478,12 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
     }));
     rows.push_back(Row::section("RESOLVED"));
     rows.push_back(Row::show("Window", [sp, ref] {
-        const std::optional<std::int64_t> kind = resolve_pane(ref, sp->panels);
+        const std::optional<std::int64_t> kind = resolve_pane(ref, sp->panes);
         if (!kind.has_value()) {
             return std::string("-");
         }
-        const PanelBounds where =
-            bounds_of(sp->panels, sp->setup.active, *kind, screen_of(*sp));
+        const PaneBounds where =
+            bounds_of(sp->panes, sp->setup.active, *kind, screen_of(*sp));
         if (!where.open) {
             return std::string("-");
         }
@@ -498,7 +498,7 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
             return std::string("-- not in this build's vocabulary nor this layout");
         }
         const std::int64_t state =
-            pane_state_of(sp->panels, sp->setup.active, screen_of(*sp), *row);
+            pane_state_of(sp->panes, sp->setup.active, screen_of(*sp), *row);
         std::string out = pane_state_word(state);
         const char* remedy = pane_state_remedy(state);
         if (remedy[0] != '\0') {
@@ -511,10 +511,10 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
     // fine-lattice numbers, beside the resolved facts); any other pane gets a read-only capture
     // of its resolved body, never inferred controls. The arm is chosen at rebuild; rows read fresh.
     rows.push_back(Row::section("INTERIOR"));
-    const std::optional<std::int64_t> resolved_now = resolve_pane(ref, s.panels);
+    const std::optional<std::int64_t> resolved_now = resolve_pane(ref, s.panes);
     if (resolved_now.has_value() && is_weaver_kind(*resolved_now) &&
-        !s.panels.weaver.definition.regions.empty()) {
-        const std::int64_t region_id = s.panels.weaver.definition.regions.front().id;
+        !s.panes.weaver.definition.regions.empty()) {
+        const std::int64_t region_id = s.panes.weaver.definition.regions.front().id;
         rows.push_back(Row::show("Region", [sp, ref, region_id] {
             return weaver_region(*sp, ref, region_id) == nullptr
                        ? std::string("--")

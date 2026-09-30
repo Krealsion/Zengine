@@ -30,7 +30,7 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
         // consulted: a WeaveId would make a reloaded provider a different pane.
         return;
     }
-    const Admission admitted = admit_pane_offer(session_.panels.runtime, office, offer, rows, columns);
+    const Admission admitted = admit_pane_offer(session_.panes.runtime, office, offer, rows, columns);
     if (!admitted.written.accepted) {
         // Workshop's sentence about its own law: `admit_pane_offer` names a `PaneRef` only after
         // both halves passed `check_pane_key`.
@@ -42,7 +42,7 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
         // A re-offer is a correction: the descriptor was updated in place, and the presentation's
         // copy is cleared so the repaint grants the current room again. Nothing closes and no
         // catalog position moves.
-        if (ExternalPane* pane = session_.panels.external_pane(admitted.kind)) {
+        if (ExternalPane* pane = session_.panes.external_pane(admitted.kind)) {
             pane->shown.clear();
             pane->heard = false;
             pane->awaiting = true;
@@ -76,7 +76,7 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
     // one path -- the same `apply_setup` the doors and a restore go through -- so a
     // setup naming `third.party/hello` opens the moment that office offers it, without
-    // the file having been touched and without a second way to open a panel existing.
+    // the file having been touched and without a second way to open a pane existing.
     apply_setup(mail);
     repaint(mail);
 }
@@ -112,7 +112,7 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
     // rows' half and the collision law, into a COPY of the effective keymap -- so a
     // refusal anywhere leaves the keymap in force, and the pane's retained declaration,
     // exactly what they were.
-    const Admission admitted = admit_pane_actions(session_.panels.runtime, office, pane);
+    const Admission admitted = admit_pane_actions(session_.panes.runtime, office, pane);
     if (!admitted.written.accepted) {
         // And the declarer is answered: the band tells the weaver, and the verdict, as the answer
         // to this declaration, tells the provider, which can act on it. Both say the same words.
@@ -124,7 +124,7 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
     Keymap candidate = session_.keymap;
     const Written joined = join_pane_rows(candidate, admitted.kind, rows);
     if (!joined.accepted) {
-        const RuntimePane* row = session_.panels.runtime.of_kind(admitted.kind);
+        const RuntimePane* row = session_.panes.runtime.of_kind(admitted.kind);
         answer_declaration(std::string(office),
                            ActionsJudged{pane, false, 0,
                                          (row != nullptr ? row->name + " @" + row->provider + ": "
@@ -135,10 +135,10 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
         return;
     }
     // BOTH HALVES PASSED; ONLY NOW IS ANYTHING WRITTEN. The row is looked up again by
-    // handle, because nothing holds a pointer into `entries` (panel.hpp). The declaration gets
+    // handle, because nothing holds a pointer into `entries` (panes.hpp). The declaration gets
     // its number here, and the verdict below is the only place the declarer learns it.
     const std::int64_t declaration = ++declarations_;
-    for (RuntimePane& row : session_.panels.runtime.entries) {
+    for (RuntimePane& row : session_.panes.runtime.entries) {
         if (row.kind == admitted.kind) {
             row.actions = rows;
             row.declaration = declaration;
@@ -163,7 +163,7 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
         std::string refusal;
     };
     std::vector<Dropped> told;
-    for (RuntimePane& row : session_.panels.runtime.entries) {
+    for (RuntimePane& row : session_.panes.runtime.entries) {
         if (row.actions.empty()) {
             continue;
         }
@@ -210,7 +210,7 @@ void WorkshopWeave::fence_pictures(loom::Mail& mail) {
     // a repaint that moved no picture sends nothing, so the bus does not carry a fence per repaint.
     const std::int64_t number = fences_ + 1;
     bool handed_out = false;
-    for (ExternalPane& pane : session_.panels.external) {
+    for (ExternalPane& pane : session_.panes.external) {
         handed_out = pane.stamp.hand_out(pane.picture, number) || handed_out;
     }
     if (session_.presented.open) {
@@ -244,7 +244,7 @@ void WorkshopWeave::on(const PictureFence& fence, loom::Mail& mail) {
     if (fence.hop != 2) {
         return;
     }
-    for (ExternalPane& pane : session_.panels.external) {
+    for (ExternalPane& pane : session_.panes.external) {
         pane.stamp.come_round(fence.number);
     }
     session_.presented.stamp.come_round(fence.number);
@@ -267,17 +267,17 @@ void WorkshopWeave::admit_content(std::string_view office, const std::string& pa
     // Identity is asked of what was already admitted, with views: a pair matching no row returns
     // and retains nothing. No second admission law: admission refuses an offer that would shadow
     // a built-in, so no built-in can be a row here.
-    const RuntimePane* row = session_.panels.runtime.find(office, pane_key);
+    const RuntimePane* row = session_.panes.runtime.find(office, pane_key);
     if (row == nullptr) {
         return; // an office speaking about a pane it never offered, or about a built-in
     }
-    // THE HANDLE, TAKEN NOW. Nothing holds a pointer into `entries` (panel.hpp),
+    // THE HANDLE, TAKEN NOW. Nothing holds a pointer into `entries` (panes.hpp),
     // and the row is looked up again by handle at the moment a notice needs it.
     const std::int64_t kind = row->kind;
-    ExternalPane* pane = session_.panels.external_pane(kind);
+    ExternalPane* pane = session_.panes.external_pane(kind);
     if (pane == nullptr || !pane->granted) {
         // CONTENT FOR A CLOSED PANE, OR FOR ONE THAT HAS NOT BEEN GRANTED A ROOM YET.
-        // Nothing is cached and nothing is opened: a provider cannot make a panel appear
+        // Nothing is cached and nothing is opened: a provider cannot make a pane appear
         // by talking about it, which is what keeps discovery and presentation two doors.
         return;
     }
@@ -347,11 +347,11 @@ void WorkshopWeave::admit_caret(std::string_view office, const PaneCaret& caret,
     if (office.empty()) {
         return; // personal speech, `on(PaneContent)`'s own first rule
     }
-    const RuntimePane* row = session_.panels.runtime.find(office, caret.pane);
+    const RuntimePane* row = session_.panes.runtime.find(office, caret.pane);
     if (row == nullptr) {
         return; // an office speaking about a pane it never offered, or about a built-in
     }
-    ExternalPane* pane = session_.panels.external_pane(row->kind);
+    ExternalPane* pane = session_.panes.external_pane(row->kind);
     if (pane == nullptr || !pane->granted) {
         return; // a caret for a closed pane opens nothing, exactly as content does not
     }
@@ -406,12 +406,12 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     if (office.empty()) {
         return;
     }
-    const RuntimePane* row = session_.panels.runtime.find(office, asked.pane);
+    const RuntimePane* row = session_.panes.runtime.find(office, asked.pane);
     if (row == nullptr) {
         return;
     }
     // COPIED OUT BEFORE THE DESK MOVES: `apply_setup` may re-ask providers and the catalog
-    // vector may grow under a pointer into it (panel.hpp's own warning).
+    // vector may grow under a pointer into it (panes.hpp's own warning).
     const std::int64_t kind = row->kind;
     const std::string name = row->name;
     const PaneRef ref{row->provider, row->pane};
@@ -420,7 +420,7 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     Setup candidate = session_.setup.active;
     const bool added = add_pane(candidate, ref);
     const Seating trial =
-        seat_panes(candidate, session_.panels, stack_capacity(screen_of(session_)));
+        seat_panes(candidate, session_.panes, stack_capacity(screen_of(session_)));
     for (const std::int64_t k : trial.waiting) {
         if (k == kind) {
             // The launch door's own words and outcome: nothing is authored behind a refusal. A
@@ -438,7 +438,7 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
         session_.setup.active = std::move(candidate);
     }
     apply_setup(mail);
-    if (!session_.panels.has(kind)) {
+    if (!session_.panes.has(kind)) {
         // The belt under the trial: `apply_setup` seats through the same `seat_panes`, so a
         // mismatch is a defect. Answered as a refusal, with the row taken back: "seated" is the
         // word the asker acts on.
@@ -456,8 +456,8 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     // candidate's own argument, one question wider: a reveal that pointed the keys at a pane
     // still sitting behind another would put the first keystroke somewhere the weaver cannot
     // see. The two facts are written together everywhere they are written.
-    session_.panels.selected = kind;
-    session_.panels.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
+    session_.panes.selected = kind;
+    session_.panes.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
     // SAID, so the sentence on the notice line is about what just happened and names who
     // asked for it -- the pane's own rows say what it is showing. Said and written BEFORE the
     // answer leaves, so what the asker hears is a fact about this desk and not a promise.

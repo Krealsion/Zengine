@@ -58,7 +58,7 @@ inline constexpr std::int64_t kSucceeded = 2;    ///< the process exited 0 AND t
 inline constexpr std::int64_t kFailed = 3;       ///< the process ran and exited non-zero
 inline constexpr std::int64_t kNotStarted = 4;   ///< the process never started at all
 inline constexpr std::int64_t kUnknownRecipe = 5; ///< the name asked for is not one anybody knows
-/// A process is running now: the one value about the present, and the answer a panel opened
+/// A process is running now: the one value about the present, and the answer a pane opened
 /// mid-build receives.
 inline constexpr std::int64_t kRunning = 6;
 /// The process succeeded and the artifact is not there: its own problem, neither a success (the
@@ -267,7 +267,7 @@ struct BuildNotStarted {
 
 /// The tool's own state, published for any presentation to read: the tool goes on counting
 /// whether anybody looks, and `builds` proves it; `chunks` climbing makes a live build visible.
-/// It carries two outcomes, the build's and realization's, so a panel never derives one from
+/// It carries two outcomes, the build's and realization's, so a pane never derives one from
 /// the other, and `default_image` says whether a restart loads the realized image.
 struct BuildStatus {
     std::string recipe;      ///< the recipe this picture is about; empty before any ask

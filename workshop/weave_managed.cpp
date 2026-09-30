@@ -77,7 +77,7 @@ std::int64_t WorkshopWeave::managed_kind() const {
     if (ref.provider.empty()) {
         return kNoPaneKind;
     }
-    const RuntimePane* row = session_.panels.runtime.find(ref.provider, ref.pane);
+    const RuntimePane* row = session_.panes.runtime.find(ref.provider, ref.pane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
@@ -96,11 +96,11 @@ PanePresentation WorkshopWeave::derive_presentation() const {
     now.pane = host_->managed_pane.pane;
     const std::int64_t kind = managed_kind();
     now.member = has_pane(session_.setup.active, host_->managed_pane);
-    now.seated = kind != kNoPaneKind && session_.panels.has(kind);
-    now.selected = kind != kNoPaneKind && session_.panels.selected == kind;
-    now.keyboard = kind != kNoPaneKind && zengine::workshop::keyboard_pane(session_.panels) == kind;
+    now.seated = kind != kNoPaneKind && session_.panes.has(kind);
+    now.selected = kind != kNoPaneKind && session_.panes.selected == kind;
+    now.keyboard = kind != kNoPaneKind && zengine::workshop::keyboard_pane(session_.panes) == kind;
     if (const ExternalPane* pane =
-            kind == kNoPaneKind ? nullptr : session_.panels.external_pane(kind)) {
+            kind == kNoPaneKind ? nullptr : session_.panes.external_pane(kind)) {
         now.rows = pane->granted ? pane->rows : 0;
         now.columns = pane->granted ? pane->columns : 0;
         now.content_generation = pane->content_generation;
@@ -133,9 +133,9 @@ void WorkshopWeave::after_delivery(loom::Mail& mail) {
         room_owed_ = false;
         const std::int64_t kind = managed_kind();
         const RuntimePane* row =
-            kind == kNoPaneKind ? nullptr : session_.panels.runtime.of_kind(kind);
+            kind == kNoPaneKind ? nullptr : session_.panes.runtime.of_kind(kind);
         const ExternalPane* pane =
-            kind == kNoPaneKind ? nullptr : session_.panels.external_pane(kind);
+            kind == kNoPaneKind ? nullptr : session_.panes.external_pane(kind);
         if (row != nullptr && pane != nullptr && pane->granted) {
             (void)mail.as_role(kWorkshopProvider)
                 .send_to_role(row->provider, PaneRoom{row->pane, pane->rows, pane->columns});
@@ -156,7 +156,7 @@ WorkshopWeave::TrialRoom WorkshopWeave::trial_room(const Setup& candidate, std::
     const Screen sc = screen_of(session_);
     const StackCapacity capacity = stack_capacity(sc);
     // THE LAUNCH DOOR'S OWN TRIAL, on the candidate setup: nothing moves.
-    const Seating trial = seat_panes(candidate, session_.panels, capacity);
+    const Seating trial = seat_panes(candidate, session_.panes, capacity);
     for (const std::int64_t k : trial.waiting) {
         if (k == kind) {
             out.refusal = "no room for " + name +
@@ -164,10 +164,10 @@ WorkshopWeave::TrialRoom WorkshopWeave::trial_room(const Setup& candidate, std::
             return out;
         }
     }
-    // THE ROOM THE PANE'S BODY WOULD HAVE, measured on a COPY of the panels seated the way
+    // THE ROOM THE PANE'S BODY WOULD HAVE, measured on a COPY of the panes seated the way
     // the real application seats them, with the keys pointed at the pane as they will be
     // (the keyboard-holding pane keeps its title row, which changes its body).
-    Panels seated = session_.panels;
+    Panes seated = session_.panes;
     (void)reconcile(seated, candidate, capacity);
     if (!seated.has(kind)) {
         out.refusal = "no room for " + name + " on this screen";
@@ -175,7 +175,7 @@ WorkshopWeave::TrialRoom WorkshopWeave::trial_room(const Setup& candidate, std::
     }
     seated.selected = kind;
     seated.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
-    const PanelBounds where = bounds_of(seated, candidate, kind, sc);
+    const PaneBounds where = bounds_of(seated, candidate, kind, sc);
     if (!where.open) {
         out.refusal = "no room for " + name + " on this screen";
         return out;
@@ -196,7 +196,7 @@ void WorkshopWeave::on(const PresentationTrialRequested& asked, loom::Mail& mail
     if (!mail.authored_from_role(kOpeningRole)) {
         return; // a trial is a desk question, and only the manager's office asks it
     }
-    const RuntimePane* row = session_.panels.runtime.find(asked.provider, asked.pane);
+    const RuntimePane* row = session_.panes.runtime.find(asked.provider, asked.pane);
     if (row == nullptr) {
         (void)mail.answer(PresentationTrial{asked.op, false,
                                             "no pane " + asked.provider + "/" + asked.pane +
@@ -335,7 +335,7 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     session_.setup.active = trial_.candidate;
     apply_setup_now();
     const std::int64_t kind = trial_.kind;
-    if (!session_.panels.has(kind)) {
+    if (!session_.panes.has(kind)) {
         // The belt under the trial: a seat that did not happen is a defect, said as one, and not
         // an application. The desk answers Declined, keeps the desk as reconciled (a published
         // claim is not its to unpublish), drops the trial, and re-claims its truth at the end of
@@ -348,9 +348,9 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
         repaint_owed_ = true;
         return false;
     }
-    session_.panels.selected = kind;
-    session_.panels.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
-    if (ExternalPane* pane = session_.panels.external_pane(kind)) {
+    session_.panes.selected = kind;
+    session_.panes.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
+    if (ExternalPane* pane = session_.panes.external_pane(kind)) {
         pane->rows = trial_.room_rows;
         pane->columns = trial_.room_columns;
         pane->granted = true;

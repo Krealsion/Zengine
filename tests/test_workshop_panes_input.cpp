@@ -70,10 +70,10 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
 
     SUBCASE("a character medium") {
-        const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
+        const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
         const ExternalBodyPlace body = external_body_of(r.session(), kind);
         REQUIRE(body.present);
         REQUIRE(body.rows >= 3);
@@ -81,11 +81,11 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
         // THE HEADER IS WORKSHOP'S ROW AND IT NAMES NOTHING. The provider was never
         // granted it, so there is no row of its room for this press to be.
         seat->presses.clear();
-        r.press_cell(panel.x, panel.y);
+        r.press_cell(pane_rect.x, pane_rect.y);
         CHECK(seat->presses.empty());
 
         // ROW 0 OF THE ROOM IS THE ROW UNDER THE HEADER.
-        r.press_cell(panel.x, panel.y + kExternalHeaderRows);
+        r.press_cell(pane_rect.x, pane_rect.y + kExternalHeaderRows);
         REQUIRE(seat->presses.size() == 1);
         CHECK(seat->presses[0].pane == std::string(kHelloPane));
         CHECK(seat->presses[0].row == 0);
@@ -97,7 +97,7 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
         for (std::int64_t row = 0; row < body.rows; ++row) {
             for (std::int64_t col : {std::int64_t{0}, body.columns / 2, body.columns - 1}) {
                 seat->presses.clear();
-                r.press_cell(panel.x + col, panel.y + kExternalHeaderRows + row);
+                r.press_cell(pane_rect.x + col, pane_rect.y + kExternalHeaderRows + row);
                 REQUIRE(seat->presses.size() == 1);
                 CHECK(seat->presses[0].row == row);
                 CHECK(seat->presses[0].column == col);
@@ -106,16 +106,16 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
 
         // THE LAST ROW OF THE ROOM IS THE LAST ROW THAT NAMES ANYTHING.
         seat->presses.clear();
-        r.press_cell(panel.x, panel.y + kExternalHeaderRows + body.rows);
+        r.press_cell(pane_rect.x, pane_rect.y + kExternalHeaderRows + body.rows);
         CHECK(seat->presses.empty());
         // ...and so is the last column.
-        r.press_cell(panel.x + body.columns, panel.y + kExternalHeaderRows);
+        r.press_cell(pane_rect.x + body.columns, pane_rect.y + kExternalHeaderRows);
         CHECK(seat->presses.empty());
     }
 
     SUBCASE("a graphical medium, whose line height is not its cell height") {
         r.extent(1000, 700, 8, 18);
-        const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
+        const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
         const ExternalBodyPlace body = external_body_of(r.session(), kind);
         REQUIRE(body.present);
         // THE PRECONDITION THIS SUBCASE RESTS ON, ASSERTED RATHER THAN ASSUMED: a
@@ -129,10 +129,10 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
             seat->presses.clear();
             // THE PIXEL AT THE MIDDLE OF THE PROSE LINE -- inside the glyphs a weaver is
             // aiming at, resolved with the same `RegionFit` that positioned them.
-            const std::int64_t y = panel.y * surface::kCanvasCellPx + body.fit.origin_y +
+            const std::int64_t y = pane_rect.y * surface::kCanvasCellPx + body.fit.origin_y +
                                    (row + kExternalHeaderRows) * body.fit.line_px +
                                    body.fit.line_px / 2;
-            const std::int64_t x = panel.x * surface::kCanvasCellPx + body.fit.origin_x +
+            const std::int64_t x = pane_rect.x * surface::kCanvasCellPx + body.fit.origin_x +
                                    3 * body.fit.advance_px + body.fit.advance_px / 2;
             r.press_pixel(x, y);
             REQUIRE(seat->presses.size() == 1);
@@ -142,17 +142,17 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
 
         // THE TOP INSET IS THE HEADER'S FIRST PIXEL AND NAMES NO PROVIDER ROW.
         seat->presses.clear();
-        r.press_pixel(panel.x * surface::kCanvasCellPx + 1, panel.y * surface::kCanvasCellPx + 1);
+        r.press_pixel(pane_rect.x * surface::kCanvasCellPx + 1, pane_rect.y * surface::kCanvasCellPx + 1);
         CHECK(seat->presses.empty());
 
         // AND THE PIXEL REMAINDER UNDER THE LAST PROSE LINE IS NOT A ROW. `fit_region`
         // already decided how many WHOLE lines this rectangle holds; the strip left
         // over is inside the pane, is painted with nothing, and rounding it to the
         // nearest row would hand the provider a press at a place it never wrote to.
-        const std::int64_t past = panel.y * surface::kCanvasCellPx + body.fit.origin_y +
+        const std::int64_t past = pane_rect.y * surface::kCanvasCellPx + body.fit.origin_y +
                                   (body.rows + kExternalHeaderRows) * body.fit.line_px + 1;
-        REQUIRE(past < (panel.y + panel.h) * surface::kCanvasCellPx); // genuinely inside the pane
-        r.press_pixel(panel.x * surface::kCanvasCellPx + body.fit.origin_x + 1, past);
+        REQUIRE(past < (pane_rect.y + pane_rect.h) * surface::kCanvasCellPx); // genuinely inside the pane
+        r.press_pixel(pane_rect.x * surface::kCanvasCellPx + body.fit.origin_x + 1, past);
         CHECK(seat->presses.empty());
     }
 }
@@ -167,19 +167,19 @@ TEST_CASE("every forwarded press is inside the room that pane was granted") {
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
 
     for (const bool graphical : {false, true}) {
         CAPTURE(graphical);
         if (graphical) {
             r.extent(1000, 700, 8, 18);
         }
-        const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
+        const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
         const ExternalBodyPlace body = external_body_of(r.session(), kind);
         REQUIRE(body.present);
         seat->presses.clear();
-        for (std::int64_t y = panel.y - 2; y < panel.y + panel.h + 2; ++y) {
-            for (std::int64_t x = panel.x - 2; x < panel.x + panel.w + 2; ++x) {
+        for (std::int64_t y = pane_rect.y - 2; y < pane_rect.y + pane_rect.h + 2; ++y) {
+            for (std::int64_t x = pane_rect.x - 2; x < pane_rect.x + pane_rect.w + 2; ++x) {
                 if (graphical) {
                     r.press_pixel(cell_mid_px(x), cell_mid_px(y));
                 } else {
@@ -208,12 +208,12 @@ TEST_CASE("a press is authored as Workshop and addressed to the offering office"
         s.offer(m, PaneOffered{"second", "Second", "another office's pane"});
     });
     r.pick(hello_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
+    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
 
     seat->presses.clear();
     other->presses.clear();
-    r.press_cell(panel.x + 1, panel.y + kExternalHeaderRows);
+    r.press_cell(pane_rect.x + 1, pane_rect.y + kExternalHeaderRows);
 
     // ONE PROVIDER HEARS IT, and it is the one whose pane the hand landed on. The
     // destination is a ROLE, so a replaced provider would still hear its own pane's
@@ -231,15 +231,15 @@ TEST_CASE("management chrome gets first refusal, and a mode takes the press whol
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
-    const std::int64_t body_y = panel.y + kExternalHeaderRows;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
+    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+    const std::int64_t body_y = pane_rect.y + kExternalHeaderRows;
 
     // THE CONTROL: with nothing over it, this exact press reaches the provider. Every
     // negative below is the same press with one thing in the way, so a case that
     // stopped reaching the pane for an unrelated reason cannot read as a refusal.
     seat->presses.clear();
-    r.press_cell(panel.x + 1, body_y);
+    r.press_cell(pane_rect.x + 1, body_y);
     REQUIRE(seat->presses.size() == 1);
 
     // ...AND THAT CONTROL PRESS ALSO POINTS THE KEYBOARD AT THE PANE, so the two subcases that
@@ -247,7 +247,7 @@ TEST_CASE("management chrome gets first refusal, and a mode takes the press whol
     // rule (`p` typed into a focused pane is a `p`). The cell is derived from the pane's own
     // rectangle, because an overlay slot starts at the canvas corner and a literal `(1, 1)`
     // would be inside the pane it is meant to be outside of.
-    const auto away = [&]() { r.press_cell(panel.x + 1, panel.y + panel.h + 1); };
+    const auto away = [&]() { r.press_cell(pane_rect.x + 1, pane_rect.y + pane_rect.h + 1); };
 
     SUBCASE("pane management owns the pointer") {
         seat->presses.clear();
@@ -255,17 +255,17 @@ TEST_CASE("management chrome gets first refusal, and a mode takes the press whol
         r.key(input::scan::kW);
         r.text("w");
         REQUIRE(r.session().arrange.open);
-        r.press_cell(panel.x + 1, body_y);
+        r.press_cell(pane_rect.x + 1, body_y);
         CHECK(seat->presses.empty());
     }
     SUBCASE("a release is not a press") {
         seat->presses.clear();
-        r.release_cell(panel.x + 1, body_y);
+        r.release_cell(pane_rect.x + 1, body_y);
         CHECK(seat->presses.empty());
     }
     SUBCASE("a second button is not the primary one") {
         seat->presses.clear();
-        r.publish(loom::to_value(input::PointerButton{3, true, panel.x + 1,
+        r.publish(loom::to_value(input::PointerButton{3, true, pane_rect.x + 1,
                                                       body_y + surface::kTuiCanvasTopRow,
                                                       input::space::kCells, input::mod::kNone}));
         CHECK(seat->presses.empty());
@@ -273,13 +273,13 @@ TEST_CASE("management chrome gets first refusal, and a mode takes the press whol
     SUBCASE("a position in a space this application does not recognise") {
         seat->presses.clear();
         r.publish(loom::to_value(input::PointerButton{
-            1, true, panel.x + 1, body_y + surface::kTuiCanvasTopRow, 4242, input::mod::kNone}));
+            1, true, pane_rect.x + 1, body_y + surface::kTuiCanvasTopRow, 4242, input::mod::kNone}));
         CHECK(seat->presses.empty());
     }
 }
 
 TEST_CASE("a pane with no room granted yet is told about no press") {
-    // THE ONE BEAT BETWEEN A PANEL OPENING AND ITS FIRST GRANT. A press then would be a
+    // THE ONE BEAT BETWEEN A PANE OPENING AND ITS FIRST GRANT. A press then would be a
     // position in a lattice the provider has never been handed, which is unanswerable
     // rather than merely unhelpful.
     PaneRig r;
@@ -287,15 +287,15 @@ TEST_CASE("a pane with no room granted yet is told about no press") {
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
-    ExternalPane* pane = r.session().panels.external_pane(kind);
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
+    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+    ExternalPane* pane = r.session().panes.external_pane(kind);
     REQUIRE(pane != nullptr);
     REQUIRE(pane->granted);
 
-    pane->granted = false; // the state a freshly opened, not-yet-repainted panel is in
+    pane->granted = false; // the state a freshly opened, not-yet-repainted pane is in
     seat->presses.clear();
-    r.press_cell(panel.x + 1, panel.y + kExternalHeaderRows);
+    r.press_cell(pane_rect.x + 1, pane_rect.y + kExternalHeaderRows);
     CHECK(seat->presses.empty());
 }
 
@@ -320,11 +320,11 @@ TEST_CASE("Workshop gained one sentence and no knowledge of what a pane's rows m
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.ready();
     r.pick(hello_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
+    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
     seat->presses.clear();
     for (std::int64_t row = 0; row < 3; ++row) {
-        r.press_cell(panel.x + row, panel.y + kExternalHeaderRows + row);
+        r.press_cell(pane_rect.x + row, pane_rect.y + kExternalHeaderRows + row);
     }
     r.extent(140, 40);
     r.bus.remove_observer(tap);
@@ -361,18 +361,18 @@ TEST_CASE("a press names WHICH pane, when one provider offers two") {
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"second", "Second", "the same office's other pane"});
     });
-    REQUIRE(r.session().panels.runtime.entries.size() == 2);
+    REQUIRE(r.session().panes.runtime.entries.size() == 2);
     r.extent(160, 60); // room in the stack for two panes at once
     r.pick(hello_ref());
     r.pick(PaneRef{kHelloOffice, "second"});
-    REQUIRE(r.session().panels.open.size() == 3); // Layouts, and both panes
+    REQUIRE(r.session().panes.open.size() == 3); // Layouts, and both panes
 
-    for (const RuntimePane& row : r.session().panels.runtime.entries) {
+    for (const RuntimePane& row : r.session().panes.runtime.entries) {
         CAPTURE(row.pane);
-        const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), row.kind));
-        REQUIRE(panel.w > 0);
+        const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), row.kind));
+        REQUIRE(pane_rect.w > 0);
         seat->presses.clear();
-        r.press_cell(panel.x + 1, panel.y + kExternalHeaderRows);
+        r.press_cell(pane_rect.x + 1, pane_rect.y + kExternalHeaderRows);
         REQUIRE(seat->presses.size() == 1);
         CHECK(seat->presses[0].pane == row.pane);
     }
@@ -531,7 +531,7 @@ TEST_CASE("the mark a weaver reads is `>`, and it is the width of the indent it 
 TEST_CASE("a held selection asks the population, not the rows") {
     // AN ENTRY WINDOWED OUT OF A SHORT PANE IS PRESENT AND MERELY UNSHOWN; an entry the
     // kernel no longer has is GONE. Confusing the two would clear a weaver's selection
-    // every time they made a panel small.
+    // every time they made a pane small.
     const std::vector<intro::LoadedWeave> pop = loaded_population(20);
     CHECK(intro::names(pop, "weave-19"));
     CHECK_FALSE(intro::names(pop, "weave-20"));
@@ -553,7 +553,7 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40); // a room grant, which is this tool's one beat: two weaves now
     const ui::Rect body = external_body_rect(r.session(), kind);
     std::vector<std::string> shown = loaded_rows(r, kind);
@@ -619,7 +619,7 @@ TEST_CASE("heading, caveat, source note and blank select nothing") {
     (void)loom::mount<SelectionListener>(r.bus, ears);
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> shown = loaded_rows(r, kind);
     REQUIRE(shown.size() >= 4);
@@ -691,7 +691,7 @@ TEST_CASE("a press is read against the snapshot the weaver saw, not a fresh one"
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40);
     const ui::Rect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> shown = loaded_rows(r, kind);
@@ -749,7 +749,7 @@ TEST_CASE("interpreting a press asks the Weave Manager nothing") {
     // the audit below sees a discovery sentence rather than silently missing one.
     r.ready();
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
     const std::ptrdiff_t asks_before =
         std::count(said.begin(), said.end(), std::string("zen.ListLoaded"));
@@ -902,7 +902,7 @@ TEST_CASE("a selection is held while its entry is windowed out, and returns with
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40);
     const ui::Rect wide_body = external_body_rect(r.session(), kind);
     const std::vector<std::string> shown = loaded_rows(r, kind);
@@ -940,7 +940,7 @@ TEST_CASE("a selected library that goes away clears its mark when the absence is
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40);
     const ui::Rect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> shown = loaded_rows(r, kind);
@@ -962,8 +962,8 @@ TEST_CASE("a selected library that goes away clears its mark when the absence is
     // THE NEXT READING IS THE FIRST MOMENT THE ABSENCE IS OBSERVED, and the mark goes
     // with it. NOTHING IS PUBLISHED: a library going away is not a weaver's gesture, and
     // inferring a deselection from two snapshots would be a story rather than a fact.
-    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
-                          r.session().panels.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
+                          r.session().panes.external_pane(kind)->columns + 1);
     r.extent(150, 40);
     const std::vector<std::string> after = loaded_rows(r, kind);
     CHECK(after[0] == "loaded weaves -- 1");
@@ -989,7 +989,7 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
         r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     REQUIRE(who.valid());
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
     REQUIRE(ears.heard.size() == 1);
@@ -1031,7 +1031,7 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
     (void)loom::mount<SelectionListener>(cells.bus, by_cell);
     (void)cells.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     cells.pick(intro_ref());
-    const std::int64_t kind = cells.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = cells.session().panes.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(cells.session(), kind);
     cells.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
     REQUIRE(by_cell.heard.size() == 1);
@@ -1042,14 +1042,14 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
     (void)loom::mount<SelectionListener>(px.bus, by_pixel);
     (void)px.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     px.pick(intro_ref());
-    const std::int64_t gkind = px.session().panels.runtime.entries[0].kind;
+    const std::int64_t gkind = px.session().panes.runtime.entries[0].kind;
     px.extent(1000, 700, 8, 18);
     const ExternalBodyPlace gbody = external_body_of(px.session(), gkind);
-    const ui::Rect gpanel = pane_body_cells(external_panel_rect(px.session(), gkind));
+    const ui::Rect gpane_rect = pane_body_cells(external_pane_rect(px.session(), gkind));
     REQUIRE(gbody.fit.graphical());
-    px.press_pixel(gpanel.x * surface::kCanvasCellPx + gbody.fit.origin_x + gbody.fit.advance_px +
+    px.press_pixel(gpane_rect.x * surface::kCanvasCellPx + gbody.fit.origin_x + gbody.fit.advance_px +
                        gbody.fit.advance_px / 2,
-                   gpanel.y * surface::kCanvasCellPx + gbody.fit.origin_y +
+                   gpane_rect.y * surface::kCanvasCellPx + gbody.fit.origin_y +
                        (1 + kExternalHeaderRows) * gbody.fit.line_px + gbody.fit.line_px / 2);
     REQUIRE(by_pixel.heard.size() == 1);
 
@@ -1070,17 +1070,17 @@ TEST_CASE("nothing in this build reacts to a selection") {
     (void)loom::mount<SelectionListener>(r.bus, ears);
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
 
-    const std::size_t panels_before = r.session().panels.open.size();
+    const std::size_t panes_before = r.session().panes.open.size();
     const std::string notice_before = r.last_notice();
     const Setup setup_before = r.session().setup.active;
 
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
     REQUIRE(ears.heard.size() == 1);
 
-    CHECK(r.session().panels.open.size() == panels_before);
+    CHECK(r.session().panes.open.size() == panes_before);
     CHECK_FALSE(r.session().context.open);
     CHECK_FALSE(r.session().arrange.open);
     CHECK(r.last_notice() == notice_before);
@@ -1147,13 +1147,13 @@ TEST_CASE("a press into an external pane's room points the keyboard at it") {
     REQUIRE(is_runtime_kind(kind));
 
     // BEFORE THE PRESS, NOBODY HAS THE KEYBOARD, and an ordinary command still runs.
-    CHECK(r.session().panels.keyboard == kNoPaneKind);
+    CHECK(r.session().panes.keyboard == kNoPaneKind);
     REQUIRE(seat->keys.empty());
     r.key(input::scan::kUp);
     CHECK(seat->keys.empty());
 
     press_body(r, kind);
-    CHECK(r.session().panels.keyboard == kind);
+    CHECK(r.session().panes.keyboard == kind);
 
     r.key(input::scan::kUp);
     REQUIRE(seat->keys.size() == 1);
@@ -1196,33 +1196,33 @@ TEST_CASE("a press anywhere else takes the keyboard away again") {
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    REQUIRE(r.session().panels.keyboard == kind);
+    REQUIRE(r.session().panes.keyboard == kind);
 
     // A PRESS ON THE WORKSPACE. The document takes it, and the pane stops being typed
     // into -- which is the other half of "a press points the keyboard at what it hit".
     // The cell is derived from the pane's OWN rectangle rather than spelled: an
     // overlay slot starts at the canvas's top-left corner, so a literal `(1, 1)` is
     // inside the pane it is meant to be outside of.
-    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
-    const std::int64_t below = panel.y + panel.h + 1;
-    REQUIRE_FALSE(occupied_at(r.session().panels, r.session().setup.active,
-                              screen_of(r.session()), panel.x + 1, below)
+    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+    const std::int64_t below = pane_rect.y + pane_rect.h + 1;
+    REQUIRE_FALSE(occupied_at(r.session().panes, r.session().setup.active,
+                              screen_of(r.session()), pane_rect.x + 1, below)
                       .occupied);
-    r.press_cell(panel.x + 1, below);
-    CHECK(r.session().panels.keyboard == kNoPaneKind);
+    r.press_cell(pane_rect.x + 1, below);
+    CHECK(r.session().panes.keyboard == kNoPaneKind);
     const std::size_t before = seat->keys.size();
     r.key(input::scan::kUp);
     CHECK(seat->keys.size() == before);
 
-    // ...and a press on Workshop's own right-column panel does the same. The press is at that
+    // ...and a press on Workshop's own right-column pane does the same. The press is at that
     // column's RIGHT-HAND edge: the stack's slot reaches into its left columns because the room
     // is the surface (`the-room-is-the-screen`), and the external pane in that slot would take a
-    // press aimed at the panel's first column.
+    // press aimed at the pane's first column.
     press_body(r, kind);
-    REQUIRE(r.session().panels.keyboard == kind);
+    REQUIRE(r.session().panes.keyboard == kind);
     const Screen sc = screen_of(r.session());
-    r.press_cell(sc.panel_x + kPanelCols - 1, kSideY + 2);
-    CHECK(r.session().panels.keyboard == kNoPaneKind);
+    r.press_cell(sc.side_x + kSideCols - 1, kSideY + 2);
+    CHECK(r.session().panes.keyboard == kNoPaneKind);
 }
 
 TEST_CASE("a press into a second external pane moves the keyboard to it") {
@@ -1246,7 +1246,7 @@ TEST_CASE("a press into a second external pane moves the keyboard to it") {
     CHECK(second->keys.empty());
 
     press_body(r, b);
-    CHECK(r.session().panels.keyboard == b);
+    CHECK(r.session().panes.keyboard == b);
     r.key(input::scan::kDown);
     CHECK(first->keys.size() == 1); // unchanged: it is not the target any more
     REQUIRE(second->keys.size() == 1);
@@ -1296,7 +1296,7 @@ TEST_CASE("the keys that mean the same thing in every mode still outrank a pane"
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    REQUIRE(r.session().panels.keyboard == kind);
+    REQUIRE(r.session().panes.keyboard == kind);
 
     // `p` reaches the pane exactly as `a` does: a pane that holds the keyboard holds it, and
     // the way out is a press elsewhere.
@@ -1320,9 +1320,9 @@ TEST_CASE("the keys that mean the same thing in every mode still outrank a pane"
 
     // ...AND QUIT COMES BACK WITH THE KEYBOARD. A press outside the pane clears the
     // candidate, and the same chord is the application's again.
-    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
-    r.press_cell(panel.x + 1, panel.y + panel.h + 1);
-    REQUIRE(r.session().panels.keyboard == kNoPaneKind);
+    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+    r.press_cell(pane_rect.x + 1, pane_rect.y + pane_rect.h + 1);
+    REQUIRE(r.session().panes.keyboard == kNoPaneKind);
     r.key(input::scan::kC, input::mod::kCtrl);
     CHECK(r.host.quit);
     CHECK(seat->keys.size() == 3); // and this one was not forwarded
@@ -1335,7 +1335,7 @@ TEST_CASE("every Workshop mode owns the keyboard above a focused pane") {
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    REQUIRE(r.session().panels.keyboard == kind);
+    REQUIRE(r.session().panes.keyboard == kind);
 
     // THE CONTEXTUAL SURFACE, opened by a right press on the focused pane itself: pointing names
     // a subject and moves no candidate (WL-CTX-01), and the surface owns the keys while it is
@@ -1344,7 +1344,7 @@ TEST_CASE("every Workshop mode owns the keyboard above a focused pane") {
     const ui::Rect head = external_body_rect(r.session(), kind);
     r.right_press_cell(head.x + 1, head.y);
     REQUIRE(r.session().context.open);
-    REQUIRE(r.session().panels.keyboard == kind);
+    REQUIRE(r.session().panes.keyboard == kind);
     r.key(input::scan::kDown);
     CHECK(seat->keys.empty()); // the key is the surface's
     r.key(input::scan::kEscape);
@@ -1352,7 +1352,7 @@ TEST_CASE("every Workshop mode owns the keyboard above a focused pane") {
 
     // PANE MANAGEMENT owns the pointer and the keyboard whole while it is open.
     press_body(r, kind);
-    REQUIRE(r.session().panels.keyboard == kind);
+    REQUIRE(r.session().panes.keyboard == kind);
     press_outside(r, kind);
     r.key(input::scan::kW);
     r.text("w");
@@ -1396,7 +1396,7 @@ TEST_CASE("a pane that stops being presentable stops being typed into") {
 
     // ...and the pane is closed from outside it, the way the Pane Manager closes one.
     r.pick(PaneRef{kHelloOffice, kHelloPane}); // the close door, for an open row
-    REQUIRE_FALSE(r.session().panels.has(kind));
+    REQUIRE_FALSE(r.session().panes.has(kind));
     r.key(input::scan::kUp);
     CHECK(seat->keys.size() == 1); // nothing was sent
     // ...and `a` is Workshop's again, because nothing presentable owns the keyboard.
@@ -1418,7 +1418,7 @@ TEST_CASE("a press on a pane's header claims the keyboard and names no row") {
 
     r.press_cell(body.x + 1, body.y); // the header row
     CHECK(seat->presses.empty());     // no row was named
-    CHECK(r.session().panels.keyboard == kind);
+    CHECK(r.session().panes.keyboard == kind);
     r.key(input::scan::kUp);
     CHECK(seat->keys.size() == 1);
 }
@@ -1455,11 +1455,11 @@ TEST_CASE("the same gesture in both media produces the same provider intent") {
         if (graphical) {
             r.extent(1000, 700, 8, 18);
             const ExternalBodyPlace body = external_body_of(r.session(), kind);
-            const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
+            const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
             REQUIRE(body.fit.graphical());
-            r.press_pixel(panel.x * surface::kCanvasCellPx + body.fit.origin_x +
+            r.press_pixel(pane_rect.x * surface::kCanvasCellPx + body.fit.origin_x +
                               body.fit.advance_px / 2,
-                          panel.y * surface::kCanvasCellPx + body.fit.origin_y +
+                          pane_rect.y * surface::kCanvasCellPx + body.fit.origin_y +
                               kExternalHeaderRows * body.fit.line_px + body.fit.line_px / 2);
         } else {
             press_body(r, kind);
@@ -1495,7 +1495,7 @@ TEST_CASE("a provider that never asked for keys is unchanged") {
     const loom::WeaveId id = r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     REQUIRE(id.valid());
     r.pick(PaneRef{kHelloOffice, kHelloPane});
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> before = external_rows(r.last_canvas(), body);
     REQUIRE_FALSE(before.empty());
@@ -1580,15 +1580,15 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
     // ...AND THE MARK COSTS NO COLUMNS, which is what keeps a header from starting to
     // cut a provider's name because a weaver clicked on it.
     const std::string marked = header();
-    r.press_cell(external_panel_rect(r.session(), kind).x + 1,
-                 external_panel_rect(r.session(), kind).y +
-                     external_panel_rect(r.session(), kind).h + 1);
+    r.press_cell(external_pane_rect(r.session(), kind).x + 1,
+                 external_pane_rect(r.session(), kind).y +
+                     external_pane_rect(r.session(), kind).h + 1);
     CHECK(header().size() == marked.size());
     CHECK(band()[0].find("q quit") != std::string::npos); // and the keys came back
 }
 
 TEST_CASE("a pane with no room granted is not typed into") {
-    // `granted` is false for exactly one beat -- between a panel opening and the
+    // `granted` is false for exactly one beat -- between a pane opening and the
     // repaint that grants it -- and a key in that beat would be a keystroke sent to a
     // provider that has not been told it has a pane on screen at all.
     PaneRig r;
@@ -1597,9 +1597,9 @@ TEST_CASE("a pane with no room granted is not typed into") {
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    REQUIRE(r.session().panels.keyboard == kind);
+    REQUIRE(r.session().panes.keyboard == kind);
 
-    ExternalPane* pane = r.session().panels.external_pane(kind);
+    ExternalPane* pane = r.session().panes.external_pane(kind);
     REQUIRE(pane != nullptr);
     pane->granted = false;
     const std::size_t before = seat->keys.size();
@@ -1662,7 +1662,7 @@ inline std::int64_t press_seat_open(PaneRig& r, PressSeat*& seat, loom::WeaveId&
     (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
     r.bus.drain_until_idle();
     r.pick(PaneRef{kPressOffice, kPressPane});
-    const RuntimePane* row = r.session().panels.runtime.find(kPressOffice, kPressPane);
+    const RuntimePane* row = r.session().panes.runtime.find(kPressOffice, kPressPane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
@@ -2054,7 +2054,7 @@ struct ComposeRig {
                         .accepted);
             r.extent(240, 81); // one more row, so the authored height is reconciled
         }
-        for (const RuntimePane& row : r.session().panels.runtime.entries) {
+        for (const RuntimePane& row : r.session().panes.runtime.entries) {
             if (row.provider == std::string(kComposerOffice)) {
                 kind = row.kind;
             }
@@ -2180,7 +2180,7 @@ struct ComposeRig {
         const Screen sc = screen_of(r.session());
         for (std::int64_t y = sc.room_h - 1; y >= 0; --y) {
             for (std::int64_t x = sc.room_w - 1; x >= 0; --x) {
-                if (!occupied_at(r.session().panels, r.session().setup.active, sc, x, y)
+                if (!occupied_at(r.session().panes, r.session().setup.active, sc, x, y)
                          .occupied) {
                     r.press_cell(x, y);
                     return;
@@ -2261,14 +2261,14 @@ TEST_CASE("loading the real Composer puts its pane in the catalog, offered by it
         r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerOffice);
     REQUIRE(r.load_refusals.empty());
     REQUIRE(id.valid());
-    REQUIRE(r.session().panels.runtime.entries.size() == 1);
-    const RuntimePane& row = r.session().panels.runtime.entries[0];
+    REQUIRE(r.session().panes.runtime.entries.size() == 1);
+    const RuntimePane& row = r.session().panes.runtime.entries[0];
     CHECK(row.provider == std::string(kComposerOffice)); // Loom's stamp, not a payload field
     CHECK(row.pane == std::string(kComposePane));
     CHECK(row.name == std::string(zengine::composer::kComposePaneName));
     CHECK(row.summary == std::string(zengine::composer::kComposePaneSummary));
     // WORKSHOP COMPILED NOTHING FOR IT: the handle is a runtime one, minted from a
-    // live offer, and no `panel::k*` exists for this pane.
+    // live offer, and no `pane_kind::k*` exists for this pane.
     CHECK(is_runtime_kind(row.kind));
 }
 
@@ -2702,7 +2702,7 @@ TEST_CASE("selecting a weave in the real Loaded pane retargets the real Composer
     r.pick(composer_ref());
     std::int64_t intro_kind = kNoPaneKind;
     std::int64_t compose_kind = kNoPaneKind;
-    for (const RuntimePane& row : r.session().panels.runtime.entries) {
+    for (const RuntimePane& row : r.session().panes.runtime.entries) {
         // BOTH HALVES OF THE `PaneRef`: this office offers three panes, so matching on the
         // office alone would pick whichever the catalog happened to hold last.
         if (row.provider == std::string(kIntroOffice) && row.pane == std::string(kIntroPane)) {
@@ -2745,8 +2745,8 @@ TEST_CASE("selecting a weave in the real Loaded pane retargets the real Composer
     // AND THE LOADED PANE IS UNTOUCHED BY ANY OF IT. The two tools do not know about
     // each other: one published a fact and stopped, the other heard it and changed
     // its own target. Nothing opened, closed, moved or was hidden.
-    CHECK(r.session().panels.open.size() == 3); // Layouts, Loaded, Compose
-    CHECK(r.session().panels.has(panel::kLayouts));
+    CHECK(r.session().panes.open.size() == 3); // Layouts, Loaded, Compose
+    CHECK(r.session().panes.has(pane_kind::kLayouts));
     CHECK_FALSE(r.session().context.open);
     CHECK_FALSE(r.session().arrange.open);
 }
@@ -2769,11 +2769,11 @@ TEST_CASE("the Composer opens, closes and moves nothing but itself") {
     selector->zen_set_self(selector_id);
 
     // The Compose pane is NOT open. A selection updates a target nobody is looking at.
-    REQUIRE_FALSE(r.session().panels.has(r.session().panels.runtime.entries[0].kind));
-    const std::size_t panels_before = r.session().panels.open.size();
+    REQUIRE_FALSE(r.session().panes.has(r.session().panes.runtime.entries[0].kind));
+    const std::size_t panes_before = r.session().panes.open.size();
     const Setup setup_before = r.session().setup.active;
     const std::string notice_before = r.last_notice();
-    const std::int64_t selected_before = r.session().panels.selected;
+    const std::int64_t selected_before = r.session().panes.selected;
 
     selector->next = [](Selector& s, loom::Mail& m) {
         s.say(m, kIntroOffice, intro::LoadedSelected{"loaded", "zengine-timer", kTimerOffice});
@@ -2782,11 +2782,11 @@ TEST_CASE("the Composer opens, closes and moves nothing but itself") {
                      loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
     r.bus.drain_until_idle();
 
-    CHECK(r.session().panels.open.size() == panels_before);
+    CHECK(r.session().panes.open.size() == panes_before);
     CHECK(r.session().setup.active == setup_before);
     CHECK(r.last_notice() == notice_before);
-    CHECK(r.session().panels.selected == selected_before);
-    CHECK(r.session().panels.has(panel::kLayouts));
+    CHECK(r.session().panes.selected == selected_before);
+    CHECK(r.session().panes.has(pane_kind::kLayouts));
     CHECK_FALSE(r.session().context.open);
     CHECK_FALSE(r.session().arrange.open);
 }
@@ -2840,7 +2840,7 @@ TEST_CASE("a wheel over an external pane's body crosses unchanged, follows the p
 
     // NOBODY HAS THE KEYBOARD, and the wheel still crosses: it follows the pointer, as a
     // press does, not the keys.
-    REQUIRE(r.session().panels.keyboard == kNoPaneKind);
+    REQUIRE(r.session().panes.keyboard == kNoPaneKind);
     REQUIRE(seat->wheels.empty());
     r.wheel_cell(-1.0, body.x + 2, body.y + kExternalHeaderRows);
     REQUIRE(seat->wheels.size() == 1);
@@ -2850,8 +2850,8 @@ TEST_CASE("a wheel over an external pane's body crosses unchanged, follows the p
     CHECK(seat->wheel_authors[0] == std::string(kWorkshopProvider)); // authored as Workshop
     // AND IT POINTED NOTHING: a wheel is looking, not pressing, so neither the selection nor
     // the keyboard moved.
-    CHECK(r.session().panels.keyboard == kNoPaneKind);
-    CHECK(r.session().panels.selected == kNoPaneKind);
+    CHECK(r.session().panes.keyboard == kNoPaneKind);
+    CHECK(r.session().panes.selected == kNoPaneKind);
 
     // A FRACTION CROSSES AS A FRACTION. Workshop accumulates nothing for a list it cannot
     // see; how many rows a notch is worth is the provider's grammar.
@@ -2863,8 +2863,8 @@ TEST_CASE("a wheel over an external pane's body crosses unchanged, follows the p
     r.wheel_cell(-1.0, body.x + 2, body.y);
     CHECK(seat->wheels.size() == 2);
     // AND NEITHER IS THE WORKSPACE BESIDE IT.
-    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
-    r.wheel_cell(-1.0, panel.x + 1, panel.y + panel.h + 1);
+    const ui::Rect pane_rect = cells_covered(external_pane_rect(r.session(), kind));
+    r.wheel_cell(-1.0, pane_rect.x + 1, pane_rect.y + pane_rect.h + 1);
     CHECK(seat->wheels.size() == 2);
     // A KEY IS STILL NOT SENT BY A WHEEL, and no press was manufactured out of one.
     CHECK(seat->keys.empty());
@@ -2888,20 +2888,20 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
     r.pick(second_ref);
     std::int64_t hello_kind = kNoPaneKind;
     std::int64_t second_kind = kNoPaneKind;
-    for (const RuntimePane& row : r.session().panels.runtime.entries) {
+    for (const RuntimePane& row : r.session().panes.runtime.entries) {
         (row.pane == std::string(kHelloPane) ? hello_kind : second_kind) = row.kind;
     }
     REQUIRE(hello_kind != kNoPaneKind);
     REQUIRE(second_kind != kNoPaneKind);
 
     // PUT `second` OVER `hello`, offset so a strip of `hello` stays uncovered.
-    const ui::Rect hello = cells_covered(external_panel_rect(r.session(), hello_kind));
+    const ui::Rect hello = cells_covered(external_pane_rect(r.session(), hello_kind));
     REQUIRE(author_pane_place(r.session().setup.active, second_ref,
                               surface::subs_of_cells(hello.x + 4),
                               surface::subs_of_cells(hello.y + 3))
                 .accepted);
     r.extent(160, 61); // reseat at the authored place
-    const ui::Rect second = cells_covered(external_panel_rect(r.session(), second_kind));
+    const ui::Rect second = cells_covered(external_pane_rect(r.session(), second_kind));
     REQUIRE(second.x == hello.x + 4);
     REQUIRE(second.y == hello.y + 3);
     // A CELL INSIDE BOTH BODIES, below both headers.
@@ -2910,7 +2910,7 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
     REQUIRE(cx < hello.x + hello.w - 1);
     REQUIRE(cy < hello.y + hello.h - 1);
     const Screen sc = screen_of(r.session());
-    const Occupancy owner = occupied_at(r.session().panels, r.session().setup.active, sc, cx, cy);
+    const Occupancy owner = occupied_at(r.session().panes, r.session().setup.active, sc, cx, cy);
     REQUIRE(owner.occupied);
     REQUIRE((owner.kind == hello_kind || owner.kind == second_kind));
     const std::int64_t front = owner.kind;
@@ -2926,8 +2926,8 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
 
     // SELECTING THE COVERED PANE LIFTS IT, and the same cell is then its own. A press on a
     // strip of the back pane the front one does not cover.
-    const ui::Rect back_rect = cells_covered(external_panel_rect(r.session(), back));
-    const ui::Rect front_rect = cells_covered(external_panel_rect(r.session(), front));
+    const ui::Rect back_rect = cells_covered(external_pane_rect(r.session(), back));
+    const ui::Rect front_rect = cells_covered(external_pane_rect(r.session(), front));
     std::int64_t px = -1;
     std::int64_t py = -1;
     for (std::int64_t y = back_rect.y; y < back_rect.y + back_rect.h && px < 0; ++y) {
@@ -2943,8 +2943,8 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
     }
     REQUIRE(px >= 0);
     r.press_cell(px, py);
-    REQUIRE(r.session().panels.selected == back);
-    CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, cx, cy).kind == back);
+    REQUIRE(r.session().panes.selected == back);
+    CHECK(occupied_at(r.session().panes, r.session().setup.active, sc, cx, cy).kind == back);
     seat->wheels.clear();
     r.wheel_cell(-1.0, cx, cy);
     REQUIRE(seat->wheels.size() == 1);
@@ -2957,7 +2957,8 @@ TEST_CASE("a focused external pane keeps Escape; a press on a pane that takes no
     // declarer and proves the whole path: the key resolves to the row, the host asks its owner,
     // the owner answers under the number the ask went out on, and only then is the selection
     // put down. A Workshop with no desktop has no such row, and Escape does nothing.
-    // ⚔ MUTATION: removing the final Escape branch -- `selected` stays `panel::kLayouts` below.
+    // ⚔ MUTATION: removing the final Escape branch -- `selected` stays `pane_kind::kLayouts`
+    // below.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -2965,9 +2966,9 @@ TEST_CASE("a focused external pane keeps Escape; a press on a pane that takes no
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    REQUIRE(r.session().panels.selected == kind);
-    REQUIRE(r.session().panels.keyboard == kind);
-    const std::size_t panes_before = r.session().panels.open.size();
+    REQUIRE(r.session().panes.selected == kind);
+    REQUIRE(r.session().panes.keyboard == kind);
+    const std::size_t panes_before = r.session().panes.open.size();
     const Setup setup_before = r.session().setup.active;
 
     // THE PANE HOLDS THE KEYS, SO THE PANE OWNS ESCAPE: it crosses the seam exactly as every
@@ -2977,8 +2978,8 @@ TEST_CASE("a focused external pane keeps Escape; a press on a pane that takes no
     r.key(input::scan::kEscape);
     REQUIRE(seat->keys.size() == 1);
     CHECK(seat->keys[0].scancode == input::scan::kEscape);
-    CHECK(r.session().panels.selected == kind);
-    CHECK(r.session().panels.keyboard == kind);
+    CHECK(r.session().panes.selected == kind);
+    CHECK(r.session().panes.keyboard == kind);
     CHECK(keyboard_context(r.session()) == KeyContext::kPane);
 
     // THE WAY OUT IS THE WAY IN: press a pane that takes no text -- the Layouts pane, on every
@@ -2986,25 +2987,25 @@ TEST_CASE("a focused external pane keeps Escape; a press on a pane that takes no
     // the opposite of what this half of the case needs.
     const Screen sc = screen_of(r.session());
     const ui::Rect band =
-        cells_covered(bounds_of(r.session().panels, r.session().setup.active, panel::kLayouts, sc).rect);
+        cells_covered(bounds_of(r.session().panes, r.session().setup.active, pane_kind::kLayouts, sc).rect);
     r.press_cell(band.x + band.w - 1, band.y);
-    REQUIRE(r.session().panels.selected == panel::kLayouts);
+    REQUIRE(r.session().panes.selected == pane_kind::kLayouts);
     REQUIRE(keyboard_context(r.session()) == KeyContext::kCommand);
     r.key(input::scan::kEscape);
     CHECK(seat->keys.size() == 1); // the pane no longer holds the keys: nothing crossed
-    CHECK(r.session().panels.selected == kNoPaneKind);
-    CHECK(r.session().panels.keyboard == kNoPaneKind);
+    CHECK(r.session().panes.selected == kNoPaneKind);
+    CHECK(r.session().panes.keyboard == kNoPaneKind);
     CHECK(r.last_notice().find("unselected") != std::string::npos);
     // NOTHING ELSE MOVED: both panes are open, the setup is byte-identical, no file was written.
-    CHECK(r.session().panels.open.size() == panes_before);
+    CHECK(r.session().panes.open.size() == panes_before);
     CHECK(r.session().setup.active == setup_before);
-    CHECK(r.session().panels.has(kind));
+    CHECK(r.session().panes.has(kind));
 
     // A SECOND ESCAPE HAS NOTHING TO SHED: the selection stays none, the notice is left alone.
     const std::string notice = r.last_notice();
     r.key(input::scan::kEscape);
     CHECK(seat->keys.size() == 1);
-    CHECK(r.session().panels.selected == kNoPaneKind);
+    CHECK(r.session().panes.selected == kNoPaneKind);
     CHECK(r.last_notice() == notice);
 }
 
@@ -3023,12 +3024,12 @@ TEST_CASE("the Composer's windowed catalog is reached by the wheel") {
     const std::int64_t cx = body.x + 2;
     const std::int64_t cy = body.y + kExternalHeaderRows + 1;
     // NOBODY HAS THE KEYBOARD, and the wheel still moves the list: pointer, not keys.
-    REQUIRE(r.r.session().panels.keyboard == kNoPaneKind);
+    REQUIRE(r.r.session().panes.keyboard == kNoPaneKind);
     for (int i = 0; i < 12; ++i) {
         r.r.wheel_cell(-1.0, cx, cy); // toward the weaver: later rows
     }
     CHECK(r.shows("zen.PokeResetState v1"));
-    CHECK(r.r.session().panels.keyboard == kNoPaneKind);
+    CHECK(r.r.session().panes.keyboard == kNoPaneKind);
     // AND BACK: the first root returns, the last leaves.
     for (int i = 0; i < 12; ++i) {
         r.r.wheel_cell(+1.0, cx, cy);
@@ -3057,27 +3058,27 @@ TEST_CASE("a pane that takes keys keeps Escape until it says the Escape was unsp
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    REQUIRE(r.session().panels.selected == kind);
+    REQUIRE(r.session().panes.selected == kind);
 
     // IT ACCEPTS KEYS, SO THE ESCAPE CROSSES and nothing on the desk moves: Workshop cannot see
     // whether it was spent, and does not guess.
     r.key(input::scan::kEscape);
     REQUIRE(seat->keys.size() == 1);
     CHECK(seat->keys[0].scancode == input::scan::kEscape);
-    CHECK(r.session().panels.selected == kind);
-    CHECK(r.session().panels.keyboard == kind);
+    CHECK(r.session().panes.selected == kind);
+    CHECK(r.session().panes.keyboard == kind);
 
     // ...AND WHEN IT SAYS THE ESCAPE WAS UNSPENT, the pane goes down -- the press-elsewhere
     // gesture's own two lines, and nothing else.
-    const std::size_t panes = r.session().panels.open.size();
+    const std::size_t panes = r.session().panes.open.size();
     const Setup desk = r.session().setup.active;
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
-    CHECK(r.session().panels.selected == kNoPaneKind);
-    CHECK(r.session().panels.keyboard == kNoPaneKind);
+    CHECK(r.session().panes.selected == kNoPaneKind);
+    CHECK(r.session().panes.keyboard == kNoPaneKind);
     CHECK(r.last_notice().find("unselected") != std::string::npos);
-    CHECK(r.session().panels.open.size() == panes);
+    CHECK(r.session().panes.open.size() == panes);
     CHECK(r.session().setup.active == desk);
-    CHECK(r.session().panels.has(kind));
+    CHECK(r.session().panes.has(kind));
 }
 
 TEST_CASE("an answer to an Escape that is over cannot borrow the next Escape's identity") {
@@ -3089,7 +3090,7 @@ TEST_CASE("an answer to an Escape that is over cannot borrow the next Escape's i
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    REQUIRE(r.session().panels.selected == kind);
+    REQUIRE(r.session().panes.selected == kind);
 
     // TWO ESCAPES WITH A KEY BETWEEN THEM, each crossing as a key this pane takes, and each
     // under a number of its own -- which is the only thing that tells them apart from here.
@@ -3108,30 +3109,30 @@ TEST_CASE("an answer to an Escape that is over cannot borrow the next Escape's i
     // pane down on it.
     r.drive(seat,
             [first](ProviderSeat& s, loom::Mail& m) { s.unspent_answering(m, kHelloPane, first); });
-    CHECK(r.session().panels.selected == kind);
-    CHECK(r.session().panels.keyboard == kind);
+    CHECK(r.session().panes.selected == kind);
+    CHECK(r.session().panes.keyboard == kind);
 
     // AN ANSWER THAT ECHOES NOTHING is about no Escape at all, however current the desk is.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent_anonymously(m, kHelloPane); });
-    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().panes.selected == kind);
 
     // ...AND THE SECOND ESCAPE'S OWN ANSWER STILL WORKS, so neither refusal above is a pane
     // that could no longer be put down at all.
     r.drive(seat, [second](ProviderSeat& s, loom::Mail& m) {
         s.unspent_answering(m, kHelloPane, second);
     });
-    CHECK(r.session().panels.selected == kNoPaneKind);
-    CHECK(r.session().panels.keyboard == kNoPaneKind);
+    CHECK(r.session().panes.selected == kNoPaneKind);
+    CHECK(r.session().panes.keyboard == kNoPaneKind);
 
     // A SECOND COPY OF THAT SAME ANSWER IS ALREADY SPENT: the number went with the Escape it
     // answered, so a duplicate -- a retry, a doubled send, a replay -- moves nothing.
     press_body(r, kind);
-    REQUIRE(r.session().panels.selected == kind);
+    REQUIRE(r.session().panes.selected == kind);
     r.drive(seat, [second](ProviderSeat& s, loom::Mail& m) {
         s.unspent_answering(m, kHelloPane, second);
     });
-    CHECK(r.session().panels.selected == kind);
-    CHECK(r.session().panels.keyboard == kind);
+    CHECK(r.session().panes.selected == kind);
+    CHECK(r.session().panes.keyboard == kind);
 }
 
 TEST_CASE("only an Escape is sent under a number, and a pane may answer the one it holds") {
@@ -3143,7 +3144,7 @@ TEST_CASE("only an Escape is sent under a number, and a pane may answer the one 
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    REQUIRE(r.session().panels.selected == kind);
+    REQUIRE(r.session().panes.selected == kind);
 
     // AN ORDINARY KEY CARRIES NOTHING. The number names one conversation -- "was this Escape
     // yours?" -- and no other keystroke asks a pane anything.
@@ -3158,7 +3159,7 @@ TEST_CASE("only an Escape is sent under a number, and a pane may answer the one 
     REQUIRE(seat->key_asks.size() == 2);
     CHECK(seat->key_asks[1] != 0);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
-    CHECK(r.session().panels.selected == kNoPaneKind);
+    CHECK(r.session().panes.selected == kNoPaneKind);
 }
 
 TEST_CASE("a word about an Escape moves nothing when it is stale or anonymous or about another pane") {
@@ -3170,31 +3171,31 @@ TEST_CASE("a word about an Escape moves nothing when it is stale or anonymous or
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    REQUIRE(r.session().panels.selected == kind);
+    REQUIRE(r.session().panes.selected == kind);
 
     // NO ESCAPE WAS ROUTED AT ALL: a pane cannot put itself down whenever it likes.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
-    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().panes.selected == kind);
 
     // AN ESCAPE OVERTAKEN BY THE WEAVER'S NEXT GESTURE: they typed after it, so the word is about
     // something that is no longer the last thing they did.
     r.key(input::scan::kEscape);
     r.text("x");
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
-    CHECK(r.session().panels.selected == kind);
-    CHECK(r.session().panels.keyboard == kind);
+    CHECK(r.session().panes.selected == kind);
+    CHECK(r.session().panes.keyboard == kind);
 
     // ANONYMOUS SPEECH IS NO OFFICE'S WORD, and a pane this office never offered is no pane.
     r.key(input::scan::kEscape);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent_personally(m, kHelloPane); });
-    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().panes.selected == kind);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, "no-such-pane"); });
-    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().panes.selected == kind);
 
     // ...AND THE ONE THAT IS ALL THREE THINGS AT ONCE STILL WORKS, so the checks above are not a
     // pane that could never be put down.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
-    CHECK(r.session().panels.selected == kNoPaneKind);
+    CHECK(r.session().panes.selected == kNoPaneKind);
 }
 
 TEST_CASE("Loaded window maps scrolled rows and bounds its origin") {

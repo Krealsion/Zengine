@@ -466,9 +466,9 @@ TEST_CASE("parent is lexical and stops where a path stops, not where a project d
 // ============================================================================
 
 TEST_CASE("the marks owner is session truth, and Files is only its first reader") {
-    // The owner is `LocationMarks` on the `Session`, beside `panels` -- not inside `FilesPane`
+    // The owner is `LocationMarks` on the `Session`, beside `panes` -- not inside `FilesPane`
     // -- so a later consumer can ask about remembered places without reaching into a
-    // presentation, and `close_panel` cannot destroy one.
+    // presentation, and `close_kind` cannot destroy one.
     LocationMarks marks;
     marks.origin = "/work/game";
     CHECK(marks.provenance("/work/game") == mark_from::kOrigin);

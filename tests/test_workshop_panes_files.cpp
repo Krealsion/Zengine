@@ -246,12 +246,12 @@ struct FilesRig {
     }
 
     const RuntimePane* row() {
-        return r.session().panels.runtime.find(files::kFilesRole, files::kProjectFilesPane);
+        return r.session().panes.runtime.find(files::kFilesRole, files::kProjectFilesPane);
     }
 
     /// The Editor pane's handle, when its image was loaded beside the browser.
     std::int64_t editor_kind() {
-        const RuntimePane* editor = r.session().panels.runtime.find("zengine.editor", "editor");
+        const RuntimePane* editor = r.session().panes.runtime.find("zengine.editor", "editor");
         REQUIRE(editor != nullptr);
         return editor->kind;
     }
@@ -370,14 +370,14 @@ struct FilesRig {
     /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
     /// private. Required to be a real grant, so a deduplicated extent cannot pass for one.
     void regrant() {
-        const ExternalPane* seat = r.session().panels.external_pane(kind);
+        const ExternalPane* seat = r.session().panes.external_pane(kind);
         REQUIRE(seat != nullptr);
         const std::int64_t rows = seat->rows;
         const std::int64_t columns = seat->columns;
         author_test_pane_room(r, kind, rows + 1, columns);
         wide_ = !wide_;
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
-        const ExternalPane* after = r.session().panels.external_pane(kind);
+        const ExternalPane* after = r.session().panes.external_pane(kind);
         REQUIRE(after != nullptr);
         REQUIRE_MESSAGE((after->rows != rows || after->columns != columns),
                         "the surface changed and the pane's room did not");
@@ -561,13 +561,13 @@ TEST_CASE("the browser arrives by a plan row, under an office of its own") {
     // ...AND THE INVENTORY LISTS IT UNDER THE OFFICE THAT OFFERED IT, which is the only
     // answer to "whose pane is this" (WL-CAT-03).
     bool listed = false;
-    for (const CatalogRow& row : combined_catalog(f.r.session().panels)) {
+    for (const CatalogRow& row : combined_catalog(f.r.session().panes)) {
         listed = listed || row.ref == files_ref();
     }
     CHECK(listed);
     // ...AND THE HOST'S OWN CATALOG DOES NOT OFFER IT, from the other side: there is one
     // Files pane in this process and it belongs to the image that was loaded.
-    for (const PanelKind& built_in : kPanelCatalog) {
+    for (const BuiltinPane& built_in : kBuiltinPanes) {
         CHECK(std::string(built_in.pane) != files::kProjectFilesPane);
     }
 }
@@ -711,7 +711,7 @@ TEST_CASE("a press selects, and a second press on the same row activates") {
     put_file(f.root / "zulu.cpp", "int z;\n");
     f.open();
     press_outside(f.r, f.kind);
-    REQUIRE(keyboard_pane(f.r.session().panels) == kNoPaneKind);
+    REQUIRE(keyboard_pane(f.r.session().panes) == kNoPaneKind);
     SeamTap tap(f.r.bus, f.files_id());
 
     // Row 0 is the pane's own header; row 1 is the first entry under it, `src/`, where the cursor
@@ -831,8 +831,8 @@ TEST_CASE("a press on Files' painted selected row while a refusal leads opens ex
     REQUIRE(tap.requested.size() == 1);
     CHECK(tap.requested[0] == alpha);
     const std::int64_t editor = f.editor_kind();
-    REQUIRE(f.r.session().panels.has(editor));
-    CHECK(f.r.session().panels.keyboard == editor);
+    REQUIRE(f.r.session().panes.has(editor));
+    CHECK(f.r.session().panes.keyboard == editor);
     const loom::SenseReading held = f.r.bus.observe(f.r.kernel.weave_id("zengine-editor-pane"),
                                                     EditorDocument::zen_name,
                                                     EditorDocument::zen_version);
@@ -911,7 +911,7 @@ TEST_CASE("a press on Files' selected row after its open moved the keys to the E
     f.r.key(input::scan::kReturn);
     const std::int64_t editor = f.editor_kind();
     REQUIRE(tap.requested == std::vector<std::string>{beta});
-    REQUIRE(keyboard_pane(f.r.session().panels) == editor);
+    REQUIRE(keyboard_pane(f.r.session().panes) == editor);
 
     // THE KEYS ARE THE EDITOR'S: an ordinary key reaches it, and Files hears nothing.
     SeamTap editor_tap(f.r.bus, f.r.kernel.weave_id("zengine-editor-pane"));
@@ -930,7 +930,7 @@ TEST_CASE("a press on Files' selected row after its open moved the keys to the E
     CHECK(tap.keys_went_here.back() == 0);
     CHECK(tap.requested == std::vector<std::string>{beta});
     CHECK(tap.attempts == 1);
-    CHECK(keyboard_pane(f.r.session().panels) == f.kind);
+    CHECK(keyboard_pane(f.r.session().panes) == f.kind);
     CHECK(f.at_cursor().rfind("beta.cpp", 0) == 0);
 
     // ...AND THE NEXT PRESS ON IT, THE KEYS BEING FILES', IS THE ACTIVATION.
@@ -938,7 +938,7 @@ TEST_CASE("a press on Files' selected row after its open moved the keys to the E
     REQUIRE(tap.pressed.size() == presses + 2);
     CHECK(tap.keys_went_here.back() == 1);
     CHECK(tap.requested == std::vector<std::string>{beta, beta});
-    CHECK(keyboard_pane(f.r.session().panels) == editor);
+    CHECK(keyboard_pane(f.r.session().panes) == editor);
 }
 
 TEST_CASE("the keys leave Files by a press into the Editor and Files is told nothing, so only Workshop can say a later press on Files' selected row came from elsewhere") {
@@ -954,15 +954,15 @@ TEST_CASE("the keys leave Files by a press into the Editor and Files is told not
     press_pane(f.r, f.kind, row_beginning(f.shown(), "  beta.cpp"), 0);
     f.r.key(input::scan::kReturn);
     const std::int64_t editor = f.editor_kind();
-    REQUIRE(f.r.session().panels.has(editor));
+    REQUIRE(f.r.session().panes.has(editor));
     press_pane(f.r, f.kind, row_beginning(f.shown(), "  alpha.cpp"), 0);
     REQUIRE(f.at_cursor().rfind("alpha.cpp", 0) == 0);
-    REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
+    REQUIRE(keyboard_pane(f.r.session().panes) == f.kind);
 
     SeamTap tap(f.r.bus, f.files_id());
     SeamTap editor_tap(f.r.bus, f.r.kernel.weave_id("zengine-editor-pane"));
     press_pane(f.r, editor, 1, 0); // the Editor's first document row
-    CHECK(keyboard_pane(f.r.session().panels) == editor);
+    CHECK(keyboard_pane(f.r.session().panes) == editor);
     CHECK(tap.heard.empty()); // nothing at all reached Files as the keys left it
     // THE EDITOR HEARD EXACTLY ONE PRESS IN IT, in the newest version it accepts: it numbers its
     // picture (its rows are a drop target), so it hears v3 as the browser does.
@@ -974,7 +974,7 @@ TEST_CASE("the keys leave Files by a press into the Editor and Files is told not
     REQUIRE(tap.pressed.size() == 1);
     CHECK(tap.keys_went_here[0] == 0);
     CHECK(tap.attempts == 0);
-    CHECK(keyboard_pane(f.r.session().panels) == f.kind);
+    CHECK(keyboard_pane(f.r.session().panes) == f.kind);
     press_pane(f.r, f.kind, row_beginning(f.shown(), "> alpha.cpp"), 0);
     REQUIRE(tap.pressed.size() == 2);
     CHECK(tap.keys_went_here[1] == 1);
@@ -1006,12 +1006,12 @@ TEST_CASE("a press on Files' selected row opens it when the keys were already Fi
     SUBCASE("from the Editor, a press on Workshop's title of Files took the keys and sent Files nothing") {
         f.r.key(input::scan::kDown); // chosen and opened by keys: no press of Files' is in its past
         f.r.key(input::scan::kReturn);
-        REQUIRE(keyboard_pane(f.r.session().panels) == f.editor_kind());
+        REQUIRE(keyboard_pane(f.r.session().panes) == f.editor_kind());
         SeamTap tap(f.r.bus, f.files_id());
         const ui::Rect body = external_body_rect(f.r.session(), f.kind);
         f.r.press_cell(body.x, body.y);
         CHECK(tap.pressed.empty());
-        REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
+        REQUIRE(keyboard_pane(f.r.session().panes) == f.kind);
         press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
         REQUIRE(tap.pressed.size() == 1);
         CHECK(tap.keys_went_here[0] == 1);
@@ -1020,7 +1020,7 @@ TEST_CASE("a press on Files' selected row opens it when the keys were already Fi
     SUBCASE("from the Editor, a press on Files' own header took the keys and named no entry") {
         f.r.key(input::scan::kDown);
         f.r.key(input::scan::kReturn);
-        REQUIRE(keyboard_pane(f.r.session().panels) == f.editor_kind());
+        REQUIRE(keyboard_pane(f.r.session().panes) == f.editor_kind());
         SeamTap tap(f.r.bus, f.files_id());
         const std::int64_t header = row_beginning(f.shown(), "Files ");
         REQUIRE(header == 0);
@@ -1028,7 +1028,7 @@ TEST_CASE("a press on Files' selected row opens it when the keys were already Fi
         REQUIRE(tap.pressed.size() == 1);
         CHECK(tap.keys_went_here[0] == 0);
         CHECK(tap.attempts == 0);
-        REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
+        REQUIRE(keyboard_pane(f.r.session().panes) == f.kind);
         press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
         REQUIRE(tap.pressed.size() == 2);
         CHECK(tap.keys_went_here[1] == 1);
@@ -1047,7 +1047,7 @@ TEST_CASE("two presses on Files' selected row queued while the keys were the Edi
     const std::string beta = (f.root / "beta.cpp").lexically_normal().generic_string();
     press_pane(f.r, f.kind, row_beginning(f.shown(), "  beta.cpp"), 0);
     f.r.key(input::scan::kReturn);
-    REQUIRE(keyboard_pane(f.r.session().panels) == f.editor_kind());
+    REQUIRE(keyboard_pane(f.r.session().panes) == f.editor_kind());
     const std::int64_t row = row_beginning(f.shown(), "> beta.cpp");
     REQUIRE(row >= 0);
 
@@ -1078,7 +1078,7 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
     press_outside(f.r, f.kind);
     f.letter(input::scan::kT, "t");
     REQUIRE_FALSE(f.r.session().pane_titles);
-    REQUIRE(external_title_rows(f.r.session().panels, f.kind, f.r.session().pane_titles) == 0);
+    REQUIRE(external_title_rows(f.r.session().panes, f.kind, f.r.session().pane_titles) == 0);
 
     // THE COORDINATES ARE THE PICTURE'S: the region's rows as painted, with no title row in them.
     const ui::Rect body = external_body_rect(f.r.session(), f.kind);
@@ -1101,8 +1101,8 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
     const auto at_press = std::find(tap.heard.begin(), tap.heard.end(), std::string(PanePressed::zen_name));
     REQUIRE(at_press != tap.heard.end());
     CHECK(std::find(at_press, tap.heard.end(), std::string(PaneRoom::zen_name)) != tap.heard.end());
-    REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
-    REQUIRE(external_title_rows(f.r.session().panels, f.kind, f.r.session().pane_titles) == 1);
+    REQUIRE(keyboard_pane(f.r.session().panes) == f.kind);
+    REQUIRE(external_title_rows(f.r.session().panes, f.kind, f.r.session().pane_titles) == 1);
     CHECK(f.at_cursor().rfind("gamma.cpp", 0) == 0);
     CHECK(tap.attempts == 0);
 
@@ -1134,7 +1134,7 @@ TEST_CASE("a press into Files while the layout name line has the keys never open
     std::int64_t row = -1;
     for (std::int64_t i = static_cast<std::int64_t>(rows.size()) - 1; i >= 0 && row < 0; --i) {
         const Occupancy there =
-            occupied_at(f.r.session().panels, f.r.session().setup.active, screen_of(f.r.session()),
+            occupied_at(f.r.session().panes, f.r.session().setup.active, screen_of(f.r.session()),
                         body.x, body.y + kExternalHeaderRows + i);
         if (there.kind == f.kind && rows[static_cast<std::size_t>(i)].rfind("  entry-", 0) == 0) {
             row = i;
@@ -1150,7 +1150,7 @@ TEST_CASE("a press into Files while the layout name line has the keys never open
     SeamTap tap(f.r.bus, f.files_id());
     press_pane(f.r, f.kind, row, 0); // selects it, and makes Files the candidate
     REQUIRE(f.r.session().setup.naming.open);
-    REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
+    REQUIRE(keyboard_pane(f.r.session().panes) == f.kind);
     REQUIRE(keyboard_context(f.r.session()) == KeyContext::kNaming);
     REQUIRE(f.at_cursor() == entry);
     for (const std::string& line : band_lines(f.r)) {
@@ -1196,7 +1196,7 @@ TEST_CASE("a press from a host that states no routing fact only selects in Files
     CHECK(tap.versions == std::vector<std::uint32_t>{1u, 1u});
     CHECK(tap.attempts == 0);
     CHECK(f.at_cursor().rfind("beta.cpp", 0) == 0);
-    CHECK(keyboard_pane(f.r.session().panels) == f.kind);
+    CHECK(keyboard_pane(f.r.session().panes) == f.kind);
     f.r.key(input::scan::kReturn);
     CHECK(tap.requested == std::vector<std::string>{beta});
 }
@@ -1274,8 +1274,8 @@ TEST_CASE("Return on a source opens it in the Editor, through the one door") {
     f.point_at("alpha.cpp");
     f.r.key(input::scan::kReturn);
     const std::int64_t editor = f.editor_kind();
-    REQUIRE(f.r.session().panels.has(editor));
-    CHECK(f.r.session().panels.keyboard == editor);
+    REQUIRE(f.r.session().panes.has(editor));
+    CHECK(f.r.session().panes.keyboard == editor);
     CHECK(f.editor_status().rfind("saved L1:C1/2", 0) == 0);
     CHECK(f.editor_status().find("alpha.cpp") != std::string::npos); // the path keeps its end
     const std::vector<std::string> rows = pane_rows(f.r, editor);
@@ -1294,8 +1294,8 @@ TEST_CASE("a dirty Editor's refusal comes back and the pane says it") {
     f.point_at("alpha.cpp");
     f.r.key(input::scan::kReturn);
     const std::int64_t editor = f.editor_kind();
-    REQUIRE(f.r.session().panels.has(editor));
-    REQUIRE(f.r.session().panels.keyboard == editor); // the reveal pointed the keys here
+    REQUIRE(f.r.session().panes.has(editor));
+    REQUIRE(f.r.session().panes.keyboard == editor); // the reveal pointed the keys here
     press_pane(f.r, editor, 1, 0);                   // the first document row
     f.r.text("x");
     REQUIRE(f.editor_status().rfind("UNSAVED", 0) == 0);
@@ -1569,7 +1569,7 @@ TEST_CASE("a marks file this run could not read keeps its bytes when the weaver 
 
 TEST_CASE("`a` opens a chooser inside the pane's own room") {
     // THE CHOOSER IS ROWS IN THIS PANE'S ROOM -- not a second surface, not a popup and not a host
-    // panel: the pane says different rows and takes the two mode actions it declared for them.
+    // pane: the pane says different rows and takes the two mode actions it declared for them.
     FilesRig f("files-pick");
     put_file(f.root / "oven.cpp", "// a weaver's weave\n");
     std::filesystem::create_directories(f.root / "tree");
@@ -1898,7 +1898,7 @@ TEST_CASE("an id Files resolved in one mode is no act in the next") {
     const auto opened_nothing = [](FilesRig& f, const SeamTap& tap) {
         CHECK(tap.attempts == 0);
         CHECK(tap.requested.empty());
-        CHECK_FALSE(f.r.session().panels.has(f.editor_kind()));
+        CHECK_FALSE(f.r.session().panes.has(f.editor_kind()));
     };
     // THE ANSWER THE PANE LEADS WITH, before and after a new room.
     const auto leads = [](FilesRig& f, const std::string& notice) {
@@ -2116,7 +2116,7 @@ TEST_CASE("each Files mode's Return is its own id, and a keymap moves each alone
         f.letter(input::scan::kO, "o");
         REQUIRE(tap.requested.size() == 1);
         CHECK(tap.requested[0] == (f.root / "oven.cpp").generic_string());
-        CHECK(f.r.session().panels.has(f.editor_kind()));
+        CHECK(f.r.session().panes.has(f.editor_kind()));
         CHECK(tap.ids == std::vector<std::string>{files::kActionPickBuildable, files::kActionChoose,
                                                   files::kActionCommitField, files::kActionCancel,
                                                   files::kActionOpen});
@@ -2188,14 +2188,14 @@ TEST_CASE("deliberate keys in Files still choose, refuse a blank field, write on
 
     // ...AND RETURN WHILE BROWSING IS THE BROWSER'S OPEN: the file under the cursor, in the Editor.
     REQUIRE(f.at_cursor().rfind("oven.cpp", 0) == 0);
-    REQUIRE_FALSE(f.r.session().panels.has(f.editor_kind()));
+    REQUIRE_FALSE(f.r.session().panes.has(f.editor_kind()));
     CHECK(tap.attempts == 0);
     f.r.key(input::scan::kReturn);
     CHECK(tap.ids.back() == files::kActionOpen);
     REQUIRE(tap.requested.size() == 1);
     CHECK(tap.requested[0] == (f.root / "oven.cpp").generic_string());
     const std::int64_t editor = f.editor_kind();
-    REQUIRE(f.r.session().panels.has(editor));
+    REQUIRE(f.r.session().panes.has(editor));
     CHECK(f.editor_status().find("oven.cpp") != std::string::npos);
 }
 
@@ -2252,14 +2252,14 @@ TEST_CASE("an open the desk cannot show opens nothing, and Files says why") {
     put_file(f.root / "alpha.cpp", "the project\n");
     f.open(160, kMinScreen.h, /*with_editor=*/true);
     // THE ONE STACK SLOT THIS SCREEN HAS IS FILES' OWN.
-    REQUIRE(f.r.session().panels.has(f.kind));
-    REQUIRE_FALSE(f.r.session().panels.has(f.editor_kind()));
+    REQUIRE(f.r.session().panes.has(f.kind));
+    REQUIRE_FALSE(f.r.session().panes.has(f.editor_kind()));
 
     f.point_at("alpha.cpp");
     f.r.key(input::scan::kReturn);
-    CHECK_FALSE(f.r.session().panels.has(f.editor_kind()));
+    CHECK_FALSE(f.r.session().panes.has(f.editor_kind()));
     CHECK_FALSE(has_pane(f.r.session().setup.active, PaneRef{"zengine.editor", "editor"}));
-    CHECK(f.r.session().panels.keyboard == f.kind); // the keys never left Files
+    CHECK(f.r.session().panes.keyboard == f.kind); // the keys never left Files
     const std::vector<std::string> rows = pane_rows(f.r, f.kind);
     REQUIRE_FALSE(rows.empty());
     CHECK(rows[0].find("no room for Editor") != std::string::npos);
@@ -2285,7 +2285,7 @@ TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
         f.point_at("not-a-catalog.txt");
         f.letter(input::scan::kU, "u");
 
-        const ExternalPane* pane = f.r.session().panels.external_pane(f.kind);
+        const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
         REQUIRE(pane != nullptr);
         REQUIRE_MESSAGE(pane->columns > 178, "granted only ", pane->columns,
                         " columns -- too narrow for this case to mean anything");
@@ -2322,13 +2322,13 @@ TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
         // dodging the byte as the reason the wide case passes.
         f.open(kScreenMinW, kMinScreen.h);
         f.point_at("not-a-catalog.txt");
-        const ExternalPane* granted = f.r.session().panels.external_pane(f.kind);
+        const ExternalPane* granted = f.r.session().panes.external_pane(f.kind);
         REQUIRE(granted != nullptr);
         REQUIRE_MESSAGE(granted->columns < 121, "granted ", granted->columns,
                         " columns -- wide enough to reach the em dash, so not a narrow control");
         f.letter(input::scan::kU, "u");
 
-        const ExternalPane* pane = f.r.session().panels.external_pane(f.kind);
+        const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
         REQUIRE(pane != nullptr);
         CHECK(pane->refusal.empty());
         CHECK(pane->refusal_why.empty());
@@ -2351,8 +2351,8 @@ TEST_CASE("an open refused at dispatch is said by that exact attempt, and a fres
     f.open(160, 48, /*with_editor=*/true, /*with_manager=*/false);
     f.point_at("alpha.cpp");
     f.r.key(input::scan::kReturn);
-    CHECK_FALSE(f.r.session().panels.has(f.editor_kind()));
-    CHECK(f.r.session().panels.keyboard == f.kind);
+    CHECK_FALSE(f.r.session().panes.has(f.editor_kind()));
+    CHECK(f.r.session().panes.keyboard == f.kind);
     CHECK_MESSAGE(f.first().find("alpha.cpp") != std::string::npos, f.first());
     CHECK_MESSAGE(f.first().find("could not reach") != std::string::npos, f.first());
     CHECK_MESSAGE(f.first().find("NoSuchTarget") != std::string::npos, f.first());
@@ -2371,8 +2371,8 @@ TEST_CASE("an open refused at dispatch is said by that exact attempt, and a fres
     f.point_at("alpha.cpp");
     f.r.key(input::scan::kReturn);
     const std::int64_t editor = f.editor_kind();
-    REQUIRE(f.r.session().panels.has(editor));
-    CHECK(f.r.session().panels.keyboard == editor);
+    REQUIRE(f.r.session().panes.has(editor));
+    CHECK(f.r.session().panes.keyboard == editor);
     CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
 }
 
@@ -2413,17 +2413,17 @@ TEST_CASE("a refused open's row leaves Files' published rows at the next Return 
     // happen while that open is still on its way, with nothing seated.
     std::string pending = f.first();
     for (int turns = 0; turns < 16 && pending.find("could not reach") != std::string::npos &&
-                        !f.r.session().panels.has(f.editor_kind());
+                        !f.r.session().panes.has(f.editor_kind());
          ++turns) {
         (void)bus.pump_pending();
         pending = f.first();
     }
-    CHECK_FALSE(f.r.session().panels.has(f.editor_kind()));
+    CHECK_FALSE(f.r.session().panes.has(f.editor_kind()));
     CHECK(f.r.opening->state().op != 0);
     CHECK_MESSAGE(pending.find("could not reach") == std::string::npos, pending);
     // THE OPEN COMPLETES, and the row stays clean.
     bus.drain_until_idle();
-    REQUIRE(f.r.session().panels.has(f.editor_kind()));
+    REQUIRE(f.r.session().panes.has(f.editor_kind()));
     CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
     const std::string opened = f.first();
     CHECK_MESSAGE(opened.find("could not reach") == std::string::npos, opened);
@@ -2467,8 +2467,8 @@ TEST_CASE("a forged refusal naming the pane's own live attempt settles nothing, 
     // ...AND THE OPEN COMPLETES: the real answer settles the ask, the Editor is seated.
     f.r.bus.drain_until_idle();
     const std::int64_t editor = f.editor_kind();
-    REQUIRE(f.r.session().panels.has(editor));
-    CHECK(f.r.session().panels.keyboard == editor);
+    REQUIRE(f.r.session().panes.has(editor));
+    CHECK(f.r.session().panes.keyboard == editor);
     CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
     CHECK(f.first().find("could not reach") == std::string::npos);
 }

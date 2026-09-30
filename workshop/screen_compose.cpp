@@ -13,18 +13,18 @@ namespace zengine::workshop {
 
 // WL-FRONT-01, WL-FRONT-05, WL-FRONT-07 -- agents/workshop/planes.md
 // WL-MAKER-05 -- agents/workshop/maker-pane.md
-void paint_panels(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) {
-    const Panels& panels = s.panels;
-    const std::int64_t lifted = selected_pane(panels);
-    for (const std::int64_t kind : effective_pane_order(s.setup.active, panels)) {
-        const Panel p{kind};
-        const FineRect b = bounds_of(panels, s.setup.active, p.kind, sc).rect;
+void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) {
+    const Panes& panes = s.panes;
+    const std::int64_t lifted = selected_pane(panes);
+    for (const std::int64_t kind : effective_pane_order(s.setup.active, panes)) {
+        const OpenPane p{kind};
+        const FineRect b = bounds_of(panes, s.setup.active, p.kind, sc).rect;
         if (b.w <= 0 || b.h <= 0) {
             continue;
         }
         const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-            if (p.kind == panel::kLayouts) {
+            if (p.kind == pane_kind::kLayouts) {
                 // The layout run, the setup association and the workspace fact: the rectangle is
                 // `bounds_of`'s and the order `effective_pane_order`'s, so a pane in front is
                 // drawn over it.
@@ -36,7 +36,7 @@ void paint_panels(surface::SurfaceCanvas& c, const Session& s, const Screen& sc)
             } else if (is_runtime_kind(p.kind)) {
                 // One generic arm for every external pane: each is presented identically, a
                 // header Workshop writes and a region the provider fills.
-                paint_external(layer, panels, p.kind, b, sc, s.pane_titles, chrome);
+                paint_external(layer, panes, p.kind, b, sc, s.pane_titles, chrome);
             }
         });
     }
@@ -88,13 +88,13 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
     std::vector<std::string> legend;
     if (legend_rows > 0) {
         const KeyContext ctx = keyboard_context(s);
-        const std::int64_t typing = keyboard_pane(s.panels);
+        const std::int64_t typing = keyboard_pane(s.panes);
         // The sentence names where an ordinary key goes, which is not always the keyboard pane:
         // under a mode the pane stays the candidate while every ordinary key is the mode's.
         // `typing_pane` is what a press's `keys_went_here` reads, so the band and the seam agree.
         const std::int64_t typed = typing_pane(s);
         const RuntimePane* typed_into =
-            typed == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typed);
+            typed == kNoPaneKind ? nullptr : s.panes.runtime.of_kind(typed);
         // (The host's Pane Manager was the last built-in that took the keys and had a sentence of
         // its own here; the source editor had one before it. Both are panes now, named above.)
         std::string said;
@@ -138,7 +138,7 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
         push(notice, notice_role);
     } else {
         const std::vector<std::string> pairs =
-            help_rows(s.keymap, keyboard_context(s), columns, 1, keyboard_pane(s.panels));
+            help_rows(s.keymap, keyboard_context(s), columns, 1, keyboard_pane(s.panes));
         if (!pairs.empty()) {
             push(pairs.front(), surface::role::kMuted);
         }
@@ -155,7 +155,7 @@ surface::SurfaceCanvas paint(const Session& s) {
     c.height = sc.h;
 
     // The room's plane: the room's edges and the desktop's floor, written before any pane, since a
-    // pane stands in front of the room. The screen's own chrome is a later plane: a panel painted
+    // pane stands in front of the room. The screen's own chrome is a later plane: a pane painted
     // over the band would erase the notice that just told the weaver what happened. A reference
     // into `c.layers` is spent before any other layer is added.
     c.layers.emplace_back();
@@ -186,11 +186,11 @@ surface::SurfaceCanvas paint(const Session& s) {
     }
 
     // Every dynamic pane, Info included, each on a plane of its own in canonical front order.
-    paint_panels(c, s, sc);
+    paint_panes(c, s, sc);
 
     // The screen's own chrome over them, on its own plane: the bottom band, where the tool speaks.
     // A region clears its whole rectangle, so a pane authored over the band is covered by it; the
-    // band occupies no pointer space. The top band is an ordinary pane (`paint_panels`), and its
+    // band occupies no pointer space. The top band is an ordinary pane (`paint_panes`), and its
     // rows stay reserved (`kTopRows`), so the workspace does not move.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         layer.texts.push_back(band_region(s, sc));

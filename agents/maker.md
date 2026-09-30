@@ -11,8 +11,9 @@ not an automatic ranking of tests over law. The whole of the law in one screen i
 
 Substrate law is the Loom's and applies whole: a maker weave is an ordinary `loom::Weave`, its
 schema edit an ordinary prepared replacement, its conversion an ordinary operator in the
-convention [`operators.md`](operators.md) states. What the Workshop will do with a definition —
-the panel, the editor's gesture that registers one — is the panel phase's, not written here.
+convention [`operators.md`](operators.md) states. What the Workshop does with a definition —
+the weaver's pane, the gesture that registers one — is Workshop's law, in
+[`workshop/maker-pane.md`](workshop/maker-pane.md).
 
 ## Where the law is
 

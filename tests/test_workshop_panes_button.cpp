@@ -208,7 +208,7 @@ void drive_seat(PaneRig& r, loom::WeaveId id, ButtonSeat* seat,
 }
 
 std::int64_t kind_of(PaneRig& r, const char* office, const char* pane) {
-    const RuntimePane* row = r.session().panels.runtime.find(office, pane);
+    const RuntimePane* row = r.session().panes.runtime.find(office, pane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
@@ -251,7 +251,7 @@ struct Rigged {
         hello = r.mount_provider(kHelloOffice);
         r.drive(hello, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
         r.pick(hello_ref());
-        hello_kind = r.session().panels.runtime.entries[0].kind;
+        hello_kind = r.session().panes.runtime.entries[0].kind;
         guard_id = mount_button_seat(r, guard, kGuardOffice, kGuardPane);
         guard_kind = kind_of(r, kGuardOffice, kGuardPane);
         // THE SHIPPED PRESENTER, loaded into its office the way a plan row loads it: every menu
@@ -259,7 +259,7 @@ struct Rigged {
         presenter = r.load_presenter(presenter_image);
     }
 
-    ui::Rect hello_body() { return pane_body_cells(external_panel_rect(r.session(), hello_kind)); }
+    ui::Rect hello_body() { return pane_body_cells(external_pane_rect(r.session(), hello_kind)); }
     void right_in_guard(bool pressed = true) {
         button_cell(r, 3, pressed, body_x(r, guard_kind, 1), body_y(r, guard_kind, 0));
     }
@@ -279,8 +279,8 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is d
     Rigged t;
     REQUIRE(is_runtime_kind(t.guard_kind));
     REQUIRE(holder_accepts_on(t.r.bus, kGuardOffice, *loom::schema_of<PaneButton>()));
-    const std::int64_t keyboard_before = t.r.session().panels.keyboard;
-    const std::int64_t selected_before = t.r.session().panels.selected;
+    const std::int64_t keyboard_before = t.r.session().panes.keyboard;
+    const std::int64_t selected_before = t.r.session().panes.selected;
 
     button_cell(t.r, 3, true, body_x(t.r, t.guard_kind, 2), body_y(t.r, t.guard_kind, 1));
     REQUIRE(t.guard->buttons.size() == 1);
@@ -294,8 +294,8 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is d
     CHECK(t.guard->buttons[0].author == std::string(kWorkshopProvider));
     // DELIVERY IS CONSUMPTION: no surface opened, and pointing changed no selection or keys.
     CHECK_FALSE(t.menu_open());
-    CHECK(t.r.session().panels.keyboard == keyboard_before);
-    CHECK(t.r.session().panels.selected == selected_before);
+    CHECK(t.r.session().panes.keyboard == keyboard_before);
+    CHECK(t.r.session().panes.selected == selected_before);
     CHECK(t.hello->presses.empty());
 
     // THE CHROME IS NEVER THE PANE'S: a right press on the title row opens the host's menu.
@@ -312,7 +312,7 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is d
 TEST_CASE("WL-PRESS-06: a doorless pane's body is empty by default -- a right press there opens no menu and takes no keys; its chrome still opens the host's menu") {
     Rigged t;
     REQUIRE_FALSE(holder_accepts_on(t.r.bus, kHelloOffice, *loom::schema_of<PaneButton>()));
-    const std::int64_t keyboard_before = t.r.session().panels.keyboard;
+    const std::int64_t keyboard_before = t.r.session().panes.keyboard;
     const ui::Rect body = external_body_rect(t.r.session(), t.hello_kind);
     // THE BODY IS EMPTY BY DEFAULT: a holder that declared no `PaneButton` door is sent nothing,
     // and the press acquires no host menu and no keyboard. Silence is not pass-through -- the
@@ -321,7 +321,7 @@ TEST_CASE("WL-PRESS-06: a doorless pane's body is empty by default -- a right pr
     CHECK_FALSE(t.menu_open());
     CHECK(t.hello->presses.empty());
     CHECK(t.guard->buttons.empty());
-    CHECK(t.r.session().panels.keyboard == keyboard_before);
+    CHECK(t.r.session().panes.keyboard == keyboard_before);
     // THE CHROME IS THE HOST'S ALWAYS: a right press on the title row opens the host's pane menu,
     // the retained management route for a pane whose body takes the button or means nothing by it.
     t.r.right_press_cell(body.x + 1, body.y);
@@ -345,7 +345,7 @@ TEST_CASE("WL-PRESS-06: the release is the pressing pane's wherever the pointer 
     CHECK(t.hello->said == hello_said_before); // nothing pointer-shaped reached it
     // ORDINARY PRIMARY PRESSES ARE UNTOUCHED: a left press into Hello still points the keys there.
     t.r.press_cell(hello.x + 1, hello.y + 2);
-    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+    CHECK(t.r.session().panes.keyboard == t.hello_kind);
     // ...and a second release of a button nobody holds is dropped.
     button_cell(t.r, 3, false, hello.x + 1, hello.y + 2);
     CHECK(t.guard->buttons.size() == 2);
@@ -570,7 +570,7 @@ TEST_CASE("WL-CTX-09: a menu requested on the press's own turn is granted to the
     Rigged t;
     const ui::Rect hello = t.hello_body();
     t.r.press_cell(hello.x + 1, hello.y + 2);
-    REQUIRE(t.r.session().panels.keyboard == t.hello_kind);
+    REQUIRE(t.r.session().panes.keyboard == t.hello_kind);
     t.guard->menu_on_press = true;
     button_cell(t.r, 3, true, body_x(t.r, t.guard_kind, 3), body_y(t.r, t.guard_kind, 1));
     REQUIRE(t.foreign_open());
@@ -588,8 +588,8 @@ TEST_CASE("WL-CTX-09: a menu requested on the press's own turn is granted to the
     CHECK(painted[0] == "> First row");
     CHECK(painted[1] == "  Second row");
     // NOTHING MOVED: the keys stay with Hello, the selection where it was.
-    CHECK(t.r.session().panels.keyboard == t.hello_kind);
-    CHECK(t.r.session().panels.selected == t.hello_kind);
+    CHECK(t.r.session().panes.keyboard == t.hello_kind);
+    CHECK(t.r.session().panes.selected == t.hello_kind);
     // RETURN RETURNS: the choice goes to the office under the request's number, subject-bound,
     // and it is the PRESENTER'S word -- the office a requester authenticates a choice from.
     t.r.key(input::scan::kReturn);
@@ -603,7 +603,7 @@ TEST_CASE("WL-CTX-09: a menu requested on the press's own turn is granted to the
     CHECK(t.guard->answer_authors[0] == kPresenterRole);
     CHECK(t.hello->keys.empty()); // the Return was the menu's, not Hello's
     // ...AND NOTHING IS RESTORED, because nothing was taken.
-    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+    CHECK(t.r.session().panes.keyboard == t.hello_kind);
 }
 
 TEST_CASE("WL-CTX-09: the keyboard works the menu -- Down then Return chooses the second row; Escape answers it unchosen; the release under it still reaches the pane") {
@@ -639,7 +639,7 @@ TEST_CASE("WL-CTX-09: an outside press dismisses the menu, is spent on dismissin
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    const std::int64_t keyboard_before = t.r.session().panels.keyboard;
+    const std::int64_t keyboard_before = t.r.session().panes.keyboard;
     const ui::Rect hello = t.hello_body();
     t.r.press_cell(hello.x + 1, hello.y + 2);
     CHECK_FALSE(t.menu_open());
@@ -647,10 +647,10 @@ TEST_CASE("WL-CTX-09: an outside press dismisses the menu, is spent on dismissin
     CHECK_FALSE(t.guard->answers[0].chosen);
     CHECK(t.guard->answers[0].refusal == "dismissed");
     CHECK(t.hello->presses.empty());
-    CHECK(t.r.session().panels.keyboard == keyboard_before);
+    CHECK(t.r.session().panes.keyboard == keyboard_before);
     // THE NEXT PRESS IS AN ORDINARY ONE.
     t.r.press_cell(hello.x + 1, hello.y + 2);
-    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+    CHECK(t.r.session().panes.keyboard == t.hello_kind);
 }
 
 TEST_CASE("WL-CTX-09: a press on a presented row chooses it") {
@@ -678,7 +678,7 @@ TEST_CASE("WL-CTX-09: a late request is refused where the menu opens -- a newer 
     queue_button(t.r, 1, true, hello.x + 1, hello.y + 2);
     t.r.bus.drain_until_idle();
     REQUIRE(t.guard->buttons.size() == 1);
-    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+    CHECK(t.r.session().panes.keyboard == t.hello_kind);
     CHECK_FALSE(t.menu_open());
     REQUIRE(t.guard->answers.size() == 1);
     CHECK_FALSE(t.guard->answers[0].chosen);
@@ -787,7 +787,7 @@ TEST_CASE("WL-CTX-09: a menu opened by a declared key continues that keystroke -
     Rigged t;
     t.guard->menu_on_action = true;
     t.r.press_cell(body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0));
-    REQUIRE(t.r.session().panels.keyboard == t.guard_kind);
+    REQUIRE(t.r.session().panes.keyboard == t.guard_kind);
     t.r.key(input::scan::kM);
     REQUIRE(t.guard->actions.size() == 1);
     CHECK(t.guard->action_correlations[0] != 0);
@@ -855,20 +855,20 @@ TEST_CASE("WL-CTX-09: a chosen row that begins an edit may take the keyboard -- 
     const ui::Rect hello = t.hello_body();
     button_cell(t.r, 1, true, hello.x + 1, hello.y + 1);
     button_cell(t.r, 1, false, hello.x + 1, hello.y + 1);
-    REQUIRE(t.r.session().panels.keyboard == t.hello_kind);
+    REQUIRE(t.r.session().panes.keyboard == t.hello_kind);
 
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
     // A RIGHT PRESS IS FOCUS-NEUTRAL: the menu is the guard's and the keys are still hello's.
-    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+    CHECK(t.r.session().panes.keyboard == t.hello_kind);
 
     t.r.key(input::scan::kReturn);
     REQUIRE(t.guard->answers.size() == 1);
     REQUIRE(t.guard->answers[0].chosen);
     // THE CHOICE TOOK THE KEYS, AND THE PANE IS SELECTED WITH THEM.
-    CHECK(t.r.session().panels.keyboard == t.guard_kind);
-    CHECK(t.r.session().panels.selected == t.guard_kind);
+    CHECK(t.r.session().panes.keyboard == t.guard_kind);
+    CHECK(t.r.session().panes.selected == t.guard_kind);
 
     // ONCE: the same number again, from a later delivery, is a spent continuation. The keys go
     // back to hello by an ordinary press first, so a grant would be visible.
@@ -876,20 +876,20 @@ TEST_CASE("WL-CTX-09: a chosen row that begins an edit may take the keyboard -- 
     REQUIRE(number != 0);
     button_cell(t.r, 1, true, hello.x + 1, hello.y + 1);
     button_cell(t.r, 1, false, hello.x + 1, hello.y + 1);
-    REQUIRE(t.r.session().panels.keyboard == t.hello_kind);
+    REQUIRE(t.r.session().panes.keyboard == t.hello_kind);
     drive_seat(t.r, t.guard_id, t.guard, [number](ButtonSeat& s, loom::Mail& m) {
         s.ask_keys(m, number);
     });
-    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+    CHECK(t.r.session().panes.keyboard == t.hello_kind);
 
     // AND NEVER UNDER ANOTHER NUMBER: a continuation echoing a number that answered no choice
     // of this pane's -- a forged one, a predecessor's -- grants nothing.
     drive_seat(t.r, t.guard_id, t.guard, [number](ButtonSeat& s, loom::Mail& m) {
         s.ask_keys(m, number + 7);
     });
-    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+    CHECK(t.r.session().panes.keyboard == t.hello_kind);
     drive_seat(t.r, t.guard_id, t.guard, [](ButtonSeat& s, loom::Mail& m) { s.ask_keys(m, 0); });
-    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+    CHECK(t.r.session().panes.keyboard == t.hello_kind);
 }
 
 TEST_CASE("WL-CTX-09: a menu with more rows than the room is windowed by the presenter, and every row is still reachable") {
@@ -1639,7 +1639,7 @@ TEST_CASE("the guard example blocks while the right button is held, lowers on th
     ProviderSeat* hello = r.mount_provider(kHelloOffice);
     r.drive(hello, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
-    const std::int64_t hello_kind = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t hello_kind = r.session().panes.runtime.entries[0].kind;
     const loom::WeaveId id = r.load("zengine-example-guard", WORKSHOP_SO_GUARD, "example.guard");
     REQUIRE(id.valid());
     REQUIRE(r.load_refusals.empty());
@@ -1649,7 +1649,7 @@ TEST_CASE("the guard example blocks while the right button is held, lowers on th
     REQUIRE(is_runtime_kind(kind));
     REQUIRE(holder_accepts_on(r.bus, "example.guard", *loom::schema_of<PaneButton>()));
     const auto first_row = [&r, kind] {
-        const ExternalPane* shown = r.session().panels.external_pane(kind);
+        const ExternalPane* shown = r.session().panes.external_pane(kind);
         REQUIRE(shown != nullptr);
         REQUIRE(!shown->shown.empty());
         return shown->shown[0].text;
@@ -1659,7 +1659,7 @@ TEST_CASE("the guard example blocks while the right button is held, lowers on th
     CHECK(first_row().find("GUARD UP") != std::string::npos);
     CHECK_FALSE(r.session().context.open);
     // RELEASED OVER HELLO: the guard hears it, Hello does not.
-    const ui::Rect hb = pane_body_cells(external_panel_rect(r.session(), hello_kind));
+    const ui::Rect hb = pane_body_cells(external_pane_rect(r.session(), hello_kind));
     button_cell(r, 3, false, hb.x + 1, hb.y + 2);
     CHECK(first_row().find("guard down") != std::string::npos);
     CHECK(hello->presses.empty());

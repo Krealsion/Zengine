@@ -934,8 +934,8 @@ private:
 
     // ---- The setup: name it, save it, restore it ------------------------------
 
-    /// MAKE THE OPEN PANELS BE WHAT THE ACTIVE SETUP SAYS -- the one owner, and
-    /// the only thing in this file that opens or closes a panel.
+    /// MAKE THE OPEN PANES BE WHAT THE ACTIVE SETUP SAYS -- the one owner, and
+    /// the only thing in this file that opens or closes a pane.
     void apply_setup(loom::Mail& mail);
     /// The same, from a place that has no delivery to speak from (the publication hook).
     void apply_setup_now();
@@ -1043,7 +1043,7 @@ private:
 
     /// THE SELECTED PANE'S BOUNDS, both rectangles. Through `bounds_of`, never a second
     /// arithmetic: what a gesture measures from is what the painter drew.
-    PanelBounds managed_bounds() const;
+    PaneBounds managed_bounds() const;
 
     /// THE WINDOW A GESTURE MEASURES FROM: authored where authored, resolved where
     /// reactive — the RESOLVED window, never the visible one (see `managed_bounds`).

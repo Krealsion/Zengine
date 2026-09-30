@@ -163,7 +163,7 @@ Two smaller edges, in both media:
 
 | | today |
 |---|---|
-| Which surfaces can be read past? | **none, any more.** It worked only where Workshop itself cut a value it still held: the Info panel's object and property rows, and before them the Files pane's location and names. Both are loaded panes now, and a pane sends text it has already cut — so Workshop never receives the longer value and has nothing to reveal |
+| Which surfaces can be read past? | **none, any more.** It worked only where Workshop itself cut a value it still held: the Info pane's object and property rows, and before them the Files pane's location and names. Both are loaded panes now, and a pane sends text it has already cut — so Workshop never receives the longer value and has nothing to reveal |
 | The notice row, and the Builder's realize row | **not readable past** — a long refusal is cut in both, and a load the Loom refuses is longer than either. Launch with `--log <path>` and the whole sentence is kept in that journal ([Builder](builder.md#using-it)) |
 | Could the pane protocol be widened to ask for the longer text? | **it will not be.** A pane is a participant, not a store the host reaches into; asking one for a value it chose not to send is the shape this project refuses. Widen the pane or the window instead |
 

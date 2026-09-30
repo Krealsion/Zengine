@@ -98,7 +98,7 @@ whatever you do with the selector. Moving it away leaves those rows empty on pur
 
 The column at the right-hand edge is a different case, and used to be the same one: it was
 reserved too, and removing `Info` left it empty. It is an ordinary place now. Your workspace
-runs underneath it at full width, `Info` stands on that room the way a stacked panel stands on
+runs underneath it at full width, `Info` stands on that room the way a stacked pane stands on
 it, and taking `Info` off the desk gives you the thirty columns to reach rather than thirty
 columns of nothing.
 
