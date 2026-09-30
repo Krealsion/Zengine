@@ -1276,13 +1276,9 @@ zengine_doctest_test(audit_probes zengine-audit-probes)
 # law_register, source_comments and code_values -- each stating its contract in its own header.
 # They are CTest entries so a bare `ctest` carries them, and rows in tests/test_population.txt, so
 # deleting one is a red rather than a smaller lane.
-zengine_script_test(doc_links ${CMAKE_CURRENT_SOURCE_DIR}/check_doc_links.cmake)
-
-zengine_script_test(package_vocabulary
-                    ${CMAKE_CURRENT_SOURCE_DIR}/check_package_vocabulary.cmake)
-
-zengine_script_test(law_register ${CMAKE_CURRENT_SOURCE_DIR}/check_law_register.cmake)
-
-zengine_script_test(source_comments ${CMAKE_CURRENT_SOURCE_DIR}/check_source_comments.cmake)
-
-zengine_script_test(code_values ${CMAKE_CURRENT_SOURCE_DIR}/check_code_values.cmake)
+# The list is text_checks.cmake's, which the documentation lane runs too.
+include(${CMAKE_CURRENT_SOURCE_DIR}/text_checks.cmake)
+foreach(zengine_text_check IN LISTS ZEN_TEXT_CHECKS)
+    zengine_script_test(${zengine_text_check}
+                        ${CMAKE_CURRENT_SOURCE_DIR}/check_${zengine_text_check}.cmake)
+endforeach()

@@ -34,8 +34,58 @@ jobs:
       - name: Refuse AI co-authorship in reachable history
         run: cmake -P tests/check_commit_attribution.cmake
 
+  # Does the change touch a compiled line? tests/check_change_kind.cmake answers from the base (a
+  # pull request's merge parent, or the push's previous tip) to this commit; only its explicit
+  # `false` skips the build and test jobs, so a broken answer runs them all.
+  zengine-change-kind:
+    name: Zengine / change kind
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      compiled: ${{ steps.kind.outputs.compiled }}
+    steps:
+      - name: Check out Zengine with full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify the change
+        id: kind
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            base="$(git rev-parse HEAD^1)"
+          else
+            base="$BEFORE"
+          fi
+          if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "No base commit to compare with; every job runs."
+            echo "compiled=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cmake -DZEN_BASE="$base" -DZEN_HEAD=HEAD -DZEN_KIND_OUT="$GITHUB_OUTPUT" -P tests/check_change_kind.cmake
+
+  # The documentation lane's checks, on every change: they read the source tree, not a build.
+  zengine-documentation:
+    name: Zengine / documentation lane
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out Zengine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run the text checks
+        run: cmake -DZEN_LANE_KIND=OFF -P tests/documentation_lane.cmake
+
   resolve-loom:
     name: Resolve canonical Loom
+    needs: zengine-change-kind
+    if: ${{ !cancelled() && needs.zengine-change-kind.outputs.compiled != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -54,7 +104,8 @@ jobs:
 
   zengine-linux-stranger:
     name: Zengine / Linux / canonical Loom stranger
-    needs: resolve-loom
+    needs: [zengine-change-kind, resolve-loom]
+    if: ${{ !cancelled() && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -154,7 +205,8 @@ jobs:
   # included, so a red here is about the code and never about a lane that quietly shrank.
   zengine-linux-asan-ubsan:
     name: Zengine / Linux / ASan + UBSan
-    needs: resolve-loom
+    needs: [zengine-change-kind, resolve-loom]
+    if: ${{ !cancelled() && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -242,7 +294,8 @@ jobs:
   # as a junction), and a red that cannot fail the run is not a lane.
   zengine-windows-stranger:
     name: Zengine / Windows / MinGW-w64 Loom stranger
-    needs: resolve-loom
+    needs: [zengine-change-kind, resolve-loom]
+    if: ${{ !cancelled() && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
     runs-on: windows-2025
     timeout-minutes: 45
     steps:
@@ -323,7 +376,8 @@ jobs:
   # evidence the package owns that law; a flag this job needs belongs in Loom.
   zengine-windows-msvc-stranger:
     name: Zengine / Windows / MSVC Loom stranger (advisory -- the released toolchain, not the maintainers' local build)
-    needs: resolve-loom
+    needs: [zengine-change-kind, resolve-loom]
+    if: ${{ !cancelled() && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
     runs-on: windows-2025
     continue-on-error: true
     timeout-minutes: 60
