@@ -34,7 +34,7 @@ draft is excluded — it is windowed against its own caret. Nothing durable hold
 no file, setup, document, provider or value is touched. On a terminal the gesture does not exist.
 
 **Reversed, and the reason is not this record's.** The feature is gone. Its whole consumer set was
-the Info panel's two rows, and the Info panel became a loaded weave: a pane sends rows it has
+the Info pane's two rows, and the Info pane became a loaded weave: a pane sends rows it has
 already cut, so the unfitted string this decision depended on does not reach the host at all. The
 alternative this record rejected — widening the pane protocol to ask for a longer text — is
 the only route that would have kept it, and it is the host-mapped route the pane protocol refuses.

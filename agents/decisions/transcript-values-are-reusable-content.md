@@ -15,4 +15,4 @@ A second Workshop payload cache would split retention ownership. Reparsing prose
 command would manufacture a different observation and possibly repeat effects. Both are rejected.
 Missing/evicted entries refuse; the current 64 KiB copy carrier limit stays visible.
 
-**Laws supported.** WL-TERM-17.
+**Laws supported.** [WL-TERM-17](../workshop/terminal.md).

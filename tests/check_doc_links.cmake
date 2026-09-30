@@ -213,7 +213,9 @@ endfunction()
 # ---- the predicate, in one place so the self-test exercises the real one -------------
 #
 # Sets ${out} to one of: ok | outside | broken:<reason>. `outside` is a real answer and not
-# a failure: it is how a cross-repository or absolute reference is counted and declined.
+# a failure: it is how a cross-repository or absolute reference is counted and declined. An
+# optional fourth argument names the file the reference sits in, so a same-file anchor
+# (`#heading`) is checked against that file's own headings.
 function(zen_doc_verdict base_dir target out)
     if(target MATCHES "^[A-Za-z][A-Za-z0-9+.-]*:" OR target MATCHES "^//")
         set(${out} "outside" PARENT_SCOPE)   # a URL, or a protocol-relative one
@@ -221,8 +223,13 @@ function(zen_doc_verdict base_dir target out)
     endif()
     string(FIND "${target}" "#" hash)
     if(hash EQUAL 0)
-        set(${out} "outside" PARENT_SCOPE)   # same-file anchor; not a path claim
-        return()
+        if(ARGC LESS 4)
+            set(${out} "outside" PARENT_SCOPE)   # an anchor with no file named to hold it
+            return()
+        endif()
+        get_filename_component(self "${ARGV3}" NAME)
+        set(target "${self}${target}")
+        string(FIND "${target}" "#" hash)
     endif()
     set(fragment "")
     set(path "${target}")
@@ -316,6 +323,19 @@ if(NOT v MATCHES "^broken:")
         "doc-links: SELF-TEST FAILED -- an anchor that no heading produces was accepted "
         "(${v}) on a file that does exist. Path checking alone would then be the whole "
         "check, silently.")
+endif()
+zen_doc_verdict("${ZEN_REPO}" "#${selftest_slug}" v "${selftest_doc}")
+if(NOT v STREQUAL "ok")
+    message(FATAL_ERROR
+        "doc-links: SELF-TEST FAILED -- the same-file anchor '#${selftest_slug}', a heading of "
+        "'${ZEN_DOC_SELFTEST_FILE}', was rejected there (${v}).")
+endif()
+zen_doc_verdict("${ZEN_REPO}" "#zen-no-such-anchor-doclinks-selftest" v "${selftest_doc}")
+if(NOT v MATCHES "^broken:")
+    message(FATAL_ERROR
+        "doc-links: SELF-TEST FAILED -- a same-file anchor that no heading of "
+        "'${ZEN_DOC_SELFTEST_FILE}' produces was accepted (${v}). Every heading a document "
+        "renames would then leave its own links broken, silently.")
 endif()
 
 # The outside-path predicate: the INDICES (into ZEN_DOC_OUTSIDE_SPELLINGS) of every spelling
@@ -553,7 +573,7 @@ foreach(rel IN LISTS md_files)
             continue()
         endif()
         set(target "${CMAKE_MATCH_1}")
-        zen_doc_verdict("${base}" "${target}" v)
+        zen_doc_verdict("${base}" "${target}" v "${path}")
         if(v STREQUAL "outside")
             math(EXPR outside "${outside} + 1")
         elseif(v MATCHES "^broken:(.*)$")
@@ -672,7 +692,7 @@ message(STATUS "doc-links: ${src_count} first-party source files (C/C++, CMake a
                "population manifest), ${src_scanned} carrying a .md reference, ${src_refs} "
                "comment references checked")
 message(STATUS "doc-links: ${outside} references counted and declined (external URL, "
-               "same-file anchor, or above the repository root)")
+               "or above the repository root)")
 message(STATUS "doc-links: ${outside_read} current-facing text files read whole for a path "
                "outside this repository (${outside_spelling_count} spellings; "
                "${outside_exempt} declaring files exempt by rule) -- ${outside_leaks} found")

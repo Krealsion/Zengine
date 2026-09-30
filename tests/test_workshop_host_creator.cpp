@@ -5,7 +5,7 @@
 // interior IS and its law, its durable file and what it cannot say, the identity its NAME
 // earns, the region on both faces, the inspected INTERIOR rows and the region mark, the
 // one-open-definition lifecycle, relaunch by reference, and a code-backed pane's capture. A
-// second source of the `workshop_panels` entry, split as VM-POP-12 says; its helpers have
+// second source of the `workshop_host` entry, split as VM-POP-12 says; its helpers have
 // internal linkage, so the two objects share only the support header.
 
 #include "workshop_support.hpp"
@@ -36,8 +36,8 @@ const PaneRef kMine = weaver_pane_ref("MyPane");
 WeaverPaneAnswered make_pane(Live& t, const std::string& name) {
     const WeaverPaneAnswered made = hand_weaver(t, weaver_pane_act::kCreate, name);
     REQUIRE_MESSAGE(made.accepted, made.said);
-    REQUIRE(t.session().panels.weaver.open());
-    REQUIRE(t.session().panels.weaver.definition.name == name);
+    REQUIRE(t.session().panes.weaver.open());
+    REQUIRE(t.session().panes.weaver.definition.name == name);
     const PaneSubjectActed named = hand_inspect(t, weaver_pane_ref(name));
     REQUIRE_MESSAGE(named.accepted, named.refusal);
     return made;
@@ -83,15 +83,15 @@ std::string pane_value(const Live& t, const std::string& label) {
 /// The weaver-made pane's interior on this screen, through the ordinary pane path.
 FineRect interior_of(const Live& t) {
     const Screen sc = screen_of(t.session());
-    const PanelBounds where =
-        bounds_of(t.session().panels, t.session().setup.active, kWeaverPaneKind, sc);
+    const PaneBounds where =
+        bounds_of(t.session().panes, t.session().setup.active, kWeaverPaneKind, sc);
     REQUIRE(where.open);
     REQUIRE_FALSE(where.rect.empty());
     return pane_inside(where.rect, sc).rect;
 }
 
 RegionPresentation presentation_of(const Live& t) {
-    const WeaverPane& m = t.session().panels.weaver;
+    const WeaverPane& m = t.session().panes.weaver;
     REQUIRE(m.open());
     REQUIRE_FALSE(m.definition.regions.empty());
     return present_region(m.definition.regions.front(), interior_of(t), screen_of(t.session()));
@@ -100,8 +100,8 @@ RegionPresentation presentation_of(const Live& t) {
 /// The weaver-made pane's painted text, off the last frame -- the cell projection.
 std::string weaver_pane_text(Live& t) {
     const Screen sc = screen_of(t.session());
-    const PanelBounds where =
-        bounds_of(t.session().panels, t.session().setup.active, kWeaverPaneKind, sc);
+    const PaneBounds where =
+        bounds_of(t.session().panes, t.session().setup.active, kWeaverPaneKind, sc);
     REQUIRE(where.open);
     const ui::Rect b = cells_covered(where.rect);
     // EVERY CELL LABEL INSIDE THE PANE, top to bottom then left to right -- a region placed
@@ -126,7 +126,7 @@ std::string weaver_pane_text(Live& t) {
 }
 
 std::string definition_bytes(const Live& t) {
-    return pdp::to_text(t.session().panels.weaver.definition);
+    return pdp::to_text(t.session().panes.weaver.definition);
 }
 
 /// A graphical face: the shipped skin's metric and its device unit.
@@ -438,40 +438,40 @@ TEST_CASE("the weaver door makes a named pane from data, and it lives on the des
     const WeaverPaneAnswered made = make_pane(t, "MyPane");
     const Session& s = t.session();
     // THE VALUE: one open definition, one empty text region, minted #1.
-    REQUIRE(s.panels.weaver.definition.regions.size() == 1);
-    CHECK(s.panels.weaver.definition.regions[0].id == kFirstRegionId);
-    CHECK(s.panels.weaver.definition.regions[0].text.empty());
-    CHECK(s.panels.weaver.dirty()); // never saved: dirty by arithmetic
+    REQUIRE(s.panes.weaver.definition.regions.size() == 1);
+    CHECK(s.panes.weaver.definition.regions[0].id == kFirstRegionId);
+    CHECK(s.panes.weaver.definition.regions[0].text.empty());
+    CHECK(s.panes.weaver.dirty()); // never saved: dirty by arithmetic
     // THE ASKER IS TOLD WHAT THE BAND SAYS, and the sentence says where the region's rows
     // are; the door names nothing inspected.
     CHECK(made.said.find("Pane Creator: MyPane is on this layout") == 0);
     CHECK(made.said.find("inspect it in Info to write its text region") != std::string::npos);
     // THE IDENTITY: minted from the name under Workshop's own namespace, and it resolves.
     CHECK(kMine == PaneRef{kMakerPaneProvider, "MyPane"});
-    REQUIRE(resolve_pane(kMine, s.panels).has_value());
-    CHECK(*resolve_pane(kMine, s.panels) == kWeaverPaneKind);
-    CHECK(kind_name(s.panels, kWeaverPaneKind) == "MyPane");
+    REQUIRE(resolve_pane(kMine, s.panes).has_value());
+    CHECK(*resolve_pane(kMine, s.panes) == kWeaverPaneKind);
+    CHECK(kind_name(s.panes, kWeaverPaneKind) == "MyPane");
     // THE ORDINARY PANE PATH: a setup row, a seat, a rectangle, an occupancy, a state.
     REQUIRE(has_pane(s.setup.active, kMine));
-    CHECK(s.panels.has(kWeaverPaneKind));
+    CHECK(s.panes.has(kWeaverPaneKind));
     const Screen sc = screen_of(s);
-    const PanelBounds where = bounds_of(s.panels, s.setup.active, kWeaverPaneKind, sc);
+    const PaneBounds where = bounds_of(s.panes, s.setup.active, kWeaverPaneKind, sc);
     REQUIRE(where.open);
     REQUIRE_FALSE(where.rect.empty());
     CHECK(placement_of(kWeaverPaneKind) == placement::kOverlayStack);
     const ui::Rect cells = cells_covered(where.rect);
-    const Occupancy here = occupied_at(s.panels, s.setup.active, sc, cells.x + 2, cells.y + 2);
+    const Occupancy here = occupied_at(s.panes, s.setup.active, sc, cells.x + 2, cells.y + 2);
     CHECK(here.occupied);
     CHECK(here.kind == kWeaverPaneKind);
     CHECK(here.what == "MyPane");
     bool listed = false;
-    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
+    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panes)) {
         if (row.ref == kMine) {
             listed = true;
             CHECK(row.kind == kWeaverPaneKind);
             CHECK(row.name == "MyPane");
             CHECK(row.summary == kWeaverPaneSummary);
-            CHECK(pane_state_of(s.panels, s.setup.active, sc, row) == pane_state::kOpen);
+            CHECK(pane_state_of(s.panes, s.setup.active, sc, row) == pane_state::kOpen);
         }
     }
     CHECK(listed);
@@ -499,13 +499,13 @@ TEST_CASE("the weaver door makes a named pane from data, and it lives on the des
     CHECK(region_value(t, "Height") == "2 cells");
     // THE PANE IS PAINTED, AND THE CATALOG GREW BY ONE ROW AND NOTHING ELSE: the built-ins, the
     // two stand-ins every `Live` admits (two runtime rows), and now the weaver's.
-    CHECK(combined_catalog(s.panels).size() == kPanelKinds + 3);
-    CHECK(s.panels.runtime.entries.size() == 2);
-    CHECK(s.panels.external.empty());
+    CHECK(combined_catalog(s.panes).size() == kBuiltinPaneCount + 3);
+    CHECK(s.panes.runtime.entries.size() == 2);
+    CHECK(s.panes.external.empty());
     // A PRESS INTO IT SELECTS IT AND POINTS NO KEYS (it takes none), like Info or Layouts.
     t.press_canvas(cells.x + 2, cells.y + 2);
-    CHECK(t.session().panels.selected == kWeaverPaneKind);
-    CHECK(t.session().panels.keyboard == kNoPaneKind);
+    CHECK(t.session().panes.selected == kWeaverPaneKind);
+    CHECK(t.session().panes.keyboard == kNoPaneKind);
     CHECK(keyboard_context(t.session()) == KeyContext::kCommand);
     CHECK(t.notice().find("MyPane is here") == 0);
 }
@@ -524,12 +524,12 @@ TEST_CASE("the weaver's pane is edited, ordered and removed by the doors every p
         // THE PANE'S OWN AUTHORED ROWS -- the inspected subject's, through the commit door --
         // move it.
         const Screen sc = screen_of(t.session());
-        const FineRect was = bounds_of(t.session().panels, t.session().setup.active,
+        const FineRect was = bounds_of(t.session().panes, t.session().setup.active,
                                        kWeaverPaneKind, sc)
                                  .rect;
         const PaneSubjectActed wrote = hand_commit(t, "X", "30"); // AUTHORED X, the pane's
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
-        const FineRect now = bounds_of(t.session().panels, t.session().setup.active,
+        const FineRect now = bounds_of(t.session().panes, t.session().setup.active,
                                        kWeaverPaneKind, sc)
                                  .rect;
         CHECK(now.x == subs(30));
@@ -547,15 +547,15 @@ TEST_CASE("the weaver's pane is edited, ordered and removed by the doors every p
         // PARTICIPATION: the close door removes it, and the definition stands.
         REQUIRE(hand_close(t, kMine).closed);
         CHECK_FALSE(has_pane(t.session().setup.active, kMine));
-        CHECK_FALSE(t.session().panels.has(kWeaverPaneKind));
-        CHECK(t.session().panels.weaver.open());
+        CHECK_FALSE(t.session().panes.has(kWeaverPaneKind));
+        CHECK(t.session().panes.weaver.open());
         CHECK(t.session().inspected.ref == kMine);
         REQUIRE(hand_launch(t, kMine).refusal.empty());
         CHECK(has_pane(t.session().setup.active, kMine));
-        CHECK(t.session().panels.has(kWeaverPaneKind));
+        CHECK(t.session().panes.has(kWeaverPaneKind));
         // SAVE, THEN LEAVE STANDING ON THE DESK.
         REQUIRE(save_pane(t).accepted);
-        CHECK_FALSE(t.session().panels.weaver.dirty());
+        CHECK_FALSE(t.session().panes.weaver.dirty());
         t.press(90, 35);
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
@@ -565,9 +565,9 @@ TEST_CASE("the weaver's pane is edited, ordered and removed by the doors every p
     back.host.pane_path = dir.file("pane.json");
     back.publish(loom::to_value(surface::SurfaceReady{}));
     back.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    CHECK(back.session().panels.weaver.open());
+    CHECK(back.session().panes.weaver.open());
     CHECK(has_pane(back.session().setup.active, kMine));
-    CHECK(back.session().panels.has(kWeaverPaneKind));
+    CHECK(back.session().panes.has(kWeaverPaneKind));
     // THE SESSION HOLDS WHERE; THE PANE FILE HOLDS WHAT.
     CHECK(slurp(session).find("\"zengine.workshop.maker\"") != std::string::npos);
     CHECK(slurp(session).find("\"regions\"") == std::string::npos);
@@ -590,28 +590,28 @@ TEST_CASE("a weaver pane's identity is its name under Workshop's namespace -- no
     REQUIRE(save_pane(t).accepted); // saved, so a second pane may be made
     make_pane(t, "Other");
     const Session& s = t.session();
-    CHECK(resolve_pane(weaver_pane_ref("Other"), s.panels) == kWeaverPaneKind);
-    CHECK_FALSE(resolve_pane(kMine, s.panels).has_value());
+    CHECK(resolve_pane(weaver_pane_ref("Other"), s.panes) == kWeaverPaneKind);
+    CHECK_FALSE(resolve_pane(kMine, s.panes).has_value());
     // MyPane's row on the desk is RETAINED and reads unresolved -- intent, never erased.
     REQUIRE(has_pane(s.setup.active, kMine));
     REQUIRE(has_pane(s.setup.active, weaver_pane_ref("Other")));
     const Screen sc = screen_of(s);
-    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
+    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panes)) {
         if (row.ref == kMine) {
             CHECK(row.kind == kNoPaneKind);
-            CHECK(pane_state_of(s.panels, s.setup.active, sc, row) == pane_state::kUnresolved);
+            CHECK(pane_state_of(s.panes, s.setup.active, sc, row) == pane_state::kUnresolved);
         }
     }
     // TWO ROWS WAIT, AND ONLY ONE OF THEM IS THIS CASE'S. The other is the desk's Info
     // weave, which no office in this rig offers -- every layout here carries it, so a bare
     // count would be a claim about the rig's load plan rather than about the weaver pane.
-    const std::vector<PaneRef> waiting = unresolved_panes(s.setup.active, s.panels);
+    const std::vector<PaneRef> waiting = unresolved_panes(s.setup.active, s.panes);
     REQUIRE(waiting.size() == 2);
     CHECK(waiting[0] == info_ref());
     CHECK(waiting[1] == kMine);
     // A REFERENCE WITH THE NAMESPACE AND ANY OTHER NAME RESOLVES TO NOTHING.
-    CHECK_FALSE(resolve_pane(weaver_pane_ref("other"), s.panels).has_value());
-    CHECK_FALSE(resolve_pane(PaneRef{kMakerPaneProvider, ""}, s.panels).has_value());
+    CHECK_FALSE(resolve_pane(weaver_pane_ref("other"), s.panes).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{kMakerPaneProvider, ""}, s.panes).has_value());
     // ...AND NO OFFICE MAY OFFER A PANE IN THE WEAVER NAMESPACE.
     RuntimeCatalog cat;
     const Admission refused = admit_pane_offer(cat, kMakerPaneProvider, good_offer());
@@ -681,7 +681,7 @@ TEST_CASE("a region is placed relative to the pane's INTERIOR and painted throug
     p = presentation_of(t);
     CHECK(p.clipped);
     CHECK(surface::add_cells(p.shown.x, p.shown.w) == surface::add_cells(interior.x, interior.w));
-    CHECK(t.session().panels.weaver.definition.regions[0].w == subs(400));
+    CHECK(t.session().panes.weaver.definition.regions[0].w == subs(400));
     CHECK(region_value(t, "Resolved").find("(clipped by the pane)") != std::string::npos);
     CHECK(region_value(t, "Width") == "400 cells");
     // MOVING THE PANE MOVES THE REGION WITH IT -- the definition is untouched.
@@ -706,7 +706,7 @@ TEST_CASE("one authored fine value, read in pixels on the window and projected t
     // A PIXEL THAT IS NOT A CELL: 126 px is 10 cells and 24 sub-units.
     REQUIRE(type_region_value(t, "X", "126").accepted);
     CHECK(t.notice() == "committed X of MyPane = 126 px");
-    CHECK(t.session().panels.weaver.definition.regions[0].x == subs(10) + 24);
+    CHECK(t.session().panes.weaver.definition.regions[0].x == subs(10) + 24);
     CHECK(region_value(t, "X") == "126 px");
     CHECK(region_value(t, "Resolved") == "@126,0 288x24 px");
     CHECK(region_value(t, "Shown") == "1 row x 35 columns, presented in type");
@@ -740,7 +740,7 @@ TEST_CASE("one authored fine value, read in pixels on the window and projected t
     CHECK(definition_bytes(t) == authored);
     // AND A TERMINAL'S OWN TYPING AUTHORS CELLS, exactly.
     REQUIRE(type_region_value(t, "X", "11 cells").accepted);
-    CHECK(t.session().panels.weaver.definition.regions[0].x == subs(11));
+    CHECK(t.session().panes.weaver.definition.regions[0].x == subs(11));
     CHECK(region_value(t, "X") == "11 cells");
     sdl_face(t);
     CHECK(region_value(t, "X") == "132 px");
@@ -767,17 +767,17 @@ TEST_CASE("a region too small for the face is the face's own answer, and the aut
     REQUIRE(type_region_value(t, "Height", "12").accepted);
     CHECK(region_value(t, "Shown") == "1 row x 24 columns, presented as cells");
     CHECK(region_value(t, "Height") == "12 px");
-    CHECK(t.session().panels.weaver.definition.regions[0].h == subs(1));
+    CHECK(t.session().panes.weaver.definition.regions[0].h == subs(1));
     // THREE PIXELS TALL covers no cell and no row: nothing is drawn, and it says so.
     REQUIRE(type_region_value(t, "Height", "3").accepted);
     CHECK(region_value(t, "Shown") == "no room -- nothing of it is drawn on this face");
-    CHECK(t.session().panels.weaver.definition.regions[0].h == 12);
+    CHECK(t.session().panes.weaver.definition.regions[0].h == 12);
     CHECK(region_value(t, "Height") == "3 px");
     // ...AND A TERMINAL SAYS THE SAME THING IN ITS OWN GRAIN, marking what it cannot say.
     tui_face(t);
     CHECK(region_value(t, "Height") == "~0 cells (~ projected)");
     CHECK(region_value(t, "Shown") == "no room -- nothing of it is drawn on this face");
-    CHECK(t.session().panels.weaver.definition.regions[0].h == 12);
+    CHECK(t.session().panes.weaver.definition.regions[0].h == 12);
 }
 
 // ============================================================================
@@ -824,7 +824,7 @@ TEST_CASE("the Pane Creator marks the region it is editing on the pane itself, f
     CHECK(pane_plane < mark_plane);
     CHECK(definition_bytes(t) == before);
     // ANOTHER SUBJECT, NO MARK: the mark is derived from the subject, held nowhere.
-    REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
+    REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     CHECK(creator_subject_region(t.session()) == nullptr);
     bool still = false;
     for (const surface::SurfaceRect& r : all_rects(t.canvases.back())) {
@@ -868,14 +868,14 @@ TEST_CASE("Text and the four numbers are edited through the definition's doors, 
     CHECK(definition_bytes(t) == before);
     // TEXT: plain ASCII, judged at the door; a byte the media cannot draw is refused whole.
     REQUIRE(type_region_value(t, "Text", "plain words").accepted);
-    CHECK(t.session().panels.weaver.definition.regions[0].text == "plain words");
+    CHECK(t.session().panes.weaver.definition.regions[0].text == "plain words");
     CHECK(refused("Text", "plain words\xC3\xA9") ==
           "Text: a text region holds plain ASCII with no control characters");
-    CHECK(t.session().panels.weaver.definition.regions[0].text == "plain words");
+    CHECK(t.session().panes.weaver.definition.regions[0].text == "plain words");
     // THE AUTHORED ROWS OF THE PANE AND THE REGION SHARE LABELS AND NOT DOORS: the pane's X
     // is the setup's, the region's X is the definition's.
     type_region_value(t, "X", "3");
-    CHECK(t.session().panels.weaver.definition.regions[0].x == subs(3));
+    CHECK(t.session().panes.weaver.definition.regions[0].x == subs(3));
     CHECK(pane_of(t.session().setup.active, kMine)->place == PanePlace{});
     CHECK(pane_value(t, "X") == "-");
     CHECK(region_value(t, "X") == "3 cells");
@@ -889,7 +889,7 @@ TEST_CASE("a code-backed subject's interior is a read-only capture, and an unres
           "nothing to inspect") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
+    REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     const std::size_t at = interior_section(t);
     REQUIRE(at + 2 == t.session().inspected.rows.size());
     CHECK(t.session().inspected.rows[at + 1].label() == "Interior");
@@ -900,8 +900,8 @@ TEST_CASE("a code-backed subject's interior is a read-only capture, and an unres
     CHECK(region_row(t, "Text") == nullptr);
     // THE CAPTURE IS THE RESOLVED BODY, from the same place the painter resolves.
     const Screen sc = screen_of(t.session());
-    const PanelProsePlace place = panel_prose_place(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc).rect, sc);
+    const ProsePlace place = prose_place(
+        bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc).rect, sc);
     CHECK(capture.find(fine_rect_text(place.inside, 0)) != std::string::npos);
     CHECK(capture.find(std::to_string(place.rows) + " rows x ") != std::string::npos);
     // A CLOSED PANE: not presented, and said so -- and the one closed pane a fresh desk has
@@ -932,7 +932,7 @@ TEST_CASE("dirty pane truth refuses the quit, a second new pane and a replacing 
     t.host.session_path = dir.file("session.json");
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     make_pane(t, "MyPane");
-    REQUIRE(t.session().panels.weaver.dirty());
+    REQUIRE(t.session().panes.weaver.dirty());
     // THE QUIT, FROM ALL THREE DOORS.
     t.press(90, 35);
     t.key(input::scan::kQ);
@@ -953,15 +953,15 @@ TEST_CASE("dirty pane truth refuses the quit, a second new pane and a replacing 
     CHECK_FALSE(has_pane(t.session().setup.active, weaver_pane_ref("Second")));
     // A REPLACING OPEN -- the startup load, arriving after a weaver has already made one.
     t.publish(loom::to_value(surface::SurfaceReady{}));
-    CHECK(t.session().panels.weaver.definition.name == "MyPane");
+    CHECK(t.session().panes.weaver.definition.name == "MyPane");
     CHECK(t.notice().find("nothing was opened") != std::string::npos);
-    CHECK(t.session().panels.weaver.dirty());
+    CHECK(t.session().panes.weaver.dirty());
     // SAVE IS THE WAY OUT: the file is written, the pane is clean, the quit proceeds.
     const WeaverPaneAnswered saved = save_pane(t);
     REQUIRE_MESSAGE(saved.accepted, saved.said);
     CHECK(saved.said == "saved pane MyPane to " + spelled(path));
     CHECK(t.notice() == saved.said);
-    CHECK_FALSE(t.session().panels.weaver.dirty());
+    CHECK_FALSE(t.session().panes.weaver.dirty());
     CHECK(pdp::load_file(path).definition.name == "MyPane");
     t.press(90, 35);
     t.key(input::scan::kQ);
@@ -978,11 +978,11 @@ TEST_CASE("the discard door puts a saved pane back to its file, and closes a pan
     make_pane(t, "MyPane");
     // NEVER SAVED: the discard closes it whole; the row is intent and stays.
     REQUIRE(discard_pane(t).accepted);
-    CHECK_FALSE(t.session().panels.weaver.open());
+    CHECK_FALSE(t.session().panes.weaver.open());
     CHECK(t.notice().find("never saved") != std::string::npos);
     CHECK(has_pane(t.session().setup.active, kMine));
-    CHECK_FALSE(t.session().panels.has(kWeaverPaneKind));
-    CHECK_FALSE(resolve_pane(kMine, t.session().panels).has_value());
+    CHECK_FALSE(t.session().panes.has(kWeaverPaneKind));
+    CHECK_FALSE(resolve_pane(kMine, t.session().panes).has_value());
     CHECK(t.session().inspected.ref == kMine); // the subject stands, honestly unresolved
     CHECK(region_value(t, "Interior") == "no open definition is named MyPane -- nothing to show");
     // SAVED, THEN EDITED: the discard is the file's value again.
@@ -990,10 +990,10 @@ TEST_CASE("the discard door puts a saved pane back to its file, and closes a pan
     REQUIRE(type_region_value(t, "Text", "kept").accepted);
     REQUIRE(save_pane(t).accepted);
     REQUIRE(type_region_value(t, "Text", "lost").accepted);
-    CHECK(t.session().panels.weaver.dirty());
+    CHECK(t.session().panes.weaver.dirty());
     REQUIRE(discard_pane(t).accepted);
-    CHECK_FALSE(t.session().panels.weaver.dirty());
-    CHECK(t.session().panels.weaver.definition.regions[0].text == "kept");
+    CHECK_FALSE(t.session().panes.weaver.dirty());
+    CHECK(t.session().panes.weaver.definition.regions[0].text == "kept");
     CHECK(t.notice().find("back to what") != std::string::npos);
     CHECK(discard_pane(t).said.find("nothing to discard") != std::string::npos);
     // SAVE WITH NO FILE: a pane made in a run with no pane path is refused in words.
@@ -1005,7 +1005,7 @@ TEST_CASE("the discard door puts a saved pane back to its file, and closes a pan
     CHECK_FALSE(unsaved.accepted);
     CHECK(nowhere.session().notice_is_bad);
     CHECK(unsaved.said == "no pane file -- start Workshop with --pane <path>");
-    CHECK(nowhere.session().panels.weaver.dirty());
+    CHECK(nowhere.session().panes.weaver.dirty());
 }
 
 TEST_CASE("a malformed file cannot replace a live definition, and a refused file is "
@@ -1027,9 +1027,9 @@ TEST_CASE("a malformed file cannot replace a live definition, and a refused file
     CHECK(t.session().notice_is_bad);
     CHECK(t.notice().find("`button`") != std::string::npos);
     CHECK(definition_bytes(t) == good);
-    CHECK(t.session().panels.weaver.definition.name == "Live");
-    CHECK(t.session().panels.weaver.definition.regions[0].text == "good");
-    CHECK_FALSE(t.session().panels.weaver.dirty());
+    CHECK(t.session().panes.weaver.definition.name == "Live");
+    CHECK(t.session().panes.weaver.definition.regions[0].text == "good");
+    CHECK_FALSE(t.session().panes.weaver.dirty());
     // THE WALL STANDS, and it is load-bearing: this run's pane may not overwrite those bytes.
     bool walled = false;
     for (const Condition& c : t.conditions()) {
@@ -1047,7 +1047,7 @@ TEST_CASE("a malformed file cannot replace a live definition, and a refused file
     Live fresh;
     fresh.host.pane_path = path;
     fresh.publish(loom::to_value(surface::SurfaceReady{}));
-    CHECK_FALSE(fresh.session().panels.weaver.open());
+    CHECK_FALSE(fresh.session().panes.weaver.open());
     CHECK(fresh.session().notice_is_bad);
     bool fresh_wall = false;
     for (const Condition& c : fresh.conditions()) {
@@ -1098,21 +1098,21 @@ TEST_CASE("save, quit, relaunch -- the same pane returns on the same layout by i
         back.publish(loom::to_value(surface::SurfaceReady{}));
         sdl_face(back);
         const Session& s = back.session();
-        REQUIRE(s.panels.weaver.open());
-        CHECK(s.panels.weaver.definition.name == "MyPane");
-        CHECK(s.panels.weaver.definition.regions[0].text == "hello from data");
-        CHECK(s.panels.weaver.definition.regions[0].x == subs(10) + 24);
-        CHECK(s.panels.weaver.definition.regions[0].y == 24);
-        CHECK_FALSE(s.panels.weaver.dirty());
+        REQUIRE(s.panes.weaver.open());
+        CHECK(s.panes.weaver.definition.name == "MyPane");
+        CHECK(s.panes.weaver.definition.regions[0].text == "hello from data");
+        CHECK(s.panes.weaver.definition.regions[0].x == subs(10) + 24);
+        CHECK(s.panes.weaver.definition.regions[0].y == 24);
+        CHECK_FALSE(s.panes.weaver.dirty());
         CHECK(has_pane(s.setup.active, kMine));
-        CHECK(s.panels.has(kWeaverPaneKind));
+        CHECK(s.panes.has(kWeaverPaneKind));
         const RegionPresentation p = presentation_of(back);
         CHECK(p.present);
         CHECK(p.fit.graphical());
         CHECK(p.fit.view.x == surface::px_of_subs(interior_of(back).x) + 126);
         // THE SAME FILE ON A TERMINAL: the same pane, the same identity, cells and `~`.
         tui_face(back);
-        CHECK(back.session().panels.has(kWeaverPaneKind));
+        CHECK(back.session().panes.has(kWeaverPaneKind));
         CHECK(weaver_pane_text(back).find("hello from data") != std::string::npos);
         // THE SUBJECT DID NOT COME BACK, AND IS NOT OWED: an inspector's subject is its own and
         // no session holds it. Named again through the inspector's door, the same rows read the
@@ -1135,17 +1135,17 @@ TEST_CASE("save, quit, relaunch -- the same pane returns on the same layout by i
     gone.host.session_path = session;
     gone.publish(loom::to_value(surface::SurfaceReady{}));
     tui_face(gone);
-    CHECK_FALSE(gone.session().panels.weaver.open());
+    CHECK_FALSE(gone.session().panes.weaver.open());
     REQUIRE(has_pane(gone.session().setup.active, kMine));
-    CHECK_FALSE(gone.session().panels.has(kWeaverPaneKind));
+    CHECK_FALSE(gone.session().panes.has(kWeaverPaneKind));
     // TWO ROWS WAIT: this case's pane, and the desk's Info weave, which no office in this
     // rig offers. The band says so with the count it actually has.
     const std::vector<PaneRef> waiting =
-        unresolved_panes(gone.session().setup.active, gone.session().panels);
+        unresolved_panes(gone.session().setup.active, gone.session().panes);
     REQUIRE(waiting.size() == 2);
     CHECK(waiting[0] == info_ref());
     CHECK(waiting[1] == kMine);
-    CHECK(setup_rest_text(gone.session().setup, gone.session().panels, gone.session().keymap)
+    CHECK(setup_rest_text(gone.session().setup, gone.session().panes, gone.session().keymap)
               .find("2 unresolved") != std::string::npos);
     // ...AND LEAVING WRITES THE ROW BACK UNCHANGED.
     gone.press(90, 35);
@@ -1174,12 +1174,12 @@ TEST_CASE("loading a definition mounts nothing, offers nothing and sends nothing
     WeaverEars* ears = mount_weaver_ears(t);
     t.publish(loom::to_value(surface::SurfaceReady{}));
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    REQUIRE(t.session().panels.weaver.open());
+    REQUIRE(t.session().panes.weaver.open());
     open_pane(t, kMine);
-    REQUIRE(t.session().panels.has(kWeaverPaneKind));
+    REQUIRE(t.session().panes.has(kWeaverPaneKind));
     const Screen sc = screen_of(t.session());
     const ui::Rect cells = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, kWeaverPaneKind, sc).rect);
+        bounds_of(t.session().panes, t.session().setup.active, kWeaverPaneKind, sc).rect);
     t.press_canvas(cells.x + 2, cells.y + 2);
     t.key(input::scan::kX);
     t.text("x");
@@ -1188,9 +1188,9 @@ TEST_CASE("loading a definition mounts nothing, offers nothing and sends nothing
         t.publish(loom::to_value(surface::SurfaceExtent{132 + i, 46, 0, 0}));
     }
     CHECK(ears->heard() == 0);
-    CHECK(t.session().panels.runtime.entries.size() == 2); // the two stand-ins `Live` admits
-    CHECK(t.session().panels.external.empty());
-    CHECK(t.session().panels.keyboard == kNoPaneKind);
+    CHECK(t.session().panes.runtime.entries.size() == 2); // the two stand-ins `Live` admits
+    CHECK(t.session().panes.external.empty());
+    CHECK(t.session().panes.keyboard == kNoPaneKind);
 }
 
 // ============================================================================
@@ -1208,11 +1208,11 @@ TEST_CASE("the weaver door refuses a bad name in words and makes nothing") {
     CHECK_FALSE(spaced.accepted);
     CHECK(spaced.said.find("no spaces") != std::string::npos);
     CHECK(t.session().notice_is_bad);
-    CHECK_FALSE(t.session().panels.weaver.open());
+    CHECK_FALSE(t.session().panes.weaver.open());
     const WeaverPaneAnswered empty = hand_weaver(t, weaver_pane_act::kCreate, "");
     CHECK_FALSE(empty.accepted);
     CHECK(empty.said.find("cannot be empty") != std::string::npos);
-    CHECK_FALSE(t.session().panels.weaver.open());
+    CHECK_FALSE(t.session().panes.weaver.open());
     // NOTHING WAS MADE: no row on the desk, and no definition.
     CHECK(t.session().setup.active.panes.size() == rows_before);
     // ...AND AN ACT THE DOOR DOES NOT HAVE IS REFUSED IN WORDS TOO.
@@ -1229,22 +1229,22 @@ TEST_CASE("at the minimum composition a new pane lands waiting, is still the sub
     const Session& s = t.session();
     CHECK(made.said.find("waiting for room") != std::string::npos);
     REQUIRE(has_pane(s.setup.active, kMine));
-    CHECK_FALSE(s.panels.has(kWeaverPaneKind));
-    CHECK(s.panels.waiting(kWeaverPaneKind));
+    CHECK_FALSE(s.panes.has(kWeaverPaneKind));
+    CHECK(s.panes.waiting(kWeaverPaneKind));
     const Screen sc = screen_of(s);
-    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
+    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panes)) {
         if (row.ref == kMine) {
-            CHECK(pane_state_of(s.panels, s.setup.active, sc, row) == pane_state::kWaiting);
+            CHECK(pane_state_of(s.panes, s.setup.active, sc, row) == pane_state::kWaiting);
         }
     }
     CHECK(s.inspected.ref == kMine);
     REQUIRE(type_region_value(t, "Text", "typed while waiting").accepted);
-    CHECK(t.session().panels.weaver.definition.regions[0].text == "typed while waiting");
+    CHECK(t.session().panes.weaver.definition.regions[0].text == "typed while waiting");
     CHECK(region_value(t, "Resolved") == "- (the pane is not presented, or the region lies outside it)");
     CHECK(region_value(t, "Shown") == "no room -- nothing of it is drawn on this face");
     // A TALLER WINDOW SEATS IT, with the text already in it.
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    CHECK(t.session().panels.has(kWeaverPaneKind));
+    CHECK(t.session().panes.has(kWeaverPaneKind));
     CHECK(weaver_pane_text(t).find("typed while waiting") != std::string::npos);
 }
 
@@ -1252,15 +1252,15 @@ TEST_CASE("a run with no weaver pane is the run it always was") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     const Session& s = t.session();
-    CHECK_FALSE(s.panels.weaver.open());
-    CHECK_FALSE(s.panels.weaver.dirty());
-    CHECK(combined_catalog(s.panels).size() == kPanelKinds + 2); // ...plus the two stand-ins
+    CHECK_FALSE(s.panes.weaver.open());
+    CHECK_FALSE(s.panes.weaver.dirty());
+    CHECK(combined_catalog(s.panes).size() == kBuiltinPaneCount + 2); // ...plus the two stand-ins
     // THE INVENTORY IS ONE LONGER THAN THE CATALOG, and the extra row is not a weaver pane:
     // it is the desk's Info weave, authored by `default_setup` and offered by nobody here.
-    CHECK(inventory_rows(s.setup.active, s.panels).size() == kPanelKinds + 3);
+    CHECK(inventory_rows(s.setup.active, s.panes).size() == kBuiltinPaneCount + 3);
     CHECK(has_pane(s.setup.active, info_ref()));
-    CHECK_FALSE(resolve_pane(kMine, s.panels).has_value());
-    CHECK(kind_name(s.panels, kWeaverPaneKind).empty());
+    CHECK_FALSE(resolve_pane(kMine, s.panes).has_value());
+    CHECK(kind_name(s.panes, kWeaverPaneKind).empty());
     // THE QUIT IS UNGUARDED BY A PANE NOBODY MADE.
     t.key(input::scan::kQ);
     CHECK(t.host.quit);

@@ -89,7 +89,7 @@ KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (s.setup.naming.open) {
         return KeyContext::kNaming;
     }
-    if (is_runtime_kind(keyboard_pane(s.panels))) {
+    if (is_runtime_kind(keyboard_pane(s.panes))) {
         return KeyContext::kPane;
     }
     return KeyContext::kCommand;
@@ -120,7 +120,7 @@ std::int64_t typing_pane(const Session& s) {
     if (keyboard_context(s) != KeyContext::kPane) {
         return kNoPaneKind;
     }
-    return keyboard_pane(s.panels);
+    return keyboard_pane(s.panes);
 }
 
 /// Where the keys went to a list or to nothing, as against a place a weaver types into, which

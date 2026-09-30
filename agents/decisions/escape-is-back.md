@@ -11,7 +11,7 @@ the selected pane down").
 
 **Decision.** Escape's last meaning is to put the selected pane down. Every mode, overlay and
 draft answers Escape with its own row first; a bare Escape that reaches a context where a list or
-nothing holds the keys, with no binding claiming it, sheds `Panels::selected` and the keyboard
+nothing holds the keys, with no binding claiming it, sheds `Panes::selected` and the keyboard
 candidate — exactly the press-elsewhere gesture's two lines — and moves nothing else. It is
 asked after the resolved context has had the key, and it is not a keymap action. A place a weaver
 types into keeps Escape while it holds the keys.
@@ -49,7 +49,7 @@ not lend its identity to the first Escape's answer"` and case `"an answer to an 
 cannot borrow the next Escape's identity"`.
 
 **Consequences.** `unselect_pane` is the press-on-nothing line spent from the keyboard, the
-fourth writer of `Panels::selected`. A pane that takes text keeps Escape unless it says otherwise:
+fourth writer of `Panes::selected`. A pane that takes text keeps Escape unless it says otherwise:
 the Terminal sheds its list, then its line, then itself, and the two editors keep every Escape, so
 the way out of them is the way in -- press a pane that takes no text (every desk has Layouts) or
 the workspace. A pane whose holder takes no keys at all is put down by Escape where it used to

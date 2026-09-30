@@ -46,7 +46,7 @@ workshop_document                 doctest           always  45
 workshop_screen                   doctest           always  129
 # Tripwires in this suite read workshop/attention.hpp, workshop/pane_definition.hpp and
 # workshop/pane_definition_persist.hpp as text (VM-WALL-11).
-workshop_panels                   doctest           always  96
+workshop_host                   doctest           always  96
 # Tripwires in this suite read Workshop's presentation sources, workshop/workshop.cpp,
 # workshop/arrangement.hpp, the Introspection, Builder, Info, Terminal and Editor panes' sources
 # and CMake files, and tests/weavelib/legacy_pane.cpp as text (VM-WALL-11).

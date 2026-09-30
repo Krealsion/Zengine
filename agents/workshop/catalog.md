@@ -1,22 +1,22 @@
 # Workshop law — the catalog
 
-Register `WL-CAT`: the panel kinds, the built-in rows, and the runtime offers admitted beside
+Register `WL-CAT`: the pane kinds, the built-in rows, and the runtime offers admitted beside
 them. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md). What crosses
 the pane seam is the protocol's law, in [`../panes.md`](../panes.md); a reference's two keys
 are the setup file's law (WL-SETUP-10).
 
-## WL-CAT-01 — A panel kind is one integer from one closed vocabulary
+## WL-CAT-01 — A pane kind is one integer from one closed vocabulary
 
-LAW — A panel kind is a plain integer: the compile-time kinds are `kPanelCatalog`'s rows, in its order, and a runtime handle is minted from `kFirstRuntimeKind` up; nothing else is a kind.
+LAW — A pane kind is a plain integer: the compile-time kinds are `kBuiltinPanes`'s rows, in its order, and a runtime handle is minted from `kFirstRuntimeKind` up; nothing else is a kind.
 
 MEANS
 - `is_runtime_kind` is the one test that tells a session-local handle from a compile-time kind;
 - the kinds are deliberately unalike, and nothing in the vocabulary tells the built-ins apart.
 
-PROVEN BY — `workshop/panel.hpp` `panel`, `kPanelCatalog`, `kPanelKinds`, `kFirstRuntimeKind`,
-`is_runtime_kind`; `tests/test_workshop_panes_seam.cpp` case `"the runtime catalog is beside the
-compile-time one and never inside it"`, case `"an unknown runtime reference never becomes the
-Builder"`.
+PROVEN BY — `workshop/panes.hpp` `pane_kind`, `kBuiltinPanes`, `kBuiltinPaneCount`,
+`kFirstRuntimeKind`, `is_runtime_kind`; `tests/test_workshop_panes_seam.cpp` case `"the runtime
+catalog is beside the compile-time one and never inside it"`, case `"an unknown runtime reference
+never becomes the Builder"`.
 WHY — `agents/decisions/the-catalog-is-one-list.md`
 
 ## WL-CAT-02 — A descriptor's prose is judged whole, in bytes, before it is kept
@@ -57,7 +57,7 @@ MEANS
 - the bound is a runtime-catalog policy and deliberately not an alias of `kMaxSetupPanes`;
 - it bounds what a chatty or malicious provider can make this session retain.
 
-PROVEN BY — `workshop/panel.hpp` `kMaxPaneCatalogEntries`; `tests/test_workshop_panes_seam.cpp`
+PROVEN BY — `workshop/panes.hpp` `kMaxPaneCatalogEntries`; `tests/test_workshop_panes_seam.cpp`
 case `"the combined catalog stops at thirty-two entries, built-ins included"`.
 WHY — `agents/decisions/the-catalog-is-one-list.md`
 
@@ -69,7 +69,7 @@ MEANS
 - a provider cannot buy the top of the list by choosing a name;
 - a later offer may grow the vector, so a row is looked up by handle or by reference when needed.
 
-PROVEN BY — `workshop/panel.hpp` `RuntimeCatalog`, `RuntimeCatalog::entries`,
+PROVEN BY — `workshop/panes.hpp` `RuntimeCatalog`, `RuntimeCatalog::entries`,
 `RuntimeCatalog::next_kind`; `workshop/setup.hpp` `combined_catalog`;
 `tests/test_workshop_panes_seam.cpp` case `"the runtime catalog is beside the compile-time one
 and never inside it"`, case `"re-offering one reference refreshes it in place and grows

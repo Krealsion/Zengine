@@ -113,8 +113,8 @@ struct TransferStory {
         r.extent(180, 60);
         r.pick(editor_ref());
         r.pick({"zengine.inventory-pane", "inventory"});
-        editor = r.session().panels.runtime.find(ed::kEditorPaneRole, ed::kEditorPane)->kind;
-        inventory = r.session().panels.runtime.find("zengine.inventory-pane", "inventory")->kind;
+        editor = r.session().panes.runtime.find(ed::kEditorPaneRole, ed::kEditorPane)->kind;
+        inventory = r.session().panes.runtime.find("zengine.inventory-pane", "inventory")->kind;
         using Input = input::InputWeaveT<QuietReader>;
         auto reader = std::make_unique<Input>(QuietReader{physical});
         auto* reader_ptr = reader.get();
@@ -171,7 +171,7 @@ struct TransferStory {
         e.space = input::space::kCells;
         e.x = rect.x + column;
         e.y = rect.y + row + surface::kTuiCanvasTopRow +
-              external_title_rows(r.session().panels, kind, r.session().pane_titles);
+              external_title_rows(r.session().panes, kind, r.session().pane_titles);
         return e;
     }
     void click(std::int64_t kind, std::int64_t row, std::int64_t column, std::int64_t button = 1) {
@@ -268,7 +268,7 @@ struct TransferStory {
         for (std::size_t i = 0; i < rs.size(); ++i) if (rs[i].find(text) != std::string::npos) return static_cast<std::int64_t>(i);
         std::string all;
         for (const auto& row : rs) all += "  | " + row + "\n";
-        FAIL_CHECK("no row reads " << text << " (pane on the desk: " << r.session().panels.has(kind)
+        FAIL_CHECK("no row reads " << text << " (pane on the desk: " << r.session().panes.has(kind)
                                    << ", notice: " << r.last_notice() << "); the rows are:\n" << all);
         return -1;
     }

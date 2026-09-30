@@ -423,8 +423,8 @@ TEST_CASE("a retained sample is history, and an unload does not erase it") {
     // CATALOG, and erasing a weaver's answer because the population moved would reinterpret
     // history from a fact that is not about it.
     REQUIRE(r.catalog.unmount("zengine.provider.source"));
-    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
-                          r.session().panels.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
+                          r.session().panes.external_pane(kind)->columns + 1);
     r.extent(150, 44); // a fresh reading, which is this tool's one beat
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -507,13 +507,13 @@ TEST_CASE("keys routed to another pane cannot move the Powers pane") {
     const std::int64_t project = intro_row(r, intro::kArrangementPane)->kind;
 
     focus_pane(r, powers);
-    REQUIRE(keyboard_pane(r.session().panels) == powers);
+    REQUIRE(keyboard_pane(r.session().panes) == powers);
     r.text("rec");
     const std::vector<std::string> mine = pane_rows(r, powers);
     REQUIRE(mine[0].find("find:rec") != std::string::npos);
 
     press_pane(r, project, 1, 1);
-    REQUIRE(keyboard_pane(r.session().panels) == project); // the keyboard really moved
+    REQUIRE(keyboard_pane(r.session().panes) == project); // the keyboard really moved
 
     r.text("ZZZ");
     r.key(input::scan::kTab);
@@ -561,7 +561,7 @@ TEST_CASE("a cold pane's first press is exactly one act") {
     for (std::int64_t row = 0; row < 6; ++row) {
         press_pane(cold, waiting, row, 0);
     }
-    const ExternalPane* pane = cold.session().panels.external_pane(waiting);
+    const ExternalPane* pane = cold.session().panes.external_pane(waiting);
     REQUIRE(pane != nullptr);
     CHECK(pane->awaiting);
     CHECK(pane->shown.empty());
@@ -677,8 +677,8 @@ TEST_CASE("THE LIVE WEAVER WITNESS, end to end through the real pane") {
     // owner on its own -- it is historical presentation -- and the new one did.
     r.project_anchor = "/zen/somewhere-else";
     CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/pane-rig\"")); // still the old one
-    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
-                          r.session().panels.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
+                          r.session().panes.external_pane(kind)->columns + 1);
     r.extent(150, 44);
     CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/pane-rig\"")); // a repaint is not a re-ask
     r.key(input::scan::kReturn);
@@ -691,8 +691,8 @@ TEST_CASE("THE LIVE WEAVER WITNESS, end to end through the real pane") {
     const std::int64_t said = shown_count(pane_rows(r, kind));
     CHECK(said > 0);
     REQUIRE(r.catalog.unmount("zengine.provider.source"));
-    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
-                          r.session().panels.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
+                          r.session().panes.external_pane(kind)->columns + 1);
     r.extent(160, 48);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -727,7 +727,7 @@ TEST_CASE("the Powers list past its window is reached by the wheel, through the 
     press_pane(r, kind, 0, ops);
     REQUIRE(pane_rows(r, kind)[0].find("[Operators]") != std::string::npos);
     press_outside(r, kind); // the keyboard back to Workshop: this is about the pointer
-    REQUIRE(r.session().panels.keyboard == kNoPaneKind);
+    REQUIRE(r.session().panes.keyboard == kNoPaneKind);
     const std::vector<std::string> start = pane_rows(r, kind);
     REQUIRE(any_row(start, " more"));
     // The position marker `k/N` on the chrome row: nothing selected yet, N operators.
@@ -756,7 +756,7 @@ TEST_CASE("the Powers list past its window is reached by the wheel, through the 
     CHECK_FALSE(any_row(start, chosen)); // reached, and it was hidden at the start
     CHECK(end[0].find(std::to_string(total) + "/" + std::to_string(total)) != std::string::npos);
     CHECK_FALSE(any_row(end, " more below"));
-    CHECK(r.session().panels.keyboard == kNoPaneKind); // looking pointed no keys
+    CHECK(r.session().panes.keyboard == kNoPaneKind); // looking pointed no keys
     // AT THE TAIL A FURTHER NOTCH SAYS NOTHING: the content is identical, no frame is owed.
     r.wheel_cell(-1.0, cx, cy);
     CHECK(pane_rows(r, kind) == end);

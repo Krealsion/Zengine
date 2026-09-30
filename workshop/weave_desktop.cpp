@@ -168,7 +168,7 @@ void WorkshopWeave::on(const DeselectRequested&, loom::Mail& mail) {
         return;
     }
     app_asked_ = AppAsked{};
-    if (session_.panels.selected == kNoPaneKind) {
+    if (session_.panes.selected == kNoPaneKind) {
         return; // nothing is picked up; putting nothing down says nothing
     }
     unselect_pane();
@@ -184,7 +184,7 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
     out.pane = ref.pane;
     // The one inventory answers, and nothing else: the population the Pane Manager lists, both
     // doors judge and a restore resolves against.
-    const std::vector<CatalogRow> rows = inventory_rows(session_.setup.active, session_.panels);
+    const std::vector<CatalogRow> rows = inventory_rows(session_.setup.active, session_.panes);
     const CatalogRow* found = nullptr;
     for (const CatalogRow& row : rows) {
         if (row.ref == ref) {
@@ -214,7 +214,7 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
         return out;
     }
     // COPIED BEFORE THE DESK MOVES: `apply_setup` may re-ask providers and grow the catalog
-    // vector under a pointer into it (panel.hpp's own warning).
+    // vector under a pointer into it (panes.hpp's own warning).
     const std::int64_t kind = found->kind;
     const std::string name = found->name;
     if (kind == kNoPaneKind) {
@@ -239,14 +239,14 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
                                     "relaunch)";
         return out;
     }
-    const bool already = session_.panels.has(kind);
+    const bool already = session_.panes.has(kind);
     if (!already) {
         // Judged through the trial seat (`seat_panes`), on a copy, before the setup moves, so a
         // refusal never leaves the weaver an authored pane they never saw.
         Setup candidate = session_.setup.active;
         const bool added = add_pane(candidate, ref);
         const Seating trial =
-            seat_panes(candidate, session_.panels, stack_capacity(screen_of(session_)));
+            seat_panes(candidate, session_.panes, stack_capacity(screen_of(session_)));
         for (const std::int64_t k : trial.waiting) {
             if (k == kind) {
                 out.refusal = "no room for " + name +
@@ -258,7 +258,7 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
             session_.setup.active = std::move(candidate);
         }
         apply_setup(mail);
-        if (!session_.panels.has(kind)) {
+        if (!session_.panes.has(kind)) {
             // THE BELT UNDER THE TRIAL, and the same take-back: "opened" is the word the
             // asker acts on and it may never be said of a pane the screen does not show.
             if (added) {
@@ -272,8 +272,8 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
     }
     // And it focuses either way: a launch of a pane already on the desk puts the weaver in it,
     // selected and holding the keys if it takes them, and never closes it.
-    session_.panels.selected = kind;
-    session_.panels.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
+    session_.panes.selected = kind;
+    session_.panes.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
     out.focused = true;
     return out;
 }
@@ -300,7 +300,7 @@ void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
 // ---- Closing: participation, and nothing behind it ----------------------------------------
 
 std::string WorkshopWeave::inventory_name(const PaneRef& ref) const {
-    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panels)) {
+    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
         if (row.ref == ref) {
             return row.name;
         }
@@ -400,7 +400,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
         }
     }
     if (!known) {
-        for (const RuntimePane& row : session_.panels.runtime.entries) {
+        for (const RuntimePane& row : session_.panes.runtime.entries) {
             for (const v2::PaneActionRow& d : row.actions) {
                 if (d.id == asked.action) {
                     declared = Gesture{d.scancode, d.modifiers};
@@ -549,7 +549,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
             return;
         }
     }
-    for (const RuntimePane& row : session_.panels.runtime.entries) {
+    for (const RuntimePane& row : session_.panes.runtime.entries) {
         if (row.actions.empty()) {
             continue;
         }
@@ -683,8 +683,8 @@ bool WorkshopWeave::provider_present(std::int64_t kind, const PaneRef& ref) cons
 PaneInventory WorkshopWeave::inventory_reading() const {
     PaneInventory said;
     const Seating seated =
-        seat_panes(session_.setup.active, session_.panels, stack_capacity(screen_of(session_)));
-    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panels)) {
+        seat_panes(session_.setup.active, session_.panes, stack_capacity(screen_of(session_)));
+    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
         InventoryPane p;
         p.office = row.ref.provider;
         p.pane = row.ref.pane;

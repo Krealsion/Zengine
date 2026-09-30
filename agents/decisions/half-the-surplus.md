@@ -4,19 +4,19 @@
 supports is in [panes-and-windows](../workshop/panes-and-windows.md).
 
 **Context.** An overlay-stack slot was 48 by 9 cells at every extent, so a weaver with a
-200-column surface gave a stacked panel — and the external pane inside it — exactly the room
+200-column surface gave a stacked pane — and the external pane inside it — exactly the room
 the 78x22 minimum gives it (`02d2603`, "Share the wider room with the maker").
 
 **Decision.** `placement_bounds` resolves a slot's width to `kStackW + (room_w - kStackW)/2`,
 the minimum plus half the room's surplus, floored, while its column, row, height and gap are
 untouched. It is `screen_of`'s own half-share rule with `kStackW` as the base. Every cell a slot
 gains is paint and pointer alike: the frame painter fills the whole rectangle, occupancy owns it,
-and a press inside it is answered with the panel's sentence. An external pane's body is its slot
+and a press inside it is answered with the pane's sentence. An external pane's body is its slot
 less its header rows, and the fitted room over it is granted to the provider whenever the body
 changes.
 
 **Alternatives considered.**
-- *A full-width slot* — rejected: it leaves zero reachable workspace columns beside the panel,
+- *A full-width slot* — rejected: it leaves zero reachable workspace columns beside the pane,
   and the stack/terminal overlap would have been 3,033 cells where the half-share's worst case
   is 504 (`02d2603`).
 - *Rounding the half up* — rejected: at 79 columns the surplus is exactly one, and rounding up
@@ -25,7 +25,7 @@ changes.
 - *A width edit buying a slot* — refused: `stack_slots_that_fit` reads `y` and `h` only; pinned
   by case `"the half-share pays at the bottom of the range too, and buys no slot"`.
 
-**Consequences.** Reachable workspace columns beside a panel: 1, 9, 21, 61 and 281 at 79, 96,
+**Consequences.** Reachable workspace columns beside a pane: 1, 9, 21, 61 and 281 at 79, 96,
 120, 200 and 640 columns of surface. The minimum composition `{0,1,48,9}` is byte-identical.
 The stack/terminal overlap grew from 432 to 504 worst-case cells and is bounded by
 `kTerminalWantW`, because the pane's left edge moves right at the rate the slot's right edge

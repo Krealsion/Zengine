@@ -17,13 +17,13 @@ void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
         return;
     }
     const auto ring = [&](const PaneRef& ref, bool emphasized) {
-        const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels);
+        const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);
         // Every pane this build can resolve wears handles; only a reference that resolves to no
         // kind stops a ring.
         if (!kind.has_value()) {
             return;
         }
-        const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, sc);
+        const PaneBounds where = bounds_of(s.panes, s.setup.active, *kind, sc);
         if (!where.open || where.rect.w <= 0 || where.rect.h <= 0) {
             return;
         }

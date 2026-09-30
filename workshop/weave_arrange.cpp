@@ -14,7 +14,7 @@ namespace zengine::workshop {
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md
 std::vector<PaneRef> WorkshopWeave::arrangeable() const {
     std::vector<PaneRef> out;
-    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panels)) {
+    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
         if (has_pane(session_.setup.active, row.ref)) {
             out.push_back(row.ref);
         }
@@ -55,9 +55,9 @@ void WorkshopWeave::enter_arrange_pane(const PaneRef& ref) {
     // `manage.front` is still the only permanent raise. After admission, never before, so a
     // refusal moves nothing. The keyboard candidate is untouched: arrangement is its own key
     // context, and where the keys go on leaving has its own owner.
-    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
+    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
     if (kind.has_value()) {
-        session_.panels.selected = *kind;
+        session_.panes.selected = *kind;
     }
     PaneArrange& a = session_.arrange;
     a.open = true;
@@ -100,9 +100,9 @@ std::string WorkshopWeave::arrange_status() const {
         return "arrange -- no pane addressed";
     }
     const char* state = "";
-    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panels)) {
+    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
         if (row.ref == a.pane) {
-            state = pane_state_word(pane_state_of(session_.panels, session_.setup.active,
+            state = pane_state_word(pane_state_of(session_.panes, session_.setup.active,
                                                   screen_of(session_), row));
             break;
         }
@@ -161,7 +161,7 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
         return Written::no(ref_text(ref) +
                            " is no longer in this setup -- the Pane Manager can bring it back");
     }
-    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
+    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
     if (!kind.has_value()) {
         return Written::no(ref_text(ref) +
                            " is unresolved -- its place and size cannot be measured; "
@@ -171,36 +171,36 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
     // a unit and a want of room. Both sentences are true of a fixed pane
     // sized in pixels, and only one of them tells a weaver what to press.
     if (!pane_unit_projectable(pane_of(session_.setup.active, ref))) {
-        return Written::no(kind_name(session_.panels, *kind) +
+        return Written::no(kind_name(session_.panes, *kind) +
                            " is sized in pixels, which no medium here can project -- "
                            "0 then w or h resets that axis");
     }
-    const PanelBounds where =
-        bounds_of(session_.panels, session_.setup.active, *kind, screen_of(session_));
+    const PaneBounds where =
+        bounds_of(session_.panes, session_.setup.active, *kind, screen_of(session_));
     if (!where.open) {
-        return Written::no(kind_name(session_.panels, *kind) +
+        return Written::no(kind_name(session_.panes, *kind) +
                            " has no room on this screen yet -- 0 resets it");
     }
     if (!where.projected) {
-        return Written::no(kind_name(session_.panels, *kind) +
+        return Written::no(kind_name(session_.panes, *kind) +
                            " is sized in pixels, which no medium here can project -- "
                            "0 then w or h resets that axis");
     }
     if (where.rect.w <= 0 || where.rect.h <= 0) {
-        return Written::no(kind_name(session_.panels, *kind) +
+        return Written::no(kind_name(session_.panes, *kind) +
                            " is off this screen -- 0 then p resets its place");
     }
     return Written::ok();
 }
 
 // WL-ARR-04 -- agents/workshop/arrangement.md; WL-GEO-12 -- agents/workshop/geometry.md
-PanelBounds WorkshopWeave::managed_bounds() const {
+PaneBounds WorkshopWeave::managed_bounds() const {
     const std::optional<std::int64_t> kind =
-        resolve_pane(session_.arrange.pane, session_.panels);
+        resolve_pane(session_.arrange.pane, session_.panes);
     if (!kind.has_value()) {
-        return PanelBounds{};
+        return PaneBounds{};
     }
-    return bounds_of(session_.panels, session_.setup.active, *kind, screen_of(session_));
+    return bounds_of(session_.panes, session_.setup.active, *kind, screen_of(session_));
 }
 
 // WL-ARR-04 -- agents/workshop/arrangement.md; WL-PED-05 -- agents/workshop/pane-manager.md
@@ -238,7 +238,7 @@ void WorkshopWeave::arrange_place(std::int64_t x, std::int64_t y, loom::Mail& ma
     // AND THE SEATING IS RECONCILED, because authoring a place takes the pane OUT of the
     // reactive stack -- it stops spending a tile, and whatever was waiting for one may
     // now have it. Resetting the place puts it back. This is the one door that opens or
-    // closes a panel, so a geometry edit cannot produce a screen the setup disagrees with.
+    // closes a pane, so a geometry edit cannot produce a screen the setup disagrees with.
     if (done.place_written) {
         apply_setup(mail);
     }
@@ -388,7 +388,7 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     }
     // REMOVE THIS PANE. The close door's own semantics through the setup's own
     // door: the intent leaves the setup, `apply_setup` is what closes the
-    // presentation, and what the pane was presenting is untouched -- a panel is a
+    // presentation, and what the pane was presenting is untouched -- a pane on the desk is a
     // presentation, and removing one removes a presentation. A removal works on a
     // waiting or unresolved row exactly as on an open one (rule).
     case Act::kManageRemove: {
@@ -501,13 +501,13 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
 // WL-ARR-01, WL-ARR-07 -- agents/workshop/arrangement.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc) {
-    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
+    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
     // A hand may take hold of any pane this build can resolve: nothing is reserved, and the hand
     // and the keys refuse by one sentence.
     if (!kind.has_value()) {
         return false;
     }
-    const PanelBounds mine = bounds_of(session_.panels, session_.setup.active, *kind, sc);
+    const PaneBounds mine = bounds_of(session_.panes, session_.setup.active, *kind, sc);
     if (!mine.open || mine.rect.w <= 0 || mine.rect.h <= 0) {
         return false;
     }
@@ -567,16 +567,16 @@ void WorkshopWeave::arrange_press(const PointedAt& at) {
         return;
     }
     const std::vector<std::int64_t> order =
-        effective_pane_order(session_.setup.active, session_.panels);
+        effective_pane_order(session_.setup.active, session_.panes);
     for (std::size_t i = order.size(); i > 0; --i) {
         const std::int64_t kind = order[i - 1];
-        if (!bounds_of(session_.panels, session_.setup.active, kind, sc)
+        if (!bounds_of(session_.panes, session_.setup.active, kind, sc)
                  .rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
             continue;
         }
         for (const SetupPane& row : session_.setup.active.panes) {
             const std::optional<std::int64_t> named =
-                resolve_pane(row.ref, session_.panels);
+                resolve_pane(row.ref, session_.panes);
             if (named.has_value() && *named == kind) {
                 a.pane = row.ref;
                 if (!take_pane_hold(row.ref, at, sc)) {

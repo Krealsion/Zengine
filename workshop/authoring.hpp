@@ -99,7 +99,7 @@ inline Target recipe_target(const RecipeAuthor& host) {
     }
     if (!in_force.empty()) {
         // SEEDED WITH THE SHIPPED ROWS AS WRITTEN, so nothing buildable disappears from the
-        // panel at the moment a weaver authors their first recipe (Choice 10).
+        // pane at the moment a weaver authors their first recipe (Choice 10).
         const recipe_persist::LoadedRecipes read = recipe_persist::load_file(in_force);
         if (read.outcome.accepted) {
             out.rows = read.recipes;

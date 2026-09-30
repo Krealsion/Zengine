@@ -30,7 +30,7 @@ inline constexpr const char* kFilesProvider = "zengine.files";
 /// rename.
 inline constexpr const char* kFilesPane = "project-files";
 
-/// The office the Builder panel was offered from, spelled a second time rather than aliased: two
+/// The office the Builder pane was offered from, spelled a second time rather than aliased: two
 /// independent facts about two sets of files.
 inline constexpr const char* kRetiredBuilderProvider = "zengine.workshop";
 
@@ -41,7 +41,7 @@ inline constexpr const char* kBuilderProvider = "zengine.builder-pane";
 /// THE PANE KEY, WHICH DID NOT MOVE. Only the office changed hands.
 inline constexpr const char* kBuilderPane = "builder";
 
-/// The Info panel's old office and its office now, for `kFilesProvider`'s reasons on both sides.
+/// The Info pane's old office and its office now, for `kFilesProvider`'s reasons on both sides.
 inline constexpr const char* kRetiredInfoProvider = "zengine.workshop";
 inline constexpr const char* kInfoProvider = "zengine.info";
 
@@ -97,12 +97,12 @@ inline bool names_the_retired_browser(const PaneRef& ref) {
     return ref.provider == kRetiredFilesProvider && ref.pane == kFilesPane;
 }
 
-/// Is this the reference a saved file wrote for the built-in Builder panel?
+/// Is this the reference a saved file wrote for the built-in Builder pane?
 inline bool names_the_retired_builder(const PaneRef& ref) {
     return ref.provider == kRetiredBuilderProvider && ref.pane == kBuilderPane;
 }
 
-/// Is this the reference a saved file wrote for the built-in Info panel?
+/// Is this the reference a saved file wrote for the built-in Info pane?
 inline bool names_the_retired_info(const PaneRef& ref) {
     return ref.provider == kRetiredInfoProvider && ref.pane == kInfoPane;
 }

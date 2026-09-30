@@ -113,7 +113,7 @@ public:
           then_revert_(then_revert), stop_(std::move(stop)) {}
 
     /// THE CATALOG ARRIVES FIRST, and this is where the ask is made -- from inside a
-    /// delivery, the way a panel's key press makes one, rather than from `main` before
+    /// delivery, the way a pane's key press makes one, rather than from `main` before
     /// anything is alive.
     void on(const builder::RecipeCatalog& said, loom::Mail& mail) {
         if (asked_) {
@@ -136,7 +136,7 @@ public:
         ++state_.heard;
         // Is this status about this host's ask? The tool publishes what it is the moment it is
         // asked, about nothing yet (an empty recipe, `not built yet`), and taking that as the
-        // answer would end the loop before the build began: the confusion the Builder panel's
+        // answer would end the loop before the build began: the confusion the Builder pane's
         // `awaiting` latch exists to prevent. A refused name is the exception: the tool never
         // took the ask, so nothing is coming.
         if (said.outcome != builder::outcome::kUnknownRecipe && said.recipe != recipe_) {
@@ -170,7 +170,7 @@ public:
         }
         // THE BUILD IS OVER. Whether this conversation is over depends on whether a
         // second question was asked -- which is exactly the two-latch distinction the
-        // Builder panel draws, said here without a screen.
+        // Builder pane draws, said here without a screen.
         if (realize_ && said.realization != builder::realization::kRealized &&
             said.realization != builder::realization::kRefused) {
             return;
@@ -456,7 +456,7 @@ int main(int argc, char** argv) {
 
     executor.begin(read_plan.plan);
 
-    // ASK THE TOOL WHAT IT IS, the way an opening panel does. Root-sent, because this
+    // ASK THE TOOL WHAT IT IS, the way an opening pane does. Root-sent, because this
     // is the host and a host may put a message on its own bus.
     (void)bus.send_to_role(builder::kBuilderRole,
                            loom::Message(loom::to_value(builder::StatusRequested{})));

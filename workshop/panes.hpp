@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PANEL_HPP
-#define ZENGINE_WORKSHOP_PANEL_HPP
+#ifndef ZENGINE_WORKSHOP_PANES_HPP
+#define ZENGINE_WORKSHOP_PANES_HPP
 
-// The panel catalog, the panels open this session, and each open panel's view.
+// The pane catalog, the panes open this session, and each open pane's view.
 // Workshop law: agents/workshop/maker-pane.md (+10 registers; agents/workshop.md routes)
 
 #include "pane_definition.hpp"
@@ -27,16 +27,16 @@ namespace zengine::workshop {
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md; WL-FRONT-04 -- agents/workshop/planes.md
 inline constexpr std::int64_t kNoPaneKind = -1;
 
-/// The KINDS of panel this Workshop can present.
+/// The built-in KINDS: the panes this Workshop presents itself.
 // WL-CAT-01 -- agents/workshop/catalog.md
-namespace panel {
+namespace pane_kind {
 // 0-3 and 5 are unused: a kind is a session-local handle, so renumbering would buy nothing.
 /// WORKSHOP'S OWN STANDING IDENTITY, AS A PANE.
 // WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-01 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kLayouts = 4;
-} // namespace panel
+} // namespace pane_kind
 
-/// Where a panel kind is presented: one of three named places.
+/// Where a pane kind is presented: one of three named places.
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 namespace placement {
 /// The column at the workspace's right edge: fixed width, and reserving nothing.
@@ -73,7 +73,7 @@ inline constexpr const char* kInfoPaneKey = "info";
 /// One entry in the catalog: what a weaver sees in the Pane Manager, where the thing
 /// they open will be, and WHAT TO CALL IT IN A FILE.
 // WL-FOCUS-02 -- agents/workshop/focus.md; WL-SETUP-01 -- agents/workshop/setup-file.md
-struct PanelKind {
+struct BuiltinPane {
     std::int64_t kind = kNoPaneKind;
     std::int64_t placed_in = placement::kOverlayStack; ///< which place it is in
     const char* provider = kWorkshopProvider; ///< the durable provider/service key
@@ -95,24 +95,24 @@ inline constexpr const char* kLayouts = "layouts";
 /// The catalog: the one pane this host presents itself. Every other pane is offered by an office.
 // WL-FOCUS-02 -- agents/workshop/focus.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
-inline constexpr PanelKind kPanelCatalog[] = {
+inline constexpr BuiltinPane kBuiltinPanes[] = {
     // Layouts holds no state of its own (it is `SetupState`'s), so closing it loses no layout; it
     // takes no keyboard, because its gestures are the pointer's and the keymap's.
-    {panel::kLayouts, placement::kTopBand, kWorkshopProvider, pane_key::kLayouts, "Layouts",
+    {pane_kind::kLayouts, placement::kTopBand, kWorkshopProvider, pane_key::kLayouts, "Layouts",
      "layout tabs and setup"},
 };
 
 // WL-CAT-01 -- agents/workshop/catalog.md
-inline constexpr std::size_t kPanelKinds = sizeof(kPanelCatalog) / sizeof(kPanelCatalog[0]);
+inline constexpr std::size_t kBuiltinPaneCount = sizeof(kBuiltinPanes) / sizeof(kBuiltinPanes[0]);
 
 /// The catalog entry for a kind, or the first one: total, because a kind can arrive from a cursor.
-inline constexpr const PanelKind& panel_kind(std::int64_t kind) noexcept {
-    for (std::size_t i = 0; i < kPanelKinds; ++i) {
-        if (kPanelCatalog[i].kind == kind) {
-            return kPanelCatalog[i];
+inline constexpr const BuiltinPane& builtin_pane(std::int64_t kind) noexcept {
+    for (std::size_t i = 0; i < kBuiltinPaneCount; ++i) {
+        if (kBuiltinPanes[i].kind == kind) {
+            return kBuiltinPanes[i];
         }
     }
-    return kPanelCatalog[0];
+    return kBuiltinPanes[0];
 }
 
 /// WHERE THE SESSION-LOCAL KINDS BEGIN, and the whole of how a runtime
@@ -146,7 +146,7 @@ inline constexpr std::int64_t placement_of(std::int64_t kind) noexcept {
     if (is_runtime_kind(kind) || is_weaver_kind(kind)) {
         return placement::kOverlayStack;
     }
-    return panel_kind(kind).placed_in;
+    return builtin_pane(kind).placed_in;
 }
 
 /// MAY A PRESS INTO THIS KIND POINT THE KEYBOARD AT IT?
@@ -158,14 +158,14 @@ inline constexpr bool kind_takes_keyboard(std::int64_t kind) noexcept {
     if (is_weaver_kind(kind)) {
         return false;
     }
-    return panel_kind(kind).takes_keyboard;
+    return builtin_pane(kind).takes_keyboard;
 }
 
 /// How many kinds declare a given place; asked only by the assertions below.
 inline constexpr std::size_t kinds_placed_in(std::int64_t where) noexcept {
     std::size_t n = 0;
-    for (std::size_t i = 0; i < kPanelKinds; ++i) {
-        if (kPanelCatalog[i].placed_in == where) {
+    for (std::size_t i = 0; i < kBuiltinPaneCount; ++i) {
+        if (kBuiltinPanes[i].placed_in == where) {
             ++n;
         }
     }
@@ -202,9 +202,9 @@ inline constexpr bool blank_key(const char* a) noexcept { return a == nullptr ||
 /// reference the same one?
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 inline constexpr bool every_kind_is_referable() noexcept {
-    for (std::size_t i = 0; i < kPanelKinds; ++i) {
-        if (detail::blank_key(kPanelCatalog[i].provider) ||
-            detail::blank_key(kPanelCatalog[i].pane)) {
+    for (std::size_t i = 0; i < kBuiltinPaneCount; ++i) {
+        if (detail::blank_key(kBuiltinPanes[i].provider) ||
+            detail::blank_key(kBuiltinPanes[i].pane)) {
             return false;
         }
     }
@@ -212,10 +212,10 @@ inline constexpr bool every_kind_is_referable() noexcept {
 }
 
 inline constexpr bool every_reference_is_one_kind() noexcept {
-    for (std::size_t i = 0; i < kPanelKinds; ++i) {
-        for (std::size_t j = i + 1; j < kPanelKinds; ++j) {
-            if (detail::same_key(kPanelCatalog[i].provider, kPanelCatalog[j].provider) &&
-                detail::same_key(kPanelCatalog[i].pane, kPanelCatalog[j].pane)) {
+    for (std::size_t i = 0; i < kBuiltinPaneCount; ++i) {
+        for (std::size_t j = i + 1; j < kBuiltinPaneCount; ++j) {
+            if (detail::same_key(kBuiltinPanes[i].provider, kBuiltinPanes[j].provider) &&
+                detail::same_key(kBuiltinPanes[i].pane, kBuiltinPanes[j].pane)) {
                 return false;
             }
         }
@@ -224,10 +224,10 @@ inline constexpr bool every_reference_is_one_kind() noexcept {
 }
 
 static_assert(every_kind_is_referable(),
-              "every panel kind needs a durable provider/pane reference: a kind without one "
+              "every pane kind needs a durable provider/pane reference: a kind without one "
               "cannot be named in a saved setup, and nothing at runtime would say so");
 static_assert(every_reference_is_one_kind(),
-              "two panel kinds share one durable reference: a saved setup naming it would "
+              "two pane kinds share one durable reference: a saved setup naming it would "
               "resolve to whichever of them the catalog happens to list first");
 
 /// WHAT PROJECT REALIZATION IS WAITING ON, RIGHT NOW — a VALUE, derived at every
@@ -334,7 +334,7 @@ struct PictureStamp {
     }
 };
 
-/// AN OPEN EXTERNAL PANEL'S VIEW OF THE PANE IT PRESENTS -- a COPY, and session.
+/// AN OPEN EXTERNAL PANE'S VIEW OF THE PANE IT PRESENTS -- a COPY, and session.
 // WL-ATTN-04 -- agents/workshop/attention.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 struct ExternalPane {
     std::int64_t kind = kFirstRuntimeKind;
@@ -401,39 +401,39 @@ struct ExternalPane {
     }
 };
 
-/// One panel a weaver has opened.
+/// One pane a weaver has opened.
 // WL-PANE-13 -- agents/workshop/panes-and-windows.md
-struct Panel {
+struct OpenPane {
     std::int64_t kind = kNoPaneKind;
 };
 
 /// Open in a fresh session before any weave speaks; every other pane arrives when offered.
 // WL-TAB-01 -- agents/workshop/tab-run.md
-inline constexpr std::int64_t kDefaultPanels[] = {panel::kLayouts};
+inline constexpr std::int64_t kDefaultPanes[] = {pane_kind::kLayouts};
 
-inline constexpr std::size_t kDefaultPanelCount =
-    sizeof(kDefaultPanels) / sizeof(kDefaultPanels[0]);
+inline constexpr std::size_t kDefaultPaneCount =
+    sizeof(kDefaultPanes) / sizeof(kDefaultPanes[0]);
 
-inline std::vector<Panel> default_panels() {
-    std::vector<Panel> open;
-    open.reserve(kDefaultPanelCount);
-    for (const std::int64_t kind : kDefaultPanels) {
-        open.push_back(Panel{kind});
+inline std::vector<OpenPane> default_panes() {
+    std::vector<OpenPane> open;
+    open.reserve(kDefaultPaneCount);
+    for (const std::int64_t kind : kDefaultPanes) {
+        open.push_back(OpenPane{kind});
     }
     return open;
 }
 
-/// Every dynamic panel this session has open, and the per-kind views. Session, never document.
-struct Panels {
-    std::vector<Panel> open = default_panels();
+/// Every dynamic pane this session has open, and the per-kind views. Session, never document.
+struct Panes {
+    std::vector<OpenPane> open = default_panes();
     /// The panes offered to this run. Here rather than in `Session` because every question that
-    /// needs a runtime pane's name or place is already handed a `Panels`.
+    /// needs a runtime pane's name or place is already handed a `Panes`.
     RuntimeCatalog runtime;
     /// THE ONE WEAVER-MADE PANE THIS RUN HAS OPEN (`pane_definition.hpp`): its durable
     /// name, its authored interior, the file it stands for and the last value that file held.
     // WL-MAKER-01, WL-MAKER-08 -- agents/workshop/maker-pane.md
     WeaverPane weaver;
-    /// Each open external panel's view: made by the open door, destroyed by the close door.
+    /// Each open external pane's view: made by the open door, destroyed by the close door.
     std::vector<ExternalPane> external;
     /// AUTHORED INTENT THIS SCREEN HAS NO ROOM FOR, as resolved kinds, in setup
     /// order.
@@ -450,7 +450,7 @@ struct Panels {
 
     // WL-PANE-13 -- agents/workshop/panes-and-windows.md
     bool has(std::int64_t kind) const {
-        for (const Panel& p : open) {
+        for (const OpenPane& p : open) {
             if (p.kind == kind) {
                 return true;
             }
@@ -467,7 +467,7 @@ struct Panels {
         return false;
     }
 
-    /// The open external panel's view, or nothing -- by handle, because nothing may hold one
+    /// The open external pane's view, or nothing -- by handle, because nothing may hold one
     /// across an offer that could grow `external` or `runtime`.
     ExternalPane* external_pane(std::int64_t kind) {
         for (ExternalPane& e : external) {
@@ -490,52 +490,52 @@ struct Panels {
 
 /// The selected pane right now, or `kNoPaneKind`, resolved like `keyboard_pane`.
 // WL-FRONT-04, WL-FRONT-05 -- agents/workshop/planes.md
-inline std::int64_t selected_pane(const Panels& panels) noexcept {
-    const std::int64_t kind = panels.selected;
-    return kind != kNoPaneKind && panels.has(kind) ? kind : kNoPaneKind;
+inline std::int64_t selected_pane(const Panes& panes) noexcept {
+    const std::int64_t kind = panes.selected;
+    return kind != kNoPaneKind && panes.has(kind) ? kind : kNoPaneKind;
 }
 
 /// The external pane the keyboard points at right now, or `kNoPaneKind`, resolved at each spend.
 // WL-FOCUS-01, WL-FOCUS-05, WL-FOCUS-10 -- agents/workshop/focus.md
-inline std::int64_t keyboard_pane(const Panels& panels) noexcept {
-    const std::int64_t kind = panels.keyboard;
-    if (!is_runtime_kind(kind) || !panels.has(kind)) {
+inline std::int64_t keyboard_pane(const Panes& panes) noexcept {
+    const std::int64_t kind = panes.keyboard;
+    if (!is_runtime_kind(kind) || !panes.has(kind)) {
         return kNoPaneKind;
     }
-    const RuntimePane* row = panels.runtime.of_kind(kind);
-    const ExternalPane* pane = panels.external_pane(kind);
+    const RuntimePane* row = panes.runtime.of_kind(kind);
+    const ExternalPane* pane = panes.external_pane(kind);
     if (row == nullptr || pane == nullptr || !pane->granted) {
         return kNoPaneKind;
     }
     return kind;
 }
 
-/// Open a panel of this kind; answers whether anything changed.
+/// Open a pane of this kind; answers whether anything changed.
 // WL-PANE-13 -- agents/workshop/panes-and-windows.md
-inline bool open_panel(Panels& panels, std::int64_t kind) {
-    if (panels.has(kind)) {
+inline bool open_kind(Panes& panes, std::int64_t kind) {
+    if (panes.has(kind)) {
         return false;
     }
-    panels.open.push_back(Panel{kind});
+    panes.open.push_back(OpenPane{kind});
     // A presentation and its view have one lifetime, so the open door makes the view too.
-    if (is_runtime_kind(kind) && panels.external_pane(kind) == nullptr) {
+    if (is_runtime_kind(kind) && panes.external_pane(kind) == nullptr) {
         ExternalPane fresh;
         fresh.kind = kind;
-        panels.external.push_back(std::move(fresh));
+        panes.external.push_back(std::move(fresh));
     }
     return true;
 }
 
-/// Close the panel of this kind, and forget what it was showing.
+/// Close the pane of this kind, and forget what it was showing.
 // WL-LAYOUT-07 -- agents/workshop/layouts.md
 // WL-PANE-13 -- agents/workshop/panes-and-windows.md
-inline bool close_panel(Panels& panels, std::int64_t kind) {
-    for (std::size_t i = 0; i < panels.open.size(); ++i) {
-        if (panels.open[i].kind == kind) {
-            panels.open.erase(panels.open.begin() + static_cast<std::ptrdiff_t>(i));
-            for (std::size_t e = 0; e < panels.external.size(); ++e) {
-                if (panels.external[e].kind == kind) {
-                    panels.external.erase(panels.external.begin() +
+inline bool close_kind(Panes& panes, std::int64_t kind) {
+    for (std::size_t i = 0; i < panes.open.size(); ++i) {
+        if (panes.open[i].kind == kind) {
+            panes.open.erase(panes.open.begin() + static_cast<std::ptrdiff_t>(i));
+            for (std::size_t e = 0; e < panes.external.size(); ++e) {
+                if (panes.external[e].kind == kind) {
+                    panes.external.erase(panes.external.begin() +
                                           static_cast<std::ptrdiff_t>(e));
                     break;
                 }
@@ -548,4 +548,4 @@ inline bool close_panel(Panels& panels, std::int64_t kind) {
 
 } // namespace zengine::workshop
 
-#endif // ZENGINE_WORKSHOP_PANEL_HPP
+#endif // ZENGINE_WORKSHOP_PANES_HPP

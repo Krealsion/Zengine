@@ -16,7 +16,7 @@
 #include "complete.hpp"
 #include "context.hpp" // what can be done with a pointed subject
 #include "keymap.hpp"
-#include "panel.hpp"
+#include "panes.hpp"
 #include "property.hpp"
 #include "setup.hpp"
 #include "vocabulary.hpp"
@@ -66,7 +66,7 @@ inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a 
 /// The right column (`placement::kSideRegion`): a place at the screen's right edge, fixed width,
 /// reserving nothing -- a pane standing here covers room, as a stacked one does.
 // WL-GEO-03 -- agents/workshop/geometry.md
-inline constexpr std::int64_t kPanelCols = 28;
+inline constexpr std::int64_t kSideCols = 28;
 
 /// The side region's top edge.
 // WL-GEO-03 -- agents/workshop/geometry.md
@@ -90,7 +90,7 @@ inline constexpr std::int64_t kStackY = kWorkspaceY; ///< directly under the scr
 /// recipe's tail on the 78x22 composition, where it is also the whole of the workspace.
 inline constexpr std::int64_t kStackW = 48;
 inline constexpr std::int64_t kStackRows = 9; ///< fallback height for providers without a preferred body size
-inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked panels
+inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked panes
 
 
 /// THE SCREEN'S FURNITURE, DERIVED IN ONE PLACE.
@@ -98,7 +98,7 @@ inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked p
 struct Screen {
     std::int64_t w = kScreenMinW;  ///< the canvas extent this screen paints, in cells
     std::int64_t h = kScreenMinH;
-    std::int64_t panel_x = 0;      ///< the right column's left edge: a place, not a reservation
+    std::int64_t side_x = 0;      ///< the right column's left edge: a place, not a reservation
     std::int64_t room_w = 0;       ///< the widest the workspace may be on this screen...
     std::int64_t room_h = 0;       ///< ...and the tallest
     std::int64_t notice_y = 0;
@@ -125,7 +125,7 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     s.cell_px = cell_px > 0 ? cell_px : 0;
     s.w = want_w < kScreenMinW ? kScreenMinW : (want_w > kScreenMaxW ? kScreenMaxW : want_w);
     s.h = want_h < kScreenMinH ? kScreenMinH : (want_h > kScreenMaxH ? kScreenMaxH : want_h);
-    s.panel_x = s.w - kPanelCols;
+    s.side_x = s.w - kSideCols;
     // The room is the surface: nothing reserves the right column, so the room runs under it whole
     // and what a share means never depends on which panes are open
     // (agents/decisions/the-reserved-column.md).
@@ -150,7 +150,7 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
 /// 78x22 composition was written with.
 inline constexpr Screen kMinScreen = screen_of(kScreenMinW, kScreenMinH);
 
-static_assert(kMinScreen.panel_x == 50, "the right column has not moved on the minimum screen");
+static_assert(kMinScreen.side_x == 50, "the right column has not moved on the minimum screen");
 static_assert(kMinScreen.room_w == kMinScreen.w,
               "the room IS the surface: nothing comes off its width. The 48 this read before "
               "was 78 less the right column's 28 and the two-cell gap beside it, and those "
@@ -173,12 +173,12 @@ inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
                                            const Screen& sc) noexcept {
     if (where == placement::kTopBand) {
         // The top band's two reserved rows, whole; the slot is nothing to it (one pane fits, and
-        // panel.hpp asserts it).
+        // panes.hpp asserts it).
         return ui::Rect{0, 0, sc.w, kTopRows};
     }
     if (where == placement::kSideRegion) {
         // From the workspace's top to its floor, against the right edge: over the material.
-        return ui::Rect{sc.panel_x, kSideY, kPanelCols, kWorkspaceY + sc.room_h - kSideY};
+        return ui::Rect{sc.side_x, kSideY, kSideCols, kWorkspaceY + sc.room_h - kSideY};
     }
     const std::int64_t n = slot >= static_cast<std::size_t>(kScreenMaxH)
                                ? kScreenMaxH
@@ -384,12 +384,12 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
 
 /// What the one narrow path answers with: whether this kind is open, where its kind is
 /// placed, and the rectangle it occupies if it is open at all.
-struct PanelBounds {
+struct PaneBounds {
     bool open = false;
     /// THE KIND'S DECLARED PLACE, open or not — a fact about the catalog rather than about
-    /// this session, so it is answerable for a panel nobody has opened.
+    /// this session, so it is answerable for a pane nobody has opened.
     std::int64_t placed_in = placement::kOverlayStack;
-    /// EMPTY WHEN THE PANEL IS NOT OPEN, deliberately.
+    /// EMPTY WHEN THE PANE IS NOT OPEN, deliberately.
     // WL-ARR-04 -- agents/workshop/arrangement.md
     // WL-PANE-09 -- agents/workshop/panes-and-windows.md
     FineRect rect{};
@@ -402,9 +402,9 @@ struct PanelBounds {
     bool projected = true;
 };
 
-/// WHERE AN OPEN PANEL IS RIGHT NOW — the one narrow path, and the only thing that knows how
+/// WHERE AN OPEN PANE IS RIGHT NOW — the one narrow path, and the only thing that knows how
 /// a slot is earned.
-PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kind,
+PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
                              const Screen& sc);
 
 // The two places fit the SMALLEST screen this composition is honest on, which is where they
@@ -413,10 +413,10 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
 inline constexpr ui::Rect kMinSide = placement_bounds(placement::kSideRegion, 0, kMinScreen);
 inline constexpr ui::Rect kMinStack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
 
-// The two places may meet: a panel covering a pane is what an overlay is for. What the
+// The two places may meet: a pane covering a pane is what an overlay is for. What the
 // half-share promises is that a slot never covers the whole room.
 static_assert(kMinStack.x + kMinStack.w < kMinScreen.room_w,
-              "a stacked panel leaves reachable workspace to its right at every extent -- "
+              "a stacked pane leaves reachable workspace to its right at every extent -- "
               "which at the smallest screen it did NOT before: 48 of 48 left nothing, and 63 "
               "of 78 leaves fifteen");
 // AND THE HALF-SHARE IS THE SAME ARITHMETIC IT WAS, over a bigger room.
@@ -429,7 +429,7 @@ static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(200, 60)).
               "48 + (200 - 48)/2 -- the half-share, spelled out");
 static_assert(placement_bounds(placement::kOverlayStack, 3, screen_of(200, 60)).w ==
                   placement_bounds(placement::kOverlayStack, 0, screen_of(200, 60)).w,
-              "the width is a fact about the SCREEN, not about which slot a panel sits in");
+              "the width is a fact about the SCREEN, not about which slot a pane sits in");
 static_assert(kMinStack.y + kMinStack.h <= kMinScreen.notice_y,
               "the stack's first slot stays clear of the notice line");
 static_assert(kMinSide.x + kMinSide.w == kMinScreen.w,
@@ -445,8 +445,8 @@ inline constexpr FineRect overlay_column(const Screen& sc) noexcept {
     return fine_of_cells(ui::Rect{slot.x, slot.y, slot.w, kWorkspaceY + sc.room_h - slot.y});
 }
 
-/// How many overlay slots this screen has room for: the one answer to "may another panel be
-/// presented", asked before anything reaches `Panels::open`.
+/// How many overlay slots this screen has room for: the one answer to "may another pane be
+/// presented", asked before anything reaches `Panes::open`.
 // WL-PANE-03, WL-PANE-04 -- agents/workshop/panes-and-windows.md
 // WL-EDIT-13 -- agents/workshop/editor.md
 inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
@@ -482,7 +482,7 @@ static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.notice_y,
               "the overlay floor is the workspace's bottom, which is the bottom band's own "
               "top row: a slot allowed past it would erase the row the tool speaks in");
 static_assert(stack_slots_that_fit(kMinScreen) == 1,
-              "the minimum composition has room for exactly one overlay panel");
+              "the minimum composition has room for exactly one overlay pane");
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-PRESS-04 -- agents/workshop/press-chain.md
@@ -520,11 +520,11 @@ struct Occupancy {
 
 /// DOES ANY VISIBLE PRESENTATION OCCUPY THIS CANVAS CELL — the one question the pointer asks
 /// before it asks the document anything.
-Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
+Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
                              const PointedAt& at);
 
 /// The same walk for a cell-grain probe: the question a terminal pointer asks natively.
-Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
+Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
                              std::int64_t cx, std::int64_t cy);
 
 // ---- PANE MANAGEMENT: what a weaver is ARRANGING, and how ------------------------------
@@ -738,8 +738,8 @@ struct Session {
     /// granted (context.hpp). At most one of the two is open: each is a surface the weaver's next
     /// keys and presses go to, and the later one withdraws or closes the earlier.
     PresentedMenu presented;
-    /// THE DYNAMIC PANELS a weaver has opened (panel.hpp).
-    Panels panels;
+    /// THE DYNAMIC PANES a weaver has opened (panes.hpp).
+    Panes panes;
     /// THE AUTHORED SETUP THIS SESSION IS SHOWING, its copy of the one in its file, and the
     /// one-line editor over its name (setup.hpp).
     // WL-LAYOUT-01 -- agents/workshop/layouts.md
@@ -937,17 +937,17 @@ inline constexpr std::int64_t pane_prose_top_cell(const Screen& sc, std::int64_t
     return surface::floor_div_px(top, surface::kCanvasCellPx);
 }
 
-// ---- The dynamic panels, painted -------------------------------------------------------
+// ---- The dynamic panes, painted -------------------------------------------------------
 
-/// THE BACKDROP OF A PANEL: its whole bounds, in one rect.
-void paint_panel_frame(surface::SurfaceLayer& layer, const FineRect& b,
+/// THE BACKDROP OF A PANE: its whole bounds, in one rect.
+void paint_pane_frame(surface::SurfaceLayer& layer, const FineRect& b,
                               std::int64_t role);
 
-/// A PANEL WHOSE WHOLE BODY IS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE.
+/// THE POPUP'S OR A PANE'S BODY AS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE.
 // WL-CHROME-05 -- agents/workshop/chrome.md; WL-RGN-01 -- agents/workshop/regions.md
-struct PanelProsePlace {
+struct ProsePlace {
     bool present = false;
-    std::int64_t rows = 0;    ///< prose rows of the ACTIVE medium's type that fit the panel
+    std::int64_t rows = 0;    ///< prose rows of the ACTIVE medium's type that fit the rectangle
     std::int64_t columns = 0; ///< ...and how many characters fit across one of them
     /// The resolution itself, so a press inverse spends the fit the painter was handed.
     surface::RegionFit fit{};
@@ -956,13 +956,13 @@ struct PanelProsePlace {
     std::int64_t chrome_subs = 0;
 };
 
-/// The one call, total over the rectangle: a closed panel answers with an empty one. Fine bounds
+/// The one call, total over the rectangle: a closed pane answers with an empty one. Fine bounds
 /// fit at their fine place.
-PanelProsePlace panel_prose_place(const FineRect& b, const Screen& sc);
+ProsePlace prose_place(const FineRect& b, const Screen& sc);
 
-/// The region a `PanelProsePlace` was resolved for, empty and ready for its rows — the fine
+/// The region a `ProsePlace` was resolved for, empty and ready for its rows — the fine
 /// bounds decomposed onto the wire's cells-plus-remainder spelling.
-surface::SurfaceTextRegion panel_prose_region(const PanelProsePlace& place);
+surface::SurfaceTextRegion prose_region(const ProsePlace& place);
 
 // ---- WHAT STATE ONE PANE IS IN -- the recovery invariant, as one word -----------------
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md
@@ -977,7 +977,7 @@ inline constexpr std::int64_t kCovered = 5;
 inline constexpr std::int64_t kOpen = 6;
 } // namespace pane_state
 
-/// The word a weaver reads. Total over the integer, for `panel_kind`'s reason.
+/// The word a weaver reads. Total over the integer, for `builtin_pane`'s reason.
 const char* pane_state_word(std::int64_t state);
 
 /// WHAT A WEAVER CAN DO ABOUT ONE STATE -- the remedy column of the table above, as a
@@ -985,13 +985,13 @@ const char* pane_state_word(std::int64_t state);
 const char* pane_state_remedy(std::int64_t state);
 
 /// IS EVERY VISIBLE CELL OF THIS PANE BEHIND ANOTHER ONE?
-bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
+bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
                             std::int64_t kind, const FineRect& mine);
 
 /// THE ONE STATE CLASSIFIER. Asked of an inventory row -- which is the union of the catalog
 /// and everything the setup names -- so every authored pane gets exactly one answer and no
 /// row is silently omitted because the runtime catalog lacks it.
-std::int64_t pane_state_of(const Panels& panels, const Setup& setup, const Screen& sc,
+std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen& sc,
                                   const CatalogRow& row);
 
 
@@ -1142,7 +1142,7 @@ const char* slot_name(LineSlot slot) noexcept;
 /// label -- `row_of_id`'s answer, never a second spelling.
 std::string context_entry_text(const ContextEntry& entry);
 
-/// The widest the popup may grow, in prose columns: the stack panel's width. Content chooses the
+/// The widest the popup may grow, in prose columns: the stack pane's width. Content chooses the
 /// extent below it.
 inline constexpr std::int64_t kContextMaxCols = kStackW;
 
@@ -1196,7 +1196,7 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
 /// THE MOST A PRESENTED MENU CAN SHOW AT AN ANCHOR on this screen -- the room `MenuGranted` hands
 /// the presenter: the biggest popup that fits there, read as rows and columns of prose.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
-PanelProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const Screen& sc);
+ProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const Screen& sc);
 
 /// WHERE THE PRESENTED MENU OPENS: beside its anchor, sized by the lines the presenter showed;
 /// empty while it has shown none.
@@ -1226,7 +1226,7 @@ inline constexpr std::int64_t kExternalHeaderRows = 1;
 
 /// How many header rows this pane's presentation reserves now: the one resolution of the title
 /// preference, spent by the painter, the press path and the room grant alike.
-std::int64_t external_title_rows(const Panels& panels, std::int64_t kind,
+std::int64_t external_title_rows(const Panes& panes, std::int64_t kind,
                                         bool titles_shown) noexcept;
 
 /// WHAT A PANE SAYS BEFORE ITS PROVIDER HAS SAID ANYTHING.
@@ -1237,11 +1237,11 @@ inline constexpr const char* kExternalWaiting = "(waiting for the provider)";
 inline constexpr const char* kExternalRefused =
     "(the last update did not fit this pane's room -- none of it was kept)";
 
-/// THE BODY OF AN EXTERNAL PANEL, RESOLVED ONCE. Where it is, and how much prose the
+/// THE BODY OF AN EXTERNAL PANE, RESOLVED ONCE. Where it is, and how much prose the
 /// ACTIVE medium fits in it -- which is exactly the budget the provider is granted.
 struct ExternalBodyPlace {
     bool present = false;
-    /// The panel's bounds as the wire spells them: whole cells plus sub-cell remainders; `fit` is
+    /// The pane's bounds as the wire spells them: whole cells plus sub-cell remainders; `fit` is
     /// resolved from the fine value.
     std::int64_t region_x = 0;
     std::int64_t region_y = 0;
@@ -1258,9 +1258,9 @@ struct ExternalBodyPlace {
     std::int64_t columns = 0; ///< ...and its second
 };
 
-/// The body under an external panel's header row: the panel's whole bounds, less that row's
+/// The body under an external pane's header row: the pane's whole bounds, less that row's
 /// share of the PROSE the active medium fits in them.
-ExternalBodyPlace external_body_place(const FineRect& panel, const Screen& sc,
+ExternalBodyPlace external_body_place(const FineRect& pane_rect, const Screen& sc,
                                              std::int64_t header_rows);
 
 /// WHERE A PRESS LANDED IN AN EXTERNAL PANE'S GRANTED ROOM -- the `PaneRoom`
@@ -1273,7 +1273,7 @@ struct ExternalPressAt {
 };
 
 /// LOCATE A PRESS IN THE ROOM A PANE WAS GRANTED, from the rectangle the painter used.
-ExternalPressAt external_press_at(const Panels& panels, const Setup& setup,
+ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
                                          const Screen& sc, std::int64_t kind, bool titles,
                                          std::int64_t space, std::int64_t x, std::int64_t y);
 
@@ -1286,9 +1286,9 @@ inline constexpr const char* kTypingElsewhere = "  ";
 /// neither echoed raw -- and whether typing goes here, said by a mark that costs no columns.
 std::string external_header(const RuntimePane& row, bool typing);
 
-/// ONE EXTERNAL PANEL: Workshop's backdrop, Workshop's header, and ONE region carrying
+/// ONE EXTERNAL PANE: Workshop's backdrop, Workshop's header, and ONE region carrying
 /// whatever that office last validly said inside the room it was granted.
-void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int64_t kind,
+void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
                            const FineRect& b, const Screen& sc, bool titles,
                            std::int64_t chrome = kPaneChrome);
 
@@ -1377,7 +1377,7 @@ inline constexpr std::int64_t kStatusJoinCols =
 std::string setup_link_text(const SetupState& setup, std::int64_t path_columns);
 
 /// WHAT THE ROW SAYS AFTER THE ASSOCIATION: the unresolved count, then the two gestures.
-std::string setup_rest_text(const SetupState& setup, const Panels& panels,
+std::string setup_rest_text(const SetupState& setup, const Panes& panes,
                                    const Keymap& keymap);
 
 /// The workspace's extent as the band states it: a status fact, beside the setup identity.
@@ -1575,7 +1575,7 @@ std::string region_shown_text(const Session& s, const PaneRef& ref, std::int64_t
 std::string interior_capture_text(const Session& s, const PaneRef& ref);
 
 /// THE WEAVER-MADE PANE, PAINTED: the frame, one region owning the whole interior (so the
-/// material beneath the pane is cleared and the ring shows, `paint_panel_frame`'s own
+/// material beneath the pane is cleared and the ring shows, `paint_pane_frame`'s own
 /// arithmetic), then one `kGroundOwn` region per authored region.
 void paint_weaver_pane(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
                              const Screen& sc, std::int64_t chrome = kPaneChrome);
@@ -1637,7 +1637,7 @@ bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b);
 // ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 
 /// Every presented pane, back to front, one complete layer each.
-void paint_panels(surface::SurfaceCanvas& c, const Session& s,
+void paint_panes(surface::SurfaceCanvas& c, const Session& s,
                          const Screen& sc);
 
 /// THE BOTTOM BAND AS ONE PUBLISHED REGION: what the tool just said, and what the keys mean

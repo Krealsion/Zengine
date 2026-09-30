@@ -57,23 +57,23 @@ struct TerminalRig {
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `terminal` pane");
         kind = row()->kind;
         r.pick(pane_terminal_ref());
-        REQUIRE(r.session().panels.has(kind));
+        REQUIRE(r.session().panes.has(kind));
     }
 
     const RuntimePane* row() {
-        return r.session().panels.runtime.find(pane::kTerminalPaneRole, pane::kTerminalPane);
+        return r.session().panes.runtime.find(pane::kTerminalPaneRole, pane::kTerminalPane);
     }
 
     /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard.
     void focus() {
         const ui::Rect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y); // the header: a row that means nothing
-        REQUIRE(r.session().panels.keyboard == kind);
+        REQUIRE(r.session().panes.keyboard == kind);
     }
 
     void unfocus() {
         r.press_cell(0, screen_of(r.session()).h - 1);
-        REQUIRE(r.session().panels.keyboard != kind);
+        REQUIRE(r.session().panes.keyboard != kind);
     }
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
@@ -178,12 +178,12 @@ struct TerminalRig {
             r.key(input::scan::kEscape);
         }
         REQUIRE(input_text().find("Tab: what can this terminal say?") != std::string::npos);
-        REQUIRE(r.session().panels.keyboard == kind);
+        REQUIRE(r.session().panes.keyboard == kind);
     }
 
     /// THE CARET WORKSHOP IS HOLDING FOR THIS PANE, read off the host's own record -- so a
     /// case asks what was ADMITTED rather than what was sent.
-    const ExternalPane* seat() { return r.session().panels.external_pane(kind); }
+    const ExternalPane* seat() { return r.session().panes.external_pane(kind); }
 
     /// A NEW ROOM AND NOTHING ELSE: the surface changes size, Workshop grants the pane its room
     /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
@@ -259,9 +259,9 @@ TEST_CASE("the Terminal is an ordinary arranged pane, offered by an office") {
     CHECK(is_runtime_kind(row->kind));
     CHECK(placement_of(row->kind) == placement::kOverlayStack);
     // AND WORKSHOP COMPILES NOTHING FOR IT: the reference is the OFFICE's, minted from the
-    // offer, and no `panel::k*` constant of this host names it.
+    // offer, and no `pane_kind::k*` constant of this host names it.
     const std::optional<std::int64_t> resolved =
-        resolve_pane(pane_terminal_ref(), t.r.session().panels);
+        resolve_pane(pane_terminal_ref(), t.r.session().panes);
     REQUIRE(resolved.has_value());
     CHECK(*resolved == row->kind);
 }
@@ -445,7 +445,7 @@ TEST_CASE("a pane that loaded after the last publication still hears the reading
     REQUIRE(t.row() != nullptr);
     t.kind = t.row()->kind;
     t.r.pick(pane_terminal_ref());
-    REQUIRE(t.r.session().panels.has(t.kind));
+    REQUIRE(t.r.session().panes.has(t.kind));
 
     // ⚔ MUTATION: dropping `transcript_said_ = false` from `on(PaneOffered)` puts
     // "no participant was mounted on this bus" here, which is the sentence a weaver read.
@@ -560,7 +560,7 @@ TEST_CASE("the pane publishes a caret, and Workshop draws it into the region") {
     const surface::SurfaceTextRegion region = t.region();
     // The region's caret is the pane's, plus Workshop's own header row.
     CHECK(region.caret_row == seat->caret_row + external_title_rows(
-                                                    t.r.session().panels, t.kind,
+                                                    t.r.session().panes, t.kind,
                                                     t.r.session().pane_titles));
     CHECK(region.caret_col == seat->caret_col);
     // ...and a cell projection inserts it as a character, so a character medium reads as it
@@ -1313,11 +1313,11 @@ TEST_CASE("Escape on a recalled line goes back to the line before the recall and
     t.r.key(input::scan::kEscape);
     CHECK(t.input_text() == prompt);
     CHECK(t.text().find("history ") == std::string::npos);
-    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(t.r.session().panes.keyboard == t.kind);
     CHECK(commands_run(t) == before);
     // ...AND THE RECALL WAS A LAYER: with it gone, the next Escape is the pane's own.
     t.r.key(input::scan::kEscape);
-    CHECK(t.r.session().panels.selected == kNoPaneKind);
+    CHECK(t.r.session().panes.selected == kNoPaneKind);
 }
 
 TEST_CASE("a command being composed keeps Up and Down for its completion list and its draft is untouched") {
@@ -1886,7 +1886,7 @@ TEST_CASE("Escape sheds the list then the line then the pane itself and moves no
     // ESCAPE'S LAST MEANING IS THE DESKTOP'S DECLARED ROW (WL-DESK-02), so this case supplies the
     // declarer; the lines below assert what the pane does with Escape while it holds the keys.
     mount_desktop(t.r);
-    const std::size_t panes = t.r.session().panels.open.size();
+    const std::size_t panes = t.r.session().panes.open.size();
     const Setup desk = t.r.session().setup.active;
     t.type("s");
     REQUIRE(t.row_of("> send") >= 0);
@@ -1894,23 +1894,23 @@ TEST_CASE("Escape sheds the list then the line then the pane itself and moves no
     t.r.key(input::scan::kEscape); // the list
     CHECK(t.row_of("> send") < 0);
     CHECK(t.input_text().rfind("> s", 0) == 0);
-    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(t.r.session().panes.keyboard == t.kind);
 
     t.r.key(input::scan::kEscape); // the line
     CHECK(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
-    CHECK(t.r.session().panels.keyboard == t.kind);
-    CHECK(t.r.session().panels.selected == t.kind);
+    CHECK(t.r.session().panes.keyboard == t.kind);
+    CHECK(t.r.session().panes.selected == t.kind);
 
     t.r.key(input::scan::kEscape); // the pane
-    CHECK(t.r.session().panels.selected == kNoPaneKind);
-    CHECK(t.r.session().panels.keyboard == kNoPaneKind);
+    CHECK(t.r.session().panes.selected == kNoPaneKind);
+    CHECK(t.r.session().panes.keyboard == kNoPaneKind);
     CHECK(keyboard_context(t.r.session()) == KeyContext::kCommand);
     CHECK(t.r.last_notice().find("unselected") != std::string::npos);
     // NOTHING ELSE MOVED: the pane is open where it was, the desk is byte-identical, and the
     // pane still holds its own line and record.
-    CHECK(t.r.session().panels.open.size() == panes);
+    CHECK(t.r.session().panes.open.size() == panes);
     CHECK(t.r.session().setup.active == desk);
-    CHECK(t.r.session().panels.has(t.kind));
+    CHECK(t.r.session().panes.has(t.kind));
     CHECK(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
 }
 
@@ -1927,8 +1927,8 @@ TEST_CASE("a second Escape does not lend its identity to the first Escape's answ
     t.enqueue_text("x");
     t.enqueue_key(input::scan::kEscape);
     t.settle();
-    CHECK(t.r.session().panels.selected == t.kind);
-    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(t.r.session().panes.selected == t.kind);
+    CHECK(t.r.session().panes.keyboard == t.kind);
     CHECK(t.input_text().find('x') == std::string::npos); // the draft the second Escape cleared
 }
 
@@ -1942,7 +1942,7 @@ TEST_CASE("an unspent Escape the weaver has already typed past moves nothing") {
     t.enqueue_key(input::scan::kEscape);
     t.enqueue_text("x");
     t.settle();
-    CHECK(t.r.session().panels.selected == t.kind);
-    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(t.r.session().panes.selected == t.kind);
+    CHECK(t.r.session().panes.keyboard == t.kind);
     CHECK(t.input_text().rfind("> x", 0) == 0);
 }

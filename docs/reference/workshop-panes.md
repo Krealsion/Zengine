@@ -1,6 +1,6 @@
 # Workshop panes and setups — reference
 
-**Reference.** The exact contracts behind Workshop's panes: the panel system, the authored pane
+**Reference.** The exact contracts behind Workshop's panes: the pane system, the authored pane
 window, the external pane protocol, and the persisted setup. This is the page a *tool author*
 needs; a weaver wants [panes](../workshop/panes.md) and [setups](../workshop/setups.md), and the
 task-shaped walkthrough is [making a Workshop tool](../guides/make-a-workshop-tool.md).
@@ -8,7 +8,7 @@ task-shaped walkthrough is [making a Workshop tool](../guides/make-a-workshop-to
 Source: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) ·
 [`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp) ·
 [`workshop/setup.hpp`](../../workshop/setup.hpp) ·
-[`workshop/panel.hpp`](../../workshop/panel.hpp) ·
+[`workshop/panes.hpp`](../../workshop/panes.hpp) ·
 [`workshop/arrangement.hpp`](../../workshop/arrangement.hpp) ·
 [`workshop/screen.hpp`](../../workshop/screen.hpp).
 
@@ -18,22 +18,22 @@ Source: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) ·
 > gone: the room is empty, and an old `workshop.json` is named once at startup and left alone.
 > The **terminal overlay** is gone: the Terminal is a pane. And the **`p` picker** is gone with
 > the host's own **Pane Manager**: presence is two doors on the desktop seam
-> ([below](#the-panel-system)), the shipped desktop's Pane Manager spends them, and a pane as a
+> ([below](#the-pane-system)), the shipped desktop's Pane Manager spends them, and a pane as a
 > subject is Info's (`InspectPaneRequested`, `PaneCommitRequested`,
 > `workshop/inspection_seam_vocabulary.hpp`). Where a paragraph below says *picker*, read the
 > Pane Manager over those two doors; where it says *document* or *object*, it describes a room
 > that is empty now.
 
-## The panel system
+## The pane system
 
-> A weave may provide a tool; a **panel** is its presentation.
+> A weave may provide a tool; a **pane** is its presentation.
 
 The **Pane Manager** — the desktop's pane, `Ctrl`+`p` — lists the one inventory Workshop says
 out loud and opens or closes a pane through the host's two doors. A pane that is not in the
 catalog cannot be opened by any gesture at all, and the catalog has **two halves**: a
 compile-time constant array of Workshop's own, and a bounded **session-local runtime catalog**
 of panes some office actually offered this run (see
-*[A weave may offer a pane](#a-weave-may-offer-a-pane-wp-0)* below). The first two built-ins were
+*[A weave may offer a pane](#a-weave-may-offer-a-pane)* below). The first two built-ins were
 chosen to be unalike:
 
 | kind | presents | behind it |
@@ -67,9 +67,9 @@ answers a presenter that asks. It holds no copy, declares no actions and makes n
 the admission seam a per-connection prompt will attach to is the door's
 ([external host](../workshop/external-host.md)).
 
-`panel == weave` is deliberately **not** an architectural rule, and `Info` is what pays for
+`pane == weave` is deliberately **not** an architectural rule, and `Info` is what pays for
 that sentence rather than asserting it: opening it sends no message, asks no office and needs
-no weave mounted anywhere, and it has no per-panel state for a close to destroy. A Workshop
+no weave mounted anywhere, and it has no per-pane state for a close to destroy. A Workshop
 hosting no tools at all opens it and it works.
 
 **Presence is the desk's, and two doors change it** (`workshop/desktop_seam_vocabulary.hpp`):
@@ -89,7 +89,7 @@ one to remove it — until it retired. Launching was built never to toggle for e
 and closing became a door of its own. `x` is the Pane Manager's own key; command mode still binds
 nothing to it.)
 
-**`Info` is open at boot**, and it was not always a panel at all: originally `paint`
+**`Info` is open at boot**, and it was not always a pane at all: originally `paint`
 drew them unconditionally, and the only way to not have them was to edit `paint`. What the
 migration moved is where they are painted from; what a weaver sees at boot is byte-identical.
 
@@ -105,10 +105,10 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   heard from its tool cannot ask for anything, and says so.
 - **There are two places, they are named, and there is no layout policy**. A kind
   DECLARES its place in the catalog — `placement::kOverlayStack` or `placement::kSideRegion` —
-  and one function turns a place plus a screen into the rectangle that panel occupies:
+  and one function turns a place plus a screen into the rectangle that pane occupies:
 
   ```text
-  panel kind  ->  placement intent (panel.hpp)  ->  placement_bounds()  ->  the painter is
+  pane kind  ->  placement intent (panes.hpp)  ->  placement_bounds()  ->  the painter is
                                                                            handed that rect
   ```
 
@@ -118,7 +118,7 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   room is the whole surface — 63 cells at the 78×22 minimum, 74 at 100 columns of surface, 124
   at 200, 344 at 640. *A wider room is shared
   by the pane and the weaver* — the same half-share the terminal overlay takes at the other
-  corner — so the columns the panel does not take stay reachable at every extent, and the ones
+  corner — so the columns the pane does not take stay reachable at every extent, and the ones
   it does take are its own for paint **and** for the pointer. Its height, its column, its row
   and the blank row between slots do not move with the surface. The **side region** is
   the fixed right-hand column `Info` has always been — a place, reserved out of nothing, with
@@ -126,89 +126,89 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   declaring it is a compile-time refusal; a setup file may put any pane there by name, and two
   panes in one place is a desk saying so rather than an accident.
   A slot is earned by being *placed in the stack*, so an `Info` ahead of a `Builder` in the open
-  list never pushes it down a slot it does not occupy. `bounds_of(panels, kind, screen)` is the
-  one path to an open panel's bounds — a closed one answers with an empty rectangle rather than
+  list never pushes it down a slot it does not occupy. `bounds_of(panes, kind, screen)` is the
+  one path to an open pane's bounds — a closed one answers with an empty rectangle rather than
   with the place it would have had. When each painter carried its own column instead, the
   two places existed only as agreement between them; what a third kind costs now is a catalog
   row and a painter, neither of which is geometry. Docking, tabs, saved layouts, dragging,
-  resizing and focus are all still absent, and what using two unalike panels felt like is the
+  resizing and focus are all still absent, and what using two unalike panes felt like is the
   evidence for whichever of them gets built.
-- **A visible panel occupies pointer space, not only pixels**. Bounds resolved in one
+- **A visible pane occupies pointer space, not only pixels**. Bounds resolved in one
   path made the question sayable and the measured answer was that nobody asked it: a press on a
   cell the Builder was visibly covering took hold of the object underneath, selected it and
   began a drag a weaver could not see. The routing rule, in order:
 
   ```text
   the terminal overlay, while it is open   -- it has the pointer entirely
-  a visible panel, by its resolved bounds  -- it occupies what it covers
+  a visible pane, by its resolved bounds  -- it occupies what it covers
   the workspace and the document underneath
   ```
 
   The first is a **mode** and the second is a **place**, which is the whole design: the overlay
   takes every pointer event anywhere, because a weaver typing into it is not also authoring in
-  the workspace; a panel takes only the presses that land on it, because a weaver with a panel
-  open *is*. `occupied_at(panels, screen, cx, cy)` is the one question — it names no kind, and
+  the workspace; a pane takes only the presses that land on it, because a weaver with a pane
+  open *is*. `occupied_at(panes, screen, cx, cy)` is the one question — it names no kind, and
   it asks the same `bounds_of` the painter was handed, so occupancy cannot drift from painting.
   (The picker answered too, as the mode that padded itself to a whole slot precisely so it could
   not be read through, until it retired.) **Only a press is occluded**, and the two asymmetries
-  are why no capture, focus or z-order state exists: a press on a panel begins nothing, so a pointer that later leaves it
+  are why no capture, focus or z-order state exists: a press on a pane begins nothing, so a pointer that later leaves it
   drags nothing (the absence of a drag is the memory); a gesture that began on the workspace
   owns the pointer until its release, so the release ends it wherever the hand is — occluding
   that would strand a drag with the button up. **Motion is never occluded**, because stopping a
-  drag at a panel's edge would clamp the document: an object would be unable to reach a cell a
+  drag at a pane's edge would clamp the document: an object would be unable to reach a cell a
   weaver is entitled to put it at merely because something is drawn over that cell.
-- **A panel is as visible as it is occupied**. Every open panel paints a backdrop
+- **A pane is as visible as it is occupied**. Every open pane paints a backdrop
   across the whole of its resolved bounds — the same rectangle `bounds_of` hands its painter
   and `occupied_at` answers about, so there is one geometry rather than two that agree. Until
   Before it had a ground, `Info` painted bare labels: it refused a press across 28×17 cells while an object
-  dragged under the column showed its body and its selection ring straight *through* the panel,
-  with the panel's own words on top. That was a real defect and it was one rectangle telling a
+  dragged under the column showed its body and its selection ring straight *through* the pane,
+  with the pane's own words on top. That was a real defect and it was one rectangle telling a
   weaver two different things. What it is **not** is an argument for a painted-cell mask: what a
   hand meets is still bounds, because a mask would make occlusion depend on the length of a
-  label. Whitespace inside a panel is the panel's.
+  label. Whitespace inside a pane is the pane's.
 - **Removing `Info` gives its 28 columns back, and always could have.** The workspace runs the
   full width of the surface underneath every pane, `Info` included, so taking it off the desk
   reveals room rather than creating it. What is still refused is a room that CHANGES with which
   panes are open: the workspace's extent is what a share resolves against, and a `%`-wide object
-  that resized because a weaver hid a list of names would make a panel's presence visible in the
-  picture of the document. That rule settles the drag question above too: a panel may cover what
+  that resized because a weaver hid a list of names would make a pane's presence visible in the
+  picture of the document. That rule settles the drag question above too: a pane may cover what
   a weaver authored, and may not change what they are able to author.
 - **No focus framework.** Twenty contexts for the keyboard (`KeyContext`, `workshop/keymap.hpp`)
   plus one per external pane holding the keys, keyed by its runtime handle, resolved fresh at
   every keystroke by one routing chain: the terminal overlay, the arrangement scopes, the
   contextual surface, the modes, a focused pane, then command mode. `p` was an unbound key and
-  `b` was one until the Builder panel took it, and it is an unbound key here again — because
+  `b` was one until the Builder pane took it, and it is an unbound key here again — because
   the Builder is a pane weave and `b` is one of ITS rows, active only while a weaver's typing is
   pointed at it. The inspector's own keys (`up`, `down`,
   Return) belong to `Info`: with it removed they say so instead of driving rows nobody can see,
   which would otherwise open a draft that no screen shows and that `^s` would then refuse to
   save over. The pointer's rule is the three lines above it and is still one `if` per line —
-  there is no focused panel, no z-order, no capture and no widget tree, and no panel affordance
+  there is no focused pane, no z-order, no capture and no widget tree, and no pane affordance
   is clickable.
-- **A build now has a middle, and the panel shows it**. Pressing `b` paints `asked --
+- **A build now has a middle, and the pane shows it**. Pressing `b` paints `asked --
   waiting for it to start`, and a beat later `running -- op #1, 4 out` with the command that is
   running and the newest lines it has said. The two numbers are there because they are what make
   a running build *visible* rather than asserted: a weaver who watches `out` climb while moving a
   rectangle has watched Workshop stay alive while a real child process ran, which a build that
   held the pump could not have produced. They stay on the row after it ends, so the evidence
-  does not vanish at the moment it becomes a result. While the panel froze instead, "what is
+  does not vanish at the moment it becomes a result. While the pane froze instead, "what is
   happening right now" had no answer for the whole time it mattered.
-- **Announcing and learning are different.** A status that arrives for a build this panel
+- **Announcing and learning are different.** A status that arrives for a build this pane
   asked for is announced on the notice line; one that merely arrives — the answer to a reopen —
-  is shown in the panel's rows and never announced. The first live run got that wrong out loud,
+  is shown in the pane's rows and never announced. The first live run got that wrong out loud,
   saying `built zengine-snake -- exit 0` about a build that had finished minutes earlier.
-  Non-blocking custody made that distinction worth more, not less: a panel opened *while* a build is running
+  Non-blocking custody made that distinction worth more, not less: a pane opened *while* a build is running
   is told `running` and must announce nothing, so the fact is held across every intermediate
   condition and released only at one the build will not leave.
 
 - **Two outcomes, two rows, two notices.** A build outcome and a **realization** outcome are
-  different truths with different owners, so the panel shows both and derives neither from the
+  different truths with different owners, so the pane shows both and derives neither from the
   other: a build that worked whose realization was refused is a completely different situation
   from a build that failed. `c` moves the weaver's choice through the recipes the tool published,
   `b` builds the chosen one, and with *load after build* armed (`Shift+b`) it offers the result
   to the running project too; `o` asks a role and puts the chosen artifact into the project's plan
   ([the weaver's page](../workshop/builder.md#loading-a-built-artifact-into-the-plan)). The choice
-  is genuinely the panel's — what the tool holds is what it *built*.
+  is genuinely the pane's — what the tool holds is what it *built*.
 
 What can be built is an **authored file** now, not a target compiled into the executable
 ([Builder](../workshop/builder.md)); what this Workshop ships is a recipe for
@@ -238,19 +238,19 @@ Setup
 
 - **A `PaneRef` is a provider/service key plus a pane key**, both text
   (`workshop/setup.hpp`). The built-ins are `zengine.workshop/info` and
-  `zengine.workshop/builder`, and a saved file spells them that way — never `panel::kInfo`, never
+  `zengine.workshop/builder`, and a saved file spells them that way — never `pane_kind::kInfo`, never
   a catalog ordinal, never a `WeaveId`. Two reasons, and the second is the load-bearing one: an
-  ordinal is not durable (renumber the constants and every saved setup opens the other panel),
+  ordinal is not durable (renumber the constants and every saved setup opens the other pane),
   and **an ordinal cannot be absent** — there is no integer meaning *a pane this build has never
   heard of*, so a setup built on one would have to drop such an entry on load, which is a saved
   file quietly editing itself.
-- **The durable reference lives on the catalog row** (`workshop/panel.hpp`), beside the internal
+- **The durable reference lives on the catalog row** (`workshop/panes.hpp`), beside the internal
   kind rather than in a table next to it, so there is nothing for a second table to disagree
   with. Two `static_assert`s over the catalog say every row has a reference and no two rows share
   one — both failures are otherwise silent.
-- **Resolution is fallible, and internal lookup stayed total.** `panel_kind(unknown)` still
+- **Resolution is fallible, and internal lookup stayed total.** `builtin_pane(unknown)` still
   answers with the catalog's FIRST ROW, which is correct for its callers (they derive a kind
-  from an open panel or a desk row) and is an accident of order rather than a choice — it
+  from an open pane or a desk row) and is an accident of order rather than a choice — it
   was the Builder until that pane became a weave. `resolve_pane(ref, runtime)` is a **second,
   narrower door** that answers with *nothing*: an unknown provider or an unknown pane key
   resolves to no kind, and **an unknown reference never becomes a built-in**. Nothing that meets a file goes through the total
@@ -261,7 +261,7 @@ Setup
   a spelling a caller could forget would count a pane a weaver can *see* as `1 unresolved` on the
   row directly beneath it.)
 - **An unresolved reference is kept, said, and saved again unchanged.** A setup naming
-  `third.party.tools/history` loads, stays exactly as authored, produces no panel and no
+  `third.party.tools/history` loads, stays exactly as authored, produces no pane and no
   placeholder, is counted on the setup line (`1 unresolved`) and named in the notice. The word is
   **unresolved**, never *unavailable*: Workshop knows it has no catalog row for the reference and
   knows nothing whatever about whoever could present it. A setup can be **saved and have an
@@ -273,12 +273,12 @@ Setup
   protocol adds a *live* office and a discovery message and **changes none of those non-claims** — a Loom role is a replacement-stable service
   route on this bus in this process, and never an author identity across a restart.
 - **Authored intent and resolved presentation have one path between them.** `setup.active.panes`
-  is which panes a weaver *meant*; `panels.open` is which presentations this build could make of
+  is which panes a weaver *meant*; `panes.open` is which presentations this build could make of
   that intent on this screen. `reconcile` (`workshop/setup.hpp`) is the only thing that opens or
-  closes a panel on a setup's behalf, and the two doors edit the **setup** rather than the panel
+  closes a pane on a setup's behalf, and the two doors edit the **setup** rather than the pane
   list — so neither door can leave the two describing different arrangements. Three cases are
-  distinguished on purpose: a panel open on both sides is *left alone* (no lost view, no duplicate
-  refresh), one that closes goes through `close_panel` (so a removed Builder's copied status is
+  distinguished on purpose: a pane open on both sides is *left alone* (no lost view, no duplicate
+  refresh), one that closes goes through `close_kind` (so a removed Builder's copied status is
   forgotten by the same act), and one that opens performs whatever asking that kind does — which
   is nothing, for every built-in now: the `StatusRequested` the picker once sent for the Builder
   is the Builder pane's own, asked on its room grant.
@@ -309,7 +309,7 @@ Setup
   compat codec, deterministic output so `save -> load -> save` is byte-identical, unknown fields
   rejected, and a name/key/count/byte ceiling refused *before* anything is copied into the live
   setup. Loading **returns** a candidate rather than writing into anything, so "a malformed file
-  never leaves Workshop halfway restored" is structural: a refusal changes no panel, no setup, no
+  never leaves Workshop halfway restored" is structural: a refusal changes no pane, no setup, no
   Builder view and no other file's byte. Saving goes through the one safe write every durable file
   here uses, so a detected failure leaves the last good setup file byte-identical.
 - **No resolved rectangle, no metric, and no session interaction state is persisted** in a setup
@@ -324,7 +324,7 @@ Deliberately absent, so the absences are decisions: no opaque provider configura
 pane instances; no setup catalog, recent list, autosave or import/export; no tabs, docking or
 layout weave. Workshop manages **one** active setup path. (The external provider, office and
 discovery protocol this list once excluded now exists, bounded — the section below says exactly
-how far. So do panel drag/resize, authored panel geometry and an arrange mode, equally bounded
+how far. So do pane drag/resize, authored pane geometry and an arrange mode, equally bounded
 — the section after that says how far.)
 
 ## The code authors a default; the weaver authors an override; the host resolves the room
@@ -432,8 +432,8 @@ authored setup                 resolved presentation          session interactio
 
 > **The office authors the pane; Workshop grants the room.**
 
-A weave that is not Workshop can offer Workshop a **pane**: a row in the Pane Manager, a panel a
-weaver can open, and a bounded budget of prose to fill it with. Five shapes are the protocol's
+A weave that is not Workshop can offer Workshop a **pane**: a row in the Pane Manager, a rectangle
+a weaver can open, and a bounded budget of prose to fill it with. Five shapes are the protocol's
 core (`workshop/pane_vocabulary.hpp`, which declares every shape that crosses today) — four for
 the room and its rows, and [one bounded press](#a-pane-may-be-pressed):
 
@@ -481,7 +481,7 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   pane — *without the file being touched* — and is unresolved again in a fresh process where the
   provider is absent.
 - **Workshop chooses the placement and refuses what will not fit.** Every external pane goes in the
-  overlay stack, and a presentation may only enter `Panels::open` if its rectangle ends at or above
+  overlay stack, and a presentation may only enter `Panes::open` if its rectangle ends at or above
   `kWorkspaceY + room_h`, which *is* `notice_y - 1` — the row the setup line occupies. At the
   78×22 minimum only one overlay slot fits. A resolved reference that does not fit is **waiting**,
   a third state that is neither `open` nor `closed`: the authored intent is retained and

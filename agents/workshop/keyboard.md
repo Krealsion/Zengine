@@ -239,7 +239,7 @@ PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneActionRow`, `PaneActions`,
 `join_pane_rows`, `drop_pane_rows`, `PaneRow::supersedes`, `Keymap::pane_supersedes`,
 `Keymap::row_active`, `Keymap::owner_of`, `superseded_here`; `workshop/pane_vocabulary.hpp`
 `v2::PaneActionRow`, `v2::PaneActions`, `kOwnableDocumentSave`; `workshop/weave.hpp`
-`declare_pane_actions`; `workshop/weave_seam.cpp` `declare_pane_actions`; `workshop/panel.hpp`
+`declare_pane_actions`; `workshop/weave_seam.cpp` `declare_pane_actions`; `workshop/panes.hpp`
 `RuntimePane::actions`; `workshop/setup.hpp` `admit_pane_actions`; `workshop/weave.hpp`
 `on(PaneActions)`, `rejoin_pane_rows`; `workshop/weave_seam.cpp` `on(PaneActions)`,
 `rejoin_pane_rows`; `workshop/weave_external.cpp` `external_key`; `workshop/screen.hpp`

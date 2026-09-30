@@ -56,7 +56,7 @@ struct CanvasRig {
         mount();
         drive([](CanvasSeat& s, loom::Mail& m) { s.offer(m); });
         r.pick(PaneRef{canvas_office, canvas_pane});
-        const auto* row = r.session().panels.runtime.find(canvas_office, canvas_pane);
+        const auto* row = r.session().panes.runtime.find(canvas_office, canvas_pane);
         REQUIRE(row);
         kind = row->kind;
         REQUIRE(!seat->rooms.empty());
@@ -93,7 +93,7 @@ struct CanvasRig {
         REQUIRE(view().canvas.heard);
     }
     ExternalPane& view() {
-        auto* p = r.session().panels.external_pane(kind); REQUIRE(p); return *p;
+        auto* p = r.session().panes.external_pane(kind); REQUIRE(p); return *p;
     }
     void button(std::int64_t button, bool down, std::int64_t x = kPaneCanvasUnit,
                 std::int64_t y = kPaneCanvasUnit) {
@@ -511,7 +511,7 @@ TEST_CASE("pane canvas resize preview keeps only the same provider's picture and
     REQUIRE(t.view().canvas.preview);
     const auto closing_grant = t.view().canvas.grant;
     t.r.pick(PaneRef{canvas_office, canvas_pane});
-    CHECK(t.r.session().panels.external_pane(t.kind) == nullptr);
+    CHECK(t.r.session().panes.external_pane(t.kind) == nullptr);
     t.r.pick(PaneRef{canvas_office, canvas_pane});
     CHECK_FALSE(t.view().canvas.preview);
     CHECK_FALSE(t.view().canvas.heard);

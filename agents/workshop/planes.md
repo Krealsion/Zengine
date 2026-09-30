@@ -12,10 +12,10 @@ MEANS
 - a provider's text cannot bury the contextual surface drawn over it;
 - nothing outranks a pane any more: the last plane after every pane was the Terminal's.
 
-PROVEN BY — `workshop/screen_compose.cpp` `paint`, `paint_panels`, `band_region`;
+PROVEN BY — `workshop/screen_compose.cpp` `paint`, `paint_panes`, `band_region`;
 `workshop/screen_reveal.cpp` `paint_pane_affordances`; `workshop/screen.hpp` `on_own_layer`;
 `workshop/setup.hpp` `effective_pane_order`; `tests/test_workshop_screen.cpp` case `"an
-overlapping pane is painted where it is hit, in both front orders"`, case `"a visible panel
+overlapping pane is painted where it is hit, in both front orders"`, case `"a visible pane
 occupies the pointer space it covers"`; `tests/test_workshop_panes_seam.cpp`
 case `"an external pane's own text cannot bury the surface that recovers it"`.
 WHY — `agents/decisions/front-is-a-permutation.md`
@@ -51,7 +51,7 @@ did not add one"`, case `"every owner of the body agrees about
 where it begins"`.
 WHY — `agents/decisions/two-bands.md`
 
-## WL-FRONT-04 — `Panels::selected` is a press's memory
+## WL-FRONT-04 — `Panes::selected` is a press's memory
 
 LAW — The selection is a press's memory: session-only, never persisted, none at start, resolved to a pane by one reader; it has four writers and no other.
 
@@ -59,7 +59,7 @@ MEANS
 - the press line, `enter_arrange_pane` after admission, a pane's reveal, Escape's fallthrough;
 - a refused Arrange leaves the selection exactly where it was.
 
-PROVEN BY — `workshop/panel.hpp` `Panels::selected`, `selected_pane`, `kNoPaneKind`;
+PROVEN BY — `workshop/panes.hpp` `Panes::selected`, `selected_pane`, `kNoPaneKind`;
 `workshop/weave_arrange.cpp` `enter_arrange_pane`; `workshop/weave_external.cpp` `unselect_pane`;
 `workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `tests/test_workshop_screen.cpp` case
 `"the selection lift never reaches the file, and no session starts with one"`, case
@@ -73,12 +73,12 @@ WHY — `agents/decisions/the-selection-lift.md`
 LAW — The authored permutation with the selected pane lifted is the one answer, and every consumer meaning "in front right now" spends it; `presentation_order` is the authored base.
 
 MEANS
-- `paint_panels` ascending, `occupied_at` descending, `pane_is_covered`, the desk's pointer walk;
+- `paint_panes` ascending, `occupied_at` descending, `pane_is_covered`, the desk's pointer walk;
 - persistence and `reset order` want the authored base, and nothing else may.
 
 PROVEN BY — `workshop/setup.hpp` `effective_pane_order`, `presentation_order`;
-`workshop/screen_compose.cpp` `paint_panels`; `workshop/screen_chrome.cpp` `occupied_at`;
-`workshop/screen_pane_state.cpp` `pane_is_covered`; `workshop/panel.hpp` `selected_pane`;
+`workshop/screen_compose.cpp` `paint_panes`; `workshop/screen_chrome.cpp` `occupied_at`;
+`workshop/screen_pane_state.cpp` `pane_is_covered`; `workshop/panes.hpp` `selected_pane`;
 `workshop/weave_arrange.cpp` `arrange_press`; `tests/test_workshop_screen.cpp` case `"selecting a
 pane lifts it, in the picture and under the hand at once"`, case `"the arrangement
 desk's pointer takes what is visibly in front"`;
@@ -87,7 +87,7 @@ WHY — `agents/decisions/the-selection-lift.md`
 
 ## WL-FRONT-06 — The lift is a rotation and never a write
 
-LAW — No rank is read differently or written, `panels.open` is untouched, nothing reaches a file, and a selection that is not seated lifts nothing; `manage.front` is the permanent statement.
+LAW — No rank is read differently or written, `panes.open` is untouched, nothing reaches a file, and a selection that is not seated lifts nothing; `manage.front` is the permanent statement.
 
 PROVEN BY — `workshop/setup.hpp` `effective_pane_order`, `presentation_order`;
 `workshop/keymap.hpp` `manage.front`; `tests/test_workshop_screen.cpp` case `"the selection lift
@@ -100,7 +100,7 @@ WHY — `agents/decisions/the-selection-lift.md`
 LAW — The lift orders the ordinary pane planes among themselves and reaches no further, so a selected pane is never drawn over the menu a weaver just opened on it.
 
 PROVEN BY — `workshop/screen_attention.cpp` `paint_context`; `workshop/screen_compose.cpp`
-`paint_panels`, `paint`; `tests/test_workshop_screen.cpp` case `"a transient surface stays over
+`paint_panes`, `paint`; `tests/test_workshop_screen.cpp` case `"a transient surface stays over
 the pane it covers, selected or not"`.
 WHY — `agents/decisions/the-selection-lift.md`
 

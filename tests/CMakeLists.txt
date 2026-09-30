@@ -899,9 +899,9 @@ zengine_workshop_suite(files SOURCES test_workshop_files.cpp
 # is established, read, hidden and resolved. The Pane Creator is a second source (VM-POP-12);
 # its cases read two sources as text, since no running case can show that presentation data
 # reaches no door through which it could act (VM-WALL-11).
-zengine_workshop_suite(panels
-    SOURCES test_workshop_panels.cpp
-            test_workshop_panels_creator.cpp
+zengine_workshop_suite(host
+    SOURCES test_workshop_host.cpp
+            test_workshop_host_creator.cpp
     LINKS loom::history
     DEFINITIONS "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\""
                 "WORKSHOP_PANE_DEFINITION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/pane_definition.hpp\""

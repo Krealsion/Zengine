@@ -10,7 +10,7 @@
 #include "lattice.hpp" // `kMaxCells` -- the bound an authored cell count already has
 #include "surface/vocabulary.hpp" // `kCellSubs` -- the fine lattice authored amounts live on
 #include "pane_vocabulary.hpp"
-#include "panel.hpp"
+#include "panes.hpp"
 #include "property.hpp"
 
 #include "component/text_box.hpp"
@@ -140,7 +140,7 @@ struct Setup {
 /// THE DURABLE REFERENCE FOR AN INTERNAL KIND.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 inline PaneRef pane_ref_of(std::int64_t kind) {
-    const PanelKind& row = panel_kind(kind);
+    const BuiltinPane& row = builtin_pane(kind);
     return PaneRef{row.provider, row.pane};
 }
 
@@ -160,9 +160,9 @@ static_assert(kMaxWeaverPaneNameLen <= kMaxPaneKeyLen,
 /// WHICH INTERNAL KIND THIS REFERENCE NAMES, OR NOTHING.
 // WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline std::optional<std::int64_t> resolve_builtin_pane(const PaneRef& ref) {
-    for (std::size_t i = 0; i < kPanelKinds; ++i) {
-        if (ref.provider == kPanelCatalog[i].provider && ref.pane == kPanelCatalog[i].pane) {
-            return kPanelCatalog[i].kind;
+    for (std::size_t i = 0; i < kBuiltinPaneCount; ++i) {
+        if (ref.provider == kBuiltinPanes[i].provider && ref.pane == kBuiltinPanes[i].pane) {
+            return kBuiltinPanes[i].kind;
         }
     }
     return std::nullopt;
@@ -171,26 +171,26 @@ inline std::optional<std::int64_t> resolve_builtin_pane(const PaneRef& ref) {
 /// WHICH KIND THIS REFERENCE NAMES ON THIS SCREEN, IN THIS RUN, OR NOTHING --
 /// asked of the compile-time catalog and of what this session has been offered.
 // WL-MAKER-03, WL-MAKER-04 -- agents/workshop/maker-pane.md
-inline std::optional<std::int64_t> resolve_pane(const PaneRef& ref, const Panels& panels) {
+inline std::optional<std::int64_t> resolve_pane(const PaneRef& ref, const Panes& panes) {
     const std::optional<std::int64_t> built_in = resolve_builtin_pane(ref);
     if (built_in.has_value()) {
         return built_in;
     }
     if (ref.provider == kMakerPaneProvider) {
-        if (panels.weaver.open() && panels.weaver.definition.name == ref.pane) {
+        if (panes.weaver.open() && panes.weaver.definition.name == ref.pane) {
             return kWeaverPaneKind;
         }
         return std::nullopt; // the namespace is Workshop's: no office can answer for it
     }
-    if (const RuntimePane* row = panels.runtime.find(ref.provider, ref.pane)) {
+    if (const RuntimePane* row = panes.runtime.find(ref.provider, ref.pane)) {
         return row->kind;
     }
     return std::nullopt;
 }
 
 /// Whether this build can currently present the pane this reference names.
-inline bool resolvable(const PaneRef& ref, const Panels& panels) {
-    return resolve_pane(ref, panels).has_value();
+inline bool resolvable(const PaneRef& ref, const Panes& panes) {
+    return resolve_pane(ref, panes).has_value();
 }
 
 // ---- THE COMBINED CATALOG: what the Pane Manager lists, built-ins and offers ---
@@ -213,38 +213,38 @@ inline constexpr const char* kWeaverPaneSummary = "a pane you made -- Pane Creat
 /// built-in in the catalog's own order, then every admitted runtime pane in
 /// first-accepted-offer order. Built as a value rather than walked twice, and cached nowhere.
 // WL-CAT-05 -- agents/workshop/catalog.md
-inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
+inline std::vector<CatalogRow> combined_catalog(const Panes& panes) {
     std::vector<CatalogRow> rows;
-    rows.reserve(kPanelKinds + 1 + panels.runtime.entries.size());
-    for (std::size_t i = 0; i < kPanelKinds; ++i) {
-        rows.push_back(CatalogRow{kPanelCatalog[i].kind,
-                                  PaneRef{kPanelCatalog[i].provider, kPanelCatalog[i].pane},
-                                  kPanelCatalog[i].name, kPanelCatalog[i].summary});
+    rows.reserve(kBuiltinPaneCount + 1 + panes.runtime.entries.size());
+    for (std::size_t i = 0; i < kBuiltinPaneCount; ++i) {
+        rows.push_back(CatalogRow{kBuiltinPanes[i].kind,
+                                  PaneRef{kBuiltinPanes[i].provider, kBuiltinPanes[i].pane},
+                                  kBuiltinPanes[i].name, kBuiltinPanes[i].summary});
     }
     // The weaver's own pane sits between the built-ins and the strangers: Workshop-owned, and the
     // newest. Its name and identity are the definition's; nothing is copied here.
-    if (panels.weaver.open()) {
-        rows.push_back(CatalogRow{kWeaverPaneKind, weaver_pane_ref(panels.weaver.definition.name),
-                                  panels.weaver.definition.name, kWeaverPaneSummary});
+    if (panes.weaver.open()) {
+        rows.push_back(CatalogRow{kWeaverPaneKind, weaver_pane_ref(panes.weaver.definition.name),
+                                  panes.weaver.definition.name, kWeaverPaneSummary});
     }
-    for (const RuntimePane& r : panels.runtime.entries) {
+    for (const RuntimePane& r : panes.runtime.entries) {
         rows.push_back(CatalogRow{r.kind, PaneRef{r.provider, r.pane}, r.name, r.summary});
     }
     return rows;
 }
 
 /// The name a weaver reads for a kind, built-in, weaver-made or runtime; empty for one none knows.
-inline std::string kind_name(const Panels& panels, std::int64_t kind) {
+inline std::string kind_name(const Panes& panes, std::int64_t kind) {
     if (is_runtime_kind(kind)) {
-        if (const RuntimePane* row = panels.runtime.of_kind(kind)) {
+        if (const RuntimePane* row = panes.runtime.of_kind(kind)) {
             return row->name;
         }
         return std::string();
     }
     if (is_weaver_kind(kind)) {
-        return panels.weaver.open() ? panels.weaver.definition.name : std::string();
+        return panes.weaver.open() ? panes.weaver.definition.name : std::string();
     }
-    return std::string(panel_kind(kind).name);
+    return std::string(builtin_pane(kind).name);
 }
 
 /// A reference as a person reads it: `provider/pane`.
@@ -521,7 +521,7 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
             return out;
         }
     }
-    if (kPanelKinds + runtime.entries.size() >= kMaxPaneCatalogEntries) {
+    if (kBuiltinPaneCount + runtime.entries.size() >= kMaxPaneCatalogEntries) {
         out.written = Written::no("Workshop holds at most " +
                                   std::to_string(kMaxPaneCatalogEntries) +
                                   " panes -- `" + ref_text(ref) + "` was not added");
@@ -919,10 +919,10 @@ inline bool reset_pane_height(Setup& s, const PaneRef& ref) {
 /// The references this build cannot currently present, IN THE ORDER THE SETUP
 /// HOLDS THEM.
 // WL-MAKER-04 -- agents/workshop/maker-pane.md
-inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panels& panels) {
+inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panes& panes) {
     std::vector<PaneRef> out;
     for (const SetupPane& row : s.panes) {
-        if (!resolvable(row.ref, panels)) {
+        if (!resolvable(row.ref, panes)) {
             out.push_back(row.ref);
         }
     }
@@ -932,8 +932,8 @@ inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panels& panel
 /// EVERY PANE A WEAVER MAY CHOOSE FROM **OR** HAS ALREADY AUTHORED -- the one inventory,
 /// said out loud to whatever presents it (the desktop's Pane Manager) and spent by both doors.
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md
-inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panels& panels) {
-    std::vector<CatalogRow> rows = combined_catalog(panels);
+inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panes& panes) {
+    std::vector<CatalogRow> rows = combined_catalog(panes);
     for (const SetupPane& row : setup.panes) {
         bool known = false;
         for (const CatalogRow& have : rows) {
@@ -955,13 +955,13 @@ inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panels& 
     return rows;
 }
 
-/// A fresh Workshop's setup: the default panels, then Info in the right column.
+/// A fresh Workshop's setup: the default panes, then Info in the right column.
 // WL-LAYOUT-03 -- agents/workshop/layouts.md; WL-SETUP-07 -- agents/workshop/setup-file.md
 inline Setup default_setup() {
     Setup s;
     s.name = kDefaultSetupName;
-    s.panes.reserve(kDefaultPanelCount);
-    for (const std::int64_t kind : kDefaultPanels) {
+    s.panes.reserve(kDefaultPaneCount);
+    for (const std::int64_t kind : kDefaultPanes) {
         (void)add_pane(s, pane_ref_of(kind));
     }
     // Info opens at the right edge because this desk row says so: the one place this host names a
@@ -980,7 +980,7 @@ inline Setup default_setup() {
 
 // ---- Authored intent, reconciled onto resolved presentations ------------------
 
-/// WHAT RECONCILING A SETUP ONTO THE LIVE PANELS ACTUALLY DID.
+/// WHAT RECONCILING A SETUP ONTO THE LIVE PANES ACTUALLY DID.
 // WL-PANE-07 -- agents/workshop/panes-and-windows.md
 struct Reconciled {
     std::vector<std::int64_t> opened;
@@ -1017,13 +1017,13 @@ struct Seating {
     std::size_t unresolved = 0;
 };
 
-inline Seating seat_panes(const Setup& setup, const Panels& panels, StackCapacity room) {
+inline Seating seat_panes(const Setup& setup, const Panes& panes, StackCapacity room) {
     Seating out;
     out.wanted.reserve(setup.panes.size());
     std::size_t stack_used = 0;
     std::int64_t used_height = 0;
     for (const SetupPane& row : setup.panes) {
-        const std::optional<std::int64_t> kind = resolve_pane(row.ref, panels);
+        const std::optional<std::int64_t> kind = resolve_pane(row.ref, panes);
         if (!kind.has_value()) {
             ++out.unresolved;
             continue;
@@ -1033,7 +1033,7 @@ inline Seating seat_panes(const Setup& setup, const Panels& panels, StackCapacit
         // rationed by the reactive stack, so it never waits for room it never spent.
         if (placement_of(*kind) == placement::kOverlayStack &&
             row.place.mode == pane_unit::kDefault) {
-            const auto preferred = preferred_extent(panels.runtime.of_kind(*kind), room);
+            const auto preferred = preferred_extent(panes.runtime.of_kind(*kind), room);
             const auto height = preferred.height ? preferred.height : room.fallback_height;
             if (room.height ? used_height + height > room.height : stack_used >= room.slots) {
                 out.waiting.push_back(*kind);
@@ -1049,18 +1049,18 @@ inline Seating seat_panes(const Setup& setup, const Panels& panels, StackCapacit
 
 /// THE AUTHORED PANE ORDER, BACK TO FRONT -- the one place `front` is read.
 // WL-FRONT-05, WL-FRONT-06 -- agents/workshop/planes.md
-inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Panels& panels) {
+inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Panes& panes) {
     struct Ranked {
         std::int64_t front;
         std::int64_t kind;
     };
     std::vector<Ranked> ranked;
-    ranked.reserve(panels.open.size());
+    ranked.reserve(panes.open.size());
     std::vector<std::int64_t> unranked;
-    for (const Panel& p : panels.open) {
+    for (const OpenPane& p : panes.open) {
         bool found = false;
         for (const SetupPane& row : setup.panes) {
-            const std::optional<std::int64_t> kind = resolve_pane(row.ref, panels);
+            const std::optional<std::int64_t> kind = resolve_pane(row.ref, panes);
             if (kind.has_value() && *kind == p.kind) {
                 ranked.push_back(Ranked{row.front, p.kind});
                 found = true;
@@ -1094,9 +1094,9 @@ inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Pa
 /// pane lifted to the end of it.
 // WL-FRONT-01, WL-FRONT-05, WL-FRONT-06 -- agents/workshop/planes.md
 inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
-                                                      const Panels& panels) {
-    std::vector<std::int64_t> order = presentation_order(setup, panels);
-    const std::int64_t lifted = selected_pane(panels);
+                                                      const Panes& panes) {
+    std::vector<std::int64_t> order = presentation_order(setup, panes);
+    const std::int64_t lifted = selected_pane(panes);
     if (lifted == kNoPaneKind) {
         return order;
     }
@@ -1112,17 +1112,17 @@ inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
     return order;
 }
 
-/// MAKE THE OPEN PANELS BE WHAT THE SETUP SAYS -- the one path, and the only thing in this
-/// application that opens or closes a panel on a setup's behalf. Three cases, deliberately
+/// MAKE THE OPEN PANES BE WHAT THE SETUP SAYS -- the one path, and the only thing in this
+/// application that opens or closes a pane on a setup's behalf. Three cases, deliberately
 /// distinguished, and capacity spent in setup order; an unresolved reference is counted.
 // WL-PANE-07 -- agents/workshop/panes-and-windows.md
-inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity room) {
+inline Reconciled reconcile(Panes& panes, const Setup& setup, StackCapacity room) {
     Reconciled done;
-    const Seating seating = seat_panes(setup, panels, room);
+    const Seating seating = seat_panes(setup, panes, room);
     const std::vector<std::int64_t>& wanted = seating.wanted;
     done.unresolved = seating.unresolved;
     done.waiting = seating.waiting;
-    panels.waiting_for_room = done.waiting;
+    panes.waiting_for_room = done.waiting;
 
     const auto wants = [&wanted](std::int64_t kind) {
         for (const std::int64_t k : wanted) {
@@ -1133,24 +1133,24 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity ro
         return false;
     };
 
-    // Close first, through the close door, over a copy: `close_panel` erases from `panels.open` and
+    // Close first, through the close door, over a copy: `close_kind` erases from `panes.open` and
     // forgets the kind's view.
-    const std::vector<Panel> before = panels.open;
-    for (const Panel& p : before) {
+    const std::vector<OpenPane> before = panes.open;
+    for (const OpenPane& p : before) {
         if (!wants(p.kind)) {
-            if (close_panel(panels, p.kind)) {
+            if (close_kind(panes, p.kind)) {
                 done.closed.push_back(p.kind);
             }
         }
     }
 
-    // Then assign what remains in the setup's order: `open_panel` appends, so an already-open kind
+    // Then assign what remains in the setup's order: `open_kind` appends, so an already-open kind
     // would keep its old position.
-    std::vector<Panel> now;
+    std::vector<OpenPane> now;
     now.reserve(wanted.size());
     for (const std::int64_t kind : wanted) {
         bool was_open = false;
-        for (const Panel& p : before) {
+        for (const OpenPane& p : before) {
             if (p.kind == kind) {
                 was_open = true;
                 break;
@@ -1158,16 +1158,16 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity ro
         }
         if (!was_open) {
             done.opened.push_back(kind);
-            // ...so a newly opened external pane gets its view here, as `open_panel` would give it.
-            if (is_runtime_kind(kind) && panels.external_pane(kind) == nullptr) {
+            // ...so a newly opened external pane gets its view here, as `open_kind` would give it.
+            if (is_runtime_kind(kind) && panes.external_pane(kind) == nullptr) {
                 ExternalPane fresh;
                 fresh.kind = kind;
-                panels.external.push_back(std::move(fresh));
+                panes.external.push_back(std::move(fresh));
             }
         }
-        now.push_back(Panel{kind});
+        now.push_back(OpenPane{kind});
     }
-    panels.open = std::move(now);
+    panes.open = std::move(now);
     return done;
 }
 

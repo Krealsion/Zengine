@@ -15,19 +15,19 @@ namespace zengine::workshop {
 void WorkshopWeave::refresh_external_rooms(loom::Mail& mail) {
     refresh_canvas_rooms(mail);
     const Screen sc = screen_of(session_);
-    for (const Panel& p : session_.panels.open) {
+    for (const OpenPane& p : session_.panes.open) {
         if (!is_runtime_kind(p.kind)) {
             continue;
         }
-        const PanelBounds where = bounds_of(session_.panels, session_.setup.active, p.kind, sc);
+        const PaneBounds where = bounds_of(session_.panes, session_.setup.active, p.kind, sc);
         const ExternalBodyPlace body = external_body_place(
             where.rect, sc,
-            external_title_rows(session_.panels, p.kind, session_.pane_titles));
+            external_title_rows(session_.panes, p.kind, session_.pane_titles));
         if (!body.present) {
             continue;
         }
-        const RuntimePane* row = session_.panels.runtime.of_kind(p.kind);
-        ExternalPane* pane = session_.panels.external_pane(p.kind);
+        const RuntimePane* row = session_.panes.runtime.of_kind(p.kind);
+        ExternalPane* pane = session_.panes.external_pane(p.kind);
         if (row == nullptr || pane == nullptr) {
             continue;
         }
@@ -72,8 +72,8 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
     if (!at.named) {
         return false;
     }
-    const RuntimePane* row = session_.panels.runtime.of_kind(kind);
-    const ExternalPane* pane = session_.panels.external_pane(kind);
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
+    const ExternalPane* pane = session_.panes.external_pane(kind);
     // A pane not yet granted a room has no lattice to name a place in: a press between its opening
     // and the granting repaint names nothing.
     if (row == nullptr || pane == nullptr || !pane->granted || pane->canvas.grant != 0) {
@@ -111,9 +111,9 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
 // WL-TEXT-14 -- agents/workshop/text-box.md
 void WorkshopWeave::external_drag(std::int64_t kind, const zengine::input::PointerMoved& m,
                                   loom::Mail& mail) {
-    const RuntimePane* row = session_.panels.runtime.of_kind(kind);
-    const ExternalPane* pane = session_.panels.external_pane(kind);
-    if (row == nullptr || pane == nullptr || !pane->granted || !session_.panels.has(kind)) {
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
+    const ExternalPane* pane = session_.panes.external_pane(kind);
+    if (row == nullptr || pane == nullptr || !pane->granted || !session_.panes.has(kind)) {
         session_.text_drag = TextDrag{}; // the pane the press began in is gone: the sweep ends
         return;
     }
@@ -121,13 +121,13 @@ void WorkshopWeave::external_drag(std::int64_t kind, const zengine::input::Point
     // has now -- and then NOT clamped: a row above the body is negative, a row below it is
     // past `rows`, and what either means is the pane's (`PaneDragged`).
     const Screen sc = screen_of(session_);
-    const PanelBounds where = bounds_of(session_.panels, session_.setup.active, kind, sc);
+    const PaneBounds where = bounds_of(session_.panes, session_.setup.active, kind, sc);
     if (!where.open) {
         session_.text_drag = TextDrag{};
         return;
     }
     const ExternalBodyPlace body = external_body_place(
-        where.rect, sc, external_title_rows(session_.panels, kind, session_.pane_titles));
+        where.rect, sc, external_title_rows(session_.panes, kind, session_.pane_titles));
     if (!body.present) {
         return; // a room too small for a row: the sweep waits for one, and sends nothing
     }
@@ -142,13 +142,13 @@ void WorkshopWeave::external_drag(std::int64_t kind, const zengine::input::Point
 
 // WL-FOCUS-01, WL-FOCUS-05 -- agents/workshop/focus.md
 std::int64_t WorkshopWeave::keyboard_pane() const {
-    return zengine::workshop::keyboard_pane(session_.panels);
+    return zengine::workshop::keyboard_pane(session_.panes);
 }
 
 // WL-KEY-15 -- agents/workshop/keyboard.md; WL-ARR-16 -- agents/workshop/arrangement.md
 bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
                                  loom::Mail& mail) {
-    const RuntimePane* row = session_.panels.runtime.of_kind(kind);
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
     if (row == nullptr) {
         return false;
     }
@@ -188,13 +188,13 @@ bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
 void WorkshopWeave::external_wheel(std::int64_t kind, const zengine::input::PointerWheel& w,
                                    loom::Mail& mail) {
     const ExternalPressAt at =
-        external_press_at(session_.panels, session_.setup.active, screen_of(session_), kind,
+        external_press_at(session_.panes, session_.setup.active, screen_of(session_), kind,
                           session_.pane_titles, w.space, w.x, w.y);
     if (!at.named) {
         return;
     }
-    const RuntimePane* row = session_.panels.runtime.of_kind(kind);
-    const ExternalPane* pane = session_.panels.external_pane(kind);
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
+    const ExternalPane* pane = session_.panes.external_pane(kind);
     if (row == nullptr || pane == nullptr || !pane->granted) {
         return;
     }
@@ -216,8 +216,8 @@ bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
     if (!at.named || (button != 2 && button != 3)) {
         return false;
     }
-    const RuntimePane* row = session_.panels.runtime.of_kind(kind);
-    const ExternalPane* pane = session_.panels.external_pane(kind);
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
+    const ExternalPane* pane = session_.panes.external_pane(kind);
     if (row == nullptr || pane == nullptr || !pane->granted) {
         return false;
     }
@@ -232,7 +232,7 @@ bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
     // never reported (a lost focus, a window that swallowed it); the old hold ends aloud, with a
     // `lost` release owed to its pane, before the new press is recorded.
     if (secondary_hold_[s].active) {
-        if (const RuntimePane* old = session_.panels.runtime.of_kind(secondary_hold_[s].kind)) {
+        if (const RuntimePane* old = session_.panes.runtime.of_kind(secondary_hold_[s].kind)) {
             (void)mail.as_role(kWorkshopProvider)
                 .send_to_role(old->provider, PaneButton{old->pane, button, false, 0, 0, true, 0});
         }
@@ -288,7 +288,7 @@ bool WorkshopWeave::external_release(std::int64_t button, const zengine::input::
     if (c.live && !c.released) {
         c.released = true;
     }
-    const RuntimePane* row = session_.panels.runtime.of_kind(kind);
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
     if (row == nullptr) {
         return false;
     }
@@ -297,12 +297,12 @@ bool WorkshopWeave::external_release(std::int64_t button, const zengine::input::
     // row it was aimed at -- `lost` is false: a hand did let go.
     std::int64_t prow = 0;
     std::int64_t pcol = 0;
-    if (session_.panels.has(kind)) {
+    if (session_.panes.has(kind)) {
         const Screen sc = screen_of(session_);
-        const PanelBounds where = bounds_of(session_.panels, session_.setup.active, kind, sc);
+        const PaneBounds where = bounds_of(session_.panes, session_.setup.active, kind, sc);
         if (where.open) {
             const ExternalBodyPlace body = external_body_place(
-                where.rect, sc, external_title_rows(session_.panels, kind, session_.pane_titles));
+                where.rect, sc, external_title_rows(session_.panes, kind, session_.pane_titles));
             if (body.present) {
                 const ProseAt at =
                     prose_at(b.space, b.x, b.y, body.region_x, body.region_y, body.fit);
@@ -324,8 +324,8 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
     end_canvas_holds(mail);
     for (std::size_t s = 0; s < 2; ++s) {
         SecondaryHold& h = secondary_hold_[s];
-        if (h.active && !session_.panels.has(h.kind)) {
-            if (const RuntimePane* row = session_.panels.runtime.of_kind(h.kind)) {
+        if (h.active && !session_.panes.has(h.kind)) {
+            if (const RuntimePane* row = session_.panes.runtime.of_kind(h.kind)) {
                 (void)mail.as_role(kWorkshopProvider)
                     .send_to_role(row->provider,
                                   PaneButton{row->pane, h.button, false, 0, 0, true, 0});
@@ -335,7 +335,7 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
         // The continuation is invalidated on its own terms: a pane that left the desk after the
         // release cannot have its press handed back or a menu opened for it.
         SecondaryContinuation& c = secondary_cont_[s];
-        if (c.live && !session_.panels.has(c.kind)) {
+        if (c.live && !session_.panes.has(c.kind)) {
             c = SecondaryContinuation{};
         }
     }
@@ -344,12 +344,12 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
     // answers the requester unchosen, in these words.
     if (session_.presented.open) {
         const RuntimePane* row =
-            session_.panels.runtime.find(session_.presented.office, session_.presented.pane);
-        if (row == nullptr || !session_.panels.has(row->kind)) {
+            session_.panes.runtime.find(session_.presented.office, session_.presented.pane);
+        if (row == nullptr || !session_.panes.has(row->kind)) {
             withdraw_menu("the pane left the desk", mail);
         }
     }
-    if (choice_answered_.kind != kNoPaneKind && !session_.panels.has(choice_answered_.kind)) {
+    if (choice_answered_.kind != kNoPaneKind && !session_.panes.has(choice_answered_.kind)) {
         choice_answered_ = ChoiceAnswered{};
     }
 }
@@ -391,11 +391,11 @@ void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
     if (office.empty()) {
         return;
     }
-    const RuntimePane* row = session_.panels.runtime.find(office, said.pane);
+    const RuntimePane* row = session_.panes.runtime.find(office, said.pane);
     if (row == nullptr) {
         return; // a pane this office never offered is no pane of the desk's
     }
-    if (const auto* pane = session_.panels.external_pane(row->kind);
+    if (const auto* pane = session_.panes.external_pane(row->kind);
         pane && pane->canvas.grant != 0 &&
         (!canvas_owner_current(row->kind) || pane->canvas.owner != mail.sender())) return;
     if (mail.correlation() == 0) {
@@ -433,16 +433,16 @@ void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
 PointedAt WorkshopWeave::cell_of_body_place(std::int64_t kind, std::int64_t row,
                                             std::int64_t column) const {
     PointedAt out;
-    if (!session_.panels.has(kind)) {
+    if (!session_.panes.has(kind)) {
         return out;
     }
     const Screen sc = screen_of(session_);
-    const PanelBounds where = bounds_of(session_.panels, session_.setup.active, kind, sc);
+    const PaneBounds where = bounds_of(session_.panes, session_.setup.active, kind, sc);
     if (!where.open) {
         return out;
     }
     const ExternalBodyPlace body = external_body_place(
-        where.rect, sc, external_title_rows(session_.panels, kind, session_.pane_titles));
+        where.rect, sc, external_title_rows(session_.panes, kind, session_.pane_titles));
     if (!body.present) {
         return out;
     }
@@ -465,11 +465,11 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     if (office.empty()) {
         return; // an office asks; personal speech is answered by nobody
     }
-    const RuntimePane* row = session_.panels.runtime.find(office, asked.pane);
+    const RuntimePane* row = session_.panes.runtime.find(office, asked.pane);
     if (row == nullptr) {
         return; // a pane this office never offered
     }
-    if (const auto* pane = session_.panels.external_pane(row->kind);
+    if (const auto* pane = session_.panes.external_pane(row->kind);
         pane && pane->canvas.grant != 0 &&
         (!canvas_owner_current(row->kind) || pane->canvas.owner != mail.sender())) return;
     // THE HOST ANSWERS ONLY WHAT IT REFUSES HERE: an ask it never grants reaches no presenter, so
@@ -485,7 +485,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
         refuse("a menu continues a gesture, and this request echoes none");
         return;
     }
-    if (!session_.panels.has(row->kind)) {
+    if (!session_.panes.has(row->kind)) {
         refuse("the pane is not on the desk");
         return;
     }
@@ -548,7 +548,7 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
     // own menu closed -- the newer, deliberate gesture wins.
     withdraw_menu("replaced by a newer menu", mail);
     close_context();
-    const PanelProsePlace room =
+    const ProsePlace room =
         presented_room(at.understood, at.cell.x, at.cell.y, screen_of(session_));
     PresentedMenu next;
     next.open = true;
@@ -859,7 +859,7 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     // choosing click's release is no new act).
     const std::uint64_t act = closed.input > 0 ? static_cast<std::uint64_t>(closed.input) : 0;
     if (closed.chosen && act >= ended.first_input && act <= ended.last_input) {
-        if (const RuntimePane* row = session_.panels.runtime.find(ended.office, ended.pane)) {
+        if (const RuntimePane* row = session_.panes.runtime.find(ended.office, ended.pane)) {
             ChoiceAnswered c;
             c.kind = row->kind;
             c.gesture = act;
@@ -925,7 +925,7 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
     if (office.empty()) {
         return;
     }
-    const RuntimePane* row = session_.panels.runtime.find(office, asked.pane);
+    const RuntimePane* row = session_.panes.runtime.find(office, asked.pane);
     if (row == nullptr || mail.correlation() == 0) {
         return;
     }
@@ -940,7 +940,7 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
     choice_answered_.spent = true;
     const PaneRef subject{asked.office, asked.target};
     bool named = false;
-    for (const CatalogRow& r : inventory_rows(session_.setup.active, session_.panels)) {
+    for (const CatalogRow& r : inventory_rows(session_.setup.active, session_.panes)) {
         if (r.ref == subject) {
             named = true;
             break;
@@ -969,7 +969,7 @@ void WorkshopWeave::on(const PaneKeyboardRequested& asked, loom::Mail& mail) {
     if (office.empty()) {
         return;
     }
-    const RuntimePane* row = session_.panels.runtime.find(office, asked.pane);
+    const RuntimePane* row = session_.panes.runtime.find(office, asked.pane);
     if (row == nullptr || mail.correlation() == 0) {
         return;
     }
@@ -982,14 +982,14 @@ void WorkshopWeave::on(const PaneKeyboardRequested& asked, loom::Mail& mail) {
         return;
     }
     choice_answered_.spent = true;
-    if (!session_.panels.has(row->kind) || !kind_takes_keyboard(row->kind)) {
+    if (!session_.panes.has(row->kind) || !kind_takes_keyboard(row->kind)) {
         return; // a pane not on the desk, or one that takes no keys, gets none
     }
     // THE GUARDED TRANSITION: the pane becomes the selected, keyboard-holding pane, so the next
     // key -- the one being captured, or the spelling being typed -- reaches it. Its own rows say
     // what it is now showing; nothing here types anything.
-    session_.panels.selected = row->kind;
-    session_.panels.keyboard = row->kind;
+    session_.panes.selected = row->kind;
+    session_.panes.keyboard = row->kind;
     repaint(mail);
 }
 
@@ -999,7 +999,7 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
     if (office.empty()) {
         return;
     }
-    const RuntimePane* row = session_.panels.runtime.find(office, said.pane);
+    const RuntimePane* row = session_.panes.runtime.find(office, said.pane);
     if (row == nullptr) {
         return; // a pane this office never offered is no pane of the desk's
     }
@@ -1014,7 +1014,7 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
     // A key, text, press or wheel since leaves this about an Escape that is no longer what the
     // weaver did last, and putting a pane down under a later gesture would act on a stale word.
     if (escape_sent_.kind != kind || escape_sent_.gesture != gestures_ ||
-        session_.panels.selected != kind || typing_pane(session_) != kind) {
+        session_.panes.selected != kind || typing_pane(session_) != kind) {
         return;
     }
     escape_sent_ = GestureSent{};
@@ -1034,15 +1034,15 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
 // WL-FOCUS-05 -- agents/workshop/focus.md
 // WL-FRONT-04 -- agents/workshop/planes.md
 void WorkshopWeave::unselect_pane() {
-    const std::string name = kind_name(session_.panels, session_.panels.selected);
-    session_.panels.selected = kNoPaneKind;
-    session_.panels.keyboard = kNoPaneKind;
+    const std::string name = kind_name(session_.panes, session_.panes.selected);
+    session_.panes.selected = kNoPaneKind;
+    session_.panes.keyboard = kNoPaneKind;
     say("unselected " + name, false);
 }
 
 void WorkshopWeave::external_text(std::int64_t kind, const zengine::input::TextEntered& t,
                                   loom::Mail& mail) {
-    const RuntimePane* row = session_.panels.runtime.of_kind(kind);
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
     if (row == nullptr) {
         return;
     }

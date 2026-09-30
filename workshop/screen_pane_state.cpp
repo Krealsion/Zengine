@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The screen's dynamic panels painted, what state one pane is in, a pane's geometry in the face's
+// The screen's dynamic panes painted, what state one pane is in, a pane's geometry in the face's
 // own language, and a surface sized by what it says.
 // Workshop law: agents/workshop/panes-and-windows.md (+7 registers; agents/workshop.md routes)
 
@@ -9,18 +9,18 @@
 
 namespace zengine::workshop {
 
-// ---- The dynamic panels, painted -------------------------------------------------------
+// ---- The dynamic panes, painted -------------------------------------------------------
 
 // WL-CHROME-04 -- agents/workshop/chrome.md; WL-PANE-05 -- agents/workshop/panes-and-windows.md
 // WL-CHROME-04 -- agents/workshop/chrome.md; WL-PANE-05 -- agents/workshop/panes-and-windows.md
-void paint_panel_frame(surface::SurfaceLayer& layer, const FineRect& b,
+void paint_pane_frame(surface::SurfaceLayer& layer, const FineRect& b,
                        std::int64_t role) {
     layer.rects.push_back(wire_rect_of(b, role));
 }
 
 // WL-CHROME-05 -- agents/workshop/chrome.md; WL-RGN-01 -- agents/workshop/regions.md
-PanelProsePlace panel_prose_place(const FineRect& b, const Screen& sc) {
-    PanelProsePlace p;
+ProsePlace prose_place(const FineRect& b, const Screen& sc) {
+    ProsePlace p;
     const PaneInside inside = pane_inside(b, sc);
     p.inside = inside.rect;
     p.chrome_subs = inside.chrome_subs;
@@ -35,7 +35,7 @@ PanelProsePlace panel_prose_place(const FineRect& b, const Screen& sc) {
 }
 
 // WL-RGN-01 -- agents/workshop/regions.md
-surface::SurfaceTextRegion panel_prose_region(const PanelProsePlace& place) {
+surface::SurfaceTextRegion prose_region(const ProsePlace& place) {
     surface::SurfaceTextRegion region;
     const surface::SurfaceRect wire = wire_rect_of(place.inside, surface::role::kFill);
     region.x = wire.x;
@@ -77,12 +77,12 @@ const char* pane_state_remedy(std::int64_t state) {
 }
 
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md; WL-FRONT-05 -- agents/workshop/planes.md
-bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
+bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
                      std::int64_t kind, const FineRect& mine) {
     if (mine.w <= 0 || mine.h <= 0) {
         return false; // nothing visible is OFF-ROOM, which is a different word
     }
-    const std::vector<std::int64_t> order = effective_pane_order(setup, panels);
+    const std::vector<std::int64_t> order = effective_pane_order(setup, panes);
     std::size_t me = order.size();
     for (std::size_t i = 0; i < order.size(); ++i) {
         if (order[i] == kind) {
@@ -95,7 +95,7 @@ bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
     }
     std::vector<FineRect> ahead;
     for (std::size_t i = me + 1; i < order.size(); ++i) {
-        const FineRect r = bounds_of(panels, setup, order[i], sc).rect;
+        const FineRect r = bounds_of(panes, setup, order[i], sc).rect;
         if (r.w > 0 && r.h > 0) {
             ahead.push_back(r);
         }
@@ -143,12 +143,12 @@ bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
     return true;
 }
 
-std::int64_t pane_state_of(const Panels& panels, const Setup& setup, const Screen& sc,
+std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen& sc,
                            const CatalogRow& row) {
     if (!has_pane(setup, row.ref)) {
         return pane_state::kClosed;
     }
-    if (row.kind == kNoPaneKind || !resolvable(row.ref, panels)) {
+    if (row.kind == kNoPaneKind || !resolvable(row.ref, panes)) {
         return pane_state::kUnresolved;
     }
     // A UNIT OUTRANKS A WANT OF ROOM, and this is where that precedence is spent. A pane
@@ -158,7 +158,7 @@ std::int64_t pane_state_of(const Panels& panels, const Setup& setup, const Scree
     if (!pane_unit_projectable(pane_of(setup, row.ref))) {
         return pane_state::kRefused;
     }
-    const PanelBounds where = bounds_of(panels, setup, row.kind, sc);
+    const PaneBounds where = bounds_of(panes, setup, row.kind, sc);
     if (!where.open) {
         // Named, resolved, projectable and not presented -- which is what `waiting` has
         // always meant here. `seat_panes` is the only thing that produces it and it is
@@ -171,7 +171,7 @@ std::int64_t pane_state_of(const Panels& panels, const Setup& setup, const Scree
     if (where.rect.w <= 0 || where.rect.h <= 0) {
         return pane_state::kOffRoom;
     }
-    if (pane_is_covered(panels, setup, sc, row.kind, where.rect)) {
+    if (pane_is_covered(panes, setup, sc, row.kind, where.rect)) {
         return pane_state::kCovered;
     }
     return pane_state::kOpen;

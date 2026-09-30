@@ -12,7 +12,7 @@ front, and `occupied_at` answered Builder while the terminal drew Info's prose i
 
 **Decision.** `front` is a canonical rank: a permutation of 0..n-1 over all authored rows,
 unresolved ones included, so reset writes bytes identical to a setup that was never reordered.
-`panels.open` is never reordered — `seat_panes` walks the setup list, a reactive slot is counted
+`panes.open` is never reordered — `seat_panes` walks the setup list, a reactive slot is counted
 over that same list, and no ordering operation writes what either reads, which is the whole of
 "raising a pane cannot move it". The canvas is an ordered list of planes, and Workshop's
 publication order is the whole depth story: the workspace, one plane per pane in

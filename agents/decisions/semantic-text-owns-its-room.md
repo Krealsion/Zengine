@@ -13,8 +13,8 @@ the workspace's right edge, a six-cell object with a 32-byte name planned 564 px
 material — nine characters legible on the body, twenty-three drawn on a `kMuted` backdrop in the
 name's own `kMuted` ink (`50d748f`, the commit that bound a name to its material).
 
-**Decision.** `panel_prose_place` + `panel_prose_region` is the one call for a panel whose
-rectangle is its own. The Builder is a region composed by explicit priority, facts dropped whole.
+**Decision.** `prose_place` + `prose_region` is the one call for the popup and a pane's body, each
+in its own rectangle. The Builder is a region composed by explicit priority, facts dropped whole.
 The workspace object's name is a `kGroundBeneath` region over its own rectangle, bounded by the
 material it names: `min(object width, workspace right edge − x)` by the object's height, each
 floored at one cell, so a name that does not fit is marked rather than fading.

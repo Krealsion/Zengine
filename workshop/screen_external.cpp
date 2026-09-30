@@ -12,18 +12,18 @@ namespace zengine::workshop {
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
 
 // WL-FOCUS-11 -- agents/workshop/focus.md
-std::int64_t external_title_rows(const Panels& panels, std::int64_t kind,
+std::int64_t external_title_rows(const Panes& panes, std::int64_t kind,
                                  bool titles_shown) noexcept {
-    return (titles_shown || keyboard_pane(panels) == kind) ? kExternalHeaderRows : 0;
+    return (titles_shown || keyboard_pane(panes) == kind) ? kExternalHeaderRows : 0;
 }
 
 // WL-CHROME-05 -- agents/workshop/chrome.md
 // WL-EDIT-12 -- agents/workshop/editor.md
 // WL-PANE-06 -- agents/workshop/panes-and-windows.md
-ExternalBodyPlace external_body_place(const FineRect& panel, const Screen& sc,
+ExternalBodyPlace external_body_place(const FineRect& pane_rect, const Screen& sc,
                                       std::int64_t header_rows) {
     ExternalBodyPlace p;
-    const PaneInside inside = pane_inside(panel, sc);
+    const PaneInside inside = pane_inside(pane_rect, sc);
     const FineRect inner = inside.rect;
     if (inner.w <= 0 || inner.h <= 0) {
         return p;
@@ -46,15 +46,15 @@ ExternalBodyPlace external_body_place(const FineRect& panel, const Screen& sc,
 }
 
 // WL-PRESS-04 -- agents/workshop/press-chain.md
-ExternalPressAt external_press_at(const Panels& panels, const Setup& setup,
+ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
                                   const Screen& sc, std::int64_t kind, bool titles,
                                   std::int64_t space, std::int64_t x, std::int64_t y) {
-    const PanelBounds where = bounds_of(panels, setup, kind, sc);
+    const PaneBounds where = bounds_of(panes, setup, kind, sc);
     if (!where.open) {
         return ExternalPressAt{};
     }
     const ExternalBodyPlace body =
-        external_body_place(where.rect, sc, external_title_rows(panels, kind, titles));
+        external_body_place(where.rect, sc, external_title_rows(panes, kind, titles));
     if (!body.present) {
         return ExternalPressAt{};
     }
@@ -76,16 +76,16 @@ std::string external_header(const RuntimePane& row, bool typing) {
 }
 
 // WL-FOCUS-10 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
-void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int64_t kind,
+void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
                     const FineRect& b, const Screen& sc, bool titles,
                     std::int64_t chrome) {
-    paint_panel_frame(layer, b, chrome);
-    const RuntimePane* row = panels.runtime.of_kind(kind);
+    paint_pane_frame(layer, b, chrome);
+    const RuntimePane* row = panes.runtime.of_kind(kind);
     if (row == nullptr) {
         return; // an open kind with no catalog row cannot happen; drawing a lie could
     }
     const ExternalBodyPlace body =
-        external_body_place(b, sc, external_title_rows(panels, kind, titles));
+        external_body_place(b, sc, external_title_rows(panes, kind, titles));
     if (body.fit.rows <= 0 || body.fit.columns <= 0) {
         return; // no room for one row of this medium's type: say nothing at all
     }
@@ -103,7 +103,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
     // keeps its title and its `> ` mark (`external_title_rows`).
     if (body.header_rows > 0) {
         region.rows.push_back(surface::SurfaceTextRow{
-            detail::fit(external_header(*row, keyboard_pane(panels) == kind), body.columns),
+            detail::fit(external_header(*row, keyboard_pane(panes) == kind), body.columns),
             surface::role::kAccent});
     }
     // A pane with room for the header and nothing else still says whose it is: `present` is asked
@@ -114,7 +114,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
         }
         return; // no room under the heading: the heading, and no invented room
     }
-    const ExternalPane* pane = panels.external_pane(kind);
+    const ExternalPane* pane = panes.external_pane(kind);
     if (pane == nullptr) {
         if (!region.rows.empty()) {
             layer.texts.push_back(std::move(region));

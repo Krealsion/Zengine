@@ -28,5 +28,5 @@ No paths, textures, idle hover or multiline clipping tree. The provider owns pan
 Metric changes renew the grant. Preview never crosses a close, zero room, re-offer, provider
 or metric change. The fence orders dispatch; it does not prove physical presentation time.
 
-**Laws supported.** [WL-CANVAS-01](../workshop/canvas.md),
-[WL-CANVAS-02](../workshop/canvas.md), [WL-CANVAS-03](../workshop/canvas.md).
+**Laws supported.** [WL-CANVAS-01](../workshop/canvas.md), [WL-CANVAS-02](../workshop/canvas.md),
+[WL-CANVAS-03](../workshop/canvas.md).

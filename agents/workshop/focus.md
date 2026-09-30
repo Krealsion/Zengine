@@ -4,15 +4,15 @@ Register `WL-FOCUS`: the keyboard goes where the weaver last pressed. One law pe
 by ID. Router: [`../workshop.md`](../workshop.md). What a key looks like when it crosses the pane
 seam is the protocol's law, in [`../panes.md`](../panes.md).
 
-## WL-FOCUS-01 — `Panels::keyboard` is a pointing's memory
+## WL-FOCUS-01 — `Panes::keyboard` is a pointing's memory
 
-LAW — `Panels::keyboard` is the keyboard-taking pane the weaver last aimed the keys at; `keyboard_pane(panels)` is the external answer, resolved fresh at every spend: open, runtime kind, room granted.
+LAW — `Panes::keyboard` is the keyboard-taking pane the weaver last aimed the keys at; `keyboard_pane(panes)` is the external answer, resolved fresh at every spend: open, runtime kind, room granted.
 
 MEANS
 - no built-in takes the keys: the Editor's went with it, the Pane Manager's likewise;
 - a pane that stops being presentable stops being typed into, with nothing to clear.
 
-PROVEN BY — `workshop/panel.hpp` `Panels::keyboard`, `keyboard_pane`;
+PROVEN BY — `workshop/panes.hpp` `Panes::keyboard`, `keyboard_pane`;
 `workshop/weave_external.cpp` `keyboard_pane`;
 `tests/test_workshop_panes_input.cpp` case `"a press into an external pane's room points the
 keyboard at it"`, case `"a press into a second external pane moves the keyboard to it"`, case
@@ -21,14 +21,14 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-02 — Candidacy is declared; readiness is resolved
 
-LAW — `PanelKind::takes_keyboard` is a fact about a kind on its catalog row; whether that pane can take keys at this instant is live state its own resolver answers, stored nowhere.
+LAW — `BuiltinPane::takes_keyboard` is a fact about a kind on its catalog row; whether that pane can take keys at this instant is live state its own resolver answers, stored nowhere.
 
 MEANS
 - a loaded pane answers for itself and is always a candidate, the empty Editor included;
 - no built-in carries the flag now; nothing registered, no focus framework.
 
-PROVEN BY — `workshop/panel.hpp` `PanelKind::takes_keyboard`, `kind_takes_keyboard`,
-`kPanelCatalog`; `tests/test_workshop_panes_editor.cpp` case `"an empty Editor pane takes the keys
+PROVEN BY — `workshop/panes.hpp` `BuiltinPane::takes_keyboard`, `kind_takes_keyboard`,
+`kBuiltinPanes`; `tests/test_workshop_panes_editor.cpp` case `"an empty Editor pane takes the keys
 and does nothing with them"`; `tests/test_workshop_panes_files.cpp` case
 `"the pane lists the place this run began, asked of the host"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
@@ -42,7 +42,7 @@ MEANS
 - putting the line in the routing arms would be four decisions about one fact.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `kind_takes_keyboard`, `on(PointerButton)`;
-`workshop/screen_chrome.cpp` `occupied_at`; `workshop/panel.hpp` `Panels::keyboard`;
+`workshop/screen_chrome.cpp` `occupied_at`; `workshop/panes.hpp` `Panes::keyboard`;
 `tests/test_workshop_panes_input.cpp` case `"a press anywhere else takes the keyboard away
 again"`; `tests/test_workshop_panes_files.cpp` case `"a press selects, and a second press on the
 same row activates"`, case `"with pane titles hidden, a first press on the row
@@ -92,7 +92,7 @@ LAW — A pane that closes, stops resolving or loses its room stops being the an
 MEANS
 - a press on nothing, and Escape's final fallthrough, say "nowhere" — not a clearing path.
 
-PROVEN BY — `workshop/panel.hpp` `keyboard_pane`, `Panels::keyboard`;
+PROVEN BY — `workshop/panes.hpp` `keyboard_pane`, `Panes::keyboard`;
 `workshop/weave_external.cpp` `unselect_pane`, `keyboard_pane`;
 `tests/test_workshop_panes_input.cpp` case `"a pane that stops being presentable stops being typed
 into"`, case `"a pane with no room granted is not typed into"`.
@@ -150,7 +150,7 @@ MEANS
 
 PROVEN BY — `workshop/screen_external.cpp` `external_header`, `paint_external`;
 `workshop/screen.hpp` `kTypingHere`; `workshop/screen_compose.cpp` `band_region`;
-`workshop/panel.hpp` `keyboard_pane`; `workshop/screen_arrange.cpp` `typing_pane`;
+`workshop/panes.hpp` `keyboard_pane`; `workshop/screen_arrange.cpp` `typing_pane`;
 `tests/test_workshop_panes_input.cpp` case `"the screen says which pane the keys are going to, in
 two places"`; `tests/test_workshop_panes_actions.cpp` case `"the band's legend and the
 effective keymap print the pane's rows while it holds the keys"`, case `"a pane that declared

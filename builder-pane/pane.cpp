@@ -78,7 +78,7 @@ using ws::RecipeSourceRequested;
 using ws::RecipeSourceSaid;
 using ws::SourceOpened;
 
-/// The office Workshop holds, named as a string rather than through `workshop/panel.hpp`: a
+/// The office Workshop holds, named as a string rather than through `workshop/panes.hpp`: a
 /// provider is a stranger to Workshop's internals.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
@@ -96,17 +96,17 @@ constexpr std::int64_t kWrapIndent = zengine::workshop::pane_text::kWrapIndent;
 constexpr const char* kElided = zengine::workshop::pane_text::kElided;
 
 
-/// A labelled row, in the panel's own nine-column gutter.
-std::string panel_field(const char* label, const std::string& value) {
+/// A labelled row, in the pane's own nine-column gutter.
+std::string labelled_row(const char* label, const std::string& value) {
     return pad(label, 9) + value;
 }
 
 /// The three-row block the compiler's answer is wrapped into: wrapped to the width in force,
 /// cut to the rows that survived the budget, and marked when cut, so the elision mark tells the
 /// truth about this face.
-std::vector<std::string> panel_block(const char* label, const std::string& value,
+std::vector<std::string> labelled_block(const char* label, const std::string& value,
                                      std::size_t rows, std::int64_t width) {
-    std::vector<std::string> lines = wrap(panel_field(label, value), width);
+    std::vector<std::string> lines = wrap(labelled_row(label, value), width);
     if (lines.size() > rows) {
         lines.resize(rows);
         lines.back() = fit(lines.back() + " " + kElided, width);
@@ -495,7 +495,7 @@ public:
             return;
         }
         if (!output_.open && !choosing_.open) {
-            return; // the fact panel is not a list: there is nothing for a notch to walk
+            return; // the fact view is not a list: there is nothing for a notch to walk
         }
         wheel_ += wheel.dy * 3.0;
         const std::int64_t notches = static_cast<std::int64_t>(wheel_);
@@ -2086,7 +2086,7 @@ private:
         role_.line.keep_caret_visible(cols);
         push_row(prompt + role_.line.visible(cols), surface::role::kAccent,
                  BuilderMeaning{builder_row::kLine, 0, {}, role_.stem});
-        push_row(panel_field("loads", role_.stem + " (built by `" + role_.recipe + "`)"),
+        push_row(labelled_row("loads", role_.stem + " (built by `" + role_.recipe + "`)"),
                  surface::role::kMuted);
         say_controls(role_controls());
     }
@@ -2148,7 +2148,7 @@ private:
         };
         std::vector<Fact> facts; // display order, priorities deciding survival
         // THE CONTROLS ARE ASKED FOR FIRST, because their rows come out of the same budget the
-        // facts are seated in: a strip appended after the panel had already filled the room
+        // facts are seated in: a strip appended after the pane had already filled the room
         // would be the row that silently vanished, and it is the only mouse route there is.
         const std::vector<ControlRow> controls = builder_controls();
 
@@ -2165,7 +2165,7 @@ private:
             // NOT THE SAME AS "NEVER BUILT", and the pane must not show it as though it were.
             // This is a fact about this pane -- it has asked and is waiting -- and the
             // recipe's own history is not knowable from here until the tool says it.
-            facts.push_back(Fact{panel_field("recipe", "(the Builder has not answered yet)"),
+            facts.push_back(Fact{labelled_row("recipe", "(the Builder has not answered yet)"),
                                  surface::role::kMuted, 1});
             publish(std::move(facts), std::string(), controls);
             return;
@@ -2178,7 +2178,7 @@ private:
         // is actually asking.
         const std::size_t held = known_.recipes.size();
         if (held == 0) {
-            facts.push_back(Fact{panel_field("recipe", "(this project has no build recipes)"),
+            facts.push_back(Fact{labelled_row("recipe", "(this project has no build recipes)"),
                                  surface::role::kMuted, 3});
         } else {
             const std::size_t at = cursor_row();
@@ -2186,7 +2186,7 @@ private:
             // the catalog. The subject is the recipe it names, so the picture moves when the
             // choice does -- and the row itself reads exactly as it always did, because the
             // control that ADVERTISES the list is `[choose a recipe...]` beside it.
-            facts.push_back(Fact{panel_field("recipe", known_.recipes[at].recipe + " -> " +
+            facts.push_back(Fact{labelled_row("recipe", known_.recipes[at].recipe + " -> " +
                                                            known_.recipes[at].artifact + "  (" +
                                                            std::to_string(at + 1) + "/" +
                                                            std::to_string(held) + ")"),
@@ -2217,7 +2217,7 @@ private:
                 said += std::to_string(makers) + " recipes";
             }
             said += ", blocks " + std::to_string(frontier_blocked_) + ")";
-            facts.push_back(Fact{panel_field("project", said), surface::role::kAccent, 2});
+            facts.push_back(Fact{labelled_row("project", said), surface::role::kAccent, 2});
         }
         // WHAT THIS PANE IS WATCHING beats what it was last told: the tool's last OUTCOME is
         // still the previous build's while a new one runs, and showing that would answer
@@ -2234,8 +2234,8 @@ private:
                      : std::string();
         const bool unanswered = awaiting_ && s.outcome != builder::outcome::kRunning;
         facts.push_back(
-            Fact{unanswered ? panel_field("last", "asked -- waiting for it to start")
-                            : panel_field("last", std::string(builder::name_of_outcome(s.outcome)) +
+            Fact{unanswered ? labelled_row("last", "asked -- waiting for it to start")
+                            : labelled_row("last", std::string(builder::name_of_outcome(s.outcome)) +
                                                       carried),
                  unanswered || s.outcome == builder::outcome::kRunning
                      ? surface::role::kAccent
@@ -2251,7 +2251,7 @@ private:
         // a weaver most needs the right one. The tool's own counter shares the row, because it
         // is the number that proves the tool outlives its presentation.
         facts.push_back(
-            Fact{panel_field("exit", pad(s.outcome == builder::outcome::kSucceeded ||
+            Fact{labelled_row("exit", pad(s.outcome == builder::outcome::kSucceeded ||
                                                  s.outcome == builder::outcome::kFailed
                                              ? std::to_string(s.status)
                                              : std::string("--"),
@@ -2260,7 +2260,7 @@ private:
                  surface::role::kMuted, 6});
         // WHAT WAS ACTUALLY RUN, as the runner reported it. The first fact a constrained
         // budget gives up: it is an echo of the weaver's own act.
-        facts.push_back(Fact{panel_field("ran", s.command.empty()
+        facts.push_back(Fact{labelled_row("ran", s.command.empty()
                                                     ? std::string("(nothing has run yet)")
                                                     : s.command),
                              surface::role::kMuted, 7});
@@ -2299,7 +2299,7 @@ private:
                                       ? surface::role::kFill
                                       : surface::role::kMuted);
         }
-        facts.push_back(Fact{panel_field("realize", realize_face), realize_role, 4});
+        facts.push_back(Fact{labelled_row("realize", realize_face), realize_role, 4});
         // THREE ROWS FOR WHAT THE BUILD SAID, because this is the row budget a weaver spends
         // when something has gone wrong, and one row of a compiler's answer is a row of
         // nothing. While the project is WAITING, the `project` row holds the third of them.
@@ -2343,7 +2343,7 @@ private:
         }
         std::vector<std::string> said;
         if (said_kept > 0) {
-            said = panel_block("said",
+            said = labelled_block("said",
                                said_detail.empty() ? std::string("--")
                                                    : ascii_spelling(said_detail),
                                said_kept, columns_);

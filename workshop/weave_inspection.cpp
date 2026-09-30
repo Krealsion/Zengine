@@ -13,27 +13,27 @@ namespace zengine::workshop {
 // the point query spend, so a point is never offered for a pane its reading would refuse.
 std::string WorkshopWeave::visible_text_body(const std::string& provider, const std::string& pane_key,
                                              VisibleBody& out) const {
-    const auto* pane = session_.panels.runtime.find(provider, pane_key);
+    const auto* pane = session_.panes.runtime.find(provider, pane_key);
     const auto sc = screen_of(session_);
-    if (!pane || !session_.panels.has(pane->kind) || session_.arrange.open ||
+    if (!pane || !session_.panes.has(pane->kind) || session_.arrange.open ||
         session_.context.open || session_.presented.open) {
         return "pane view unavailable: closed, unknown or covered by an interaction";
     }
-    const auto* content = session_.panels.external_pane(pane->kind);
+    const auto* content = session_.panes.external_pane(pane->kind);
     if (!content || !content->heard || content->awaiting || content->canvas.heard ||
         content->picture != content->stamp.aimed) {
         return "pane view unavailable: no settled text picture";
     }
-    const auto bounds = bounds_of(session_.panels, session_.setup.active, pane->kind, sc);
+    const auto bounds = bounds_of(session_.panes, session_.setup.active, pane->kind, sc);
     if (!bounds.open || bounds.rect.y < surface::subs_of_cells(kWorkspaceY) ||
         bounds.rect.y + bounds.rect.h > surface::subs_of_cells(sc.notice_y)) {
         return "pane view unavailable: pane extends outside the visible workspace";
     }
     bool above = false;
-    for (const auto kind : effective_pane_order(session_.setup.active, session_.panels)) {
+    for (const auto kind : effective_pane_order(session_.setup.active, session_.panes)) {
         if (kind == pane->kind) { above = true; continue; }
         if (!above) continue;
-        const auto other = bounds_of(session_.panels, session_.setup.active, kind, sc);
+        const auto other = bounds_of(session_.panes, session_.setup.active, kind, sc);
         if (other.open && other.rect.x < bounds.rect.x + bounds.rect.w &&
             other.rect.x + other.rect.w > bounds.rect.x &&
             other.rect.y < bounds.rect.y + bounds.rect.h &&
@@ -44,7 +44,7 @@ std::string WorkshopWeave::visible_text_body(const std::string& provider, const 
     out.kind = pane->kind;
     out.content = content;
     out.body = external_body_place(bounds.rect, sc,
-        external_title_rows(session_.panels, pane->kind, session_.pane_titles));
+        external_title_rows(session_.panes, pane->kind, session_.pane_titles));
     if (!out.body.present) return "pane has no visible body";
     return {};
 }
@@ -70,7 +70,7 @@ bool WorkshopWeave::cell_center(const VisibleBody& visible, std::int64_t row, st
         x = body.region_x+column;
         y = body.region_y+row+body.header_rows+surface::kTuiCanvasTopRow;
     }
-    const auto hit = external_press_at(session_.panels, session_.setup.active, sc, visible.kind,
+    const auto hit = external_press_at(session_.panes, session_.setup.active, sc, visible.kind,
         session_.pane_titles, space, x, y);
     return hit.named && hit.row == row && (!exact_column || hit.column == column);
 }
@@ -144,7 +144,7 @@ void WorkshopWeave::on(const InspectPaneRequested& asked, loom::Mail& mail) {
     }
     const PaneRef ref{asked.office, asked.pane};
     bool known = false;
-    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panels)) {
+    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
         if (row.ref == ref) {
             known = true;
             break;

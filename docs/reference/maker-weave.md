@@ -136,5 +136,5 @@ that happens to be absent.
 - Native generation is provided by [Flow](flow.md); the maker package owns shared runtime semantics.
 - No conversion of a stale state file at load: the edge exists in the catalog once a successor
   is registered, and the reader does not take it.
-- No panel of its own: Workshop authors, runs and edits a maker weave through the
+- No pane of its own: Workshop authors, runs and edits a maker weave through the
   [Flow pane](../workshop/flow.md).

@@ -20,14 +20,14 @@ consumer-specific behavior of its extracted panes.
 |---|---|
 | the composition in cells, the right column, the fine lattice, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
 | the setup file, a pane's default and the weaver's override, places and slots, the seven states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
-| the panel catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
+| the pane catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
 | a pane's labelled controls, its picture number, a mode a hand can leave | [pane-controls](workshop/pane-controls.md) `WL-HAND` |
 | a hotkey, the keymap, an edit | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
 | the Info pane's body, its subject, its grounds, the desk row that names it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
-| semantic text in a panel, the Builder's rows, the foot band | [regions](workshop/regions.md) `WL-RGN` |
+| semantic text in a pane, the Builder's rows, the foot band | [regions](workshop/regions.md) `WL-RGN` |
 | the Editor pane weave, its document and what it carries, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) · [editor-transfers](workshop/editor-transfers.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
 | switching the Editor: a plan's choices for an office, the coordinator, the handoff, consent, what realization records | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |

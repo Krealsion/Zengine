@@ -202,7 +202,7 @@ LAW — `a` is an ordinary declared row; the gesture hands the location and the 
 
 MEANS
 - the one thing added to the listing is an existence probe per directory row, at the gesture;
-- the chooser and the line are rows in the pane's room: no popup, no panel, no second surface;
+- the chooser and the line are rows in the pane's room: no popup, no pane, no second surface;
 - what a weaver types is a DRAFT; the host composes, checks and installs it (WL-AUTH-01).
 
 PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `pick_buildable`,

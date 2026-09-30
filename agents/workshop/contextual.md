@@ -14,8 +14,8 @@ MEANS
 
 PROVEN BY — `workshop/context.hpp` `ContextMenu`, `context_subject`; `workshop/keymap.hpp`
 `workshop.context`; `workshop/weave_pointer.cpp` `spend_context_choice`, `open_context_at`,
-`open_context_ambient`; `workshop/panel.hpp` `Panels::selected`;
-`tests/test_workshop_panels.cpp` case `"a right press captures a subject and selects nothing"`,
+`open_context_ambient`; `workshop/panes.hpp` `Panes::selected`;
+`tests/test_workshop_host.cpp` case `"a right press captures a subject and selects nothing"`,
 case `"a captured pane that left the setup is refused truthfully"`, subcase
 `"the keyboard door opens on what command mode can name: the room"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
@@ -28,7 +28,7 @@ DOES NOT MEAN
 - that any other contextual action selects, binds or focuses — Arrange is the one exception.
 
 PROVEN BY — `workshop/weave_arrange.cpp` `enter_arrange_pane`, `arrange_geometry_ready`;
-`workshop/weave_pointer.cpp` `spend_context_choice`; `tests/test_workshop_panels.cpp` case
+`workshop/weave_pointer.cpp` `spend_context_choice`; `tests/test_workshop_host.cpp` case
 `"contextual Arrange admission precedes binding"`; `tests/test_workshop_screen.cpp`
 case `"contextual Arrange lifts the pane it addressed, not the one in front"`, case
 `"every pane a weaver can point at can be arranged, and the refusals are blind"`.
@@ -74,7 +74,7 @@ MEANS
 
 PROVEN BY — `workshop/context.hpp` `kContextCatalog`, `context_actions_resolve`,
 `context_population`, `kOnPane`, `kOnLayout`, `kOnRoot`, `context_same_id`;
-`workshop/keymap.hpp` `kActionCatalog`; `tests/test_workshop_panels.cpp` case `"the declared
+`workshop/keymap.hpp` `kActionCatalog`; `tests/test_workshop_host.cpp` case `"the declared
 populations are the researched ones, keyed by id"`; `tests/test_workshop_document.cpp`
 case `"the shipped catalog stays admissible with the new rows"`;
 `tests/test_workshop_screen.cpp` case `"an open group paints its own rows and its own way out"`.
@@ -91,7 +91,7 @@ MEANS
 PROVEN BY — `workshop/screen_attention.cpp` `context_annotation`, `context_row_text`;
 `workshop/screen_arrange.cpp` `keyboard_context_beneath_menu`; `workshop/keymap.hpp`
 `active_in`, `is_bound`; `tests/test_workshop_screen.cpp` case `"shortcut annotations teach only
-truthful surrounding bindings"`; `tests/test_workshop_panels.cpp` case
+truthful surrounding bindings"`; `tests/test_workshop_host.cpp` case
 `"a tab's context menu acts on THAT tab"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
@@ -105,7 +105,7 @@ MEANS
 
 PROVEN BY — `workshop/weave_arrange.cpp` `spend_pane_action`; `workshop/weave_session.cpp`
 `open_layout_rename`, `duplicate_layout`, `shift_layout`, `drop_layout`;
-`workshop/weave_pointer.cpp` `spend_context_choice`; `tests/test_workshop_panels.cpp` case
+`workshop/weave_pointer.cpp` `spend_context_choice`; `tests/test_workshop_host.cpp` case
 `"a contextual action acts on the pointed pane, not the selection"`, case `"a contextual
 remove removes the pointed pane"`, case `"Move Left and Move Right reorder from the tab
 that was pointed at"`.
@@ -127,7 +127,7 @@ PROVEN BY — `workshop/keymap.hpp` `KeyContext::kContext`; `workshop/screen_arr
 `keyboard_context`; `workshop/screen_attention.cpp` `context_press_at`; `workshop/screen.hpp`
 `ContextPressAt`; `workshop/weave_pointer.cpp` `spend_context_choice`, `choose_context_row`,
 `context_press`; `workshop/weave_external.cpp` `on(PanePassRequested)`; `workshop/pane_menu.hpp`
-`pass_back`; `tests/test_workshop_panels.cpp` case `"input spent on the open surface does not leak
+`pass_back`; `tests/test_workshop_host.cpp` case `"input spent on the open surface does not leak
 through it"`, case `"navigation backtracks cleanly and every way out closes"`;
 `tests/test_workshop_panes_window.cpp` case `"a right press over a provider's pane crosses the
 seam not at all"`, case `"input spent on the open surface reaches no provider"`;

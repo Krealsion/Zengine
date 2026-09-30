@@ -22,7 +22,7 @@ DOES NOT MEAN
 PROVEN BY — `builder/runner.hpp` `output_piece`, `BuildRunnerWeave::look_at_held`;
 `builder/vocabulary.hpp` `kMaxOutputChars`, `BuildOutput`, `tail_lines`;
 `tests/test_builder.cpp` case `"the runner says every byte a build writes, in order, in pieces no
-bigger than a message"`, case `"the tail a panel is shown keeps whole lines, and keeps them
+bigger than a message"`, case `"the tail a pane is shown keeps whole lines, and keeps them
 APART"`.
 WHY — `agents/decisions/a-build-keeps-its-own-words.md`
 

@@ -58,12 +58,12 @@ older than either number. So the rewrite runs inside `setup_in`, the one functio
 written rows into a live `Setup`, and reaches the setup file, every desk in a session and every
 remembered value on a link, over every version the reader admits.
 
-THE BUILDER PANEL LOST ITS CATALOG ROW. It named the recipe catalog in force while that had
+THE BUILDER PANE LOST ITS CATALOG ROW. It named the recipe catalog in force while that had
 moved from the launch default, out of a projection the browser wrote onto the session as it
 made the swap. The browser says the same sentence in its own row now, at the moment of the
 change; nothing left in the host can keep a projection honest, and `RecipeCatalog` — the
-message the panel's rows really come from — carries the recipes and not the file they came
-from. A panel showing a stale path would be worse than one showing none.
+message the pane's rows really come from — carries the recipes and not the file they came
+from. A pane showing a stale path would be worse than one showing none.
 
 ## What it costs
 

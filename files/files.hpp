@@ -164,7 +164,7 @@ inline Listing enumerate_directory(const std::string& dir) {
 }
 
 // WHAT THE WEAVER IS CURRENTLY BROWSING USED TO BE A STRUCT HERE -- `FilesPane`, a field on the
-// host's `Panels`. The browser is a loaded weave now and its state is its own: two durable
+// host's `Panes`. The browser is a loaded weave now and its state is its own: two durable
 // fields in a `ZEN_SHAPE` (`files/vocabulary.hpp` `FilesState`, what a same-shape reload keeps)
 // and the rest -- the listing, the granted room, the wheel remainder -- private members of the
 // weave that never leave its image. So there is no pane object here to hand around, which is

@@ -59,7 +59,7 @@ std::int64_t seat_pane_declared(PaneRig& r, ProviderSeat* seat, const char* offi
         s.declare(m, actions_for(pane, rows));
     });
     r.pick(PaneRef{office, pane});
-    const RuntimePane* row = r.session().panels.runtime.find(office, pane);
+    const RuntimePane* row = r.session().panes.runtime.find(office, pane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
@@ -71,7 +71,7 @@ std::int64_t seat_pane_declared_v2(PaneRig& r, ProviderSeat* seat, const char* o
         s.declare_v2(m, v2::PaneActions{pane, rows});
     });
     r.pick(PaneRef{office, pane});
-    const RuntimePane* row = r.session().panels.runtime.find(office, pane);
+    const RuntimePane* row = r.session().panes.runtime.find(office, pane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
@@ -84,7 +84,7 @@ void redeclare(PaneRig& r, ProviderSeat* seat, const char* pane,
 }
 
 const std::vector<v2::PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
-    const RuntimePane* row = r.session().panels.runtime.of_kind(kind);
+    const RuntimePane* row = r.session().panes.runtime.of_kind(kind);
     REQUIRE(row != nullptr);
     return row->actions;
 }
@@ -561,7 +561,7 @@ TEST_CASE("a declared gesture arrives as the resolved id and an undeclared one a
                                                  {declared("hello.up", "row up", input::scan::kUp),
                                                   declared("hello.mark", "mark", input::scan::kM)});
     // BEFORE THE PRESS NOBODY HAS THE KEYBOARD: the declaration pointed nothing at the pane.
-    CHECK(r.session().panels.keyboard == kNoPaneKind);
+    CHECK(r.session().panes.keyboard == kNoPaneKind);
     r.key(input::scan::kUp);
     CHECK(seat->actions.empty());
     CHECK(seat->keys.empty());
@@ -650,7 +650,7 @@ TEST_CASE("an override authored before the pane arrives is applied when it does,
             s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
             s.declare(m, actions_for(kHelloPane, {declared("hello.up", "row up", input::scan::kUp)}));
         });
-        const RuntimePane* row = r.session().panels.runtime.find(kHelloOffice, kHelloPane);
+        const RuntimePane* row = r.session().panes.runtime.find(kHelloOffice, kHelloPane);
         REQUIRE(row != nullptr);
         const std::int64_t kind = row->kind;
         REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
@@ -693,7 +693,7 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         // the one notice line.
         CHECK(r.last_notice() == "Seat @" + std::string(kHelloOffice) + ": " +
                                      collision_sentence(moved, "desktop.hotkeys", "hello.up"));
-        const RuntimePane* row = r.session().panels.runtime.find(kHelloOffice, kHelloPane);
+        const RuntimePane* row = r.session().panes.runtime.find(kHelloOffice, kHelloPane);
         REQUIRE(row != nullptr);
         const std::int64_t kind = row->kind;
         CHECK(r.session().keymap.pane_rows(kind) == nullptr);
@@ -716,7 +716,7 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
             s.declare(m, actions_for(kHelloPane, {declared("hello.up", "row up", input::scan::kU,
                                                            input::mod::kCtrl)}));
         });
-        const RuntimePane* row = r.session().panels.runtime.find(kHelloOffice, kHelloPane);
+        const RuntimePane* row = r.session().panes.runtime.find(kHelloOffice, kHelloPane);
         REQUIRE(row != nullptr);
         const std::int64_t kind = row->kind;
         REQUIRE(r.session().keymap.pane_rows(kind) != nullptr); // joined under the defaults
@@ -962,14 +962,14 @@ TEST_CASE("a pane built against the published version one still registers, decla
     (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
     r.bus.drain_until_idle();
 
-    const RuntimePane* row = r.session().panels.runtime.find(kOtherOffice, "old");
+    const RuntimePane* row = r.session().panes.runtime.find(kOtherOffice, "old");
     REQUIRE_MESSAGE(row != nullptr, "the old provider's offer was not admitted");
     REQUIRE(row->actions.size() == 2); // its rows, widened into the host's own row type
     CHECK(row->actions[0].id == "old.up");
     CHECK(row->actions[0].supersedes.empty()); // version one owns nothing, and says so
     r.pick(PaneRef{kOtherOffice, "old"});
     const std::int64_t kind = row->kind;
-    REQUIRE(r.session().panels.has(kind));
+    REQUIRE(r.session().panes.has(kind));
     press_body(r, kind);
     r.key(input::scan::kM);
     REQUIRE_MESSAGE(!old_pane->said.empty(), "the old pane's own row did not dispatch");
@@ -990,14 +990,14 @@ TEST_CASE("a pane built against the published version one still registers, decla
     // pane, so the old one steps out.)
     r.press_cell(0, screen_of(r.session()).h - 1); // the keys back to the desk
     r.pick(PaneRef{kOtherOffice, "old"});
-    REQUIRE_FALSE(r.session().panels.has(kind));
+    REQUIRE_FALSE(r.session().panes.has(kind));
     ProviderSeat* modern = r.mount_provider(kHelloOffice);
     const std::int64_t owner = seat_pane_declared_v2(
         r, modern, kHelloOffice, kHelloPane,
         {declared("hello.save", "save mine", save.scancode, save.modifiers,
                   kOwnableDocumentSave)});
     REQUIRE(owner != kNoPaneKind);
-    REQUIRE(r.session().panels.has(owner));
+    REQUIRE(r.session().panes.has(owner));
     press_body(r, owner);
     r.key(save.scancode, save.modifiers);
     REQUIRE_MESSAGE(!modern->actions.empty(), "the owning pane's row did not dispatch");
@@ -1043,12 +1043,12 @@ TEST_CASE("a pane provider built as its own image against the published protocol
     const load::Executed done = r.run_plan(plan);
     REQUIRE_MESSAGE(done.ok, done.refusal);
     r.extent(160, 48);
-    const RuntimePane* old = r.session().panels.runtime.find("zengine.test.legacy", "old");
+    const RuntimePane* old = r.session().panes.runtime.find("zengine.test.legacy", "old");
     REQUIRE_MESSAGE(old != nullptr, "the legacy image's offer was not admitted");
     REQUIRE(old->actions.size() == 2); // its version-one rows, widened into the host's own type
     CHECK(old->actions[1].id == "old.mark");
     CHECK(old->actions[1].supersedes.empty()); // version one owns nothing, and says so
-    const RuntimePane* editor = r.session().panels.runtime.find(
+    const RuntimePane* editor = r.session().panes.runtime.find(
         zengine::editor_pane::kEditorPaneRole, zengine::editor_pane::kEditorPane);
     REQUIRE_MESSAGE(editor != nullptr, "the Editor image's offer was not admitted");
     bool owns = false;
@@ -1060,7 +1060,7 @@ TEST_CASE("a pane provider built as its own image against the published protocol
     // THE OLD PANE, SEATED, PRESSED INTO, AND ASKED FOR ITS OWN ROW BY KEY.
     const std::int64_t kind = old->kind;
     r.pick(PaneRef{"zengine.test.legacy", "old"});
-    REQUIRE(r.session().panels.has(kind));
+    REQUIRE(r.session().panes.has(kind));
     REQUIRE_FALSE(pane_rows(r, kind).empty());
     CHECK(pane_rows(r, kind)[0].rfind("an old pane", 0) == 0);
     // ...AND THE PRESS IT IS SENT IS THE FIRST VERSION, ONCE, AS IT ALWAYS WAS: the image declares
@@ -1164,7 +1164,7 @@ TEST_CASE("an application row is joined, is requested above the modes, and reach
     REQUIRE(kind != kNoPaneKind);
     open_pane(t, PaneRef{"zengine.hello", "hello"});
     const ui::Rect body = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, kind, screen_of(t.session()))
+        bounds_of(t.session().panes, t.session().setup.active, kind, screen_of(t.session()))
             .rect);
     t.press_canvas(body.x + 1, body.y + 1);
     REQUIRE(keyboard_context(t.session()) == KeyContext::kPane);
@@ -1230,11 +1230,11 @@ TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only a
     // PICKED UP THE WAY A WEAVER PICKS A PANE UP, so what is put down below is a selection this
     // desk actually made; then the keys are put down, so Escape is command mode's.
     const ui::Rect body = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, kind, screen_of(t.session()))
+        bounds_of(t.session().panes, t.session().setup.active, kind, screen_of(t.session()))
             .rect);
     t.press_canvas(body.x + 1, body.y + 1);
     release_keys(t);
-    REQUIRE(t.session().panels.selected == kind);
+    REQUIRE(t.session().panes.selected == kind);
 
     // THE KEY RESOLVES TO THE DECLARED ROW AND THE HOST ASKS ITS OWNER -- and then waits, with
     // the ask outstanding and the weaver's latest gesture unchanged.
@@ -1243,31 +1243,31 @@ TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only a
     CHECK(desk->asked()[0] == DesktopSeat::kDeselectId);
     const std::uint64_t ask = desk->last_ask();
     CHECK(ask != 0);
-    CHECK(t.session().panels.selected == kind); // nothing moved on the ask alone
+    CHECK(t.session().panes.selected == kind); // nothing moved on the ask alone
 
     // AN ANSWER ECHOING A NUMBER THIS HOST NEVER MINTED MOVES NOTHING, at the very gesture the
     // real ask is outstanding at -- which is the one arrangement in which only the correlation
     // can tell the two apart.
     desktop_does(t, desk,
                  [ask](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, ask + 7); });
-    CHECK(t.session().panels.selected == kind);
+    CHECK(t.session().panes.selected == kind);
     // ...AND NEITHER DOES ONE THAT ECHOES NOTHING: zero is never an ask.
     desktop_does(t, desk, [](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, 0); });
-    CHECK(t.session().panels.selected == kind);
+    CHECK(t.session().panes.selected == kind);
 
     // THE NUMBER THE ASK WENT OUT UNDER PUTS IT DOWN, and only then.
     desktop_does(t, desk,
                  [ask](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, ask); });
-    CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(t.session().panes.selected == kNoPaneKind);
     CHECK(t.notice().find("unselected") != std::string::npos);
 
     // ...AND THE ANSWER IS SPENT: the same number again is about a keystroke that is over.
     t.press_canvas(body.x + 1, body.y + 1);
     release_keys(t);
-    REQUIRE(t.session().panels.selected == kind);
+    REQUIRE(t.session().panes.selected == kind);
     desktop_does(t, desk,
                  [ask](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, ask); });
-    CHECK(t.session().panels.selected == kind);
+    CHECK(t.session().panes.selected == kind);
 }
 
 TEST_CASE("the collision law is precedence-aware, and a pane may stand in by name") {
@@ -1392,9 +1392,9 @@ loom::WeaveId load_real_desktop(PaneRig& r) {
 /// WHAT THE LAUNCHER PANE IS SHOWING, one row per line -- the rows Workshop admitted from the
 /// weave, read off the presentation's own copy.
 std::string launcher_text(PaneRig& r) {
-    const RuntimePane* row = r.session().panels.runtime.find(kDesktopRole, dp::kLauncherPane);
+    const RuntimePane* row = r.session().panes.runtime.find(kDesktopRole, dp::kLauncherPane);
     REQUIRE(row != nullptr);
-    const ExternalPane* shown = r.session().panels.external_pane(row->kind);
+    const ExternalPane* shown = r.session().panes.external_pane(row->kind);
     REQUIRE(shown != nullptr);
     CHECK(shown->refusal.empty()); // every publication fit the room it was granted
     std::string text;
@@ -1413,7 +1413,7 @@ void manager_here(PaneRig& r) {
         r.key(input::scan::kP, input::mod::kCtrl);
         return;
     }
-    const RuntimePane* row = r.session().panels.runtime.find(kDesktopRole, dp::kLauncherPane);
+    const RuntimePane* row = r.session().panes.runtime.find(kDesktopRole, dp::kLauncherPane);
     REQUIRE(row != nullptr);
     const ui::Rect body = external_body_rect(r.session(), row->kind);
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
@@ -1581,7 +1581,7 @@ TEST_CASE("the launcher keeps the row it will open in view, and its feedback on 
     load_real_desktop(r);
     manager_here(r);
     const std::vector<CatalogRow> inventory =
-        inventory_rows(r.session().setup.active, r.session().panels);
+        inventory_rows(r.session().setup.active, r.session().panes);
     REQUIRE(inventory.size() > 8); // longer than the launcher's room, which is the point
     CHECK(marked_row(r).find(inventory.front().name) != std::string::npos);
 
@@ -1615,7 +1615,7 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
         REQUIRE(add_pane(s.setup.active, PaneRef{"zengine.test.ghost", ghost}));
     }
     manager_here(r);
-    std::vector<CatalogRow> inventory = inventory_rows(s.setup.active, s.panels);
+    std::vector<CatalogRow> inventory = inventory_rows(s.setup.active, s.panes);
     std::size_t g2 = inventory.size();
     for (std::size_t i = 0; i < inventory.size(); ++i) {
         g2 = inventory[i].ref.pane == "g2" ? i : g2;
@@ -1779,7 +1779,7 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
 
     // THE LAUNCH JUDGMENT ASKS THE SAME FACT, AT ITS OWN MOMENT.
     const std::vector<CatalogRow> rows = inventory_rows(r.session().setup.active,
-                                                        r.session().panels);
+                                                        r.session().panes);
     std::size_t at = rows.size();
     for (std::size_t i = 0; i < rows.size(); ++i) {
         at = rows[i].ref == info ? i : at;
@@ -1795,7 +1795,7 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
     CHECK(r.last_notice().find("nothing holds `zengine.info` now") != std::string::npos);
     // ...AND NOTHING AUTHORED MOVED: the desk still names Info, and its identity is known.
     CHECK(has_pane(r.session().setup.active, info));
-    CHECK(r.session().panels.runtime.find("zengine.info", "info") != nullptr);
+    CHECK(r.session().panes.runtime.find("zengine.info", "info") != nullptr);
 
     // PRESENCE COMES BACK WITH A HOLDER: loaded again, it is available again.
     REQUIRE(r.load("zengine-info-pane", WORKSHOP_SO_INFO_PANE, "zengine.info").valid());
@@ -1834,7 +1834,7 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
 
     // THE LAUNCH IS STILL REFUSED -- a launch loads nothing -- IN WORDS THAT ARE NOT A VERDICT.
     const std::vector<CatalogRow> rows = inventory_rows(r.session().setup.active,
-                                                        r.session().panels);
+                                                        r.session().panes);
     std::size_t at = rows.size();
     for (std::size_t i = 0; i < rows.size(); ++i) {
         at = rows[i].ref == info ? i : at;
@@ -1869,7 +1869,7 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     const PaneRef hello{kHelloOffice, kHelloPane};
-    REQUIRE(r.session().panels.has(kind));
+    REQUIRE(r.session().panes.has(kind));
 
     desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
         d.close(m, kHelloOffice, kHelloPane);
@@ -1878,11 +1878,11 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     CHECK(desk->closed().back().closed);
     CHECK(desk->closed().back().refusal.empty());
     CHECK_FALSE(has_pane(r.session().setup.active, hello));
-    CHECK_FALSE(r.session().panels.has(kind));
+    CHECK_FALSE(r.session().panes.has(kind));
     CHECK(r.last_notice().rfind("closed ", 0) == 0);
     // ⚠ NOTHING WAS UNLOADED: the office is still held, and the catalog still knows the pane.
     CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<PaneRoom>()));
-    CHECK(r.session().panels.runtime.find(kHelloOffice, kHelloPane) != nullptr);
+    CHECK(r.session().panes.runtime.find(kHelloOffice, kHelloPane) != nullptr);
 
     // A SECOND CLOSE IS REFUSED IN WORDS, and it opens nothing.
     desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
@@ -1891,7 +1891,7 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     REQUIRE(desk->closed().size() == 2);
     CHECK_FALSE(desk->closed().back().closed);
     CHECK(desk->closed().back().refusal.find("is not on this desk") != std::string::npos);
-    CHECK_FALSE(r.session().panels.has(kind));
+    CHECK_FALSE(r.session().panes.has(kind));
     CHECK(r.session().notice_is_bad);
 
     // ...AND A LAUNCH BRINGS IT BACK FROM THE SAME PROVIDER, which never went anywhere.
@@ -1900,7 +1900,7 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     });
     REQUIRE_FALSE(desk->launched().empty());
     CHECK(desk->launched().back().opened);
-    CHECK(r.session().panels.has(kind));
+    CHECK(r.session().panes.has(kind));
 }
 
 TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return opens it again: "
@@ -1916,7 +1916,7 @@ TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return o
 
     manager_here(r); // the launcher, open and holding the keys
     const std::vector<CatalogRow> rows =
-        inventory_rows(r.session().setup.active, r.session().panels);
+        inventory_rows(r.session().setup.active, r.session().panes);
     std::size_t at = rows.size();
     for (std::size_t i = 0; i < rows.size(); ++i) {
         at = rows[i].ref == info ? i : at;
@@ -1966,7 +1966,7 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     // THE WEAVER CHOOSES THE UNRESOLVED ROW AND CLOSES IT WITH THE ORDINARY `x`, which takes it off
     // the desk -- and, since nothing offers it, out of the list.
     manager_here(r);
-    const std::vector<CatalogRow> rows = inventory_rows(s.setup.active, s.panels);
+    const std::vector<CatalogRow> rows = inventory_rows(s.setup.active, s.panes);
     std::size_t at = rows.size();
     for (std::size_t i = 0; i < rows.size(); ++i) {
         at = rows[i].ref == ghost ? i : at;
@@ -2006,26 +2006,26 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     // x AND RETURN, EACH WITH THE PANE MANAGER HOLDING THE KEYS: Info stays on the desk, the keys
     // stay where they are, and the desk is as it was. Each is pressed from the Pane Manager, so
     // neither can hide the other by moving the keys first.
-    const RuntimePane* manager = s.panels.runtime.find(kDesktopRole, dp::kLauncherPane);
-    const RuntimePane* inspector = s.panels.runtime.find(info.provider, info.pane);
+    const RuntimePane* manager = s.panes.runtime.find(kDesktopRole, dp::kLauncherPane);
+    const RuntimePane* inspector = s.panes.runtime.find(info.provider, info.pane);
     REQUIRE(manager != nullptr);
     REQUIRE(inspector != nullptr);
     manager_here(r);
-    REQUIRE(s.panels.keyboard == manager->kind);
+    REQUIRE(s.panes.keyboard == manager->kind);
     const std::vector<SetupPane> desk = s.setup.active.panes;
     r.key(input::scan::kX);
     CHECK(has_pane(s.setup.active, info));
     CHECK(s.setup.active.panes == desk);
     CHECK(launcher_text(r).find("x closed nothing") != std::string::npos);
     manager_here(r);
-    REQUIRE(s.panels.keyboard == manager->kind);
+    REQUIRE(s.panes.keyboard == manager->kind);
     r.key(input::scan::kReturn);
-    CHECK(s.panels.keyboard == manager->kind);
+    CHECK(s.panes.keyboard == manager->kind);
     CHECK(s.setup.active.panes == desk);
     CHECK(launcher_text(r).find("Return opened nothing") != std::string::npos);
 
     // A ROW THE WEAVER CHOOSES NOW IS THE CHOICE, and Return obeys it.
-    const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panels);
+    const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panes);
     std::size_t info_at = now.size();
     for (std::size_t i = 0; i < now.size(); ++i) {
         info_at = now[i].ref == info ? i : info_at;
@@ -2039,7 +2039,7 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     }
     REQUIRE(marked_row(r).rfind("> [open] Info", 0) == 0);
     r.key(input::scan::kReturn);
-    CHECK(s.panels.keyboard == inspector->kind);
+    CHECK(s.panes.keyboard == inspector->kind);
 }
 
 TEST_CASE("the shipped desktop shows Workshop's verdict on its own declaration, and only for the "
@@ -2074,9 +2074,9 @@ namespace {
 /// THE LAUNCHER, OPEN AND HOLDING THE KEYS, by the desktop's own chord.
 void open_launcher(PaneRig& r) {
     manager_here(r);
-    const RuntimePane* row = r.session().panels.runtime.find(kDesktopRole, dp::kLauncherPane);
+    const RuntimePane* row = r.session().panes.runtime.find(kDesktopRole, dp::kLauncherPane);
     REQUIRE(row != nullptr);
-    REQUIRE(r.session().panels.keyboard == row->kind);
+    REQUIRE(r.session().panes.keyboard == row->kind);
     author_test_pane_room(r, row->kind, 8, 110);
     r.extent(170, 49);
 }
@@ -2329,11 +2329,11 @@ TEST_CASE("WL-MAKER-11: the shipped Pane Manager makes a pane from a typed name 
     CHECK(launcher_text(r).find("new pane: \n") != std::string::npos);
     type_into(r, "MyPane");
     CHECK(launcher_text(r).find("new pane: MyPane") != std::string::npos);
-    CHECK_FALSE(r.session().panels.weaver.open()); // nothing is made while a name is typed
+    CHECK_FALSE(r.session().panes.weaver.open()); // nothing is made while a name is typed
     r.key(input::scan::kReturn);
     // THE HOST MADE IT, AND THE LINE CLOSED ON THE ACCEPTANCE, under the host's own sentence.
-    REQUIRE(r.session().panels.weaver.open());
-    CHECK(r.session().panels.weaver.definition.name == "MyPane");
+    REQUIRE(r.session().panes.weaver.open());
+    CHECK(r.session().panes.weaver.definition.name == "MyPane");
     CHECK(has_pane(r.session().setup.active, weaver_pane_ref("MyPane")));
     const std::string shown = launcher_text(r);
     CHECK(shown.find("new pane:") == std::string::npos);
@@ -2351,7 +2351,7 @@ TEST_CASE("WL-MAKER-11: a name the host refuses keeps the line and what was type
     const std::string refused = launcher_text(r);
     CHECK(refused.find("new pane: My Pane") != std::string::npos); // still open, still holding it
     CHECK(refused.find("no spaces") != std::string::npos);        // in the host's own words
-    CHECK_FALSE(r.session().panels.weaver.open());
+    CHECK_FALSE(r.session().panes.weaver.open());
     // THE LINE IS CORRECTED IN PLACE, by its own keys, and asked again.
     for (int i = 0; i < 5; ++i) {
         r.key(input::scan::kBackspace);
@@ -2359,8 +2359,8 @@ TEST_CASE("WL-MAKER-11: a name the host refuses keeps the line and what was type
     type_into(r, "Pane");
     CHECK(launcher_text(r).find("new pane: MyPane") != std::string::npos);
     r.key(input::scan::kReturn);
-    REQUIRE(r.session().panels.weaver.open());
-    CHECK(r.session().panels.weaver.definition.name == "MyPane");
+    REQUIRE(r.session().panes.weaver.open());
+    CHECK(r.session().panes.weaver.definition.name == "MyPane");
     // ESCAPE CANCELS A LINE, SAYS SO, AND ASKS NOTHING.
     const std::size_t rows = r.session().setup.active.panes.size();
     press_letter(r, input::scan::kN, "n");
@@ -2369,7 +2369,7 @@ TEST_CASE("WL-MAKER-11: a name the host refuses keeps the line and what was type
     const std::string cancelled = launcher_text(r);
     CHECK(cancelled.find("new pane:") == std::string::npos);
     CHECK(cancelled.find("no pane was made") != std::string::npos);
-    CHECK(r.session().panels.weaver.definition.name == "MyPane");
+    CHECK(r.session().panes.weaver.definition.name == "MyPane");
     CHECK(r.session().setup.active.panes.size() == rows);
 }
 
@@ -2381,20 +2381,20 @@ TEST_CASE("WL-MAKER-11: the shipped Pane Manager's `s` and `ctrl+d` save and put
     press_letter(r, input::scan::kN, "n");
     type_into(r, "MyPane");
     r.key(input::scan::kReturn);
-    REQUIRE(r.session().panels.weaver.dirty()); // never saved
+    REQUIRE(r.session().panes.weaver.dirty()); // never saved
     // SAVE: the host writes the file, and the launcher shows the host's sentence.
     press_letter(r, input::scan::kS, "s");
-    CHECK_FALSE(r.session().panels.weaver.dirty());
+    CHECK_FALSE(r.session().panes.weaver.dirty());
     CHECK(std::filesystem::exists(r.host.pane_path));
     CHECK(launcher_text(r).find("saved pane MyPane") != std::string::npos);
     // AN EDIT THROUGH THE INSPECTOR'S DOOR (Info's path) makes it dirty again...
     REQUIRE(hand_inspect(r, weaver_pane_ref("MyPane")).accepted);
     REQUIRE(hand_commit(r, "Text", "changed", "INTERIOR").accepted);
-    REQUIRE(r.session().panels.weaver.dirty());
+    REQUIRE(r.session().panes.weaver.dirty());
     // ...AND THE QUIT IT REFUSES NAMES THE LAUNCHER'S OWN KEYS, as that pane declared them. The
     // keys are put elsewhere first, as a press on the room puts them: a pane holding them takes
     // `q` as its own.
-    r.session().panels.keyboard = kNoPaneKind;
+    r.session().panes.keyboard = kNoPaneKind;
     press_letter(r, input::scan::kQ, "q");
     CHECK_FALSE(r.host.quit);
     CHECK(r.session().notice.find("s in Pane Manager saves it, ^d discards them") !=
@@ -2402,8 +2402,8 @@ TEST_CASE("WL-MAKER-11: the shipped Pane Manager's `s` and `ctrl+d` save and put
     // PUT BACK: the definition is the file's again.
     open_launcher(r);
     r.key(input::scan::kD, input::mod::kCtrl);
-    CHECK_FALSE(r.session().panels.weaver.dirty());
-    CHECK(r.session().panels.weaver.definition.regions[0].text.empty());
+    CHECK_FALSE(r.session().panes.weaver.dirty());
+    CHECK(r.session().panes.weaver.definition.regions[0].text.empty());
     CHECK(launcher_text(r).find("back to what") != std::string::npos);
 }
 
@@ -2420,8 +2420,8 @@ TEST_CASE("WL-MAKER-11: the name line pastes what the platform holds -- asked on
     CHECK(skin->clipboard_reads == 1);
     CHECK(launcher_text(r).find("new pane: MyPasted") != std::string::npos);
     r.key(input::scan::kReturn);
-    REQUIRE(r.session().panels.weaver.open());
-    CHECK(r.session().panels.weaver.definition.name == "MyPasted");
+    REQUIRE(r.session().panes.weaver.open());
+    CHECK(r.session().panes.weaver.definition.name == "MyPasted");
 }
 
 TEST_CASE("a Pane Creator make and a paste in one poll: the host's make is said, the pasted text "
@@ -2449,8 +2449,8 @@ TEST_CASE("a Pane Creator make and a paste in one poll: the host's make is said,
     CHECK(tap.asked == std::vector<std::string>{"Alpha"});
     CHECK(tap.answered == 1);
     CHECK(skin->clipboard_reads == 1);
-    REQUIRE(r.session().panels.weaver.open());
-    CHECK(r.session().panels.weaver.definition.name == "Alpha");
+    REQUIRE(r.session().panes.weaver.open());
+    CHECK(r.session().panes.weaver.definition.name == "Alpha");
     // ...THE PANE SAYS SO, AND THE TEXT PASTED AFTER RETURN IS STILL IN THE LINE.
     const std::string shown = launcher_text(r);
     CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
@@ -2461,7 +2461,7 @@ TEST_CASE("a Pane Creator make and a paste in one poll: the host's make is said,
     CHECK(closed.find("new pane:") == std::string::npos);
     CHECK(closed.find("Alpha was already made") != std::string::npos);
     CHECK(closed.find("no pane was made") == std::string::npos);
-    CHECK(r.session().panels.weaver.definition.name == "Alpha");
+    CHECK(r.session().panes.weaver.definition.name == "Alpha");
     CHECK(has_pane(r.session().setup.active, weaver_pane_ref("Alpha")));
 }
 
@@ -2483,8 +2483,8 @@ TEST_CASE("a second Pane Creator make while the first is unanswered is not sent,
     r.bus.drain_until_idle();
     // ONE MAKE LEFT THE PANE, and the host made that one.
     CHECK(tap.asked == std::vector<std::string>{"Alpha"});
-    REQUIRE(r.session().panels.weaver.open());
-    CHECK(r.session().panels.weaver.definition.name == "Alpha");
+    REQUIRE(r.session().panes.weaver.open());
+    CHECK(r.session().panes.weaver.definition.name == "Alpha");
     // ITS ANSWER IS SAID, and the line keeps the text typed after Return.
     const std::string shown = launcher_text(r);
     CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
@@ -2495,7 +2495,7 @@ TEST_CASE("a second Pane Creator make while the first is unanswered is not sent,
     const std::string refused = launcher_text(r);
     CHECK(refused.find("new pane: Alpha2") != std::string::npos);
     CHECK(refused.find("unsaved changes") != std::string::npos);
-    CHECK(r.session().panels.weaver.definition.name == "Alpha");
+    CHECK(r.session().panes.weaver.definition.name == "Alpha");
     // ...AND CLOSING IT SAYS WHAT IT MADE.
     r.key(input::scan::kEscape);
     CHECK(launcher_text(r).find("Alpha was already made") != std::string::npos);
@@ -2531,8 +2531,8 @@ TEST_CASE("a Pane Creator make and a cancel in one poll say the make was already
         CHECK(waiting.find("no pane was made") == std::string::npos);
         r.bus.drain_until_idle();
         CHECK(tap.answered == 1);
-        REQUIRE(r.session().panels.weaver.open());
-        CHECK(r.session().panels.weaver.definition.name == "Alpha");
+        REQUIRE(r.session().panes.weaver.open());
+        CHECK(r.session().panes.weaver.definition.name == "Alpha");
         const std::string answered = launcher_text(r);
         CHECK(answered.find("Pane Creator: Alpha is on this layout") != std::string::npos);
         CHECK(answered.find("no pane was made") == std::string::npos);
@@ -2553,7 +2553,7 @@ TEST_CASE("a Pane Creator make and a cancel in one poll say the make was already
         r.bus.drain_until_idle();
         CHECK(tap.asked == std::vector<std::string>{"Alpha"});
         CHECK(tap.answered == 1);
-        CHECK(r.session().panels.weaver.definition.name == "Alpha");
+        CHECK(r.session().panes.weaver.definition.name == "Alpha");
         const std::string shown = launcher_text(r);
         CHECK(shown.find("new pane: Alpha\n") != std::string::npos);
         CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
@@ -2592,7 +2592,7 @@ TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line an
         CHECK(makes.reasons == std::vector<std::string>{"TargetUnavailable"});
         CHECK(makes.delivered == 0);
         CHECK(makes.notices == 1);
-        CHECK_FALSE(r.session().panels.weaver.open());
+        CHECK_FALSE(r.session().panes.weaver.open());
         r.extent(150, 44); // a new room: the launcher says its rows to the revived host
         const std::string refused = launcher_text(r);
         CHECK(refused.find("make not delivered -- nothing changed (TargetUnavailable)") !=
@@ -2604,8 +2604,8 @@ TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line an
         WeaverTap tap(r.bus, r.workshop_id, desk);
         r.key(input::scan::kReturn);
         CHECK(tap.asked == std::vector<std::string>{"Alpha2"});
-        REQUIRE(r.session().panels.weaver.open());
-        CHECK(r.session().panels.weaver.definition.name == "Alpha2");
+        REQUIRE(r.session().panes.weaver.open());
+        CHECK(r.session().panes.weaver.definition.name == "Alpha2");
         const std::string made = launcher_text(r);
         CHECK(made.find("new pane:") == std::string::npos);
         CHECK(made.find("Pane Creator: Alpha2 is on this layout") != std::string::npos);
@@ -2679,7 +2679,7 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
         WeaverTap tap(r.bus, r.workshop_id, desk);
         r.key(input::scan::kReturn);
         CHECK(tap.asked == std::vector<std::string>{"Alpha"});
-        CHECK(r.session().panels.weaver.definition.name == "Alpha");
+        CHECK(r.session().panes.weaver.definition.name == "Alpha");
     }
     SUBCASE("a paste refused at dispatch is not on its way: the next make closes its line") {
         // ⚔ MUTATION: a paste left `awaiting` whatever Loom said of it -- the accepted make then
@@ -2700,7 +2700,7 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
         WeaverTap tap(r.bus, r.workshop_id, desk);
         r.key(input::scan::kReturn);
         CHECK(tap.asked == std::vector<std::string>{"Alpha"});
-        REQUIRE(r.session().panels.weaver.open());
+        REQUIRE(r.session().panes.weaver.open());
         const std::string shown = launcher_text(r);
         CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
         CHECK(shown.find("new pane:") == std::string::npos);
@@ -2724,7 +2724,7 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
         WeaverTap tap(r.bus, r.workshop_id, desk);
         r.key(input::scan::kReturn);
         CHECK(tap.asked.empty());
-        CHECK_FALSE(r.session().panels.weaver.open());
+        CHECK_FALSE(r.session().panes.weaver.open());
         CHECK(launcher_text(r).find("make not sent -- an earlier ask is still unanswered") !=
               std::string::npos);
     }
@@ -2805,8 +2805,8 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
         CHECK(seqs.front() == probe.seq - 2);
         CHECK(correlations.front() == 1);
         // IT SETTLED NOTHING: the answer came, made the pane, and closed the unchanged line.
-        REQUIRE(r.session().panels.weaver.open());
-        CHECK(r.session().panels.weaver.definition.name == "Alpha");
+        REQUIRE(r.session().panes.weaver.open());
+        CHECK(r.session().panes.weaver.definition.name == "Alpha");
         const std::string shown = launcher_text(r);
         CHECK(shown.find("not delivered") == std::string::npos);
         CHECK(shown.find("new pane:") == std::string::npos);
@@ -2836,7 +2836,7 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
         // ...AND THE MAKE WAS ITS OWN: delivered once, answered, and its unchanged line closed.
         CHECK(tap.asked == std::vector<std::string>{"Alpha"});
         CHECK(tap.answered == 1);
-        REQUIRE(r.session().panels.weaver.open());
+        REQUIRE(r.session().panes.weaver.open());
         const std::string shown = launcher_text(r);
         CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
         CHECK(shown.find("new pane:") == std::string::npos);
@@ -2896,7 +2896,7 @@ TEST_CASE("a Pane Creator the host's admission denies the weaver door says so fo
     CHECK(makes.reasons == std::vector<std::string>{"CapabilityDenied"});
     CHECK(makes.delivered == 0);
     CHECK(makes.notices == 1);
-    CHECK_FALSE(r.session().panels.weaver.open());
+    CHECK_FALSE(r.session().panes.weaver.open());
     std::string shown = launcher_text(r);
     CHECK(shown.find("make not delivered -- nothing changed (CapabilityDenied)") !=
           std::string::npos);
@@ -2975,9 +2975,9 @@ std::string floor_text(PaneRig& r) {
 
 /// WHAT THE DESKTOP'S HOTKEYS PANE IS SHOWING, one row per line.
 std::string hotkeys_pane_text(PaneRig& r) {
-    const RuntimePane* row = r.session().panels.runtime.find(kDesktopRole, dp::kHotkeysPane);
+    const RuntimePane* row = r.session().panes.runtime.find(kDesktopRole, dp::kHotkeysPane);
     REQUIRE(row != nullptr);
-    const ExternalPane* shown = r.session().panels.external_pane(row->kind);
+    const ExternalPane* shown = r.session().panes.external_pane(row->kind);
     REQUIRE(shown != nullptr);
     CHECK(shown->refusal.empty());
     std::string text;

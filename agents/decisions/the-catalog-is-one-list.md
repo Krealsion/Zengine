@@ -11,7 +11,7 @@ preserves is not an office this application will hold, and the substrate imposes
 role's length. A provider that could name the picker's first two rows, or buy the top of the list
 by choosing a name, would make a presentation a thing a message could rewrite.
 
-**Decision.** One vocabulary of kinds: the compile-time rows of `kPanelCatalog`, in its order,
+**Decision.** One vocabulary of kinds: the compile-time rows of `kBuiltinPanes`, in its order,
 and session-local handles minted from `kFirstRuntimeKind` up, told apart by one test. Admission
 judges a descriptor whole, the stamped office first and as a view, then the two keys by the setup
 file's own law, then the name and the summary, and only then copies, so an offer wrong in its

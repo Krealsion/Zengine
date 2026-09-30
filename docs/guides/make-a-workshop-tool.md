@@ -180,7 +180,7 @@ user interaction. A passing helper test alone does not prove the host supplied t
 Use the installed-package route when adding public capabilities so missing exported dependencies
 cannot be satisfied accidentally by your source checkout.
 
-## If you are changing a built-in panel
+## If you are changing a built-in pane
 
 Layouts remains native Workshop code. Its painter is
 [`workshop/screen_layouts.cpp`](../../workshop/screen_layouts.cpp), and the catalog/geometry

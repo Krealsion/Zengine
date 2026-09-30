@@ -68,7 +68,7 @@ Every page below has one reader purpose, named.
 | [reference/timer-continuity.md](reference/timer-continuity.md) | what a schedule does across the service's own replacement |
 | [reference/timer-binding.md](reference/timer-binding.md) | the `TimedWeave` model and its boundary |
 | [reference/load-plan.md](reference/load-plan.md) | the authored load plan: format, execution law, rollback |
-| [reference/workshop-panes.md](reference/workshop-panes.md) | the contracts a Workshop tool author builds on: the panel system, named setups, the pane a weave offers and its protocol, presses, menus, authorized input and the desk that comes back |
+| [reference/workshop-panes.md](reference/workshop-panes.md) | the contracts a Workshop tool author builds on: the pane system, named setups, the pane a weave offers and its protocol, presses, menus, authorized input and the desk that comes back |
 | [reference/editor-switch.md](reference/editor-switch.md) | switching the Editor's office: a plan's choices, the four messages and their answers, the handoff, and exactly what crosses, resets, needs consent or is refused |
 | [reference/introspection.md](reference/introspection.md) | `Loaded`, `Project`, `Powers` — what each shows, where each fact's authority lives, and why two of them deliberately disagree |
 | [reference/operator-host.md](reference/operator-host.md) | how a loaded weave asks a host to evaluate a rule it did not compile with, and the five ways it can fail |
