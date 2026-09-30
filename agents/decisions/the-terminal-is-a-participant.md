@@ -91,8 +91,8 @@ argued away. Preserving inert text is a different act from executing it, and a t
 validating what it points at.
 
 **The open question is left open**: nothing here decides what a draft with a MIXED answer
-does — high effort and a commit that writes, or low effort and inert — and the first one that
-appears is the phase that decides it, not this record.
+does — high effort and a commit that writes, or low effort and inert — and it is decided when
+the first such draft appears, not by this record.
 
 **A refusal is a row of the budget.** The pane spends its rows input-line first, and the door's
 refusal is the answer to the gesture the weaver just made — so it is budgeted with the rows and

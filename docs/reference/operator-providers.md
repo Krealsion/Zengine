@@ -318,7 +318,7 @@ before you rely on any of it:
 No discovery, no scanning, no directory of providers — a host still names every
 artifact it mounts. No persistence: which providers a project loads is not
 answered here. No version solving, no dependency graph, no provider trust policy,
-no concurrent replacement. Those are other phases and some of them are other
+no concurrent replacement. None of those is built, and some of them are other
 questions.
 
 Nor is a conversion a migration *system*: there is no registry beside the catalog, no route

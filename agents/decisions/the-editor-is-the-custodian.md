@@ -112,8 +112,8 @@ open in words, and no other pane waits on it. A reload of the Editor between its
 answer ends the flight: the prior document comes back whole, the desk's seat stands, and the
 requester is never told — sender fate's outcome, not this transaction's. Process death still
 loses drafts. The Editor's outgoing operations — the answer to the open, the reveal,
-the quit answer, the project-root ask, the paste ask, the copy — are the next fate phase's list,
-and none of them is answered here beyond what Loom already reports.
+the quit answer, the project-root ask, the paste ask, the copy — keep no record of their own
+fate, and none of them is answered here beyond what Loom already reports.
 
 **Laws supported.** [WL-EDIT-01](../workshop/editor.md), [WL-EDIT-03](../workshop/editor.md),
 [WL-EDIT-12](../workshop/editor.md), [WL-EDIT-14](../workshop/editor.md),

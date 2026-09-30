@@ -34,8 +34,8 @@ its words kept for the host's turn to tell, and the turn explains no exception t
 - *The reveal as the commitment, with the asker holding its gestures* — TRIED, and superseded:
   the hold had a cap and dropped input past it, a larger cap moves the loss, and a held paste
   answer landed in the wrong document. Ordinary panes keep the reveal; the Editor's open does not.
-- *A document-only install behind the Editor's own office when no desk answers* — TRIED in the
-  first experimental slice and removed: a requester was promised a source it could see, and a
+- *A document-only install behind the Editor's own office when no desk answers* — TRIED and
+  removed: a requester was promised a source it could see, and a
   document nobody can see is not an open. The old door relays with the requester's own right.
 - *Answering `accepted` at the commit* — TRIED and corrected: an owner whose showing failed was
   reported as opened. The answer is the record of both applications.

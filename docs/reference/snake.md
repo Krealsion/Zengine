@@ -6,9 +6,7 @@ actually look like?", and it is what the `zengine-snake-tests` suite proves head
 
 Source: [`snake/`](../../snake/world.cpp) — world, score, controls, clock, host.
 
-The Stage 2 vertical slice: a playable snake whose parts are genuinely separate weaves.
-Since the Surface migration, **snake contains no drawing code at all** — the suite pins a
-skinless game at zero stdout bytes.
+**Snake contains no drawing code at all** — the suite pins a skinless game at zero stdout bytes.
 
 - **World** (`snake-world-v1`/`-v2`, one source) owns the simulation and holds
   `SnakeWorldState`; it publishes `SnakeVisual`/`FoodEaten`/`SnakeDied` and never knows its

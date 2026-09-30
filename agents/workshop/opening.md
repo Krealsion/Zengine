@@ -199,4 +199,4 @@ WHY — `agents/decisions/document-and-desk-publish-together.md`
 - That a refused open through the Editor's own office ever installed a document alone: the
   relay is refused in words or answered by the manager (WL-OPEN-07).
 - That a live SDL or terminal run was measured for every law here; the register's witnesses
-  are model rigs over the real weaves, and the live media are the phase's witness runs.
+  are model rigs over the real weaves, and none of them drives a live medium.
