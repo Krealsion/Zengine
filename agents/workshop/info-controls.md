@@ -1,15 +1,11 @@
 # Workshop law — the Info controls
 
-Register `WL-CTRL`: the grounds Info's structural rows sit on, and the footer of controls it
-retired. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
+Register `WL-CTRL`: the grounds Info's structural rows sit on, and a property view that carries
+no controls of its own. Info inspects panes (WL-INFO-14), and a pane is launched and closed from
+the Pane Manager, never from here. One law per heading; cite by ID. Router:
+[`../workshop.md`](../workshop.md).
 
-**What retired.** `[ Create ]` and `[ Delete ]` were two pressable rows under the object
-inspector, asking the object document for the operations `n` and `d` were bound to. The object
-document retired with its canvas, and Info inspects panes (WL-INFO-14): a pane is launched and
-closed from the Pane Manager, never from here. The five laws about the footer are kept below as
-RETIRED entries so an id cited elsewhere still says what became of it.
-
-## WL-CTRL-01 — RETIRED: the last two rows were a footer of controls
+## WL-CTRL-01 — Info's property view is two headings, two lists and a front sentence
 
 LAW — Info’s pane-property view has no object controls: two headings, two lists and a front sentence, reserved and shared as WL-INFO-08 and WL-INFO-07 say.
 
@@ -17,7 +13,7 @@ PROVEN BY — `info-pane/pane.cpp` `say`; `tests/test_workshop_panes_info.cpp` c
 `"a room too short for the body invents none of it"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
-## WL-CTRL-02 — RETIRED: spare rows were written blank above a footer
+## WL-CTRL-02 — Info's composition ends at the rows it was granted
 
 LAW — With no footer there is nothing to keep at the end; `mark` and `placed` are still inverses over one composition, and `finish` still truncates to the granted rows (WL-INFO-04).
 
@@ -26,7 +22,7 @@ PROVEN BY — `info-pane/pane.cpp` `placed`, `finish`, `composed_`;
 the row painted there, and a full room keeps its last row under the notice"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
-## WL-CTRL-03 — RETIRED: availability was two reasons, one bit, two owners
+## WL-CTRL-03 — The draft's refusal is Info's own; every other refusal is the owner's
 
 LAW — The draft's refusal is the pane's own, made before asking, and now holds back another subject (WL-INFO-09); every other refusal is the owner's, answered to the ask.
 
@@ -35,7 +31,7 @@ PROVEN BY — `info-pane/pane.cpp` `kFinishTheEdit`, `press_placed`;
 reason is the weaver's"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
-## WL-CTRL-04 — RETIRED: unavailable was said in characters
+## WL-CTRL-04 — A row the weaver cannot author is muted, and refused in words
 
 LAW — With no control there is nothing to present as unavailable; a row the weaver cannot author is still said in the muted role and refused in words when Return is pressed on it.
 
@@ -44,7 +40,7 @@ PROVEN BY — `info-pane/pane.cpp` `say_properties`, `not_authored`;
 its own words"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
-## WL-CTRL-05 — RETIRED: the controls did not own the acts
+## WL-CTRL-05 — Info owns no act: naming a subject and writing a property are the host's
 
 LAW — Info owns no act still: naming a subject and writing a property are the host's doors (`InspectPaneRequested`, `PaneCommitRequested`), answered by the party that owns the rows.
 

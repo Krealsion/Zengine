@@ -44,11 +44,10 @@ and the gap said once. A bare printable cannot be global once anything on the sc
 text. `gesture_text` answers `unbound`, so no surface teaches a key that does not exist. Hidden
 legend rows reclaim no geometry and unbind nothing.
 
-**Laws supported.** [WL-EDIT-04](../workshop/editor.md), [WL-KEY-01](../workshop/keyboard.md),
-[WL-KEY-02](../workshop/keyboard.md), [WL-KEY-03](../workshop/keyboard.md),
-[WL-KEY-04](../workshop/keyboard.md), [WL-KEY-05](../workshop/keyboard.md),
-[WL-KEY-06](../workshop/keyboard.md), [WL-KEY-07](../workshop/keyboard.md),
-[WL-KEY-08](../workshop/keyboard.md), [WL-KEY-09](../workshop/keyboard.md),
-[WL-KEY-12](../workshop/keyboard.md), [WL-KEY-13](../workshop/keyboard.md),
-[WL-KEY-14](../workshop/keyboard.md), [WL-KEY-17](../workshop/keymap-edit.md),
-[WL-KEY-18](../workshop/keymap-edit.md).
+**Laws supported.** [WL-KEY-01](../workshop/keyboard.md), [WL-KEY-02](../workshop/keyboard.md),
+[WL-KEY-03](../workshop/keyboard.md), [WL-KEY-04](../workshop/keyboard.md),
+[WL-KEY-05](../workshop/keyboard.md), [WL-KEY-06](../workshop/keyboard.md),
+[WL-KEY-07](../workshop/keyboard.md), [WL-KEY-08](../workshop/keyboard.md),
+[WL-KEY-09](../workshop/keyboard.md), [WL-KEY-12](../workshop/keyboard.md),
+[WL-KEY-13](../workshop/keyboard.md), [WL-KEY-14](../workshop/keyboard.md),
+[WL-KEY-17](../workshop/keymap-edit.md), [WL-KEY-18](../workshop/keymap-edit.md).

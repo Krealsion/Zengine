@@ -5,6 +5,8 @@ pane protocol. One law per heading; cite by ID. Router: [`../workshop.md`](../wo
 Paths: [`project.md`](project.md); caret: [`pane-caret.md`](pane-caret.md); sweep:
 [`text-box.md`](text-box.md).
 
+Retired: WL-EDIT-04.
+
 ## WL-EDIT-01 — One document, weave-owned, presented by a pane
 
 LAW — The Editor is a loaded weave (`zengine.editor`) holding the one open document — path, bytes, saved copy, convention, epoch, caret, selection, history, viewport — and Workshop's part is a pane.
@@ -51,10 +53,6 @@ case `"removing and reopening the pane cannot lose a byte, a caret, or a step of
 `"a dirty buffer refuses a different source, and a save opens the way"`, case `"an
 orderly quit refuses while source is unsaved, and proceeds once it is not"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
-
-## WL-EDIT-04 — RETIRED: `^s` was two identities, the document's save and the source's
-
-WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-EDIT-05 — One promise at two doors: `zengine.opening` and `zengine.editor`
 
