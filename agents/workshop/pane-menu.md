@@ -66,7 +66,7 @@ LAW — The presenter's office shows a granted menu, reads its acts, ends it and
 
 MEANS
 - the shipped presenter chooses on the press; the numbered example on a digit or the release.
-Both refuse labels over 64 bytes before fitting accepted labels to the available display width;
+Both refuse labels over <!-- value kMaxPaneMenuLabelLen -->64<!-- /value --> bytes before fitting accepted labels to the available display width;
 - a requester takes a choice only from this office, under its own ask's number, once (`Asked`);
 - gone, not carrying it, or giving it back (`MenuReturned`): the host answers, open or withdrawn.
 

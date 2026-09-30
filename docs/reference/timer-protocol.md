@@ -32,7 +32,7 @@ requester crosses the wire as lossless decimal text where it must.
 | `Drive` v2 `{activation_sender, activation_sequence, serial}` | the beat chain: role-addressed, self-seeded, one chain per activation ([TIMER-01](../laws/timer-laws.md)); a beat carries its activation's key and a serial the service expects |
 | `zen.PrepareShutdown` | (Loom shape) "describe yourself": fires nothing, cancels nothing, advances nothing — an exact clock read |
 | `zen.Bequest` / `zen.ClaimBequest` | (Loom shapes) the letter's envelope, graceful path |
-| `TimerHandoff{entries}` / `TimerHandoffEntry{requester, id, role, delay_ms, repeat, remaining_ms}` | the letter body: **remaining durations, never due times** ([TIMER-03](../laws/timer-laws.md)); ≤ `kMaxHandoffEntries = 32` |
+| `TimerHandoff{entries}` / `TimerHandoffEntry{requester, id, role, delay_ms, repeat, remaining_ms}` | the letter body: **remaining durations, never due times** ([TIMER-03](../laws/timer-laws.md)); ≤ `kMaxHandoffEntries` (<!-- value kMaxHandoffEntries -->32<!-- /value -->) |
 | `PrepareTimerHandover{transaction, continuity}` | the prepared-replacement ask: `continuity` = `kInheritFromIncumbent` / `kStartFresh`, declared never inferred |
 | `TimerCandidatePrepared{transaction}` / `TimerCandidateDeclined{transaction, reason}` | the candidate's authenticated answer (the `transaction` field is wire legibility; the bus's envelope identity is what authenticates) |
 
@@ -120,8 +120,8 @@ understood, not the number a weaver typed.
 
 ## Constants
 
-`kBeatCapMs = 10` (the longest nap; the beat granularity) ·
-`kMaxHandoffEntries = 32` · `kPreparedClaimBeats = 8` (how long a prepared
+`kBeatCapMs` = <!-- value kBeatCapMs -->10<!-- /value --> (the longest nap; the beat granularity) ·
+`kMaxHandoffEntries` = <!-- value kMaxHandoffEntries -->32<!-- /value --> · `kPreparedClaimBeats` = <!-- value kPreparedClaimBeats -->8<!-- /value --> (how long a prepared
 successor waits for its claimed letter before honestly starting fresh —
 derived and published). One nap exists in the whole system and the service
 owns it.

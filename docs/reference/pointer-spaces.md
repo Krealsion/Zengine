@@ -55,9 +55,9 @@ outside the package can see. Both live in `surface/pointing.hpp`:
 
 Each projection has a **fine twin one lattice down**
 (`canvas_subs_of_window_pixels`, `canvas_subs_of_terminal_cells`), answering in
-*sub-units* — 1/`kCellSubs` (48) of a cell — with the reporting medium's **grain**
-travelling beside the position: a window pixel is `kPixelGrainSubs` (4) sub-units,
-a terminal cell is `kCellGrainSubs` (48), and a consumer that spends cells and one
+*sub-units* — 1/`kCellSubs` (<!-- value kCellSubs -->48<!-- /value -->) of a cell — with the reporting medium's **grain**
+travelling beside the position: a window pixel is `kPixelGrainSubs` (<!-- value kPixelGrainSubs -->4<!-- /value -->) sub-units,
+a terminal cell is `kCellGrainSubs` (<!-- value kCellGrainSubs -->48<!-- /value -->), and a consumer that spends cells and one
 that spends subs are reading one measurement (the cell is the sub's floor). The
 grain is what a hit test floors by (`sub_span_contains`), so the hand meets
 exactly the device units a fine rectangle paints — the pane-arrangement consumer

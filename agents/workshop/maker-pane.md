@@ -142,7 +142,7 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-10 — The pane file, and what it cannot say
 
-LAW — The pane file is `zengine-workshop-pane` version 1: `WorkshopPaneDefinition v1`/`WorkshopPaneRegion v1`, a derived 64 KiB ceiling, the family's safe write; what the file cannot say is the enforcement.
+LAW — The pane file is `zengine-workshop-pane` version <!-- value pane_definition_persist::kFormatVersion -->1<!-- /value -->: `WorkshopPaneDefinition v1`/`WorkshopPaneRegion v1`, a derived 64 KiB ceiling, the family's safe write; what the file cannot say is the enforcement.
 
 MEANS
 - a name, a mint, and per region an id, a kind word, four numbers and a line of text, by field;

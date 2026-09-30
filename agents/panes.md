@@ -117,7 +117,7 @@ The same actor picks it up and places it; Escape cancels. Workshop interprets no
 The destination receives a pane-local row, column and aimed picture, plus a fresh gesture
 correlation. A destination owns its decoding and must authorize a subsequent read/write.
 The inventory receivers are described in [inventory](inventory.md). The carrier is bounded
-to 64 KiB and is image-local, never a reload-kept pointer or an implicit grant.
+to <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB and is image-local, never a reload-kept pointer or an implicit grant.
 
 `PaneValueCarryRequested` carries a value copy. Its `drag` flag selects primary release or
 keyboard pick-and-place; receivers accept `PaneValueDrop`, a distinct door from live references.

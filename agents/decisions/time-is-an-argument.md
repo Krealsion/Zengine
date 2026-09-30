@@ -12,7 +12,7 @@ the pane, a double-click choose the word, and a pointer read what a row cut").
 steady monotonic clock that is never persisted and never on a wire. `Session::click` records
 what the last press on an editable line named: which line, which draft of it, which word, and
 when. `doubles_a_click` is pure and total — armed, same line, same draft, same word, within
-`kDoubleClickMs` (400) — and time is its argument. One seam, `press_selects_word`, serves both
+`kDoubleClickMs` (<!-- value kDoubleClickMs -->400<!-- /value -->) — and time is its argument. One seam, `press_selects_word`, serves both
 editable lines. The record arms on the way out and the completing press spends it.
 
 **Alternatives considered.**

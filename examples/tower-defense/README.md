@@ -95,7 +95,7 @@ over. Waves grow: wave *n* sends 4+2*n* enemies with 2+2*n* hp, faster from wave
 | `Space` | start the next wave |
 | `p` / `.` | pause and resume a wave / one step while paused |
 | `r` | a new game |
-| `c` | check the rules: twelve checks on scratch games, `rules check: 12/12 passed` |
+| `c` | check the rules: a check per rule on scratch games, and `rules check: N/N passed` when every one holds |
 
 Press a cell to choose it and press it again to build there. The keys are the pane's declared
 actions, so the Hotkeys pane lists them and your keymap can move them.

@@ -151,7 +151,7 @@ selection — and not multiple selections.
 
 **A coordinate may carry a sub-cell remainder.** `SurfaceRect` and
 `SurfaceTextRegion` carry `sub_x`/`sub_y`/`sub_w`/`sub_h`, and `SurfaceLabel` carries
-`sub_x`/`sub_y` — remainders in 1/`kCellSubs` (48) of a cell, `[0, 48)`, defaulting to zero,
+`sub_x`/`sub_y` — remainders in 1/`kCellSubs` (<!-- value kCellSubs -->48<!-- /value -->) of a cell, `[0, kCellSubs)`, defaulting to zero,
 so a publisher that thinks in whole cells publishes exactly the bytes it always published and
 means exactly what its silence always meant. The remainders refine the ONE lattice; they are
 not a second coordinate system and not device pixels (the shipped skin's pixel happens to be
@@ -270,7 +270,7 @@ repository that names an operating system for this. The question is asked of the
 the Sink is the thing that holds the terminal: `TuiTerminal` has a real console and answers, a
 `std::string` in a suite has none and says so, and a pipe is a far end that is not a terminal at
 all. What the medium then reports is not the terminal's size but what a **canvas** fits in it:
-`kTuiReservedRows` (3) come off the top — two for the status and score slots, and one because
+`kTuiReservedRows` (<!-- value kTuiReservedRows -->3<!-- /value -->) come off the top — two for the status and score slots, and one because
 `canvas_body` ends its last row with a feed and a feed on a terminal's bottom row *scrolls*. The
 text metric stays `0 / 0`, which is not a missing measurement: in a terminal a character IS a
 cell. So a redirected, piped, captured or CI run measures nothing, says nothing, and paints

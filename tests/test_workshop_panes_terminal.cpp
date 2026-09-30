@@ -1349,7 +1349,7 @@ TEST_CASE("history is the participant's commands only and eviction bounds it") {
     t.open();
     t.give_room(12, 100);
     // EVERY LINE BELOW IS A COMMAND AND A NOTICE, so the record holds twice as many entries as
-    // commands -- and 140 of them overflow its 256 entries.
+    // commands -- and 140 of them overflow its loom::kTranscriptCapacity entries.
     for (int i = 0; i < 140; ++i) {
         run(t, "c" + std::to_string(i));
     }
@@ -1652,7 +1652,7 @@ TEST_CASE("when the entry being read is evicted the view moves to the oldest kep
         t.me->record_notice(named_notice("m" + std::to_string(i), 3));
     }
     poke(t);
-    // 310 entries into a record of 256: the 54 oldest are gone, and the oldest kept is m44.
+    // 310 entries into a record of loom::kTranscriptCapacity: the 54 oldest are gone, and the oldest kept is m44.
     CHECK(t.text().find("... what you were reading was dropped for good") != std::string::npos);
     CHECK(entry_of_row(first_read_row(t)) == "m44");
     t.r.key(input::scan::kDown, input::mod::kCtrl);

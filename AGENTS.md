@@ -53,7 +53,7 @@ document that owns it; this core gains a rule only when the rule is genuinely cr
 needed for essentially any Zengine task. Routed documents hold **current law, rewritten in
 place**: a change updates the sentences it made false and states the present, never an account
 of itself, and its story stays in Git history, not here. A change that edits this core rechecks
-its budget: **this file stays at or under 20 KB.**
+its budget: **this file stays at or under <!-- value ZEN_LAW_CORE_BYTES KiB -->20<!-- /value --> KB.**
 Executor/internal material (this file and `agents/`) stays out of the public documentation
 index and out of the installed package.
 
@@ -64,8 +64,8 @@ members under their declaring file. **d** a residue claim is LAW when it is the 
 DOES NOT MEAN. **e** what a change left alone is a change note, not a law. **f** LAW text in a
 table escapes `|`. **g** no phase code in a case name or a current-facing document, no step
 label opening a case name; every case a document cites, and every law a comment or document names, exists.
-**h** a record's Alternatives split tried (evidence inline) from argued. **i** records wrap at 98
-bytes, ~1.5 KB, over 4 KB flagged. **j** a record may link another. **k** Laws supported is
+**h** a record's Alternatives split tried (evidence inline) from argued. **i** records wrap at <!-- value ZEN_LAW_LINE_BYTES -->98<!-- /value -->
+bytes, ~1.5 KB, over <!-- value ZEN_LAW_RECORD_FLAG_BYTES KiB -->4<!-- /value --> KB flagged. **j** a record may link another. **k** Laws supported is
 generated from WHY lines: edit the WHY; a record no law supports moves to `docs/history/`. **l** a
 record over ten laws is suspected of being two.
 **m** an owner identifier is a whole token in the named file's code, comments stripped.
@@ -94,12 +94,24 @@ cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake
 # installed-package witness: install, then build an unrelated project against the
 # prefix alone, OUTSIDE this repository
 cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run.cmake
+
+# the documentation lane: no build, no Loom
+cmake -P tests/documentation_lane.cmake
 ```
+
+- **A change that touches no compiled line is verified by the documentation lane**: Markdown, an
+  image under `docs/`, a text check or the files only text checks read.
+  `tests/check_change_kind.cmake` says each changed file's kind against `origin/main` and why,
+  and the lane runs every text check `tests/text_checks.cmake` lists, in seconds, passing only
+  for a documentation-only change; CI runs those checks on every change and skips the build and
+  test jobs for a documentation-only one. A C/C++ file is the official lane's even when only its
+  comments changed, because compiled tests read source as text (`tests/text_checks.cmake` says
+  which); so is a CMake file, CI and the lane itself.
 
 - **Quote `tests/verify.cmake`, never a bare `ctest`** — a bare run cannot say whether the
   population that ran is the population this repository meant to run.
 - **The lane runs in parallel on Linux/GCC**: add `-DZEN_CTEST_ARGS=-j<n>` (measured 56.2 s →
-  9.4 s at `-j24`, 27/27). Same proofs. It is safe because no CTest entry writes
+  9.4 s at `-j24`). Same proofs. It is safe because no CTest entry writes
   this build tree — the compile-judged ones build their fixtures in a tree of their own
   ([agents/verification.md](agents/verification.md)); an entry that took custody of
   `${CMAKE_BINARY_DIR}` would put that back, and the registration helper refuses one that tries.
@@ -140,15 +152,17 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
 - Every suite but `smoke` needs a Loom exporting `loom::kernel` (on Windows: the Loom's
   opt-in `LOOM_ENABLE_WINDOWS_KERNEL`); against a kernel-less package `tests/` fails
   configuration out loud. `-DBUILD_TESTING=OFF` is the supported library-only configuration.
-- Four entries read the source tree rather than a build: `doc_links` (every repo-local
+- Five entries read the source tree rather than a build: `doc_links` (every repo-local
   documentation reference must resolve, anchors included, and no current-facing file names a path
   outside the repository), `package_vocabulary` (the installed package's nouns), `law_register`
   (the registers under `agents/`: the form, every name they make, and every file's byte budget;
   every case a current-facing document cites and every law id a source comment or document names
   resolving; no plan code or step label in a case name, and in a current-facing document no plan
-  code, no development phase used as a clock and no history told in the forms the check names) and
+  code, no development phase used as a clock and no history told in the forms the check names),
   `source_comments` (the comment standard over the roots its own list names: no long block,
-  removal note or private id). Full contract detail:
+  removal note or private id) and `code_values` (every value `tests/code_values.txt` registers
+  read from its owner: no marker out of step, no known value copied unmarked, no test count
+  without its commit and command). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction
