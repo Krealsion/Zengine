@@ -107,7 +107,7 @@ SEEN — nowhere yet
 ## VM-CHECK-13 — A qualified spelling names a declaration only from inside its scope
 
 METHOD — A qualified spelling `Scope::name` names a declaration only from inside `Scope`, read by a scope tracker over the braces; the self-test pins the twin refused above a free function of that name.
-BECAUSE — a suffix match let a wrong `Struct::name` sit green for a phase; run with scope
+BECAUSE — a suffix match let a wrong `Struct::name` sit green unnoticed; run with scope
 tracking against the main branch's tip, the rule caught six: four a parser gap (a template
 specialization's opener) and two wrong spellings.
 SEEN — `tests/check_law_register.cmake` `zen_law_pointer_names`, `zen_law_scope_step`.

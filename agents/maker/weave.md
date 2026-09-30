@@ -161,5 +161,5 @@ WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 - That the interpreter is a `WeaveBase` (MW-WEAVE-02): it implements `loom::Weave` raw, so its
   doors are exactly the ones it answers, and it restates the reply rule in one place.
 - That a behaviour edit re-consents the grant (MW-WEAVE-09): the grant minted at registration
-  stands; every definition edit is a new build identity, and re-flooring is the identity
-  phase's rule.
+  stands; every definition edit is a new build identity, and the grant is not re-floored
+  for it.

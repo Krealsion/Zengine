@@ -23,8 +23,7 @@ pointer space; `band_region` composes the notice first and `budget - 1` legend r
 top rows belong to a pane.
 
 **Alternatives considered.**
-- *A sixth reserved row* — refused: it would resize the workspace; both phases were forbidden
-  to spend it.
+- *A sixth reserved row* — refused: it would resize the workspace every share resolves against.
 - *A one-cell top band* — refused: zero rows of a real face and bitmap glyphs, the exact defect
   the shared row was retired over.
 - *The selector in the footer* — superseded (`4868c6b`).

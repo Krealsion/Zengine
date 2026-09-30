@@ -58,8 +58,8 @@ for.
   host's address space, so a grant bounds what a weave may *say* and never what it may *touch*
   (Loom `docs/reference/capabilities.md`) — any code compiled into the binary could call the
   same platform functions. What this arrangement gives is one place where process authority
-  lives, one grant to read, and one refusal to test. Calling it containment would be the
-  overclaim these phases exist to refuse.
+  lives, one grant to read, and one refusal to test. Calling it containment would be an
+  overclaim.
 ## A recipe is authored knowledge, and it can name no program
 
 `recipe.hpp` is what a weaver may write down about how one artifact is produced: an

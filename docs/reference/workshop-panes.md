@@ -658,8 +658,9 @@ added. The host has no node, wire, port, selection, pan, or zoom semantics.
 > **Selection is a fact, not a command.**
 
 A weaver can press a row of the `Loaded` pane. The row is marked, and the pane publishes an ordinary
-Loom message saying which entry that was. **Nothing in this build listens** — and that is the
-phase, not an unfinished half of it.
+Loom message saying which entry that was. **The pane does not know who listens**: Compose is one
+listener, and takes that entry as the target it composes for
+([Inventory to Compose](../workshop/inventory-compose.md)).
 
 ```text
 weaver presses a visible row
@@ -738,7 +739,7 @@ weaver presses a visible row
   observer singleton and no direct call.
 
 Deliberately absent: no callback, trigger, condition, binding graph, reactive variable or action
-pipeline; no Message Composer and no query of what may be sent to the selected thing; no selection
+pipeline; what may be sent to the selected thing is Compose's to ask, not the pane's; no selection
 history; no `Selection<T>`, `SelectionBus` or global selection vocabulary — one list is not
 evidence for a reusable one. No pane-to-pane dependency: `Loaded` knows nothing of Info, the
 Terminal, the Builder or any future tool, and opens, closes and targets nothing. **No Loom change
@@ -978,7 +979,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
 - **The room, and then the desk into it.** `apply_setup` seats panes against
   `stack_capacity(screen_of(...))`, so how much of a desk can be presented is a fact about the
   screen. The viewport is adopted before the desk is applied; reversing the two leaves a pane
-  waiting for room it already had, and that is one of the phase's mutations.
+  waiting for room it already had.
 - **Written on an orderly close, by the one door.** `q`, `Ctrl`+`c` and `SurfaceCloseRequested`
   all reach `quit()`, which writes the session before it stops the bus. No autosave, no dirty
   tracking, no background writer — and no crash durability, which is not claimed here or in
