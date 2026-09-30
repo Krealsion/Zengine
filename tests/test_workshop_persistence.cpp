@@ -1239,8 +1239,8 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     CHECK(bytes.find("\"width\":{\"mode\":\"default\",\"amount\":\"0\"}") !=
           std::string::npos);
     // ...and none of the WIDTHS this case just measured is anywhere in it. (The heights are
-    // not asked: both panes are overlay panes, `kStackRows` is 9 at every extent, and 9 is a
-    // number a sparse file legitimately holds in a rank.)
+    // not asked: both panes are overlay panes, `kStackRows` is the same at every extent, and a number that small
+    // is one a sparse file legitimately holds in a rank.)
     for (const std::int64_t n : {builder_small.w, builder_large.w, info_small.w, info_large.w}) {
         CAPTURE(n);
         CHECK(bytes.find("\"amount\":\"" + std::to_string(n) + "\"") == std::string::npos);

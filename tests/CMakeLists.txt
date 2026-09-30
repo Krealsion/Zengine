@@ -1272,10 +1272,10 @@ target_compile_definitions(zengine-audit-probes PRIVATE
 zengine_doctest_test(audit_probes zengine-audit-probes)
 
 # ---- the source-tree checks ------------------------------------------------------------
-# Four entries read the source tree rather than a build -- doc_links, package_vocabulary,
-# law_register and source_comments -- each stating its contract in its own header. They are CTest
-# entries so a bare `ctest` carries them, and rows in tests/test_population.txt, so deleting one
-# is a red rather than a smaller lane.
+# Five entries read the source tree rather than a build -- doc_links, package_vocabulary,
+# law_register, source_comments and code_values -- each stating its contract in its own header.
+# They are CTest entries so a bare `ctest` carries them, and rows in tests/test_population.txt, so
+# deleting one is a red rather than a smaller lane.
 zengine_script_test(doc_links ${CMAKE_CURRENT_SOURCE_DIR}/check_doc_links.cmake)
 
 zengine_script_test(package_vocabulary
@@ -1284,3 +1284,5 @@ zengine_script_test(package_vocabulary
 zengine_script_test(law_register ${CMAKE_CURRENT_SOURCE_DIR}/check_law_register.cmake)
 
 zengine_script_test(source_comments ${CMAKE_CURRENT_SOURCE_DIR}/check_source_comments.cmake)
+
+zengine_script_test(code_values ${CMAKE_CURRENT_SOURCE_DIR}/check_code_values.cmake)

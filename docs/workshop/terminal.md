@@ -47,7 +47,7 @@ So `↑` `↑` `Enter` leaves the older command on the line, ready to edit, havi
 what can follow it, and the one after that takes a candidate.
 
 **What history is, exactly.** The commands the participant recorded — never its answers, notices or
-refusals — kept as long as its record keeps them, which is the newest 256 entries of every kind.
+refusals — kept as long as its record keeps them, which is the newest entries of every kind, as many as Loom's transcript keeps (`loom::kTranscriptCapacity`).
 Running the same command twice in a row is one step when you walk back. It is **this run's**:
 Workshop does not write your command history to a file, and a new launch starts with none.
 

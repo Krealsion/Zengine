@@ -7,8 +7,8 @@ a durable format, a key. One method per heading; cite by ID. Router:
 ## VM-FIX-01 — A claim about a bound needs the range
 
 METHOD — A claim about a BOUND needs the range, not a point: sweep it as a property, and run the real screen at the supported minimum; one arranged case proves that arrangement.
-BECAUSE — 30 cases and 24 caught mutations were green while the shipped terminal at its minimum
-width of 78 columns showed the marker cut; the crowded case stopped three tabs short of the
+BECAUSE — a green suite and its caught mutations stood while the shipped terminal at its minimum
+width (`kScreenMinW`) showed the marker cut; the crowded case stopped three tabs short of the
 boundary.
 SEEN — `tests/test_workshop_host.cpp` case `"the half-share pays at the bottom of the range
 too, and buys no slot"`.

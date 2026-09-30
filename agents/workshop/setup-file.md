@@ -5,7 +5,7 @@ One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-SETUP-01 — A setup row is a reference plus the smallest authored difference
 
-LAW — The setup file is format version 3: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}` per axis, `front`, and nothing else.
+LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->3<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}` per axis, `front`, and nothing else.
 
 MEANS
 - a fresh setup is sparse: the developer's defaults are absent, not written;

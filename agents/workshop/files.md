@@ -105,7 +105,7 @@ WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-08 — The weaver's marks are durable, ride the machine-local root, and refuse by row
 
-LAW — The marks file is its own format, version 1: the file's claims refuse it whole, an uncarriable row is skipped as a standing condition, and a refused file guards the first mark from overwriting it.
+LAW — The marks file is its own format, version <!-- value marks_persist::kFormatVersion -->1<!-- /value -->: the file's claims refuse it whole, an uncarriable row is skipped as a standing condition, and a refused file guards the first mark from overwriting it.
 
 MEANS
 - without the flag the first `m` would replace bytes this run could not read with an empty list;
