@@ -3320,7 +3320,7 @@ TEST_CASE("legitimate A input while B is being arranged is admitted to A, and B 
 TEST_CASE("more than 256 ordinary events across an opening, from three producers, are admitted in "
           "order with nothing held and nothing dropped") {
     // Input is never held during an open: every event is admitted to A as it arrives, in order,
-    // and the open is refused for the work. A hold with a cap (`kMaxHeldInput`, 256) dropped the
+    // and the open is refused for the work. A hold with a cap (`kMaxHeldInput`) dropped the
     // 257th event; a larger cap is no repair, so 257 events are sent.
     EditorRig e("edit-many-events");
     e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
@@ -4752,7 +4752,7 @@ TEST_CASE("a quit the held Editor cannot be asked is refused at once in its offi
 TEST_CASE("gestures queued behind a quit the held Editor cannot be asked are replayed in order once it is refused, and a burst past the hold is counted in its words") {
     // THE INPUT POLICY IS THE ONE A REFUSED QUIT ALWAYS HAD, whatever ended the quit: while the
     // room is asked every gesture is held, the refusal replays them through the handlers they
-    // arrived at, and a burst past `WorkshopWeave::kMaxHeldInput` (256) is dropped and said.
+    // arrived at, and a burst past `WorkshopWeave::kMaxHeldInput` is dropped and said.
     EditorRig e("quit-held-queued");
     hold_the_editor(e);
     e.unfocus();

@@ -1,0 +1,81 @@
+# The values the code owns that a document or a comment has needed, read by `code_values`
+# (tests/check_code_values.cmake; docs/contributing/repository-conventions.md#values-the-code-owns).
+# A line registers one:
+#
+#   <id>  <owner file>  <symbol>
+#
+# The symbol is a `#define`, a constant (`S = v;`, `S{v}`) or a `set(S v)`. An id carrying `::`
+# is the text's qualified spelling, for a name another file declares too. A value written without
+# its owner's name is registered by how it is written, `{}` standing for the number:
+#
+#   claim   <id>  <spelling>   states the current value: every unmarked one is a copy
+#   mention <id>  <spelling>   a copy at the current value unless it reads "since" or "and later"
+#
+# A shape's `Name vN` is an identity, frozen once published, and no copy of anything. When review
+# finds a value copied that this file does not know, it is registered here then.
+
+# ---- the law register's budgets
+ZEN_LAW_CORE_BYTES              tests/check_law_register.cmake            ZEN_LAW_CORE_BYTES
+ZEN_LAW_REGISTER_BYTES          tests/check_law_register.cmake            ZEN_LAW_REGISTER_BYTES
+ZEN_LAW_ROUTER_BYTES            tests/check_law_register.cmake            ZEN_LAW_ROUTER_BYTES
+ZEN_LAW_LINE_BYTES              tests/check_law_register.cmake            ZEN_LAW_LINE_BYTES
+ZEN_LAW_RECORD_FLAG_BYTES       tests/check_law_register.cmake            ZEN_LAW_RECORD_FLAG_BYTES
+ZEN_LAW_MEANS_MAX               tests/check_law_register.cmake            ZEN_LAW_MEANS_MAX
+ZEN_LAW_DNM_MAX                 tests/check_law_register.cmake            ZEN_LAW_DNM_MAX
+
+# ---- file formats
+setup_persist::kFormatVersion   workshop/setup_persist.hpp                kFormatVersion
+claim   setup_persist::kFormatVersion  setup file is format version {}
+session_persist::kFormatVersion workshop/session_persist.hpp              kFormatVersion
+keymap_persist::kFormatVersion  workshop/keymap_persist.hpp               kFormatVersion
+claim   keymap_persist::kFormatVersion  `zengine-workshop-keymap` version {}
+pane_definition_persist::kFormatVersion workshop/pane_definition_persist.hpp kFormatVersion
+claim   pane_definition_persist::kFormatVersion  `zengine-workshop-pane` version {}
+recipe_persist::kFormatVersion  workshop/recipe_persist.hpp               kFormatVersion
+marks_persist::kFormatVersion   files/marks_persist.hpp                   kFormatVersion
+claim   marks_persist::kFormatVersion  marks file is its own format, version {}
+
+# ---- the Workshop screen and its panes
+kDoubleClickMs                  workshop/screen.hpp                       kDoubleClickMs
+kTopRows                        workshop/screen.hpp                       kTopRows
+kBottomRows                     workshop/screen.hpp                       kBottomRows
+kCoarseStepCells                workshop/screen.hpp                       kCoarseStepCells
+kStackRows                      workshop/screen.hpp                       kStackRows
+kStackW                         workshop/screen.hpp                       kStackW
+kStackY                         workshop/screen.hpp                       kStackY
+kScreenMinW                     workshop/screen.hpp                       kScreenMinW
+kWorkspaceY                     workshop/screen.hpp                       kWorkspaceY
+kNewRegionX                     workshop/pane_definition.hpp              kNewRegionX
+kNewRegionY                     workshop/pane_definition.hpp              kNewRegionY
+kNewRegionW                     workshop/pane_definition.hpp              kNewRegionW
+kNewRegionH                     workshop/pane_definition.hpp              kNewRegionH
+kMaxRegionTextLen               workshop/pane_definition.hpp              kMaxRegionTextLen
+kMaxPaneMenuLabelLen            workshop/pane_vocabulary.hpp              kMaxPaneMenuLabelLen
+kMaxMenuLineLen                 workshop/presenter_vocabulary.hpp         kMaxMenuLineLen
+kMaxHeldInput                   workshop/weave.hpp                        kMaxHeldInput
+kMaxLayouts                     workshop/setup.hpp                        kMaxLayouts
+kMaxSetupBytes                  workshop/setup_persist.hpp                kMaxSetupBytes
+kMaxLinkPathBytes               workshop/session_persist.hpp              kMaxLinkPathBytes
+kMaxPaneCatalogEntries          workshop/panes.hpp                        kMaxPaneCatalogEntries
+
+# ---- the surface and input
+kCanvasCellPx                   surface/vocabulary.hpp                    kCanvasCellPx
+kCellSubs                       surface/vocabulary.hpp                    kCellSubs
+kNoCaret                        surface/vocabulary.hpp                    kNoCaret
+kNoSelection                    surface/vocabulary.hpp                    kNoSelection
+kCellGrainSubs                  surface/pointing.hpp                      kCellGrainSubs
+kPixelGrainSubs                 surface/pointing.hpp                      kPixelGrainSubs
+kTuiCanvasTopRow                surface/pointing.hpp                      kTuiCanvasTopRow
+kTuiReservedRows                surface/skin_tui.hpp                      kTuiReservedRows
+kTextInsetPx                    surface/region.hpp                        kTextInsetPx
+kMaxScancode                    input/vocabulary.hpp                      kMaxScancode
+kMaxHeldKeys                    input/vocabulary.hpp                      kMaxHeldKeys
+kRootContext                    ui/vocabulary.hpp                         kRootContext
+
+# ---- the Timer
+kPreparedClaimBeats             timer/vocabulary.hpp                      kPreparedClaimBeats
+kMaxHandoffEntries              timer/vocabulary.hpp                      kMaxHandoffEntries
+kBeatCapMs                      timer/vocabulary.hpp                      kBeatCapMs
+
+# ---- carrying text
+kMaxCarryBytes                  source-transfer/material.hpp              kMaxCarryBytes

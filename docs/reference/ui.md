@@ -77,7 +77,7 @@ unspellable.
 Every one of those four numbers is measured against something, and `context` says what. A
 *frame* is the origin the offsets count from and the span the shares are shares *of*, as one
 `Rect`: the two are one measurement, the smallest value that reads `x = 2, width = 50%` as a
-rectangle. An element whose context is `kRootContext` (0, the default) is read in the root frame,
+rectangle. An element whose context is `kRootContext` (<!-- value kRootContext -->0<!-- /value -->, the default) is read in the root frame,
 the whole viewport at the origin. An element whose context names another element is read in that
 element's resolved rectangle. An element that wanted its position from one element and its size
 from another would need a second context field, not a different kind of frame.

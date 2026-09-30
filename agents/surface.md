@@ -211,7 +211,7 @@ SurfaceLabel            it is not a rectangle at all: this CELL is the meaning. 
   v2, `SurfaceCanvas` v6. A layer IS a list of regions and a canvas IS a list of layers, so
   their wire identity moved without either gaining a field.
 - **A one-cell row cannot be semantic text, whatever it means.** A canvas cell is
-  `kCanvasCellPx` = 12 device pixels and this repository's face has an 18-pixel line, so
+  `kCanvasCellPx` = <!-- value kCanvasCellPx -->12<!-- /value --> device pixels and this repository's face has an 18-pixel line, so
   `fit_region` answers zero rows for a one-cell region and hands it back to the cell projection.
   `floor((12h - 2*kTextInsetPx) / 18)` is the whole table: **h=1 → 0 rows, h=2 and h=3 → 1,
   h=4 and h=5 → 2, h=7 → 4, h=9 → 5.** So a migration is always of a RUN of rows, never of one
@@ -262,7 +262,7 @@ its silence always meant, and a publisher with a finer fact (pane arrangement is
 that earned it) says it on the same lattice everything else is drawn on.
 
 - **ONE QUANTIZATION LAW.** A consumer whose device unit is `g` sub-units — a terminal cell
-  (`kCellGrainSubs` = 48), the shipped skin's pixel (`kPixelGrainSubs` = 4) — presents a fine
+  (`kCellGrainSubs` = <!-- value kCellGrainSubs -->48<!-- /value -->), the shipped skin's pixel (`kPixelGrainSubs` = <!-- value kPixelGrainSubs -->4<!-- /value -->) — presents a fine
   span `[L, R)` on device units `[floor(L/g), floor(R/g))`. The SDL plan applies it per EDGE
   through `px_of_subs` (quads, labels, and `fit_region`'s viewport — one arithmetic, so a
   pane's backdrop, its prose and its hit answer are one picture); the cell projection and the
@@ -379,7 +379,7 @@ tui_canvas_extent()      pure: a terminal size -> what a CANVAS fits in it
 SkinT::report_extent     publish on change, never publish "no opinion"
 ```
 
-- **The medium answers about a CANVAS, not about the terminal.** `kTuiReservedRows` is 3: two for
+- **The medium answers about a CANVAS, not about the terminal.** `kTuiReservedRows` is <!-- value kTuiReservedRows -->3<!-- /value -->: two for
   the status and score slots (`kTuiCanvasTopRow`, consulted from `pointing.hpp` rather than
   restated) and one because `canvas_body` ends **every** row with CRLF, so a canvas whose last row
   lands on the terminal's last row feeds past the bottom — and a feed there SCROLLS, taking the two

@@ -837,6 +837,12 @@ endfunction()
 function(zen_law_strict which text)
     set_property(GLOBAL APPEND_STRING PROPERTY "zen_law_rule_${which}" "${text}\n")
 endfunction()
+# The bytes a reader reads: the text with its value markers taken out, which render as nothing
+# (docs/contributing/repository-conventions.md#values-the-code-owns). Budgets measure this.
+function(zen_law_unmarked text out)
+    string(REGEX REPLACE "<!-- value [^>]*-->|<!-- /value -->" "" bare "${text}")
+    set(${out} "${bare}" PARENT_SCOPE)
+endfunction()
 function(zen_law_count_lines text out)
     string(REGEX MATCHALL "\n" nl "${text}")
     list(LENGTH nl n)
@@ -844,6 +850,11 @@ function(zen_law_count_lines text out)
 endfunction()
 
 # ---- the self-test (VM-CHECK-01): make it say NO, and make it say YES ------------------
+
+zen_law_unmarked("LAW — at most <!-- value kX KiB -->64<!-- /value --> KiB, held" st_unmarked)
+if(NOT st_unmarked STREQUAL "LAW — at most 64 KiB, held")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a line's markers were measured: '${st_unmarked}'")
+endif()
 
 zen_law_entry_heading("## Not a law — prose" id retired)
 if(NOT id STREQUAL "")
@@ -1492,7 +1503,8 @@ function(zen_law_walk_text rel content is_router)
     set(n 0)
     foreach(line IN LISTS lines)
         math(EXPR n "${n} + 1")
-        string(LENGTH "${line}" len)
+        zen_law_unmarked("${line}" measured)
+        string(LENGTH "${measured}" len)
         if(len GREATER ZEN_LAW_LINE_BYTES AND NOT line MATCHES "^(LAW |METHOD |Retired: )" AND NOT line MATCHES "^\\|")
             zen_law_fail("${rel}:${n} is ${len} bytes (at most ${ZEN_LAW_LINE_BYTES}; LAW, METHOD, Retired and table rows excepted)")
         endif()
@@ -1799,7 +1811,8 @@ function(zen_vm_walk_text rel content)
     set(n 0)
     foreach(line IN LISTS lines)
         math(EXPR n "${n} + 1")
-        string(LENGTH "${line}" len)
+        zen_law_unmarked("${line}" measured)
+        string(LENGTH "${measured}" len)
         if(len GREATER ZEN_LAW_LINE_BYTES AND NOT line MATCHES "^METHOD " AND NOT line MATCHES "^\\|")
             zen_law_fail("${rel}:${n} is ${len} bytes (at most ${ZEN_LAW_LINE_BYTES}; METHOD and table rows excepted)")
         endif()
@@ -1847,7 +1860,8 @@ function(zen_vm_walk_text rel content)
             if(method GREATER 1)
                 zen_law_fail("${rel}:${n} ${id} has ${method} METHOD lines (one sentence, one line)")
             endif()
-            string(LENGTH "${sentence}" mlen)
+            zen_law_unmarked("${sentence}" sentence_read)
+            string(LENGTH "${sentence_read}" mlen)
             if(mlen GREATER ZEN_VM_METHOD_BYTES)
                 zen_law_fail("${rel}:${n} ${id} METHOD is ${mlen} bytes (at most ${ZEN_VM_METHOD_BYTES})")
             endif()
@@ -1966,10 +1980,10 @@ endif()
 
 # ---- the budgets: every *.md under agents/ -----------------------------------------------------
 #
-# `file(SIZE)` counts bytes. A router is one named in ZEN_LAW_ROUTERS or ZEN_VM_ROUTERS; every
-# other file under agents/ -- a register, a routed document, a decision record -- has the
-# register budget, except the documents ZEN_LAW_UNBUDGETED names, which must stay over it
-# while they are listed. A record over the flag size is counted for the report.
+# A file's bytes are counted without its value markers or carriage returns. A router is one named
+# in ZEN_LAW_ROUTERS or ZEN_VM_ROUTERS; every other file under agents/ -- a register, a routed
+# document, a decision record -- has the register budget, except the documents ZEN_LAW_UNBUDGETED
+# names, which must stay over it while they are listed. A record over the flag size is counted.
 
 file(GLOB_RECURSE agents_md RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${ZEN_LAW_AGENTS_DIR}/*.md")
 list(SORT agents_md)
@@ -1980,7 +1994,9 @@ endif()
 set(records_flagged 0)
 set(unbudgeted_report "")
 foreach(rel IN LISTS agents_md)
-    file(SIZE "${ZEN_REPO}/${rel}" bytes)
+    zen_law_text("${rel}" budget_text)
+    zen_law_unmarked("${budget_text}" budget_text)
+    string(LENGTH "${budget_text}" bytes)
     if(rel IN_LIST ZEN_LAW_ROUTERS OR rel IN_LIST ZEN_VM_ROUTERS)
         if(bytes GREATER ZEN_LAW_ROUTER_BYTES)
             zen_law_fail("${rel} is ${bytes} bytes (a router is at most ${ZEN_LAW_ROUTER_BYTES})")
@@ -2005,7 +2021,9 @@ foreach(rel IN LISTS ZEN_LAW_UNBUDGETED)
         zen_law_fail("ZEN_LAW_UNBUDGETED names ${rel}, which does not exist; remove it there")
     endif()
 endforeach()
-file(SIZE "${ZEN_REPO}/${ZEN_LAW_CORE}" bytes)
+zen_law_text("${ZEN_LAW_CORE}" budget_text)
+zen_law_unmarked("${budget_text}" budget_text)
+string(LENGTH "${budget_text}" bytes)
 if(bytes GREATER ZEN_LAW_CORE_BYTES)
     zen_law_fail("${ZEN_LAW_CORE} is ${bytes} bytes (at most ${ZEN_LAW_CORE_BYTES})")
 endif()

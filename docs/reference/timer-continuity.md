@@ -15,7 +15,7 @@ How a schedule survives the service being replaced. Laws:
 > the incumbent's clock.
 
 Progress crosses as **remaining durations** ([TIMER-03](../laws/timer-laws.md))
-in a `TimerHandoff` letter (≤ 32 entries), written at one clock read by a
+in a `TimerHandoff` letter (≤ <!-- value kMaxHandoffEntries -->32<!-- /value --> entries), written at one clock read by a
 service that fires/cancels/advances nothing while describing itself.
 
 ## Startup modes — declared, never inferred
@@ -28,7 +28,7 @@ A fresh incarnation is told which world it enters
   id. The legacy ceremony's window applies.
 - **PreparedRestoration** — a prepared candidate claims **by id** from the
   preparer it read off its ask's stamped sender, waiting at most
-  `kPreparedClaimBeats = 8` beats before honestly starting fresh (a bounded
+  `kPreparedClaimBeats` (<!-- value kPreparedClaimBeats -->8<!-- /value -->) beats before honestly starting fresh (a bounded
   promise; the consumer is refused rather than held forever).
 - **Fresh** — asks nobody, inherits nothing, says so.
 
