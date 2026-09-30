@@ -474,8 +474,9 @@ loaded weaves -- 2
 ```
 
 - **Published, not addressed.** It is a fact stated into the room, reaching every weave that
-  accepts the shape — today, none. Nothing in this build reacts to it: no pane opens, nothing is
-  inspected, and the selected weave is sent nothing.
+  accepts the shape. The pane opens nothing and sends the selected weave nothing; Compose, when
+  it is loaded, takes the entry as its target and asks that office what it accepts
+  ([Inventory to Compose](../workshop/inventory-compose.md)).
 - **The identity is the loaded library's NAME**, which is the key of the kernel's own map. It is
   not a `WeaveId`, not a participant identity, not a package or publisher, and not proof that
   anything is alive now — the pane is a snapshot and this fact is about what the snapshot *showed*.

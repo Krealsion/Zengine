@@ -59,7 +59,8 @@ SEEN — nowhere yet
 
 METHOD — A control experiment only controls what it can distinguish: prefer a control whose SUCCESS path was seen working this session, and run the same binary from a harmless place before blaming the build.
 BECAUSE — a broken harness and a dead input desktop produce identical readings, so a control
-that agreed with the wrong diagnosis survived two phases; a crashing build booted fine elsewhere.
+that agreed with the wrong diagnosis survived two investigations; a crashing build booted
+fine elsewhere.
 SEEN — nowhere yet
 
 ## VM-WIT-15 — Judge a live Windows witness on what it printed
