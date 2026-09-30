@@ -163,12 +163,11 @@ inline Listing enumerate_directory(const std::string& dir) {
     return out;
 }
 
-// WHAT THE WEAVER IS CURRENTLY BROWSING USED TO BE A STRUCT HERE -- `FilesPane`, a field on the
-// host's `Panes`. The browser is a loaded weave now and its state is its own: two durable
-// fields in a `ZEN_SHAPE` (`files/vocabulary.hpp` `FilesState`, what a same-shape reload keeps)
-// and the rest -- the listing, the granted room, the wheel remainder -- private members of the
-// weave that never leave its image. So there is no pane object here to hand around, which is
-// the point: nothing outside the weave can read or write where a weaver is looking.
+// WHERE A WEAVER IS BROWSING IS THE FILES WEAVE'S OWN STATE, and no pane object here holds it:
+// two durable fields in a `ZEN_SHAPE` (`files/vocabulary.hpp` `FilesState`, what a same-shape
+// reload keeps) and the rest -- the listing, the granted room, the wheel remainder -- private
+// members of the weave that never leave its image. Nothing outside the weave can read or write
+// where a weaver is looking.
 
 /// The row the cursor is on, or null when the listing is empty or the cursor outlived it.
 /// Bounded AT USE, never at write: rows are replaced wholesale by every refresh, and a
