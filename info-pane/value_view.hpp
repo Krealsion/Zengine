@@ -1136,9 +1136,9 @@ private:
                 ? message_draft::grab_field(message_draft::Draft(metadata_[static_cast<std::size_t>(ref.metadata)]), ref.path)
                 : message_draft::grab_field(*item_, ref.path);
             const auto encoded = inventory::encode_pair(value, {});
-            if (encoded.size() > 65536) throw std::invalid_argument("Field copy exceeds the carry limit");
+            if (encoded.size() > workshop::kMaxCarryBytes) throw std::invalid_argument("Field copy exceeds the carry limit");
             pickup_bytes_.assign(encoded.begin(), encoded.end());
-            pickup_label_ = (title_ + ": " + f->label).substr(0, 128);
+            pickup_label_ = (title_ + ": " + f->label).substr(0, workshop::kMaxCarryLabelBytes);
             pickup_gesture_ = gesture; pickup_ask_ = ++c.asks; pickup_drag_ = drag;
             pickup_ = Pickup::permission;
             pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role("zengine.workshop",

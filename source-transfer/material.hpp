@@ -21,6 +21,7 @@
 
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
+#include "workshop/pane_carry.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>
@@ -36,7 +37,7 @@ namespace zengine::source_transfer {
 
 /// The carrier's own bound (`workshop/pane_carry.hpp`): an envelope larger than this is refused
 /// before it is offered, never truncated.
-inline constexpr std::size_t kMaxCarryBytes = 65536;
+inline constexpr std::size_t kMaxCarryBytes = workshop::kMaxCarryBytes;
 
 enum class MaterialKind { Text, Command, Location, Unsupported };
 

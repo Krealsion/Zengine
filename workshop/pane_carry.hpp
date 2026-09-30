@@ -4,10 +4,15 @@
 #define ZENGINE_WORKSHOP_PANE_CARRY_HPP
 #include <zen/weave/shape.hpp>
 #include <zen/value.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
 namespace zengine::workshop {
+/// The carrier's bounds: an envelope larger than kMaxCarryBytes is refused, never truncated, and a
+/// label past kMaxCarryLabelBytes is refused; a pane cuts its label to the bound before it asks.
+inline constexpr std::size_t kMaxCarryBytes = 65536;
+inline constexpr std::size_t kMaxCarryLabelBytes = 128;
 // A pane supplies an owned typed envelope. Workshop transports it without interpreting its
 // contents. A receiving pane owns decoding, acceptance and any subsequent operation.
 struct PaneCarryRequested {
