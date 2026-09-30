@@ -1014,7 +1014,7 @@ The pane must still send the operation under its own ordinary bus grant and hand
 
 | Message | Direction and meaning |
 |---|---|
-| `PaneCarryRequested{pane, label, data}` | Provider to Workshop, continuing its approved acquisition; at most <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB and a 128-byte label |
+| `PaneCarryRequested{pane, label, data}` | Provider to Workshop, continuing its approved acquisition; at most <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB and a <!-- value kMaxCarryLabelBytes -->128<!-- /value -->-byte label |
 | `PaneValueCarryRequested{pane, label, data, drag}` | Copy acquisition; `drag=true` places on primary release, false uses click-to-place |
 | `PaneValueDrop{pane, data, row, column, picture}` | A value copy, separate from the reference door |
 | `PaneCarryAnswered{carried, reason}` | Authenticated answer to that request |

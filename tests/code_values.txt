@@ -78,4 +78,5 @@ kMaxHandoffEntries              timer/vocabulary.hpp                      kMaxHa
 kBeatCapMs                      timer/vocabulary.hpp                      kBeatCapMs
 
 # ---- carrying text
-kMaxCarryBytes                  source-transfer/material.hpp              kMaxCarryBytes
+kMaxCarryBytes                  workshop/pane_carry.hpp                   kMaxCarryBytes
+kMaxCarryLabelBytes             workshop/pane_carry.hpp                   kMaxCarryLabelBytes
