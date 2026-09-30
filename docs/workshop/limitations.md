@@ -151,9 +151,9 @@ no reflow.
 
 ### Pointing without pressing reaches nobody in a terminal
 
-Nothing in Workshop uses an idle pointer today — the one gesture that did, reading past a cut
-row, is [retired](panes.md#reading-a-value-the-pane-had-to-cut--retired) — but the difference
-between the two media is real and worth knowing before anything asks for one again. **In the
+Nothing in Workshop uses an idle pointer — a cut row is [not read past](panes.md#a-value-a-pane-had-to-cut-stays-cut)
+— but the difference between the two media is real and worth knowing before anything asks for
+one. **In the
 graphical window a hover is reported.** In a terminal Workshop asks for button-event mouse
 reporting only — presses, releases and drags — so an idle pointer is reported to nobody.
 Asking terminals for every idle motion would pay for that gesture on every keystroke of every

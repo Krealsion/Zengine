@@ -249,9 +249,10 @@ function(zen_law_token_in code token out)
 endfunction()
 
 # A register heading. Sets ${out_id} to the law id, or to "" for a heading that is not an
-# entry -- a heading of a family the table does not name included; ${out_retired} to 1 for
-# the one-line retired form. Whether the heading sits in its own family's directory is the
-# walker's question (zen_law_walk_text), not this one's.
+# entry -- a heading of a family the table does not name included; ${out_retired} to 1 for a
+# heading marked RETIRED, which the walker refuses: a retired law is an id on its register's
+# `Retired:` line. Whether the heading sits in its own family's directory is the walker's
+# question (zen_law_walk_text), not this one's.
 function(zen_law_entry_heading line out_id out_retired)
     set(${out_id} "" PARENT_SCOPE)
     set(${out_retired} 0 PARENT_SCOPE)
@@ -260,6 +261,39 @@ function(zen_law_entry_heading line out_id out_retired)
         if(CMAKE_MATCH_4 MATCHES "^RETIRED")
             set(${out_retired} 1 PARENT_SCOPE)
         endif()
+    endif()
+endfunction()
+
+# A register's `Retired:` line, `Retired: <id>, <id>, ...`, every id of ${family}. Sets ${out_ids}
+# to its ids, or ${out_why} to what is wrong with the line.
+function(zen_law_parse_retired line family out_ids out_why)
+    set(${out_ids} "" PARENT_SCOPE)
+    set(${out_why} "" PARENT_SCOPE)
+    if(NOT line MATCHES "^Retired: ([A-Z]+-[A-Z]+-[0-9]+( *, *[A-Z]+-[A-Z]+-[0-9]+)*)[.]?$")
+        set(${out_why} "is not `Retired: <id>, <id>, ...`" PARENT_SCOPE)
+        return()
+    endif()
+    string(REPLACE " " "" ids "${CMAKE_MATCH_1}")
+    string(REPLACE "," ";" ids "${ids}")
+    foreach(id IN LISTS ids)
+        string(REGEX REPLACE "-.*$" "" id_family "${id}")
+        if(NOT id_family STREQUAL "${family}")
+            set(${out_why} "names ${id}, which is not of this register's family ${family}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+    set(${out_ids} "${ids}" PARENT_SCOPE)
+endfunction()
+
+# What citing a law id says, wherever the citation stands: "" when ${declared} (a list) holds it,
+# "retired" when ${retired} does, "undeclared" otherwise.
+function(zen_law_cite_verdict id declared retired out)
+    if(id IN_LIST declared)
+        set(${out} "" PARENT_SCOPE)
+    elseif(id IN_LIST retired)
+        set(${out} "retired" PARENT_SCOPE)
+    else()
+        set(${out} "undeclared" PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -623,6 +657,38 @@ function(zen_plan_document_ids text out)
     set(${out} "${ids}" PARENT_SCOPE)
 endfunction()
 
+# What a current-facing line tells that such a line never tells: the maintainers' process used as a
+# clock, or the page's own history in the forms that narrated a change every time they were read
+# by hand -- a heading marked RETIRED or *retired*, "used to be", "was renamed", "formerly", and a
+# bold note opening "It used to" or "Retired with". A behaviour that ends ("a holder that no longer
+# holds its office") and a technical phase ("the two-phase shutdown") are neither. The same
+# grammar as Loom's `doc_standard`. Sets ${out} to the words found, or "".
+function(zen_plan_document_told line out)
+    set(${out} "" PARENT_SCOPE)
+    if(line MATCHES "^#+ .*(RETIRED|[*]retired[*])")
+        set(${out} "a heading marked retired" PARENT_SCOPE)
+        return()
+    endif()
+    string(TOLOWER "${line}" low)
+    set(end "([^a-z'-]|$)")
+    # One pattern at a time: every MATCHES in an OR chain is evaluated, and a later miss would
+    # reset CMAKE_MATCH_0.
+    foreach(pattern
+            "(^|[^a-z-])(this|the next|a later|an earlier|the previous) phase('s)?${end}"
+            "(^|[^a-z-])(that|one) phase's${end}"
+            "(^|[^a-z-])a phase('s)? (that|which|whose|adds|edits|changes|touches|wrote|removed|records?)${end}"
+            "(^|[^a-z-])phase (records?|reports?|prompts?)${end}"
+            "(^|[^a-z])(used to be|(was|were|has been|have been) renamed|formerly)${end}"
+            "[*][*](it|there|this|they) used to${end}"
+            "[*][*]retired with${end}")
+        if(low MATCHES "${pattern}")
+            string(REGEX REPLACE "^[^a-z*]+|[^a-z']+$" "" found "${CMAKE_MATCH_0}")
+            set(${out} "${found}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+endfunction()
+
 # A bare label: a case name that opens with a lone letter or a number and then `:`, `.` or `)`,
 # the way a plan letters its steps (`b: `, `2: `, `(a) `). A word the name is about (`sdl: `) is
 # none. Sets ${out} to the label, or "".
@@ -789,7 +855,28 @@ if(NOT id STREQUAL "WL-ZZZ-01" OR retired)
 endif()
 zen_law_entry_heading("## WL-ZZZ-02 — RETIRED (x) — replaced by WL-ZZZ-01" id retired)
 if(NOT id STREQUAL "WL-ZZZ-02" OR NOT retired)
-    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- the retired one-line form was not recognised.")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a heading marked RETIRED was not recognised, so the walker could not refuse it.")
+endif()
+
+# The `Retired:` line and the citation verdict: a well-formed line gives its ids, a malformed
+# one and one naming another family say why; a declared id cites cleanly, a retired id and an
+# undeclared one are told apart.
+zen_law_parse_retired("Retired: WL-ZZZ-03, WL-ZZZ-05" WL rt_ids rt_why)
+zen_law_parse_retired("Retired: WL-ZZZ-03 and WL-ZZZ-05" WL rt_bad_ids rt_bad_why)
+zen_law_parse_retired("Retired: WL-ZZZ-03, MW-ZZZ-04" WL rt_fam_ids rt_fam_why)
+zen_law_cite_verdict(WL-ZZZ-01 "WL-ZZZ-01;WL-ZZZ-02" "WL-ZZZ-03;WL-ZZZ-05" cv_declared)
+zen_law_cite_verdict(WL-ZZZ-05 "WL-ZZZ-01;WL-ZZZ-02" "WL-ZZZ-03;WL-ZZZ-05" cv_retired)
+zen_law_cite_verdict(WL-ZZZ-09 "WL-ZZZ-01;WL-ZZZ-02" "WL-ZZZ-03;WL-ZZZ-05" cv_undeclared)
+if(NOT rt_ids STREQUAL "WL-ZZZ-03;WL-ZZZ-05" OR NOT rt_why STREQUAL ""
+   OR NOT rt_bad_ids STREQUAL "" OR rt_bad_why STREQUAL ""
+   OR NOT rt_fam_ids STREQUAL "" OR NOT rt_fam_why MATCHES "MW-ZZZ-04"
+   OR NOT cv_declared STREQUAL "" OR NOT cv_retired STREQUAL "retired" OR NOT cv_undeclared STREQUAL "undeclared")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the retired form disagrees with itself: a good line gave "
+        "'${rt_ids}' ('${rt_why}'), a malformed one '${rt_bad_ids}' ('${rt_bad_why}'), one naming "
+        "another family '${rt_fam_ids}' ('${rt_fam_why}'); citations of a declared, a retired and an "
+        "undeclared id said '${cv_declared}', '${cv_retired}', '${cv_undeclared}'. A retired law "
+        "could then be cited, or re-declared, unnoticed.")
 endif()
 
 # THE FAMILY TABLE'S CANARIES, on a synthetic second family bound beside the real rows and
@@ -880,6 +967,39 @@ if(NOT pc_label STREQUAL "WUX-9;SC-2" OR NOT pc_inside STREQUAL "WUX-12;SEM-0"
         "'${pd_clean}'. A development-phase code would then walk back into a case name or a "
         "document unnoticed.")
 endif()
+
+# The told-history predicate: every told form is found, and every ordinary sentence that shares a
+# word with one passes.
+foreach(told_line
+        "### Reading a value the pane had to cut -- *retired*"
+        "## Where the old canvas was -- RETIRED"
+        "> **It used to be `Ctrl`+`a`.** The list was an overlay a chord opened."
+        "**Retired with the object canvas.** The document this record decided is gone."
+        "`Order >` was renamed from `Arrange` when a row one level up made it ambiguous."
+        "The package's one process verb used to be run, wait, result, and it blocked."
+        "Floors are minimums: a phase that adds cases raises the floor."
+        "The harnesses live with the phase records, outside this repository."
+        "Identity is a later phase's work."
+        "Its table is in that phase's record.")
+    zen_plan_document_told("${told_line}" told)
+    if(told STREQUAL "")
+        message(FATAL_ERROR "law-register: SELF-TEST FAILED -- '${told_line}' was not found telling "
+                            "history or the process; the told forms have stopped matching.")
+    endif()
+endforeach()
+foreach(plain_line
+        "A holder that no longer holds its office is forgotten, and its lease with it."
+        "The two-phase shutdown observes the whole group before it claims the end."
+        "Each phase of the shutdown has its own bound, and in that phase nothing is sent."
+        "A retired spelling may appear in exactly one file, the checker that declares it."
+        "The value used to key the map is the content id."
+        "## WL-DOC-02 -- A property is read through its semantic surface and written by commit")
+    zen_plan_document_told("${plain_line}" told)
+    if(NOT told STREQUAL "")
+        message(FATAL_ERROR "law-register: SELF-TEST FAILED -- '${plain_line}' was read as telling "
+                            "history or the process ('${told}'); an ordinary sentence would be refused.")
+    endif()
+endforeach()
 
 # The bare-label predicate: a lone letter, a number and a parenthesised letter open a name as a
 # label; a word, a versioned scope and an article do not.
@@ -1318,22 +1438,20 @@ macro(zen_law_flush_entry)
                 zen_law_fail("${rel} ${id} writes UNWITNESSED and its PROVEN BY cites no witness; a law with none writes witness: none")
             endif()
         endif()
-        if(NOT retired)
-            if(NOT law)
-                zen_law_fail("${rel} ${id} has no LAW line")
-            endif()
-            if(NOT proven)
-                zen_law_fail("${rel} ${id} has no PROVEN BY line")
-            endif()
-            if(lawlines GREATER 1)
-                zen_law_fail("${rel} ${id} LAW wraps onto ${lawlines} lines (must be one)")
-            endif()
-            if(means GREATER ZEN_LAW_MEANS_MAX)
-                zen_law_fail("${rel} ${id} has ${means} MEANS bullets (at most ${ZEN_LAW_MEANS_MAX})")
-            endif()
-            if(dnm GREATER ZEN_LAW_DNM_MAX)
-                zen_law_fail("${rel} ${id} has ${dnm} DOES NOT MEAN bullets (at most ${ZEN_LAW_DNM_MAX})")
-            endif()
+        if(NOT law)
+            zen_law_fail("${rel} ${id} has no LAW line")
+        endif()
+        if(NOT proven)
+            zen_law_fail("${rel} ${id} has no PROVEN BY line")
+        endif()
+        if(lawlines GREATER 1)
+            zen_law_fail("${rel} ${id} LAW wraps onto ${lawlines} lines (must be one)")
+        endif()
+        if(means GREATER ZEN_LAW_MEANS_MAX)
+            zen_law_fail("${rel} ${id} has ${means} MEANS bullets (at most ${ZEN_LAW_MEANS_MAX})")
+        endif()
+        if(dnm GREATER ZEN_LAW_DNM_MAX)
+            zen_law_fail("${rel} ${id} has ${dnm} DOES NOT MEAN bullets (at most ${ZEN_LAW_DNM_MAX})")
         endif()
         if(why_count GREATER 1)
             zen_law_fail("${rel} ${id} has ${why_count} WHY lines (at most one)")
@@ -1341,12 +1459,10 @@ macro(zen_law_flush_entry)
         set_property(GLOBAL PROPERTY "zen_law_file_${id}" "${rel}")
         set_property(GLOBAL PROPERTY "zen_law_proven_${id}" "${proven_text}")
         set_property(GLOBAL PROPERTY "zen_law_why_${id}" "${why_target}")
-        set_property(GLOBAL PROPERTY "zen_law_retired_${id}" "${retired}")
         set_property(GLOBAL APPEND PROPERTY zen_law_ids "${id}")
         set_property(GLOBAL APPEND PROPERTY "zen_law_ids_of_${relkey}" "${id}")
     endif()
     set(id "")
-    set(retired 0)
     set(law 0)
     set(proven 0)
     set(lawlines 0)
@@ -1371,17 +1487,48 @@ function(zen_law_walk_text rel content is_router)
     set(dna 0)
     set(in_dna 0)
     set(bullet "")
+    set(headed 0)
+    set(retired_lines 0)
     set(n 0)
     foreach(line IN LISTS lines)
         math(EXPR n "${n} + 1")
         string(LENGTH "${line}" len)
-        if(len GREATER ZEN_LAW_LINE_BYTES AND NOT line MATCHES "^(LAW|METHOD) " AND NOT line MATCHES "^\\|")
-            zen_law_fail("${rel}:${n} is ${len} bytes (at most ${ZEN_LAW_LINE_BYTES}; LAW, METHOD and table rows excepted)")
+        if(len GREATER ZEN_LAW_LINE_BYTES AND NOT line MATCHES "^(LAW |METHOD |Retired: )" AND NOT line MATCHES "^\\|")
+            zen_law_fail("${rel}:${n} is ${len} bytes (at most ${ZEN_LAW_LINE_BYTES}; LAW, METHOD, Retired and table rows excepted)")
         endif()
         if(line MATCHES "^SINCE")
             zen_law_fail("${rel}:${n} has a SINCE line; phase codes are retired, provenance is the WHY line's record")
         endif()
+        # The one `Retired:` line, in the preamble: the ids of the laws this register no longer
+        # holds, each never declared again and never cited (agents/workshop.md, rule 6).
+        if(line MATCHES "^Retired:")
+            math(EXPR retired_lines "${retired_lines} + 1")
+            if(is_router)
+                zen_law_fail("${rel}:${n} is a router's `Retired:` line; a retired id stands in the register that held its law")
+            elseif(headed)
+                zen_law_fail("${rel}:${n} `Retired:` stands after a heading; it is the preamble's line, before the first `##`")
+            elseif(retired_lines GREATER 1)
+                zen_law_fail("${rel}:${n} is a second `Retired:` line; a register carries one")
+            else()
+                zen_law_parse_retired("${line}" "${family}" retired_ids retired_why)
+                if(NOT retired_why STREQUAL "")
+                    zen_law_fail("${rel}:${n} `Retired:` ${retired_why}")
+                endif()
+                foreach(retired_id IN LISTS retired_ids)
+                    get_property(twice GLOBAL PROPERTY "zen_law_retired_file_${retired_id}" SET)
+                    if(twice)
+                        get_property(where GLOBAL PROPERTY "zen_law_retired_file_${retired_id}")
+                        zen_law_fail("${rel}:${n} retires ${retired_id}, which ${where} already retires")
+                        continue()
+                    endif()
+                    set_property(GLOBAL PROPERTY "zen_law_retired_file_${retired_id}" "${rel}")
+                    set_property(GLOBAL APPEND PROPERTY zen_law_retired_ids "${retired_id}")
+                endforeach()
+            endif()
+            continue()
+        endif()
         if(line MATCHES "^## ")
+            set(headed 1)
             zen_law_flush_entry()
             zen_law_flush_bullet()
             set(in_dna 0)
@@ -1397,6 +1544,11 @@ function(zen_law_walk_text rel content is_router)
                 continue()
             endif()
             zen_law_entry_heading("${line}" id retired)
+            if(retired)
+                zen_law_fail("${rel}:${n} ${id} is a heading marked RETIRED; a retired law is an id on its register's one `Retired:` line, and what it said is in Git")
+                set(id "")
+                continue()
+            endif()
             if(id STREQUAL "")
                 zen_law_show("${line}" shown)
                 zen_law_fail("${rel}:${n} heading is neither an entry of a family the table names ${ZEN_LAW_FAMILY_RE} nor the one Do-not-assume: ${shown}")
@@ -1533,7 +1685,7 @@ zen_law_walk_text("agents/qq-selftest/selftest-filed.md" "${law_filed}" 0)
 get_property(law_filed_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "${law_saved_problems}")
 foreach(synthetic WL-ZZZ-01 QQ-ZZZ-02)
-    foreach(facet file proven why retired)
+    foreach(facet file proven why)
         set_property(GLOBAL PROPERTY "zen_law_${facet}_${synthetic}")
     endforeach()
 endforeach()
@@ -1558,6 +1710,47 @@ if(NOT law_filed_problems STREQUAL "" OR NOT law_misfiled_count EQUAL 2
         "second-family register in its own directory and ${law_misfiled_count} problem(s) on one "
         "holding a WL entry, a misfiled QQ entry and an entry of a family the table does not name:\n"
         "${law_misfiled_problems}\nA law filed under another family's directory would then sit green.")
+endif()
+
+# The retired form, walked: a preamble's `Retired:` line records its id; a heading marked RETIRED
+# and a `Retired:` line after a heading are refused (two problems); a line naming another family
+# is refused (one). Everything the walks record is dropped again, so nothing reaches the real walk.
+get_property(law_saved_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+set(law_retired_text "Retired: WL-ZZZ-07\n\n## WL-ZZZ-08 — RETIRED: a heading so marked\n\nWHY — `x`\n\n## WL-ZZZ-09 — A law\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\nRetired: WL-ZZZ-10\n")
+zen_law_walk_text("${ZEN_LAW_DIR_WL}/selftest-retired.md" "${law_retired_text}" 0)
+get_property(law_retired_problems GLOBAL PROPERTY zen_law_problems)
+get_property(law_retired_recorded GLOBAL PROPERTY zen_law_retired_ids)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+zen_law_walk_text("${ZEN_LAW_DIR_WL}/selftest-retired-family.md" "Retired: MW-ZZZ-11\n" 0)
+get_property(law_retired_family_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "${law_saved_problems}")
+set_property(GLOBAL PROPERTY zen_law_retired_ids "")
+foreach(synthetic WL-ZZZ-07 WL-ZZZ-10 MW-ZZZ-11)
+    set_property(GLOBAL PROPERTY "zen_law_retired_file_${synthetic}")
+endforeach()
+foreach(facet file proven why)
+    set_property(GLOBAL PROPERTY "zen_law_${facet}_WL-ZZZ-09")
+endforeach()
+foreach(synthetic_rel ${ZEN_LAW_DIR_WL}/selftest-retired.md ${ZEN_LAW_DIR_WL}/selftest-retired-family.md)
+    string(MAKE_C_IDENTIFIER "${synthetic_rel}" synthetic_key)
+    foreach(facet ids_of nowitness partial debts partial_echo)
+        set_property(GLOBAL PROPERTY "zen_law_${facet}_${synthetic_key}")
+    endforeach()
+endforeach()
+set_property(GLOBAL PROPERTY zen_law_ids "")
+zen_law_count_lines("${law_retired_problems}" law_retired_count)
+zen_law_count_lines("${law_retired_family_problems}" law_retired_family_count)
+if(NOT law_retired_recorded STREQUAL "WL-ZZZ-07" OR NOT law_retired_count EQUAL 2
+   OR NOT law_retired_problems MATCHES "selftest-retired.md:3 WL-ZZZ-08 is a heading marked RETIRED"
+   OR NOT law_retired_problems MATCHES "selftest-retired.md:13 `Retired:` stands after a heading"
+   OR NOT law_retired_family_count EQUAL 1 OR NOT law_retired_family_problems MATCHES "MW-ZZZ-11")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the walker recorded '${law_retired_recorded}' as retired "
+        "and raised ${law_retired_count} problem(s) on a register with a RETIRED heading and a late "
+        "`Retired:` line:\n${law_retired_problems}\nand ${law_retired_family_count} on a line naming "
+        "another family:\n${law_retired_family_problems}\nA retired law could then stand as a "
+        "heading, or its id escape the line that retires it.")
 endif()
 
 # ---- the VM form: a method register ---------------------------------------------------------
@@ -1873,6 +2066,16 @@ if(entry_count EQUAL 0)
         "stopped recognising the entry form or every law is gone; both are failures, and "
         "neither is a green.")
 endif()
+# A retired id is never declared again, in any register.
+get_property(retired_ids GLOBAL PROPERTY zen_law_retired_ids)
+list(LENGTH retired_ids retired_count)
+foreach(id IN LISTS retired_ids)
+    if(id IN_LIST all_ids)
+        get_property(where GLOBAL PROPERTY "zen_law_file_${id}")
+        get_property(retired_where GLOBAL PROPERTY "zen_law_retired_file_${id}")
+        zen_law_fail("${where} declares ${id}, which ${retired_where} retires; a retired id is never declared again -- a new law takes a new id")
+    endif()
+endforeach()
 
 # Ids are unique across agents/, not only across the registers: an id-shaped `##` heading of
 # any family (`## WL-`, `## VM-`, `## MW-`, any `## <LETTERS>-<LETTERS>-<digits>`) in any other
@@ -2011,10 +2214,14 @@ foreach(rel IN LISTS record_files)
         endif()
     endif()
     if(NOT listed)
-        zen_law_fail("${rel} lists no laws under '**Laws supported.**'")
+        zen_law_fail("${rel} lists no laws under '**Laws supported.**'; a record whose decision governs nothing moves to docs/history/")
     endif()
     foreach(id IN LISTS listed)
-        if(NOT id IN_LIST all_ids)
+        zen_law_cite_verdict("${id}" "${all_ids}" "${retired_ids}" verdict)
+        if(verdict STREQUAL "retired")
+            zen_law_fail("${rel} lists ${id}, a retired law; regenerate the list (tools/fill_laws.sh), and move a record left governing nothing to docs/history/")
+            continue()
+        elseif(NOT verdict STREQUAL "")
             zen_law_fail("${rel} lists ${id}, which is no entry of any register")
             continue()
         endif()
@@ -2060,12 +2267,17 @@ foreach(rel IN LISTS source_files)
     zen_law_comment_ids("${content}" named_ids)
     foreach(id IN LISTS named_ids)
         math(EXPR comment_id_count "${comment_id_count} + 1")
-        if(NOT id IN_LIST all_ids AND NOT id IN_LIST vm_ids)
+        zen_law_cite_verdict("${id}" "${all_ids};${vm_ids}" "${retired_ids}" verdict)
+        if(NOT verdict STREQUAL "")
             string(FIND "${content}" "${id}" at)
             string(SUBSTRING "${content}" 0 ${at} before)
             zen_law_count_lines("${before}" n)
             math(EXPR n "${n} + 1")
-            zen_law_fail("${rel}:${n}: a comment cites ${id}, which no register declares; cite the law that holds the fact")
+            if(verdict STREQUAL "retired")
+                zen_law_fail("${rel}:${n}: a comment cites ${id}, a retired law; cite the law that holds the fact now, or say it in words")
+            else()
+                zen_law_fail("${rel}:${n}: a comment cites ${id}, which no register declares; cite the law that holds the fact")
+            endif()
         endif()
     endforeach()
     string(REGEX MATCH "// [A-Z]+-[A-Z]+-[0-9]" any "${content}")
@@ -2117,7 +2329,10 @@ foreach(rel IN LISTS source_files)
                 foreach(id IN LISTS ids)
                     math(EXPR pointer_ids "${pointer_ids} + 1")
                     list(APPEND line_ids "${id}")
-                    if(NOT id IN_LIST all_ids)
+                    zen_law_cite_verdict("${id}" "${all_ids}" "${retired_ids}" verdict)
+                    if(verdict STREQUAL "retired")
+                        zen_law_fail("${rel}:${n} pointer names ${id}, a retired law; point at the law that holds the fact now")
+                    elseif(NOT verdict STREQUAL "")
                         zen_law_fail("${rel}:${n} pointer names ${id}, which is no entry of any register")
                     elseif(NOT id IN_LIST entries)
                         get_property(where GLOBAL PROPERTY "zen_law_file_${id}")
@@ -2253,9 +2468,14 @@ endif()
 
 list(REMOVE_DUPLICATES witness_law_ids)
 foreach(law IN LISTS witness_law_ids)
-    if(NOT law IN_LIST all_ids AND NOT law IN_LIST vm_ids)
+    zen_law_cite_verdict("${law}" "${all_ids};${vm_ids}" "${retired_ids}" verdict)
+    if(NOT verdict STREQUAL "")
         get_property(where GLOBAL PROPERTY "zen_plan_law_where_${law}")
-        zen_law_fail("${where}: a case name cites ${law}, which no register declares")
+        if(verdict STREQUAL "retired")
+            zen_law_fail("${where}: a case name cites ${law}, a retired law; name the case for what it proves now")
+        else()
+            zen_law_fail("${where}: a case name cites ${law}, which no register declares")
+        endif()
     endif()
 endforeach()
 list(LENGTH witness_law_ids plan_case_law_count)
@@ -2276,6 +2496,7 @@ if(plan_document_count EQUAL 0)
         "failure here and not a quiet pass.")
 endif()
 set(plan_id_count 0)
+set(told_count 0)
 set(document_law_count 0)
 set(cite_count 0)
 set(cite_documents 0)
@@ -2298,17 +2519,29 @@ foreach(rel IN LISTS plan_documents)
     endforeach()
     zen_plan_document_ids("${content}" ids)
     zen_law_text_ids("${content}" laws)
-    if(NOT ids AND NOT laws)
+    # A document that holds none of the told forms' words is not read line by line for them.
+    string(TOLOWER "${content}" lowered)
+    set(may_tell FALSE)
+    if(lowered MATCHES "phase|used to|renamed|formerly|retired")
+        set(may_tell TRUE)
+    endif()
+    if(NOT ids AND NOT laws AND NOT may_tell)
         continue()
     endif()
     string(REPLACE "\n" ";" lines "${content}")
     set(n 0)
     foreach(line IN LISTS lines)
         math(EXPR n "${n} + 1")
+        if(line MATCHES "^Retired: " AND rel IN_LIST register_files)
+            continue()     # the ids a register retires, not citations of them
+        endif()
         zen_law_text_ids("${line}" laws)
         foreach(law IN LISTS laws)
             math(EXPR document_law_count "${document_law_count} + 1")
-            if(NOT law IN_LIST all_ids AND NOT law IN_LIST vm_ids)
+            zen_law_cite_verdict("${law}" "${all_ids};${vm_ids}" "${retired_ids}" verdict)
+            if(verdict STREQUAL "retired")
+                zen_law_fail("${rel}:${n}: cites ${law}, a retired law; cite the law that holds the fact now, or say it in words")
+            elseif(NOT verdict STREQUAL "")
                 zen_law_fail("${rel}:${n}: cites ${law}, which no register declares; cite the law that holds the fact, or say it in words")
             endif()
         endforeach()
@@ -2317,6 +2550,13 @@ foreach(rel IN LISTS plan_documents)
             math(EXPR plan_id_count "${plan_id_count} + 1")
             zen_law_fail("${rel}:${n}: ${id} is a development-phase id; say the fact in words (docs/contributing/repository-conventions.md, the external-reader rule)")
         endforeach()
+        if(may_tell)
+            zen_plan_document_told("${line}" told)
+            if(NOT told STREQUAL "")
+                math(EXPR told_count "${told_count} + 1")
+                zen_law_fail("${rel}:${n}: \"${told}\" tells the maintainers' process or the page's history -- state the present fact, and leave history to docs/history/ and Git (docs/contributing/repository-conventions.md)")
+            endif()
+        endif()
     endforeach()
 endforeach()
 if(cite_count EQUAL 0)
@@ -2328,16 +2568,16 @@ endif()
 message(STATUS
     "law-register: plan codes -- ${witness_count} case names read, ${bare_label_count} bare "
     "labels, ${plan_case_law_count} law ids they open with resolved, ${plan_document_count} "
-    "current-facing documents read, ${plan_id_count} phase ids found, ${document_law_count} law ids "
-    "they name resolved")
+    "current-facing documents read, ${plan_id_count} phase ids found, ${told_count} lines telling "
+    "the process or history found, ${document_law_count} law ids they name resolved")
 message(STATUS
     "law-register: citations -- ${cite_count} cases cited by name in ${cite_documents} documents; "
     "${comment_id_count} law ids named in source comments")
 
 # ---- the report --------------------------------------------------------------------------
 
-message(STATUS "law-register: ${register_count} registers, ${entry_count} entries; ${record_count} "
-               "records, ${why_target_count} WHY targets, ${why_count} WHY lines")
+message(STATUS "law-register: ${register_count} registers, ${entry_count} entries, ${retired_count} "
+               "retired ids; ${record_count} records, ${why_target_count} WHY targets, ${why_count} WHY lines")
 foreach(family IN LISTS ZEN_LAW_FAMILIES)
     set(family_entries 0)
     foreach(rel IN LISTS register_files)

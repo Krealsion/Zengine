@@ -1,7 +1,7 @@
 # A commit names its subject
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [document](../workshop/document.md).
+supports is in [document](../../../agents/workshop/document.md).
 
 **Context.** Info's commit crossed as a row index and its text (`DocumentActRequested` v1), and
 the host wrote that row of whatever `Session::rows` held when the ask arrived. Measured through
@@ -45,7 +45,7 @@ Names are counted per session, compared and never decoded.
 **Retired with the object canvas.** The door this record named -- `DocumentCommitRequested` over
 `Session::rows` -- left with the object document. The discipline did not: Info inspects a pane
 through a subject the host names for it, and a `PaneCommitRequested` naming another is refused
-before any row is read, in [an inspector names its subject](an-inspector-names-its-subject.md)
+before any row is read, in [an inspector names its subject](../../../agents/decisions/an-inspector-names-its-subject.md)
 (WL-INFO-14, WL-INFO-15). WL-DOC-21 keeps its number as a RETIRED entry.
 
-**Laws supported.** [WL-DOC-21](../workshop/document.md).
+**Laws supported.** [WL-DOC-21](../../../agents/workshop/document.md).

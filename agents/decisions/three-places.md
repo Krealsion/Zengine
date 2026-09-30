@@ -57,5 +57,4 @@ puts a pane there.
 
 **Laws supported.** [WL-PANE-03](../workshop/panes-and-windows.md),
 [WL-PANE-09](../workshop/panes-and-windows.md), [WL-PANE-10](../workshop/panes-and-windows.md),
-[WL-PANE-12](../workshop/panes-and-windows.md), [WL-PANE-13](../workshop/panes-and-windows.md),
-[WL-PANE-14](../workshop/panes-and-windows.md), [WL-PANE-15](../workshop/panes-and-windows.md).
+[WL-PANE-12](../workshop/panes-and-windows.md), [WL-PANE-13](../workshop/panes-and-windows.md).

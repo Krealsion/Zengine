@@ -554,10 +554,8 @@ going.
 
 `loom::name_of(RefusalReason)` gives the reason's name and `Refusal::message()` gives the text.
 
-**A successful run prints none of this.** That is worth saying because it briefly did not: a
-publication that reaches nobody used to be reported here as a refusal, so the Timer's ordinary
-startup announcement — spoken before any consumer is loaded, and heard by nobody, exactly as
-intended — looked like a failure in a program that was working perfectly. It no longer does. A
+**A successful run prints none of this.** The Timer's ordinary startup announcement is spoken
+before any consumer is loaded and heard by nobody, exactly as intended, and it is not a refusal: a
 publication has no addressee, so being unheard is not a failure; a *send* to a role nobody
 holds still is, which is the line above.
 

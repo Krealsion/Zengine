@@ -27,7 +27,7 @@ generated names every shipped pane by its own target, build directory and weave 
 the Editor opens, and nothing else"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
-## WL-DESK-02 — A default row is asked where the host's own last word used to be said
+## WL-DESK-02 — A default row is asked where the gesture falls to no pane
 
 LAW — A default-class row is requested exactly where the resolved context claimed the gesture for nothing and no pane took it; the host writes nothing until an answer echoes that ask.
 

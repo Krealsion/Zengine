@@ -69,7 +69,7 @@ SEEN — `tests/check_package_vocabulary.cmake`.
 
 METHOD — Never name a probe or build directory after the thing you are proving ABSENT: a directory's name is embedded in nearly every generated file, and the decisive grep then lies.
 BECAUSE — trees named after the thing being proven absent made the decisive grep report dozens
-of hits, every one the directory path, in a phase whose whole claim was zero.
+of hits, every one the directory path, where the whole claim was zero.
 SEEN — nowhere yet
 
 ## VM-CHECK-09 — A generated line is regenerated, never hand-edited

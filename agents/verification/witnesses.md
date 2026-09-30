@@ -112,9 +112,9 @@ BECAUSE — a machine-wide remapper consumed one chord and injected a different 
 a projection and stays truthful whether or not dispatch ever fires.
 SEEN — nowhere yet
 
-## VM-WIT-24 — The harnesses live with the phase records
+## VM-WIT-24 — The harnesses live outside this repository
 
-METHOD — Working harnesses for both media are kept with the phase records, outside this repository, and are copied rather than rebuilt.
+METHOD — Working harnesses for both media are kept outside this repository, and are copied rather than rebuilt.
 BECAUSE — the programs restate what these rows say, and a register restates the method, not the
 program; rebuilding one costs the defects every row above was paid for.
 SEEN — nowhere yet

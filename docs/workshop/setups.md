@@ -25,9 +25,8 @@ leaves, read when it arrives, by nobody's gesture. A pane you made is a thing yo
 only says where it participates. Closing a window should not rewrite a desk you saved under a
 name, and sharing a pane you made should not import somebody else's desk.
 
-> **There used to be a fourth: the document** (`--document`, default `workshop.json`), which held
-> the prototype object canvas's rectangles. It retired with the canvas. If the file is still in
-> your project, Workshop names it once at startup and leaves it exactly as it is — never read,
+> **An old object document is not one of them.** A `workshop.json` (`--document`) holding the
+> prototype object canvas's rectangles is no file Workshop uses. If one is in your project, Workshop names it once at startup and leaves it exactly as it is — never read,
 > rewritten or deleted, and never taken for one of the files above.
 
 ## Saving a setup
@@ -96,8 +95,7 @@ keys below still reach every layout, and the Pane Manager puts it back where it 
 reserved whether or not anything stands on them, so the room below them is the same size
 whatever you do with the selector. Moving it away leaves those rows empty on purpose.
 
-The column at the right-hand edge is a different case, and used to be the same one: it was
-reserved too, and removing `Info` left it empty. It is an ordinary place now. Your workspace
+The column at the right-hand edge is a different case: it is an ordinary place. Your workspace
 runs underneath it at full width, `Info` stands on that room the way a stacked pane stands on
 it, and taking `Info` off the desk gives you the thirty columns to reach rather than thirty
 columns of nothing.
