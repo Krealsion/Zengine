@@ -39,5 +39,4 @@ name in cells with no `if (h < N)` written anywhere. `kMaxNameLen` went 32 → 6
 traced rather than inherited. The Builder's `said…` block wraps into exactly the rows that
 survived its budget; a character medium's nine-row budget selects every fact.
 
-**Laws supported.** [WL-RGN-01](../workshop/regions.md), [WL-RGN-02](../workshop/regions.md),
-[WL-RGN-04](../workshop/regions.md), [WL-RGN-05](../workshop/regions.md).
+**Laws supported.** [WL-RGN-01](../workshop/regions.md), [WL-RGN-02](../workshop/regions.md).

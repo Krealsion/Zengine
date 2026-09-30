@@ -17,8 +17,8 @@ respects, capped at `kContextMaxCols`. The first row is an action: painted row i
 row i. The hotkey view anchors at the selected pane's visible outer top-left, is sized from
 `hotkeys_rows` through the same measurer, is keys-modal, and owns no pointer space.
 
-**Since.** The hotkey view left this host: the key list is the desktop's Hotkeys pane, over the
-keymap the host publishes (WL-DESK-11), so WL-KEY-10 and WL-KEY-11 are retired; the contextual
+**Since.** The hotkey view left this host: the key list is the desktop's Hotkeys pane (WL-KEY-10),
+over the keymap the host publishes and presents none of (WL-DESK-11, WL-KEY-11); the contextual
 surface keeps this decision.
 
 **Alternatives considered.**

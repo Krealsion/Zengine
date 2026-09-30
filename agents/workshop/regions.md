@@ -4,6 +4,8 @@ Register `WL-RGN`: semantic text in Workshop's own panes, the Builder's prioriti
 band, and the name on a weaver's material. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
+Retired: WL-RGN-04, WL-RGN-05.
+
 ## WL-RGN-01 — The popup and a pane's body spend `prose_place`
 
 LAW — `prose_place` + `prose_region` is the one call for the popup and a pane's captured body: the prose rows and columns the active medium fits inside the popup's or the body's own rectangle.
@@ -49,11 +51,3 @@ PROVEN BY — `workshop/screen.hpp` `band_bounds`, `band_fit`, `kBottomRows`;
 0"`; `tests/test_workshop_screen.cpp` case `"the notice is a band row, and the
 SENTENCE is never shortened"`.
 WHY — `agents/decisions/two-bands.md`
-
-## WL-RGN-04 — RETIRED: the workspace object's name was a ground-beneath region
-
-WHY — `agents/decisions/semantic-text-owns-its-room.md`
-
-## WL-RGN-05 — RETIRED: an object's name was bounded by the material it named
-
-WHY — `agents/decisions/semantic-text-owns-its-room.md`

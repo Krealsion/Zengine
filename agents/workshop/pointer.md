@@ -3,7 +3,7 @@
 Register `WL-PTR`: two presses as one gesture. One law per heading; cite by ID.
 Router: [`../workshop.md`](../workshop.md).
 
-**Reading past a fitted row was here and is retired** — see the note below WL-PTR-03.
+Retired: WL-PTR-02, WL-PTR-03, WL-PTR-04, WL-PTR-05, WL-PTR-06, WL-PTR-08.
 
 ## WL-PTR-01 — Two presses are one gesture, and time is an argument
 
@@ -20,30 +20,6 @@ PROVEN BY — `workshop/interaction_time.hpp` `interaction_now_ms`; `workshop/sc
 `tests/test_workshop_screen.cpp` case `"what makes two presses on a tab one double-click, and
 what does not"`.
 WHY — `agents/decisions/time-is-an-argument.md`
-
-## WL-PTR-02 — RETIRED: one word-selecting press served every editable line the host held
-
-WHY — `agents/decisions/time-is-an-argument.md`
-
-## WL-PTR-03 — RETIRED: the record armed on the way out, and the completing press spent it
-
-WHY — `agents/decisions/time-is-an-argument.md`
-
-## WL-PTR-04 — RETIRED: a fitted row could be read past, under the pointer
-
-WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
-
-## WL-PTR-05 — RETIRED: the revealed item was the identity, never the prose row
-
-WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
-
-## WL-PTR-06 — RETIRED: the pointer's column was the reveal's offset
-
-WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
-
-## WL-PTR-08 — RETIRED: the reveal's consumers were the Info pane's two rows
-
-WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-09 — The terminal cannot report a hover
 

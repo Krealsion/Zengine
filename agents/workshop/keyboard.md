@@ -160,7 +160,7 @@ legend's three modes project the band, and hidden unbinds nothing"`, case `"the 
 move only the legend rows, in both budgets"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
-## WL-KEY-10 — RETIRED: the hotkey view was a host overlay beside the selected pane
+## WL-KEY-10 — The key list is the desktop's Hotkeys pane
 
 LAW — The key list is the desktop's Hotkeys pane, seated and arranged like any pane; nothing in this host anchors, sizes or paints a key list.
 
@@ -169,7 +169,7 @@ teach the application's keys as they are in force: a moved row where it moved, a
 having no key"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
-## WL-KEY-11 — RETIRED: the hotkey view was a projection the host presented
+## WL-KEY-11 — The host projects the effective keymap as a value and presents none of it
 
 LAW — The host projects the effective keymap as a value (`keymap_shown`, WL-DESK-11) and presents none of it; the text box's keys are listed there, marked not remappable.
 

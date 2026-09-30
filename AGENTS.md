@@ -66,7 +66,8 @@ table escapes `|`. **g** no phase code in a case name or a current-facing docume
 label opening a case name; every case a document cites, and every law a comment or document names, exists.
 **h** a record's Alternatives split tried (evidence inline) from argued. **i** records wrap at 98
 bytes, ~1.5 KB, over 4 KB flagged. **j** a record may link another. **k** Laws supported is
-generated from WHY lines: edit the WHY. **l** a record over ten laws is suspected of being two.
+generated from WHY lines: edit the WHY; a record no law supports moves to `docs/history/`. **l** a
+record over ten laws is suspected of being two.
 **m** an owner identifier is a whole token in the named file's code, comments stripped.
 **n** a `// WL-` or `// MW-` pointer is PROVEN BY inverted: every law on it names the declaration beneath.
 **o** a mass edit is sheet → applier → proof, regenerated from the start commit. **p** after a

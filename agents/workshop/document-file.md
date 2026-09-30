@@ -5,13 +5,7 @@ what a weaver's old object document meets now, and the status line that used to 
 model's laws are in [`document.md`](document.md), and the ids are one series. One law per
 heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
-## WL-DOC-13 — RETIRED: the document file carried what a weaver made, and no resolved geometry
-
-WHY — `agents/decisions/the-document-model.md`
-
-## WL-DOC-14 — RETIRED: a malformed document never left Workshop halfway loaded
-
-WHY — `agents/decisions/the-document-model.md`
+Retired: WL-DOC-13, WL-DOC-14, WL-DOC-16, WL-DOC-19.
 
 ## WL-DOC-15 — The file doors refuse before they harm
 
@@ -26,14 +20,6 @@ PROVEN BY — `workshop/persist.hpp` `read_file`, `write_file`, `pending_path`, 
 and not an empty file"`, case `"a detected write failure leaves the last good save readable and
 unchanged"`, case `"a save into a place that does not exist refuses before it writes anything"`,
 case `"a file too large to be what it claims is refused before it is read"`.
-WHY — `agents/decisions/the-document-model.md`
-
-## WL-DOC-16 — RETIRED: `^s` saved and `^o` loaded the document through the message path
-
-WHY — `agents/decisions/the-document-model.md`
-
-## WL-DOC-19 — RETIRED: the status line said which document file, and whether it was saved
-
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-22 — An old object document is said once and left exactly as it is

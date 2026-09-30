@@ -5,6 +5,8 @@ over, and the seven states. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). What crosses the pane seam is the protocol's law, in
 [`../panes.md`](../panes.md); this register holds Workshop's side only.
 
+Retired: WL-PANE-14, WL-PANE-15.
+
 ## WL-PANE-01 — Three places, and every one of them is the weaver's
 
 LAW — Three places: the right column, the overlay stack and the top band. Each is a named rectangle a pane resolves into, none is reserved out of the room, and an authored override is spent in all three.
@@ -192,14 +194,6 @@ PROVEN BY — `workshop/panes.hpp` `OpenPane`, `Panes::has`, `open_kind`, `close
 no office"`; `tests/test_workshop_panes_actions.cpp` case `"WL-DESK-12: a close takes a pane off
 the desk and leaves its provider holding; a close of a pane that is not there is refused and
 opens nothing"`.
-WHY — `agents/decisions/three-places.md`
-
-## WL-PANE-14 — RETIRED: the picker was a mode, not a pane
-
-WHY — `agents/decisions/three-places.md`
-
-## WL-PANE-15 — RETIRED: the picker covered the whole first slot
-
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-16 — A pane with a room and no answer says waiting, never unavailable

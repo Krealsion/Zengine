@@ -121,7 +121,7 @@ pane whose every current condition is hidden says they are hidden and still true
 notice and a new room, and says nothing needs attention only when nothing is true"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
-## WL-ATTN-09 — RETIRED: the view was a mode in the picker's place
+## WL-ATTN-09 — The Attention view is a pane, keyed only once pressed into
 
 LAW — The view is a pane, so it takes the keyboard under `KeyContext::kPane` when pressed into; the mode, its four rows and the global chord are gone, and three ids are the pane's own.
 
