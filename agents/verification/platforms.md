@@ -107,7 +107,7 @@ SEEN — nowhere yet
 ## VM-PLAT-14 — The census measures what a translation unit spends on the name table
 
 METHOD — Measure what a unit spends on the COFF name table with the census over its ELF objects: groups, name bytes, the four-name estimate against the ceiling, owner buckets; an object whose source is gone is skipped.
-BECAUSE — a build tree keeps the object of a source a phase removed, and two such objects would
+BECAUSE — a build tree keeps the object of a removed source, and two such objects would
 have named the wrong largest suite; the estimate on Linux objects (host 107% before the split, 59%
 after) is what the Windows assembler then witnesses.
 SEEN — `tools/coff-census.py`.

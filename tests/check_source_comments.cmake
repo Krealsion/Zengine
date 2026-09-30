@@ -69,12 +69,13 @@ function(zen_comments_show text out)
 endfunction()
 
 # The findings about one comment's text: a removal note (a star, or a note that something stood
-# here once: what was removed is Git's to keep), and every private id.
+# here once or was something else before: what was removed or changed is Git's to keep), and
+# every private id. "Used to" alone is ordinary English ("the value used to key the map").
 function(zen_comments_judge where comment out)
     set(found "")
     string(TOLOWER "${comment}" lower)
     string(FIND "${comment}" "${ZEN_STAR}" star)
-    if(NOT star EQUAL -1 OR lower MATCHES "(was|were) here|used to be here|what used to be")
+    if(NOT star EQUAL -1 OR lower MATCHES "(was|were) here|(^|[^a-z])used to be([^a-z]|$)")
         list(APPEND found "${where}: a removal note -- what was removed belongs to Git history, not the source")
     endif()
     string(REGEX REPLACE "[^A-Za-z0-9_-]+" ";" words "${comment}")
@@ -285,6 +286,8 @@ zen_comments_expect("six lines, a pointer and the law line" cxx
     "// Workshop law: agents/workshop/x.md\n${six}// WL-KEY-15 -- agents/workshop/keyboard.md\nint x;\n" 0)
 zen_comments_expect("a removal note" cxx "// ${ZEN_STAR} the old arm WAS HERE\nint x;\n" 1)
 zen_comments_expect("a pane that is gone" cxx "// the pane is gone\nint x;\n" 0)
+zen_comments_expect("a note of what a thing was" cxx "// WHAT IT BROWSES USED TO BE A STRUCT HERE\nint x;\n" 1)
+zen_comments_expect("used to, as ordinary English" cxx "// the value used to key the map\nint x;\n" 0)
 zen_comments_expect("a private id" cxx "// see VD-27 for why\nint x;\n" 1)
 zen_comments_expect("public ids and standards" cxx "// WL-KEY-15, ANS-03, UTF-8, button-1\nint x;\n" 0)
 zen_comments_expect("a phase tag in a law family's letters" cxx "// the MSG-0 reading\nint x;\n" 1)

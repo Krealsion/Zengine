@@ -38,8 +38,8 @@ inverts; the text inset margin names no control. Every composition number was un
 seven extents when the ground arrived.
 
 **Since.** The footer retired with the object document it asked: Info inspects panes, and a pane
-is launched and closed from the Pane Manager. WL-CTRL-01 to WL-CTRL-05 are RETIRED entries; the
-two ground laws hold over the subject's heading.
+is launched and closed from the Pane Manager. WL-CTRL-01 to WL-CTRL-05 say what Info's view is
+without it; the two ground laws hold over the subject's heading.
 
 **Laws supported.** [WL-CTRL-01](../workshop/info-controls.md),
 [WL-CTRL-02](../workshop/info-controls.md), [WL-CTRL-03](../workshop/info-controls.md),

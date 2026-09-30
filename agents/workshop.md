@@ -59,13 +59,14 @@ Workshop suites to their subjects and registers.
 3. Law text lives in the register only; source carries the pointer
    `// WL-… -- agents/workshop/<file>`. Other comments meet
    [the standard](../docs/contributing/repository-conventions.md#source-comment-conventions).
-4. A phase that edits a `TEST_CASE` named in any PROVEN BY re-verifies every law naming it, in
+4. A change that edits a `TEST_CASE` named in any PROVEN BY re-verifies every law naming it, in
    the same commit, and lists the ids re-verified in the commit message. The evidence trail is
    Git history.
 5. Trace both intended contract and observed behavior when they disagree. Code, test, or register
    may need correction; never weaken a law merely to match a passing test. Apply the architectural
    review in `AGENTS.md` to the complete change and its consequences for known next work.
-6. Law ids are permanent; a retired law keeps its number and one line.
+6. Law ids are permanent: a retired id stands on its register's one `Retired:` line, and is
+   never declared or cited again.
 7. `witness: none` is written where it is true and repeated under the register's `## Do not
    assume`; a law witnessed except one clause writes `UNWITNESSED — <clause>` after PROVEN BY,
    and that debt is counted, repeated and reciprocated the same way. Lowering the count of

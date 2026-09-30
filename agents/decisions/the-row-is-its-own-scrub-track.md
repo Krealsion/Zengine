@@ -41,6 +41,4 @@ the only route that would have kept it, and it is the host-mapped route the pane
 Four of the five laws below are retired; the fifth is about a medium and outlives the feature. The
 retired entries are in [pointer](../workshop/pointer.md).
 
-**Laws supported.** [WL-PTR-04](../workshop/pointer.md), [WL-PTR-05](../workshop/pointer.md),
-[WL-PTR-06](../workshop/pointer.md), [WL-PTR-08](../workshop/pointer.md),
-[WL-PTR-09](../workshop/pointer.md).
+**Laws supported.** [WL-PTR-09](../workshop/pointer.md).

@@ -57,9 +57,8 @@ and you press it somewhere else.
 Putting the pane on your desk is always **your** gesture. Nothing Workshop discovers —
 however serious — opens a pane, steals the keyboard or interrupts what you were doing.
 
-> **It used to be `Ctrl`+`a`.** The list was an overlay a chord opened from anywhere, and the
-> chord is gone: it is a pane now, chosen from the Pane Manager like the Files browser and the
-> Builder, arranged where you want it and readable at the same time as everything else. If
+> **The list is a pane, not a chord.** It is chosen from the Pane Manager like the Files browser
+> and the Builder, arranged where you want it and readable at the same time as everything else. If
 > your keymap file moves `attention.close` or `workshop.attention`, those two rows no longer
 > name anything — the other three moved with the pane and still work. `Ctrl`+`a` is now the
 > **select all** of whatever text field has your keys, everywhere, with no exception to

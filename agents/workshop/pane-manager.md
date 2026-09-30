@@ -5,17 +5,7 @@ built-in retired: its list is the desktop's Pane Manager (WL-DESK-04, WL-DESK-12
 subject is an inspector's (WL-INFO-14). One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
-## WL-PED-01 — RETIRED: the Pane Manager was the built-in whose subject is a pane
-
-WHY — `agents/decisions/a-subject-is-not-a-selection.md`
-
-## WL-PED-02 — RETIRED: the subject was the manager's, written by one door
-
-WHY — `agents/decisions/a-subject-is-not-a-selection.md`
-
-## WL-PED-03 — RETIRED: the manager's subject stood, and one rule cleared it
-
-WHY — `agents/decisions/a-subject-is-not-a-selection.md`
+Retired: WL-PED-01, WL-PED-02, WL-PED-03, WL-PED-07, WL-PED-08.
 
 ## WL-PED-04 — A pane subject's rows read fresh, and nothing writes on paint
 
@@ -61,14 +51,6 @@ PROVEN BY — `workshop/screen_pane_state.cpp` `parse_face_amount`, `geometry_un
 `pane_geometry_typeable`; `surface/region.hpp` `device_of_subs`; `tests/test_workshop_host.cpp`
 case `"a typed amount is read and written in the face's own unit"`, case `"a typed value
 that is not admissible is refused, and the authored row is untouched"`.
-WHY — `agents/decisions/a-subject-is-not-a-selection.md`
-
-## WL-PED-07 — RETIRED: `kDraft` was the manager's draft context
-
-WHY — `agents/decisions/a-subject-is-not-a-selection.md`
-
-## WL-PED-08 — RETIRED: both lists scrolled under the wheel, and the wheel moved no keys
-
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## Do not assume

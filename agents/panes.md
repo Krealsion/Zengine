@@ -587,7 +587,7 @@ host action — and nothing reinterprets old bytes.
   not valid, or one `zen.DispatchRefused` names by its exact attempt, is released and said as
   undelivered, and delivered silence still waits (WL-INFO-13). Info's commit also names the
   subject its draft was typed for, and the host writes it only while that subject holds
-  ([`workshop/document.md`](workshop/document.md) WL-DOC-21).
+  ([`workshop/info-body.md`](workshop/info-body.md) WL-INFO-15).
 - **Not in this contract:** the contextual surface, which declares over `kActionCatalog` ids at
   compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane
   row's authored gesture (said for the file's rows at load, not yet for a pane's at admission).
