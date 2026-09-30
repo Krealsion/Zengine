@@ -94,7 +94,19 @@ cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake
 # installed-package witness: install, then build an unrelated project against the
 # prefix alone, OUTSIDE this repository
 cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run.cmake
+
+# the documentation lane: no build, no Loom
+cmake -P tests/documentation_lane.cmake
 ```
+
+- **A change that touches no compiled line is verified by the documentation lane**: Markdown, an
+  image under `docs/`, a text check or the files only text checks read.
+  `tests/check_change_kind.cmake` says each changed file's kind against `origin/main` and why,
+  and the lane runs every text check `tests/text_checks.cmake` lists, in seconds, passing only
+  for a documentation-only change; CI runs those checks on every change and skips the build and
+  test jobs for a documentation-only one. A C/C++ file is the official lane's even when only its
+  comments changed, because compiled tests read source as text (`tests/text_checks.cmake` says
+  which); so is a CMake file, CI and the lane itself.
 
 - **Quote `tests/verify.cmake`, never a bare `ctest`** — a bare run cannot say whether the
   population that ran is the population this repository meant to run.
