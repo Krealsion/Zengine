@@ -232,7 +232,7 @@ void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bo
         (void)mail.answer(PaneCarryAnswered{false, "this value drag no longer has its primary press"});
         return;
     }
-    if (asked.data.empty() || asked.data.size() > 65536 || asked.label.size() > 128) {
+    if (asked.data.empty() || asked.data.size() > kMaxCarryBytes || asked.label.size() > kMaxCarryLabelBytes) {
         (void)mail.answer(PaneCarryAnswered{false, "the carried reference exceeds its limits"});
         return;
     }

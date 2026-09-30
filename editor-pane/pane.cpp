@@ -1552,7 +1552,7 @@ private:
         pickup_.gesture = gesture;
         pickup_.drag = drag;
         pickup_.bytes.assign(pair.bytes.begin(), pair.bytes.end());
-        pickup_.label = label.substr(0, 128);
+        pickup_.label = label.substr(0, ws::kMaxCarryLabelBytes);
         pickup_.what = what_words;
         pickup_.ticket = mail.as_role(pane::kEditorPaneRole)
                              .send_to_role(kWorkshopRole,
