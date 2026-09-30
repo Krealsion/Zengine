@@ -110,7 +110,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-07 — The keymap file is a durable artifact of authored differences
 
-LAW — `zengine-workshop-keymap` version 2 (`--keymap`, default `workshop-keymap.json`): defaults in code, authored differences only, absent ≡ defaults; read once, written by the edit door alone.
+LAW — `zengine-workshop-keymap` version <!-- value keymap_persist::kFormatVersion -->2<!-- /value --> (`--keymap`, default `workshop-keymap.json`): defaults in code, authored differences only, absent ≡ defaults; read once, written by the edit door alone.
 
 MEANS
 - read once at the first `SurfaceReady`, bytes kept; a version-1 file is imported, written as 2;

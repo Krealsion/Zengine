@@ -235,7 +235,7 @@ honest bounds on that capability today:
 | Does unsaved source survive a crash? | **no** — like every draft here it dies with the process; an *orderly* quit asks the Editor and refuses while source is unsaved |
 | Does it survive a reload of the Editor's own image? | **yes** — the document, its unsaved edits, caret, selection and scroll position ride a same-shape reload; the undo history and a paste still on its way do not |
 | Does it survive the Editor pane being closed? | **yes** — the pane is a presentation; bring it back from the Pane Manager and the document is where it was |
-| Drag text, a command or a file place in and out? | **yes, as copies and text** — [carrying](editor.md#carrying-text-commands-and-file-places); dropped text obeys the same ASCII byte rule (UTF-8 beyond it is refused, where Neovim takes it), there is no block selection, a carried copy is at most 64 KiB, and a dropped command is text, never sent |
+| Drag text, a command or a file place in and out? | **yes, as copies and text** — [carrying](editor.md#carrying-text-commands-and-file-places); dropped text obeys the same ASCII byte rule (UTF-8 beyond it is refused, where Neovim takes it), there is no block selection, a carried copy is at most <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB, and a dropped command is text, never sent |
 
 What text editing also exists is one single-line editor in this host — the layout-name line —
 and more in loaded panes over the same component: Info's property draft, the Terminal's command
@@ -276,7 +276,7 @@ both live in the participant, and the participant lives as long as the run.
 | question | answer |
 |---|---|
 | Is command history kept across launches? | **no** — there is no history file; a new launch starts with none |
-| How far back does it go? | as far as the participant's record keeps, which is the newest **256 entries of every kind** — commands, notices, answers together |
+| How far back does it go? | as far as the participant's record keeps, which is the newest **entries of every kind, as many as Loom's transcript keeps** (`loom::kTranscriptCapacity`) — commands, notices, answers together |
 | Can I scroll to an entry the record dropped? | **no** — the row above the view counts those separately as `dropped for good`, and the view moves to the oldest kept if the entry you were reading is evicted |
 | Does `↑` mean history while I am composing? | **no** — while a command is being composed, or a list was asked for, `↑` `↓` move the list; history is for a line with nothing on it |
 | Can I search the record? | **not yet** — you can walk it by page, wheel or end; there is no find |

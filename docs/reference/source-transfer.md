@@ -84,7 +84,7 @@ as text and never follows its relative name to another root.
 
 ## Limits
 
-- A carried pair is at most 64 KiB; a larger selection is refused, never cut.
+- A carried pair is at most <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB (`kMaxCarryBytes`); a larger selection is refused, never cut.
 - The standard Editor has no block selection; Neovim's block copies its rows joined by LF, with a
   tab that the block's edge cuts turned into spaces, as Neovim's own yank does.
 - A NUL byte is refused by both Editors (Neovim's selection functions cannot tell it from a line

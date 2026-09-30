@@ -53,8 +53,8 @@ Workshop suites to their subjects and registers.
 ## Ongoing rules
 
 1. Routed law documents are registers in the `timer-laws` form: one law per `##`, LAW one line,
-   MEANS at most 3, DOES NOT MEAN at most 2, PROVEN BY naming owner identifiers and exact witness
-   cases, WHY naming one decision record. Each register at most 16 KB; this router at most 8 KB.
+   MEANS at most <!-- value ZEN_LAW_MEANS_MAX -->3<!-- /value -->, DOES NOT MEAN at most <!-- value ZEN_LAW_DNM_MAX -->2<!-- /value -->, PROVEN BY naming owner identifiers and exact witness
+   cases, WHY naming one decision record. Each register at most <!-- value ZEN_LAW_REGISTER_BYTES KiB -->16<!-- /value --> KB; this router at most <!-- value ZEN_LAW_ROUTER_BYTES KiB -->8<!-- /value --> KB.
 2. A new law is a new entry under its owner. Never a bullet appended to a neighbouring entry.
 3. Law text lives in the register only; source carries the pointer
    `// WL-… -- agents/workshop/<file>`. Other comments meet

@@ -854,7 +854,7 @@ public:
         } else {
             // A short label naming no field, clear of two bounds: `refusal_of`
             // (`menu-presenter/presenter.cpp`) refuses the whole offer once any label exceeds
-            // `kMaxPaneMenuLabelLen` (64 bytes), and below that the popup clips a row to its
+            // `kMaxPaneMenuLabelLen` bytes, and below that the popup clips a row to its
             // display room. The line names the field; `next_field`'s notice says the rest.
             offer.row(files::kMenuNextField, "this is the last field");
         }
@@ -1636,7 +1636,7 @@ private:
         const char* name;
         bool required;
         // Empty means the same as `name`: every field but one is short enough to be its own menu
-        // row (`kMaxPaneMenuLabelLen`, 64 bytes, with the longest prefix this pane composes onto
+        // row (`kMaxPaneMenuLabelLen` bytes, with the longest prefix this pane composes onto
         // it). Read through `field_menu_label`, the one place the fallback is spelled.
         const char* menu_label = nullptr;
     };

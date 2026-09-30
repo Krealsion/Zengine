@@ -60,7 +60,7 @@ SEEN — `surface/terminal_size.hpp` `native_terminal_size`.
 
 ## VM-PLAT-08 — Windows narrows a wall-clock margin
 
-METHOD — Windows narrows a wall-clock margin: a 10 ms beat against the default ~15.6 ms timer granularity fits fewer beats than Linux, so each stray beat is a larger share of any tolerance.
+METHOD — Windows narrows a wall-clock margin: a <!-- value kBeatCapMs -->10<!-- /value --> ms beat against the default ~15.6 ms timer granularity fits fewer beats than Linux, so each stray beat is a larger share of any tolerance.
 BECAUSE — the default timer granularity fits about eight ten-millisecond beats where Linux fits
 eleven, so a wall-clock probe green locally has been tested on the wrong machine.
 SEEN — `tests/test_audit_probes.cpp`.

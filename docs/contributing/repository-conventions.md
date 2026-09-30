@@ -111,10 +111,6 @@ inside a source comment, because a comment has no stable directory to be relativ
 Avoid ellipses inside a supposedly-complete minimal example; make an intentional omission
 obvious.
 
-**Numbers and statuses have owners.** A count, a version, a population size or a "currently"
-written into prose or a comment will go stale silently. Prefer pointing at the file that owns
-it — the population inventory, the source, the plan — over copying it.
-
 **`docs/history/` is frozen.** It describes the tree it was written against and is not
 maintained against the current one. Do not fix it and do not cite it as current.
 
@@ -127,6 +123,39 @@ history stays in the original working copy. What is actually in there is indexed
 with source paths, the legacy interaction shape, and where the comparable question is answered
 today. It is archaeology, not authority: an entry saying a capability is absent is a statement
 about coverage, never a request for work.
+
+### Values the code owns
+
+A version, a limit, a count or a default the code owns is named by its owner — the constant,
+the budget, the format version — wherever a sentence needs it: "at most `kMaxHeldKeys` keys",
+"the setup file's `kFormatVersion`". A comment names the owner and no more; a number another
+repository owns, such as Loom's `loom::kTranscriptCapacity`, is named, never copied. Where a
+page's reader needs the number itself, it stands in a marker that renders as nothing:
+
+```markdown
+A carried pair is at most <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB.
+<!-- value kMaxCommandBytes in "longer than {} bytes" -->
+```
+
+The first holds the number between its two comments, written as the word after the id says
+(`KiB`, `MiB`, `GiB`, `s`, `pow2`, `grouped`, or nothing for the integer); two ids joined by a
+comma are one value two owners share, and they must agree. The second holds a spelling on its
+own line, or, standing alone, the next line or the fenced block after it: the form for a
+number inside code or a transcript. A marker shown inside a fenced block, as here, is an
+example and holds nothing, and `law_register` measures its budgets without markers.
+
+`code_values` (`tests/check_code_values.cmake`) reads each value
+[`tests/code_values.txt`](../../tests/code_values.txt) registers from its owner, and a marker
+that says otherwise is a red; `cmake -DZEN_VALUES_WRITE=ON -P tests/check_code_values.cmake`
+rewrites the markers to the owners' values. It also refuses an unmarked copy of a value it
+knows: the owner's name with a number beside it, in a page or a comment, and a spelling the
+registry names, such as a claim of a file format's current version. A shape's `Name vN` is an
+identity, frozen once published, and no copy.
+
+A test count outside the population inventory names, beside it, the commit and the command that
+measured it, or it is not written; `code_values` refuses one that names neither. No change
+sweeps for copies by hand: when review finds a moving value the registry does not know, it is
+registered in the change that found it.
 
 ## Naming
 

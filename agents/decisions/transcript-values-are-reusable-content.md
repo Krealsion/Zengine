@@ -13,6 +13,6 @@ requires an explicit target and current permission when invoked.
 
 A second Workshop payload cache would split retention ownership. Reparsing prose or rerunning a
 command would manufacture a different observation and possibly repeat effects. Both are rejected.
-Missing/evicted entries refuse; the current 64 KiB copy carrier limit stays visible.
+Missing/evicted entries refuse; the <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB copy carrier limit stays visible.
 
 **Laws supported.** [WL-TERM-17](../workshop/terminal.md).

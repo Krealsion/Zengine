@@ -61,7 +61,7 @@ struct ShownEntry {
 struct TranscriptShown {
     bool attached = false;
     std::int64_t participant = 0; ///< the identity the pane's header names
-    std::vector<ShownEntry> entries; ///< the whole record, oldest first; at most 256
+    std::vector<ShownEntry> entries; ///< the whole record, oldest first; at most loom::kTranscriptCapacity
     std::int64_t dropped = 0;        ///< evicted from the record entirely -- gone, not scrolled
     ZEN_SHAPE(TranscriptShown, 2, ZEN_FIELD(attached), ZEN_FIELD(participant),
               ZEN_FIELD(entries), ZEN_FIELD(dropped));
