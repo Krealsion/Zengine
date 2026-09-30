@@ -199,7 +199,7 @@ failed, and both are ordinary.
 shown.** Each of them is one row, and a load refused deep in the Loom — a shape that changed, a
 schema name a copied weave still shares — says more than one row holds, and there is no
 gesture anywhere that reads past a cut realize row or notice
-([why](panes.md#reading-a-value-the-pane-had-to-cut--retired)). Launch with `--log <path>`
+([why](panes.md#a-value-a-pane-had-to-cut-stays-cut)). Launch with `--log <path>`
 ([arguments](getting-started.md#arguments)) and the whole sentence is kept: that journal holds
 every realization answer — refused, realized, promoted, reverted — carrying the words the layer
 that refused actually said.

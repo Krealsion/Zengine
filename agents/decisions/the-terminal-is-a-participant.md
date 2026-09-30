@@ -105,9 +105,8 @@ there is no row for a notice that is not the weaver's own line, and the line kee
 requests — the act, the completion and the paste — and correlation tells this pane which
 question an answer is to, never that the question still stands. A completion request records
 the line and the caret it asks about (WL-TERM-11); a paste records the draft that asked
-(WL-TEXT-09, the check Workshop used to make for this line and the pane now makes for itself).
-Both were found in review, and both are the same finding: what used to be a function call is a
-round trip now, and a weaver keeps typing across it.
+(WL-TEXT-09, a check the pane makes for itself). Both were found in review, and both are the
+same finding: a call across the pane seam is a round trip, and a weaver keeps typing across it.
 
 **Consequences.** The participant's rule is narrower than Workshop's in the same shape: it may
 say `SurfaceText` only to whoever holds the skin's office. Measured on the minimum window when

@@ -97,5 +97,5 @@ self-test before they answer:
 
 Which suite witnesses which Workshop area is the table at the end of
 [population](verification/population.md#where-a-case-goes). The working harnesses for the live
-witness and the mutation matrix are kept with the phase records, outside this repository
-(VM-WIT-24); a register restates the method, never the program.
+witness and the mutation matrix are kept outside this repository (VM-WIT-24); a register
+restates the method, never the program.

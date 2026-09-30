@@ -30,7 +30,7 @@ SEEN — nowhere yet
 
 METHOD — A row scan tells an edge from a letter by reporting each run of one colour whose colour also holds a long PERPENDICULAR run; the same scan counts inked row bands to measure how many prose rows a pane shows.
 BECAUSE — no glyph makes a sixty-pixel vertical run, so a colour that holds one is an edge; the
-same scan read a twelve-pixel border off one phase's frames and a one-pixel one off the next.
+same scan read a twelve-pixel border off one build's frames and a one-pixel one off the next.
 SEEN — nowhere yet
 
 ## VM-WIT-12 — Ask what the oracle would say if the act had no effect

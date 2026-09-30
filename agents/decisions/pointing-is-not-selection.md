@@ -31,8 +31,8 @@ refusal.
 
 **Consequences.** `load_document()` drops a captured object subject, the one identity-aliasing
 door. `manage.remove` (`d`) completed the arranging vocabulary as the same owner arm the menu's
-remove row spends. `Order >` was renamed from `Arrange` when an `arrange` row one level up made
-that a lie. A live draft holds a contextual delete back. A stale catalog reference is a compile
+remove row spends. `Order >` is not called `Arrange`, because an `arrange` row one level up would
+make that a lie. A live draft holds a contextual delete back. A stale catalog reference is a compile
 error.
 
 **Laws supported.** [WL-CTX-01](../workshop/contextual.md),

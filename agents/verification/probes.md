@@ -90,7 +90,7 @@ BECAUSE — one increment on a four-thousand-line sample counted the materializa
 nothing about what one costs beside the history's own snapshot, which is the same order of
 work and was there all along; a count is not a cost.
 SEEN — `tests/test_workshop_panes_editor.cpp` case `"the mirror is rebuilt when the bytes move
-and at no other time"` (the count); the measurement rides with the phase record
+and at no other time"` (the count); the measurement is kept outside this repository
 (VM-WIT-24).
 
 ## VM-PROBE-13 — A bounded wait on a change is tested past the callee's resumption
