@@ -51,7 +51,7 @@ for.
   can express, which is a property of the types rather than of a check.
 - **`run.hpp` is not a shell.** It takes a program and an argument vector and runs them —
   `fork`/`exec` with a pipe on POSIX, `CreateProcess` with a pipe on Windows. `popen()` would
-  have been four lines and would also have been a general shell capability; a later phase that
+  have been four lines and would also have been a general shell capability; a caller that
   genuinely needs one can add it and argue for it, rather than finding it already here having
   arrived as a side effect of a button.
 - **What the split buys is reviewability, not containment.** An in-process weave shares the
@@ -195,9 +195,9 @@ answers into `BuildStatus` exactly as before.
 
 ## The build outlives the turn that asked for it
 
-The package's one process verb used to be *run, wait, result*, and it blocked: the runner
-built inside its own handler, on the bus the Workshop was pumping, so the whole application
-stopped until the child exited. That was replaced with **custody**, and nothing else. There is no
+The package's one process verb is **custody**, not *run, wait, result*: a runner that built
+inside its own handler, on the bus the Workshop pumps, would stop the whole application until the
+child exited. Custody is the whole of it. There is no
 scheduler, no thread, no queue, no coroutine and no async runtime; every line of the Builder
 still runs inside an ordinary handler, on the ordinary Loom execution thread, with an ordinary
 `Mail`.

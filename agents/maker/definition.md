@@ -72,7 +72,7 @@ WHY — `agents/decisions/the-seven-kinds-close-the-maker-path.md`
 LAW — The definition schema carries no author, signature or provenance field of any kind; the suite reads the schema for the field and `maker/definition.hpp` for the token.
 
 MEANS
-- a declared, unsigned name would be a claim nothing verifies; identity is a later phase's v2.
+- a declared, unsigned name would be a claim nothing verifies, so the format carries no identity.
 
 PROVEN BY — `maker/definition.hpp` `definition_schema`; `tests/test_maker.cpp` case `"the
 definition schema carries no author field, and the file says so"`.

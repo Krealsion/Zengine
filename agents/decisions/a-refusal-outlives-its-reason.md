@@ -28,7 +28,7 @@ answers with values.
   they never navigated to (`git log -S'weakly_canonical'` → `0cf8a94`).
 - *`is_symlink()`* — rejected, measured on Windows/MSVC: a directory junction answers false
   while `symlink_status().type()` is a platform extension that is not `directory`; the probe
-  and its table are in that phase's record, kept outside this repository.
+  and its table are kept outside this repository.
 - *Keeping the link refusal* — rejected: no property survived it (`0cf8a94`); pinned by case
   `"a linked directory is marked, entered through its own spelling, and left the way it came"`.
 - *The byte test alone for openability* — rejected: a refused name's `?` projection is entirely

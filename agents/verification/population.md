@@ -36,7 +36,7 @@ SEEN — `tests/doctest_main.cpp`; `tests/check_population.cmake`.
 
 ## VM-POP-05 — Floors are minimums anchored to a measured baseline
 
-METHOD — Floors are minimums anchored to a measured baseline: a phase that adds cases raises the floor to the measured count in the same commit; never lower one to make a deletion pass.
+METHOD — Floors are minimums anchored to a measured baseline: a change that adds cases raises the floor to the measured count in the same commit; never lower one to make a deletion pass.
 BECAUSE — additions are free and a deletion is a red only while the floor sits on the measured
 count; a floor left below it is slack that hides exactly that many deletions.
 SEEN — `tests/test_population.txt`.

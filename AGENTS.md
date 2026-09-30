@@ -51,9 +51,9 @@ routed: read a surface's document when the task touches that surface, not before
 **Where law lives (the re-accretion guard).** Surface law belongs in the routed surface
 document that owns it; this core gains a rule only when the rule is genuinely cross-cutting —
 needed for essentially any Zengine task. Routed documents hold **current law, rewritten in
-place**: a phase updates the sentences its change made false rather than appending a
-phase-titled account, and the evidence trail stays in Git history and the phase record, not
-here. A phase that edits this core rechecks its budget: **this file stays at or under 20 KB.**
+place**: a change updates the sentences it made false and states the present, never an account
+of itself, and its story stays in Git history, not here. A change that edits this core rechecks
+its budget: **this file stays at or under 20 KB.**
 Executor/internal material (this file and `agents/`) stays out of the public documentation
 index and out of the installed package.
 
@@ -145,8 +145,8 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   outside the repository), `package_vocabulary` (the installed package's nouns), `law_register`
   (the registers under `agents/`: the form, every name they make, and every file's byte budget;
   every case a current-facing document cites and every law id a source comment or document names
-  resolving; no plan code or step label in a case name, and no plan code in a current-facing
-  document) and
+  resolving; no plan code or step label in a case name, and in a current-facing document no plan
+  code, no development phase used as a clock and no history told in the forms the check names) and
   `source_comments` (the comment standard over the roots its own list names: no long block,
   removal note or private id). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).

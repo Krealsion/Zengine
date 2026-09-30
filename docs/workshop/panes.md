@@ -297,17 +297,13 @@ emulator's decision first (the Windows console and Windows Terminal both hand it
 the `a` key works everywhere. For a pane that keeps its right-clicks, the Pane Manager's
 `manage...` row reaches this menu for it ([the second button](#the-second-button--the-panes-first)).
 
-### Reading a value the pane had to cut — *retired*
+### A value a pane had to cut stays cut
 
 Where a single line does not fit the room it has, Workshop cuts it and says so with `...`.
-Pointing at such a line used to scroll the text under your pointer so you could read the rest.
-
-**That is gone, and it is a loss rather than a move.** It only ever worked where Workshop
-itself held the longer value and had cut it — the Info pane's object and property rows, and
-before them the browser's. Every one of those is a loaded pane now, and a pane sends rows it
-has *already* cut: Workshop never receives the longer value, so there is nothing left in its
-hand to reveal. Widening the pane protocol so a pane could be asked for a longer text is the
-one thing that would bring it back, and it is exactly the route this project refuses — a pane
+Pointing at such a line does not scroll the rest into view. A pane sends rows it has *already*
+cut: Workshop never receives the longer value, so there is nothing in its hand to reveal.
+Widening the pane protocol so a pane could be asked for a longer text is the one thing that
+would, and it is exactly the route this project refuses — a pane
 is a participant, not a thing the host reaches into.
 
 Where a value is too long, widen the pane or the window.
@@ -654,8 +650,7 @@ more to say than it can hold must say *how much it left out* — a count a reade
 count that names what it read.
 
 There is no plugin discovery and no installation story in the sense of a registry or a store —
-but a pane does arrive, and the way it arrives is a line you can edit. `Files` is the first pane
-that used to be compiled in and is now loaded exactly like the rest: a row in the load plan
-naming `zengine-files`. Removing the row removes the pane; replacing it replaces the pane. What
+but a pane does arrive, and the way it arrives is a line you can edit. `Files` is loaded exactly like
+the rest: a row in the load plan naming `zengine-files`. Removing the row removes the pane; replacing it replaces the pane. What
 there is no story for is DISCOVERING one you did not ask for: a pane arrives because an artifact was
 in the [load plan](load-plans.md) and the weave offered one.

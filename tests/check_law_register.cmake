@@ -657,6 +657,38 @@ function(zen_plan_document_ids text out)
     set(${out} "${ids}" PARENT_SCOPE)
 endfunction()
 
+# What a current-facing line tells that such a line never tells: the maintainers' process used as a
+# clock, or the page's own history in the forms that narrated a change every time they were read
+# by hand -- a heading marked RETIRED or *retired*, "used to be", "was renamed", "formerly", and a
+# bold note opening "It used to" or "Retired with". A behaviour that ends ("a holder that no longer
+# holds its office") and a technical phase ("the two-phase shutdown") are neither. The same
+# grammar as Loom's `doc_standard`. Sets ${out} to the words found, or "".
+function(zen_plan_document_told line out)
+    set(${out} "" PARENT_SCOPE)
+    if(line MATCHES "^#+ .*(RETIRED|[*]retired[*])")
+        set(${out} "a heading marked retired" PARENT_SCOPE)
+        return()
+    endif()
+    string(TOLOWER "${line}" low)
+    set(end "([^a-z'-]|$)")
+    # One pattern at a time: every MATCHES in an OR chain is evaluated, and a later miss would
+    # reset CMAKE_MATCH_0.
+    foreach(pattern
+            "(^|[^a-z-])(this|the next|a later|an earlier|the previous) phase('s)?${end}"
+            "(^|[^a-z-])(that|one) phase's${end}"
+            "(^|[^a-z-])a phase('s)? (that|which|whose|adds|edits|changes|touches|wrote|removed|records?)${end}"
+            "(^|[^a-z-])phase (records?|reports?|prompts?)${end}"
+            "(^|[^a-z])(used to be|(was|were|has been|have been) renamed|formerly)${end}"
+            "[*][*](it|there|this|they) used to${end}"
+            "[*][*]retired with${end}")
+        if(low MATCHES "${pattern}")
+            string(REGEX REPLACE "^[^a-z*]+|[^a-z']+$" "" found "${CMAKE_MATCH_0}")
+            set(${out} "${found}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+endfunction()
+
 # A bare label: a case name that opens with a lone letter or a number and then `:`, `.` or `)`,
 # the way a plan letters its steps (`b: `, `2: `, `(a) `). A word the name is about (`sdl: `) is
 # none. Sets ${out} to the label, or "".
@@ -935,6 +967,39 @@ if(NOT pc_label STREQUAL "WUX-9;SC-2" OR NOT pc_inside STREQUAL "WUX-12;SEM-0"
         "'${pd_clean}'. A development-phase code would then walk back into a case name or a "
         "document unnoticed.")
 endif()
+
+# The told-history predicate: every told form is found, and every ordinary sentence that shares a
+# word with one passes.
+foreach(told_line
+        "### Reading a value the pane had to cut -- *retired*"
+        "## Where the old canvas was -- RETIRED"
+        "> **It used to be `Ctrl`+`a`.** The list was an overlay a chord opened."
+        "**Retired with the object canvas.** The document this record decided is gone."
+        "`Order >` was renamed from `Arrange` when a row one level up made it ambiguous."
+        "The package's one process verb used to be run, wait, result, and it blocked."
+        "Floors are minimums: a phase that adds cases raises the floor."
+        "The harnesses live with the phase records, outside this repository."
+        "Identity is a later phase's work."
+        "Its table is in that phase's record.")
+    zen_plan_document_told("${told_line}" told)
+    if(told STREQUAL "")
+        message(FATAL_ERROR "law-register: SELF-TEST FAILED -- '${told_line}' was not found telling "
+                            "history or the process; the told forms have stopped matching.")
+    endif()
+endforeach()
+foreach(plain_line
+        "A holder that no longer holds its office is forgotten, and its lease with it."
+        "The two-phase shutdown observes the whole group before it claims the end."
+        "Each phase of the shutdown has its own bound, and in that phase nothing is sent."
+        "A retired spelling may appear in exactly one file, the checker that declares it."
+        "The value used to key the map is the content id."
+        "## WL-DOC-02 -- A property is read through its semantic surface and written by commit")
+    zen_plan_document_told("${plain_line}" told)
+    if(NOT told STREQUAL "")
+        message(FATAL_ERROR "law-register: SELF-TEST FAILED -- '${plain_line}' was read as telling "
+                            "history or the process ('${told}'); an ordinary sentence would be refused.")
+    endif()
+endforeach()
 
 # The bare-label predicate: a lone letter, a number and a parenthesised letter open a name as a
 # label; a word, a versioned scope and an article do not.
@@ -2431,6 +2496,7 @@ if(plan_document_count EQUAL 0)
         "failure here and not a quiet pass.")
 endif()
 set(plan_id_count 0)
+set(told_count 0)
 set(document_law_count 0)
 set(cite_count 0)
 set(cite_documents 0)
@@ -2453,7 +2519,13 @@ foreach(rel IN LISTS plan_documents)
     endforeach()
     zen_plan_document_ids("${content}" ids)
     zen_law_text_ids("${content}" laws)
-    if(NOT ids AND NOT laws)
+    # A document that holds none of the told forms' words is not read line by line for them.
+    string(TOLOWER "${content}" lowered)
+    set(may_tell FALSE)
+    if(lowered MATCHES "phase|used to|renamed|formerly|retired")
+        set(may_tell TRUE)
+    endif()
+    if(NOT ids AND NOT laws AND NOT may_tell)
         continue()
     endif()
     string(REPLACE "\n" ";" lines "${content}")
@@ -2478,6 +2550,13 @@ foreach(rel IN LISTS plan_documents)
             math(EXPR plan_id_count "${plan_id_count} + 1")
             zen_law_fail("${rel}:${n}: ${id} is a development-phase id; say the fact in words (docs/contributing/repository-conventions.md, the external-reader rule)")
         endforeach()
+        if(may_tell)
+            zen_plan_document_told("${line}" told)
+            if(NOT told STREQUAL "")
+                math(EXPR told_count "${told_count} + 1")
+                zen_law_fail("${rel}:${n}: \"${told}\" tells the maintainers' process or the page's history -- state the present fact, and leave history to docs/history/ and Git (docs/contributing/repository-conventions.md)")
+            endif()
+        endif()
     endforeach()
 endforeach()
 if(cite_count EQUAL 0)
@@ -2489,8 +2568,8 @@ endif()
 message(STATUS
     "law-register: plan codes -- ${witness_count} case names read, ${bare_label_count} bare "
     "labels, ${plan_case_law_count} law ids they open with resolved, ${plan_document_count} "
-    "current-facing documents read, ${plan_id_count} phase ids found, ${document_law_count} law ids "
-    "they name resolved")
+    "current-facing documents read, ${plan_id_count} phase ids found, ${told_count} lines telling "
+    "the process or history found, ${document_law_count} law ids they name resolved")
 message(STATUS
     "law-register: citations -- ${cite_count} cases cited by name in ${cite_documents} documents; "
     "${comment_id_count} law ids named in source comments")

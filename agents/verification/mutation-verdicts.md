@@ -61,7 +61,7 @@ SEEN — nowhere yet
 ## VM-MUT-16 — A mask is usually a hole in an older suite
 
 METHOD — A mask is usually a hole in an OLDER suite: close it by arranging the missing condition, and expect that case to be the cheapest defect-finder you have.
-BECAUSE — three of seventeen masks each closed an earlier phase's three-quarters-proven claim at
+BECAUSE — three of seventeen masks each closed an older suite's three-quarters-proven claim at
 one case and one re-run apiece; one such case went red on the pristine tree and found a real
 normalization defect.
 SEEN — nowhere yet
@@ -79,7 +79,7 @@ SEEN — nowhere yet
 METHOD — A case that lands on a handler's deliberate `false` path proves nothing about the handler: find the consuming path by pressing for it, then arrange the contest.
 BECAUSE — the cell the case pressed was a row the handler declines by design, so the press fell
 through and the mutant hoisting the arms back was invisible; the declining paths are exactly the
-ones a phase wrote a comment about.
+ones a comment explains.
 SEEN — nowhere yet
 
 ## VM-MUT-18 — Check which suite the row aimed at before calling a green a hole
