@@ -45,7 +45,7 @@ SEEN — nowhere yet
 
 METHOD — Snapshot the bytes at the start and restore by rewriting them: never a metadata-preserving copy (rebuilds nothing) and never `git checkout` (restores the predecessor's file); key backups by full path.
 BECAUSE — a preserved mtime rebuilds nothing, so a mutation ran on the previous one's objects
-under an all-CAUGHT matrix; a checkout over uncommitted work threw a phase's two headers away.
+under an all-CAUGHT matrix; a checkout over uncommitted work threw two new headers away.
 SEEN — nowhere yet
 
 ## VM-MUT-09 — Hash the artifact the mutation lands in

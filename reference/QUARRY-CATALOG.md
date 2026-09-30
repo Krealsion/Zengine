@@ -1721,7 +1721,7 @@ cost*. These are the entries whose value is precisely that they were not repeate
 
 ## 6. Open questions and uncertainties
 
-Recorded rather than resolved, per the phase's own rule.
+Recorded rather than resolved.
 
 - **Which parts of stratum A the founder considers "the old engine" versus scaffolding.** The
   catalog treats `src/zengine/**` and `src/apps/**` as one stratum, but the internal drift
@@ -1747,7 +1747,7 @@ Recorded rather than resolved, per the phase's own rule.
   observed; classifying file by file was not attempted and would change how much of §4's
   "requirement evidence" is genuinely the founder's.
 
-### Research questions a future phase might choose to pose
+### Research questions a reader might choose to pose
 
 *Questions, not work items. None of these implies that the answer is "build it".*
 
