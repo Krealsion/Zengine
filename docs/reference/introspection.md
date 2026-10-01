@@ -32,9 +32,11 @@ can keep them in a saved setup like any other pane.
 
 `Loaded` and `Project` are read-only projections. **`Powers` is a browser**: it shows the
 computational vocabulary this host currently resolves, separated into
-[Sources and Operators](operator-sources.md), and it is searchable, navigable and — for a Source —
-samplable on an explicit gesture. Everything below about snapshots, authorities and disagreement
-applies to all three. Loaded also scrolls and selects a target for Compose.
+[Sources and Operators](operator-sources.md), and it is searchable — by name and by what each
+power is for — navigable and, for a Source, samplable on an explicit gesture. It reads all of it
+from the host's [discovery door](#the-discovery-door-finding-a-power), the same door the Terminal
+asks. Everything below about snapshots, authorities and disagreement applies to all three.
+Loaded also scrolls and selects a target for Compose.
 
 ## Three questions, three owners, and they disagree on purpose
 
@@ -177,13 +179,15 @@ provider is a row here and absent from `Loaded`.
   zengine.recipes.catalog
   yields zengine.ProjectAnchor v1
   [ Sample ]
+  the project directory this Workshop was started in
+  () -> anchor: Text
   active    zengine.workshop.host
 sampled when asked  zengine.project.anchor
   zengine.ProjectAnchor v1
     anchor  "/home/weaver/projects/zen"
 this pane describes this host's operator resolution only
 3 powers resolve here -- from 2 providers
-snapshot from zengine.arrangement, on room grant
+snapshot from zengine.powers, when the search is asked
 ```
 
 **It is one pane, not two.** There is no Sources pane and no Operators pane; there is one
@@ -192,22 +196,29 @@ on either word in the chrome row.
 
 - **Membership is derived and is never authored twice.** A power with **zero** weaver inputs is a
   Source; a power with **one or more** is an Operator, and that is read off the very definition the
-  host resolves through ([Sources](operator-sources.md)). No contributor declares a kind, no
-  registration flag exists, and nothing classifies by name — an identity spelled `source.anything`
-  that takes an argument is an Operator here.
+  host resolves through ([Sources](operator-sources.md)), by the discovery door, at each ask. No
+  contributor declares a kind, no registration flag exists, and nothing classifies by name — an
+  identity spelled `source.anything` that takes an argument is an Operator here. A conversion — one
+  version of a shape in, another out — is an Operator too, and is listed with them.
 - **`Composite` is an independent fact**, so all four combinations are legal and all four appear.
   It is the definition's own answer (`OperatorDef::is_composite`) about the power's **active**
   contribution, and it promises exactly one thing: *this power's current implementation has known
-  compositional structure*. It does not mean openable, editable or deconstructable — there is no
-  graph surface in this build and no row that offers one.
+  compositional structure*. It does not mean openable, editable or deconstructable.
+- **What a power is for is its contributor's sentence**, shown under the selected power and carried
+  with the contribution ([operator providers](operator-providers.md#what-a-contribution-says-about-itself)),
+  so an overlay shows its own words. A byte a row cannot carry is drawn as `?`.
+- **`(not offered)`** marks a power its contributor offers to no one else's composition — a
+  participant's own reaction, such as a running Flow definition's trigger. It is listed, because a
+  weaver browsing may want to know it is there, and says so.
 - **`active` is what an evaluation actually spends**, and the selected power's block lists its whole
-  contribution stack active-first, with `shadowed` under it where an overlay exists. The pane reads
-  the same layered store `Catalog::find` resolves through, so `math.max` reading
-  `active zengine.operators.test.min` and a running Timer computing the substituted answer are one
-  fact, not two that agree.
-- **`yields` says what a sample would produce, without producing one.** The output schema's name and
-  version ride in the projection because an `OperatorDef` has held them since it was authored — so
-  the question *what would I get?* is answered by a read, never by running anything.
+  contribution stack active-first, with `shadowed` under it where an overlay exists, each in its own
+  words. The pane reads the same layered store `Catalog::find` resolves through, so `math.max`
+  reading `active zengine.operators.test.min` and a running Timer computing the substituted answer
+  are one fact, not two that agree.
+- **`yields` says what a sample would produce, without producing one**, and the line under it is the
+  power's signature, each port's type in Loom's own spelling. The output schema's name and version
+  ride in the answer because an `OperatorDef` has held them since it was authored — so the question
+  *what would I get?* is answered by a read, never by running anything.
 - **`(this host)`** would name a contribution the host published with no provider identity at all.
   `zengine-workshop` mounts even its own two Sources under a named provider, so it never appears
   there.
@@ -231,19 +242,25 @@ on either word in the chrome row.
   in the band's legend and the hotkey view while the pane holds the keys, a keymap file moves
   them by id exactly as it moves Workshop's own rows, and the pane is sent the resolved id, never
   the key. Typing is not among them: the query field's editing is the component's own.
-- **Search is a case-insensitive ASCII substring over the power identity.** An empty query matches
-  everything, bytes at or above `0x80` compare exactly, and it **filters without reordering** — the
-  catalog's order is the catalog's. There is no fuzzy matching, no provider or schema search, and no
-  ranking. It combines with `Composite` as logical AND.
+- **The search is the discovery door's.** The pane asks the [door](#the-discovery-door-finding-a-power)
+  the view as a kind, the query as text and `Composite` as a construction, together, and shows the
+  rows it answers without matching anything again — so the Terminal asking the same question gets
+  the same rows. A power matches when every word of the query is an ASCII
+  case-insensitive substring of its identity or of what it is for. An empty query matches
+  everything, bytes at or above `0x80` compare exactly, and the door **filters without
+  reordering** — the catalog's order is the catalog's. There is no fuzzy matching and no ranking.
+- **One answer is one page.** Past `kMaxPowerRows` rows the rest are counted on a line of their
+  own, `+ 12 more match -- narrow the search`, never silently absent.
 - **`2/3` is where you are in the list you are navigating** — the cursor's position within the
-  current filtered view, over that view's population. `-` means nothing is selected. The count at
-  the foot (`3 powers resolve here — from 2 providers`) is the *whole reading*, which is a different
-  question, and it appears only when there is room nothing else wanted.
+  current answer, over its population. `-` means nothing is selected. The count at the foot
+  (`3 powers resolve here — from 2 providers`) is the *whole catalog the door read*, which is a
+  different question, and it appears only when there is room nothing else wanted.
 - **Your place is held by IDENTITY, one per view.** Leave `Sources` for `Operators` and come back
   and your Source is still selected; the same is true the other way, independently. A query, the
   `Composite` filter or a short pane can HIDE the marked row — the selection survives all three and
-  the mark returns with the row. Only a **fresh reading in which the power is genuinely absent**
-  clears it.
+  the mark returns with the row. Only **the door saying the power is gone** clears it: the pane
+  asks the door about the selected power whenever the selection moves and at each grant, and an
+  answer that nothing supplies it here — or that it now belongs to the other view — clears it.
 - **Text you type or paste must be printable ASCII**, because a provider's rows are (one canvas cell
   per byte). A chunk carrying anything else is refused **whole** rather than filtered — you get none
   of it rather than a mangled half. The query's own selection works for cut and copy but cannot be
@@ -254,10 +271,11 @@ on either word in the chrome row.
 
 ### Sampling a Source
 
-**Browsing never evaluates.** Describing the catalog, taking a fresh reading, deriving the two
-views, filtering, searching, moving the cursor, drawing the selected detail and repainting run
-**zero** evaluator bodies. That is structural rather than careful: the pane's image links no
-operator code at all, so there is nothing in it to call.
+**Browsing never evaluates.** Asking the door, switching views, filtering, searching, moving the
+cursor, drawing the selected detail and repainting run **zero** evaluator bodies. In the pane that
+is structural rather than careful: its image links no operator code at all, so there is nothing in
+it to call. At the door it is the derivation's: it reads each definition's signature, construction
+and words and calls none, so browsing through it leaves `op::invocations()` where it was.
 
 Evaluation happens on exactly one gesture. `Return` on a selected Source — or a press on
 `[ Sample ]` — sends the power's identity to the host, which resolves it **at that moment**, runs
@@ -284,8 +302,9 @@ an answer nobody authored.
 | that a weave is *not* listed | nobody — **not observed** | — | — | it is not in the kernel's map. It may still be running |
 | what the project authored | the **load plan file**, held by the host | `ArrangementRequested` → `zengine.arrangement` → `ResolvedArrangement` | a **snapshot**, re-read on each room grant | the plan named no such artifact |
 | what resolved from it | the host's **realization owner** (its cursor and its resolved rows) | same message | same snapshot | realization has not reached that row |
-| which powers resolve | the host's **`op::Catalog`** (the same store `find` resolves through) | `PowersRequested` → `zengine.arrangement` → `ResolvedPowers` | a **snapshot**, re-read on each room grant | nothing supplies that identity here |
-| that a power is *not* listed | nobody — **not observed** | — | — | this host's catalog does not resolve it, and the pane says nothing about any other |
+| which powers resolve, and what each is for | the host's **`op::Catalog`** (the same store `find` resolves through), and the words each contribution carries | `FindPowers` → `zengine.powers` → `PowersFound` | a **snapshot**, asked again at each room grant and each change of the search | nothing supplies that identity here, or the search excludes it |
+| whose contributions stand behind one power | the same catalog's stack for that identity | `DescribePower` → `zengine.powers` → `PowerDescribed` | a **snapshot**, asked again when the selection moves and at each room grant | nothing supplies that identity here, and the selection clears |
+| that a power is *not* listed | nobody — **not observed** | — | — | this host's catalog does not resolve it or the search excludes it, and the pane says nothing about any other host |
 | what a Source answers | the **Source's own body**, run once at the spend | `SampleRequested` → `zengine.sources` → `op::sample` → `SourceSampled` | **historical** — what it said when the weaver asked, and never re-read | it refused, and the refusal is the catalog's own words |
 
 The third row is why the pane always carries `in-process weaves are not in the kernel's map`.
@@ -329,59 +348,132 @@ resolved rows and the operator catalog are **locals of the host's `main`**. Noth
 cross that line — not a pointer, not a reference, not a container, and not a callable that closes
 over one.
 
-So the host mounts one small read-only participant, `ArrangementDoor`, in the office
-`zengine.arrangement`, and the tool asks it the way it already asks the Kernel:
+So the host mounts two small read-only participants — `ArrangementDoor` in the office
+`zengine.arrangement`, and the discovery door, `PowersDoor`, in **`zengine.powers`** — and the tool
+asks them the way it already asks the Kernel:
 
 ```text
 ArrangementRequested  ->  zengine.arrangement  ->  ResolvedArrangement   (an ANSWER)
-PowersRequested       ->  zengine.arrangement  ->  ResolvedPowers        (an ANSWER)
+FindPowers            ->  zengine.powers       ->  PowersFound           (an ANSWER)
+DescribePower         ->  zengine.powers       ->  PowerDescribed        (an ANSWER)
 ```
 
 This is the seam the `Loaded` pane already spends, pointed at two more facts: `zen.ListLoaded` goes
 to the Weave Manager, an in-process weave holding kernel reach, and comes back as a value. It is
 deliberately not a second mechanism, not a host API widening, and not a service locator.
 
-**The door derives; it does not remember.** It holds three `const` references it does not own and
-answers each question by reading them *at the moment it is asked*. There is no map, no cache, no
-mirror, no registry and nothing that has to be updated when something mounts, loads, shadows or
-unloads — which is exactly what makes an overlay mounted after the last reading show up in the next
-one with nothing having notified anybody.
+**The doors derive; they do not remember.** Each holds a `const` reference it does not own — the
+arrangement door the realization owner, the discovery door the catalog — and answers each question
+by reading it *at the moment it is asked*. There is no map, no cache, no mirror, no registry and
+nothing that has to be updated when something mounts, loads, shadows or unloads — which is exactly
+what makes an overlay mounted after the last reading show up in the next one with nothing having
+notified anybody.
 
-**It publishes nothing.** Every answer goes through Loom's own answer door to the one weave that
+**They publish nothing.** Every answer goes through Loom's own answer door to the one weave that
 asked, so provider identities and power overlays do not become ambient knowledge for participants
 that never asked. And because the answer is Loom's, the asker reads `mail.answers_ask()` — delivery
 provenance no payload can write and no sender can choose — which is a stronger bound than the
 correlation match `zen.ListLoaded` has to make do with.
 
-**Who may ask:** an **office**, and only an office. The door refuses an ask that was not
-deliberately authored as one, and counts the refusal. That rule names nobody — there is no
-allow-list and no `zengine.introspection` in it — so a tool added tomorrow asks the same way with
-no edit. It is **not containment**: `Kernel::load` binds `allow_any()` to every library it opens
-and the plan binds each loaded weave to a role, so any dynamic weave in this process could satisfy
-it. What it excludes is anonymous speech and a root send; what it buys is that every answer the
-door has ever given went to a named office.
+**Who may ask the arrangement door:** an **office**, and only an office. The door refuses an ask
+that was not deliberately authored as one, and counts the refusal. That rule names nobody — there
+is no allow-list and no `zengine.introspection` in it — so a tool added tomorrow asks the same way
+with no edit. It is **not containment**: `Kernel::load` binds `allow_any()` to every library it
+opens and the plan binds each loaded weave to a role, so any dynamic weave in this process could
+satisfy it. What it excludes is anonymous speech and a root send; what it buys is that every answer
+the door has ever given went to a named office. The discovery door's rule is wider, and says why
+[below](#the-discovery-door-finding-a-power).
 
-**What the door cannot do:** it answers two shapes and says nothing else, ever. It cannot mount,
-unmount, overlay, evaluate, load, unload, reload or replace anything, and its grant is the two
-answer shapes and nothing else. *Knowledge of a power is not authority to replace it.*
+**What the doors cannot do:** each answers its own questions and says nothing else, ever. Neither
+can mount, unmount, overlay, evaluate, load, unload, reload or replace anything, and each one's
+grant is its answer shapes and nothing else. *Knowledge of a power is not authority to replace it.*
 
 **A host that mounts no door holds no such office.** An ask addressed to it reaches nobody and the
 two panes read `(waiting for the provider)`. That is a correct arrangement rather than a hole:
 `zengine-snake` has no authored project to describe and owes no answer about one.
 
-### The second door: the one office that may run a Source
+### The discovery door: finding a power
 
-Sampling needed a different kind of door, so it got one. `zengine-workshop` mounts a second small
-participant in the office **`zengine.sources`**, beside the first:
+The discovery door is where a weaver's tools find a power: the `Powers` pane and the Terminal ask
+it the same two questions, so one question gets the same rows wherever it is asked.
+
+```text
+FindPowers{text, takes, yields, provider, kind, construction, offered, after, limit}
+    ->  zengine.powers  ->  PowersFound{ok, reason, rows, next, total, powers, providers}
+DescribePower{identity}
+    ->  zengine.powers  ->  PowerDescribed{ok, reason, identity, row, stack, contribution}
+```
+
+**Every field of `FindPowers` is optional**, and the fields given must all hold:
+
+| field | a power fits when |
+|---|---|
+| `text` | every whitespace-separated word is an ASCII case-insensitive substring of its identity or of what it is for |
+| `takes` | one of its inputs carries exactly this type, in Loom's own spelling: `Int`, `Text`, `List<Int>`, `Message(zengine.ProjectAnchor v1)` |
+| `yields` | one of its outputs carries exactly this type, spelled the same way |
+| `provider` | the contribution in force came from this provider |
+| `kind` | it is a `source` (no weaver inputs), a `conversion` (it takes one version of a shape and answers another) or an `operator`; an ask for `operator` finds conversions too |
+| `construction` | its contribution in force is `native` or `composite` |
+| `offered` | its contributor offers it for others to compose, or does not |
+| `after` | its identity sorts after this one — the next page, from an answer's `next` |
+| `limit` | — the most rows the answer carries, 1 to `kMaxPowerRows` (<!-- value kMaxPowerRows -->100<!-- /value -->) |
+
+**A row is the contribution in force, read off its definition at the ask**: its identity, its
+provider, its kind and construction, whether it is offered, what it is for in its contributor's
+words, its signature in Loom's spelling (`(lhs: Int, rhs: Int) -> result: Int`) and its input and
+output schemas by identity. Nothing stands beside the catalog — no index, cache, mirror or
+description table — and no second classification: kind and construction are what the definition
+says, derived at each ask. So an overlay mounted after one ask is in the next answer with its own
+words, and its unmount restores the words beneath.
+
+**Rows come in the catalog's order, never ranked.** `total` counts every power the ask fits, `next`
+names the last row when more remain, and `powers` and `providers` count the whole catalog.
+
+**`DescribePower` answers one identity**: its row, every contribution eligible to satisfy it with the
+one in force last — each layer's provider, construction, offering and words — and the contribution
+in force as [`zengine.OperatorContribution`](operator-providers.md#what-a-contribution-says-about-itself)
+bytes. Neither question runs a body.
+
+**An ask past a bound is refused in words**, `ok` false and `reason` saying which bound and by how
+much, and nothing is found: an ask carries at most `kMaxPowersQueryBytes`
+(<!-- value kMaxPowersQueryBytes -->1024<!-- /value -->) bytes of text across its fields, a page
+holds 1 to `kMaxPowerRows` rows, and an answer carries at most `kMaxPowersAnswerBytes`
+(<!-- value kMaxPowersAnswerBytes MiB -->1<!-- /value --> MiB). A `kind` or `construction` that is
+none of its words is refused the same way.
+
+**A power's words describe it and do nothing else.** Nothing reads them, or the `offered` mark, to
+decide what may run, be reordered, removed or trusted, and they are no part of any schema, so they
+move no content id. A power that is not offered is a participant's own reaction, such as a running
+Flow definition's trigger, and `Powers` and the Terminal list it, saying so.
+
+**Who may ask:** anyone who can be answered — an office, or a participant speaking for itself, as
+the Terminal does, which holds no office. A send with no sender (a root's) has nobody to answer, so
+it is counted and not answered. The rule names nobody, so every tool asks the same way, and like
+the arrangement door's it is not containment. It is wider than the arrangement door's because the
+Terminal, one of the askers it exists for, holds no office, and what it says goes only to whoever
+asked.
+
+**From the Terminal**, `zengine-workshop` lets its participant ask these two questions of the door's
+office and nothing more ([Terminal](../workshop/terminal.md#finding-a-power)):
+
+```text
+ask @zengine.powers FindPowers 1 text=larger
+ask @zengine.powers DescribePower 1 identity=math.max
+```
+
+### The sample door: the one office that may run a Source
+
+Sampling needed a different kind of door, so it got one. `zengine-workshop` mounts another small
+participant in the office **`zengine.sources`**, beside the two that describe:
 
 ```text
 SampleRequested{identity}  ->  zengine.sources  ->  SourceSampled{identity, ok, reason, lines}
 ```
 
 **The split is the point.** *Which office can cause evaluation?* deserves a one-word answer, and
-after this it still has one — `ArrangementDoor` describes and cannot run anything, and the sample
-door runs exactly one Source per ask and describes nothing. Widening the first would have saved a
-file and cost that sentence forever.
+after this it still has one — the arrangement and discovery doors describe and cannot run anything,
+and the sample door runs exactly one Source per ask and describes nothing. Widening either
+describing door would have saved a file and cost that sentence forever.
 
 - **It holds the catalog as a `const` reference and remembers nothing** — no provider, no
   definition, no callable, no schema and no previous answer. Two samples of one identity resolve
@@ -429,25 +521,30 @@ is nothing to subscribe to, and a consumer that polled for one would be a consum
 Introspection re-reads when **Workshop grants a pane its room**, and Loaded also re-reads
 when scrolling moves its viewport. That happens
 when the pane opens, when a valid re-offer refreshes it, and when the resolved prose capacity
-changes. Between readings the rows are a snapshot, not a feed, and the last line of the pane says
-which. **Each of the three panes keeps its own room and its own outstanding question**, so a
+changes. `Powers` also asks again whenever the weaver changes the question: a new query, view or
+`Composite` filter asks the door the new search, and moving the selection asks it about the power
+now selected. Between readings the rows are a snapshot, not a feed, and the last line of the pane
+says which. **Each of the three panes keeps its own room and its own outstanding questions**, so a
 weaver with all three open never has one pane's grant decide how another is drawn.
 
 There is no arrival event for a weave, and there is no mount event for a provider either — so there
 is nothing to subscribe to for any of the three, and nothing here polls. The `Powers` pane is the
-one whose subject genuinely changes mid-run; an overlay mounted since the last grant is in the next
-reading, with nobody having been told.
+one whose subject genuinely changes mid-run; an overlay mounted since the last ask is in the next
+answer, with nobody having been told.
 
 There is no refresh button. A press is a gesture *about a place in the pane* and this tool does not
 read one as "go and look again" — selection must refer to the displayed snapshot. Closing
-and reopening the pane, or resizing it enough to move its prose capacity, re-reads.
+and reopening the pane, or resizing it enough to move its prose capacity, re-reads; in `Powers`, so
+does changing the search.
 
-**`Powers` keeps its last reading between grants, and that is what its search and its cursor work
-over.** It is still a snapshot: it is replaced *whole* by the next reading, never compared against
-the one before it, and dropped at every grant — so between the grant and the answer the pane shows
-`(waiting for the provider)` and holds no map a press could be read against. What survives a fresh
-reading is everything the *weaver* authored — the view, the query, the filter, both selected
-identities and any retained sample — because none of those is a fact about the host.
+**`Powers` keeps its last answer between asks, and that is what its cursor works over.** It is
+still a snapshot: it is replaced *whole* by the next answer, never compared against the one before
+it, and dropped at every grant — so between the grant and the answer the pane shows
+`(waiting for the provider)` and holds no map a press could be read against. An answer to a search
+the weaver has since changed is dropped by its correlation, so a late answer never replaces a newer
+one. What survives a fresh answer is everything the *weaver* authored — the view, the query, the
+filter, both selected identities and any retained sample — because none of those is a fact about
+the host.
 
 ## Selecting a row
 
@@ -524,8 +621,8 @@ a fresh process           a saved setup naming zengine.introspection/loaded that
 ```text
 CAN
   ask the Weave Manager one question          zen.ListLoaded
-  ask the host's door two questions           ArrangementRequested, PowersRequested,
-                                              as its own office
+  ask the arrangement door one question       ArrangementRequested, as its own office
+  ask the discovery door two questions        FindPowers, DescribePower, as its own office
   offer Workshop its three panes              PaneOffered, as its own office
   publish rows inside the grants it was given PaneContent, as its own office
   state which row a weaver selected            LoadedSelected, as its own office
@@ -623,13 +720,16 @@ introspection/vocabulary.hpp   the three durable PaneRef halves, each pane's nam
 introspection/loaded.hpp       the Loaded pane's pure core: parse the Manager's answer, spend the
                                budget, map each row back to the entry it names, move the mark
 introspection/resolved.hpp     the Project pane's pure core, and the ONE budget rule it shares
-introspection/powers.hpp       the Powers browser's pure core: the two derived views, the search,
-                               the filter, the identity-held cursor, the row/control map, the
+introspection/powers.hpp       the Powers browser's pure core: the search it asks the door, the
+                               two views, the identity-held cursor, the row/control map, the
                                chrome, the detail and the retained sample
 introspection/introspection.cpp the weave: when to observe, whom to believe, what a press means
 
-workshop/arrangement_vocabulary.hpp  the two questions and the two answers, as ordinary shapes
-workshop/arrangement.hpp             the two derivations, and the host's read-only door
+workshop/arrangement_vocabulary.hpp  the arrangement question and its answer, as ordinary shapes
+workshop/arrangement.hpp             the arrangement's derivation, and the door that answers it
+workshop/powers_vocabulary.hpp       the discovery door's two questions, two answers and bounds
+workshop/powers_door.hpp             the two derivations over the live catalog, the door, and
+                                     what a terminal may ask it
 workshop/sample_vocabulary.hpp       the ask and the answer of one explicit sample
 workshop/sample_door.hpp             the one office that may run a Source
 workshop/sample_presentation.hpp     an admitted value, as bounded prose

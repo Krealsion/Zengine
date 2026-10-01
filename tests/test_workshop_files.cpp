@@ -1620,12 +1620,11 @@ op::OperatorDef parameterized_def(const std::string& identity) {
                            });
 }
 
-/// The ACTIVE contribution to one power in a projection, or nothing.
-const ws::PowerContribution* contribution_of(const ws::ResolvedPowers& said,
-                                             const std::string& power) {
-    for (const ws::PowerStack& p : said.powers) {
-        if (p.power == power && !p.contributions.empty()) {
-            return &p.contributions.back(); // active last, the catalog's own order
+/// One power's row in the discovery door's answer -- the contribution in force -- or nothing.
+const ws::PowerRow* row_of(const ws::PowersFound& said, const std::string& power) {
+    for (const ws::PowerRow& row : said.rows) {
+        if (row.identity == power) {
+            return &row;
         }
     }
     return nullptr;
@@ -1833,47 +1832,51 @@ TEST_CASE("enumeration says what a sample would yield, and samples nothing") {
     REQUIRE(r.expose());
 
     const std::uint64_t before = op::invocations();
-    const ws::ResolvedPowers said = describe_powers(r.catalog);
+    const ws::PowersFound said = find_powers(r.catalog, ws::FindPowers{});
     const std::uint64_t after = op::invocations();
 
     // NOT ONE BODY RAN. Running one to find out what it yields would be a side effect
     // in a view, and it is also unnecessary: a definition has carried both its schemas
     // since it was authored.
     CHECK(after == before);
+    REQUIRE(said.ok);
 
-    const ws::PowerContribution* anchor = contribution_of(said, kProjectAnchorSource);
-    const ws::PowerContribution* recipes = contribution_of(said, kRecipeCatalogSource);
+    const ws::PowerRow* anchor = row_of(said, kProjectAnchorSource);
+    const ws::PowerRow* recipes = row_of(said, kRecipeCatalogSource);
     REQUIRE(anchor != nullptr);
     REQUIRE(recipes != nullptr);
 
-    // IDENTITY, PROVENANCE, COMPOSITE, SOURCE, AND WHAT A SAMPLE WOULD RETURN -- the five
-    // facts a Sources surface needs, in ONE projection, with no per-identity describe.
+    // IDENTITY, PROVENANCE, CONSTRUCTION, KIND, WHAT A SAMPLE WOULD RETURN AND WHAT IT IS FOR --
+    // the facts a Sources surface needs, in ONE answer, with no per-identity describe.
     CHECK(anchor->provider == kHostProvider);
-    CHECK(anchor->source);
-    CHECK_FALSE(anchor->composite);
-    CHECK(anchor->output.name == "zengine.ProjectAnchor");
-    CHECK(anchor->output.version == 1);
-    CHECK(recipes->source);
-    CHECK(recipes->output.name == "zengine.RecipeCatalog");
+    CHECK(anchor->kind == ws::kSourceKind);
+    CHECK(anchor->construction == ws::kNativeConstruction);
+    CHECK(anchor->outputs.name == "zengine.ProjectAnchor");
+    CHECK(anchor->outputs.version == 1);
+    CHECK(anchor->about == "the project directory this Workshop was started in");
+    CHECK(anchor->offered);
+    CHECK(recipes->kind == ws::kSourceKind);
+    CHECK(recipes->outputs.name == "zengine.RecipeCatalog");
+    CHECK(recipes->about == "which recipe catalog is in force, and how many recipes it holds");
 
     // ...AND THE IDENTITY IS THE DEFINITION'S OWN, not a number this view computed from a
     // structure it happened to walk.
-    CHECK(anchor->output.content_id ==
+    CHECK(anchor->outputs.content_id ==
           static_cast<std::int64_t>(
               r.catalog.find(kProjectAnchorSource)->outputs()->content_id()));
-    CHECK(recipes->output.content_id ==
+    CHECK(recipes->outputs.content_id ==
           static_cast<std::int64_t>(
               r.catalog.find(kRecipeCatalogSource)->outputs()->content_id()));
 
-    SUBCASE("an ordinary Operator in the same projection is NOT a Source") {
-        // The projection reads shape off the store and branches on no identity: a power
-        // this file never heard of would classify the same way.
+    SUBCASE("an ordinary Operator in the same answer is NOT a Source") {
+        // The door reads shape off the store and branches on no identity: a power this file
+        // never heard of would classify the same way.
         r.catalog.publish(parameterized_def("test.needs.an.argument"));
-        const ws::ResolvedPowers again = describe_powers(r.catalog);
-        const ws::PowerContribution* asks = contribution_of(again, "test.needs.an.argument");
+        const ws::PowersFound again = find_powers(r.catalog, ws::FindPowers{});
+        const ws::PowerRow* asks = row_of(again, "test.needs.an.argument");
         REQUIRE(asks != nullptr);
-        CHECK_FALSE(asks->source);
-        CHECK(asks->output.name == "test.needs.an.argument.out");
+        CHECK(asks->kind == ws::kOperatorKind);
+        CHECK(asks->outputs.name == "test.needs.an.argument.out");
         CHECK(asks->provider.empty()); // published by this rig itself, exactly as the wire says
     }
 }
@@ -1881,7 +1884,7 @@ TEST_CASE("enumeration says what a sample would yield, and samples nothing") {
 TEST_CASE("the flow -- expose, enumerate without evaluating, sample, swap, sample") {
     // THE INTEGRATION WITNESS, THROUGH THE PRODUCTION OWNERS AND THE PRODUCTION SEAMS.
     // Every step below is the thing `workshop.cpp` actually calls: `mount_host_sources`,
-    // `describe_powers`, `op::sample`, `install_recipes`. There is no test-only Source
+    // `find_powers`, `op::sample`, `install_recipes`. There is no test-only Source
     // store anywhere in it.
     TempDir dir("srcflow");
     const std::filesystem::path root = dir.path();
@@ -1898,11 +1901,13 @@ TEST_CASE("the flow -- expose, enumerate without evaluating, sample, swap, sampl
 
     //  2  enumerate without evaluating
     const std::uint64_t quiet = op::invocations();
-    const ws::ResolvedPowers seen = describe_powers(r.catalog);
+    const ws::PowersFound seen = find_powers(r.catalog, ws::FindPowers{});
     CHECK(op::invocations() == quiet);
-    CHECK(seen.powers.size() == 2);
-    CHECK(contribution_of(seen, kProjectAnchorSource)->source);
-    CHECK(contribution_of(seen, kRecipeCatalogSource)->source);
+    CHECK(seen.rows.size() == 2);
+    REQUIRE(row_of(seen, kProjectAnchorSource) != nullptr);
+    REQUIRE(row_of(seen, kRecipeCatalogSource) != nullptr);
+    CHECK(row_of(seen, kProjectAnchorSource)->kind == ws::kSourceKind);
+    CHECK(row_of(seen, kRecipeCatalogSource)->kind == ws::kSourceKind);
 
     //  3  sample the project anchor
     CHECK(r.anchor() == root.generic_string());

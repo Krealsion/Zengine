@@ -321,27 +321,28 @@ Source     zero unbound weaver inputs          evaluated on its own subject
   proves it on a COUNTING body and on a provider artifact whose Source answers its own spend
   count; a constant-returning body would have made an accidental evaluation invisible, which
   is the one way this proof degrades.
-- **`ResolvedPowers` carries `source` and the output schema IDENTITY** (name, version, content
-  id), because *what would sampling this yield* must be answerable without sampling and the only
-  alternatives are N describes across the loaded-weave seam or a side effect in a view. The three
-  identity facts travel as one nested shape because `loom::same_identity` compares all three;
-  splitting them invites a consumer to compare the cheap one. **No structure rides** — no port
-  list, no field types, no input schema.
-- **THE POWERS PANE IS THAT FIELD'S CONSUMER, AND IT ADDS NO SECOND CLASSIFICATION.**
-  It derives its `Sources` and `Operators` views from `source` on the active
-  contribution and shows the output identity as `yields <name> v<N>` on the selected power —
-  so *what would I get?* is answered by a READ, exactly as this field was built to allow.
-  Nothing in the pane parses an identity, consults a naming rule or reads a registration flag,
-  because none exists: **the catalog states the classification once and the projection carries
-  it.** A change that adds a `kind` field, a `SourceDef`, a Source registry or a second store
-  has added a second answer, and the second answer is the one that can lie
+- **The discovery door's row carries the classification and the output schema IDENTITY**
+  (name, version, content id), because *what would sampling this yield* must be answerable
+  without sampling and the only alternatives are N describes across the loaded-weave seam or a
+  side effect in a view. The three identity facts travel as one nested shape because
+  `loom::same_identity` compares all three; splitting them invites a consumer to compare the
+  cheap one. `kind` is derived at each ask from `op::is_source` and `op::declares_migration` on
+  the contribution in force (`workshop/powers_door.hpp`), never authored and never stored.
+- **NOTHING ADDS A SECOND CLASSIFICATION.** The Powers pane derives its
+  `Sources` and `Operators` views from that `kind`, and shows the output identity as
+  `yields <name> v<N>` — so *what would I get?* is answered by a READ. Nothing parses an
+  identity, consults a naming rule or reads a registration flag, because none exists: **the
+  catalog states the classification once and the door carries it.** A change that adds an
+  authored kind, a `SourceDef`, a Source registry or a second store has added a second answer,
+  and the second answer is the one that can lie
   ([panes.md](panes.md#the-powers-pane-became-a-browser-and-the-seam-did-not-move)).
-- **AND ONE OFFICE MAY SPEND `sample`, WHICH IS A DIFFERENT KIND OF DOOR FROM THE ONE THAT
-  DESCRIBES.** `workshop/arrangement.hpp` answers two shapes and cannot evaluate; the Powers
-  pane's `workshop/sample_door.hpp` holds `zengine.sources`, calls `op::sample` at the spend,
-  renders the admitted value host-side and answers with LINES. Two doors rather than a third
-  Accept on the first, deliberately: *which office can cause evaluation* is worth a one-word
-  answer. The door holds a `const op::Catalog&` and retains no provider, definition, callable or
+- **AND ONE OFFICE MAY SPEND `sample`, WHICH IS A DIFFERENT KIND OF DOOR FROM THE ONES THAT
+  DESCRIBE.** `workshop/arrangement.hpp` and `workshop/powers_door.hpp` describe and cannot
+  evaluate; the Powers pane's `workshop/sample_door.hpp` holds `zengine.sources`, calls
+  `op::sample` at the spend, renders the admitted value host-side and answers with LINES. A door
+  of its own rather than another Accept on a describing one, deliberately: *which office can
+  cause evaluation* is worth a one-word answer. The door holds a `const op::Catalog&` and retains
+  no provider, definition, callable or
   answer — so a repeated sample resolves current truth again, which is exactly the property
   `sample`'s own header claims and this is the first consumer that could have broken it.
 - **Senses are not Sources and no bridge exists.** A Source sample runs the evaluator NOW; a

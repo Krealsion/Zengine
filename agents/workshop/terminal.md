@@ -232,3 +232,19 @@ PROVEN BY — `workshop/weave_terminal.cpp` `on(TerminalValueRequested)`;
 authored content and names the new copy",
 case "terminal capture: retrieval and Inventory storage need separate current actor authority".
 WHY — `agents/decisions/transcript-values-are-reusable-content.md`
+
+## WL-TERM-18 — The Terminal may ask the discovery door its two questions, and that is all
+
+LAW — The host widens its Terminal with `let_terminal_find_powers`: it knows `FindPowers` and `DescribePower`, accepts their two answers, and may send the two to `zengine.powers` alone.
+
+MEANS
+- the documented lines are typed against the host's own widening, as the switch's are;
+- the door answers this participant's personal speech, refusals included, in the door's words;
+- the same ask aimed at another office is `CapabilityDenied`: asking grants nothing more.
+
+PROVEN BY — `workshop/powers_door.hpp` `let_terminal_find_powers`, `PowersDoor`;
+`workshop/powers_vocabulary.hpp` `allow_finding_powers`, `find_powers_schema`;
+`workshop/workshop.cpp` `let_terminal_find_powers`; `tests/test_workshop_panes_powers.cpp` case
+`"the documented discovery lines, typed through Workshop's own door, answer what the door
+derives"`, case `"the Terminal may ask the discovery door its two questions, and nothing more"`.
+WHY — `agents/decisions/powers-are-found-through-one-door.md`

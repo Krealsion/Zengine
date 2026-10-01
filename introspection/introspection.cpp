@@ -9,10 +9,11 @@
 // Pane law: agents/panes.md
 
 // It cannot load, unload, mount or evaluate: its sends are the pane protocol, `zen.ListLoaded`
-// (enumeration, not the load capability), `LoadedSelected`, the arrangement and powers questions,
-// one `SampleRequested` per weaver gesture, and the clipboard pair. It links no operator target,
-// so browsing cannot evaluate. The loader binds `allow_any()` to every library, so this is a
-// claim about what the weave does, not containment. Reference: docs/reference/introspection.md.
+// (enumeration, not the load capability), `LoadedSelected`, the arrangement question, the
+// discovery door's two asks, one `SampleRequested` per weaver gesture, and the clipboard pair. It
+// links no operator target, so browsing cannot evaluate. The loader binds `allow_any()` to every
+// library, so this is a claim about what the weave does, not containment.
+// Reference: docs/reference/introspection.md.
 
 #include "loaded.hpp"
 #include "powers.hpp"
@@ -24,6 +25,7 @@
 #include "surface/vocabulary.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -64,7 +66,9 @@ using zengine::introspection::LoadedSelected;
 using zengine::introspection::LoadedView;
 using zengine::introspection::LoadedWeave;
 using zengine::workshop::ArrangementRequested;
+using zengine::workshop::DescribePower;
 using zengine::workshop::kArrangementRole;
+using zengine::workshop::kPowersRole;
 using zengine::workshop::kSampleRole;
 using zengine::workshop::PaneActionRequested;
 using zengine::workshop::PaneActionRow;
@@ -77,9 +81,9 @@ using zengine::workshop::PanePressed;
 using zengine::workshop::PaneRoom;
 using zengine::workshop::PaneTextInput;
 using zengine::workshop::PaneWheel;
-using zengine::workshop::PowersRequested;
+using zengine::workshop::PowerDescribed;
+using zengine::workshop::PowersFound;
 using zengine::workshop::ResolvedArrangement;
-using zengine::workshop::ResolvedPowers;
 using zengine::workshop::SampleRequested;
 using zengine::workshop::SourceSampled;
 
@@ -109,10 +113,10 @@ class IntrospectionWeave
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                        PaneTextInput, PaneWheel, PaneActionRequested, loom::Result,
                        loom::Refused, ResolvedArrangement, zengine::workshop::v2::ResolvedArrangement,
-                       ResolvedPowers, SourceSampled,
+                       PowersFound, PowerDescribed, SourceSampled,
                        surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, LoadedSelected, loom::ListLoaded,
-                     ArrangementRequested, PowersRequested, SampleRequested,
+                     ArrangementRequested, DescribePower, SampleRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
     /// First breath, only if Loom says so: `ActivationCursor` requires Loom's attestation and a
@@ -154,13 +158,17 @@ public:
             ask(mail, arrangement_, room, kArrangementRole, ArrangementRequested{});
         } else if (room.pane == kPowersPane) {
             ++state_.rooms;
-            // The reading goes with the projection: until the host answers there is nothing to
+            // The reading goes with the projection: until the door answers there is nothing to
             // derive a view from or read a press against. What the weaver authored survives --
-            // the view, the query, the filter, both selections and the retained sample.
-            powers_ui_.reading = ResolvedPowers{};
+            // the view, the query, the filter, both selections and the retained sample -- and
+            // the search they make is asked again, with the selected power's description.
+            powers_ui_.reading = PowersFound{};
             powers_ui_.read = false;
             powers_shown_ = intro::PowersView{};
-            ask(mail, powers_, room, kArrangementRole, PowersRequested{});
+            powers_.rows = room.rows;
+            powers_.columns = room.columns;
+            ask_powers(mail);
+            ask_described(mail);
         }
         // A room for a pane this provider does not have is neither counted nor answered:
         // Workshop grants rooms only for offers it admitted.
@@ -249,19 +257,34 @@ public:
                  intro::project_arrangement(said, arrangement_.rows, arrangement_.columns));
     }
 
-    /// The host's answer about its powers, checked as the arrangement's is. This subject moves (an
-    /// overlay changes a power's contribution) and nothing here is told; the next grant asks
-    /// again. The answer is retained for search, filter and cursor between grants: a snapshot
-    /// replaced whole, dropped at the next grant, never consulted for what is true now. A
-    /// selection is cleared only when a reading's population lacks it (`revalidate`).
-    void on(const ResolvedPowers& said, loom::Mail& mail) {
+    /// The door's answer to this pane's search, checked as the arrangement's is, so an answer to
+    /// a search the weaver has typed past is dropped. This subject moves (an overlay changes a
+    /// power's contribution) and nothing here is told; the next grant or search asks again. The
+    /// answer is retained for the cursor between asks: replaced whole, dropped at the next grant,
+    /// never consulted for what is true now. A refusal is the door's sentence, shown as the list.
+    void on(const PowersFound& said, loom::Mail& mail) {
         if (!answering(mail, powers_)) {
             return;
         }
         ++state_.readings;
         powers_ui_.reading = said;
         powers_ui_.read = true;
-        intro::revalidate(powers_ui_);
+        say_powers(mail);
+    }
+
+    /// What the door said of the selected identity: its row and its whole contribution stack, and
+    /// the one answer that may clear a selection -- the identity is gone (`take_described`). The
+    /// answer is about the identity this pane asked of, matched by `answers_ask()` and the
+    /// correlation, so a describe the weaver has moved past cannot relabel another selection.
+    void on(const PowerDescribed& said, loom::Mail& mail) {
+        if (!describing_.awaiting || !mail.answers_ask() ||
+            mail.correlation() != describing_.pending) {
+            return;
+        }
+        describing_.awaiting = false;
+        PowerDescribed taken = said;
+        taken.identity = describing_.identity;
+        intro::take_described(powers_ui_, std::move(taken));
         say_powers(mail);
     }
 
@@ -279,6 +302,7 @@ public:
         }
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
+        const std::string searched = powers_ui_.query.text();
         if (!powers_ui_.query.consume(key.scancode, key.modifiers, clip_)) {
             return; // a key this pane's field has no word for changes nothing, says nothing
         }
@@ -287,6 +311,9 @@ public:
         }
         if (clip_.paste_requests != pastes_before) {
             begin_clipboard_paste(mail);
+        }
+        if (powers_ui_.query.text() != searched) {
+            ask_powers(mail);
         }
         say_powers(mail);
     }
@@ -305,10 +332,14 @@ public:
             powers_ui_.view = powers_ui_.view == intro::powers_view::kSources
                                   ? intro::powers_view::kOperators
                                   : intro::powers_view::kSources;
-        } else if (asked.id == kPowersActionUp) {
-            intro::move_cursor(powers_ui_, -1);
-        } else if (asked.id == kPowersActionDown) {
-            intro::move_cursor(powers_ui_, +1);
+            ask_powers(mail);
+            ask_described(mail);
+        } else if (asked.id == kPowersActionUp || asked.id == kPowersActionDown) {
+            const std::string was = powers_ui_.selected();
+            intro::move_cursor(powers_ui_, asked.id == kPowersActionUp ? -1 : +1);
+            if (powers_ui_.selected() != was) {
+                ask_described(mail);
+            }
         } else if (asked.id == kPowersActionSample) {
             // The one evaluation gesture; `sampleable` is empty for anything but a selected
             // Source, so the Operators view has no invocation path.
@@ -354,6 +385,7 @@ public:
         if (powers_ui_.selected() == was) {
             return; // at the edge, or nothing to walk: nothing moved, nothing is re-said
         }
+        ask_described(mail);
         say_powers(mail);
     }
 
@@ -369,6 +401,7 @@ public:
             return;
         }
         powers_ui_.query.type(typed.text);
+        ask_powers(mail);
         say_powers(mail);
     }
 
@@ -403,7 +436,11 @@ public:
             }
             clip_.text = a.text; // the platform's current truth, asked for by this paste
         }
+        const std::string searched = powers_ui_.query.text();
         powers_ui_.query.paste(clip_);
+        if (powers_ui_.query.text() != searched) {
+            ask_powers(mail);
+        }
         say_powers(mail);
     }
 
@@ -437,6 +474,9 @@ public:
         }
         if (sampling_.awaiting && mail.correlation() == sampling_.pending) {
             sampling_.awaiting = false;
+        }
+        if (describing_.awaiting && mail.correlation() == describing_.pending) {
+            describing_.awaiting = false;
         }
     }
 
@@ -553,16 +593,20 @@ private:
                 return;
             }
             powers_ui_.view = want;
+            ask_powers(mail);
+            ask_described(mail);
             break;
         }
         case intro::powers_control::kComposite:
             powers_ui_.composite_only = !powers_ui_.composite_only;
+            ask_powers(mail);
             break;
         case intro::powers_control::kEntry:
             if (powers_ui_.selected() == hit.identity) {
                 return;
             }
             powers_ui_.select(hit.identity);
+            ask_described(mail);
             break;
         case intro::powers_control::kSample:
             ask_sample(mail);
@@ -588,6 +632,32 @@ private:
         sampling_.identity = identity;
         (void)mail.as_role(kIntrospectionRole)
             .send_to_role(kSampleRole, SampleRequested{std::move(identity)}, sampling_.pending);
+    }
+
+    /// Ask the door this pane's search, as this office: a newer search replaces the correlation,
+    /// so the answer to one the weaver has typed past is dropped. `FindPowers` is a value built
+    /// at its own schema, its fields optional, so it leaves as that value.
+    void ask_powers(loom::Mail& mail) {
+        powers_.pending = ++asked_;
+        powers_.awaiting = true;
+        (void)mail.bus().office_send_to_role(
+            kIntrospectionRole, kPowersRole,
+            loom::Message(zengine::workshop::find_powers_value(intro::powers_question(powers_ui_)),
+                          self_, loom::WeaveId{}, powers_.pending));
+    }
+
+    /// Ask the door about the selected identity: its row and every contribution eligible to
+    /// satisfy it. With nothing selected, nothing is asked.
+    void ask_described(loom::Mail& mail) {
+        const std::string& identity = powers_ui_.selected();
+        if (identity.empty()) {
+            return;
+        }
+        describing_.pending = ++asked_;
+        describing_.awaiting = true;
+        describing_.identity = identity;
+        (void)mail.as_role(kIntrospectionRole)
+            .send_to_role(kPowersRole, DescribePower{identity}, describing_.pending);
     }
 
     /// Ask the Skin what the platform clipboard holds, for a paste the query requested; the
@@ -641,6 +711,15 @@ private:
         std::string identity;
     };
     Sampling sampling_;
+
+    /// THE ONE OUTSTANDING DESCRIBE, and the identity it asked about: its answer is kept as the
+    /// description of that identity, never of whatever is selected when it lands.
+    struct Describing {
+        std::uint64_t pending = 0;
+        bool awaiting = false;
+        std::string identity;
+    };
+    Describing describing_;
 
     /// THE PROCESS'S COPIED TEXT AS THIS PANE LAST HEARD IT, and the book for the one
     /// paste conversation it can hold open. Two, because a clipboard is a mirror and

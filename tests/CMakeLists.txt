@@ -931,6 +931,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_input.cpp
             test_workshop_panes_introspection.cpp
             test_workshop_panes_sampling.cpp
+            test_workshop_panes_powers.cpp
             test_workshop_panes_actions.cpp
             test_workshop_panes_files.cpp
             test_workshop_panes_builder.cpp
@@ -950,6 +951,7 @@ zengine_workshop_suite(panes
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\"" "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
                 "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
+                "WORKSHOP_POWERS_DOOR_HPP=\"${CMAKE_SOURCE_DIR}/workshop/powers_door.hpp\""
                 "INTROSPECTION_RESOLVED_HPP=\"${CMAKE_SOURCE_DIR}/introspection/resolved.hpp\""
                 # The Introspection pane's two sources, read as text so "this image cannot
                 # reach an evaluator" is checked, not trusted, and the two host files the
