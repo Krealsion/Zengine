@@ -56,8 +56,7 @@ struct ContextMenu {
 
 /// A pane's own menu, presented by the presenter participant on a popup this host granted
 /// (`workshop/presenter_vocabulary.hpp`). The host keeps what custody and display need, and
-/// nothing of the offer's meaning: no requester row, no id of one, no cursor -- only the standard
-/// rows it added beneath them, which are its own to spend.
+/// nothing of the offer's meaning: no rows, no ids, no cursor.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 struct PresentedMenu {
     bool open = false;
@@ -76,7 +75,6 @@ struct PresentedMenu {
     PictureStamp stamp;            ///< ...and the one a press names (the host's fence)
     std::uint64_t first_input = 0; ///< the weaver's act count when it was granted
     std::uint64_t last_input = 0;  ///< the newest act forwarded to it
-    std::vector<PaneMenuRow> standard; ///< the host's own rows for the pane, as granted
     /// THE GRANT'S QUEUED ATTEMPT (Loom's `Ticket::seq`). Every sentence this host queues to the
     /// presenter's office from the grant until the menu ends is about this menu -- one menu at a
     /// time -- and Loom numbers attempts in the order they are queued, so a refusal naming an

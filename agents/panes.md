@@ -306,7 +306,8 @@ picture}` and `v3::PanePressed` `{…, picture}`. Between Workshop and the parti
 → Workshop, and `HeldMenu`, the reload state the shipped presenters share. The pane shapes ADDED
 to the protocol and revised nothing. `MenuGranted v2`, `MenuClosed v2` and `HeldMenu v2` carry
 the host's standard rows (`standard`, below); a holder that accepts only `MenuGranted v1` does
-not hold the office for this host, so a menu is refused where it would open, in words. Several NEST — `PaneMenuRequested` and `MenuGranted` carry
+not hold the office for this host, so a menu is refused where it would open, in words. Several
+NEST — `PaneMenuRequested` and `MenuGranted` carry
 `vector<PaneMenuRow>`, `v3::PaneContent` and `MenuShown` surface rows — and since Loom ABI v9 a
 nested component is agreed at admission like any other declared shape; these admit because
 every party declares them from the one installed header, not because they are flat. The host's
@@ -360,7 +361,8 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   `MenuClosed::standard`, the presenter answers the requester unchosen, and the host spends the
   row on that pane (`spend_standard_row`: an action through its own seam, a group by opening its
   own menu there) as the choosing act's continuation, while that act is the weaver's latest.
-  No pane performs a standard row and the host performs no pane's row. While it is open the weaver's keys are named by the contextual
+  No pane performs a standard row and the host performs no pane's row. While it is open the
+  weaver's keys are named by the contextual
   rows and forwarded (`menu_key`, `MenuInput::verb`), presses inside or outside are forwarded
   with the line and the picture the medium held (`menu_button`), the character a forwarded key
   made is part of that key's act, and the popup draws the lines the presenter shows within the

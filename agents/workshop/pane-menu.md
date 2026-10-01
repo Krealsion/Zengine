@@ -22,7 +22,7 @@ PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneMenuRow`, `PaneMenuRequested`,
 `PaneMenuAnswered`, `PaneManageRequested`, `PaneKeyboardRequested`, `kPresenterRole`;
 `workshop/presenter_vocabulary.hpp` `MenuGranted`, `MenuShown`, `MenuInput`, `MenuClosed`,
 `MenuWithdrawn`, `MenuGranted::standard`, `MenuClosed::standard`; `workshop/context.hpp`
-`PresentedMenu`, `PresentedMenu::standard`, `context_population`; `workshop/weave.hpp`
+`PresentedMenu`, `context_population`; `workshop/weave.hpp`
 `grant_menu`, `press_sent_`, `withdraw_menu`, `end_menu_unanswered`, `spend_standard_row`,
 `cell_of_body_place`, `ChoiceAnswered`, `action_sent_`;
 `workshop/weave_external.cpp` `on(PaneMenuRequested)`, `grant_menu`, `spend_standard_row`,

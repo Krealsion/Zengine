@@ -796,7 +796,8 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   pane — the standard rows (`arrange`, `Order >`, `Reset >`, `edit code`, `remove`); one chosen
   is the host's to spend on that pane, and the pane is answered unchosen
   (`a standard row was chosen`). No pane performs a standard row, and the host performs none of
-  a pane's. The menu takes no keys and no selection, and restores nothing after: a press elsewhere is the way
+  a pane's. The menu takes no keys and no selection, and restores nothing after: a press
+  elsewhere is the way
   on. With the shipped presenter, Escape and an outside press (spent on dismissing) answer it
   unchosen; the host withdraws it — and the presenter answers it unchosen — on a newer menu, a
   right press elsewhere, the host's own menu, or the pane leaving the desk or being offered
@@ -878,14 +879,16 @@ HeldMenu        state                   the open menu, as the shipped presenters
 Workshop keeps what is fixed: which ask is eligible, one menu at a time, where the popup opens,
 drawing the presenter's lines inside the granted room, which of the weaver's keys and presses
 reach it, when custody moves, and the standard rows: which it grants, and spending the one
-chosen, while the act that chose it is the weaver's latest. The presenter decides everything about the menu itself —
+chosen, while the act that chose it is the weaver's latest. The presenter decides everything
+about the menu itself —
 whether an offer can be shown, how its lines read, what a key or press means, when it ends — and
 answers the requester, which is why a pane authenticates a choice from `zengine.presenter`.
 
 Replacing it is ordinary: name another artifact in the load plan's `zengine.presenter` row, or
 reload another image in its place. `examples/numbered-presenter` is one — numbered rows, the
 standard rows numbered on after the pane's, a digit chooses, up and down wrap, a click chooses on
-its release; the shipped presenter sets the standard rows off with a rule — and because it keeps the same
+its release; the shipped presenter sets the standard rows off with a rule — and because it
+keeps the same
 `HeldMenu` state, a reload between it and the shipped presenter HANDS OVER a menu that is open:
 the new image says `PresenterReady` naming it, shows it its own way, and answers under the same
 number. A holder that does not carry the menu (a presenter keeping other state, or none) ends it,
