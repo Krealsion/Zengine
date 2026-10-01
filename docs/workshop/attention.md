@@ -5,7 +5,7 @@ them apart is the whole of this page:
 
 | | |
 |---|---|
-| **something happened** | `committed Width of Layouts = 12 cells`, `closed Info -- …`, `released #12`. It was true at one instant and it is a report about the past. It goes on the **notice row** in the bottom band, and the next thing Workshop says replaces it. |
+| **something happened** | `committed Width of Layouts = 12 cells`, `hid Info -- …`, `released #12`. It was true at one instant and it is a report about the past. It goes on the **notice row** in the bottom band, and the next thing Workshop says replaces it. |
 | **something is true** | your keymap file could not be read; a pane you authored is off the screen; the project is waiting on an artifact you have not built. It is still true when you read it, and it is still true an hour later. It goes to **attention**. |
 
 The difference matters because the two need opposite lifetimes. A report about the past is
@@ -34,7 +34,7 @@ all.
 
 ## The Attention pane
 
-The full list is a **pane**: open it from the Pane Manager (`Ctrl`+`p`), put it where you want
+The full list is a **pane**: show it from the Pane Manager (`Ctrl`+`p`), put it where you want
 it on the desk, and it stays there. It shows every condition that is currently true, in the words of
 whatever owns it, with the cursor on one of them.
 
@@ -113,8 +113,8 @@ looking at it.
 | a pane you authored is resolvable and **no part of it is on the screen** — refused, waiting for room, or off the canvas | worth acting on |
 | the project is stopped at an artifact waiting to be built | informative — waiting is not a failure |
 
-Some true things are deliberately **not** here. A pane you closed is your own choice and lives
-in the [Pane Manager](panes.md#opening-going-to-and-closing--the-pane-manager). A pane the
+Some true things are deliberately **not** here. A pane you hid is your own choice and lives
+in the [Pane Manager](panes.md#showing-going-to-and-hiding--the-pane-manager). A pane the
 setup names that this run cannot resolve is already counted on Workshop's first row, all day. A pane that is behind another one is still on the screen,
 and stacking is what arranging *is*. Attention is for what you would otherwise not find out.
 

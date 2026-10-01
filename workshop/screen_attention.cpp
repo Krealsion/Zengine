@@ -134,7 +134,7 @@ bool same_conditions(const std::vector<StandingCondition>& a,
 // WL-CTX-03, WL-CTX-04 -- agents/workshop/contextual.md
 std::string context_entry_text(const ContextEntry& entry) {
     if (entry.is_group) {
-        return std::string(entry.group) + " >";
+        return std::string(entry.group) + kSubmenuMark;
     }
     return entry.row != nullptr ? entry.row->label : std::string();
 }

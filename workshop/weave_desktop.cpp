@@ -291,7 +291,7 @@ void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
     if (!answer.refusal.empty()) {
         say(answer.refusal, true);
     } else if (answer.opened) {
-        say("opened " + inventory_name(PaneRef{asked.office, asked.pane}), false);
+        say("showed " + inventory_name(PaneRef{asked.office, asked.pane}), false);
     }
     (void)mail.answer(answer);
     repaint(mail);
@@ -317,8 +317,8 @@ PaneCloseAnswered WorkshopWeave::close_pane(const PaneRef& ref, loom::Mail& mail
     // whether or not anything offers it -- an unavailable pane's row, or one waiting for room, is
     // exactly the intent a weaver closes to stop asking for it.
     if (!remove_pane(session_.setup.active, ref)) {
-        out.refusal = inventory_name(ref) + " is not on this desk -- nothing to close, and a "
-                                            "close opens nothing";
+        out.refusal = inventory_name(ref) + " is not on this desk -- nothing to hide, and a "
+                                            "hide shows nothing";
         return out;
     }
     // And nothing behind it is touched: the presentation leaves with the row; the office's
@@ -339,8 +339,8 @@ void WorkshopWeave::on(const PaneCloseRequested& asked, loom::Mail& mail) {
     if (!answer.refusal.empty()) {
         say(answer.refusal, true);
     } else {
-        say("closed " + inventory_name(ref) +
-                " -- its provider and what it holds are untouched; launching it opens it again",
+        say("hid " + inventory_name(ref) +
+                " -- its provider and what it holds are untouched; showing it brings it back",
             false);
     }
     (void)mail.answer(answer);
@@ -645,8 +645,8 @@ void WorkshopWeave::on(const PaneToggleRequested& asked, loom::Mail& mail) {
         answer.closed = closed.closed;
         answer.refusal = closed.refusal;
         if (closed.closed) {
-            say("closed " + inventory_name(ref) +
-                    " -- its provider and what it holds are untouched; launching it opens it again",
+            say("hid " + inventory_name(ref) +
+                    " -- its provider and what it holds are untouched; showing it brings it back",
                 false);
         }
     } else {
@@ -654,7 +654,7 @@ void WorkshopWeave::on(const PaneToggleRequested& asked, loom::Mail& mail) {
         answer.opened = opened.opened;
         answer.refusal = opened.refusal;
         if (opened.opened) {
-            say("opened " + inventory_name(ref), false);
+            say("showed " + inventory_name(ref), false);
         }
     }
     if (!answer.refusal.empty()) {

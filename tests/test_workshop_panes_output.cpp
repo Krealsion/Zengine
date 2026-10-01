@@ -626,7 +626,7 @@ TEST_CASE("WL-OUT-04: in a room too small for its strip the reader's whole list 
     for (const char* row : {"a line up", "a line down", "the first line", "the last lines",
                             "pan left", "pan right", "the older build's output",
                             "the newer build's output", "close this build's output",
-                            "manage this pane..."}) {
+                            "hide pane"}) {
         CHECK_MESSAGE(any_row(offered, row), "the reader's menu has no row `", row, "`");
     }
 

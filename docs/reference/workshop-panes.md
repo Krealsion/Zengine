@@ -793,7 +793,7 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   reads the weaver's keys and presses, ends the menu and ANSWERS it, as its office, under the
   request's number, subject-bound — `answer.subject` is the pane's own word, echoed unread.
   Beneath the pane's rows, in the same menu, the grant carries the host's own pane menu for that
-  pane — the standard rows (`arrange`, `Order >`, `Reset >`, `edit code`, `remove`); one chosen
+  pane — the standard rows (`arrange`, `Order >`, `Reset >`, `edit code`, `hide pane`); one chosen
   is the host's to spend on that pane, and the pane is answered unchosen
   (`a standard row was chosen`). No pane performs a standard row, and the host performs none of
   a pane's. The menu takes no keys and no selection, and restores nothing after: a press
@@ -838,7 +838,9 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   it moves no keys and no selection, exactly as the other two do not.
 - **The helpers are optional and installed beside the protocol.** `workshop/pane_menu.hpp`:
   `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
-  request continuing the delivery's gesture and returns its `Asked`; `pass_back`, `manage`,
+  request continuing the delivery's gesture and returns its `Asked`; `.submenu(id, label)` is a
+  row whose choice opens another menu, its label ending in the one mark the host's own groups
+  wear (`kSubmenuMark`, " >") -- a row that asks for more input ends in "..." instead; `pass_back`, `manage`,
   `take_keyboard` and `HeldButton` are the other lines a consumer would otherwise write.
   `take_keyboard_continuing` is `take_keyboard` under a number the pane names rather than the
   delivery's own, for a chosen row whose edit opens only after an office has answered: the pane
@@ -860,7 +862,8 @@ seam between Workshop and the participant in `zengine.presenter`:
 ```text
 MenuGranted     Workshop -> presenter   present this offer as menu n, for office/pane, in a room
                                         of rows x columns, with the host's standard rows to show
-                                        beneath it; under the request's correlation
+                                        beneath it and the pane's name; under the request's
+                                        correlation
 MenuShown       presenter -> Workshop   menu n shows these lines now, numbered as picture p
 MenuInput       Workshop -> presenter   the weaver did this to menu n: a key (with the verb the
                                         weaver's contextual rows name), or a press / release on a

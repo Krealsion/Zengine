@@ -292,15 +292,17 @@ TEST_CASE("WL-DESK-13: Ctrl+P is a strict visibility toggle judged by the host -
     CHECK(has_pane(d.r.session().setup.active, manager));
 }
 
-TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- open, manage and inspect -- and `manage...` opens the host's own pane menu on THAT pane; the menu key offers the marked row's") {
+TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- show, manage and inspect -- and `manage <pane> >` opens the host's own pane menu on THAT pane; the menu key offers the marked row's") {
     Desk d;
     const std::int64_t beta = d.row_of("Beta");
     d.right(beta, kNameCol);
     REQUIRE(menu_shown(d.r.session()));
     const std::vector<std::string> painted = context_rows_on(d.r.last_canvas(), d.r.session());
     REQUIRE(painted.size() == 3 + 1 + kStandardRows); // the desktop's, a rule, the host's own
-    CHECK(painted[0] == "> open Beta");
-    CHECK(painted[1] == "  manage...");
+    CHECK(painted[0] == "> show Beta");
+    CHECK(painted[1] == "  manage Beta >");
+    // ...and the rule above the standard rows names the pane THEY act on: the Pane Manager.
+    CHECK(painted[3].rfind("  -- Pane Manager --", 0) == 0);
     CHECK(painted[2] == "  inspect in Info");
     // `manage...`: the host's menu, on Beta -- a pane that is not even on the desk.
     d.r.key(input::scan::kDown);
@@ -323,7 +325,7 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- open, manage an
     const std::vector<std::string> again = context_rows_on(d.r.last_canvas(), d.r.session());
     REQUIRE(again.size() == 4 + 1 + kStandardRows);
     CHECK(again[0] == "> focus Beta");
-    CHECK(again[1] == "  close Beta");
+    CHECK(again[1] == "  hide Beta");
     d.r.key(input::scan::kDown);
     d.r.key(input::scan::kReturn);
     CHECK_FALSE(d.open("beta"));
@@ -943,7 +945,7 @@ TEST_CASE("WL-CTX-10: a reloaded desktop cancels its predecessor's menu -- withd
     REQUIRE_FALSE(d.open("alpha"));
     d.right(d.row_of("Alpha"), kNameCol);
     REQUIRE(menu_shown(d.r.session()));
-    REQUIRE(presented_texts(d.r.session())[0] == "> open Alpha");
+    REQUIRE(presented_texts(d.r.session())[0] == "> show Alpha");
     std::size_t activations = 0;
     const auto tap = d.r.bus.add_observer([&](const loom::BusEvent& event) {
         if (event.kind == loom::EventKind::Delivered && event.target == d.desktop &&
@@ -1066,12 +1068,12 @@ TEST_CASE("WL-CTX-10: the replacement presenter presents the Pane Manager's menu
     REQUIRE(menu_shown(d.r.session()));
     const std::vector<std::string> lines = presented_texts(d.r.session());
     REQUIRE(lines.size() == 3 + kStandardRows);
-    CHECK(lines[0] == "> 1 open Alpha");
+    CHECK(lines[0] == "> 1 show Alpha");
     CHECK(lines[2] == "  3 inspect in Info");
     CHECK(lines[3] == "  4 arrange");
     // WRAPPING IS THIS PRESENTER'S: up from the first row lands on the last, the host's own.
     d.r.key(input::scan::kUp);
-    CHECK(presented_texts(d.r.session())[2 + kStandardRows] == "> 8 remove");
+    CHECK(presented_texts(d.r.session())[2 + kStandardRows] == "> 8 hide pane");
     queue_digit(d.r, input::scan::k1, "1");
     d.r.bus.drain_until_idle();
     CHECK(d.open("alpha"));

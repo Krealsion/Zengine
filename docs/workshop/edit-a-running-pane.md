@@ -81,7 +81,7 @@ build replaces it in place.
 it; each `Space` adds one.
 
 Your project now holds `build-recipes.json` and `workshop-plan.json`, and launching Workshop from
-this directory again loads Tally with the rest — open it from the Pane Manager.
+this directory again loads Tally with the rest — show it from the Pane Manager.
 
 ## Every time: point, change, build, reload
 

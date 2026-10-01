@@ -305,7 +305,8 @@ picture}` and `v3::PanePressed` `{…, picture}`. Between Workshop and the parti
 `MenuWithdrawn` Workshop → presenter, `MenuShown`, `MenuClosed` and `PresenterReady` presenter
 → Workshop, and `HeldMenu`, the reload state the shipped presenters share. The pane shapes ADDED
 to the protocol and revised nothing. `MenuGranted v2`, `MenuClosed v2` and `HeldMenu v2` carry
-the host's standard rows (`standard`, below); a holder that accepts only `MenuGranted v1` does
+the host's standard rows (`standard`, below) and the name of the pane they act on
+(`pane_name`); a holder that accepts only `MenuGranted v1` does
 not hold the office for this host, so a menu is refused where it would open, in words. Several
 NEST — `PaneMenuRequested` and `MenuGranted` carry
 `vector<PaneMenuRow>`, `v3::PaneContent` and `MenuShown` surface rows — and since Loom ABI v9 a
@@ -444,7 +445,7 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
 - **Not in this contract:** a secondary drag (`PaneDragged` carries no button, so the Editor's
   middle-button scroll and Neovim's right drag do not cross), modifier state on a window's
   button events (`mod::kNone` always), a host-performed pane operation from a menu row, the
-  host's OWN menus (chrome, room, tab, pass-back, a doorless body, `manage...`) presented by
+  host's OWN menus (chrome, room, tab, pass-back, a doorless body, a `manage` row) presented by
   the presenter — they stay the host's, the management route that must work with no presenter at
   all; the presenter shows the standard rows only beneath a pane's own — and a
   pane's actions offered on HOVER. Hover motion does not cross the seam and pane actions follow

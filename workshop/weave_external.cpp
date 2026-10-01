@@ -581,7 +581,8 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
         mail.as_role(kWorkshopProvider)
             .send_to_role(kPresenterRole,
                           MenuGranted{next.menu, next.office, next.pane, next.subject, asked.rows,
-                                      next.room_rows, next.room_columns, std::move(standard)},
+                                      next.room_rows, next.room_columns, std::move(standard),
+                                      inventory_name(PaneRef{row.provider, row.pane})},
                           correlation);
     if (!sent.valid()) {
         end_menu_unanswered("the menu could not be handed to a presenter", mail);
