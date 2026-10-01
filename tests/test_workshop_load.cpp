@@ -2237,7 +2237,8 @@ TEST_CASE("kind, construction, provider and offered filter, and a conversion is 
     asked.offered = true;
     CHECK(found(asked).size() == catalog.size() - 1);
     // ...AND THE ROW SAYS WHICH, in the door's word for each.
-    const workshop::PowerRow* conversion = row_of(workshop::find_powers(catalog, {}), edge.c_str());
+    const workshop::PowersFound everything = workshop::find_powers(catalog, {});
+    const workshop::PowerRow* conversion = row_of(everything, edge.c_str());
     REQUIRE(conversion != nullptr);
     CHECK(conversion->kind == workshop::kConversionKind);
 }
