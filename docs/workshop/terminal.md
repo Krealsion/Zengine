@@ -152,8 +152,8 @@ missing.
 
 The Terminal may ask the host's
 [discovery door](../reference/introspection.md#the-discovery-door-finding-a-power) its two
-questions — the door the `Powers` pane asks too, so the same question gets the same rows here as
-there:
+questions — the door Flow's search line and the `Powers` pane ask too, so the same question gets
+the same rows here as there:
 
 ```text
 ask @zengine.powers FindPowers 1 text=larger

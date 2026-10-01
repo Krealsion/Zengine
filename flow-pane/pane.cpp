@@ -8,9 +8,13 @@
 #include "operator/host.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/powers_vocabulary.hpp"
+#include <algorithm>
 #include <cmath>
 #include <deque>
 #include <map>
+#include <string>
+#include <utility>
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
 #include <zen/weave/dispatch_refusal.hpp>
@@ -32,7 +36,7 @@ class FlowPane final
                        ws::PaneCanvasRejected, ws::PaneKey, ws::PaneTextInput,
                        ws::PaneActionRequested, ws::ActionsJudged,
                        ws::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer,
-                       fh::FlowCatalogAnswer, fh::FlowChanged,
+                       fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
                        loom::DispatchRefused>,
           loom::Emit<ws::v2::PaneOffered, ws::PaneContent, ws::PaneCanvasContent,
                      ws::PaneActions, ws::PaneEscapeUnspent,
@@ -106,6 +110,7 @@ public:
     offer(mail);
     request(fh::FlowCatalog{}, "catalog", mail);
     request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
+    find(mail, true);
   }
   void on(const ws::PaneCatalogRequested &, loom::Mail &mail) {
     if (mail.authored_from_role(workshop_role))
@@ -125,6 +130,8 @@ public:
     pictures_.clear();
     drag_.reset();
     picture_number_ = 0;
+    // A grant is a fresh look, as it is in Powers: the door is asked again, whatever changed.
+    find(mail, true);
     show(mail);
   }
   void on(const ws::PaneCanvasRejected &answer, loom::Mail &mail) {
@@ -176,22 +183,38 @@ public:
       return;
     }
     if (key.scancode == input::scan::kEscape) {
+      // One layer per press, the most specific first; the search line clears before the
+      // pane is put down.
       if (model_.connecting)
         model_.connecting.reset();
+      else if (model_.filling)
+        model_.filling.reset();
+      else if (!model_.preview.empty())
+        model_.preview.clear();
       else if (model_.node)
         model_.node.reset();
+      else if (!model_.search.empty())
+        model_.search.clear();
       else
         (void)mail.as_role(pane::kRole)
             .send_to_role(workshop_role, ws::PaneEscapeUnspent{pane::kPane},
                           mail.correlation());
       show(mail);
-    } else if (key.scancode == input::scan::kDelete && model_.node)
+    } else if (key.scancode == input::scan::kDelete && model_.node) {
       perform("remove", {std::to_string(*model_.node)}, mail);
+    } else if (key.scancode == input::scan::kReturn) {
+      if (const auto *row = pane::previewed(model_))
+        perform("add-found", {row->identity}, mail);
+    } else if (model_.search.consume(key.scancode, key.modifiers, clipboard_)) {
+      show(mail);
+    }
   }
   void on(const ws::PaneTextInput &text, loom::Mail &mail) {
-    if (!host(mail, text.pane) || !model_.dialog)
+    if (!host(mail, text.pane))
       return;
-    auto &box = model_.dialog->entries.at(model_.dialog->selected).text;
+    // Outside a dialog, typed text is the search line's: it is the one field there.
+    auto &box = model_.dialog ? model_.dialog->entries.at(model_.dialog->selected).text
+                              : model_.search;
     if (box.size() + text.text.size() > 4096) {
       model_.notice = "Field editing is limited to 4096 bytes";
       show(mail);
@@ -338,6 +361,10 @@ public:
   void on(const fh::FlowCatalogAnswer &answer, loom::Mail &mail) {
     if (!settle(mail, "catalog"))
       return;
+    // An Add waiting on this request is settled by its answer, whatever the answer says.
+    std::string adding;
+    if (adding_ && adding_->correlation == mail.correlation())
+      adding = std::exchange(adding_, std::nullopt)->identity;
     try {
       if (!answer.ok)
         throw std::invalid_argument(answer.reason);
@@ -355,9 +382,26 @@ public:
       }
       model_.palette = std::move(palette);
       model_.notice = "Host operators refreshed";
+      if (!adding.empty()) {
+        if (described(adding))
+          effect(model_.command("add-node", {adding}), mail);
+        else
+          model_.notice = adding + " is not in the host's catalog now";
+      }
     } catch (const std::exception &e) {
       model_.notice = e.what();
     }
+    show(mail);
+  }
+  /// The discovery door's answer to this pane's question -- the latest one asked, by Loom's
+  /// answer provenance and the correlation, so an answer the maker has typed past is dropped.
+  /// Kept whole until the next, and never read as what the catalog holds now.
+  void on(const ws::PowersFound &said, loom::Mail &mail) {
+    if (!finding_.awaiting || !mail.answers_ask() || mail.correlation() != finding_.pending)
+      return;
+    finding_.awaiting = false;
+    model_.discovered = said;
+    model_.discovered_read = true;
     show(mail);
   }
   void on(const fh::FlowAnswer &answer, loom::Mail &mail) {
@@ -426,6 +470,10 @@ public:
         observed_pending_ = answer.pending;
         model_.notice = answer.action + ": " +
                         (answer.reason.empty() ? "observed" : answer.reason);
+        // Running, applying or stopping a definition mounts or unmounts its contributions, so
+        // what the door would say may have moved: it is asked again rather than told.
+        if (answer.action == "run" || answer.action == "apply" || answer.action == "stop")
+          find(mail, true);
       }
     } catch (const std::exception &e) {
       model_.notice = e.what();
@@ -446,10 +494,18 @@ public:
   void on(const loom::DispatchRefused &refused, loom::Mail &mail) {
     if (!mail.dispatch_refused())
       return;
+    if (finding_.awaiting && finding_.attempt.seq == refused.refused_attempt().seq) {
+      finding_.awaiting = false;
+      model_.notice = "finding powers was not delivered: " + refused.reason;
+      show(mail);
+      return;
+    }
     for (auto it = pending_.begin(); it != pending_.end(); ++it)
       if (it->second.attempt.seq == refused.refused_attempt().seq) {
         model_.notice =
             it->second.action + " was not delivered: " + refused.reason;
+        if (adding_ && adding_->correlation == it->first)
+          adding_.reset(); // the Add waited on this request, which will never be answered
         pending_.erase(it);
         show(mail);
         return;
@@ -511,6 +567,7 @@ private:
       break;
     case pane::Effect::Catalog:
       request(fh::FlowCatalog{}, "catalog", mail);
+      find(mail, true);
       break;
     case pane::Effect::Inspect:
       request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
@@ -656,11 +713,31 @@ private:
         effect(model_.command("bind", {args.at(0), args.at(1), text}), mail);
         model_.connecting.reset();
       } else {
-        model_.ask(
-            "Bind a constant, $field, or %earlier-node", "bind",
-            {{"Node", args.at(0)}, {"Port", args.at(1)}, {"Value", "0"}});
-        model_.dialog->selected = 2;
+        // The port to fill: the rail lists what could, and a second press puts it down.
+        const pane::PortChoice chosen{
+            model_.workspace.graph.place(model_.trigger(), flow::index_of(args.at(0))).id,
+            flow::index_of(args.at(1))};
+        const bool again = model_.filling && model_.filling->place == chosen.place &&
+                           model_.filling->port == chosen.port;
+        if (again)
+          model_.filling.reset();
+        else
+          model_.filling = chosen;
       }
+    } else if (action == "scope") {
+      // What the pressed row named, in the picture it was pressed in: node, port and binding.
+      effect(model_.command("bind", {args.at(0), args.at(1), args.at(2)}), mail);
+      model_.filling.reset();
+    } else if (action == "constant") {
+      model_.ask(
+          "Bind a constant, $field, or %earlier-node", "bind",
+          {{"Node", args.at(0)}, {"Port", args.at(1)}, {"Value", "0"}});
+      model_.dialog->selected = 2;
+      model_.filling.reset();
+    } else if (action == "found") {
+      model_.preview = args.at(0);
+    } else if (action == "add-found") {
+      add_found(args.at(0), mail);
     } else if (action == "value-row") {
       const auto row = model_.form->rows().at(flow::index_of(args.at(0)));
       if (row.type.kind == loom::Kind::Message ||
@@ -689,6 +766,37 @@ private:
       drag_.reset();
     }
   }
+  /// Ask the discovery door this pane's question as this office, when it differs from the last
+  /// one asked or `again` wants a fresh look. A newer ask replaces the correlation, so the answer
+  /// to a question the maker has moved past is dropped.
+  void find(loom::Mail &mail, bool again = false) {
+    loom::Value question = ws::find_powers_value(pane::flow_question(model_));
+    std::string bytes = loom::serialize(question);
+    if (!again && bytes == asked_)
+      return;
+    asked_ = std::move(bytes);
+    finding_.pending = ++correlation_;
+    finding_.awaiting = true;
+    finding_.attempt = mail.bus().office_send_to_role(
+        pane::kRole, ws::kPowersRole,
+        loom::Message(std::move(question), self_, loom::WeaveId{}, finding_.pending));
+  }
+  bool described(const std::string &identity) const {
+    return std::any_of(model_.palette.begin(), model_.palette.end(),
+                       [&](const auto &ports) { return ports.identity == identity; });
+  }
+  /// Add a found power as a node: today's add-node, once the graph's ports describe it. One the
+  /// last catalog answer did not hold is read from the host first and added when that answer
+  /// comes; the latest such Add is the one kept.
+  void add_found(const std::string &identity, loom::Mail &mail) {
+    if (described(identity)) {
+      effect(model_.command("add-node", {identity}), mail);
+      return;
+    }
+    request(fh::FlowCatalog{}, "catalog", mail);
+    adding_ = Adding{identity, correlation_};
+    model_.notice = "Reading the ports of " + identity + " from the host";
+  }
   static std::string raw(const loom::Cell &cell) {
     if (cell.kind() == loom::Kind::Text)
       return cell.as_text();
@@ -701,6 +809,7 @@ private:
     return zengine::message_draft::summary(&cell);
   }
   void show(loom::Mail &mail) {
+    find(mail);
     if (room_.grant > 0 && room_.width > 0 && room_.height > 0) {
       auto current = pane::picture(model_, room_, ++picture_number_);
       const auto ticket = mail.as_role(pane::kRole)
@@ -739,6 +848,20 @@ private:
   std::deque<pane::Picture> pictures_;
   std::optional<Drag> drag_;
   zengine::component::Clipboard clipboard_;
+  /// The one outstanding question to the discovery door, the bytes of the last one asked, and an
+  /// Add waiting on the catalog request that will describe what it adds.
+  struct Finding {
+    std::uint64_t pending = 0;
+    bool awaiting = false;
+    loom::Ticket attempt;
+  };
+  struct Adding {
+    std::string identity;
+    std::uint64_t correlation = 0;
+  };
+  Finding finding_;
+  std::string asked_;
+  std::optional<Adding> adding_;
 };
 } // namespace
 ZEN_EXPORT_WEAVE(FlowPane)

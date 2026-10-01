@@ -34,6 +34,29 @@ bool action_has(const pane::Picture& picture, std::string_view action) {
     return std::any_of(picture.hits.begin(), picture.hits.end(),
         [&](const auto& hit) { return hit.action == action; });
 }
+/// One row of the discovery door's answer, as the door would read it off a contribution.
+ws::PowerRow found_row(std::string identity, std::string kind) {
+    ws::PowerRow row;
+    row.identity = std::move(identity);
+    row.kind = std::move(kind);
+    row.construction = ws::kNativeConstruction;
+    row.provider = "view.provider";
+    row.about = "what this power is for";
+    row.signature = "(a: Int) -> value: Int";
+    return row;
+}
+void answered(pane::Model& model, std::vector<ws::PowerRow> rows) {
+    model.discovered = ws::PowersFound{};
+    model.discovered.ok = true;
+    model.discovered.total = static_cast<std::int64_t>(rows.size());
+    model.discovered.rows = std::move(rows);
+    model.discovered_read = true;
+}
+std::int64_t row_of(const pane::Picture& picture, std::string_view text) {
+    for (const auto& label : picture.content.texts)
+        if (label.text == text) return label.y;
+    return -1;
+}
 }
 
 TEST_CASE("Flow clips a large offscreen graph before spending the canvas budget") {
@@ -122,12 +145,15 @@ TEST_CASE("Flow clips content and hit maps to the same narrow pane body") {
     CHECK(view.hit(0, narrow.height) == nullptr);
 }
 
-TEST_CASE("Flow keeps its catalog rail and viewport controls separate from node gestures") {
+TEST_CASE("Flow keeps its discovery rail and viewport controls separate from node gestures") {
     auto model = graph(1);
-    model.palette.push_back({"very.long.provider.name.that.must.not.paint.over.the.graph", {}, {}});
+    std::vector<ws::PowerRow> rows{
+        found_row("very.long.provider.name.that.must.not.paint.over.the.graph", ws::kOperatorKind)};
+    answered(model, rows);
     const auto view = pane::picture(model, room(), 6);
+    REQUIRE(action_has(view, "found"));
     for (const auto& hit : view.hits) {
-        if (hit.action == "add-node" || hit.action == "source-field" || hit.action == "select-trigger")
+        if (hit.action == "found" || hit.action == "source-field" || hit.action == "select-trigger")
             CHECK(hit.x + hit.w <= 22 * unit);
     }
     const pane::Hit* reset = nullptr;
@@ -145,9 +171,10 @@ TEST_CASE("Flow keeps its catalog rail and viewport controls separate from node 
     // A fractional final body row must not paint over the footer after a resize -- the defect
     // this case guards, on a rail with actions and on an observation page without them.
     for (int i = 0; i < 40; ++i) {
-        model.palette.push_back({"palette." + std::to_string(i), {}, {}});
+        rows.push_back(found_row("palette." + std::to_string(i), ws::kOperatorKind));
         model.events.push_back("event " + std::to_string(i));
     }
+    answered(model, rows);
     auto shorter = room();
     shorter.text_advance_px = 8; shorter.text_line_px = 18;
     shorter.width = 150 * 32; shorter.height = 23 * 88 + 44;
@@ -156,13 +183,13 @@ TEST_CASE("Flow keeps its catalog rail and viewport controls separate from node 
     const auto rail = pane::picture(model, shorter, 7);
     bool palette_visible = false;
     for (const auto& hit : rail.hits) {
-        if (hit.action != "add-node") continue;
+        if (hit.action != "found") continue;
         palette_visible = true;
         CHECK(hit.y + hit.h <= footer);
     }
     REQUIRE(palette_visible);
     for (const auto& text : rail.content.texts) {
-        if (text.text.find("[palette.") == std::string::npos) continue;
+        if (text.text.find("  palette.") == std::string::npos) continue;
         const auto layout = ws::clip_canvas_text(text,
             {0, 0, shorter.width, shorter.height}, shorter);
         REQUIRE(layout.visible());
@@ -268,4 +295,39 @@ TEST_CASE("Flow projects native text and hit regions through independent measure
     REQUIRE(field != dialog.content.texts.end());
     CHECK(field->sel_end_col - field->sel_begin_col == 8);
     CHECK(field->caret_col == field->sel_end_col);
+}
+
+TEST_CASE("Flow's rail is called In scope, and the door's rows are grouped by classification") {
+    auto model = graph(1);
+    // THE ANSWER COMES IN THE CATALOG'S ORDER; the rail groups it in the order a maker reaches for
+    // it, reading each row's classification as the door gave it.
+    answered(model, {found_row("view.edge", ws::kConversionKind),
+                     found_row("view.op", ws::kOperatorKind), found_row("view.src", ws::kSourceKind)});
+    const auto view = pane::picture(model, room(), 9);
+    CHECK(row_of(view, "In scope") >= 0);
+    CHECK_FALSE(text_has(view, "(click to wire)"));
+    const auto sources = row_of(view, "Sources"), operators = row_of(view, "Operators"),
+               conversions = row_of(view, "Conversions");
+    REQUIRE(sources >= 0);
+    REQUIRE(operators >= 0);
+    REQUIRE(conversions >= 0);
+    CHECK(sources < row_of(view, "  view.src"));
+    CHECK(row_of(view, "  view.src") < operators);
+    CHECK(operators < row_of(view, "  view.op"));
+    CHECK(row_of(view, "  view.op") < conversions);
+    CHECK(conversions < row_of(view, "  view.edge"));
+
+    // A PREVIEW IS THE ROW EXPANDED BENEATH THE GRAPH, which gives it the room.
+    model.preview = "view.op";
+    const auto previewed = pane::picture(model, room(), 10);
+    const auto said = row_of(previewed, "view.op -- operator, native, from view.provider");
+    REQUIRE(said >= 0);
+    CHECK(row_of(previewed, "(a: Int) -> value: Int") > said);
+    CHECK(row_of(previewed, "what this power is for") > said);
+    REQUIRE(action_has(previewed, "add-found"));
+    for (const auto& hit : previewed.hits)
+        if (hit.action == "node" || hit.action == "port") CHECK(hit.y + hit.h <= said);
+    // ...and a row the latest answer no longer carries is previewed by nobody.
+    answered(model, {found_row("view.src", ws::kSourceKind)});
+    CHECK_FALSE(action_has(pane::picture(model, room(), 11), "add-found"));
 }

@@ -778,7 +778,8 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   promises *this implementation has known compositional structure* and nothing about opening it.
 - **THE SEARCH IS THE DOOR'S.** The view, the query and the composite filter are one
   `FindPowers` (`powers_question`), asked again on every change and on every grant; the pane
-  never re-matches text, so it shows the rows the Terminal is answered for the same question. Its list is one page of at most `kMaxPowerRows`; more is counted, never silent.
+  never re-matches text, so it shows the rows Flow and the Terminal are answered for the same
+  question. Its list is one page of at most `kMaxPowerRows`; more is counted, never silent.
   A power its contributor does not offer for reuse is listed and says so, `(not offered)`.
 - **⚠ BROWSING CANNOT EVALUATE, STRUCTURALLY.** `zengine-introspection` links no operator
   target: there is no catalog, definition, callable or `evaluate` in that image, so the property

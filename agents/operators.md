@@ -328,9 +328,10 @@ Source     zero unbound weaver inputs          evaluated on its own subject
   `loom::same_identity` compares all three; splitting them invites a consumer to compare the
   cheap one. `kind` is derived at each ask from `op::is_source` and `op::declares_migration` on
   the contribution in force (`workshop/powers_door.hpp`), never authored and never stored.
-- **NOTHING ADDS A SECOND CLASSIFICATION.** The Powers pane derives its
-  `Sources` and `Operators` views from that `kind`, and shows the output identity as
-  `yields <name> v<N>` — so *what would I get?* is answered by a READ. Nothing parses an
+- **NOTHING ADDS A SECOND CLASSIFICATION.** Flow groups its rail and the Powers pane derives its
+  `Sources` and `Operators` views from that `kind`; Powers shows the output identity as
+  `yields <name> v<N>` and Flow's preview the signature — so *what would I get?* is answered by
+  a READ. Nothing parses an
   identity, consults a naming rule or reads a registration flag, because none exists: **the
   catalog states the classification once and the door carries it.** A change that adds an
   authored kind, a `SourceDef`, a Source registry or a second store has added a second answer,

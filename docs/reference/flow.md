@@ -73,7 +73,8 @@ observes the later answer or dispatch refusal through the
 the workspace, save path, dirty flag, page, deliberate-initial-state flag, and an open dialog's
 action, fields, selected field, caret and selection anchor. On activation the replacement
 reconnects to the existing session and reacquires graphical grants. Pending asks, hit maps,
-held gestures and process custody are not restored. A deliberate initial-state edit remains
+held gestures, process custody, the search line, a selected port and a preview are not
+restored. A deliberate initial-state edit remains
 protected from newly observed live state until a matching successful Run answer is accepted. Unconfirmed dialog text is
 not included in an ordinary workspace save. An orderly quit refuses an open dialog or unsaved
 work until the weaver resolves it.
@@ -85,6 +86,15 @@ from 50% to 200%, while glyph size and port-row height remain fixed. Content is 
 the canvas budgets are spent. A view that still exceeds a budget becomes an explicit recovery
 picture, with save/export and zoom controls, rather than a partially drawn graph. Pointer hit
 testing uses the room's device grain and the picture identified by Workshop's input fence.
+
+The pane finds powers through the host's discovery door, `FindPowers` to `zengine.powers`
+([introspection](introspection.md#the-discovery-door-finding-a-power)): it asks only for powers
+their contributors offer and, with an input port selected, only for what yields that port's
+type in Loom's spelling. It shows the latest answer as the door gave it, matched by Loom's answer
+provenance and its correlation, and asks again when the question changes, at a room grant, and
+after a Run, Apply, Stop or Catalog. The graph's port signatures still come from the Flow host's
+`FlowCatalog`; an Add for a power those signatures do not yet describe reads them again, then
+spends `add-node`.
 
 ## What generation means
 

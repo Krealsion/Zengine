@@ -34,8 +34,8 @@ can keep them in a saved setup like any other pane.
 computational vocabulary this host currently resolves, separated into
 [Sources and Operators](operator-sources.md), and it is searchable — by name and by what each
 power is for — navigable and, for a Source, samplable on an explicit gesture. It reads all of it
-from the host's [discovery door](#the-discovery-door-finding-a-power), the same door the Terminal
-asks. Everything below about snapshots, authorities and disagreement applies to all three.
+from the host's [discovery door](#the-discovery-door-finding-a-power), the same door Flow and the
+Terminal ask. Everything below about snapshots, authorities and disagreement applies to all three.
 Loaded also scrolls and selects a target for Compose.
 
 ## Three questions, three owners, and they disagree on purpose
@@ -244,8 +244,8 @@ on either word in the chrome row.
   the key. Typing is not among them: the query field's editing is the component's own.
 - **The search is the discovery door's.** The pane asks the [door](#the-discovery-door-finding-a-power)
   the view as a kind, the query as text and `Composite` as a construction, together, and shows the
-  rows it answers without matching anything again — so the Terminal asking the same question gets
-  the same rows. A power matches when every word of the query is an ASCII
+  rows it answers without matching anything again — so Flow and the Terminal asking the same
+  question get the same rows. A power matches when every word of the query is an ASCII
   case-insensitive substring of its identity or of what it is for. An empty query matches
   everything, bytes at or above `0x80` compare exactly, and the door **filters without
   reordering** — the catalog's order is the catalog's. There is no fuzzy matching and no ranking.
@@ -394,8 +394,8 @@ two panes read `(waiting for the provider)`. That is a correct arrangement rathe
 
 ### The discovery door: finding a power
 
-The discovery door is where a weaver's tools find a power: the `Powers` pane and the Terminal ask
-it the same two questions, so one question gets the same rows wherever it is asked.
+The discovery door is where a weaver's tools find a power: Flow's search line, the `Powers` pane
+and the Terminal all ask it, so one question gets the same rows wherever it is asked.
 
 ```text
 FindPowers{text, takes, yields, provider, kind, construction, offered, after, limit}
@@ -444,7 +444,8 @@ none of its words is refused the same way.
 **A power's words describe it and do nothing else.** Nothing reads them, or the `offered` mark, to
 decide what may run, be reordered, removed or trusted, and they are no part of any schema, so they
 move no content id. A power that is not offered is a participant's own reaction, such as a running
-Flow definition's trigger, and `Powers` and the Terminal list it, saying so.
+Flow definition's trigger: Flow never offers one for composition, and `Powers` and the Terminal
+list it, saying so.
 
 **Who may ask:** anyone who can be answered — an office, or a participant speaking for itself, as
 the Terminal does, which holds no office. A send with no sender (a root's) has nobody to answer, so

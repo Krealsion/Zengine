@@ -446,7 +446,7 @@ TEST_CASE("an overlay changing construction moves the badge and not the view") {
 
 TEST_CASE("the search is one question to the door, and the pane never matches text itself") {
     // THE VIEW, THE QUERY AND THE FILTER ARE ONE ASK. What matches is the door's to say -- the
-    // same rows it says to the Terminal -- so the pane carries the typed text whole.
+    // same rows it says to Flow and the Terminal -- so the pane carries the typed text whole.
     intro::PowersUi ui;
     ws::FindPowers asked = intro::powers_question(ui);
     CHECK(asked.kind == std::optional<std::string>(ws::kSourceKind));
