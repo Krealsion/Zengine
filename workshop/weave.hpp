@@ -1208,8 +1208,8 @@ private:
     void grant_menu(const RuntimePane& row, const PaneMenuRequested& asked,
                     std::uint64_t correlation, const PointedAt& at, loom::Mail& mail);
     /// SPEND A STANDARD ROW CHOSEN ON A PRESENTED MENU, on the pane that menu was about: an action
-    /// through the host's own seam, a group by opening the host's menu at that group. An id the
-    /// grant did not carry spends nothing.
+    /// through the host's own seam, a group by opening the host's menu at that group. An id that
+    /// names none of the catalog's pane rows spends nothing.
     void spend_standard_row(const PresentedMenu& ended, const std::string& id, loom::Mail& mail);
     /// END THE PRESENTED MENU BECAUSE CUSTODY MOVED, telling the presenter why; the presenter
     /// answers its requester. Who asked is kept until Loom has had its say (`withdrawn_`); a

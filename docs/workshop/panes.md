@@ -221,7 +221,8 @@ Workshop's own rows for the pane beneath them — `arrange`, `Order >`, `Reset >
 from its own menu; choosing a pane's row is the pane's. The menu is shown by the
 **menu presenter** — an ordinary weave in the `zengine.presenter` office, loaded by a plan row
 like any tool. The shipped one works like Workshop's own menu: `↑` `↓` and `Enter`, a click on a
-row, `Esc` or a click outside to dismiss; a rule sets Workshop's rows off from the pane's. It takes no keys away from anything and gives none back
+row, `Esc` or a click outside to dismiss; a rule sets Workshop's rows off from the pane's. It
+takes no keys away from anything and gives none back
 afterwards: what you pressed into last still has them. A menu that arrives late — you clicked
 somewhere else first, or pressed a key — does not open at all; a newer menu replaces an older
 one; a pane that leaves the desk takes its open menu with it, and so does a pane that is reloaded
@@ -242,7 +243,8 @@ How every pane's menu looks and behaves is the presenter's, so replacing it is r
 weave. Point the load plan's `zengine.presenter` row at another artifact, or build one and reload
 it in the shipped presenter's place. The worked example is
 [`examples/numbered-presenter`](../../examples/numbered-presenter/presenter.cpp): rows are
-numbered, Workshop's on from the pane's, and a digit chooses, `↑` `↓` wrap, and a click chooses when you let go on the row you
+numbered, Workshop's on from the pane's, and a digit chooses, `↑` `↓` wrap, and a click chooses
+when you let go on the row you
 pressed. It keeps the same state as the shipped presenter, so reloading one over the other while
 a menu is open keeps that menu open — shown the new way, cursor kept, and your choice still
 reaching the pane that asked. If the swap catches a menu mid-flight — the old image gone, the

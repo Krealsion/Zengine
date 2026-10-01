@@ -67,6 +67,7 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   changes and command atomicity. `tests/test_flow_view.cpp` covers canvas clipping, dense views,
   long text, independent measured axes, device-grain hit testing and the rail's grouping and
   preview. `tests/test_flow_pane.cpp` covers modal commands, native text dragging, reload
-  preservation, the right press handed back and finding through the door; host behavior is witnessed under
+  preservation, the right press handed back and finding through the door; host
+  behavior is witnessed under
   [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

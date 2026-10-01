@@ -566,11 +566,12 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
     next.last_input = gestures_;
     // ...AND THE HOST'S OWN PANE MENU BENEATH THE PANE'S ROWS, in the same menu: the rows its
     // chrome offers, each the host's to spend when chosen (`spend_standard_row`), never the pane's.
+    std::vector<PaneMenuRow> standard;
     for (const ContextEntry& entry : context_population(context_subject::kPane, "")) {
         if (!entry.is_group && entry.row == nullptr) {
             continue;
         }
-        next.standard.push_back(
+        standard.push_back(
             PaneMenuRow{entry.is_group ? entry.group : entry.row->id, context_entry_text(entry)});
     }
     session_.presented = next;
@@ -580,7 +581,7 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
         mail.as_role(kWorkshopProvider)
             .send_to_role(kPresenterRole,
                           MenuGranted{next.menu, next.office, next.pane, next.subject, asked.rows,
-                                      next.room_rows, next.room_columns, next.standard},
+                                      next.room_rows, next.room_columns, std::move(standard)},
                           correlation);
     if (!sent.valid()) {
         end_menu_unanswered("the menu could not be handed to a presenter", mail);
@@ -893,13 +894,7 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::spend_standard_row(const PresentedMenu& ended, const std::string& id,
                                        loom::Mail& mail) {
-    bool granted = false;
-    for (const PaneMenuRow& row : ended.standard) {
-        granted = granted || row.id == id;
-    }
-    if (!granted) {
-        return; // not a row this host offered on that menu
-    }
+    // THE CATALOG'S OWN PANE ROWS, the ones every grant carries: an id naming none spends nothing.
     const PaneRef pane{ended.office, ended.pane};
     for (const ContextEntry& entry : context_population(context_subject::kPane, "")) {
         if (entry.is_group && id == entry.group) {

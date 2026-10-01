@@ -233,10 +233,8 @@ void queue_key(PaneRig& r, std::int64_t scancode) {
         loom::WeaveId{}, 0));
 }
 
-/// THE HOST'S OWN PANE MENU, as a pane's menu shows it beneath the pane's rows: the ids the host
-/// grants and the lines the shipped presenter draws for them, after its rule.
-const std::vector<std::string> kStandardIds = {"manage.arrange", "Order", "Reset",
-                                               "pane.edit-code", "manage.remove"};
+/// THE HOST'S OWN PANE MENU, as a pane's menu shows it beneath the pane's rows: the lines the
+/// shipped presenter draws for them, after its rule.
 const std::vector<std::string> kStandardLines = {"  arrange", "  Order >", "  Reset >",
                                                  "  edit code", "  remove"};
 
@@ -728,12 +726,6 @@ TEST_CASE("WL-CTX-09: a pane's menu shows its own rows first and the host's stan
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    // GRANTED: the host's own pane menu, by the ids it spends -- its catalog's, never the pane's.
-    std::vector<std::string> ids;
-    for (const PaneMenuRow& row : t.r.session().presented.standard) {
-        ids.push_back(row.id);
-    }
-    CHECK(ids == kStandardIds);
     // SHOWN: the pane's rows, a rule as wide as the widest row, then the standard rows.
     std::vector<std::string> want = {"> First row", "  Second row", "  ----------"};
     want.insert(want.end(), kStandardLines.begin(), kStandardLines.end());
@@ -742,6 +734,7 @@ TEST_CASE("WL-CTX-09: a pane's menu shows its own rows first and the host's stan
     // THE RULE IS NO ROW: Down from the pane's last row lands on the first standard row, Up returns.
     t.r.key(input::scan::kDown);
     t.r.key(input::scan::kDown);
+    REQUIRE(presented_texts(t.r.session()).size() == want.size());
     CHECK(presented_texts(t.r.session())[3] == "> arrange");
     t.r.key(input::scan::kUp);
     CHECK(presented_texts(t.r.session())[1] == "> Second row");
@@ -813,6 +806,7 @@ TEST_CASE("WL-CTX-09: a standard row is spent only while its choosing act is the
     REQUIRE(t.foreign_open());
     t.r.key(input::scan::kDown);
     t.r.key(input::scan::kDown);
+    REQUIRE(presented_texts(t.r.session()).size() > 3);
     REQUIRE(presented_texts(t.r.session())[3] == "> arrange");
     // RETURN CHOOSES ARRANGE, and a newer key is read before the presenter's word comes back: the
     // host hands both acts to the menu, the presenter closes it on the first, and by the time the
