@@ -281,7 +281,7 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kR, mod::kNone}},
     {Act::kManageLower, "manage.lower", "lower", KeyContext::kArrangePane,
      {scan::kL, mod::kNone}},
-    {Act::kManageRemove, "manage.remove", "remove", KeyContext::kArrangePane,
+    {Act::kManageRemove, "manage.remove", "hide pane", KeyContext::kArrangePane,
      {scan::kD, mod::kNone}},
     {Act::kManageReset, "manage.reset", "reset", KeyContext::kArrangePane,
      {scan::k0, mod::kNone}},
@@ -315,7 +315,7 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kR, mod::kNone}},
     {Act::kManageLower, "manage.lower", "lower", KeyContext::kArrangeDesk,
      {scan::kL, mod::kNone}},
-    {Act::kManageRemove, "manage.remove", "remove", KeyContext::kArrangeDesk,
+    {Act::kManageRemove, "manage.remove", "hide pane", KeyContext::kArrangeDesk,
      {scan::kD, mod::kNone}},
     {Act::kManageReset, "manage.reset", "reset", KeyContext::kArrangeDesk,
      {scan::k0, mod::kNone}},
@@ -1031,9 +1031,9 @@ struct RetiredAction {
 };
 /// WHERE THE PICKER'S AND THE HOST PANE MANAGER'S ACTS WENT, said once each for the rows below.
 inline constexpr const char* kToPaneManager =
-    "the desktop's Pane Manager (`desktop.panes`) opens and closes panes";
+    "the desktop's Pane Manager (`desktop.panes`) shows and hides panes";
 inline constexpr const char* kToPaneManagerAndInfo =
-    "the desktop's Pane Manager (`desktop.panes`) opens and closes panes; Info inspects one";
+    "the desktop's Pane Manager (`desktop.panes`) shows and hides panes; Info inspects one";
 inline constexpr const char* kToArranging = "arranging a pane (`workshop.manage`) orders it";
 inline constexpr const char* kToInfoRows = "Info's own rows commit and cancel its edits";
 

@@ -359,6 +359,10 @@ struct PaneMenuRow {
     ZEN_SHAPE(PaneMenuRow, 1, ZEN_FIELD(id), ZEN_FIELD(label));
 };
 
+/// THE MARK A ROW'S LABEL ENDS WITH WHEN CHOOSING IT OPENS ANOTHER MENU, the host's groups and a
+/// pane's rows alike (`pane_menu::Offer::submenu`); a row that asks for more input ends in "...".
+inline constexpr const char* kSubmenuMark = " >";
+
 /// Presentation bounds on one menu; the id bound is a declared action's (`kMaxPaneActionIdLen`),
 /// published here so a presenter built from this header alone can judge.
 inline constexpr std::size_t kMaxPaneMenuRows = 32;

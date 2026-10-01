@@ -36,8 +36,10 @@ inline constexpr std::size_t kMaxMenuLineLen = 256;
 /// `office`/`pane` name the requester as Loom authenticated it; `subject` and `rows` are the
 /// request's, unread by the host; the room is the most the popup can show now. `standard` is the
 /// host's own pane menu for that pane, shown beneath the requester's rows in the same menu: a
-/// choice of one is the host's to spend (`MenuClosed::standard`), never the requester's. A grant
-/// while another menu is open replaces it: the older one was withdrawn first.
+/// choice of one is the host's to spend (`MenuClosed::standard`), never the requester's.
+/// `pane_name` is that pane's name as the weaver knows it, for whatever sets the standard rows
+/// apart to say whose they are. A grant while another menu is open replaces it: the older one was
+/// withdrawn first.
 struct MenuGranted {
     std::int64_t menu = 0;
     std::string office;
@@ -47,9 +49,10 @@ struct MenuGranted {
     std::int64_t room_rows = 0;
     std::int64_t room_columns = 0;
     std::vector<PaneMenuRow> standard;
+    std::string pane_name;
     ZEN_SHAPE(MenuGranted, 2, ZEN_FIELD(menu), ZEN_FIELD(office), ZEN_FIELD(pane),
               ZEN_FIELD(subject), ZEN_FIELD(rows), ZEN_FIELD(room_rows), ZEN_FIELD(room_columns),
-              ZEN_FIELD(standard));
+              ZEN_FIELD(standard), ZEN_FIELD(pane_name));
 };
 
 /// Presenter -> Workshop: menu `menu` shows these lines now, top to bottom; a press on line i is
@@ -152,9 +155,11 @@ struct HeldMenu {
     std::int64_t room_rows = 0;
     std::int64_t room_columns = 0;
     std::vector<PaneMenuRow> standard;
+    std::string pane_name;
     ZEN_SHAPE(HeldMenu, 2, ZEN_FIELD(menu), ZEN_FIELD(correlation), ZEN_FIELD(office),
               ZEN_FIELD(pane), ZEN_FIELD(subject), ZEN_FIELD(rows), ZEN_FIELD(cursor),
-              ZEN_FIELD(room_rows), ZEN_FIELD(room_columns), ZEN_FIELD(standard));
+              ZEN_FIELD(room_rows), ZEN_FIELD(room_columns), ZEN_FIELD(standard),
+              ZEN_FIELD(pane_name));
 };
 
 } // namespace zengine::workshop

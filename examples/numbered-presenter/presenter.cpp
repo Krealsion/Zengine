@@ -136,7 +136,8 @@ public:
                               0,
                               g.room_rows,
                               g.room_columns,
-                              g.standard};
+                              g.standard,
+                              g.pane_name};
         first_ = 0;
         pressed_row_ = -1;
         show(mail);

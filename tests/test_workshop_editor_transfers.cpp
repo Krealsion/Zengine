@@ -124,7 +124,7 @@ TEST_CASE("right-click on the highlight offers Extract above the standard rows, 
     REQUIRE(lines.size() >= 3);
     CHECK(lines[0].text.find("Extract selection to Inventory") != std::string::npos);
     CHECK(lines[2].text.find("arrange") != std::string::npos);
-    CHECK(lines.back().text.find("remove") != std::string::npos);
+    CHECK(lines.back().text.find("hide pane") != std::string::npos);
     s.key(input::scan::kReturn);
     INFO(s.notice() << " / " << s.r.last_notice());
     CHECK(s.r.last_notice().find("Carrying") != std::string::npos);

@@ -1827,7 +1827,8 @@ TEST_CASE("a right press offers the Builder's own rows, and a menu from another 
         CHECK(any_row(offered, "turn load-after-build on"));
         CHECK(any_row(offered, "add `one`'s artifact to the load plan..."));
         CHECK(any_row(offered, "edit `one`'s source"));
-        CHECK(any_row(offered, "manage this pane..."));
+        CHECK(any_row(offered, "hide pane")); // the standard rows, beneath the Builder's own
+        CHECK_FALSE(any_row(offered, "manage this pane"));
         CHECK_FALSE(any_row(offered, "load the built")); // nothing is standing built
         CHECK(any_row(offered, "load what was built")); // ...and the row says so rather than
                                                         // vanishing out of the only fallback
@@ -2477,7 +2478,7 @@ TEST_CASE("every control each Builder mode draws has a row in that mode's own me
                                 "build what the project is waiting on",
                                 "promote the loaded image", "revert the loaded image",
                                 "edit `one`'s source", "read what a build said",
-                                "manage this pane..."}) {
+                                "hide pane"}) {
             CHECK_MESSAGE(any_row(offered, row), "the Builder menu has no row `", row, "`");
         }
     }
@@ -2486,7 +2487,7 @@ TEST_CASE("every control each Builder mode draws has a row in that mode's own me
         const std::vector<std::string> offered = bp_open_menu(b);
         INFO("offered\n", bp_picture(offered));
         for (const char* row : {"choose `one`", "edit `one`'s source",
-                                "leave the choice as it was", "manage this pane..."}) {
+                                "leave the choice as it was", "hide pane"}) {
             CHECK_MESSAGE(any_row(offered, row), "the list menu has no row `", row, "`");
         }
     }
@@ -2496,7 +2497,7 @@ TEST_CASE("every control each Builder mode draws has a row in that mode's own me
         const std::vector<std::string> offered = bp_open_menu(b);
         INFO("offered\n", bp_picture(offered));
         for (const char* row : {"load `a` with the role typed", "write nothing and load nothing",
-                                "manage this pane..."}) {
+                                "hide pane"}) {
             CHECK_MESSAGE(any_row(offered, row), "the role menu has no row `", row, "`");
         }
     }

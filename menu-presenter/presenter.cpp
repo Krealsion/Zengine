@@ -9,11 +9,11 @@
 // Pane law: agents/panes.md
 
 // An offer with no rows, too many, or an id or label out of bounds is refused in words, and so are
-// such standard rows. Lines: the requester's rows, a rule, the host's standard rows; "> label" at
-// the cursor, "  label" otherwise, windowed with "... n earlier" / "... n more". Up and down pass
-// over the rule and stop at the ends, choose chooses, back dismisses; a press on a row chooses it,
-// one outside dismisses, a release means nothing. A standard row chosen is named to the host,
-// which spends it, and the requester is answered unchosen.
+// such standard rows. Lines: the requester's rows, a rule naming the pane, the standard rows;
+// "> label" at the cursor, "  label" otherwise, windowed with "... n earlier" / "... n more". Up and
+// down pass over the rule and stop at the ends, choose chooses, back dismisses; a press on a row
+// chooses it, one outside dismisses, a release means nothing. A standard row chosen is named to the
+// host, which spends it, and the requester is answered unchosen.
 
 // One menu at a time, answered exactly once: chosen, dismissed, withdrawn by the host or refused.
 // The open menu is reload-kept state (`HeldMenu`), so a reloaded presenter shows it again; a menu
@@ -67,6 +67,19 @@ const char* refusal_of(const ws::MenuGranted& g) {
         return "no room to present a menu here";
     }
     return nullptr;
+}
+
+/// THE RULE ABOVE THE STANDARD ROWS, naming the pane they act on -- "  -- Name --" -- and drawn
+/// out with dashes as far as the widest row's line, so it widens the popup only for a long name.
+std::string rule_line(const std::string& pane_name, std::size_t widest) {
+    std::string out = "  --";
+    if (!pane_name.empty()) {
+        out += " " + pane_name + " --";
+    }
+    while (out.size() < widest + 2) {
+        out += '-';
+    }
+    return out;
 }
 
 /// ONE LINE OF TEXT A CANVAS CAN DRAW, at most `columns` wide: an undrawable byte becomes a space
@@ -134,7 +147,8 @@ public:
                               0,
                               g.room_rows,
                               g.room_columns,
-                              g.standard};
+                              g.standard,
+                              g.pane_name};
         first_ = 0;
         show(mail);
     }
@@ -317,7 +331,7 @@ private:
                 drawable("  ... " + std::to_string(w.before) + " earlier", columns),
                 surface::role::kMuted});
         }
-        // THE RULE IS AS WIDE AS THE WIDEST ROW'S LINE, so it never widens the popup.
+        // THE RULE NAMES THE PANE THE STANDARD ROWS ACT ON, as wide as the widest row's line.
         std::size_t widest = 0;
         for (const std::vector<ws::PaneMenuRow>* run : {&state_.rows, &state_.standard}) {
             for (const ws::PaneMenuRow& r : *run) {
@@ -330,7 +344,7 @@ private:
             const ws::PaneMenuRow* row = row_of(entry, standard);
             if (row == nullptr) {
                 said.lines.push_back(surface::SurfaceTextRow{
-                    drawable("  " + std::string(widest, '-'), columns), surface::role::kMuted});
+                    drawable(rule_line(state_.pane_name, widest), columns), surface::role::kMuted});
                 continue;
             }
             const bool here = entry == state_.cursor;

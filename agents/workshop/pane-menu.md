@@ -16,12 +16,13 @@ MEANS
 
 DOES NOT MEAN
 - that the host performs a pane's row, a pane a standard row, or that a row grants one;
-- that anything is restored after: a choice may continue to `manage...` or the keyboard, once.
+- that anything is restored after: a choice may continue to a manage row or the keys, once.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneMenuRow`, `PaneMenuRequested`,
 `PaneMenuAnswered`, `PaneManageRequested`, `PaneKeyboardRequested`, `kPresenterRole`;
 `workshop/presenter_vocabulary.hpp` `MenuGranted`, `MenuShown`, `MenuInput`, `MenuClosed`,
-`MenuWithdrawn`, `MenuGranted::standard`, `MenuClosed::standard`; `workshop/context.hpp`
+`MenuWithdrawn`, `MenuGranted::standard`, `MenuGranted::pane_name`, `MenuClosed::standard`;
+`workshop/context.hpp`
 `PresentedMenu`, `context_population`; `workshop/weave.hpp`
 `grant_menu`, `press_sent_`, `withdraw_menu`, `end_menu_unanswered`, `spend_standard_row`,
 `cell_of_body_place`, `ChoiceAnswered`, `action_sent_`;
@@ -82,9 +83,10 @@ DOES NOT MEAN
 - that every later participant must hand over or cancel alike: it is these consumers' policy.
 
 PROVEN BY — `workshop/presenter_vocabulary.hpp` `HeldMenu`, `HeldMenu::standard`,
+`HeldMenu::pane_name`,
 `PresenterReady`, `MenuClosed`, `MenuReturned`, `kMaxMenuLines`;
 `menu-presenter/presenter.cpp` `MenuPresenter`, `refusal_of`, `MenuPresenter::give_back`,
-`MenuPresenter::row_of`, `MenuPresenter::is_rule`, `drawable`;
+`MenuPresenter::row_of`, `MenuPresenter::is_rule`, `rule_line`, `drawable`;
 `examples/numbered-presenter/presenter.cpp` `NumberedPresenter`, `digit_row`, `line_for`,
 `NumberedPresenter::give_back`, `NumberedPresenter::row_of`;
 `workshop/pane_menu.hpp` `Asked`, `Asked::take`, `Offer`; `desktop-pane/pane.cpp`

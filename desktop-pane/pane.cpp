@@ -822,9 +822,9 @@ private:
         return {PaneActionRow{pane::kActionUp, "row up", input::scan::kUp, input::mod::kNone},
                 PaneActionRow{pane::kActionDown, "row down", input::scan::kDown,
                               input::mod::kNone},
-                PaneActionRow{pane::kActionLaunch, "open or focus", input::scan::kReturn,
+                PaneActionRow{pane::kActionLaunch, "show or focus", input::scan::kReturn,
                               input::mod::kNone},
-                PaneActionRow{pane::kActionClose, "close", input::scan::kX, input::mod::kNone},
+                PaneActionRow{pane::kActionClose, "hide", input::scan::kX, input::mod::kNone},
                 PaneActionRow{pane::kActionMenu, "row menu", input::scan::kM, input::mod::kNone},
                 PaneActionRow{ws::kCreatorNewId, "new pane", input::scan::kN, input::mod::kNone},
                 PaneActionRow{ws::kCreatorSaveId, "save pane", input::scan::kS,
@@ -1050,7 +1050,7 @@ private:
             return;
         }
         if (!choice_.actionable()) {
-            notice_ = "Return opened nothing -- choose a row first";
+            notice_ = "Return showed nothing -- choose a row first";
             return;
         }
         notice_.clear();
@@ -1063,7 +1063,7 @@ private:
             return;
         }
         if (!choice_.actionable()) {
-            notice_ = "x closed nothing -- choose a row first";
+            notice_ = "x hid nothing -- choose a row first";
             return;
         }
         notice_.clear();
@@ -1156,11 +1156,11 @@ private:
         offer.at(row, column);
         if (p.open) {
             offer.row(pane::kMenuFocus, "focus " + p.name);
-            offer.row(pane::kMenuClose, "close " + p.name);
+            offer.row(pane::kMenuClose, "hide " + p.name);
         } else if (p.available) {
-            offer.row(pane::kMenuOpen, "open " + p.name);
+            offer.row(pane::kMenuOpen, "show " + p.name);
         }
-        offer.row(pane::kMenuManage, "manage...");
+        offer.submenu(pane::kMenuManage, "manage " + p.name);
         offer.row(pane::kMenuInspect, "inspect in Info");
         launcher_asked_ = offer.continuing(mail, pane::kDesktopRole, correlation);
     }
@@ -1261,7 +1261,7 @@ private:
         // one this image last saw on the row; an image that never saw it says the durable key.
         const std::string lost =
             choice_.lost ? (held_name_.empty() ? state_.cursor_pane : held_name_) +
-                               " left the list -- choose a row before Return opens anything"
+                               " left the list -- choose a row before Return shows anything"
                          : std::string();
         const std::string* said[] = {&lost, &notice_, &pane_rows_.word, &app_.word};
         for (const std::string* word : said) {

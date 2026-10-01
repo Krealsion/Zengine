@@ -58,7 +58,6 @@ using ws::PaneButton;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::PaneKey;
-using ws::PaneManageRequested;
 using ws::PaneMenuAnswered;
 using ws::PaneMenuRequested;
 using ws::v2::PaneOffered;
@@ -198,7 +197,7 @@ class BuilderPaneWeave
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
                      RecipeSourceRequested, OpenSourceRequested, PaneMenuRequested,
-                     PanePassRequested, PaneManageRequested, ws::PaneKeyboardRequested,
+                     PanePassRequested, ws::PaneKeyboardRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested,
                      builder::BuildOutputRequested>> {
 public:
@@ -1040,7 +1039,6 @@ public:
                                    : "read what build #" + std::to_string(shown_.op) + " said",
                     shown_.op == 0 ? std::string() : "#" + std::to_string(shown_.op));
         }
-        say_row(pane::kMenuManage, "manage this pane...");
         asked_menu_ = offer.continuing(mail, pane::kBuilderPaneRole, correlation);
     }
 
@@ -1090,11 +1088,6 @@ public:
         if (subject != menu_subject()) {
             notice_ = "that menu was about something else -- nothing was done";
             say(mail);
-            return;
-        }
-        if (id == pane::kMenuManage) {
-            (void)pane_menu::manage(mail, pane::kBuilderPaneRole, pane::kBuilderPane,
-                                    pane::kBuilderPaneRole, pane::kBuilderPane);
             return;
         }
         static const struct {

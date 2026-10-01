@@ -134,7 +134,6 @@ inline constexpr const char* kMenuChoose = "builder.menu.choose";
 inline constexpr const char* kMenuClose = "builder.menu.close";
 inline constexpr const char* kMenuCommit = "builder.menu.commit";
 inline constexpr const char* kMenuCancel = "builder.menu.cancel";
-inline constexpr const char* kMenuManage = "builder.menu.manage";
 
 // ---- The output reader's own rows -------------------------------------------------------
 //

@@ -34,7 +34,7 @@ four:
 
 | key | what it does |
 |---|---|
-| `Ctrl`+`p` | show or hide the **Pane Manager**: it opens with your keys in it, and a second press closes it ([panes](panes.md#opening-going-to-and-closing--the-pane-manager)) |
+| `Ctrl`+`p` | show or hide the **Pane Manager**: it shows with your keys in it, and a second press hides it ([panes](panes.md#showing-going-to-and-hiding--the-pane-manager)) |
 | `Ctrl`+`t` | open the **Terminal**, or put you in it |
 | `Ctrl`+`k` | open the **Hotkeys** pane, or put you in it |
 | `Esc` | put down the pane you have selected, where nothing more specific wanted the key |
@@ -81,7 +81,7 @@ above every mode), and under it each row: the key as your keymap file would spel
 does, and the id a file names it by. A `*` marks a key your own file moved or switched off.
 `↑` `↓` `Home` `End` scroll it.
 
-It is an ordinary pane: arrange it, cover it, close it, and `Ctrl`+`k` brings it back. It is not
+It is an ordinary pane: arrange it, cover it, hide it, and `Ctrl`+`k` brings it back. It is not
 a mode — reading it takes no keyboard away from anything, and every key it lists works while it
 is open. What it shows is what Workshop tells it: the effective keymap, re-told whenever your
 file, a pane's declaration, the desktop's own rows or an edit change it. It is a table — the key
@@ -242,7 +242,7 @@ as you wrote it — byte for byte, in place — not deleted and not an error. It
 addressed to whichever build understands it. An id for an action that **retired** — the
 `p` picker's `workshop.picker` and `picker.*`, the old Pane Manager's `pane-editor.*` and
 `draft.*`, the object canvas's `object.*` — is kept the same way, answered by nothing, and the
-load says what it retired with and where the act went now (`desktop.panes` opens and closes
+load says what it retired with and where the act went now (`desktop.panes` shows and hides
 panes; arranging a pane orders it; Info's own rows commit and cancel its edits).
 
 **What is said:** a gesture with a known backend gap is accepted and the gap is named once at

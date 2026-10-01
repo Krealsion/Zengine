@@ -1642,7 +1642,7 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
     const std::string before = r.last_notice();
     r.key(input::scan::kReturn);
     CHECK(r.last_notice() == before); // no launch was asked for
-    CHECK(launcher_text(r).find("Return opened nothing") != std::string::npos);
+    CHECK(launcher_text(r).find("Return showed nothing") != std::string::npos);
     CHECK(launcher_text(r).find("g2 left the list") != std::string::npos); // still said
 }
 
@@ -1879,7 +1879,7 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     CHECK(desk->closed().back().refusal.empty());
     CHECK_FALSE(has_pane(r.session().setup.active, hello));
     CHECK_FALSE(r.session().panes.has(kind));
-    CHECK(r.last_notice().rfind("closed ", 0) == 0);
+    CHECK(r.last_notice().rfind("hid ", 0) == 0);
     // ⚠ NOTHING WAS UNLOADED: the office is still held, and the catalog still knows the pane.
     CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<PaneRoom>()));
     CHECK(r.session().panes.runtime.find(kHelloOffice, kHelloPane) != nullptr);
@@ -2016,13 +2016,13 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     r.key(input::scan::kX);
     CHECK(has_pane(s.setup.active, info));
     CHECK(s.setup.active.panes == desk);
-    CHECK(launcher_text(r).find("x closed nothing") != std::string::npos);
+    CHECK(launcher_text(r).find("x hid nothing") != std::string::npos);
     manager_here(r);
     REQUIRE(s.panes.keyboard == manager->kind);
     r.key(input::scan::kReturn);
     CHECK(s.panes.keyboard == manager->kind);
     CHECK(s.setup.active.panes == desk);
-    CHECK(launcher_text(r).find("Return opened nothing") != std::string::npos);
+    CHECK(launcher_text(r).find("Return showed nothing") != std::string::npos);
 
     // A ROW THE WEAVER CHOOSES NOW IS THE CHOICE, and Return obeys it.
     const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panes);

@@ -351,7 +351,7 @@ What a person meets on this route:
   same link is refused `busy: ... held by you`. A second participant is a second guests row and a
   second link.
 - **Ctrl+P toggles the Pane Manager.** A press opens it with the keys; a second press closes it
-  again, wherever the keys are ([panes](panes.md#opening-going-to-and-closing--the-pane-manager)).
+  again, wherever the keys are ([panes](panes.md#showing-going-to-and-hiding--the-pane-manager)).
   Press Ctrl+P only when the Pane Manager is not already on the desk (`workshop/act`'s `open` step
   checks first), then press what it answers to (`--input chord=down`).
 - **A lost link is an unknown outcome.** When Workshop goes away after a tool's request was

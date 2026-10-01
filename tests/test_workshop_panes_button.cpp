@@ -236,7 +236,7 @@ void queue_key(PaneRig& r, std::int64_t scancode) {
 /// THE HOST'S OWN PANE MENU, as a pane's menu shows it beneath the pane's rows: the lines the
 /// shipped presenter draws for them, after its rule.
 const std::vector<std::string> kStandardLines = {"  arrange", "  Order >", "  Reset >",
-                                                 "  edit code", "  remove"};
+                                                 "  edit code", "  hide pane"};
 
 /// The canvas cell of prose row `row`, column `col` of a pane's BODY (under its header).
 ui::Rect body_of(PaneRig& r, std::int64_t kind) { return external_body_rect(r.session(), kind); }
@@ -726,8 +726,8 @@ TEST_CASE("WL-CTX-09: a pane's menu shows its own rows first and the host's stan
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    // SHOWN: the pane's rows, a rule as wide as the widest row, then the standard rows.
-    std::vector<std::string> want = {"> First row", "  Second row", "  ----------"};
+    // SHOWN: the pane's rows, a rule naming the pane the standard rows act on, then those rows.
+    std::vector<std::string> want = {"> First row", "  Second row", "  -- Guard --"};
     want.insert(want.end(), kStandardLines.begin(), kStandardLines.end());
     CHECK(presented_texts(t.r.session()) == want);
     CHECK(context_rows_on(t.r.last_canvas(), t.r.session()) == want);

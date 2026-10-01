@@ -57,8 +57,12 @@ WHY — `agents/decisions/content-sized-popups.md`
 
 LAW — There is no title row and no hint row: painted row i is population row i, and the width is the widest action row, so the popup shrinks to its content.
 
+MEANS
+- a group's row ends in the one submenu mark, as a pane's row that opens a menu does.
+
 PROVEN BY — `workshop/screen_attention.cpp` `context_press_at`, `paint_context`,
-`context_row_text`, `context_entry_text`; `tests/test_workshop_screen.cpp` case `"the contextual
+`context_row_text`, `context_entry_text`; `workshop/pane_vocabulary.hpp` `kSubmenuMark`;
+`workshop/pane_menu.hpp` `Offer::submenu`; `tests/test_workshop_screen.cpp` case `"the contextual
 surface is its actions, and its width is theirs"`, case `"the contextual surface is
 painted where it is hit"`.
 WHY — `agents/decisions/content-sized-popups.md`
@@ -68,7 +72,7 @@ WHY — `agents/decisions/content-sized-popups.md`
 LAW — The catalog declares rows — an action id, its subjects, a group — over the action catalog's ids, so a stale reference is a compile error; one population is what every consumer of the menu spends.
 
 MEANS
-- a pane's: `arrange`, `Order >`, `Reset >`, `edit code`, `remove`;
+- a pane's: `arrange`, `Order >`, `Reset >`, `edit code`, `hide pane`;
 - a tab's: `layout.rename`, `layout.duplicate`, `Order >`, `layout.remove`; the room's: no target;
 - groups are their names, and an empty group cannot exist.
 

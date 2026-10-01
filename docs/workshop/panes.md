@@ -15,20 +15,20 @@ tell them apart to use them:
 
 - **the one built-in** — `Layouts`, the
   [layout selector](setups.md#several-layouts-in-one-workshop) at the top of the screen, which
-  is a pane like the rest of them: move it, cover it, close it.
+  is a pane like the rest of them: move it, cover it, hide it.
 - **panes a loaded weave offers** — through a bounded protocol. The **desktop** offers two:
-  the **Pane Manager** ([below](#opening-going-to-and-closing--the-pane-manager)), where every
-  pane is opened, closed and made, and **Hotkeys**. `Info`, `Builder`, `Attention`, `Files`,
+  the **Pane Manager** ([below](#showing-going-to-and-hiding--the-pane-manager)), where every
+  pane is shown, hidden and made, and **Hotkeys**. `Info`, `Builder`, `Attention`, `Files`,
   `Editor`, `Terminal`, `Loaded`, `Project`, `Powers` and `Compose` arrive the same way. `Info`
   is the one your desk names for you, so it is on screen on a first run.
 - **a pane you made** — a pane whose inside is authored data rather than compiled code,
   made in the Pane Manager by the [Pane Creator](#the-pane-creator--a-pane-made-of-data)
   and kept in a project file of its own.
 
-## Opening, going to and closing — the Pane Manager
+## Showing, going to and hiding — the Pane Manager
 
 Press **`Ctrl`+`p`**, from anywhere — it works while your hands are inside another pane — and
-the **Pane Manager** opens with the keys; press it again and the Pane Manager closes. It is a
+the **Pane Manager** shows with the keys; press it again and the Pane Manager hides. It is a
 strict show/hide toggle, judged by Workshop against your layout as it is when the key arrives, so
 a queued second press never quietly means the same thing twice. It lists every pane there is:
 the union of what this Workshop can present and what your layout names.
@@ -36,8 +36,8 @@ the union of what this Workshop can present and what your layout names.
 ```
 PANES -- 8
   [open] Layouts
-> [    ] Builder          a closed tool: Enter opens it and puts you in it
-  [open] Terminal         already here: Enter takes you to it, and closes nothing
+> [    ] Builder          a hidden tool: Enter shows it and puts you in it
+  [open] Terminal         already here: Enter takes you to it, and hides nothing
   [gone] Info             nothing is offering this pane in this Workshop
   [room] Files            on the layout, and this screen has no room to seat it
   [load] Attention        this run has not finished loading its tool yet
@@ -46,9 +46,9 @@ PANES -- 8
 | key | does |
 |---|---|
 | `↑` `↓` | choose a row |
-| `Enter` | open it and put you in it — or, if it is open, just go to it |
-| `x` | close it: take it off the layout |
-| `m` | the row's menu: open / focus / close, `manage...`, `inspect in Info` |
+| `Enter` | show it and put you in it — or, if it is shown, just go to it |
+| `x` | hide it: take it off the layout |
+| `m` | the row's menu: show / focus / hide, `manage <pane> >`, `inspect in Info` |
 | `n` | make a pane of your own — the [Pane Creator](#the-pane-creator--a-pane-made-of-data) |
 | `s` / `Ctrl`+`d` | save the pane you made / discard its unsaved edits |
 
@@ -56,26 +56,28 @@ PANES -- 8
 name and the marker moves there, opening nothing; click the marked name **again**, with the keys
 already in the Pane Manager, and that is `Enter`: the pane opens, or comes to the front with the
 keys if it was open and covered. The wheel walks the marker a row per notch. Right-click a row
-(or press `m` on the marked one) for its menu beside the pointer: `open`, or `focus` and `close`
-for an open pane; **`manage...`**, which opens Workshop's own pane menu for *that* pane — arrange,
-order, reset, edit code, remove — whether it is covered, closed, or a pane that keeps every
-right-click for itself; and **`inspect in Info`**, which makes it Info's subject through Info's
-own door. A right-click on the heading or a `more` marker opens Workshop's menu for the Pane
-Manager itself. A click that arrives after the list moved under it — a pane arrived, a scroll
+(or press `m` on the marked one) for its menu beside the pointer: `show Beta`, or `focus Beta`
+and `hide Beta` for a pane on the layout; **`manage Beta >`**, which opens Workshop's own pane
+menu for *that* pane — arrange, order, reset, edit code, hide pane — whether it is covered,
+hidden, or a pane that keeps every right-click for itself; and **`inspect in Info`**, which
+makes it Info's subject through Info's own door. Beneath those rows, under a rule that names
+the Pane Manager, are Workshop's own rows for the Pane Manager itself, as in every pane's menu.
+A right-click on the heading or a `more` marker opens Workshop's menu for the Pane Manager
+itself. A click that arrives after the list moved under it — a pane arrived, a scroll
 was queued ahead of it — is refused with `the list moved -- press again` rather than acting on
 whatever slid into that row; a repaint that moved no row does not refuse.
 
-**Opening never toggles.** `Enter` on an open pane — or `Ctrl`+`t` while the Terminal is up —
-selects it and gives it the keyboard. It does not close it, does not take it off your layout,
+**Showing never toggles.** `Enter` on a shown pane — or `Ctrl`+`t` while the Terminal is up —
+selects it and gives it the keyboard. It does not hide it, does not take it off your layout,
 and never unloads the weave behind it. `Ctrl`+`p` is the one toggle, and it toggles only the
 Pane Manager's own visibility.
 
-**Closing unloads nothing.** `x` takes the pane off the layout you are on and leaves its tool
+**Hiding unloads nothing.** `x` takes the pane off the layout you are on and leaves its tool
 running exactly as it was: the Editor keeps an unsaved file, the Terminal keeps its history,
-and `Enter` brings the pane back to find them. Closing a pane that is not on the layout is
-refused in words, and it opens nothing.
+and `Enter` shows the pane again to find them. Hiding a pane that is not on the layout is
+refused in words, and it shows nothing.
 
-**Opening never loads anything.** A `[gone]` row is a pane nothing in this Workshop is offering
+**Showing never loads anything.** A `[gone]` row is a pane nothing in this Workshop is offering
 now: a tool that is not in your load plan, one whose artifact could not be loaded at startup,
 or one whose tool has gone away. Workshop says which, and leaves it to you to build it and
 launch again — it will not go looking for a file on your behalf. The empty room behind your
@@ -85,7 +87,7 @@ built. `Enter` on it says it is not here yet, and the row changes by itself when
 to `[    ]`, or to `[gone]` if the run settles without it.
 
 A row for a pane this build has never heard of still appears, so a typo can be told from a pane
-you have not installed, and a layout naming an unknown pane can still be closed without
+you have not installed, and a layout naming an unknown pane can still be hidden without
 editing the file by hand.
 
 **A row you chose can leave the list** — a pane nothing offers, once `x` takes it off the layout,
@@ -93,16 +95,16 @@ say. The marker turns to `?` where the row was, and a line under the list says s
 
 ```
 ? [open] Info
-  removed-pane left the list -- choose a row before Return opens anything
+  removed-pane left the list -- choose a row before Return shows anything
 ```
 
-`Enter` and `x` then open and close nothing — `Return opened nothing -- choose a row first` —
+`Enter` and `x` then show and hide nothing — `Return showed nothing -- choose a row first` —
 rather than acting on the pane that moved into the gap. Choose a row with `↑` `↓` and they work
 again; if the pane you chose comes back, the marker finds it. The choice is kept when the desktop
 is rebuilt and reloaded, so a reload does not quietly pick another pane for you either. Info's
 pane list does the same for its `Enter` (below).
 
-**The Pane Manager is a pane like any other.** You can arrange it, cover it and close it, and
+**The Pane Manager is a pane like any other.** You can arrange it, cover it and hide it, and
 `Ctrl`+`p` brings it back (and hides it again). It is the desktop's, not Workshop's: its keys are the desktop's own
 declarations, so you can move or switch them off in your keymap file
 ([hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)), and the
@@ -122,7 +124,7 @@ occupies exactly 40×12; on a terminal it can show you 38×10, and in a window i
 very nearly the whole of it.
 
 The pane you **last pressed into is the selected one**, and its edge is drawn differently
-from every other pane's. Nothing else changes: selecting a pane does not open it, close it,
+from every other pane's. Nothing else changes: selecting a pane does not show it, hide it,
 move it, or hand it the keyboard unless it is a pane that takes keys anyway.
 
 Selecting a pane also brings it **forward** for as long as it stays selected — see
@@ -219,18 +221,18 @@ back what they have nothing for.
 
 **A pane's own menu** opens beside your pointer with the rows the pane offered first and
 Workshop's own rows for the pane beneath them — `arrange`, `Order >`, `Reset >`, `edit code`,
-`remove` — in one menu. Choosing one of Workshop's rows is Workshop's to carry out, exactly as
+`hide pane` — in one menu, under a rule that names the pane they act on. Choosing one of Workshop's rows is Workshop's to carry out, exactly as
 from its own menu; choosing a pane's row is the pane's. The menu is shown by the
 **menu presenter** — an ordinary weave in the `zengine.presenter` office, loaded by a plan row
 like any tool. The shipped one works like Workshop's own menu: `↑` `↓` and `Enter`, a click on a
-row, `Esc` or a click outside to dismiss; a rule sets Workshop's rows off from the pane's. It
+row, `Esc` or a click outside to dismiss; the rule sets Workshop's rows off from the pane's. It
 takes no keys away from anything and gives none back
 afterwards: what you pressed into last still has them. A menu that arrives late — you clicked
 somewhere else first, or pressed a key — does not open at all; a newer menu replaces an older
 one; a pane that leaves the desk takes its open menu with it, and so does a pane that is reloaded
 (its new image never asked for that menu). If no presenter is loaded, a pane's menu does not open
 and the band says why. When the pane you cannot right-click into is the
-one you want to arrange or remove, the Pane Manager's row for it offers **`manage...`**, and the
+one you want to arrange or hide, the Pane Manager's row for it offers **`manage <pane> >`**, and the
 pane's title row is Workshop's on every medium.
 
 ![An Inventory entry's menu: the entry's own rows, a rule, then Workshop's arrange, Order, Reset, edit code and remove for the Inventory pane](images/pane-menu-standard-rows.png)
@@ -272,7 +274,7 @@ done with the thing you pointed at — the same operations Workshop's keys alrea
 aimed at that thing:
 
 - **a pane** — `arrange`, `Order >` (front / back / raise / lower), `Reset >`
-  (place / width / height), `edit code`, `remove`;
+  (place / width / height), `edit code`, `hide pane`;
 - **a layout tab** — rename, duplicate, `Order >` (move left / right), remove;
 - **the empty room** — Workshop's own doors: arrange desk, save or restore the setup, reset
   order.
@@ -306,7 +308,7 @@ choose an action on a pane whose place this screen cannot resolve and the owner 
 its own words. On a terminal, whether a right-click reaches Workshop at all is the terminal
 emulator's decision first (the Windows console and Windows Terminal both hand it through);
 the `a` key works everywhere. For a pane that keeps its right-clicks, the Pane Manager's
-`manage...` row reaches this menu for it ([the second button](#the-second-button--the-panes-first)).
+`manage <pane> >` row reaches this menu for it ([the second button](#the-second-button--the-panes-first)).
 
 ### A value a pane had to cut stays cut
 

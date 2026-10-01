@@ -66,7 +66,7 @@ const char* pane_state_word(std::int64_t state) {
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md
 const char* pane_state_remedy(std::int64_t state) {
     switch (state) {
-    case pane_state::kClosed: return "open it from the Pane Manager";
+    case pane_state::kClosed: return "show it from the Pane Manager";
     case pane_state::kUnresolved: return "check the spelling, or the provider is not loaded";
     case pane_state::kRefused: return "reset its size, or open it on the other medium";
     case pane_state::kWaiting: return "make the window taller, or place it yourself";

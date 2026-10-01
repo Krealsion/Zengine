@@ -917,7 +917,7 @@ TEST_CASE("closing a waiting row removes the intent, exactly as closing an open 
     // NOT A REASON TO MAKE THE INTENT UNREMOVABLE.
     CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
     CHECK_FALSE(r.session().panes.waiting(hello));
-    CHECK(r.last_notice().rfind("closed Hello", 0) == 0);
+    CHECK(r.last_notice().rfind("hid Hello", 0) == 0);
 }
 
 // ---- The room contract ------------------------------------------------------------
@@ -1215,7 +1215,7 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
         menu += row + "\n";
     }
     INFO(menu);
-    CHECK(menu.find("remove") != std::string::npos);
+    CHECK(menu.find("hide pane") != std::string::npos);
     CHECK(menu.find("ZZZZZZZZ") == std::string::npos);
     r.key(input::scan::kEscape);
 
@@ -1669,10 +1669,10 @@ TEST_CASE("the built-in panes behave exactly as they did, with a provider in the
     // THE BUILT-IN CLOSED AND OPENED THROUGH THE DOORS the Pane Manager spends.
     r.pick(ref_of(pane_kind::kLayouts));
     CHECK_FALSE(r.session().panes.has(pane_kind::kLayouts));
-    CHECK(r.last_notice().rfind("closed Layouts", 0) == 0);
+    CHECK(r.last_notice().rfind("hid Layouts", 0) == 0);
     r.pick(ref_of(pane_kind::kLayouts));
     CHECK(r.session().panes.has(pane_kind::kLayouts));
-    CHECK(r.last_notice().find("opened Layouts") != std::string::npos);
+    CHECK(r.last_notice().find("showed Layouts") != std::string::npos);
 
     // NOTHING THE BUILT-INS DID REACHED THE PROVIDER.
     CHECK(static_cast<std::size_t>(seat->said) == said_before);

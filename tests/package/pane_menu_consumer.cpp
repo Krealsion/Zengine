@@ -105,8 +105,9 @@ public:
         }
         state_ = ws::HeldMenu{g.menu,  static_cast<std::int64_t>(mail.correlation()),
                               g.office, g.pane, g.subject, g.rows, 0, g.room_rows, g.room_columns,
-                              g.standard};
+                              g.standard, g.pane_name};
         standard_held = state_.standard.size();
+        pane_name_held = state_.pane_name;
         ws::MenuShown shown;
         shown.menu = g.menu;
         shown.picture = 1;
@@ -182,6 +183,7 @@ private:
 
 public:
     std::size_t standard_held = 0; ///< the host's standard rows the last grant carried
+    std::string pane_name_held;    ///< ...and the name of the pane they act on
 };
 
 // ---- the stand-in host, and the forger ---------------------------------------------------------
@@ -219,7 +221,7 @@ public:
         (void)mail.as_role(kWorkshop).send_to_role(
             ws::kPresenterRole,
             ws::MenuGranted{menus_, kRequester, asked.pane, asked.subject, asked.rows, 8, 30,
-                            {ws::PaneMenuRow{"host.arrange", "arrange"}}},
+                            {ws::PaneMenuRow{"host.arrange", "arrange"}}, "Requester"},
             mail.correlation());
     }
     void on(const ws::MenuShown& shown, loom::Mail& mail) {
@@ -360,6 +362,7 @@ void live_menu() {
     check(host->lines.size() == 2 && host->lines[0].text == "> Open",
           "the stranger's presenter showed the offered rows");
     check(presenter->standard_held == 1, "...and holds the host's standard row the grant carried");
+    check(presenter->pane_name_held == "Requester", "...and the name of the pane it acts on");
 
     // A FORGED CHOICE: an office that is not the presenter answers under the ask's number.
     poke(bus, forger_id, Poke{0, 47, "row-7"});
