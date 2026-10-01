@@ -771,6 +771,8 @@ set(ZENGINE_WORKSHOP_DEFS
     "WORKSHOP_SO_DESKTOP_PANE=\"$<TARGET_FILE:zengine-desktop-pane>\""
     "WORKSHOP_SO_TERMINAL_PANE=\"$<TARGET_FILE:zengine-terminal-pane>\""
     "WORKSHOP_SO_EDITOR_PANE=\"$<TARGET_FILE:zengine-editor-pane>\""
+    # Flow's pane, one of the three askers of the discovery door.
+    "WORKSHOP_SO_FLOW_PANE=\"$<TARGET_FILE:zengine-flow-pane>\""
     # ...AND THE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE, with its source, which a
     # case reads to check that the current vocabulary is nowhere in it.
     "WORKSHOP_SO_LEGACY_PANE=\"$<TARGET_FILE:zengine-legacy-pane>\""
@@ -792,7 +794,7 @@ set(ZENGINE_WORKSHOP_DEFS
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
     zengine-attention-pane zengine-info-pane zengine-desktop-pane zengine-terminal-pane
-    zengine-connections-pane
+    zengine-connections-pane zengine-flow-pane
     zengine-legacy-pane
     zengine-failing-editor zengine-editor-throwing
     zengine-operators-basic zengine-provider-min zengine-provider-a

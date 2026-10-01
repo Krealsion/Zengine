@@ -10,6 +10,8 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+#include "flow-pane/vocabulary.hpp"
+
 namespace {
 
 inline constexpr const char* kLineOffice = "zengine.test.line-typer";
@@ -36,11 +38,13 @@ struct FindingRig {
     LineTyper* typer = nullptr;
     loom::WeaveId typer_id{};
 
-    FindingRig() {
+    /// The door is mounted before realization, as the host mounts it: a participant the plan
+    /// loads may ask it at its first breath.
+    explicit FindingRig(load::LoadPlan plan = pane_plan()) {
         r.mount_workshop();
-        const load::Executed done = r.run_plan(pane_plan());
-        REQUIRE_MESSAGE(done.ok, done.refusal);
         (void)r.mount_powers();
+        const load::Executed done = r.run_plan(std::move(plan));
+        REQUIRE_MESSAGE(done.ok, done.refusal);
         loom::TerminalVocabulary vocab;
         vocab.knows(loom::schema_of<surface::SurfaceText>())
             .accepts(loom::schema_of<loom::Ack>())
@@ -161,4 +165,119 @@ TEST_CASE("the Terminal may ask the discovery door its two questions, and nothin
     s.r.bus.remove_observer(tap);
     REQUIRE(denied.size() == 1);
     CHECK(denied[0].reason == loom::RefusalReason::CapabilityDenied);
+}
+
+namespace {
+
+/// The panes tier's arrangement with Flow's pane loaded in its office beside the tool.
+load::LoadPlan plan_with_flow() {
+    load::LoadPlan plan = pane_plan();
+    load::ArtifactIntent flow;
+    flow.stem = "zengine-flow-pane";
+    flow.weave = load::WeaveIntent{zengine::flow_pane::kRole};
+    plan.artifacts.push_back(flow);
+    return plan;
+}
+
+/// What one participant last asked the door, or was last answered, as bytes off the bus.
+struct Said {
+    loom::WeaveId who;
+    std::string bytes;
+};
+std::string last_of(const std::vector<Said>& said, loom::WeaveId who) {
+    for (std::size_t i = said.size(); i > 0; --i) {
+        if (said[i - 1].who == who) {
+            return said[i - 1].bytes;
+        }
+    }
+    return std::string();
+}
+
+/// The bytes of the row an answer carries for one identity, or empty.
+std::string row_in(const std::string& answer, const std::string& identity) {
+    const auto admitted =
+        loom::admit(loom::parse(answer), loom::schema_of<PowersFound>());
+    REQUIRE(admitted);
+    for (const PowerRow& row : loom::from_value<PowersFound>(admitted.value()).rows) {
+        if (row.identity == identity) {
+            return loom::serialize(loom::to_value(row));
+        }
+    }
+    return std::string();
+}
+
+} // namespace
+
+TEST_CASE("one question gives the same rows to Flow, Powers and the Terminal") {
+    // THREE ASKERS ON ONE BUS, each the shipped participant -- Flow's pane, the Powers pane and the
+    // Terminal -- and the one discovery door they ask. What each asked and heard is read off the
+    // bus itself, not off any of them.
+    FindingRig s(plan_with_flow());
+    const loom::WeaveId flow = s.r.bus.role_holder(zengine::flow_pane::kRole);
+    const loom::WeaveId tool = s.r.bus.role_holder(kIntroOffice);
+    REQUIRE(flow.valid());
+    REQUIRE(tool.valid());
+    std::vector<Said> asked;
+    std::vector<Said> heard;
+    const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind != loom::EventKind::Delivered || e.payload == nullptr) {
+            return;
+        }
+        if (e.schema_name == kFindPowersName) {
+            asked.push_back({e.sender, loom::serialize(*e.payload)});
+        } else if (e.schema_name == PowersFound::zen_name) {
+            heard.push_back({e.target, loom::serialize(*e.payload)});
+        }
+    });
+    const std::uint64_t spent = op::invocations();
+
+    // FLOW: a maker types into its search line, the text Workshop hands the pane that holds the keys.
+    REQUIRE(s.r.bus
+                .office_send_to_role_as(
+                    s.r.workshop_id, kWorkshopProvider, zengine::flow_pane::kRole,
+                    loom::Message(loom::to_value(PaneTextInput{zengine::flow_pane::kPane, "larger"}),
+                                  s.r.workshop_id, loom::WeaveId{}, 0))
+                .valid());
+    s.r.bus.drain_until_idle();
+
+    // POWERS: a weaver opens it, moves to the Operators and types the same word.
+    s.r.extent(160, 48);
+    REQUIRE(intro_row(s.r, intro::kPowersPane) != nullptr);
+    s.r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    const std::int64_t kind = intro_row(s.r, intro::kPowersPane)->kind;
+    focus_pane(s.r, kind);
+    s.r.key(input::scan::kTab);
+    s.r.text("larger");
+
+    const std::string flow_asked = last_of(asked, flow), flow_heard = last_of(heard, flow);
+    const std::string tool_asked = last_of(asked, tool), tool_heard = last_of(heard, tool);
+    REQUIRE_FALSE(flow_heard.empty());
+    REQUIRE_FALSE(tool_heard.empty());
+
+    // THE TERMINAL ASKS EACH OF THEIR QUESTIONS, typed as a weaver types them...
+    const std::string page = "limit=" + std::to_string(kMaxPowerRows);
+    const std::optional<loom::Value> as_flow =
+        s.typed("ask @zengine.powers FindPowers 1 text=larger offered=true " + page);
+    const std::string terminal_asked_as_flow = last_of(asked, s.terminal->id());
+    const std::optional<loom::Value> as_tool =
+        s.typed("ask @zengine.powers FindPowers 1 kind=operator text=larger " + page);
+    const std::string terminal_asked_as_tool = last_of(asked, s.terminal->id());
+    REQUIRE(as_flow.has_value());
+    REQUIRE(as_tool.has_value());
+    s.r.bus.remove_observer(tap);
+
+    // ...which are the same questions, byte for byte -- so the answers are the same, byte for byte.
+    CHECK(terminal_asked_as_flow == flow_asked);
+    CHECK(terminal_asked_as_tool == tool_asked);
+    CHECK(loom::serialize(*as_flow) == flow_heard);
+    CHECK(loom::serialize(*as_tool) == tool_heard);
+
+    // AND THE ROW EVERY ASKER WAS SHOWN FOR THE POWER IT WAS LOOKING FOR IS ONE ROW.
+    const std::string row = row_in(flow_heard, "math.max");
+    REQUIRE_FALSE(row.empty());
+    CHECK(row_in(tool_heard, "math.max") == row);
+    CHECK(row_in(loom::serialize(*as_tool), "math.max") == row);
+
+    // ASKING, ANSWERING AND SHOWING RAN NOTHING.
+    CHECK(op::invocations() == spent);
 }

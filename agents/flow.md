@@ -52,11 +52,19 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   invalidates old picture maps, including a change of text metrics.
 - The pane consumes the shared canvas seam and host-manager messages. It owns no private
   catalog, fallback primitives, nested host, native-code loading policy or bus pumping.
+- The pane finds powers through the discovery door (`flow-pane/find.hpp`) and never through
+  `FlowCatalog`, which supplies the graph's port signatures alone. It asks only for offered
+  powers, so a participant's own trigger body is never Flow's to offer, and with a port selected
+  only for what yields the port's type in Loom's spelling. It shows rows as the door answered
+  them: it matches nothing again and classifies nothing. A selected port is held by its node's
+  place id, so removing another node never moves it; replacing the graph or changing the
+  trigger puts it down. A preview evaluates nothing, and Add spends `add-node`.
 - `tests/test_flow.cpp` compares state, outputs, refusal reasons, live overlays, authority and
   admission. `tests/package` builds and loads generated code using installed packages only.
   `tests/test_flow_graph.cpp` covers incomplete graph persistence, retained forms, schema
   changes and command atomicity. `tests/test_flow_view.cpp` covers canvas clipping, dense views,
-  long text, independent measured axes and device-grain hit testing. `tests/test_flow_pane.cpp`
-  covers modal commands, native text dragging and reload preservation; host behavior is witnessed
-  under [host integration](flow-host.md).
+  long text, independent measured axes, device-grain hit testing and the rail's grouping and
+  preview. `tests/test_flow_pane.cpp` covers modal commands, native text dragging, reload
+  preservation and finding through the door; host behavior is witnessed under
+  [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

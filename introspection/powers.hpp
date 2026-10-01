@@ -13,7 +13,7 @@
 // Pane law: agents/panes.md
 
 // Browsing cannot evaluate: this links no operator target and reads only the door's rows. Which
-// rows match a query is the door's to say, the same rows it says to the Terminal; the
+// rows match a query is the door's to say, the same rows it says to Flow and the Terminal; the
 // pane keeps the last answer between asks, replaced whole and dropped at every grant. A retained
 // sample is history: it never claims to be current, and its row leads with the tense.
 

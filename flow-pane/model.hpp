@@ -6,6 +6,7 @@
 #include "flow/author.hpp"
 #include "flow/graph.hpp"
 #include "component/text_box.hpp"
+#include "workshop/powers_vocabulary.hpp"
 #include <optional>
 
 namespace zengine::flow_pane {
@@ -16,6 +17,9 @@ enum class Effect { None, Run, Apply, Stop, Send, Catalog, Inspect };
 struct Action { Effect effect = Effect::None; loom::Bytes payload; };
 struct Entry { std::string label; zengine::component::TextBox text; };
 struct Dialog { std::string title, action; std::vector<Entry> entries; std::size_t selected = 0; };
+/// An input port a maker selected to fill: its node by the place's stable id, so removing
+/// another node never moves the choice onto a different one.
+struct PortChoice { std::int64_t place = 0; std::size_t port = 0; };
 
 class Model {
 public:
@@ -32,6 +36,14 @@ public:
     std::optional<Dialog> dialog;
     std::vector<std::string> events;
     std::optional<zengine::op::Binding> connecting;
+    // Finding what to compose, none of it saved: the search line, the port being filled, the
+    // discovery door's last answer (replaced whole, never a copy of the catalog) and the row
+    // previewed, by identity.
+    zengine::component::TextBox search;
+    std::optional<PortChoice> filling;
+    zengine::workshop::PowersFound discovered;
+    bool discovered_read = false;
+    std::string preview;
     std::size_t trigger() const { return static_cast<std::size_t>(workspace.active_trigger); }
     void touched() { dirty = true; }
     void edited_state() {
@@ -146,7 +158,7 @@ private:
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before creating another");
             workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(args[0]);
-            node.reset(); form.reset(); form_key.clear(); form_title.clear(); form_state = false; state_edited = false; connecting.reset(); page = Page::Graph; path.clear(); touched();
+            node.reset(); form.reset(); form_key.clear(); form_title.clear(); form_state = false; state_edited = false; connecting.reset(); filling.reset(); page = Page::Graph; path.clear(); touched();
         } else if (action == "state-field") {
             need(3); if (args[2] != "required" && args[2] != "optional") throw std::invalid_argument("presence must be required or optional");
             workspace.graph.state_field(args[0], type(args[1]), args[2] == "required"); edited_state(); state_form();
@@ -156,9 +168,9 @@ private:
             need(4); if (args[3] != "required" && args[3] != "optional") throw std::invalid_argument("presence must be required or optional");
             message = flow::index_of(args[0]); workspace.graph.message_field(message, args[1], type(args[2]), args[3] == "required"); touched(); message_form(message);
         } else if (action == "trigger") {
-            need(2); workspace.active_trigger = static_cast<std::int64_t>(workspace.graph.trigger(flow::index_of(args[0]), args[1])); page = Page::Graph; node.reset(); touched();
+            need(2); workspace.active_trigger = static_cast<std::int64_t>(workspace.graph.trigger(flow::index_of(args[0]), args[1])); page = Page::Graph; node.reset(); filling.reset(); touched();
         } else if (action == "select-trigger") {
-            need(1); const auto at = flow::index_of(args[0]); (void)workspace.graph.project.definition.on.at(at); workspace.active_trigger = static_cast<std::int64_t>(at); node.reset(); connecting.reset(); first_row = 0;
+            need(1); const auto at = flow::index_of(args[0]); (void)workspace.graph.project.definition.on.at(at); workspace.active_trigger = static_cast<std::int64_t>(at); node.reset(); connecting.reset(); filling.reset(); first_row = 0;
         } else if (action == "add-node") {
             need(1); node = workspace.graph.add(trigger(), workspace.graph.ports(palette, args[0])); page = Page::Graph; touched();
         } else if (action == "bind") {
@@ -193,14 +205,14 @@ private:
             auto project = flow::open_project(args[0]);
             workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(std::move(project));
             form.reset(); form_key.clear(); form_title.clear(); form_state = false;
-            node.reset(); connecting.reset(); path.clear(); page = Page::Graph; state_edited = false; touched();
+            node.reset(); connecting.reset(); filling.reset(); path.clear(); page = Page::Graph; state_edited = false; touched();
         } else if (action == "save") {
             need(1); retain_form(); flow::save_workspace(args[0], workspace); path = args[0]; dirty = false; notice = "Saved " + path; return {};
         } else if (action == "open") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before opening another");
             auto opened = flow::open_workspace(args[0]); workspace = std::move(opened); path = args[0]; dirty = false;
-            state_edited = false; node.reset(); restore_form(); connecting.reset(); page = Page::Graph;
+            state_edited = false; node.reset(); restore_form(); connecting.reset(); filling.reset(); page = Page::Graph;
         } else if (action == "message-open") { need(1); message_form(flow::index_of(args[0]));
         } else if (action == "state-open") { need(0); state_form();
         } else if (action == "value") {
