@@ -215,6 +215,8 @@ mine"), which opens Workshop's menu for the pane, once, while the press is still
 Flow, the Editor off its highlight, Files, the Builder, the Pane Manager and the Terminal all hand
 back what they have nothing for.
 
+![A right press on an empty part of Flow's canvas: Workshop's own pane menu for Flow, opened where the press landed](images/pane-menu-right-press-flow.png)
+
 **A pane's own menu** opens beside your pointer with the rows the pane offered first and
 Workshop's own rows for the pane beneath them — `arrange`, `Order >`, `Reset >`, `edit code`,
 `remove` — in one menu. Choosing one of Workshop's rows is Workshop's to carry out, exactly as
@@ -230,6 +232,8 @@ one; a pane that leaves the desk takes its open menu with it, and so does a pane
 and the band says why. When the pane you cannot right-click into is the
 one you want to arrange or remove, the Pane Manager's row for it offers **`manage...`**, and the
 pane's title row is Workshop's on every medium.
+
+![An Inventory entry's menu: the entry's own rows, a rule, then Workshop's arrange, Order, Reset, edit code and remove for the Inventory pane](images/pane-menu-standard-rows.png)
 
 **What a pane can and cannot do with a menu.** It chooses the rows and what a chosen row means;
 the presenter shows them and returns the choice, Workshop decides when a menu may open and where,
