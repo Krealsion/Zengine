@@ -1191,3 +1191,160 @@ TEST_CASE("the host writes the booter's two lifecycle rules, and no third") {
     CHECK_MESSAGE(rules == 2, "workshop.cpp writes ", rules,
                   " target-scoped rules on the booter's grant; the law is exactly two");
 }
+
+// ---- 11. what a contributor says beside a signature -----------------------------------
+
+TEST_CASE("a contribution carries its contributor's words across the module boundary") {
+    // THE WORDS ARE THE AUTHORING'S, read back off the catalog after a real mount: compared
+    // with what the package authored rather than with a written list, so a primitive that
+    // grows a sentence tomorrow moves both sides together.
+    op::Catalog catalog;
+    REQUIRE(op::mount_provider(catalog, PROVIDER_BASIC_SO).ok);
+    for (const op::OperatorDef& authored : op::primitive_definitions()) {
+        const op::OperatorDef* mounted = catalog.find(authored.identity());
+        REQUIRE(mounted != nullptr);
+        CHECK_FALSE(authored.description().about.empty());
+        CHECK(mounted->description().about == authored.description().about);
+        CHECK(mounted->description().offered);
+    }
+    CHECK(catalog.find(op::kMaxInt)->description().about == "the larger of two integers");
+
+    // ...and a COMPOSITE's words cross with its graph: the Timer's rule says what it is for.
+    const op::MountResult timer = op::mount_provider(catalog, TIMER_SO);
+    REQUIRE_MESSAGE(timer.ok, timer.reason);
+    const op::OperatorDef* rule = catalog.find(tmr::kNormalizeDelay);
+    REQUIRE(rule != nullptr);
+    CHECK(rule->is_composite());
+    op::Catalog against;
+    op::publish_primitives(against);
+    CHECK_FALSE(rule->description().about.empty());
+    CHECK(rule->description().about == tmr::normalize_delay(against).description().about);
+}
+
+TEST_CASE("an overlay brings its own words, and unmounting it brings the old ones back") {
+    op::Catalog catalog;
+    REQUIRE(op::mount_provider(catalog, PROVIDER_BASIC_SO).ok);
+    const std::string underneath = catalog.find(op::kMaxInt)->description().about;
+
+    const op::MountResult covered =
+        op::mount_provider(catalog, PROVIDER_MIN_SO, op::MountMode::Overlay);
+    REQUIRE_MESSAGE(covered.ok, covered.reason);
+    // THE WORDS FOLLOW THE CONTRIBUTION IN FORCE: what an evaluation now spends is the min, and
+    // what the catalog says the power is for is the min's own sentence.
+    CHECK(active_provider(catalog, op::kMaxInt) == kMinProvider);
+    CHECK(catalog.find(op::kMaxInt)->description().about ==
+          "the smaller of two integers, supplied as math.max to substitute it");
+    // ...while the covered contribution keeps its own, underneath, untouched.
+    CHECK(contribution_of(catalog, op::kMaxInt, kBasic)->description().about == underneath);
+
+    REQUIRE(catalog.unmount(kMinProvider));
+    CHECK(catalog.find(op::kMaxInt)->description().about == underneath);
+}
+
+TEST_CASE("version 1 bytes still mount across a module boundary, offered and saying nothing") {
+    // AN ARTIFACT WHOSE CONTRIBUTION CLAIMS VERSION 1, which has no description field at all:
+    // the host admits it at version 1's door and the power works, with no words to show.
+    op::Catalog catalog;
+    const op::MountResult older = op::mount_provider(catalog, PROVIDER_V1_SO);
+    REQUIRE_MESSAGE(older.ok, older.reason);
+    CHECK(older.provider == "zengine.provider.v1");
+    const op::OperatorDef* twice = catalog.find("prov.v1.twice");
+    REQUIRE(twice != nullptr);
+    CHECK(twice->description().about.empty());
+    CHECK(twice->description().offered);
+    loom::Value pack(twice->inputs());
+    pack.set("value", loom::Cell::integer(21));
+    const op::Evaluation answered = catalog.evaluate("prov.v1.twice", std::move(pack));
+    REQUIRE_MESSAGE(answered.ok(), answered.reason());
+    CHECK(answered.value().at(0)->as_int() == 42);
+}
+
+namespace {
+
+/// One contribution's fields re-claimed under another contribution schema: what a provider
+/// writing that version would have sent.
+loom::Value contribution_as(const loom::Value& written,
+                            const std::shared_ptr<const loom::Schema>& version) {
+    loom::Value out(version);
+    for (const loom::Field& field : version->fields()) {
+        if (const loom::Cell* cell = written.get(field.name); cell != nullptr) {
+            out.set(field.name, *cell);
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("the contribution codec carries a description at version 2, and reads version 1 without one") {
+    op::Catalog primitives;
+    op::publish_primitives(primitives);
+    op::Builder b(primitives, "prov.described",
+                  {loom::Field{"value", loom::type_of(loom::Kind::Int), true}});
+    const op::Builder::Ref answer =
+        b.call(op::kMaxInt, {b.input("value"), b.constant(std::int64_t{0})});
+    const op::OperatorDef authored = std::move(b).result("result", answer, "never below zero");
+    const op::OperatorDef own(authored.identity(), authored.inputs(), authored.outputs(),
+                              *authored.composition(), op::Description{"its own", false});
+
+    for (const op::OperatorDef* def : {&authored, &own}) {
+        const loom::Unverified claim = loom::parse(loom::serialize(op::encode_contribution(*def)));
+        CHECK(claim.claimed_version() == 2);
+        const loom::Admission admitted = op::admit_contribution(claim);
+        REQUIRE_MESSAGE(admitted.ok(), admitted.first_error().message());
+        const op::DecodedContribution back = op::decode_contribution(admitted.value());
+        CHECK(back.description.about == def->description().about);
+        CHECK(back.description.offered == def->description().offered);
+        REQUIRE(back.composition.has_value());
+        CHECK(back.composition->nodes.size() == 1);
+    }
+
+    // VERSION 1, at its own schema: admitted at its own door, decoded offered and silent.
+    const loom::Value now = op::encode_contribution(authored);
+    const loom::Admission v1 = op::admit_contribution(loom::parse(
+        loom::serialize(contribution_as(now, op::operator_contribution_v1_schema()))));
+    REQUIRE_MESSAGE(v1.ok(), v1.first_error().message());
+    const op::DecodedContribution older = op::decode_contribution(v1.value());
+    CHECK(older.description.about.empty());
+    CHECK(older.description.offered);
+    CHECK(older.composition.has_value());
+
+    // ...AND A VERSION NEITHER DOOR IS meets the current one, and the gate refuses it.
+    loom::SchemaBuilder later("zengine.OperatorContribution", 3);
+    for (const loom::Field& field : op::operator_contribution_schema()->fields()) {
+        later.add(field);
+    }
+    const loom::Value ahead = contribution_as(now, later.build());
+    CHECK_FALSE(op::admit_contribution(loom::parse(loom::serialize(ahead))).ok());
+}
+
+TEST_CASE("prose is no part of a signature, and past its bound it is refused where it is written") {
+    // THE SAME PORTS WITH OTHER WORDS ARE THE SAME SIGNATURE, content id and all, which is why an
+    // overlay saying something else is still the power compositions were authored against.
+    const op::OperatorDef plain =
+        op::make_operator<&op::max_int>(op::kMaxInt, {"lhs", "rhs"}, "result");
+    const op::OperatorDef said =
+        op::make_operator<&op::max_int>(op::kMaxInt, {"lhs", "rhs"}, "result", "whatever it says");
+    CHECK(loom::same_identity(*plain.inputs(), *said.inputs()));
+    CHECK(loom::same_identity(*plain.outputs(), *said.outputs()));
+    op::Catalog catalog;
+    REQUIRE(catalog.mount("prov.plain", {plain}).ok);
+    CHECK(catalog.mount("prov.said", {said}, op::MountMode::Overlay).ok);
+
+    // A BOUND IS A REFUSAL AT THE AUTHORING, in words that name both numbers.
+    const std::string at_bound(op::kMaxAboutBytes, 'x');
+    CHECK_NOTHROW((void)op::make_operator<&op::max_int>("prov.at", {"lhs", "rhs"}, "result",
+                                                        at_bound));
+    bool refused = false;
+    try {
+        (void)op::make_operator<&op::max_int>("prov.past", {"lhs", "rhs"}, "result",
+                                              at_bound + "x");
+    } catch (const std::invalid_argument& e) {
+        refused = true;
+        const std::string why = e.what();
+        CHECK(why.find("'prov.past'") != std::string::npos);
+        CHECK(why.find(std::to_string(op::kMaxAboutBytes + 1)) != std::string::npos);
+        CHECK(why.find(std::to_string(op::kMaxAboutBytes)) != std::string::npos);
+    }
+    CHECK(refused);
+}

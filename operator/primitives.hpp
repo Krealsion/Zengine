@@ -48,12 +48,16 @@ inline constexpr const char* kSelectInt = "logic.select_int";
 /// assembles them locally through `publish_primitives`.
 inline std::vector<OperatorDef> primitive_definitions() {
     std::vector<OperatorDef> defs;
-    defs.push_back(make_operator<&max_int>(kMaxInt, {"lhs", "rhs"}, "result"));
+    defs.push_back(make_operator<&max_int>(kMaxInt, {"lhs", "rhs"}, "result",
+                                           "the larger of two integers"));
     defs.push_back(make_operator<&select_int>(kSelectInt,
-                                              {"condition", "when_true", "when_false"}, "result"));
-    defs.push_back(make_operator<&less_int>(kLessInt, {"lhs", "rhs"}, "result"));
+                                              {"condition", "when_true", "when_false"}, "result",
+                                              "one of two integers, chosen by a condition"));
+    defs.push_back(make_operator<&less_int>(kLessInt, {"lhs", "rhs"}, "result",
+                                            "whether the first integer is less than the second"));
     defs.push_back(make_operator<&select_bool>(kSelectBool,
-        {"condition", "when_true", "when_false"}, "result"));
+        {"condition", "when_true", "when_false"}, "result",
+        "one of two truths, chosen by a condition"));
     return defs;
 }
 

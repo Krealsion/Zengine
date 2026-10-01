@@ -319,7 +319,9 @@ private:
     }
 
     /// Walk one acyclic graph: a node may only name an earlier node, so one forward pass is the
-    /// whole evaluation order -- no scheduler, no visited set, no topological sort.
+    /// whole evaluation order -- no scheduler, no visited set, no topological sort. Each step
+    /// resolves by identity here, at the spend, so a cycle through identities recurses through
+    /// `evaluate` with nothing counting it (agents/operators.md).
     Evaluation walk(const OperatorDef& def, const loom::Value& inputs) const {
         const Composite& graph = *def.composition();
         std::vector<loom::Value> answers;
@@ -396,7 +398,8 @@ private:
 class Builder {
 public:
     /// A value inside the composition being written, with the Loom type it will have. A `Ref`
-    /// cannot name a node that does not exist yet, which is where acyclicity comes from.
+    /// cannot name a node that does not exist yet, which is where one graph's acyclicity comes
+    /// from.
     class Ref {
     public:
         const loom::TypeRef& type() const noexcept { return type_; }
@@ -473,8 +476,9 @@ public:
     }
 
     /// Name the composite's answer and finish. The output schema is derived from what the result
-    /// step produces; only the port's name is authored, as for a native operator.
-    OperatorDef result(std::string_view port, const Ref& answer) && {
+    /// step produces; the port's name and what the composite is for are authored, as for a native
+    /// operator.
+    OperatorDef result(std::string_view port, const Ref& answer, std::string about = {}) && {
         if (answer.binding_.from() != Binding::From::Node) {
             // A composite answering with an input or a constant computes nothing, and calling
             // it an operator would name an identity function.
@@ -484,7 +488,8 @@ public:
         auto out = loom::make_schema(
             identity_ + ".out", 1,
             std::vector<loom::Field>{loom::Field{std::string(port), answer.type_, true}});
-        return OperatorDef(identity_, inputs_, std::move(out), std::move(graph_));
+        return OperatorDef(identity_, inputs_, std::move(out), std::move(graph_),
+                           Description{std::move(about)});
     }
 
 private:

@@ -316,6 +316,39 @@ TEST_CASE("the body is a composition spent through the host's catalog -- a power
     CHECK(high_of(*r.weave) == 9); // max(5, 9): revealed, and the trigger moved back
 }
 
+TEST_CASE("a revision's bodies are its own reactions -- mounted not offered for reuse, saying "
+          "whose, and still spent when named") {
+    Host h;
+    h.listen();
+    const maker::Registered r =
+        maker::register_definition(h.bus, h.catalog, hwfix::high_water(h.catalog));
+    REQUIRE_MESSAGE(r.ok, r.reason);
+    const maker::Definition& d = r.weave->definition();
+    const std::string body = d.trigger_identity(d.on.at(0));
+    const op::OperatorDef* mounted = h.catalog.find(body);
+    REQUIRE(mounted != nullptr);
+
+    // THE MARK IS THE CONTRIBUTOR'S, carried on the contribution the package mounted: the
+    // catalog holds it and nothing beside it does.
+    CHECK_FALSE(mounted->description().offered);
+    CHECK(mounted->description().about == "what hw r1 writes to state.high when hw.Sample arrives");
+    for (const op::Contribution& c : h.catalog.contributions(body)) {
+        CHECK(c.provider == d.provider());
+    }
+
+    // ...AND IT DECIDES NOTHING. The trigger still runs, and naming the body spends it, since
+    // whether something is offered is a fact for whoever looks, never a gate.
+    h.send(r.id, hwfix::sample(4));
+    h.pump();
+    CHECK(high_of(*r.weave) == 4);
+    loom::Value pack(mounted->inputs());
+    pack.set("high", loom::Cell::integer(2));
+    pack.set("value", loom::Cell::integer(6));
+    const op::Evaluation spent = h.catalog.evaluate(body, std::move(pack));
+    REQUIRE_MESSAGE(spent.ok(), spent.reason());
+    CHECK(spent.value().get(maker::kAnswerPort)->as_int() == 6);
+}
+
 TEST_CASE("the answer lands in the named state field, and an answer of another kind is refused "
           "with the state unchanged") {
     Host h;

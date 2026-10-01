@@ -15,7 +15,9 @@
 // of nested schemas as `zen.SchemaDesc v1` entries (no second schema language), and the graph
 // shapes are `op::Composite`, `op::Node` and `op::Binding` as Loom values (no second graph
 // type). It carries what `op::Builder` can author, an acyclic value graph with Int and Bool
-// constants; a third constant kind is refused by name.
+// constants; a third constant kind is refused by name. Version 2 adds the contributor's
+// `op::Description`, its prose and whether it is offered for reuse; a host still reads version 1,
+// which says neither.
 
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"
@@ -80,10 +82,28 @@ inline std::shared_ptr<const loom::Schema> composition_schema() {
     return s;
 }
 
-/// One contribution, whole. An absent `composition` means native: the implementation is in the
-/// provider's image, reached by index. Its presence is the whole fork, a question the host asks
-/// of the bytes rather than a flag set beside them.
+/// One contribution, whole, as this package writes it. An absent `composition` means native: the
+/// implementation is in the provider's image, reached by index. Its presence is the whole fork, a
+/// question the host asks of the bytes rather than a flag set beside them. `about` and `offered`
+/// are the contributor's `op::Description`; an absent `about` says nothing.
 inline std::shared_ptr<const loom::Schema> operator_contribution_schema() {
+    static const auto s =
+        loom::SchemaBuilder("zengine.OperatorContribution", 2)
+            .field("identity", loom::Kind::Text)
+            .list("referenced", loom::type_message(loom::schema_desc_schema()),
+                  /*required=*/false)
+            .message("inputs", loom::schema_desc_schema())
+            .message("outputs", loom::schema_desc_schema())
+            .message("composition", composition_schema(), /*required=*/false)
+            .field("about", loom::Kind::Text, /*required=*/false)
+            .field("offered", loom::Kind::Bool)
+            .build();
+    return s;
+}
+
+/// Version 1, which a host still reads: the same contribution with no description, so it is
+/// offered and says nothing.
+inline std::shared_ptr<const loom::Schema> operator_contribution_v1_schema() {
     static const auto s =
         loom::SchemaBuilder("zengine.OperatorContribution", 1)
             .field("identity", loom::Kind::Text)
@@ -94,6 +114,13 @@ inline std::shared_ptr<const loom::Schema> operator_contribution_schema() {
             .message("composition", composition_schema(), /*required=*/false)
             .build();
     return s;
+}
+
+/// Admit one contribution's bytes at the door its claim names: version 1, or the version this
+/// package writes. Any other claim meets the current door and is refused in the gate's words.
+inline loom::Admission admit_contribution(const loom::Unverified& bytes) {
+    return loom::admit(bytes, bytes.claimed_version() == 1 ? operator_contribution_v1_schema()
+                                                           : operator_contribution_schema());
 }
 
 // ---- encoding ---------------------------------------------------------------
@@ -181,20 +208,26 @@ inline loom::Value encode_contribution(const OperatorDef& def) {
     if (def.is_composite()) {
         desc.set("composition", loom::Cell::message(detail::encode_composition(*def.composition())));
     }
+    if (!def.description().about.empty()) {
+        desc.set("about", loom::Cell::text(def.description().about));
+    }
+    desc.set("offered", loom::Cell::boolean(def.description().offered));
     return desc;
 }
 
 // ---- decoding ---------------------------------------------------------------
 
 /// A contribution as the host learned it: an identity, two schemas the host built for itself
-/// from the descriptor, and a graph or nothing. Nothing here points into the provider: a decoded
-/// schema owns what it nests, and a graph is strings, integers and cells. A native
-/// contribution's code is the one thing that needs the provider alive, and it is not here.
+/// from the descriptor, a graph or nothing, and what its contributor said about it. Nothing here
+/// points into the provider: a decoded schema owns what it nests, and a graph is strings,
+/// integers and cells. A native contribution's code is the one thing that needs the provider
+/// alive, and it is not here.
 struct DecodedContribution {
     std::string identity;
     std::shared_ptr<const loom::Schema> inputs;
     std::shared_ptr<const loom::Schema> outputs;
     std::optional<Composite> composition;
+    Description description;
 };
 
 namespace detail {
@@ -246,9 +279,9 @@ inline Composite decode_composition(const loom::Value& v) {
                 node.arguments.push_back(decode_binding(*ac.as_message()));
             }
         }
-        // Acyclicity is re-established on arrival: `Builder` makes it structural when
-        // authoring, but these bytes came from another image, and a forward reference would make
-        // the evaluator's single forward pass read an answer not yet computed.
+        // One graph's acyclicity is re-established on arrival: `Builder` makes it structural
+        // when authoring, but these bytes came from another image, and a forward reference would
+        // make the evaluator's single forward pass read an answer not yet computed.
         for (const Binding& b : node.arguments) {
             if (b.from() == Binding::From::Node && b.node_index() >= graph.nodes.size()) {
                 throw std::invalid_argument("step " + std::to_string(graph.nodes.size()) +
@@ -267,8 +300,9 @@ inline Composite decode_composition(const loom::Value& v) {
 
 } // namespace detail
 
-/// Turn one contribution's bytes back into something a host can hold. Throws on anything
-/// malformed; callers across the seam turn that into a refusal.
+/// Turn one admitted contribution back into something a host can hold, whichever version it was
+/// admitted at: version 1 has no description, so it decodes offered and saying nothing. Throws on
+/// anything malformed; callers across the seam turn that into a refusal.
 inline DecodedContribution decode_contribution(const loom::Value& desc) {
     DecodedContribution out;
     loom::Registry vocabulary;
@@ -280,6 +314,12 @@ inline DecodedContribution decode_contribution(const loom::Value& desc) {
     out.identity = desc.get("identity")->as_text();
     if (const loom::Cell* graph = desc.get("composition"); graph != nullptr) {
         out.composition = detail::decode_composition(*graph->as_message());
+    }
+    if (const loom::Cell* about = desc.get("about"); about != nullptr) {
+        out.description.about = about->as_text();
+    }
+    if (const loom::Cell* offered = desc.get("offered"); offered != nullptr) {
+        out.description.offered = offered->as_bool();
     }
     return out;
 }

@@ -38,7 +38,8 @@ inexpressible.
 
 std::vector<zengine::op::OperatorDef> my_powers() {
     std::vector<zengine::op::OperatorDef> defs;
-    defs.push_back(zengine::op::make_operator<&max_int>("math.max", {"lhs", "rhs"}, "result"));
+    defs.push_back(zengine::op::make_operator<&max_int>("math.max", {"lhs", "rhs"}, "result",
+                                                        "the larger of two integers"));
     return defs;
 }
 
@@ -102,6 +103,34 @@ If a composite crossed as an opaque callback into its own image instead, the
 provider would be evaluating its own private graph — and a power replaced
 underneath could never propagate through it. That is not a detail of the
 encoding; it is the reason the encoding exists.
+
+## What a contribution says about itself
+
+Beside its signature a definition carries its contributor's `op::Description`:
+`about`, a sentence saying what the power is for, and `offered`, whether it is
+offered for reuse in someone else's composition. Both are written where the power
+is written — the last argument of `make_operator` above, of `Builder::result`, or
+of the `OperatorDef` constructor — and both cross with it, in
+`zengine.OperatorContribution` version 2:
+
+```text
+version 2   identity, referenced, inputs, outputs, composition,  about, offered
+version 1   identity, referenced, inputs, outputs, composition
+```
+
+A host reads both versions, choosing the door by the version the bytes claim; a
+version 1 contribution mounts offered and saying nothing.
+
+**The words belong to the contribution, not to the identity.** An overlay of
+`math.max` brings its own sentence, and unmounting it brings the old one back,
+because the words were never anywhere but on the contribution in force.
+
+**They describe and nothing more.** No host reads them to decide what may run, be
+reordered, removed or trusted; no schema carries them, so two contributions that
+differ only in what they say have the same signature and the same content ids. A
+power marked not offered is still spent by anything that names it — the mark is for
+whoever is looking for something to compose. Prose longer than `op::kMaxAboutBytes`
+is refused where it is written.
 
 ## What a host writes
 
