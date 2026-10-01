@@ -6,6 +6,7 @@
 
 #include "doctest.h"
 #include "workshop_support.hpp"
+#include "workshop/pane_menu.hpp"
 #include "workshop/screen_canvas.hpp"
 #include <limits>
 
@@ -16,12 +17,13 @@ constexpr const char* canvas_pane = "diagram";
 class CanvasSeat : public loom::WeaveBase<CanvasSeat, SeatState,
     loom::Accept<PaneCatalogRequested, PaneRoom, PaneCanvasRoom, PaneCanvasPointer,
                  PaneCanvasRejected, SeatDo>,
-    loom::Emit<PaneOffered, PaneCanvasContent, PaneContent>> {
+    loom::Emit<PaneOffered, PaneCanvasContent, PaneContent, PanePassRequested>> {
 public:
     std::vector<PaneCanvasRoom> rooms;
     std::vector<PaneCanvasPointer> pointers;
     std::vector<PaneCanvasRejected> rejected;
     std::function<void(CanvasSeat&, loom::Mail&)> next;
+    bool pass_right = false; ///< hand a right press back, as a picture that means nothing by it
     void on(const PaneCatalogRequested&, loom::Mail&) {}
     void on(const PaneRoom&, loom::Mail&) {}
     void on(const PaneCanvasRoom& r, loom::Mail& m) {
@@ -31,6 +33,9 @@ public:
     void on(const PaneCanvasPointer& e, loom::Mail& m) {
         REQUIRE(m.authored_from_role(kWorkshopProvider));
         pointers.push_back(e);
+        if (pass_right && e.phase == canvas_pointer::kPress && e.button == 3) {
+            (void)pane_menu::pass_back(m, canvas_office, canvas_pane);
+        }
     }
     void on(const PaneCanvasRejected& r, loom::Mail&) { rejected.push_back(r); }
     void on(const SeatDo&, loom::Mail& m) {
@@ -68,6 +73,7 @@ struct CanvasRig {
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         grant.allow_to_any(PaneCanvasContent::zen_name, PaneCanvasContent::zen_version);
         grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+        grant.allow_to_any(PanePassRequested::zen_name, PanePassRequested::zen_version);
         id = r.bus.register_weave(std::move(w), std::move(grant), std::string(canvas_office));
         seat->zen_set_self(id);
     }
@@ -209,6 +215,25 @@ TEST_CASE("pane canvas capture keeps the press picture through repaint motion an
     CHECK(t.seat->pointers.back().picture == 1);
     t.r.publish(loom::to_value(input::PointerMoved{0, 0, 0, 0, input::space::kCells, 0}));
     CHECK(t.seat->pointers.size() == 3);
+}
+
+TEST_CASE("a right press a canvas picture hands back opens the host's pane menu at the press; one it keeps opens nothing") {
+    CanvasRig t;
+    // KEPT: the picture took the press, and the press is its own.
+    t.button(3, true);
+    REQUIRE(t.seat->pointers.size() == 1);
+    CHECK(t.seat->pointers.back().button == 3);
+    CHECK_FALSE(t.r.session().context.open);
+    t.button(3, false);
+    // HANDED BACK: the host's pane menu opens about the canvas pane, beside the hand.
+    t.seat->pass_right = true;
+    t.button(3, true);
+    REQUIRE(t.r.session().context.open);
+    CHECK(t.r.session().context.subject == context_subject::kPane);
+    CHECK(t.r.session().context.pane == (PaneRef{canvas_office, canvas_pane}));
+    CHECK(t.r.session().context.anchored);
+    CHECK(t.r.session().context.anchor_x == (t.view().canvas.x + kPaneCanvasUnit) / kPaneCanvasUnit);
+    CHECK(t.r.session().context.anchor_y == (t.view().canvas.y + kPaneCanvasUnit) / kPaneCanvasUnit);
 }
 
 TEST_CASE("pane canvas grants turn over on reoffer and old content and capture cannot survive") {

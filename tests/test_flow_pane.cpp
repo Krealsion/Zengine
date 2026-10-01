@@ -39,7 +39,7 @@ public:
         return {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
             loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
             loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PaneQuitAnswered>(),
-            loom::schema_of<fp::FlowEdited>()};
+            loom::schema_of<ws::PanePassRequested>(), loom::schema_of<fp::FlowEdited>()};
     }
     void handle(const loom::Message& message, loom::Bus&) override {
         if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PaneCanvasContent>())) {
@@ -97,7 +97,7 @@ struct Rig {
         ws::allow_finding_powers(pane_grant);
         for (const auto& schema : {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
                 loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
-                loom::schema_of<ws::PaneEscapeUnspent>()})
+                loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>()})
             pane_grant.allow_to_role(schema->name(), schema->version(), workshop_role);
         // Answers target the concrete requester; a role-addressed grant would not
         // authorize mail.answer(), even when that requester holds Workshop.
@@ -392,6 +392,27 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
     CHECK(rig.live_value() == 0);
     CHECK(rig.workspace().graph.project.state.get("value")->as_int() == 0);
     (void)rig.label("[Running]");
+}
+
+TEST_CASE("loaded Flow pane hands a right press back to Workshop under the press's own number, and its picture moves nothing") {
+    Rig rig;
+    const auto before = rig.state();
+    const auto pictures = rig.presenter->pictures.size();
+    auto press = rig.press_for("[New]"); // a control a primary press would act on
+    press.button = 3;
+    rig.host(press, 77);
+    std::vector<loom::Message> passed;
+    for (const auto& message : rig.presenter->messages)
+        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PanePassRequested>()))
+            passed.push_back(message);
+    REQUIRE(passed.size() == 1);
+    CHECK(loom::from_value<ws::PanePassRequested>(passed[0].payload).pane == fp::kPane);
+    CHECK(passed[0].correlation == 77);
+    CHECK(passed[0].provenance.authored_from_role(fp::kRole));
+    // NOTHING OF FLOW'S MOVED: no page, no selection, no new picture.
+    CHECK(rig.presenter->pictures.size() == pictures);
+    CHECK(rig.state().page == before.page);
+    CHECK(rig.state().workspace == before.workspace);
 }
 
 TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and interaction context") {

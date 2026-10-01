@@ -83,7 +83,7 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-06 — A secondary press is the pane's first, then state-local first refusal
 
-LAW — A secondary press in a pane's body reaches a `PaneButton` holder, consumed under a hold and a continuation per button; a doorless body is empty; chrome and modes stay the host's.
+LAW — A secondary press in a pane's body reaches a `PaneButton` holder, consumed under a hold and continuation per button; a doorless body's right press opens the host's menu; chrome and modes are the host's.
 
 MEANS
 - the release is the hold's pane's wherever the pointer is; loss and arbitration end it `lost`;
@@ -103,8 +103,8 @@ PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneButton`, `PanePassRequested`;
 `workshop/weave_arrange.cpp` `enter_arrange_pane`; `tests/test_workshop_panes_button.cpp` case
 `"WL-PRESS-06: a right press over a pane whose holder has the door is delivered, consumed, opens
 no menu, and names the admitted picture; the chrome stays the host's"`, case `"WL-PRESS-06: a
-doorless pane's body is empty by default -- a right press there opens no menu and takes no keys;
-its chrome still opens the host's menu"`, case `"WL-PRESS-06: the
+right press in a doorless pane's body opens the host's pane menu at the press, sends the provider
+nothing and takes no keys; its chrome opens the same menu"`, case `"WL-PRESS-06: the
 release is the pressing pane's wherever the pointer is, and leaks into no other pane"`, case
 `"WL-PRESS-06: closing the pane AFTER the release invalidates the continuation on its own -- the
 review's first integration finding"`, case `"WL-PRESS-06: a press of a button the host believes

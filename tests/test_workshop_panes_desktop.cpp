@@ -24,6 +24,9 @@ namespace {
 
 namespace dp = zengine::desktop_pane;
 
+/// THE HOST'S OWN PANE ROWS, which every pane's menu carries beneath the pane's.
+const std::size_t kStandardRows = context_population(context_subject::kPane, "").size();
+
 loom::WeaveId load_real_desktop(PaneRig& r) {
     const loom::WeaveId id = r.load(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE, kDesktopRole);
     REQUIRE(id.valid());
@@ -295,7 +298,7 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- open, manage an
     d.right(beta, kNameCol);
     REQUIRE(menu_shown(d.r.session()));
     const std::vector<std::string> painted = context_rows_on(d.r.last_canvas(), d.r.session());
-    REQUIRE(painted.size() == 3);
+    REQUIRE(painted.size() == 3 + 1 + kStandardRows); // the desktop's, a rule, the host's own
     CHECK(painted[0] == "> open Beta");
     CHECK(painted[1] == "  manage...");
     CHECK(painted[2] == "  inspect in Info");
@@ -318,7 +321,7 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- open, manage an
     d.r.key(input::scan::kM);
     REQUIRE(menu_shown(d.r.session()));
     const std::vector<std::string> again = context_rows_on(d.r.last_canvas(), d.r.session());
-    REQUIRE(again.size() == 4);
+    REQUIRE(again.size() == 4 + 1 + kStandardRows);
     CHECK(again[0] == "> focus Beta");
     CHECK(again[1] == "  close Beta");
     d.r.key(input::scan::kDown);
@@ -457,7 +460,7 @@ TEST_CASE("WL-KEY-17: right-click a binding, Modify (press a key): the change is
     k.right(row);
     REQUIRE(menu_shown(k.r.session()));
     const std::vector<std::string> painted = context_rows_on(k.r.last_canvas(), k.r.session());
-    REQUIRE(painted.size() == 7);
+    REQUIRE(painted.size() == 7 + 1 + kStandardRows);
     CHECK(painted[0] == "> Modify (press a key)");
     CHECK(painted[4] == "  Remove `ctrl+t`");
     k.choose("Modify (press a key)");
@@ -1026,7 +1029,7 @@ TEST_CASE("WL-CTX-10: an ordinary replacement presenter holds the office -- the 
     REQUIRE(menu_shown(k.r.session()));
     // PRESENTED ITS WAY: numbered rows, the cursor marked -- the rows are still the desktop's.
     const std::vector<std::string> lines = presented_texts(k.r.session());
-    REQUIRE(lines.size() == 7);
+    REQUIRE(lines.size() == 7 + kStandardRows); // the host's own rows numbered on, no rule
     CHECK(lines[0] == "> 1 Modify (press a key)");
     CHECK(lines[1] == "  2 Modify (type a spelling)");
     if (!by_mouse) {
@@ -1062,12 +1065,13 @@ TEST_CASE("WL-CTX-10: the replacement presenter presents the Pane Manager's menu
     d.right(d.row_of("Alpha"), kNameCol);
     REQUIRE(menu_shown(d.r.session()));
     const std::vector<std::string> lines = presented_texts(d.r.session());
-    REQUIRE(lines.size() == 3);
+    REQUIRE(lines.size() == 3 + kStandardRows);
     CHECK(lines[0] == "> 1 open Alpha");
     CHECK(lines[2] == "  3 inspect in Info");
-    // WRAPPING IS THIS PRESENTER'S: up from the first row lands on the last.
+    CHECK(lines[3] == "  4 arrange");
+    // WRAPPING IS THIS PRESENTER'S: up from the first row lands on the last, the host's own.
     d.r.key(input::scan::kUp);
-    CHECK(presented_texts(d.r.session())[2] == "> 3 inspect in Info");
+    CHECK(presented_texts(d.r.session())[2 + kStandardRows] == "> 8 remove");
     queue_digit(d.r, input::scan::k1, "1");
     d.r.bus.drain_until_idle();
     CHECK(d.open("alpha"));
@@ -1094,7 +1098,7 @@ TEST_CASE("WL-CTX-10: the presenter reloaded in place by another image while a m
     CHECK(k.r.session().presented.menu == menu);
     CHECK(k.r.session().presented.correlation == asked);
     const std::vector<std::string> lines = presented_texts(k.r.session());
-    REQUIRE(lines.size() == 7);
+    REQUIRE(lines.size() == 7 + kStandardRows);
     CHECK(lines[0] == "  1 Modify (press a key)");
     CHECK(lines[1] == "> 2 Modify (type a spelling)");
     CHECK(k.r.session().panes.keyboard == others); // a reload moved no keys

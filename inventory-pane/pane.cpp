@@ -39,7 +39,7 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
         loom::Ack, loom::Refused, loom::DispatchRefused>,
     loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v3::PaneContent, ws::PaneMenuRequested,
-        ws::PaneKeyboardRequested, ws::PaneOperationRequested, ws::PaneCarryRequested,
+        ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested, ws::PaneCarryRequested,
         ws::PaneValueCarryRequested, ws::v2::PaneValueCarryRequested, ws::PaneShortcuts,
         ws::PaneLaunchRequested, slots::InventoryViews, inv::v2::InventoryList, inv::InventoryRead,
         inv::v2::InventoryAdd, inv::InventoryRename, inv::InventoryRemove, inv::InventoryFile,
@@ -153,7 +153,9 @@ public:
     }
     void on(const ws::PaneDragged&, loom::Mail&) {}
     void on(const ws::PaneButton& p, loom::Mail& m) {
-        if (!host(m) || !known(p.pane) || !p.pressed || p.button!=3 || p.lost || editing_!=Editing::none || busy()) return;
+        if (!host(m) || !known(p.pane) || !p.pressed || p.button!=3 || p.lost) return;
+        // AN EDIT OR AN ASK IN FLIGHT OFFERS NOTHING NOW: the press is handed back, not dropped.
+        if (editing_!=Editing::none || busy()) { (void)ws::pane_menu::pass_back(m, office, p.pane); return; }
         remove_armed_=false; current_=p.pane; menu_folder_.reset(); pressed_folder_.clear();
         if (!views_[p.pane].map.current(p.picture)) { notice_="That picture moved; try again"; draw(m); return; }
         const auto* e=pointed(p.pane,p.row,p.column,p.picture); target_={}; if(e) select(*e,p.pane);

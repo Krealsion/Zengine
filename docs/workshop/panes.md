@@ -208,15 +208,20 @@ is its own: a game-like pane blocks while you hold the button and opens nothing 
 Neovim; the Pane Manager and the Hotkeys pane ask for a small menu of their own rows beside the
 pointer. Nothing about a right-click moves the keyboard or the selection: pointing is still
 pointing. The pane's title row and border, a layout tab and the empty room still get Workshop's
-own menu, as below; a right-click in the body of a pane that does not take the button does
-nothing at all — a body is quiet unless its pane says otherwise. A pane may hand a press back to
-Workshop deliberately ("that row was not mine"), which opens that menu for the pane, once, while
-the press is still your latest act.
+own menu, as below, and so does a right-click in the body of a pane that does not take the
+button — it opens beside the click. A right-click is never lost: a pane that takes the button
+acts, offers its rows, or hands the press back where it has nothing to offer ("that row was not
+mine"), which opens Workshop's menu for the pane, once, while the press is still your latest act.
+Flow, the Editor off its highlight, Files, the Builder, the Pane Manager and the Terminal all hand
+back what they have nothing for.
 
-**A pane's own menu** opens beside your pointer with the rows the pane offered, shown by the
+**A pane's own menu** opens beside your pointer with the rows the pane offered first and
+Workshop's own rows for the pane beneath them — `arrange`, `Order >`, `Reset >`, `edit code`,
+`remove` — in one menu. Choosing one of Workshop's rows is Workshop's to carry out, exactly as
+from its own menu; choosing a pane's row is the pane's. The menu is shown by the
 **menu presenter** — an ordinary weave in the `zengine.presenter` office, loaded by a plan row
 like any tool. The shipped one works like Workshop's own menu: `↑` `↓` and `Enter`, a click on a
-row, `Esc` or a click outside to dismiss. It takes no keys away from anything and gives none back
+row, `Esc` or a click outside to dismiss; a rule sets Workshop's rows off from the pane's. It takes no keys away from anything and gives none back
 afterwards: what you pressed into last still has them. A menu that arrives late — you clicked
 somewhere else first, or pressed a key — does not open at all; a newer menu replaces an older
 one; a pane that leaves the desk takes its open menu with it, and so does a pane that is reloaded
@@ -237,7 +242,7 @@ How every pane's menu looks and behaves is the presenter's, so replacing it is r
 weave. Point the load plan's `zengine.presenter` row at another artifact, or build one and reload
 it in the shipped presenter's place. The worked example is
 [`examples/numbered-presenter`](../../examples/numbered-presenter/presenter.cpp): rows are
-numbered and a digit chooses, `↑` `↓` wrap, and a click chooses when you let go on the row you
+numbered, Workshop's on from the pane's, and a digit chooses, `↑` `↓` wrap, and a click chooses when you let go on the row you
 pressed. It keeps the same state as the shipped presenter, so reloading one over the other while
 a menu is open keeps that menu open — shown the new way, cursor kept, and your choice still
 reaching the pane that asked. If the swap catches a menu mid-flight — the old image gone, the
