@@ -539,8 +539,11 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
             shown->about.empty() ? std::string("(its contributor says nothing of what it is for)")
                                  : shown->about,
             shown->about.empty() ? ink::kMuted : ink::kFill);
+      // The clip begins a row above the band: a clip's top rounds up to the device grain, so a
+      // line set exactly on it could round out of it and vanish.
       for (auto i = band; i < view.content.texts.size(); ++i)
-        view.text_clips[i] = {left, y0, std::max(std::int64_t{0}, right - left - 8 * unit), 3 * unit};
+        view.text_clips[i] = {left, lower, std::max(std::int64_t{0}, right - left - 8 * unit),
+                              bottom - lower};
       button(room.width - 7 * unit, y0, "Add", "add-found", {shown->identity});
     }
     button(room.width - 22 * unit, bottom - unit, "Reset view", "fit");

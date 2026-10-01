@@ -327,6 +327,18 @@ TEST_CASE("Flow's rail is called In scope, and the door's rows are grouped by cl
     REQUIRE(action_has(previewed, "add-found"));
     for (const auto& hit : previewed.hits)
         if (hit.action == "node" || hit.action == "port") CHECK(hit.y + hit.h <= said);
+    // ...IN EVERY ROOM WITH MEASURED TEXT TOO. Its clip rounds to the device grain, so a line set at
+    // the very top of a clip can round out of it and vanish while the lines beneath stay drawn.
+    for (std::int64_t height = 30 * 88; height < 31 * 88; height += 4) {
+        auto measured = room();
+        measured.text_advance_px = 9;
+        measured.text_line_px = 18;
+        measured.width = 100 * 36;
+        measured.height = height;
+        const auto band = pane::picture(model, measured, 12);
+        CHECK_MESSAGE(row_of(band, "view.op -- operator, native, from view.provider") >= 0, height);
+        CHECK_MESSAGE(row_of(band, "what this power is for") >= 0, height);
+    }
     // ...and a row the latest answer no longer carries is previewed by nobody.
     answered(model, {found_row("view.src", ws::kSourceKind)});
     CHECK_FALSE(action_has(pane::picture(model, room(), 11), "add-found"));
