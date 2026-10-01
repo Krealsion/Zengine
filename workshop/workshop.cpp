@@ -9,6 +9,7 @@
 #include "authoring.hpp"
 #include "pane_doors.hpp"
 #include "host_sources.hpp"
+#include "powers_door.hpp"
 #include "sample_door.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp"
@@ -622,6 +623,9 @@ int main(int argc, char** argv) {
                                  surface::SurfaceText::zen_version, surface::kSkinRole);
     // ...and the four questions a weaver asks the editor switch, to its office only (WL-SWITCH-07).
     let_terminal_switch_editors(terminal_vocab, terminal_grant);
+    // ...and the two a weaver asks the discovery door, to its office only: finding grants nothing
+    // more (WL-TERM-18).
+    let_terminal_find_powers(terminal_vocab, terminal_grant);
     const loom::MountedTerminal terminal = loom::host_mount_terminal(
         bus, std::make_unique<loom::TerminalSession>("workshop", std::move(terminal_vocab)),
         std::move(terminal_grant));
@@ -977,23 +981,31 @@ int main(int argc, char** argv) {
     };
 
     // ---- What this host resolved, answered to whoever asks --------------------------------------
-    // A read-only observation door over the realization owner and the catalog
-    // (workshop/arrangement.hpp), mounted before realization begins: the tool that asks is loaded
-    // by this plan and must find it. Its grant is its two answers, to any: Loom picks recipients.
+    // A read-only observation door over the realization owner (workshop/arrangement.hpp), mounted
+    // before realization begins: the tool that asks is loaded by this plan and must find it. Its
+    // grant is its answer in either version, to any: Loom picks recipients.
     loom::Grant say_resolved;
     say_resolved.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
     say_resolved.allow_to_any(v2::ResolvedArrangement::zen_name,
                               v2::ResolvedArrangement::zen_version);
-    say_resolved.allow_to_any(ResolvedPowers::zen_name, ResolvedPowers::zen_version);
     mount_in_office<ArrangementDoor>(
-        bus, std::move(say_resolved), kArrangementRole, executor, operators, plan_path,
+        bus, std::move(say_resolved), kArrangementRole, executor, plan_path,
         [&bus](std::string_view role, const loom::Schema& shape) {
             return holder_accepts_on(bus, role, shape);
         });
 
+    // ---- ...which powers resolve, found by what they are for and the shapes they take -----------
+    // The discovery door over the catalog (workshop/powers_door.hpp): it derives at every ask,
+    // keeps nothing and evaluates nothing. Mounted before realization, as the arrangement door is;
+    // its grant is its two answers, to any.
+    loom::Grant say_found;
+    say_found.allow_to_any(PowersFound::zen_name, PowersFound::zen_version);
+    say_found.allow_to_any(PowerDescribed::zen_name, PowerDescribed::zen_version);
+    mount_in_office<PowersDoor>(bus, std::move(say_found), kPowersRole, operators);
+
     // ---- ...and the one office that may run a Source --------------------------------------------
-    // A second door, so which office can cause evaluation keeps a one-word answer. One shape in and
-    // one out; it caches nothing, and the catalog, declared far above, outlives it.
+    // A door of its own, so which office can cause evaluation keeps a one-word answer. One shape in
+    // and one out; it caches nothing, and the catalog, declared far above, outlives it.
     loom::Grant say_sampled;
     say_sampled.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
     mount_in_office<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);

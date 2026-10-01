@@ -307,10 +307,10 @@ std::vector<std::string> listed(const intro::PowersView& view) {
     return out;
 }
 
-std::vector<std::string> names_of(const std::vector<const ws::PowerStack*>& list) {
+std::vector<std::string> names_of(const std::vector<const ws::PowerRow*>& list) {
     std::vector<std::string> out;
-    for (const ws::PowerStack* p : list) {
-        out.push_back(p->power);
+    for (const ws::PowerRow* p : list) {
+        out.push_back(p->identity);
     }
     return out;
 }
@@ -329,7 +329,7 @@ std::pair<std::int64_t, std::int64_t> place_of(const intro::PowersView& view,
 
 } // namespace
 
-TEST_CASE("view membership is the exterior contract, never the identity's spelling") {
+TEST_CASE("view membership is the door's kind, never the identity's spelling") {
     // THE FALSIFIER THE WHOLE DERIVATION RESTS ON. `source.looks.like.one` takes arguments and
     // `math.max` does not, so an implementation that read a view off an identity's spelling would
     // put both in the wrong list -- and every other case in this file would stay green meanwhile.
@@ -341,17 +341,22 @@ TEST_CASE("view membership is the exterior contract, never the identity's spelli
     CHECK(names_of(intro::filtered_of(ui)) ==
           std::vector<std::string>{"logic.select_int", "source.looks.like.one"});
 
-    // AND THE CLASSIFICATION IS READ AND NEVER AUTHORED. Nothing a contributor writes
-    // says which list it belongs in: the wire shape carries `source`, which is
-    // `op::is_source` read off the definition the host resolves through, and there is
-    // no second field anywhere for a registration to disagree with.
-    const std::shared_ptr<const loom::Schema> shape = loom::schema_of<ws::PowerContribution>();
-    REQUIRE(shape != nullptr);
-    for (const loom::Field& f : shape->fields()) {
-        CHECK(f.name != "kind");
-        CHECK(f.name != "species");
-        CHECK(f.name != "declared_source");
-    }
+    // A CONVERSION IS AN OPERATOR, whose signature is the edge it converts: the Operators view
+    // lists it and the Sources view does not.
+    intro::PowersUi edges = showing(found_of(
+        {row_from("zengine.migrate.x.v1-to-v2", ws::kConversionKind, "zengine.fixture")}, 1));
+    edges.view = intro::powers_view::kOperators;
+    CHECK(names_of(intro::filtered_of(edges)) ==
+          std::vector<std::string>{"zengine.migrate.x.v1-to-v2"});
+    edges.view = intro::powers_view::kSources;
+    CHECK(intro::filtered_of(edges).empty());
+
+    // AND THE PANE ASKS THE DOOR FOR A VIEW BY KIND, keeping no classifier of its own: the kind is
+    // the door's derivation off the definition, and the search names it per view.
+    ui.view = intro::powers_view::kSources;
+    CHECK(intro::powers_question(ui).kind == std::optional<std::string>(ws::kSourceKind));
+    ui.view = intro::powers_view::kOperators;
+    CHECK(intro::powers_question(ui).kind == std::optional<std::string>(ws::kOperatorKind));
 }
 
 TEST_CASE("all four Source x Composite cells are legal and independent") {
@@ -370,8 +375,8 @@ TEST_CASE("all four Source x Composite cells are legal and independent") {
                                  {"zengine.recipes.catalog", true, true}};
     for (const Cell& c : want) {
         bool found = false;
-        for (const ws::PowerStack& p : ui.reading.powers) {
-            if (p.power != c.identity) {
+        for (const ws::PowerRow& p : ui.reading.rows) {
+            if (p.identity != c.identity) {
                 continue;
             }
             found = true;
@@ -397,21 +402,15 @@ TEST_CASE("all four Source x Composite cells are legal and independent") {
     }
 }
 
-TEST_CASE("the composite badge and filter read the ACTIVE contribution") {
-    // A BURIED CONTRIBUTION IS NOT THE ANSWER. A native covered by a composite is a composite
-    // power; a composite covered by a native is not. An implementation reading
-    // `contributions[0]` would answer both backwards.
-    ws::ResolvedPowers said;
-    said.providers = {"a", "b"};
-    said.powers.push_back(power_of("native.under.composite",
-                                   {source_from("a", /*composite=*/false),
-                                    source_from("b", /*composite=*/true)}));
-    said.powers.push_back(power_of("composite.under.native",
-                                   {source_from("a", /*composite=*/true),
-                                    source_from("b", /*composite=*/false)}));
-    intro::PowersUi ui = showing(said);
-    CHECK(intro::is_composite_power(ui.reading.powers[0]));
-    CHECK_FALSE(intro::is_composite_power(ui.reading.powers[1]));
+TEST_CASE("the composite badge and filter read the row's construction") {
+    // THE DOOR SAYS THE CONSTRUCTION OF THE CONTRIBUTION IN FORCE (a buried one is not the
+    // answer, measured at the door), and the badge and the filter both read that one word.
+    intro::PowersUi ui = showing(found_of(
+        {source_from("native.under.composite", "b", /*composite=*/true),
+         source_from("composite.under.native", "b", /*composite=*/false)},
+        2));
+    CHECK(intro::is_composite_power(ui.reading.rows[0]));
+    CHECK_FALSE(intro::is_composite_power(ui.reading.rows[1]));
 
     ui.composite_only = true;
     CHECK(names_of(intro::filtered_of(ui)) ==
@@ -419,7 +418,8 @@ TEST_CASE("the composite badge and filter read the ACTIVE contribution") {
 
     // AND THE ROW A WEAVER READS AGREES WITH THE FILTER, which is the half a badge
     // computed somewhere else would get wrong silently.
-    const std::vector<std::string> shown = powers_text(showing(said), 20, 70);
+    ui.composite_only = false;
+    const std::vector<std::string> shown = powers_text(ui, 20, 70);
     const std::int64_t marked = row_with_text(shown, "native.under.composite");
     const std::int64_t plain = row_with_text(shown, "composite.under.native");
     REQUIRE(marked >= 0);
@@ -429,70 +429,46 @@ TEST_CASE("the composite badge and filter read the ACTIVE contribution") {
 }
 
 TEST_CASE("an overlay changing construction moves the badge and not the view") {
-    // THE NEXT READING IS THE BEAT, and what it changes is exactly one of the two
+    // THE NEXT ANSWER IS THE BEAT, and what it changes is exactly one of the two
     // independent facts: the identity is a Source before and after, and the badge
     // follows the contribution that arrived on top.
-    ws::ResolvedPowers before;
-    before.providers = {"host"};
-    before.powers.push_back(power_of("thing", {source_from("host", /*composite=*/false)}));
-    intro::PowersUi ui = showing(before);
+    intro::PowersUi ui = showing(found_of({source_from("thing", "host")}, 1));
     ui.select("thing");
-    CHECK(intro::is_source_power(ui.reading.powers[0]));
-    CHECK_FALSE(intro::is_composite_power(ui.reading.powers[0]));
+    CHECK(intro::is_source_power(ui.reading.rows[0]));
+    CHECK_FALSE(intro::is_composite_power(ui.reading.rows[0]));
 
-    ws::ResolvedPowers after;
-    after.providers = {"host", "overlay"};
-    after.powers.push_back(power_of("thing", {source_from("host", /*composite=*/false),
-                                              source_from("overlay", /*composite=*/true)}));
-    ui.reading = after;
-    intro::revalidate(ui);
-    CHECK(intro::is_source_power(ui.reading.powers[0]));    // the contract did not move
-    CHECK(intro::is_composite_power(ui.reading.powers[0])); // the construction did
-    CHECK(ui.selected() == "thing");                        // and the weaver kept their place
+    ui.reading = found_of({source_from("thing", "overlay", /*composite=*/true)}, 2);
+    CHECK(intro::is_source_power(ui.reading.rows[0]));    // the contract did not move
+    CHECK(intro::is_composite_power(ui.reading.rows[0])); // the construction did
+    CHECK(ui.selected() == "thing");                      // and the weaver kept their place
     CHECK(names_of(intro::filtered_of(ui)) == std::vector<std::string>{"thing"});
 }
 
-TEST_CASE("search is a case-insensitive ASCII substring that filters, never ranks") {
-    CHECK(intro::matches_query("math.max", ""));   // empty selects all
-    CHECK(intro::matches_query("math.max", "MATH"));
-    CHECK(intro::matches_query("MATH.MAX", "math"));
-    CHECK(intro::matches_query("math.max", ".ma"));
-    CHECK(intro::matches_query("math.max", "math.max"));
-    CHECK_FALSE(intro::matches_query("math.max", "maths"));
-    CHECK_FALSE(intro::matches_query("max", "math.max")); // longer than the identity
+TEST_CASE("the search is one question to the door, and the pane never matches text itself") {
+    // THE VIEW, THE QUERY AND THE FILTER ARE ONE ASK. What matches is the door's to say -- the
+    // same rows it says to the Terminal -- so the pane carries the typed text whole.
+    intro::PowersUi ui;
+    ws::FindPowers asked = intro::powers_question(ui);
+    CHECK(asked.kind == std::optional<std::string>(ws::kSourceKind));
+    CHECK_FALSE(asked.text.has_value()); // nothing typed asks nothing of the text
+    CHECK_FALSE(asked.construction.has_value());
+    CHECK(asked.limit == std::optional<std::int64_t>(ws::kMaxPowerRows));
+    CHECK_FALSE(asked.offered.has_value()); // a power not offered is listed here, saying so
 
-    // AND IT FILTERS RATHER THAN RANKING. `src.01` matches later in its name than
-    // `src.10` does, and what comes back is still the catalog's own order.
-    intro::PowersUi ui = showing(many_sources(12));
-    ui.query.type("1");
-    const std::vector<std::string> got = names_of(intro::filtered_of(ui));
-    REQUIRE(got.size() == 3);
-    CHECK(got[0] == "src.01");
-    CHECK(got[1] == "src.10");
-    CHECK(got[2] == "src.11");
-}
-
-TEST_CASE("bytes at or above 0x80 compare exactly") {
-    // NO LOCALE AND NO UNICODE FOLDING. This pane's matching is ASCII, and a byte
-    // outside it is compared for what it is rather than for what some table thinks it
-    // means.
-    const std::string high = "na\xC3\xAFve.thing";
-    CHECK(intro::matches_query(high, "\xC3\xAF"));
-    CHECK_FALSE(intro::matches_query(high, "\xC3\x8F")); // the other case, byte-wise
-    CHECK(intro::matches_query(high, "NA"));             // ...and the ASCII half still folds
-}
-
-TEST_CASE("composite-only and the query compose as AND, in both views") {
-    intro::PowersUi ui = showing(four_cells());
     ui.view = intro::powers_view::kOperators;
-    ui.query.type("o");
-    CHECK(names_of(intro::filtered_of(ui)) ==
-          std::vector<std::string>{"logic.select_int", "source.looks.like.one"});
+    ui.query.type("Larger INT");
     ui.composite_only = true;
-    CHECK(names_of(intro::filtered_of(ui)) == std::vector<std::string>{"source.looks.like.one"});
-    ui.query.clear();
-    ui.query.type("logic");
-    CHECK(intro::filtered_of(ui).empty()); // composite AND the query, never either
+    asked = intro::powers_question(ui);
+    CHECK(asked.kind == std::optional<std::string>(ws::kOperatorKind));
+    CHECK(asked.text == std::optional<std::string>("Larger INT"));
+    CHECK(asked.construction == std::optional<std::string>(ws::kCompositeConstruction));
+
+    // AND THE ROWS AN ANSWER CARRIES ARE SHOWN AS IT CARRIES THEM: a row whose identity holds none
+    // of the typed text is still listed, because the door matched it by what it is for.
+    intro::PowersUi typed = showing(found_of({operator_from("math.max", "zengine.fixture")}, 1));
+    typed.view = intro::powers_view::kOperators;
+    typed.query.type("larger");
+    CHECK(names_of(intro::filtered_of(typed)) == std::vector<std::string>{"math.max"});
 }
 
 TEST_CASE("each view holds its own selected IDENTITY, and switching restores both") {
@@ -516,20 +492,18 @@ TEST_CASE("each view holds its own selected IDENTITY, and switching restores bot
     CHECK(shown[static_cast<std::size_t>(at)].rfind(intro::kSelectedMark, 0) == 0);
 }
 
-TEST_CASE("presentation hides a selection; only a fresh reading may clear it") {
+TEST_CASE("presentation hides a selection; only the door saying it is gone clears it") {
     intro::PowersUi ui = showing(four_cells());
     ui.select("math.max");
 
-    // HIDDEN BY A QUERY: held, and unmarked because there is no row to mark.
+    // HIDDEN BY A SEARCH: the answer to a query that does not match it has no row to mark, and the
+    // selection is held. A search is a fact about the weaver; it is no evidence about the catalog.
     ui.query.type("recipes");
+    ui.reading = found_of({four_cells().rows[3]}, 3);
     CHECK(ui.selected() == "math.max");
     CHECK(intro::cursor_in(intro::filtered_of(ui), ui.selected()) == -1);
-    // AND A FRESH READING ARRIVING WHILE THE QUERY HIDES IT DOES NOT CLEAR IT EITHER. The
-    // population is what a reading is evidence about; the query is a fact about the weaver, and
-    // revalidation that consulted it would clear a place because somebody typed three characters.
-    intro::revalidate(ui);
-    CHECK(ui.selected() == "math.max");
     ui.query.clear();
+    ui.reading = four_cells();
     CHECK(intro::cursor_in(intro::filtered_of(ui), ui.selected()) == 0);
 
     // HIDDEN BY THE COMPOSITE FILTER: held.
@@ -542,31 +516,32 @@ TEST_CASE("presentation hides a selection; only a fresh reading may clear it") {
     CHECK(ui.selected() == "math.max");
     CHECK(static_cast<std::int64_t>(tiny.rows.size()) <= 2);
 
-    // AND A FRESH READING THAT NO LONGER HAS IT DOES CLEAR IT -- the only thing that may.
-    // Presentation hides; only the population invalidates.
-    ws::ResolvedPowers gone = four_cells();
-    gone.powers.erase(gone.powers.begin() + 1); // math.max
-    ui.reading = gone;
-    intro::revalidate(ui);
+    // AND THE DOOR SAYING NOTHING SUPPLIES IT CLEARS IT -- the only thing that may.
+    ws::PowerDescribed gone;
+    gone.identity = "math.max";
+    gone.reason = "nothing supplies 'math.max' here";
+    intro::take_described(ui, gone);
     CHECK(ui.selected().empty());
 
-    // ...AND A READING THAT STILL HAS IT DOES NOT.
+    // ...AND THE DOOR DESCRIBING IT DOES NOT.
     intro::PowersUi kept = showing(four_cells());
     kept.select("math.max");
-    kept.reading = four_cells();
-    intro::revalidate(kept);
+    intro::take_described(kept, described_as(four_cells().rows[1], {layer_from("h")}));
     CHECK(kept.selected() == "math.max");
 
-    // NOR DOES A READING THAT LOST THE OTHER VIEW'S SELECTION TAKE THIS ONE WITH IT.
+    // NOR DOES AN ANSWER ABOUT THE OTHER VIEW'S SELECTION TAKE THIS ONE WITH IT, and an identity
+    // that now belongs to the other view leaves only the view that held it.
     intro::PowersUi both = showing(four_cells());
     both.selected_source = "math.max";
     both.selected_operator = "logic.select_int";
-    ws::ResolvedPowers half = four_cells();
-    half.powers.erase(half.powers.begin()); // logic.select_int
-    both.reading = half;
-    intro::revalidate(both);
+    ws::PowerDescribed gone_operator;
+    gone_operator.identity = "logic.select_int";
+    gone_operator.reason = "nothing supplies 'logic.select_int' here";
+    intro::take_described(both, gone_operator);
     CHECK(both.selected_source == "math.max");
     CHECK(both.selected_operator.empty());
+    intro::take_described(both, described_as(operator_from("math.max", "h"), {layer_from("h")}));
+    CHECK(both.selected_source.empty());
 }
 
 TEST_CASE("the window is derived from the population and the cursor, never stored") {
@@ -634,13 +609,13 @@ TEST_CASE("Up and Down walk the visible list, and begin at its head when hidden"
     // A HIDDEN SELECTION IS NOT PROJECTED INTO THE LIST TO BE LEFT. The identity is
     // still held; the walk begins where the weaver can actually see.
     ui.select("src.03");
-    ui.query.type("src.05");
+    ui.reading = found_of({many_sources(6).rows[5]}, 1); // the answer to a search for `src.05`
     CHECK(ui.selected() == "src.03");
     intro::move_cursor(ui, +1);
     CHECK(ui.selected() == "src.05");
 
     // AND AN EMPTY LIST MOVES NOTHING AT ALL.
-    intro::PowersUi none = showing(ws::ResolvedPowers{});
+    intro::PowersUi none = showing(found_of({}, 0));
     intro::move_cursor(none, +1);
     CHECK(none.selected().empty());
 }
@@ -657,47 +632,126 @@ TEST_CASE("the position marker counts the list the weaver is navigating") {
     CHECK(view.cursor == 5);
     CHECK(row_with_text(texts_of(view.rows), "6/12") == 0);
 
-    // THE DENOMINATOR FOLLOWS THE FILTER, because it describes the list actually being
-    // navigated. A total from the unfiltered reading over a cursor from the filtered one is never
-    // wrong on any single row and always wrong as a sentence.
+    // THE DENOMINATOR FOLLOWS THE SEARCH, because it describes the list actually being navigated:
+    // the door's answer to `src.0` is ten rows, and the cursor is placed in those ten.
     ui.query.type("src.0");
+    std::vector<ws::PowerRow> first_ten = many_sources(12).rows;
+    first_ten.resize(10);
+    ui.reading = found_of(std::move(first_ten), 1);
     view = intro::project_powers_ui(ui, 20, 70);
     CHECK(view.population == 10);
     CHECK(view.cursor == 5);
     CHECK(row_with_text(texts_of(view.rows), "6/10") == 0);
 }
 
-TEST_CASE("an absent view and a filtered-away one are different sentences") {
-    // A VIEW WITH NOTHING IN IT.
-    intro::PowersUi empty = showing(four_cells());
-    empty.reading.powers.erase(empty.reading.powers.begin() + 3); // zengine.recipes.catalog
-    empty.reading.powers.erase(empty.reading.powers.begin() + 1); // math.max
+TEST_CASE("an empty view and a search nothing matched are different sentences") {
+    // A VIEW WITH NOTHING IN IT, asked with nothing typed and no filter.
+    intro::PowersUi empty = showing(found_of({}, 1));
     empty.view = intro::powers_view::kSources;
     CHECK(row_with_text(powers_text(empty, 8, 60), intro::kNoSourcesHere) >= 0);
+    empty.view = intro::powers_view::kOperators;
+    CHECK(row_with_text(powers_text(empty, 8, 60), intro::kNoOperatorsHere) >= 0);
 
-    intro::PowersUi no_ops = showing(four_cells());
-    no_ops.reading.powers.erase(no_ops.reading.powers.begin() + 2); // source.looks.like.one
-    no_ops.reading.powers.erase(no_ops.reading.powers.begin());     // logic.select_int
-    no_ops.view = intro::powers_view::kOperators;
-    CHECK(row_with_text(powers_text(no_ops, 8, 60), intro::kNoOperatorsHere) >= 0);
-
-    // AND A VIEW THE WEAVER FILTERED AWAY SAYS SO AND COUNTS WHAT IT IS HIDING, so an empty pane
-    // can never read as an empty system.
-    intro::PowersUi hidden = showing(four_cells());
-    hidden.view = intro::powers_view::kSources;
-    hidden.query.type("nothing-matches-this");
-    const std::vector<std::string> said = powers_text(hidden, 8, 60);
+    // AND A SEARCH THE DOOR MATCHED NOTHING TO SAYS SO, so an empty pane never reads as an empty
+    // system -- whether the weaver typed or filtered.
+    intro::PowersUi typed = showing(found_of({}, 1));
+    typed.query.type("nothing-matches-this");
+    const std::vector<std::string> said = powers_text(typed, 8, 60);
     CHECK(row_with_text(said, intro::kNoSourcesHere) == -1);
-    CHECK(row_with_text(said, "2 sources here") >= 0);
-    CHECK(row_with_text(said, "hidden by the current filter") >= 0);
+    CHECK(row_with_text(said, intro::kNoneMatch) >= 0);
+    intro::PowersUi filtered = showing(found_of({}, 1));
+    filtered.composite_only = true;
+    CHECK(row_with_text(powers_text(filtered, 8, 60), intro::kNoneMatch) >= 0);
+}
+
+TEST_CASE("a search the door refused shows the door's sentence, and is not an empty match") {
+    // A QUERY PAST THE DOOR'S BOUND IS REFUSED IN WORDS, and those words are the list: `none here
+    // match` would say the catalog had nothing to match, which nobody observed.
+    intro::PowersUi ui;
+    ui.query.type(std::string(ws::kMaxPowersQueryBytes + 1, 'x'));
+    ws::PowersFound refused;
+    refused.reason = ws::refusal_of(intro::powers_question(ui));
+    REQUIRE_FALSE(refused.reason.empty());
+    ui.reading = refused;
+    ui.read = true;
+    const intro::PowersView view = intro::project_powers_ui(ui, 8, 120);
+    const std::vector<std::string> shown = texts_of(view.rows);
+    const std::int64_t at = row_with_text(shown, refused.reason);
+    REQUIRE(at >= 0);
+    CHECK(view.rows[static_cast<std::size_t>(at)].role == surface::role::kAlert);
+    CHECK(row_with_text(shown, intro::kNoneMatch) == -1);
+    CHECK(row_with_text(shown, intro::kNoSourcesHere) == -1);
+}
+
+TEST_CASE("rows past one answer's page are counted, never silently absent") {
+    // THE DOOR CARRIES AT MOST ONE PAGE AND COUNTS THE WHOLE QUERY, so the pane says how many more
+    // matched than it was given, and how to reach them.
+    ws::PowersFound page = many_sources(3);
+    page.total = 15;
+    const std::vector<std::string> shown = powers_text(showing(page), 12, 60);
+    CHECK(row_with_text(shown, "+ 12 more match -- narrow the search") >= 0);
+    CHECK(row_with_text(shown, "src.00") >= 0);
+    // ...and a whole answer says nothing of the kind.
+    CHECK(row_with_text(powers_text(showing(many_sources(3)), 12, 60), "more match") == -1);
+}
+
+TEST_CASE("a power not offered for reuse is listed, and says so") {
+    // ANOTHER PARTICIPANT'S OWN REACTION IS A FACT A WEAVER BROWSING MAY WANT, so Powers lists it
+    // -- and says, beside its identity and in its detail, that it is offered to no composition.
+    ws::PowerRow own = operator_from("water.r1.on.water.Reading", "zengine.maker.water.r1",
+                                     /*composite=*/true);
+    own.offered = false;
+    own.about = "what water r1 writes to state.value when water.Reading arrives";
+    intro::PowersUi ui = showing(found_of({own, operator_from("math.max", "zengine.fixture")}, 2));
+    ui.view = intro::powers_view::kOperators;
+    ui.select("water.r1.on.water.Reading");
+    const std::vector<std::string> shown = powers_text(ui, 20, 89);
+    const std::int64_t at = row_with_text(shown, "water.r1.on.water.Reading");
+    REQUIRE(at >= 0);
+    CHECK(shown[static_cast<std::size_t>(at)].find("(not offered)") != std::string::npos);
+    CHECK(row_with_text(shown, intro::kNotOfferedLine) >= 0);
+    CHECK(row_with_text(shown, "writes to state.value when water.Reading arrives") >= 0);
+    const std::int64_t plain = row_with_text(shown, "math.max");
+    REQUIRE(plain >= 0);
+    CHECK(shown[static_cast<std::size_t>(plain)].find("(not offered)") == std::string::npos);
+}
+
+TEST_CASE("a contributor's words are shown in the detail, drawn in what a row can carry") {
+    // WHAT A POWER IS FOR IS THE CONTRIBUTOR'S SENTENCE, read off the row; a byte a row cannot
+    // carry is drawn as `?`, so one provider's words cannot refuse the whole pane's update.
+    ws::PowerRow said = source_from("host.thing", "h");
+    said.about = "caf\xC3\xA9 hours, then\tmore";
+    intro::PowersUi ui = showing(found_of({said}, 1));
+    ui.select("host.thing");
+    const std::vector<std::string> shown = powers_text(ui, 20, 70);
+    CHECK(row_with_text(shown, "caf?? hours, then?more") >= 0);
+    for (const std::string& row : shown) {
+        for (const char c : row) {
+            const unsigned char b = static_cast<unsigned char>(c);
+            CHECK((b >= 0x20u && b < 0x7Fu));
+        }
+    }
 }
 
 TEST_CASE("every projection fits the room it was given") {
     std::vector<intro::PowersUi> arrangements;
-    arrangements.push_back(intro::PowersUi{});             // never read: no reading at all
-    arrangements.push_back(showing(ws::ResolvedPowers{})); // an observed empty catalog
+    arrangements.push_back(intro::PowersUi{});         // never read: no reading at all
+    arrangements.push_back(showing(found_of({}, 0)));  // an observed empty catalog
     arrangements.push_back(showing(four_cells()));
     arrangements.push_back(showing(many_sources(40)));
+    {
+        ws::PowersFound page = many_sources(40);
+        page.total = 140; // a page of a longer answer, counted
+        ws::PowerRow own = source_from("own.reaction", "zengine.maker.own.r1");
+        own.offered = false;
+        own.about = std::string(300, 'w');
+        page.rows.insert(page.rows.begin(), own);
+        intro::PowersUi deep = showing(page);
+        deep.select("own.reaction");
+        deep.described = described_as(own, {layer_from("under", false, "the old words"),
+                                            layer_from("zengine.maker.own.r1", true)});
+        arrangements.push_back(deep);
+    }
     {
         intro::PowersUi busy = showing(four_cells());
         busy.select("zengine.recipes.catalog");
@@ -933,18 +987,23 @@ TEST_CASE("a sample survives filters, view switches and a lost population") {
     ui.sample.ok = true;
     ui.sample.lines = {"zengine.RecipeCatalog v1"};
 
-    // FILTERED OUT OF THE LIST: still shown, because a filter is not evidence about
+    // SEARCHED OUT OF THE LIST: still shown, because a search is not evidence about
     // what a Source said.
     ui.query.type("logic");
     ui.view = intro::powers_view::kOperators;
+    ui.reading = found_of({four_cells().rows[0]}, 3);
     CHECK(row_with_text(powers_text(ui, 20, 70), "zengine.RecipeCatalog v1") >= 0);
 
     // THE PROVIDER UNLOADED: still shown. The answer was true when it was given, and a
-    // later reading of the catalog is a fact about the catalog rather than about it.
+    // later answer about the catalog is a fact about the catalog rather than about it.
     ui.query.clear();
     ui.view = intro::powers_view::kSources;
-    ui.reading = ws::ResolvedPowers{};
-    intro::revalidate(ui);
+    ui.select("zengine.recipes.catalog");
+    ui.reading = found_of({}, 0);
+    ws::PowerDescribed gone;
+    gone.identity = "zengine.recipes.catalog";
+    gone.reason = "nothing supplies 'zengine.recipes.catalog' here";
+    intro::take_described(ui, gone);
     CHECK(ui.selected().empty());
     const std::vector<std::string> after = powers_text(ui, 20, 70);
     CHECK(row_with_text(after, intro::kSampledWhenAsked) >= 0);
@@ -968,25 +1027,35 @@ TEST_CASE("the detail block names what a sample would yield, without sampling") 
 
     // A CONTRIBUTION THE HOST PUBLISHED ITSELF IS NAMED AS THE HOST, and an empty
     // provider never reaches a weaver's eye as an empty column.
-    ws::ResolvedPowers hosted;
-    hosted.powers.push_back(power_of("host.thing", {source_from("")}));
-    intro::PowersUi own = showing(hosted);
+    intro::PowersUi own = showing(found_of({source_from("host.thing", "")}, 0));
     own.select("host.thing");
     CHECK(row_with_text(powers_text(own, 20, 70), intro::kHostItself) >= 0);
 
     // A STACK IS SHOWN ACTIVE-FIRST, which is the wire's order reversed deliberately:
     // a weaver reads top-down and the first thing they should read is the one whose
-    // code runs.
-    ws::ResolvedPowers stacked;
-    stacked.powers.push_back(power_of("covered", {source_from("under"), source_from("over")}));
-    intro::PowersUi deep = showing(stacked);
+    // code runs. The stack is the door's description of the selected identity, and a
+    // covered contribution keeps its own words.
+    const ws::PowerRow covered = source_from("covered", "over");
+    intro::PowersUi deep = showing(found_of({covered}, 2));
     deep.select("covered");
-    const std::vector<std::string> rows = powers_text(deep, 20, 70);
+    // ...until that description comes, the row alone says what is in force, and nothing shadowed.
+    std::vector<std::string> rows = powers_text(deep, 20, 70);
+    CHECK(row_with_text(rows, "active    over") >= 0);
+    CHECK(row_with_text(rows, "shadowed") == -1);
+    deep.described = described_as(covered, {layer_from("under", false, "what under said"),
+                                            layer_from("over")});
+    rows = powers_text(deep, 20, 70);
     const std::int64_t live = row_with_text(rows, "active    over");
-    const std::int64_t buried = row_with_text(rows, "shadowed  under");
+    const std::int64_t buried = row_with_text(rows, "shadowed  under -- what under said");
     REQUIRE(live >= 0);
     REQUIRE(buried >= 0);
     CHECK(live < buried);
+
+    // A DESCRIPTION OF ANOTHER IDENTITY IS NOT THIS ONE'S, however recently it arrived.
+    deep.described = described_as(source_from("elsewhere", "x"), {layer_from("u"), layer_from("x")});
+    rows = powers_text(deep, 20, 70);
+    CHECK(row_with_text(rows, "shadowed") == -1);
+    CHECK(row_with_text(rows, "active    over") >= 0);
 }
 
 TEST_CASE("only a selected Source offers a sample gesture") {
@@ -1007,10 +1076,10 @@ TEST_CASE("only a selected Source offers a sample gesture") {
     CHECK(place_of(view, intro::powers_control::kSample).first == -1);
     CHECK(row_with_text(texts_of(view.rows), intro::kSampleControl) == -1);
 
-    // AND A SELECTION THE CURRENT READING NO LONGER HAS OFFERS NONE EITHER.
+    // AND A SELECTION NEITHER THE ANSWER NOR A DESCRIPTION CARRIES OFFERS NONE EITHER.
     intro::PowersUi stale = showing(four_cells());
     stale.select("math.max");
-    stale.reading = ws::ResolvedPowers{};
+    stale.reading = found_of({}, 0);
     CHECK(intro::sampleable(stale).empty());
 }
 
@@ -1018,23 +1087,27 @@ TEST_CASE("the census is slack-only and each noun agrees with its count") {
     // THE CATALOG CENSUS AND THE POSITION MARKER ARE TWO DIFFERENT COUNTS. `17/143`
     // counts the list being navigated; this counts the whole reading, and it waits for
     // room nothing else wanted.
-    ws::ResolvedPowers one;
-    one.providers = {"zengine.operators.basic"};
-    one.powers.push_back(power_of("math.max", {source_from("zengine.operators.basic")}));
+    const ws::PowersFound one =
+        found_of({source_from("math.max", "zengine.operators.basic")}, 1);
     CHECK(row_with_text(powers_text(showing(one), 20, 70),
                         "1 power resolves here -- from 1 provider") >= 0);
 
-    ws::ResolvedPowers two_from_one;
-    two_from_one.providers = {"zengine.operators.basic"};
-    two_from_one.powers.push_back(power_of("math.max", {source_from("zengine.operators.basic")}));
-    two_from_one.powers.push_back(
-        power_of("logic.select_int", {source_from("zengine.operators.basic")}));
+    const ws::PowersFound two_from_one =
+        found_of({source_from("math.max", "zengine.operators.basic"),
+                  source_from("logic.select_int", "zengine.operators.basic")},
+                 1);
     const std::vector<std::string> pair = powers_text(showing(two_from_one), 20, 70);
     CHECK(row_with_text(pair, "2 powers resolve here -- from 1 provider") >= 0);
     CHECK(row_with_text(pair, "1 providers") == -1);
 
-    CHECK(row_with_text(powers_text(showing(ws::ResolvedPowers{}), 20, 70),
+    CHECK(row_with_text(powers_text(showing(found_of({}, 0)), 20, 70),
                         "0 powers resolve here -- from 0 providers") >= 0);
+
+    // THE CENSUS IS THE WHOLE CATALOG THE DOOR READ, not the page or the search it answered.
+    ws::PowersFound searched = found_of({source_from("math.max", "zengine.operators.basic")}, 2);
+    searched.powers = 7;
+    CHECK(row_with_text(powers_text(showing(searched), 20, 70),
+                        "7 powers resolve here -- from 2 providers") >= 0);
 
     // AND THE SENTENCE THAT BOUNDS EVERY COUNT IS STILL THERE, unchanged, saying only what this
     // pane actually read.
@@ -1364,7 +1437,8 @@ TEST_CASE("THE OVERLAY WITNESS, through the pane a weaver actually reads") {
         CHECK(any_row(shown, "4 powers resolve here -- from 1 provider"));
     }
 
-    // A WEAVER SELECTS ONE, and the detail says whose contribution satisfies it.
+    // A WEAVER SELECTS ONE, and the detail says whose contribution satisfies it and what that
+    // contributor says it is for.
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
         const std::int64_t at = row_with_text(shown, "math.max");
@@ -1377,13 +1451,14 @@ TEST_CASE("THE OVERLAY WITNESS, through the pane a weaver actually reads") {
         REQUIRE(at >= 0);
         CHECK(shown[static_cast<std::size_t>(at)].rfind(intro::kSelectedMark, 0) == 0);
         CHECK(any_row(shown, "active    zengine.operators.basic"));
+        CHECK(any_row(shown, "  the larger of two integers"));
         CHECK_FALSE(any_row(shown, "shadowed"));
     }
 
     // ---- THE OVERLAY, MOUNTED INTO THE HOST'S OWN CATALOG ----------------------
     //
     // NOBODY IS TOLD. No event exists, nothing polls, and the pane's rows are unmoved
-    // until it is re-granted room -- which is a resize, which is this tool's one beat.
+    // until it asks the door again -- on a room grant, which is a resize, or a new search.
     const op::MountResult covered =
         op::mount_provider(r.catalog, PROVIDER_MIN_SO, op::MountMode::Overlay);
     REQUIRE_MESSAGE(covered.ok, covered.reason);
@@ -1395,22 +1470,24 @@ TEST_CASE("THE OVERLAY WITNESS, through the pane a weaver actually reads") {
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
         REQUIRE_FALSE(shown.empty());
-        // THE VIEW, THE SELECTION AND THE CURSOR ALL SURVIVED THE FRESH READING,
-        // because the identity is still in the population it names.
+        // THE VIEW, THE SELECTION AND THE CURSOR ALL SURVIVED THE FRESH ANSWER,
+        // because the identity is still in the catalog the door read.
         CHECK(shown[0].find("[Operators]") != std::string::npos);
         const std::int64_t at = row_with_text(shown, "math.max");
         REQUIRE(at >= 0);
         CHECK(shown[static_cast<std::size_t>(at)].rfind(intro::kSelectedMark, 0) == 0);
-        // ...AND THE STACK UNDER IT MOVED, active first.
+        // ...AND THE STACK UNDER IT MOVED, active first, each contribution in its own words.
         const std::int64_t live = row_with_text(shown, "active    zengine.operators.test.min");
-        const std::int64_t buried = row_with_text(shown, "shadowed  zengine.operators.basic");
+        const std::int64_t buried =
+            row_with_text(shown, "shadowed  zengine.operators.basic -- the larger");
         REQUIRE(live >= 0);
         REQUIRE(buried >= 0);
         CHECK(live < buried);
+        CHECK(any_row(shown, "  the smaller of two integers"));
         CHECK(any_row(shown, "4 powers resolve here -- from 2 providers"));
     }
 
-    // ---- UNMOUNTED: THE ONE UNDERNEATH IS REVEALED ----------------------------
+    // ---- UNMOUNTED: THE ONE UNDERNEATH IS REVEALED, WITH ITS OWN WORDS -----------
     REQUIRE(r.catalog.unmount("zengine.operators.test.min"));
     author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
                           r.session().panes.external_pane(kind)->columns + 1);
@@ -1419,10 +1496,12 @@ TEST_CASE("THE OVERLAY WITNESS, through the pane a weaver actually reads") {
         const std::vector<std::string> shown = pane_rows(r, kind);
         REQUIRE_FALSE(shown.empty());
         CHECK(any_row(shown, "active    zengine.operators.basic"));
+        CHECK(any_row(shown, "  the larger of two integers"));
+        CHECK_FALSE(any_row(shown, "smaller"));
         CHECK_FALSE(any_row(shown, "shadowed"));
         CHECK(any_row(shown, "4 powers resolve here -- from 1 provider"));
     }
-    // NOTHING IN THE PANE'S SOURCE MOVED BETWEEN THOSE THREE READINGS.
+    // NOTHING IN THE PANE'S SOURCE MOVED BETWEEN THOSE THREE ANSWERS.
 }
 
 TEST_CASE("the corrected wording reaches a weaver's eye WHOLE, off the real canvas") {
@@ -1545,14 +1624,16 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
     const load::Executed done = r.run_plan(pane_plan());
     REQUIRE_MESSAGE(done.ok, done.refusal);
     const loom::WeaveId door = r.mount_arrangement();
+    const loom::WeaveId finder = r.mount_powers();
 
     std::vector<std::string> asked;
     std::vector<std::string> answered;
     const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
-        if (e.schema_name == "PowersRequested" || e.schema_name == "ArrangementRequested") {
+        if (e.schema_name == ws::kFindPowersName || e.schema_name == "DescribePower" ||
+            e.schema_name == "ArrangementRequested") {
             asked.push_back(e.schema_name);
         }
-        if (e.sender == door && !e.schema_name.empty()) {
+        if ((e.sender == door || e.sender == finder) && !e.schema_name.empty()) {
             answered.push_back(e.schema_name);
         }
     });
@@ -1584,6 +1665,7 @@ TEST_CASE("all three panes may be open at once, each answering its own room") {
     const load::Executed done = r.run_plan(pane_plan());
     REQUIRE_MESSAGE(done.ok, done.refusal);
     r.mount_arrangement("p.json");
+    (void)r.mount_powers();
     r.ready();
     r.extent(240, 60);
     r.pick(intro_ref());
@@ -1660,11 +1742,11 @@ TEST_CASE("the graphical medium grants a different room and both panes spend it"
     }
 }
 
-TEST_CASE("a host with no arrangement door leaves the two panes WAITING") {
+TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
     // THE TOOL IS LOADABLE INTO ANY LOOM HOST, and only one in this repository answers
-    // for its own project. A host that mounts no door holds no `zengine.arrangement`
-    // office, the ask reaches nobody, and the pane says the honest thing -- never
-    // `unavailable`, which is a fate nothing here has observed.
+    // for its own project and its powers. A host that mounts no door holds neither
+    // `zengine.arrangement` nor `zengine.powers`, each ask reaches nobody, and each pane says
+    // the honest thing -- never `unavailable`, which is a fate nothing here has observed.
     PaneRig r;
     r.mount_workshop();
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
@@ -1675,6 +1757,10 @@ TEST_CASE("a host with no arrangement door leaves the two panes WAITING") {
         pane_rows(r, intro_row(r, intro::kArrangementPane)->kind);
     REQUIRE(shown.size() == 1);
     CHECK(shown[0] == std::string(kExternalWaiting));
+    r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    const std::vector<std::string> powers = pane_rows(r, intro_row(r, intro::kPowersPane)->kind);
+    REQUIRE(powers.size() == 1);
+    CHECK(powers[0] == std::string(kExternalWaiting));
     // ...and the Loaded pane, whose owner is the Kernel and is always there, is fine.
     r.pick(intro_ref());
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
@@ -1820,23 +1906,29 @@ TEST_CASE("the presentation holds no realization or build-runner reach") {
 TEST_CASE("the host mounts a door and injects no host-owned object into an artifact") {
     const std::string host = file_source(WORKSHOP_HOST_CPP);
 
-    // THE DOOR IS MOUNTED BEFORE THE PLAN IS PERFORMED, because the tool that asks is
+    // BOTH DOORS ARE MOUNTED BEFORE THE PLAN IS PERFORMED, because the tool that asks is
     // an artifact THIS PLAN LOADS: a door mounted afterwards would be absent during the
     // window in which a pane might first be granted room.
     const std::size_t door = host.find("mount_in_office<ArrangementDoor>");
+    const std::size_t finder = host.find("mount_in_office<PowersDoor>");
     const std::size_t begin = host.find("executor.begin(read_plan.plan)");
     REQUIRE(door != std::string::npos);
+    REQUIRE(finder != std::string::npos);
     REQUIRE(begin != std::string::npos);
     CHECK(door < begin);
+    CHECK(finder < begin);
     // ...AND THE HOST DOES NOT BLOCK UNTIL THE PROJECT IS REALIZED: nothing waits for every row to
     // settle.
     CHECK(host.find("executor.run(") == std::string::npos);
 
-    // ...AND ITS GRANT IS THE TWO ANSWERS AND NOTHING ELSE.
+    // ...AND EACH GRANT IS ITS OWN ANSWERS AND NOTHING ELSE.
     CHECK(host.find("say_resolved.allow_to_any(ResolvedArrangement::zen_name") !=
           std::string::npos);
-    CHECK(host.find("say_resolved.allow_to_any(ResolvedPowers::zen_name") != std::string::npos);
     CHECK(host.find("say_resolved.allow(") == std::string::npos);
+    CHECK(host.find("say_found.allow_to_any(PowersFound::zen_name") != std::string::npos);
+    CHECK(host.find("say_found.allow_to_any(PowerDescribed::zen_name") != std::string::npos);
+    CHECK(host.find("say_found.allow(") == std::string::npos);
+    CHECK(host.find("say_found.allow_to_role(") == std::string::npos);
 
     // NOTHING HOST-OWNED CROSSES INTO A LOADED ARTIFACT. The host's operator surface is
     // handed to the offer machinery and nowhere else; there is no second injected
@@ -1849,10 +1941,11 @@ TEST_CASE("the host mounts a door and injects no host-owned object into an artif
 
 TEST_CASE("neither projection names a power, a provider or an artifact") {
     // THE GENERICITY CLAIM, READ OFF THE SOURCE. A test may name `math.max` because it verifies
-    // known production state; the projection may not, because a provider added later must appear
-    // without an edit. Quoted literals and identifiers, for the tripwire above's reason: these
-    // files EXPLAIN what they refuse to branch on.
-    for (const char* path : {INTROSPECTION_RESOLVED_HPP, WORKSHOP_ARRANGEMENT_HPP}) {
+    // known production state; a projection or a door may not, because a provider added later must
+    // appear without an edit. Quoted literals and identifiers, for the tripwire above's reason:
+    // these files EXPLAIN what they refuse to branch on.
+    for (const char* path : {INTROSPECTION_RESOLVED_HPP, INTROSPECTION_POWERS_HPP,
+                             WORKSHOP_ARRANGEMENT_HPP, WORKSHOP_POWERS_DOOR_HPP}) {
         const std::string source = file_source(path);
         for (const char* forbidden : {"\"math.max\"", "\"logic.select_int\"",
                                       "\"timer.normalize_delay\"", "\"zengine.operators",

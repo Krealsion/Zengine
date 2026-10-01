@@ -200,12 +200,12 @@ operators.unmount("zengine.operators.test.min");
 reveals what was there — not a rebuild of it, and with no re-run of anybody's
 authoring. That reversibility is the whole point of the layering.
 
-**And a weaver can see all three states.** The `Powers` pane
-([reference/introspection.md](introspection.md)) projects this same store: one row per
-logical identity, and the selected one's whole contribution stack active-first with every
-shadowed contribution under it. It derives at every reading rather than keeping a copy, so
-an overlay mounted or unmounted at run time is in the next reading with nobody having been
-notified.
+**And a weaver can see all three states.** The `Powers` pane projects this same store
+through the host's [discovery door](introspection.md#the-discovery-door-finding-a-power):
+one row per logical identity, and the selected one's whole contribution stack active-first
+with every shadowed contribution under it, each in its own words. The door derives at every
+ask rather than keeping a copy, so an overlay mounted or unmounted at run time is in the
+next answer with nobody having been notified.
 
 If nothing remains underneath, the logical operator becomes **unresolved**, and
 the next evaluation says so by name. Nothing is manufactured to fill the gap.

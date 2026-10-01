@@ -48,13 +48,14 @@ workshop_screen                   doctest           always  129
 # workshop/pane_definition_persist.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  96
 # Tripwires in this suite read Workshop's presentation sources, workshop/workshop.cpp,
-# workshop/arrangement.hpp, the Introspection, Builder, Info, Terminal and Editor panes' sources
-# and CMake files, and tests/weavelib/legacy_pane.cpp as text (VM-WALL-11).
-workshop_panes                    doctest           always  852
+# workshop/arrangement.hpp, workshop/powers_door.hpp, the Introspection, Builder, Info, Terminal
+# and Editor panes' sources and CMake files, and tests/weavelib/legacy_pane.cpp as text
+# (VM-WALL-11).
+workshop_panes                    doctest           always  856
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text
 # (VM-WALL-11).
 workshop_persistence              doctest           always  156
-workshop_load                     doctest           always  151
+workshop_load                     doctest           always  159
 workshop_editor_switch            doctest           always  11
 workshop_neovim                   doctest           always  8
 workshop_neovim                   doctest           neovim  26

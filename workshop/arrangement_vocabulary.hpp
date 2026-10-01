@@ -4,9 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_ARRANGEMENT_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_ARRANGEMENT_VOCABULARY_HPP
 
-// Asking a host what it resolved: `ArrangementRequested` -> `ResolvedArrangement` and
-// `PowersRequested` -> `ResolvedPowers`, answered by one office (docs/reference/introspection.md).
-// Values only: a picture of the owners' facts, which confers no authority over them.
+// Asking a host what its authored project resolved: `ArrangementRequested` ->
+// `ResolvedArrangement`, answered by one office (docs/reference/introspection.md); which powers
+// resolve is the discovery door's (powers_vocabulary.hpp). Values only: a picture of the owner's
+// facts, which confers no authority over them.
 
 #include <zen/weave/shape.hpp>
 
@@ -24,11 +25,6 @@ inline constexpr const char* kArrangementRole = "zengine.arrangement";
 /// filter would be a policy nobody asked for.
 struct ArrangementRequested {
     ZEN_SHAPE(ArrangementRequested, 1);
-};
-
-/// Ask which operator powers this host resolves, and whose code satisfies each.
-struct PowersRequested {
-    ZEN_SHAPE(PowersRequested, 1);
 };
 
 // ---- The arrangement ----------------------------------------------------------
@@ -119,50 +115,6 @@ struct ResolvedArrangement {
     ZEN_SHAPE(ResolvedArrangement, 2, ZEN_FIELD(plan), ZEN_FIELD(artifacts));
 };
 } // namespace v2
-
-// ---- The powers ---------------------------------------------------------------
-
-/// Which shape: name, version and content id together, because the gate compares them as one
-/// (`loom::same_identity`). An identity, not a structure.
-struct SchemaIdentity {
-    std::string name;
-    std::int64_t version = 0;
-    /// `loom::ContentId`'s 64 bits reinterpreted as Loom's signed Int: compared, never ordered.
-    std::int64_t content_id = 0;
-
-    ZEN_SHAPE(SchemaIdentity, 1, ZEN_FIELD(name), ZEN_FIELD(version), ZEN_FIELD(content_id));
-};
-
-/// One contribution eligible to satisfy a power; an empty `provider` means the host published it.
-/// `composite` matters because a composite resolves its leaves at every spend. `source` and
-/// `output` say what sampling would yield without sampling: both are read off the definition.
-struct PowerContribution {
-    std::string provider;
-    bool composite = false;
-    bool source = false;
-    SchemaIdentity output;
-
-    ZEN_SHAPE(PowerContribution, 2, ZEN_FIELD(provider), ZEN_FIELD(composite), ZEN_FIELD(source),
-              ZEN_FIELD(output));
-};
-
-/// One power and every contribution eligible to satisfy it, active last -- the catalog's stack
-/// order carries the answer, so there is no `active` field. A stack is never empty.
-struct PowerStack {
-    std::string power;
-    std::vector<PowerContribution> contributions;
-
-    ZEN_SHAPE(PowerStack, 1, ZEN_FIELD(power), ZEN_FIELD(contributions));
-};
-
-/// Which powers this host resolves (name-ordered, as the catalog stores them) and who is mounted:
-/// `providers` is `Catalog::providers()` verbatim, not derived from `powers`.
-struct ResolvedPowers {
-    std::vector<PowerStack> powers;
-    std::vector<std::string> providers;
-
-    ZEN_SHAPE(ResolvedPowers, 1, ZEN_FIELD(powers), ZEN_FIELD(providers));
-};
 
 } // namespace zengine::workshop
 

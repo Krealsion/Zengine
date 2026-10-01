@@ -4,19 +4,18 @@
 #ifndef ZENGINE_WORKSHOP_ARRANGEMENT_HPP
 #define ZENGINE_WORKSHOP_ARRANGEMENT_HPP
 
-// The host's read-only observation door (docs/reference/introspection.md): two derivations, pure
-// over the live owners they read -- the realization owner and the `op::Catalog` -- and the weave
-// that answers an office that asks. It keeps no store, publishes nothing, and cannot mount,
-// unmount, overlay, evaluate, load, unload, reload or replace anything.
+// The host's read-only observation door (docs/reference/introspection.md): a derivation, pure over
+// the live realization owner it reads, and the weave that answers an office that asks. It keeps no
+// store, publishes nothing, and cannot mount,
+// unmount, overlay, evaluate, load, unload, reload or replace anything. Which powers resolve
+// is the discovery door's (workshop/powers_door.hpp).
 
 #include "arrangement_vocabulary.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp" // `mode_word` -- ONE spelling of `normal`/`overlay`
 #include "load_plan.hpp"
 
-#include "operator/catalog.hpp"
-#include "operator/host_surface.hpp"
-#include "operator/source.hpp" // `is_source` -- the ONE spelling of "no weaver inputs"
+#include "operator/host_surface.hpp" // `op::OfferOutcome`, the handoff a row reports
 
 #include <zen/weave.hpp>
 
@@ -173,70 +172,32 @@ inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realiz
     return in_version_one(describe_resolved(realization, std::move(plan)));
 }
 
-// ---- The powers, derived --------------------------------------------------------
-
-/// Every identity's whole contribution stack, read off the store `find()` resolves through, so the
-/// last element is what `find` answers. Nothing is evaluated: what a sample would yield is read
-/// off the definition. The order is the catalog's, never sorted.
-inline ResolvedPowers describe_powers(const op::Catalog& catalog) {
-    ResolvedPowers out;
-    out.providers = catalog.providers();
-    const std::vector<std::string> identities = catalog.identities();
-    out.powers.reserve(identities.size());
-    for (const std::string& identity : identities) {
-        PowerStack stack;
-        stack.power = identity;
-        for (const op::Contribution& c : catalog.contributions(identity)) {
-            PowerContribution said;
-            said.provider = c.provider;
-            // Never null for a contribution the catalog holds; tested so this view's
-            // correctness does not live in another file.
-            said.composite = c.definition != nullptr && c.definition->is_composite();
-            // Both read off the same definition: no evaluator is reached, nothing crosses a seam.
-            said.source = c.definition != nullptr && op::is_source(*c.definition);
-            if (c.definition != nullptr) {
-                const loom::Schema& yields = *c.definition->outputs();
-                said.output.name = yields.name();
-                said.output.version = static_cast<std::int64_t>(yields.version());
-                said.output.content_id = static_cast<std::int64_t>(yields.content_id());
-            }
-            stack.contributions.push_back(std::move(said));
-        }
-        out.powers.push_back(std::move(stack));
-    }
-    return out;
-}
-
 // ---- The door -------------------------------------------------------------------
 
 /// What this door has done: counters only. No answer is kept between asks.
 struct ArrangementDoorState {
     std::int64_t arrangements = 0;
-    std::int64_t powers = 0;
     std::int64_t refused = 0; ///< asks that were not authored as any office
     ZEN_EXPOSE();
-    ZEN_SHAPE(ArrangementDoorState, 1, ZEN_FIELD(arrangements), ZEN_FIELD(powers),
-              ZEN_FIELD(refused));
+    ZEN_SHAPE(ArrangementDoorState, 2, ZEN_FIELD(arrangements), ZEN_FIELD(refused));
 };
 
-/// The host's read-only observation participant. It holds `const` references to the host's
-/// realization owner and catalog and a copy of the plan's path, owning none of them: a copy would
-/// be a mirror, a non-const reference a controller. It reads a live owner, so it answers
-/// mid-realization. Only an office may ask; that rule names nobody and is not containment.
+/// The host's read-only observation participant. It holds a `const` reference to the host's
+/// realization owner and a copy of the plan's path, owning neither: a copy would be a mirror, a
+/// non-const reference a controller. It reads a live owner, so it answers mid-realization. Only an
+/// office may ask; that rule names nobody and is not containment.
 class ArrangementDoor
     : public loom::WeaveBase<ArrangementDoor, ArrangementDoorState,
-                             loom::Accept<ArrangementRequested, PowersRequested>,
-                             loom::Emit<ResolvedArrangement, v2::ResolvedArrangement,
-                                        ResolvedPowers>> {
+                             loom::Accept<ArrangementRequested>,
+                             loom::Emit<ResolvedArrangement, v2::ResolvedArrangement>> {
 public:
     /// DOES THE OFFICE THAT ASKED ACCEPT THIS SHAPE NOW? The host's `holder_accepts_on`, wired
     /// by whoever mounts the door. Empty answers no, and every answer crosses in version 1.
     using Accepts = std::function<bool(std::string_view role, const loom::Schema& shape)>;
 
-    ArrangementDoor(const load::PlanExecutor& realization, const op::Catalog& catalog,
-                    std::string plan, Accepts accepts = Accepts())
-        : realization_(&realization), catalog_(&catalog), plan_(std::move(plan)),
-          accepts_(std::move(accepts)) {}
+    ArrangementDoor(const load::PlanExecutor& realization, std::string plan,
+                    Accepts accepts = Accepts())
+        : realization_(&realization), plan_(std::move(plan)), accepts_(std::move(accepts)) {}
 
     /// What the project asked for and where it has got to, derived now from the live owner.
     void on(const ArrangementRequested&, loom::Mail& mail) {
@@ -255,17 +216,7 @@ public:
         (void)mail.answer(in_version_one(said));
     }
 
-    /// Which powers resolve here and whose code satisfies each, read at the ask.
-    void on(const PowersRequested&, loom::Mail& mail) {
-        if (!answerable(mail)) {
-            return;
-        }
-        ++state_.powers;
-        (void)mail.answer(describe_powers(*catalog_));
-    }
-
 private:
-    /// One rule, so the two questions cannot disagree about who may ask them.
     bool answerable(loom::Mail& mail) {
         if (mail.authored_role().empty()) {
             ++state_.refused;
@@ -275,7 +226,6 @@ private:
     }
 
     const load::PlanExecutor* realization_;
-    const op::Catalog* catalog_;
     /// The file the host read: provenance, not identity.
     std::string plan_;
     Accepts accepts_;

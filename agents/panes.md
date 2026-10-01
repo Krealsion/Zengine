@@ -702,12 +702,13 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   a row of `arrangement` and is ABSENT from `loaded`, because no Kernel loads a provider. Do
   not "fix" that. Three questions, three owners, three currencies; one merged table would need
   a row kind that is none of them.
-- **THE SEAM IS AN OFFICE, NOT AN INJECTION.** `workshop/arrangement.hpp` mounts one read-only
-  participant (`ArrangementDoor`, office `zengine.arrangement`) holding `const` references into
-  `main`; the loaded tool ASKS it and gets a value back. No `Catalog*`, `PlanExecutor*` or
-  container crosses into a dynamic artifact, `ZenHostApi` did not widen, and there is no second
-  injected capability. It is the same seam `zen.ListLoaded` already spends, pointed at more
-  facts.
+- **THE SEAM IS AN OFFICE, NOT AN INJECTION.** The host mounts two read-only participants holding
+  `const` references into `main`: `ArrangementDoor` (`workshop/arrangement.hpp`, office
+  `zengine.arrangement`) over the realization owner, and `PowersDoor`
+  (`workshop/powers_door.hpp`, office `zengine.powers`) over the catalog; the loaded tool ASKS
+  and gets a value back. No `Catalog*`, `PlanExecutor*` or container crosses into a dynamic
+  artifact, `ZenHostApi` did not widen, and there is no second injected capability. It is the
+  same seam `zen.ListLoaded` already spends, pointed at more facts.
 - **THE ANSWER IS LOOM'S OWN, so the asker checks `mail.answers_ask()`** rather than a
   correlation alone — the door ANSWERS (attested provenance no payload can write) where the
   Manager RELAYS. Where the stronger bound exists it is taken; the correlation is still
@@ -717,10 +718,16 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   in the next one with nobody notified. A copied provider map answered from the door's
   constructor turns the overlay witness and the keeps-nothing witness RED and leaves every
   derivation-tier case green.
-- **AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT.** The rule names nobody — no allow-list — so
-  a tool added tomorrow asks with no edit here. It is NOT containment and is not reported as
-  one: the loader binds `allow_any()` to every library. What keeps these facts from becoming
-  ambient is that the door PUBLISHES NOTHING; every answer goes to the one weave that asked.
+- **AT THE ARRANGEMENT DOOR AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT.** The rule names
+  nobody — no allow-list — so a tool added tomorrow asks with no edit here. It is NOT
+  containment and is not reported as one: the loader binds `allow_any()` to every library. What
+  keeps these facts from becoming ambient is that the door PUBLISHES NOTHING; every answer goes
+  to the one weave that asked.
+- **THE DISCOVERY DOOR ANSWERS WHOEVER ASKED**, an office or a participant speaking for itself,
+  because the Workshop Terminal asks it in its own name and holds no office; only a root's send,
+  which has nobody to answer, is counted instead. It too publishes nothing, and asking it grants
+  nothing to send, mount or open: the Terminal's widening is its two asks, to `zengine.powers`
+  alone (WL-TERM-18).
 - **The projection pairs two owners.** A resolved row does not know whether its mount was an
   overlay — the MODE is only in the plan — so `describe_arrangement` walks the AUTHORED list
   and asks the resolved list about each stem. Walking the resolved rows instead loses the
@@ -730,10 +737,10 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   DEFAULT and no offer was made; copying the enum straight through publishes a default as an
   observation. The row-state law itself is realization's:
   [`realization.md`](realization.md).
-- **NEITHER PROJECTION NAMES A POWER, A PROVIDER OR AN ARTIFACT**, and a source tripwire reads
-  both files for quoted literals and identifiers (never bare words — these files EXPLAIN what
-  they refuse to branch on). A hard-coded vocabulary turns the genericity witnesses AND the
-  tripwire red.
+- **NO PROJECTION OR DOOR NAMES A POWER, A PROVIDER OR AN ARTIFACT**, and a source tripwire
+  reads the two projections and the two doors for quoted literals and identifiers (never bare
+  words — these files EXPLAIN what they refuse to branch on). A hard-coded vocabulary turns the
+  genericity witnesses AND the tripwire red.
 - **NO ROW CARRIES A CONTROL OVER THE SYSTEM.** No unmount, replace, reload, disable or
   activate anywhere, and no pane message mutates load or provider state. `powers` has controls,
   and every one of them is a decision about PRESENTATION except `[ Sample ]`,
@@ -761,13 +768,18 @@ widen** — `PaneKey`, `PaneTextInput` and the two clipboard sentences were all 
 the weave simply began accepting them. `introspection/powers.hpp` is the pure half.
 
 - **THE TWO VIEWS ARE DERIVED AND THE CLASSIFICATION IS NEVER AUTHORED TWICE.**
-  `PowerContribution::source` is `op::is_source` read off the definition the host resolves
-  through, so the pane asks the reading rather than the identity's spelling — `source.anything`
-  taking an argument is an Operator here, and a case arranges exactly that. There is no
-  registration flag, no `kind` field and nowhere for a second answer to live.
-  **Source/Operator and composite are independent**: all four cells are legal, the badge reads
-  the ACTIVE contribution (an overlay changes construction and not contract), and it promises
-  *this implementation has known compositional structure* and nothing about opening it.
+  `PowerRow::kind` is the discovery door's reading of `op::is_source` (and
+  `op::declares_migration`) off the definition the host resolves through, so the pane asks the
+  door rather than the identity's spelling — `source.anything` taking an argument is an Operator
+  here, and a case arranges exactly that. There is no registration flag and nowhere for a second
+  answer to live. A conversion is an operator whose signature is its edge, so it is listed under
+  `Operators`. **Source/Operator and composite are independent**: all four cells are legal, the
+  badge reads the ACTIVE contribution (an overlay changes construction and not contract), and it
+  promises *this implementation has known compositional structure* and nothing about opening it.
+- **THE SEARCH IS THE DOOR'S.** The view, the query and the composite filter are one
+  `FindPowers` (`powers_question`), asked again on every change and on every grant; the pane
+  never re-matches text, so it shows the rows the Terminal is answered for the same question. Its list is one page of at most `kMaxPowerRows`; more is counted, never silent.
+  A power its contributor does not offer for reuse is listed and says so, `(not offered)`.
 - **⚠ BROWSING CANNOT EVALUATE, STRUCTURALLY.** `zengine-introspection` links no operator
   target: there is no catalog, definition, callable or `evaluate` in that image, so the property
   is a fact about the build graph rather than a discipline. A tripwire reads the two sources for
@@ -787,15 +799,16 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   operate a control the weaver cannot see.
 - **THE SELECTION IS AN IDENTITY PER VIEW, AND PRESENTATION MAY ONLY HIDE IT.** A query, the
   composite filter, the other view and a short window all hide the mark and hold the fact; only
-  a FRESH READING whose population lacks the identity clears it (`revalidate`). No index,
-  scroll offset or window start is stored — the window is derived from the
-  filtered population and the cursor every projection.
-- **THE PANE RETAINS ITS LAST READING, and that member is the one to read carefully.** It is
-  what search and the cursor operate over BETWEEN grants; it is replaced whole, never diffed,
-  and dropped at every grant, so between a grant and its answer there are no rows and no map and
-  Workshop's own `(waiting for the provider)` says so. What survives a reading is everything the
-  WEAVER authored — view, query, filter, both selections, the retained sample — because none
-  of those is a fact about the host.
+  the door's `DescribePower` answer saying the identity is gone, or now belongs to the other
+  view, clears it (`take_described`). No index, scroll offset or window start is stored — the
+  window is derived from the list and the cursor every projection. The detail and the
+  contribution stack are that same answer's, shown only while it is about the selection.
+- **THE PANE RETAINS ITS LAST ANSWER, and that member is the one to read carefully.** It is
+  what the cursor operates over BETWEEN asks; it is replaced whole, never diffed, and dropped at
+  every grant, so between a grant and its answer there are no rows and no map and Workshop's own
+  `(waiting for the provider)` says so. What survives an answer is everything the WEAVER
+  authored — view, query, filter, both selections, the retained sample — because none of those
+  is a fact about the host.
 - **TYPED AND PASTED TEXT IS GATED TO PRINTABLE ASCII AT THIS PANE'S DOOR, AND REFUSED WHOLE.**
   `TextBox::type` admits any UTF-8 and `judge_content` refuses a whole update for one byte a
   canvas cannot draw, so a chunk with any inadmissible byte is declined entirely — the Editor
