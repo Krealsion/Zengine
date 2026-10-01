@@ -13,11 +13,12 @@
  * or bus involved.
  * Reference: docs/reference/operator-providers.md.
  *
- * describe(index, sink) emits `zengine.OperatorContribution v1` bytes for contribution `index`:
- * the identity, both port schemas with the closure of what they nest, and for a composition
- * the graph itself, so its nodes still name `math.max` on the far side and resolve against
- * whatever provides it. invoke(index, args, args_len, answer, reason) spends a native
- * contribution; a composite is never invoked here, since the host holds its graph.
+ * describe(index, sink) emits `zengine.OperatorContribution` bytes for contribution `index`,
+ * at version 2 or 1 (a host reads both): the identity, both port schemas with the closure of
+ * what they nest, for a composition the graph itself, so its nodes still name `math.max` on the
+ * far side and resolve against whatever provides it, and from version 2 what the contributor says
+ * it is for. invoke(index, args, args_len, answer, reason) spends a native contribution; a
+ * composite is never invoked here, since the host holds its graph.
  *
  * The index is provider-local and transient, never an operator's durable meaning (that is the
  * identity and the two port schemas): it reaches the code while a host holds this image's

@@ -50,6 +50,7 @@
 #include "workshop/arrangement.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/host_sources.hpp"
+#include "workshop/powers_door.hpp"
 #include "workshop/load_execute.hpp"
 #include "workshop/load_plan.hpp"
 #include "workshop/provenance.hpp" // what stands behind an office's code, wired as the host wires it
@@ -2783,6 +2784,11 @@ struct PaneRig {
             return WORKSHOP_SO_TERMINAL_PANE;
         }
 #endif
+#ifdef WORKSHOP_SO_FLOW_PANE
+        if (stem == "zengine-flow-pane") {
+            return WORKSHOP_SO_FLOW_PANE;
+        }
+#endif
 #ifdef WORKSHOP_SO_EDITOR_PANE
         if (stem == "zengine-editor-pane") {
             return WORKSHOP_SO_EDITOR_PANE;
@@ -2875,7 +2881,7 @@ struct PaneRig {
     loom::WeaveId mount_arrangement(std::string plan_path = std::string()) {
         REQUIRE(plan_ != nullptr); // a door with no owner would describe nothing
         auto door = std::make_unique<ArrangementDoor>(
-            *plan_, catalog, std::move(plan_path),
+            *plan_, std::move(plan_path),
             [this](std::string_view role, const loom::Schema& shape) {
                 return holder_accepts_on(bus, role, shape);
             });
@@ -2883,9 +2889,23 @@ struct PaneRig {
         loom::Grant say;
         say.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
         say.allow_to_any(v2::ResolvedArrangement::zen_name, v2::ResolvedArrangement::zen_version);
-        say.allow_to_any(ResolvedPowers::zen_name, ResolvedPowers::zen_version);
         const loom::WeaveId id = bus.register_weave(std::move(door), std::move(say),
                                                     std::string(kArrangementRole));
+        raw->zen_set_self(id);
+        bus.drain_until_idle();
+        return id;
+    }
+
+    /// MOUNT THE HOST'S DISCOVERY DOOR over this rig's catalog, with the production grant spelled
+    /// out for `mount_arrangement`'s reason: its two answers, to any.
+    loom::WeaveId mount_powers() {
+        auto door = std::make_unique<PowersDoor>(catalog);
+        PowersDoor* raw = door.get();
+        loom::Grant say;
+        say.allow_to_any(PowersFound::zen_name, PowersFound::zen_version);
+        say.allow_to_any(PowerDescribed::zen_name, PowerDescribed::zen_version);
+        const loom::WeaveId id =
+            bus.register_weave(std::move(door), std::move(say), std::string(kPowersRole));
         raw->zen_set_self(id);
         bus.drain_until_idle();
         return id;
@@ -3613,19 +3633,6 @@ inline ws::ArtifactParticipation resolved_weave(ws::ArtifactParticipation a, std
     return a;
 }
 
-inline ws::PowerStack power_of(const char* identity, std::vector<ws::PowerContribution> stack) {
-    ws::PowerStack p;
-    p.power = identity;
-    p.contributions = std::move(stack);
-    return p;
-}
-
-inline ws::PowerContribution supplied_by(const char* provider, bool composite = false) {
-    ws::PowerContribution c;
-    c.provider = provider;
-    c.composite = composite;
-    return c;
-}
 
 /// The production-shaped arrangement, as a value: a provider-only artifact, two
 /// weave-only artifacts, and one artifact that is BOTH.
@@ -3645,40 +3652,43 @@ inline ws::ResolvedArrangement shaped_arrangement() {
     return said;
 }
 
-/// The production-shaped powers, as a value: two natives from one provider and one
-/// composite from another.
-inline ws::ResolvedPowers shaped_powers() {
-    ws::ResolvedPowers said;
-    said.providers = {"zengine.operators.basic", "zengine.timer"};
-    said.powers.push_back(power_of("logic.select_int", {supplied_by("zengine.operators.basic")}));
-    said.powers.push_back(power_of("math.max", {supplied_by("zengine.operators.basic")}));
-    said.powers.push_back(
-        power_of("timer.normalize_delay", {supplied_by("zengine.timer", /*composite=*/true)}));
+/// ---- Door rows, built as values ---------------------------------------------------------
+/// One row as the discovery door would say it of a real definition: `kind` is the door's
+/// derivation (`op::is_source`, `op::declares_migration`) and the output identity the definition's
+/// own output schema. The provider, the construction and the contract are separate arguments
+/// because the claim under test is that they are separate facts.
+inline ws::PowerRow row_from(const char* identity, const char* kind, const char* provider,
+                             bool composite = false, const char* yields = "zengine.Fixture") {
+    ws::PowerRow row;
+    row.identity = identity;
+    row.kind = kind;
+    row.provider = provider;
+    row.construction = composite ? ws::kCompositeConstruction : ws::kNativeConstruction;
+    row.outputs.name = yields;
+    row.outputs.version = 1;
+    row.signature = std::string("() -> value: ") + yields;
+    return row;
+}
+
+inline ws::PowerRow source_from(const char* identity, const char* provider,
+                                bool composite = false, const char* yields = "zengine.Fixture") {
+    return row_from(identity, ws::kSourceKind, provider, composite, yields);
+}
+
+inline ws::PowerRow operator_from(const char* identity, const char* provider,
+                                  bool composite = false, const char* yields = "zengine.Fixture") {
+    return row_from(identity, ws::kOperatorKind, provider, composite, yields);
+}
+
+/// An answer carrying these rows, whole: no page beyond them, and the census given.
+inline ws::PowersFound found_of(std::vector<ws::PowerRow> rows, std::int64_t providers) {
+    ws::PowersFound said;
+    said.ok = true;
+    said.total = static_cast<std::int64_t>(rows.size());
+    said.powers = static_cast<std::int64_t>(rows.size());
+    said.providers = providers;
+    said.rows = std::move(rows);
     return said;
-}
-
-/// ---- Contributions that carry the exterior contract ------------------------------------
-/// `supplied_by` above leaves `source` and `output` at their defaults, an OPERATOR with no
-/// reported output schema, which is what the arrangement cases want. These two say the other
-/// half, in the shape `describe_powers` reads off a real definition: `source` is `op::is_source`
-/// and the output identity is the definition's own output schema. The provider, the construction
-/// and the contract are three arguments because the claim under test is that they are three facts.
-inline ws::PowerContribution source_from(const char* provider, bool composite = false,
-                                         const char* yields = "zengine.Fixture") {
-    ws::PowerContribution c;
-    c.provider = provider;
-    c.composite = composite;
-    c.source = true;
-    c.output.name = yields;
-    c.output.version = 1;
-    return c;
-}
-
-inline ws::PowerContribution operator_from(const char* provider, bool composite = false,
-                                           const char* yields = "zengine.Fixture") {
-    ws::PowerContribution c = source_from(provider, composite, yields);
-    c.source = false;
-    return c;
 }
 
 /// ALL FOUR `Source x Composite` CELLS, WITH DELIBERATELY MISLEADING NAMES.
@@ -3687,33 +3697,47 @@ inline ws::PowerContribution operator_from(const char* provider, bool composite 
 /// falsifier for any implementation tempted to read a view membership off an
 /// identity's spelling: a pane that classified by name would put both in the wrong
 /// list and every other case here would stay green.
-inline ws::ResolvedPowers four_cells() {
-    ws::ResolvedPowers said;
-    said.providers = {"zengine.operators.basic", "zengine.timer", "zengine.workshop.host"};
-    said.powers.push_back(power_of("logic.select_int", {operator_from("zengine.operators.basic")}));
-    said.powers.push_back(power_of("math.max", {source_from("zengine.workshop.host", false,
-                                                            "zengine.MaxSoFar")}));
-    said.powers.push_back(
-        power_of("source.looks.like.one", {operator_from("zengine.timer", /*composite=*/true)}));
-    said.powers.push_back(power_of("zengine.recipes.catalog",
-                                   {source_from("zengine.workshop.host", /*composite=*/true,
-                                                "zengine.RecipeCatalog")}));
-    return said;
+inline ws::PowersFound four_cells() {
+    return found_of({operator_from("logic.select_int", "zengine.operators.basic"),
+                     source_from("math.max", "zengine.workshop.host", false, "zengine.MaxSoFar"),
+                     operator_from("source.looks.like.one", "zengine.timer", /*composite=*/true),
+                     source_from("zengine.recipes.catalog", "zengine.workshop.host",
+                                 /*composite=*/true, "zengine.RecipeCatalog")},
+                    3);
 }
 
 /// A population big enough that a pane has to window it, in catalog (name) order.
-inline ws::ResolvedPowers many_sources(std::size_t n) {
-    ws::ResolvedPowers said;
-    said.providers = {"zengine.fixture"};
+inline ws::PowersFound many_sources(std::size_t n) {
+    std::vector<ws::PowerRow> rows;
     for (std::size_t i = 0; i < n; ++i) {
-        std::string id = "src." + std::string(i < 10 ? "0" : "") + std::to_string(i);
-        said.powers.push_back(power_of(id.c_str(), {source_from("zengine.fixture")}));
+        const std::string id = "src." + std::string(i < 10 ? "0" : "") + std::to_string(i);
+        rows.push_back(source_from(id.c_str(), "zengine.fixture"));
     }
+    return found_of(std::move(rows), 1);
+}
+
+/// What the door would say of one row's identity: the row, and its stack bottom to top.
+inline ws::PowerDescribed described_as(const ws::PowerRow& row,
+                                       std::vector<ws::PowerLayer> stack) {
+    ws::PowerDescribed said;
+    said.ok = true;
+    said.identity = row.identity;
+    said.row = row;
+    said.stack = std::move(stack);
     return said;
 }
 
-/// A Powers pane state holding one reading, with nothing else authored.
-inline intro::PowersUi showing(ws::ResolvedPowers said) {
+inline ws::PowerLayer layer_from(const char* provider, bool composite = false,
+                                 const char* about = "") {
+    ws::PowerLayer layer;
+    layer.provider = provider;
+    layer.construction = composite ? ws::kCompositeConstruction : ws::kNativeConstruction;
+    layer.about = about;
+    return layer;
+}
+
+/// A Powers pane state holding one answer, with nothing else authored.
+inline intro::PowersUi showing(ws::PowersFound said) {
     intro::PowersUi ui;
     ui.reading = std::move(said);
     ui.read = true;
@@ -3775,6 +3799,7 @@ inline std::int64_t open_intro_pane(PaneRig& r, const char* pane) {
     const load::Executed done = r.run_plan(pane_plan());
     REQUIRE_MESSAGE(done.ok, done.refusal);
     r.mount_arrangement("default-load-plan.json");
+    (void)r.mount_powers();
     r.ready();
     r.extent(160, 48);
     REQUIRE(intro_row(r, pane) != nullptr);
@@ -3782,16 +3807,17 @@ inline std::int64_t open_intro_pane(PaneRig& r, const char* pane) {
     return intro_row(r, pane)->kind;
 }
 
-/// THE SAME LIVE WORKSHOP, WITH THE POWERS PANE OPEN AND BOTH HOST DOORS MOUNTED -- and with the
-/// host's own two Sources really in the catalog, so the Sources view has the population a weaver
-/// meets. The order is the host's: sources exposed before the plan runs, the observation door
-/// and the sample door mounted before realization can grant a pane room.
+/// THE SAME LIVE WORKSHOP, WITH THE POWERS PANE OPEN AND THE HOST'S DOORS MOUNTED -- and with
+/// the host's own two Sources really in the catalog, so the Sources view has the population a
+/// weaver meets. The order is the host's: sources exposed before the plan runs, the observation,
+/// discovery and sample doors mounted before realization can grant a pane room.
 inline std::int64_t open_powers(PaneRig& r) {
     r.expose_host_sources();
     r.mount_workshop();
     const load::Executed done = r.run_plan(pane_plan());
     REQUIRE_MESSAGE(done.ok, done.refusal);
     r.mount_arrangement("default-load-plan.json");
+    (void)r.mount_powers();
     (void)r.mount_sampler();
     r.ready();
     r.extent(160, 48);

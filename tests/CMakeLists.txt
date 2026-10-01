@@ -88,6 +88,11 @@ endforeach()
 zengine_provider(zengine-provider-min weavelib/provider_min.cpp)
 target_link_libraries(zengine-provider-min PRIVATE zengine-operator)
 
+# One power described in `zengine.OperatorContribution` version 1, by hand: what a host reads from
+# an artifact whose contributions carry no description.
+zengine_provider(zengine-provider-v1 weavelib/provider_v1.cpp)
+target_link_libraries(zengine-provider-v1 PRIVATE zengine-operator)
+
 # A zero-input source and an ordinary operator from one provider, a file of its own because what
 # it shows is that a contribution with no inputs crosses the codec, mounts and can be sampled.
 # Its source counts its own spends: the host's `op::invocations()` is a vague-linkage static and
@@ -542,6 +547,8 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     "PROVIDER_WRONG_SO=\"$<TARGET_FILE:zengine-provider-b-wrong>\""
     "PROVIDER_ABI_SO=\"$<TARGET_FILE:zengine-provider-abi>\""
     "PROVIDER_MIN_SO=\"$<TARGET_FILE:zengine-provider-min>\""
+    # A contribution at version 1 across a real image: what an older provider's bytes mount as.
+    "PROVIDER_V1_SO=\"$<TARGET_FILE:zengine-provider-v1>\""
     # The zero-input source's provider: only a real module boundary shows that a definition with
     # no input ports survives the real encode and decode; the codec case beside it asks the rest.
     "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\""
@@ -568,7 +575,7 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     "OPERATOR_MIGRATION_HPP=\"${CMAKE_SOURCE_DIR}/operator/migration.hpp\"")
 add_dependencies(zengine-operator-tests
     zengine-provider-mig-chain zengine-provider-mig-direct
-    zengine-provider-mig-direct-alt zengine-provider-mig-composed)
+    zengine-provider-mig-direct-alt zengine-provider-mig-composed zengine-provider-v1)
 
 zengine_doctest_test(operator zengine-operator-tests)
 
@@ -764,6 +771,8 @@ set(ZENGINE_WORKSHOP_DEFS
     "WORKSHOP_SO_DESKTOP_PANE=\"$<TARGET_FILE:zengine-desktop-pane>\""
     "WORKSHOP_SO_TERMINAL_PANE=\"$<TARGET_FILE:zengine-terminal-pane>\""
     "WORKSHOP_SO_EDITOR_PANE=\"$<TARGET_FILE:zengine-editor-pane>\""
+    # Flow's pane, one of the three askers of the discovery door.
+    "WORKSHOP_SO_FLOW_PANE=\"$<TARGET_FILE:zengine-flow-pane>\""
     # ...AND THE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE, with its source, which a
     # case reads to check that the current vocabulary is nowhere in it.
     "WORKSHOP_SO_LEGACY_PANE=\"$<TARGET_FILE:zengine-legacy-pane>\""
@@ -785,7 +794,7 @@ set(ZENGINE_WORKSHOP_DEFS
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
     zengine-attention-pane zengine-info-pane zengine-desktop-pane zengine-terminal-pane
-    zengine-connections-pane
+    zengine-connections-pane zengine-flow-pane
     zengine-legacy-pane
     zengine-failing-editor zengine-editor-throwing
     zengine-operators-basic zengine-provider-min zengine-provider-a
@@ -924,6 +933,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_input.cpp
             test_workshop_panes_introspection.cpp
             test_workshop_panes_sampling.cpp
+            test_workshop_panes_powers.cpp
             test_workshop_panes_actions.cpp
             test_workshop_panes_files.cpp
             test_workshop_panes_builder.cpp
@@ -943,6 +953,7 @@ zengine_workshop_suite(panes
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\"" "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
                 "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
+                "WORKSHOP_POWERS_DOOR_HPP=\"${CMAKE_SOURCE_DIR}/workshop/powers_door.hpp\""
                 "INTROSPECTION_RESOLVED_HPP=\"${CMAKE_SOURCE_DIR}/introspection/resolved.hpp\""
                 # The Introspection pane's two sources, read as text so "this image cannot
                 # reach an evaluator" is checked, not trusted, and the two host files the

@@ -77,7 +77,8 @@ inline op::OperatorDef project_anchor_source(const std::string& project_dir) {
     const std::string identity = kProjectAnchorSource;
     return op::OperatorDef(
         identity, detail::no_inputs(identity), detail::project_anchor_schema(),
-        [&project_dir](const loom::Value&) { return loom::Cell::text(project_dir); });
+        [&project_dir](const loom::Value&) { return loom::Cell::text(project_dir); },
+        op::Description{"the project directory this Workshop was started in"});
 }
 /// An owner with no name dies before the sample. Refused at compile time.
 op::OperatorDef project_anchor_source(std::string&&) = delete;
@@ -94,7 +95,9 @@ inline op::OperatorDef recipe_catalog_source(const CurrentRecipes& recipes) {
                                facts.set("recipes", loom::Cell::integer(static_cast<std::int64_t>(
                                                         recipes.all().size())));
                                return loom::Cell::message(std::move(facts));
-                           });
+                           },
+                           op::Description{"which recipe catalog is in force, and how many "
+                                           "recipes it holds"});
 }
 /// As above: a temporary owner is not an owner.
 op::OperatorDef recipe_catalog_source(CurrentRecipes&&) = delete;

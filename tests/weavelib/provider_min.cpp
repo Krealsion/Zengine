@@ -27,8 +27,12 @@ std::vector<zengine::op::OperatorDef> substitute() {
     // to be: a schema's content id is over its name, version and fields, so a
     // different port name here would be a different signature and the overlay would
     // be refused for the right reason at the wrong time.
+    // ...and it brings its own words, which is what lets an overlay be told from what it covers
+    // by reading, before anything is spent.
     defs.push_back(zengine::op::make_operator<&smaller>(zengine::op::kMaxInt, {"lhs", "rhs"},
-                                                        "result"));
+                                                        "result",
+                                                        "the smaller of two integers, supplied "
+                                                        "as math.max to substitute it"));
     return defs;
 }
 

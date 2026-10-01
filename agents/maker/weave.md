@@ -156,6 +156,24 @@ honoured only by an unbound candidate and only from its coordinator; a bound wea
 name and its state stands"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
+## MW-WEAVE-11 — A revision's bodies are its own, and are not offered for reuse
+
+LAW — `definitions_of` mounts every trigger body with `offered` false and words saying whose reaction it is, so discovery never offers it; the mark decides nothing about spending it.
+
+MEANS
+- a body is revision-scoped: the next behaviour edit unmounts it, so a composition on it breaks;
+- a compiled module's bodies keep the mark: `CompiledModule::mount` keeps the description;
+- words that would pass the prose bound are left unsaid, so a long name refuses nothing.
+
+DOES NOT MEAN
+- that a body cannot be spent: naming it spends it, as any operator is spent.
+
+PROVEN BY — `maker/weave.hpp` `definitions_of`; `flow/compiled.hpp` `CompiledModule::mount`;
+`tests/test_maker.cpp` case `"a revision's bodies are its own reactions -- mounted not offered
+for reuse, saying whose, and still spent when named"`; `tests/test_flow.cpp` case `"Flow compiled
+trigger bodies keep the maker's mark -- not offered, in the same words"`.
+WHY — `agents/decisions/a-contribution-says-what-it-is-for.md`
+
 ## Do not assume
 
 - That the interpreter is a `WeaveBase` (MW-WEAVE-02): it implements `loom::Weave` raw, so its

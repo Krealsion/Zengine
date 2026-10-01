@@ -264,7 +264,7 @@ TEST_CASE("in the Operators view Return invokes nothing") {
     CHECK_FALSE(any_row(pane_rows(r, kind), intro::kSampledWhenAsked));
 }
 
-TEST_CASE("the sample crosses one narrow office, and the arrangement door stays narrow") {
+TEST_CASE("the sample crosses one narrow office, and the describing doors stay narrow") {
     PaneRig r;
     const std::int64_t kind = open_powers(r);
     make_taller(r, intro::kPowersPane, 18);
@@ -274,27 +274,33 @@ TEST_CASE("the sample crosses one narrow office, and the arrangement door stays 
     std::vector<std::string> wire;
     const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
         if (e.schema_name == "SampleRequested" || e.schema_name == "SourceSampled" ||
-            e.schema_name == "PowersRequested" || e.schema_name == "ResolvedPowers") {
+            e.schema_name == ws::kFindPowersName || e.schema_name == "PowersFound" ||
+            e.schema_name == "DescribePower" || e.schema_name == "PowerDescribed") {
             wire.push_back(e.schema_name);
         }
     });
     r.key(input::scan::kReturn);
     r.bus.remove_observer(tap);
 
-    // EXACTLY TWO SENTENCES, AND NEITHER IS THE OBSERVATION DOOR'S. A sample does not re-read the
-    // catalog projection and the projection does not sample.
+    // EXACTLY TWO SENTENCES, AND NEITHER IS THE DISCOVERY DOOR'S. A sample does not re-read the
+    // catalog and the reading does not sample.
     REQUIRE(wire.size() == 2);
     CHECK(wire[0] == "SampleRequested");
     CHECK(wire[1] == "SourceSampled");
 
-    // THE ARRANGEMENT DOOR IS UNCHANGED IN SEMANTIC AUTHORITY: two shapes, and neither
-    // of them can cause an evaluation.
+    // THE ARRANGEMENT DOOR AND THE DISCOVERY DOOR DESCRIBE, AND NEITHER CAN CAUSE AN EVALUATION:
+    // no sample, no spend, no native call, and no word of the sample door's.
     const std::string door = file_source(WORKSHOP_ARRANGEMENT_HPP);
     CHECK(door.find("op::sample") == std::string::npos);
     CHECK(door.find("SampleRequested") == std::string::npos);
     CHECK(door.find("SourceSampled") == std::string::npos);
     CHECK(door.find("overlay, evaluate, load, unload, reload or replace anything") !=
           std::string::npos);
+    const std::string finder = file_source(WORKSHOP_POWERS_DOOR_HPP);
+    for (const char* reach : {"op::sample", "SampleRequested", "SourceSampled", ".evaluate(",
+                              "->evaluate(", "invoke_native", "mount(", "unmount(", "publish("}) {
+        CHECK_MESSAGE(finder.find(reach) == std::string::npos, "the discovery door names ", reach);
+    }
 
     // AND THE SAMPLE DOOR RETAINS NO PROVIDER, DEFINITION, CALLABLE OR ANSWER.
     const std::string sampler = file_source(WORKSHOP_SAMPLE_DOOR_HPP);
@@ -455,26 +461,30 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     focus_pane(r, kind);
 
     // TYPED TEXT IS THE QUERY. There is one editable field, so a printable character
-    // has exactly one place it could go and no gesture activates it.
-    r.text("rec");
+    // has exactly one place it could go and no gesture activates it. The door matches it in the
+    // identity and in what the contributor says the power is for: `reci` is in the recipe
+    // catalog's identity and words, and in neither of the project anchor's.
+    r.text("reci");
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
-        CHECK(shown[0].find("find:rec") != std::string::npos);
+        CHECK(shown[0].find("find:reci") != std::string::npos);
         CHECK(any_row(shown, kRecipeCatalogSource));
         CHECK_FALSE(any_row(shown, kProjectAnchorSource));
-        CHECK(shown[0].find("/1") != std::string::npos); // the filtered population
+        CHECK(shown[0].find("/1") != std::string::npos); // the searched population
     }
 
     // ORDINARY EDITING, through `TextBox::consume` -- the component the Composer already
-    // ships, not a fifth copy of an editing switch.
+    // ships, not a fifth copy of an editing switch -- and the door is asked again: `rec` is in
+    // the anchor's words too ("directory"), so it returns to the list.
     r.key(input::scan::kBackspace);
-    CHECK(pane_rows(r, kind)[0].find("find:re") != std::string::npos);
+    CHECK(pane_rows(r, kind)[0].find("find:rec") != std::string::npos);
+    CHECK(any_row(pane_rows(r, kind), kProjectAnchorSource));
 
     // AND A NON-ADMISSIBLE CHUNK IS REFUSED WHOLE. The row contract is printable ASCII; a weaver
     // who typed `naive` with a diaeresis gets NONE of it rather than a mangled half, and the pane
     // keeps speaking rather than losing a whole update.
     r.text("na\xC3\xAFve");
-    CHECK(pane_rows(r, kind)[0].find("find:re") != std::string::npos);
+    CHECK(pane_rows(r, kind)[0].find("find:rec") != std::string::npos);
     CHECK(pane_rows(r, kind)[0].find("na") == std::string::npos);
 
     // THE CLIPBOARD CONVERSATION, both directions.
@@ -482,7 +492,7 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     r.key(input::scan::kC, input::mod::kCtrl);
     // THE COPY REACHED THE MEDIUM THAT OWNS THE PLATFORM CLIPBOARD, which is the only
     // place a copy can honestly be said to have landed.
-    CHECK(skin->platform == "re");
+    CHECK(skin->platform == "rec");
 
     // AND A PASTE IS A READ PERFORMED BECAUSE THE WEAVER ASKED: the Skin is asked once, at the
     // paste, and is never watched.
@@ -490,7 +500,17 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     r.key(input::scan::kEnd);
     r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(skin->clipboard_reads == reads_before + 1);
-    CHECK(pane_rows(r, kind)[0].find("find:rere") != std::string::npos);
+    CHECK(pane_rows(r, kind)[0].find("find:recrec") != std::string::npos);
+
+    // A QUERY PAST THE DOOR'S BOUND IS ASKED ALL THE SAME, and the door's refusal is what the list
+    // says -- never `none here match`, which would claim the catalog had nothing.
+    r.text(std::string(ws::kMaxPowersQueryBytes, 'x'));
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        CHECK(any_row(shown, "a query carries at most"));
+        CHECK_FALSE(any_row(shown, intro::kNoneMatch));
+        CHECK_FALSE(any_row(shown, kRecipeCatalogSource));
+    }
 }
 
 TEST_CASE("keys routed to another pane cannot move the Powers pane") {
@@ -655,8 +675,8 @@ TEST_CASE("THE LIVE WEAVER WITNESS, end to end through the real pane") {
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
         CHECK(shown[0].find("[x] " + std::string(intro::kCompositeWord)) != std::string::npos);
-        CHECK(any_row(shown, "3 sources here"));
-        CHECK(any_row(shown, "hidden by the current filter"));
+        CHECK(any_row(shown, intro::kNoneMatch));
+        CHECK_FALSE(any_row(shown, intro::kNoSourcesHere));
     }
     press_pane(r, kind, 0, control);
 

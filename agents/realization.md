@@ -391,8 +391,9 @@ row N is waiting on the weaver
   `available` and `mounting` were asked for and refused, each for a stated reason; a token with no
   owner goes stale in its first week. ⚠ A `loading` row publishes NO resolved field, even though
   its provider may already be mounted: within one row the mount precedes the load, and what came
-  of the ROW is undecided, because a refusal rolls that mount back. `ResolvedPowers` reads the
-  live catalog and shows it immediately: two questions, two owners, two currencies.
+  of the ROW is undecided, because a refusal rolls that mount back. The discovery door
+  (`FindPowers`) reads the live catalog and shows it immediately: two questions, two owners, two
+  currencies.
 - **`describe_arrangement` TAKES THE OWNER, not a plan and a vector.** The owner holds the
   authored plan it is realizing, so a caller can no longer hand the projection one plan while
   the executor realizes another. The projection itself is the introspection tool's law:

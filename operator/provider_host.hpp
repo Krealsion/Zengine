@@ -185,10 +185,10 @@ inline MountResult mount_provider(Catalog& into, const std::string& artifact_pat
                                              std::to_string(index) + " (status " +
                                              std::to_string(static_cast<int>(status)) + ")");
         }
-        // Bytes from another image go through the one gate like a message; the refusal names
-        // which contribution.
+        // Bytes from another image go through the one gate like a message, at the version they
+        // claim; the refusal names which contribution.
         const loom::Unverified unverified = loom::parse(bytes);
-        const loom::Admission admitted = loom::admit(unverified, operator_contribution_schema());
+        const loom::Admission admitted = admit_contribution(unverified);
         if (!admitted) {
             return detail::mount_refused(record->identity,
                                          "provider '" + record->identity +
@@ -203,11 +203,13 @@ inline MountResult mount_provider(Catalog& into, const std::string& artifact_pat
                 // every spend, so a power replaced underneath propagates with no rewrite,
                 // rebinding or notification.
                 definitions.emplace_back(said.identity, said.inputs, said.outputs,
-                                         std::move(*said.composition));
+                                         std::move(*said.composition),
+                                         std::move(said.description));
             } else {
                 definitions.emplace_back(
                     said.identity, said.inputs, said.outputs,
-                    detail::provider_native(record, index, said.outputs));
+                    detail::provider_native(record, index, said.outputs),
+                    std::move(said.description));
             }
         } catch (const std::exception& e) {
             return detail::mount_refused(record->identity,
