@@ -99,7 +99,7 @@ TEST_CASE("a press on the highlight that never moves is an ordinary press, and a
     CHECK(d.text == "one two\nthree\nfour\n");
 }
 
-TEST_CASE("right-click on the highlight offers Extract, which carries by pick-and-place; right-click off it offers nothing") {
+TEST_CASE("right-click on the highlight offers Extract above the standard rows, which carries by pick-and-place; right-click off it opens the standard pane menu") {
     EditorStory s("xfer-menu");
     REQUIRE(s.open(s.write("a.txt", "keep this\nand not this\n")).accepted);
     s.click_doc(0, 0);
@@ -108,14 +108,23 @@ TEST_CASE("right-click on the highlight offers Extract, which carries by pick-an
     s.key(input::scan::kRight, input::mod::kShift);
     s.key(input::scan::kRight, input::mod::kShift);
     s.click(s.editor, s.chrome() + 1, 4, 3); // off the highlight
+    // OFF IT, THE EDITOR OFFERS NOTHING AND HANDS THE PRESS BACK: the host's pane menu opens for
+    // the Editor, and the selection stands.
     CHECK_FALSE(s.r.session().presented.open);
+    REQUIRE(s.r.session().context.open);
+    CHECK(s.r.session().context.subject == context_subject::kPane);
+    CHECK(s.r.session().context.pane.pane == ed::kEditorPane);
+    CHECK(s.doc().caret_byte == 4);
+    s.key(input::scan::kEscape);
+    REQUIRE_FALSE(s.r.session().context.open);
     s.click(s.editor, s.chrome() + 0, 1, 3); // on it
     REQUIRE(s.r.session().presented.open);
-    bool offered = false;
-    for (const auto& line : s.r.session().presented.lines) {
-        offered = offered || line.text.find("Extract selection to Inventory") != std::string::npos;
-    }
-    CHECK(offered);
+    // EXTRACT FIRST, THE STANDARD ROWS BENEATH IT.
+    const auto& lines = s.r.session().presented.lines;
+    REQUIRE(lines.size() >= 3);
+    CHECK(lines[0].text.find("Extract selection to Inventory") != std::string::npos);
+    CHECK(lines[2].text.find("arrange") != std::string::npos);
+    CHECK(lines.back().text.find("remove") != std::string::npos);
     s.key(input::scan::kReturn);
     INFO(s.notice() << " / " << s.r.last_notice());
     CHECK(s.r.last_notice().find("Carrying") != std::string::npos);

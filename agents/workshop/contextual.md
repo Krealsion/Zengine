@@ -117,11 +117,12 @@ LAW — `KeyContext::kContext` tops the modes beneath it: inside, navigate or ch
 
 MEANS
 - a further right press re-targets, offering a pane under it its press first;
-- a pass-back is a continuation (WL-PRESS-06): stale, zero, spent or foreign moves nothing.
+- a pass-back is a continuation (WL-PRESS-06): stale, zero, spent or foreign moves nothing;
+- a right press in a doorless body opens the same rows at the press: a body press is not lost.
 
 DOES NOT MEAN
 - that a pane's rows reach this surface unasked: only by its request (WL-CTX-09);
-- that a doorless body opens the host's menu: it is empty; the chrome and the Manager reach it.
+- that a row is spent by another owner: the host spends these, a pane its own (WL-CTX-09).
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kContext`; `workshop/screen_arrange.cpp`
 `keyboard_context`; `workshop/screen_attention.cpp` `context_press_at`; `workshop/screen.hpp`
@@ -131,7 +132,11 @@ PROVEN BY — `workshop/keymap.hpp` `KeyContext::kContext`; `workshop/screen_arr
 through it"`, case `"navigation backtracks cleanly and every way out closes"`;
 `tests/test_workshop_panes_window.cpp` case `"a right press over a provider's pane crosses the
 seam not at all"`, case `"input spent on the open surface reaches no provider"`;
-`tests/test_workshop_panes_button.cpp` case `"WL-CTX-08: a pass-back after a clean
+`tests/test_workshop_panes_button.cpp` case `"WL-PRESS-06: a right press in a doorless pane's
+body opens the host's pane menu at the press, sends the provider nothing and takes no keys; its
+chrome opens the same menu"`, case `"WL-CTX-08: a further right press while the host's menu is
+open asks again -- a pane with the door is offered it first, and a doorless body opens the host's
+menu where it landed"`, case `"WL-CTX-08: a pass-back after a clean
 click opens the host's menu for that pane, once"`, case `"WL-CTX-08: a pass-back on the press's
 own turn opens the menu, and the release still reaches the pane under it"`, case `"WL-CTX-08: a
 stale correlation, a zero one, and a pass-back from an office that did not offer the pane all

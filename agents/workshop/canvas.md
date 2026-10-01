@@ -49,12 +49,14 @@ LAW — A canvas gesture retains its press's grant, picture and identity through
 MEANS
 - press and wheel use the existing medium fence to identify their picture;
 - a release reaches its held owner outside the pane and through modal surfaces;
-- room, owner or mode changes end custody; secondary presses may ask the existing menu presenter.
+- room, owner or mode changes end custody; a secondary press may ask for a menu or be handed back.
 
 PROVEN BY — `workshop/weave_canvas.cpp` `canvas_press`, `canvas_motion`, `canvas_release`,
 `canvas_wheel`, `lose_canvas_hold`, `end_canvas_holds`;
 `workshop/weave_external.cpp` `end_refused_button`; `tests/test_workshop_panes_canvas.cpp` case
 "pane canvas capture keeps the press picture through repaint motion and outside release", case
+"a right press a canvas picture hands back opens the host's pane menu at the press; one it keeps
+opens nothing", case
 "pane canvas resize loses capture and wheel names a local point in the latest picture".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 

@@ -343,6 +343,17 @@ TEST_CASE("inventory folders: while an owner is silent the weaver still browses,
     CHECK(s.shown(s.source).find("Still waiting") != std::string::npos);
     CHECK(s.shown(s.source).find("New folder:") == std::string::npos);
     CHECK(s.owner->held.size() == 1);
+    // A right press while it waits offers nothing of the pane's and is handed back: Workshop's
+    // own pane menu opens for this view, and the press starts nothing here.
+    s.click(s.source, 1, 3);
+    const RuntimePane* view = s.r.session().panes.runtime.of_kind(s.source);
+    REQUIRE(view != nullptr);
+    REQUIRE(s.r.session().context.open);
+    CHECK_FALSE(s.r.session().presented.open);
+    CHECK(s.r.session().context.pane == (PaneRef{view->provider, view->pane}));
+    s.key(input::scan::kEscape);
+    CHECK_FALSE(s.r.session().context.open);
+    CHECK(s.owner->held.size() == 1);
     // The late success names the folder it removed, wherever the weaver is now.
     s.with_owner([](HeldOwner& o, loom::Mail& m) {
         std::erase_if(o.listing.folders, [](const auto& f) { return f.folder.folder == "old"; });

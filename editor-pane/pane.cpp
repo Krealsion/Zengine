@@ -141,7 +141,7 @@ class EditorPaneWeave
                      ProjectRootRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
                      EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
-                     ws::PaneMenuRequested, ws::PaneOperationRequested,
+                     ws::PaneMenuRequested, ws::PanePassRequested, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested>,
           loom::Claims<EditorDocument>> {
     /// One prepared candidate: the whole document a managed opening would install, built beside
@@ -302,7 +302,8 @@ public:
                    PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
                    ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
                    EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted,
-                   EditorLive, EditorRetired, ws::PaneMenuRequested, ws::PaneOperationRequested,
+                   EditorLive, EditorRetired, ws::PaneMenuRequested, ws::PanePassRequested,
+                   ws::PaneOperationRequested,
                    ws::PaneValueCarryRequested>,
         loom::Claims<EditorDocument>>;
 
@@ -1133,30 +1134,39 @@ public:
     /// THE SECOND BUTTON, OFFERED ONLY FOR SELECTED MATERIAL: a right press on the painted
     /// highlight offers Extract; on the status row, this file's location. Anywhere else it is
     /// silence -- the body a right press met before this pane took the door (WL-EDIT-19).
+    /// A RIGHT PRESS OFFERS THIS PANE'S ROWS WHERE IT HAS SOME -- the status row, the painted
+    /// highlight -- and hands every other one back, so the host's pane menu opens there.
     void on(const ws::PaneButton& b, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || b.pane != pane::kEditorPane || !b.pressed ||
             b.lost || b.button != 3) {
             return;
         }
-        if (held_still()) {
+        // HELD STILL BY A SWITCH, the Editor offers nothing, and a press that changes no document
+        // is handed back rather than counted as refused.
+        if (holding_.active) {
+            (void)ws::pane_menu::pass_back(mail, pane::kEditorPaneRole, pane::kEditorPane);
             return;
         }
         end_grab();
-        if (!e_.open_document()) {
-            return;
-        }
-        if (b.row < chrome_rows_) {
-            if (b.row == 0 && status_row_) {
-                offer(Take::Location, b.row, b.column, mail);
+        if (e_.open_document()) {
+            if (b.row < chrome_rows_) {
+                if (b.row == 0 && status_row_) {
+                    offer(Take::Location, b.row, b.column, mail);
+                    return;
+                }
+            } else {
+                const std::size_t row =
+                    e_.first_row + static_cast<std::size_t>(b.row - chrome_rows_);
+                if (b.picture == picture_ && row < e_.buffer.line_count() &&
+                    on_highlight(EditorPos{
+                        row, ws::byte_of_visual_col(e_.buffer.line(row),
+                                                    e_.first_col + (b.column < 0 ? 0 : b.column))})) {
+                    offer(Take::Selection, b.row, b.column, mail);
+                    return;
+                }
             }
-            return;
         }
-        const std::size_t row = e_.first_row + static_cast<std::size_t>(b.row - chrome_rows_);
-        if (b.picture == picture_ && row < e_.buffer.line_count() &&
-            on_highlight(EditorPos{row, ws::byte_of_visual_col(e_.buffer.line(row),
-                                                              e_.first_col + (b.column < 0 ? 0 : b.column))})) {
-            offer(Take::Selection, b.row, b.column, mail);
-        }
+        (void)ws::pane_menu::pass_back(mail, pane::kEditorPaneRole, pane::kEditorPane);
     }
 
     /// MATERIAL DROPPED ON THE DOCUMENT (WL-EDIT-17): text is inserted where it landed, or replaces

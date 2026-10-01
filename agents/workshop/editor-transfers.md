@@ -48,7 +48,7 @@ LAW — The selection's buffer text, unsaved edits included, leaves as an owned 
 
 MEANS
 - a press on the highlight is an ordinary press; its first motion restores the selection;
-- a drag begun elsewhere sweeps; a right press off the highlight offers nothing;
+- a drag begun elsewhere sweeps; a right press off the highlight is handed back to the host;
 - the carry is approved for the actor's gesture; a copy over the carrier's bound is refused.
 
 DOES NOT MEAN — that the copy follows later edits, or that its observation is authority.
@@ -60,9 +60,10 @@ PROVEN BY — `editor-pane/pane.cpp` `press_at`, `acquire`, `mark_now`, `on_high
 a named Inventory folder as an owned copy of the buffer's text, unsaved edits included, and
 nothing of the document moves"`, case `"a press on the highlight that never moves is an
 ordinary press, and a drag begun off the highlight sweeps and carries nothing, even across the
-pane's edge"`, case `"right-click on the highlight offers Extract, which carries by
-pick-and-place; right-click off it offers nothing"`, case `"the keyboard carries the selection by
-pick-and-place, and with nothing selected it carries nothing in its place"`, case `"an actor
+pane's edge"`, case `"right-click on the highlight offers Extract above the standard rows,
+which carries by pick-and-place; right-click off it opens the standard pane menu"`, case `"the
+keyboard carries the selection by pick-and-place, and with nothing selected it carries nothing in
+its place"`, case `"an actor
 without the carry cannot extract, and one without the open may carry a location but not open
 it"`; `tests/test_source_transfer.cpp` case `"a captured selection is an owned text item with
 its observation beside it, and a copy the carrier cannot hold is refused, never cut"`.

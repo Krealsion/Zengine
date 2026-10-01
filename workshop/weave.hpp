@@ -1204,8 +1204,13 @@ private:
     /// GRANT A PANE'S MENU TO THE PRESENTER at a cell of its body, withdrawing an older menu and
     /// closing the host's own first -- one surface at a time. The ask was judged eligible by the
     /// caller; what the rows say and mean is the presenter's to show and the requester's to act on.
+    /// The host's own pane menu for that pane goes beneath them, as the grant's standard rows.
     void grant_menu(const RuntimePane& row, const PaneMenuRequested& asked,
                     std::uint64_t correlation, const PointedAt& at, loom::Mail& mail);
+    /// SPEND A STANDARD ROW CHOSEN ON A PRESENTED MENU, on the pane that menu was about: an action
+    /// through the host's own seam, a group by opening the host's menu at that group. An id the
+    /// grant did not carry spends nothing.
+    void spend_standard_row(const PresentedMenu& ended, const std::string& id, loom::Mail& mail);
     /// END THE PRESENTED MENU BECAUSE CUSTODY MOVED, telling the presenter why; the presenter
     /// answers its requester. Who asked is kept until Loom has had its say (`withdrawn_`); a
     /// withdrawal that queues nothing is answered here at once. Nothing when no menu is open.

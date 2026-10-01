@@ -9,7 +9,8 @@
 // replaced like any loaded weave
 // (docs/reference/workshop-panes.md#the-menu-presenter-and-replacing-it).
 // The requester owns what its rows mean and every operation; Workshop owns input custody, the
-// popup and one menu at a time; the presenter owns the menu's presentation and lifetime, and
+// popup, one menu at a time, and the standard rows it adds beneath the requester's -- its own pane
+// menu, which it spends itself; the presenter owns the menu's presentation and lifetime, and
 // answers the requester exactly once per grant (`PaneMenuAnswered`, as this office). A menu's
 // number is Workshop's, minted per grant; a word about any other number moves nothing.
 
@@ -33,8 +34,10 @@ inline constexpr std::size_t kMaxMenuLineLen = 256;
 
 /// Workshop -> presenter: present this offer as menu `menu`, under the request's correlation.
 /// `office`/`pane` name the requester as Loom authenticated it; `subject` and `rows` are the
-/// request's, unread by the host; the room is the most the popup can show now. A grant while
-/// another menu is open replaces it: the older one was withdrawn first.
+/// request's, unread by the host; the room is the most the popup can show now. `standard` is the
+/// host's own pane menu for that pane, shown beneath the requester's rows in the same menu: a
+/// choice of one is the host's to spend (`MenuClosed::standard`), never the requester's. A grant
+/// while another menu is open replaces it: the older one was withdrawn first.
 struct MenuGranted {
     std::int64_t menu = 0;
     std::string office;
@@ -43,8 +46,10 @@ struct MenuGranted {
     std::vector<PaneMenuRow> rows;
     std::int64_t room_rows = 0;
     std::int64_t room_columns = 0;
-    ZEN_SHAPE(MenuGranted, 1, ZEN_FIELD(menu), ZEN_FIELD(office), ZEN_FIELD(pane),
-              ZEN_FIELD(subject), ZEN_FIELD(rows), ZEN_FIELD(room_rows), ZEN_FIELD(room_columns));
+    std::vector<PaneMenuRow> standard;
+    ZEN_SHAPE(MenuGranted, 2, ZEN_FIELD(menu), ZEN_FIELD(office), ZEN_FIELD(pane),
+              ZEN_FIELD(subject), ZEN_FIELD(rows), ZEN_FIELD(room_rows), ZEN_FIELD(room_columns),
+              ZEN_FIELD(standard));
 };
 
 /// Presenter -> Workshop: menu `menu` shows these lines now, top to bottom; a press on line i is
@@ -94,13 +99,17 @@ struct MenuInput {
 };
 
 /// Presenter -> Workshop: menu `menu` is over and its requester answered -- `chosen` at act
-/// `input` (0 when no act ended it). A choice is recorded as that act's continuation. Not
-/// `MenuReturned`: "answered" and "not mine to carry" are different facts.
+/// `input` (0 when no act ended it). A choice is recorded as that act's continuation. `standard`
+/// is the id of the granted standard row chosen at that act, "" for none; the requester is then
+/// answered unchosen, and Workshop spends the row. Not `MenuReturned`: "answered" and "not mine
+/// to carry" are different facts.
 struct MenuClosed {
     std::int64_t menu = 0;
     bool chosen = false;
     std::int64_t input = 0;
-    ZEN_SHAPE(MenuClosed, 1, ZEN_FIELD(menu), ZEN_FIELD(chosen), ZEN_FIELD(input));
+    std::string standard;
+    ZEN_SHAPE(MenuClosed, 2, ZEN_FIELD(menu), ZEN_FIELD(chosen), ZEN_FIELD(input),
+              ZEN_FIELD(standard));
 };
 
 /// Presenter -> Workshop: this image was handed an interaction for a menu it does not hold, and
@@ -142,9 +151,10 @@ struct HeldMenu {
     std::int64_t cursor = 0;
     std::int64_t room_rows = 0;
     std::int64_t room_columns = 0;
-    ZEN_SHAPE(HeldMenu, 1, ZEN_FIELD(menu), ZEN_FIELD(correlation), ZEN_FIELD(office),
+    std::vector<PaneMenuRow> standard;
+    ZEN_SHAPE(HeldMenu, 2, ZEN_FIELD(menu), ZEN_FIELD(correlation), ZEN_FIELD(office),
               ZEN_FIELD(pane), ZEN_FIELD(subject), ZEN_FIELD(rows), ZEN_FIELD(cursor),
-              ZEN_FIELD(room_rows), ZEN_FIELD(room_columns));
+              ZEN_FIELD(room_rows), ZEN_FIELD(room_columns), ZEN_FIELD(standard));
 };
 
 } // namespace zengine::workshop

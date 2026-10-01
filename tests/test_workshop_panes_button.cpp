@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE SECOND BUTTON AND THE MENU A PANE ASKS THE HOST TO PRESENT, driven through the real
-// Workshop weave, the real bus and native provider seats (WL-PRESS-06, WL-CTX-08, WL-CTX-09):
-// delivery by the holder's door, release custody across panes, the turn orders a model cannot
-// establish, owner loss after the release, recipient replacement, a late menu request, and the
-// presenter's lifecycle -- keys, mouse, Escape, an outside press, a newer menu, a pane that leaves,
-// a withdrawal it cannot be told of (WL-CTX-10). The shipped guard example is loaded at the end.
+// THE SECOND BUTTON AND THE MENU A PANE ASKS THE HOST TO PRESENT, through the real Workshop weave,
+// bus and native provider seats (WL-PRESS-06, WL-CTX-08, WL-CTX-09): delivery by the door, the
+// host's menu where no door is, release custody, turn orders a model cannot establish, owner loss
+// and replacement, a late request, the standard rows beneath a pane's own, and the presenter's
+// lifecycle -- keys, mouse, Escape, outside presses, a newer menu, a pane that leaves, a withdrawal
+// it cannot be told of (WL-CTX-10). The shipped guard example is loaded at the end.
 
 #include "doctest.h"
 
@@ -226,6 +226,20 @@ void queue_button(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx
         loom::WeaveId{}, loom::WeaveId{}, 0));
 }
 
+/// A KEY AT ITS PLACE IN A BURST, not drained: `PaneRig::key` publishes and drains.
+void queue_key(PaneRig& r, std::int64_t scancode) {
+    (void)r.bus.publish(loom::Message(
+        loom::to_value(input::KeyPressed{scancode, "", input::mod::kNone}), loom::WeaveId{},
+        loom::WeaveId{}, 0));
+}
+
+/// THE HOST'S OWN PANE MENU, as a pane's menu shows it beneath the pane's rows: the ids the host
+/// grants and the lines the shipped presenter draws for them, after its rule.
+const std::vector<std::string> kStandardIds = {"manage.arrange", "Order", "Reset",
+                                               "pane.edit-code", "manage.remove"};
+const std::vector<std::string> kStandardLines = {"  arrange", "  Order >", "  Reset >",
+                                                 "  edit code", "  remove"};
+
 /// The canvas cell of prose row `row`, column `col` of a pane's BODY (under its header).
 ui::Rect body_of(PaneRig& r, std::int64_t kind) { return external_body_rect(r.session(), kind); }
 std::int64_t body_x(PaneRig& r, std::int64_t kind, std::int64_t col) { return body_of(r, kind).x + col; }
@@ -309,21 +323,35 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is d
     CHECK(t.guard->buttons.size() == 2); // the press and its release; nothing for the chrome
 }
 
-TEST_CASE("WL-PRESS-06: a doorless pane's body is empty by default -- a right press there opens no menu and takes no keys; its chrome still opens the host's menu") {
+TEST_CASE("WL-PRESS-06: a right press in a doorless pane's body opens the host's pane menu at the press, sends the provider nothing and takes no keys; its chrome opens the same menu") {
     Rigged t;
     REQUIRE_FALSE(holder_accepts_on(t.r.bus, kHelloOffice, *loom::schema_of<PaneButton>()));
     const std::int64_t keyboard_before = t.r.session().panes.keyboard;
+    const std::int64_t selected_before = t.r.session().panes.selected;
     const ui::Rect body = external_body_rect(t.r.session(), t.hello_kind);
-    // THE BODY IS EMPTY BY DEFAULT: a holder that declared no `PaneButton` door is sent nothing,
-    // and the press acquires no host menu and no keyboard. Silence is not pass-through -- the
-    // provider hears nothing either. (WL-CTX-08, empty by default.)
-    t.r.right_press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
-    CHECK_FALSE(t.menu_open());
+    // NEVER LOST: a holder that declared no `PaneButton` door is sent nothing, and the press opens
+    // the host's pane menu about that pane, beside the hand. Pointing moves no keys and no
+    // selection, and the provider hears nothing pointer-shaped (WL-CTX-08).
+    const std::int64_t px = body.x + 1;
+    const std::int64_t py = body.y + kExternalHeaderRows + 1;
+    t.r.right_press_cell(px, py);
+    REQUIRE(t.r.session().context.open);
+    CHECK_FALSE(t.foreign_open());
+    CHECK(t.r.session().context.subject == context_subject::kPane);
+    CHECK(t.r.session().context.pane == hello_ref());
+    CHECK(t.r.session().context.anchored);
+    CHECK(t.r.session().context.anchor_x == px);
+    CHECK(t.r.session().context.anchor_y == py);
     CHECK(t.hello->presses.empty());
     CHECK(t.guard->buttons.empty());
     CHECK(t.r.session().panes.keyboard == keyboard_before);
-    // THE CHROME IS THE HOST'S ALWAYS: a right press on the title row opens the host's pane menu,
-    // the retained management route for a pane whose body takes the button or means nothing by it.
+    CHECK(t.r.session().panes.selected == selected_before);
+    t.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.menu_open());
+    // ...A MIDDLE PRESS THERE MEANS NOTHING, and opens nothing.
+    button_cell(t.r, 2, true, px, py);
+    CHECK_FALSE(t.menu_open());
+    // THE CHROME IS THE HOST'S ALWAYS: a right press on the title row opens the same pane menu.
     t.r.right_press_cell(body.x + 1, body.y);
     CHECK(t.menu_open());
     CHECK(t.r.session().context.pane == hello_ref());
@@ -349,6 +377,33 @@ TEST_CASE("WL-PRESS-06: the release is the pressing pane's wherever the pointer 
     // ...and a second release of a button nobody holds is dropped.
     button_cell(t.r, 3, false, hello.x + 1, hello.y + 2);
     CHECK(t.guard->buttons.size() == 2);
+}
+
+TEST_CASE("WL-CTX-08: a further right press while the host's menu is open asks again -- a pane with the door is offered it first, and a doorless body opens the host's menu where it landed") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    const ui::Rect hello = t.hello_body();
+    t.r.right_press_cell(hello.x + 1, hello.y + 1);
+    REQUIRE(t.r.session().context.open);
+    REQUIRE(t.r.session().context.pane == hello_ref());
+    // THE GUARD HAS THE DOOR: the host's menu closes and the press is the guard's, which asks for
+    // its own menu.
+    t.right_in_guard();
+    REQUIRE(t.guard->buttons.size() == 1);
+    CHECK_FALSE(t.r.session().context.open);
+    CHECK(t.foreign_open());
+    t.right_in_guard(false);
+    t.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.menu_open());
+    // ...AND A DOORLESS BODY RE-TARGETS THE HOST'S MENU to the cell the hand is on now.
+    t.r.right_press_cell(hello.x + 1, hello.y + 1);
+    REQUIRE(t.r.session().context.open);
+    t.r.right_press_cell(hello.x + 3, hello.y + 2);
+    REQUIRE(t.r.session().context.open);
+    CHECK(t.r.session().context.pane == hello_ref());
+    CHECK(t.r.session().context.anchor_x == hello.x + 3);
+    CHECK(t.r.session().context.anchor_y == hello.y + 2);
+    CHECK(t.hello->presses.empty());
 }
 
 TEST_CASE("WL-CTX-08: a pass-back after a clean click opens the host's menu for that pane, once") {
@@ -574,7 +629,8 @@ TEST_CASE("WL-CTX-09: a menu requested on the press's own turn is granted to the
     t.guard->menu_on_press = true;
     button_cell(t.r, 3, true, body_x(t.r, t.guard_kind, 3), body_y(t.r, t.guard_kind, 1));
     REQUIRE(t.foreign_open());
-    // THE HOST KEEPS CUSTODY AND PLACE -- whose menu, where, what it was about -- and no row.
+    // THE HOST KEEPS CUSTODY AND PLACE -- whose menu, where, what it was about -- and no row of
+    // the pane's: only its own standard rows, granted beneath them.
     const PresentedMenu& menu = t.r.session().presented;
     CHECK(menu.anchored);
     CHECK(menu.anchor_x == body_x(t.r, t.guard_kind, 3));
@@ -582,9 +638,9 @@ TEST_CASE("WL-CTX-09: a menu requested on the press's own turn is granted to the
     CHECK(menu.office == kGuardOffice);
     CHECK(menu.pane == kGuardPane);
     CHECK(menu.subject == "subject-1");
-    // PRESENTED: the rows the pane wrote, as the presenter lays them out.
+    // PRESENTED: the rows the pane wrote first, as the presenter lays them out, then the host's.
     const std::vector<std::string> painted = context_rows_on(t.r.last_canvas(), t.r.session());
-    REQUIRE(painted.size() == 2);
+    REQUIRE(painted.size() == 3 + kStandardLines.size());
     CHECK(painted[0] == "> First row");
     CHECK(painted[1] == "  Second row");
     // NOTHING MOVED: the keys stay with Hello, the selection where it was.
@@ -664,6 +720,118 @@ TEST_CASE("WL-CTX-09: a press on a presented row chooses it") {
     REQUIRE(t.guard->answers.size() == 1);
     CHECK(t.guard->answers[0].chosen);
     CHECK(t.guard->answers[0].id == "seat.second");
+}
+
+TEST_CASE("WL-CTX-09: a pane's menu shows its own rows first and the host's standard rows beneath them in one menu, and the keyboard passes over the rule between them") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    // GRANTED: the host's own pane menu, by the ids it spends -- its catalog's, never the pane's.
+    std::vector<std::string> ids;
+    for (const PaneMenuRow& row : t.r.session().presented.standard) {
+        ids.push_back(row.id);
+    }
+    CHECK(ids == kStandardIds);
+    // SHOWN: the pane's rows, a rule as wide as the widest row, then the standard rows.
+    std::vector<std::string> want = {"> First row", "  Second row", "  ----------"};
+    want.insert(want.end(), kStandardLines.begin(), kStandardLines.end());
+    CHECK(presented_texts(t.r.session()) == want);
+    CHECK(context_rows_on(t.r.last_canvas(), t.r.session()) == want);
+    // THE RULE IS NO ROW: Down from the pane's last row lands on the first standard row, Up returns.
+    t.r.key(input::scan::kDown);
+    t.r.key(input::scan::kDown);
+    CHECK(presented_texts(t.r.session())[3] == "> arrange");
+    t.r.key(input::scan::kUp);
+    CHECK(presented_texts(t.r.session())[1] == "> Second row");
+    // ...and a press on the rule chooses nothing.
+    t.r.press_cell(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), 2));
+    CHECK(t.foreign_open());
+    CHECK(t.guard->answers.empty());
+    t.r.key(input::scan::kEscape);
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK(t.guard->answers[0].refusal == "dismissed");
+}
+
+TEST_CASE("WL-CTX-09: a standard row chosen on a pane's menu is spent by the host on that pane, and the pane is answered unchosen and performs nothing") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    const PaneRef guard{kGuardOffice, kGuardPane};
+    const std::size_t arrange = 3; // the line under the pane's two rows and the rule
+    // ARRANGE: the host's own act on the pane the menu was about.
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    t.r.press_cell(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange));
+    CHECK_FALSE(t.foreign_open());
+    CHECK(t.r.session().arrange.open);
+    CHECK(t.r.session().panes.selected == t.guard_kind); // Arrange's one exception (WL-CTX-02)
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    CHECK(t.guard->answers[0].id.empty());
+    CHECK(t.guard->answers[0].refusal == "a standard row was chosen");
+    CHECK(t.guard->answer_authors[0] == kPresenterRole);
+    CHECK(t.guard->taken[0].empty()); // the requester's record settles on nothing chosen
+    CHECK_FALSE(t.guard->pending_after[0]);
+    t.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.r.session().arrange.open);
+    // A GROUP: the host's own menu opens at that group, on that pane, where the menu stood.
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::int64_t ax = t.r.session().presented.anchor_x;
+    const std::int64_t ay = t.r.session().presented.anchor_y;
+    t.r.press_cell(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange + 1));
+    CHECK_FALSE(t.foreign_open());
+    REQUIRE(t.r.session().context.open);
+    CHECK(t.r.session().context.group == "Order");
+    CHECK(t.r.session().context.subject == context_subject::kPane);
+    CHECK(t.r.session().context.pane == guard);
+    CHECK(t.r.session().context.anchor_x == ax);
+    CHECK(t.r.session().context.anchor_y == ay);
+    t.r.key(input::scan::kEscape);
+    t.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.menu_open());
+    // REMOVE: the host takes the pane off the desk; the pane performed none of it.
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    t.r.press_cell(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange + 4));
+    CHECK_FALSE(t.menu_open());
+    CHECK_FALSE(has_pane(t.r.session().setup.active, guard));
+    REQUIRE(t.guard->answers.size() == 3);
+    CHECK_FALSE(t.guard->answers[2].chosen);
+    CHECK(t.guard->actions.empty());
+}
+
+TEST_CASE("WL-CTX-09: a standard row is spent only while its choosing act is the weaver's latest -- a key queued behind the choice leaves it unspent") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    t.r.key(input::scan::kDown);
+    t.r.key(input::scan::kDown);
+    REQUIRE(presented_texts(t.r.session())[3] == "> arrange");
+    // RETURN CHOOSES ARRANGE, and a newer key is read before the presenter's word comes back: the
+    // host hands both acts to the menu, the presenter closes it on the first, and by the time the
+    // host hears that, the choosing act is no longer the weaver's latest.
+    queue_key(t.r, input::scan::kReturn);
+    queue_key(t.r, input::scan::kZ);
+    t.r.bus.drain_until_idle();
+    CHECK_FALSE(t.menu_open());
+    CHECK_FALSE(t.r.session().arrange.open);
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    // ...WHILE THE SAME CHOICE, NOTHING AFTER IT, IS SPENT.
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    t.r.key(input::scan::kDown);
+    t.r.key(input::scan::kDown);
+    t.r.key(input::scan::kReturn);
+    CHECK(t.r.session().arrange.open);
 }
 
 TEST_CASE("WL-CTX-09: a late request is refused where the menu opens -- a newer primary press elsewhere keeps the keys it took; the review's second integration finding") {
@@ -754,7 +922,7 @@ TEST_CASE("WL-CTX-09: a newer menu replaces an open one, which its presenter ans
     REQUIRE(t.foreign_open());
     CHECK(t.r.session().presented.office == kGuardTwoOffice);
     const std::vector<std::string> painted = context_rows_on(t.r.last_canvas(), t.r.session());
-    REQUIRE(painted.size() == 1);
+    REQUIRE(painted.size() == 2 + kStandardLines.size());
     CHECK(painted[0] == "> The other pane's row");
     button_cell(t.r, 3, false, body_x(t.r, other_kind, 1), body_y(t.r, other_kind, 0));
     t.r.key(input::scan::kReturn);
@@ -1122,7 +1290,7 @@ TEST_CASE("WL-CTX-10: a refused act settles its withdrawn menu, though the withd
     REQUIRE_FALSE(t.r.bus.role_holder(kPresenterRole).valid());
     REQUIRE(t.foreign_open());
     // THE NEXT: the forwarded act is refused, a fresh presenter is loaded, and a right press on a
-    // doorless pane withdraws the menu -- queued behind the load's own work.
+    // doorless pane withdraws the menu and opens the host's there -- queued behind the load's work.
     loom::Grant reach;
     reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, t.r.manager);
     const loom::WeaveId booter =
@@ -1339,7 +1507,7 @@ TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence come
         REQUIRE(t.foreign_open());
         const std::int64_t menu = t.r.session().presented.menu;
         const std::uint64_t number = t.r.session().presented.correlation;
-        // A RIGHT PRESS ON A DOORLESS PANE -- nothing opens there -- withdraws the menu.
+        // A RIGHT PRESS ON A DOORLESS PANE -- the host's own menu opens there -- withdraws it.
         queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
         (void)t.r.bus.pump_pending();
         // KEPT WHILE LOOM MAY STILL SAY SOMETHING ABOUT IT: whose it was, and why it ended.
@@ -1384,13 +1552,6 @@ void enqueue_presenter_load(PaneRig& r, const char* image) {
                   loom::Message(loom::to_value(loom::LoadWeave{"zengine-menu-presenter", image,
                                                                kPresenterRole}),
                                 booter, booter, 0));
-}
-
-/// A KEY AT ITS PLACE IN A BURST, not drained: `PaneRig::key` publishes and drains.
-void queue_key(PaneRig& r, std::int64_t scancode) {
-    (void)r.bus.publish(loom::Message(
-        loom::to_value(input::KeyPressed{scancode, "", input::mod::kNone}), loom::WeaveId{},
-        loom::WeaveId{}, 0));
 }
 
 } // namespace
@@ -1457,9 +1618,11 @@ TEST_CASE("WL-CTX-10: a withdrawal a fresh holder does not carry is given back, 
         CHECK(tap.count(MenuWithdrawn::zen_name) == 0);
     }
     button_cell(t.r, 3, false, hello.x + 1, hello.y + 1);
-    // SETTLED ONCE, BY THE HOST, under the ask's own number and unchosen, and nothing is kept.
+    // SETTLED ONCE, BY THE HOST, under the ask's own number and unchosen, and nothing is kept;
+    // the press opened the host's own menu on Hello.
     REQUIRE(t.r.bus.role_holder(kPresenterRole).valid());
-    CHECK_FALSE(t.menu_open());
+    CHECK_FALSE(t.foreign_open());
+    CHECK(t.r.session().context.pane == hello_ref());
     CHECK(t.r.w->withdrawn_menus().empty());
     CHECK_FALSE(t.guard->asked.pending());
     REQUIRE(t.guard->answers.size() == 1);
@@ -1527,7 +1690,8 @@ TEST_CASE("WL-CTX-10: a menu its image answered is not reopened by a give-back b
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
     const std::uint64_t number = t.r.session().presented.correlation;
-    // ONE BURST: the weaver chooses, and a press on a doorless pane withdraws the menu behind it.
+    // ONE BURST: the weaver chooses, and a press on a doorless pane withdraws the menu behind it
+    // (opening the host's own there).
     // The image chooses and answers on the act, then meets a withdrawal for a menu it no longer
     // holds -- work it finished, not work abandoned.
     const ui::Rect hello = t.hello_body();
@@ -1535,7 +1699,8 @@ TEST_CASE("WL-CTX-10: a menu its image answered is not reopened by a give-back b
     queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
     t.r.bus.drain_until_idle();
     button_cell(t.r, 3, false, hello.x + 1, hello.y + 1);
-    CHECK_FALSE(t.menu_open());
+    CHECK_FALSE(t.foreign_open());
+    CHECK(t.r.session().context.pane == hello_ref());
     CHECK(t.r.w->withdrawn_menus().empty());
     CHECK_FALSE(t.guard->asked.pending());
     // EXACTLY ONE ANSWER, the image's own, and it is the choice.
