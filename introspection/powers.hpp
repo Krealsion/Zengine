@@ -4,24 +4,25 @@
 #ifndef ZENGINE_INTROSPECTION_POWERS_HPP
 #define ZENGINE_INTROSPECTION_POWERS_HPP
 
-// The Powers pane as a weaver uses it, pure machinery over one reading: `PowersUi` (all the pane
-// knows that is not a fact about the host), `project_powers_ui` (that state and a budget become
-// rows and what each place means) and `target_at` (a press becomes its one meaning). No bus
-// here: the weave owns when to ask and whom to believe. Sources and Operators are derived from
-// the catalog (`op::is_source`), never authored; composite is independent of both.
+// The Powers pane as a weaver uses it, pure machinery over the discovery door's answers:
+// `PowersUi` (all the pane knows that is not a fact about the host), `powers_question` (the search
+// the view, the query and the filter make), `project_powers_ui` (that state and a budget become
+// rows and what each place means) and `target_at` (a press becomes its one meaning). No bus here:
+// the weave owns when to ask and whom to believe. Sources and Operators are the door's `kind`,
+// derived from the catalog and never authored; composite is independent of both.
 // Pane law: agents/panes.md
 
-// Browsing cannot evaluate: this links no operator target and reads only `ResolvedPowers`.
-// `PowersUi::reading` is a snapshot kept between grants for search, filter and cursor -- replaced
-// whole, dropped at every grant, never evidence about the catalog now. A retained sample is
-// history: it never claims to be current, and its row leads with the tense.
+// Browsing cannot evaluate: this links no operator target and reads only the door's rows. Which
+// rows match a query is the door's to say, the same rows it says to Flow and the Terminal; the
+// pane keeps the last answer between asks, replaced whole and dropped at every grant. A retained
+// sample is history: it never claims to be current, and its row leads with the tense.
 
 #include "loaded.hpp"   // `fit`, `kElided`, the mark, the entry roles
 #include "resolved.hpp" // `kHostResolution`, `kPowersSource`, `kHostItself`, `counted`
 
 #include "component/text_box.hpp"
 #include "surface/vocabulary.hpp"
-#include "workshop/arrangement_vocabulary.hpp"
+#include "workshop/powers_vocabulary.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -84,7 +85,7 @@ struct RetainedSample {
 
 /// Everything the Powers pane knows that is not a fact about the host, all of it transient. Two
 /// selections, by identity and never by index: view switches, typing, filtering and resizing
-/// keep both, and only a fresh reading proving absence clears one (`revalidate`).
+/// keep both, and only the door saying an identity is gone clears one.
 struct PowersUi {
     std::int64_t view = powers_view::kSources;
 
@@ -92,16 +93,21 @@ struct PowersUi {
     /// printable character has exactly one place it could go.
     component::TextBox query;
 
-    /// Shared by both views, and combined with the query as logical AND. It reads
+    /// Shared by both views, and asked of the door with the query as logical AND. It reads
     /// the ACTIVE contribution, because that is the construction whose code runs.
     bool composite_only = false;
 
     std::string selected_source;
     std::string selected_operator;
 
-    /// THE LAST ADMITTED READING. A snapshot between grants; see the header.
-    workshop::ResolvedPowers reading;
-    bool read = false; ///< has any reading been admitted into this pane at all
+    /// THE LAST ADMITTED ANSWER to this pane's search: one page of the door's rows, replaced
+    /// whole by the next answer, dropped at every grant, never evidence about the catalog now.
+    workshop::PowersFound reading;
+    bool read = false; ///< has any answer been admitted into this pane at all
+
+    /// What the door last said of one identity: its row and its whole contribution stack. Shown
+    /// only while it is about the identity selected now.
+    workshop::PowerDescribed described;
 
     RetainedSample sample;
 
@@ -114,129 +120,94 @@ struct PowersUi {
     }
 };
 
-// ---- Deriving the two views from one reading ------------------------------------
+// ---- The question, and what its answer shows -------------------------------------
 
-/// THE CONTRIBUTION WHOSE CODE ACTUALLY RUNS. `op::Catalog` holds a stack whose BACK
-/// is what `find` resolves, and `PowerStack` carries that order unchanged -- so the
-/// active contribution is the last one, and a stack is never empty (an identity with
-/// no contribution is not in the catalog at all).
-inline const workshop::PowerContribution* active_of(const workshop::PowerStack& p) noexcept {
-    return p.contributions.empty() ? nullptr : &p.contributions.back();
+/// THE SEARCH THIS PANE ASKS THE DOOR: the view as a kind (a conversion is an operator, so the
+/// Operators view finds both), the query as text, the filter as a construction, and the most
+/// rows an answer carries. Matching is the door's; nothing here re-matches what it said.
+inline workshop::FindPowers powers_question(const PowersUi& ui) {
+    workshop::FindPowers asked;
+    asked.kind = ui.view == powers_view::kSources ? workshop::kSourceKind
+                                                  : workshop::kOperatorKind;
+    if (!ui.query.text().empty()) {
+        asked.text = ui.query.text();
+    }
+    if (ui.composite_only) {
+        asked.construction = workshop::kCompositeConstruction;
+    }
+    asked.limit = workshop::kMaxPowerRows;
+    return asked;
 }
 
-/// Is this power a Source? Asked of the active contribution: `source` is uniform across a stack
-/// (collision refuses a second contribution, an overlay demands the same ports), and the
-/// composite badge reads the active one too, so the two never talk about different ones.
-inline bool is_source_power(const workshop::PowerStack& p) noexcept {
-    const workshop::PowerContribution* active = active_of(p);
-    return active != nullptr && active->source;
+/// Is this row a Source? The door's `kind`, read off the contribution in force; nothing here
+/// classifies anything.
+inline bool is_source_power(const workshop::PowerRow& row) noexcept {
+    return row.kind == workshop::kSourceKind;
 }
 
 /// DOES THIS POWER'S ACTIVE CONTRIBUTION HAVE KNOWN COMPOSITE CONSTRUCTION? That is
 /// the whole claim. It is not openability, editability or safety, and no surface in
 /// this build can show the graph.
-inline bool is_composite_power(const workshop::PowerStack& p) noexcept {
-    const workshop::PowerContribution* active = active_of(p);
-    return active != nullptr && active->composite;
+inline bool is_composite_power(const workshop::PowerRow& row) noexcept {
+    return row.construction == workshop::kCompositeConstruction;
 }
 
-/// Does this power belong in the view being shown?
-inline bool in_view(const workshop::PowerStack& p, std::int64_t view) noexcept {
-    return is_source_power(p) == (view == powers_view::kSources);
+/// Does this row belong in the view being shown?
+inline bool in_view(const workshop::PowerRow& row, std::int64_t view) noexcept {
+    return is_source_power(row) == (view == powers_view::kSources);
 }
 
-namespace detail {
-
-/// ASCII CASE FOLDING, AND ONLY ASCII. A byte at or above 0x80 is left exactly as it
-/// is, so a non-ASCII identity compares byte-for-byte rather than through some
-/// locale this pane has no business having an opinion about.
-inline unsigned char fold(char c) noexcept {
-    const unsigned char b = static_cast<unsigned char>(c);
-    return (b >= 'A' && b <= 'Z') ? static_cast<unsigned char>(b - 'A' + 'a') : b;
-}
-
-} // namespace detail
-
-/// Case-insensitive ASCII substring over the identity, and nothing else. An empty query matches
-/// everything. It filters and never ranks: the catalog's order is its owner's.
-inline bool matches_query(std::string_view identity, std::string_view query) noexcept {
-    if (query.empty()) {
-        return true;
-    }
-    if (query.size() > identity.size()) {
-        return false;
-    }
-    const std::size_t last = identity.size() - query.size();
-    for (std::size_t at = 0; at <= last; ++at) {
-        std::size_t j = 0;
-        while (j < query.size() && detail::fold(identity[at + j]) == detail::fold(query[j])) {
-            ++j;
+/// The list the weaver navigates: the answer's rows that belong to this view and filter, in the
+/// order the door gave them. The door asked those same questions, so this keeps a row only while
+/// an answer to an earlier search is still on screen; the query is never re-matched here.
+inline std::vector<const workshop::PowerRow*> filtered_of(const PowersUi& ui) {
+    std::vector<const workshop::PowerRow*> out;
+    for (const workshop::PowerRow& row : ui.reading.rows) {
+        if (in_view(row, ui.view) && (!ui.composite_only || is_composite_power(row))) {
+            out.push_back(&row);
         }
-        if (j == query.size()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/// EVERY POWER OF THE CURRENT VIEW, IN CATALOG ORDER, before the query and the
-/// composite filter. It is the population a "nothing matches" sentence has to know
-/// in order to tell a filter's emptiness from an absence.
-inline std::vector<const workshop::PowerStack*> in_view_of(const PowersUi& ui) {
-    std::vector<const workshop::PowerStack*> out;
-    for (const workshop::PowerStack& p : ui.reading.powers) {
-        if (in_view(p, ui.view)) {
-            out.push_back(&p);
-        }
-    }
-    return out;
-}
-
-/// The list the weaver navigates -- the reading, this view, the query, the composite filter --
-/// derived every projection and stored nowhere, so it cannot disagree with its reading.
-inline std::vector<const workshop::PowerStack*> filtered_of(const PowersUi& ui) {
-    std::vector<const workshop::PowerStack*> out;
-    const std::string& q = ui.query.text();
-    for (const workshop::PowerStack& p : ui.reading.powers) {
-        if (!in_view(p, ui.view)) {
-            continue;
-        }
-        if (!matches_query(p.power, q)) {
-            continue;
-        }
-        if (ui.composite_only && !is_composite_power(p)) {
-            continue;
-        }
-        out.push_back(&p);
     }
     return out;
 }
 
 /// Where the cursor is in that list, or -1. Hidden is not absent: a selection the query, the
 /// filter or the other view excludes is held, merely unmarked.
-inline std::int64_t cursor_in(const std::vector<const workshop::PowerStack*>& list,
+inline std::int64_t cursor_in(const std::vector<const workshop::PowerRow*>& list,
                               std::string_view identity) noexcept {
     if (identity.empty()) {
         return -1;
     }
     for (std::size_t i = 0; i < list.size(); ++i) {
-        if (list[i]->power == identity) {
+        if (list[i]->identity == identity) {
             return static_cast<std::int64_t>(i);
         }
     }
     return -1;
 }
 
-/// The selected power, if the reading still has it in this view -- asked of the population, not
-/// the filtered list, since a search does not revoke a selection.
-inline const workshop::PowerStack* selected_of(const PowersUi& ui) {
+/// The selected power as the door last described it, if that answer is about it and it belongs
+/// to this view -- the whole of what the detail shows, the stack included.
+inline const workshop::PowerDescribed* described_of(const PowersUi& ui) {
+    const std::string& want = ui.selected();
+    if (want.empty() || !ui.described.ok || ui.described.identity != want ||
+        !in_view(ui.described.row, ui.view)) {
+        return nullptr;
+    }
+    return &ui.described;
+}
+
+/// The selected power's row: the described one, or else the answer's own row for it.
+inline const workshop::PowerRow* selected_of(const PowersUi& ui) {
+    if (const workshop::PowerDescribed* d = described_of(ui); d != nullptr) {
+        return &d->row;
+    }
     const std::string& want = ui.selected();
     if (want.empty()) {
         return nullptr;
     }
-    for (const workshop::PowerStack& p : ui.reading.powers) {
-        if (p.power == want && in_view(p, ui.view)) {
-            return &p;
+    for (const workshop::PowerRow& row : ui.reading.rows) {
+        if (row.identity == want && in_view(row, ui.view)) {
+            return &row;
         }
     }
     return nullptr;
@@ -245,14 +216,14 @@ inline const workshop::PowerStack* selected_of(const PowersUi& ui) {
 /// The identity a sample gesture would spend, or empty: Sources only. `op::sample` refuses an
 /// Operator at the spend; the pane simply offers no gesture for one.
 inline std::string sampleable(const PowersUi& ui) {
-    const workshop::PowerStack* p = selected_of(ui);
-    return (p != nullptr && is_source_power(*p)) ? p->power : std::string();
+    const workshop::PowerRow* row = selected_of(ui);
+    return (row != nullptr && is_source_power(*row)) ? row->identity : std::string();
 }
 
 /// Move the cursor one place through the visible list. A hidden selection starts from the list's
 /// beginning, rather than inventing a place for what the weaver cannot see.
 inline void move_cursor(PowersUi& ui, std::int64_t delta) {
-    const std::vector<const workshop::PowerStack*> list = filtered_of(ui);
+    const std::vector<const workshop::PowerRow*> list = filtered_of(ui);
     if (list.empty()) {
         return;
     }
@@ -265,29 +236,21 @@ inline void move_cursor(PowersUi& ui, std::int64_t delta) {
     if (next > last) {
         next = last;
     }
-    ui.select(list[static_cast<std::size_t>(next)]->power);
+    ui.select(list[static_cast<std::size_t>(next)]->identity);
 }
 
-/// Only a fresh reading may clear a selection, asked of the population it carries: presentation
-/// may hide, and only the population may invalidate.
-inline void revalidate(PowersUi& ui) {
+/// What the door said of one identity, taken in: kept for the detail, and the one fact that may
+/// clear a selection -- the identity is gone, or it no longer belongs to the view holding it.
+/// Presentation may hide a selection; only the door's answer about that identity invalidates it.
+inline void take_described(PowersUi& ui, workshop::PowerDescribed said) {
     for (const std::int64_t view : {powers_view::kSources, powers_view::kOperators}) {
         std::string& held =
             view == powers_view::kSources ? ui.selected_source : ui.selected_operator;
-        if (held.empty()) {
-            continue;
-        }
-        bool still = false;
-        for (const workshop::PowerStack& p : ui.reading.powers) {
-            if (p.power == held && in_view(p, view)) {
-                still = true;
-                break;
-            }
-        }
-        if (!still) {
+        if (!held.empty() && held == said.identity && (!said.ok || !in_view(said.row, view))) {
             held.clear();
         }
     }
+    ui.described = std::move(said);
 }
 
 // ---- The window ------------------------------------------------------------------
@@ -365,6 +328,11 @@ inline constexpr const char* kCompositeBadge = " (composite)";
 inline constexpr const char* kFindLabel = "find:";
 inline constexpr const char* kSampleControl = "[ Sample ]";
 
+/// What a power its contributor offers to no one else's composition says, beside its identity
+/// and in its detail: listed, and said to be another participant's own.
+inline constexpr const char* kNotOfferedBadge = " (not offered)";
+inline constexpr const char* kNotOfferedLine = "  not offered for reuse: another participant's own";
+
 /// What a retained sample is, leading with the tense: `fit` cuts the tail, so a narrow pane loses
 /// the identity (recoverable from the list) and never the claim.
 inline constexpr const char* kSampledWhenAsked = "sampled when asked";
@@ -373,15 +341,24 @@ inline constexpr const char* kSampleRefusedWord = "sample refused when asked";
 /// The empty states, kept apart because they are different facts.
 inline constexpr const char* kNoSourcesHere = "no sources resolve here";
 inline constexpr const char* kNoOperatorsHere = "no operators resolve here";
+inline constexpr const char* kNoneMatch = "none here match the current search";
 
-/// `5 sources here -- all hidden by the current filter`: the count keeps an empty pane from
-/// reading as an empty system.
-inline std::string all_hidden(std::int64_t population, std::int64_t view,
-                              std::int64_t columns) {
-    return fit(counted(population, view == powers_view::kSources ? "source" : "operator",
-                       view == powers_view::kSources ? "sources" : "operators") +
-                   " here -- all hidden by the current filter",
-               columns);
+/// `+ 12 more match -- narrow the search`: the rows past one answer's page are counted, never
+/// silently absent.
+inline std::string beyond_page(std::int64_t more, std::int64_t columns) {
+    return fit("  + " + std::to_string(more) + " more match -- narrow the search", columns);
+}
+
+/// A row carries printable ASCII and a contributor's words may carry any byte, so another byte
+/// is drawn as `?`; the words themselves are not rewritten anywhere.
+inline std::string printable(std::string text) {
+    for (char& c : text) {
+        const unsigned char b = static_cast<unsigned char>(c);
+        if (b < 0x20u || b >= 0x7Fu) {
+            c = '?';
+        }
+    }
+    return text;
 }
 
 // ---- The chrome row --------------------------------------------------------------
@@ -444,7 +421,7 @@ inline ChromeFit fit_chrome(const std::string& position, std::int64_t columns) {
 /// THE COLUMNS THE QUERY TEXT GETS -- the caret's own column subtracted, because a
 /// caret sitting after the last character needs somewhere to sit.
 inline std::int64_t query_capacity(const PowersUi& ui, std::int64_t columns) {
-    const std::vector<const workshop::PowerStack*> list = filtered_of(ui);
+    const std::vector<const workshop::PowerRow*> list = filtered_of(ui);
     const std::string marker = position_marker(cursor_in(list, ui.selected()),
                                                static_cast<std::int64_t>(list.size()));
     const ChromeFit fit_of = fit_chrome(marker, columns);
@@ -507,62 +484,78 @@ inline std::int64_t solid_columns(const std::string& drawn, std::size_t wanted) 
     return solid < 0 ? 0 : solid;
 }
 
-/// One power on one line: the mark, the identity and the composite badge. The badge is reserved
-/// at the right and the identity fitted into the rest, since a plain `fit` would cut the badge,
-/// which nothing else on screen restates. The mark takes the indent's place, costing nothing.
-inline std::string power_row_text(const workshop::PowerStack& p, bool chosen,
+/// One power on one line: the mark, the identity and its badges. The badges are reserved at the
+/// right and the identity fitted into the rest, since a plain `fit` would cut them, and nothing
+/// else in the list restates them. The mark takes the indent's place, costing nothing.
+inline std::string power_row_text(const workshop::PowerRow& row, bool chosen,
                                   std::int64_t columns) {
     const std::string mark = chosen ? kSelectedMark : kUnselectedMark;
-    std::string badge = is_composite_power(p) ? kCompositeBadge : "";
+    std::string badge = std::string(is_composite_power(row) ? kCompositeBadge : "") +
+                        (row.offered ? "" : kNotOfferedBadge);
     std::int64_t room = columns - static_cast<std::int64_t>(mark.size() + badge.size());
     if (room < 4) {
         // Too narrow for both: the identity is what the weaver navigates, and the detail block
-        // still says composite.
+        // still says what the badges said.
         badge.clear();
         room = columns - static_cast<std::int64_t>(mark.size());
     }
-    return fit(mark + fit(p.power, room) + badge, columns);
+    return fit(mark + fit(printable(row.identity), room) + badge, columns);
 }
 
 /// The selected detail rows, most-protected first: `yields <schema> v<N>` (what a sample would
 /// claim, answerable without running anything), `[ Sample ]` for a Source (a control a weaver
-/// cannot reach is a missing feature), then the contribution stack, active first. All or
-/// nothing at two rows: one row alone is half an answer.
+/// cannot reach is a missing feature), what it is for in its contributor's words, whether it is
+/// offered, its signature, then the contribution stack, active first. All or nothing at two rows:
+/// one row alone is half an answer.
 struct Detail {
     std::vector<std::string> texts;
     std::vector<std::int64_t> roles;
     std::vector<bool> is_control;
 };
 
-inline Detail detail_rows(const workshop::PowerStack& p, std::int64_t columns) {
+inline Detail detail_rows(const workshop::PowerRow& row, const workshop::PowerDescribed* described,
+                          std::int64_t columns) {
     Detail d;
-    const workshop::PowerContribution* active = active_of(p);
-    std::string yields = "  yields ";
-    if (active == nullptr || active->output.name.empty()) {
-        yields += "(not reported)";
-    } else {
-        yields += active->output.name + " v" + std::to_string(active->output.version);
+    const auto line = [&d, columns](std::string text, std::int64_t role, bool control = false) {
+        d.texts.push_back(fit(std::move(text), columns));
+        d.roles.push_back(role);
+        d.is_control.push_back(control);
+    };
+    line(row.outputs.name.empty()
+             ? std::string("  yields (not reported)")
+             : "  yields " + printable(row.outputs.name) + " v" +
+                   std::to_string(row.outputs.version),
+         surface::role::kMuted);
+    if (is_source_power(row)) {
+        line(std::string("  ") + kSampleControl, surface::role::kAccent, true);
     }
-    d.texts.push_back(fit(yields, columns));
-    d.roles.push_back(surface::role::kMuted);
-    d.is_control.push_back(false);
-
-    if (is_source_power(p)) {
-        d.texts.push_back(fit(std::string("  ") + kSampleControl, columns));
-        d.roles.push_back(surface::role::kAccent);
-        d.is_control.push_back(true);
+    if (!row.about.empty()) {
+        line("  " + printable(row.about), surface::role::kFill);
     }
-    for (std::size_t i = p.contributions.size(); i > 0; --i) {
-        const workshop::PowerContribution& c = p.contributions[i - 1];
-        const bool live = i == p.contributions.size();
+    if (!row.offered) {
+        line(kNotOfferedLine, surface::role::kMuted);
+    }
+    line("  " + printable(row.signature), surface::role::kMuted);
+    if (described == nullptr) {
+        // The answer about this identity has not come: what is in force, from its row alone.
+        line("  active    " + (row.provider.empty() ? std::string(kHostItself)
+                                                    : printable(row.provider)) +
+                 (is_composite_power(row) ? kCompositeBadge : ""),
+             surface::role::kFill);
+        return d;
+    }
+    for (std::size_t i = described->stack.size(); i > 0; --i) {
+        const workshop::PowerLayer& c = described->stack[i - 1];
+        const bool live = i == described->stack.size();
         std::string said = live ? "  active    " : "  shadowed  ";
-        said += c.provider.empty() ? kHostItself : c.provider;
-        if (c.composite) {
+        said += c.provider.empty() ? kHostItself : printable(c.provider);
+        if (c.construction == workshop::kCompositeConstruction) {
             said += kCompositeBadge;
         }
-        d.texts.push_back(fit(said, columns));
-        d.roles.push_back(live ? surface::role::kFill : surface::role::kMuted);
-        d.is_control.push_back(false);
+        if (!live && !c.about.empty()) {
+            said += " -- " + printable(c.about);
+        }
+        line(std::move(said), live ? surface::role::kFill : surface::role::kMuted);
     }
     return d;
 }
@@ -575,7 +568,7 @@ inline std::string sample_header(const RetainedSample& s, std::size_t hidden,
     const std::string tail =
         hidden > 0 ? ("  " + std::string(kElided) + " " + std::to_string(hidden) + " more") : "";
     const std::int64_t room = columns - static_cast<std::int64_t>(lead.size() + tail.size());
-    return fit(lead + fit(s.identity, room) + tail, columns);
+    return fit(lead + fit(printable(s.identity), room) + tail, columns);
 }
 
 /// EVERY LINE A RETAINED SAMPLE WOULD SPEND, header excluded.
@@ -606,7 +599,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         return view;
     }
 
-    const std::vector<const workshop::PowerStack*> list = filtered_of(ui);
+    const std::vector<const workshop::PowerRow*> list = filtered_of(ui);
     view.population = static_cast<std::int64_t>(list.size());
     view.cursor = cursor_in(list, ui.selected());
 
@@ -651,18 +644,23 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
     // ---- how the remaining rows are shared ---------------------------------------
     //
     // The list is offered up to three rows first, the rest in priority order, and whatever
-    // nobody wanted returns to the list.
+    // nobody wanted returns to the list. Rows past the answer's page are one more line of it.
+    const std::int64_t beyond =
+        ui.reading.total > static_cast<std::int64_t>(ui.reading.rows.size())
+            ? ui.reading.total - static_cast<std::int64_t>(ui.reading.rows.size())
+            : 0;
     const std::int64_t left = rows - 1;
-    const std::int64_t list_wants = view.population > 0 ? view.population : 1;
+    const std::int64_t list_wants =
+        (view.population > 0 ? view.population : 1) + (beyond > 0 ? 1 : 0);
     // The floor is the smallest of three: a one-entry list does not reserve three rows.
     const std::int64_t wanted_floor = list_wants < 3 ? list_wants : 3;
     const std::int64_t floor_rows = left < wanted_floor ? left : wanted_floor;
     std::int64_t spare = left - floor_rows;
 
-    const workshop::PowerStack* chosen = selected_of(ui);
+    const workshop::PowerRow* chosen = selected_of(ui);
     detail::Detail block;
     if (chosen != nullptr) {
-        block = detail::detail_rows(*chosen, columns);
+        block = detail::detail_rows(*chosen, described_of(ui), columns);
     }
     const std::int64_t detail_wants = static_cast<std::int64_t>(block.texts.size());
     const std::int64_t detail_rows_taken =
@@ -689,34 +687,45 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
     const std::int64_t source =
         census == 1 && spare > 0 && list_wants < floor_rows + spare ? 1 : 0;
     spare -= source;
-    const std::int64_t list_budget = floor_rows + spare;
+    std::int64_t list_budget = floor_rows + spare;
 
     // ---- the list ----------------------------------------------------------------
     if (view.population == 0) {
-        if (list_budget > 0) {
-            // An empty view and a filtered-away one are different facts; the second is counted.
-            const std::int64_t here = static_cast<std::int64_t>(in_view_of(ui).size());
+        if (list_budget > 0 && !ui.reading.ok && !ui.reading.reason.empty()) {
+            // A search the door refused is not a search nothing matched: its sentence is the list.
+            say.say(fit(printable(ui.reading.reason), columns), surface::role::kAlert);
+            --list_budget;
+        } else if (list_budget > 0) {
+            // An empty catalog view and a search nothing matched are different facts.
+            const bool searching = !ui.query.text().empty() || ui.composite_only;
             const bool sources = ui.view == powers_view::kSources;
-            say.say(here == 0 ? fit(sources ? kNoSourcesHere : kNoOperatorsHere, columns)
-                              : all_hidden(here, ui.view, columns),
+            say.say(fit(searching ? kNoneMatch : (sources ? kNoSourcesHere : kNoOperatorsHere),
+                        columns),
                     surface::role::kMuted);
+            --list_budget;
         }
     } else if (list_budget > 0) {
+        // The page's own count is a row, taken from the list's budget before the window.
+        const std::int64_t entries = beyond > 0 && list_budget > 1 ? list_budget - 1 : list_budget;
         // The marker is a row like any other: with no row for it, nothing is written.
-        const PowersWindow w = powers_window(view.population, view.cursor, list_budget);
+        const PowersWindow w = powers_window(view.population, view.cursor, entries);
         for (std::int64_t i = 0; i < w.count; ++i) {
-            const workshop::PowerStack& p = *list[static_cast<std::size_t>(w.first + i)];
+            const workshop::PowerRow& p = *list[static_cast<std::size_t>(w.first + i)];
             const bool chosen_row = view.cursor == w.first + i;
             const std::int64_t row =
                 say.say(detail::power_row_text(p, chosen_row, columns), entry_role(chosen_row),
                         entry_ground(chosen_row));
             // The whole row selects, and selecting is all it does.
-            say.span(row, 0, columns, powers_control::kEntry, columns, p.power);
+            say.span(row, 0, columns, powers_control::kEntry, columns, p.identity);
         }
         if (w.before > 0 || w.after > 0) {
             // A count, not an entry: it carries no span.
             say.say(powers_omission(w, columns), surface::role::kMuted);
         }
+        list_budget -= entries;
+    }
+    if (beyond > 0 && list_budget > 0) {
+        say.say(beyond_page(beyond, columns), surface::role::kMuted);
     }
 
     // ---- the selected detail ------------------------------------------------------
@@ -757,11 +766,10 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
     }
     if (census > 0) {
         // The catalog census, a different question from the position marker: that counts the
-        // list being navigated, this the whole reading. The verb agrees with the count.
-        const std::int64_t identities = static_cast<std::int64_t>(ui.reading.powers.size());
+        // list being navigated, this the whole catalog the door read. The verb agrees.
+        const std::int64_t identities = ui.reading.powers;
         say.say(fit(powers_said(identities) + (identities == 1 ? " resolves" : " resolve") +
-                        " here -- from " +
-                        providers_said(static_cast<std::int64_t>(ui.reading.providers.size())),
+                        " here -- from " + providers_said(ui.reading.providers),
                     columns),
                 surface::role::kMuted);
     }

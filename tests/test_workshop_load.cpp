@@ -22,6 +22,7 @@
 #include "workshop/load_plan.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/powers_door.hpp"
 #include "workshop/provenance.hpp"
 #include "workshop/recipes.hpp"
 #include "workshop/staging.hpp"
@@ -212,18 +213,23 @@ struct Answered {
     std::vector<workshop::ResolvedArrangement> arrangements;
     /// ...and the version 2 answers, which the door sends only to an office that accepts them.
     std::vector<workshop::v2::ResolvedArrangement> arrangements_v2;
-    std::vector<workshop::ResolvedPowers> powers;
+    std::vector<workshop::PowersFound> found;
+    std::vector<workshop::PowerDescribed> described;
     std::vector<bool> attested; ///< `mail.answers_ask()` on each answer, in arrival order
 };
 
 class Asker : public loom::WeaveBase<Asker, AskerState,
                                      loom::Accept<Nudge, workshop::ResolvedArrangement,
                                                   workshop::v2::ResolvedArrangement,
-                                                  workshop::ResolvedPowers>,
+                                                  workshop::PowersFound,
+                                                  workshop::PowerDescribed>,
                                      loom::Emit<workshop::ArrangementRequested,
-                                                workshop::PowersRequested>> {
+                                                workshop::DescribePower>> {
 public:
     explicit Asker(Answered& into) : into_(&into) {}
+
+    /// Who this asker is, for a sentence built as a value rather than a typed shape.
+    loom::WeaveId self() const noexcept { return self_; }
 
     void on(const Nudge&, loom::Mail& mail) {
         ++state_.nudges;
@@ -241,8 +247,12 @@ public:
         into_->arrangements_v2.push_back(a);
         into_->attested.push_back(mail.answers_ask());
     }
-    void on(const workshop::ResolvedPowers& p, loom::Mail& mail) {
-        into_->powers.push_back(p);
+    void on(const workshop::PowersFound& p, loom::Mail& mail) {
+        into_->found.push_back(p);
+        into_->attested.push_back(mail.answers_ask());
+    }
+    void on(const workshop::PowerDescribed& p, loom::Mail& mail) {
+        into_->described.push_back(p);
         into_->attested.push_back(mail.answers_ask());
     }
 
@@ -392,8 +402,7 @@ struct PlanRig {
     loom::WeaveId mount_door_over(const load::PlanExecutor& owner,
                                   std::string plan_path = std::string(),
                                   workshop::ArrangementDoor::Accepts accepts = {}) {
-        auto door = std::make_unique<workshop::ArrangementDoor>(owner, catalog,
-                                                                std::move(plan_path),
+        auto door = std::make_unique<workshop::ArrangementDoor>(owner, std::move(plan_path),
                                                                 std::move(accepts));
         workshop::ArrangementDoor* raw = door.get();
         loom::Grant say;
@@ -401,12 +410,25 @@ struct PlanRig {
                          workshop::ResolvedArrangement::zen_version);
         say.allow_to_any(workshop::v2::ResolvedArrangement::zen_name,
                          workshop::v2::ResolvedArrangement::zen_version);
-        say.allow_to_any(workshop::ResolvedPowers::zen_name,
-                         workshop::ResolvedPowers::zen_version);
         door_ = bus.register_weave(std::move(door), std::move(say),
                                    std::string(workshop::kArrangementRole));
         raw->zen_set_self(door_);
         return door_;
+    }
+
+    /// MOUNT THE HOST'S DISCOVERY DOOR over this rig's catalog, its grant spelled out as
+    /// `workshop.cpp` writes it: the two answers, to any.
+    loom::WeaveId mount_finder() {
+        auto door = std::make_unique<workshop::PowersDoor>(catalog);
+        workshop::PowersDoor* raw = door.get();
+        loom::Grant say;
+        say.allow_to_any(workshop::PowersFound::zen_name, workshop::PowersFound::zen_version);
+        say.allow_to_any(workshop::PowerDescribed::zen_name,
+                         workshop::PowerDescribed::zen_version);
+        finder_ = bus.register_weave(std::move(door), std::move(say),
+                                     std::string(workshop::kPowersRole));
+        raw->zen_set_self(finder_);
+        return finder_;
     }
 
     /// THE SAME DOOR, WIRED AS THE HOST WIRES IT: it reads, off this bus, whether the asking
@@ -430,15 +452,15 @@ struct PlanRig {
             });
     }
 
-    /// MOUNT AN ASKER IN AN OFFICE OF ITS OWN, granted exactly the two questions.
+    /// MOUNT AN ASKER IN AN OFFICE OF ITS OWN, granted exactly the arrangement's question and the
+    /// discovery door's two.
     loom::WeaveId mount_asker() {
         auto seat = std::make_unique<Asker>(projected);
         Asker* raw = seat.get();
         loom::Grant grant;
         grant.allow_to_any(workshop::ArrangementRequested::zen_name,
                            workshop::ArrangementRequested::zen_version);
-        grant.allow_to_any(workshop::PowersRequested::zen_name,
-                           workshop::PowersRequested::zen_version);
+        workshop::allow_finding_powers(grant);
         asker_seat_ = raw;
         asker_ = bus.register_weave(std::move(seat), std::move(grant), std::string(Asker::kOffice));
         raw->zen_set_self(asker_);
@@ -455,27 +477,37 @@ struct PlanRig {
         drain(8);
     }
 
-    /// The two askings, in the two authorship spellings.
+    /// The askings, in the two authorship spellings. `FindPowers` is a value at its own schema,
+    /// so it leaves through the bus as one.
     void ask_arrangement() {
         drive_asker([](Asker&, loom::Mail& m) {
             (void)m.as_role(Asker::kOffice)
                 .send_to_role(workshop::kArrangementRole, workshop::ArrangementRequested{});
         });
     }
-    void ask_powers() {
-        drive_asker([](Asker&, loom::Mail& m) {
-            (void)m.as_role(Asker::kOffice)
-                .send_to_role(workshop::kArrangementRole, workshop::PowersRequested{});
-        });
-    }
-    void ask_powers_personally() {
-        drive_asker([](Asker&, loom::Mail& m) {
-            (void)m.send_to_role(workshop::kArrangementRole, workshop::PowersRequested{});
-        });
-    }
     void ask_arrangement_personally() {
         drive_asker([](Asker&, loom::Mail& m) {
             (void)m.send_to_role(workshop::kArrangementRole, workshop::ArrangementRequested{});
+        });
+    }
+    void find_powers(workshop::FindPowers asked = {}) {
+        drive_asker([asked](Asker& a, loom::Mail& m) {
+            (void)m.bus().office_send_to_role(
+                Asker::kOffice, workshop::kPowersRole,
+                loom::Message(workshop::find_powers_value(asked), a.self(), loom::WeaveId{}, 0));
+        });
+    }
+    void find_powers_personally(workshop::FindPowers asked = {}) {
+        drive_asker([asked](Asker& a, loom::Mail& m) {
+            (void)m.bus().send_to_role(
+                workshop::kPowersRole,
+                loom::Message(workshop::find_powers_value(asked), a.self(), loom::WeaveId{}, 0));
+        });
+    }
+    void describe_power(std::string identity) {
+        drive_asker([identity](Asker&, loom::Mail& m) {
+            (void)m.as_role(Asker::kOffice)
+                .send_to_role(workshop::kPowersRole, workshop::DescribePower{identity});
         });
     }
 
@@ -491,6 +523,7 @@ struct PlanRig {
 
 private:
     loom::WeaveId door_{};
+    loom::WeaveId finder_{};
     loom::WeaveId asker_{};
     Asker* asker_seat_ = nullptr;
 };
@@ -508,37 +541,27 @@ const workshop::ArtifactParticipation* row_of(const workshop::ResolvedArrangemen
     return nullptr;
 }
 
-/// One power's projected stack, or nothing.
-const workshop::PowerStack* stack_of(const workshop::ResolvedPowers& said, const char* power) {
-    for (const workshop::PowerStack& p : said.powers) {
-        if (p.power == power) {
+/// One power's row in a door's answer, or nothing.
+const workshop::PowerRow* row_of(const workshop::PowersFound& said, const char* power) {
+    for (const workshop::PowerRow& p : said.rows) {
+        if (p.identity == power) {
             return &p;
         }
     }
     return nullptr;
 }
 
-/// WHO IS CURRENTLY ACTIVE FOR ONE POWER, read the way the shape says to read it: the
-/// LAST contribution of the stack. A helper rather than a repeated `back()`, so a case
-/// reads as the question it is asking.
-std::string active_provider(const workshop::ResolvedPowers& said, const char* power) {
-    const workshop::PowerStack* p = stack_of(said, power);
-    if (p == nullptr || p->contributions.empty()) {
-        return "(unresolved)";
-    }
-    return p->contributions.back().provider;
+/// WHO IS CURRENTLY ACTIVE FOR ONE POWER, as the door's row says it: the contribution in force.
+std::string active_provider(const workshop::PowersFound& said, const char* power) {
+    const workshop::PowerRow* p = row_of(said, power);
+    return p == nullptr ? std::string("(unresolved)") : p->provider;
 }
 
-/// Every provider shadowed UNDER the active one, deepest first.
-std::vector<std::string> shadowed_providers(const workshop::ResolvedPowers& said,
-                                            const char* power) {
+/// Every provider shadowed UNDER the one in force, deepest first, as the door describes them.
+std::vector<std::string> shadowed_providers(const workshop::PowerDescribed& said) {
     std::vector<std::string> out;
-    const workshop::PowerStack* p = stack_of(said, power);
-    if (p == nullptr) {
-        return out;
-    }
-    for (std::size_t i = 0; i + 1 < p->contributions.size(); ++i) {
-        out.push_back(p->contributions[i].provider);
+    for (std::size_t i = 0; i + 1 < said.stack.size(); ++i) {
+        out.push_back(said.stack[i].provider);
     }
     return out;
 }
@@ -1900,44 +1923,83 @@ TEST_CASE("an authored artifact the run never reached keeps its intent, marked")
     CHECK(said.artifacts[2].provider.empty());
 }
 
-// ---- the powers, and the store they come out of ------------------------------
+// ---- the powers, found through the discovery door ------------------------------
 
-TEST_CASE("powers are derived from the LIVE catalog, and every stack is whole") {
+namespace {
+
+/// The identities a door's answer listed, in its order.
+std::vector<std::string> identities_of(const workshop::PowersFound& said) {
+    std::vector<std::string> out;
+    for (const workshop::PowerRow& p : said.rows) {
+        out.push_back(p.identity);
+    }
+    return out;
+}
+
+/// What the door finds for one text, as identities.
+std::vector<std::string> found_by_text(const op::Catalog& catalog, std::string text) {
+    workshop::FindPowers asked;
+    asked.text = std::move(text);
+    return identities_of(workshop::find_powers(catalog, asked));
+}
+
+/// A native that answers a constant: a body nothing in these cases ever spends.
+std::int64_t never_spent(std::int64_t n) { return n; }
+
+} // namespace
+
+TEST_CASE("the discovery door's rows are read off the LIVE catalog, one per identity it resolves") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
                 .ok);
-    const workshop::ResolvedPowers said = workshop::describe_powers(rig.catalog);
+    const workshop::PowersFound said = workshop::find_powers(rig.catalog, {});
+    REQUIRE(said.ok);
 
-    // EVERY IDENTITY THE CATALOG RESOLVES, AND NOTHING ELSE. Compared against the
-    // catalog's own answer rather than against a written list, so a provider that grew
-    // a power tomorrow moves both sides together.
-    std::vector<std::string> projected;
-    for (const workshop::PowerStack& p : said.powers) {
-        projected.push_back(p.power);
+    // EVERY IDENTITY THE CATALOG RESOLVES, AND NOTHING ELSE, in the catalog's own order --
+    // compared with the catalog's answer, so a provider that grows a power moves both sides.
+    CHECK(identities_of(said) == rig.catalog.identities());
+    CHECK(said.total == static_cast<std::int64_t>(rig.catalog.size()));
+    CHECK(said.powers == static_cast<std::int64_t>(rig.catalog.size()));
+    CHECK(said.providers == static_cast<std::int64_t>(rig.catalog.providers().size()));
+    CHECK(said.next.empty());
+
+    // AND EACH ROW IS THE CONTRIBUTION `find` ANSWERS, read off that one definition, with a
+    // stack that is the whole stack.
+    for (const workshop::PowerRow& p : said.rows) {
+        const std::vector<op::Contribution> stack = rig.catalog.contributions(p.identity);
+        REQUIRE_FALSE(stack.empty());
+        const op::OperatorDef* active = rig.catalog.find(p.identity);
+        REQUIRE(active == stack.back().definition.get());
+        CHECK(p.provider == stack.back().provider);
+        CHECK((p.construction == workshop::kCompositeConstruction) == active->is_composite());
+        CHECK((p.kind == workshop::kSourceKind) == op::is_source(*active));
+        CHECK(p.about == active->description().about);
+        CHECK(p.offered == active->description().offered);
+        CHECK(p.inputs.content_id == static_cast<std::int64_t>(active->inputs()->content_id()));
+        CHECK(p.outputs.content_id == static_cast<std::int64_t>(active->outputs()->content_id()));
+        const workshop::PowerDescribed described = workshop::describe_power(rig.catalog, p.identity);
+        REQUIRE(described.ok);
+        CHECK(described.stack.size() == stack.size());
     }
-    CHECK(projected == rig.catalog.identities());
-    CHECK(said.providers == rig.catalog.providers());
 
-    // AND THE ACTIVE CONTRIBUTION IS THE ONE `find` ANSWERS, identity by identity --
-    // the one-store claim, checked against the very call an evaluation makes.
-    for (const workshop::PowerStack& p : said.powers) {
-        REQUIRE_FALSE(p.contributions.empty());
-        const op::OperatorDef* active = rig.catalog.find(p.power);
-        REQUIRE(active != nullptr);
-        CHECK(p.contributions.back().composite == active->is_composite());
-        CHECK(p.contributions.size() == rig.catalog.contributions(p.power).size());
-    }
-
-    // NATIVE AND COMPOSITE ARE THE DEFINITION'S OWN ANSWER, not a classifier: the
-    // Timer's delay rule is composed from two primitives and says so.
-    CHECK(active_provider(said, "math.max") == "zengine.operators.basic");
-    CHECK(stack_of(said, "math.max")->contributions.back().composite == false);
-    CHECK(active_provider(said, tmr::kNormalizeDelay) == "zengine.timer");
-    CHECK(stack_of(said, tmr::kNormalizeDelay)->contributions.back().composite == true);
+    // NATIVE AND COMPOSITE ARE THE DEFINITION'S OWN ANSWER, and so are the words and the ports,
+    // each type in Loom's own spelling.
+    const workshop::PowerRow* max = row_of(said, "math.max");
+    REQUIRE(max != nullptr);
+    CHECK(max->provider == "zengine.operators.basic");
+    CHECK(max->construction == workshop::kNativeConstruction);
+    CHECK(max->kind == workshop::kOperatorKind);
+    CHECK(max->about == "the larger of two integers");
+    CHECK(max->signature == "(lhs: Int, rhs: Int) -> result: Int");
+    const workshop::PowerRow* rule = row_of(said, tmr::kNormalizeDelay);
+    REQUIRE(rule != nullptr);
+    CHECK(rule->provider == "zengine.timer");
+    CHECK(rule->construction == workshop::kCompositeConstruction);
+    CHECK(rule->signature == "(delay_ms: Int, repeat: Bool) -> effective_delay: Int");
 }
 
-TEST_CASE("THE OVERLAY WITNESS -- baseline, covered, and revealed again") {
+TEST_CASE("THE OVERLAY WITNESS, through the door -- covered in its own words, and revealed again") {
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic"),
                                                      both("zengine-timer", tmr::kTimerRole)}));
@@ -1946,12 +2008,13 @@ TEST_CASE("THE OVERLAY WITNESS -- baseline, covered, and revealed again") {
 
     // ---- BASELINE -------------------------------------------------------------
     {
-        const workshop::ResolvedPowers said = workshop::describe_powers(rig.catalog);
+        const workshop::PowersFound said = workshop::find_powers(rig.catalog, {});
         CHECK(active_provider(said, "math.max") == "zengine.operators.basic");
-        CHECK(shadowed_providers(said, "math.max").empty());
+        CHECK(row_of(said, "math.max")->about == "the larger of two integers");
+        CHECK(shadowed_providers(workshop::describe_power(rig.catalog, "math.max")).empty());
     }
-    // ...and what the RUNNING Timer computes agrees, which is what makes the projection
-    // a fact about the system rather than about a data structure.
+    // ...and what the RUNNING Timer computes agrees, which is what makes the answer a fact
+    // about the system rather than about a data structure.
     CHECK(rig.scheduled_delay(timer, "beat", kAuthoredDelay, true) == kHonestAnswer);
 
     // ---- THE OVERLAY, MOUNTED AT RUN TIME AND NOT AUTHORED ANYWHERE ------------
@@ -1959,77 +2022,357 @@ TEST_CASE("THE OVERLAY WITNESS -- baseline, covered, and revealed again") {
         rig.catalog, stage().so("zengine-provider-min"), op::MountMode::Overlay);
     REQUIRE_MESSAGE(covered.ok, covered.reason);
     {
-        const workshop::ResolvedPowers said = workshop::describe_powers(rig.catalog);
+        const workshop::PowersFound said = workshop::find_powers(rig.catalog, {});
         CHECK(active_provider(said, "math.max") == "zengine.operators.test.min");
-        REQUIRE(shadowed_providers(said, "math.max").size() == 1);
-        CHECK(shadowed_providers(said, "math.max")[0] == "zengine.operators.basic");
+        // ...IN ITS OWN WORDS, which crossed with its contribution, while the covered one keeps
+        // its own underneath.
+        CHECK(row_of(said, "math.max")->about ==
+              "the smaller of two integers, supplied as math.max to substitute it");
+        const workshop::PowerDescribed stack = workshop::describe_power(rig.catalog, "math.max");
+        REQUIRE(stack.ok);
+        REQUIRE(shadowed_providers(stack) == std::vector<std::string>{"zengine.operators.basic"});
+        CHECK(stack.stack[0].about == "the larger of two integers");
+        CHECK(stack.stack[1].about == row_of(said, "math.max")->about);
         // THE COMPOSITE OVER IT MOVED WITHOUT BEING TOUCHED. Its own contribution is
         // unchanged and unshadowed; what changed is a leaf it names.
         CHECK(active_provider(said, tmr::kNormalizeDelay) == "zengine.timer");
-        CHECK(shadowed_providers(said, tmr::kNormalizeDelay).empty());
+        CHECK(shadowed_providers(workshop::describe_power(rig.catalog, tmr::kNormalizeDelay))
+                  .empty());
+        // AND A SEARCH BY WHAT IT IS FOR FINDS THE CONTRIBUTION IN FORCE BY ITS WORDS.
+        CHECK(found_by_text(rig.catalog, "smaller") == std::vector<std::string>{"math.max"});
+        CHECK(found_by_text(rig.catalog, "larger").empty());
     }
     // AND THE TIMER, NEITHER REBUILT NOR TOLD, NOW SCHEDULES THE OTHER ANSWER.
     CHECK(rig.scheduled_delay(timer, "beat2", kAuthoredDelay, true) == kOverlaidAnswer);
 
-    // ---- UNMOUNTED: THE ONE UNDERNEATH IS REVEALED, NOT REBUILT ----------------
-    const op::OperatorDef* before = rig.catalog.find("math.max");
+    // ---- UNMOUNTED: THE ONE UNDERNEATH IS REVEALED, WITH THE OLD WORDS ---------
     REQUIRE(rig.catalog.unmount("zengine.operators.test.min"));
     {
-        const workshop::ResolvedPowers said = workshop::describe_powers(rig.catalog);
+        const workshop::PowersFound said = workshop::find_powers(rig.catalog, {});
         CHECK(active_provider(said, "math.max") == "zengine.operators.basic");
-        CHECK(shadowed_providers(said, "math.max").empty());
+        CHECK(row_of(said, "math.max")->about == "the larger of two integers");
+        CHECK(shadowed_providers(workshop::describe_power(rig.catalog, "math.max")).empty());
+        CHECK(found_by_text(rig.catalog, "larger") == std::vector<std::string>{"math.max"});
     }
-    CHECK(rig.catalog.find("math.max") != before);
     CHECK(rig.scheduled_delay(timer, "beat3", kAuthoredDelay, true) == kHonestAnswer);
 }
 
-TEST_CASE("a provider nobody wrote into the projection appears anyway") {
-    // THE GENERICITY WITNESS. `zengine-provider-a` supplies three identities this
-    // repository's panes and projections have never heard of, two of them composite.
-    // Nothing in `workshop/arrangement.hpp` or `introspection/resolved.hpp` names any
-    // of them, and there is no branch for a provider that is not one of the shipped
-    // two -- so appearing is what a projection over the store DOES.
+TEST_CASE("a provider nobody wrote into the door appears anyway") {
+    // THE GENERICITY WITNESS. `zengine-provider-a` supplies three identities this repository's
+    // panes and doors have never heard of, two of them composite, and nothing names any of them.
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
-    CHECK(stack_of(workshop::describe_powers(rig.catalog), "prov.function.1") == nullptr);
+    CHECK(row_of(workshop::find_powers(rig.catalog, {}), "prov.function.1") == nullptr);
 
     const op::MountResult added =
         op::mount_provider(rig.catalog, stage().so("zengine-provider-a"), op::MountMode::Ordinary);
     REQUIRE_MESSAGE(added.ok, added.reason);
 
-    const workshop::ResolvedPowers said = workshop::describe_powers(rig.catalog);
+    const workshop::PowersFound said = workshop::find_powers(rig.catalog, {});
     for (const char* power : {"prov.function.1", "prov.function.2", "prov.function.3"}) {
-        REQUIRE_MESSAGE(stack_of(said, power) != nullptr, power);
+        REQUIRE_MESSAGE(row_of(said, power) != nullptr, power);
         CHECK(active_provider(said, power) == "zengine.provider.a");
     }
     // ...and the leaf is native while the two over it are composed, straight off the
     // definitions and with nothing here classifying anything.
-    CHECK(stack_of(said, "prov.function.3")->contributions.back().composite == false);
-    CHECK(stack_of(said, "prov.function.2")->contributions.back().composite == true);
-    CHECK(stack_of(said, "prov.function.1")->contributions.back().composite == true);
+    CHECK(row_of(said, "prov.function.3")->construction == workshop::kNativeConstruction);
+    CHECK(row_of(said, "prov.function.2")->construction == workshop::kCompositeConstruction);
+    CHECK(row_of(said, "prov.function.1")->construction == workshop::kCompositeConstruction);
     // The shipped powers are untouched beside them.
     CHECK(active_provider(said, "math.max") == "zengine.operators.basic");
 }
 
-TEST_CASE("the host published nothing, so no contribution claims the host") {
+TEST_CASE("the host published nothing, so no row and no layer claims the host") {
     // `workshop.cpp` authors no operator, so the empty `provider` -- `op::Contribution`'s word
     // for "the host itself published this" -- appears nowhere in a Workshop-shaped arrangement.
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
                 .ok);
-    const workshop::ResolvedPowers said = workshop::describe_powers(rig.catalog);
-    REQUIRE_FALSE(said.powers.empty());
-    for (const workshop::PowerStack& p : said.powers) {
-        for (const workshop::PowerContribution& c : p.contributions) {
-            CHECK_FALSE(c.provider.empty());
+    const workshop::PowersFound said = workshop::find_powers(rig.catalog, {});
+    REQUIRE_FALSE(said.rows.empty());
+    for (const workshop::PowerRow& p : said.rows) {
+        CHECK_FALSE(p.provider.empty());
+        for (const workshop::PowerLayer& layer :
+             workshop::describe_power(rig.catalog, p.identity).stack) {
+            CHECK_FALSE(layer.provider.empty());
         }
     }
 }
 
-// ---- the door: who may ask, what crosses, and what it keeps -------------------
+TEST_CASE("text finds a power by its identity or by what it is for, every term, never ranked") {
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 both("zengine-timer", tmr::kTimerRole)}))
+                .ok);
+    // BY PURPOSE: no identity says "larger"; the contributor's words do.
+    CHECK(found_by_text(rig.catalog, "larger") == std::vector<std::string>{"math.max"});
+    CHECK(found_by_text(rig.catalog, "LARGER Integers") == std::vector<std::string>{"math.max"});
+    // BY IDENTITY, in any case.
+    CHECK(found_by_text(rig.catalog, "MATH") == std::vector<std::string>{"math.max"});
+    CHECK(found_by_text(rig.catalog, ".select_") ==
+          std::vector<std::string>{"logic.select_bool", "logic.select_int"});
+    // EVERY TERM MUST BE FOUND, and the terms may be found in different places: one in the
+    // identity, one in the words.
+    CHECK(found_by_text(rig.catalog, "larger nonsense").empty());
+    CHECK(found_by_text(rig.catalog, "math integers") == std::vector<std::string>{"math.max"});
+    // AN EMPTY OR BLANK TEXT ASKS NOTHING OF A ROW.
+    CHECK(found_by_text(rig.catalog, "").size() == rig.catalog.size());
+    CHECK(found_by_text(rig.catalog, " \t ").size() == rig.catalog.size());
+    // AND NOTHING IS RANKED: what matches comes back in the catalog's order.
+    CHECK(found_by_text(rig.catalog, "chosen by a condition") ==
+          std::vector<std::string>{"logic.select_bool", "logic.select_int"});
+}
 
-TEST_CASE("the door answers an OFFICE, and answers anonymous speech nothing") {
+TEST_CASE("bytes at or above 0x80 compare exactly, and the ASCII half still folds") {
+    // NO LOCALE AND NO UNICODE FOLDING. The door's matching folds ASCII, and a byte outside it
+    // is compared for what it is rather than for what some table thinks it means.
+    op::Catalog catalog;
+    catalog.publish(op::make_operator<&never_spent>("na\xC3\xAFve.thing", {"n"}, "value",
+                                                    "caf\xC3\xA9 arithmetic"));
+    const std::vector<std::string> it{"na\xC3\xAFve.thing"};
+    CHECK(found_by_text(catalog, "\xC3\xAF") == it);
+    CHECK(found_by_text(catalog, "\xC3\x8F").empty()); // the other case, byte-wise
+    CHECK(found_by_text(catalog, "NA") == it);
+    CHECK(found_by_text(catalog, "CAF\xC3\xA9") == it);
+    CHECK(found_by_text(catalog, "CAF\xC3\x89").empty());
+}
+
+TEST_CASE("takes and yields are Loom's own spelling of a port's type") {
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 both("zengine-timer", tmr::kTimerRole)}))
+                .ok);
+    const auto found = [&rig](workshop::FindPowers asked) {
+        return identities_of(workshop::find_powers(rig.catalog, asked));
+    };
+    workshop::FindPowers asked;
+    asked.yields = "Bool";
+    CHECK(found(asked) == std::vector<std::string>{"compare.less_int", "logic.select_bool"});
+    asked = {};
+    asked.takes = "Bool";
+    CHECK(found(asked) == std::vector<std::string>{"logic.select_bool", "logic.select_int",
+                                                   tmr::kNormalizeDelay});
+    asked.yields = "Int";
+    CHECK(found(asked) == std::vector<std::string>{"logic.select_int", tmr::kNormalizeDelay});
+    // A SPELLING LOOM DOES NOT USE MATCHES NOTHING: the query is compared, never interpreted.
+    asked = {};
+    asked.yields = "int";
+    CHECK(found(asked).empty());
+
+    // AND A MESSAGE PORT IS SPELLED AS LOOM SPELLS IT, version and all.
+    const auto reading = loom::SchemaBuilder("test.Reading", 1).field("value", loom::Kind::Int).build();
+    op::Catalog catalog;
+    catalog.publish(op::OperatorDef(
+        "test.read",
+        loom::make_schema("test.read.in", 1,
+                          {loom::Field{"reading", loom::type_message(reading), true}}),
+        loom::make_schema("test.read.out", 1,
+                          {loom::Field{"value", loom::type_of(loom::Kind::Int), true}}),
+        [](const loom::Value&) { return loom::Cell::integer(0); }));
+    asked = {};
+    asked.takes = "Message(test.Reading v1)";
+    CHECK(identities_of(workshop::find_powers(catalog, asked)) ==
+          std::vector<std::string>{"test.read"});
+    asked.takes = "Message(test.Reading v2)";
+    CHECK(identities_of(workshop::find_powers(catalog, asked)).empty());
+}
+
+TEST_CASE("kind, construction, provider and offered filter, and a conversion is an operator too") {
+    // THE KIND IS READ OFF THE DEFINITION, never off a name: `source.looks.like.one` takes an
+    // argument and `math.looks.like.op` takes none, and each lands where its shape says.
+    op::Catalog primitives;
+    op::publish_primitives(primitives);
+    op::Builder b(primitives, "test.composite",
+                  {loom::Field{"n", loom::type_of(loom::Kind::Int), true}});
+    const op::Builder::Ref floor = b.call(op::kMaxInt, {b.input("n"), b.constant(std::int64_t{0})});
+    const op::OperatorDef composed = std::move(b).result("value", floor, "never below zero");
+    const auto empty_in = [](const char* id) {
+        return loom::make_schema(std::string(id) + ".in", 1, std::vector<loom::Field>());
+    };
+    const auto int_out = [](const char* id) {
+        return loom::make_schema(std::string(id) + ".out", 1,
+                                 {loom::Field{"value", loom::type_of(loom::Kind::Int), true}});
+    };
+    const auto constant = [](const loom::Value&) { return loom::Cell::integer(1); };
+    const auto v1 = loom::SchemaBuilder("test.Setting", 1).field("a", loom::Kind::Int).build();
+    const auto v2 = loom::SchemaBuilder("test.Setting", 2).field("a", loom::Kind::Int).build();
+
+    op::Catalog catalog;
+    REQUIRE(catalog.mount("test.basic", {op::make_operator<&never_spent>(
+                                             "source.looks.like.one", {"n"}, "value")}));
+    REQUIRE(catalog.mount("test.host", {op::OperatorDef("math.looks.like.op",
+                                                        empty_in("math.looks.like.op"),
+                                                        int_out("math.looks.like.op"), constant)}));
+    REQUIRE(catalog.mount("test.composed", {composed}));
+    REQUIRE(catalog.mount("test.history",
+                          {op::make_migration(v1, v2, [](const loom::Value& old) {
+                              return loom::Cell::message(old);
+                          })}));
+    REQUIRE(catalog.mount("test.maker.r1",
+                          {op::OperatorDef("test.r1.on.x", empty_in("test.r1.on.x"),
+                                           int_out("test.r1.on.x"), constant,
+                                           op::Description{"its own", false})}));
+    const std::string edge = op::migration_identity(*v1, *v2);
+    const auto found = [&catalog](workshop::FindPowers asked) {
+        return identities_of(workshop::find_powers(catalog, asked));
+    };
+
+    workshop::FindPowers asked;
+    asked.kind = workshop::kSourceKind;
+    CHECK(found(asked) == std::vector<std::string>{"math.looks.like.op", "test.r1.on.x"});
+    asked.kind = workshop::kConversionKind;
+    CHECK(found(asked) == std::vector<std::string>{edge});
+    asked.kind = workshop::kOperatorKind; // a conversion is an operator whose signature is the edge
+    CHECK(found(asked) == std::vector<std::string>{"source.looks.like.one", "test.composite", edge});
+    asked = {};
+    asked.construction = workshop::kCompositeConstruction;
+    CHECK(found(asked) == std::vector<std::string>{"test.composite"});
+    asked = {};
+    asked.provider = "test.history";
+    CHECK(found(asked) == std::vector<std::string>{edge});
+    asked = {};
+    asked.offered = false;
+    CHECK(found(asked) == std::vector<std::string>{"test.r1.on.x"});
+    asked.offered = true;
+    CHECK(found(asked).size() == catalog.size() - 1);
+    // ...AND THE ROW SAYS WHICH, in the door's word for each.
+    const workshop::PowersFound everything = workshop::find_powers(catalog, {});
+    const workshop::PowerRow* conversion = row_of(everything, edge.c_str());
+    REQUIRE(conversion != nullptr);
+    CHECK(conversion->kind == workshop::kConversionKind);
+}
+
+TEST_CASE("a page continues after an identity, and total counts the whole query") {
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 both("zengine-timer", tmr::kTimerRole)}))
+                .ok);
+    workshop::FindPowers page;
+    page.limit = 2;
+    const workshop::PowersFound first = workshop::find_powers(rig.catalog, page);
+    CHECK(identities_of(first) ==
+          std::vector<std::string>{"compare.less_int", "logic.select_bool"});
+    CHECK(first.next == "logic.select_bool");
+    CHECK(first.total == 5);
+    page.after = first.next;
+    const workshop::PowersFound second = workshop::find_powers(rig.catalog, page);
+    CHECK(identities_of(second) == std::vector<std::string>{"logic.select_int", "math.max"});
+    CHECK(second.next == "math.max");
+    CHECK(second.total == 5);
+    page.after = second.next;
+    const workshop::PowersFound last = workshop::find_powers(rig.catalog, page);
+    CHECK(identities_of(last) == std::vector<std::string>{tmr::kNormalizeDelay});
+    CHECK(last.next.empty());
+
+    // AN `after` NOTHING SUPPLIES STILL PLACES A PAGE: a position in the catalog's order, not a
+    // handle the door would have had to keep.
+    page.after = "logic.zzz";
+    CHECK(identities_of(workshop::find_powers(rig.catalog, page)) ==
+          std::vector<std::string>{"math.max", tmr::kNormalizeDelay});
+
+    // ...AND A FILTERED QUERY PAGES THE SAME WAY, its total the filter's.
+    workshop::FindPowers ints;
+    ints.yields = "Int";
+    ints.limit = 1;
+    const workshop::PowersFound one = workshop::find_powers(rig.catalog, ints);
+    CHECK(identities_of(one) == std::vector<std::string>{"logic.select_int"});
+    CHECK(one.total == 3);
+    CHECK(one.next == "logic.select_int");
+}
+
+TEST_CASE("an ask past a bound is refused in words, and nothing is found") {
+    op::Catalog catalog;
+    REQUIRE(catalog.mount("test.basic", op::primitive_definitions()));
+    const auto refused = [&catalog](workshop::FindPowers asked) {
+        const workshop::PowersFound said = workshop::find_powers(catalog, asked);
+        CHECK_FALSE(said.ok);
+        CHECK(said.rows.empty());
+        CHECK(said.next.empty());
+        return said.reason;
+    };
+
+    // THE QUERY'S TEXT, every field together: at the bound it is answered, past it refused.
+    workshop::FindPowers at;
+    at.text = std::string(workshop::kMaxPowersQueryBytes, 'x');
+    CHECK(workshop::find_powers(catalog, at).ok);
+    workshop::FindPowers spread;
+    spread.text = std::string(workshop::kMaxPowersQueryBytes / 2 + 1, 'x');
+    spread.provider = std::string(workshop::kMaxPowersQueryBytes / 2, 'y');
+    CHECK(refused(spread) == "a query carries at most " +
+                                 std::to_string(workshop::kMaxPowersQueryBytes) +
+                                 " bytes of text; this one carries " +
+                                 std::to_string(workshop::kMaxPowersQueryBytes + 1));
+
+    // THE PAGE.
+    workshop::FindPowers none;
+    none.limit = 0;
+    CHECK(refused(none) == "a page holds 1 to " + std::to_string(workshop::kMaxPowerRows) +
+                               " rows; 0 were asked for");
+    workshop::FindPowers many;
+    many.limit = workshop::kMaxPowerRows + 1;
+    CHECK(refused(many).find(std::to_string(workshop::kMaxPowerRows + 1) + " were asked for") !=
+          std::string::npos);
+    workshop::FindPowers most;
+    most.limit = workshop::kMaxPowerRows;
+    CHECK(workshop::find_powers(catalog, most).ok);
+
+    // THE WORDS A KIND OR A CONSTRUCTION IS ASKED IN.
+    workshop::FindPowers kind;
+    kind.kind = "sources";
+    CHECK(refused(kind) ==
+          "a kind is source, operator or conversion; 'sources' is none of them");
+    workshop::FindPowers built;
+    built.construction = "compound";
+    CHECK(refused(built) == "a construction is native or composite; 'compound' is neither");
+
+    // THE ANSWER'S CEILING: a hundred identities long enough that a full page passes a mebibyte.
+    op::Catalog wide;
+    for (int i = 0; i < 100; ++i) {
+        wide.publish(op::make_operator<&never_spent>(
+            std::string(4000, 'p') + std::to_string(1000 + i), {"n"}, "value"));
+    }
+    const workshop::PowersFound whole = workshop::find_powers(wide, {});
+    CHECK_FALSE(whole.ok);
+    CHECK(whole.rows.empty());
+    CHECK(whole.reason.find("an answer carries at most " +
+                            std::to_string(workshop::kMaxPowersAnswerBytes) +
+                            "; ask for fewer with limit") != std::string::npos);
+    workshop::FindPowers fewer;
+    fewer.limit = 50;
+    const workshop::PowersFound half = workshop::find_powers(wide, fewer);
+    CHECK(half.ok);
+    CHECK(half.rows.size() == 50);
+
+    // AND A DESCRIPTION: an identity past the bound, one nothing supplies, and one whose answer
+    // would pass the ceiling are each refused in words.
+    CHECK(workshop::describe_power(catalog, std::string(workshop::kMaxPowersQueryBytes + 1, 'z'))
+              .reason.find("a query carries at most") != std::string::npos);
+    const workshop::PowerDescribed absent = workshop::describe_power(catalog, "no.such.power");
+    CHECK_FALSE(absent.ok);
+    CHECK(absent.reason == "nothing supplies 'no.such.power' here");
+    // A composite of forty thousand steps: a short row, and a contribution past a mebibyte.
+    op::Catalog heavy;
+    op::publish_primitives(heavy);
+    op::Builder chain(heavy, "test.heavy",
+                      {loom::Field{"n", loom::type_of(loom::Kind::Int), true}});
+    op::Builder::Ref step = chain.input("n");
+    for (int i = 0; i < 40000; ++i) {
+        step = chain.call(op::kMaxInt, {step, chain.constant(std::int64_t{0})});
+    }
+    heavy.publish(std::move(chain).result("value", step));
+    workshop::FindPowers named;
+    named.text = "test.heavy";
+    CHECK(workshop::find_powers(heavy, named).ok);
+    const workshop::PowerDescribed huge = workshop::describe_power(heavy, "test.heavy");
+    CHECK_FALSE(huge.ok);
+    CHECK(huge.contribution.empty());
+    CHECK(huge.reason.find("an answer carries at most") != std::string::npos);
+}
+
+// ---- the doors: who may ask, what crosses, and what they keep -------------------
+
+TEST_CASE("the arrangement door answers an OFFICE, and answers anonymous speech nothing") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     rig.mount_door("plan.json");
@@ -2037,37 +2380,64 @@ TEST_CASE("the door answers an OFFICE, and answers anonymous speech nothing") {
 
     // PERSONAL SPEECH FROM A WEAVE THAT HOLDS AN OFFICE. Holding is not speaking-for,
     // and the door has nobody nameable to be answerable to.
-    rig.ask_powers_personally();
     rig.ask_arrangement_personally();
-    CHECK(rig.projected.powers.empty());
     CHECK(rig.projected.arrangements.empty());
 
-    // ...and the deliberately authored ones are answered, so the refusals above are
-    // about AUTHORSHIP and not about the door having stopped talking.
-    rig.ask_powers();
+    // ...and the deliberately authored one is answered, so the refusal above is about
+    // AUTHORSHIP and not about the door having stopped talking.
     rig.ask_arrangement();
-    REQUIRE(rig.projected.powers.size() == 1);
     REQUIRE(rig.projected.arrangements.size() == 1);
     CHECK(rig.projected.arrangements[0].plan == "plan.json");
 
-    // EVERY ANSWER CAME BACK THROUGH LOOM'S ANSWER DOOR, attested. That is the bound an
+    // THE ANSWER CAME BACK THROUGH LOOM'S ANSWER DOOR, attested. That is the bound an
     // asker cannot forge and a stranger cannot supply, and it is why the loaded tool
     // checks `answers_ask()` before it projects a row.
-    REQUIRE(rig.projected.attested.size() == 2);
+    REQUIRE(rig.projected.attested.size() == 1);
+    CHECK(rig.projected.attested[0]);
+}
+
+TEST_CASE("the discovery door answers whoever asked -- an office, or one speaking for itself -- "
+          "and a root's send nothing") {
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
+    const loom::WeaveId finder = rig.mount_finder();
+    rig.mount_asker();
+
+    // AN OFFICE, AND A PARTICIPANT SPEAKING FOR ITSELF AS THE TERMINAL DOES: both are somebody
+    // an answer can go to, and both get the same rows -- one question, one answer.
+    workshop::FindPowers asked;
+    asked.text = "larger";
+    rig.find_powers(asked);
+    rig.find_powers_personally(asked);
+    REQUIRE(rig.projected.found.size() == 2);
+    CHECK(identities_of(rig.projected.found[0]) == std::vector<std::string>{"math.max"});
+    CHECK(loom::serialize(loom::to_value(rig.projected.found[0])) ==
+          loom::serialize(loom::to_value(rig.projected.found[1])));
     for (const bool attested : rig.projected.attested) {
         CHECK(attested);
     }
+
+    // A ROOT'S SEND HAS NOBODY TO ANSWER, and is counted rather than answered.
+    (void)rig.bus.send_to_role(workshop::kPowersRole,
+                               loom::Message(workshop::find_powers_value(asked)));
+    rig.drain(8);
+    CHECK(rig.projected.found.size() == 2);
+    const workshop::PowersDoorState kept =
+        loom::from_value<workshop::PowersDoorState>(rig.bus.weave(finder)->snapshot());
+    CHECK(kept.found == 2);
+    CHECK(kept.unanswered == 1);
 }
 
-TEST_CASE("the door speaks ONLY when asked -- there is no beat in it") {
+TEST_CASE("the doors speak ONLY when asked -- there is no beat in them") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     const loom::WeaveId door = rig.mount_door();
+    const loom::WeaveId finder = rig.mount_finder();
     rig.mount_asker();
 
     std::vector<std::string> said;
     const loom::ObserverId tap = rig.bus.add_observer([&](const loom::BusEvent& e) {
-        if (e.sender == door && !e.schema_name.empty()) {
+        if ((e.sender == door || e.sender == finder) && !e.schema_name.empty()) {
             said.push_back(e.schema_name);
         }
     });
@@ -2077,48 +2447,90 @@ TEST_CASE("the door speaks ONLY when asked -- there is no beat in it") {
     rig.drain(64);
     CHECK(said.empty());
 
-    rig.ask_powers();
     rig.ask_arrangement();
+    rig.find_powers();
+    rig.describe_power("math.max");
     rig.bus.remove_observer(tap);
 
-    // TWO ASKS, TWO ANSWERS, AND NOTHING ELSE IN THE WHOLE VOCABULARY. The negative
-    // half is the interesting one: knowing what every provider supplies did not come
-    // with a way to touch any of it.
+    // THREE ASKS, THREE ANSWERS, AND NOTHING ELSE IN EITHER VOCABULARY. The negative half is the
+    // interesting one: knowing what every provider supplies did not come with a way to touch any
+    // of it.
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
-    const std::vector<std::string> allowed{"ResolvedArrangement", "ResolvedPowers"};
+    const std::vector<std::string> allowed{"PowerDescribed", "PowersFound", "ResolvedArrangement"};
     CHECK(distinct == allowed);
-    CHECK(said.size() == 2);
+    CHECK(said.size() == 3);
 }
 
-TEST_CASE("the door keeps nothing, so a change between two asks is in the second") {
+TEST_CASE("the discovery door keeps nothing, so an overlay mounted after an ask is in the next "
+          "answer with its own words, and its unmount restores the old ones") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
                 .ok);
-    rig.mount_door();
+    rig.mount_finder();
     rig.mount_asker();
 
-    rig.ask_powers();
-    REQUIRE(rig.projected.powers.size() == 1);
-    CHECK(active_provider(rig.projected.powers[0], "math.max") == "zengine.operators.basic");
+    rig.find_powers();
+    REQUIRE(rig.projected.found.size() == 1);
+    CHECK(active_provider(rig.projected.found[0], "math.max") == "zengine.operators.basic");
 
     // NOTHING NOTIFIES ANYBODY. The overlay is mounted straight into the host's own
     // catalog, the door is not told, no event exists to tell it, and nothing polls.
     const op::MountResult covered = op::mount_provider(
         rig.catalog, stage().so("zengine-provider-min"), op::MountMode::Overlay);
     REQUIRE_MESSAGE(covered.ok, covered.reason);
-    CHECK(rig.projected.powers.size() == 1); // no answer arrived on its own
+    CHECK(rig.projected.found.size() == 1); // no answer arrived on its own
 
-    rig.ask_powers();
-    REQUIRE(rig.projected.powers.size() == 2);
-    CHECK(active_provider(rig.projected.powers[1], "math.max") == "zengine.operators.test.min");
-    REQUIRE(shadowed_providers(rig.projected.powers[1], "math.max").size() == 1);
-    CHECK(shadowed_providers(rig.projected.powers[1], "math.max")[0] == "zengine.operators.basic");
+    rig.find_powers();
+    rig.describe_power("math.max");
+    REQUIRE(rig.projected.found.size() == 2);
+    REQUIRE(rig.projected.described.size() == 1);
+    CHECK(active_provider(rig.projected.found[1], "math.max") == "zengine.operators.test.min");
+    CHECK(row_of(rig.projected.found[1], "math.max")->about ==
+          "the smaller of two integers, supplied as math.max to substitute it");
+    REQUIRE(shadowed_providers(rig.projected.described[0]) ==
+            std::vector<std::string>{"zengine.operators.basic"});
+    CHECK(rig.projected.described[0].stack[0].about == "the larger of two integers");
     // THE FIRST ANSWER IS UNMOVED, because it was a value the asker already holds and
     // not a window onto anything.
-    CHECK(active_provider(rig.projected.powers[0], "math.max") == "zengine.operators.basic");
+    CHECK(active_provider(rig.projected.found[0], "math.max") == "zengine.operators.basic");
+
+    REQUIRE(rig.catalog.unmount("zengine.operators.test.min"));
+    rig.find_powers();
+    REQUIRE(rig.projected.found.size() == 3);
+    CHECK(active_provider(rig.projected.found[2], "math.max") == "zengine.operators.basic");
+    CHECK(row_of(rig.projected.found[2], "math.max")->about == "the larger of two integers");
+}
+
+TEST_CASE("browsing through the discovery door runs no operator at all") {
+    // THE FINDING HALF OF THE ZERO-EVALUATION CLAIM, at the door: every question it answers --
+    // find by text, by shape, by kind, a page, and a description with its contribution's bytes --
+    // reads definitions and runs none of them, native or composite.
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 both("zengine-timer", tmr::kTimerRole)}))
+                .ok);
+    rig.mount_finder();
+    rig.mount_asker();
+    const std::uint64_t ran_before = op::invocations();
+    workshop::FindPowers asked;
+    rig.find_powers(asked);
+    asked.text = "larger";
+    rig.find_powers(asked);
+    asked = {};
+    asked.yields = "Int";
+    asked.kind = workshop::kOperatorKind;
+    asked.limit = 1;
+    rig.find_powers(asked);
+    rig.find_powers_personally();
+    for (const std::string& identity : rig.catalog.identities()) {
+        rig.describe_power(identity);
+    }
+    CHECK(rig.projected.found.size() == 4);
+    CHECK(rig.projected.described.size() == rig.catalog.size());
+    CHECK(op::invocations() == ran_before);
 }
 
 TEST_CASE("what crosses is a VALUE -- it survives bytes and holds no address") {
@@ -2128,11 +2540,13 @@ TEST_CASE("what crosses is a VALUE -- it survives bytes and holds no address") {
                 .ok);
     const workshop::ResolvedArrangement arrangement =
         workshop::describe_arrangement(rig.executor, "p.json");
-    const workshop::ResolvedPowers powers = workshop::describe_powers(rig.catalog);
+    const workshop::PowersFound found = workshop::find_powers(rig.catalog, {});
+    const workshop::PowerDescribed rule = workshop::describe_power(rig.catalog, tmr::kNormalizeDelay);
+    REQUIRE(rule.ok);
 
     // THE ROUND TRIP A STRANGER WOULD PERFORM. In-process Loom hands a value across
     // without serializing, so this is the claim made deliberately rather than
-    // incidentally: everything the door says is expressible as bytes and admittable at
+    // incidentally: everything the doors say is expressible as bytes and admittable at
     // the reader's own schema, which is exactly what a `Catalog*` or a
     // `std::vector<ResolvedArtifact>&` would not be.
     {
@@ -2149,15 +2563,30 @@ TEST_CASE("what crosses is a VALUE -- it survives bytes and holds no address") {
         CHECK(back.artifacts[1].authored_role == arrangement.artifacts[1].authored_role);
     }
     {
-        const loom::Unverified u = loom::parse(loom::serialize(loom::to_value(powers)));
-        const loom::Admission ok = loom::admit(u, loom::schema_of<workshop::ResolvedPowers>());
+        const loom::Unverified u = loom::parse(loom::serialize(loom::to_value(found)));
+        const loom::Admission ok = loom::admit(u, loom::schema_of<workshop::PowersFound>());
         REQUIRE_MESSAGE(ok.ok(), "powers did not admit");
-        const workshop::ResolvedPowers back =
-            loom::from_value<workshop::ResolvedPowers>(ok.value());
-        CHECK(back.providers == powers.providers);
-        REQUIRE(back.powers.size() == powers.powers.size());
-        CHECK(active_provider(back, "math.max") == active_provider(powers, "math.max"));
-        CHECK(stack_of(back, tmr::kNormalizeDelay)->contributions.back().composite);
+        const workshop::PowersFound back = loom::from_value<workshop::PowersFound>(ok.value());
+        CHECK(identities_of(back) == identities_of(found));
+        CHECK(active_provider(back, "math.max") == active_provider(found, "math.max"));
+        CHECK(row_of(back, "math.max")->about == "the larger of two integers");
+    }
+    // ...AND A DESCRIPTION'S CONTRIBUTION IS THE PROVIDER SEAM'S OWN BYTES: admitted at
+    // `zengine.OperatorContribution`, it decodes to the rule's own signature, graph and words.
+    {
+        const std::string bytes(rule.contribution.begin(), rule.contribution.end());
+        const loom::Admission ok = op::admit_contribution(loom::parse(bytes));
+        REQUIRE_MESSAGE(ok.ok(), ok.first_error().message());
+        const op::DecodedContribution decoded = op::decode_contribution(ok.value());
+        const op::OperatorDef* in_force = rig.catalog.find(tmr::kNormalizeDelay);
+        REQUIRE(in_force != nullptr);
+        CHECK(decoded.identity == tmr::kNormalizeDelay);
+        CHECK(loom::same_identity(*decoded.inputs, *in_force->inputs()));
+        CHECK(loom::same_identity(*decoded.outputs, *in_force->outputs()));
+        REQUIRE(decoded.composition.has_value());
+        CHECK(decoded.composition->nodes.size() == in_force->composition()->nodes.size());
+        CHECK(decoded.description.about == in_force->description().about);
+        CHECK(decoded.description.offered);
     }
 }
 
@@ -3304,9 +3733,9 @@ TEST_CASE("the arrangement is truthful BEFORE, DURING and AFTER realization") {
 
         // ...AND THE POWER IS VISIBLE THROUGH THE QUESTION THAT OWNS IT. Two questions,
         // two owners, two currencies -- the catalog is read live, so the mount that the
-        // arrangement is not yet claiming is already in `ResolvedPowers`.
+        // arrangement is not yet claiming is already in the discovery door's answer.
         CHECK(rig.catalog.mounted("zengine.timer"));
-        CHECK(stack_of(workshop::describe_powers(rig.catalog), "timer.normalize_delay") !=
+        CHECK(row_of(workshop::find_powers(rig.catalog, {}), "timer.normalize_delay") !=
               nullptr);
     }
 

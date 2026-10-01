@@ -53,7 +53,9 @@ inline op::OperatorDef normalize_delay(const op::Catalog& primitives) {
     const op::Builder::Ref effective =
         rule.call(op::kSelectInt, {rule.input(kRepeatPort), floor_one, floor_zero});
 
-    return std::move(rule).result(kEffectiveDelayPort, effective);
+    return std::move(rule).result(kEffectiveDelayPort, effective,
+                                  "the delay a Timer schedules for an authored delay: never "
+                                  "negative, and at least 1 ms when it repeats");
 }
 
 /// What this package contributes to a host: its composition, and not one primitive. The catalog

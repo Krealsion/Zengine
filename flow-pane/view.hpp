@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 #ifndef ZENGINE_FLOW_PANE_VIEW_HPP
 #define ZENGINE_FLOW_PANE_VIEW_HPP
+#include "flow-pane/find.hpp"
 #include "flow-pane/model.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "surface/pointing.hpp"
@@ -300,29 +301,109 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     }
     const auto &on = def.on.at(model.trigger());
     y += unit;
-    label(0, y, "Sources (click to wire)", ink::kAccent);
-    y += unit;
-    auto input_row = [&](const loom::Field &f, bool state) {
-      if (y >= bottom)
-        return;
-      label(0, y,
-            (state ? "state." : "input.") + f.name + " : " +
-                loom::name_of(f.type.kind));
-      view.hits.push_back({0, y, 21 * unit, unit, "source-field", {f.name}, 0});
+    // THE SEARCH LINE, the one field outside a dialog: typing reaches it with no gesture.
+    {
+      const std::string prefix = "find: ";
+      auto text = model.search;
+      const auto columns = std::max(std::int64_t{1},
+                                    21 - static_cast<std::int64_t>(prefix.size()));
+      text.keep_caret_visible(columns);
+      label(0, y, prefix + text.visible(columns));
+      auto &run = view.content.texts.back();
+      const auto prefix_columns = static_cast<std::int64_t>(prefix.size());
+      run.caret_col = prefix_columns + static_cast<std::int64_t>(text.caret_column());
+      const auto selection = text.visible_selection(columns);
+      if (selection.present()) {
+        run.sel_begin_col = prefix_columns + selection.begin;
+        run.sel_end_col = prefix_columns + selection.end;
+      }
       y += unit;
-    };
-    for (const auto &f : def.state->fields())
-      input_row(f, true);
-    for (const auto &f : on.message->fields())
-      input_row(f, false);
-    y += unit;
-    label(0, y, "Operators (click to add)", ink::kAccent);
-    y += unit;
-    for (std::size_t p = model.first_row;
-         p < model.palette.size() && y < bottom; ++p) {
-      const auto &ports = model.palette[p];
-      button(0, y, ports.identity, "add-node", {ports.identity});
+    }
+    const auto chosen_port = selected_port(model);
+    if (chosen_port) {
+      // A SELECTED PORT lists what could fill it, in the order a maker reaches for it: what is
+      // in scope, a typed constant, then the door's Sources and operators that yield its type.
+      const auto n = std::to_string(chosen_port->node), a = std::to_string(chosen_port->port);
+      label(0, y, "For %" + n + " " + chosen_port->field.name + " : " + chosen_port->type, ink::kAccent);
       y += unit;
+      label(0, y, "In scope", ink::kAccent);
+      y += unit;
+      const auto scope = in_scope(model, *chosen_port);
+      for (const auto &candidate : scope) {
+        if (y >= bottom)
+          break;
+        label(0, y, "  " + candidate.label);
+        view.hits.push_back({0, y, 21 * unit, unit, "scope", {n, a, candidate.bind}, 0});
+        y += unit;
+      }
+      if (scope.empty() && y < bottom) {
+        label(0, y, "  none of this type", ink::kMuted);
+        y += unit;
+      }
+      if (takes_constant(*chosen_port) && y < bottom) {
+        label(0, y, "Constant", ink::kAccent);
+        y += unit;
+        button(0, y, std::string(loom::name_of(chosen_port->field.type.kind)) + " constant",
+               "constant", {n, a});
+        y += unit;
+      }
+    } else {
+      label(0, y, "In scope", ink::kAccent);
+      y += unit;
+      auto input_row = [&](const loom::Field &f, bool state) {
+        if (y >= bottom)
+          return;
+        label(0, y,
+              (state ? "state." : "input.") + f.name + " : " +
+                  loom::name_of(f.type.kind));
+        view.hits.push_back({0, y, 21 * unit, unit, "source-field", {f.name}, 0});
+        y += unit;
+      };
+      for (const auto &f : def.state->fields())
+        input_row(f, true);
+      for (const auto &f : on.message->fields())
+        input_row(f, false);
+    }
+    y += unit;
+    // THE DOOR'S ROWS, grouped by classification and in the order it gave them: every power
+    // its contributor offers. A row previews; the preview's Add is today's add-node.
+    if (!model.discovered_read) {
+      label(0, y, "(asking the door)", ink::kMuted);
+    } else if (!model.discovered.ok) {
+      label(0, y, model.discovered.reason, ink::kAlert);
+    } else {
+      struct RailRow {
+        std::string text, identity;
+        std::int64_t role = ink::kFill;
+      };
+      std::vector<RailRow> rows;
+      for (const auto &[kind, heading] : kGroups) {
+        bool headed = false;
+        for (const auto &row : model.discovered.rows) {
+          if (row.kind != kind)
+            continue;
+          if (!headed)
+            rows.push_back({heading, "", ink::kAccent});
+          headed = true;
+          rows.push_back({"  " + row.identity +
+                              (row.construction == ws::kCompositeConstruction ? " (composite)" : ""),
+                          row.identity,
+                          row.identity == model.preview ? ink::kAccent : ink::kFill});
+        }
+      }
+      if (rows.empty())
+        rows.push_back({"none offered match", "", ink::kMuted});
+      const auto listed = static_cast<std::int64_t>(model.discovered.rows.size());
+      if (model.discovered.total > listed)
+        rows.push_back({"+ " + std::to_string(model.discovered.total - listed) +
+                            " more match -- narrow the search",
+                        "", ink::kMuted});
+      for (std::size_t i = model.first_row; i < rows.size() && y < bottom; ++i) {
+        label(0, y, rows[i].text, rows[i].role);
+        if (!rows[i].identity.empty())
+          view.hits.push_back({0, y, 21 * unit, unit, "found", {rows[i].identity}, 0});
+        y += unit;
+      }
     }
     // The catalog/source rail cannot paint or claim presses inside the graph.
     for (auto i = sidebar_labels; i < view.content.texts.size(); ++i)
@@ -376,12 +457,14 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
         }
         const auto &binding = node.arguments[a];
         const auto py = ny + static_cast<std::int64_t>(a + 1) * unit;
+        const bool marked = chosen_port && chosen_port->node == n && chosen_port->port == a;
         label(x + unit / 2, py,
               "o " + port + " = " +
                   (binding.from() == zengine::op::Binding::From::Input &&
                            binding.input_name().empty()
                        ? "[unwired]"
-                       : flow::binding_text(binding)));
+                       : flow::binding_text(binding)),
+              marked ? ink::kAccent : ink::kFill);
         view.hits.push_back({x,
                              py,
                              node_width,
@@ -412,9 +495,11 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
              "source-node", {std::to_string(n)}, id);
     }
     // The graph owns a viewport within the pane. Its content and hit regions
-    // are clipped by the same rectangle, so panning cannot cover controls.
+    // are clipped by the same rectangle, so panning cannot cover controls. A
+    // preview takes the three rows beneath it.
+    const auto *shown = previewed(model);
     const std::int64_t left = 22 * unit, right = room.width, upper = top + unit,
-                       lower = bottom - 2 * unit;
+                       lower = bottom - (shown ? 5 : 2) * unit;
     auto clip = [&](auto &r) {
       const auto x0 = std::max(r.x, left), y0 = std::max(r.y, upper);
       const auto x1 = std::min(r.x + r.w, right),
@@ -442,6 +527,24 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       const auto n = std::to_string(*model.node);
       button(23 * unit, top, "Use as result", "result", {n});
       button(42 * unit, top, "Delete node", "remove", {n});
+    }
+    if (shown) {
+      // THE PREVIEW: the door's row expanded -- what it is, whose it is, its signature and what
+      // its contributor says it is for. Reading it evaluates nothing.
+      const auto band = static_cast<std::size_t>(view.content.texts.size());
+      const auto y0 = bottom - 4 * unit;
+      label(23 * unit, y0, shown->identity + " -- " + classification_of(*shown), ink::kAccent);
+      label(23 * unit, y0 + unit, shown->signature);
+      label(23 * unit, y0 + 2 * unit,
+            shown->about.empty() ? std::string("(its contributor says nothing of what it is for)")
+                                 : shown->about,
+            shown->about.empty() ? ink::kMuted : ink::kFill);
+      // The clip begins a row above the band: a clip's top rounds up to the device grain, so a
+      // line set exactly on it could round out of it and vanish.
+      for (auto i = band; i < view.content.texts.size(); ++i)
+        view.text_clips[i] = {left, lower, std::max(std::int64_t{0}, right - left - 8 * unit),
+                              bottom - lower};
+      button(room.width - 7 * unit, y0, "Add", "add-found", {shown->identity});
     }
     button(room.width - 22 * unit, bottom - unit, "Reset view", "fit");
     button(room.width - 9 * unit, bottom - unit, "-", "zoom-out");

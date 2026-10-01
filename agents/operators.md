@@ -32,8 +32,26 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   are authored, because C++20 has no parameter source names at all — not in `decltype`, not in
   `__PRETTY_FUNCTION__`, not in `__FUNCSIG__`. A wrong NUMBER of port names does not compile
   (the parameter is a `std::array` sized by `arity_of<F>`), so that refusal cannot be a runtime
-  case and is not written as one. ⚠ A block-scope lambda cannot be the `<&F>` argument — its
-  `_FUN` has no linkage.
+  case and is not written as one. What the operator is for is an optional fourth argument.
+  ⚠ A block-scope lambda cannot be the `<&F>` argument — its `_FUN` has no linkage.
+- **What a contributor says rides WITH its contribution.** `op::Description` — `about`, what
+  the operator is for, and `offered`, whether it is offered for reuse — is authored where the
+  operator is (`make_operator`, `Builder::result`, the `OperatorDef` constructor) and held on the
+  `OperatorDef` the catalog stacks, so an overlay brings its own words and unmount brings the old
+  ones back; `zengine.OperatorContribution` v2 carries it across the provider seam and v1 still
+  mounts, saying nothing. A table of descriptions beside the catalog would describe whichever
+  contribution was there when it was written. **It describes and nothing more**: no code path
+  reads it to decide what may run, be reordered, removed or trusted, no schema carries it so no
+  content id moves with it, and a power marked not offered is spent by whoever names it. Prose
+  past `op::kMaxAboutBytes` is refused where it is written.
+- **One graph is acyclic by construction; a call cycle THROUGH IDENTITIES is not, and nothing
+  bounds it.** `Builder` cannot name a node before it exists and a decoded composition re-checks
+  the order, so a single graph holds no cycle. But a node names its operator by identity, bound
+  at the spend, so a composite that names itself — directly, or through another that names it —
+  is expressible as data: a later mount or overlay can close the loop, and maker admission does
+  not check a body's identities. `Catalog::walk` then recurses through `evaluate` with nothing
+  counting depth or spends. There is no evaluation budget; until there is, acyclicity is one
+  graph's property and never the catalog's.
 - **`timer.normalize_delay` carries no native body**, and `is_composite()` is a public question
   precisely so a suite can say so. A `normalize_delay(delay, repeat)` registered as a native
   operator would satisfy every other case in the operator suite and would prove only that
@@ -303,27 +321,29 @@ Source     zero unbound weaver inputs          evaluated on its own subject
   proves it on a COUNTING body and on a provider artifact whose Source answers its own spend
   count; a constant-returning body would have made an accidental evaluation invisible, which
   is the one way this proof degrades.
-- **`ResolvedPowers` carries `source` and the output schema IDENTITY** (name, version, content
-  id), because *what would sampling this yield* must be answerable without sampling and the only
-  alternatives are N describes across the loaded-weave seam or a side effect in a view. The three
-  identity facts travel as one nested shape because `loom::same_identity` compares all three;
-  splitting them invites a consumer to compare the cheap one. **No structure rides** — no port
-  list, no field types, no input schema.
-- **THE POWERS PANE IS THAT FIELD'S CONSUMER, AND IT ADDS NO SECOND CLASSIFICATION.**
-  It derives its `Sources` and `Operators` views from `source` on the active
-  contribution and shows the output identity as `yields <name> v<N>` on the selected power —
-  so *what would I get?* is answered by a READ, exactly as this field was built to allow.
-  Nothing in the pane parses an identity, consults a naming rule or reads a registration flag,
-  because none exists: **the catalog states the classification once and the projection carries
-  it.** A change that adds a `kind` field, a `SourceDef`, a Source registry or a second store
-  has added a second answer, and the second answer is the one that can lie
+- **The discovery door's row carries the classification and the output schema IDENTITY**
+  (name, version, content id), because *what would sampling this yield* must be answerable
+  without sampling and the only alternatives are N describes across the loaded-weave seam or a
+  side effect in a view. The three identity facts travel as one nested shape because
+  `loom::same_identity` compares all three; splitting them invites a consumer to compare the
+  cheap one. `kind` is derived at each ask from `op::is_source` and `op::declares_migration` on
+  the contribution in force (`workshop/powers_door.hpp`), never authored and never stored.
+- **NOTHING ADDS A SECOND CLASSIFICATION.** Flow groups its rail and the Powers pane derives its
+  `Sources` and `Operators` views from that `kind`; Powers shows the output identity as
+  `yields <name> v<N>` and Flow's preview the signature — so *what would I get?* is answered by
+  a READ. Nothing parses an
+  identity, consults a naming rule or reads a registration flag, because none exists: **the
+  catalog states the classification once and the door carries it.** A change that adds an
+  authored kind, a `SourceDef`, a Source registry or a second store has added a second answer,
+  and the second answer is the one that can lie
   ([panes.md](panes.md#the-powers-pane-became-a-browser-and-the-seam-did-not-move)).
-- **AND ONE OFFICE MAY SPEND `sample`, WHICH IS A DIFFERENT KIND OF DOOR FROM THE ONE THAT
-  DESCRIBES.** `workshop/arrangement.hpp` answers two shapes and cannot evaluate; the Powers
-  pane's `workshop/sample_door.hpp` holds `zengine.sources`, calls `op::sample` at the spend,
-  renders the admitted value host-side and answers with LINES. Two doors rather than a third
-  Accept on the first, deliberately: *which office can cause evaluation* is worth a one-word
-  answer. The door holds a `const op::Catalog&` and retains no provider, definition, callable or
+- **AND ONE OFFICE MAY SPEND `sample`, WHICH IS A DIFFERENT KIND OF DOOR FROM THE ONES THAT
+  DESCRIBE.** `workshop/arrangement.hpp` and `workshop/powers_door.hpp` describe and cannot
+  evaluate; the Powers pane's `workshop/sample_door.hpp` holds `zengine.sources`, calls
+  `op::sample` at the spend, renders the admitted value host-side and answers with LINES. A door
+  of its own rather than another Accept on a describing one, deliberately: *which office can
+  cause evaluation* is worth a one-word answer. The door holds a `const op::Catalog&` and retains
+  no provider, definition, callable or
   answer — so a repeated sample resolves current truth again, which is exactly the property
   `sample`'s own header claims and this is the first consumer that could have broken it.
 - **Senses are not Sources and no bridge exists.** A Source sample runs the evaluator NOW; a
@@ -429,6 +449,8 @@ identity                 <=>  zengine.migrate.<family>.v<from>-to-v<to>
 
 ## Do not assume
 
+- A catalog is acyclic — one graph is; a cycle through identities evaluates unbounded.
+- An operator's words decide something — `op::Description` describes, and nothing gates on it.
 - A migration is a weave — it is a PROVIDER contribution: `zengine_provider()`, no
   switchboard, no role, no grant, no manifest, no bus. `zengine-workshop-session-history` is
   the shipped one.

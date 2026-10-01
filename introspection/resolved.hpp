@@ -36,9 +36,10 @@ inline constexpr const char* kNotAuthored = "in-process participants are not aut
 inline constexpr const char* kHostResolution =
     "this pane describes this host's operator resolution only";
 
-/// Where the powers came from and how old they are: `snapshot` first, re-read only on a room
-/// grant, since nothing polls and no provider-mount event exists.
-inline constexpr const char* kPowersSource = "snapshot from zengine.arrangement, on room grant";
+/// Where the powers came from and how old they are: `snapshot` first, re-read on a room grant and
+/// on every change to the search, since nothing polls and no provider-mount event exists.
+inline constexpr const char* kPowersSource =
+    "snapshot from zengine.powers, when the search is asked";
 
 /// What a row says instead of a provider identity when the host itself published a
 /// contribution -- `op::Contribution`'s empty provider, given a weaver's word.

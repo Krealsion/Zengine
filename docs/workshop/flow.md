@@ -20,10 +20,12 @@ without the optional canvas protocol receives a textual summary. The independent
 3. Open **Messages**, choose **New message**, and name it `Reading`. Choose **Add field** for
    message index `0`, name `input`, kind `Int`, presence `required`.
 4. Open **Graph**, choose **Add trigger**, select message index `0` and state output `value`.
-   Click `math.max` in the operator list to add it. The list describes the host's actual catalog.
-5. Click `input.input` and then the node's `lhs` port. Click `state.value` and then its `rhs`
-   port. Clicking a port without a selected source opens a binding editor: a constant, `$field`,
-   or `%earlier-node`. The graph executes in order; forward or cyclic connections are refused.
+   Type `larger` (the search line beside the graph takes what you type) and click `math.max`
+   under **Operators**. The strip beneath the graph previews it: what it is and whose, its
+   signature, and what its contributor says it is for. Choose **Add**.
+5. Click `input.input` under **In scope**, then the node's `lhs` port. Click the `rhs` port: the
+   rail lists what could fill it ([below](#find-what-to-compose)). Click `state.value` there.
+   The graph executes in order; forward or cyclic connections are refused.
 6. Select the node header and choose **Use as result**. Drag its header to move it. Drag blank
    graph room or use the middle button to pan; the wheel pans vertically over the graph.
    The **-** and **+** controls change node positions and widths from 50% to 200%, in 25% steps.
@@ -38,6 +40,37 @@ In a dialog, **Tab** selects the next field, **Ctrl+A** selects its text, **Ente
 and **Escape** cancels. A refused confirmation keeps the entered text for correction. Confirm or
 cancel before changing pages, starting another edit, or quitting.
 
+## Find what to compose
+
+The rail beside the graph finds operators through the host's
+[discovery door](../reference/introspection.md#the-discovery-door-finding-a-power), the door the
+**Powers** pane and the Terminal ask too, so one question gets the same rows in all three.
+
+- **The search line** takes what you type while no dialog is open. A power matches when each word
+  appears in its name or in what its contributor says it is for. The rows come in the catalog's
+  order, grouped as **Sources**, **Operators** and **Conversions**, and a count says how many more
+  matched than one answer carries.
+- **A selected port** narrows the search to what yields its type, and lists before that what is
+  **In scope** of the type (state and message fields, and earlier nodes' outputs), then a typed
+  constant for an `Int` or `Bool` port. An in-scope row wires the port; the constant opens the
+  binding editor. Click the port again to put it down.
+- **A row previews; it never runs.** The preview is the door's row, and showing it evaluates
+  nothing. **Add**, or **Enter**, adds the previewed power exactly as `add-node` does. A new node
+  joins the end of the trigger's graph, which executes in order, so it feeds only nodes added
+  after it.
+- **What Flow does not offer.** A running definition's trigger body is that participant's own
+  reaction, mounted for one revision and gone at the next behaviour edit. Flow asks only for
+  powers their contributors offer, so it never lists one; **Powers** lists it and says it is not
+  offered.
+
+**Escape** sheds one layer per press: the wire in hand, the selected port, the preview, the
+selected node, then the search line, and only then is the pane put down. **Delete** removes the
+selected node; with none selected, it edits the search line.
+
+![Flow's search line finding math.max by what it is for, previewed beneath the graph](images/flow-find.png)
+
+![A selected port listing what could fill it: what is in scope, a typed constant, then what the door finds](images/flow-port.png)
+
 ## Keep examples and exercise the weave
 
 In **Messages**, open `water.Reading`, click `input`, enter `3`, and confirm. **Save example**
@@ -50,7 +83,7 @@ does not promise a reply. **Inspect** refreshes the owner's bounded record. An o
 when older observations were dropped. Loom's host Recorder/Logger remain the broader history tools.
 
 Open `low` in **Library** and send it. The high-water state remains `7`. Return to Graph, click
-the `rhs` port and bind the constant `10`. Choose **Apply**, then send `low` again: the state now
+the `rhs` port, choose **Int constant** and bind `10`. Choose **Apply**, then send `low` again: the state now
 becomes `10`. Apply preserves live state and requires the existing accepted/emitted/state contract.
 A schema change needs an explicit stop and fresh run; this pane does not invent a migration policy.
 

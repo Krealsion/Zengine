@@ -14,9 +14,10 @@
 // C++ derives arity and every type from a function pointer; C++20 has no parameter source
 // names, so port names are authored, and the identity is authored on purpose (derived from the
 // symbol, a rename would invalidate every composition naming it). A wrong number of port names
-// does not compile: the parameter is a `std::array` sized by `arity_of<F>`.
+// does not compile: the parameter is a `std::array` sized by `arity_of<F>`. What the operator is
+// for is authored beside them, as prose that is no part of the signature.
 //
-//     make_operator<&max_int>("math.max", {"lhs", "rhs"}, "result")
+//     make_operator<&max_int>("math.max", {"lhs", "rhs"}, "result", "the larger of two integers")
 
 #include <zen/gate.hpp>
 #include <zen/schema.hpp>
@@ -98,8 +99,11 @@ inline std::uint64_t invocations() noexcept { return detail::invocation_counter(
 // ---- a composition, as data ------------------------------------------------
 
 /// Where one argument of one node comes from: the composite's own input, an earlier node's
-/// answer, or a constant. Acyclicity is structural, not checked: `Builder` cannot make a
-/// reference to node i before node i exists, so there is nowhere to write a cycle down.
+/// answer, or a constant. Within one graph acyclicity is structural, not checked: `Builder`
+/// cannot make a reference to node i before node i exists, so there is nowhere to write a cycle
+/// down. A node names its operator by identity, bound at the spend, so a cycle THROUGH identities
+/// -- a composite naming itself, or another that names it -- is expressible as data, and nothing
+/// bounds its evaluation (agents/operators.md).
 class Binding {
 public:
     enum class From { Input, Node, Constant };
@@ -205,28 +209,51 @@ loom::Cell call_with(const loom::Value& in, const std::array<std::string_view, N
 template <auto F>
 inline constexpr std::size_t arity_of = detail::signature<F>::arity;
 
+// ---- what a contributor says beside a signature ----------------------------
+
+/// The most bytes of prose one operator carries: room for what it is for, and a bound.
+inline constexpr std::size_t kMaxAboutBytes = 1024;
+
+/// What a contributor says about one operator beside its signature: what it is for, and whether
+/// it is offered for reuse. It is authored where the operator is authored and travels with the
+/// contribution, so an overlay brings its own words and unmounting it brings the old ones back.
+/// It describes and nothing more: nothing reads it to decide what may run, be reordered, removed
+/// or trusted, and no schema carries it, so no signature's content id moves with it.
+struct Description {
+    /// What the operator is for, in its contributor's words. Empty says nothing.
+    std::string about;
+    /// False for an operator its contributor offers to no one else's composition: a participant's
+    /// own reaction, which goes when that participant is next edited. Naming it still spends it.
+    bool offered = true;
+};
+
 // ---- an operator ------------------------------------------------------------
 
-/// A stable identity, a pair of Loom schemas, and a body: a native leaf carries a callable, a
-/// composite a graph over other identities. `is_composite()` is public so a suite can assert a
-/// rule is a composition, not a native reimplementation wearing an operator's name.
+/// A stable identity, a pair of Loom schemas, a body and its contributor's description: a native
+/// leaf carries a callable, a composite a graph over other identities. `is_composite()` is public
+/// so a suite can assert a rule is a composition, not a native reimplementation wearing an
+/// operator's name. Prose past `kMaxAboutBytes` throws `std::invalid_argument`.
 class OperatorDef {
 public:
     using Native = std::function<loom::Cell(const loom::Value&)>;
 
     OperatorDef(std::string identity, std::shared_ptr<const loom::Schema> in,
-                std::shared_ptr<const loom::Schema> out, Native body)
+                std::shared_ptr<const loom::Schema> out, Native body, Description said = {})
         : identity_(std::move(identity)), in_(std::move(in)), out_(std::move(out)),
-          native_(std::move(body)) {}
+          native_(std::move(body)), said_(bounded(identity_, std::move(said))) {}
 
     OperatorDef(std::string identity, std::shared_ptr<const loom::Schema> in,
-                std::shared_ptr<const loom::Schema> out, Composite body)
+                std::shared_ptr<const loom::Schema> out, Composite body, Description said = {})
         : identity_(std::move(identity)), in_(std::move(in)), out_(std::move(out)),
-          composite_(std::make_shared<const Composite>(std::move(body))) {}
+          composite_(std::make_shared<const Composite>(std::move(body))),
+          said_(bounded(identity_, std::move(said))) {}
 
     const std::string& identity() const noexcept { return identity_; }
     const std::shared_ptr<const loom::Schema>& inputs() const noexcept { return in_; }
     const std::shared_ptr<const loom::Schema>& outputs() const noexcept { return out_; }
+
+    /// What its contributor says it is for, and whether it is offered for reuse.
+    const Description& description() const noexcept { return said_; }
 
     bool is_composite() const noexcept { return composite_ != nullptr; }
     /// The graph, or nullptr for a native leaf. A pointer, not a reference with a precondition:
@@ -242,19 +269,30 @@ public:
     }
 
 private:
+    static Description bounded(const std::string& identity, Description said) {
+        if (said.about.size() > kMaxAboutBytes) {
+            throw std::invalid_argument("'" + identity + "' says what it is for in " +
+                                        std::to_string(said.about.size()) +
+                                        " bytes; an operator's prose is at most " +
+                                        std::to_string(kMaxAboutBytes));
+        }
+        return said;
+    }
+
     std::string identity_;
     std::shared_ptr<const loom::Schema> in_;
     std::shared_ptr<const loom::Schema> out_;
     Native native_;
     std::shared_ptr<const Composite> composite_;
+    Description said_;
 };
 
-/// Give an ordinary C++ function an operator identity: the port names and the identity are
-/// authored, arity and every Loom type are the compiler's. `F` cannot be a block-scope lambda
-/// (its `_FUN` has no linkage); use a namespace-scope function.
+/// Give an ordinary C++ function an operator identity: the port names, the identity and what it
+/// is for are authored, arity and every Loom type are the compiler's. `F` cannot be a block-scope
+/// lambda (its `_FUN` has no linkage); use a namespace-scope function.
 template <auto F>
 OperatorDef make_operator(std::string identity, std::array<std::string_view, arity_of<F>> ports,
-                          std::string_view result_port) {
+                          std::string_view result_port, std::string about = {}) {
     using Sig = detail::signature<F>;
     using Args = typename Sig::args;
 
@@ -273,7 +311,8 @@ OperatorDef make_operator(std::string identity, std::array<std::string_view, ari
     OperatorDef::Native body = [ports](const loom::Value& args) {
         return detail::call_with<F, Args>(args, ports, std::make_index_sequence<Sig::arity>{});
     };
-    return OperatorDef(std::move(identity), std::move(in), std::move(out), std::move(body));
+    return OperatorDef(std::move(identity), std::move(in), std::move(out), std::move(body),
+                       Description{std::move(about)});
 }
 
 } // namespace zengine::op

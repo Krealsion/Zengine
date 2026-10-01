@@ -48,11 +48,12 @@ namespace zengine::maker {
 inline constexpr const char* kAnswerPort = "value";
 
 /// The operator definitions one revision mounts: one composite per trigger -- inputs the pack,
-/// output one port carrying the target field's own type, so the output gate is the kind check --
-/// and, on a schema edit's successor, the conversion edge in `operator/migration.hpp`'s
-/// convention: input the predecessor's state schema whole, output one port carrying the
-/// successor's, body the field-wise write closed over the conversion record.
-// MW-WEAVE-04, MW-WEAVE-05 -- agents/maker/weave.md; MW-SUCC-03 -- agents/maker/succession.md
+/// output one port carrying the target field's own type, so the output gate is the kind check,
+/// marked not offered for reuse since it is this revision's own reaction -- and, on a schema
+/// edit's successor, the conversion edge in `operator/migration.hpp`'s convention: input the
+/// predecessor's state schema whole, output one port carrying the successor's, body the
+/// field-wise write closed over the conversion record.
+// MW-WEAVE-04, MW-WEAVE-05, MW-WEAVE-11 -- agents/maker/weave.md; MW-SUCC-03 -- agents/maker/succession.md
 inline std::vector<op::OperatorDef> definitions_of(const Definition& d) {
     std::vector<op::OperatorDef> out;
     for (const On& trigger : d.on) {
@@ -66,8 +67,17 @@ inline std::vector<op::OperatorDef> definitions_of(const Definition& d) {
         auto answer = loom::make_schema(
             identity + ".out", 1,
             std::vector<loom::Field>{loom::Field{kAnswerPort, target->type, /*required=*/true}});
+        // Said only where it fits an operator's prose: names are unbounded, and words about a
+        // body must never be why a definition is refused.
+        std::string about = "what " + d.name + " r" + std::to_string(d.revision) +
+                            " writes to state." + trigger.output + " when " +
+                            trigger.message->name() + " arrives";
+        if (about.size() > op::kMaxAboutBytes) {
+            about.clear();
+        }
         out.emplace_back(identity, pack_schema(identity, *d.state, *trigger.message),
-                         std::move(answer), trigger.body);
+                         std::move(answer), trigger.body,
+                         op::Description{std::move(about), /*offered=*/false});
     }
     if (d.conversion) {
         const std::shared_ptr<const loom::Schema> to = d.state;

@@ -8,6 +8,7 @@
 #include "operator/primitives.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
+#include "workshop/powers_door.hpp"
 #include "lifecycle_door.hpp"
 #include <zen/kernel/kernel.hpp>
 #include <algorithm>
@@ -58,13 +59,28 @@ struct Rig {
     loom::Kernel kernel{bus, loom::trust_every_artifact("the fixture selects one Flow pane artifact")};
     fh::RuntimeHost runtime{bus, catalog};
     Presenter* presenter = nullptr;
-    loom::WeaveId workshop{}, pane{}, door{};
+    loom::WeaveId workshop{}, pane{}, door{}, finder{};
     std::uint64_t correlation = 0;
     std::int64_t activation = 0, grant = 1, gesture = 0;
+    /// WHAT THE PANE ASKED, read off the bus: every question it put to the discovery door, the
+    /// bytes of every answer it was given, and the highest correlation its own requests used.
+    std::vector<ws::FindPowers> questions;
+    std::vector<std::string> answers;
+    std::uint64_t asked = 0;
+    loom::ObserverId tap{};
 
     Rig() {
+        tap = bus.add_observer([this](const loom::BusEvent& e) { observe(e); });
         REQUIRE(catalog.mount("flowtest.basic", op::primitive_definitions()));
         runtime.mount();
+        // THE HOST'S DISCOVERY DOOR over the same catalog, with the grant Workshop writes for it.
+        auto discovery = std::make_unique<ws::PowersDoor>(catalog);
+        ws::PowersDoor* discovery_raw = discovery.get();
+        loom::Grant say;
+        say.allow_to_any(ws::PowersFound::zen_name, ws::PowersFound::zen_version);
+        say.allow_to_any(ws::PowerDescribed::zen_name, ws::PowerDescribed::zen_version);
+        finder = bus.register_weave(std::move(discovery), std::move(say), std::string(ws::kPowersRole));
+        discovery_raw->zen_set_self(finder);
         auto presentation = std::make_unique<Presenter>();
         presenter = presentation.get();
         loom::Grant host_grant;
@@ -78,6 +94,7 @@ struct Rig {
         workshop = bus.register_weave(std::move(presentation), std::move(host_grant), workshop_role);
         loom::Grant pane_grant;
         fh::allow_flow_requests(pane_grant);
+        ws::allow_finding_powers(pane_grant);
         for (const auto& schema : {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
                 loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
                 loom::schema_of<ws::PaneEscapeUnspent>()})
@@ -93,6 +110,21 @@ struct Rig {
         door = zengine::testing::mount_door(bus);
         activate();
         room();
+    }
+    ~Rig() { bus.remove_observer(tap); }
+    void observe(const loom::BusEvent& e) {
+        if (!pane.valid() || (e.kind != loom::EventKind::Delivered && e.kind != loom::EventKind::Refused))
+            return;
+        if (e.sender == pane) {
+            for (const char* request : {ws::kFindPowersName, fh::FlowCatalog::zen_name, fh::FlowInspect::zen_name,
+                     fh::FlowRun::zen_name, fh::FlowApply::zen_name, fh::FlowSend::zen_name, fh::FlowStop::zen_name})
+                if (e.schema_name == request) asked = std::max(asked, e.correlation);
+            if (e.kind == loom::EventKind::Delivered && e.schema_name == ws::kFindPowersName && e.payload)
+                questions.push_back(ws::find_powers_from(*e.payload));
+        }
+        if (e.kind == loom::EventKind::Delivered && e.target == pane && e.payload &&
+            e.schema_name == ws::PowersFound::zen_name)
+            answers.push_back(loom::serialize(*e.payload));
     }
     void pump() {
         for (unsigned turn = 0; turn < 64; ++turn) {
@@ -127,6 +159,15 @@ struct Rig {
         for (const auto& row : picture().texts) INFO(row.text);
         REQUIRE(false);
         return {};
+    }
+    bool shows(const std::string& text) const {
+        const auto& texts = picture().texts;
+        return std::any_of(texts.begin(), texts.end(), [&](const auto& row) { return row.text == text; });
+    }
+    bool shows_part(const std::string& text) const {
+        const auto& texts = picture().texts;
+        return std::any_of(texts.begin(), texts.end(),
+                           [&](const auto& row) { return row.text.find(text) != std::string::npos; });
     }
     ws::PaneCanvasPointer press_for(const std::string& text, bool prefix = false) {
         const auto row = label(text, prefix);
@@ -199,6 +240,19 @@ public:
 private:
     std::filesystem::path directory;
 };
+
+/// A Source that yields an Int: zero weaver inputs, and its contributor's words.
+op::OperatorDef answer_source() {
+    return op::OperatorDef("flowtest.answer", loom::make_schema("flowtest.answer.in", 1, {}),
+                           loom::SchemaBuilder("flowtest.answer.out", 1).field("value", loom::Kind::Int).build(),
+                           [](const loom::Value&) { return loom::Cell::integer(42); },
+                           op::Description{"forty-two, whenever it is asked"});
+}
+
+std::size_t escapes_unspent(const Presenter& presenter) {
+    return static_cast<std::size_t>(std::count_if(presenter.messages.begin(), presenter.messages.end(),
+        [](const auto& m) { return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>()); }));
+}
 } // namespace
 
 TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project with reusable examples") {
@@ -218,10 +272,12 @@ TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project w
     rig.click("[Graph]");
     rig.click("[Add trigger]");
     rig.key(in::scan::kReturn);
-    rig.click("[math.max]");
+    rig.click("  math.max");
+    rig.click("[Add]");
     rig.click("input.input : Int");
     rig.click("o lhs = ", true);
     rig.click("o rhs = ", true);
+    rig.click("[Int constant]");
     (void)rig.label("> Value: 0", true);
     rig.key(in::scan::kReturn);
     rig.click("[Use as result]");
@@ -314,13 +370,15 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
     authority.allow_to_role(fh::FlowAnswer::zen_name, fh::FlowAnswer::zen_version, fp::kRole);
     authority.allow_to_role(ws::PaneCanvasPointer::zen_name, ws::PaneCanvasPointer::zen_version, fp::kRole);
     const auto impostor = rig.bus.register_weave(std::move(foreign), std::move(authority));
+    rig.click("  math.max");
     const auto before = rig.state().workspace;
-    const auto add = rig.press_for("[math.max]");
+    const auto add = rig.press_for("[Add]");
     rig.bus.send_as_to_role(impostor, fp::kRole, loom::Message(loom::to_value(add), impostor));
     rig.pump();
     CHECK(rig.state().workspace == before);
-    // Activation used requests 1 and 2. This run uses 3. Deliver the forged
+    // The run is the pane's next request, so it takes the next correlation. Deliver the forged
     // answer after the edit queues that ask, but before the actual manager sees it.
+    const auto run_correlation = rig.asked + 1;
     rig.bus.office_send_to_role_as(rig.workshop, workshop_role, fp::kRole,
         loom::Message(loom::to_value(fp::FlowEdit{"run", {}}), rig.workshop, {}, 900));
     auto fabricated = rig.workspace().graph.project;
@@ -329,7 +387,7 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
     lie.session = "workshop"; lie.action = "run"; lie.ok = true;
     lie.project = fh::bytes(flow::project_bytes(fabricated));
     rig.bus.send_as_to_role(impostor, fp::kRole,
-        loom::Message(loom::to_value(lie), impostor, {}, 3));
+        loom::Message(loom::to_value(lie), impostor, {}, run_correlation));
     rig.pump();
     CHECK(rig.live_value() == 0);
     CHECK(rig.workspace().graph.project.state.get("value")->as_int() == 0);
@@ -339,13 +397,14 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
 TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and interaction context") {
     Rig rig;
     rig.graph_semantically();
-    auto stale_room = rig.press_for("[math.max]");
+    rig.click("  math.max");
+    auto stale_room = rig.press_for("[Add]");
     ++rig.grant;
     rig.room();
     const auto before_room = rig.state().workspace;
     rig.host(stale_room);
     CHECK(rig.state().workspace == before_room);
-    auto stale_definition = rig.press_for("[math.max]");
+    auto stale_definition = rig.press_for("[Add]");
     rig.edit_ok("bind", {"0", "1", "4"});
     const auto before_definition = rig.state().workspace;
     rig.host(stale_definition);
@@ -614,10 +673,139 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     rig.host(motion);
     CHECK(rig.state().workspace == saved);
     rig.click("o rhs = 0", true);
+    rig.click("[Int constant]");
     (void)rig.label("> Value: 0", true);
     rig.replace_text("12");
     rig.key(in::scan::kReturn);
     CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.front()
         .arguments.at(1).constant_cell().as_int() == 12);
     CHECK(rig.state().dirty);
+}
+
+TEST_CASE("Flow finds what to compose through the discovery door, by what a power is for") {
+    Rig rig;
+    rig.graph_semantically();
+    // EVERY POWER ITS CONTRIBUTOR OFFERS, under the classification the door read off it -- and the
+    // rail Flow wires from is called what it is.
+    (void)rig.label("In scope");
+    CHECK_FALSE(rig.shows_part("(click to wire)"));
+    (void)rig.label("Operators");
+    (void)rig.label("  math.max");
+    const auto spent = op::invocations();
+
+    // THE SEARCH LINE: typed text is the door's question, and the rail is the door's answer.
+    rig.text("larger");
+    (void)rig.label("find: larger", true);
+    REQUIRE_FALSE(rig.questions.empty());
+    const ws::FindPowers asked = rig.questions.back();
+    CHECK(asked.text == std::optional<std::string>("larger"));
+    CHECK(asked.offered == std::optional<bool>(true));
+    CHECK_FALSE(asked.yields.has_value());
+    REQUIRE_FALSE(rig.answers.empty());
+    CHECK(rig.answers.back() == loom::serialize(loom::to_value(ws::find_powers(rig.catalog, asked))));
+    (void)rig.label("  math.max");
+    CHECK_FALSE(rig.shows("  logic.select_int"));
+
+    // THE PREVIEW is the row expanded, in its contributor's words, and reading it runs nothing.
+    rig.click("  math.max");
+    (void)rig.label("math.max -- operator, native, from flowtest.basic");
+    (void)rig.label("(lhs: Int, rhs: Int) -> result: Int");
+    (void)rig.label("the larger of two integers");
+    CHECK(op::invocations() == spent);
+
+    // ADD IS TODAY'S add-node, and the node it adds is the one selected.
+    rig.click("[Add]");
+    const auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
+    REQUIRE(nodes.size() == 2);
+    CHECK(nodes.back().identity == "math.max");
+    (void)rig.label("[Delete node]");
+    CHECK(op::invocations() == spent);
+
+    // ESCAPE SHEDS ONE LAYER PER PRESS: the preview, the node, the search line -- and only then is
+    // the pane put down.
+    rig.key(in::scan::kEscape);
+    CHECK_FALSE(rig.shows("the larger of two integers"));
+    (void)rig.label("[Delete node]");
+    rig.key(in::scan::kEscape);
+    CHECK_FALSE(rig.shows("[Delete node]"));
+    (void)rig.label("find: larger", true);
+    rig.key(in::scan::kEscape);
+    CHECK_FALSE(rig.questions.back().text.has_value());
+    CHECK(escapes_unspent(*rig.presenter) == 0);
+    rig.key(in::scan::kEscape);
+    CHECK(escapes_unspent(*rig.presenter) == 1);
+}
+
+TEST_CASE("a selected port lists what could fill it: in scope, a typed constant, a Source, then "
+          "operators that yield its type") {
+    Rig rig;
+    rig.graph_semantically();
+    // A SOURCE MOUNTED AFTER THE PANE READ ITS PORTS: the door finds it all the same.
+    REQUIRE(rig.catalog.mount("flowtest.sources", {answer_source()}));
+    rig.edit_ok("add-node", {"math.max"});
+    rig.click("o rhs = [unwired]");
+    (void)rig.label("For %1 rhs : Int");
+    REQUIRE_FALSE(rig.questions.empty());
+    CHECK(rig.questions.back().yields == std::optional<std::string>("Int"));
+    CHECK(rig.questions.back().offered == std::optional<bool>(true));
+
+    // IN THE ORDER A MAKER REACHES FOR THEM.
+    const std::vector<std::int64_t> order{
+        rig.label("In scope").y, rig.label("  state.value").y, rig.label("  input.input").y,
+        rig.label("  %0 math.max").y, rig.label("Constant").y, rig.label("[Int constant]").y,
+        rig.label("Sources").y, rig.label("  flowtest.answer").y, rig.label("Operators").y,
+        rig.label("  math.max").y};
+    CHECK(std::is_sorted(order.begin(), order.end()));
+    CHECK(std::adjacent_find(order.begin(), order.end()) == order.end());
+    // ...and nothing that yields another type.
+    CHECK_FALSE(rig.shows("  logic.select_bool"));
+
+    // A CANDIDATE IN SCOPE FILLS THE PORT through today's bind, and the port is put down.
+    rig.click("  %0 math.max");
+    const auto body = rig.workspace().graph.project.definition.on.front().body;
+    REQUIRE(body.nodes.size() == 2);
+    CHECK(body.nodes.at(1).arguments.at(1).from() == op::Binding::From::Node);
+    CHECK(body.nodes.at(1).arguments.at(1).node_index() == 0);
+    CHECK_FALSE(rig.shows("For %1 rhs : Int"));
+
+    // A FOUND SOURCE THE GRAPH'S PORTS DID NOT YET DESCRIBE is read from the host, then added.
+    rig.click("  flowtest.answer");
+    (void)rig.label("flowtest.answer -- source, native, from flowtest.sources");
+    (void)rig.label("forty-two, whenever it is asked");
+    const auto before = op::invocations();
+    rig.click("[Add]");
+    const auto grown = rig.workspace().graph.project.definition.on.front().body;
+    REQUIRE(grown.nodes.size() == 3);
+    CHECK(grown.nodes.back().identity == "flowtest.answer");
+    CHECK(op::invocations() == before);
+}
+
+TEST_CASE("Flow never offers a running definition's trigger body, which the door lists as not offered") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("run");
+    // THE BODY IS MOUNTED, and the door, asked for everything, lists it -- saying it is not offered.
+    const ws::PowersFound everything = ws::find_powers(rig.catalog, ws::FindPowers{});
+    const auto body = std::find_if(everything.rows.begin(), everything.rows.end(),
+        [](const ws::PowerRow& row) { return row.identity.rfind("meter.r", 0) == 0; });
+    REQUIRE(body != everything.rows.end());
+    CHECK_FALSE(body->offered);
+
+    // FLOW ASKS ONLY FOR WHAT IS OFFERED, so no participant's own reaction is in its rail.
+    rig.text("meter");
+    REQUIRE_FALSE(rig.questions.empty());
+    CHECK(rig.questions.back().offered == std::optional<bool>(true));
+    CHECK_FALSE(rig.shows("  " + body->identity));
+    CHECK_FALSE(rig.shows("  " + body->identity + " (composite)"));
+    (void)rig.label("none offered match");
+}
+
+TEST_CASE("a search the door refuses is said in the door's words, never as an empty match") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.text(std::string(ws::kMaxPowersQueryBytes + 1, 'x'));
+    REQUIRE_FALSE(rig.answers.empty());
+    const auto refused = rig.label("a query carries", true);
+    CHECK(refused.role == zengine::surface::role::kAlert);
+    CHECK_FALSE(rig.shows("none offered match"));
 }

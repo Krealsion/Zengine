@@ -148,6 +148,32 @@ versions, and field names (never values — a value is yours to type). The headi
 is the composer's verdict on what you have typed so far, `ready; Return submits it` or what is
 missing.
 
+## Finding a power
+
+The Terminal may ask the host's
+[discovery door](../reference/introspection.md#the-discovery-door-finding-a-power) its two
+questions — the door Flow's search line and the `Powers` pane ask too, so the same question gets
+the same rows here as there:
+
+```text
+ask @zengine.powers FindPowers 1 text=larger
+ask @zengine.powers DescribePower 1 identity=math.max
+```
+
+Every field of `FindPowers` is optional, so you type only what you mean: `text=` finds by name or
+by what a power is for, `takes=` and `yields=` by a port's type as the composer spells it (`Int`,
+`Text`), and `kind=`, `construction=`, `provider=` and `offered=` narrow the list. The answer is
+one page of rows, how many matched in all, and where the next page starts (`after=`).
+`DescribePower` answers one power with every contribution standing behind it, the one in force
+last. An ask past the door's bounds is answered with a sentence saying which bound, never with
+silence. The record names an answer by its shape; to read its rows, drag it into Inventory and
+open it in Info ([above](#dragging-a-command-or-reply-into-inventory)).
+
+![The Terminal's FindPowers answer opened in Info, beside the same row in Powers](images/terminal-find.png)
+
+Asking describes and does nothing else. The Terminal is granted these two asks to the door's office
+and nothing more: knowing a power is not leave to send it anything, mount it or open it.
+
 ## Leaving the pane
 
 `Esc` sheds one layer per press, the most specific first:

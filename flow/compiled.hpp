@@ -91,7 +91,7 @@ public:
             definitions[i] = op::OperatorDef(interpreted.identity(), interpreted.inputs(),
                 interpreted.outputs(), [keeper, i](const loom::Value& arguments) {
                     return keeper->execute(i, arguments);
-                });
+                }, interpreted.description());
         }
         return catalog_->mount(definition_.provider(), std::move(definitions), mode, keeper);
     }
