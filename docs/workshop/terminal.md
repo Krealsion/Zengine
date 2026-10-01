@@ -166,7 +166,10 @@ by what a power is for, `takes=` and `yields=` by a port's type as the composer 
 one page of rows, how many matched in all, and where the next page starts (`after=`).
 `DescribePower` answers one power with every contribution standing behind it, the one in force
 last. An ask past the door's bounds is answered with a sentence saying which bound, never with
-silence.
+silence. The record names an answer by its shape; to read its rows, drag it into Inventory and
+open it in Info ([above](#dragging-a-command-or-reply-into-inventory)).
+
+![The Terminal's FindPowers answer opened in Info, beside the same row in Powers](images/terminal-find.png)
 
 Asking describes and does nothing else. The Terminal is granted these two asks to the door's office
 and nothing more: knowing a power is not leave to send it anything, mount it or open it.

@@ -190,6 +190,8 @@ this pane describes this host's operator resolution only
 snapshot from zengine.powers, when the search is asked
 ```
 
+![Powers searching the Operators for "larger": math.max, its words, signature and contributor](../workshop/images/powers-find.png)
+
 **It is one pane, not two.** There is no Sources pane and no Operators pane; there is one
 projection over one catalog, showing one of two derived views. Switching views is `Tab` or a press
 on either word in the chrome row.

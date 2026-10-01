@@ -67,6 +67,10 @@ The rail beside the graph finds operators through the host's
 selected node, then the search line, and only then is the pane put down. **Delete** removes the
 selected node; with none selected, it edits the search line.
 
+![Flow's search line finding math.max by what it is for, previewed beneath the graph](images/flow-find.png)
+
+![A selected port listing what could fill it: what is in scope, a typed constant, then what the door finds](images/flow-port.png)
+
 ## Keep examples and exercise the weave
 
 In **Messages**, open `water.Reading`, click `input`, enter `3`, and confirm. **Save example**
