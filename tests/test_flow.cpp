@@ -152,6 +152,22 @@ TEST_CASE("Flow high-water control runs compiled bodies rather than the graph wa
     CHECK(native.state().get("high")->as_int() == 7);
 }
 
+TEST_CASE("Flow compiled trigger bodies keep the maker's mark -- not offered, in the same words") {
+    // The compiled module swaps each body for a native one; what the maker package said about the
+    // body -- whose reaction it is, and that it is offered to no one else -- must swap with it.
+    Rig interpreted("high_water", false), native("high_water", true);
+    const auto root = native.definition.trigger_identity(native.definition.on[0]);
+    const op::OperatorDef* compiled = native.catalog.find(root);
+    const op::OperatorDef* walked = interpreted.catalog.find(root);
+    REQUIRE(compiled != nullptr);
+    REQUIRE(walked != nullptr);
+    CHECK_FALSE(compiled->is_composite());
+    CHECK_FALSE(compiled->description().offered);
+    CHECK_FALSE(walked->description().offered);
+    CHECK_FALSE(compiled->description().about.empty());
+    CHECK(compiled->description().about == walked->description().about);
+}
+
 TEST_CASE("Flow resolves leaf overlays and reveals the original without regeneration") {
     Rig a("high_water", false), b("high_water", true);
     for (auto* rig : {&a, &b}) {

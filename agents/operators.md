@@ -32,8 +32,26 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   are authored, because C++20 has no parameter source names at all — not in `decltype`, not in
   `__PRETTY_FUNCTION__`, not in `__FUNCSIG__`. A wrong NUMBER of port names does not compile
   (the parameter is a `std::array` sized by `arity_of<F>`), so that refusal cannot be a runtime
-  case and is not written as one. ⚠ A block-scope lambda cannot be the `<&F>` argument — its
-  `_FUN` has no linkage.
+  case and is not written as one. What the operator is for is an optional fourth argument.
+  ⚠ A block-scope lambda cannot be the `<&F>` argument — its `_FUN` has no linkage.
+- **What a contributor says rides WITH its contribution.** `op::Description` — `about`, what
+  the operator is for, and `offered`, whether it is offered for reuse — is authored where the
+  operator is (`make_operator`, `Builder::result`, the `OperatorDef` constructor) and held on the
+  `OperatorDef` the catalog stacks, so an overlay brings its own words and unmount brings the old
+  ones back; `zengine.OperatorContribution` v2 carries it across the provider seam and v1 still
+  mounts, saying nothing. A table of descriptions beside the catalog would describe whichever
+  contribution was there when it was written. **It describes and nothing more**: no code path
+  reads it to decide what may run, be reordered, removed or trusted, no schema carries it so no
+  content id moves with it, and a power marked not offered is spent by whoever names it. Prose
+  past `op::kMaxAboutBytes` is refused where it is written.
+- **One graph is acyclic by construction; a call cycle THROUGH IDENTITIES is not, and nothing
+  bounds it.** `Builder` cannot name a node before it exists and a decoded composition re-checks
+  the order, so a single graph holds no cycle. But a node names its operator by identity, bound
+  at the spend, so a composite that names itself — directly, or through another that names it —
+  is expressible as data: a later mount or overlay can close the loop, and maker admission does
+  not check a body's identities. `Catalog::walk` then recurses through `evaluate` with nothing
+  counting depth or spends. There is no evaluation budget; until there is, acyclicity is one
+  graph's property and never the catalog's.
 - **`timer.normalize_delay` carries no native body**, and `is_composite()` is a public question
   precisely so a suite can say so. A `normalize_delay(delay, repeat)` registered as a native
   operator would satisfy every other case in the operator suite and would prove only that
@@ -429,6 +447,8 @@ identity                 <=>  zengine.migrate.<family>.v<from>-to-v<to>
 
 ## Do not assume
 
+- A catalog is acyclic — one graph is; a cycle through identities evaluates unbounded.
+- An operator's words decide something — `op::Description` describes, and nothing gates on it.
 - A migration is a weave — it is a PROVIDER contribution: `zengine_provider()`, no
   switchboard, no role, no grant, no manifest, no bus. `zengine-workshop-session-history` is
   the shipped one.
