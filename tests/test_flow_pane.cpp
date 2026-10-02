@@ -849,7 +849,8 @@ TEST_CASE("an Add waiting on the host for an operator's ports is refused when th
     rig.post(fp::FlowEdit{"remove", {"1"}}, ++rig.correlation);
     rig.post(fp::FlowEdit{"add-node", rig.ref("math.max")}, ++rig.correlation);
     rig.pump();
-    const auto& nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
+    const auto after = rig.workspace();
+    const auto& nodes = after.graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 2);
     CHECK(nodes.at(1).identity == "math.max");
     CHECK(rig.shows("The graph changed while the ports of flowtest.answer were read; Add it again"));
@@ -1046,7 +1047,8 @@ TEST_CASE("a dropped value waiting on a port is put down when another workspace 
     rig.edit_ok("add-fold");
     CHECK_FALSE(rig.shows("Dropped tally.panel.Count v1"));
     CHECK_FALSE(rig.shows("[Use start = 7 on %0 start]"));
-    const auto& fresh = rig.workspace().graph.project.definition.on[0].body.nodes[0].arguments;
+    const auto other = rig.workspace();
+    const auto& fresh = other.graph.project.definition.on[0].body.nodes[0].arguments;
     REQUIRE_FALSE(fresh.empty());
     CHECK(fresh[0].from() != op::Binding::From::Constant);
 }
