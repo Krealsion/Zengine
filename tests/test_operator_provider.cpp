@@ -205,6 +205,43 @@ TEST_CASE("a cycle through identities closed across images by an overlay is refu
     CHECK(ask().value().at(0)->as_int() == 16);
 }
 
+TEST_CASE("a fold crosses a real module boundary as structure, is spent by the host's evaluator, "
+          "and as a fold's body its spends draw on the host's one budget") {
+    op::Catalog catalog;
+    op::publish_primitives(catalog);
+    const op::MountResult mounted = op::mount_provider(catalog, PROVIDER_FOLD_SO);
+    REQUIRE_MESSAGE(mounted.ok, mounted.reason);
+    const op::OperatorDef* thousand = catalog.find("prov.thousand");
+    REQUIRE(thousand != nullptr);
+    REQUIRE(thousand->is_composite());
+    REQUIRE(thousand->composition()->nodes.at(0).fold.has_value());
+    CHECK(thousand->composition()->nodes.at(0).identity == op::kAddInt);
+    loom::Value ask(thousand->inputs());
+    ask.set("acc", loom::Cell::integer(5));
+    ask.set("count", loom::Cell::integer(0));
+    const op::Evaluation once = catalog.evaluate("prov.thousand", ask);
+    REQUIRE_MESSAGE(once.ok(), once.reason());
+    CHECK(once.value().at(0)->as_int() == 5 + 499500);
+
+    // As a host-authored fold's body: 1 + 99 * 1001 spends, then the 900th addition passes.
+    op::Builder outer(catalog, "host.outer",
+                      {loom::Field{"limit", loom::type_of(loom::Kind::Int), true}});
+    const op::Builder::Ref nested = outer.fold("prov.thousand", "count", "acc",
+        {outer.constant(std::int64_t{0}), outer.input("limit"), outer.constant(std::int64_t{1}),
+         outer.constant(std::int64_t{0})});
+    catalog.publish(std::move(outer).result("result", nested));
+    loom::Value limit(catalog.find("host.outer")->inputs());
+    limit.set("limit", loom::Cell::integer(1000));
+    const op::Evaluation refused = catalog.evaluate("host.outer", limit);
+    REQUIRE_FALSE(refused.ok());
+    CHECK(refused.reason() == "'host.outer' step 0: iteration 99 (count 99): 'prov.thousand' step 0: "
+                              "iteration 899 (count 899): spending 'math.add' would pass this "
+                              "evaluation's budget of " +
+                                  std::to_string(op::kEvaluationSpends) + " operator spends");
+    limit.set("limit", loom::Cell::integer(10));
+    CHECK(catalog.evaluate("host.outer", limit).value().at(0)->as_int() == 10 * 499500);
+}
+
 TEST_CASE("a provider is not a weave: the basic provider exports no weave ABI") {
     // `provider != weave`, measured on the artifact this repository SHIPS rather
     // than asserted in prose. The image opens, answers the provider symbol, and has
@@ -1371,18 +1408,18 @@ TEST_CASE("the contribution codec carries a description and a fold at version 3,
         CHECK(back.composition->nodes[0].fold.has_value() == (def == &folded));
     }
     // THE FOLD CROSSES AS STRUCTURE: its body reference and the two ports it threads, mounted on
-    // the far side and spent there against whatever supplies `math.add`.
-    const op::DecodedContribution far = op::decode_contribution(
+    // the crossed side and spent there against whatever supplies `math.add`.
+    const op::DecodedContribution crossed = op::decode_contribution(
         op::admit_contribution(loom::parse(loom::serialize(op::encode_contribution(folded))))
             .value());
-    CHECK(far.composition->nodes[0].identity == op::kAddInt);
-    CHECK(far.composition->nodes[0].fold->count == "rhs");
-    CHECK(far.composition->nodes[0].fold->accumulator == "lhs");
+    CHECK(crossed.composition->nodes[0].identity == op::kAddInt);
+    CHECK(crossed.composition->nodes[0].fold->count == "rhs");
+    CHECK(crossed.composition->nodes[0].fold->accumulator == "lhs");
     op::Catalog host;
     op::publish_primitives(host);
-    REQUIRE(host.mount("prov.far", {op::OperatorDef(far.identity, far.inputs, far.outputs,
-                                                    *far.composition, far.description)}));
-    loom::Value ask(far.inputs);
+    REQUIRE(host.mount("prov.crossed", {op::OperatorDef(crossed.identity, crossed.inputs, crossed.outputs,
+                                                    *crossed.composition, crossed.description)}));
+    loom::Value ask(crossed.inputs);
     ask.set("limit", loom::Cell::integer(10));
     const op::Evaluation summed = host.evaluate("prov.summed", ask);
     REQUIRE_MESSAGE(summed.ok(), summed.reason());
