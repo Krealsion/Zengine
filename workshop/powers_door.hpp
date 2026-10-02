@@ -262,10 +262,10 @@ inline std::string refusal_of(const FindPowers& asked) {
     return std::string();
 }
 
-/// Every power the ask fits, the evaluator's form first and then the catalog's identities in its
-/// order, one page of it: read at the ask off the store `find` resolves through, so an overlay
-/// mounted since the last ask is in this answer with its own words. Nothing is evaluated and
-/// nothing is kept.
+/// Every power the ask fits, the catalog's identities in its order and then the evaluator's form,
+/// one page of it: read at the ask off the store `find` resolves through, so an overlay mounted
+/// since the last ask is in this answer with its own words. A cursor only ever names a catalog
+/// identity, so one named like the form pages as any other. Nothing is evaluated or kept.
 inline PowersFound find_powers(const op::Catalog& catalog, const FindPowers& asked) {
     PowersFound out;
     out.powers = static_cast<std::int64_t>(catalog.size());
@@ -278,12 +278,6 @@ inline PowersFound find_powers(const op::Catalog& catalog, const FindPowers& ask
     const std::string text = asked.text.value_or(std::string());
     const std::vector<std::string_view> terms = powers_detail::terms_of(text);
     const std::size_t page = static_cast<std::size_t>(asked.limit.value_or(kMaxPowerRows));
-    if (powers_detail::form_fits(asked, terms)) {
-        ++out.total;
-        if (!asked.after) {
-            out.rows.push_back(powers_detail::fold_row());
-        }
-    }
     for (const std::string& identity : catalog.identities()) {
         const std::vector<op::Contribution> stack = catalog.contributions(identity);
         if (stack.empty() || stack.back().definition == nullptr ||
@@ -291,12 +285,20 @@ inline PowersFound find_powers(const op::Catalog& catalog, const FindPowers& ask
             continue;
         }
         ++out.total;
-        // A page that ended on the form continues at the catalog's first identity.
-        if (asked.after && *asked.after != op::kFoldForm && identity <= *asked.after) {
+        if (asked.after && identity <= *asked.after) {
             continue;
         }
         if (out.rows.size() < page) {
             out.rows.push_back(powers_detail::row_of(identity, stack.back()));
+        } else if (out.next.empty()) {
+            out.next = out.rows.back().identity;
+        }
+    }
+    // The form follows the catalog: on this page if it has room, else on the page after its last.
+    if (powers_detail::form_fits(asked, terms)) {
+        ++out.total;
+        if (out.rows.size() < page) {
+            out.rows.push_back(powers_detail::fold_row());
         } else if (out.next.empty()) {
             out.next = out.rows.back().identity;
         }

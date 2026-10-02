@@ -2245,7 +2245,7 @@ TEST_CASE("kind, construction, provider and offered filter, and a conversion is 
     CHECK(conversion->kind == workshop::kConversionKind);
 }
 
-TEST_CASE("the door finds the fold by what it is for, ahead of the catalog and never in a browse, "
+TEST_CASE("the door finds the fold by what it is for, after the catalog and never in a browse, "
           "and fits=fold asks only for what a fold could spend as its body") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
@@ -2257,7 +2257,7 @@ TEST_CASE("the door finds the fold by what it is for, ahead of the catalog and n
     const workshop::PowersFound counted = workshop::find_powers(rig.catalog, by_purpose);
     REQUIRE(counted.ok);
     REQUIRE_FALSE(counted.rows.empty());
-    const workshop::PowerRow& fold = counted.rows.front();
+    const workshop::PowerRow& fold = counted.rows.back();
     CHECK(fold.identity == "fold");
     CHECK(fold.kind == workshop::kFormKind);
     CHECK(fold.construction == workshop::kEvaluatorConstruction);
@@ -2286,17 +2286,54 @@ TEST_CASE("the door finds the fold by what it is for, ahead of the catalog and n
     loop.fits = "loop";
     CHECK(workshop::find_powers(rig.catalog, loop).reason == "a fit is fold; 'loop' is not one");
 
-    // A PAGE ENDING ON THE FORM continues at the catalog's first row.
+    // THE FORM HAS A PAGE OF ITS OWN after the catalog's last row, and no page ends on it early.
     workshop::FindPowers page;
     page.text = "a";
     page.limit = 1;
     const workshop::PowersFound first = workshop::find_powers(rig.catalog, page);
-    CHECK(identities_of(first) == std::vector<std::string>{"fold"});
-    CHECK(first.next == "fold");
-    page.after = first.next;
-    CHECK(identities_of(workshop::find_powers(rig.catalog, page)) ==
-          std::vector<std::string>{"compare.less_int"});
+    CHECK(identities_of(first) == std::vector<std::string>{"compare.less_int"});
+    CHECK(first.next == "compare.less_int");
+    workshop::FindPowers rest = page;
+    rest.limit = 100;
+    const auto all = identities_of(workshop::find_powers(rig.catalog, rest));
+    REQUIRE(all.size() >= 2);
+    page.after = all[all.size() - 2];
+    const workshop::PowersFound last = workshop::find_powers(rig.catalog, page);
+    CHECK(identities_of(last) == std::vector<std::string>{"fold"});
+    CHECK(last.next.empty());
     CHECK(op::invocations() == quiet);
+}
+
+TEST_CASE("pages of the door's answer end, though an operator is itself named fold: a cursor names "
+          "a catalog identity, never the form") {
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
+    REQUIRE(rig.catalog.mount("test.named-fold",
+        {op::make_operator<&op::max_int>("fold", {"lhs", "rhs"}, "result", "an operator of that name")}));
+    workshop::FindPowers page;
+    page.text = "o";
+    page.limit = 1;
+    std::vector<std::string> walked;
+    std::int64_t total = -1;
+    for (int asks = 0; asks < 32; ++asks) {
+        const workshop::PowersFound said = workshop::find_powers(rig.catalog, page);
+        REQUIRE(said.ok);
+        total = said.total;
+        for (const auto& row : said.rows) walked.push_back(row.identity + "/" + row.kind);
+        if (said.next.empty()) break;
+        page.after = said.next;
+    }
+    // EVERY ROW ONCE, and the walk ended: the rows one unpaged answer gives, the form last.
+    workshop::FindPowers whole;
+    whole.text = "o";
+    std::vector<std::string> unpaged;
+    for (const auto& row : workshop::find_powers(rig.catalog, whole).rows)
+        unpaged.push_back(row.identity + "/" + row.kind);
+    CHECK(static_cast<std::int64_t>(walked.size()) == total);
+    CHECK(walked == unpaged);
+    CHECK(std::find(walked.begin(), walked.end(), "fold/operator") != walked.end());
+    REQUIRE_FALSE(walked.empty());
+    CHECK(walked.back() == "fold/form");
 }
 
 TEST_CASE("a page continues after an identity, and total counts the whole query") {
