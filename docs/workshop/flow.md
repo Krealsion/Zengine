@@ -82,6 +82,24 @@ selected node; with none selected, it edits the search line.
 
 ![A selected port listing what could fill it: what is in scope, a typed constant, then what the door finds](images/flow-port.png)
 
+## Carry material into Flow
+
+Drag a value from Inventory, Info or Powers onto Flow, or pick it up with the keyboard and click
+Flow, and Flow says what it can be here. Carrying copies data; it grants nothing.
+
+- **An operator reference** -- a power dragged out of **Powers**, or one Inventory keeps --
+  becomes a node: into the port it lands on, ahead of that port's node; as the body of a fold
+  whose `body` row it lands on, the slot opening with it found so you choose the count's port; or
+  anywhere else on the graph, at the end of the trigger, where you released it. A reference whose
+  operator's ports have changed since it was found is refused with that sentence.
+- **Any other value** opens a page of offers: **Send as example** when this definition accepts
+  its shape and the participant is running; **Use field = value on %n port** for each field of
+  the port's kind when it landed on an `Int` or `Bool` port; **Declare ... as an accepted
+  message** when no message of its name is declared, and **as an emitted message** when its name
+  is inside the definition's namespace. A dropped shape description (`zen.SchemaDesc`) offers the
+  declarations of the shape it describes. A declared shape is the one that came -- its name,
+  version and fields -- so values of it match it exactly. **Cancel** or **Escape** puts it down.
+
 ## Keep examples and exercise the weave
 
 In **Messages**, open `water.Reading`, click `input`, enter `3`, and confirm. **Save example**

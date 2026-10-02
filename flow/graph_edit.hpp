@@ -116,6 +116,23 @@ public:
     changed();
     return shapes.size() - 1;
   }
+  /// Declare a shape exactly as it came -- its name, version and fields, so its identity is the
+  /// one the value or description carried -- as accepted or, within the definition's namespace,
+  /// emitted.
+  std::size_t declare(std::shared_ptr<const loom::Schema> shape, bool emitted) {
+    editable();
+    auto &shapes = emitted ? project.definition.emits : project.definition.accepts;
+    for (const auto &declared : shapes)
+      if (declared->name() == shape->name())
+        throw std::invalid_argument("a message named " + shape->name() + " is already declared");
+    const auto prefix = project.definition.name + ".";
+    if (emitted && shape->name().rfind(prefix, 0) != 0)
+      throw std::invalid_argument("an emitted message's name must begin `" + prefix + "`; `" +
+                                  shape->name() + "` does not");
+    shapes.push_back(std::move(shape));
+    changed();
+    return shapes.size() - 1;
+  }
   std::size_t trigger(std::size_t accepted, const std::string &field) {
     editable();
     const auto &shape = project.definition.accepts.at(accepted);

@@ -5,7 +5,10 @@
 #include "flow-host/runtime.hpp"
 #include "flow/workspace.hpp"
 #include "input/vocabulary.hpp"
+#include "inventory/codec.hpp"
 #include "operator/primitives.hpp"
+#include "operator/reference.hpp"
+#include "workshop/pane_carry.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/powers_door.hpp"
@@ -87,7 +90,7 @@ struct Rig {
         for (const auto& schema : {loom::schema_of<ws::PaneCatalogRequested>(),
                 loom::schema_of<ws::PaneRoom>(), loom::schema_of<ws::PaneCanvasRoom>(),
                 loom::schema_of<ws::PaneCanvasPointer>(), loom::schema_of<ws::PaneKey>(),
-                loom::schema_of<ws::PaneTextInput>(),
+                loom::schema_of<ws::PaneTextInput>(), loom::schema_of<ws::PaneCanvasValueDrop>(),
                 loom::schema_of<fp::FlowEdit>()})
             host_grant.allow_to_role(schema->name(), schema->version(), fp::kRole);
         host_grant.allow_to_any(ws::PaneQuitRequested::zen_name, ws::PaneQuitRequested::zen_version);
@@ -178,6 +181,22 @@ struct Rig {
         return event;
     }
     void click(const std::string& text, bool prefix = false) { host(press_for(text, prefix)); }
+    /// What Workshop delivers when a person drops a carried value on the picture at (x, y).
+    void drop(const loom::Value& value, std::int64_t x, std::int64_t y) {
+        const auto bytes = zengine::inventory::encode_pair(value, {});
+        host(ws::PaneCanvasValueDrop{fp::kPane, grant, picture().picture, x, y,
+                                     loom::Bytes(bytes.begin(), bytes.end()),
+                                     "zengine.inventory-pane", "inventory", ""});
+    }
+    void drop_on(const loom::Value& value, const std::string& text, bool prefix = false) {
+        const auto row = label(text, prefix);
+        drop(value, row.x + 4, row.y + 4);
+    }
+    loom::Value reference(const std::string& identity) const {
+        const op::OperatorDef* def = catalog.find(identity);
+        REQUIRE(def != nullptr);
+        return op::encode_reference({identity, def->inputs()->content_id(), def->outputs()->content_id()});
+    }
     void key(std::int64_t scancode, std::int64_t modifiers = 0) { host(ws::PaneKey{fp::kPane, scancode, modifiers}); }
     void text(const std::string& value) { host(ws::PaneTextInput{fp::kPane, value}); }
     void replace_text(const std::string& value) { key(in::scan::kA, in::mod::kCtrl); text(value); }
@@ -913,4 +932,89 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     const auto subject = rig.bus.role_holder("tally");
     REQUIRE(subject.valid());
     CHECK(rig.bus.weave(subject)->snapshot().get("total")->as_int() == 45);
+}
+
+TEST_CASE("a dropped operator reference becomes a node: where it was released, into the port it "
+          "lands on, or as the body the fold's slot then offers; a stale one is refused") {
+    Rig rig;
+    rig.graph_semantically();
+    // WHERE IT WAS RELEASED: a step at the end, its box placed at the drop.
+    const auto& graph = rig.label("[Reset view]");
+    rig.drop(rig.reference("math.max"), graph.x - 40 * unit, graph.y - 12 * unit);
+    auto body = rig.workspace().graph.project.definition.on.front().body;
+    REQUIRE(body.nodes.size() == 2);
+    CHECK(body.nodes.at(1).identity == "math.max");
+    (void)rig.label("%1 math.max");
+
+    // INTO THE PORT IT LANDS ON: placed before that port's node and wired there.
+    rig.drop_on(rig.reference("math.max"), "o rhs = 0");
+    body = rig.workspace().graph.project.definition.on.front().body;
+    REQUIRE(body.nodes.size() == 3);
+    CHECK(body.nodes.at(1).arguments.at(1).from() == op::Binding::From::Node);
+    CHECK(body.nodes.at(1).arguments.at(1).node_index() == 0);
+
+    // STALE: its ports changed since it was found, so it is refused and nothing is added.
+    rig.drop(op::encode_reference({"math.max", 1, 2}), graph.x - 40 * unit, graph.y - 12 * unit);
+    CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.size() == 3);
+    (void)rig.label("'math.max' is not the operator this reference was found at: its ports "
+                    "changed since; find it again");
+
+    // ON A FOLD'S BODY SLOT: the slot opens with the operator found, for the maker to name the count.
+    rig.edit_ok("add-fold");
+    rig.drop_on(rig.reference("math.add"), "body = [choose]");
+    (void)rig.label("For %3 fold's body");
+    (void)rig.label("[count rhs, acc lhs]");
+}
+
+TEST_CASE("a dropped value offers what it can be here: its shape declared, then an example to send, "
+          "a field as a constant on the port it landed on; Escape puts it down") {
+    Rig rig;
+    rig.edit_ok("new", {"tally", "discard"});
+    rig.edit_ok("state-field", {"total", "Int", "required"});
+    const auto count_schema = loom::SchemaBuilder("tally.panel.Count", 1)
+        .field("start", loom::Kind::Int).field("limit", loom::Kind::Int)
+        .field("step", loom::Kind::Int).build();
+    loom::Value count(count_schema);
+    count.set("start", loom::Cell::integer(0));
+    count.set("limit", loom::Cell::integer(10));
+    count.set("step", loom::Cell::integer(1));
+
+    // A NEW SHAPE IS DECLARED as it came: name, version, fields, and so its identity.
+    rig.drop(count, 40 * unit, 20 * unit);
+    (void)rig.label("Dropped tally.panel.Count v1");
+    CHECK_FALSE(rig.shows("[Send as example]"));
+    rig.click("[Declare tally.panel.Count v1 as an accepted message]");
+    REQUIRE(rig.workspace().graph.project.definition.accepts.size() == 1);
+    CHECK(loom::same_identity(*rig.workspace().graph.project.definition.accepts[0], *count_schema));
+    CHECK_FALSE(rig.shows("Dropped tally.panel.Count v1"));
+
+    // THE TALLY, then the same value is an example to send, and a field fills a port.
+    rig.edit_ok("trigger", {"0", "total"});
+    rig.edit_ok("add-fold");
+    const auto add = rig.ref("math.add");
+    rig.edit_ok("fold-body", {"0", add[0], add[1], add[2], "rhs", "lhs"});
+    rig.edit_ok("bind", {"0", "0", "$start"});
+    rig.edit_ok("bind", {"0", "1", "$limit"});
+    rig.drop_on(count, "o initial = [unwired]");
+    (void)rig.label("[Use start = 0 on %0 initial]");
+    (void)rig.label("[Use limit = 10 on %0 initial]");
+    rig.click("[Use start = 0 on %0 initial]");
+    CHECK(rig.workspace().graph.project.definition.on[0].body.nodes[0].arguments[3].constant_cell().as_int() == 0);
+    rig.edit_ok("result", {"0"});
+    rig.edit_ok("run");
+    rig.drop(count, 40 * unit, 20 * unit);
+    rig.click("[Send as example]");
+    const auto subject = rig.bus.role_holder("tally");
+    REQUIRE(subject.valid());
+    CHECK(rig.bus.weave(subject)->snapshot().get("total")->as_int() == 45);
+
+    // AN EMITTED SHAPE inside the definition's namespace, and Escape puts a drop down unused.
+    const auto total_schema = loom::SchemaBuilder("tally.Total", 1).field("total", loom::Kind::Int).build();
+    loom::Value said(total_schema);
+    said.set("total", loom::Cell::integer(0));
+    rig.drop(said, 40 * unit, 20 * unit);
+    (void)rig.label("[Declare tally.Total v1 as an emitted message]");
+    rig.key(in::scan::kEscape);
+    CHECK_FALSE(rig.shows("Dropped tally.Total v1"));
+    CHECK(rig.workspace().graph.project.definition.emits.empty());
 }

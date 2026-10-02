@@ -27,6 +27,10 @@ struct Picture {
   std::vector<Hit> hits;
   std::vector<ws::CanvasTextBox> text_clips;
   std::int64_t revision = 0, width = 0, height = 0, grain = 1;
+  /// Where the graph's authored origin sits in this picture, in authored grid units: a drop lands
+  /// a node where it was released. Unset off the graph page.
+  std::optional<std::int64_t> graph_top;
+  std::int64_t pan_x = 0, pan_y = 0, zoom = 100;
   const Hit *hit(std::int64_t x, std::int64_t y) const {
     for (auto at = hits.rbegin(); at != hits.rend(); ++at)
       if (at->contains(x, y, grain))
@@ -280,9 +284,34 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     label(0, y + 2 * unit, "Tab changes field; Enter confirms; Escape cancels");
     return finish_body();
   }
+  if (model.dropped) {
+    // A DROPPED VALUE'S PAGE: what came, and what it can become here; nothing is done until the
+    // maker chooses, and Escape or Cancel puts it down.
+    const auto &value = model.dropped->value;
+    label(0, top, "Dropped " + value.schema().name() + " v" +
+                      std::to_string(value.schema().version()),
+          ink::kAccent);
+    std::int64_t y = top + unit;
+    for (const auto &row : zengine::message_draft::Draft(value).rows()) {
+      if (y >= top + 6 * unit) break;
+      label(unit, y, row.label + " = " + row.summary, ink::kMuted);
+      y += unit;
+    }
+    y += unit;
+    for (const auto &offer : drop_offers(model)) {
+      if (y >= bottom) break;
+      button(0, y, offer.title, offer.action, offer.args);
+      y += unit;
+    }
+    return finish_body();
+  }
   const auto &graph = model.workspace.graph;
   const auto &def = graph.project.definition;
   if (model.page == Page::Graph) {
+    view.graph_top = top;
+    view.pan_x = model.workspace.pan_x;
+    view.pan_y = model.workspace.pan_y;
+    view.zoom = model.workspace.zoom;
     const auto sidebar_labels = view.content.texts.size(), sidebar_hits = view.hits.size();
     std::int64_t y = top;
     button(0, y, "Add trigger", "ask-trigger");

@@ -23,7 +23,11 @@
 #include "activation/activation.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "inventory/codec.hpp"
+#include "operator/reference.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
+#include "workshop/pane_carry.hpp"
+#include "workshop/pane_operation.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
@@ -112,11 +116,15 @@ class IntrospectionWeave
           IntrospectionWeave, IntrospectionState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                        PaneTextInput, PaneWheel, PaneActionRequested, loom::Result,
+                       zengine::workshop::PaneDragged, zengine::workshop::PaneOperationAnswered,
+                       zengine::workshop::PaneCarryAnswered,
                        loom::Refused, ResolvedArrangement, zengine::workshop::v2::ResolvedArrangement,
                        PowersFound, PowerDescribed, SourceSampled,
                        surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, LoadedSelected, loom::ListLoaded,
                      ArrangementRequested, DescribePower, SampleRequested,
+                     zengine::workshop::PaneOperationRequested,
+                     zengine::workshop::PaneValueCarryRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
     /// First breath, only if Loom says so: `ActivationCursor` requires Loom's attestation and a
@@ -602,6 +610,14 @@ private:
             ask_powers(mail);
             break;
         case intro::powers_control::kEntry:
+            // A press on a power may become a drag carrying its reference: held until the hand
+            // moves, so a click that never moved asks nothing.
+            carry_ = Carry{};
+            carry_.armed = true;
+            carry_.row = press.row;
+            carry_.column = press.column;
+            carry_.gesture = mail.correlation();
+            carry_.identity = hit.identity;
             if (powers_ui_.selected() == hit.identity) {
                 return;
             }
@@ -618,6 +634,64 @@ private:
         say_powers(mail);
     }
 
+public:
+    /// THE HAND MOVED WITH THE BUTTON DOWN after a press on a power: its reference -- the identity
+    /// and the two content ids the door's row carried -- is acquired under that press as a typed
+    /// value, `zengine.OperatorRef`, for Workshop to carry. A form is no operator and carries none.
+    void on(const zengine::workshop::PaneDragged& drag, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || drag.pane != kPowersPane ||
+            !carry_.armed || carry_.started ||
+            (drag.row == carry_.row && drag.column == carry_.column)) {
+            return;
+        }
+        carry_.started = true;
+        const zengine::workshop::PowerRow* row = nullptr;
+        for (const zengine::workshop::PowerRow& r : powers_ui_.reading.rows) {
+            if (r.identity == carry_.identity) {
+                row = &r;
+            }
+        }
+        if (row == nullptr || row->kind == zengine::workshop::kFormKind) {
+            return;
+        }
+        const zengine::op::OperatorRef ref{row->identity,
+                                           static_cast<loom::ContentId>(row->inputs.content_id),
+                                           static_cast<loom::ContentId>(row->outputs.content_id)};
+        const std::string bytes =
+            zengine::inventory::encode_pair(zengine::op::encode_reference(ref), {});
+        carry_.bytes.assign(bytes.begin(), bytes.end());
+        carry_.ask = ++asked_;
+        (void)mail.as_role(kIntrospectionRole)
+            .send_to_role(kWorkshopRole,
+                          zengine::workshop::PaneOperationRequested{
+                              kPowersPane, kWorkshopRole,
+                              zengine::workshop::PaneValueCarryRequested::zen_name, 1,
+                              static_cast<std::int64_t>(carry_.gesture)},
+                          carry_.ask);
+    }
+
+    /// Workshop's answer to that acquisition: allowed, the reference is handed over to carry under
+    /// the press's own number; refused, nothing is carried.
+    void on(const zengine::workshop::PaneOperationAnswered& answer, loom::Mail& mail) {
+        if (!mail.answers_ask() || carry_.ask == 0 || mail.correlation() != carry_.ask) {
+            return;
+        }
+        carry_.ask = 0;
+        if (!answer.allowed) {
+            return;
+        }
+        (void)mail.as_role(kIntrospectionRole)
+            .send_to_role(kWorkshopRole,
+                          zengine::workshop::PaneValueCarryRequested{kPowersPane, carry_.identity,
+                                                                     carry_.bytes, true},
+                          carry_.gesture);
+    }
+
+    void on(const zengine::workshop::PaneCarryAnswered&, loom::Mail&) {
+        carry_ = Carry{}; // carried or refused, the press is spent
+    }
+
+private:
     /// Ask the host to run one Source because a weaver said so: the only thing here that can
     /// cause an evaluation, called only from `Return` and `[ Sample ]`. One outstanding: a second
     /// gesture replaces the correlation, and the door still spends both.
@@ -720,6 +794,17 @@ private:
         std::string identity;
     };
     Describing describing_;
+
+    /// A press on a power that a drag may yet carry: where it was, under which input, which power,
+    /// and once the hand moved, the acquisition asked and the reference's bytes.
+    struct Carry {
+        bool armed = false, started = false;
+        std::int64_t row = 0, column = 0;
+        std::uint64_t gesture = 0, ask = 0;
+        std::string identity;
+        loom::Bytes bytes;
+    };
+    Carry carry_;
 
     /// THE PROCESS'S COPIED TEXT AS THIS PANE LAST HEARD IT, and the book for the one
     /// paste conversation it can hold open. Two, because a clipboard is a mirror and

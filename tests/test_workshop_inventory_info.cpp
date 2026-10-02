@@ -7,6 +7,7 @@
 
 #include "workshop_support.hpp"
 #include "inventory_story.hpp"
+#include "operator/reference.hpp"
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
 #include "inventory/vocabulary.hpp"
@@ -948,4 +949,84 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     REQUIRE_MESSAGE(s.saved_entries().size()==2,(s.shown(kind)+s.shown(s.source)));
     CHECK(s.saved_entries().back().item.schema().name()==loom::Ack::zen_name);
     CHECK(s.saved_entries().back().metadata.front().get("kind")->as_text()=="received");
+}
+
+TEST_CASE("a value dragged from Inventory onto Flow's canvas reaches Flow as a canvas drop where it "
+          "was released, and Flow offers what it can become") {
+    InventoryStory s(191, true, false, true);
+    s.append(1, "A");
+    REQUIRE(s.flow != 0);
+    const auto* canvas = s.r.session().panes.external_pane(s.flow);
+    REQUIRE(canvas != nullptr);
+    REQUIRE(canvas->canvas.grant != 0);
+    std::vector<PaneCanvasValueDrop> drops;
+    const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && e.payload &&
+            e.schema_name == PaneCanvasValueDrop::zen_name)
+            drops.push_back(loom::from_value<PaneCanvasValueDrop>(*e.payload));
+    });
+    auto press = s.button_at(s.source, 2, true);
+    auto release = s.button_at(s.flow, 8, false);
+    release.x += 40; // over the graph, right of Flow's rail
+    auto move = release;
+    move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    s.batch({press, move, release});
+    s.r.bus.remove_observer(tap);
+    INFO(s.r.last_notice());
+    INFO(s.shown(s.source));
+    REQUIRE(drops.size() == 1);
+    const auto& view = s.r.session().panes.external_pane(s.flow)->canvas;
+    CHECK(drops[0].pane == "flow");
+    CHECK(drops[0].grant == view.grant);
+    CHECK(drops[0].x > 0);
+    CHECK(drops[0].x < view.width);
+    CHECK(drops[0].y > 0);
+    CHECK(drops[0].y < view.height);
+    CHECK(drops[0].source_office == slots::kRole);
+    CHECK(inv::decode_pair({reinterpret_cast<const char*>(drops[0].data.data()),
+                            drops[0].data.size()}).item.get("count")->as_int() == 1);
+    // FLOW HOLDS IT ON ITS OWN PAGE and offers its shape, which this definition does not have yet.
+    const auto pictured = [&](const std::string& text) {
+        for (const auto& t : s.r.session().panes.external_pane(s.flow)->canvas.content.texts)
+            if (t.text.find(text) != std::string::npos) return true;
+        return false;
+    };
+    CHECK(pictured("Dropped story.RuntimeItem v1"));
+    CHECK(pictured("[Declare story.RuntimeItem v1 as an accepted message]"));
+    CHECK(pictured("[Cancel]"));
+}
+
+TEST_CASE("an operator reference dragged out of Powers is kept by Inventory like any value: the "
+          "identity and the two content ids the door's row carried") {
+    InventoryStory s(191 | 64, true, false, false, true); // the actor may carry a value
+    REQUIRE(s.powers != 0);
+    const auto entries_before = s.saved_entries().size();
+    // The Operators view, found by what it is for.
+    s.click(s.powers, 0);
+    s.key(input::scan::kTab);
+    s.text("sum");
+    const auto rows = pane_rows(s.r, s.powers);
+    std::int64_t at = -1;
+    for (std::size_t i = 0; i < rows.size(); ++i)
+        if (rows[i].find("math.add") != std::string::npos && at < 0) at = static_cast<std::int64_t>(i);
+    INFO(s.shown(s.powers));
+    REQUIRE(at >= 0);
+    auto press = s.button_at(s.powers, at, true);
+    press.x += 4; // on the power's name, past the selection mark
+    auto release = s.button_at(s.source, 0, false);
+    auto move = release;
+    move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    s.batch({press, move, release});
+    INFO(s.r.last_notice());
+    INFO(s.trace);
+    const auto entries = s.saved_entries();
+    REQUIRE(entries.size() == entries_before + 1);
+    const auto& kept = entries.back().item;
+    REQUIRE(zengine::op::is_reference(kept));
+    const auto ref = zengine::op::decode_reference(kept);
+    const auto* add = s.r.catalog.find("math.add");
+    REQUIRE(add != nullptr);
+    CHECK(ref.identity == "math.add");
+    CHECK(ref.authored_in == add->inputs()->content_id());
+    CHECK(ref.authored_out == add->outputs()->content_id());
 }

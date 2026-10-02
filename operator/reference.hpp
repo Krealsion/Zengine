@@ -8,10 +8,8 @@
 // `zengine.OperatorRef v1`, which a person carries, Inventory keeps and a composer adds as a
 // step. It is what a step holds, and it grants nothing: only the evaluator spends one, resolving
 // it at the spend. A reference whose operator now has other ports is stale and is refused, never
-// re-bound to whatever bears the name. Reference: docs/reference/operator-providers.md.
-
-#include "operator/catalog.hpp"
-#include "operator/operator.hpp"
+// re-bound to whatever bears the name. It names no catalog, so a pane that only shows and carries
+// references links no operator target. Reference: docs/reference/operator-providers.md.
 
 #include <zen/gate.hpp>
 #include <zen/schema.hpp>
@@ -41,11 +39,6 @@ inline std::shared_ptr<const loom::Schema> operator_ref_schema() {
                               .field("authored_out", loom::Kind::Int)
                               .build();
     return s;
-}
-
-/// The reference to a definition as it is now.
-inline OperatorRef reference_to(const OperatorDef& def) {
-    return OperatorRef{def.identity(), def.inputs()->content_id(), def.outputs()->content_id()};
 }
 
 inline loom::Value encode_reference(const OperatorRef& ref) {
@@ -82,20 +75,6 @@ inline std::string reshaped_reason(const std::string& identity) {
     return "'" + identity +
            "' is not the operator this reference was found at: its ports changed since; find it "
            "again";
-}
-
-/// Why this reference cannot be authored against the catalog now, in words, or nothing when its
-/// operator is there at the signature it was found at. A stale one is never re-bound.
-inline std::string stale_reason(const Catalog& catalog, const OperatorRef& ref) {
-    const OperatorDef* def = catalog.find(ref.identity);
-    if (def == nullptr) {
-        return unsupplied_reason(ref.identity);
-    }
-    if (def->inputs()->content_id() != ref.authored_in ||
-        def->outputs()->content_id() != ref.authored_out) {
-        return reshaped_reason(ref.identity);
-    }
-    return std::string();
 }
 
 } // namespace zengine::op

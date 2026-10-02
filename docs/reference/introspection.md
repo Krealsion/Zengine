@@ -235,6 +235,7 @@ on either word in the chrome row.
 | `Tab`, or a press on `Sources` / `Operators` | switch which view the one projection shows |
 | `Up` / `Down` | move to the previous or next **visible** entry |
 | a press on a list row | select that power — and nothing else |
+| a press on a row, held and dragged | carry the power's operator reference, `zengine.OperatorRef`, to Inventory or Flow |
 | typing | the search query; there is one editable field, so no gesture activates it |
 | a press on `[ ] Composite` | show only powers whose active contribution is composite |
 | `Return`, or a press on `[ Sample ]` | sample the selected **Source** |
