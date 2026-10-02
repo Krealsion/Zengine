@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The three-level provider witness: `prov.function.1` = f2(f2(x)) names only function.2,
-// `prov.function.2` = f3(f3(x)) names only function.3, and `prov.function.3` = x * 2 is the only
-// code. When another provider covers function.3, function.1 changes with nothing rewritten or
-// rebound. One source, five libraries: a, the chain; b, function.3 alone as x + 100 at the same
-// signature, a test of resolution; b-wrong, that name at another signature, which an overlay must
-// refuse; abi, a surface version the host does not speak; cycle, function.3 as a composite naming
-// function.1, which over a closes a cycle through identities. Not a weave: no Kernel loads it.
+// The three-level provider witness: `prov.function.1` = f2(f2(x)), `prov.function.2` = f3(f3(x)),
+// `prov.function.3` = x * 2, the only code; covering function.3 changes function.1 with nothing
+// rebound. Five libraries: a, the chain; b, function.3 as x + 100; b-wrong, that name at another
+// signature; abi, a surface version the host does not speak; cycle, function.3 naming function.1,
+// which over a closes a cycle through identities. Not a weave: no Kernel loads it.
 
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"

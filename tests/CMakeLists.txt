@@ -69,12 +69,10 @@ target_compile_definitions(zengine-operator-consumer-weave-legacy PRIVATE OPH_ST
 target_compile_definitions(zengine-operator-consumer-weave-abi PRIVATE OPH_STRANGER_ABI=1)
 
 # ---- the operator providers, none of them a weave ----------------------------------------
-# `zengine_provider` and no `loom::switchboard`: a host opens the file, resolves one optional
-# symbol and reads definitions out of it. provider_chain.cpp builds four: a, the three-level
-# chain; b, its last level alone at the same signature with another answer; b-wrong, that name at
-# another signature, which an overlay must refuse; abi, a surface version the host does not
-# speak; cycle, its last level naming its first, which over a closes a cycle through identities.
-# provider_min.cpp supplies `math.max` as a minimum, for the Timer override witness.
+# `zengine_provider` and no `loom::switchboard`: a host opens the file and reads definitions out
+# of it. provider_chain.cpp builds five (a, the chain; b, its last level answering otherwise;
+# b-wrong, that name at another signature; abi, a surface version the host does not speak; cycle,
+# its last level naming its first). provider_min.cpp supplies `math.max` as a minimum.
 set(ZENGINE_PROV_NAMES a b b-wrong abi cycle)
 set(ZENGINE_PROV_FLAGS PROV_CHAIN_A PROV_CHAIN_B PROV_CHAIN_WRONG PROV_CHAIN_ABI PROV_CHAIN_CYCLE)
 foreach(prov_name prov_flag IN ZIP_LISTS ZENGINE_PROV_NAMES ZENGINE_PROV_FLAGS)
