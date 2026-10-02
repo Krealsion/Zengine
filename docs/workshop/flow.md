@@ -48,23 +48,34 @@ The rail beside the graph finds operators through the host's
 
 - **The search line** takes what you type while no dialog is open. A power matches when each word
   appears in its name or in what its contributor says it is for. The rows come in the catalog's
-  order, grouped as **Sources**, **Operators** and **Conversions**, and a count says how many more
-  matched than one answer carries.
+  order, grouped as **Forms**, **Sources**, **Operators** and **Conversions**, and a count says how
+  many more matched than one answer carries. **Forms** holds the fold, found by what it is for:
+  type `count` or `total`.
 - **A selected port** narrows the search to what yields its type, and lists before that what is
   **In scope** of the type (state and message fields, and earlier nodes' outputs), then a typed
   constant for an `Int` or `Bool` port. An in-scope row wires the port; the constant opens the
   binding editor. Click the port again to put it down.
 - **A row previews; it never runs.** The preview is the door's row, and showing it evaluates
-  nothing. **Add**, or **Enter**, adds the previewed power exactly as `add-node` does. A new node
-  joins the end of the trigger's graph, which executes in order, so it feeds only nodes added
-  after it.
+  nothing. **Add**, or **Enter**, adds the previewed power at the end of the trigger's graph, by
+  the reference the row carries; if its ports have changed since it was found, Add says so and
+  adds nothing. With a node selected, **Add before %n** places it ahead of that node instead, and
+  with a port selected, **Add into %n port** places it ahead of the port's node and wires it there,
+  so a found operator can feed the port you were filling. The graph executes in order, and the
+  nodes that follow are renumbered.
+- **A fold** runs an operator once for each count from a start toward a limit by a step,
+  threading an accumulator. Add it from **Forms**: it arrives with `step` bound to `1`. Click its
+  `body = [choose]` row: the rail then lists only what a fold could spend -- one answer, an `Int`
+  port for the count and another port of the answer's type -- and the preview offers each way to
+  thread it, such as **count rhs, acc lhs** for `math.add`. You choose which port takes the count;
+  port names only suggest. Wire `start`, `limit`, `step` and `initial`, and any other port of the
+  body from scope.
 - **What Flow does not offer.** A running definition's trigger body is that participant's own
   reaction, mounted for one revision and gone at the next behaviour edit. Flow asks only for
   powers their contributors offer, so it never lists one; **Powers** lists it and says it is not
   offered.
 
-**Escape** sheds one layer per press: the wire in hand, the selected port, the preview, the
-selected node, then the search line, and only then is the pane put down. **Delete** removes the
+**Escape** sheds one layer per press: the wire in hand, the selected port, an open body slot,
+the preview, the selected node, then the search line, and only then is the pane put down. **Delete** removes the
 selected node; with none selected, it edits the search line.
 
 ![Flow's search line finding math.max by what it is for, previewed beneath the graph](images/flow-find.png)

@@ -320,7 +320,15 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       y += unit;
     }
     const auto chosen_port = selected_port(model);
-    if (chosen_port) {
+    const auto slot = body_slot_node(model);
+    if (slot) {
+      // A FOLD'S BODY SLOT lists what a fold could spend: one answer, an Int port for the count
+      // and another of the answer's type for the accumulator. The preview says which port is which.
+      label(0, y, "For %" + std::to_string(*slot) + " fold's body", ink::kAccent);
+      y += unit;
+      label(0, y, "(acc: T, count: Int) -> T", ink::kMuted);
+      y += unit;
+    } else if (chosen_port) {
       // A SELECTED PORT lists what could fill it, in the order a maker reaches for it: what is
       // in scope, a typed constant, then the door's Sources and operators that yield its type.
       const auto n = std::to_string(chosen_port->node), a = std::to_string(chosen_port->port);
@@ -426,19 +434,22 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     const auto rect_begin = view.content.rects.size(),
                label_begin = view.content.texts.size(),
                hit_begin = view.hits.size();
+    // A fold carries one row more than a step: its body slot, under its title.
+    const auto extra = [&](std::size_t n) -> std::int64_t {
+      return on.body.nodes[n].fold ? 1 : 0;
+    };
     for (std::size_t n = 0; n < on.body.nodes.size(); ++n) {
       const auto [x, ny] = position(n);
       const auto &node = on.body.nodes[n];
       const auto h =
-          static_cast<std::int64_t>(node.arguments.size() + 3) * unit;
+          (static_cast<std::int64_t>(node.arguments.size() + 3) + extra(n)) * unit;
       const auto role =
           model.node && *model.node == n ? ink::kAccent : ink::kFill;
       stroke(x, ny, node_width, 4, role);
       stroke(x, ny + h, node_width, 4, role);
       stroke(x, ny, 4, h, role);
       stroke(x + node_width, ny, 4, h, role);
-      label(x + unit / 2, ny,
-            "%" + std::to_string(n) + " " + node.identity, role);
+      label(x + unit / 2, ny, "%" + std::to_string(n) + " " + node_title(node), role);
       std::int64_t id = 0;
       for (const auto &p : graph.places)
         if (p.trigger == model.workspace.active_trigger &&
@@ -446,17 +457,25 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
           id = p.id;
       view.hits.push_back(
           {x, ny, node_width, unit, "node", {std::to_string(n)}, id});
+      if (node.fold) {
+        const bool open = slot && *slot == n;
+        label(x + unit / 2, ny + unit,
+              "body = " + (node.identity.empty() ? std::string("[choose]") : node.identity),
+              open ? ink::kAccent : ink::kFill);
+        view.hits.push_back(
+            {x, ny + unit, node_width, unit, "body-slot", {std::to_string(n)}, id});
+      }
+      std::vector<std::string> port_names;
+      try {
+        const auto node_ports = graph.node_ports(model.trigger(), n, model.palette);
+        for (const auto &f : node_ports.inputs->fields())
+          port_names.push_back(f.name);
+      } catch (const std::exception &) {
+      }
       for (std::size_t a = 0; a < node.arguments.size(); ++a) {
-        std::string port = std::to_string(a);
-        try {
-          port = graph.ports(model.palette, node.identity)
-                     .inputs->fields()
-                     .at(a)
-                     .name;
-        } catch (const std::exception &) {
-        }
+        const std::string port = a < port_names.size() ? port_names[a] : std::to_string(a);
         const auto &binding = node.arguments[a];
-        const auto py = ny + static_cast<std::int64_t>(a + 1) * unit;
+        const auto py = ny + (static_cast<std::int64_t>(a + 1) + extra(n)) * unit;
         const bool marked = chosen_port && chosen_port->node == n && chosen_port->port == a;
         label(x + unit / 2, py,
               "o " + port + " = " +
@@ -475,8 +494,9 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
         if (binding.from() == zengine::op::Binding::From::Node) {
           const auto [sx, sy] = position(binding.node_index());
           const auto sh =
-              static_cast<std::int64_t>(
-                  on.body.nodes[binding.node_index()].arguments.size() + 2) *
+              (static_cast<std::int64_t>(
+                   on.body.nodes[binding.node_index()].arguments.size() + 2) +
+               extra(binding.node_index())) *
               unit;
           const auto ax = sx + node_width, ay = sy + sh + unit / 2, tx = x,
                      ty = py + unit / 2, mx = (ax + tx) / 2;
@@ -489,7 +509,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
         }
       }
       const auto oy =
-          ny + static_cast<std::int64_t>(node.arguments.size() + 2) * unit;
+          ny + (static_cast<std::int64_t>(node.arguments.size() + 2) + extra(n)) * unit;
       button(x + unit / 2, oy,
              on.body.result_node == n ? "-> state." + on.output : "output",
              "source-node", {std::to_string(n)}, id);
@@ -544,7 +564,40 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       for (auto i = band; i < view.content.texts.size(); ++i)
         view.text_clips[i] = {left, lower, std::max(std::int64_t{0}, right - left - 8 * unit),
                               bottom - lower};
-      button(room.width - 7 * unit, y0, "Add", "add-found", {shown->identity});
+      // WHAT ADD DOES with the row previewed: a form is placed, a body is chosen for the open
+      // slot, and an operator is added -- at the end, before the selected node, or before the node
+      // whose port is being filled and into that port.
+      std::int64_t bx2 = 23 * unit;
+      const auto offer = [&](const std::string &title, const std::string &action,
+                             std::vector<std::string> args) {
+        const auto w = static_cast<std::int64_t>(title.size() + 2) * unit + grid.padding;
+        // The row beneath the preview, left of the view's own controls.
+        if (bx2 + w > room.width - 23 * unit) return;
+        bx2 += button(bx2, bottom - unit, title, action, std::move(args));
+      };
+      if (shown->kind == ws::kFormKind) {
+        button(room.width - 7 * unit, y0, "Add", "add-fold", {});
+        if (model.node)
+          offer("Add before %" + std::to_string(*model.node), "add-fold",
+                {std::to_string(*model.node)});
+      } else if (slot) {
+        for (const auto &choice : fold_choices(model, *shown))
+          offer("count " + choice.count + ", acc " + choice.accumulator, "fold-body",
+                {std::to_string(*slot), shown->identity,
+                 std::to_string(shown->inputs.content_id),
+                 std::to_string(shown->outputs.content_id), choice.count, choice.accumulator});
+      } else {
+        button(room.width - 7 * unit, y0, "Add", "add-found", {shown->identity});
+        if (chosen_port)
+          offer("Add into %" + std::to_string(chosen_port->node) + " " +
+                    chosen_port->field.name,
+                "add-into",
+                {shown->identity, std::to_string(chosen_port->node),
+                 std::to_string(chosen_port->port)});
+        else if (model.node)
+          offer("Add before %" + std::to_string(*model.node), "add-found",
+                {shown->identity, std::to_string(*model.node)});
+      }
     }
     button(room.width - 22 * unit, bottom - unit, "Reset view", "fit");
     button(room.width - 9 * unit, bottom - unit, "-", "zoom-out");

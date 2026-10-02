@@ -5,6 +5,7 @@
 #include "flow/workspace.hpp"
 #include "flow/author.hpp"
 #include "flow/graph.hpp"
+#include "operator/reference.hpp"
 #include "component/text_box.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include <optional>
@@ -41,6 +42,9 @@ public:
     // previewed, by identity.
     zengine::component::TextBox search;
     std::optional<PortChoice> filling;
+    /// A fold whose body slot is open, by its node's stable place id: the door is asked for what
+    /// a fold could spend, and choosing a row chooses its body.
+    std::optional<std::int64_t> body_slot;
     zengine::workshop::PowersFound discovered;
     bool discovered_read = false;
     std::string preview;
@@ -148,17 +152,25 @@ public:
         *this = std::move(candidate);
         return result;
     }
+    /// An operator reference from its three spelled parts; a content id is Loom's Int, read back
+    /// to the 64 bits it is.
+    static zengine::op::OperatorRef reference(const std::string& identity, const std::string& in,
+                                              const std::string& out) {
+        if (identity.empty()) throw std::invalid_argument("an operator reference names an identity");
+        return {identity, static_cast<loom::ContentId>(flow::integer(in)),
+                static_cast<loom::ContentId>(flow::integer(out))};
+    }
 private:
     Action perform(const std::string& action, const std::vector<std::string>& args) {
         const auto previous_notice = notice;
         auto need = [&](std::size_t size) { if (args.size() != size) throw std::invalid_argument(action + " expects " + std::to_string(size) + " arguments"); };
         if (action == "describe") {
-            notice = "new(name,discard), state-field(name,type,required), message(name), message-field(index,name,type,required), trigger(message,output), add-node(identity), bind(node,port,$field|%node|constant), result(node), move(node,x,y), remove(node), save(path), open(path,discard), export-project(path), import-project(path,discard), preset(name), drafts, draft-open(index), run, apply, send, inspect, stop";
+            notice = "new(name,discard), state-field(name,type,required), message(name), message-field(index,name,type,required), trigger(message,output), add-node(identity,authored_in,authored_out[,before]), add-node-into(identity,authored_in,authored_out,node,port), add-fold([before]), fold-body(node,identity,authored_in,authored_out,count,accumulator), bind(node,port,$field|%node|constant), result(node), move(node,x,y), remove(node), save(path), open(path,discard), export-project(path), import-project(path,discard), preset(name), drafts, draft-open(index), run, apply, send, inspect, stop";
         } else if (action == "new") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before creating another");
             workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(args[0]);
-            node.reset(); form.reset(); form_key.clear(); form_title.clear(); form_state = false; state_edited = false; connecting.reset(); filling.reset(); page = Page::Graph; path.clear(); touched();
+            node.reset(); form.reset(); form_key.clear(); form_title.clear(); form_state = false; state_edited = false; connecting.reset(); filling.reset(); body_slot.reset(); page = Page::Graph; path.clear(); touched();
         } else if (action == "state-field") {
             need(3); if (args[2] != "required" && args[2] != "optional") throw std::invalid_argument("presence must be required or optional");
             workspace.graph.state_field(args[0], type(args[1]), args[2] == "required"); edited_state(); state_form();
@@ -168,11 +180,33 @@ private:
             need(4); if (args[3] != "required" && args[3] != "optional") throw std::invalid_argument("presence must be required or optional");
             message = flow::index_of(args[0]); workspace.graph.message_field(message, args[1], type(args[2]), args[3] == "required"); touched(); message_form(message);
         } else if (action == "trigger") {
-            need(2); workspace.active_trigger = static_cast<std::int64_t>(workspace.graph.trigger(flow::index_of(args[0]), args[1])); page = Page::Graph; node.reset(); filling.reset(); touched();
+            need(2); workspace.active_trigger = static_cast<std::int64_t>(workspace.graph.trigger(flow::index_of(args[0]), args[1])); page = Page::Graph; node.reset(); filling.reset(); body_slot.reset(); touched();
         } else if (action == "select-trigger") {
-            need(1); const auto at = flow::index_of(args[0]); (void)workspace.graph.project.definition.on.at(at); workspace.active_trigger = static_cast<std::int64_t>(at); node.reset(); connecting.reset(); filling.reset(); first_row = 0;
+            need(1); const auto at = flow::index_of(args[0]); (void)workspace.graph.project.definition.on.at(at); workspace.active_trigger = static_cast<std::int64_t>(at); node.reset(); connecting.reset(); filling.reset(); body_slot.reset(); first_row = 0;
         } else if (action == "add-node") {
-            need(1); node = workspace.graph.add(trigger(), workspace.graph.ports(palette, args[0])); page = Page::Graph; touched();
+            // An operator reference -- the identity and the two content ids it was found at -- and
+            // where: at the end, or before a node, renumbering what follows.
+            if (args.size() != 3 && args.size() != 4)
+                throw std::invalid_argument("add-node expects an identity, the two content ids it was found at, and optionally the node to place it before");
+            std::optional<std::size_t> before;
+            if (args.size() == 4) before = flow::index_of(args[3]);
+            node = workspace.graph.add(trigger(), reference(args[0], args[1], args[2]), palette, before);
+            page = Page::Graph; touched();
+        } else if (action == "add-node-into") {
+            // Placed before the node whose port it fills, and wired into that port, in one edit.
+            need(5); const auto into = flow::index_of(args[3]), port = flow::index_of(args[4]);
+            const auto added = workspace.graph.add(trigger(), reference(args[0], args[1], args[2]), palette, into);
+            workspace.graph.bind(trigger(), into + 1, port, zengine::op::Binding::node(added), palette);
+            node = added; filling.reset(); page = Page::Graph; touched();
+        } else if (action == "add-fold") {
+            if (args.size() > 1) throw std::invalid_argument("add-fold expects at most the node to place it before");
+            std::optional<std::size_t> before;
+            if (args.size() == 1) before = flow::index_of(args[0]);
+            node = workspace.graph.add_fold(trigger(), before); page = Page::Graph; touched();
+        } else if (action == "fold-body") {
+            need(6); const auto n = flow::index_of(args[0]);
+            workspace.graph.fold_body(trigger(), n, reference(args[1], args[2], args[3]), args[4], args[5], palette);
+            node = n; body_slot.reset(); touched();
         } else if (action == "bind") {
             need(3); const auto n = flow::index_of(args[0]), port = flow::index_of(args[1]);
             zengine::op::Binding binding = zengine::op::Binding::input("");
@@ -180,7 +214,8 @@ private:
             else if (!args[2].empty() && args[2][0] == '%') binding = zengine::op::Binding::node(flow::index_of(args[2].substr(1)));
             else {
                 const auto& on = workspace.graph.project.definition.on.at(trigger());
-                const auto& ports = workspace.graph.ports(palette, on.body.nodes.at(n).identity);
+                (void)on.body.nodes.at(n);
+                const auto ports = workspace.graph.node_ports(trigger(), n, palette);
                 const auto kind = ports.inputs->fields().at(port).type.kind;
                 if (kind != loom::Kind::Int && kind != loom::Kind::Bool) throw std::invalid_argument("operator constants currently support Int and Bool; wire another kind from a field");
                 binding = zengine::op::Binding::constant(flow::scalar(kind, args[2]));
@@ -205,14 +240,14 @@ private:
             auto project = flow::open_project(args[0]);
             workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(std::move(project));
             form.reset(); form_key.clear(); form_title.clear(); form_state = false;
-            node.reset(); connecting.reset(); filling.reset(); path.clear(); page = Page::Graph; state_edited = false; touched();
+            node.reset(); connecting.reset(); filling.reset(); body_slot.reset(); path.clear(); page = Page::Graph; state_edited = false; touched();
         } else if (action == "save") {
             need(1); retain_form(); flow::save_workspace(args[0], workspace); path = args[0]; dirty = false; notice = "Saved " + path; return {};
         } else if (action == "open") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before opening another");
             auto opened = flow::open_workspace(args[0]); workspace = std::move(opened); path = args[0]; dirty = false;
-            state_edited = false; node.reset(); restore_form(); connecting.reset(); filling.reset(); page = Page::Graph;
+            state_edited = false; node.reset(); restore_form(); connecting.reset(); filling.reset(); body_slot.reset(); page = Page::Graph;
         } else if (action == "message-open") { need(1); message_form(flow::index_of(args[0]));
         } else if (action == "state-open") { need(0); state_form();
         } else if (action == "value") {

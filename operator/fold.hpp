@@ -53,14 +53,14 @@ struct FoldPorts {
 /// Derive a fold's ports from its body and the two body ports it threads, or say in words why
 /// that body cannot be a fold's: one answer, an Int port for the count, another port of the
 /// answer's type for the accumulator, and no other port named as the fold's own.
-inline FoldPorts fold_ports(const OperatorDef& body, const Fold& fold) {
-    const std::string& id = body.identity();
-    const std::vector<loom::Field>& outs = body.outputs()->fields();
+inline FoldPorts fold_ports(const std::string& id, const loom::Schema& inputs,
+                            const loom::Schema& outputs, const Fold& fold) {
+    const std::vector<loom::Field>& outs = outputs.fields();
     if (outs.size() != 1) {
         throw std::invalid_argument("'" + id + "' answers " + std::to_string(outs.size()) +
                                     " ports, and a fold threads one");
     }
-    const loom::Field* count = body.inputs()->find(fold.count);
+    const loom::Field* count = inputs.find(fold.count);
     if (count == nullptr) {
         throw std::invalid_argument("'" + id + "' has no port '" + fold.count + "' for the count");
     }
@@ -72,7 +72,7 @@ inline FoldPorts fold_ports(const OperatorDef& body, const Fold& fold) {
         throw std::invalid_argument("the count and the accumulator are two ports; '" + id +
                                     "' was given '" + fold.count + "' for both");
     }
-    const loom::Field* acc = body.inputs()->find(fold.accumulator);
+    const loom::Field* acc = inputs.find(fold.accumulator);
     if (acc == nullptr) {
         throw std::invalid_argument("'" + id + "' has no port '" + fold.accumulator +
                                     "' for the accumulator");
@@ -87,7 +87,7 @@ inline FoldPorts fold_ports(const OperatorDef& body, const Fold& fold) {
     const loom::TypeRef integer = loom::type_of(loom::Kind::Int);
     out.inputs = {loom::Field{kFoldStart, integer, true}, loom::Field{kFoldLimit, integer, true},
                   loom::Field{kFoldStep, integer, true}, loom::Field{kFoldInitial, acc->type, true}};
-    for (const loom::Field& f : body.inputs()->fields()) {
+    for (const loom::Field& f : inputs.fields()) {
         if (f.name == fold.count || f.name == fold.accumulator) {
             continue;
         }
@@ -101,6 +101,11 @@ inline FoldPorts fold_ports(const OperatorDef& body, const Fold& fold) {
     }
     out.answer = outs[0];
     return out;
+}
+
+/// The same derivation over a body definition.
+inline FoldPorts fold_ports(const OperatorDef& body, const Fold& fold) {
+    return fold_ports(body.identity(), *body.inputs(), *body.outputs(), fold);
 }
 
 /// How many times a fold counts from `start` toward `limit` by `step`: none when the step points

@@ -78,10 +78,10 @@ package_vocabulary                script            always
 law_register                      script            always
 source_comments                   script            always
 code_values                       script            always
-flow                              doctest           always  53
+flow                              doctest           always  55
 
 message_draft                     doctest           always  11
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 inventory                         doctest           always  36
-flow_pane                         doctest           always  13
+flow_pane                         doctest           always  15
