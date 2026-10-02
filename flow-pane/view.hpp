@@ -33,7 +33,7 @@ struct Picture {
   std::int64_t pan_x = 0, pan_y = 0, zoom = 100;
   /// The selected node's box, top and bottom, and the graph viewport's, in authored grid units:
   /// what `reveal_selected` reads to bring a node into view.
-  std::optional<std::pair<std::int64_t, std::int64_t>> node_extent;
+  std::optional<std::pair<std::int64_t, std::int64_t>> node_extent, graph_extent;
   std::int64_t view_upper = 0, view_lower = 0;
   const Hit *hit(std::int64_t x, std::int64_t y) const {
     for (auto at = hits.rbegin(); at != hits.rend(); ++at)
@@ -492,6 +492,9 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       const auto node_labels = view.content.texts.size();
       if (model.node && *model.node == n)
         view.node_extent = std::pair{ny, ny + h + stroke_y};
+      view.graph_extent = std::pair{view.graph_extent ? std::min(view.graph_extent->first, ny) : ny,
+                                    view.graph_extent ? std::max(view.graph_extent->second, ny + h + stroke_y)
+                                                      : ny + h + stroke_y};
       const auto role =
           model.node && *model.node == n ? ink::kAccent : ink::kFill;
       stroke(x, ny, node_width, 4, role);
@@ -793,6 +796,24 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
   }
   return finish_body();
 }
+/// Pan a graph that runs past the bottom of its viewport up, as far as its topmost node allows, so
+/// a workspace opened in a short pane shows its nodes whole where the room can hold them.
+inline void reveal_graph(Model &model, const ws::PaneCanvasRoom &room) {
+  if (room.grant <= 0 || room.width <= 0 || room.height <= 0)
+    return;
+  const auto drawn = picture(model, room, 0);
+  if (!drawn.graph_extent)
+    return;
+  const auto [top, bottom] = *drawn.graph_extent;
+  if (bottom <= drawn.view_lower)
+    return;
+  const auto dy = std::max(drawn.view_lower - bottom, drawn.view_upper - top);
+  if (dy >= 0)
+    return;
+  model.workspace.pan_y =
+      std::clamp(model.workspace.pan_y + dy, std::int64_t{-10000000}, std::int64_t{10000000});
+}
+
 /// Pan the graph so the selected node's whole box -- its title, body slot, ports and answer --
 /// sits inside the graph viewport, above a preview band, as this room draws it. A node just added
 /// is then seen whole; one already in view does not move.

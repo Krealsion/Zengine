@@ -453,6 +453,21 @@ TEST_CASE("a view's terminal picture is the window's picture floored to cells, i
             fitted = true;
         }
     CHECK(fitted);
+    // A control is a quiet box whose words stay readable in both media: focus is the caret and
+    // the accent of a field's words, and a button's words are accented.
+    view::Presentation focused;
+    focused.focus = "step";
+    const auto marked = view::picture(d, {}, focused, terminal, 3);
+    for (const auto& r : marked.content.rects)
+        if (r.role != zengine::surface::role::kGround) CHECK(r.role == zengine::surface::role::kMuted);
+    for (const auto& t : marked.content.texts) {
+        if (t.text.rfind("step: ", 0) == 0) {
+            CHECK(t.role == zengine::surface::role::kAccent);
+            CHECK(t.caret_col >= 0);
+        }
+        if (t.text == "Count") CHECK(t.role == zengine::surface::role::kAccent);
+        if (t.text.rfind("start: ", 0) == 0) CHECK(t.role == zengine::surface::role::kFill);
+    }
     // Presses read the same map in both media.
     CHECK(a.hits.size() == b.hits.size());
     REQUIRE(b.hit(zengine::surface::subs_of_pixel(10), zengine::surface::subs_of_pixel(90)) != nullptr);

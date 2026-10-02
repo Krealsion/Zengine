@@ -327,6 +327,21 @@ TEST_CASE("the fold node's picture fits: its words inside its box, and a node ju
     CHECK(action_has(after, "source-node"));
     CHECK(text_has(after, "%0 fold math.add"));
     CHECK(text_has(after, "count rhs, acc lhs"));
+    // OPENED IN A SHORT PANE, the graph is panned up as far as its topmost node allows.
+    auto opened = model;
+    opened.node.reset();
+    opened.preview.clear();
+    opened.workspace.pan_y = 0;
+    ws::PaneCanvasRoom short_room{"flow", 7, 88 * unit, 17 * unit, unit, false};
+    const auto low = pane::picture(opened, short_room, 4);
+    REQUIRE(low.graph_extent.has_value());
+    CHECK(low.graph_extent->second > low.view_lower);
+    pane::reveal_graph(opened, short_room);
+    const auto raised = pane::picture(opened, short_room, 5);
+    REQUIRE(raised.graph_extent.has_value());
+    CHECK(raised.graph_extent->first >= raised.view_upper);
+    CHECK(raised.graph_extent->second <= raised.view_lower);
+    CHECK(opened.workspace.pan_y < 0);
     // Every word of the node stays inside its box, however long its title: shortened and marked.
     auto long_name = model;
     long_name.palette.front().identity = "math.add_with_a_very_long_identity";
