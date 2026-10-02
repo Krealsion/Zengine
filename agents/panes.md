@@ -173,7 +173,9 @@ projects it through existing `SurfaceTextRegion` type, caret and selection, with
 beneath. Its complete padded region stays inside the clip; only whole glyphs and whole rows
 are omitted. Fixed cell labels keep their existing meaning. A metric change grants fresh room.
 
-The local canvas does not choose fonts, own idle hover, arbitrary scene nodes, or screen authority.
+The local canvas does not choose fonts, arbitrary scene nodes, or screen authority. A provider
+that accepts `PaneCanvasHover` is told where an idle pointer rests and when it leaves
+(WL-CANVAS-06): presentation alone, read from geometry Workshop holds, moving no focus or keys.
 It coexists with prose as a fallback for an older host, not as two pictures fighting for the
 same body: a canvas-capable room suppresses prose content. Keys, actions and menus use their
 existing protocol. A secondary canvas press may continue into the existing menu presenter,
@@ -452,8 +454,8 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   host's OWN menus (chrome, room, tab, pass-back, a doorless body, a `manage` row) presented by
   the presenter — they stay the host's, the management route that must work with no presenter at
   all; the presenter shows the standard rows only beneath a pane's own — and a
-  pane's actions offered on HOVER. Hover motion does not cross the seam and pane actions follow
-  keyboard focus; an item a pointer rests on, an offer that lives while it does, and a key that
+  pane's actions offered on HOVER. Hover reaches a canvas only as presentation, and pane actions
+  follow keyboard focus; an item a pointer rests on, an offer that lives while it does, and a key that
   reaches an unfocused hovered pane are later, explicit policy (the grant, the withdrawal and
   the picture fence above are where such an offer would connect).
 

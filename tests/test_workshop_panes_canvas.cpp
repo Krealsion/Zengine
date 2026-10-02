@@ -17,12 +17,13 @@ constexpr const char* canvas_pane = "diagram";
 
 class CanvasSeat : public loom::WeaveBase<CanvasSeat, SeatState,
     loom::Accept<PaneCatalogRequested, PaneRoom, PaneCanvasRoom, PaneCanvasPointer,
-                 PaneCanvasRejected, SeatDo>,
+                 PaneCanvasHover, PaneCanvasRejected, SeatDo>,
     loom::Emit<PaneOffered, PaneCanvasContent, PaneContent, PanePassRequested>> {
 public:
     std::vector<PaneCanvasRoom> rooms;
     std::vector<PaneCanvasPointer> pointers;
     std::vector<PaneCanvasRejected> rejected;
+    std::vector<PaneCanvasHover> hovers;
     std::function<void(CanvasSeat&, loom::Mail&)> next;
     bool pass_right = false; ///< hand a right press back, as a picture that means nothing by it
     void on(const PaneCatalogRequested&, loom::Mail&) {}
@@ -39,6 +40,10 @@ public:
         }
     }
     void on(const PaneCanvasRejected& r, loom::Mail&) { rejected.push_back(r); }
+    void on(const PaneCanvasHover& h, loom::Mail& m) {
+        REQUIRE(m.authored_from_role(kWorkshopProvider));
+        hovers.push_back(h);
+    }
     void on(const SeatDo&, loom::Mail& m) {
         auto run = std::move(next); next = {};
         if (run) run(*this, m);
@@ -109,6 +114,13 @@ struct CanvasRig {
             (c.x + x) / kPaneCanvasUnit,
             (c.y + y) / kPaneCanvasUnit + surface::kTuiCanvasTopRow,
             input::space::kCells, input::mod::kNone}));
+    }
+    /// The pointer moved to a local place of the canvas, with no button held.
+    void move(std::int64_t x, std::int64_t y) {
+        const auto c = view().canvas;
+        r.publish(loom::to_value(input::PointerMoved{(c.x + x) / kPaneCanvasUnit,
+            (c.y + y) / kPaneCanvasUnit + surface::kTuiCanvasTopRow, 0, 0, input::space::kCells,
+            input::mod::kNone}));
     }
 };
 }
@@ -216,6 +228,73 @@ TEST_CASE("pane canvas capture keeps the press picture through repaint motion an
     CHECK(t.seat->pointers.back().picture == 1);
     t.r.publish(loom::to_value(input::PointerMoved{0, 0, 0, 0, input::space::kCells, 0}));
     CHECK(t.seat->pointers.size() == 3);
+}
+
+TEST_CASE("a canvas that accepts the hover door hears where the pointer rests and that it left; resting selects, focuses and presses nothing") {
+    constexpr auto unit = kPaneCanvasUnit;
+    CanvasRig t;
+    const auto selected = t.r.session().panes.selected;
+    const auto keyboard = t.r.session().panes.keyboard;
+    t.move(unit, unit);
+    REQUIRE(t.seat->hovers.size() == 1);
+    const auto first = t.seat->hovers.back();
+    CHECK(first.over);
+    CHECK_FALSE(first.carrying);
+    CHECK(first.pane == canvas_pane);
+    CHECK(first.grant == t.view().canvas.grant);
+    CHECK(first.picture == t.view().stamp.aimed);
+    CHECK(first.x == unit);
+    CHECK(first.y == unit);
+    // The same place again says nothing new; another place does.
+    t.move(unit, unit);
+    CHECK(t.seat->hovers.size() == 1);
+    t.move(3 * unit, unit);
+    REQUIRE(t.seat->hovers.size() == 2);
+    CHECK(t.seat->hovers.back().x == 3 * unit);
+    // RESTING MOVES NOTHING: no selection, no keyboard, no pointer gesture.
+    CHECK(t.r.session().panes.selected == selected);
+    CHECK(t.r.session().panes.keyboard == keyboard);
+    CHECK(t.seat->pointers.empty());
+    // Off the canvas, the pane is told the pointer left it, once.
+    t.move(-2 * unit, -2 * unit);
+    REQUIRE(t.seat->hovers.size() == 3);
+    CHECK_FALSE(t.seat->hovers.back().over);
+    t.move(-3 * unit, -2 * unit);
+    CHECK(t.seat->hovers.size() == 3);
+    // A held press owns the motion: the hover is put down, and comes back after the release.
+    t.move(unit, unit);
+    REQUIRE(t.seat->hovers.size() == 4);
+    t.button(1, true);
+    t.move(2 * unit, unit);
+    CHECK(t.seat->pointers.back().phase == canvas_pointer::kMove);
+    REQUIRE(t.seat->hovers.size() == 5);
+    CHECK_FALSE(t.seat->hovers.back().over);
+    t.button(1, false, 2 * unit, unit);
+    t.move(unit, 2 * unit);
+    REQUIRE(t.seat->hovers.size() == 6);
+    CHECK(t.seat->hovers.back().over);
+    // A menu over the desk puts it down too.
+    t.seat->pass_right = true;
+    t.button(3, true);
+    REQUIRE(t.r.session().context.open);
+    t.move(2 * unit, 2 * unit);
+    REQUIRE(t.seat->hovers.size() == 7);
+    CHECK_FALSE(t.seat->hovers.back().over);
+    t.button(3, false);
+    t.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.r.session().context.open);
+    t.move(unit, unit);
+    REQUIRE(t.seat->hovers.size() == 8);
+    // A FRESH ROOM PUTS THE HOVER DOWN WITH IT: the provider is told nothing more under the old
+    // grant, and the next motion names the new one.
+    const auto old = t.view().canvas.grant;
+    t.drive([](CanvasSeat& s, loom::Mail& m) { s.offer(m); });
+    t.publish();
+    CHECK(t.seat->hovers.size() == 8);
+    t.move(unit, unit);
+    REQUIRE(t.seat->hovers.size() == 9);
+    CHECK(t.seat->hovers.back().over);
+    CHECK(t.seat->hovers.back().grant != old);
 }
 
 TEST_CASE("a right press a canvas picture hands back opens the host's pane menu at the press; one it keeps opens nothing") {
@@ -615,6 +694,16 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
             input::space::kCells, input::mod::kNone}));
     };
     CHECK(words().find("Count|") != std::string::npos);
+    // A view has no hover door: resting over it tells it nothing.
+    std::size_t hovers = 0;
+    const auto tap = r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.schema_name == PaneCanvasHover::zen_name) ++hovers;
+    });
+    r.publish(loom::to_value(input::PointerMoved{(c.x + surface::subs_of_pixel(12)) / kPaneCanvasUnit,
+        (c.y + surface::subs_of_pixel(36)) / kPaneCanvasUnit + surface::kTuiCanvasTopRow, 0, 0,
+        input::space::kCells, input::mod::kNone}));
+    r.bus.remove_observer(tap);
+    CHECK(hovers == 0);
     at(12, 36);
     // The notice may wrap at the pane's width: read it as one sentence.
     std::string sentence;

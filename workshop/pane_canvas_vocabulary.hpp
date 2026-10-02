@@ -102,5 +102,16 @@ struct PaneCanvasPointer {
               ZEN_FIELD(keys_went_here));
 };
 
+// Where the pointer rests over a canvas, for a provider that accepts it: the picture handed to
+// the medium and a local place, or `over` false once the pointer left the room it last named.
+// `carrying` says a carried value is over it. Presentation only: no gesture, focus or key moves.
+struct PaneCanvasHover {
+    std::string pane;
+    std::int64_t grant = 0, picture = 0, x = 0, y = 0;
+    bool over = true, carrying = false;
+    ZEN_SHAPE(PaneCanvasHover, 1, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
+              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(over), ZEN_FIELD(carrying));
+};
+
 } // namespace zengine::workshop
 #endif
