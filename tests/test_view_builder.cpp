@@ -9,6 +9,7 @@
 #include "maker_fixture.hpp"
 #include "message-draft/transfer.hpp"
 #include "view-builder/model.hpp"
+#include "view-builder/picture.hpp"
 #include "view-builder/vocabulary.hpp"
 #include "view/host.hpp"
 #include "workshop/pane_carry.hpp"
@@ -86,6 +87,31 @@ TEST_CASE("the View Builder makes a view from its kinds: number fields, a button
     more.command("add", {"label"});
     CHECK(more.description.elements.back().id == "label1");
     CHECK(more.description.elements.back().y == 140);
+}
+
+TEST_CASE("the builder lists every element its room can hold, keeps the selected one in view, and puts its properties beside the list when the room is wide") {
+    auto m = panel_model();
+    m.selected = 0;
+    const auto texts = [](const vb::Picture& p) {
+        std::vector<std::string> out;
+        for (const auto& t : p.content.texts) out.push_back(t.text);
+        return out;
+    };
+    const auto listed = [&](const vb::Picture& p, const std::string& start) {
+        const auto all = texts(p);
+        return std::any_of(all.begin(), all.end(), [&](const auto& t) { return t.rfind(start, 0) == 0; });
+    };
+    // A wide pane of fifteen rows, as the shipped desk gives it: the list and the properties side by side.
+    const ws::PaneCanvasRoom wide{vb::kPane, 1, 90 * unit, 15 * unit, unit, false};
+    const auto beside = vb::picture(m, wide, 1);
+    for (const char* id : {"> start", "  limit", "  step", "  count", "  total"}) CHECK(listed(beside, id));
+    CHECK(listed(beside, "start (number)"));
+    // A narrow one stacks them, and the list follows the selection.
+    const ws::PaneCanvasRoom narrow{vb::kPane, 1, 60 * unit, 15 * unit, unit, false};
+    m.selected = 4;
+    const auto stacked = vb::picture(m, narrow, 2);
+    CHECK(listed(stacked, "> total"));
+    CHECK(listed(stacked, "total (label)"));
 }
 
 TEST_CASE("a shape or a field carried onto a label is what it shows; a shape of several fields asks which") {
@@ -316,7 +342,8 @@ TEST_CASE("a right press on what a button says offers to carry its intent, and t
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     rig.press("  count  button");
-    REQUIRE(rig.text("says tally.panel.Count {start: Int, limit: Int, step: Int}") != nullptr);
+    REQUIRE(rig.text("says tally.panel.Count") != nullptr);
+    REQUIRE(rig.text("  {start: Int, limit: Int, step: Int}") != nullptr);
     const auto pressed = rig.correlation + 1;
     rig.press("says tally.panel.Count", 3);
     const loom::Message* menu = nullptr;
