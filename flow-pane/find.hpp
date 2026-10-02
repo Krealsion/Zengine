@@ -7,6 +7,8 @@
 // whom to believe, and the door's rows are shown as it answered them, never matched again here.
 #include "flow-pane/model.hpp"
 #include "workshop/powers_vocabulary.hpp"
+#include <zen/kernel/schema_codec.hpp> // a dropped `zen.SchemaDesc` names the shape it describes
+#include <zen/registry.hpp>
 #include <zen/terminal/composer.hpp> // `describe_schema`: Loom's one spelling of a type
 #include <algorithm>
 #include <array>
@@ -155,6 +157,70 @@ inline std::vector<op::Fold> fold_choices(const Model& m, const workshop::PowerR
             if (count.name != acc.name && count.type.kind == loom::Kind::Int &&
                 op::detail::same_type(acc.type, found->outputs->fields().front().type))
                 out.push_back({count.name, acc.name});
+    return out;
+}
+
+/// One thing a dropped value can become here, and the control that makes it so.
+struct DropOffer {
+    std::string title, action;
+    std::vector<std::string> args;
+};
+
+/// The shape a dropped value offers to declare: a `zen.SchemaDesc`'s described shape, or else the
+/// value's own; none when a description names shapes it does not carry.
+inline std::shared_ptr<const loom::Schema> dropped_shape(const loom::Value& value) {
+    if (!loom::same_identity(value.schema(), *loom::schema_desc_schema())) return value.schema_ptr();
+    try {
+        loom::Registry none;
+        return loom::decode_schema(value, none);
+    } catch (const std::exception&) {
+        return nullptr;
+    }
+}
+
+/// WHAT A DROPPED VALUE CAN BE HERE, in the order a maker reaches for it: an example to send when
+/// the definition accepts its shape, a constant from one of its fields when it landed on a port
+/// of that field's kind, and a declaration of its shape -- accepted, or emitted inside the
+/// definition's namespace -- when no message of that name is declared yet. A dropped description
+/// offers only the declarations.
+inline std::vector<DropOffer> drop_offers(const Model& m) {
+    std::vector<DropOffer> out;
+    if (!m.dropped) return out;
+    const auto& value = m.dropped->value;
+    const auto& def = m.workspace.graph.project.definition;
+    const bool description = loom::same_identity(value.schema(), *loom::schema_desc_schema());
+    if (!description) {
+        for (const auto& accepted : def.accepts)
+            if (loom::same_identity(*accepted, value.schema())) {
+                out.push_back({"Send as example", "drop-send", {}});
+                break;
+            }
+        if (m.dropped->port) {
+            Model probe = m;
+            probe.filling = m.dropped->port;
+            if (const auto port = selected_port(probe))
+                for (const auto& f : value.schema().fields()) {
+                    const auto* cell = value.get(f.name);
+                    if (cell && takes_constant(*port) && cell->kind() == port->field.type.kind)
+                        out.push_back({"Use " + f.name + " = " + message_draft::summary(cell) +
+                                           " on %" + std::to_string(port->node) + " " +
+                                           port->field.name,
+                                       "drop-constant", {f.name}});
+                }
+        }
+    }
+    if (const auto shape = dropped_shape(value)) {
+        const auto named = [&](const auto& shapes) {
+            return std::any_of(shapes.begin(), shapes.end(),
+                               [&](const auto& s) { return s->name() == shape->name(); });
+        };
+        const auto label = shape->name() + " v" + std::to_string(shape->version());
+        if (!named(def.accepts))
+            out.push_back({"Declare " + label + " as an accepted message", "drop-accept", {}});
+        if (!named(def.emits) && shape->name().rfind(def.name + ".", 0) == 0)
+            out.push_back({"Declare " + label + " as an emitted message", "drop-emit", {}});
+    }
+    out.push_back({"Cancel", "drop-cancel", {}});
     return out;
 }
 

@@ -962,6 +962,7 @@ zengine_workshop_suite(panes
                 "INTROSPECTION_POWERS_HPP=\"${CMAKE_SOURCE_DIR}/introspection/powers.hpp\""
                 "WORKSHOP_SAMPLE_DOOR_HPP=\"${CMAKE_SOURCE_DIR}/workshop/sample_door.hpp\""
                 "INTROSPECTION_CMAKE=\"${CMAKE_SOURCE_DIR}/introspection/CMakeLists.txt\""
+                "OPERATOR_REFERENCE_HPP=\"${CMAKE_SOURCE_DIR}/operator/reference.hpp\""
                 # The Builder pane's own two files, read as text for the same reason: what
                 # the build graph says about a loaded image, and the five names a
                 # presentation may not spell, are claims a source read can keep and a

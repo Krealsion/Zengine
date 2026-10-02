@@ -460,7 +460,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
                 ? external_press_at(session_.panes, session_.setup.active, screen_of(session_),
                                     here.kind, session_.pane_titles, b.space, b.x, b.y)
                 : ExternalPressAt{};
-        if (drop_carry(here.kind, aimed, mail)) {
+        if (drop_carry(here.kind, aimed, mail, -1, at)) {
             repaint(mail);
             return;
         }

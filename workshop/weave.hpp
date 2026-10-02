@@ -343,7 +343,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::PaneCanvasRejected,
                                         zengine::surface::SurfaceCanvas,
@@ -470,7 +470,9 @@ public:
     void accept_carry(const PaneCarryRequested& asked, bool value, bool drag, loom::Mail& mail,
                       std::string token = {});
     bool drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail,
-                    std::int64_t picture = -1);
+                    std::int64_t picture = -1, const PointedAt& point = PointedAt{});
+    bool drop_on_canvas(const RuntimePane& pane, const ExternalPane& presentation,
+                        const PointedAt& point, loom::Mail& mail);
     PointedAt drag_pointer_;
     void begin_value_drag(const input::PointerButton& button);
     bool move_value_drag(const input::PointerMoved& motion, loom::Mail& mail);
@@ -1320,6 +1322,7 @@ private:
         bool moved = false, released = false;
         std::int64_t target = kNoPaneKind, picture = 0;
         ExternalPressAt at;
+        PointedAt point; ///< the release, for a canvas receiver's local place
         loom::WeaveId receiver;
     };
     ValueDrag value_drag_;

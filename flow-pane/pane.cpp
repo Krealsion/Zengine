@@ -4,6 +4,9 @@
 #include "flow-host/vocabulary.hpp"
 #include "flow-pane/view.hpp"
 #include "flow-pane/vocabulary.hpp"
+#include "inventory/codec.hpp"
+#include "operator/reference.hpp"
+#include "workshop/pane_carry.hpp"
 #include "input/vocabulary.hpp"
 #include "operator/host.hpp"
 #include "workshop/pane_menu.hpp"
@@ -38,6 +41,7 @@ class FlowPane final
                        ws::PaneActionRequested, ws::ActionsJudged,
                        ws::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer,
                        fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
+                       ws::PaneCanvasValueDrop,
                        loom::DispatchRefused>,
           loom::Emit<ws::v2::PaneOffered, ws::PaneContent, ws::PaneCanvasContent,
                      ws::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested,
@@ -186,7 +190,9 @@ public:
     if (key.scancode == input::scan::kEscape) {
       // One layer per press, the most specific first; the search line clears before the
       // pane is put down.
-      if (model_.connecting)
+      if (model_.dropped)
+        model_.dropped.reset();
+      else if (model_.connecting)
         model_.connecting.reset();
       else if (model_.filling)
         model_.filling.reset();
@@ -340,6 +346,41 @@ public:
       model_.notice = e.what();
       show(mail);
     }
+  }
+  /// A VALUE A PERSON CARRIED HERE, placed on the picture Flow drew. An operator reference
+  /// becomes a node -- into the port it landed on, as the body of the fold whose slot it landed on,
+  /// or where it was released -- and a stale one is refused; any other value is held on its own
+  /// page until the maker says what it becomes. Carrying it granted nothing.
+  void on(const ws::PaneCanvasValueDrop &drop, loom::Mail &mail) {
+    if (!host(mail, drop.pane) || drop.grant != room_.grant)
+      return;
+    try {
+      if (model_.dialog)
+        throw std::invalid_argument("Confirm or cancel the open dialog before dropping a value");
+      const auto it = std::find_if(pictures_.begin(), pictures_.end(), [&](const auto &p) {
+        return p.content.picture == drop.picture;
+      });
+      if (it == pictures_.end() ||
+          it->revision != model_.workspace.graph.project.definition.revision)
+        throw std::invalid_argument("The picture changed while the value was carried; drop it again");
+      const auto value = zengine::inventory::decode_pair(
+          std::string_view(reinterpret_cast<const char *>(drop.data.data()), drop.data.size())).item;
+      const auto *hit = it->hit(drop.x, drop.y);
+      if (zengine::op::is_reference(value)) {
+        drop_reference(zengine::op::decode_reference(value), hit, *it, drop, mail);
+      } else {
+        std::optional<pane::PortChoice> port;
+        if (hit && hit->action == "port" && hit->args.size() == 2)
+          port = pane::PortChoice{hit->subject, flow::index_of(hit->args[1])};
+        model_.dropped = pane::Dropped{value, port};
+        model_.notice = "Dropped " + value.schema().name() + ": choose what it becomes here";
+      }
+    } catch (const std::exception &e) {
+      model_.notice = e.what();
+    }
+    pictures_.clear();
+    drag_.reset();
+    show(mail);
   }
   void on(const pane::FlowEdit &edit, loom::Mail &mail) {
     bool ok = true;
@@ -755,6 +796,9 @@ private:
         model_.body_slot = id;
         model_.filling.reset();
       }
+    } else if (action == "drop-send" || action == "drop-constant" || action == "drop-accept" ||
+               action == "drop-emit" || action == "drop-cancel") {
+      act_on_drop(action, args, mail);
     } else if (action == "add-found") {
       std::vector<std::string> before(args.begin() + 1, args.end());
       add_found(args.at(0), "add-node", std::move(before), mail);
@@ -833,6 +877,87 @@ private:
     request(fh::FlowCatalog{}, "catalog", mail);
     adding_ = Adding{identity, command, std::move(arguments), correlation_};
     model_.notice = "Reading the ports of " + identity + " from the host";
+  }
+  /// A dropped operator reference becomes a node: into the port it landed on, or as the body of
+  /// the fold whose slot it landed on (the slot opens with it found, for the maker to say which
+  /// port takes the count), or else at the end of the trigger, placed where it was released.
+  void drop_reference(const zengine::op::OperatorRef &ref, const pane::Hit *hit,
+                      const pane::Picture &pictured, const ws::PaneCanvasValueDrop &drop,
+                      loom::Mail &mail) {
+    std::vector<std::string> arguments{ref.identity,
+        std::to_string(static_cast<std::int64_t>(ref.authored_in)),
+        std::to_string(static_cast<std::int64_t>(ref.authored_out))};
+    if (model_.page != pane::Page::Graph || model_.workspace.graph.project.definition.on.empty())
+      throw std::invalid_argument("Drop an operator on the graph of a trigger");
+    if (hit && hit->action == "body-slot" && !hit->args.empty()) {
+      model_.body_slot = hit->subject;
+      model_.filling.reset();
+      model_.search.set(ref.identity, ref.identity.size());
+      model_.preview = ref.identity;
+      model_.notice = "Choose which port of " + ref.identity + " takes the count";
+      return;
+    }
+    std::string command = "add-node";
+    std::optional<std::pair<std::int64_t, std::int64_t>> landing;
+    if (hit && hit->action == "port" && hit->args.size() == 2) {
+      command = "add-node-into";
+      arguments.push_back(hit->args[0]);
+      arguments.push_back(hit->args[1]);
+    } else if (pictured.graph_top) {
+      const pane::GridProjection grid(room_);
+      const auto zoom = std::max<std::int64_t>(1, pictured.zoom);
+      landing = std::pair{(grid.grid_x(drop.x) - pictured.pan_x) * 100 / zoom,
+                          (grid.grid_y(drop.y) - *pictured.graph_top - pictured.pan_y) * 100 / zoom};
+    }
+    if (!described(ref.identity)) {
+      request(fh::FlowCatalog{}, "catalog", mail);
+      adding_ = Adding{ref.identity, command, std::move(arguments), correlation_};
+      model_.notice = "Reading the ports of " + ref.identity + " from the host";
+      return;
+    }
+    effect(model_.command(command, arguments), mail);
+    if (landing && model_.node)
+      effect(model_.command("move", {std::to_string(*model_.node),
+                                     std::to_string(std::clamp<std::int64_t>(landing->first, -10000000, 10000000)),
+                                     std::to_string(std::clamp<std::int64_t>(landing->second, -10000000, 10000000))}),
+             mail);
+  }
+  /// What the maker chose for the value on the drop page.
+  void act_on_drop(const std::string &action, const std::vector<std::string> &args,
+                   loom::Mail &mail) {
+    if (!model_.dropped)
+      throw std::invalid_argument("Nothing dropped is waiting");
+    const auto dropped = *model_.dropped;
+    if (action == "drop-cancel") {
+      model_.dropped.reset();
+      return;
+    }
+    if (action == "drop-send") {
+      effect({pane::Effect::Send, flow::byte_vector(loom::serialize(dropped.value))}, mail);
+      model_.dropped.reset();
+      return;
+    }
+    if (action == "drop-constant") {
+      pane::Model probe = model_;
+      probe.filling = dropped.port;
+      const auto port = pane::selected_port(probe);
+      const auto *cell = dropped.value.get(args.at(0));
+      if (!port || !cell)
+        throw std::invalid_argument("That port or field is gone; drop the value again");
+      effect(model_.command("bind", {std::to_string(port->node), std::to_string(port->port),
+                                     raw(*cell)}),
+             mail);
+      model_.dropped.reset();
+      return;
+    }
+    const auto shape = pane::dropped_shape(dropped.value);
+    if (!shape)
+      throw std::invalid_argument("That description names shapes it does not carry");
+    model_.declare(shape, action == "drop-emit");
+    model_.dropped.reset();
+    model_.notice = "Declared " + shape->name() +
+                    (action == "drop-emit" ? " as an emitted message"
+                                           : " as an accepted message; Add trigger reacts to it");
   }
   static std::string raw(const loom::Cell &cell) {
     if (cell.kind() == loom::Kind::Text)

@@ -21,6 +21,9 @@ struct Dialog { std::string title, action; std::vector<Entry> entries; std::size
 /// An input port a maker selected to fill: its node by the place's stable id, so removing
 /// another node never moves the choice onto a different one.
 struct PortChoice { std::int64_t place = 0; std::size_t port = 0; };
+/// A value a person carried here and dropped, waiting for them to say what it should become; the
+/// port it landed on, if any, by its node's stable place.
+struct Dropped { loom::Value value; std::optional<PortChoice> port; };
 
 class Model {
 public:
@@ -45,6 +48,7 @@ public:
     /// A fold whose body slot is open, by its node's stable place id: the door is asked for what
     /// a fold could spend, and choosing a row chooses its body.
     std::optional<std::int64_t> body_slot;
+    std::optional<Dropped> dropped;
     zengine::workshop::PowersFound discovered;
     bool discovered_read = false;
     std::string preview;
@@ -151,6 +155,14 @@ public:
         (void)flow::workspace_bytes(candidate.workspace);
         *this = std::move(candidate);
         return result;
+    }
+    /// Declare a shape exactly as it came, as one edit: refused, the model is as it was.
+    void declare(std::shared_ptr<const loom::Schema> shape, bool emitted) {
+        Model candidate = *this;
+        candidate.workspace.graph.declare(std::move(shape), emitted);
+        (void)flow::workspace_bytes(candidate.workspace);
+        candidate.touched();
+        *this = std::move(candidate);
     }
     /// An operator reference from its three spelled parts; a content id is Loom's Int, read back
     /// to the 64 bits it is.

@@ -51,7 +51,7 @@ workshop_host                   doctest           always  96
 # workshop/arrangement.hpp, workshop/powers_door.hpp, the Introspection, Builder, Info, Terminal
 # and Editor panes' sources and CMake files, and tests/weavelib/legacy_pane.cpp as text
 # (VM-WALL-11).
-workshop_panes                    doctest           always  862
+workshop_panes                    doctest           always  864
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text
 # (VM-WALL-11).
 workshop_persistence              doctest           always  156
@@ -84,4 +84,4 @@ message_draft                     doctest           always  11
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 inventory                         doctest           always  36
-flow_pane                         doctest           always  15
+flow_pane                         doctest           always  17
