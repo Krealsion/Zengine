@@ -82,6 +82,8 @@ selected node; with none selected, it edits the search line.
 
 ![A selected port listing what could fill it: what is in scope, a typed constant, then what the door finds](images/flow-port.png)
 
+![A fold's open body slot: the rail lists what a fold could spend, and math.add's preview offers each way to thread the count and the accumulator](images/flow-fold-body.png)
+
 ## Carry material into Flow
 
 Drag a value from Inventory, Info or Powers onto Flow, or pick it up with the keyboard and click
@@ -100,6 +102,8 @@ Flow, and Flow says what it can be here. Carrying copies data; it grants nothing
   declarations of the shape it describes. A declared shape is the one that came -- its name,
   version and fields -- so values of it match it exactly. **Cancel** or **Escape** puts it down.
 
+![A dropped tally.panel.Count example: send it as an example, or declare its shape as emitted](images/flow-dropped-example.png)
+
 ## Say what changed: emits
 
 A definition publishes messages of its own after a trigger writes its state field. In
@@ -113,6 +117,16 @@ this participant, of its own shapes, after every successful write; there is no c
 and no addressed send. A new emitted shape changes what a running participant may say, so
 **Stop** and **Run** it again rather than **Apply**; **Events** then shows each publication and
 its fields.
+
+![The tally's Events: totals 45, 30 and 18 published for three counts, then a step of 0 refused in words with the total unchanged](images/flow-fold-tally.png)
+
+A fold counts at most <!-- value kMaxFoldCount -->10000<!-- /value --> times, and one evaluation
+spends at most <!-- value kEvaluationSpends -->100000<!-- /value --> operators and nests at most
+<!-- value kEvaluationDepth -->32<!-- /value --> deep, however its folds and calls are arranged;
+past any of these the send is refused, the refusal naming each fold's iteration on the way down,
+and the state is left as it was.
+
+![A fold whose body is itself a fold, refused at iteration 899 of the inner one when the evaluation's budget runs out](images/flow-fold-budget.png)
 
 ## Keep examples and exercise the weave
 
@@ -158,8 +172,11 @@ does not save process identity, pending queues, grants or resumable native conti
 generation path. **Import** brings such a project into this editor. **Ctrl+G**, Generate native C++,
 writes the generated project -- `generated.cpp`, its CMake file, `definition.bin` and
 `graph.svg` -- into a directory, as the workbench's `generate` does; a definition with a fold is
-refused in words and nothing is written, because the fold is the evaluator's and runs interpreted. Workspace files additionally
-contain unfinished authoring work and presentation; they are not executable projects.
+refused in words and nothing is written, because the fold is the evaluator's and runs
+interpreted. Workspace files additionally contain unfinished authoring work and presentation;
+they are not executable projects.
+
+![Generate native C++ refusing a definition with a fold, in words, with nothing written](images/flow-generate-refused.png)
 
 An orderly Workshop quit is refused while host work or its fresh state inspection is pending.
 Try quitting again after the result arrives. Saving an older snapshot while a send is pending
