@@ -176,6 +176,35 @@ TEST_CASE("math.add says what it is for and adds across the module boundary, and
     CHECK(under.reason() == sum(local, std::numeric_limits<std::int64_t>::min(), -1).reason());
 }
 
+TEST_CASE("a cycle through identities closed across images by an overlay is refused by the "
+          "evaluation's budget, and unmounting the overlay restores the chain") {
+    op::Catalog catalog;
+    REQUIRE(op::mount_provider(catalog, PROVIDER_A_SO).ok);
+    const auto ask = [&] {
+        loom::Value pack(catalog.find("prov.function.1")->inputs());
+        pack.set("value", loom::Cell::integer(1));
+        return catalog.evaluate("prov.function.1", std::move(pack));
+    };
+    REQUIRE(ask().ok());
+    CHECK(ask().value().at(0)->as_int() == 16);
+    const op::MountResult closed = op::mount_provider(catalog, PROVIDER_CYCLE_SO, op::MountMode::Overlay);
+    REQUIRE_MESSAGE(closed.ok, closed.reason);
+    // function.1 -> function.2 -> function.3 (now naming function.1) -> ...: the 33rd nesting is
+    // function.3's, and nothing native ran on the way.
+    const std::uint64_t before = op::invocations();
+    const op::Evaluation cycled = ask();
+    REQUIRE_FALSE(cycled.ok());
+    CHECK(cycled.reason() == "spending 'prov.function.3' would nest this evaluation " +
+                                 std::to_string(op::kEvaluationDepth + 1) +
+                                 " operators deep, past its budget of " +
+                                 std::to_string(op::kEvaluationDepth) +
+                                 ": an operator that reaches itself through identities nests "
+                                 "without end");
+    CHECK(op::invocations() == before);
+    REQUIRE(catalog.unmount("zengine.provider.cycle"));
+    CHECK(ask().value().at(0)->as_int() == 16);
+}
+
 TEST_CASE("a provider is not a weave: the basic provider exports no weave ABI") {
     // `provider != weave`, measured on the artifact this repository SHIPS rather
     // than asserted in prose. The image opens, answers the provider symbol, and has

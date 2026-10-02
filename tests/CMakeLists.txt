@@ -73,9 +73,10 @@ target_compile_definitions(zengine-operator-consumer-weave-abi PRIVATE OPH_STRAN
 # symbol and reads definitions out of it. provider_chain.cpp builds four: a, the three-level
 # chain; b, its last level alone at the same signature with another answer; b-wrong, that name at
 # another signature, which an overlay must refuse; abi, a surface version the host does not
-# speak. provider_min.cpp supplies `math.max` as a minimum, for the Timer override witness.
-set(ZENGINE_PROV_NAMES a b b-wrong abi)
-set(ZENGINE_PROV_FLAGS PROV_CHAIN_A PROV_CHAIN_B PROV_CHAIN_WRONG PROV_CHAIN_ABI)
+# speak; cycle, its last level naming its first, which over a closes a cycle through identities.
+# provider_min.cpp supplies `math.max` as a minimum, for the Timer override witness.
+set(ZENGINE_PROV_NAMES a b b-wrong abi cycle)
+set(ZENGINE_PROV_FLAGS PROV_CHAIN_A PROV_CHAIN_B PROV_CHAIN_WRONG PROV_CHAIN_ABI PROV_CHAIN_CYCLE)
 foreach(prov_name prov_flag IN ZIP_LISTS ZENGINE_PROV_NAMES ZENGINE_PROV_FLAGS)
     zengine_provider(zengine-provider-${prov_name} weavelib/provider_chain.cpp)
     target_link_libraries(zengine-provider-${prov_name} PRIVATE zengine-operator)
@@ -546,6 +547,7 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     "PROVIDER_B_SO=\"$<TARGET_FILE:zengine-provider-b>\""
     "PROVIDER_WRONG_SO=\"$<TARGET_FILE:zengine-provider-b-wrong>\""
     "PROVIDER_ABI_SO=\"$<TARGET_FILE:zengine-provider-abi>\""
+    "PROVIDER_CYCLE_SO=\"$<TARGET_FILE:zengine-provider-cycle>\""
     "PROVIDER_MIN_SO=\"$<TARGET_FILE:zengine-provider-min>\""
     # A contribution at version 1 across a real image: what an older provider's bytes mount as.
     "PROVIDER_V1_SO=\"$<TARGET_FILE:zengine-provider-v1>\""
@@ -575,7 +577,8 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     "OPERATOR_MIGRATION_HPP=\"${CMAKE_SOURCE_DIR}/operator/migration.hpp\"")
 add_dependencies(zengine-operator-tests
     zengine-provider-mig-chain zengine-provider-mig-direct
-    zengine-provider-mig-direct-alt zengine-provider-mig-composed zengine-provider-v1)
+    zengine-provider-mig-direct-alt zengine-provider-mig-composed zengine-provider-v1
+    zengine-provider-cycle)
 
 zengine_doctest_test(operator zengine-operator-tests)
 
