@@ -112,6 +112,9 @@ TEST_CASE("the builder lists every element its room can hold, keeps the selected
     const auto stacked = vb::picture(m, narrow, 2);
     CHECK(listed(stacked, "> total"));
     CHECK(listed(stacked, "total (label)"));
+    // An empty list says what to add across the whole pane, though the sentence is wider than a
+    // wide pane's list column.
+    CHECK(listed(vb::picture(vb::Model{}, wide, 3), "  none yet: add a number field, a button and a label"));
 }
 
 TEST_CASE("a shape or a field carried onto a label is what it shows; a shape of several fields asks which") {
