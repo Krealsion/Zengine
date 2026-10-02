@@ -387,6 +387,19 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     CHECK(rig.desk->heard.size() > before);
     CHECK(has(rig.words("tally.panel"), "`limit` holds `ten`, not a whole number"));
     CHECK(rig.total() == 45);
+
+    // The pane a view asks for is wide enough that the refusal of a step of 0 reads whole on its
+    // notice rows, floored to cells.
+    const auto [rows, columns] = view::preferred_size(d);
+    view::Presentation refusal;
+    refusal.notice = "refused: 'tally.r1.on.tally.panel.Count' step 0: a step of 0 never moves the count from 0 toward 10";
+    refusal.alert = true;
+    const ws::PaneCanvasRoom asked{view::kPane, 9, 48 * columns, 48 * rows, 48, false, 0, 0};
+    std::string notice;
+    for (const auto& t : view::picture(d, {}, refusal, asked, 1).content.texts)
+        if (t.role == zengine::surface::role::kAlert) notice += t.text + " ";
+    CHECK(has(notice, "from 0 toward 10"));
+    CHECK_FALSE(has(notice, "..."));
 }
 
 TEST_CASE("a label or place change at the same shapes reaches the running view in place; a change of shapes registers afresh and says so") {
