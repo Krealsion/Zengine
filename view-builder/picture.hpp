@@ -166,8 +166,8 @@ inline Picture picture(const Model& m, const ws::PaneCanvasRoom& room, std::int6
             press(0, row, limit, "select", {std::to_string(i)});
             ++row;
         }
-        if (d.elements.empty()) put(0, row++, "  none yet: add a number field, a button and a label", ink::kMuted);
         limit = columns;
+        if (d.elements.empty()) put(0, row++, "  none yet: add a number field, a button and a label", ink::kMuted);
         row = wide ? list_top : row + 1;
         if (selected && row < bottom) {
             const auto i = std::to_string(*m.selected);
