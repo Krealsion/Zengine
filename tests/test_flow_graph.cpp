@@ -3,6 +3,7 @@
 #include "doctest.h"
 #include "flow-pane/model.hpp"
 #include "operator/primitives.hpp"
+#include "restamp.hpp"
 #include <chrono>
 #include <filesystem>
 
@@ -437,4 +438,44 @@ TEST_CASE("emits are authored in the pane as the definition holds them: a messag
         std::invalid_argument);
     CHECK_THROWS_AS(author.command("emitted-message", {"other.Said"}), std::invalid_argument);
     CHECK(author.workspace.graph.project.definition.revision == revision + 2);
+}
+
+TEST_CASE("a workspace and a project whose definition is version 1 still open, and save again at "
+          "the current version") {
+    auto author = model();
+    author.command("trigger", {"0", "total"});
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("bind", {"0", "0", "$input"});
+    author.command("result", {"0"});
+    // The project bundle as an older build wrote it: its definition at version 1, inside.
+    const auto as_v1 = [](const std::string& project) {
+        const auto bundle = loom::admit(loom::parse(project), flow::project_schema()).value();
+        const auto& d = bundle.get("definition")->as_bytes();
+        const auto now = loom::admit(loom::parse(std::string(d.begin(), d.end())),
+                                     zengine::maker::definition_schema()).value();
+        auto old = zengine::testing::restamp(now, zengine::maker::definition_v1_schema());
+        old.set("format_version", loom::Cell::integer(1));
+        const auto older = loom::serialize(old);
+        loom::Value out(flow::project_schema());
+        out.set("definition", loom::Cell::bytes(loom::Bytes(older.begin(), older.end())));
+        out.set("state", *bundle.get("state"));
+        return loom::serialize(out);
+    };
+    const auto project_v1 = as_v1(flow::project_bytes(author.workspace.graph.project));
+    const auto opened = flow::read_project(project_v1);
+    CHECK(opened.definition.on.size() == 1);
+    auto file = loom::from_value<flow::WorkspaceFile>(
+        loom::admit(loom::parse(flow::workspace_bytes(author.workspace)),
+                    loom::schema_of<flow::WorkspaceFile>()).value());
+    file.project = flow::byte_vector(as_v1(flow::byte_string(file.project)));
+    const auto workspace_v1 = loom::serialize(loom::to_value(file));
+    const auto reopened = flow::read_workspace(workspace_v1);
+    CHECK(reopened.graph.project.definition.on.at(0).body.nodes.at(0).identity == "flowgraph.Rule");
+    const auto again = loom::admit(loom::parse(flow::workspace_bytes(reopened)),
+                                   loom::schema_of<flow::WorkspaceFile>()).value();
+    const auto inner = loom::admit(loom::parse(flow::byte_string(loom::from_value<flow::WorkspaceFile>(again).project)),
+                                   flow::project_schema()).value();
+    const auto& d = inner.get("definition")->as_bytes();
+    CHECK(loom::parse(std::string(d.begin(), d.end())).claimed_version() ==
+          zengine::maker::kDefinitionSchemaVersion);
 }
