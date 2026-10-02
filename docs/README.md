@@ -78,6 +78,7 @@ Every page below has one reader purpose, named.
 | [reference/inventory.md](reference/inventory.md) | owned typed entries, metadata, portable views, contextual hotkeys and lifetime |
 | [reference/source-transfer.md](reference/source-transfer.md) | the text, command and file-location material the Editors carry to Inventory and take back: shapes, byte laws, the Terminal line, generated C++ |
 | [reference/flow-runtime.md](reference/flow-runtime.md) | Flow sessions on an existing host: authority, live editing, dispatch observations and custody |
+| [reference/view.md](reference/view.md) | a view described as data: the description and its format, the view host, and the renderer that draws it on a pane's canvas |
 | [reference/maker-weave.md](reference/maker-weave.md) | the maker weave: the two artifacts a definition and a state are, what a trigger is, and the two ways a live definition is edited |
 | [reference/operator-sources.md](reference/operator-sources.md) | the catalog entries you can spend with nothing in hand: what a Source is, sampling one, seeing what a sample would yield without sampling it |
 | [reference/pointer-spaces.md](reference/pointer-spaces.md) | where a reported pointer position lands, and which package owns each step |
