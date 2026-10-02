@@ -67,6 +67,8 @@ itself. A click that arrives after the list moved under it — a pane arrived, a
 was queued ahead of it — is refused with `the list moved -- press again` rather than acting on
 whatever slid into that row; a repaint that moved no row does not refuse.
 
+![The Pane Manager's menu for the hidden Powers row: show Powers, manage Powers, inspect in Info, then under a rule naming the Pane Manager, Workshop's own rows for the Pane Manager](images/pane-manager-row-menu.png)
+
 **Showing never toggles.** `Enter` on a shown pane — or `Ctrl`+`t` while the Terminal is up —
 selects it and gives it the keyboard. It does not hide it, does not take it off your layout,
 and never unloads the weave behind it. `Ctrl`+`p` is the one toggle, and it toggles only the
@@ -235,7 +237,7 @@ and the band says why. When the pane you cannot right-click into is the
 one you want to arrange or hide, the Pane Manager's row for it offers **`manage <pane> >`**, and the
 pane's title row is Workshop's on every medium.
 
-![An Inventory entry's menu: the entry's own rows, a rule, then Workshop's arrange, Order, Reset, edit code and remove for the Inventory pane](images/pane-menu-standard-rows.png)
+![An Inventory entry's menu: the entry's own rows, a rule naming Inventory, then Workshop's arrange, Order, Reset, edit code and hide pane for the Inventory pane](images/pane-menu-standard-rows.png)
 
 **What a pane can and cannot do with a menu.** It chooses the rows and what a chosen row means;
 the presenter shows them and returns the choice, Workshop decides when a menu may open and where,
