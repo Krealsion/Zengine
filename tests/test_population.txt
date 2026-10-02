@@ -86,4 +86,4 @@ source_transfer_cpp               program           always
 inventory                         doctest           always  36
 flow_pane                         doctest           always  22
 view                              doctest           always  9
-view_builder                      doctest           always  6
+view_builder                      doctest           always  7

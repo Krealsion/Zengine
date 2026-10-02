@@ -71,11 +71,14 @@ inline Picture picture(const Model& m, const ws::PaneCanvasRoom& room, std::int6
     const auto line = surface::add_cells(metrics.line, 2 * metrics.inset);
     const auto columns = std::max<std::int64_t>(1, (room.width - 2 * metrics.inset) / advance);
     const auto rows = std::max<std::int64_t>(1, room.height / std::max<std::int64_t>(1, line));
+    // A line ends where its column does: `limit` is the column it may not reach.
+    std::int64_t limit = columns;
     const auto put = [&](std::int64_t col, std::int64_t row, std::string text, std::int64_t role = ink::kFill,
                          std::int64_t caret = surface::kNoCaret) {
         if (row < 0 || row >= rows) return std::int64_t{0};
         ws::PaneCanvasText run{col * advance, row * line, clean(std::move(text)), role, caret};
-        auto placed = ws::clip_canvas_text(run, {0, 0, room.width, room.height}, room);
+        const ws::CanvasTextBox clip{0, 0, std::min(room.width, limit * advance + 2 * metrics.inset), room.height};
+        auto placed = ws::clip_canvas_text(run, clip, room);
         if (placed.visible()) out.content.texts.push_back(placed.text);
         return static_cast<std::int64_t>(run.text.size());
     };
@@ -134,27 +137,46 @@ inline Picture picture(const Model& m, const ws::PaneCanvasRoom& room, std::int6
         button(col, row, "Cancel", "dialog-cancel");
         put(0, row + 1, "Tab changes field; Enter confirms; Escape cancels", ink::kMuted);
     } else {
-        put(0, row++, "Elements (" + std::to_string(m.description.elements.size()) + ")", ink::kAccent);
         const auto& d = m.description;
+        // TWO COLUMNS WHERE THE ROOM IS WIDE: the list on the left, the selected element's
+        // properties on the right; stacked, the list keeps the rows the properties leave it.
+        const bool wide = columns >= 72;
+        const auto split = wide ? columns / 2 : columns;
+        const auto right = wide ? split + 1 : std::int64_t{0};
+        const auto list_top = row;
+        const bool selected = m.selected && *m.selected < d.elements.size();
+        const auto list_end = wide || !selected ? bottom : std::max<std::int64_t>(list_top + 2, bottom - 5);
+        limit = wide ? split - 1 : columns;
+        put(0, row++, "Elements (" + std::to_string(d.elements.size()) + ")", ink::kAccent);
         // The list: one row per element, its kind, label, place and size. Selecting one shows its
-        // properties beneath; a shape or a field carried onto a label's row is what it shows.
-        const auto list_end = std::min<std::int64_t>(bottom - 6, row + static_cast<std::int64_t>(d.elements.size()));
-        for (std::size_t i = m.first_row; i < d.elements.size() && row < list_end; ++i) {
+        // properties; a shape or a field carried onto a label's row is what it shows.
+        auto first = std::min(m.first_row, d.elements.size());
+        if (selected) {
+            const auto shown = static_cast<std::size_t>(std::max<std::int64_t>(1, list_end - row));
+            if (*m.selected < first) first = *m.selected;
+            if (*m.selected >= first + shown) first = *m.selected + 1 - shown;
+        }
+        for (std::size_t i = first; i < d.elements.size() && row < list_end; ++i) {
             const auto& e = d.elements[i];
             const bool chosen = m.selected && *m.selected == i;
             const auto text = std::string(chosen ? "> " : "  ") + e.id + "  " + view::kind_word(e.kind) + "  \"" +
                               e.label + "\"  " + std::to_string(e.x) + "," + std::to_string(e.y) + " " +
                               std::to_string(e.w) + "x" + std::to_string(e.h);
             put(0, row, text, chosen ? ink::kAccent : ink::kFill);
-            press(0, row, columns, "select", {std::to_string(i)});
+            press(0, row, limit, "select", {std::to_string(i)});
             ++row;
         }
         if (d.elements.empty()) put(0, row++, "  none yet: add a number field, a button and a label", ink::kMuted);
-        ++row;
-        if (m.selected && *m.selected < d.elements.size() && row < bottom) {
+        limit = columns;
+        row = wide ? list_top : row + 1;
+        if (selected && row < bottom) {
             const auto i = std::to_string(*m.selected);
             const auto& e = d.elements[*m.selected];
-            col = put(0, row, e.id + " (" + view::kind_word(e.kind) + ") ", ink::kAccent);
+            col = put(right, row, e.id + " (" + view::kind_word(e.kind) + ") ", ink::kAccent);
+            if (wide) {
+                ++row;
+                col = right;
+            }
             col = button(col, row, "Edit", "ask-element", {i});
             col = button(col, row, "Up", "up", {i});
             col = button(col, row, "Down", "down", {i});
@@ -162,30 +184,37 @@ inline Picture picture(const Model& m, const ws::PaneCanvasRoom& room, std::int6
             ++row;
             if (e.kind == view::Kind::label) {
                 if (m.choosing && m.choosing->element == e.id) {
-                    col = put(0, row, "show which field of " + m.choosing->shape->name() + "? ");
+                    put(right, row++, "show which field of " + m.choosing->shape->name() + "?");
+                    col = right;
                     for (const auto& f : showable(*m.choosing->shape)) col = button(col, row, f, "show", {i, f});
                 } else if (const auto* s = d.shown(e.id)) {
-                    col = put(0, row, "shows " + s->shape->name() + "." + s->field + " ");
-                    button(col, row, "Unshow", "unshow", {i});
+                    col = put(right, row, "shows " + s->shape->name() + "." + s->field + " ");
+                    button(right + col, row, "Unshow", "unshow", {i});
                 } else {
-                    put(0, row, "shows nothing: carry a shape or a field here", ink::kMuted);
+                    put(right, row, "shows nothing: carry a shape or a field here", ink::kMuted);
                 }
-                press(0, row, columns, "shows", {i});
+                press(right, row, columns - right, "shows", {i});
             } else if (e.kind == view::Kind::button) {
                 if (const auto* intent = d.intent(e.id)) {
-                    put(0, row, "says " + shape_line(*intent->shape));
-                    press(0, row, columns, "says", {i});
+                    // What it says, its name and then its fields: right-pressed, it is carried.
+                    std::string fields;
+                    for (const auto& f : intent->shape->fields())
+                        fields += (fields.empty() ? "" : ", ") + f.name + ": " + loom::name_of(f.type.kind);
+                    put(right, row, "says " + intent->shape->name());
+                    press(right, row, columns - right, "says", {i});
+                    put(right, ++row, "  {" + fields + "}");
+                    press(right, row, columns - right, "says", {i});
                     ++row;
-                    col = button(0, row, "Make intent from fields", "ask-intent", {i});
+                    col = button(right, row, "Make intent from fields", "ask-intent", {i});
                     button(col, row, "Drop intent", "drop-intent", {i});
-                    put(0, row + 1, "right-press `says` to carry its shape onto Flow", ink::kMuted);
+                    put(right, row + 1, "right-press `says` to carry its shape", ink::kMuted);
                 } else {
-                    put(0, row, "says nothing yet", ink::kMuted);
+                    put(right, row, "says nothing yet", ink::kMuted);
                     ++row;
-                    button(0, row, "Make intent from fields", "ask-intent", {i});
+                    button(right, row, "Make intent from fields", "ask-intent", {i});
                 }
             } else if (!e.text.empty()) {
-                put(0, row, "starts with " + e.text, ink::kMuted);
+                put(right, row, "starts with " + e.text, ink::kMuted);
             }
         }
     }
