@@ -1260,7 +1260,7 @@ TEST_CASE("a provider-only record mounts a provider and loads NO weave") {
     REQUIRE(done.resolved.size() == 1);
     CHECK(done.resolved[0].provider_mounted);
     CHECK(done.resolved[0].provider == "zengine.operators.basic");
-    CHECK(done.resolved[0].contributed == 4);
+    CHECK(done.resolved[0].contributed == 5);
     CHECK_FALSE(done.resolved[0].weave_loaded);
     CHECK(rig.catalog.find("math.max") != nullptr);
     // ...AND NO KERNEL WENT LOOKING FOR A WEAVE: a provider is not a weave, and a plan cannot
@@ -1533,7 +1533,7 @@ TEST_CASE("unmounting one record's provider drops its contributions and nothing 
     const load::Executed done = rig.realize(
         plan_of({provides("zengine-operators-basic"), provides("zengine-timer")}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
-    CHECK(rig.catalog.size() == 5);
+    CHECK(rig.catalog.size() == 6);
     CHECK(rig.executor.unmount(done.resolved[1]));
     CHECK_FALSE(rig.catalog.mounted("zengine.timer"));
     CHECK(rig.catalog.find(tmr::kNormalizeDelay) == nullptr);
@@ -1730,7 +1730,7 @@ TEST_CASE("the projection pairs AUTHORED intent with RESOLVED state, row by row"
     CHECK(basic->authored_role.empty());
     CHECK(basic->state == std::string(workshop::kResolvedToken));
     CHECK(basic->provider == "zengine.operators.basic");
-    CHECK(basic->powers == 4);
+    CHECK(basic->powers == 5);
 
     const workshop::ArtifactParticipation* timer = row_of(said, "zengine-timer");
     REQUIRE(timer != nullptr);
@@ -2109,13 +2109,15 @@ TEST_CASE("text finds a power by its identity or by what it is for, every term, 
     CHECK(found_by_text(rig.catalog, "larger") == std::vector<std::string>{"math.max"});
     CHECK(found_by_text(rig.catalog, "LARGER Integers") == std::vector<std::string>{"math.max"});
     // BY IDENTITY, in any case.
-    CHECK(found_by_text(rig.catalog, "MATH") == std::vector<std::string>{"math.max"});
+    CHECK(found_by_text(rig.catalog, "MATH") == std::vector<std::string>{"math.add", "math.max"});
     CHECK(found_by_text(rig.catalog, ".select_") ==
           std::vector<std::string>{"logic.select_bool", "logic.select_int"});
     // EVERY TERM MUST BE FOUND, and the terms may be found in different places: one in the
     // identity, one in the words.
     CHECK(found_by_text(rig.catalog, "larger nonsense").empty());
-    CHECK(found_by_text(rig.catalog, "math integers") == std::vector<std::string>{"math.max"});
+    CHECK(found_by_text(rig.catalog, "math integers") ==
+          std::vector<std::string>{"math.add", "math.max"});
+    CHECK(found_by_text(rig.catalog, "sum") == std::vector<std::string>{"math.add"});
     // AN EMPTY OR BLANK TEXT ASKS NOTHING OF A ROW.
     CHECK(found_by_text(rig.catalog, "").size() == rig.catalog.size());
     CHECK(found_by_text(rig.catalog, " \t ").size() == rig.catalog.size());
@@ -2254,22 +2256,22 @@ TEST_CASE("a page continues after an identity, and total counts the whole query"
     CHECK(identities_of(first) ==
           std::vector<std::string>{"compare.less_int", "logic.select_bool"});
     CHECK(first.next == "logic.select_bool");
-    CHECK(first.total == 5);
+    CHECK(first.total == 6);
     page.after = first.next;
     const workshop::PowersFound second = workshop::find_powers(rig.catalog, page);
-    CHECK(identities_of(second) == std::vector<std::string>{"logic.select_int", "math.max"});
-    CHECK(second.next == "math.max");
-    CHECK(second.total == 5);
+    CHECK(identities_of(second) == std::vector<std::string>{"logic.select_int", "math.add"});
+    CHECK(second.next == "math.add");
+    CHECK(second.total == 6);
     page.after = second.next;
     const workshop::PowersFound last = workshop::find_powers(rig.catalog, page);
-    CHECK(identities_of(last) == std::vector<std::string>{tmr::kNormalizeDelay});
+    CHECK(identities_of(last) == std::vector<std::string>{"math.max", tmr::kNormalizeDelay});
     CHECK(last.next.empty());
 
     // AN `after` NOTHING SUPPLIES STILL PLACES A PAGE: a position in the catalog's order, not a
     // handle the door would have had to keep.
     page.after = "logic.zzz";
     CHECK(identities_of(workshop::find_powers(rig.catalog, page)) ==
-          std::vector<std::string>{"math.max", tmr::kNormalizeDelay});
+          std::vector<std::string>{"math.add", "math.max"});
 
     // ...AND A FILTERED QUERY PAGES THE SAME WAY, its total the filter's.
     workshop::FindPowers ints;
@@ -2277,7 +2279,7 @@ TEST_CASE("a page continues after an identity, and total counts the whole query"
     ints.limit = 1;
     const workshop::PowersFound one = workshop::find_powers(rig.catalog, ints);
     CHECK(identities_of(one) == std::vector<std::string>{"logic.select_int"});
-    CHECK(one.total == 3);
+    CHECK(one.total == 4);
     CHECK(one.next == "logic.select_int");
 }
 

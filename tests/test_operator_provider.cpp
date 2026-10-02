@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <fstream>
 #include <sstream>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -125,10 +126,10 @@ TEST_CASE("a real provider artifact supplies powers across a native module bound
 
     // The provider named ITSELF; the host chose nothing about that identity.
     CHECK(mounted.provider == kBasic);
-    CHECK(mounted.contributed == 4);
+    CHECK(mounted.contributed == 5);
     CHECK(catalog.mounted(kBasic));
     CHECK(catalog.identities() == std::vector<std::string>{op::kLessInt, op::kSelectBool,
-        op::kSelectInt, op::kMaxInt});
+        op::kSelectInt, op::kAddInt, op::kMaxInt});
 
     // ...and the powers WORK, which is what makes the mount more than bookkeeping.
     const op::OperatorDef* max = catalog.find(op::kMaxInt);
@@ -139,6 +140,38 @@ TEST_CASE("a real provider artifact supplies powers across a native module bound
     const op::Evaluation answered = catalog.evaluate(op::kMaxInt, std::move(pack));
     REQUIRE_MESSAGE(answered.ok(), answered.reason());
     CHECK(answered.value().at(0)->as_int() == 0);
+}
+
+TEST_CASE("math.add says what it is for and adds across the module boundary, and a sum outside "
+          "Int is refused in the leaf's own words, the words an in-process caller reads") {
+    op::Catalog loaded;
+    REQUIRE(op::mount_provider(loaded, PROVIDER_BASIC_SO).ok);
+    op::Catalog local;
+    op::publish_primitives(local);
+    const op::OperatorDef* add = loaded.find(op::kAddInt);
+    REQUIRE(add != nullptr);
+    CHECK_FALSE(add->is_composite());
+    CHECK(add->description().about == "the sum of two integers; a fold's body that totals");
+    const auto sum = [&](const op::Catalog& catalog, std::int64_t lhs, std::int64_t rhs) {
+        loom::Value pack(catalog.find(op::kAddInt)->inputs());
+        pack.set("lhs", loom::Cell::integer(lhs));
+        pack.set("rhs", loom::Cell::integer(rhs));
+        return catalog.evaluate(op::kAddInt, std::move(pack));
+    };
+    const op::Evaluation seven = sum(loaded, 3, 4);
+    REQUIRE_MESSAGE(seven.ok(), seven.reason());
+    CHECK(seven.value().at(0)->as_int() == 7);
+    CHECK(sum(loaded, -9, 4).value().at(0)->as_int() == -5);
+
+    const std::int64_t top = std::numeric_limits<std::int64_t>::max();
+    const op::Evaluation over = sum(loaded, top, 1);
+    REQUIRE_FALSE(over.ok());
+    CHECK(over.reason() ==
+          "'math.add' cannot add " + std::to_string(top) + " and 1: the sum is outside Int");
+    CHECK(over.reason() == sum(local, top, 1).reason());
+    const op::Evaluation under = sum(loaded, std::numeric_limits<std::int64_t>::min(), -1);
+    REQUIRE_FALSE(under.ok());
+    CHECK(under.reason() == sum(local, std::numeric_limits<std::int64_t>::min(), -1).reason());
 }
 
 TEST_CASE("a provider is not a weave: the basic provider exports no weave ABI") {
@@ -516,7 +549,7 @@ TEST_CASE("a mount is ALL OR NOTHING: a refused batch installs none of itself") 
     CHECK(catalog.find("test.negate") == nullptr);
     CHECK_FALSE(catalog.mounted("test.batch"));
     CHECK(catalog.identities() == std::vector<std::string>{op::kLessInt, op::kSelectBool,
-        op::kSelectInt, op::kMaxInt});
+        op::kSelectInt, op::kAddInt, op::kMaxInt});
     CHECK(active_provider(catalog, op::kMaxInt) == kBasic);
 }
 
