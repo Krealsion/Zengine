@@ -95,8 +95,27 @@ value lands where the hand lets go, and a click carries nothing"; `tests/test_fl
 right press on a found operator is handed back".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
+## WL-CANVAS-06 — A canvas hears where the pointer rests
+
+LAW — A provider that accepts `PaneCanvasHover` is told where a pointer holding no button rests on its canvas, and once when it leaves; resting moves no selection, focus, key or gesture.
+
+MEANS
+- the canvas on top under the pointer, from geometry Workshop holds, once per local place;
+- a leave when the pointer moves off its body, a mode, menu or sweep takes it, or a press holds;
+- a carried value over a canvas is told with `carrying`; a fresh room puts the hover down unsaid.
+
+PROVEN BY — `workshop/pane_canvas_vocabulary.hpp` `PaneCanvasHover`; `workshop/weave_canvas.cpp`
+`canvas_hover`, `leave_canvas_hover`, `refresh_canvas_rooms`; `workshop/weave_pointer.cpp`
+`on(PointerMoved)`; `tests/test_workshop_panes_canvas.cpp` case "a canvas that accepts the hover
+door hears where the pointer rests and that it left; resting selects, focuses and presses
+nothing", case "a described view offers its own pane through the view host, Workshop seats and
+draws it, a press reaches it, and a stop leaves a picture that says so".
+WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
+
 ## Do not assume
 
 - That a picture fence proves physical presentation time; it orders Loom deliveries.
 - That a reloaded provider may retain grants: it must wait for its fresh room before input.
 - That a pointer gesture means any particular edit; only the provider knows its content.
+- That a window reports the pointer leaving it: a hover over a canvas the pointer left through
+  the window's edge stays until the next motion inside the window.

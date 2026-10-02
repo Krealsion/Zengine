@@ -526,8 +526,16 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         (void)hold_input(std::move(held));
         return;
     }
-    if (move_value_drag(m, mail)) return;
-    if (canvas_motion(m, mail)) return;
+    // A carried value tells the canvas under it, so a receiver may mark where it would land; a
+    // canvas holding the pointer is told the motion itself, and no other canvas hears a hover.
+    if (move_value_drag(m, mail)) {
+        canvas_hover(m, mail);
+        return;
+    }
+    if (canvas_motion(m, mail)) {
+        leave_canvas_hover(mail);
+        return;
+    }
 
     // ---- Carrying a layout tab along the run -----------------------------------------
     // The hand holds the live layout (the press made it live), so a motion asks the press's
@@ -535,6 +543,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
     // Order only: no desk is replaced and no provider hears it. Over no tab, `+` or its own span,
     // nothing moves, so dragging past the end rests rather than wraps.
     if (session_.tab_drag.active) {
+        leave_canvas_hover(mail);
         const LayoutTabPress over =
             band_tab_at(session_, screen_of(session_), m.space, m.x, m.y);
         if (over.hit && !over.create &&
@@ -546,6 +555,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
     // Arrangement owns motion while open, for the press's reason; with no pane gesture held, a
     // motion does nothing.
     if (session_.arrange.open) {
+        leave_canvas_hover(mail);
         const PointedAt here = canvas_point_of(m.space, m.x, m.y);
         if (!here.understood || !session_.pane_drag.active) {
             return;
@@ -578,9 +588,12 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
     // pane's. Nothing here repaints; the pane's next content will.
     if (session_.text_drag.active &&
         session_.text_drag.place == text_drag_place::kExternalPane) {
+        leave_canvas_hover(mail);
         external_drag(session_.text_drag.kind, m, mail);
         return;
     }
+    // An idle pointer, or a value carried by a click: the canvas under it hears where it rests.
+    canvas_hover(m, mail);
 }
 
 // WL-PTR-10 -- agents/workshop/pointer.md

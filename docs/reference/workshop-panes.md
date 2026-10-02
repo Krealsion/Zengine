@@ -545,7 +545,8 @@ bare `Esc` is not sent at all when the office's holder accepts no `PaneKey` and 
 row for it: nothing could have spent it, so Workshop answers at once. That is the holder's own
 accept-set read off the bus, never an inference from a pane's silence.
 
-Deliberately absent: no focus-changed notification, idle hover, key release or double-press
+Deliberately absent: no focus-changed notification, idle hover over a text pane (a canvas pane
+may ask for one, [below](#optional-pane-local-canvas)), key release or double-press
 notification. Secondary buttons and the optional local canvas have explicit release custody;
 the older prose sweep still ends silently. Keys and text cross as `PaneKey`/`PaneTextInput` to the pane
 a weaver last pressed into, the wheel as `PaneWheel` — the notches, forwarded,
@@ -634,6 +635,16 @@ to the new body with an **updating** marker. This preview cannot receive input a
 claim the provider has answered; valid new content replaces it. It never survives a close,
 zero room, re-offer, owner/capability change, or changed text metric.
 
+`PaneCanvasHover{pane,grant,picture,x,y,over,carrying}` is the one idle-pointer fact, for a
+provider whose holder accepts it: Workshop tells the canvas on top under a pointer that holds no
+button where it rests, in local subunits on the picture handed to the medium, once per place, and
+tells it `over=false` once when the pointer leaves its body, a mode or menu opens, or a press
+elsewhere begins a sweep. A held press owns its motion, so the hover is put down while it lasts.
+`carrying` is true while a carried value is over it, so a receiver may mark where it would land;
+a drag's carry is told the hover too. A new room puts the hover down with no leave. It is
+presentation only: no selection, focus, keyboard or gesture moves, and nothing reads what the
+canvas drew. A terminal reports no idle pointer, so there only a carried drag is told.
+
 `PaneCanvasPointer` carries `pane,grant,picture,gesture,phase,button,x,y,modifiers,dx,dy,
 keys_went_here`. Phases are `canvas_pointer::kPress`, `kMove`, `kRelease`, `kLost`, and
 `kWheel`; buttons are 1/2/3 and a wheel uses 0. Press and wheel name the fenced picture actually
@@ -655,8 +666,9 @@ correlation, the provider asks `PaneOperationRequested` and then
 `PaneValueCarryRequested{drag=true}`. Once Workshop accepts the carry it ends the press's hold
 with `kLost`, so later motion and the release are the carry's, and the release places the value
 where the hand lets go; a release that arrived before the carry is retained, and a click that
-never moved places nothing. No idle hover, key release, font scaling, or physical-display timing
-guarantee is added. The host has no node, wire, port, selection, pan, or zoom semantics.
+never moved places nothing. No key release, font scaling, or physical-display timing
+guarantee is added beyond the hover door above. The host has no node, wire, port, selection,
+pan, or zoom semantics.
 
 ## A pane may be pressed
 
@@ -921,12 +933,12 @@ presenter that defers owes its requester an answer of its own. Both shipped pres
 back from inside the handler for exactly that reason. None of this changes a requester: the Pane Manager and the
 Hotkeys pane perform the same operations whichever presenter presents their menus.
 
-**Not here yet: actions offered over a hovered item.** Hover motion does not cross the pane
-protocol, a pane's actions follow keyboard focus, and the only grant a presenter receives is a
-modal menu. An action that becomes available while the pointer rests on an item — a hint, a key
-an unfocused pane could receive — would need a hover fact with its own leave, a non-modal grant
-kind that forwards no input, and an explicit decision on keys reaching an unfocused pane; none of
-those exists, and hover never moves focus. The menu's grant, withdrawal and picture fence are
+**Not here yet: actions offered over a hovered item.** Hover reaches a canvas pane as a fact
+with its own leave (`PaneCanvasHover`), and a text pane not at all; a pane's actions follow
+keyboard focus, and the only grant a presenter receives is a modal menu. An action that becomes
+available while the pointer rests on an item — a hint, a key an unfocused pane could receive —
+would still need a non-modal grant kind that forwards no input, and an explicit decision on keys
+reaching an unfocused pane; neither exists, and hover never moves focus. The menu's grant, withdrawal and picture fence are
 where such an offer would connect.
 
 ## The desk comes back on its own

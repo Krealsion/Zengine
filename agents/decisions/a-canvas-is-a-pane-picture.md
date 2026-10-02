@@ -25,10 +25,11 @@ opaque strips in SDL. The measured-run witness now compares local hit fit with t
 Surface projection and sweeps edge clipping in `tests/test_workshop_panes_canvas.cpp`.
 
 **Limits.** Text stays ASCII and unscaled; partially visible glyphs and rows are omitted whole.
-No paths, textures, idle hover or multiline clipping tree. The provider owns pan and zoom.
+No paths, textures or multiline clipping tree; idle hover is an opt-in presentation fact with
+its own leave, moving no focus. The provider owns pan and zoom.
 Metric changes renew the grant. Preview never crosses a close, zero room, re-offer, provider
 or metric change. The fence orders dispatch; it does not prove physical presentation time.
 
 **Laws supported.** [WL-CANVAS-01](../workshop/canvas.md), [WL-CANVAS-02](../workshop/canvas.md),
 [WL-CANVAS-03](../workshop/canvas.md), [WL-CANVAS-04](../workshop/canvas.md),
-[WL-CANVAS-05](../workshop/canvas.md).
+[WL-CANVAS-05](../workshop/canvas.md), [WL-CANVAS-06](../workshop/canvas.md).
