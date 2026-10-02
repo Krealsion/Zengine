@@ -506,6 +506,36 @@ TEST_CASE("a right press on a declared message offers to carry its shape, and th
     CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
 }
 
+TEST_CASE("a press on a declared message asks under that press to drag its shape out, and still opens it; a right press on a found operator is handed back") {
+    Rig rig;
+    rig.edit_ok("new", {"tally", "discard"});
+    rig.edit_ok("state-field", {"total", "Int", "required"});
+    rig.edit_ok("emitted-message", {"Total"});
+    rig.edit_ok("emitted-field", {"0", "total", "Int", "required"});
+    rig.click("[Messages]");
+    rig.host(rig.press_for("0 tally.Total {total: Int}"), 93);
+    const loom::Message* carried = nullptr;
+    for (const auto& m : rig.presenter->messages)
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+    REQUIRE(carried != nullptr);
+    CHECK(carried->correlation == 93); // the acquisition continues the primary press
+    const auto value = loom::from_value<ws::PaneValueCarryRequested>(carried->payload);
+    CHECK(value.drag);
+    CHECK(value.label == "tally.Total");
+    // The press still does what it did: the row says how its shape is carried.
+    CHECK(rig.shows("Drag an emitted message, or right-press it, to carry its shape to another pane"));
+
+    // A row whose words name no message, right-pressed, is handed back rather than misread.
+    rig.edit_ok("message", {"Count"});
+    rig.edit_ok("message-field", {"0", "by", "Int", "required"});
+    rig.edit_ok("trigger", {"0", "total"});
+    auto found = rig.press_for("  math.max");
+    found.button = 3;
+    rig.host(found, 94);
+    CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
+    CHECK(rig.presenter->messages.back().correlation == 94);
+}
+
 TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and interaction context") {
     Rig rig;
     rig.graph_semantically();

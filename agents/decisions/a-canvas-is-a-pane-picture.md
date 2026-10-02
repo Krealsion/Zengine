@@ -11,8 +11,9 @@ Controls still need the medium's normal type, without fixed-cell lettering's opa
 runs. Workshop clips and translates it on the pane's plane. Runs use the existing Surface text
 renderer with the ground beneath; a shared helper resolves metric, clip, caret and selection
 for both drawing and hit bounds. Room grants bind metrics and geometry to one provider. Held
-gestures keep their initial picture and end explicitly. A resize may display the previous
-image marked as updating, but clears its admission and input fence immediately.
+gestures keep their initial picture and end explicitly; a primary press may carry a value out
+as a prose press does, and its hold ends as lost when the carry begins. A resize may display the
+previous image marked as updating, but clears its admission and input fence immediately.
 
 **Alternatives — argued.** A scenegraph adds transforms and retained identities the provider
 can own. A new Surface primitive is unnecessary for thin-rectangle wires or single-line type.
@@ -29,4 +30,5 @@ Metric changes renew the grant. Preview never crosses a close, zero room, re-off
 or metric change. The fence orders dispatch; it does not prove physical presentation time.
 
 **Laws supported.** [WL-CANVAS-01](../workshop/canvas.md), [WL-CANVAS-02](../workshop/canvas.md),
-[WL-CANVAS-03](../workshop/canvas.md), [WL-CANVAS-04](../workshop/canvas.md).
+[WL-CANVAS-03](../workshop/canvas.md), [WL-CANVAS-04](../workshop/canvas.md),
+[WL-CANVAS-05](../workshop/canvas.md).

@@ -140,6 +140,9 @@ bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& 
     const auto sent = mail.as_role(kWorkshopProvider).send(c.owner, event, correlation);
     if (!sent.valid()) return true;
     canvas_holds_[slot] = CanvasHold{true, kind, c.owner, c.x, c.y, event, sent};
+    // A primary press is the pane's to continue, as a prose press is: under its number the
+    // provider may ask to carry a value out, and the press's release is where it lands.
+    if (slot == 0) press_sent_ = GestureSent{kind, gestures_, correlation};
     if (slot > 0) {
         auto& continuation = secondary_cont_[slot - 1];
         continuation = SecondaryContinuation{};

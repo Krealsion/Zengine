@@ -650,8 +650,13 @@ reload. A press refused by Loom ends host custody without inventing a release to
 Secondary canvas presses establish the existing menu continuation, with the correlation of
 that pointer message. `PaneMenuRequested` and `PanePassRequested` echo it normally; host and
 presenter retain menu custody. Primary presses retain Workshop's ordinary selection/focus
-behavior. No idle hover, key release, font scaling, or physical-display timing guarantee is
-added. The host has no node, wire, port, selection, pan, or zoom semantics.
+behavior, and a primary press may carry a value out as a prose press does: echoing the press's
+correlation, the provider asks `PaneOperationRequested` and then
+`PaneValueCarryRequested{drag=true}`. Once Workshop accepts the carry it ends the press's hold
+with `kLost`, so later motion and the release are the carry's, and the release places the value
+where the hand lets go; a release that arrived before the carry is retained, and a click that
+never moved places nothing. No idle hover, key release, font scaling, or physical-display timing
+guarantee is added. The host has no node, wire, port, selection, pan, or zoom semantics.
 
 ## A pane may be pressed
 

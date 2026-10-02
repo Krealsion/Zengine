@@ -32,16 +32,17 @@ named `tally` works out.
 
 ## Carry shapes between the builder and Flow
 
-Shapes cross by carry, both ways. A canvas pane carries out by its menu: right-press the line, choose
-**Carry**, then click where it goes.
+Shapes cross by carry, both ways. A shape leaves Flow by dragging it, or by its menu; it leaves
+the builder by its menu: right-press the line, choose **Carry**, then click where it goes.
 
 - **The intent into Flow.** In the builder, select `count` and right-press its `says` line;
   choose **Carry tally.panel.Count** and click Flow. Flow offers **Declare tally.panel.Count v1
   as an accepted message**. Make the `tally` definition there with a fold of `math.add`
   ([finding the fold](flow.md#find-what-to-compose)) and an emitted `tally.Total {total}`
   ([emits](flow.md#say-what-changed-emits)).
-- **What Flow says, onto a label.** In Flow's **Messages**, right-press `tally.Total` under
-  **Emitted**, choose **Carry tally.Total**, and click the `total` row in the builder. A shape
+- **What Flow says, onto a label.** In Flow's **Messages**, drag `tally.Total` from under
+  **Emitted** onto the `total` row in the builder, or right-press it, choose
+  **Carry tally.Total**, and click that row. A shape
   with one field a label can show is bound at once (`shows tally.Total.total`); with several,
   the builder asks which. A value from Inventory binds by its shape, and a field carried from Info
   binds that field.
@@ -120,5 +121,5 @@ told values, take typing, or say something when a control is used. The two stay 
 
 Three element kinds: a label, a number field that holds a whole number, and a button. A button
 says at most one intent, made from all the view's number fields. A label shows one top-level
-field. Elements are placed by their numbers, not dragged. A shape leaves a canvas pane by the
+field. Elements are placed by their numbers, not dragged. An intent leaves the builder by the
 right-press menu and a click, not by dragging.
