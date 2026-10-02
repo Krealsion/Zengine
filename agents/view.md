@@ -3,7 +3,8 @@
 Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also read
 [panes](panes.md) (the canvas and the carry), [flow](flow.md) (the one shape model) and
 [flow host](flow-host.md) (the sibling host). Public contract:
-[view reference](../docs/reference/view.md).
+[view reference](../docs/reference/view.md); weaver guide:
+[the View Builder](../docs/workshop/view-builder.md).
 
 - A view description is presentation as data: elements, the field a label shows, the intent a
   button says. It holds no business value, no resolved geometry and no position in cells or in
@@ -33,7 +34,13 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   sits on the medium's lattice inside its element and is fitted by `clip_canvas_text`, so a
   terminal shows the window's picture floored to cells. A prose room gets one row saying the view
   needs a canvas; there is no second, text-row renderer.
-- Workshop composes the host beside the Flow host and holds no view behaviour.
+- Workshop composes the host beside the Flow host and holds no view behaviour. The View Builder
+  is an ordinary pane in `zengine.view.builder`: it edits a description through
+  `view_builder::Model`, every edit whole or refused whole, asks the host to run, apply and stop
+  one session of its office, and draws its own lists, never the view. An intent is made through
+  `flow/shape.hpp`. A reload in place keeps its draft, file and whether its view runs; a dialog
+  closes. It carries an intent's shape out as a `zen.SchemaDesc` by a menu choice, and takes a
+  shape, a value or an Info field dropped on a label's row as what that label shows.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
   refusal, in-place and fresh apply, stop, and the terminal picture; the panes suite witnesses
   the view through Workshop's real seat, pointer route and canvas admission.

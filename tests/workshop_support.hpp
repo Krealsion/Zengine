@@ -2789,6 +2789,11 @@ struct PaneRig {
             return WORKSHOP_SO_FLOW_PANE;
         }
 #endif
+#ifdef WORKSHOP_SO_VIEW_BUILDER
+        if (stem == "zengine-view-builder") {
+            return WORKSHOP_SO_VIEW_BUILDER;
+        }
+#endif
 #ifdef WORKSHOP_SO_EDITOR_PANE
         if (stem == "zengine-editor-pane") {
             return WORKSHOP_SO_EDITOR_PANE;

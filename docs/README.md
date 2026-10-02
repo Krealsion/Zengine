@@ -42,6 +42,7 @@ Every page below has one reader purpose, named.
 | [workshop/load-plans.md](workshop/load-plans.md) | choosing what a run is made of, from a weaver's side |
 | [workshop/builder.md](workshop/builder.md) | authored build recipes, the two recipe kinds and a CMake target's editing entry, authoring a recipe from Files, load after build, reload in place, reading what a build said, and loading a built artifact into the plan |
 | [workshop/flow.md](workshop/flow.md) | author and exercise a stateful weave graphically, retain message examples, and save the workspace |
+| [workshop/view-builder.md](workshop/view-builder.md) | describe a small panel as data beside Flow, run it as a participant of its own, and join it to a Flow definition by its shapes |
 | [workshop/editor.md](workshop/editor.md) | the Editor pane — open a source, edit, save, and back to the build; the pane holds the document |
 | [workshop/files.md](workshop/files.md) | the Files pane — browse the project you launched in and open a file from it |
 | [workshop/terminal.md](workshop/terminal.md) | the Terminal pane — type a command to the weaves on this bus, recall one you ran, read back through the record, and choose a destination from what is there |

@@ -67,7 +67,9 @@ SDL input reader, because a fetched SDL is a build-tree library this install doe
 Workshop, because its executable carries `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake
 that configured it (`cmake/ZengineInstall.cmake`), so installing it would ship one machine's layout;
 the implementation in `flow-host/runtime.hpp` and the Flow pane model/view,
-because these currently implement Workshop session policy and presentation. Their control
+because these currently implement Workshop session policy and presentation; the view package
+(`view/`) and the View Builder, because Workshop composes the view host and is the one consumer
+of the description format. Their control
 vocabularies are public through `zengine::flow`, so another participant can drive them; the rest of the Workshop/Builder/introspection/composer vocabularies and the
 pane weaves that spend them (`zengine-files`, `zengine-builder-pane`), because they are Workshop
 being Workshop — a stranger's pane needs only the pane protocol, which is in, since a pane
