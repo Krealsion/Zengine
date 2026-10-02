@@ -19,12 +19,8 @@
 
 namespace zengine::flow_pane {
 
-/// A node as the graph shows it: its operator, or the fold and what it spends.
-inline std::string node_title(const op::Node& node) {
-    if (!node.fold) return node.identity;
-    if (node.identity.empty()) return "fold";
-    return "fold " + node.identity;
-}
+/// A node's words are the operator package's, so a refusal names a node as this graph shows it.
+using op::node_title;
 
 /// A fold's body slot as its node shows it: the choice still to make, or which ports its body
 /// threads the count and the accumulator through.

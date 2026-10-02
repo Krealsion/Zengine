@@ -157,6 +157,13 @@ version 1's steps never are.
 `math.max` brings its own sentence, and unmounting it brings the old one back,
 because the words were never anywhere but on the contribution in force.
 
+**A refusal names where it happened in its author's words.** A composition's refusal
+begins with the composition's identity, quoted, and the node as a graph shows it,
+numbered and titled: `'t.sum' at %0 fold math.add: a step of 0 never moves the count
+from 0 toward 10`. A weave made from a definition answers it with its reaction named as
+its weaver named it, the definition and the message it reacts to: `tally on
+tally.panel.Count at %0 fold math.add: ...`.
+
 **They describe and nothing more.** No host reads them to decide what may run, be
 reordered, removed or trusted; no schema carries them, so two contributions that
 differ only in what they say have the same signature and the same content ids. A
@@ -304,7 +311,7 @@ nothing in this seam is arranged for anything else.
 | an ordinary collision | `'math.max' is already supplied by '<provider>'; mounting '<other>' over it needs an explicit overlay` |
 | an incompatible overlay | `would shadow 'math.max' at a different signature (...) than '<provider>' supplies (...)` |
 | the provider's authoring failed | `provider '<name>' in '<path>' contributes nothing` |
-| a missing dependency at spend | `'timer.normalize_delay' step 0: unresolved operator reference 'math.max'` |
+| a missing dependency at spend | `'timer.normalize_delay' at %0 math.max: unresolved operator reference 'math.max'` |
 | the provider could not answer | `'math.max' could not be spent: <the provider's own words>` |
 | a cycle through identities | `spending 'a' would nest this evaluation <depth + 1> operators deep, past its budget of <depth>: ...` |
 | an evaluation that spends too much | `spending 'math.max' would pass this evaluation's budget of <spends> operator spends` |

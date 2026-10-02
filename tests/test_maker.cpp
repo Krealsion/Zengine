@@ -1057,7 +1057,8 @@ TEST_CASE("a trigger's body may fold: the count is folded through math.add into 
     const Message* zero = h.client->last("zen.Refused");
     REQUIRE(zero != nullptr);
     CHECK(zero->correlation == 21);
-    CHECK(contains(reason_of(*zero), "a step of 0 never moves the count from 0 toward 10"));
+    CHECK(reason_of(*zero) == "tally on tally.panel.Count at %0 fold math.add: a step of 0 never "
+                              "moves the count from 0 toward 10");
 
     h.send(r.id, hwfix::count(0, 2000000, 1), 22);
     h.pump();

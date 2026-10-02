@@ -57,7 +57,7 @@ class Step {
 public:
     Step(op::OperatorHost host, std::string root, std::size_t index,
          std::string identity, loom::ContentId inputs, loom::ContentId outputs)
-        : host_(host), context_("'" + root + "' step " + std::to_string(index)),
+        : host_(host), context_(op::place_in("'" + root + "'", index, identity)),
           signature_(host_.describe(std::to_string(index))), arguments_(schema(identity)) {
         if (signature_.inputs->content_id() != inputs ||
             signature_.outputs->content_id() != outputs)

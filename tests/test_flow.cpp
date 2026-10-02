@@ -295,7 +295,9 @@ TEST_CASE("Flow missing and reshaped leaves refuse by the same detecting layer")
     for (auto* rig : {&a, &b}) {
         rig->catalog.unmount("flowtest.operators");
         rig->send("flowtest.Set_integer", loom::Cell::integer(29));
-        CHECK(rig->refusal().find("unresolved operator reference 'flowtest.echo_integer'") != std::string::npos);
+        // Interpreted or generated, the reaction is named as its weaver named it, then the node.
+        CHECK(rig->refusal() == "flowtest on flowtest.Set_integer at %0 flowtest.echo_integer: "
+                                "unresolved operator reference 'flowtest.echo_integer'");
     }
     CHECK(a.refusal() == b.refusal());
     for (auto* rig : {&a, &b}) {

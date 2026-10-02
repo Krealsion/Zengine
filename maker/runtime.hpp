@@ -251,7 +251,7 @@ private:
         op::Evaluation answered = evaluate_body(trigger, in.payload);
         if (!answered) {
             ++refused_;
-            refuse(in, bus, answered.reason());
+            refuse(in, bus, in_weaver_words(trigger, answered.reason()));
             return;
         }
         loom::Value next = state_;
@@ -268,6 +268,15 @@ private:
             }
             bus.publish(loom::Message(std::move(*written.value), self_, {}, in.correlation));
         }
+    }
+
+    /// A body's refusal as its weaver reads it: the body's identity, which every evaluator quotes
+    /// at the head of the place it names, is the definition and the message it reacts to.
+    std::string in_weaver_words(const On& trigger, std::string reason) const {
+        const std::string head = "'" + definition_.trigger_identity(trigger) + "' ";
+        if (reason.rfind(head, 0) == 0)
+            reason = definition_.name + " on " + trigger.message->name() + " " + reason.substr(head.size());
+        return reason;
     }
 
     /// The preparation ask: admit the converted bytes at THIS weave's own state schema -- the

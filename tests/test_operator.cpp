@@ -615,12 +615,12 @@ TEST_CASE("a fold refuses a step of 0, a count past its bound and a stale body i
 
     const op::Evaluation zero = run_fold(catalog, "t.sum", 0, 10, 0, 0);
     REQUIRE_FALSE(zero.ok());
-    CHECK(zero.reason() == "'t.sum' step 0: a step of 0 never moves the count from 0 toward 10");
+    CHECK(zero.reason() == "'t.sum' at %0 fold math.add: a step of 0 never moves the count from 0 toward 10");
 
     const op::Evaluation past = run_fold(catalog, "t.sum", 0, 2000000, 1, 0);
     REQUIRE_FALSE(past.ok());
-    CHECK(past.reason() == "'t.sum' step 0: this fold would count 2000000 times from 0 toward "
-                          "2000000 by 1, and a fold counts at most " +
+    CHECK(past.reason() == "'t.sum' at %0 fold math.add: this fold would count 2000000 times from 0 "
+                          "toward 2000000 by 1, and a fold counts at most " +
                               std::to_string(op::kMaxFoldCount) + " times");
     CHECK(int_answer(run_fold(catalog, "t.sum", 0, static_cast<std::int64_t>(op::kMaxFoldCount), 1,
                               0)) == static_cast<std::int64_t>(op::kMaxFoldCount) *
@@ -635,11 +635,12 @@ TEST_CASE("a fold refuses a step of 0, a count past its bound and a stale body i
     const op::Evaluation stale = run_fold(reshaped, "t.sum", 0, 10, 1, 0);
     REQUIRE_FALSE(stale.ok());
     CHECK(stale.reason() ==
-          "'t.sum' step 0: 'math.add' is not the signature this composition was authored against");
+          "'t.sum' at %0 fold math.add: 'math.add' is not the signature this composition was "
+          "authored against");
     op::Catalog bare;
     bare.publish(*catalog.find("t.sum"));
     CHECK(run_fold(bare, "t.sum", 0, 10, 1, 0).reason() ==
-          "'t.sum' step 0: unresolved operator reference 'math.add'");
+          "'t.sum' at %0 fold math.add: unresolved operator reference 'math.add'");
 }
 
 TEST_CASE("a fold's other body ports are wired from scope, and a body's refusal is the fold's, "
@@ -674,7 +675,8 @@ TEST_CASE("a fold's other body ports are wired from scope, and a body's refusal 
     const op::Evaluation capped_out = ask("t.capped_sum", 100, "cap", 100);
     REQUIRE_FALSE(capped_out.ok());
     CHECK(capped_out.reason() ==
-          "'t.capped_sum' step 0: iteration 13 (count 14): 't.capped' refuses a total above 100");
+          "'t.capped_sum' at %0 fold t.capped: iteration 13 (count 14): 't.capped' refuses a total "
+          "above 100");
 }
 
 TEST_CASE("a fold resolves its body at the spend: an overlay mounted between evaluations changes "
@@ -709,8 +711,9 @@ TEST_CASE("nested folds draw on one evaluation's budget, refused at the spend th
     const op::Evaluation nested = run_fold(catalog, "t.outer", 0, 1000, 1, 0);
     REQUIRE_FALSE(nested.ok());
     // 1 + 99 * 1001 spends, then `t.inner` and 899 additions: the 900th is the one refused.
-    CHECK(nested.reason() == "'t.outer' step 0: iteration 99 (count 99): 't.inner' step 0: "
-                             "iteration 899 (count 899): spending 'math.add' would pass this "
+    CHECK(nested.reason() == "'t.outer' at %0 fold t.inner: iteration 99 (count 99): 't.inner' at "
+                             "%0 fold math.add: iteration 899 (count 899): spending 'math.add' "
+                             "would pass this "
                              "evaluation's budget of " +
                                  std::to_string(op::kEvaluationSpends) + " operator spends");
     CHECK(op::invocations() - before == 99 * 1000 + 899);

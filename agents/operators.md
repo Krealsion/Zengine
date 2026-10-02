@@ -44,6 +44,13 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   reads it to decide what may run, be reordered, removed or trusted, no schema carries it so no
   content id moves with it, and a power marked not offered is spent by whoever names it. Prose
   past `op::kMaxAboutBytes` is refused where it is written.
+- **A refusal says where it happened in its author's words, written where it happens.** The
+  walk and a generated weave's steps both begin a node's refusal with the composition's identity
+  quoted and the node as a graph shows it (`op::place_in`, `op::node_title`, which Flow titles
+  its nodes by): never a word of the evaluator's own, such as "step", beside a weaver's field of
+  that name. A weave made from a definition answers a refused reaction with that identity named
+  as its weaver named it, `<definition> on <message>` (`maker::Runtime::in_weaver_words`), the
+  same for both, since a generated source passes its steps only the identity.
 - **One graph is acyclic by construction; a call cycle THROUGH IDENTITIES is not, and the
   evaluation's budget refuses it.** `Builder` cannot name a node before it exists and a decoded
   composition re-checks the order, so a single graph holds no cycle. But a node names its operator

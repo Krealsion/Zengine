@@ -366,8 +366,9 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     rig.fill("tally.panel", d.elements[2], "0");
     rig.press("tally.panel", d.elements[3]);
     CHECK(rig.total() == 45);
-    CHECK(has(rig.said("tally.panel"), "refused: "));
-    CHECK(has(rig.said("tally.panel"), "a step of 0 never moves the count from 0 toward 10"));
+    // The owner's whole sentence, which names where it happened as its weaver composed it.
+    CHECK(has(rig.said("tally.panel"), "refused: tally on tally.panel.Count at %0 fold math.add: "
+                                       "a step of 0 never moves the count from 0 toward 10"));
     CHECK(has(rig.words("tally.panel"), "Total: 45|"));
     const auto* picture = rig.latest("tally.panel");
     REQUIRE(picture != nullptr);
@@ -392,7 +393,7 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     // notice rows, floored to cells.
     const auto [rows, columns] = view::preferred_size(d);
     view::Presentation refusal;
-    refusal.notice = "refused: 'tally.r1.on.tally.panel.Count' step 0: a step of 0 never moves the count from 0 toward 10";
+    refusal.notice = "refused: tally on tally.panel.Count at %0 fold math.add: a step of 0 never moves the count from 0 toward 10";
     refusal.alert = true;
     const ws::PaneCanvasRoom asked{view::kPane, 9, 48 * columns, 48 * rows, 48, false, 0, 0};
     std::string notice;

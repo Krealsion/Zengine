@@ -84,12 +84,16 @@ WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md
 LAW — A body that cannot be spent leaves the state unchanged, answers `zen.Refused` to the sender with the deepest layer's own words, and counts.
 
 MEANS
-- the reply goes to `reply_to` if given, else the stamped sender; neither means silence.
+- the reply goes to `reply_to` if given, else the stamped sender; neither means silence;
+- the deepest layer names the node; the identity heading it is `<definition> on <message>`.
 
-PROVEN BY — `maker/runtime.hpp` `Runtime::fire`, `Runtime::refused`; `tests/test_maker.cpp` case
+PROVEN BY — `maker/runtime.hpp` `Runtime::fire`, `Runtime::refused`, `Runtime::in_weaver_words`;
+`tests/test_maker.cpp` case
 `"a body that cannot be spent leaves the state unchanged and refuses by name"`, case
 `"the answer lands in the named state field, and an answer of another kind is refused with
-the state unchanged"`.
+the state unchanged"`, case `"a trigger's body may fold: the count is folded through math.add
+into the state, a refused fold leaves the state unchanged and says why"`; `tests/test_flow.cpp`
+case `"Flow missing and reshaped leaves refuse by the same detecting layer"`.
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-07 — The emit is published under the weave's own grant
