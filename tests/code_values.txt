@@ -85,3 +85,7 @@ kMaxCarryLabelBytes             workshop/pane_carry.hpp                   kMaxCa
 kMaxPowerRows                   workshop/powers_vocabulary.hpp            kMaxPowerRows
 kMaxPowersQueryBytes            workshop/powers_vocabulary.hpp            kMaxPowersQueryBytes
 kMaxPowersAnswerBytes           workshop/powers_vocabulary.hpp            kMaxPowersAnswerBytes
+
+# ---- the evaluator's bounds
+kEvaluationSpends               operator/catalog.hpp                      kEvaluationSpends
+kEvaluationDepth                operator/catalog.hpp                      kEvaluationDepth

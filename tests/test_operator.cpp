@@ -35,6 +35,24 @@ namespace {
 
 std::int64_t int_answer(const op::Evaluation& e) { return e.value().at(0)->as_int(); }
 
+std::int64_t same_int(std::int64_t x) { return x; }
+
+/// One port, `x : Int`, the shape every operator below takes.
+std::vector<loom::Field> one_int() {
+    return {loom::Field{"x", loom::type_of(loom::Kind::Int), true}};
+}
+
+/// A composite of `width` steps, each spending `step` on its own input, answering the last.
+op::OperatorDef wide(const op::Catalog& catalog, const std::string& identity,
+                     const std::string& step, int width) {
+    op::Builder b(catalog, identity, one_int());
+    op::Builder::Ref last = b.input("x");
+    for (int i = 0; i < width; ++i) {
+        last = b.call(step, {b.input("x")});
+    }
+    return std::move(b).result("result", last);
+}
+
 } // namespace
 
 // ---- 1. the signature is the compiler's ------------------------------------
@@ -444,4 +462,71 @@ TEST_CASE("replace a primitive UNDER the rule and every consumer of it moves tog
         CHECK(a->nodes[i].authored_in == b->nodes[i].authored_in);
         CHECK(a->nodes[i].authored_out == b->nodes[i].authored_out);
     }
+}
+
+// ---- 5. what one evaluation may spend --------------------------------------
+
+TEST_CASE("a call cycle through identities is refused in words when it would nest past the "
+          "evaluation's budget, and the next evaluation starts with nothing spent") {
+    op::Catalog catalog;
+    // `cyc.b` first as a native leaf, so `cyc.a` can be authored against its ports; then a
+    // composite `cyc.b` overlays it at the same signature and names `cyc.a`. Neither graph holds a
+    // cycle; the catalog does, through identities, closed by a later mount.
+    REQUIRE(catalog.mount("cyc.leaf", {op::make_operator<&same_int>("cyc.b", {"x"}, "result")}));
+    op::Builder a(catalog, "cyc.a", one_int());
+    const op::Builder::Ref to_b = a.call("cyc.b", {a.input("x")});
+    REQUIRE(catalog.mount("cyc.one", {std::move(a).result("result", to_b)}));
+    op::Builder b(catalog, "cyc.b", one_int());
+    const op::Builder::Ref to_a = b.call("cyc.a", {b.input("x")});
+    REQUIRE(catalog.mount("cyc.two", {std::move(b).result("result", to_a)}, op::MountMode::Overlay));
+
+    const std::uint64_t before = op::invocations();
+    loom::Value ask(catalog.find("cyc.a")->inputs());
+    ask.set("x", loom::Cell::integer(7));
+    const op::Evaluation cycled = catalog.evaluate("cyc.a", ask);
+    REQUIRE_FALSE(cycled.ok());
+    // The spend refused is the 33rd nesting: a, b, a, b ... the 32nd is 'cyc.b', so 'cyc.a' next.
+    CHECK(cycled.reason() ==
+          "spending 'cyc.a' would nest this evaluation " +
+              std::to_string(op::kEvaluationDepth + 1) + " operators deep, past its budget of " +
+              std::to_string(op::kEvaluationDepth) +
+              ": an operator that reaches itself through identities nests without end");
+    CHECK(op::invocations() == before);
+
+    // Unmount the overlay and the same evaluation answers: nothing of the refused one was kept.
+    REQUIRE(catalog.unmount("cyc.two"));
+    const op::Evaluation answered = catalog.evaluate("cyc.a", ask);
+    REQUIRE(answered.ok());
+    CHECK(int_answer(answered) == 7);
+}
+
+TEST_CASE("an evaluation is refused at the spend that would pass its budget of spends, however "
+          "shallow, and its budget is not the next evaluation's") {
+    op::Catalog catalog;
+    REQUIRE(catalog.mount("wide.leaf",
+                          {op::make_operator<&same_int>("wide.leaf", {"x"}, "result")}));
+    REQUIRE(catalog.mount("wide.one", {wide(catalog, "wide.one", "wide.leaf", 50)}));
+    REQUIRE(catalog.mount("wide.two", {wide(catalog, "wide.two", "wide.one", 50)}));
+    REQUIRE(catalog.mount("wide.three", {wide(catalog, "wide.three", "wide.two", 50)}));
+    loom::Value ask(catalog.find("wide.three")->inputs());
+    ask.set("x", loom::Cell::integer(3));
+
+    // `wide.two` spends 1 + 50 * (1 + 50) = 2551 operators; `wide.three` would spend 127551, four
+    // deep at most. The spend that would pass the budget is refused, and nothing past it runs:
+    // 39 whole `wide.two`s, 9 whole `wide.one`s and 49 leaves had run, 97999 native bodies.
+    const std::uint64_t before = op::invocations();
+    const op::Evaluation refused = catalog.evaluate("wide.three", ask);
+    REQUIRE_FALSE(refused.ok());
+    CHECK(refused.reason() == "spending 'wide.leaf' would pass this evaluation's budget of " +
+                                  std::to_string(op::kEvaluationSpends) + " operator spends");
+    CHECK(op::invocations() - before == 97999);
+
+    // The next evaluation is a new one, and a copy of the catalog is another evaluator.
+    loom::Value two(catalog.find("wide.two")->inputs());
+    two.set("x", loom::Cell::integer(3));
+    const op::Evaluation answered = catalog.evaluate("wide.two", two);
+    REQUIRE(answered.ok());
+    CHECK(int_answer(answered) == 3);
+    const op::Catalog copy = catalog;
+    CHECK(copy.evaluate("wide.two", two).ok());
 }

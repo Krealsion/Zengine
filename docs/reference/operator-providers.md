@@ -229,6 +229,13 @@ next evaluation:
 
 `function.1`'s graph does not even mention `function.3`.
 
+Because a node is bound by identity at the spend, a later mount can close a cycle the graphs
+never held: `a` names `b`, and an overlay of `b` names `a`. A check at mount cannot rule that
+out, so the evaluator bounds every evaluation instead. Every operator one evaluation spends, from
+the first `Catalog::evaluate` to its answer, draws on one budget of `op::kEvaluationSpends`
+spends nested at most `op::kEvaluationDepth` deep, and the spend that would pass either is
+refused in words. The next evaluation starts with nothing spent.
+
 ## Custody: what keeps a native contribution callable
 
 ```text
@@ -267,6 +274,8 @@ nothing in this seam is arranged for anything else.
 | the provider's authoring failed | `provider '<name>' in '<path>' contributes nothing` |
 | a missing dependency at spend | `'timer.normalize_delay' step 0: unresolved operator reference 'math.max'` |
 | the provider could not answer | `'math.max' could not be spent: <the provider's own words>` |
+| a cycle through identities | `spending 'a' would nest this evaluation <depth + 1> operators deep, past its budget of <depth>: ...` |
+| an evaluation that spends too much | `spending 'math.max' would pass this evaluation's budget of <spends> operator spends` |
 
 Every one of them leaves the catalog exactly as it was. **A mount is all or
 nothing**: every contribution in a batch is judged before any of them is
