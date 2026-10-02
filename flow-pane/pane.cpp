@@ -641,7 +641,8 @@ private:
                  {"ask-open", "Open Flow workspace", input::scan::kO,
                   input::mod::kCtrl},
                  {"run", "Run Flow", input::scan::kR, input::mod::kCtrl},
-                 {"ask-generate", "Generate native C++", 0, 0},
+                 {"ask-generate", "Generate native C++", input::scan::kG,
+                  input::mod::kCtrl},
                  {"ask-discard", "Discard unsaved marker", 0, 0}}});
   }
   void perform(const std::string &action, const std::vector<std::string> &args,

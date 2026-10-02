@@ -644,17 +644,38 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     return finish_body();
   }
   if (model.page == Page::Events) {
+    // A long event -- a refusal in its owner's words -- continues on the rows beneath it,
+    // indented, rather than ending where the room does.
+    const auto columns = std::max<std::size_t>(
+        24, static_cast<std::size_t>(std::max<std::int64_t>(0, room.width / unit - 1)));
     std::int64_t y = top;
-    for (std::size_t i = model.first_row; i < model.events.size() && y < bottom;
-         ++i) {
-      label(0, y, model.events[i]);
-      y += unit;
-    }
+    const auto lines = [&](const std::string &text, std::int64_t role) {
+      std::string rest = text;
+      while (y < bottom) {
+        if (rest.size() <= columns) {
+          label(0, y, rest, role);
+          y += unit;
+          return;
+        }
+        if (y + unit >= bottom) { // the last row the room has: shortened, and marked so
+          label(0, y, rest.substr(0, columns - 3) + "...", role);
+          y += unit;
+          return;
+        }
+        auto cut = rest.rfind(' ', columns);
+        if (cut == std::string::npos || cut < columns / 2)
+          cut = columns;
+        label(0, y, rest.substr(0, cut), role);
+        y += unit;
+        rest = "    " + rest.substr(cut < rest.size() && rest[cut] == ' ' ? cut + 1 : cut);
+      }
+    };
+    for (std::size_t i = model.first_row; i < model.events.size() && y < bottom; ++i)
+      lines(model.events[i], ink::kFill);
     for (const auto &error : graph.problems(model.palette)) {
       if (y >= bottom)
         break;
-      label(0, y, error, ink::kAccent);
-      y += unit;
+      lines(error, ink::kAccent);
     }
     if (model.events.empty())
       label(0, y, "Run and send a message. Observed results appear here.");
