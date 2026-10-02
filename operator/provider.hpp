@@ -385,6 +385,10 @@ public:
             const std::string bytes = loom::serialize(out);
             write(answer, bytes);
             return ZENGINE_OP_OK;
+        } catch (const Refusal& e) {
+            // The leaf refused, in its own words: a refusal, not a provider that failed.
+            write(reason, e.reason());
+            return ZENGINE_OP_ERR_REFUSED;
         } catch (const std::exception& e) {
             write(reason, e.what());
             return ZENGINE_OP_ERR_PROVIDER_FAILED;

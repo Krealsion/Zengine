@@ -95,6 +95,9 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   same rule and would otherwise each hold a copy. This package is not a logic framework: the
   primitive vocabulary is deliberately minimal, and everything a future logic system will want
   — `min`, `clamp`, `and`, `or`, `greater_than`, a Float max — is deliberately absent.
+  **`math.add` is there for the fold**: a sum is the body a count is folded through, and it is a
+  native leaf of its own, never built from the other primitives nor hidden inside the form. A sum
+  outside Int is refused in words, never wrapped.
 
 ## A loaded weave can spend the host's operators
 
@@ -231,7 +234,8 @@ built from one authoring. A Zengine host owns ONE `op::Catalog`, and a Timer it 
 OPTIONALLY export one symbol saying *I supply these operator definitions*, and a host mounts it.
 
 ```text
-zengine-operators-basic    math.max, logic.select_int      NOT a weave
+zengine-operators-basic    math.max, math.add, logic.select_int,
+                           compare.less_int, logic.select_bool     NOT a weave
 zengine-timer              timer.normalize_delay           weave + provider + consumer
 host resolution            all three, layered, replaceable
 ```

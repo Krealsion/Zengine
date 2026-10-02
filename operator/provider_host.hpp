@@ -90,6 +90,10 @@ inline OperatorDef::Native provider_native(std::shared_ptr<const ProviderRecord>
         const ZengineOperatorStatus status = record->table->invoke(
             record->table->ctx, index, reinterpret_cast<const std::uint8_t*>(packed.data()),
             packed.size(), answer_sink, reason_sink);
+        if (status == ZENGINE_OP_ERR_REFUSED && !reason.empty()) {
+            // A refusal crosses as one: the same words an in-process caller would read.
+            throw Refusal(reason);
+        }
         if (status != ZENGINE_OP_OK) {
             // The provider's own words where it had any, the number where it did not.
             throw std::runtime_error(
