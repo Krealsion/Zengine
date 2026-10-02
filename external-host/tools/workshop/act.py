@@ -23,11 +23,11 @@ from pathlib import Path
 from loom_session.tool import Refused
 
 from hand import Hand
-from workshop_steps import chord_moments, moment, picture, png_of
+from workshop_steps import chord_moments, moment, picture, png_of, point
 
-VERBS = ("press", "type", "open", "select", "into", "click", "at", "control", "expect", "absent",
-         "rows", "picture", "wait")
-GESTURES = ("press", "type", "open", "select", "into", "click", "at", "control")
+VERBS = ("press", "type", "open", "select", "into", "click", "at", "rest", "control", "expect",
+         "absent", "rows", "picture", "wait")
+GESTURES = ("press", "type", "open", "select", "into", "click", "at", "rest", "control")
 BUTTONS = {"left": 1, "right": 3}
 
 
@@ -114,6 +114,12 @@ def act(ctx, hand, verb, step):
         hand.inject([moment(ctx, "PointerButton", button=button, pressed=p, x=where["x"],
                             y=where["y"], space=where["space"]) for p in (True, False)])
         return {"row": at["text"]}
+    if verb == "rest":
+        # THE POINTER RESTS where it is put, with no button held -- a window pixel "x,y" or a cell
+        # "x,yc". A canvas pane that asks for its hover is told where; nothing is pressed.
+        x, y, space = point(arg)
+        hand.inject([moment(ctx, "PointerMoved", x=x, y=y, space=space)])
+        return {"x": x, "y": y}
     if verb == "at":
         # One painted cell by its row and column in the pane's own lattice (PaneView's rows,
         # counted from 0): for panes whose meaning is a grid rather than a labelled row.
