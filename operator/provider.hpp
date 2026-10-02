@@ -351,16 +351,16 @@ inline Composite decode_composition(const loom::Value& v) {
         // make the evaluator's single forward pass read an answer not yet computed.
         for (const Binding& b : node.arguments) {
             if (b.from() == Binding::From::Node && b.node_index() >= graph.nodes.size()) {
-                throw std::invalid_argument("step " + std::to_string(graph.nodes.size()) +
-                                            " of '" + node.identity +
-                                            "' names a step that does not precede it");
+                throw std::invalid_argument(place_in("a composition", graph.nodes.size(),
+                                                     node_title(node)) +
+                                            " names a node that does not precede it");
             }
         }
         graph.nodes.push_back(std::move(node));
     }
     graph.result_node = static_cast<std::size_t>(v.get("result")->as_int());
     if (graph.result_node >= graph.nodes.size()) {
-        throw std::invalid_argument("a composition names no result step");
+        throw std::invalid_argument("a composition names no result node");
     }
     return graph;
 }

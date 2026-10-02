@@ -96,8 +96,8 @@ each line is fitted to the cell. Here `Total` was relabelled `Sum`, and a step o
 
  Sum: 45
 
- refused: 'tally.r1.on.tally.panel.Count' step 0: a step of 0
- never moves the count from 0 toward 10
+ refused: tally on tally.panel.Count at %0 fold math.add: a
+ step of 0 never moves the count from 0 toward 10
 ```
 
 ## Views here, in Info and in Inventory
