@@ -641,6 +641,7 @@ private:
                  {"ask-open", "Open Flow workspace", input::scan::kO,
                   input::mod::kCtrl},
                  {"run", "Run Flow", input::scan::kR, input::mod::kCtrl},
+                 {"ask-generate", "Generate native C++", 0, 0},
                  {"ask-discard", "Discard unsaved marker", 0, 0}}});
   }
   void perform(const std::string &action, const std::vector<std::string> &args,
@@ -676,6 +677,28 @@ private:
     else if (action == "ask-export")
       model_.ask("Export executable project for the standalone Flow workbench",
                  "export-project", {{"Path", "my-flow.flow"}});
+    else if (action == "ask-generate")
+      model_.ask("Generate native C++ for this definition into a directory", "generate",
+                 {{"Directory", "flow-generated"}});
+    else if (action == "ask-emitted-message")
+      model_.ask("Declare a message this definition publishes", "emitted-message",
+                 {{"Message name", "Said"}});
+    else if (action == "ask-emitted-field")
+      model_.ask("Add a field to an emitted message", "emitted-field",
+                 {{"Emitted index", "0"}, {"Name", "value"}, {"Kind", "Int"},
+                  {"Presence", "required"}});
+    else if (action == "ask-emit") {
+      // Each field written from the state field of its name, as the definition already holds
+      // them; the maker edits the line before confirming.
+      const auto &def = model_.workspace.graph.project.definition;
+      std::string fields;
+      if (!def.emits.empty())
+        for (const auto &f : def.emits.front()->fields())
+          if (def.state->find(f.name))
+            fields += (fields.empty() ? "" : " ") + f.name + "=$" + f.name;
+      model_.ask("After the write, publish an emitted message", "emit",
+                 {{"Emitted index", "0"}, {"Fields (field=$state or field=constant)", fields}});
+    }
     else if (action == "ask-import")
       model_.ask(
           "Import executable Flow project (replaces this draft)",

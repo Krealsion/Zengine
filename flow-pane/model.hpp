@@ -4,6 +4,7 @@
 #define ZENGINE_FLOW_PANE_MODEL_HPP
 #include "flow/workspace.hpp"
 #include "flow/author.hpp"
+#include "flow/generate.hpp"
 #include "flow/graph.hpp"
 #include "operator/reference.hpp"
 #include "component/text_box.hpp"
@@ -177,7 +178,7 @@ private:
         const auto previous_notice = notice;
         auto need = [&](std::size_t size) { if (args.size() != size) throw std::invalid_argument(action + " expects " + std::to_string(size) + " arguments"); };
         if (action == "describe") {
-            notice = "new(name,discard), state-field(name,type,required), message(name), message-field(index,name,type,required), trigger(message,output), add-node(identity,authored_in,authored_out[,before]), add-node-into(identity,authored_in,authored_out,node,port), add-fold([before]), fold-body(node,identity,authored_in,authored_out,count,accumulator), bind(node,port,$field|%node|constant), result(node), move(node,x,y), remove(node), save(path), open(path,discard), export-project(path), import-project(path,discard), preset(name), drafts, draft-open(index), run, apply, send, inspect, stop";
+            notice = "new(name,discard), state-field(name,type,required), message(name), message-field(index,name,type,required), trigger(message,output), add-node(identity,authored_in,authored_out[,before]), add-node-into(identity,authored_in,authored_out,node,port), add-fold([before]), fold-body(node,identity,authored_in,authored_out,count,accumulator), emitted-message(name), emitted-field(index,name,type,required), emit(index,field=$state|field=constant...), emit-remove(index), generate(directory), bind(node,port,$field|%node|constant), result(node), move(node,x,y), remove(node), save(path), open(path,discard), export-project(path), import-project(path,discard), preset(name), drafts, draft-open(index), run, apply, send, inspect, stop";
         } else if (action == "new") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before creating another");
@@ -210,6 +211,35 @@ private:
             const auto added = workspace.graph.add(trigger(), reference(args[0], args[1], args[2]), palette, into);
             workspace.graph.bind(trigger(), into + 1, port, zengine::op::Binding::node(added), palette);
             node = added; filling.reset(); page = Page::Graph; touched();
+        } else if (action == "emitted-message") {
+            need(1); (void)workspace.graph.message(args[0], {}, true); page = Page::Messages; touched();
+        } else if (action == "emitted-field") {
+            need(4); if (args[3] != "required" && args[3] != "optional") throw std::invalid_argument("presence must be required or optional");
+            workspace.graph.emitted_field(flow::index_of(args[0]), args[1], type(args[2]), args[3] == "required"); touched();
+        } else if (action == "emit") {
+            // The emitted message, then each field's write: `field=$state` or `field=constant`,
+            // one argument each or several in one, as a dialog confirms them.
+            if (args.empty()) throw std::invalid_argument("emit expects the emitted message's index, then its fields");
+            const auto which = flow::index_of(args[0]);
+            const auto& shape = workspace.graph.project.definition.emits.at(which);
+            std::vector<zengine::maker::FieldSource> fields;
+            for (std::size_t i = 1; i < args.size(); ++i)
+                for (const auto& word : flow::words(args[i])) {
+                    const auto [field, value] = flow::split(word, '=');
+                    const auto* target = shape->find(field);
+                    if (!target) throw std::invalid_argument(shape->name() + " has no field " + field);
+                    if (!value.empty() && value[0] == '$') fields.push_back({field, value.substr(1), std::nullopt});
+                    else fields.push_back({field, std::nullopt, flow::scalar(target->type.kind, value)});
+                }
+            workspace.graph.emit(trigger(), which, std::move(fields)); touched();
+        } else if (action == "emit-remove") {
+            need(1); workspace.graph.remove_emit(trigger(), flow::index_of(args[0])); touched();
+        } else if (action == "generate") {
+            // Native C++ for the definition, or the refusal in words; nothing is written then.
+            need(1); const auto errors = workspace.graph.problems(palette);
+            if (!errors.empty()) throw std::invalid_argument(errors.front());
+            notice = "Generated " + flow::write_generated(workspace.graph.project.definition, args[0]);
+            return {};
         } else if (action == "add-fold") {
             if (args.size() > 1) throw std::invalid_argument("add-fold expects at most the node to place it before");
             std::optional<std::size_t> before;

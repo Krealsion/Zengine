@@ -100,6 +100,20 @@ Flow, and Flow says what it can be here. Carrying copies data; it grants nothing
   declarations of the shape it describes. A declared shape is the one that came -- its name,
   version and fields -- so values of it match it exactly. **Cancel** or **Escape** puts it down.
 
+## Say what changed: emits
+
+A definition publishes messages of its own after a trigger writes its state field. In
+**Messages**, **New emitted** declares one -- a name without a dot is put in the definition's
+namespace, and a name outside it is refused, so a definition can only speak for itself -- and
+**Add emitted field** gives it fields. On the graph, **Emit** (beside **Add trigger**) publishes
+one after the active trigger's write: the dialog fills each field from the state field of its
+name, `total=$total`, and you may write any field from another state field or a constant instead.
+The active trigger lists what it emits, each with **x** to remove it. An emit is a publication by
+this participant, of its own shapes, after every successful write; there is no conditional emit
+and no addressed send. A new emitted shape changes what a running participant may say, so
+**Stop** and **Run** it again rather than **Apply**; **Events** then shows each publication and
+its fields.
+
 ## Keep examples and exercise the weave
 
 In **Messages**, open `water.Reading`, click `input`, enter `3`, and confirm. **Save example**
@@ -140,7 +154,10 @@ edit is awaiting a fresh run. The Events page continues to show live state indep
 does not save process identity, pending queues, grants or resumable native continuations.
 
 **Export** writes a completed executable Flow project for the standalone workbench and its C++
-generation path. **Import** brings such a project into this editor. Workspace files additionally
+generation path. **Import** brings such a project into this editor. **Generate native C++** in the
+pane's menu writes the generated project -- `generated.cpp`, its CMake file, `definition.bin` and
+`graph.svg` -- into a directory, as the workbench's `generate` does; a definition with a fold is
+refused in words and nothing is written, because the fold is the evaluator's and runs interpreted. Workspace files additionally
 contain unfinished authoring work and presentation; they are not executable projects.
 
 An orderly Workshop quit is refused while host work or its fresh state inspection is pending.

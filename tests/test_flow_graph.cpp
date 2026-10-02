@@ -394,3 +394,47 @@ TEST_CASE("a fold is placed with its step bound to 1, its body chosen by referen
     const auto reopened = flow::read_workspace(flow::workspace_bytes(author.workspace));
     CHECK(reopened.graph.project.definition.on.at(0).body.nodes.at(0).fold->accumulator == "lhs");
 }
+
+TEST_CASE("emits are authored in the pane as the definition holds them: a message declared in the "
+          "namespace, its fields written from same-named state fields or constants") {
+    auto author = model();
+    author.command("trigger", {"0", "total"});
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("bind", {"0", "0", "$input"});
+    author.command("result", {"0"});
+    author.command("emitted-message", {"Total"});
+    author.command("emitted-field", {"0", "total", "Int", "required"});
+    author.command("emitted-field", {"0", "note", "Int", "required"}); // no emit writes it yet
+    const auto& emitted = author.workspace.graph.project.definition.emits;
+    REQUIRE(emitted.size() == 1);
+    CHECK(emitted[0]->name() == "my_flow.Total");
+
+    // EACH FIELD FROM THE STATE FIELD OF ITS NAME unless the maker writes it.
+    author.command("emit", {"0", "note=7"});
+    const auto& on = author.workspace.graph.project.definition.on.at(0);
+    REQUIRE(on.emits.size() == 1);
+    REQUIRE(on.emits[0].fields.size() == 2);
+    CHECK(on.emits[0].fields[0].field == "note");
+    CHECK(on.emits[0].fields[0].constant->as_int() == 7);
+    CHECK(on.emits[0].fields[1].field == "total");
+    CHECK(on.emits[0].fields[1].source == std::optional<std::string>("total"));
+    const auto run = author.command("run");
+    const auto project = flow::read_project(flow::byte_string(run.payload));
+    CHECK(project.definition.on.at(0).emits.size() == 1);
+    CHECK(flow::read_workspace(flow::workspace_bytes(author.workspace)).graph.project.definition.on.at(0).emits.size() == 1);
+
+    // REFUSED, the draft as it was: a field no state field writes, an emit on an empty trigger,
+    // a message outside the namespace.
+    const auto revision = author.workspace.graph.project.definition.revision;
+    CHECK_THROWS_WITH_AS(author.command("emitted-field", {"0", "extra", "Int", "required"}),
+        "the emit of my_flow.Total on my_flow.First would write no `extra`; remove that emit or "
+        "declare state.extra", std::invalid_argument);
+    author.command("emit-remove", {"0"});
+    CHECK(author.workspace.graph.project.definition.on.at(0).emits.empty());
+    author.command("trigger", {"1", "total"});
+    CHECK_THROWS_WITH_AS(author.command("emit", {"0"}),
+        "add the trigger's nodes before its emits: an empty trigger is kept without them",
+        std::invalid_argument);
+    CHECK_THROWS_AS(author.command("emitted-message", {"other.Said"}), std::invalid_argument);
+    CHECK(author.workspace.graph.project.definition.revision == revision + 2);
+}

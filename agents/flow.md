@@ -22,6 +22,13 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   native initialization, so host file policy precedes opening rather than following inspection.
 - C++ recovery claims equivalence only after complete deterministic regeneration matches the
   source. Never accept only a marker/hash while ignoring handwritten changes.
+- Generation refuses a fold in words and writes nothing: only the evaluator spends an operator
+  reference, and a generated loop would spend its body outside the evaluation's budget.
+  `write_generated` is the one writer of a generated project, for the workbench and the pane.
+- The pane authors emits as the definition holds them: `emitted-message`, `emitted-field`,
+  `emit` (fields from same-named state fields unless written) and `emit-remove`. Emits stay the
+  participant's own publications in its namespace (MW-DEF-08); an empty trigger keeps none, so an
+  emit on one is refused rather than lost at save.
 - The standalone workbench owns its local Loom session. Its form switch prepares a fresh
   session and transfers state only. Workshop instead uses `flow_host::RuntimeHost` over
   the existing host bus/catalog. Never embed the standalone session in the pane.

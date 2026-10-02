@@ -315,6 +315,8 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     const auto sidebar_labels = view.content.texts.size(), sidebar_hits = view.hits.size();
     std::int64_t y = top;
     button(0, y, "Add trigger", "ask-trigger");
+    if (!def.on.empty() && !def.emits.empty())
+      button(14 * unit, y, "Emit", "ask-emit");
     y += unit;
     for (std::size_t t = 0; t < def.on.size(); ++t) {
       if (y >= bottom)
@@ -323,6 +325,14 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       button(0, y, (t == model.trigger() ? "> " : "") + on.message->name(),
              "select-trigger", {std::to_string(t)});
       y += unit;
+      // WHAT THE ACTIVE TRIGGER PUBLISHES after its write, each removable.
+      if (t != model.trigger())
+        continue;
+      for (std::size_t e = 0; e < on.emits.size() && y < bottom; ++e) {
+        label(unit, y, "emits " + on.emits[e].message->name(), ink::kMuted);
+        button(18 * unit, y, "x", "emit-remove", {std::to_string(e)});
+        y += unit;
+      }
     }
     if (def.on.empty()) {
       label(0, y + unit, "Add state and a message, then a trigger.");
@@ -662,6 +672,19 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     y += unit;
     for (std::size_t i = 0; i < def.accepts.size() && y < bottom; ++i) {
       button(0, y, def.accepts[i]->name(), "message-open", {std::to_string(i)});
+      y += unit;
+    }
+    y += unit;
+    // THE MESSAGES THIS DEFINITION MAY PUBLISH, inside its namespace; a trigger's Emit sends one.
+    label(0, y, "Emitted", ink::kAccent);
+    button(10 * unit, y, "New emitted", "ask-emitted-message");
+    button(25 * unit, y, "Add emitted field", "ask-emitted-field");
+    y += unit;
+    for (std::size_t i = 0; i < def.emits.size() && y < bottom; ++i) {
+      std::string fields;
+      for (const auto &f : def.emits[i]->fields())
+        fields += (fields.empty() ? "" : ", ") + f.name + ": " + loom::name_of(f.type.kind);
+      label(unit, y, std::to_string(i) + " " + def.emits[i]->name() + " {" + fields + "}");
       y += unit;
     }
     y += unit;
