@@ -3,7 +3,7 @@
 #ifndef ZENGINE_VIEW_BUILDER_MODEL_HPP
 #define ZENGINE_VIEW_BUILDER_MODEL_HPP
 
-// The View Builder's semantic edits over one view description: elements, their labels, places and
+// The View Builder's semantic edits over one view description: elements, their values, places and
 // sizes, the field a label shows, the intent a button says, and the file. Every edit is taken
 // whole or refused whole, and no edit leaves a description that `view::problem` refuses. An
 // intent is made through Flow's one shape model. Law: agents/view.md.
@@ -11,12 +11,11 @@
 #include "flow/shape.hpp"
 #include "view/description.hpp"
 
-#include "component/text_box.hpp"
-
 #include <algorithm>
 #include <charconv>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace zengine::view_builder {
@@ -25,15 +24,6 @@ enum class Effect { None, Run, Apply, Stop };
 struct Action {
     Effect effect = Effect::None;
     loom::Bytes payload;
-};
-struct Entry {
-    std::string label;
-    component::TextBox text;
-};
-struct Dialog {
-    std::string title, action;
-    std::vector<Entry> entries;
-    std::size_t selected = 0;
 };
 /// A shape carried onto a label that holds more than one field it could show: the weaver says
 /// which. Another edit puts it down.
@@ -60,28 +50,21 @@ inline std::int64_t whole(const std::string& text, const char* what) {
     return out;
 }
 
+/// The size an element of each kind is made at, in whole pixels.
+inline std::pair<std::int64_t, std::int64_t> made_size(view::Kind kind) {
+    return {kind == view::Kind::number ? 144 : kind == view::Kind::button ? 96 : 192, 24};
+}
+
 class Model {
 public:
     view::Description description;
-    std::string path, notice = "Add elements, make an intent from the view's number fields, then Run.";
+    std::string path, notice = "Drag a kind onto the canvas, make an intent from the number fields, then Run.";
     bool dirty = false, running = false;
     std::optional<std::size_t> selected;
-    std::optional<Dialog> dialog;
     std::optional<Choosing> choosing;
     std::size_t first_row = 0;
 
     Model() { description.name = "my.view"; }
-
-    void ask(std::string title, std::string action, const std::vector<std::pair<std::string, std::string>>& fields) {
-        Dialog next{std::move(title), std::move(action), {}, 0};
-        for (const auto& [label, value] : fields) {
-            Entry e;
-            e.label = label;
-            e.text.set(value, value.size());
-            next.entries.push_back(std::move(e));
-        }
-        dialog = std::move(next);
-    }
 
     /// One edit, whole: on a refusal the model is as it was.
     Action command(const std::string& action, const std::vector<std::string>& args = {}) {
@@ -134,6 +117,17 @@ private:
         }
     }
     void touched() { dirty = true; choosing.reset(); }
+    /// An element renamed keeps what names it: the field it shows, the intent it says, the intent
+    /// fields it fills. An intent field keeps its own name.
+    void renamed(const std::string& before, const std::string& after) {
+        for (auto& s : description.shows)
+            if (s.element == before) s.element = after;
+        for (auto& intent : description.intents) {
+            if (intent.control == before) intent.control = after;
+            for (auto& f : intent.fields)
+                if (f.element == before) f.element = after;
+        }
+    }
 
     Action perform(const std::string& action, const std::vector<std::string>& args) {
         const auto need = [&](std::size_t size) {
@@ -142,10 +136,11 @@ private:
         };
         const auto previous = notice;
         if (action == "describe") {
-            notice = "new(name,discard), rename(name), add(label|number|button), select(index), "
+            notice = "new(name,discard), rename(name), add(label|number|button[,x,y]), select(index), "
+                     "set(index,id|label|text|x|y|w|h,value), place(index,x,y,w,h), "
                      "element(index,id,label,x,y,w,h,text), up(index), down(index), remove(index), "
                      "intent(index,name), drop-intent(index), show(index,field), unshow(index), "
-                     "save(path), open(path,discard), run, apply, stop";
+                     "path(path), save([path]), open(path,discard), run, apply, stop";
             return {};
         }
         if (action == "new") {
@@ -169,7 +164,8 @@ private:
             description.name = args[0];
             touched();
         } else if (action == "add") {
-            need(1);
+            // MADE BELOW THE LAST, OR WHERE IT WAS DROPPED, in whole pixels.
+            if (args.size() != 1 && args.size() != 3) throw std::invalid_argument("add expects a kind, and a place or none");
             const auto kind = view::kind_of(args[0]);
             if (!kind) throw std::invalid_argument("an element is a label, a number field or a button");
             if (description.elements.size() >= view::kMaxElements)
@@ -180,10 +176,10 @@ private:
             e.kind = *kind;
             e.id = fresh_id(*kind == view::Kind::number ? "field" : *kind == view::Kind::button ? "button" : "label");
             e.label = e.id;
-            e.x = 0;
-            e.y = below;
-            e.w = *kind == view::Kind::number ? 144 : *kind == view::Kind::button ? 96 : 192;
-            e.h = 24;
+            e.x = args.size() == 3 ? whole(args[1], "x") : 0;
+            e.y = args.size() == 3 ? whole(args[2], "y") : below;
+            std::tie(e.w, e.h) = made_size(*kind);
+            notice = "Made " + e.id + " at " + std::to_string(e.x) + "," + std::to_string(e.y);
             description.elements.push_back(std::move(e));
             selected = description.elements.size() - 1;
             touched();
@@ -191,6 +187,50 @@ private:
             need(1);
             selected = index_of(args[0]);
             choosing.reset();
+            notice = description.elements[*selected].id + ": drag it to move it, a corner to resize it, or type its values";
+        } else if (action == "set") {
+            // ONE VALUE, TYPED INTO ITS BOX: the element keeps every other value.
+            need(3);
+            auto& e = at(args[0]);
+            const auto& field = args[1];
+            const auto& value = args[2];
+            if (field == "id") {
+                const auto before = e.id;
+                e.id = value;
+                renamed(before, e.id);
+            } else if (field == "label") {
+                e.label = value;
+            } else if (field == "text") {
+                if (e.kind != view::Kind::number)
+                    throw std::invalid_argument("`" + e.id + "` is a " + view::kind_word(e.kind) +
+                                                "; only a number field starts with text");
+                e.text = value;
+            } else if (field == "x") {
+                e.x = whole(value, "x");
+            } else if (field == "y") {
+                e.y = whole(value, "y");
+            } else if (field == "w") {
+                e.w = whole(value, "w");
+            } else if (field == "h") {
+                e.h = whole(value, "h");
+            } else {
+                throw std::invalid_argument("an element's values are id, label, text, x, y, w and h");
+            }
+            selected = index_of(args[0]);
+            touched();
+            notice = e.id + "'s " + field + " is " + value;
+        } else if (action == "place") {
+            // A DRAG'S PLACE AND SIZE, in whole pixels.
+            need(5);
+            auto& e = at(args[0]);
+            e.x = whole(args[1], "x");
+            e.y = whole(args[2], "y");
+            e.w = whole(args[3], "w");
+            e.h = whole(args[4], "h");
+            selected = index_of(args[0]);
+            touched();
+            notice = e.id + " at " + std::to_string(e.x) + "," + std::to_string(e.y) + ", " +
+                     std::to_string(e.w) + " by " + std::to_string(e.h);
         } else if (action == "element") {
             if (args.size() != 7 && args.size() != 8) throw std::invalid_argument("element expects index, id, label, x, y, w, h and a number field's text");
             auto& e = at(args[0]);
@@ -202,15 +242,7 @@ private:
             e.w = whole(args[5], "w");
             e.h = whole(args[6], "h");
             e.text = args.size() == 8 && e.kind == view::Kind::number ? args[7] : std::string();
-            // An element renamed keeps what names it: the field it shows, the intent it says, the
-            // intent fields it fills. An intent field keeps its own name.
-            for (auto& s : description.shows)
-                if (s.element == before) s.element = e.id;
-            for (auto& intent : description.intents) {
-                if (intent.control == before) intent.control = e.id;
-                for (auto& f : intent.fields)
-                    if (f.element == before) f.element = e.id;
-            }
+            renamed(before, e.id);
             touched();
         } else if (action == "up" || action == "down") {
             need(1);
@@ -261,6 +293,7 @@ private:
             made.shape = std::move(shape);
             std::erase_if(description.intents, [&](const auto& i) { return i.control == control.id; });
             description.intents.push_back(std::move(made));
+            selected = index_of(args[0]);
             touched();
             notice = "`" + control.id + "` says " + name;
         } else if (action == "drop-intent") {
@@ -283,10 +316,17 @@ private:
             const auto& e = at(args[0]);
             std::erase_if(description.shows, [&](const auto& s) { return s.element == e.id; });
             touched();
-        } else if (action == "save") {
+        } else if (action == "path") {
             need(1);
-            view::save_description(args[0], description);
             path = args[0];
+            notice = path.empty() ? "No file: name one to save the view to" : "Save writes, and Open reads, " + path;
+            return {};
+        } else if (action == "save") {
+            if (args.size() > 1) throw std::invalid_argument("save expects a path, or none for the view's file");
+            const auto to = args.empty() ? path : args[0];
+            if (to.empty()) throw std::invalid_argument("name a file to save the view to");
+            view::save_description(to, description);
+            path = to;
             dirty = false;
             notice = "Saved " + path;
             return {};

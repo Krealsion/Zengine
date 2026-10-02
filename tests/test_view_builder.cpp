@@ -89,32 +89,80 @@ TEST_CASE("the View Builder makes a view from its kinds: number fields, a button
     CHECK(more.description.elements.back().y == 140);
 }
 
-TEST_CASE("the builder lists every element its room can hold, keeps the selected one in view, and puts its properties beside the list when the room is wide") {
+namespace {
+/// A window's room and a terminal's, each as Workshop grants it: subunits, the medium's grain and
+/// its measured text.
+ws::PaneCanvasRoom window_room(std::int64_t grant = 1) {
+    return {vb::kPane, grant, zengine::surface::subs_of_pixel(1320), zengine::surface::subs_of_pixel(640),
+            zengine::surface::kPixelGrainSubs, true, 8, 16};
+}
+ws::PaneCanvasRoom terminal_room(std::int64_t grant = 1) { return {vb::kPane, grant, 110 * unit, 30 * unit, unit, false}; }
+} // namespace
+
+TEST_CASE("the design canvas is the view's own picture at its own pixels, moved there whole; the builder marks the selected element and its handles over it") {
     auto m = panel_model();
-    m.selected = 0;
-    const auto texts = [](const vb::Picture& p) {
-        std::vector<std::string> out;
-        for (const auto& t : p.content.texts) out.push_back(t.text);
-        return out;
-    };
-    const auto listed = [&](const vb::Picture& p, const std::string& start) {
-        const auto all = texts(p);
-        return std::any_of(all.begin(), all.end(), [&](const auto& t) { return t.rfind(start, 0) == 0; });
-    };
-    // A wide pane of fifteen rows, as the shipped desk gives it: the list and the properties side by side.
-    const ws::PaneCanvasRoom wide{vb::kPane, 1, 90 * unit, 15 * unit, unit, false};
-    const auto beside = vb::picture(m, wide, 1);
-    for (const char* id : {"> start", "  limit", "  step", "  count", "  total"}) CHECK(listed(beside, id));
-    CHECK(listed(beside, "start (number)"));
-    // A narrow one stacks them, and the list follows the selection.
-    const ws::PaneCanvasRoom narrow{vb::kPane, 1, 60 * unit, 15 * unit, unit, false};
     m.selected = 4;
-    const auto stacked = vb::picture(m, narrow, 2);
-    CHECK(listed(stacked, "> total"));
-    CHECK(listed(stacked, "total (label)"));
-    // An empty list says what to add across the whole pane, though the sentence is wider than a
-    // wide pane's list column.
-    CHECK(listed(vb::picture(vb::Model{}, wide, 3), "  none yet: add a number field, a button and a label"));
+    for (const auto& room : {window_room(), terminal_room()}) {
+        INFO("graphical: " << room.graphical);
+        const auto pic = vb::picture(m, {}, room, 1);
+        const auto& area = pic.design;
+        REQUIRE_FALSE(area.empty());
+        // On a cell boundary, so the view keeps its lattice in a window and a terminal alike.
+        CHECK(area.x % unit == 0);
+        CHECK(area.y % unit == 0);
+        // ONE RENDERER: everything the view's own picture code draws in a room the area's size is
+        // in the builder's picture, moved by the area's corner and nothing else.
+        const ws::PaneCanvasRoom inner{vb::kPane, room.grant, area.w, area.h, room.grain, room.graphical,
+                                       room.text_advance_px, room.text_line_px};
+        const auto own = view::picture(m.description, {}, view::Presentation{}, inner, 1);
+        REQUIRE_FALSE(own.content.texts.empty());
+        for (const auto& t : own.content.texts) {
+            const auto moved = std::count_if(pic.content.texts.begin(), pic.content.texts.end(), [&](const auto& u) {
+                return u.text == t.text && u.role == t.role && u.x == t.x + area.x && u.y == t.y + area.y;
+            });
+            CHECK_MESSAGE(moved == 1, t.text);
+        }
+        for (const auto& r : own.content.rects) {
+            const auto moved = std::count_if(pic.content.rects.begin(), pic.content.rects.end(), [&](const auto& u) {
+                return u.role == r.role && u.x == r.x + area.x && u.y == r.y + area.y && u.w == r.w && u.h == r.h;
+            });
+            CHECK(moved >= 1);
+        }
+        // ...and no element is drawn twice on the canvas: the builder only marks it.
+        CHECK(std::count_if(pic.content.texts.begin(), pic.content.texts.end(),
+                            [&](const auto& t) { return t.text == "Total" && t.x >= area.x && t.x < area.x + area.w; }) == 1);
+        // Each element is pressed where the view draws it, at its own pixels.
+        for (std::size_t i = 0; i < m.description.elements.size(); ++i) {
+            const auto at = vb::element_area(area, m.description.elements[i]);
+            CHECK(at.x == area.x + zengine::surface::subs_of_pixel(m.description.elements[i].x));
+            const auto* hit = pic.hit(at.x + at.w / 2, at.y + at.h / 2);
+            REQUIRE(hit != nullptr);
+            CHECK(hit->action == "element");
+            CHECK(hit->args.at(0) == std::to_string(i));
+        }
+        // THE SELECTED ELEMENT: marked, with a handle at each corner, and its values in boxes.
+        std::vector<std::string> handles, boxes;
+        for (const auto& hit : pic.hits) {
+            if (hit.action == "handle") handles.push_back(hit.args.at(1));
+            if (hit.action == "box" && hit.args.at(1) == "4") boxes.push_back(hit.args.at(0));
+        }
+        CHECK(handles == std::vector<std::string>{"0", "1", "2", "3"});
+        CHECK(boxes == std::vector<std::string>{"id", "label", "x", "y", "w", "h"});
+        const auto total = vb::element_area(area, m.description.elements[4]);
+        CHECK(std::any_of(pic.content.rects.begin(), pic.content.rects.end(), [&](const auto& r) {
+            return r.role == zengine::surface::role::kAccent && r.y + r.h == total.y && r.x <= total.x;
+        }));
+        const auto listed = [&](const std::string& start) {
+            return std::any_of(pic.content.texts.begin(), pic.content.texts.end(),
+                               [&](const auto& t) { return t.text.rfind(start, 0) == 0 && t.x < area.x; });
+        };
+        CHECK(listed("> total  label"));
+        CHECK(listed("  start  number"));
+    }
+    // An empty view says what to do, in the list's place.
+    const auto empty = vb::picture(vb::Model{}, {}, terminal_room(), 2);
+    CHECK(std::any_of(empty.content.texts.begin(), empty.content.texts.end(),
+                      [](const auto& t) { return t.text == "  none yet: drag a kind in"; }));
 }
 
 TEST_CASE("a shape or a field carried onto a label is what it shows; a shape of several fields asks which") {
@@ -152,7 +200,25 @@ TEST_CASE("an edit that would break a view's rules is refused whole, and the dra
     CHECK_THROWS_WITH(m.command("intent", {"3", "other.Count"}),
                       "an intent's name stays inside the view's: write it without a `.`");
     CHECK_THROWS_WITH(m.command("intent", {"4", "Count"}), "`total` is a label; only a button says an intent");
+    // A value typed into one box, and a drag's place, are whole edits too.
+    CHECK_THROWS_WITH(m.command("set", {"0", "x", "-4"}), doctest::Contains("whole pixels"));
+    CHECK_THROWS_WITH(m.command("set", {"0", "w", "wide"}), "w is a whole number; `wide` is not");
+    CHECK_THROWS_WITH(m.command("set", {"3", "text", "9"}), "`count` is a button; only a number field starts with text");
+    CHECK_THROWS_WITH(m.command("set", {"0", "colour", "red"}), "an element's values are id, label, text, x, y, w and h");
+    CHECK_THROWS_WITH(m.command("place", {"0", "0", "0", "0", "24"}), doctest::Contains("whole pixels"));
+    CHECK_THROWS_WITH(m.command("set", {"1", "id", "start"}), "two elements are both `start`");
     CHECK(view::description_bytes(m.description) == before);
+    m.command("set", {"0", "label", "From"});
+    CHECK(m.description.elements[0].label == "From");
+    m.command("place", {"0", "12", "6", "150", "30"});
+    CHECK(m.description.elements[0].x == 12);
+    CHECK(m.description.elements[0].h == 30);
+    // A kind made where it was dropped, in whole pixels.
+    auto dropped = m;
+    dropped.command("add", {"button", "200", "36"});
+    CHECK(dropped.description.elements.back().x == 200);
+    CHECK(dropped.description.elements.back().y == 36);
+    CHECK(dropped.description.elements.back().w == 96);
 
     // Renaming an element keeps what names it; an intent field keeps its own name.
     m.command("element", {"0", "first", "first", "0", "0", "144", "24", "0"});
@@ -255,7 +321,7 @@ struct Rig {
         door = zengine::testing::mount_door(bus);
         zengine::testing::order_activation(bus, door, pane, 1);
         pump();
-        host(ws::PaneCanvasRoom{vb::kPane, grant, 100 * unit, 40 * unit, unit, true});
+        host(window_room(grant));
     }
     void pump() {
         for (int n = 0; n < 64 && bus.pending() != 0; ++n) bus.pump_pending();
@@ -292,6 +358,50 @@ struct Rig {
         host(ws::PaneCanvasPointer{vb::kPane, grant, picture().picture, static_cast<std::int64_t>(correlation),
                                    ws::canvas_pointer::kPress, button, t->x + 4, t->y + 4}, correlation);
     }
+    /// A pointer event as Workshop sends it, at a local place on the latest picture; a press
+    /// carries a fresh number, which an acquisition it begins echoes.
+    void pointer(std::int64_t phase, std::int64_t x, std::int64_t y, std::int64_t gesture, std::int64_t button = 1) {
+        const auto corr = phase == ws::canvas_pointer::kPress ? ++correlation : 0;
+        host(ws::PaneCanvasPointer{vb::kPane, grant, picture().picture, gesture, phase, button, x, y}, corr);
+    }
+    void hover(std::int64_t x, std::int64_t y, bool over = true, bool carrying = false) {
+        host(ws::PaneCanvasHover{vb::kPane, grant, picture().picture, x, y, over, carrying});
+    }
+    /// The design area, read off the latest picture: the ground the view's own picture brought.
+    vb::Area design() const {
+        for (const auto& r : picture().rects)
+            if (r.role == zengine::surface::role::kGround && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
+        FAIL("no design area in the picture");
+        return {};
+    }
+    /// The middle of element `i` on the design canvas, at its own pixels.
+    std::pair<std::int64_t, std::int64_t> middle(const view::Element& e) const {
+        const auto at = vb::element_area(design(), e);
+        return {at.x + at.w / 2, at.y + at.h / 2};
+    }
+    /// The description the builder holds now, read from what it keeps across a reload.
+    view::Description now() {
+        const auto admitted = loom::admit(loom::parse(bus.snapshot_bytes(pane)), loom::schema_of<vb::BuilderState>());
+        REQUIRE(admitted);
+        const auto state = loom::from_value<vb::BuilderState>(admitted.value());
+        auto read = view::read_description(std::string_view(
+            reinterpret_cast<const char*>(state.description.data()), state.description.size()));
+        REQUIRE_MESSAGE(read, read.reason);
+        return read.description;
+    }
+    /// A line beside the design area that is exactly `words`: a value in its box.
+    const ws::PaneCanvasText* value(const std::string& words) const {
+        const auto area = design();
+        for (const auto& t : picture().texts)
+            if (t.text == words && (t.x < area.x || t.x >= area.x + area.w)) return &t;
+        return nullptr;
+    }
+    /// Is the element at `at` outlined in `role`, `thick` subunits deep: its bottom edge's rule.
+    bool marked(std::int64_t role, const vb::Area& at, std::int64_t thick) const {
+        return std::any_of(picture().rects.begin(), picture().rects.end(), [&](const auto& r) {
+            return r.role == role && r.y == at.y + at.h && r.h == thick && r.x <= at.x && r.x + r.w >= at.x + at.w;
+        });
+    }
     void drop(const loom::Value& value, const std::string& start) {
         const auto* t = text(start);
         REQUIRE_MESSAGE(t != nullptr, start);
@@ -314,9 +424,9 @@ TEST_CASE("the View Builder runs its view through the view host, applies a label
     CHECK(first != rig.pane);
     CHECK(rig.text("tally.panel / running") != nullptr);
     CHECK(rig.notice().find("registered tally.panel") == 0);
-    // The builder draws its own list, never the view: no picture of the view is the builder's.
+    // The builder lists its elements, and its design canvas is the view's own picture.
     CHECK(rig.text("Elements (5)") != nullptr);
-    CHECK(rig.text("Total: waiting") == nullptr);
+    CHECK(rig.text("Total") != nullptr);
 
     // Bind Total by carrying tally.Total's description onto its row: the shapes change.
     REQUIRE(rig.edit("select", {"4"}).ok);
@@ -344,11 +454,12 @@ TEST_CASE("the View Builder runs its view through the view host, applies a label
 TEST_CASE("a right press on what a button says offers to carry its intent, and the choice carries the shape as a description") {
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
-    rig.press("  count  button");
-    REQUIRE(rig.text("says tally.panel.Count") != nullptr);
+    rig.press("> count  button");
+    REQUIRE(rig.text("says tally.panel.") != nullptr);
+    REQUIRE(rig.value("Count") != nullptr);
     REQUIRE(rig.text("  {start: Int, limit: Int, step: Int}") != nullptr);
     const auto pressed = rig.correlation + 1;
-    rig.press("says tally.panel.Count", 3);
+    rig.press("says tally.panel.", 3);
     const loom::Message* menu = nullptr;
     for (const auto& m : rig.desk->heard)
         if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneMenuRequested>())) menu = &m;
@@ -380,4 +491,241 @@ TEST_CASE("a right press on what a button says offers to carry its intent, and t
     // A right press elsewhere means nothing here: it is handed back.
     rig.press("Elements (5)", 3);
     CHECK(loom::same_identity(rig.desk->heard.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
+}
+
+TEST_CASE("a kind dragged from the palette is made where it is let go on the design canvas, in whole pixels; a click makes one below the last; let go elsewhere, nothing is made") {
+    namespace sp = zengine::surface;
+    Rig rig;
+    REQUIRE(rig.edit("new", {"tally.panel", "discard"}).ok);
+    const auto chip = [&](const std::string& title) {
+        const auto* t = rig.text("[" + title + "]");
+        REQUIRE(t != nullptr);
+        return std::pair<std::int64_t, std::int64_t>{t->x + 8, t->y + 8};
+    };
+    const auto area = rig.design();
+    auto [x, y] = chip("Number");
+    rig.pointer(ws::canvas_pointer::kPress, x, y, 1);
+    rig.pointer(ws::canvas_pointer::kMove, area.x + sp::subs_of_pixel(30), area.y + sp::subs_of_pixel(40), 1);
+    // Where it would be made is marked while the hand holds it, and nothing is made yet.
+    CHECK(rig.now().elements.empty());
+    CHECK(rig.marked(zengine::surface::role::kMuted,
+                     vb::element_area(area, view::Element{"", view::Kind::number, "", 30, 40, 144, 24, ""}),
+                     sp::kPixelGrainSubs));
+    rig.pointer(ws::canvas_pointer::kRelease, area.x + sp::subs_of_pixel(30), area.y + sp::subs_of_pixel(40), 1);
+    auto d = rig.now();
+    REQUIRE(d.elements.size() == 1);
+    CHECK(d.elements[0].kind == view::Kind::number);
+    CHECK(d.elements[0].x == 30);
+    CHECK(d.elements[0].y == 40);
+    CHECK(d.elements[0].w == 144);
+    // A CLICK on a kind makes one below the last.
+    std::tie(x, y) = chip("Button");
+    rig.pointer(ws::canvas_pointer::kPress, x, y, 2);
+    rig.pointer(ws::canvas_pointer::kRelease, x, y, 2);
+    d = rig.now();
+    REQUIRE(d.elements.size() == 2);
+    CHECK(d.elements[1].kind == view::Kind::button);
+    CHECK(d.elements[1].y == 40 + 24 + 4);
+    // LET GO OVER THE LEFT COLUMN, nothing is made, and the builder says where to let go.
+    std::tie(x, y) = chip("Label");
+    rig.pointer(ws::canvas_pointer::kPress, x, y, 3);
+    rig.pointer(ws::canvas_pointer::kMove, x + sp::subs_of_pixel(40), y + sp::subs_of_pixel(40), 3);
+    rig.pointer(ws::canvas_pointer::kRelease, x + sp::subs_of_pixel(40), y + sp::subs_of_pixel(40), 3);
+    CHECK(rig.now().elements.size() == 2);
+    CHECK(rig.notice() == "Let go over the canvas to make a label there");
+}
+
+TEST_CASE("an element dragged on the design canvas moves in whole pixels and a corner resizes it, a value typed in its box changes the same element, and a lost drag puts it back") {
+    namespace sp = zengine::surface;
+    TempDir dir;
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("save", {(dir.directory / "moved.view").string()}).ok);
+    auto d = rig.now();
+    // MOVED by a drag from its middle: ten pixels right and six down, the press's own picture.
+    auto [x, y] = rig.middle(d.elements[0]);
+    rig.pointer(ws::canvas_pointer::kPress, x, y, 7);
+    rig.pointer(ws::canvas_pointer::kMove, x + sp::subs_of_pixel(10), y + sp::subs_of_pixel(6), 7);
+    CHECK(rig.now().elements[0].x == 10);
+    rig.pointer(ws::canvas_pointer::kRelease, x + sp::subs_of_pixel(10), y + sp::subs_of_pixel(6), 7);
+    d = rig.now();
+    CHECK(d.elements[0].x == 10);
+    CHECK(d.elements[0].y == 6);
+    CHECK(d.elements[0].w == 144);
+    CHECK(rig.text("[Save*]") != nullptr);
+    // RESIZED by its bottom-right handle, the selected element's own.
+    const auto at = vb::element_area(rig.design(), d.elements[0]);
+    rig.pointer(ws::canvas_pointer::kPress, at.x + at.w, at.y + at.h, 8);
+    rig.pointer(ws::canvas_pointer::kMove, at.x + at.w + sp::subs_of_pixel(20), at.y + at.h + sp::subs_of_pixel(4), 8);
+    rig.pointer(ws::canvas_pointer::kRelease, at.x + at.w + sp::subs_of_pixel(20), at.y + at.h + sp::subs_of_pixel(4), 8);
+    d = rig.now();
+    CHECK(d.elements[0].x == 10);
+    CHECK(d.elements[0].w == 164);
+    CHECK(d.elements[0].h == 28);
+    // ...and by its top-left one, which moves the corner and keeps the opposite one where it was.
+    const auto again = vb::element_area(rig.design(), d.elements[0]);
+    rig.pointer(ws::canvas_pointer::kPress, again.x, again.y, 9);
+    rig.pointer(ws::canvas_pointer::kMove, again.x + sp::subs_of_pixel(4), again.y - sp::subs_of_pixel(100), 9);
+    rig.pointer(ws::canvas_pointer::kRelease, again.x + sp::subs_of_pixel(4), again.y - sp::subs_of_pixel(100), 9);
+    d = rig.now();
+    CHECK(d.elements[0].x == 14);
+    CHECK(d.elements[0].y == 0); // never above the view's top
+    CHECK(d.elements[0].w == 160);
+    CHECK(d.elements[0].h == 34);
+    // A VALUE TYPED INTO ITS BOX changes the same element.
+    const auto* box = rig.value("14");
+    REQUIRE(box != nullptr);
+    rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, 10);
+    rig.pointer(ws::canvas_pointer::kRelease, box->x + 8, box->y + 8, 10);
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
+    rig.host(ws::PaneTextInput{vb::kPane, "50"});
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+    CHECK(rig.now().elements[0].x == 50);
+    // A DRAG THAT ENDS LOST puts back what it moved.
+    d = rig.now();
+    std::tie(x, y) = rig.middle(d.elements[0]);
+    rig.pointer(ws::canvas_pointer::kPress, x, y, 11);
+    rig.pointer(ws::canvas_pointer::kMove, x + sp::subs_of_pixel(30), y + sp::subs_of_pixel(30), 11);
+    CHECK(rig.now().elements[0].x == 80);
+    rig.pointer(ws::canvas_pointer::kLost, x + sp::subs_of_pixel(30), y + sp::subs_of_pixel(30), 11);
+    CHECK(rig.now().elements[0].x == 50);
+    CHECK(rig.now().elements[0].y == 0);
+    CHECK(rig.notice() == "start is back where it was: the drag ended before it was let go");
+    // AN ELEMENT REMOVED MID-DRAG ends the drag: the one that takes its index is not moved.
+    std::tie(x, y) = rig.middle(rig.now().elements[0]);
+    rig.pointer(ws::canvas_pointer::kPress, x, y, 12);
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kDelete, 0});
+    const auto left = rig.now();
+    REQUIRE(left.elements[0].id == "limit");
+    rig.pointer(ws::canvas_pointer::kMove, x + sp::subs_of_pixel(30), y + sp::subs_of_pixel(30), 12);
+    rig.pointer(ws::canvas_pointer::kLost, x + sp::subs_of_pixel(30), y + sp::subs_of_pixel(30), 12);
+    CHECK(rig.now().elements[0].x == left.elements[0].x);
+    CHECK(rig.now().elements[0].y == left.elements[0].y);
+}
+
+TEST_CASE("the pointer resting on an element marks it and its row; a carried value marks the label it would land on; leaving puts the marks down") {
+    namespace ink = zengine::surface::role;
+    const auto thin = zengine::surface::kPixelGrainSubs;
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("select", {"3"}).ok);
+    const auto d = rig.now();
+    const auto start = vb::element_area(rig.design(), d.elements[0]);
+    CHECK_FALSE(rig.marked(ink::kFill, start, thin));
+    auto [x, y] = rig.middle(d.elements[0]);
+    rig.hover(x, y);
+    CHECK(rig.marked(ink::kFill, start, thin));
+    // ...and its row in the list.
+    const auto* row = rig.text("  start  number");
+    REQUIRE(row != nullptr);
+    CHECK(std::any_of(rig.picture().rects.begin(), rig.picture().rects.end(),
+                      [&](const auto& r) { return r.role == ink::kMuted && r.x == 0 && r.y == row->y; }));
+    // Resting moves nothing: the selection is still `count`.
+    CHECK(rig.text("count (button) ") != nullptr);
+    // A CARRIED VALUE over the label marks where it would land; over a number field it marks nothing.
+    const auto total = vb::element_area(rig.design(), d.elements[4]);
+    std::tie(x, y) = rig.middle(d.elements[4]);
+    rig.hover(x, y, true, true);
+    CHECK(rig.marked(ink::kAccent, total, 2 * thin));
+    CHECK_FALSE(rig.marked(ink::kFill, start, thin));
+    std::tie(x, y) = rig.middle(d.elements[1]);
+    rig.hover(x, y, true, true);
+    CHECK_FALSE(rig.marked(ink::kAccent, total, 2 * thin));
+    // LEAVING puts every mark down.
+    std::tie(x, y) = rig.middle(d.elements[0]);
+    rig.hover(x, y);
+    REQUIRE(rig.marked(ink::kFill, start, thin));
+    rig.hover(x, y, false);
+    CHECK_FALSE(rig.marked(ink::kFill, start, thin));
+}
+
+TEST_CASE("a value typed into its box is kept by Return or Tab, refused in words with its box kept for repair, and put back by Escape") {
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("select", {"0"}).ok);
+    const auto press_value = [&](const std::string& words) {
+        const auto* box = rig.value(words);
+        REQUIRE_MESSAGE(box != nullptr, words);
+        const auto x = box->x + 8, y = box->y + 8;
+        rig.pointer(ws::canvas_pointer::kPress, x, y, 20);
+        rig.pointer(ws::canvas_pointer::kRelease, x, y, 20);
+    };
+    const auto key = [&](std::int64_t scancode, std::int64_t mods = 0) { rig.host(ws::PaneKey{vb::kPane, scancode, mods}); };
+    namespace scan = zengine::input::scan;
+    // REFUSED: the id is said not to be one, the element keeps its id, and the box keeps the text.
+    press_value("start");
+    key(scan::kA, zengine::input::mod::kCtrl);
+    rig.host(ws::PaneTextInput{vb::kPane, "1st"});
+    key(scan::kReturn);
+    CHECK(rig.notice().find("`1st` is not") != std::string::npos);
+    CHECK(rig.now().elements[0].id == "start");
+    CHECK(rig.value("1st") != nullptr);
+    // ESCAPE puts it back.
+    key(scan::kEscape);
+    CHECK(rig.value("1st") == nullptr);
+    CHECK(rig.value("start") != nullptr);
+    // TAB keeps the label and moves to the starting text, which takes typing in turn.
+    press_value("start"); // the id box; Tab walks from it
+    key(scan::kTab);
+    rig.host(ws::PaneTextInput{vb::kPane, "From"}); // Tab selected the label whole: typing replaces it
+    key(scan::kTab);
+    CHECK(rig.now().elements[0].label == "From");
+    rig.host(ws::PaneTextInput{vb::kPane, "5"});
+    key(scan::kReturn);
+    CHECK(rig.now().elements[0].text == "5");
+    // A press elsewhere keeps a value being typed before it acts.
+    press_value("0");
+    key(scan::kEnd);
+    rig.host(ws::PaneTextInput{vb::kPane, "8"});
+    const auto* list = rig.text("  limit  number");
+    REQUIRE(list != nullptr);
+    rig.pointer(ws::canvas_pointer::kPress, list->x + 8, list->y + 8, 21);
+    const auto d = rig.now();
+    CHECK(d.elements[0].x == 8);
+    CHECK(rig.text("limit (number) ") != nullptr);
+}
+
+TEST_CASE("a press on what a button says asks under that press to drag its intent's shape out") {
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("select", {"3"}).ok);
+    const auto* says = rig.text("says tally.panel.");
+    REQUIRE(says != nullptr);
+    rig.pointer(ws::canvas_pointer::kPress, says->x + 8, says->y + 8, 30);
+    const auto pressed = rig.correlation;
+    const loom::Message* asked = nullptr;
+    const loom::Message* carried = nullptr;
+    for (const auto& m : rig.desk->heard) {
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>())) asked = &m;
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+    }
+    REQUIRE(asked != nullptr);
+    CHECK(loom::from_value<ws::PaneOperationRequested>(asked->payload).gesture == static_cast<std::int64_t>(pressed));
+    REQUIRE(carried != nullptr);
+    CHECK(carried->correlation == pressed);
+    const auto value = loom::from_value<ws::PaneValueCarryRequested>(carried->payload);
+    CHECK(value.drag);
+    CHECK(value.label == "tally.panel.Count");
+}
+
+TEST_CASE("in a terminal the builder's picture and its drags are floored to cells") {
+    namespace sp = zengine::surface;
+    Rig rig;
+    rig.host(terminal_room(++rig.grant));
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    const auto area = rig.design();
+    CHECK(area.x % unit == 0);
+    for (const auto& t : rig.picture().texts) {
+        CHECK(t.x % unit == 0);
+        CHECK(t.y % unit == 0);
+    }
+    // A drag in cells moves an element by whole cells' worth of pixels.
+    const auto d = rig.now();
+    const auto at = vb::element_area(area, d.elements[0]);
+    const auto x = at.x + unit, y = at.y;
+    rig.pointer(ws::canvas_pointer::kPress, x, y, 40);
+    rig.pointer(ws::canvas_pointer::kMove, x + 2 * unit, y + unit, 40);
+    rig.pointer(ws::canvas_pointer::kRelease, x + 2 * unit, y + unit, 40);
+    CHECK(rig.now().elements[0].x == 2 * sp::kCanvasCellPx);
+    CHECK(rig.now().elements[0].y == sp::kCanvasCellPx);
 }
