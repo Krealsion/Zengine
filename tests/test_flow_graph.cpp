@@ -479,3 +479,31 @@ TEST_CASE("a workspace and a project whose definition is version 1 still open, a
     CHECK(loom::parse(std::string(d.begin(), d.end())).claimed_version() ==
           zengine::maker::kDefinitionSchemaVersion);
 }
+
+TEST_CASE("a message shape keeps one model wherever it is authored: the pane and the workbench name it, add its fields and refuse a used name alike") {
+    namespace shape = zengine::flow::shape;
+    pane::Model m;
+    m.command("message", {"Count"});
+    for (const char* f : {"start", "limit", "step"}) m.command("message-field", {"0", f, "Int", "required"});
+    zengine::op::Catalog catalog;
+    flow::Draft draft(catalog, "my_flow");
+    draft.command(flow::words("accept Count start:Int limit:Int step:Int"));
+    auto made = shape::make(shape::qualified("my_flow", "Count"));
+    for (const char* f : {"start", "limit", "step"})
+        made = shape::with_field(*made, f, loom::type_of(loom::Kind::Int));
+    const auto& in_pane = *m.workspace.graph.project.definition.accepts.at(0);
+    CHECK(in_pane.name() == "my_flow.Count");
+    CHECK(loom::same_identity(in_pane, *made));
+    CHECK(loom::same_identity(*draft.definition().accepts.at(0), *made));
+    CHECK_THROWS_WITH(m.command("message", {"Count"}), "a message named my_flow.Count is already declared");
+    CHECK_THROWS_WITH(draft.command(flow::words("accept Count")), "a message named my_flow.Count is already declared");
+    CHECK_THROWS_WITH(m.command("message-field", {"0", "step", "Int", "required"}),
+                      "message field name is empty or already used");
+    CHECK_THROWS_WITH(draft.command(flow::words("publish Said value:Int value:Int")),
+                      "message field name is empty or already used");
+    CHECK_THROWS_WITH(shape::with_field(*made, "step", loom::type_of(loom::Kind::Int)),
+                      "message field name is empty or already used");
+    CHECK(shape::type_named("List:Int", md::Library{}).kind == loom::Kind::List);
+    CHECK_THROWS_WITH(shape::type_named("Message:none", md::Library{}),
+                      "Message:<saved draft name> needs an existing library schema");
+}
