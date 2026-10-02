@@ -10,6 +10,8 @@
 
 #include "doctest.h"
 
+#include "restamp.hpp"
+
 #include "operator/catalog.hpp"
 #include "operator/host.hpp"
 #include "operator/host_surface.hpp"
@@ -1309,7 +1311,8 @@ loom::Value contribution_as(const loom::Value& written,
 
 } // namespace
 
-TEST_CASE("the contribution codec carries a description at version 2, and reads version 1 without one") {
+TEST_CASE("the contribution codec carries a description and a fold at version 3, and reads "
+          "versions 1 and 2, which hold no fold") {
     op::Catalog primitives;
     op::publish_primitives(primitives);
     op::Builder b(primitives, "prov.described",
@@ -1319,31 +1322,59 @@ TEST_CASE("the contribution codec carries a description at version 2, and reads 
     const op::OperatorDef authored = std::move(b).result("result", answer, "never below zero");
     const op::OperatorDef own(authored.identity(), authored.inputs(), authored.outputs(),
                               *authored.composition(), op::Description{"its own", false});
+    op::Builder f(primitives, "prov.summed",
+                  {loom::Field{"limit", loom::type_of(loom::Kind::Int), true}});
+    const op::Builder::Ref total = f.fold(op::kAddInt, "rhs", "lhs",
+        {f.constant(std::int64_t{0}), f.input("limit"), f.constant(std::int64_t{1}),
+         f.constant(std::int64_t{0})});
+    const op::OperatorDef folded = std::move(f).result("total", total, "0 + 1 + ... below limit");
 
-    for (const op::OperatorDef* def : {&authored, &own}) {
+    for (const op::OperatorDef* def : {&authored, &own, &folded}) {
         const loom::Unverified claim = loom::parse(loom::serialize(op::encode_contribution(*def)));
-        CHECK(claim.claimed_version() == 2);
+        CHECK(claim.claimed_version() == 3);
         const loom::Admission admitted = op::admit_contribution(claim);
         REQUIRE_MESSAGE(admitted.ok(), admitted.first_error().message());
         const op::DecodedContribution back = op::decode_contribution(admitted.value());
         CHECK(back.description.about == def->description().about);
         CHECK(back.description.offered == def->description().offered);
         REQUIRE(back.composition.has_value());
-        CHECK(back.composition->nodes.size() == 1);
+        REQUIRE(back.composition->nodes.size() == 1);
+        CHECK(back.composition->nodes[0].fold.has_value() == (def == &folded));
     }
+    // THE FOLD CROSSES AS STRUCTURE: its body reference and the two ports it threads, mounted on
+    // the far side and spent there against whatever supplies `math.add`.
+    const op::DecodedContribution far = op::decode_contribution(
+        op::admit_contribution(loom::parse(loom::serialize(op::encode_contribution(folded))))
+            .value());
+    CHECK(far.composition->nodes[0].identity == op::kAddInt);
+    CHECK(far.composition->nodes[0].fold->count == "rhs");
+    CHECK(far.composition->nodes[0].fold->accumulator == "lhs");
+    op::Catalog host;
+    op::publish_primitives(host);
+    REQUIRE(host.mount("prov.far", {op::OperatorDef(far.identity, far.inputs, far.outputs,
+                                                    *far.composition, far.description)}));
+    loom::Value ask(far.inputs);
+    ask.set("limit", loom::Cell::integer(10));
+    const op::Evaluation summed = host.evaluate("prov.summed", ask);
+    REQUIRE_MESSAGE(summed.ok(), summed.reason());
+    CHECK(summed.value().at(0)->as_int() == 45);
 
-    // VERSION 1, at its own schema: admitted at its own door, decoded offered and silent.
+    // VERSIONS 2 AND 1, at their own schemas: admitted at their own doors; 1 offered and silent.
     const loom::Value now = op::encode_contribution(authored);
+    const loom::Admission v2 = op::admit_contribution(loom::parse(
+        loom::serialize(zengine::testing::restamp(now, op::operator_contribution_v2_schema()))));
+    REQUIRE_MESSAGE(v2.ok(), v2.first_error().message());
+    CHECK(op::decode_contribution(v2.value()).description.about == "never below zero");
     const loom::Admission v1 = op::admit_contribution(loom::parse(
-        loom::serialize(contribution_as(now, op::operator_contribution_v1_schema()))));
+        loom::serialize(zengine::testing::restamp(now, op::operator_contribution_v1_schema()))));
     REQUIRE_MESSAGE(v1.ok(), v1.first_error().message());
     const op::DecodedContribution older = op::decode_contribution(v1.value());
     CHECK(older.description.about.empty());
     CHECK(older.description.offered);
     CHECK(older.composition.has_value());
 
-    // ...AND A VERSION NEITHER DOOR IS meets the current one, and the gate refuses it.
-    loom::SchemaBuilder later("zengine.OperatorContribution", 3);
+    // ...AND A VERSION NO DOOR IS meets the current one, and the gate refuses it.
+    loom::SchemaBuilder later("zengine.OperatorContribution", 4);
     for (const loom::Field& field : op::operator_contribution_schema()->fields()) {
         later.add(field);
     }

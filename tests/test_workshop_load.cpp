@@ -2245,6 +2245,60 @@ TEST_CASE("kind, construction, provider and offered filter, and a conversion is 
     CHECK(conversion->kind == workshop::kConversionKind);
 }
 
+TEST_CASE("the door finds the fold by what it is for, ahead of the catalog and never in a browse, "
+          "and fits=fold asks only for what a fold could spend as its body") {
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 both("zengine-timer", tmr::kTimerRole)}))
+                .ok);
+    const std::uint64_t quiet = op::invocations();
+    workshop::FindPowers by_purpose;
+    by_purpose.text = "count";
+    const workshop::PowersFound counted = workshop::find_powers(rig.catalog, by_purpose);
+    REQUIRE(counted.ok);
+    REQUIRE_FALSE(counted.rows.empty());
+    const workshop::PowerRow& fold = counted.rows.front();
+    CHECK(fold.identity == "fold");
+    CHECK(fold.kind == workshop::kFormKind);
+    CHECK(fold.construction == workshop::kEvaluatorConstruction);
+    CHECK(fold.provider.empty());
+    CHECK(fold.offered);
+    CHECK(fold.about == op::kFoldAbout);
+    CHECK(rig.catalog.find("fold") == nullptr); // a form, not an identity anything resolves
+    // A BROWSE LISTS THE CATALOG; an ask for the kind lists the form alone.
+    CHECK(found_by_text(rig.catalog, "") == rig.catalog.identities());
+    workshop::FindPowers forms;
+    forms.kind = workshop::kFormKind;
+    CHECK(identities_of(workshop::find_powers(rig.catalog, forms)) ==
+          std::vector<std::string>{"fold"});
+
+    // WHAT A FOLD COULD SPEND: one answer, an Int port for the count and another of the answer's
+    // type -- select_int too, its condition wired from scope; never less_int, select_bool or the
+    // Timer's rule, which has one Int port.
+    workshop::FindPowers bodies;
+    bodies.fits = workshop::kFitsFold;
+    CHECK(identities_of(workshop::find_powers(rig.catalog, bodies)) ==
+          std::vector<std::string>{"logic.select_int", "math.add", "math.max"});
+    bodies.text = "sum";
+    CHECK(identities_of(workshop::find_powers(rig.catalog, bodies)) ==
+          std::vector<std::string>{"math.add"});
+    workshop::FindPowers loop;
+    loop.fits = "loop";
+    CHECK(workshop::find_powers(rig.catalog, loop).reason == "a fit is fold; 'loop' is not one");
+
+    // A PAGE ENDING ON THE FORM continues at the catalog's first row.
+    workshop::FindPowers page;
+    page.text = "a";
+    page.limit = 1;
+    const workshop::PowersFound first = workshop::find_powers(rig.catalog, page);
+    CHECK(identities_of(first) == std::vector<std::string>{"fold"});
+    CHECK(first.next == "fold");
+    page.after = first.next;
+    CHECK(identities_of(workshop::find_powers(rig.catalog, page)) ==
+          std::vector<std::string>{"compare.less_int"});
+    CHECK(op::invocations() == quiet);
+}
+
 TEST_CASE("a page continues after an identity, and total counts the whole query") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
@@ -2323,10 +2377,10 @@ TEST_CASE("an ask past a bound is refused in words, and nothing is found") {
     workshop::FindPowers kind;
     kind.kind = "sources";
     CHECK(refused(kind) ==
-          "a kind is source, operator or conversion; 'sources' is none of them");
+          "a kind is source, operator, conversion or form; 'sources' is none of them");
     workshop::FindPowers built;
     built.construction = "compound";
-    CHECK(refused(built) == "a construction is native or composite; 'compound' is neither");
+    CHECK(refused(built) == "a construction is native, composite or evaluator; 'compound' is none of them");
 
     // THE ANSWER'S CEILING: a hundred identities long enough that a full page passes a mebibyte.
     op::Catalog wide;

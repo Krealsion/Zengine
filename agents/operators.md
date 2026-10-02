@@ -38,8 +38,8 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   the operator is for, and `offered`, whether it is offered for reuse — is authored where the
   operator is (`make_operator`, `Builder::result`, the `OperatorDef` constructor) and held on the
   `OperatorDef` the catalog stacks, so an overlay brings its own words and unmount brings the old
-  ones back; `zengine.OperatorContribution` v2 carries it across the provider seam and v1 still
-  mounts, saying nothing. A table of descriptions beside the catalog would describe whichever
+  ones back; `zengine.OperatorContribution` v3 carries it across the provider seam, and v2 and
+  v1 still mount, v1 saying nothing. A table of descriptions beside the catalog would describe whichever
   contribution was there when it was written. **It describes and nothing more**: no code path
   reads it to decide what may run, be reordered, removed or trusted, no schema carries it so no
   content id moves with it, and a power marked not offered is spent by whoever names it. Prose
@@ -57,6 +57,14 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   `op::kEvaluationDepth`. Spends bound nested loops; depth bounds a cycle, whose stack would run
   out long before its spends. Nothing names a budget by an operator's identity, and the next
   evaluation, and a copy of the catalog, start with nothing spent.
+- **The fold is the evaluator's one form, and only the evaluator spends an operator reference.**
+  A step with `op::Node::fold` spends its reference once per count (`operator/fold.hpp`); no
+  identity names a loop, no native leaf loops or holds the catalog, and nothing is captured: the
+  body's other ports are wired from scope. Its ports derive from its body (`op::fold_ports`), it
+  counts first by `op::fold_count`, and a step of 0, a count past `op::kMaxFoldCount` and a stale
+  body are refused in words before the body is spent. "Every node runs in authored order" stays
+  true: a fold is one node, run once in its place, spending its body by its own rule.
+  `zengine.OperatorComposition` v2 carries it; v1 steps never fold.
 - **`timer.normalize_delay` carries no native body**, and `is_composite()` is a public question
   precisely so a suite can say so. A `normalize_delay(delay, repeat)` registered as a native
   operator would satisfy every other case in the operator suite and would prove only that

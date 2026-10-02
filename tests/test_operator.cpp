@@ -37,6 +37,48 @@ std::int64_t int_answer(const op::Evaluation& e) { return e.value().at(0)->as_in
 
 std::int64_t same_int(std::int64_t x) { return x; }
 
+// Fold bodies, each `(acc, count, ...) -> acc` in a different way.
+std::int64_t plus_one(std::int64_t acc, std::int64_t) { return acc + 1; }
+std::int64_t last_count(std::int64_t, std::int64_t count) { return count; }
+std::int64_t scaled(std::int64_t acc, std::int64_t count, std::int64_t n) { return acc + count * n; }
+std::int64_t capped(std::int64_t acc, std::int64_t count, std::int64_t cap) {
+    if (acc + count > cap) {
+        throw op::Refusal("'t.capped' refuses a total above " + std::to_string(cap));
+    }
+    return acc + count;
+}
+std::int64_t doubled(std::int64_t lhs, std::int64_t rhs) { return lhs + 2 * rhs; }
+bool never(std::int64_t, std::int64_t) { return false; }
+
+/// The four ports a fold of its own takes from the composite: start, limit, step, initial.
+std::vector<loom::Field> fold_inputs() {
+    const loom::TypeRef i = loom::type_of(loom::Kind::Int);
+    return {loom::Field{"start", i, true}, loom::Field{"limit", i, true},
+            loom::Field{"step", i, true}, loom::Field{"initial", i, true}};
+}
+
+/// `identity(start, limit, step, initial) = fold body(count -> count_port, acc -> acc_port)`.
+op::OperatorDef folding(const op::Catalog& catalog, const std::string& identity,
+                        const std::string& body, const std::string& count_port,
+                        const std::string& acc_port) {
+    op::Builder b(catalog, identity, fold_inputs());
+    const op::Builder::Ref answer =
+        b.fold(body, count_port, acc_port,
+               {b.input("start"), b.input("limit"), b.input("step"), b.input("initial")});
+    return std::move(b).result("result", answer);
+}
+
+op::Evaluation run_fold(const op::Catalog& catalog, const std::string& identity,
+                        std::int64_t start, std::int64_t limit, std::int64_t step,
+                        std::int64_t initial) {
+    loom::Value ask(catalog.find(identity)->inputs());
+    ask.set("start", loom::Cell::integer(start));
+    ask.set("limit", loom::Cell::integer(limit));
+    ask.set("step", loom::Cell::integer(step));
+    ask.set("initial", loom::Cell::integer(initial));
+    return catalog.evaluate(identity, std::move(ask));
+}
+
 /// One port, `x : Int`, the shape every operator below takes.
 std::vector<loom::Field> one_int() {
     return {loom::Field{"x", loom::type_of(loom::Kind::Int), true}};
@@ -529,4 +571,193 @@ TEST_CASE("an evaluation is refused at the spend that would pass its budget of s
     CHECK(int_answer(answered) == 3);
     const op::Catalog copy = catalog;
     CHECK(copy.evaluate("wide.two", two).ok());
+}
+
+// ---- 6. the fold ------------------------------------------------------------
+
+TEST_CASE("a fold counts first and iterates by count: the step 1, a negative step, a larger step, "
+          "a step away from the limit, and the extremes of Int") {
+    op::Catalog catalog;
+    op::publish_primitives(catalog);
+    REQUIRE(catalog.mount("t.bodies",
+                          {op::make_operator<&plus_one>("t.plus_one", {"acc", "count"}, "result"),
+                           op::make_operator<&last_count>("t.last", {"acc", "count"}, "result")}));
+    REQUIRE(catalog.mount("t.folds", {folding(catalog, "t.sum", op::kAddInt, "rhs", "lhs"),
+                                       folding(catalog, "t.times", "t.plus_one", "count", "acc"),
+                                       folding(catalog, "t.last_of", "t.last", "count", "acc")}));
+    CHECK(catalog.find("t.sum")->composition()->nodes[0].fold.has_value());
+
+    const std::uint64_t before = op::invocations();
+    CHECK(int_answer(run_fold(catalog, "t.sum", 0, 10, 1, 0)) == 45);
+    CHECK(op::invocations() - before == 10); // one body spend per count, and nothing else
+    CHECK(int_answer(run_fold(catalog, "t.sum", 10, 0, -2, 0)) == 30);  // 10, 8, 6, 4, 2
+    CHECK(int_answer(run_fold(catalog, "t.sum", 0, 10, 3, 0)) == 18);   // 0, 3, 6, 9
+    CHECK(int_answer(run_fold(catalog, "t.sum", 0, 10, -1, 7)) == 7);   // runs zero times
+    CHECK(int_answer(run_fold(catalog, "t.sum", 5, 5, 1, 7)) == 7);     // the limit is exclusive
+    CHECK(int_answer(run_fold(catalog, "t.times", 0, 10, 3, 0)) == 4);
+
+    // COUNTED BY k, NEVER BY REPEATED ADDITION: from the least Int toward the greatest by the
+    // greatest visits the least, -1 and the greatest less one, and nothing overflows.
+    const std::int64_t lo = std::numeric_limits<std::int64_t>::min();
+    const std::int64_t hi = std::numeric_limits<std::int64_t>::max();
+    CHECK(int_answer(run_fold(catalog, "t.times", lo, hi, hi, 0)) == 3);
+    CHECK(int_answer(run_fold(catalog, "t.last_of", lo, hi, hi, 0)) == hi - 1);
+    CHECK(int_answer(run_fold(catalog, "t.last_of", hi, lo, lo, 0)) == -1);
+    CHECK(int_answer(run_fold(catalog, "t.times", hi, lo, lo, 0)) == 2);
+}
+
+TEST_CASE("a fold refuses a step of 0, a count past its bound and a stale body in words, before "
+          "its body is spent once") {
+    op::Catalog catalog;
+    op::publish_primitives(catalog);
+    REQUIRE(catalog.mount("t.folds", {folding(catalog, "t.sum", op::kAddInt, "rhs", "lhs")}));
+    const std::uint64_t before = op::invocations();
+
+    const op::Evaluation zero = run_fold(catalog, "t.sum", 0, 10, 0, 0);
+    REQUIRE_FALSE(zero.ok());
+    CHECK(zero.reason() == "'t.sum' step 0: a step of 0 never moves the count from 0 toward 10");
+
+    const op::Evaluation far = run_fold(catalog, "t.sum", 0, 2000000, 1, 0);
+    REQUIRE_FALSE(far.ok());
+    CHECK(far.reason() == "'t.sum' step 0: this fold would count 2000000 times from 0 toward "
+                          "2000000 by 1, and a fold counts at most " +
+                              std::to_string(op::kMaxFoldCount) + " times");
+    CHECK(int_answer(run_fold(catalog, "t.sum", 0, static_cast<std::int64_t>(op::kMaxFoldCount), 1,
+                              0)) == static_cast<std::int64_t>(op::kMaxFoldCount) *
+                                         static_cast<std::int64_t>(op::kMaxFoldCount - 1) / 2);
+    CHECK(op::invocations() - before == op::kMaxFoldCount);
+
+    // THE BODY IS A REFERENCE: found at another signature it is refused, never re-bound; gone, it
+    // is the catalog's own sentence.
+    op::Catalog reshaped;
+    reshaped.publish(op::make_operator<&op::add_int>(op::kAddInt, {"left", "right"}, "result"));
+    reshaped.publish(*catalog.find("t.sum"));
+    const op::Evaluation stale = run_fold(reshaped, "t.sum", 0, 10, 1, 0);
+    REQUIRE_FALSE(stale.ok());
+    CHECK(stale.reason() ==
+          "'t.sum' step 0: 'math.add' is not the signature this composition was authored against");
+    op::Catalog bare;
+    bare.publish(*catalog.find("t.sum"));
+    CHECK(run_fold(bare, "t.sum", 0, 10, 1, 0).reason() ==
+          "'t.sum' step 0: unresolved operator reference 'math.add'");
+}
+
+TEST_CASE("a fold's other body ports are wired from scope, and a body's refusal is the fold's, "
+          "naming the iteration and its count") {
+    op::Catalog catalog;
+    REQUIRE(catalog.mount("t.bodies",
+        {op::make_operator<&scaled>("t.scaled", {"acc", "count", "n"}, "result"),
+         op::make_operator<&capped>("t.capped", {"acc", "count", "cap"}, "result")}));
+    auto with_extra = [&](const std::string& identity, const std::string& body,
+                          const std::string& extra) {
+        std::vector<loom::Field> ports = fold_inputs();
+        ports.push_back(loom::Field{extra, loom::type_of(loom::Kind::Int), true});
+        op::Builder b(catalog, identity, ports);
+        const op::Builder::Ref answer = b.fold(body, "count", "acc",
+            {b.input("start"), b.input("limit"), b.input("step"), b.input("initial"),
+             b.input(extra)});
+        return std::move(b).result("result", answer);
+    };
+    REQUIRE(catalog.mount("t.folds", {with_extra("t.table", "t.scaled", "n"),
+                                       with_extra("t.capped_sum", "t.capped", "cap")}));
+    const auto ask = [&](const std::string& identity, std::int64_t limit, const char* extra,
+                         std::int64_t value) {
+        loom::Value v(catalog.find(identity)->inputs());
+        v.set("start", loom::Cell::integer(1));
+        v.set("limit", loom::Cell::integer(limit));
+        v.set("step", loom::Cell::integer(1));
+        v.set("initial", loom::Cell::integer(0));
+        v.set(extra, loom::Cell::integer(value));
+        return catalog.evaluate(identity, std::move(v));
+    };
+    CHECK(int_answer(ask("t.table", 11, "n", 7)) == 7 * 55); // 7 * (1 + ... + 10), n bound once
+    const op::Evaluation capped_out = ask("t.capped_sum", 100, "cap", 100);
+    REQUIRE_FALSE(capped_out.ok());
+    CHECK(capped_out.reason() ==
+          "'t.capped_sum' step 0: iteration 13 (count 14): 't.capped' refuses a total above 100");
+}
+
+TEST_CASE("a fold resolves its body at the spend: an overlay mounted between evaluations changes "
+          "the next answer, and unmounting it changes it back") {
+    op::Catalog catalog;
+    op::publish_primitives(catalog);
+    REQUIRE(catalog.mount("t.folds", {folding(catalog, "t.sum", op::kAddInt, "rhs", "lhs")}));
+    CHECK(int_answer(run_fold(catalog, "t.sum", 0, 5, 1, 0)) == 10);
+    REQUIRE(catalog.mount("t.doubled",
+                          {op::make_operator<&doubled>(op::kAddInt, {"lhs", "rhs"}, "result")},
+                          op::MountMode::Overlay));
+    CHECK(int_answer(run_fold(catalog, "t.sum", 0, 5, 1, 0)) == 20);
+    REQUIRE(catalog.unmount("t.doubled"));
+    CHECK(int_answer(run_fold(catalog, "t.sum", 0, 5, 1, 0)) == 10);
+}
+
+TEST_CASE("nested folds draw on one evaluation's budget, refused at the spend that would pass it") {
+    op::Catalog catalog;
+    op::publish_primitives(catalog);
+    // `t.inner(acc, count)` = acc + (0 + 1 + ... + 999), itself a fold; `t.outer` folds it 1000
+    // times. Each outer count spends `t.inner` and its 1000 additions: 1001 spends.
+    op::Builder inner(catalog, "t.inner",
+                      {loom::Field{"acc", loom::type_of(loom::Kind::Int), true},
+                       loom::Field{"count", loom::type_of(loom::Kind::Int), true}});
+    const op::Builder::Ref summed = inner.fold(op::kAddInt, "rhs", "lhs",
+        {inner.constant(std::int64_t{0}), inner.constant(std::int64_t{1000}),
+         inner.constant(std::int64_t{1}), inner.input("acc")});
+    REQUIRE(catalog.mount("t.inner", {std::move(inner).result("result", summed)}));
+    REQUIRE(catalog.mount("t.outer", {folding(catalog, "t.outer", "t.inner", "count", "acc")}));
+
+    const std::uint64_t before = op::invocations();
+    const op::Evaluation nested = run_fold(catalog, "t.outer", 0, 1000, 1, 0);
+    REQUIRE_FALSE(nested.ok());
+    // 1 + 99 * 1001 spends, then `t.inner` and 899 additions: the 900th is the one refused.
+    CHECK(nested.reason() == "'t.outer' step 0: iteration 99 (count 99): 't.inner' step 0: "
+                             "iteration 899 (count 899): spending 'math.add' would pass this "
+                             "evaluation's budget of " +
+                                 std::to_string(op::kEvaluationSpends) + " operator spends");
+    CHECK(op::invocations() - before == 99 * 1000 + 899);
+    // Under the budget the same nesting answers: 10 outer counts of 499500 each.
+    CHECK(int_answer(run_fold(catalog, "t.outer", 0, 10, 1, 0)) == 10 * 499500);
+}
+
+TEST_CASE("a body that cannot be a fold's is refused by name where the fold is written") {
+    op::Catalog catalog;
+    op::publish_primitives(catalog);
+    REQUIRE(catalog.mount("t.bodies",
+        {op::make_operator<&never>("t.never", {"acc", "count"}, "result"),
+         op::make_operator<&scaled>("t.start", {"acc", "count", "start"}, "result")}));
+    const auto refusal = [&](const std::string& body, const std::string& count,
+                             const std::string& acc, int extra) {
+        op::Builder b(catalog, "t.bad", fold_inputs());
+        std::vector<op::Builder::Ref> args{b.input("start"), b.input("limit"), b.input("step"),
+                                           b.input("initial")};
+        for (int i = 0; i < extra; ++i) {
+            args.push_back(b.input("start"));
+        }
+        if (extra < 0) {
+            args.push_back(b.constant(true));
+        }
+        try {
+            (void)b.fold(body, count, acc, args);
+        } catch (const std::invalid_argument& e) {
+            return std::string(e.what());
+        }
+        return std::string("accepted");
+    };
+    CHECK(refusal(op::kAddInt, "count", "lhs", 0) == "'math.add' has no port 'count' for the count");
+    CHECK(refusal(op::kAddInt, "rhs", "rhs", 0) ==
+          "the count and the accumulator are two ports; 'math.add' was given 'rhs' for both");
+    CHECK(refusal(op::kAddInt, "rhs", "acc", 0) ==
+          "'math.add' has no port 'acc' for the accumulator");
+    CHECK(refusal(op::kSelectInt, "condition", "when_true", 0) ==
+          "'logic.select_int' port 'condition' is Bool, and the count is an Int");
+    CHECK(refusal("t.never", "count", "acc", 0) ==
+          "'t.never' port 'acc' is Int and it answers Bool; the accumulator and the answer are one "
+          "type");
+    CHECK(refusal("t.start", "count", "acc", 1) ==
+          "'t.start' has a port named 'start', which the fold's own ports already use");
+    CHECK(refusal(op::kAddInt, "rhs", "lhs", 1) ==
+          "a fold over 'math.add' takes 4 arguments, not 5");
+    CHECK(refusal("t.nobody", "rhs", "lhs", 0) == "'t.bad' names an unpublished operator 't.nobody'");
+    // select_int folds too: the count to one integer, the accumulator to the other, and the
+    // condition wired from scope.
+    CHECK(refusal(op::kSelectInt, "when_false", "when_true", -1) == "accepted");
 }
