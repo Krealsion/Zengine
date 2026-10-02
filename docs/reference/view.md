@@ -37,7 +37,7 @@ asks it, as its office or as itself:
 |---|---|
 | `ViewRun{session, description}` | registers the view as a participant of its own, holding its name as its office, and tells it to offer its pane |
 | `ViewApply{session, description}` | the same name and shapes: adopted in place, the field text, focus and told values kept. Any other change: registered afresh, and `fresh` says so |
-| `ViewStop{session}` | the view's last picture says it stopped, then the participant is unregistered |
+| `ViewStop{session}` | the view's last picture says it stopped, then the participant is unregistered; Workshop, seeing its provider gone, then shows the pane waiting for one |
 
 `ViewAnswer{session, action, ok, reason, office, fresh}` is the one answer. A session belongs to
 the office that asked, or to the asker's bus identity, and a host runs at most `view::kMaxViews`.

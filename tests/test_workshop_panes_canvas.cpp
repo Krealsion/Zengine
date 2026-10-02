@@ -616,7 +616,10 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
     };
     CHECK(words().find("Count|") != std::string::npos);
     at(12, 36);
-    CHECK(words().find("said tally.panel.Count;|nothing accepts it|") != std::string::npos);
+    // The notice may wrap at the pane's width: read it as one sentence.
+    std::string sentence;
+    for (const auto& t : r.session().panes.external_pane(row->kind)->canvas.content.texts) sentence += t.text + " ";
+    CHECK(sentence.find("said tally.panel.Count; nothing accepts it") != std::string::npos);
 
     // Stopped: the last picture Workshop holds says so, and no control is left looking live.
     (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
@@ -629,4 +632,12 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
     REQUIRE(stopped);
     CHECK(words().find("tally.panel stopped") == 0);
     CHECK(stopped->canvas.content.rects.size() == 1); // its ground alone
+    // ...and once Workshop repaints and sees the provider gone, the pane waits for one: neither
+    // picture leaves a field or a button that looks live.
+    r.key(input::scan::kUnknown);
+    const auto* waiting = r.session().panes.external_pane(row->kind);
+    REQUIRE(waiting);
+    CHECK(waiting->canvas.grant == 0);
+    CHECK(waiting->canvas.content.texts.empty());
+    CHECK(waiting->canvas.content.rects.empty());
 }

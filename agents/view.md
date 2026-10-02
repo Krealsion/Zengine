@@ -23,8 +23,8 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   and shapes (`view::same_shapes`) is adopted in place, keeping field text, focus and what the
   view was told; any other change is a fresh registration, and the answer says so.
 - A stop queues the view's last picture as its office while it still holds it, then retires the
-  participant behind that delivery, so Workshop keeps a picture that says the view stopped and no
-  control that looks live.
+  participant behind that delivery: the pane says the view stopped until Workshop sees the
+  provider gone and shows it waiting for one (WL-CANVAS-02). Neither picture has a control.
 - `view::View` keeps only presentation: field text, focus, caret, its notice, and the latest value
   of each shape it was told. It calls nothing current that it was not told: a label it was never
   told says `waiting`. An intent is published as the participant, by shape: whoever accepts it
