@@ -107,9 +107,6 @@ public:
     std::uint64_t correlation = 0;
 };
 
-// Generated source expands the retained binary definition and its graph statements.
-constexpr std::uintmax_t kMaxGeneratedBytes = 64u << 20;
-
 std::string read(const std::string& path, std::uintmax_t limit = maker::kMaxFileBytes) {
     const auto result = maker::read_file(path, limit);
     if (!result) throw std::runtime_error(result.reason);
@@ -122,23 +119,7 @@ void write(const std::filesystem::path& path, const std::string& bytes) {
 }
 
 void generate(const maker::Definition& definition, const std::filesystem::path& directory) {
-    const auto source = directory / "generated.cpp";
-    const auto cmake = directory / "CMakeLists.txt";
-    if (std::filesystem::exists(source)) {
-        const auto previous = flow::recover_cpp(read(source.string(), kMaxGeneratedBytes));
-        if (previous.name != definition.name) throw std::runtime_error("output belongs to a different definition");
-    }
-    if (std::filesystem::exists(cmake) && read(cmake.string()) != flow::generated_cmake())
-        throw std::runtime_error("CMakeLists.txt has local edits; choose a new output directory");
-    const auto cpp = flow::generate_cpp(definition);
-    if (cpp.size() > kMaxGeneratedBytes)
-        throw std::runtime_error("generated source exceeds the workbench's 64 MiB limit");
-    std::filesystem::create_directories(directory);
-    write(source, cpp);
-    write(cmake, flow::generated_cmake());
-    write(directory / "definition.bin", maker::definition_bytes(definition));
-    write(directory / "graph.svg", flow::graph_svg(definition));
-    std::cout << "generated " << source.string() << '\n';
+    std::cout << "generated " << flow::write_generated(definition, directory) << '\n';
 }
 
 constexpr const char* help = R"help(Flow workbench — author, run, inspect, save and generate maker definitions.
@@ -277,7 +258,7 @@ int main(int argc, char** argv) {
             return 0;
         }
         if (argc == 4 && std::string_view(argv[1]) == "--recover") {
-            write(argv[3], maker::definition_bytes(flow::recover_cpp(read(argv[2], kMaxGeneratedBytes))));
+            write(argv[3], maker::definition_bytes(flow::recover_cpp(read(argv[2], flow::kMaxGeneratedBytes))));
             return 0;
         }
         std::ifstream file;

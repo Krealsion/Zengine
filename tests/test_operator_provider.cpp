@@ -10,6 +10,8 @@
 
 #include "doctest.h"
 
+#include "restamp.hpp"
+
 #include "operator/catalog.hpp"
 #include "operator/host.hpp"
 #include "operator/host_surface.hpp"
@@ -32,6 +34,7 @@
 #include <cstdint>
 #include <fstream>
 #include <sstream>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -125,10 +128,10 @@ TEST_CASE("a real provider artifact supplies powers across a native module bound
 
     // The provider named ITSELF; the host chose nothing about that identity.
     CHECK(mounted.provider == kBasic);
-    CHECK(mounted.contributed == 4);
+    CHECK(mounted.contributed == 5);
     CHECK(catalog.mounted(kBasic));
     CHECK(catalog.identities() == std::vector<std::string>{op::kLessInt, op::kSelectBool,
-        op::kSelectInt, op::kMaxInt});
+        op::kSelectInt, op::kAddInt, op::kMaxInt});
 
     // ...and the powers WORK, which is what makes the mount more than bookkeeping.
     const op::OperatorDef* max = catalog.find(op::kMaxInt);
@@ -139,6 +142,104 @@ TEST_CASE("a real provider artifact supplies powers across a native module bound
     const op::Evaluation answered = catalog.evaluate(op::kMaxInt, std::move(pack));
     REQUIRE_MESSAGE(answered.ok(), answered.reason());
     CHECK(answered.value().at(0)->as_int() == 0);
+}
+
+TEST_CASE("math.add says what it is for and adds across the module boundary, and a sum outside "
+          "Int is refused in the leaf's own words, the words an in-process caller reads") {
+    op::Catalog loaded;
+    REQUIRE(op::mount_provider(loaded, PROVIDER_BASIC_SO).ok);
+    op::Catalog local;
+    op::publish_primitives(local);
+    const op::OperatorDef* add = loaded.find(op::kAddInt);
+    REQUIRE(add != nullptr);
+    CHECK_FALSE(add->is_composite());
+    CHECK(add->description().about == "the sum of two integers; a fold's body that totals");
+    const auto sum = [&](const op::Catalog& catalog, std::int64_t lhs, std::int64_t rhs) {
+        loom::Value pack(catalog.find(op::kAddInt)->inputs());
+        pack.set("lhs", loom::Cell::integer(lhs));
+        pack.set("rhs", loom::Cell::integer(rhs));
+        return catalog.evaluate(op::kAddInt, std::move(pack));
+    };
+    const op::Evaluation seven = sum(loaded, 3, 4);
+    REQUIRE_MESSAGE(seven.ok(), seven.reason());
+    CHECK(seven.value().at(0)->as_int() == 7);
+    CHECK(sum(loaded, -9, 4).value().at(0)->as_int() == -5);
+
+    const std::int64_t top = std::numeric_limits<std::int64_t>::max();
+    const op::Evaluation over = sum(loaded, top, 1);
+    REQUIRE_FALSE(over.ok());
+    CHECK(over.reason() ==
+          "'math.add' cannot add " + std::to_string(top) + " and 1: the sum is outside Int");
+    CHECK(over.reason() == sum(local, top, 1).reason());
+    const op::Evaluation under = sum(loaded, std::numeric_limits<std::int64_t>::min(), -1);
+    REQUIRE_FALSE(under.ok());
+    CHECK(under.reason() == sum(local, std::numeric_limits<std::int64_t>::min(), -1).reason());
+}
+
+TEST_CASE("a cycle through identities closed across images by an overlay is refused by the "
+          "evaluation's budget, and unmounting the overlay restores the chain") {
+    op::Catalog catalog;
+    REQUIRE(op::mount_provider(catalog, PROVIDER_A_SO).ok);
+    const auto ask = [&] {
+        loom::Value pack(catalog.find("prov.function.1")->inputs());
+        pack.set("value", loom::Cell::integer(1));
+        return catalog.evaluate("prov.function.1", std::move(pack));
+    };
+    REQUIRE(ask().ok());
+    CHECK(ask().value().at(0)->as_int() == 16);
+    const op::MountResult closed = op::mount_provider(catalog, PROVIDER_CYCLE_SO, op::MountMode::Overlay);
+    REQUIRE_MESSAGE(closed.ok, closed.reason);
+    // function.1 -> function.2 -> function.3 (now naming function.1) -> ...: the 33rd nesting is
+    // function.3's, and nothing native ran on the way.
+    const std::uint64_t before = op::invocations();
+    const op::Evaluation cycled = ask();
+    REQUIRE_FALSE(cycled.ok());
+    CHECK(cycled.reason() == "spending 'prov.function.3' would nest this evaluation " +
+                                 std::to_string(op::kEvaluationDepth + 1) +
+                                 " operators deep, past its budget of " +
+                                 std::to_string(op::kEvaluationDepth) +
+                                 ": an operator that reaches itself through identities nests "
+                                 "without end");
+    CHECK(op::invocations() == before);
+    REQUIRE(catalog.unmount("zengine.provider.cycle"));
+    CHECK(ask().value().at(0)->as_int() == 16);
+}
+
+TEST_CASE("a fold crosses a real module boundary as structure, is spent by the host's evaluator, "
+          "and as a fold's body its spends draw on the host's one budget") {
+    op::Catalog catalog;
+    op::publish_primitives(catalog);
+    const op::MountResult mounted = op::mount_provider(catalog, PROVIDER_FOLD_SO);
+    REQUIRE_MESSAGE(mounted.ok, mounted.reason);
+    const op::OperatorDef* thousand = catalog.find("prov.thousand");
+    REQUIRE(thousand != nullptr);
+    REQUIRE(thousand->is_composite());
+    REQUIRE(thousand->composition()->nodes.at(0).fold.has_value());
+    CHECK(thousand->composition()->nodes.at(0).identity == op::kAddInt);
+    loom::Value ask(thousand->inputs());
+    ask.set("acc", loom::Cell::integer(5));
+    ask.set("count", loom::Cell::integer(0));
+    const op::Evaluation once = catalog.evaluate("prov.thousand", ask);
+    REQUIRE_MESSAGE(once.ok(), once.reason());
+    CHECK(once.value().at(0)->as_int() == 5 + 499500);
+
+    // As a host-authored fold's body: 1 + 99 * 1001 spends, then the 900th addition passes.
+    op::Builder outer(catalog, "host.outer",
+                      {loom::Field{"limit", loom::type_of(loom::Kind::Int), true}});
+    const op::Builder::Ref nested = outer.fold("prov.thousand", "count", "acc",
+        {outer.constant(std::int64_t{0}), outer.input("limit"), outer.constant(std::int64_t{1}),
+         outer.constant(std::int64_t{0})});
+    catalog.publish(std::move(outer).result("result", nested));
+    loom::Value limit(catalog.find("host.outer")->inputs());
+    limit.set("limit", loom::Cell::integer(1000));
+    const op::Evaluation refused = catalog.evaluate("host.outer", limit);
+    REQUIRE_FALSE(refused.ok());
+    CHECK(refused.reason() == "'host.outer' step 0: iteration 99 (count 99): 'prov.thousand' step 0: "
+                              "iteration 899 (count 899): spending 'math.add' would pass this "
+                              "evaluation's budget of " +
+                                  std::to_string(op::kEvaluationSpends) + " operator spends");
+    limit.set("limit", loom::Cell::integer(10));
+    CHECK(catalog.evaluate("host.outer", limit).value().at(0)->as_int() == 10 * 499500);
 }
 
 TEST_CASE("a provider is not a weave: the basic provider exports no weave ABI") {
@@ -516,7 +617,7 @@ TEST_CASE("a mount is ALL OR NOTHING: a refused batch installs none of itself") 
     CHECK(catalog.find("test.negate") == nullptr);
     CHECK_FALSE(catalog.mounted("test.batch"));
     CHECK(catalog.identities() == std::vector<std::string>{op::kLessInt, op::kSelectBool,
-        op::kSelectInt, op::kMaxInt});
+        op::kSelectInt, op::kAddInt, op::kMaxInt});
     CHECK(active_provider(catalog, op::kMaxInt) == kBasic);
 }
 
@@ -1276,7 +1377,8 @@ loom::Value contribution_as(const loom::Value& written,
 
 } // namespace
 
-TEST_CASE("the contribution codec carries a description at version 2, and reads version 1 without one") {
+TEST_CASE("the contribution codec carries a description and a fold at version 3, and reads "
+          "versions 1 and 2, which hold no fold") {
     op::Catalog primitives;
     op::publish_primitives(primitives);
     op::Builder b(primitives, "prov.described",
@@ -1286,31 +1388,59 @@ TEST_CASE("the contribution codec carries a description at version 2, and reads 
     const op::OperatorDef authored = std::move(b).result("result", answer, "never below zero");
     const op::OperatorDef own(authored.identity(), authored.inputs(), authored.outputs(),
                               *authored.composition(), op::Description{"its own", false});
+    op::Builder f(primitives, "prov.summed",
+                  {loom::Field{"limit", loom::type_of(loom::Kind::Int), true}});
+    const op::Builder::Ref total = f.fold(op::kAddInt, "rhs", "lhs",
+        {f.constant(std::int64_t{0}), f.input("limit"), f.constant(std::int64_t{1}),
+         f.constant(std::int64_t{0})});
+    const op::OperatorDef folded = std::move(f).result("total", total, "0 + 1 + ... below limit");
 
-    for (const op::OperatorDef* def : {&authored, &own}) {
+    for (const op::OperatorDef* def : {&authored, &own, &folded}) {
         const loom::Unverified claim = loom::parse(loom::serialize(op::encode_contribution(*def)));
-        CHECK(claim.claimed_version() == 2);
+        CHECK(claim.claimed_version() == 3);
         const loom::Admission admitted = op::admit_contribution(claim);
         REQUIRE_MESSAGE(admitted.ok(), admitted.first_error().message());
         const op::DecodedContribution back = op::decode_contribution(admitted.value());
         CHECK(back.description.about == def->description().about);
         CHECK(back.description.offered == def->description().offered);
         REQUIRE(back.composition.has_value());
-        CHECK(back.composition->nodes.size() == 1);
+        REQUIRE(back.composition->nodes.size() == 1);
+        CHECK(back.composition->nodes[0].fold.has_value() == (def == &folded));
     }
+    // THE FOLD CROSSES AS STRUCTURE: its body reference and the two ports it threads, mounted on
+    // the crossed side and spent there against whatever supplies `math.add`.
+    const op::DecodedContribution crossed = op::decode_contribution(
+        op::admit_contribution(loom::parse(loom::serialize(op::encode_contribution(folded))))
+            .value());
+    CHECK(crossed.composition->nodes[0].identity == op::kAddInt);
+    CHECK(crossed.composition->nodes[0].fold->count == "rhs");
+    CHECK(crossed.composition->nodes[0].fold->accumulator == "lhs");
+    op::Catalog host;
+    op::publish_primitives(host);
+    REQUIRE(host.mount("prov.crossed", {op::OperatorDef(crossed.identity, crossed.inputs, crossed.outputs,
+                                                    *crossed.composition, crossed.description)}));
+    loom::Value ask(crossed.inputs);
+    ask.set("limit", loom::Cell::integer(10));
+    const op::Evaluation summed = host.evaluate("prov.summed", ask);
+    REQUIRE_MESSAGE(summed.ok(), summed.reason());
+    CHECK(summed.value().at(0)->as_int() == 45);
 
-    // VERSION 1, at its own schema: admitted at its own door, decoded offered and silent.
+    // VERSIONS 2 AND 1, at their own schemas: admitted at their own doors; 1 offered and silent.
     const loom::Value now = op::encode_contribution(authored);
+    const loom::Admission v2 = op::admit_contribution(loom::parse(
+        loom::serialize(zengine::testing::restamp(now, op::operator_contribution_v2_schema()))));
+    REQUIRE_MESSAGE(v2.ok(), v2.first_error().message());
+    CHECK(op::decode_contribution(v2.value()).description.about == "never below zero");
     const loom::Admission v1 = op::admit_contribution(loom::parse(
-        loom::serialize(contribution_as(now, op::operator_contribution_v1_schema()))));
+        loom::serialize(zengine::testing::restamp(now, op::operator_contribution_v1_schema()))));
     REQUIRE_MESSAGE(v1.ok(), v1.first_error().message());
     const op::DecodedContribution older = op::decode_contribution(v1.value());
     CHECK(older.description.about.empty());
     CHECK(older.description.offered);
     CHECK(older.composition.has_value());
 
-    // ...AND A VERSION NEITHER DOOR IS meets the current one, and the gate refuses it.
-    loom::SchemaBuilder later("zengine.OperatorContribution", 3);
+    // ...AND A VERSION NO DOOR IS meets the current one, and the gate refuses it.
+    loom::SchemaBuilder later("zengine.OperatorContribution", 4);
     for (const loom::Field& field : op::operator_contribution_schema()->fields()) {
         later.add(field);
     }

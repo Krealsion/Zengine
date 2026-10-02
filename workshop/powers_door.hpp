@@ -13,6 +13,7 @@
 #include "powers_vocabulary.hpp"
 
 #include "operator/catalog.hpp"
+#include "operator/fold.hpp"      // the fold, the one form a row describes beside the catalog
 #include "operator/migration.hpp" // `declares_migration`, the one spelling of a conversion
 #include "operator/operator.hpp"
 #include "operator/provider.hpp"  // `encode_contribution`
@@ -152,6 +153,27 @@ inline PowerLayer layer_of(const op::Contribution& c) {
     return layer;
 }
 
+/// Could a fold spend this power as its body? One answer, an Int port for the count, and another
+/// port of the answer's type for the accumulator; which two is the composer's to choose.
+inline bool fits_fold(const op::OperatorDef& def) {
+    const std::vector<loom::Field>& ins = def.inputs()->fields();
+    const std::vector<loom::Field>& outs = def.outputs()->fields();
+    if (outs.size() != 1) {
+        return false;
+    }
+    for (std::size_t c = 0; c < ins.size(); ++c) {
+        if (ins[c].type.kind != loom::Kind::Int) {
+            continue;
+        }
+        for (std::size_t a = 0; a < ins.size(); ++a) {
+            if (a != c && op::detail::same_type(ins[a].type, outs[0].type)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 /// Does the power in force fit every field the ask gave?
 inline bool fits(const std::string& identity, const op::Contribution& in_force,
                  const FindPowers& asked, const std::vector<std::string_view>& terms) {
@@ -166,7 +188,39 @@ inline bool fits(const std::string& identity, const op::Contribution& in_force,
            (!asked.provider || in_force.provider == *asked.provider) &&
            (!asked.kind || kind_fits(kind_of(def), *asked.kind)) &&
            (!asked.construction || *asked.construction == construction_of(def)) &&
-           (!asked.offered || def.description().offered == *asked.offered);
+           (!asked.offered || def.description().offered == *asked.offered) &&
+           (!asked.fits || fits_fold(def));
+}
+
+/// The fold as a row: not an identity anything resolves, a form the evaluator spends.
+inline PowerRow fold_row() {
+    PowerRow row;
+    row.identity = op::kFoldForm;
+    row.kind = kFormKind;
+    row.construction = kEvaluatorConstruction;
+    row.offered = true;
+    row.about = op::kFoldAbout;
+    row.signature = op::kFoldSignature;
+    return row;
+}
+
+/// Does the fold fit every field the ask gave? It is found by what it is for -- an ask with text,
+/// or one for the kind `form` -- and a browse of the catalog lists the catalog. Its answer is its
+/// body's, so any `yields` may be a fold's; it takes Int counts, comes from no provider and is no
+/// fold's body.
+inline bool form_fits(const FindPowers& asked, const std::vector<std::string_view>& terms) {
+    if (terms.empty() && !(asked.kind && *asked.kind == kFormKind)) {
+        return false;
+    }
+    for (const std::string_view term : terms) {
+        if (!contains_folded(op::kFoldForm, term) && !contains_folded(op::kFoldAbout, term)) {
+            return false;
+        }
+    }
+    return (!asked.takes || *asked.takes == "Int") && !asked.provider && !asked.fits &&
+           (!asked.kind || *asked.kind == kFormKind) &&
+           (!asked.construction || *asked.construction == kEvaluatorConstruction) &&
+           (!asked.offered || *asked.offered);
 }
 
 inline std::size_t answer_bytes(const loom::Value& answer) {
@@ -180,7 +234,7 @@ inline std::string refusal_of(const FindPowers& asked) {
     std::size_t bytes = 0;
     for (const std::optional<std::string>* text :
          {&asked.text, &asked.takes, &asked.yields, &asked.provider, &asked.kind,
-          &asked.construction, &asked.after}) {
+          &asked.construction, &asked.after, &asked.fits}) {
         bytes += *text ? (*text)->size() : 0;
     }
     if (bytes > kMaxPowersQueryBytes) {
@@ -192,20 +246,26 @@ inline std::string refusal_of(const FindPowers& asked) {
                std::to_string(*asked.limit) + " were asked for";
     }
     if (asked.kind && *asked.kind != kSourceKind && *asked.kind != kOperatorKind &&
-        *asked.kind != kConversionKind) {
-        return "a kind is source, operator or conversion; '" + *asked.kind + "' is none of them";
+        *asked.kind != kConversionKind && *asked.kind != kFormKind) {
+        return "a kind is source, operator, conversion or form; '" + *asked.kind +
+               "' is none of them";
     }
     if (asked.construction && *asked.construction != kNativeConstruction &&
-        *asked.construction != kCompositeConstruction) {
-        return "a construction is native or composite; '" + *asked.construction +
-               "' is neither";
+        *asked.construction != kCompositeConstruction &&
+        *asked.construction != kEvaluatorConstruction) {
+        return "a construction is native, composite or evaluator; '" + *asked.construction +
+               "' is none of them";
+    }
+    if (asked.fits && *asked.fits != kFitsFold) {
+        return "a fit is fold; '" + *asked.fits + "' is not one";
     }
     return std::string();
 }
 
-/// Every power the ask fits, in the catalog's order, one page of it: read at the ask off the store
-/// `find` resolves through, so an overlay mounted since the last ask is in this answer with its
-/// own words. Nothing is evaluated and nothing is kept.
+/// Every power the ask fits, the catalog's identities in its order and then the evaluator's form,
+/// one page of it: read at the ask off the store `find` resolves through, so an overlay mounted
+/// since the last ask is in this answer with its own words. A cursor only ever names a catalog
+/// identity, so one named like the form pages as any other. Nothing is evaluated or kept.
 inline PowersFound find_powers(const op::Catalog& catalog, const FindPowers& asked) {
     PowersFound out;
     out.powers = static_cast<std::int64_t>(catalog.size());
@@ -230,6 +290,15 @@ inline PowersFound find_powers(const op::Catalog& catalog, const FindPowers& ask
         }
         if (out.rows.size() < page) {
             out.rows.push_back(powers_detail::row_of(identity, stack.back()));
+        } else if (out.next.empty()) {
+            out.next = out.rows.back().identity;
+        }
+    }
+    // The form follows the catalog: on this page if it has room, else on the page after its last.
+    if (powers_detail::form_fits(asked, terms)) {
+        ++out.total;
+        if (out.rows.size() < page) {
+            out.rows.push_back(powers_detail::fold_row());
         } else if (out.next.empty()) {
             out.next = out.rows.back().identity;
         }
@@ -311,7 +380,7 @@ public:
     void zen_set_self(loom::WeaveId id) noexcept { self_ = id; }
 
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {find_powers_schema(), loom::schema_of<DescribePower>()};
+        return {find_powers_schema(), find_powers_v1_schema(), loom::schema_of<DescribePower>()};
     }
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
         return {loom::schema_of<PowersFound>(), loom::schema_of<PowerDescribed>()};
@@ -324,7 +393,8 @@ public:
         }
         // Answered, not sent: the recipient and correlation are Loom's, and the answer is
         // derived now, from the catalog as it stands at this ask.
-        if (loom::same_identity(in.payload.schema(), *find_powers_schema())) {
+        if (loom::same_identity(in.payload.schema(), *find_powers_schema()) ||
+            loom::same_identity(in.payload.schema(), *find_powers_v1_schema())) {
             ++state_.found;
             (void)bus.answer(loom::Message(
                 loom::to_value(find_powers(*catalog_, find_powers_from(in.payload))), self_));
@@ -359,6 +429,7 @@ private:
 // WL-TERM-18 -- agents/workshop/terminal.md
 inline void let_terminal_find_powers(loom::TerminalVocabulary& vocab, loom::Grant& grant) {
     vocab.knows(find_powers_schema())
+        .knows(find_powers_v1_schema())
         .knows(loom::schema_of<DescribePower>())
         .accepts(loom::schema_of<PowersFound>())
         .accepts(loom::schema_of<PowerDescribed>());

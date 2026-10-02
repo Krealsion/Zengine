@@ -130,16 +130,18 @@ TEST_CASE("the documented discovery lines, typed through Workshop's own door, an
     REQUIRE(refused.has_value());
     const PowersFound no = loom::from_value<PowersFound>(*refused);
     CHECK_FALSE(no.ok);
-    CHECK(no.reason == "a kind is source, operator or conversion; 'sources' is none of them");
+    CHECK(no.reason == "a kind is source, operator, conversion or form; 'sources' is none of them");
 }
 
 TEST_CASE("the Terminal may ask the discovery door its two questions, and nothing more") {
-    // THE WIDENING IS EXACTLY TWO RULES, both to the door's office: asking describes, and grants
-    // nothing to send, mount or open anywhere.
+    // THE WIDENING IS EXACTLY THREE RULES, all to the door's office -- the two versions of the
+    // finding question and the describing one: asking describes, and grants nothing to send,
+    // mount or open anywhere.
     loom::TerminalVocabulary vocab;
     loom::Grant grant;
     let_terminal_find_powers(vocab, grant);
-    CHECK(grant.rules().size() == 2);
+    CHECK(grant.rules().size() == 3);
+    CHECK(grant.permits_role(kFindPowersName, 1, kPowersRole));
     CHECK(grant.permits_role(kFindPowersName, kFindPowersVersion, kPowersRole));
     CHECK(grant.permits_role(DescribePower::zen_name, DescribePower::zen_version, kPowersRole));
     for (const char* office : {kArrangementRole, kSampleRole, kWorkshopProvider}) {
@@ -257,10 +259,10 @@ TEST_CASE("one question gives the same rows to Flow, Powers and the Terminal") {
     // THE TERMINAL ASKS EACH OF THEIR QUESTIONS, typed as a weaver types them...
     const std::string page = "limit=" + std::to_string(kMaxPowerRows);
     const std::optional<loom::Value> as_flow =
-        s.typed("ask @zengine.powers FindPowers 1 text=larger offered=true " + page);
+        s.typed("ask @zengine.powers FindPowers 2 text=larger offered=true " + page);
     const std::string terminal_asked_as_flow = last_of(asked, s.terminal->id());
     const std::optional<loom::Value> as_tool =
-        s.typed("ask @zengine.powers FindPowers 1 kind=operator text=larger " + page);
+        s.typed("ask @zengine.powers FindPowers 2 kind=operator text=larger " + page);
     const std::string terminal_asked_as_tool = last_of(asked, s.terminal->id());
     REQUIRE(as_flow.has_value());
     REQUIRE(as_tool.has_value());

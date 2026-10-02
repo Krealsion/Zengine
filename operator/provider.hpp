@@ -15,9 +15,9 @@
 // of nested schemas as `zen.SchemaDesc v1` entries (no second schema language), and the graph
 // shapes are `op::Composite`, `op::Node` and `op::Binding` as Loom values (no second graph
 // type). It carries what `op::Builder` can author, an acyclic value graph with Int and Bool
-// constants; a third constant kind is refused by name. Version 2 adds the contributor's
-// `op::Description`, its prose and whether it is offered for reuse; a host still reads version 1,
-// which says neither.
+// constants and folds; a third constant kind is refused by name. Version 2 added the contributor's
+// `op::Description`, its prose and whether it is offered for reuse, and version 3 a composition
+// that may hold folds; a host still reads versions 1 and 2.
 
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"
@@ -58,10 +58,34 @@ inline std::shared_ptr<const loom::Schema> composition_binding_schema() {
     return s;
 }
 
+/// The two body ports a fold threads: `op::Fold` as a Loom value.
+inline std::shared_ptr<const loom::Schema> composition_fold_schema() {
+    static const auto s = loom::SchemaBuilder("zengine.OperatorFold", 1)
+                              .field("count", loom::Kind::Text)
+                              .field("accumulator", loom::Kind::Text)
+                              .build();
+    return s;
+}
+
 /// One step: `op::Node` as a Loom value. `authored_in` and `authored_out` are the
 /// `loom::ContentId`s the composition was written against (64 bits, so Int fields): they tell
 /// "something by that name" from "the thing this rule was written for" when a power is reshaped.
+/// A present `fold` makes the step the evaluator's fold over that reference.
 inline std::shared_ptr<const loom::Schema> composition_node_schema() {
+    static const auto s =
+        loom::SchemaBuilder("zengine.OperatorNode", 2)
+            .field("identity", loom::Kind::Text)
+            .field("authored_in", loom::Kind::Int)
+            .field("authored_out", loom::Kind::Int)
+            .list("arguments", loom::type_message(composition_binding_schema()),
+                  /*required=*/false)
+            .message("fold", composition_fold_schema(), /*required=*/false)
+            .build();
+    return s;
+}
+
+/// Version 1 of a step, which version 1 of a composition nests: no fold.
+inline std::shared_ptr<const loom::Schema> composition_node_v1_schema() {
     static const auto s =
         loom::SchemaBuilder("zengine.OperatorNode", 1)
             .field("identity", loom::Kind::Text)
@@ -73,10 +97,19 @@ inline std::shared_ptr<const loom::Schema> composition_node_schema() {
     return s;
 }
 
-/// An acyclic value graph — `op::Composite`, as a Loom value.
+/// An acyclic value graph -- `op::Composite`, as a Loom value. Version 2 carries folds.
 inline std::shared_ptr<const loom::Schema> composition_schema() {
-    static const auto s = loom::SchemaBuilder("zengine.OperatorComposition", 1)
+    static const auto s = loom::SchemaBuilder("zengine.OperatorComposition", 2)
                               .list("nodes", loom::type_message(composition_node_schema()))
+                              .field("result", loom::Kind::Int)
+                              .build();
+    return s;
+}
+
+/// Version 1, which a host and a maker definition of version 1 still read: steps with no fold.
+inline std::shared_ptr<const loom::Schema> composition_v1_schema() {
+    static const auto s = loom::SchemaBuilder("zengine.OperatorComposition", 1)
+                              .list("nodes", loom::type_message(composition_node_v1_schema()))
                               .field("result", loom::Kind::Int)
                               .build();
     return s;
@@ -85,10 +118,11 @@ inline std::shared_ptr<const loom::Schema> composition_schema() {
 /// One contribution, whole, as this package writes it. An absent `composition` means native: the
 /// implementation is in the provider's image, reached by index. Its presence is the whole fork, a
 /// question the host asks of the bytes rather than a flag set beside them. `about` and `offered`
-/// are the contributor's `op::Description`; an absent `about` says nothing.
+/// are the contributor's `op::Description`; an absent `about` says nothing. Version 3 nests a
+/// version 2 composition, which may hold folds.
 inline std::shared_ptr<const loom::Schema> operator_contribution_schema() {
     static const auto s =
-        loom::SchemaBuilder("zengine.OperatorContribution", 2)
+        loom::SchemaBuilder("zengine.OperatorContribution", 3)
             .field("identity", loom::Kind::Text)
             .list("referenced", loom::type_message(loom::schema_desc_schema()),
                   /*required=*/false)
@@ -101,8 +135,24 @@ inline std::shared_ptr<const loom::Schema> operator_contribution_schema() {
     return s;
 }
 
+/// Version 2, which a host still reads: a description, and a composition with no fold.
+inline std::shared_ptr<const loom::Schema> operator_contribution_v2_schema() {
+    static const auto s =
+        loom::SchemaBuilder("zengine.OperatorContribution", 2)
+            .field("identity", loom::Kind::Text)
+            .list("referenced", loom::type_message(loom::schema_desc_schema()),
+                  /*required=*/false)
+            .message("inputs", loom::schema_desc_schema())
+            .message("outputs", loom::schema_desc_schema())
+            .message("composition", composition_v1_schema(), /*required=*/false)
+            .field("about", loom::Kind::Text, /*required=*/false)
+            .field("offered", loom::Kind::Bool)
+            .build();
+    return s;
+}
+
 /// Version 1, which a host still reads: the same contribution with no description, so it is
-/// offered and says nothing.
+/// offered and says nothing, and no fold.
 inline std::shared_ptr<const loom::Schema> operator_contribution_v1_schema() {
     static const auto s =
         loom::SchemaBuilder("zengine.OperatorContribution", 1)
@@ -111,16 +161,23 @@ inline std::shared_ptr<const loom::Schema> operator_contribution_v1_schema() {
                   /*required=*/false)
             .message("inputs", loom::schema_desc_schema())
             .message("outputs", loom::schema_desc_schema())
-            .message("composition", composition_schema(), /*required=*/false)
+            .message("composition", composition_v1_schema(), /*required=*/false)
             .build();
     return s;
 }
 
-/// Admit one contribution's bytes at the door its claim names: version 1, or the version this
-/// package writes. Any other claim meets the current door and is refused in the gate's words.
+/// Admit one contribution's bytes at the door its claim names: version 1, version 2, or the
+/// version this package writes. Any other claim meets the current door and is refused in the
+/// gate's words.
 inline loom::Admission admit_contribution(const loom::Unverified& bytes) {
-    return loom::admit(bytes, bytes.claimed_version() == 1 ? operator_contribution_v1_schema()
-                                                           : operator_contribution_schema());
+    switch (bytes.claimed_version()) {
+    case 1:
+        return loom::admit(bytes, operator_contribution_v1_schema());
+    case 2:
+        return loom::admit(bytes, operator_contribution_v2_schema());
+    default:
+        return loom::admit(bytes, operator_contribution_schema());
+    }
 }
 
 // ---- encoding ---------------------------------------------------------------
@@ -161,6 +218,12 @@ inline loom::Value encode_node(const Node& n) {
     v.set("identity", loom::Cell::text(n.identity));
     v.set("authored_in", loom::Cell::integer(static_cast<std::int64_t>(n.authored_in)));
     v.set("authored_out", loom::Cell::integer(static_cast<std::int64_t>(n.authored_out)));
+    if (n.fold) {
+        loom::Value fold(composition_fold_schema());
+        fold.set("count", loom::Cell::text(n.fold->count));
+        fold.set("accumulator", loom::Cell::text(n.fold->accumulator));
+        v.set("fold", loom::Cell::message(std::move(fold)));
+    }
     if (!n.arguments.empty()) {
         std::vector<loom::Cell> args;
         args.reserve(n.arguments.size());
@@ -274,6 +337,10 @@ inline Composite decode_composition(const loom::Value& v) {
         node.identity = nv.get("identity")->as_text();
         node.authored_in = static_cast<loom::ContentId>(nv.get("authored_in")->as_int());
         node.authored_out = static_cast<loom::ContentId>(nv.get("authored_out")->as_int());
+        if (const loom::Cell* fold = nv.get("fold"); fold != nullptr) {
+            const loom::Value& fv = *fold->as_message();
+            node.fold = Fold{fv.get("count")->as_text(), fv.get("accumulator")->as_text()};
+        }
         if (const loom::Cell* args = nv.get("arguments"); args != nullptr) {
             for (const loom::Cell& ac : args->as_list()) {
                 node.arguments.push_back(decode_binding(*ac.as_message()));
@@ -385,6 +452,10 @@ public:
             const std::string bytes = loom::serialize(out);
             write(answer, bytes);
             return ZENGINE_OP_OK;
+        } catch (const Refusal& e) {
+            // The leaf refused, in its own words: a refusal, not a provider that failed.
+            write(reason, e.reason());
+            return ZENGINE_OP_ERR_REFUSED;
         } catch (const std::exception& e) {
             write(reason, e.what());
             return ZENGINE_OP_ERR_PROVIDER_FAILED;

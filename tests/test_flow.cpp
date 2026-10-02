@@ -7,6 +7,7 @@
 #include "flow_fixture.hpp"
 #include "maker_fixture.hpp"
 #include <zen/kernel/kernel.hpp>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -352,6 +353,24 @@ TEST_CASE("Flow compilation and recovery retain definitions and reject handwritt
             std::invalid_argument);
         CHECK(source.find("step_0.run()") != std::string::npos);
     }
+}
+
+TEST_CASE("Flow refuses to generate a definition that folds, in words, and writes nothing; it runs "
+          "interpreted") {
+    op::Catalog catalog; op::publish_primitives(catalog);
+    const auto tally = hwfix::tally(catalog);
+    const std::string refusal = "the trigger on tally.panel.Count folds at node 0: a fold is spent "
+                                "by the evaluator, so this definition is not generated as C++ and "
+                                "runs interpreted";
+    CHECK_THROWS_WITH_AS(flow::generate_cpp(tally), refusal.c_str(), std::invalid_argument);
+    const auto out = std::filesystem::temp_directory_path() /
+        ("zengine-flow-fold-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    CHECK_THROWS_WITH_AS(flow::write_generated(tally, out), refusal.c_str(), std::invalid_argument);
+    CHECK_FALSE(std::filesystem::exists(out));
+    // A definition with no fold still generates and recovers, as before.
+    const auto thermostat = flow::thermostat(catalog).definition;
+    CHECK(maker::definition_bytes(flow::recover_cpp(flow::generate_cpp(thermostat))) ==
+          maker::definition_bytes(thermostat));
 }
 
 TEST_CASE("Flow empty admitted definitions remain generation-capable but registration refuses") {

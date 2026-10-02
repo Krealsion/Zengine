@@ -17,6 +17,7 @@
 #include "maker/weave.hpp"
 #include "maker/write.hpp"
 #include "maker_fixture.hpp"
+#include "restamp.hpp"
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"
 #include "operator/primitives.hpp"
@@ -961,38 +962,110 @@ TEST_CASE("a definition claiming another version is refused by its number, and o
           "version field disagrees with its envelope is a forgery") {
     Host h;
     const maker::Definition d = hwfix::high_water(h.catalog);
-    const loom::Value v1 = maker::encode_definition(d);
+    const loom::Value now = maker::encode_definition(d);
+    CHECK(now.schema().version() == maker::kDefinitionSchemaVersion);
 
-    // The same fields under an envelope of version 2: refused ON THE CLAIM, by its number.
-    const auto envelope_v2 = loom::make_schema(maker::definition_schema()->name(), 2,
-                                               maker::definition_schema()->fields());
-    loom::Value v2(envelope_v2);
-    for (const loom::Field& f : v1.schema().fields()) {
-        if (const loom::Cell* c = v1.get(f.name); c != nullptr) {
-            v2.set(f.name, *c);
+    // The same fields under an envelope of a version this build does not read: refused ON THE
+    // CLAIM, by its number.
+    const auto envelope_ahead = loom::make_schema(maker::definition_schema()->name(),
+                                                  maker::kDefinitionSchemaVersion + 1,
+                                                  maker::definition_schema()->fields());
+    loom::Value ahead(envelope_ahead);
+    for (const loom::Field& f : now.schema().fields()) {
+        if (const loom::Cell* c = now.get(f.name); c != nullptr) {
+            ahead.set(f.name, *c);
         }
     }
-    const maker::Admitted other = maker::read_definition(loom::serialize(v2));
+    const maker::Admitted other = maker::read_definition(loom::serialize(ahead));
     CHECK_FALSE(other.ok);
-    CHECK(contains(other.reason, "version 2"));
+    CHECK(contains(other.reason,
+                   "version " + std::to_string(maker::kDefinitionSchemaVersion + 1)));
     CHECK(contains(other.reason, "converts no other"));
 
-    // A version-1 envelope whose own field says 2: a forgery.
-    loom::Value forged = v1;
-    forged.set("format_version", loom::Cell::integer(2));
+    // An envelope whose own field says another version: a forgery, at either version read.
+    loom::Value forged = now;
+    forged.set("format_version", loom::Cell::integer(1));
     const maker::Admitted forgery = maker::read_definition(loom::serialize(forged));
     CHECK_FALSE(forgery.ok);
     CHECK(contains(forgery.reason, "forgery"));
+    loom::Value older = zengine::testing::restamp(now, maker::definition_v1_schema());
+    older.set("format_version", loom::Cell::integer(2));
+    CHECK(contains(maker::read_definition(loom::serialize(older)).reason, "forgery"));
 
     // And another word is another kind of file.
-    loom::Value other_word = v1;
+    loom::Value other_word = now;
     other_word.set("format", loom::Cell::text("something-else"));
     const maker::Admitted word = maker::read_definition(loom::serialize(other_word));
     CHECK_FALSE(word.ok);
     CHECK(contains(word.reason, "not a maker definition"));
 
-    CHECK(maker::read_definition(loom::serialize(v1)).ok);
+    CHECK(maker::read_definition(loom::serialize(now)).ok);
     CHECK(maker::kDefinitionSchemaVersion == static_cast<std::uint32_t>(maker::kFormatVersion));
+}
+
+TEST_CASE("a definition of version 1 still reads and runs, and is written again at the current "
+          "version") {
+    Host h;
+    h.listen();
+    const maker::Definition d = hwfix::high_water(h.catalog);
+    loom::Value v1 = zengine::testing::restamp(maker::encode_definition(d),
+                                               maker::definition_v1_schema());
+    v1.set("format_version", loom::Cell::integer(1));
+    const std::string bytes = loom::serialize(v1);
+    CHECK(loom::parse(bytes).claimed_version() == 1);
+    const maker::Admitted read = maker::read_definition(bytes);
+    REQUIRE_MESSAGE(read.ok, read.reason);
+    CHECK(read.definition.on.size() == 1);
+    CHECK_FALSE(read.definition.on[0].body.nodes[0].fold.has_value());
+    CHECK(loom::parse(maker::definition_bytes(read.definition)).claimed_version() ==
+          maker::kDefinitionSchemaVersion);
+
+    const maker::Registered r = maker::register_definition(h.bus, h.catalog, read.definition);
+    REQUIRE_MESSAGE(r.ok, r.reason);
+    h.send(r.id, hwfix::sample(4));
+    h.pump();
+    CHECK(high_of(*r.weave) == 4);
+}
+
+TEST_CASE("a trigger's body may fold: the count is folded through math.add into the state, a "
+          "refused fold leaves the state unchanged and says why") {
+    Host h;
+    h.listen();
+    const maker::Definition d = hwfix::tally(h.catalog);
+    CHECK(d.on[0].body.nodes[0].fold.has_value());
+    const maker::Admitted round = maker::read_definition(maker::definition_bytes(d));
+    REQUIRE_MESSAGE(round.ok, round.reason);
+    REQUIRE(round.definition.on[0].body.nodes[0].fold.has_value());
+    CHECK(round.definition.on[0].body.nodes[0].fold->count == "rhs");
+
+    const maker::Registered r = maker::register_definition(h.bus, h.catalog, d);
+    REQUIRE_MESSAGE(r.ok, r.reason);
+    const auto total = [&] { return r.weave->state().get("total")->as_int(); };
+    h.send(r.id, hwfix::count(0, 10, 1));
+    h.pump();
+    CHECK(total() == 45);
+    h.send(r.id, hwfix::count(10, 0, -2));
+    h.pump();
+    CHECK(total() == 30);
+    h.send(r.id, hwfix::count(0, 10, 3));
+    h.pump();
+    CHECK(total() == 18);
+
+    h.send(r.id, hwfix::count(0, 10, 0), 21);
+    h.pump();
+    CHECK(total() == 18);
+    const Message* zero = h.client->last("zen.Refused");
+    REQUIRE(zero != nullptr);
+    CHECK(zero->correlation == 21);
+    CHECK(contains(reason_of(*zero), "a step of 0 never moves the count from 0 toward 10"));
+
+    h.send(r.id, hwfix::count(0, 2000000, 1), 22);
+    h.pump();
+    CHECK(total() == 18);
+    const Message* past = h.client->last("zen.Refused");
+    REQUIRE(past != nullptr);
+    CHECK(past->correlation == 22);
+    CHECK(contains(reason_of(*past), "this fold would count 2000000 times"));
 }
 
 TEST_CASE("the definition schema carries no author field, and the file says so") {

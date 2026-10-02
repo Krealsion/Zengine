@@ -10,6 +10,7 @@
 // PanePoint and folder organization; `until_delivered` parks a delivery mid-turn (VM-FIX-24).
 #include "workshop_support.hpp"
 #include "inventory/codec.hpp"
+#include "operator/primitives.hpp"
 #include "message-draft/transfer.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory-pane/slots.hpp"
@@ -74,14 +75,20 @@ struct InventoryStory {
     PaneRig r;
     InventoryHand* hand = nullptr;
     loom::WeaveId hand_id;
-    std::int64_t source = 0, info = 0;
+    std::int64_t source = 0, info = 0, flow = 0, powers = 0;
     std::string trace;
     loom::ObserverId trace_observer{};
     std::shared_ptr<std::vector<QuietReader::Event>> physical =
         std::make_shared<std::vector<QuietReader::Event>>();
 
-    explicit InventoryStory(int permissions = 191, bool composer = false, bool desktop_first = false) {
+    explicit InventoryStory(int permissions = 191, bool composer = false, bool desktop_first = false,
+                            bool with_flow = false, bool with_powers = false) {
         r.mount_workshop();
+        if (with_powers) {
+            // The primitives, the discovery door over them, and the Powers pane to browse it.
+            REQUIRE(r.catalog.mount("story.basic", zengine::op::primitive_definitions()));
+            (void)r.mount_powers();
+        }
         r.host.input_authority = [&](loom::WeaveId actor) {
             return r.bus.alive(actor) ? loom::host_grant_authority(r.bus, actor,
                 loom::LiveAuthority::nothing()) : loom::GrantAuthority{};
@@ -107,12 +114,45 @@ struct InventoryStory {
             desktop.stem = "zengine-desktop-pane"; desktop.weave = load::WeaveIntent{"zengine.desktop"};
             if (!desktop_first) plan.artifacts.push_back(desktop);
         }
+        if (with_powers) {
+            load::ArtifactIntent artifact;
+            artifact.stem = "zengine-introspection";
+            artifact.weave = load::WeaveIntent{intro::kIntrospectionRole};
+            plan.artifacts.push_back(artifact);
+        }
+        if (with_flow) {
+            load::ArtifactIntent artifact;
+            artifact.stem = "zengine-flow-pane"; artifact.weave = load::WeaveIntent{"zengine.flow"};
+            plan.artifacts.push_back(artifact);
+        }
         const auto done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready(); r.extent(180, 60);
         r.pick({"zengine.inventory-pane", "inventory"});
         source = r.session().panes.runtime.find("zengine.inventory-pane", "inventory")->kind;
         info = r.session().panes.runtime.find("zengine.info", "info")->kind;
+        if (with_powers) {
+            // Powers below Info: its rows are what a hand drags from.
+            r.pick({intro::kIntrospectionRole, intro::kPowersPane});
+            powers = r.session().panes.runtime.find(intro::kIntrospectionRole, intro::kPowersPane)->kind;
+            for (auto& pane : r.session().setup.active.panes) {
+                if (pane.ref.provider != intro::kIntrospectionRole) continue;
+                pane.place = {pane_unit::kSubcells, 85 * surface::kCellSubs, 30 * surface::kCellSubs};
+                pane.width = {pane_unit::kSubcells, 80 * surface::kCellSubs};
+                pane.height = {pane_unit::kSubcells, 24 * surface::kCellSubs};
+            }
+        }
+        if (with_flow) {
+            // Flow below Info, wide enough for its rail and a graph.
+            r.pick({"zengine.flow", "flow"});
+            flow = r.session().panes.runtime.find("zengine.flow", "flow")->kind;
+            for (auto& pane : r.session().setup.active.panes) {
+                if (pane.ref.provider != "zengine.flow") continue;
+                pane.place = {pane_unit::kSubcells, 85 * surface::kCellSubs, 30 * surface::kCellSubs};
+                pane.width = {pane_unit::kSubcells, 92 * surface::kCellSubs};
+                pane.height = {pane_unit::kSubcells, 28 * surface::kCellSubs};
+            }
+        }
         for (auto& pane : r.session().setup.active.panes) {
             if (pane.ref.provider != "zengine.info" && pane.ref.provider != "zengine.inventory-pane") continue;
             pane.place = {pane_unit::kSubcells,
