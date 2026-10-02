@@ -439,8 +439,9 @@ names the last row when more remain, and `powers` and `providers` count the whol
 **The fold is found by what it is for.** It is not in the catalog -- the evaluator spends it, an
 operator reference as its body ([operator providers](operator-providers.md#the-fold)) -- so its row
 names the form, `fold`, with kind `form`, construction `evaluator`, no provider, its words and its
-shape. It comes first, to an ask with text that its name or words match, or to one for the kind
-`form`; a browse of the catalog with no text lists the catalog. Any `yields` may be a fold's, since
+shape. It comes after the catalog's rows, so `next` only ever names a catalog identity, to an
+ask with text that its name or words match, or to one for the kind `form`; a browse of the catalog
+with no text lists the catalog. Any `yields` may be a fold's, since
 its answer is its body's; it takes Int counts and is no fold's body.
 
 **`DescribePower` answers one identity**: its row, every contribution eligible to satisfy it with the
