@@ -162,6 +162,61 @@ public:
         on.message = shape;
     changed();
   }
+  /// A field of an emitted message, as `message_field` adds one to an accepted message. An emit
+  /// already writing that message gains a source for it from the same-named state field; with no
+  /// such field the edit is refused rather than leaving an emit that cannot be planned.
+  void emitted_field(std::size_t index, const std::string &name, loom::TypeRef type,
+                     bool required = true) {
+    editable();
+    auto &shape = project.definition.emits.at(index);
+    if (name.empty() || shape->find(name))
+      throw std::invalid_argument("message field name is empty or already used");
+    auto fields = shape->fields();
+    fields.push_back({name, std::move(type), required});
+    const auto previous = shape;
+    const auto next =
+        loom::make_schema(shape->name(), shape->version(), std::move(fields));
+    for (auto &on : project.definition.on)
+      for (auto &e : on.emits)
+        if (loom::same_identity(*e.message, *previous)) {
+          if (required && !project.definition.state->find(name))
+            throw std::invalid_argument(
+                "the emit of " + previous->name() + " on " + on.message->name() +
+                " would write no `" + name + "`; remove that emit or declare state." + name);
+          e.message = next;
+          if (required)
+            e.fields.push_back({name, name, std::nullopt});
+        }
+    shape = next;
+    changed();
+  }
+  /// Publish an emitted message after the active trigger's write, each field written from a
+  /// state field or a constant as the definition holds it; a field named in neither comes from
+  /// the state field of its own name. An emit on a trigger with no nodes is refused: a trigger
+  /// kept empty is saved without its emits.
+  void emit(std::size_t t, std::size_t emitted, std::vector<maker::FieldSource> fields) {
+    editable();
+    auto &on = project.definition.on.at(t);
+    if (on.body.nodes.empty())
+      throw std::invalid_argument("add the trigger's nodes before its emits: an empty trigger "
+                                  "is kept without them");
+    const auto &shape = project.definition.emits.at(emitted);
+    for (const auto &f : shape->fields()) {
+      const bool named = std::any_of(fields.begin(), fields.end(),
+                                     [&](const auto &s) { return s.field == f.name; });
+      if (!named && project.definition.state->find(f.name))
+        fields.push_back({f.name, f.name, std::nullopt});
+    }
+    on.emits.push_back({shape, std::move(fields)});
+    changed();
+  }
+  void remove_emit(std::size_t t, std::size_t which) {
+    editable();
+    auto &emits = project.definition.on.at(t).emits;
+    (void)emits.at(which);
+    emits.erase(emits.begin() + static_cast<std::ptrdiff_t>(which));
+    changed();
+  }
   std::size_t add(std::size_t trigger_index, const Ports &signature,
                   std::optional<std::size_t> before = std::nullopt) {
     if (!signature.inputs || !signature.outputs ||

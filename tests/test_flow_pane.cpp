@@ -932,6 +932,32 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     const auto subject = rig.bus.role_holder("tally");
     REQUIRE(subject.valid());
     CHECK(rig.bus.weave(subject)->snapshot().get("total")->as_int() == 45);
+
+    // SAY THE ANSWER: an emitted message authored here, its field from state.total, and seen in
+    // Events as what the participant published. A new emitted shape changes what it may say, so
+    // it is stopped and run again rather than applied.
+    rig.edit_ok("emitted-message", {"Total"});
+    rig.edit_ok("emitted-field", {"0", "total", "Int", "required"});
+    rig.edit_ok("emit", {"0"});
+    rig.edit_ok("stop");
+    rig.edit_ok("run");
+    rig.edit_ok("message-open", {"0"});
+    rig.edit_ok("send");
+    rig.click("[Events]");
+    (void)rig.label("state.total = 45");
+    CHECK(rig.shows_part("tally.Total"));
+    (void)rig.label("  total = 45");
+
+    // GENERATION REFUSES A FOLD in words, and writes nothing.
+    const auto out = std::filesystem::temp_directory_path() / "zengine-flow-pane-fold-generated";
+    std::error_code ignored;
+    std::filesystem::remove_all(out, ignored);
+    const auto generated = rig.edit("generate", {out.string()});
+    CHECK_FALSE(generated.ok);
+    CHECK(generated.reason == "the trigger on tally.panel.Count folds at node 0: a fold is spent by "
+                              "the evaluator, so this definition is not generated as C++ and runs "
+                              "interpreted");
+    CHECK_FALSE(std::filesystem::exists(out));
 }
 
 TEST_CASE("a dropped operator reference becomes a node: where it was released, into the port it "

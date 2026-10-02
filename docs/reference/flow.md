@@ -175,7 +175,12 @@ Both forms share `maker::Runtime` for message dispatch, inspection, state writes
   preserves its reason. Ordinary exceptions still get the native implementation-failure diagnostic.
 
 Generation covers admitted definitions, including ones that cannot be mounted: admission is
-not operator availability or successful registration. For example, an empty provider is still
+not operator availability or successful registration -- except a definition with a
+[fold](operator-providers.md#the-fold), which `generate_cpp` refuses in words, naming the trigger
+and node. The fold is the evaluator's form: native code spending its body would hold the loop,
+and each spend would begin an evaluation outside the evaluation's budget, so such a definition
+runs interpreted and is never approximated. `write_generated` writes the project the workbench
+and the Workshop pane both write, and writes nothing when generation refuses. For example, an empty provider is still
 refused at mount. No optimizer removes nodes or freezes primitive implementations.
 
 `apply_behaviour_edit` operates on the interpreted form, preserving its registered schema
