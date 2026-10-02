@@ -734,6 +734,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       for (const auto &f : def.emits[i]->fields())
         fields += (fields.empty() ? "" : ", ") + f.name + ": " + loom::name_of(f.type.kind);
       label(unit, y, std::to_string(i) + " " + def.emits[i]->name() + " {" + fields + "}");
+      view.hits.push_back({0, y, room.width, unit, "emitted-row", {std::to_string(i)}, 0});
       y += unit;
     }
     y += unit;

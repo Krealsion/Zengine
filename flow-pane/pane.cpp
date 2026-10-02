@@ -10,6 +10,7 @@
 #include "input/vocabulary.hpp"
 #include "operator/host.hpp"
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_operation.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
@@ -41,13 +42,15 @@ class FlowPane final
                        ws::PaneActionRequested, ws::ActionsJudged,
                        ws::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer,
                        fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
-                       ws::PaneCanvasValueDrop,
+                       ws::PaneCanvasValueDrop, ws::PaneMenuAnswered,
+                       ws::PaneOperationAnswered, ws::PaneCarryAnswered,
                        loom::DispatchRefused>,
           loom::Emit<ws::v2::PaneOffered, ws::PaneContent, ws::PaneCanvasContent,
                      ws::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested,
                      ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop,
-                     fh::FlowCatalog>> {
+                     fh::FlowCatalog, ws::PaneMenuRequested, ws::PaneOperationRequested,
+                     ws::PaneValueCarryRequested>> {
 public:
   loom::Value snapshot() const override {
     pane::FlowPaneState saved;
@@ -308,6 +311,14 @@ public:
       // A RIGHT PRESS MEANS NOTHING ON THE GRAPH OR ITS PAGES: handed back, so the host's pane
       // menu opens where it landed.
       if (event.button == 3) {
+        // A RIGHT PRESS ON A DECLARED MESSAGE offers to carry its shape out; anywhere else it is
+        // handed back, so Workshop's pane menu opens where it landed.
+        if (const auto shape = pressed_message(event)) {
+          menu_ = ws::pane_menu::Offer(pane::kPane, shape->name())
+                      .row("carry", "Carry " + shape->name())
+                      .send(mail, pane::kRole);
+          return;
+        }
         (void)ws::pane_menu::pass_back(mail, pane::kRole, event.pane);
         return;
       }
@@ -386,6 +397,45 @@ public:
     pictures_.clear();
     drag_.reset();
     show(mail);
+  }
+  /// THE MENU'S CHOICE: carry the declared message's shape out as a description, under the
+  /// gesture the choice continues. The message must still be declared, or nothing is carried.
+  void on(const ws::PaneMenuAnswered &answer, loom::Mail &mail) {
+    if (menu_.take(mail, answer) != "carry")
+      return;
+    const auto shape = declared(answer.subject);
+    if (!shape) {
+      model_.notice = answer.subject + " is no longer declared here; nothing was carried";
+      show(mail);
+      return;
+    }
+    const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(*shape), {});
+    carry_ = Carry{++correlation_, mail.correlation(), shape->name(),
+                   loom::Bytes(bytes.begin(), bytes.end())};
+    (void)mail.as_role(pane::kRole).send_to_role(
+        workshop_role,
+        ws::PaneOperationRequested{pane::kPane, workshop_role, ws::PaneValueCarryRequested::zen_name,
+                                   1, static_cast<std::int64_t>(carry_->gesture)},
+        carry_->ask);
+  }
+  void on(const ws::PaneOperationAnswered &answer, loom::Mail &mail) {
+    if (!carry_ || !mail.answers_ask() || mail.correlation() != carry_->ask)
+      return;
+    auto carry = std::exchange(carry_, std::nullopt);
+    if (!answer.allowed) {
+      model_.notice = "Carrying " + carry->label + " was refused: " + answer.reason;
+      show(mail);
+      return;
+    }
+    (void)mail.as_role(pane::kRole).send_to_role(
+        workshop_role, ws::PaneValueCarryRequested{pane::kPane, carry->label, carry->bytes, false},
+        carry->gesture);
+  }
+  void on(const ws::PaneCarryAnswered &answer, loom::Mail &mail) {
+    if (!answer.carried) {
+      model_.notice = "Not carried: " + answer.reason;
+      show(mail);
+    }
   }
   void on(const pane::FlowEdit &edit, loom::Mail &mail) {
     bool ok = true;
@@ -585,6 +635,32 @@ private:
     std::int64_t gesture = 0, node_id = 0, revision = 0, x = 0, y = 0,
                  base_x = 0, base_y = 0;
   };
+  /// The declared message a press landed on, in the picture it was aimed at: an accepted
+  /// message's row or an emitted one's, on the Messages page.
+  std::shared_ptr<const loom::Schema> pressed_message(const ws::PaneCanvasPointer &event) const {
+    const auto it = std::find_if(pictures_.begin(), pictures_.end(),
+                                 [&](const auto &p) { return p.content.picture == event.picture; });
+    if (it == pictures_.end() || it->revision != model_.workspace.graph.project.definition.revision)
+      return nullptr;
+    const auto *hit = it->hit(event.x, event.y);
+    if (!hit || hit->args.empty())
+      return nullptr;
+    const auto &def = model_.workspace.graph.project.definition;
+    const auto at = static_cast<std::size_t>(std::stoul(hit->args.front()));
+    if (hit->action == "message-open" && at < def.accepts.size())
+      return def.accepts[at];
+    if (hit->action == "emitted-row" && at < def.emits.size())
+      return def.emits[at];
+    return nullptr;
+  }
+  std::shared_ptr<const loom::Schema> declared(const std::string &name) const {
+    const auto &def = model_.workspace.graph.project.definition;
+    for (const auto *list : {&def.accepts, &def.emits})
+      for (const auto &shape : *list)
+        if (shape->name() == name)
+          return shape;
+    return nullptr;
+  }
   /// Bring the selected node into view in the room this pane holds.
   void reveal() {
     if (room_.grant > 0)
@@ -877,6 +953,8 @@ private:
         throw;
       }
       reveal();
+    } else if (action == "emitted-row") {
+      model_.notice = "Right-press an emitted message to carry its shape to another pane";
     } else if (action == "fit") {
       model_.workspace.pan_x = 0;
       model_.workspace.pan_y = -3 * pane::unit;
@@ -1097,9 +1175,18 @@ private:
     std::uint64_t correlation = 0;
     std::string draft;
   };
+  /// A declared message's shape being carried out: the acquisition's own ask, the gesture it
+  /// continues, and the bytes Workshop will carry.
+  struct Carry {
+    std::uint64_t ask = 0, gesture = 0;
+    std::string label;
+    loom::Bytes bytes;
+  };
   Finding finding_;
   std::string asked_;
   std::optional<Adding> adding_;
+  ws::pane_menu::Asked menu_;
+  std::optional<Carry> carry_;
 };
 } // namespace
 ZEN_EXPORT_WEAVE(FlowPane)

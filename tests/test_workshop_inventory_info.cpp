@@ -15,6 +15,8 @@
 #include "inventory-pane/presentation.hpp"
 #include "input/input_weave.hpp"
 #include "terminal-pane/vocabulary.hpp"
+#include "flow-pane/vocabulary.hpp"
+#include "view-builder/vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 #include <zen/host/grant_wiring.hpp>
 #include <zen/history/dump.hpp>
@@ -1074,4 +1076,86 @@ TEST_CASE("an operator reference dragged out of Powers is kept by Inventory like
     CHECK(ref.identity == "math.add");
     CHECK(ref.authored_in == add->inputs()->content_id());
     CHECK(ref.authored_out == add->outputs()->content_id());
+}
+
+namespace {
+/// A press of `button` where a canvas pane drew a line beginning `start`, through the actor's
+/// input session, as a hand would make it.
+void press_text(InventoryStory& s, std::int64_t kind, const std::string& start, std::int64_t button = 1) {
+    const auto* pane = s.r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    const auto& c = pane->canvas;
+    for (const auto& t : c.content.texts)
+        if (t.text.rfind(start, 0) == 0) {
+            input::InjectedEvent e;
+            e.kind = "PointerButton"; e.button = button; e.pressed = true; e.space = input::space::kCells;
+            e.x = (c.x + t.x) / surface::kCellSubs + 1;
+            e.y = (c.y + t.y) / surface::kCellSubs + surface::kTuiCanvasTopRow;
+            s.event(e);
+            e.pressed = false;
+            s.event(e);
+            return;
+        }
+    std::string all;
+    for (const auto& t : c.content.texts) all += t.text + " | ";
+    FAIL("no line beginning `" << start << "` in " << all);
+}
+/// Choose the presented menu's row that reads `label`, with the hand.
+void choose(InventoryStory& s, const std::string& label) {
+    REQUIRE(menu_shown(s.r.session()));
+    const auto line = presented_line_of(s.r.session(), label);
+    REQUIRE_MESSAGE(line >= 0, label);
+    input::InjectedEvent e;
+    e.kind = "PointerButton"; e.button = 1; e.pressed = true; e.space = input::space::kCells;
+    e.x = context_cell_x(s.r.session());
+    e.y = context_entry_cell_y(s.r.session(), static_cast<std::size_t>(line)) + surface::kTuiCanvasTopRow;
+    s.event(e);
+    e.pressed = false;
+    s.event(e);
+}
+bool pictured(InventoryStory& s, std::int64_t kind, const std::string& part) {
+    for (const auto& t : s.r.session().panes.external_pane(kind)->canvas.content.texts)
+        if (t.text.find(part) != std::string::npos) return true;
+    return false;
+}
+template <class T> void tell(InventoryStory& s, const char* office, const T& value) {
+    s.r.bus.send_to_role(office, loom::Message(loom::to_value(value)));
+    s.r.bus.drain_until_idle();
+}
+} // namespace
+
+TEST_CASE("shapes cross between Flow and the View Builder by carry: what Flow says onto a label, "
+          "and the builder's intent onto Flow as a declaration it offers") {
+    InventoryStory s(255, false, false, true, false, true);
+    REQUIRE(s.flow != 0);
+    REQUIRE(s.builder != 0);
+    namespace fp = zengine::flow_pane;
+    namespace vb = zengine::view_builder;
+    for (const auto& [action, args] : std::vector<std::pair<std::string, std::vector<std::string>>>{
+             {"new", {"tally", "discard"}}, {"state-field", {"total", "Int", "required"}},
+             {"emitted-message", {"Total"}}, {"emitted-field", {"0", "total", "Int", "required"}}})
+        tell(s, fp::kRole, fp::FlowEdit{action, args});
+    for (const auto& [action, args] : std::vector<std::pair<std::string, std::vector<std::string>>>{
+             {"new", {"tally.panel", "discard"}}, {"add", {"number"}}, {"add", {"button"}},
+             {"element", {"1", "count", "Count", "0", "28", "96", "24"}}, {"intent", {"1", "Count"}},
+             {"add", {"label"}}, {"select", {"2"}}})
+        tell(s, vb::kRole, vb::ViewEdit{action, args});
+    press_text(s, s.flow, "[Messages]");
+    REQUIRE(pictured(s, s.flow, "0 tally.Total {total: Int}"));
+
+    // FLOW'S EMITTED MESSAGE ONTO THE LABEL: a right press offers to carry it, the choice carries
+    // its shape, and a click on the label's row in the builder is where it lands.
+    press_text(s, s.flow, "0 tally.Total", 3);
+    choose(s, "Carry tally.Total");
+    INFO(s.r.last_notice());
+    press_text(s, s.builder, "> label1  label");
+    CHECK(pictured(s, s.builder, "shows tally.Total.total"));
+
+    // THE BUILDER'S INTENT ONTO FLOW: its `says` line offers to carry it, and Flow, given it,
+    // offers to declare it accepted.
+    tell(s, vb::kRole, vb::ViewEdit{"select", {"1"}});
+    press_text(s, s.builder, "says tally.panel.Count", 3);
+    choose(s, "Carry tally.panel.Count");
+    press_text(s, s.flow, "Emitted");
+    CHECK(pictured(s, s.flow, "[Declare tally.panel.Count v1 as an accepted message]"));
 }
