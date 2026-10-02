@@ -1062,10 +1062,10 @@ TEST_CASE("a trigger's body may fold: the count is folded through math.add into 
     h.send(r.id, hwfix::count(0, 2000000, 1), 22);
     h.pump();
     CHECK(total() == 18);
-    const Message* far = h.client->last("zen.Refused");
-    REQUIRE(far != nullptr);
-    CHECK(far->correlation == 22);
-    CHECK(contains(reason_of(*far), "this fold would count 2000000 times"));
+    const Message* past = h.client->last("zen.Refused");
+    REQUIRE(past != nullptr);
+    CHECK(past->correlation == 22);
+    CHECK(contains(reason_of(*past), "this fold would count 2000000 times"));
 }
 
 TEST_CASE("the definition schema carries no author field, and the file says so") {

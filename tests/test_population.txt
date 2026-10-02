@@ -23,7 +23,7 @@ editor                            doctest           always  20
 # Tripwires in this suite read workshop/workshop.cpp, workshop/load_execute.hpp,
 # operator/source.hpp, operator/migration.hpp and tests/weavelib/operator_consumer_weave.cpp as
 # text (VM-WALL-11).
-operator                          doctest           always  141
+operator                          doctest           always  142
 composer                          doctest           always  38
 # Tripwires in this suite read files/CMakeLists.txt and workshop/CMakeLists.txt as text
 # (VM-WALL-11).

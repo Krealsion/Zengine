@@ -617,9 +617,9 @@ TEST_CASE("a fold refuses a step of 0, a count past its bound and a stale body i
     REQUIRE_FALSE(zero.ok());
     CHECK(zero.reason() == "'t.sum' step 0: a step of 0 never moves the count from 0 toward 10");
 
-    const op::Evaluation far = run_fold(catalog, "t.sum", 0, 2000000, 1, 0);
-    REQUIRE_FALSE(far.ok());
-    CHECK(far.reason() == "'t.sum' step 0: this fold would count 2000000 times from 0 toward "
+    const op::Evaluation past = run_fold(catalog, "t.sum", 0, 2000000, 1, 0);
+    REQUIRE_FALSE(past.ok());
+    CHECK(past.reason() == "'t.sum' step 0: this fold would count 2000000 times from 0 toward "
                           "2000000 by 1, and a fold counts at most " +
                               std::to_string(op::kMaxFoldCount) + " times");
     CHECK(int_answer(run_fold(catalog, "t.sum", 0, static_cast<std::int64_t>(op::kMaxFoldCount), 1,

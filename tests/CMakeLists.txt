@@ -87,6 +87,10 @@ endforeach()
 zengine_provider(zengine-provider-min weavelib/provider_min.cpp)
 target_link_libraries(zengine-provider-min PRIVATE zengine-operator)
 
+# A fold across a real image: a composite whose one step folds `math.add`, mounted by a host.
+zengine_provider(zengine-provider-fold weavelib/provider_fold.cpp)
+target_link_libraries(zengine-provider-fold PRIVATE zengine-operator)
+
 # One power described in `zengine.OperatorContribution` version 1, by hand: what a host reads from
 # an artifact whose contributions carry no description.
 zengine_provider(zengine-provider-v1 weavelib/provider_v1.cpp)
@@ -546,6 +550,7 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     "PROVIDER_WRONG_SO=\"$<TARGET_FILE:zengine-provider-b-wrong>\""
     "PROVIDER_ABI_SO=\"$<TARGET_FILE:zengine-provider-abi>\""
     "PROVIDER_CYCLE_SO=\"$<TARGET_FILE:zengine-provider-cycle>\""
+    "PROVIDER_FOLD_SO=\"$<TARGET_FILE:zengine-provider-fold>\""
     "PROVIDER_MIN_SO=\"$<TARGET_FILE:zengine-provider-min>\""
     # A contribution at version 1 across a real image: what an older provider's bytes mount as.
     "PROVIDER_V1_SO=\"$<TARGET_FILE:zengine-provider-v1>\""
@@ -576,7 +581,7 @@ target_compile_definitions(zengine-operator-tests PRIVATE
 add_dependencies(zengine-operator-tests
     zengine-provider-mig-chain zengine-provider-mig-direct
     zengine-provider-mig-direct-alt zengine-provider-mig-composed zengine-provider-v1
-    zengine-provider-cycle)
+    zengine-provider-cycle zengine-provider-fold)
 
 zengine_doctest_test(operator zengine-operator-tests)
 
