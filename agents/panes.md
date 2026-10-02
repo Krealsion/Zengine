@@ -125,7 +125,9 @@ Workshop retains the primary gesture's release place while acquisition is pendin
 intent defeats that continuation; a click without sufficient movement transfers nothing.
 Release outside a receiver cancels a drag, while an unsupported keyboard placement stays held.
 The release's receiver and picture are retained; a departed receiver cannot be silently replaced.
-Acquiring bytes grants no authority to an operation requested by the receiver.
+Acquiring bytes grants no authority to an operation requested by the receiver. On a canvas pane
+the place is the canvas's own (`PaneCanvasValueDrop`, WL-CANVAS-04): local subunits, room grant
+and aimed picture, for a provider that accepts it; Flow is the first.
 
 `PaneObservationRequested` retains that one approval, narrowly, for repeated reads: the same
 current-gesture and actor check (`approve_gesture`) spends the gesture and records a lease of
@@ -794,6 +796,11 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   never re-matches text, so it shows the rows Flow and the Terminal are answered for the same
   question. Its list is one page of at most `kMaxPowerRows`; more is counted, never silent.
   A power its contributor does not offer for reuse is listed and says so, `(not offered)`.
+- **A ROW IS A CARRY SOURCE.** A press on a power, held and moved, acquires its reference under
+  that press -- `zengine.OperatorRef`, the identity and two content ids the door's row carried --
+  as an ordinary value carry (`PaneOperationRequested`, then `PaneValueCarryRequested`), so
+  Inventory keeps it like any value and Flow adds it as a node. The reference header names no
+  catalog, so the image still links no operator target; a form's row carries nothing.
 - **⚠ BROWSING CANNOT EVALUATE, STRUCTURALLY.** `zengine-introspection` links no operator
   target: there is no catalog, definition, callable or `evaluate` in that image, so the property
   is a fact about the build graph rather than a discipline. A tripwire reads the two sources for

@@ -5,23 +5,24 @@ heading; cite by ID. Router: [`../maker.md`](../maker.md).
 
 ## MW-DEF-01 — Two native files, one format tied
 
-LAW — A maker weave is two native files: the definition at `zengine.maker.Definition v1`, its format tied to the envelope, and the state as the maker weave's Value at its own schema, no wrapper.
+LAW — A maker weave is two native files: the definition at `zengine.maker.Definition v2` (v1 still read), its format tied to the envelope, and the state as its Value at its own schema, no wrapper.
 
 MEANS
-- a definition of another envelope version is refused by its number, before a field is read;
+- an unread version is refused by its number, before a field is read; v1 reads, and writes as v2;
 - a `format_version` disagreeing with its envelope is a forgery; another word is another file;
 - the state file has no wrapper: its envelope is `hw.State v1` itself, content id and all.
 
 DOES NOT MEAN
 - that either file is JSON; the compat codec is never written and is refused on read;
-- that a later identity breaks the format: it is a v2 wrapping this v1 as a nested Message.
+- that a definition is converted: v1 is read as written, and nothing rewrites it on disk.
 
 PROVEN BY — `maker/definition.hpp` `kFormat`, `kFormatVersion`, `kDefinitionSchemaVersion`,
-`definition_schema`, `definition_bytes`, `read_definition`; `maker/files.hpp` `read_file`,
-`write_file`; `tests/test_maker.cpp` case `"a definition claiming another version is refused by
-its number, and one whose own version field disagrees with its envelope is a forgery"`, case
-`"the definition and the state are two native files written by one process, and a fresh process
-reads them back with high == 7"`.
+`definition_schema`, `definition_v1_schema`, `definition_bytes`, `read_definition`;
+`maker/files.hpp` `read_file`, `write_file`; `tests/test_maker.cpp` case `"a definition claiming
+another version is refused by its number, and one whose own version field disagrees with its
+envelope is a forgery"`, case `"a definition of version 1 still reads and runs, and is written
+again at the current version"`, case `"the definition and the state are two native files written
+by one process, and a fresh process reads them back with high == 7"`.
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-02 — The name namespaces the state
@@ -123,5 +124,5 @@ WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 - That the definition's `accepts` are namespaced as the state is (MW-DEF-02): only the state
   must begin `<name>.`, because only the state is claimed by the registration alone.
-- That `read_definition` converts anything (MW-DEF-01): a definition of another version is the
-  weaver's to re-save; the reader names the number and stops.
+- That `read_definition` converts anything (MW-DEF-01): it reads v1 as written and names any
+  other number and stops; the next save writes v2.

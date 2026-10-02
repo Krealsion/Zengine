@@ -104,6 +104,35 @@ provider would be evaluating its own private graph — and a power replaced
 underneath could never propagate through it. That is not a detail of the
 encoding; it is the reason the encoding exists.
 
+## The fold
+
+A composition's step names one operator reference — an identity and the two content
+ids it was authored against — and spends it once. A step may instead be the
+evaluator's **fold**, which spends its reference once for each count from a start
+toward an exclusive limit by a step, threading an accumulator from an initial value:
+
+```text
+total = fold(start, limit, step, initial; body = math.add, count -> rhs, accumulator -> lhs)
+
+    (start: Int, limit: Int, step: Int, initial: T, ...the body's other ports) -> T
+    body: (accumulator: T, count: Int, ...) -> T
+```
+
+The fold is a form of the step, not an operator: no identity names it, nothing in a
+provider loops, and the body is resolved at the spend exactly as any step is, so a
+body found at another signature is refused rather than re-bound and an overlay of
+`math.add` moves the next answer. Its ports derive from its body; the body's other
+ports are bound from scope like any argument, so nothing is captured. `Builder::fold`
+authors one and refuses a body that cannot be a fold's, by name.
+
+It counts first and iterates by count: `start + k * step` for each `k` below the
+count, never repeated addition, so no Int overflows. A step pointing away from the
+limit counts zero times and answers the initial value. A step of 0 and a count past
+`op::kMaxFoldCount` are refused before the body is spent once; a body's refusal is
+the fold's, naming the iteration and its count; and every body spend draws on the
+evaluation's [budget](#resolution-happens-at-spend), so nested folds are bounded
+whatever each counts.
+
 ## What a contribution says about itself
 
 Beside its signature a definition carries its contributor's `op::Description`:
@@ -111,15 +140,18 @@ Beside its signature a definition carries its contributor's `op::Description`:
 offered for reuse in someone else's composition. Both are written where the power
 is written — the last argument of `make_operator` above, of `Builder::result`, or
 of the `OperatorDef` constructor — and both cross with it, in
-`zengine.OperatorContribution` version 2:
+`zengine.OperatorContribution` version 3:
 
 ```text
-version 2   identity, referenced, inputs, outputs, composition,  about, offered
-version 1   identity, referenced, inputs, outputs, composition
+version 3   identity, referenced, inputs, outputs, composition v2,  about, offered
+version 2   identity, referenced, inputs, outputs, composition v1,  about, offered
+version 1   identity, referenced, inputs, outputs, composition v1
 ```
 
-A host reads both versions, choosing the door by the version the bytes claim; a
-version 1 contribution mounts offered and saying nothing.
+A host reads all three, choosing the door by the version the bytes claim; a
+version 1 contribution mounts offered and saying nothing. Version 2 of
+`zengine.OperatorComposition` is the one whose steps may be [folds](#the-fold);
+version 1's steps never are.
 
 **The words belong to the contribution, not to the identity.** An overlay of
 `math.max` brings its own sentence, and unmounting it brings the old one back,
@@ -229,6 +261,13 @@ next evaluation:
 
 `function.1`'s graph does not even mention `function.3`.
 
+Because a node is bound by identity at the spend, a later mount can close a cycle the graphs
+never held: `a` names `b`, and an overlay of `b` names `a`. A check at mount cannot rule that
+out, so the evaluator bounds every evaluation instead. Every operator one evaluation spends, from
+the first `Catalog::evaluate` to its answer, draws on one budget of `op::kEvaluationSpends`
+spends nested at most `op::kEvaluationDepth` deep, and the spend that would pass either is
+refused in words. The next evaluation starts with nothing spent.
+
 ## Custody: what keeps a native contribution callable
 
 ```text
@@ -267,6 +306,8 @@ nothing in this seam is arranged for anything else.
 | the provider's authoring failed | `provider '<name>' in '<path>' contributes nothing` |
 | a missing dependency at spend | `'timer.normalize_delay' step 0: unresolved operator reference 'math.max'` |
 | the provider could not answer | `'math.max' could not be spent: <the provider's own words>` |
+| a cycle through identities | `spending 'a' would nest this evaluation <depth + 1> operators deep, past its budget of <depth>: ...` |
+| an evaluation that spends too much | `spending 'math.max' would pass this evaluation's budget of <spends> operator spends` |
 
 Every one of them leaves the catalog exactly as it was. **A mount is all or
 nothing**: every contribution in a batch is judged before any of them is

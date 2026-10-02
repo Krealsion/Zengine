@@ -84,6 +84,22 @@ private:
 // ---- how many times a native body has actually run -------------------------
 
 namespace detail {
+
+/// Do two ports carry the same Loom type? Kind, and for a nested message the schema's content
+/// id rather than its name: a name says which door, a content id which shape came through it.
+inline bool same_type(const loom::TypeRef& a, const loom::TypeRef& b) {
+    if (a.kind != b.kind) {
+        return false;
+    }
+    if (a.kind == loom::Kind::Message) {
+        return a.message->content_id() == b.message->content_id();
+    }
+    if (a.kind == loom::Kind::List) {
+        return same_type(*a.element, *b.element);
+    }
+    return true;
+}
+
 inline std::uint64_t& invocation_counter() noexcept {
     static std::uint64_t count = 0;
     return count;
@@ -102,8 +118,8 @@ inline std::uint64_t invocations() noexcept { return detail::invocation_counter(
 /// answer, or a constant. Within one graph acyclicity is structural, not checked: `Builder`
 /// cannot make a reference to node i before node i exists, so there is nowhere to write a cycle
 /// down. A node names its operator by identity, bound at the spend, so a cycle THROUGH identities
-/// -- a composite naming itself, or another that names it -- is expressible as data, and nothing
-/// bounds its evaluation (agents/operators.md).
+/// -- a composite naming itself, or another that names it -- is expressible as data, and the
+/// evaluation's budget refuses it (agents/operators.md).
 class Binding {
 public:
     enum class From { Input, Node, Constant };
@@ -141,14 +157,23 @@ private:
     std::optional<loom::Cell> constant_;
 };
 
-/// One step: an operator named by identity, its arguments, and the two content ids the
-/// composition was authored against -- "the thing this rule was written for" rather than
-/// "something by that name", for two integer compares per spend.
+/// The two body ports a fold threads: the one each count is given to, and the one the accumulator
+/// is given to and answered from (`operator/fold.hpp`).
+struct Fold {
+    std::string count;
+    std::string accumulator;
+};
+
+/// One step: an operator reference -- an identity and the two content ids the composition was
+/// authored against, "the thing this rule was written for" rather than "something by that name" --
+/// and its arguments. A step spends its reference once; with `fold` it is the evaluator's fold,
+/// spending its reference once per count, and its arguments are the fold's derived ports.
 struct Node {
     std::string identity;
     std::vector<Binding> arguments;
     loom::ContentId authored_in = 0;
     loom::ContentId authored_out = 0;
+    std::optional<Fold> fold;
 };
 
 /// An acyclic value graph, and nothing more. A node's answer is its operator's single output

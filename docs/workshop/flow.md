@@ -48,28 +48,87 @@ The rail beside the graph finds operators through the host's
 
 - **The search line** takes what you type while no dialog is open. A power matches when each word
   appears in its name or in what its contributor says it is for. The rows come in the catalog's
-  order, grouped as **Sources**, **Operators** and **Conversions**, and a count says how many more
-  matched than one answer carries.
+  order, grouped as **Forms**, **Sources**, **Operators** and **Conversions**, and a count says how
+  many more matched than one answer carries. **Forms** holds the fold, found by what it is for:
+  type `count` or `total`.
 - **A selected port** narrows the search to what yields its type, and lists before that what is
   **In scope** of the type (state and message fields, and earlier nodes' outputs), then a typed
   constant for an `Int` or `Bool` port. An in-scope row wires the port; the constant opens the
   binding editor. Click the port again to put it down.
 - **A row previews; it never runs.** The preview is the door's row, and showing it evaluates
-  nothing. **Add**, or **Enter**, adds the previewed power exactly as `add-node` does. A new node
-  joins the end of the trigger's graph, which executes in order, so it feeds only nodes added
-  after it.
+  nothing. **Add**, or **Enter**, adds the previewed power at the end of the trigger's graph, by
+  the reference the row carries; if its ports have changed since it was found, Add says so and
+  adds nothing, and so it does when the graph changed while Flow read those ports from the host.
+  With a node selected, **Add before %n** places it ahead of that node instead, and
+  with a port selected, **Add into %n port** places it ahead of the port's node and wires it there,
+  so a found operator can feed the port you were filling. The graph executes in order, and the
+  nodes that follow are renumbered.
+- **A fold** runs an operator once for each count from a start toward a limit by a step,
+  threading an accumulator. Add it from **Forms**: it arrives with `step` bound to `1`. Click its
+  `body = [choose]` row: the rail then lists only what a fold could spend -- one answer, an `Int`
+  port for the count and another port of the answer's type -- and the preview offers each way to
+  thread it, such as **count rhs, acc lhs** for `math.add`. You choose which port takes the count;
+  port names only suggest. Wire `start`, `limit`, `step` and `initial`, and any other port of the
+  body from scope.
 - **What Flow does not offer.** A running definition's trigger body is that participant's own
   reaction, mounted for one revision and gone at the next behaviour edit. Flow asks only for
   powers their contributors offer, so it never lists one; **Powers** lists it and says it is not
   offered.
 
-**Escape** sheds one layer per press: the wire in hand, the selected port, the preview, the
-selected node, then the search line, and only then is the pane put down. **Delete** removes the
+**Escape** sheds one layer per press: the wire in hand, the selected port, an open body slot,
+the preview, the selected node, then the search line, and only then is the pane put down. **Delete** removes the
 selected node; with none selected, it edits the search line.
 
 ![Flow's search line finding math.max by what it is for, previewed beneath the graph](images/flow-find.png)
 
 ![A selected port listing what could fill it: what is in scope, a typed constant, then what the door finds](images/flow-port.png)
+
+![A fold's open body slot: the rail lists what a fold could spend, and math.add's preview offers each way to thread the count and the accumulator](images/flow-fold-body.png)
+
+## Carry material into Flow
+
+Drag a value from Inventory, Info or Powers onto Flow, or pick it up with the keyboard and click
+Flow, and Flow says what it can be here. Carrying copies data; it grants nothing.
+
+- **An operator reference** -- a power dragged out of **Powers**, or one Inventory keeps --
+  becomes a node: into the port it lands on, ahead of that port's node; as the body of a fold
+  whose `body` row it lands on, the slot opening with it found so you choose the count's port; or
+  anywhere else on the graph, at the end of the trigger, where you released it. A reference whose
+  operator's ports have changed since it was found is refused with that sentence.
+- **Any other value** opens a page of offers: **Send as example** when this definition accepts
+  its shape and the participant is running; **Use field = value on %n port** for each field of
+  the port's kind when it landed on an `Int` or `Bool` port; **Declare ... as an accepted
+  message** when no message of its name is declared, and **as an emitted message** when its name
+  is inside the definition's namespace. A dropped shape description (`zen.SchemaDesc`) offers the
+  declarations of the shape it describes. A declared shape is the one that came -- its name,
+  version and fields -- so values of it match it exactly. **Cancel** or **Escape** puts it down,
+  and so do **New**, **Open** and **Import**, since its offers belong to the graph it landed on.
+
+![A dropped tally.panel.Count example: send it as an example, or declare its shape as emitted](images/flow-dropped-example.png)
+
+## Say what changed: emits
+
+A definition publishes messages of its own after a trigger writes its state field. In
+**Messages**, **New emitted** declares one -- a name without a dot is put in the definition's
+namespace, and a name outside it is refused, so a definition can only speak for itself -- and
+**Add emitted field** gives it fields. On the graph, **Emit** (beside **Add trigger**) publishes
+one after the active trigger's write: the dialog fills each field from the state field of its
+name, `total=$total`, and you may write any field from another state field or a constant instead.
+The active trigger lists what it emits, each with **x** to remove it. An emit is a publication by
+this participant, of its own shapes, after every successful write; there is no conditional emit
+and no addressed send. A new emitted shape changes what a running participant may say, so
+**Stop** and **Run** it again rather than **Apply**; **Events** then shows each publication and
+its fields.
+
+![The tally's Events: totals 45, 30 and 18 published for three counts, then a step of 0 refused in words with the total unchanged](images/flow-fold-tally.png)
+
+A fold counts at most <!-- value kMaxFoldCount -->10000<!-- /value --> times, and one evaluation
+spends at most <!-- value kEvaluationSpends -->100000<!-- /value --> operators and nests at most
+<!-- value kEvaluationDepth -->32<!-- /value --> deep, however its folds and calls are arranged;
+past any of these the send is refused, the refusal naming each fold's iteration on the way down,
+and the state is left as it was.
+
+![A fold whose body is itself a fold, refused at iteration 899 of the inner one when the evaluation's budget runs out](images/flow-fold-budget.png)
 
 ## Keep examples and exercise the weave
 
@@ -78,7 +137,8 @@ stores this as `low`. Change the field to `7` and save `high`. These values are 
 they carry their schemas and no sender identity, destination, grants or reply provenance.
 
 Choose **Send**, then **Events**. The current exposed state and observed outputs/refusals appear
-with send correlations. Dispatch settlement is distinct from an application result; a quiet weave
+with send correlations; a long one, such as a refusal in its owner's words, continues on the rows
+beneath it. Dispatch settlement is distinct from an application result; a quiet weave
 does not promise a reply. **Inspect** refreshes the owner's bounded record. An omission count says
 when older observations were dropped. Loom's host Recorder/Logger remain the broader history tools.
 
@@ -111,8 +171,14 @@ edit is awaiting a fresh run. The Events page continues to show live state indep
 does not save process identity, pending queues, grants or resumable native continuations.
 
 **Export** writes a completed executable Flow project for the standalone workbench and its C++
-generation path. **Import** brings such a project into this editor. Workspace files additionally
-contain unfinished authoring work and presentation; they are not executable projects.
+generation path. **Import** brings such a project into this editor. **Ctrl+G**, Generate native C++,
+writes the generated project -- `generated.cpp`, its CMake file, `definition.bin` and
+`graph.svg` -- into a directory, as the workbench's `generate` does; a definition with a fold is
+refused in words and nothing is written, because the fold is the evaluator's and runs
+interpreted. Workspace files additionally contain unfinished authoring work and presentation;
+they are not executable projects.
+
+![Generate native C++ refusing a definition with a fold, in words, with nothing written](images/flow-generate-refused.png)
 
 An orderly Workshop quit is refused while host work or its fresh state inspection is pending.
 Try quitting again after the result arrives. Saving an older snapshot while a send is pending

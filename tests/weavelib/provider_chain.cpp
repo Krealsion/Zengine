@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The three-level provider witness: `prov.function.1` = f2(f2(x)) names only function.2,
-// `prov.function.2` = f3(f3(x)) names only function.3, and `prov.function.3` = x * 2 is the only
-// code. When another provider covers function.3, function.1 changes with nothing rewritten or
-// rebound. One source, four libraries: a, the chain; b, function.3 alone as x + 100 at the same
-// signature, a test of resolution; b-wrong, that name at another signature, which an overlay must
-// refuse; abi, a surface version the host does not speak. Not a weave: no Kernel loads it.
+// The three-level provider witness: `prov.function.1` = f2(f2(x)), `prov.function.2` = f3(f3(x)),
+// `prov.function.3` = x * 2, the only code; covering function.3 changes function.1 with nothing
+// rebound. Five libraries: a, the chain; b, function.3 as x + 100; b-wrong, that name at another
+// signature; abi, a surface version the host does not speak; cycle, function.3 naming function.1,
+// which over a closes a cycle through identities. Not a weave: no Kernel loads it.
 
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"
@@ -30,7 +29,7 @@ constexpr const char* kF3 = "prov.function.3";
 constexpr const char* kPort = "value";
 constexpr const char* kResult = "result";
 
-#if defined(PROV_CHAIN_A)
+#if defined(PROV_CHAIN_A) || defined(PROV_CHAIN_CYCLE)
 /// Provider A's leaf. Namespace scope, because a block-scope lambda cannot be a
 /// `make_operator<&F>` argument at all.
 std::int64_t doubled(std::int64_t value) { return value * 2; }
@@ -57,6 +56,17 @@ std::vector<op::OperatorDef> chain() {
     std::vector<op::OperatorDef> defs;
 #if defined(PROV_CHAIN_WRONG)
     defs.push_back(op::make_operator<&nonempty>(kF3, {kPort}, kResult));
+#elif defined(PROV_CHAIN_CYCLE)
+    // A's chain authored as scaffolding, then function.3 again at its signature as one step:
+    // function.1. Neither graph holds a cycle; over A, the catalog does.
+    op::Catalog against;
+    against.publish(op::make_operator<&doubled>(kF3, {kPort}, kResult));
+    against.publish(twice(against, kF2, kF3));
+    against.publish(twice(against, kF1, kF2));
+    op::Builder back(against, kF3, {loom::Field{kPort, loom::type_of(loom::Kind::Int), true}});
+    const op::Builder::Ref to_first = back.call(kF1, {back.input(kPort)});
+    defs.push_back(std::move(back).result(kResult, to_first,
+                                          "closes a cycle through identities over the chain"));
 #elif defined(PROV_CHAIN_B)
     defs.push_back(op::make_operator<&plus_hundred>(kF3, {kPort}, kResult));
 #else
@@ -106,6 +116,8 @@ ZEN_KERNEL_EXPORT const ZengineOperatorProviderV1* zengine_operator_provider(voi
 ZENGINE_OPERATOR_PROVIDER("zengine.provider.b.wrong", chain)
 #elif defined(PROV_CHAIN_B)
 ZENGINE_OPERATOR_PROVIDER("zengine.provider.b", chain)
+#elif defined(PROV_CHAIN_CYCLE)
+ZENGINE_OPERATOR_PROVIDER("zengine.provider.cycle", chain)
 #else
 ZENGINE_OPERATOR_PROVIDER("zengine.provider.a", chain)
 #endif

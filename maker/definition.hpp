@@ -5,9 +5,10 @@
 #define ZENGINE_MAKER_DEFINITION_HPP
 
 // The two artifacts of a maker weave as Loom schemas -- the definition, `zengine.maker.Definition
-// v1`, and the state, the weave's own value at its own schema -- their native bytes, and the
-// admission a definition passes before the interpreter registers it. There is no signature or
-// provenance field. Reference: docs/reference/maker-weave.md.
+// v2`, and the state, the weave's own value at its own schema -- their native bytes, and the
+// admission a definition passes before the interpreter registers it. Version 1, whose bodies hold
+// no fold, still reads. There is no signature or provenance field.
+// Reference: docs/reference/maker-weave.md.
 
 #include "maker/write.hpp"
 #include "operator/catalog.hpp"
@@ -37,13 +38,13 @@ namespace zengine::maker {
 /// The word a definition file says it is. Another word is another kind of file.
 inline constexpr const char* kFormat = "zengine-maker-definition";
 
-/// The definition format's version, carried inside the value.
-inline constexpr std::int64_t kFormatVersion = 1;
+/// The definition format's version, carried inside the value: the version this build writes.
+inline constexpr std::int64_t kFormatVersion = 2;
 
 /// The definition schema's envelope version -- the number a file of another version is refused
-/// by, on the claim, before a field is read.
+/// by, on the claim, before a field is read. Version 1 is read too, never written.
 // MW-DEF-01 -- agents/maker/definition.md
-inline constexpr std::uint32_t kDefinitionSchemaVersion = 1;
+inline constexpr std::uint32_t kDefinitionSchemaVersion = 2;
 
 /// THE TWO NUMBERS ARE ONE, for the reason the session file's pair is: the envelope's version
 /// gates the claim, the field is checked again after admission, and a value whose field disagrees
@@ -80,12 +81,25 @@ inline std::shared_ptr<const loom::Schema> emit_record_schema() {
 }
 
 /// One trigger: the accepted message it fires on, its body as a composition, the state field
-/// its one answer is written to, and what it emits afterwards.
+/// its one answer is written to, and what it emits afterwards. Version 2's body may hold folds.
 inline std::shared_ptr<const loom::Schema> on_record_schema() {
-    static const auto s = loom::SchemaBuilder("zengine.maker.On", 1)
+    static const auto s = loom::SchemaBuilder("zengine.maker.On", 2)
                               .field("message_name", loom::Kind::Text)
                               .field("message_version", loom::Kind::Int)
                               .message("body", op::composition_schema())
+                              .field("output", loom::Kind::Text)
+                              .list("emit", loom::type_message(emit_record_schema()),
+                                    /*required=*/false)
+                              .build();
+    return s;
+}
+
+/// Version 1 of a trigger, which version 1 of a definition nests: a body with no fold.
+inline std::shared_ptr<const loom::Schema> on_record_v1_schema() {
+    static const auto s = loom::SchemaBuilder("zengine.maker.On", 1)
+                              .field("message_name", loom::Kind::Text)
+                              .field("message_version", loom::Kind::Int)
+                              .message("body", op::composition_v1_schema())
                               .field("output", loom::Kind::Text)
                               .list("emit", loom::type_message(emit_record_schema()),
                                     /*required=*/false)
@@ -120,6 +134,26 @@ inline std::shared_ptr<const loom::Schema> definition_schema() {
             .list("accepts", loom::type_message(loom::schema_desc_schema()))
             .list("emits", loom::type_message(loom::schema_desc_schema()))
             .list("on", loom::type_message(on_record_schema()))
+            .message("conversion", conversion_schema(), /*required=*/false)
+            .build();
+    return s;
+}
+
+/// Version 1 of the definition artifact, which this build still reads and never writes.
+// MW-DEF-01 -- agents/maker/definition.md
+inline std::shared_ptr<const loom::Schema> definition_v1_schema() {
+    static const auto s =
+        loom::SchemaBuilder("zengine.maker.Definition", 1)
+            .field("format", loom::Kind::Text)
+            .field("format_version", loom::Kind::Int)
+            .field("name", loom::Kind::Text)
+            .field("revision", loom::Kind::Int)
+            .list("referenced", loom::type_message(loom::schema_desc_schema()),
+                  /*required=*/false)
+            .message("state", loom::schema_desc_schema())
+            .list("accepts", loom::type_message(loom::schema_desc_schema()))
+            .list("emits", loom::type_message(loom::schema_desc_schema()))
+            .list("on", loom::type_message(on_record_v1_schema()))
             .message("conversion", conversion_schema(), /*required=*/false)
             .build();
     return s;
@@ -400,10 +434,10 @@ inline Admitted admit_definition(const loom::Value& v) {
                                 kFormat + "`");
         }
         const std::int64_t version = v.get("format_version")->as_int();
-        if (version != kFormatVersion) {
+        if (version != static_cast<std::int64_t>(v.schema().version())) {
             return Admitted::no("a definition whose version field says " +
                                 std::to_string(version) + " inside an envelope of version " +
-                                std::to_string(kDefinitionSchemaVersion) + " is a forgery");
+                                std::to_string(v.schema().version()) + " is a forgery");
         }
         d.name = v.get("name")->as_text();
         if (d.name.empty()) {
@@ -533,10 +567,10 @@ inline Admitted admit_definition(const loom::Value& v) {
     }
 }
 
-/// READ A DEFINITION FILE: the envelope's claim first -- another shape, or another version of
-/// this one, is refused by its number before a field is decoded -- then the one gate, then
-/// admission. Nothing converts a definition of another version; a definition is the weaver's to
-/// re-save.
+/// READ A DEFINITION FILE: the envelope's claim first -- another shape, or a version this build
+/// does not read, is refused by its number before a field is decoded -- then the one gate at the
+/// claimed version's door, then admission. Version 1 reads as it was written, its bodies holding
+/// no fold; nothing converts a definition, and the next save writes the current version.
 // MW-DEF-01 -- agents/maker/definition.md
 inline Admitted read_definition(std::string_view bytes) {
     const loom::Unverified claim = loom::parse(bytes);
@@ -547,13 +581,14 @@ inline Admitted read_definition(std::string_view bytes) {
         return Admitted::no("not a maker definition: the bytes claim `" + claim.claimed_name() +
                             "`");
     }
-    if (claim.claimed_version() != kDefinitionSchemaVersion) {
+    if (claim.claimed_version() != 1 && claim.claimed_version() != kDefinitionSchemaVersion) {
         return Admitted::no("a definition of version " + std::to_string(claim.claimed_version()) +
-                            "; this build reads version " +
+                            "; this build reads versions 1 to " +
                             std::to_string(kDefinitionSchemaVersion) +
                             " and converts no other");
     }
-    loom::Admission admitted = loom::admit(claim, definition_schema());
+    loom::Admission admitted = loom::admit(
+        claim, claim.claimed_version() == 1 ? definition_v1_schema() : definition_schema());
     if (!admitted) {
         return Admitted::no(admitted.first_error().message());
     }

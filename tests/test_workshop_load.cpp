@@ -1260,7 +1260,7 @@ TEST_CASE("a provider-only record mounts a provider and loads NO weave") {
     REQUIRE(done.resolved.size() == 1);
     CHECK(done.resolved[0].provider_mounted);
     CHECK(done.resolved[0].provider == "zengine.operators.basic");
-    CHECK(done.resolved[0].contributed == 4);
+    CHECK(done.resolved[0].contributed == 5);
     CHECK_FALSE(done.resolved[0].weave_loaded);
     CHECK(rig.catalog.find("math.max") != nullptr);
     // ...AND NO KERNEL WENT LOOKING FOR A WEAVE: a provider is not a weave, and a plan cannot
@@ -1533,7 +1533,7 @@ TEST_CASE("unmounting one record's provider drops its contributions and nothing 
     const load::Executed done = rig.realize(
         plan_of({provides("zengine-operators-basic"), provides("zengine-timer")}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
-    CHECK(rig.catalog.size() == 5);
+    CHECK(rig.catalog.size() == 6);
     CHECK(rig.executor.unmount(done.resolved[1]));
     CHECK_FALSE(rig.catalog.mounted("zengine.timer"));
     CHECK(rig.catalog.find(tmr::kNormalizeDelay) == nullptr);
@@ -1730,7 +1730,7 @@ TEST_CASE("the projection pairs AUTHORED intent with RESOLVED state, row by row"
     CHECK(basic->authored_role.empty());
     CHECK(basic->state == std::string(workshop::kResolvedToken));
     CHECK(basic->provider == "zengine.operators.basic");
-    CHECK(basic->powers == 4);
+    CHECK(basic->powers == 5);
 
     const workshop::ArtifactParticipation* timer = row_of(said, "zengine-timer");
     REQUIRE(timer != nullptr);
@@ -2109,13 +2109,15 @@ TEST_CASE("text finds a power by its identity or by what it is for, every term, 
     CHECK(found_by_text(rig.catalog, "larger") == std::vector<std::string>{"math.max"});
     CHECK(found_by_text(rig.catalog, "LARGER Integers") == std::vector<std::string>{"math.max"});
     // BY IDENTITY, in any case.
-    CHECK(found_by_text(rig.catalog, "MATH") == std::vector<std::string>{"math.max"});
+    CHECK(found_by_text(rig.catalog, "MATH") == std::vector<std::string>{"math.add", "math.max"});
     CHECK(found_by_text(rig.catalog, ".select_") ==
           std::vector<std::string>{"logic.select_bool", "logic.select_int"});
     // EVERY TERM MUST BE FOUND, and the terms may be found in different places: one in the
     // identity, one in the words.
     CHECK(found_by_text(rig.catalog, "larger nonsense").empty());
-    CHECK(found_by_text(rig.catalog, "math integers") == std::vector<std::string>{"math.max"});
+    CHECK(found_by_text(rig.catalog, "math integers") ==
+          std::vector<std::string>{"math.add", "math.max"});
+    CHECK(found_by_text(rig.catalog, "sum") == std::vector<std::string>{"math.add"});
     // AN EMPTY OR BLANK TEXT ASKS NOTHING OF A ROW.
     CHECK(found_by_text(rig.catalog, "").size() == rig.catalog.size());
     CHECK(found_by_text(rig.catalog, " \t ").size() == rig.catalog.size());
@@ -2243,6 +2245,97 @@ TEST_CASE("kind, construction, provider and offered filter, and a conversion is 
     CHECK(conversion->kind == workshop::kConversionKind);
 }
 
+TEST_CASE("the door finds the fold by what it is for, after the catalog and never in a browse, "
+          "and fits=fold asks only for what a fold could spend as its body") {
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 both("zengine-timer", tmr::kTimerRole)}))
+                .ok);
+    const std::uint64_t quiet = op::invocations();
+    workshop::FindPowers by_purpose;
+    by_purpose.text = "count";
+    const workshop::PowersFound counted = workshop::find_powers(rig.catalog, by_purpose);
+    REQUIRE(counted.ok);
+    REQUIRE_FALSE(counted.rows.empty());
+    const workshop::PowerRow& fold = counted.rows.back();
+    CHECK(fold.identity == "fold");
+    CHECK(fold.kind == workshop::kFormKind);
+    CHECK(fold.construction == workshop::kEvaluatorConstruction);
+    CHECK(fold.provider.empty());
+    CHECK(fold.offered);
+    CHECK(fold.about == op::kFoldAbout);
+    CHECK(rig.catalog.find("fold") == nullptr); // a form, not an identity anything resolves
+    // A BROWSE LISTS THE CATALOG; an ask for the kind lists the form alone.
+    CHECK(found_by_text(rig.catalog, "") == rig.catalog.identities());
+    workshop::FindPowers forms;
+    forms.kind = workshop::kFormKind;
+    CHECK(identities_of(workshop::find_powers(rig.catalog, forms)) ==
+          std::vector<std::string>{"fold"});
+
+    // WHAT A FOLD COULD SPEND: one answer, an Int port for the count and another of the answer's
+    // type -- select_int too, its condition wired from scope; never less_int, select_bool or the
+    // Timer's rule, which has one Int port.
+    workshop::FindPowers bodies;
+    bodies.fits = workshop::kFitsFold;
+    CHECK(identities_of(workshop::find_powers(rig.catalog, bodies)) ==
+          std::vector<std::string>{"logic.select_int", "math.add", "math.max"});
+    bodies.text = "sum";
+    CHECK(identities_of(workshop::find_powers(rig.catalog, bodies)) ==
+          std::vector<std::string>{"math.add"});
+    workshop::FindPowers loop;
+    loop.fits = "loop";
+    CHECK(workshop::find_powers(rig.catalog, loop).reason == "a fit is fold; 'loop' is not one");
+
+    // THE FORM HAS A PAGE OF ITS OWN after the catalog's last row, and no page ends on it early.
+    workshop::FindPowers page;
+    page.text = "a";
+    page.limit = 1;
+    const workshop::PowersFound first = workshop::find_powers(rig.catalog, page);
+    CHECK(identities_of(first) == std::vector<std::string>{"compare.less_int"});
+    CHECK(first.next == "compare.less_int");
+    workshop::FindPowers rest = page;
+    rest.limit = 100;
+    const auto all = identities_of(workshop::find_powers(rig.catalog, rest));
+    REQUIRE(all.size() >= 2);
+    page.after = all[all.size() - 2];
+    const workshop::PowersFound last = workshop::find_powers(rig.catalog, page);
+    CHECK(identities_of(last) == std::vector<std::string>{"fold"});
+    CHECK(last.next.empty());
+    CHECK(op::invocations() == quiet);
+}
+
+TEST_CASE("pages of the door's answer end, though an operator is itself named fold: a cursor names "
+          "a catalog identity, never the form") {
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
+    REQUIRE(rig.catalog.mount("test.named-fold",
+        {op::make_operator<&op::max_int>("fold", {"lhs", "rhs"}, "result", "an operator of that name")}));
+    workshop::FindPowers page;
+    page.text = "o";
+    page.limit = 1;
+    std::vector<std::string> walked;
+    std::int64_t total = -1;
+    for (int asks = 0; asks < 32; ++asks) {
+        const workshop::PowersFound said = workshop::find_powers(rig.catalog, page);
+        REQUIRE(said.ok);
+        total = said.total;
+        for (const auto& row : said.rows) walked.push_back(row.identity + "/" + row.kind);
+        if (said.next.empty()) break;
+        page.after = said.next;
+    }
+    // EVERY ROW ONCE, and the walk ended: the rows one unpaged answer gives, the form last.
+    workshop::FindPowers whole;
+    whole.text = "o";
+    std::vector<std::string> unpaged;
+    for (const auto& row : workshop::find_powers(rig.catalog, whole).rows)
+        unpaged.push_back(row.identity + "/" + row.kind);
+    CHECK(static_cast<std::int64_t>(walked.size()) == total);
+    CHECK(walked == unpaged);
+    CHECK(std::find(walked.begin(), walked.end(), "fold/operator") != walked.end());
+    REQUIRE_FALSE(walked.empty());
+    CHECK(walked.back() == "fold/form");
+}
+
 TEST_CASE("a page continues after an identity, and total counts the whole query") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
@@ -2254,22 +2347,22 @@ TEST_CASE("a page continues after an identity, and total counts the whole query"
     CHECK(identities_of(first) ==
           std::vector<std::string>{"compare.less_int", "logic.select_bool"});
     CHECK(first.next == "logic.select_bool");
-    CHECK(first.total == 5);
+    CHECK(first.total == 6);
     page.after = first.next;
     const workshop::PowersFound second = workshop::find_powers(rig.catalog, page);
-    CHECK(identities_of(second) == std::vector<std::string>{"logic.select_int", "math.max"});
-    CHECK(second.next == "math.max");
-    CHECK(second.total == 5);
+    CHECK(identities_of(second) == std::vector<std::string>{"logic.select_int", "math.add"});
+    CHECK(second.next == "math.add");
+    CHECK(second.total == 6);
     page.after = second.next;
     const workshop::PowersFound last = workshop::find_powers(rig.catalog, page);
-    CHECK(identities_of(last) == std::vector<std::string>{tmr::kNormalizeDelay});
+    CHECK(identities_of(last) == std::vector<std::string>{"math.max", tmr::kNormalizeDelay});
     CHECK(last.next.empty());
 
     // AN `after` NOTHING SUPPLIES STILL PLACES A PAGE: a position in the catalog's order, not a
     // handle the door would have had to keep.
     page.after = "logic.zzz";
     CHECK(identities_of(workshop::find_powers(rig.catalog, page)) ==
-          std::vector<std::string>{"math.max", tmr::kNormalizeDelay});
+          std::vector<std::string>{"math.add", "math.max"});
 
     // ...AND A FILTERED QUERY PAGES THE SAME WAY, its total the filter's.
     workshop::FindPowers ints;
@@ -2277,7 +2370,7 @@ TEST_CASE("a page continues after an identity, and total counts the whole query"
     ints.limit = 1;
     const workshop::PowersFound one = workshop::find_powers(rig.catalog, ints);
     CHECK(identities_of(one) == std::vector<std::string>{"logic.select_int"});
-    CHECK(one.total == 3);
+    CHECK(one.total == 4);
     CHECK(one.next == "logic.select_int");
 }
 
@@ -2321,10 +2414,10 @@ TEST_CASE("an ask past a bound is refused in words, and nothing is found") {
     workshop::FindPowers kind;
     kind.kind = "sources";
     CHECK(refused(kind) ==
-          "a kind is source, operator or conversion; 'sources' is none of them");
+          "a kind is source, operator, conversion or form; 'sources' is none of them");
     workshop::FindPowers built;
     built.construction = "compound";
-    CHECK(refused(built) == "a construction is native or composite; 'compound' is neither");
+    CHECK(refused(built) == "a construction is native, composite or evaluator; 'compound' is none of them");
 
     // THE ANSWER'S CEILING: a hundred identities long enough that a full page passes a mebibyte.
     op::Catalog wide;

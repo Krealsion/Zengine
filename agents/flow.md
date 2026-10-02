@@ -22,6 +22,13 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   native initialization, so host file policy precedes opening rather than following inspection.
 - C++ recovery claims equivalence only after complete deterministic regeneration matches the
   source. Never accept only a marker/hash while ignoring handwritten changes.
+- Generation refuses a fold in words and writes nothing: only the evaluator spends an operator
+  reference, and a generated loop would spend its body outside the evaluation's budget.
+  `write_generated` is the one writer of a generated project, for the workbench and the pane.
+- The pane authors emits as the definition holds them: `emitted-message`, `emitted-field`,
+  `emit` (fields from same-named state fields unless written) and `emit-remove`. Emits stay the
+  participant's own publications in its namespace (MW-DEF-08); an empty trigger keeps none, so an
+  emit on one is refused rather than lost at save.
 - The standalone workbench owns its local Loom session. Its form switch prepares a fresh
   session and transfers state only. Workshop instead uses `flow_host::RuntimeHost` over
   the existing host bus/catalog. Never embed the standalone session in the pane.
@@ -60,7 +67,13 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   only for what yields the port's type in Loom's spelling. It shows rows as the door answered
   them: it matches nothing again and classifies nothing. A selected port is held by its node's
   place id, so removing another node never moves it; replacing the graph or changing the
-  trigger puts it down. A preview evaluates nothing, and Add spends `add-node`.
+  trigger puts it down. A preview evaluates nothing. Add takes an operator reference (the row's
+  identity and two content ids): `add-node` places a step at the end or before a node, and
+  `add-node-into` before a port's node and into that port, one renumbering edit; a stale
+  reference is refused against the graph's ports, never re-bound. The fold is placed by
+  `add-fold` with `step` bound to 1 and given its body by `fold-body` from a slot that asks the
+  door `fits=fold`; the maker names the count's port. `GraphDraft::node_ports` is the one answer
+  to a node's ports, a fold's derived from its body by `op::fold_ports`.
 - `tests/test_flow.cpp` compares state, outputs, refusal reasons, live overlays, authority and
   admission. `tests/package` builds and loads generated code using installed packages only.
   `tests/test_flow_graph.cpp` covers incomplete graph persistence, retained forms, schema

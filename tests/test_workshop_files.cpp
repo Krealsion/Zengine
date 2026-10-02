@@ -1901,7 +1901,9 @@ TEST_CASE("the flow -- expose, enumerate without evaluating, sample, swap, sampl
 
     //  2  enumerate without evaluating
     const std::uint64_t quiet = op::invocations();
-    const ws::PowersFound seen = find_powers(r.catalog, ws::FindPowers{});
+    ws::FindPowers sources;
+    sources.kind = ws::kSourceKind;
+    const ws::PowersFound seen = find_powers(r.catalog, sources);
     CHECK(op::invocations() == quiet);
     CHECK(seen.rows.size() == 2);
     REQUIRE(row_of(seen, kProjectAnchorSource) != nullptr);

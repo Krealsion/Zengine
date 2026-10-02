@@ -6,7 +6,7 @@
 
 // Finding a power: `FindPowers` -> `PowersFound` and `DescribePower` -> `PowerDescribed`, answered
 // by one read-only office (docs/reference/introspection.md). Values only: a description of the
-// host's catalog at the ask, which confers no authority over it. `FindPowers` is built with a
+// host's catalog, and of the evaluator's forms, at the ask, which confers no authority over it. `FindPowers` is built with a
 // `loom::SchemaBuilder` rather than `ZEN_SHAPE` because every field of it is optional, so a weaver
 // at the Terminal types only what they mean: `ask @zengine.powers FindPowers 1 text=larger`.
 
@@ -49,16 +49,22 @@ inline constexpr const char* kOperatorKind = "operator";
 /// `PowerRow::construction`, the definition's own answer (`OperatorDef::is_composite`).
 inline constexpr const char* kNativeConstruction = "native";
 inline constexpr const char* kCompositeConstruction = "composite";
+/// A form is not in the catalog: the evaluator spends it, taking an operator reference as its
+/// body (`operator/fold.hpp`). Its row's kind and construction say so; its identity is its name.
+inline constexpr const char* kFormKind = "form";
+inline constexpr const char* kEvaluatorConstruction = "evaluator";
+/// `FindPowers::fits`: what the operators asked for could be. `fold`, a fold's body: an Int port
+/// for the count, and another port of its answer's type for the accumulator.
+inline constexpr const char* kFitsFold = "fold";
 
 // ---- asking -------------------------------------------------------------------------
 
 inline constexpr const char* kFindPowersName = "FindPowers";
-inline constexpr std::uint32_t kFindPowersVersion = 1;
+inline constexpr std::uint32_t kFindPowersVersion = 2;
 
-/// `FindPowers v1`: every field optional, and an absent field asks nothing of a row.
-inline std::shared_ptr<const loom::Schema> find_powers_schema() {
-    static const auto s =
-        loom::SchemaBuilder(kFindPowersName, kFindPowersVersion)
+/// `FindPowers v1`'s fields, every one optional: an absent field asks nothing of a row.
+inline loom::SchemaBuilder find_powers_fields(std::uint32_t version) {
+    return loom::SchemaBuilder(kFindPowersName, version)
             // every whitespace-separated term, in any case, in the identity or the prose
             .field("text", loom::Kind::Text, /*required=*/false)
             // an input port's type as Loom spells it: `Int`, `List<Int>`, `Message(a.B v1)`
@@ -76,8 +82,21 @@ inline std::shared_ptr<const loom::Schema> find_powers_schema() {
             // the rows after this identity in the catalog's order: where a page continues
             .field("after", loom::Kind::Text, /*required=*/false)
             // how many rows, 1 to `kMaxPowerRows`; absent asks for the most an answer carries
-            .field("limit", loom::Kind::Int, /*required=*/false)
-            .build();
+            .field("limit", loom::Kind::Int, /*required=*/false);
+}
+
+/// `FindPowers v2`, the version this build asks with: v1's fields and `fits`.
+inline std::shared_ptr<const loom::Schema> find_powers_schema() {
+    static const auto s = find_powers_fields(kFindPowersVersion)
+                              // `fold`: only operators a fold could spend as its body
+                              .field("fits", loom::Kind::Text, /*required=*/false)
+                              .build();
+    return s;
+}
+
+/// `FindPowers v1`, which the door still answers: a line typed at the Terminal may say `1`.
+inline std::shared_ptr<const loom::Schema> find_powers_v1_schema() {
+    static const auto s = find_powers_fields(1).build();
     return s;
 }
 
@@ -92,6 +111,7 @@ struct FindPowers {
     std::optional<bool> offered;
     std::optional<std::string> after;
     std::optional<std::int64_t> limit;
+    std::optional<std::string> fits;
 };
 
 /// The ask as a value at `find_powers_schema()`, carrying only the fields it was given.
@@ -115,14 +135,15 @@ inline loom::Value find_powers_value(const FindPowers& asked) {
     if (asked.limit) {
         v.set("limit", loom::Cell::integer(*asked.limit));
     }
+    text("fits", asked.fits);
     return v;
 }
 
-/// The ask back out of a value admitted at `find_powers_schema()`.
+/// The ask back out of a value admitted at either version of `FindPowers`.
 inline FindPowers find_powers_from(const loom::Value& v) {
     FindPowers asked;
     const auto text = [&v](const char* field) -> std::optional<std::string> {
-        const loom::Cell* c = v.get(field);
+        const loom::Cell* c = v.schema().find(field) == nullptr ? nullptr : v.get(field);
         return c == nullptr ? std::nullopt : std::optional<std::string>(c->as_text());
     };
     asked.text = text("text");
@@ -138,6 +159,7 @@ inline FindPowers find_powers_from(const loom::Value& v) {
     if (const loom::Cell* c = v.get("limit"); c != nullptr) {
         asked.limit = c->as_int();
     }
+    asked.fits = text("fits");
     return asked;
 }
 
@@ -218,6 +240,7 @@ struct PowerDescribed {
 /// The two asks, to the door's office and nowhere else: what a host writes on a participant it
 /// lets find powers. Asking describes; it grants nothing to send, mount or open.
 inline void allow_finding_powers(loom::Grant& grant) {
+    grant.allow_to_role(kFindPowersName, 1, kPowersRole);
     grant.allow_to_role(kFindPowersName, kFindPowersVersion, kPowersRole);
     grant.allow_to_role(DescribePower::zen_name, DescribePower::zen_version, kPowersRole);
 }

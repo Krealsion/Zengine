@@ -166,13 +166,22 @@ TEST_CASE("the pane's own image cannot evaluate, and that is structural") {
     // so "browsing does not evaluate" is a fact about the build graph. Read as includes and link
     // lines, never as prose: both files EXPLAIN what they refuse to reach, and a tripwire on bare
     // identifiers would fire on the paragraph that promises the property.
+    const std::string allowed = "#include \"operator/reference.hpp\""; // a value, checked below
     for (const char* file : {INTROSPECTION_CPP, INTROSPECTION_POWERS_HPP}) {
-        const std::string source = file_source(file);
+        std::string source = file_source(file);
+        for (std::size_t at = source.find(allowed); at != std::string::npos;
+             at = source.find(allowed)) {
+            source.erase(at, allowed.size());
+        }
         for (const char* forbidden : {"#include \"operator/", "#include <operator/",
                                       "#include \"workshop/host_sources"}) {
             CHECK_MESSAGE(source.find(forbidden) == std::string::npos, file, " ", forbidden);
         }
     }
+    const std::string reference = file_source(OPERATOR_REFERENCE_HPP);
+    CHECK(reference.find("#include \"operator/") == std::string::npos);
+    CHECK(reference.find("Catalog") == std::string::npos);
+    CHECK(reference.find("evaluate") == std::string::npos);
     // AND THE LINK LINE AGREES: this package names no operator target, so those symbols
     // are not merely unused -- they are not in the image.
     const std::string edges = file_source(INTROSPECTION_CMAKE);

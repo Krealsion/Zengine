@@ -69,13 +69,12 @@ target_compile_definitions(zengine-operator-consumer-weave-legacy PRIVATE OPH_ST
 target_compile_definitions(zengine-operator-consumer-weave-abi PRIVATE OPH_STRANGER_ABI=1)
 
 # ---- the operator providers, none of them a weave ----------------------------------------
-# `zengine_provider` and no `loom::switchboard`: a host opens the file, resolves one optional
-# symbol and reads definitions out of it. provider_chain.cpp builds four: a, the three-level
-# chain; b, its last level alone at the same signature with another answer; b-wrong, that name at
-# another signature, which an overlay must refuse; abi, a surface version the host does not
-# speak. provider_min.cpp supplies `math.max` as a minimum, for the Timer override witness.
-set(ZENGINE_PROV_NAMES a b b-wrong abi)
-set(ZENGINE_PROV_FLAGS PROV_CHAIN_A PROV_CHAIN_B PROV_CHAIN_WRONG PROV_CHAIN_ABI)
+# `zengine_provider` and no `loom::switchboard`: a host opens the file and reads definitions out
+# of it. provider_chain.cpp builds five (a, the chain; b, its last level answering otherwise;
+# b-wrong, that name at another signature; abi, a surface version the host does not speak; cycle,
+# its last level naming its first). provider_min.cpp supplies `math.max` as a minimum.
+set(ZENGINE_PROV_NAMES a b b-wrong abi cycle)
+set(ZENGINE_PROV_FLAGS PROV_CHAIN_A PROV_CHAIN_B PROV_CHAIN_WRONG PROV_CHAIN_ABI PROV_CHAIN_CYCLE)
 foreach(prov_name prov_flag IN ZIP_LISTS ZENGINE_PROV_NAMES ZENGINE_PROV_FLAGS)
     zengine_provider(zengine-provider-${prov_name} weavelib/provider_chain.cpp)
     target_link_libraries(zengine-provider-${prov_name} PRIVATE zengine-operator)
@@ -87,6 +86,10 @@ endforeach()
 
 zengine_provider(zengine-provider-min weavelib/provider_min.cpp)
 target_link_libraries(zengine-provider-min PRIVATE zengine-operator)
+
+# A fold across a real image: a composite whose one step folds `math.add`, mounted by a host.
+zengine_provider(zengine-provider-fold weavelib/provider_fold.cpp)
+target_link_libraries(zengine-provider-fold PRIVATE zengine-operator)
 
 # One power described in `zengine.OperatorContribution` version 1, by hand: what a host reads from
 # an artifact whose contributions carry no description.
@@ -546,6 +549,8 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     "PROVIDER_B_SO=\"$<TARGET_FILE:zengine-provider-b>\""
     "PROVIDER_WRONG_SO=\"$<TARGET_FILE:zengine-provider-b-wrong>\""
     "PROVIDER_ABI_SO=\"$<TARGET_FILE:zengine-provider-abi>\""
+    "PROVIDER_CYCLE_SO=\"$<TARGET_FILE:zengine-provider-cycle>\""
+    "PROVIDER_FOLD_SO=\"$<TARGET_FILE:zengine-provider-fold>\""
     "PROVIDER_MIN_SO=\"$<TARGET_FILE:zengine-provider-min>\""
     # A contribution at version 1 across a real image: what an older provider's bytes mount as.
     "PROVIDER_V1_SO=\"$<TARGET_FILE:zengine-provider-v1>\""
@@ -575,7 +580,8 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     "OPERATOR_MIGRATION_HPP=\"${CMAKE_SOURCE_DIR}/operator/migration.hpp\"")
 add_dependencies(zengine-operator-tests
     zengine-provider-mig-chain zengine-provider-mig-direct
-    zengine-provider-mig-direct-alt zengine-provider-mig-composed zengine-provider-v1)
+    zengine-provider-mig-direct-alt zengine-provider-mig-composed zengine-provider-v1
+    zengine-provider-cycle zengine-provider-fold)
 
 zengine_doctest_test(operator zengine-operator-tests)
 
@@ -962,6 +968,7 @@ zengine_workshop_suite(panes
                 "INTROSPECTION_POWERS_HPP=\"${CMAKE_SOURCE_DIR}/introspection/powers.hpp\""
                 "WORKSHOP_SAMPLE_DOOR_HPP=\"${CMAKE_SOURCE_DIR}/workshop/sample_door.hpp\""
                 "INTROSPECTION_CMAKE=\"${CMAKE_SOURCE_DIR}/introspection/CMakeLists.txt\""
+                "OPERATOR_REFERENCE_HPP=\"${CMAKE_SOURCE_DIR}/operator/reference.hpp\""
                 # The Builder pane's own two files, read as text for the same reason: what
                 # the build graph says about a loaded image, and the five names a
                 # presentation may not spell, are claims a source read can keep and a
