@@ -28,6 +28,8 @@ named `tally` works out.
 4. Choose **Run**. The panel opens in its own pane; `Total` says `waiting`, and so does its last
    row, until something tells it `tally.Total`.
 
+![The View Builder over the running tally panel, with the tally running in Flow beside them](images/view-builder-tally.png)
+
 ## Carry shapes between the builder and Flow
 
 Shapes cross by carry, both ways. A canvas pane carries out by its menu: right-press the line, choose
@@ -43,6 +45,8 @@ Shapes cross by carry, both ways. A canvas pane carries out by its menu: right-p
   with one field a label can show is bound at once (`shows tally.Total.total`); with several,
   the builder asks which. A value from Inventory binds by its shape, and a field carried from Info
   binds that field.
+
+![Flow's emitted tally.Total, right-pressed: Carry tally.Total, above the pane menu's own rows](images/view-builder-carry.png)
 
 Binding `Total` changes what the view is told, so **Apply** registers the view afresh and says
 so; its field text starts again from the description. A later change to a label, a place or a
@@ -61,6 +65,8 @@ moves between fields) and press **Count**, or `Return` in a field:
 | `0, 10, 0` | `refused: ... a step of 0 never moves the count from 0 toward 10`, and `Total` stays |
 | `0, 2000000, 1` | refused by the fold's count bound, and `Total` stays |
 
+![The panel told 45, 30 and 18, then refusing a step of 0 and a count past the fold's bound, its total unchanged](images/view-builder-uses.png)
+
 The panel publishes `tally.panel.Count` as its own participant; whoever accepts that shape hears
 it. It does not know `tally`, and `tally` does not know the panel: the panel is told
 `tally.Total` because it accepts that shape. A refusal answered to the panel is shown on its last
@@ -68,10 +74,30 @@ rows. A field that holds no whole number is said there, and nothing is published
 
 **Save** the view (`Ctrl`+`s`) to a `.view` file and the Flow workspace beside it. Quit, start
 Workshop again, **Open** both and **Run** both: the panel works as before and waits until told.
-Nothing that was running is in either file. **Stop** leaves the panel's pane saying it stopped.
+Nothing that was running is in either file. **Stop** ends the panel: its pane first says it
+stopped, and once Workshop sees its participant gone it says it is waiting for the provider. No
+field or button is left that looks live.
 
 In a terminal Workshop the same panel works: its picture is the window's, floored to cells, and
-each line is fitted to the cell.
+each line is fitted to the cell. Here `Total` was relabelled `Sum`, and a step of 0 was refused:
+
+```text
+  tally.panel @tally.panel
+ .start: 0...
+ ............
+ ............
+ .limit: 10..
+ ............
+ .step: 0_...
+
+ .Count..
+ ........
+
+ Sum: 45
+
+ refused: 'tally.r1.on.tally.panel.Count' step 0: a step of 0
+ never moves the count from 0 toward 10
+```
 
 ## Views here, in Info and in Inventory
 
