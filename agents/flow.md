@@ -49,7 +49,9 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   pane's ground beneath it. Zoom scales node positions and widths, not glyph size or port-row
   height. Pointer hit tests spend the room's device grain, and an interaction spends the
   pictured meaning or is refused. Every room change immediately ends held gestures and
-  invalidates old picture maps, including a change of text metrics.
+  invalidates old picture maps, including a change of text metrics. A right press means nothing
+  on the graph or its pages, so the pane hands it back (`PanePassRequested`) and Workshop's pane
+  menu opens where it landed.
 - The pane consumes the shared canvas seam and host-manager messages. It owns no private
   catalog, fallback primitives, nested host, native-code loading policy or bus pumping.
 - The pane finds powers through the discovery door (`flow-pane/find.hpp`) and never through
@@ -65,6 +67,7 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   changes and command atomicity. `tests/test_flow_view.cpp` covers canvas clipping, dense views,
   long text, independent measured axes, device-grain hit testing and the rail's grouping and
   preview. `tests/test_flow_pane.cpp` covers modal commands, native text dragging, reload
-  preservation and finding through the door; host behavior is witnessed under
+  preservation, the right press handed back and finding through the door; host
+  behavior is witnessed under
   [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

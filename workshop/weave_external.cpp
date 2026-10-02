@@ -564,6 +564,16 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
     next.room_columns = room.present ? room.columns : 0;
     next.first_input = gestures_;
     next.last_input = gestures_;
+    // ...AND THE HOST'S OWN PANE MENU BENEATH THE PANE'S ROWS, in the same menu: the rows its
+    // chrome offers, each the host's to spend when chosen (`spend_standard_row`), never the pane's.
+    std::vector<PaneMenuRow> standard;
+    for (const ContextEntry& entry : context_population(context_subject::kPane, "")) {
+        if (!entry.is_group && entry.row == nullptr) {
+            continue;
+        }
+        standard.push_back(
+            PaneMenuRow{entry.is_group ? entry.group : entry.row->id, context_entry_text(entry)});
+    }
     session_.presented = next;
     // TO THE ROLE, AS THIS OFFICE, UNDER THE REQUEST'S NUMBER: the presenter answers the requester
     // under the same number, and authenticates this grant the way a pane authenticates a room.
@@ -571,7 +581,8 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
         mail.as_role(kWorkshopProvider)
             .send_to_role(kPresenterRole,
                           MenuGranted{next.menu, next.office, next.pane, next.subject, asked.rows,
-                                      next.room_rows, next.room_columns},
+                                      next.room_rows, next.room_columns, std::move(standard),
+                                      inventory_name(PaneRef{row.provider, row.pane})},
                           correlation);
     if (!sent.valid()) {
         end_menu_unanswered("the menu could not be handed to a presenter", mail);
@@ -871,7 +882,43 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
             choice_answered_ = c;
         }
     }
+    // A STANDARD ROW IS THE HOST'S OWN: spent here on the pane the menu was about, as the act that
+    // chose it, while that act is still the weaver's latest -- the presenter answered the
+    // requester unchosen, so no pane performs it.
+    if (!closed.chosen && !closed.standard.empty() && act != 0 && act >= ended.first_input &&
+        act <= ended.last_input && act == gestures_) {
+        spend_standard_row(ended, closed.standard, mail);
+    }
     repaint(mail);
+}
+
+// WL-CTX-09 -- agents/workshop/pane-menu.md
+void WorkshopWeave::spend_standard_row(const PresentedMenu& ended, const std::string& id,
+                                       loom::Mail& mail) {
+    // THE CATALOG'S OWN PANE ROWS, the ones every grant carries: an id naming none spends nothing.
+    const PaneRef pane{ended.office, ended.pane};
+    for (const ContextEntry& entry : context_population(context_subject::kPane, "")) {
+        if (entry.is_group && id == entry.group) {
+            // A GROUP OPENS THE HOST'S OWN MENU AT THAT GROUP, beside the menu it was chosen on.
+            ContextMenu next;
+            next.open = true;
+            next.anchored = ended.anchored;
+            next.anchor_x = ended.anchor_x;
+            next.anchor_y = ended.anchor_y;
+            next.subject = context_subject::kPane;
+            next.pane = pane;
+            next.group = entry.group;
+            session_.context = next;
+            return;
+        }
+        if (!entry.is_group && entry.row != nullptr && id == entry.row->id) {
+            ContextMenu spent;
+            spent.subject = context_subject::kPane;
+            spent.pane = pane;
+            spend_context_choice(entry.row->act, spent, mail);
+            return;
+        }
+    }
 }
 
 // WL-CTX-10 -- agents/workshop/pane-menu.md

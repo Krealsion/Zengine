@@ -394,13 +394,12 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     case Act::kManageRemove: {
         const std::string name = ref_text(ref);
         if (!remove_pane(s, ref)) {
-            say(name + " is no longer in this setup -- the Pane Manager can bring it back",
+            say(name + " is no longer in this setup -- the Pane Manager can show it again",
                 true);
             return;
         }
         apply_setup(mail);
-        say("removed " + name + " -- the Pane Manager brings it back; nothing behind it was "
-                                "touched",
+        say("hid " + name + " -- the Pane Manager shows it again; nothing behind it was touched",
             false);
         return;
     }

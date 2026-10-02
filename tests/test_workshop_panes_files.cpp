@@ -2746,7 +2746,8 @@ TEST_CASE("a right press on an entry offers this pane's rows, and the choice act
         CHECK(any_row(offered, "open `recipes.json`"));
         CHECK(any_row(offered, "use `recipes.json` as this project's recipes"));
         CHECK(any_row(offered, "mark this place"));
-        CHECK(any_row(offered, "manage this pane..."));
+        CHECK(any_row(offered, "hide pane")); // the standard rows, beneath Files' own
+        CHECK_FALSE(any_row(offered, "manage this pane"));
         // DOWN TO THE CATALOG ROW AND RETURN: the operation the row named, on that file.
         f.r.key(input::scan::kDown);
         f.r.key(input::scan::kReturn);
@@ -3120,7 +3121,7 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
              {"open `oven.cpp`", "use `oven.cpp` as this project's recipes",
               "pick something buildable here", "mark this place", "up a directory",
               "look at this directory again", "go to the previous mark", "go to the next mark",
-              "manage this pane..."}) {
+              "hide pane"}) {
             CHECK_MESSAGE(any_row(offered, row), "the browsing menu has no row `", row, "`");
         }
     }
@@ -3129,7 +3130,7 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
         const std::vector<std::string> offered = open_menu(f);
         INFO("offered\n", picture(offered));
         for (const char* row : {"author a recipe for `oven.cpp`",
-                                "pick nothing -- back to the listing", "manage this pane..."}) {
+                                "pick nothing -- back to the listing", "hide pane"}) {
             CHECK_MESSAGE(any_row(offered, row), "the chooser menu has no row `", row, "`");
         }
     }
@@ -3141,7 +3142,7 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
         INFO("offered\n", picture(offered));
         for (const char* row :
              {"type the artifact stem", "keep this field and type the artifact stem",
-              "write the recipe for `oven.cpp`", "abandon this recipe", "manage this pane..."}) {
+              "write the recipe for `oven.cpp`", "abandon this recipe", "hide pane"}) {
             CHECK_MESSAGE(any_row(offered, row), "the authoring menu has no row `", row, "`");
         }
     }
@@ -3161,7 +3162,7 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
         for (const char* row : {"type the recipe name", "type the artifact stem",
                                 "type the package prefix (comma-separated)", "this is the last field",
                                 "write the recipe for `oven.cpp`", "abandon this recipe",
-                                "manage this pane..."}) {
+                                "hide pane"}) {
             CHECK_MESSAGE(any_row(offered, row), "the authoring menu has no row `", row, "`");
         }
     }

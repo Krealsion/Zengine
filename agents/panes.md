@@ -303,8 +303,12 @@ presenter can answer, Workshop) → provider; `v3::PaneContent` `{pane, rows, ge
 picture}` and `v3::PanePressed` `{…, picture}`. Between Workshop and the participant holding
 `zengine.presenter`, `workshop/presenter_vocabulary.hpp`: `MenuGranted`, `MenuInput` and
 `MenuWithdrawn` Workshop → presenter, `MenuShown`, `MenuClosed` and `PresenterReady` presenter
-→ Workshop, and `HeldMenu`, the reload state the shipped presenters share. They ADDED to the
-protocol and revised nothing. Several NEST — `PaneMenuRequested` and `MenuGranted` carry
+→ Workshop, and `HeldMenu`, the reload state the shipped presenters share. The pane shapes ADDED
+to the protocol and revised nothing. `MenuGranted v2`, `MenuClosed v2` and `HeldMenu v2` carry
+the host's standard rows (`standard`, below) and the name of the pane they act on
+(`pane_name`); a holder that accepts only `MenuGranted v1` does
+not hold the office for this host, so a menu is refused where it would open, in words. Several
+NEST — `PaneMenuRequested` and `MenuGranted` carry
 `vector<PaneMenuRow>`, `v3::PaneContent` and `MenuShown` surface rows — and since Loom ABI v9 a
 nested component is agreed at admission like any other declared shape; these admit because
 every party declares them from the one installed header, not because they are flat. The host's
@@ -318,13 +322,14 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   press's version comes from) and is consumed by delivery: no menu, no selection, no keys. A
   pane may act (the guard example blocks while the button is held), hand the press back
   (`PanePassRequested`, echoing its correlation: the host's own pane menu opens once), or ask
-  for a menu of its own rows. Silence is a disposition too. **A body is empty by default:** a
-  holder without the door is sent nothing AND the press opens no host menu and takes no keys —
-  the host's own menu is reached by the chrome (the title row) and by the Pane Manager, never by
-  a right press in an unconfigured body. A send Loom refuses is attributed on the tap, and the
+  for a menu of its own rows. The shipped panes hand back every right press they have nothing
+  for, so none is lost; a holder's silence is still its own disposition, which the host cannot
+  see. **A right press in a body without the door is not lost:** the holder is sent nothing,
+  no keys move, and the host's own pane menu opens at the press — the same menu the chrome (the
+  title row) and the Pane Manager reach. A send Loom refuses is attributed on the tap, and the
   host drops the custody it recorded so the physical release sends nothing — the failure stands,
-  never manufactured into completion and never a menu fallback (`end_refused_button`, the
-  review's fourth finding).
+  never manufactured into completion (`end_refused_button`, the review's fourth finding); a
+  press whose send queued nothing at all is known undelivered, and the host's menu opens.
 - **Three gestures may continue into a menu, and they are judged alike.** A secondary press
   (`PaneButton`), a declared action sent by key (`PaneActionRequested`) and a PRIMARY press
   (`PanePressed` and its versions) each go out under a correlation a pane may echo on a
@@ -351,7 +356,14 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   a newer act, so the late request is refused and the keys stay where the newer press put them.
   An eligible ask is GRANTED to whoever holds `zengine.presenter` (`grant_menu`): the host keeps
   custody and place — `PresentedMenu`: whose menu, what about, where, the lines last shown, which
-  acts it may name — and no row. While it is open the weaver's keys are named by the contextual
+  acts it may name — and none of the pane's rows. Beneath them it grants its own pane menu for
+  that pane, the STANDARD ROWS (`MenuGranted::standard`: the catalog's pane rows, ids and labels
+  as its own menu shows them), so one menu holds both; a standard row chosen comes back named on
+  `MenuClosed::standard`, the presenter answers the requester unchosen, and the host spends the
+  row on that pane (`spend_standard_row`: an action through its own seam, a group by opening its
+  own menu there) as the choosing act's continuation, while that act is the weaver's latest.
+  No pane performs a standard row and the host performs no pane's row. While it is open the
+  weaver's keys are named by the contextual
   rows and forwarded (`menu_key`, `MenuInput::verb`), presses inside or outside are forwarded
   with the line and the picture the medium held (`menu_button`), the character a forwarded key
   made is part of that key's act, and the popup draws the lines the presenter shows within the
@@ -433,8 +445,9 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
 - **Not in this contract:** a secondary drag (`PaneDragged` carries no button, so the Editor's
   middle-button scroll and Neovim's right drag do not cross), modifier state on a window's
   button events (`mod::kNone` always), a host-performed pane operation from a menu row, the
-  host's OWN menus (chrome, room, tab, pass-back, `manage...`) presented by the presenter —
-  they stay the host's, the management route that must work with no presenter at all — and a
+  host's OWN menus (chrome, room, tab, pass-back, a doorless body, a `manage` row) presented by
+  the presenter — they stay the host's, the management route that must work with no presenter at
+  all; the presenter shows the standard rows only beneath a pane's own — and a
   pane's actions offered on HOVER. Hover motion does not cross the seam and pane actions follow
   keyboard focus; an item a pointer rests on, an offer that lives while it does, and a key that
   reaches an unfocused hovered pane are later, explicit policy (the grant, the withdrawal and

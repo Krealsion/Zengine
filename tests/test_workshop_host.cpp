@@ -1635,7 +1635,7 @@ TEST_CASE("manage.remove removes the addressed pane by its own key") {
     CHECK(t.session().arrange.open);
     CHECK(t.session().arrange.desk);
     CHECK_FALSE(t.session().arrange.addressed());
-    CHECK(t.notice().find("removed") != std::string::npos);
+    CHECK(t.notice().find("hid ") == 0);
     CHECK(t.notice().find("nothing behind it was touched") != std::string::npos);
 }
 
@@ -1658,7 +1658,7 @@ TEST_CASE("a contextual remove removes the pointed pane") {
     for (const OpenPane& p : t.session().panes.open) {
         CHECK(p.kind != stock::kKind);
     }
-    CHECK(t.notice().find("removed") != std::string::npos);
+    CHECK(t.notice().find("hid ") == 0);
 }
 
 TEST_CASE("navigation backtracks cleanly and every way out closes") {
@@ -2651,7 +2651,7 @@ TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") 
     const PaneRef closed = stock_ref();
     REQUIRE_FALSE(t.session().panes.has(stock::kKind));
     REQUIRE(hand_inspect(t, closed).accepted);
-    CHECK(subject_value(t.session(), "State") == "closed -- open it from the Pane Manager");
+    CHECK(subject_value(t.session(), "State") == "closed -- show it from the Pane Manager");
     CHECK(subject_value(t.session(), "Open") == "no");
     CHECK(subject_value(t.session(), "X") == "--");
     CHECK(subject_value(t.session(), "Window") == "-");
@@ -2670,7 +2670,7 @@ TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") 
     pick(t, stock::kKind);
     CHECK_FALSE(t.session().panes.has(stock::kKind));
     CHECK(t.session().inspected.ref == closed);
-    CHECK(subject_value(t.session(), "State") == "closed -- open it from the Pane Manager");
+    CHECK(subject_value(t.session(), "State") == "closed -- show it from the Pane Manager");
 
     // AN AUTHORED REFERENCE NO OFFICE RESOLVES keeps its identity and its geometry.
     REQUIRE(add_pane(live(t).setup.active, stranger()));

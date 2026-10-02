@@ -8,7 +8,7 @@ owns its room and input routing; the weave owns the meaning and state of its con
 
 Use [Tally](../../examples/tally-pane/tally.cpp), a small pane with one count and one action.
 Follow [edit a running pane](../workshop/edit-a-running-pane.md) to copy it into a project,
-build it, load it as `example.tally`, open it from the Pane Manager, and change/reload its code.
+build it, load it as `example.tally`, show it from the Pane Manager, and change/reload its code.
 For a shipped pane, use [develop Workshop](../workshop/develop-workshop.md).
 
 Read Tally in this order:

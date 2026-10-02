@@ -216,7 +216,7 @@ MEANS
 - two toggles queued before any reading reaches the presenter end where they began.
 
 DOES NOT MEAN
-- that a launch toggles: the terminal and hotkeys rows still open or focus (WL-DESK-03).
+- that a launch toggles: the terminal and hotkeys rows still show or focus (WL-DESK-03).
 
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneToggleRequested`,
 `PaneToggleAnswered`; `workshop/weave.hpp` `on(PaneToggleRequested)`;

@@ -6,6 +6,7 @@
 #include "flow-pane/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "operator/host.hpp"
+#include "workshop/pane_menu.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
@@ -39,7 +40,7 @@ class FlowPane final
                        fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
                        loom::DispatchRefused>,
           loom::Emit<ws::v2::PaneOffered, ws::PaneContent, ws::PaneCanvasContent,
-                     ws::PaneActions, ws::PaneEscapeUnspent,
+                     ws::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested,
                      ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop,
                      fh::FlowCatalog>> {
@@ -292,6 +293,12 @@ public:
       }
       if (event.phase != ws::canvas_pointer::kPress)
         return;
+      // A RIGHT PRESS MEANS NOTHING ON THE GRAPH OR ITS PAGES: handed back, so the host's pane
+      // menu opens where it landed.
+      if (event.button == 3) {
+        (void)ws::pane_menu::pass_back(mail, pane::kRole, event.pane);
+        return;
+      }
       const auto it =
           std::find_if(pictures_.begin(), pictures_.end(), [&](const auto &p) {
             return p.content.picture == event.picture;

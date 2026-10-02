@@ -8,11 +8,12 @@
 // a row means, reads no subject, and holds no pane's authority (`pane_menu::Asked`).
 // Pane law: agents/panes.md
 
-// The offer is refused in words when it has no rows, more than `kMaxPaneMenuRows`, or an id or
-// label out of bounds. The lines: "> label" for the cursor's row, "  label" otherwise, windowed
-// by the least motion with "... n earlier" / "... n more". Up and down move and stop at the ends,
-// choose chooses, back dismisses; a press on a row chooses it, a press outside dismisses, and a
-// release means nothing.
+// An offer with no rows, too many, or an id or label out of bounds is refused in words, and so are
+// such standard rows. Lines: the requester's rows, a rule naming the pane, the standard rows;
+// "> label" at the cursor, "  label" otherwise, windowed with "... n earlier" / "... n more". Up and
+// down pass over the rule and stop at the ends, choose chooses, back dismisses; a press on a row
+// chooses it, one outside dismisses, a release means nothing. A standard row chosen is named to the
+// host, which spends it, and the requester is answered unchosen.
 
 // One menu at a time, answered exactly once: chosen, dismissed, withdrawn by the host or refused.
 // The open menu is reload-kept state (`HeldMenu`), so a reloaded presenter shows it again; a menu
@@ -32,6 +33,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -50,19 +52,34 @@ const char* refusal_of(const ws::MenuGranted& g) {
     if (g.rows.empty()) {
         return "nothing to present -- the request offered no rows";
     }
-    if (g.rows.size() > ws::kMaxPaneMenuRows) {
+    if (g.rows.size() > ws::kMaxPaneMenuRows || g.standard.size() > ws::kMaxPaneMenuRows) {
         return "too many rows to present";
     }
-    for (const ws::PaneMenuRow& r : g.rows) {
-        if (r.id.empty() || r.id.size() > ws::kMaxPaneMenuIdLen ||
-            r.label.size() > ws::kMaxPaneMenuLabelLen) {
-            return "a row's id is empty or too long, or its label is too long";
+    for (const std::vector<ws::PaneMenuRow>* run : {&g.rows, &g.standard}) {
+        for (const ws::PaneMenuRow& r : *run) {
+            if (r.id.empty() || r.id.size() > ws::kMaxPaneMenuIdLen ||
+                r.label.size() > ws::kMaxPaneMenuLabelLen) {
+                return "a row's id is empty or too long, or its label is too long";
+            }
         }
     }
     if (g.room_rows <= 0 || g.room_columns <= 2) {
         return "no room to present a menu here";
     }
     return nullptr;
+}
+
+/// THE RULE ABOVE THE STANDARD ROWS, naming the pane they act on -- "  -- Name --" -- and drawn
+/// out with dashes as far as the widest row's line, so it widens the popup only for a long name.
+std::string rule_line(const std::string& pane_name, std::size_t widest) {
+    std::string out = "  --";
+    if (!pane_name.empty()) {
+        out += " " + pane_name + " --";
+    }
+    while (out.size() < widest + 2) {
+        out += '-';
+    }
+    return out;
 }
 
 /// ONE LINE OF TEXT A CANVAS CAN DRAW, at most `columns` wide: an undrawable byte becomes a space
@@ -113,7 +130,7 @@ public:
         if (const char* refused = refusal_of(g)) {
             // NOTHING TO PRESENT: answered here, and the menu given straight back to the host.
             (void)mail.as_role(ws::kPresenterRole)
-                .send_to_role(kWorkshopRole, ws::MenuClosed{g.menu, false, 0});
+                .send_to_role(kWorkshopRole, ws::MenuClosed{g.menu, false, 0, std::string()});
             (void)mail.as_role(ws::kPresenterRole)
                 .send_to_role(g.office,
                               ws::PaneMenuAnswered{g.pane, g.subject, false, std::string(),
@@ -129,7 +146,9 @@ public:
                               g.rows,
                               0,
                               g.room_rows,
-                              g.room_columns};
+                              g.room_columns,
+                              g.standard,
+                              g.pane_name};
         first_ = 0;
         show(mail);
     }
@@ -181,18 +200,45 @@ private:
                           ws::MenuReturned{menu, "this image does not hold that menu"});
     }
 
+    /// THE MENU AS SHOWN, ENTRY BY ENTRY: the requester's rows, then -- when the host granted
+    /// standard rows -- the rule, then those rows. The cursor and a line name an entry.
+    std::int64_t entries() const {
+        const std::size_t standard = state_.standard.size();
+        return static_cast<std::int64_t>(state_.rows.size() + (standard > 0 ? standard + 1 : 0));
+    }
+    bool is_rule(std::int64_t entry) const {
+        return !state_.standard.empty() && entry == static_cast<std::int64_t>(state_.rows.size());
+    }
+    /// The row an entry is, and whether it is the host's (a standard row) rather than the
+    /// requester's; nullptr for the rule.
+    const ws::PaneMenuRow* row_of(std::int64_t entry, bool& standard) const {
+        const std::int64_t mine = static_cast<std::int64_t>(state_.rows.size());
+        standard = entry > mine;
+        if (entry < 0 || entry >= entries() || is_rule(entry)) {
+            return nullptr;
+        }
+        return standard ? &state_.standard[static_cast<std::size_t>(entry - mine - 1)]
+                        : &state_.rows[static_cast<std::size_t>(entry)];
+    }
+
     void key(const ws::MenuInput& in, loom::Mail& mail) {
-        const std::int64_t last = static_cast<std::int64_t>(state_.rows.size()) - 1;
+        const std::int64_t last = entries() - 1;
         switch (in.verb) {
         case ws::menu_verb::kUp:
             if (state_.cursor > 0) {
                 --state_.cursor;
+                if (is_rule(state_.cursor)) {
+                    --state_.cursor; // the rule is no row: the requester's always precede it
+                }
                 show(mail);
             }
             break;
         case ws::menu_verb::kDown:
             if (state_.cursor < last) {
                 ++state_.cursor;
+                if (is_rule(state_.cursor)) {
+                    ++state_.cursor; // ...and standard rows always follow it
+                }
                 show(mail);
             }
             break;
@@ -212,19 +258,25 @@ private:
         }
     }
 
-    void choose(loom::Mail& mail, std::int64_t row, std::int64_t input) {
-        if (row < 0 || row >= static_cast<std::int64_t>(state_.rows.size())) {
+    void choose(loom::Mail& mail, std::int64_t entry, std::int64_t input) {
+        bool standard = false;
+        const ws::PaneMenuRow* row = row_of(entry, standard);
+        if (row == nullptr) {
+            return; // the rule, or no entry at all
+        }
+        if (standard) {
+            close(mail, false, std::string(), "a standard row was chosen", input, row->id);
             return;
         }
-        close(mail, true, state_.rows[static_cast<std::size_t>(row)].id, std::string(), input);
+        close(mail, true, row->id, std::string(), input);
     }
 
     /// END THE MENU: the host first (it closes the popup and, for a choice, records the act that
-    /// made it), then the requester's one answer.
+    /// made it, or spends the standard row named), then the requester's one answer.
     void close(loom::Mail& mail, bool chosen, const std::string& id, const std::string& why,
-               std::int64_t input) {
+               std::int64_t input, const std::string& standard = std::string()) {
         (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(kWorkshopRole, ws::MenuClosed{state_.menu, chosen, input});
+            .send_to_role(kWorkshopRole, ws::MenuClosed{state_.menu, chosen, input, standard});
         answer(mail, chosen, id, why);
         state_ = ws::HeldMenu{};
     }
@@ -240,12 +292,12 @@ private:
 
     /// THE WINDOW THE ROOM HOLDS, moved by the least it can from the last one shown.
     component::ListWindow window() const {
-        return component::cursor_window(state_.rows.size(),
+        return component::cursor_window(static_cast<std::size_t>(entries()),
                                         static_cast<std::size_t>(state_.cursor), first_,
                                         static_cast<std::size_t>(state_.room_rows));
     }
 
-    /// THE ROW A LINE CHOOSES, or -1 for a marker line or none.
+    /// THE ENTRY A LINE CHOOSES, or -1 for a marker line or none.
     std::int64_t row_at_line(std::int64_t line) const {
         const component::ListWindow w = window();
         const std::int64_t offset = line - (w.before > 0 && w.markers > 0 ? 1 : 0);
@@ -279,10 +331,25 @@ private:
                 drawable("  ... " + std::to_string(w.before) + " earlier", columns),
                 surface::role::kMuted});
         }
+        // THE RULE NAMES THE PANE THE STANDARD ROWS ACT ON, as wide as the widest row's line.
+        std::size_t widest = 0;
+        for (const std::vector<ws::PaneMenuRow>* run : {&state_.rows, &state_.standard}) {
+            for (const ws::PaneMenuRow& r : *run) {
+                widest = r.label.size() > widest ? r.label.size() : widest;
+            }
+        }
         for (std::size_t i = w.first; i < w.end(); ++i) {
-            const bool here = static_cast<std::int64_t>(i) == state_.cursor;
+            const std::int64_t entry = static_cast<std::int64_t>(i);
+            bool standard = false;
+            const ws::PaneMenuRow* row = row_of(entry, standard);
+            if (row == nullptr) {
+                said.lines.push_back(surface::SurfaceTextRow{
+                    drawable(rule_line(state_.pane_name, widest), columns), surface::role::kMuted});
+                continue;
+            }
+            const bool here = entry == state_.cursor;
             said.lines.push_back(surface::SurfaceTextRow{
-                drawable(std::string(here ? "> " : "  ") + state_.rows[i].label, columns),
+                drawable(std::string(here ? "> " : "  ") + row->label, columns),
                 here ? surface::role::kAccent : surface::role::kFill});
         }
         if (more) {
