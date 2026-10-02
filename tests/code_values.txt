@@ -90,3 +90,6 @@ kMaxPowersAnswerBytes           workshop/powers_vocabulary.hpp            kMaxPo
 kEvaluationSpends               operator/catalog.hpp                      kEvaluationSpends
 kEvaluationDepth                operator/catalog.hpp                      kEvaluationDepth
 kMaxFoldCount                   operator/fold.hpp                         kMaxFoldCount
+
+# ---- generating C++
+kMaxGeneratedBytes              flow/generate.hpp                         kMaxGeneratedBytes

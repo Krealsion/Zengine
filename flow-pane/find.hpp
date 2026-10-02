@@ -22,9 +22,16 @@ namespace zengine::flow_pane {
 /// A node as the graph shows it: its operator, or the fold and what it spends.
 inline std::string node_title(const op::Node& node) {
     if (!node.fold) return node.identity;
-    if (node.identity.empty()) return "fold (choose its body)";
-    return "fold " + node.identity + " (count " + node.fold->count + ", acc " +
-           node.fold->accumulator + ")";
+    if (node.identity.empty()) return "fold";
+    return "fold " + node.identity;
+}
+
+/// A fold's body slot as its node shows it: the choice still to make, or which ports its body
+/// threads the count and the accumulator through.
+inline std::string body_slot_text(const op::Node& node) {
+    if (!node.fold) return {};
+    if (node.identity.empty()) return "body = [choose]";
+    return "count " + node.fold->count + ", acc " + node.fold->accumulator;
 }
 
 /// The selected port as the graph knows it now: its node, its field, and its type in Loom's
@@ -135,11 +142,18 @@ inline constexpr std::array<std::pair<const char*, const char*>, 4> kGroups{{
     {workshop::kConversionKind, "Conversions"},
 }};
 
+/// Is `row` the one previewed? A row is known by its kind and its identity, since a form and an
+/// operator may share a name; a preview of no kind, a reference's, is never the form's.
+inline bool is_previewed(const Model& m, const workshop::PowerRow& row) {
+    return row.identity == m.preview &&
+           (m.preview_kind.empty() ? row.kind != workshop::kFormKind : row.kind == m.preview_kind);
+}
+
 /// The row the preview shows: the one chosen, while the door's last answer still lists it.
 inline const workshop::PowerRow* previewed(const Model& m) {
     if (m.preview.empty() || !m.discovered_read) return nullptr;
     for (const auto& row : m.discovered.rows)
-        if (row.identity == m.preview) return &row;
+        if (is_previewed(m, row)) return &row;
     return nullptr;
 }
 

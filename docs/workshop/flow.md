@@ -55,7 +55,8 @@ The rail beside the graph finds operators through the host's
   **In scope** of the type (state and message fields, and earlier nodes' outputs), then a typed
   constant for an `Int` or `Bool` port. An in-scope row wires the port; the constant opens the
   binding editor. Click the port again to put it down.
-- **A row previews; it never runs.** The preview is the door's row, and showing it evaluates
+- **A row previews; it never runs.** A form and an operator that share a name are two rows, and
+  each previews and adds itself. The preview is the door's row, and showing it evaluates
   nothing. **Add**, or **Enter**, adds the previewed power at the end of the trigger's graph, by
   the reference the row carries; if its ports have changed since it was found, Add says so and
   adds nothing, and so it does when the graph changed while Flow read those ports from the host.
@@ -68,7 +69,9 @@ The rail beside the graph finds operators through the host's
   `body = [choose]` row: the rail then lists only what a fold could spend -- one answer, an `Int`
   port for the count and another port of the answer's type -- and the preview offers each way to
   thread it, such as **count rhs, acc lhs** for `math.add`. You choose which port takes the count;
-  port names only suggest. Wire `start`, `limit`, `step` and `initial`, and any other port of the
+  port names only suggest. The node then reads `fold math.add`, its body row `count rhs, acc lhs`,
+  and it is brought into view whole. A reference the slot refuses is put down, so choosing again
+  spends the row the door holds now. Wire `start`, `limit`, `step` and `initial`, and any other port of the
   body from scope.
 - **What Flow does not offer.** A running definition's trigger body is that participant's own
   reaction, mounted for one revision and gone at the next behaviour edit. Flow asks only for
