@@ -19,6 +19,7 @@
 #include "staging.hpp"
 #include "user_paths.hpp"
 #include "flow-host/runtime.hpp"
+#include "view/host.hpp"
 #include "weave.hpp"
 #include <zen/host/grant_wiring.hpp>
 #include "host_pump.hpp"      // the host's turn of the bus, and the pump seam it owns
@@ -1063,6 +1064,9 @@ int main(int argc, char** argv) {
     // the rest, and nothing below knows the plan.
     zengine::flow_host::RuntimeHost flow_runtime(bus, operators);
     flow_runtime.mount();
+    // ...and its sibling, which registers each described view as a participant of its own.
+    zengine::view::Host view_host(bus);
+    view_host.mount();
 
     executor.begin(read_plan.plan);
 

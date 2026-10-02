@@ -39,6 +39,7 @@ routed: read a surface's document when the task touches that surface, not before
 | `message-draft/` — typed value forms and reusable preset persistence | [agents/message-drafts.md](agents/message-drafts.md), [agents/packaging.md](agents/packaging.md) |
 | `inventory/`, `inventory-pane/` — stored typed values, portable slots, capture metadata and durable toolboxes | [agents/inventory.md](agents/inventory.md), [agents/packaging.md](agents/packaging.md), [agents/panes.md](agents/panes.md) |
 | `flow-host/` — sessions on an existing host, custody and observation | [agents/flow-host.md](agents/flow-host.md) |
+| `view/`, `view-builder/` — a view described as data, the view host and the View Builder | [agents/view.md](agents/view.md) |
 | `flow-pane/` — graphical authoring and retained forms | [agents/flow.md](agents/flow.md), [agents/panes.md](agents/panes.md), [agents/message-drafts.md](agents/message-drafts.md) |
 | `operator/` — named rules, the catalog, the host/consumer seam, providers | [agents/operators.md](agents/operators.md) |
 | `maker/` — a weave built from a weaver's definition: the two artifacts, the triggers, the behaviour edit and the schema edit by succession | [agents/maker.md](agents/maker.md), the router over the `MW` registers under `agents/maker/` |

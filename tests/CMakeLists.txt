@@ -933,7 +933,7 @@ zengine_workshop_suite(host
 # (VM-WALL-11): Workshop's `main()` claims a terminal, and a source read keeps a claim every
 # case rests on from quietly going false.
 zengine_workshop_suite(panes
-    LINKS loom::history
+    LINKS loom::history zengine-view
     SOURCES test_workshop_demo.cpp
             test_workshop_panes_seam.cpp
             test_workshop_panes_window.cpp
