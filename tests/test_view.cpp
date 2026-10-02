@@ -265,11 +265,39 @@ TEST_CASE("the view host registers a view as its own participant, granted only i
     CHECK_FALSE(grant.permits("zen.PokeWrite", 1, rig.tally.id));
     CHECK_FALSE(grant.permits(view::ViewRun::zen_name, view::ViewRun::zen_version, rig.views.id()));
 
+    // Bytes that are no description are refused in the reader's words, and nothing registers.
+    const auto garbage = rig.ask(view::ViewRun{"other", loom::Bytes{1, 2, 3}});
+    CHECK_FALSE(garbage.ok);
+    CHECK(garbage.action == "run");
+    CHECK(has(garbage.reason, "these bytes are not a Zen value"));
+    // A host without a canvas grants prose: the view says, in one row, that it needs a canvas.
+    rig.tell("tally.panel", ws::PaneRoom{view::kPane, 4, 60});
+    bool prose = false;
+    for (const auto& m : rig.desk->heard)
+        if (m.provenance.authored_role() == "tally.panel" &&
+            loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneContent>())) {
+            const auto rows = loom::from_value<ws::PaneContent>(m.payload).rows;
+            prose = rows.size() == 1 && has(rows[0].text, "draws on a canvas-capable Workshop");
+        }
+    CHECK(prose);
     // A second run in the same session is refused; a name already held is refused.
     CHECK(has(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).reason, "already runs a view"));
     const auto clash = rig.ask(view::ViewRun{"second", bytes_of(panel())});
     CHECK_FALSE(clash.ok);
     CHECK(has(clash.reason, "`tally.panel` is already held"));
+    // The host runs at most kMaxViews views: the next is refused out loud.
+    for (std::size_t n = 1; n < view::kMaxViews; ++n) {
+        auto another = panel();
+        another.name = "panel" + std::to_string(n);
+        another.intents.clear();
+        REQUIRE(rig.ask(view::ViewRun{"s" + std::to_string(n), bytes_of(another)}).ok);
+    }
+    auto one_more = panel();
+    one_more.name = "panel.extra";
+    one_more.intents.clear();
+    const auto full = rig.ask(view::ViewRun{"extra", bytes_of(one_more)});
+    CHECK_FALSE(full.ok);
+    CHECK(has(full.reason, "already runs " + std::to_string(view::kMaxViews) + " views"));
 }
 
 TEST_CASE("a view says it is waiting until told, says its intent as its own participant by publication, and shows what it is told") {
@@ -326,6 +354,14 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     const auto d = panel();
     rig.press("tally.panel", d.elements[3]);
     REQUIRE(rig.total() == 45);
+
+    // A refusal that answers none of the view's own intents is not shown: a stranger's word,
+    // whatever it says, does not reach the notice row.
+    (void)rig.bus.send_as(rig.desk_id, rig.bus.role_holder("tally.panel"),
+                          loom::Message(loom::to_value(loom::Refused{"a stranger says no"}), rig.desk_id, {}, 999));
+    rig.pump();
+    rig.room("tally.panel");
+    CHECK_FALSE(has(rig.said("tally.panel"), "a stranger says no"));
 
     rig.fill("tally.panel", d.elements[2], "0");
     rig.press("tally.panel", d.elements[3]);
