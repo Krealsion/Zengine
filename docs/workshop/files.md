@@ -37,8 +37,8 @@ before, you can still jump to one of them (below) and carry on from there.
 
 ## Opening the pane
 
-Files is an ordinary pane. Press **`Ctrl`+`p`**, move to **Files**, press Return — it opens
-with your keys in it, and `x` on the same row of the Pane Manager closes it again. It moves, resizes, stacks and rides a saved setup exactly like every
+Files is an ordinary pane. Press **`Ctrl`+`p`**, move to **Files**, press Return — it shows
+with your keys in it, and `x` on the same row of the Pane Manager hides it again. It moves, resizes, stacks and rides a saved setup exactly like every
 other pane (see [Panes](panes.md)).
 
 **It is not compiled into Workshop.** Files is a separate artifact, `zengine-files`, loaded at
@@ -95,8 +95,8 @@ opens it would eat the capital letter its keystroke produced. `[menu]` and the r
 still work there, and you can bind `files.menu` to a key of your own.) It carries every
 operation the strip does, spelled with what it will
 act on — `open \`alpha.cpp\``, `use \`recipes.json\` as this project's recipes`, `mark this
-place` — plus `manage this pane...`, which hands the pane itself to Workshop's own pane menu
-(arrange, order, edit its code, remove). A right press on a row that names nothing — the
+place` — and beneath them, under a rule naming Files, Workshop's own rows for the pane itself
+(arrange, order, reset, edit its code, hide it). A right press on a row that names nothing — the
 header, a `... N more` marker, blank space — hands the press back to Workshop, whose own menu
 opens instead. A menu stays open across whatever else happens; when its answer arrives, Files
 checks that the place and the row it was opened about are still what is here, and refuses in

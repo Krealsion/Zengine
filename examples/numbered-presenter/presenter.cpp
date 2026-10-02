@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -37,7 +38,8 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // ---- CHANGE THIS FIRST -------------------------------------------------------------------------
 //
 // How one row reads: its number (1-9; a row past nine has none), then its label, with the cursor's
-// row marked. The width is the room's; an undrawable byte of a label is shown as a space.
+// row marked. The host's standard rows are numbered on from the requester's, with no rule between.
+// The width is the room's; an undrawable byte of a label is shown as a space.
 std::string line_for(std::size_t row, const std::string& label, bool here, std::int64_t columns) {
     std::string text = here ? "> " : "  ";
     text += row < 9 ? std::to_string(row + 1) + " " : std::string("  ");
@@ -70,13 +72,15 @@ const char* refusal_of(const ws::MenuGranted& g) {
     if (g.rows.empty()) {
         return "nothing to present -- the request offered no rows";
     }
-    if (g.rows.size() > ws::kMaxPaneMenuRows) {
+    if (g.rows.size() > ws::kMaxPaneMenuRows || g.standard.size() > ws::kMaxPaneMenuRows) {
         return "too many rows to present";
     }
-    for (const ws::PaneMenuRow& r : g.rows) {
-        if (r.id.empty() || r.id.size() > ws::kMaxPaneMenuIdLen ||
-            r.label.size() > ws::kMaxPaneMenuLabelLen) {
-            return "a row's id is empty or too long, or its label is too long";
+    for (const std::vector<ws::PaneMenuRow>* run : {&g.rows, &g.standard}) {
+        for (const ws::PaneMenuRow& r : *run) {
+            if (r.id.empty() || r.id.size() > ws::kMaxPaneMenuIdLen ||
+                r.label.size() > ws::kMaxPaneMenuLabelLen) {
+                return "a row's id is empty or too long, or its label is too long";
+            }
         }
     }
     if (g.room_rows <= 0 || g.room_columns <= 4) {
@@ -115,7 +119,7 @@ public:
         }
         if (const char* refused = refusal_of(g)) {
             (void)mail.as_role(ws::kPresenterRole)
-                .send_to_role(kWorkshopRole, ws::MenuClosed{g.menu, false, 0});
+                .send_to_role(kWorkshopRole, ws::MenuClosed{g.menu, false, 0, std::string()});
             (void)mail.as_role(ws::kPresenterRole)
                 .send_to_role(g.office,
                               ws::PaneMenuAnswered{g.pane, g.subject, false, std::string(),
@@ -131,7 +135,9 @@ public:
                               g.rows,
                               0,
                               g.room_rows,
-                              g.room_columns};
+                              g.room_columns,
+                              g.standard,
+                              g.pane_name};
         first_ = 0;
         pressed_row_ = -1;
         show(mail);
@@ -182,8 +188,19 @@ private:
                           ws::MenuReturned{menu, "this image does not hold that menu"});
     }
 
+    /// EVERY ROW SHOWN: the requester's, then the host's standard rows.
+    std::int64_t count() const {
+        return static_cast<std::int64_t>(state_.rows.size() + state_.standard.size());
+    }
+    /// Row `row` of that run, and whether it is a standard row (the host's to spend).
+    const ws::PaneMenuRow& row_of(std::int64_t row, bool& standard) const {
+        const std::size_t r = static_cast<std::size_t>(row);
+        standard = r >= state_.rows.size();
+        return standard ? state_.standard[r - state_.rows.size()] : state_.rows[r];
+    }
+
     void key(const ws::MenuInput& in, loom::Mail& mail) {
-        const std::int64_t count = static_cast<std::int64_t>(state_.rows.size());
+        const std::int64_t count = this->count();
         const std::int64_t named = digit_row(in.scancode, in.modifiers);
         if (named >= 0) {
             if (named < count) {
@@ -238,16 +255,22 @@ private:
     }
 
     void choose(loom::Mail& mail, std::int64_t row, std::int64_t input) {
-        if (row < 0 || row >= static_cast<std::int64_t>(state_.rows.size())) {
+        if (row < 0 || row >= count()) {
             return;
         }
-        close(mail, true, state_.rows[static_cast<std::size_t>(row)].id, std::string(), input);
+        bool standard = false;
+        const ws::PaneMenuRow& chosen = row_of(row, standard);
+        if (standard) {
+            close(mail, false, std::string(), "a standard row was chosen", input, chosen.id);
+            return;
+        }
+        close(mail, true, chosen.id, std::string(), input);
     }
 
     void close(loom::Mail& mail, bool chosen, const std::string& id, const std::string& why,
-               std::int64_t input) {
+               std::int64_t input, const std::string& standard = std::string()) {
         (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(kWorkshopRole, ws::MenuClosed{state_.menu, chosen, input});
+            .send_to_role(kWorkshopRole, ws::MenuClosed{state_.menu, chosen, input, standard});
         answer(mail, chosen, id, why);
         state_ = ws::HeldMenu{};
         pressed_row_ = -1;
@@ -270,7 +293,7 @@ private:
     }
 
     component::ListWindow window() const {
-        return component::cursor_window(state_.rows.size(),
+        return component::cursor_window(static_cast<std::size_t>(count()),
                                         static_cast<std::size_t>(state_.cursor), first_,
                                         static_cast<std::size_t>(state_.room_rows));
     }
@@ -306,8 +329,10 @@ private:
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const bool here = static_cast<std::int64_t>(i) == state_.cursor;
+            bool standard = false;
+            const ws::PaneMenuRow& row = row_of(static_cast<std::int64_t>(i), standard);
             said.lines.push_back(
-                surface::SurfaceTextRow{line_for(i, state_.rows[i].label, here, state_.room_columns),
+                surface::SurfaceTextRow{line_for(i, row.label, here, state_.room_columns),
                                         here ? surface::role::kAccent : surface::role::kFill});
         }
         if (more) {

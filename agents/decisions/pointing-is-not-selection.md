@@ -14,7 +14,9 @@ owner. Arrange is the one exception, and only after its target passes admission.
 `kContextCatalog` declares rows over the action catalog's ids and owns no power. A row teaches
 its shortcut only when its action owns a binding active in the context the weaver returns to.
 Spending is one seam per subject kind and paint is not policy. The surface is a mode with first
-refusal.
+refusal. A right press in a pane's body is never lost: the pane acts or offers its rows where it
+has something there, and the host's pane menu opens everywhere else; a pane's own menu carries
+the host's standard rows beneath its rows, and each row is spent by its owner.
 
 **Alternatives considered.**
 - *Capturing a rectangle, row or handle* — rejected: a ref outside the setup gets one truthful
@@ -28,6 +30,16 @@ refusal.
 - *Provider-contributed rows, or a second-button `PanePressed`* — not done; pinned by case
   `"a right press over a provider's pane crosses the seam not at all"`.
 - *Toggling on a further right press* — rejected: it re-targets.
+- *Tried: a body without the door is empty* — replaced: a right press in Flow, Powers, or the
+  Editor off its highlight opened nothing, and the weaver could not tell a dead mouse from a
+  pane that meant nothing by it.
+- *Argued: the host paints its rows under the presenter's lines* — refused: one popup with two
+  owners of its cursor and keys. The presenter shows them; the host spends them.
+- *Argued: the standard rows inside the pane's own rows, under reserved ids* — refused: the
+  requester would be answered with an id it never offered, and the host would not hear the
+  choice. They travel apart (`standard`), and the requester is answered unchosen.
+- *Argued: the groups flattened into a pane's menu* — refused: a dozen rows under every pane's
+  own. A group row opens the host's own menu at that group.
 
 **Consequences.** `load_document()` drops a captured object subject, the one identity-aliasing
 door. `manage.remove` (`d`) completed the arranging vocabulary as the same owner arm the menu's

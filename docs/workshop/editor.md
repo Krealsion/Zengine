@@ -188,11 +188,13 @@ the [source material reference](../reference/source-transfer.md).
   hand reaches another character; then the selection is put back exactly as it was and the copy
   leaves with the pointer. A drag that starts anywhere else sweeps a selection, as it always has;
 - **right-click the highlight** → **Extract selection to Inventory**, then click where it goes
-  (`Esc` puts it down). A right-click anywhere else offers nothing;
+  (`Esc` puts it down). A right-click anywhere else opens Workshop's own menu for the pane;
 - **`Ctrl`+`e`** (`editor.extract`) picks it up from the keyboard; click where it goes, as with
   any carry (`Esc` puts it down).
 
 ![A selection dragged from its highlight toward Inventory's Snippets folder: the copy follows the pointer, and the document is untouched](images/editor-materials-carrying.png)
+
+![A right press on a line away from the highlight: the Editor offers nothing there, so Workshop's own pane menu opens beside the press](images/editor-right-press-off-highlight.png)
 
 The copy is the buffer's text **as it stands, unsaved edits included**, kept beside an
 observation of where it came from: the file, the project root, the range, the file's line ending,

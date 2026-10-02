@@ -108,7 +108,6 @@ inline constexpr const char* kMenuEditField = "files.menu.edit-field";
 inline constexpr const char* kMenuNextField = "files.menu.next-field";
 inline constexpr const char* kMenuWriteRecipe = "files.menu.write-recipe";
 inline constexpr const char* kMenuCancel = "files.menu.cancel";
-inline constexpr const char* kMenuManage = "files.menu.manage";
 
 /// The row id for "type the field at `which`": `files.menu.edit-field:2`. The authoring menu
 /// offers a row per field, and `PaneMenuAnswered` echoes one subject for the whole menu (the

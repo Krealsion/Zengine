@@ -12,19 +12,22 @@ LAW — A pane's menu request is judged where it would open and granted to the p
 MEANS
 - a continuation of one gesture: a secondary press, a declared key, or a PRIMARY press;
 - one at a time: a newer menu, a right press, the host's menu, the pane leaving withdraw it;
-- the host keeps custody and place -- forwards acts, draws lines in the room -- and no row.
+- the host keeps custody, place and its standard rows beneath the pane's, spending one chosen.
 
 DOES NOT MEAN
-- that the host performs a pane's operation, or that a row grants one: the requester acts;
-- that anything is restored after: a choice may continue to `manage...` or the keyboard, once.
+- that the host performs a pane's row, a pane a standard row, or that a row grants one;
+- that anything is restored after: a choice may continue to a manage row or the keys, once.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneMenuRow`, `PaneMenuRequested`,
 `PaneMenuAnswered`, `PaneManageRequested`, `PaneKeyboardRequested`, `kPresenterRole`;
 `workshop/presenter_vocabulary.hpp` `MenuGranted`, `MenuShown`, `MenuInput`, `MenuClosed`,
-`MenuWithdrawn`; `workshop/context.hpp` `PresentedMenu`; `workshop/weave.hpp`
-`grant_menu`, `press_sent_`, `withdraw_menu`, `end_menu_unanswered`,
+`MenuWithdrawn`, `MenuGranted::standard`, `MenuGranted::pane_name`, `MenuClosed::standard`;
+`workshop/context.hpp`
+`PresentedMenu`, `context_population`; `workshop/weave.hpp`
+`grant_menu`, `press_sent_`, `withdraw_menu`, `end_menu_unanswered`, `spend_standard_row`,
 `cell_of_body_place`, `ChoiceAnswered`, `action_sent_`;
-`workshop/weave_external.cpp` `on(PaneMenuRequested)`, `grant_menu`, `withdraw_menu`,
+`workshop/weave_external.cpp` `on(PaneMenuRequested)`, `grant_menu`, `spend_standard_row`,
+`withdraw_menu`,
 `end_menu_unanswered`, `about_open_menu`, `forward_menu_input`, `menu_key`, `menu_button`,
 `on(MenuShown)`, `on(MenuClosed)`, `on(PresenterReady)`, `on(PaneManageRequested)`,
 `on(PaneKeyboardRequested)`, `cell_of_body_place`; `workshop/weave_pointer.cpp` `context_key`;
@@ -35,6 +38,11 @@ PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneMenuRow`, `PaneMenuRequested`,
 menu opens"`; `tests/test_workshop_panes_button.cpp` case `"WL-CTX-09: a menu requested on the
 press's own turn is granted to the presenter and opens beside the press with the pane's rows,
 moves no keys and no selection, and Return returns the first row -- answered by the presenter"`,
+case `"WL-CTX-09: a pane's menu shows its own rows first and the host's standard rows beneath
+them in one menu, and the keyboard passes over the rule between them"`, case `"WL-CTX-09: a
+standard row chosen on a pane's menu is spent by the host on that pane, and the pane is answered
+unchosen and performs nothing"`, case `"WL-CTX-09: a standard row is spent only while its
+choosing act is the weaver's latest -- a key queued behind the choice leaves it unspent"`,
 case `"WL-CTX-09: the keyboard works the menu -- Down then Return chooses the second row; Escape
 answers it unchosen; the release under it still reaches the pane"`, case `"WL-CTX-09: an outside
 press dismisses the menu, is spent on dismissing, and reaches nothing beneath it"`, case
@@ -74,11 +82,13 @@ DOES NOT MEAN
 - that a give-back reaches a newer menu or one answered: `MenuClosed` retired that record;
 - that every later participant must hand over or cancel alike: it is these consumers' policy.
 
-PROVEN BY — `workshop/presenter_vocabulary.hpp` `HeldMenu`, `PresenterReady`, `MenuClosed`,
-`MenuReturned`, `kMaxMenuLines`; `menu-presenter/presenter.cpp` `MenuPresenter`, `refusal_of`,
-`MenuPresenter::give_back`, `drawable`;
-`examples/numbered-presenter/presenter.cpp` `NumberedPresenter`,
-`digit_row`, `line_for`, `NumberedPresenter::give_back`;
+PROVEN BY — `workshop/presenter_vocabulary.hpp` `HeldMenu`, `HeldMenu::standard`,
+`HeldMenu::pane_name`,
+`PresenterReady`, `MenuClosed`, `MenuReturned`, `kMaxMenuLines`;
+`menu-presenter/presenter.cpp` `MenuPresenter`, `refusal_of`, `MenuPresenter::give_back`,
+`MenuPresenter::row_of`, `MenuPresenter::is_rule`, `rule_line`, `drawable`;
+`examples/numbered-presenter/presenter.cpp` `NumberedPresenter`, `digit_row`, `line_for`,
+`NumberedPresenter::give_back`, `NumberedPresenter::row_of`;
 `workshop/pane_menu.hpp` `Asked`, `Asked::take`, `Offer`; `desktop-pane/pane.cpp`
 `launcher_asked_`, `keys_asked_`; `workshop/weave_external.cpp` `on(PresenterReady)`,
 `answer_withdrawn`, `end_refused_menu`, `on(WithdrawalFence)`, `on(MenuReturned)`,

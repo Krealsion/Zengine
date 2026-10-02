@@ -1056,7 +1056,7 @@ TEST_CASE("removing the pane being arranged ends the arrangement about it") {
     REQUIRE_FALSE(has_pane(t.session().setup.active, builder));
     CHECK_FALSE(t.session().arrange.open);
     CHECK_FALSE(t.session().arrange.addressed());
-    CHECK(t.notice().find("removed") != std::string::npos);
+    CHECK(t.notice().find("hid ") == 0);
 }
 
 TEST_CASE("a pixel axis refuses every current pane projection") {
@@ -2772,7 +2772,7 @@ TEST_CASE("the contextual surface is painted where it is hit") {
     CHECK(rows[1] == "  Order >");
     CHECK(rows[2] == "  Reset >");
     CHECK(rows[3] == "  edit code");
-    CHECK(rows[4] == "  remove");
+    CHECK(rows[4] == "  hide pane");
 
     // THE INVERSE PAIR, SPENT: a press at the row the painter drew chooses that row.
     // Row 4 is `remove` -- and the pane is gone, through the one door.
@@ -2814,7 +2814,7 @@ TEST_CASE("manage.remove speaks through the keymap's own claim surfaces") {
     const std::vector<std::string> pairs = help_pairs(defaults, KeyContext::kArrangePane);
     bool said = false;
     for (const std::string& pair : pairs) {
-        if (pair == "d remove") {
+        if (pair == "d hide pane") {
             said = true;
         }
     }

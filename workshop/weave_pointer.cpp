@@ -359,31 +359,32 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             (void)external_release(b.button, b, mail);
             return;
         }
+        // A FURTHER RIGHT PRESS RE-ASKS THE QUESTION about whatever is under it now: the surface
+        // closes and the press is routed afresh below, so a pane with the door is offered it first
+        // and the host's own menu opens everywhere else -- as `menu_button` does for a pane's menu.
         if (b.pressed && b.button == 3) {
-            if (where.understood) {
-                // A FURTHER RIGHT PRESS RE-ASKS THE QUESTION about whatever is under it now: the
-                // host's own menu, re-targeted. (A pane's menu -- the presenter's -- takes this
-                // path in `menu_button`, which withdraws it and routes the press afresh.)
-                open_context_at(where);
+            close_context();
+            if (!where.understood) {
                 repaint(mail);
+                return;
             }
+        } else {
+            if (b.button != 1) {
+                return;
+            }
+            if (!b.pressed) {
+                // A release still ends a gesture that began before the surface opened: a right
+                // press can arrive mid-drag.
+                (void)end_held_gestures();
+                return;
+            }
+            if (!where.understood) {
+                return;
+            }
+            context_press(where, b.space, b.x, b.y, mail);
+            repaint(mail);
             return;
         }
-        if (b.button != 1) {
-            return;
-        }
-        if (!b.pressed) {
-            // A release still ends a gesture that began before the surface opened: a right press
-            // can arrive mid-drag.
-            (void)end_held_gestures();
-            return;
-        }
-        if (!where.understood) {
-            return;
-        }
-        context_press(where, b.space, b.x, b.y, mail);
-        repaint(mail);
-        return;
     }
     const PointedAt at = canvas_point_of(b.space, b.x, b.y);
     // THE SECOND BUTTON IS THE PANE'S FIRST (WL-PRESS-06). A secondary RELEASE is the hold's
@@ -398,7 +399,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     // A secondary PRESS over a pane whose holder has the `PaneButton` door is DELIVERED, and
     // delivery is consumption: no menu, no selection change, no keyboard change. Only a press
     // that names a row of the BODY is the pane's; the chrome stays the host's, and a holder
-    // without the door is sent nothing -- the host's own menu answers below, as it always did.
+    // without the door is sent nothing -- the host's own menu answers below.
     if (b.pressed && (b.button == 2 || b.button == 3) && at.understood) {
         const Occupancy taker =
             occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
@@ -410,20 +411,18 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             const ExternalPressAt aimed =
                 external_press_at(session_.panes, session_.setup.active, screen_of(session_),
                                   taker.kind, session_.pane_titles, b.space, b.x, b.y);
-            // A body press is the pane's, and empty by default: a holder without the door is sent
-            // nothing and the press is still consumed. Silence is not pass-through; the host's own
-            // menu is reached by the chrome and the Pane Manager, never by a right press in a
-            // stranger's body (WL-CTX-08).
-            if (aimed.named) {
-                (void)external_button(taker.kind, b.button, aimed, at, mail);
+            // A body press is the pane's when its holder has the door, and delivery is consumption.
+            // A holder without the door is sent nothing, and the press is not lost: a right press
+            // opens the host's pane menu below, at the press (WL-CTX-08); a middle one is dropped.
+            if (aimed.named && external_button(taker.kind, b.button, aimed, at, mail)) {
                 repaint(mail);
                 return;
             }
         }
     }
     // A RIGHT PRESS NOBODY TOOK ASKS "WHAT CAN I DO WITH THIS?" -- the host's own surface, on
-    // the chrome, the room, or a tab. A pane's BODY is not here: it was consumed above, with or
-    // without a door. Only a press opens; a middle press nobody took is dropped below.
+    // the chrome, the room, a tab, or the body of a pane whose holder has no door. Only a press
+    // opens; a middle press nobody took is dropped below.
     if (b.pressed && b.button == 3 && at.understood) {
         // ...and a tab is a subject it can name, behind occupancy: the tab inverse is asked only
         // once the walk says the Layouts pane owns this point, so a covered tab is never named

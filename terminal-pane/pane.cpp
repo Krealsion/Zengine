@@ -356,7 +356,10 @@ public:
     void on(const ws::PaneDragged&, loom::Mail&) {}
     void on(const ws::PaneButton& press, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kTerminalPane ||
-            !press.pressed || press.button != 3 || press.lost || capture_.pending()) return;
+            !press.pressed || press.button != 3 || press.lost) return;
+        if (capture_.pending()) { // a pickup in flight offers nothing now: handed back, not dropped
+            ws::pane_menu::pass_back(mail, pane::kTerminalPaneRole, pane::kTerminalPane); return;
+        }
         if (!subjects_.current(press.picture)) {
             notice_ = "That transcript picture changed; try again"; say(mail); return;
         }

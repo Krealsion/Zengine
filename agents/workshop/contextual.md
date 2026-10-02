@@ -57,8 +57,12 @@ WHY — `agents/decisions/content-sized-popups.md`
 
 LAW — There is no title row and no hint row: painted row i is population row i, and the width is the widest action row, so the popup shrinks to its content.
 
+MEANS
+- a group's row ends in the one submenu mark, as a pane's row that opens a menu does.
+
 PROVEN BY — `workshop/screen_attention.cpp` `context_press_at`, `paint_context`,
-`context_row_text`, `context_entry_text`; `tests/test_workshop_screen.cpp` case `"the contextual
+`context_row_text`, `context_entry_text`; `workshop/pane_vocabulary.hpp` `kSubmenuMark`;
+`workshop/pane_menu.hpp` `Offer::submenu`; `tests/test_workshop_screen.cpp` case `"the contextual
 surface is its actions, and its width is theirs"`, case `"the contextual surface is
 painted where it is hit"`.
 WHY — `agents/decisions/content-sized-popups.md`
@@ -68,7 +72,7 @@ WHY — `agents/decisions/content-sized-popups.md`
 LAW — The catalog declares rows — an action id, its subjects, a group — over the action catalog's ids, so a stale reference is a compile error; one population is what every consumer of the menu spends.
 
 MEANS
-- a pane's: `arrange`, `Order >`, `Reset >`, `edit code`, `remove`;
+- a pane's: `arrange`, `Order >`, `Reset >`, `edit code`, `hide pane`;
 - a tab's: `layout.rename`, `layout.duplicate`, `Order >`, `layout.remove`; the room's: no target;
 - groups are their names, and an empty group cannot exist.
 
@@ -117,11 +121,12 @@ LAW — `KeyContext::kContext` tops the modes beneath it: inside, navigate or ch
 
 MEANS
 - a further right press re-targets, offering a pane under it its press first;
-- a pass-back is a continuation (WL-PRESS-06): stale, zero, spent or foreign moves nothing.
+- a pass-back is a continuation (WL-PRESS-06): stale, zero, spent or foreign moves nothing;
+- a right press in a doorless body opens the same rows at the press: a body press is not lost.
 
 DOES NOT MEAN
 - that a pane's rows reach this surface unasked: only by its request (WL-CTX-09);
-- that a doorless body opens the host's menu: it is empty; the chrome and the Manager reach it.
+- that a row is spent by another owner: the host spends these, a pane its own (WL-CTX-09).
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kContext`; `workshop/screen_arrange.cpp`
 `keyboard_context`; `workshop/screen_attention.cpp` `context_press_at`; `workshop/screen.hpp`
@@ -131,7 +136,11 @@ PROVEN BY — `workshop/keymap.hpp` `KeyContext::kContext`; `workshop/screen_arr
 through it"`, case `"navigation backtracks cleanly and every way out closes"`;
 `tests/test_workshop_panes_window.cpp` case `"a right press over a provider's pane crosses the
 seam not at all"`, case `"input spent on the open surface reaches no provider"`;
-`tests/test_workshop_panes_button.cpp` case `"WL-CTX-08: a pass-back after a clean
+`tests/test_workshop_panes_button.cpp` case `"WL-PRESS-06: a right press in a doorless pane's
+body opens the host's pane menu at the press, sends the provider nothing and takes no keys; its
+chrome opens the same menu"`, case `"WL-CTX-08: a further right press while the host's menu is
+open asks again -- a pane with the door is offered it first, and a doorless body opens the host's
+menu where it landed"`, case `"WL-CTX-08: a pass-back after a clean
 click opens the host's menu for that pane, once"`, case `"WL-CTX-08: a pass-back on the press's
 own turn opens the menu, and the release still reaches the pane under it"`, case `"WL-CTX-08: a
 stale correlation, a zero one, and a pass-back from an office that did not offer the pane all

@@ -125,6 +125,11 @@ public:
         return *this;
     }
 
+    /// A ROW WHOSE CHOICE OPENS ANOTHER MENU: its label ends in the shared mark (`kSubmenuMark`).
+    Offer& submenu(std::string id, std::string label) {
+        return row(std::move(id), std::move(label) + kSubmenuMark);
+    }
+
     bool empty() const noexcept { return request_.rows.empty(); }
     const PaneMenuRequested& request() const noexcept { return request_; }
 

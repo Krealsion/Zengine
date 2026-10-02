@@ -30,7 +30,7 @@ inline constexpr const char* kDesktopRole = "zengine.desktop";
 /// desks wrote; a desk naming the host's old `pane-editor` is read as it.
 inline constexpr const char* kLauncherPane = "launcher";
 inline constexpr const char* kLauncherName = "Pane Manager";
-inline constexpr const char* kLauncherSummary = "open, focus or close a pane, and make one";
+inline constexpr const char* kLauncherSummary = "show, focus or hide a pane, and make one";
 
 /// THE SECOND PANE: every key in force, where it answers, and how a weaver moves one. It replaces
 /// the host's key-list overlay, and it keeps no catalog: every row is the host's `KeymapShown`.

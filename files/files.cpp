@@ -70,7 +70,6 @@ using ws::PaneButton;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::PaneKey;
-using ws::PaneManageRequested;
 using ws::PaneMenuAnswered;
 using ws::PaneMenuRequested;
 using ws::v2::PaneOffered;
@@ -273,7 +272,7 @@ class FilesWeave
           loom::Emit<PaneOffered, PaneActions, ws::v3::PaneContent, ProjectRootRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
                      zengine::builder::StatusRequested, PaneMenuRequested, PanePassRequested,
-                     PaneManageRequested, ws::PaneKeyboardRequested, surface::ClipboardCopy,
+                     ws::PaneKeyboardRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -794,7 +793,6 @@ public:
         offer.row(files::kMenuRefresh, "look at this directory again");
         offer.row(files::kMenuPreviousMark, "go to the previous mark");
         offer.row(files::kMenuNextMark, "go to the next mark");
-        offer.row(files::kMenuManage, "manage this pane...");
         asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
     }
 
@@ -811,7 +809,6 @@ public:
                       "author a recipe for `" + chooser_.candidates[chooser_.cursor].name + "`");
         }
         offer.row(files::kMenuCancel, "pick nothing -- back to the listing");
-        offer.row(files::kMenuManage, "manage this pane...");
         asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
     }
 
@@ -861,7 +858,6 @@ public:
         offer.row(files::kMenuWriteRecipe,
                   "write the recipe for `" + authoring_.chosen.name + "`");
         offer.row(files::kMenuCancel, "abandon this recipe");
-        offer.row(files::kMenuManage, "manage this pane...");
         asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
     }
 
@@ -876,13 +872,6 @@ public:
         const std::string& place = parts[0];
         const std::string& subject = parts[1];
         const std::string id = chosen_id_;
-        if (id == files::kMenuManage) {
-            // THE HOST'S OWN PANE MENU ON THIS PANE -- the deliberate route to arranging,
-            // ordering, editing this pane's code and removing it, continuing this choice.
-            (void)pane_menu::manage(mail, files::kFilesRole, files::kProjectFilesPane,
-                                    files::kFilesRole, files::kProjectFilesPane);
-            return;
-        }
         std::size_t field = 0;
         if (files::is_menu_edit_field(id, &field)) {
             if (authoring_.open && field < field_count() && subject == authoring_.chosen.name &&

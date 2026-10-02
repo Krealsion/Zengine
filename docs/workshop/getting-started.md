@@ -9,7 +9,7 @@ process, a Builder starts a real build and offers the result to the running proj
 [Editor pane](editor.md) opens the file a build recipe names and holds it while you edit, and
 Info describes any pane and edits where it sits and how big it is — so `edit → save → build →
 realize → inspect` closes without leaving the application. The desk itself — the Pane Manager
-that opens, closes and makes panes, the Hotkeys pane, and the keys that work anywhere — is a
+that shows, hides and makes panes, the Hotkeys pane, and the keys that work anywhere — is a
 tool too, and you can edit, rebuild and replace it while Workshop runs. Your desk comes back on
 its own when you relaunch.
 
@@ -154,14 +154,14 @@ Something that is **still true** when you read it — a settings file that could
 pane of yours that is off the screen, a tool that could not load — does not go there. It goes
 to attention: one compact line where the medium can always show it (a box in the corner of the
 window, the second reserved row of a terminal), and the **Attention** pane lists them all —
-open it from the Pane Manager. Those disappear when they stop being true and at no other
+show it from the Pane Manager. Those disappear when they stop being true and at no other
 moment. See [what needs your attention](attention.md).
 
 The **first row** is a pane — [the layout selector](setups.md#several-layouts-in-one-workshop),
 called **Layouts**: your layouts as tabs on the left with the one you are on between `>` and
 `<`, a `+` that makes another, and — at the row's right-hand edge — what the layout you are on
 is related to: `setup: none`, or the Setup file it was saved to or restored from and whether it
-still matches it. Being a pane means you can move it, resize it, cover it or close it, like
+still matches it. Being a pane means you can move it, resize it, cover it or hide it, like
 Files or the Editor. The **bottom band** is what Workshop just said and what your keys mean
 right now: the notice, then the legend rows advertising the current context's gestures. Every
 one of those hints is a projection of the effective keymap — remap a binding and the screen
@@ -177,10 +177,10 @@ one you are on, related to no Setup file yet. `none` is not a warning: Workshop 
 layout for you either way.
 
 1. **`Ctrl`+`p`** — the **Pane Manager**: every pane there is, open or not. `↑` `↓` choose,
-   `Enter` opens one and puts you in it — a pane that is already open is simply where you land.
-   **`x`** closes one: it leaves the layout, and its tool keeps running and keeps what it holds,
-   so `Enter` brings it back as it was. `Ctrl`+`p` works while you are typing in another pane.
-   See [panes](panes.md#opening-going-to-and-closing--the-pane-manager).
+   `Enter` shows one and puts you in it — a pane that is already shown is simply where you land.
+   **`x`** hides one: it leaves the layout, and its tool keeps running and keeps what it holds,
+   so `Enter` shows it again as it was. `Ctrl`+`p` works while you are typing in another pane.
+   See [panes](panes.md#showing-going-to-and-hiding--the-pane-manager).
 2. **`Ctrl`+`t`** — open the Terminal, or go to it if it is already up. `Ctrl`+`p`, `Ctrl`+`t`
    and `Ctrl`+`k` come from the **desktop**, a tool you can edit and rebuild like any other, so
    you can move them, switch them off, or change what they do — see
@@ -230,7 +230,7 @@ layout for you either way.
 | | |
 |---|---|
 | anywhere | `Ctrl`+`p` the Pane Manager · `Ctrl`+`t` the Terminal · `Ctrl`+`k` the Hotkeys pane — even inside a pane ([hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)) |
-| the Pane Manager | `↑` `↓` choose · `Enter` open or go to · `x` close · `n` make a pane of your own, `s` save it, `Ctrl`+`d` discard its edits ([Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data)) |
+| the Pane Manager | `↑` `↓` choose · `Enter` show or go to · `x` hide · `n` make a pane of your own, `s` save it, `Ctrl`+`d` discard its edits ([Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data)) |
 | panes | `w` arrange desk · `t` pane titles · `Esc` put the selected pane down |
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | layouts | `s` save · `r` restore · `=` new · `.` `,` next / previous · `Ctrl`+`w` remove ([setups](setups.md)) — the **last** session needs neither |
