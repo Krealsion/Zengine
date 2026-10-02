@@ -23,7 +23,8 @@ struct Dialog { std::string title, action; std::vector<Entry> entries; std::size
 /// another node never moves the choice onto a different one.
 struct PortChoice { std::int64_t place = 0; std::size_t port = 0; };
 /// A value a person carried here and dropped, waiting for them to say what it should become; the
-/// port it landed on, if any, by its node's stable place.
+/// port it landed on, if any, by its node's stable place. Another workspace puts it down, since
+/// that graph numbers its places afresh.
 struct Dropped { loom::Value value; std::optional<PortChoice> port; };
 
 class Model {
@@ -183,7 +184,7 @@ private:
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before creating another");
             workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(args[0]);
-            node.reset(); form.reset(); form_key.clear(); form_title.clear(); form_state = false; state_edited = false; connecting.reset(); filling.reset(); body_slot.reset(); page = Page::Graph; path.clear(); touched();
+            node.reset(); form.reset(); form_key.clear(); form_title.clear(); form_state = false; state_edited = false; connecting.reset(); filling.reset(); body_slot.reset(); dropped.reset(); page = Page::Graph; path.clear(); touched();
         } else if (action == "state-field") {
             need(3); if (args[2] != "required" && args[2] != "optional") throw std::invalid_argument("presence must be required or optional");
             workspace.graph.state_field(args[0], type(args[1]), args[2] == "required"); edited_state(); state_form();
@@ -282,14 +283,14 @@ private:
             auto project = flow::open_project(args[0]);
             workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(std::move(project));
             form.reset(); form_key.clear(); form_title.clear(); form_state = false;
-            node.reset(); connecting.reset(); filling.reset(); body_slot.reset(); path.clear(); page = Page::Graph; state_edited = false; touched();
+            node.reset(); connecting.reset(); filling.reset(); body_slot.reset(); dropped.reset(); path.clear(); page = Page::Graph; state_edited = false; touched();
         } else if (action == "save") {
             need(1); retain_form(); flow::save_workspace(args[0], workspace); path = args[0]; dirty = false; notice = "Saved " + path; return {};
         } else if (action == "open") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before opening another");
             auto opened = flow::open_workspace(args[0]); workspace = std::move(opened); path = args[0]; dirty = false;
-            state_edited = false; node.reset(); restore_form(); connecting.reset(); filling.reset(); body_slot.reset(); page = Page::Graph;
+            state_edited = false; node.reset(); restore_form(); connecting.reset(); filling.reset(); body_slot.reset(); dropped.reset(); page = Page::Graph;
         } else if (action == "message-open") { need(1); message_form(flow::index_of(args[0]));
         } else if (action == "state-open") { need(0); state_form();
         } else if (action == "value") {

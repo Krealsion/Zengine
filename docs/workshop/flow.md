@@ -58,7 +58,8 @@ The rail beside the graph finds operators through the host's
 - **A row previews; it never runs.** The preview is the door's row, and showing it evaluates
   nothing. **Add**, or **Enter**, adds the previewed power at the end of the trigger's graph, by
   the reference the row carries; if its ports have changed since it was found, Add says so and
-  adds nothing. With a node selected, **Add before %n** places it ahead of that node instead, and
+  adds nothing, and so it does when the graph changed while Flow read those ports from the host.
+  With a node selected, **Add before %n** places it ahead of that node instead, and
   with a port selected, **Add into %n port** places it ahead of the port's node and wires it there,
   so a found operator can feed the port you were filling. The graph executes in order, and the
   nodes that follow are renumbered.
@@ -100,7 +101,8 @@ Flow, and Flow says what it can be here. Carrying copies data; it grants nothing
   message** when no message of its name is declared, and **as an emitted message** when its name
   is inside the definition's namespace. A dropped shape description (`zen.SchemaDesc`) offers the
   declarations of the shape it describes. A declared shape is the one that came -- its name,
-  version and fields -- so values of it match it exactly. **Cancel** or **Escape** puts it down.
+  version and fields -- so values of it match it exactly. **Cancel** or **Escape** puts it down,
+  and so do **New**, **Open** and **Import**, since its offers belong to the graph it landed on.
 
 ![A dropped tally.panel.Count example: send it as an example, or declare its shape as emitted](images/flow-dropped-example.png)
 

@@ -147,6 +147,11 @@ struct Rig {
         REQUIRE(ticket.valid());
         pump();
     }
+    /// The same delivery, queued and not yet pumped, to order it among answers in flight.
+    template<class T> void post(const T& value, std::uint64_t corr = 0) {
+        REQUIRE(bus.office_send_to_role_as(workshop, workshop_role, fp::kRole,
+            loom::Message(loom::to_value(value), workshop, {}, corr)).valid());
+    }
     void room() {
         host(ws::PaneCanvasRoom{fp::kPane, grant, 170 * unit, 65 * unit, unit, true});
         REQUIRE_FALSE(presenter->pictures.empty());
@@ -828,6 +833,28 @@ TEST_CASE("a selected port lists what could fill it: in scope, a typed constant,
     CHECK(op::invocations() == before);
 }
 
+TEST_CASE("an Add waiting on the host for an operator's ports is refused when the graph changed "
+          "meanwhile, so it never lands on the node now at that place") {
+    Rig rig;
+    rig.graph_semantically();
+    REQUIRE(rig.catalog.mount("flowtest.sources", {answer_source()}));
+    rig.edit_ok("add-node", rig.ref("math.max"));
+    rig.click("o rhs = [unwired]");
+    rig.click("  flowtest.answer");
+    const auto press = rig.press_for("[Add into %1 rhs]");
+
+    // THE ADD ASKS THE HOST, and before its answer comes, %1 is removed and another takes its place.
+    rig.post(press);
+    rig.bus.pump_pending();
+    rig.post(fp::FlowEdit{"remove", {"1"}}, ++rig.correlation);
+    rig.post(fp::FlowEdit{"add-node", rig.ref("math.max")}, ++rig.correlation);
+    rig.pump();
+    const auto& nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
+    REQUIRE(nodes.size() == 2);
+    CHECK(nodes.at(1).identity == "math.max");
+    CHECK(rig.shows("The graph changed while the ports of flowtest.answer were read; Add it again"));
+}
+
 TEST_CASE("Flow never offers a running definition's trigger body, which the door lists as not offered") {
     Rig rig;
     rig.graph_semantically();
@@ -990,6 +1017,38 @@ TEST_CASE("a dropped operator reference becomes a node: where it was released, i
     rig.drop_on(rig.reference("math.add"), "body = [choose]");
     (void)rig.label("For %3 fold's body");
     (void)rig.label("[count rhs, acc lhs]");
+}
+
+TEST_CASE("a dropped value waiting on a port is put down when another workspace replaces the "
+          "graph, so its offer never lands on a node of the new one") {
+    Rig rig;
+    rig.edit_ok("new", {"tally", "discard"});
+    rig.edit_ok("state-field", {"total", "Int", "required"});
+    const auto count_schema = loom::SchemaBuilder("tally.panel.Count", 1)
+        .field("start", loom::Kind::Int).field("limit", loom::Kind::Int)
+        .field("step", loom::Kind::Int).build();
+    loom::Value count(count_schema);
+    count.set("start", loom::Cell::integer(7));
+    count.set("limit", loom::Cell::integer(10));
+    count.set("step", loom::Cell::integer(1));
+    rig.drop(count, 40 * unit, 20 * unit);
+    rig.click("[Declare tally.panel.Count v1 as an accepted message]");
+    rig.edit_ok("trigger", {"0", "total"});
+    rig.edit_ok("add-fold");
+    rig.drop_on(count, "o start = [unwired]");
+    (void)rig.label("[Use start = 7 on %0 start]");
+
+    // The same places, numbered afresh, in a new graph: the offer is gone with the old one.
+    rig.edit_ok("new", {"other", "discard"});
+    rig.edit_ok("state-field", {"total", "Int", "required"});
+    rig.edit_ok("message", {"Ping"});
+    rig.edit_ok("trigger", {"0", "total"});
+    rig.edit_ok("add-fold");
+    CHECK_FALSE(rig.shows("Dropped tally.panel.Count v1"));
+    CHECK_FALSE(rig.shows("[Use start = 7 on %0 start]"));
+    const auto& fresh = rig.workspace().graph.project.definition.on[0].body.nodes[0].arguments;
+    REQUIRE_FALSE(fresh.empty());
+    CHECK(fresh[0].from() != op::Binding::From::Constant);
 }
 
 TEST_CASE("a dropped value offers what it can be here: its shape declared, then an example to send, "
