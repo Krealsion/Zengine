@@ -30,7 +30,7 @@ named `tally` works out.
 
 ## Carry shapes between the builder and Flow
 
-Shapes cross by carry. A canvas pane carries out by its menu: right-press the line, choose
+Shapes cross by carry, both ways. A canvas pane carries out by its menu: right-press the line, choose
 **Carry**, then click where it goes.
 
 - **The intent into Flow.** In the builder, select `count` and right-press its `says` line;
@@ -38,10 +38,11 @@ Shapes cross by carry. A canvas pane carries out by its menu: right-press the li
   as an accepted message**. Make the `tally` definition there with a fold of `math.add`
   ([finding the fold](flow.md#find-what-to-compose)) and an emitted `tally.Total {total}`
   ([emits](flow.md#say-what-changed-emits)).
-- **A shape onto a label.** Carry a value or a shape description onto the `total` row in the
-  builder -- a `tally.Total` example from Inventory, say. A shape with one field a label can show
-  is bound at once (`shows tally.Total.total`); with several, the builder asks which. A field
-  carried from Info binds that field.
+- **What Flow says, onto a label.** In Flow's **Messages**, right-press `tally.Total` under
+  **Emitted**, choose **Carry tally.Total**, and click the `total` row in the builder. A shape
+  with one field a label can show is bound at once (`shows tally.Total.total`); with several,
+  the builder asks which. A value from Inventory binds by its shape, and a field carried from Info
+  binds that field.
 
 Binding `Total` changes what the view is told, so **Apply** registers the view afresh and says
 so; its field text starts again from the description. A later change to a label, a place or a

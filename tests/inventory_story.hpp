@@ -75,14 +75,14 @@ struct InventoryStory {
     PaneRig r;
     InventoryHand* hand = nullptr;
     loom::WeaveId hand_id;
-    std::int64_t source = 0, info = 0, flow = 0, powers = 0;
+    std::int64_t source = 0, info = 0, flow = 0, powers = 0, builder = 0;
     std::string trace;
     loom::ObserverId trace_observer{};
     std::shared_ptr<std::vector<QuietReader::Event>> physical =
         std::make_shared<std::vector<QuietReader::Event>>();
 
     explicit InventoryStory(int permissions = 191, bool composer = false, bool desktop_first = false,
-                            bool with_flow = false, bool with_powers = false) {
+                            bool with_flow = false, bool with_powers = false, bool with_builder = false) {
         r.mount_workshop();
         if (with_powers) {
             // The primitives, the discovery door over them, and the Powers pane to browse it.
@@ -125,6 +125,11 @@ struct InventoryStory {
             artifact.stem = "zengine-flow-pane"; artifact.weave = load::WeaveIntent{"zengine.flow"};
             plan.artifacts.push_back(artifact);
         }
+        if (with_builder) {
+            load::ArtifactIntent artifact;
+            artifact.stem = "zengine-view-builder"; artifact.weave = load::WeaveIntent{"zengine.view.builder"};
+            plan.artifacts.push_back(artifact);
+        }
         const auto done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready(); r.extent(180, 60);
@@ -150,6 +155,17 @@ struct InventoryStory {
                 if (pane.ref.provider != "zengine.flow") continue;
                 pane.place = {pane_unit::kSubcells, 85 * surface::kCellSubs, 30 * surface::kCellSubs};
                 pane.width = {pane_unit::kSubcells, 92 * surface::kCellSubs};
+                pane.height = {pane_unit::kSubcells, 28 * surface::kCellSubs};
+            }
+        }
+        if (with_builder) {
+            // The View Builder beside Flow, under Inventory.
+            r.pick({"zengine.view.builder", "view-builder"});
+            builder = r.session().panes.runtime.find("zengine.view.builder", "view-builder")->kind;
+            for (auto& pane : r.session().setup.active.panes) {
+                if (pane.ref.provider != "zengine.view.builder") continue;
+                pane.place = {pane_unit::kSubcells, 2 * surface::kCellSubs, 30 * surface::kCellSubs};
+                pane.width = {pane_unit::kSubcells, 80 * surface::kCellSubs};
                 pane.height = {pane_unit::kSubcells, 28 * surface::kCellSubs};
             }
         }
