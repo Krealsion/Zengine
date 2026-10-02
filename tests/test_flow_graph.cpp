@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
 #include "flow-pane/model.hpp"
+#include "operator/primitives.hpp"
 #include <chrono>
 #include <filesystem>
 
@@ -12,6 +13,19 @@ namespace md = zengine::message_draft;
 flow::Ports ports() {
     return {"flowgraph.Rule", loom::SchemaBuilder("flowgraph.In", 1).field("a", loom::Kind::Int).build(),
         loom::SchemaBuilder("flowgraph.Out", 1).field("value", loom::Kind::Int).build()};
+}
+/// `add-node`'s arguments for an operator as the model's ports describe it now: its reference.
+std::vector<std::string> ref_of(const pane::Model& m, const std::string& identity,
+                                std::vector<std::string> where = {}) {
+    for (const auto& p : m.palette)
+        if (p.identity == identity) {
+            std::vector<std::string> out{identity,
+                std::to_string(static_cast<std::int64_t>(p.inputs->content_id())),
+                std::to_string(static_cast<std::int64_t>(p.outputs->content_id()))};
+            out.insert(out.end(), where.begin(), where.end());
+            return out;
+        }
+    throw std::invalid_argument("no ports for " + identity);
 }
 pane::Model model() {
     pane::Model out;
@@ -39,7 +53,7 @@ TEST_CASE("graph workspace preserves empty triggers and unwired ports without ad
     auto author = model();
     author.command("trigger", {"0", "total"});
     author.command("trigger", {"1", "total"});
-    author.command("add-node", {"flowgraph.Rule"});
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
     const auto bytes = flow::workspace_bytes(author.workspace);
     auto reopened = flow::read_workspace(bytes);
     REQUIRE(reopened.graph.project.definition.on.size() == 2);
@@ -257,4 +271,126 @@ TEST_CASE("aggregate workspace refusal preserves a reloadable authoring state") 
         }
     }
     CHECK(refused);
+}
+
+TEST_CASE("an operator reference is added at the end or before a node, renumbering what follows, "
+          "and a stale one is refused, never re-bound") {
+    auto author = model();
+    author.command("trigger", {"0", "total"});
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("bind", {"1", "0", "%0"});
+    author.command("result", {"1"});
+    const auto first_place = author.workspace.graph.place(0, 0).id;
+    const auto second_place = author.workspace.graph.place(0, 1).id;
+
+    // BEFORE NODE 0: the new node is %0, the two others move up one, and so do the binding that
+    // named %0, the result and each place -- the graph means what it meant.
+    author.command("add-node", ref_of(author, "flowgraph.Rule", {"0"}));
+    // A command replaces the model whole, so the body is read again after each one.
+    const auto body = [&]() -> const zengine::op::Composite& {
+        return author.workspace.graph.project.definition.on.at(0).body;
+    };
+    REQUIRE(body().nodes.size() == 3);
+    CHECK(body().nodes[2].arguments[0].from() == zengine::op::Binding::From::Node);
+    CHECK(body().nodes[2].arguments[0].node_index() == 1);
+    CHECK(body().result_node == 2);
+    CHECK(author.workspace.graph.place(0, 1).id == first_place);
+    CHECK(author.workspace.graph.place(0, 2).id == second_place);
+    CHECK(author.node == std::optional<std::size_t>(0));
+
+    // INTO A PORT: placed before the node whose port it fills, and wired there in the same edit.
+    author.command("add-node-into", ref_of(author, "flowgraph.Rule", {"0", "0"}));
+    REQUIRE(body().nodes.size() == 4);
+    CHECK(body().nodes[1].arguments[0].from() == zengine::op::Binding::From::Node);
+    CHECK(body().nodes[1].arguments[0].node_index() == 0);
+    CHECK(body().nodes[3].arguments[0].node_index() == 2);
+    CHECK(body().result_node == 3);
+    (void)flow::read_workspace(flow::workspace_bytes(author.workspace));
+
+    // A REFERENCE FOUND AT OTHER PORTS IS STALE, and a name nobody supplies is said so; the
+    // draft is left as it was.
+    auto stale = ref_of(author, "flowgraph.Rule");
+    stale[1] = "12345";
+    const auto revision = author.workspace.graph.project.definition.revision;
+    try {
+        author.command("add-node", stale);
+        FAIL("a stale reference was added");
+    } catch (const std::invalid_argument& e) {
+        CHECK(std::string(e.what()) == "'flowgraph.Rule' is not the operator this reference was "
+                                       "found at: its ports changed since; find it again");
+    }
+    try {
+        author.command("add-node", {"flowgraph.Gone", "1", "2"});
+        FAIL("an unsupplied reference was added");
+    } catch (const std::invalid_argument& e) {
+        CHECK(std::string(e.what()) == "nothing supplies 'flowgraph.Gone' here now");
+    }
+    CHECK(author.workspace.graph.project.definition.revision == revision);
+    CHECK(body().nodes.size() == 4);
+}
+
+TEST_CASE("a fold is placed with its step bound to 1, its body chosen by reference with the count "
+          "port the maker names, and its ports derive from that body") {
+    pane::Model author;
+    const auto add = zengine::op::make_operator<&zengine::op::add_int>(
+        zengine::op::kAddInt, {"lhs", "rhs"}, "result");
+    author.palette.push_back({add.identity(), add.inputs(), add.outputs()});
+    author.command("state-field", {"total", "Int", "required"});
+    author.command("message", {"tally.panel.Count"});
+    for (const char* field : {"start", "limit", "step"})
+        author.command("message-field", {"0", field, "Int", "required"});
+    author.command("trigger", {"0", "total"});
+
+    author.command("add-fold");
+    const auto body = [&]() -> const zengine::op::Composite& {
+        return author.workspace.graph.project.definition.on.at(0).body;
+    };
+    REQUIRE(body().nodes.size() == 1);
+    REQUIRE(body().nodes[0].fold.has_value());
+    CHECK(body().nodes[0].identity.empty());
+    REQUIRE(body().nodes[0].arguments.size() == 3);
+    CHECK(body().nodes[0].arguments[2].from() == zengine::op::Binding::From::Constant);
+    CHECK(body().nodes[0].arguments[2].constant_cell().as_int() == 1);
+    CHECK(author.workspace.graph.problems(author.palette).front() ==
+          "tally.panel.Count / node 0: choose the fold's body");
+    std::vector<std::string> counting;
+    const auto unbodied = author.workspace.graph.node_ports(0, 0, author.palette);
+    for (const auto& f : unbodied.inputs->fields()) counting.push_back(f.name);
+    CHECK(counting == std::vector<std::string>{"start", "limit", "step"});
+
+    // THE MAKER NAMES THE COUNT'S PORT; port names suggest, never decide.
+    try {
+        author.command("fold-body", {"0", "math.add",
+            std::to_string(static_cast<std::int64_t>(add.inputs()->content_id())),
+            std::to_string(static_cast<std::int64_t>(add.outputs()->content_id())), "count", "lhs"});
+        FAIL("a fold took a body port that does not exist");
+    } catch (const std::invalid_argument& e) {
+        CHECK(std::string(e.what()) == "'math.add' has no port 'count' for the count");
+    }
+    author.command("fold-body", {"0", "math.add",
+        std::to_string(static_cast<std::int64_t>(add.inputs()->content_id())),
+        std::to_string(static_cast<std::int64_t>(add.outputs()->content_id())), "rhs", "lhs"});
+    CHECK(body().nodes[0].identity == "math.add");
+    CHECK(body().nodes[0].fold->count == "rhs");
+    CHECK(body().nodes[0].fold->accumulator == "lhs");
+    const auto derived = author.workspace.graph.node_ports(0, 0, author.palette);
+    std::vector<std::string> names;
+    for (const auto& f : derived.inputs->fields()) names.push_back(f.name);
+    CHECK(names == std::vector<std::string>{"start", "limit", "step", "initial"});
+    CHECK(body().nodes[0].arguments[2].constant_cell().as_int() == 1); // the step kept its 1
+
+    author.command("bind", {"0", "0", "$start"});
+    author.command("bind", {"0", "1", "$limit"});
+    author.command("bind", {"0", "2", "$step"});
+    author.command("bind", {"0", "3", "0"});
+    author.command("result", {"0"});
+    CHECK(author.workspace.graph.problems(author.palette).empty());
+    const auto run = author.command("run");
+    CHECK(run.effect == pane::Effect::Run);
+    const auto project = flow::read_project(flow::byte_string(run.payload));
+    REQUIRE(project.definition.on.at(0).body.nodes.at(0).fold.has_value());
+    CHECK(project.definition.on.at(0).body.nodes.at(0).fold->count == "rhs");
+    const auto reopened = flow::read_workspace(flow::workspace_bytes(author.workspace));
+    CHECK(reopened.graph.project.definition.on.at(0).body.nodes.at(0).fold->accumulator == "lhs");
 }

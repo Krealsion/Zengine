@@ -190,6 +190,8 @@ public:
         model_.connecting.reset();
       else if (model_.filling)
         model_.filling.reset();
+      else if (model_.body_slot)
+        model_.body_slot.reset();
       else if (!model_.preview.empty())
         model_.preview.clear();
       else if (model_.node)
@@ -369,9 +371,9 @@ public:
     if (!settle(mail, "catalog"))
       return;
     // An Add waiting on this request is settled by its answer, whatever the answer says.
-    std::string adding;
+    std::optional<Adding> adding;
     if (adding_ && adding_->correlation == mail.correlation())
-      adding = std::exchange(adding_, std::nullopt)->identity;
+      adding = std::exchange(adding_, std::nullopt);
     try {
       if (!answer.ok)
         throw std::invalid_argument(answer.reason);
@@ -389,11 +391,11 @@ public:
       }
       model_.palette = std::move(palette);
       model_.notice = "Host operators refreshed";
-      if (!adding.empty()) {
-        if (described(adding))
-          effect(model_.command("add-node", {adding}), mail);
+      if (adding) {
+        if (described(adding->identity))
+          effect(model_.command(adding->command, adding->arguments), mail);
         else
-          model_.notice = adding + " is not in the host's catalog now";
+          model_.notice = adding->identity + " is not in the host's catalog now";
       }
     } catch (const std::exception &e) {
       model_.notice = e.what();
@@ -743,8 +745,21 @@ private:
       model_.filling.reset();
     } else if (action == "found") {
       model_.preview = args.at(0);
+    } else if (action == "body-slot") {
+      // The fold's body slot: the rail lists what a fold could spend, and a second press shuts it.
+      const auto id =
+          model_.workspace.graph.place(model_.trigger(), flow::index_of(args.at(0))).id;
+      if (model_.body_slot == id)
+        model_.body_slot.reset();
+      else {
+        model_.body_slot = id;
+        model_.filling.reset();
+      }
     } else if (action == "add-found") {
-      add_found(args.at(0), mail);
+      std::vector<std::string> before(args.begin() + 1, args.end());
+      add_found(args.at(0), "add-node", std::move(before), mail);
+    } else if (action == "add-into") {
+      add_found(args.at(0), "add-node-into", {args.at(1), args.at(2)}, mail);
     } else if (action == "value-row") {
       const auto row = model_.form->rows().at(flow::index_of(args.at(0)));
       if (row.type.kind == loom::Kind::Message ||
@@ -792,16 +807,31 @@ private:
     return std::any_of(model_.palette.begin(), model_.palette.end(),
                        [&](const auto &ports) { return ports.identity == identity; });
   }
-  /// Add a found power as a node: today's add-node, once the graph's ports describe it. One the
-  /// last catalog answer did not hold is read from the host first and added when that answer
-  /// comes; the latest such Add is the one kept.
-  void add_found(const std::string &identity, loom::Mail &mail) {
+  /// Add a found power as a node: the operator reference the door's row carries -- its identity
+  /// and the two content ids it was found at -- spent by `add-node` or `add-node-into` once the
+  /// graph's ports describe it; a form's row places the form. One the last catalog answer did not
+  /// hold is read from the host first and added when that answer comes, and a reference it then
+  /// describes at other ports is refused; the latest such Add is the one kept.
+  void add_found(const std::string &identity, const std::string &command,
+                 std::vector<std::string> where, loom::Mail &mail) {
+    const auto row = std::find_if(model_.discovered.rows.begin(), model_.discovered.rows.end(),
+                                  [&](const auto &r) { return r.identity == identity; });
+    if (row == model_.discovered.rows.end())
+      throw std::invalid_argument(identity + " is not among the powers the door last found");
+    if (row->kind == ws::kFormKind) {
+      effect(model_.command("add-fold", command == "add-node" ? where : std::vector<std::string>{}),
+             mail);
+      return;
+    }
+    std::vector<std::string> arguments{identity, std::to_string(row->inputs.content_id),
+                                       std::to_string(row->outputs.content_id)};
+    arguments.insert(arguments.end(), where.begin(), where.end());
     if (described(identity)) {
-      effect(model_.command("add-node", {identity}), mail);
+      effect(model_.command(command, arguments), mail);
       return;
     }
     request(fh::FlowCatalog{}, "catalog", mail);
-    adding_ = Adding{identity, correlation_};
+    adding_ = Adding{identity, command, std::move(arguments), correlation_};
     model_.notice = "Reading the ports of " + identity + " from the host";
   }
   static std::string raw(const loom::Cell &cell) {
@@ -863,7 +893,8 @@ private:
     loom::Ticket attempt;
   };
   struct Adding {
-    std::string identity;
+    std::string identity, command;
+    std::vector<std::string> arguments;
     std::uint64_t correlation = 0;
   };
   Finding finding_;

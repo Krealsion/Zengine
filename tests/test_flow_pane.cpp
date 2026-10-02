@@ -191,6 +191,14 @@ struct Rig {
         }
         throw std::runtime_error("FlowEdit did not produce its correlated answer");
     }
+    /// `add-node`'s arguments for an operator as the host's catalog holds it now: the reference a
+    /// maker's Add carries.
+    std::vector<std::string> ref(const std::string& identity) const {
+        const op::OperatorDef* def = catalog.find(identity);
+        REQUIRE(def != nullptr);
+        return {identity, std::to_string(static_cast<std::int64_t>(def->inputs()->content_id())),
+                std::to_string(static_cast<std::int64_t>(def->outputs()->content_id()))};
+    }
     void edit_ok(const std::string& action, std::vector<std::string> arguments = {}) {
         const auto answer = edit(action, std::move(arguments));
         INFO(action << ": " << answer.reason);
@@ -208,7 +216,7 @@ struct Rig {
         edit_ok("message", {"Set"});
         edit_ok("message-field", {"0", "input", "Int", "required"});
         edit_ok("trigger", {"0", "value"});
-        edit_ok("add-node", {"math.max"});
+        edit_ok("add-node", ref("math.max"));
         edit_ok("bind", {"0", "0", "$input"});
         edit_ok("bind", {"0", "1", "0"});
         edit_ok("result", {"0"});
@@ -763,7 +771,7 @@ TEST_CASE("a selected port lists what could fill it: in scope, a typed constant,
     rig.graph_semantically();
     // A SOURCE MOUNTED AFTER THE PANE READ ITS PORTS: the door finds it all the same.
     REQUIRE(rig.catalog.mount("flowtest.sources", {answer_source()}));
-    rig.edit_ok("add-node", {"math.max"});
+    rig.edit_ok("add-node", rig.ref("math.max"));
     rig.click("o rhs = [unwired]");
     (void)rig.label("For %1 rhs : Int");
     REQUIRE_FALSE(rig.questions.empty());
@@ -829,4 +837,80 @@ TEST_CASE("a search the door refuses is said in the door's words, never as an em
     const auto refused = rig.label("a query carries", true);
     CHECK(refused.role == zengine::surface::role::kAlert);
     CHECK_FALSE(rig.shows("none offered match"));
+}
+
+TEST_CASE("Add places a found operator before the selected node, or before the node whose port it "
+          "fills and into that port, renumbering what follows") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.text("larger");
+    rig.click("%0 math.max");
+    rig.click("  math.max");
+    rig.click("[Add before %0]");
+    auto body = rig.workspace().graph.project.definition.on.front().body;
+    REQUIRE(body.nodes.size() == 2);
+    CHECK(body.result_node == 1); // the node that was %0 is %1, and still the result
+    CHECK(body.nodes.at(1).arguments.at(0).input_name() == "input");
+
+    // INTO A PORT: the port being filled names the node to place before, and Add wires it there.
+    rig.click("o rhs = 0");
+    (void)rig.label("For %1 rhs : Int");
+    rig.click("  math.max");
+    rig.click("[Add into %1 rhs]");
+    body = rig.workspace().graph.project.definition.on.front().body;
+    REQUIRE(body.nodes.size() == 3);
+    CHECK(body.nodes.at(2).arguments.at(1).from() == op::Binding::From::Node);
+    CHECK(body.nodes.at(2).arguments.at(1).node_index() == 1);
+    CHECK(body.result_node == 2);
+    CHECK_FALSE(rig.shows("For %2 rhs : Int"));
+}
+
+TEST_CASE("the tally composed in the pane: the fold found by what it is for, placed with its step "
+          "at 1, its body chosen from the slot by its count port, and Run answers 45") {
+    Rig rig;
+    rig.edit_ok("new", {"tally", "discard"});
+    rig.edit_ok("state-field", {"total", "Int", "required"});
+    rig.edit_ok("message", {"tally.panel.Count"});
+    for (const char* field : {"start", "limit", "step"})
+        rig.edit_ok("message-field", {"0", field, "Int", "required"});
+    rig.edit_ok("trigger", {"0", "total"});
+
+    // FOUND BY WHAT IT IS FOR, a form ahead of the operators, and placed with its step at 1.
+    rig.text("count");
+    (void)rig.label("Forms");
+    rig.click("  fold");
+    (void)rig.label("fold -- a form the evaluator spends");
+    rig.click("[Add]");
+    (void)rig.label("%0 fold (choose its body)");
+    (void)rig.label("o step = 1");
+
+    // THE BODY SLOT asks the door for what a fold could spend, and the maker names the count's port.
+    rig.key(in::scan::kEscape); // the preview
+    rig.key(in::scan::kEscape); // the node
+    rig.key(in::scan::kEscape); // the search line
+    rig.click("body = [choose]");
+    REQUIRE_FALSE(rig.questions.empty());
+    CHECK(rig.questions.back().fits == std::optional<std::string>("fold"));
+    (void)rig.label("For %0 fold's body");
+    CHECK(rig.shows("  logic.select_int"));
+    CHECK_FALSE(rig.shows("  compare.less_int"));
+    rig.click("  math.add");
+    (void)rig.label("[count lhs, acc rhs]");
+    rig.click("[count rhs, acc lhs]");
+    (void)rig.label("%0 fold math.add (count rhs, acc lhs)");
+    CHECK_FALSE(rig.shows("For %0 fold's body"));
+
+    rig.edit_ok("bind", {"0", "0", "$start"});
+    rig.edit_ok("bind", {"0", "1", "$limit"});
+    rig.edit_ok("bind", {"0", "3", "0"});
+    rig.edit_ok("result", {"0"});
+    rig.edit_ok("run");
+    rig.edit_ok("message-open", {"0"});
+    rig.edit_ok("value", {"0", "0"});
+    rig.edit_ok("value", {"1", "10"});
+    rig.edit_ok("value", {"2", "1"});
+    rig.edit_ok("send");
+    const auto subject = rig.bus.role_holder("tally");
+    REQUIRE(subject.valid());
+    CHECK(rig.bus.weave(subject)->snapshot().get("total")->as_int() == 45);
 }

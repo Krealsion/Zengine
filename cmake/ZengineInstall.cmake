@@ -116,6 +116,7 @@ set(zengine_public_headers_component  component/motion.hpp
 set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/catalog.hpp
                                       operator/fold.hpp
+                                      operator/reference.hpp
                                       operator/source.hpp
                                       operator/migration.hpp
                                       operator/primitives.hpp

@@ -92,9 +92,22 @@ The pane finds powers through the host's discovery door, `FindPowers` to `zengin
 their contributors offer and, with an input port selected, only for what yields that port's
 type in Loom's spelling. It shows the latest answer as the door gave it, matched by Loom's answer
 provenance and its correlation, and asks again when the question changes, at a room grant, and
-after a Run, Apply, Stop or Catalog. The graph's port signatures still come from the Flow host's
-`FlowCatalog`; an Add for a power those signatures do not yet describe reads them again, then
-spends `add-node`.
+after a Run, Apply, Stop or Catalog. With a fold's body slot open it asks with `fits=fold` instead.
+The graph's port signatures still come from the Flow host's `FlowCatalog`; an Add for a power
+those signatures do not yet describe reads them again first.
+
+**Add takes an operator reference**: the identity and the two content ids the door's row carried,
+`zengine.OperatorRef`'s three fields. `add-node(identity, authored_in, authored_out[, before])`
+adds a step at the end, or before node `before`, renumbering every node binding, the result and
+the layout places that follow; `add-node-into(identity, authored_in, authored_out, node, port)`
+places it before `node` and wires it into that port in the same edit. A reference the graph's
+ports now describe at other content ids is refused in words and never re-bound, as is one nothing
+supplies. `add-fold([before])` places the evaluator's [fold](operator-providers.md#the-fold) with
+its body unchosen and `step` bound to the constant 1, which the maker sees and changes like any
+constant; `fold-body(node, identity, authored_in, authored_out, count, accumulator)` chooses its
+body by reference and names the two body ports it threads. Start, limit and step keep their
+bindings, the initial value too while its type is still the body's answer, and the node's ports
+then derive from the body.
 
 ## What generation means
 
