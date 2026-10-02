@@ -248,7 +248,8 @@ void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bo
 }
 
 bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail,
-                               std::int64_t picture, const PointedAt& point) {
+                               std::int64_t picture, const PointedAt& point,
+                               const std::optional<CanvasRelease>& released) {
     if (carried_.data.empty()) return false;
     if (!input_actor_.known || input_actor_.local != carried_.actor.local ||
         input_actor_.participant != carried_.actor.participant) {
@@ -258,7 +259,7 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
     const auto* pane = session_.panes.runtime.of_kind(kind);
     const auto* presentation = session_.panes.external_pane(kind);
     if (pane && presentation && presentation->canvas.grant != 0)
-        return drop_on_canvas(*pane, *presentation, point, mail);
+        return drop_on_canvas(*pane, *presentation, point, released, mail);
     const bool origin_drop = pane && carried_.value && host_->holder_accepts &&
         host_->holder_accepts(pane->provider, *loom::schema_of<v2::PaneValueDrop>());
     if (!at.named || !pane || !presentation || presentation->canvas.grant != 0 || !host_->holder_accepts ||
@@ -294,21 +295,30 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
 
 // A VALUE PLACED ON A CANVAS: the place in the canvas's local subunits and the picture it was
 // aimed at, for the provider to hit-test in what it drew; a provider without the canvas drop door
-// is told nothing and the value stays held, as on any place that does not accept it.
+// is told nothing and the value stays held, as on any place that does not accept it. A drag's
+// drop names the canvas its release met, however long the carry took to be answered.
 bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& presentation,
-                                   const PointedAt& point, loom::Mail& mail) {
+                                   const PointedAt& point,
+                                   const std::optional<CanvasRelease>& released,
+                                   loom::Mail& mail) {
     const auto& c = presentation.canvas;
-    const FineRect body{c.x, c.y, c.width, c.height};
+    const CanvasRelease at = released ? *released
+        : CanvasRelease{presentation.stamp.aimed, c.grant, FineRect{c.x, c.y, c.width, c.height}};
+    if (at.grant != c.grant) {
+        say("The canvas the value was released on is gone; Escape cancels", true);
+        return true;
+    }
     if (!carried_.value || !point.understood || !host_->holder_accepts ||
         !host_->holder_accepts(pane.provider, *loom::schema_of<PaneCanvasValueDrop>()) ||
-        !body.contains_at(point.sub.x, point.sub.y, point.grain)) {
+        !at.body.contains_at(point.sub.x, point.sub.y, point.grain)) {
         say("This place does not accept the carried item; Escape cancels", true);
         return true;
     }
     const auto correlation = ++gesture_asks_;
     const auto sent = mail.as_role(kWorkshopProvider).send_to_role(pane.provider,
-        PaneCanvasValueDrop{pane.pane, c.grant, presentation.stamp.aimed,
-                            surface::sub_px(point.sub.x, c.x), surface::sub_px(point.sub.y, c.y),
+        PaneCanvasValueDrop{pane.pane, at.grant, at.picture,
+                            surface::sub_px(point.sub.x, at.body.x),
+                            surface::sub_px(point.sub.y, at.body.y),
                             carried_.data, carried_.source_office, carried_.source_pane,
                             carried_.token},
         correlation);
@@ -370,6 +380,10 @@ bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom:
             if (pane && presentation && host_->role_holder) {
                 drag.receiver = host_->role_holder(pane->provider);
                 drag.picture = presentation->stamp.aimed;
+                const auto& c = presentation->canvas;
+                if (c.grant != 0)
+                    drag.canvas = CanvasRelease{presentation->stamp.aimed, c.grant,
+                                                FineRect{c.x, c.y, c.width, c.height}};
             }
         }
     }
@@ -388,7 +402,7 @@ void WorkshopWeave::finish_value_drag(loom::Mail& mail) {
     }
     const auto previous = input_actor_;
     input_actor_ = drag.actor;
-    (void)drop_carry(drag.target, drag.at, mail, drag.picture, drag.point);
+    (void)drop_carry(drag.target, drag.at, mail, drag.picture, drag.point, drag.canvas);
     input_actor_ = previous;
     if (!carried_.data.empty()) {
         carried_ = {};

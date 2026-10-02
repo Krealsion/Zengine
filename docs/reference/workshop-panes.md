@@ -1050,7 +1050,9 @@ only. A value released or clicked onto a **canvas** pane reaches a provider that
 `PaneCanvasValueDrop` as that place in its local subunits, within the room it was granted and
 against the picture the medium showed, so the provider hit-tests what it drew; a canvas
 provider without that door is sent nothing and the value stays held, as anywhere it is not
-accepted. A drop on a canvas is no canvas gesture: it begins no pointer custody.
+accepted. A drag's drop names the picture and place its release met, even when the carry is
+answered after the canvas repainted, and a canvas granted afresh in between refuses it in words.
+A drop on a canvas is no canvas gesture: it begins no pointer custody.
 
 A value drag starts with the source's primary press, becomes a drag after four pixels or one
 cell of motion, and ends at that same actor's release. A simple click selects without transfer.

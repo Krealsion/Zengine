@@ -469,10 +469,17 @@ public:
     void on(const v2::PaneValueCarryRequested& asked, loom::Mail& mail);
     void accept_carry(const PaneCarryRequested& asked, bool value, bool drag, loom::Mail& mail,
                       std::string token = {});
+    /// The canvas a value was released on: the picture it showed, its grant and its body then.
+    struct CanvasRelease {
+        std::int64_t picture = 0, grant = 0;
+        FineRect body;
+    };
     bool drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail,
-                    std::int64_t picture = -1, const PointedAt& point = PointedAt{});
+                    std::int64_t picture = -1, const PointedAt& point = PointedAt{},
+                    const std::optional<CanvasRelease>& released = std::nullopt);
     bool drop_on_canvas(const RuntimePane& pane, const ExternalPane& presentation,
-                        const PointedAt& point, loom::Mail& mail);
+                        const PointedAt& point, const std::optional<CanvasRelease>& released,
+                        loom::Mail& mail);
     PointedAt drag_pointer_;
     void begin_value_drag(const input::PointerButton& button);
     bool move_value_drag(const input::PointerMoved& motion, loom::Mail& mail);
@@ -1323,6 +1330,7 @@ private:
         std::int64_t target = kNoPaneKind, picture = 0;
         ExternalPressAt at;
         PointedAt point; ///< the release, for a canvas receiver's local place
+        std::optional<CanvasRelease> canvas; ///< the canvas the release met, if it was one
         loom::WeaveId receiver;
     };
     ValueDrag value_drag_;
