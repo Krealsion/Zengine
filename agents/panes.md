@@ -127,7 +127,9 @@ Release outside a receiver cancels a drag, while an unsupported keyboard placeme
 The release's receiver and picture are retained; a departed receiver cannot be silently replaced.
 Acquiring bytes grants no authority to an operation requested by the receiver. On a canvas pane
 the place is the canvas's own (`PaneCanvasValueDrop`, WL-CANVAS-04): local subunits, room grant
-and aimed picture, for a provider that accepts it; Flow is the first.
+and aimed picture, for a provider that accepts it; Flow is the first. A canvas pane carries out
+as a prose pane does: its primary press's number approves the acquisition, a drag begins with the
+press, and the carry ends the press's canvas hold as lost (WL-CANVAS-05).
 
 `PaneObservationRequested` retains that one approval, narrowly, for repeated reads: the same
 current-gesture and actor check (`approve_gesture`) spends the gesture and records a lease of

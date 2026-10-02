@@ -109,10 +109,10 @@ Flow, and Flow says what it can be here. Carrying copies data; it grants nothing
 
 ![A dropped tally.panel.Count example: send it as an example, or declare its shape as emitted](images/flow-dropped-example.png)
 
-**Carry a shape out of Flow.** In **Messages**, right-press a declared message -- an accepted one,
-or one under **Emitted** -- and choose **Carry**, then click the pane it goes to. What travels is
-the message's shape, as a description: the [View Builder](view-builder.md) takes it onto a label
-as what that label shows.
+**Carry a shape out of Flow.** In **Messages**, drag a declared message -- an accepted one, or
+one under **Emitted** -- and let go over the pane it goes to; or right-press it, choose **Carry**,
+then click that pane. What travels is the message's shape, as a description: the
+[View Builder](view-builder.md) takes it onto a label as what that label shows.
 
 ## Say what changed: emits
 

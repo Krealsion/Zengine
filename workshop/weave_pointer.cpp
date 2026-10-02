@@ -484,7 +484,11 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             // A press that named a body row takes hold of that pane for the length of the button:
             // the record is this host's, what the sweep means is the pane's (`external_drag`), and
             // the release ends it silently. A press on the header or padding begins no sweep.
-            if (!canvas_sent && external_press(here.kind, aimed, typing_before == here.kind, mail)) {
+            // A canvas press may begin a value drag too; its motion is the canvas's until the
+            // provider asks to carry (`accept_carry`).
+            if (canvas_sent) {
+                begin_value_drag(b);
+            } else if (external_press(here.kind, aimed, typing_before == here.kind, mail)) {
                 begin_value_drag(b);
                 session_.text_drag.active = true;
                 session_.text_drag.place = text_drag_place::kExternalPane;

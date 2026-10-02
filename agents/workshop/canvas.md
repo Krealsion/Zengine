@@ -77,6 +77,24 @@ value released on Flow's canvas before its carry is answered names the picture i
 on, though Flow repainted meanwhile".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
+## WL-CANVAS-05 — A canvas press may carry a value out
+
+LAW — A primary canvas press is its provider's to continue as a prose press is: under its number the provider may carry a value out, and once the carry begins the press's hold ends as lost.
+
+MEANS
+- the press's number approves one acquisition, and the press begins a value drag;
+- motion and the release after the carry begins are the carry's, never the canvas's;
+- a release before the carry is retained, as for a prose drag; an unmoved click carries nothing.
+
+PROVEN BY — `workshop/weave_canvas.cpp` `canvas_press`; `workshop/weave_pointer.cpp`
+`on(PointerButton)`; `workshop/weave_operation.cpp` `accept_carry`, `begin_value_drag`;
+`flow-pane/pane.cpp` `carry`; `tests/test_workshop_inventory_info.cpp` case "a press on a canvas
+pane drags a value out as a prose press does: the hold ends as lost when the carry begins, the
+value lands where the hand lets go, and a click carries nothing"; `tests/test_flow_pane.cpp` case
+"a press on a declared message asks under that press to drag its shape out, and still opens it; a
+right press on a found operator is handed back".
+WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
+
 ## Do not assume
 
 - That a picture fence proves physical presentation time; it orders Loom deliveries.

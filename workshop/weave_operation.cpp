@@ -242,6 +242,9 @@ void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bo
     carried_ = {asked.data, asked.label, gesture_actor_, value, drag,
                 std::string(mail.authored_role()), asked.pane, std::move(token)};
     if (!drag) say("Carrying " + asked.label + " — click a receiving pane; Escape cancels", false);
+    // A DRAG BEGUN ON A CANVAS IS NOW A CARRY: the press's hold ends there as lost, so its later
+    // motion and its release are the carry's, never the canvas's.
+    if (drag && canvas_holds_[0].active && canvas_holds_[0].kind == pane->kind) lose_canvas_hold(0, mail);
     (void)mail.answer(PaneCarryAnswered{true, {}});
     if (drag && value_drag_.released) finish_value_drag(mail);
     repaint(mail);
