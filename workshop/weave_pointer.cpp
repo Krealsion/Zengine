@@ -289,6 +289,8 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         (void)hold_input(std::move(held));
         return;
     }
+    // A press puts a canvas's hover down: the gesture it begins owns the pointer.
+    if (b.pressed) leave_canvas_hover(mail);
     if (!b.pressed && release_value_drag(b, mail)) {
         (void)end_held_gestures(); repaint(mail); return;
     }

@@ -638,8 +638,8 @@ zero room, re-offer, owner/capability change, or changed text metric.
 `PaneCanvasHover{pane,grant,picture,x,y,over,carrying}` is the one idle-pointer fact, for a
 provider whose holder accepts it: Workshop tells the canvas on top under a pointer that holds no
 button where it rests, in local subunits on the picture handed to the medium, once per place, and
-tells it `over=false` once when the pointer leaves its body, a mode or menu opens, or a press
-elsewhere begins a sweep. A held press owns its motion, so the hover is put down while it lasts.
+tells it `over=false` once when the pointer leaves its body, a mode or menu opens, a sweep
+takes the motion, or any press begins: the gesture a press begins owns the pointer.
 `carrying` is true while a carried value is over it, so a receiver may mark where it would land;
 a drag's carry is told the hover too. A new room puts the hover down with no leave. It is
 presentation only: no selection, focus, keyboard or gesture moves, and nothing reads what the
