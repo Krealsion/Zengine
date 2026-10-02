@@ -674,6 +674,10 @@ target_include_directories(zengine-flow-pane-tests PRIVATE ${CMAKE_CURRENT_SOURC
 target_compile_definitions(zengine-flow-pane-tests PRIVATE "FLOW_PANE_ARTIFACT=\"$<TARGET_FILE:zengine-flow-pane>\"")
 add_dependencies(zengine-flow-pane-tests zengine-flow-pane)
 zengine_doctest_test(flow_pane zengine-flow-pane-tests)
+add_executable(zengine-view-tests test_view.cpp doctest_main.cpp)
+target_link_libraries(zengine-view-tests PRIVATE zengine-view zengine-flow zengine-warnings zengine-sanitize)
+target_include_directories(zengine-view-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_doctest_test(view zengine-view-tests)
 
 add_executable(zengine-message-draft-tests test_message_draft.cpp doctest_main.cpp)
 target_link_libraries(zengine-message-draft-tests PRIVATE zengine-message-draft zengine-warnings zengine-sanitize)
