@@ -139,6 +139,7 @@ public:
             return;
         }
         ViewAnswer answer;
+        answer.action = is(loom::schema_of<ViewRun>()) ? "run" : is(loom::schema_of<ViewApply>()) ? "apply" : "stop";
         try {
             if (!request.sender.valid()) throw std::invalid_argument("a live requesting participant is required");
             answer.session = request.payload.get("session")->as_text();
@@ -152,7 +153,6 @@ public:
                                             answer.session);
             const auto found = owned_.find(key);
             if (is(loom::schema_of<ViewRun>())) {
-                answer.action = "run";
                 if (found != owned_.end())
                     throw std::invalid_argument("this session already runs a view; apply a change or stop it first");
                 auto admitted = read(loom::from_value<ViewRun>(request.payload).description);
@@ -168,12 +168,10 @@ public:
                 if (!live) throw std::invalid_argument("the view is no longer running");
                 answer.office = live->description().name;
                 if (is(loom::schema_of<ViewStop>())) {
-                    answer.action = "stop";
                     host_.stop(found->second, "stopped; run it again from the View Builder");
                     owned_.erase(found);
                     answer.reason = "stopped " + answer.office;
                 } else if (is(loom::schema_of<ViewApply>())) {
-                    answer.action = "apply";
                     auto next = read(loom::from_value<ViewApply>(request.payload).description);
                     if (same_shapes(live->description(), next)) {
                         host_.apply(found->second, std::move(next));

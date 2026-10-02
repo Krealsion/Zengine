@@ -414,7 +414,11 @@ TEST_CASE("a stopped view leaves a picture that says it stopped, and its office 
             has(loom::from_value<ws::PaneCanvasContent>(m.payload).texts.at(0).text, "stopped"))
             delivered = true;
     CHECK(delivered);
-    CHECK(has(rig.ask(view::ViewStop{"builder"}).reason, "no view runs in this session"));
+    // A refusal names the ask it refuses, so the asker can settle it.
+    const auto again = rig.ask(view::ViewStop{"builder"});
+    CHECK_FALSE(again.ok);
+    CHECK(again.action == "stop");
+    CHECK(has(again.reason, "no view runs in this session"));
     // Run again: a fresh participant that waits until told.
     REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).ok);
     rig.room("tally.panel");

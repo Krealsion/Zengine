@@ -3,7 +3,8 @@
 A **view** is a small pane described as data rather than written in C++: some elements placed in
 whole pixels, the fields its labels show, and the intents its buttons say. The view host
 registers each running view as a participant of its own, and the view renderer draws it on its
-pane's canvas. A participant runs one by asking the view host; this page is the contract.
+pane's canvas. A view is made and run in the [View Builder](../workshop/view-builder.md); this
+page is the contract beneath it.
 
 ## The description
 
