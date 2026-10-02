@@ -200,8 +200,10 @@ public:
         model_.body_slot.reset();
         model_.slot_reference.reset();
       }
-      else if (!model_.preview.empty())
+      else if (!model_.preview.empty()) {
         model_.preview.clear();
+        model_.preview_kind.clear();
+      }
       else if (model_.node)
         model_.node.reset();
       else if (!model_.search.empty())
@@ -215,7 +217,7 @@ public:
       perform("remove", {std::to_string(*model_.node)}, mail);
     } else if (key.scancode == input::scan::kReturn) {
       if (const auto *row = pane::previewed(model_))
-        perform("add-found", {row->identity}, mail);
+        perform("add-found", {row->kind, row->identity}, mail);
     } else if (model_.search.consume(key.scancode, key.modifiers, clipboard_)) {
       show(mail);
     }
@@ -370,6 +372,7 @@ public:
       const auto *hit = it->hit(drop.x, drop.y);
       if (zengine::op::is_reference(value)) {
         drop_reference(zengine::op::decode_reference(value), hit, *it, drop, mail);
+        reveal();
       } else {
         std::optional<pane::PortChoice> port;
         if (hit && hit->action == "port" && hit->args.size() == 2)
@@ -392,6 +395,9 @@ public:
       pictures_.clear();
       drag_.reset();
       effect(model_.command(edit.action, edit.arguments), mail);
+      if (edit.action == "add-node" || edit.action == "add-node-into" ||
+          edit.action == "add-fold" || edit.action == "fold-body")
+        reveal();
     } catch (const std::exception &e) {
       ok = false;
       model_.notice = e.what();
@@ -438,8 +444,10 @@ public:
         if (flow::workspace_bytes(model_.workspace) != adding->draft)
           model_.notice = "The graph changed while the ports of " + adding->identity +
                           " were read; Add it again";
-        else if (described(adding->identity))
+        else if (described(adding->identity)) {
           effect(model_.command(adding->command, adding->arguments), mail);
+          reveal();
+        }
         else
           model_.notice = adding->identity + " is not in the host's catalog now";
       }
@@ -577,6 +585,11 @@ private:
     std::int64_t gesture = 0, node_id = 0, revision = 0, x = 0, y = 0,
                  base_x = 0, base_y = 0;
   };
+  /// Bring the selected node into view in the room this pane holds.
+  void reveal() {
+    if (room_.grant > 0)
+      pane::reveal_selected(model_, room_);
+  }
   bool host(const loom::Mail &mail, const std::string &which) const {
     return which == pane::kPane && mail.authored_from_role(workshop_role);
   }
@@ -814,7 +827,8 @@ private:
       model_.dialog->selected = 2;
       model_.filling.reset();
     } else if (action == "found") {
-      model_.preview = args.at(0);
+      model_.preview_kind = args.at(0);
+      model_.preview = args.at(1);
     } else if (action == "body-slot") {
       // The fold's body slot: the rail lists what a fold could spend, and a second press shuts it.
       const auto id =
@@ -830,10 +844,12 @@ private:
                action == "drop-emit" || action == "drop-cancel") {
       act_on_drop(action, args, mail);
     } else if (action == "add-found") {
-      std::vector<std::string> before(args.begin() + 1, args.end());
-      add_found(args.at(0), "add-node", std::move(before), mail);
+      std::vector<std::string> before(args.begin() + 2, args.end());
+      add_found(args.at(0), args.at(1), "add-node", std::move(before), mail);
+      reveal();
     } else if (action == "add-into") {
-      add_found(args.at(0), "add-node-into", {args.at(1), args.at(2)}, mail);
+      add_found(args.at(0), args.at(1), "add-node-into", {args.at(2), args.at(3)}, mail);
+      reveal();
     } else if (action == "value-row") {
       const auto row = model_.form->rows().at(flow::index_of(args.at(0)));
       if (row.type.kind == loom::Kind::Message ||
@@ -847,6 +863,20 @@ private:
                                   : ""}});
         model_.dialog->selected = 1;
       }
+    } else if (action == "fold-body") {
+      // A reference the slot offered and the graph then refused is put down: the slot offers the
+      // door's row again, rather than the same refusal each time it is chosen.
+      try {
+        effect(model_.command(action, args), mail);
+      } catch (const std::exception &) {
+        const auto &held = model_.slot_reference;
+        if (held && args.size() >= 4 && args[1] == held->ref.identity &&
+            args[2] == std::to_string(static_cast<std::int64_t>(held->ref.authored_in)) &&
+            args[3] == std::to_string(static_cast<std::int64_t>(held->ref.authored_out)))
+          model_.slot_reference.reset();
+        throw;
+      }
+      reveal();
     } else if (action == "fit") {
       model_.workspace.pan_x = 0;
       model_.workspace.pan_y = -3 * pane::unit;
@@ -887,10 +917,10 @@ private:
   /// hold is read from the host first and added when that answer comes, and a reference it then
   /// describes at other ports is refused, as is one whose graph changed meanwhile; the latest such
   /// Add is the one kept.
-  void add_found(const std::string &identity, const std::string &command,
+  void add_found(const std::string &kind, const std::string &identity, const std::string &command,
                  std::vector<std::string> where, loom::Mail &mail) {
     const auto row = std::find_if(model_.discovered.rows.begin(), model_.discovered.rows.end(),
-                                  [&](const auto &r) { return r.identity == identity; });
+                                  [&](const auto &r) { return r.kind == kind && r.identity == identity; });
     if (row == model_.discovered.rows.end())
       throw std::invalid_argument(identity + " is not among the powers the door last found");
     if (row->kind == ws::kFormKind) {
@@ -935,6 +965,7 @@ private:
       model_.filling.reset();
       model_.search.set(ref.identity, ref.identity.size());
       model_.preview = ref.identity;
+      model_.preview_kind.clear();
       model_.notice = "Choose which port of " + ref.identity + " takes the count";
       return;
     }

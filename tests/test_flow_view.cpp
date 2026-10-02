@@ -297,6 +297,50 @@ TEST_CASE("Flow projects native text and hit regions through independent measure
     CHECK(field->caret_col == field->sel_end_col);
 }
 
+TEST_CASE("the fold node's picture fits: its words inside its box, and a node just added is seen whole above the preview band") {
+    // The tally's fold, its body chosen, in the room Flow offers to take and at the default zoom.
+    pane::Model model;
+    model.palette.push_back({"math.add",
+        loom::SchemaBuilder("math.add.in", 1).field("lhs", loom::Kind::Int).field("rhs", loom::Kind::Int).build(),
+        loom::SchemaBuilder("math.add.out", 1).field("result", loom::Kind::Int).build()});
+    model.command("state-field", {"total", "Int", "required"});
+    model.command("message", {"Count"});
+    for (const char* f : {"start", "limit", "step"}) model.command("message-field", {"0", f, "Int", "required"});
+    model.command("trigger", {"0", "total"});
+    model.command("add-fold");
+    const auto& add = model.palette.front();
+    model.command("fold-body", {"0", "math.add", std::to_string(static_cast<std::int64_t>(add.inputs->content_id())),
+                                std::to_string(static_cast<std::int64_t>(add.outputs->content_id())), "rhs", "lhs"});
+    answered(model, {found_row("math.add", ws::kOperatorKind)});
+    model.preview = "math.add";
+    REQUIRE(model.node.has_value());
+    ws::PaneCanvasRoom offered{"flow", 7, 88 * unit, 22 * unit, unit, false};
+    // Placed where Flow places a new node, its answer row is under the preview band: brought into view.
+    const auto before = pane::picture(model, offered, 1);
+    REQUIRE(before.node_extent.has_value());
+    CHECK(before.node_extent->second > before.view_lower);
+    pane::reveal_selected(model, offered);
+    const auto after = pane::picture(model, offered, 2);
+    REQUIRE(after.node_extent.has_value());
+    CHECK(after.node_extent->first >= after.view_upper);
+    CHECK(after.node_extent->second <= after.view_lower);
+    CHECK(action_has(after, "source-node"));
+    CHECK(text_has(after, "%0 fold math.add"));
+    CHECK(text_has(after, "count rhs, acc lhs"));
+    // Every word of the node stays inside its box, however long its title: shortened and marked.
+    auto long_name = model;
+    long_name.palette.front().identity = "math.add_with_a_very_long_identity";
+    long_name.workspace.graph.project.definition.on.front().body.nodes.front().identity = "math.add_with_a_very_long_identity";
+    const auto clipped = pane::picture(long_name, offered, 3);
+    bool marked = false;
+    for (const auto& t : clipped.content.texts)
+        if (t.text.rfind("%0 fold", 0) == 0) {
+            CHECK(t.text.size() <= 24);
+            marked = t.text.size() >= 3 && t.text.substr(t.text.size() - 3) == "...";
+        }
+    CHECK(marked);
+}
+
 TEST_CASE("Flow's rail is called In scope, and the door's rows are grouped by classification") {
     auto model = graph(1);
     // THE ANSWER COMES IN THE CATALOG'S ORDER; the rail groups it in the order a maker reaches for

@@ -928,7 +928,7 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     rig.click("  fold");
     (void)rig.label("fold -- a form the evaluator spends");
     rig.click("[Add]");
-    (void)rig.label("%0 fold (choose its body)");
+    (void)rig.label("%0 fold");
     (void)rig.label("o step = 1");
 
     // THE BODY SLOT asks the door for what a fold could spend, and the maker names the count's port.
@@ -944,7 +944,8 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     rig.click("  math.add");
     (void)rig.label("[count lhs, acc rhs]");
     rig.click("[count rhs, acc lhs]");
-    (void)rig.label("%0 fold math.add (count rhs, acc lhs)");
+    (void)rig.label("%0 fold math.add");
+    (void)rig.label("count rhs, acc lhs");
     CHECK_FALSE(rig.shows("For %0 fold's body"));
 
     rig.edit_ok("bind", {"0", "0", "$start"});
@@ -1046,6 +1047,55 @@ TEST_CASE("a stale reference dropped on a fold's body slot is refused in words, 
     CHECK(reshaped.graph.project.definition.on.front().body.nodes.at(1).identity != "math.add");
     (void)rig.label("'math.add' is not the operator this reference was found at: its ports "
                     "changed since; find it again");
+
+    // REFUSED ONCE, THEN PUT DOWN: the slot no longer offers the reference it refused, so choosing
+    // again spends the row the door holds now, and the reshaped math.add is the body.
+    rig.click("[count rhs, acc lhs]");
+    const auto chosen = rig.workspace().graph.project.definition.on.front().body.nodes.at(1);
+    CHECK(chosen.identity == "math.add");
+    REQUIRE(chosen.fold.has_value());
+    CHECK(chosen.fold->count == "rhs");
+    (void)rig.label("%1 fold math.add");
+}
+
+TEST_CASE("a form and an operator that share a name are two rows: each previews and adds itself") {
+    Rig rig;
+    rig.graph_semantically();
+    // AN OPERATOR NAMED LIKE THE FORM, offered beside it in one answer.
+    REQUIRE(rig.catalog.mount("flowtest.named-fold",
+        {op::make_operator<&op::max_int>("fold", {"lhs", "rhs"}, "result",
+                                         "the larger of two, named like the form, to count")}));
+    rig.edit_ok("catalog");
+    rig.text("count");
+    const auto both = std::count_if(rig.picture().texts.begin(), rig.picture().texts.end(),
+                                    [](const auto& t) { return t.text == "  fold"; });
+    REQUIRE(both == 2);
+    // The form's row, under Forms, previews and adds the form.
+    rig.click("  fold");
+    (void)rig.label("fold -- a form the evaluator spends");
+    rig.click("[Add]");
+    auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
+    REQUIRE(nodes.size() == 2);
+    CHECK(nodes.back().fold.has_value());
+    // The operator's row, under Operators, previews and adds the operator.
+    rig.key(in::scan::kEscape); // the preview
+    rig.key(in::scan::kEscape); // the node
+    const auto operators = rig.label("Operators");
+    const ws::PaneCanvasText* named = nullptr;
+    for (const auto& t : rig.picture().texts)
+        if (t.text == "  fold" && t.y > operators.y) named = &t;
+    REQUIRE(named != nullptr);
+    ws::PaneCanvasPointer press;
+    press.pane = fp::kPane; press.grant = rig.grant; press.picture = rig.picture().picture;
+    press.gesture = ++rig.gesture; press.phase = ws::canvas_pointer::kPress; press.button = 1;
+    press.x = named->x + 4; press.y = named->y + 4;
+    rig.host(press);
+    (void)rig.label("fold -- operator, native, from flowtest.named-fold");
+    rig.key(in::scan::kReturn);
+    nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
+    REQUIRE(nodes.size() == 3);
+    CHECK_FALSE(nodes.back().fold.has_value());
+    CHECK(nodes.back().identity == "fold");
 }
 
 TEST_CASE("a dropped value waiting on a port is put down when another workspace replaces the "

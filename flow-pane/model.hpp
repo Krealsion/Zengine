@@ -47,7 +47,7 @@ public:
     std::optional<zengine::op::Binding> connecting;
     // Finding what to compose, none of it saved: the search line, the port being filled, the
     // discovery door's last answer (replaced whole, never a copy of the catalog) and the row
-    // previewed, by identity.
+    // previewed, by its kind and identity.
     zengine::component::TextBox search;
     std::optional<PortChoice> filling;
     /// A fold whose body slot is open, by its node's stable place id: the door is asked for what
@@ -57,7 +57,7 @@ public:
     std::optional<Dropped> dropped;
     zengine::workshop::PowersFound discovered;
     bool discovered_read = false;
-    std::string preview;
+    std::string preview, preview_kind;
     std::size_t trigger() const { return static_cast<std::size_t>(workspace.active_trigger); }
     void touched() { dirty = true; }
     void edited_state() {

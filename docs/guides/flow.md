@@ -101,7 +101,7 @@ use `export-json directory`, edit the definition/state JSON projections, then us
 `import-json directory/definition.json directory/state.json`. These projections use Loom's
 existing debug codec and pass through the same definition and value admission. They are not a
 second type system or the durable save format. Project saves and JSON imports have a 1 MiB file
-limit. Generated C++ has a separate 64 MiB workbench limit, checked before writing and used again
+limit. Generated C++ has a separate <!-- value kMaxGeneratedBytes MiB -->64<!-- /value --> MiB workbench limit, checked before writing and used again
 when reading it for recovery or regeneration. The C++ API also accepts ordinary maker definitions.
 
 ## Save, generate and return
