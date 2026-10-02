@@ -181,6 +181,16 @@
         "optional": true
       },
       {
+        "artifact": "zengine-view-builder",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.view.builder"
+          }
+        ],
+        "optional": true
+      },
+      {
         "artifact": "zengine-inventory",
         "provider": [],
         "weave": [

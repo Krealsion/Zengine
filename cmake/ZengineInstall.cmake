@@ -148,7 +148,7 @@ set(zengine_public_headers_maker maker/definition.hpp maker/files.hpp maker/writ
     maker/runtime.hpp maker/weave.hpp maker/vocabulary.hpp maker/succession.hpp)
 set(zengine_public_headers_flow flow/native_abi.h flow/native.hpp flow/compiled.hpp
     flow/generate.hpp flow/project.hpp flow/graph.hpp flow/author.hpp flow/example.hpp
-    flow/graph_edit.hpp flow/workspace.hpp)
+    flow/graph_edit.hpp flow/workspace.hpp flow/shape.hpp)
 set(zengine_public_headers_message-draft message-draft/draft.hpp message-draft/library.hpp message-draft/transfer.hpp)
 set(zengine_public_headers_inventory inventory/codec.hpp inventory/vocabulary.hpp inventory/grant.hpp)
 install(FILES inventory-pane/vocabulary.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/inventory-pane)

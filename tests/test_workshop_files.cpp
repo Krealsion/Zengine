@@ -2199,7 +2199,8 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
         // of its own, and a weaver edits, builds and reloads it from this catalog like any pane --
         // the development road to replacing how every pane's menu is presented (WL-CTX-09).
         {"zengine-menu-presenter", "menu-presenter/presenter.cpp"},
-        {"zengine-flow-pane", "flow-pane/pane.cpp"}};
+        {"zengine-flow-pane", "flow-pane/pane.cpp"},
+        {"zengine-view-builder", "view-builder/pane.cpp"}};
     REQUIRE(read.recipes.size() == panes.size());
     const std::filesystem::path host_dir =
         std::filesystem::path(WORKSHOP_HOST_DIR).lexically_normal();

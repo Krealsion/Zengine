@@ -32,6 +32,9 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
 - The standalone workbench owns its local Loom session. Its form switch prepares a fresh
   session and transfers state only. Workshop instead uses `flow_host::RuntimeHost` over
   the existing host bus/catalog. Never embed the standalone session in the pane.
+- A message shape is authored through `flow/shape.hpp` alone: `GraphDraft`, the pane's model,
+  the workbench and the View Builder name, field and type a shape there, so no tool keeps rules
+  of its own. A new rule for a shape is written there once.
 - `GraphDraft` keeps maker graph meaning; node positions and the viewport are workspace
   presentation metadata. Empty triggers and unwired ports may be saved as unfinished work
   without relaxing maker admission or live operator checks.
@@ -59,20 +62,26 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   invalidates old picture maps, including a change of text metrics. A right press means nothing
   on the graph or its pages, so the pane hands it back (`PanePassRequested`) and Workshop's pane
   menu opens where it landed.
+- The pane carries a declared message's shape out, as a `zen.SchemaDesc`, from a right press on
+  its row in Messages: a menu choice, then the same gesture's acquisition and a click-to-place
+  carry. It carries no value and no operator out.
 - The pane consumes the shared canvas seam and host-manager messages. It owns no private
   catalog, fallback primitives, nested host, native-code loading policy or bus pumping.
 - The pane finds powers through the discovery door (`flow-pane/find.hpp`) and never through
   `FlowCatalog`, which supplies the graph's port signatures alone. It asks only for offered
   powers, so a participant's own trigger body is never Flow's to offer, and with a port selected
   only for what yields the port's type in Loom's spelling. It shows rows as the door answered
-  them: it matches nothing again and classifies nothing. A selected port is held by its node's
+  them: it matches nothing again and classifies nothing. A row is known by its kind and its
+  identity together, since a form and an operator may share a name. A selected port is held by its node's
   place id, so removing another node never moves it; replacing the graph or changing the
   trigger puts it down. A preview evaluates nothing. Add takes an operator reference (the row's
   identity and two content ids): `add-node` places a step at the end or before a node, and
   `add-node-into` before a port's node and into that port, one renumbering edit; a stale
   reference is refused against the graph's ports, never re-bound. The fold is placed by
   `add-fold` with `step` bound to 1 and given its body by `fold-body` from a slot that asks the
-  door `fits=fold`; the maker names the count's port. `GraphDraft::node_ports` is the one answer
+  door `fits=fold`; the maker names the count's port. A reference the slot offered that the
+  graph refused is put down, so the slot offers the door's row next. A node's words stay inside
+  its box, and a node just added or given its body is panned into view above the preview band. `GraphDraft::node_ports` is the one answer
   to a node's ports, a fold's derived from its body by `op::fold_ports`.
 - `tests/test_flow.cpp` compares state, outputs, refusal reasons, live overlays, authority and
   admission. `tests/package` builds and loads generated code using installed packages only.

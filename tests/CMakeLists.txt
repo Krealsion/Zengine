@@ -674,6 +674,18 @@ target_include_directories(zengine-flow-pane-tests PRIVATE ${CMAKE_CURRENT_SOURC
 target_compile_definitions(zengine-flow-pane-tests PRIVATE "FLOW_PANE_ARTIFACT=\"$<TARGET_FILE:zengine-flow-pane>\"")
 add_dependencies(zengine-flow-pane-tests zengine-flow-pane)
 zengine_doctest_test(flow_pane zengine-flow-pane-tests)
+add_executable(zengine-view-tests test_view.cpp doctest_main.cpp)
+target_link_libraries(zengine-view-tests PRIVATE zengine-view zengine-flow zengine-warnings zengine-sanitize)
+target_include_directories(zengine-view-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_doctest_test(view zengine-view-tests)
+add_executable(zengine-view-builder-tests test_view_builder.cpp doctest_main.cpp)
+target_link_libraries(zengine-view-builder-tests PRIVATE zengine-view zengine-flow zengine-activation
+    loom::kernel zengine-warnings zengine-sanitize)
+target_include_directories(zengine-view-builder-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+target_compile_definitions(zengine-view-builder-tests PRIVATE
+    "VIEW_BUILDER_ARTIFACT=\"$<TARGET_FILE:zengine-view-builder>\"")
+add_dependencies(zengine-view-builder-tests zengine-view-builder)
+zengine_doctest_test(view_builder zengine-view-builder-tests)
 
 add_executable(zengine-message-draft-tests test_message_draft.cpp doctest_main.cpp)
 target_link_libraries(zengine-message-draft-tests PRIVATE zengine-message-draft zengine-warnings zengine-sanitize)
@@ -779,6 +791,8 @@ set(ZENGINE_WORKSHOP_DEFS
     "WORKSHOP_SO_EDITOR_PANE=\"$<TARGET_FILE:zengine-editor-pane>\""
     # Flow's pane, one of the three askers of the discovery door.
     "WORKSHOP_SO_FLOW_PANE=\"$<TARGET_FILE:zengine-flow-pane>\""
+    # ...and the View Builder beside it.
+    "WORKSHOP_SO_VIEW_BUILDER=\"$<TARGET_FILE:zengine-view-builder>\""
     # ...AND THE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE, with its source, which a
     # case reads to check that the current vocabulary is nowhere in it.
     "WORKSHOP_SO_LEGACY_PANE=\"$<TARGET_FILE:zengine-legacy-pane>\""
@@ -800,7 +814,7 @@ set(ZENGINE_WORKSHOP_DEFS
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
     zengine-attention-pane zengine-info-pane zengine-desktop-pane zengine-terminal-pane
-    zengine-connections-pane zengine-flow-pane
+    zengine-connections-pane zengine-flow-pane zengine-view-builder
     zengine-legacy-pane
     zengine-failing-editor zengine-editor-throwing
     zengine-operators-basic zengine-provider-min zengine-provider-a
@@ -929,7 +943,7 @@ zengine_workshop_suite(host
 # (VM-WALL-11): Workshop's `main()` claims a terminal, and a source read keeps a claim every
 # case rests on from quietly going false.
 zengine_workshop_suite(panes
-    LINKS loom::history
+    LINKS loom::history zengine-view
     SOURCES test_workshop_demo.cpp
             test_workshop_panes_seam.cpp
             test_workshop_panes_window.cpp

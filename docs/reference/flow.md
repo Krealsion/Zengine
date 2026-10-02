@@ -33,6 +33,14 @@ and evaluation resolve the actual host catalog again. A connection must match it
 port, and node references must point backwards in execution order. Removing a node used
 elsewhere, or the chosen result while other nodes remain, requires an explicit reconnect.
 
+`flow/shape.hpp` is the one model of an authored message shape: a name without a `.` is placed
+inside the definition's (or the view's) own name, a name already declared is refused, a shape
+starts at version 1, a field's name must be new and nonempty, and a type is spelled `Int`,
+`Bool`, `Float`, `Text`, `Bytes`, `List:<type>` or `Message:<saved draft>`. `GraphDraft`, the
+pane's messages and the workbench's `accept` and `publish` declare through it, and the
+View Builder makes a view's intent through it, so a shape keeps the
+same rules wherever it is authored. It edits shapes, never values.
+
 `flow/workspace.hpp` provides `Workspace`, its byte codecs and explicit file save/open
 functions. A workspace retains a project, node positions, viewport, reusable examples
 and unfinished value forms. Layout does not change executable graph meaning. Empty

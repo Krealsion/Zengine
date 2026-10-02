@@ -47,7 +47,7 @@ public:
     std::optional<zengine::op::Binding> connecting;
     // Finding what to compose, none of it saved: the search line, the port being filled, the
     // discovery door's last answer (replaced whole, never a copy of the catalog) and the row
-    // previewed, by identity.
+    // previewed, by its kind and identity.
     zengine::component::TextBox search;
     std::optional<PortChoice> filling;
     /// A fold whose body slot is open, by its node's stable place id: the door is asked for what
@@ -57,7 +57,7 @@ public:
     std::optional<Dropped> dropped;
     zengine::workshop::PowersFound discovered;
     bool discovered_read = false;
-    std::string preview;
+    std::string preview, preview_kind;
     std::size_t trigger() const { return static_cast<std::size_t>(workspace.active_trigger); }
     void touched() { dirty = true; }
     void edited_state() {
@@ -126,23 +126,8 @@ public:
         open_form("message", schema, schema->name(), false);
         message = which; page = Page::Messages; first_row = 0;
     }
-    loom::TypeRef type(std::string spelling) const {
-        std::size_t lists = 0, offset = 0;
-        while (spelling.compare(offset, 5, "List:") == 0) {
-            if (++lists > 64) throw std::invalid_argument("type exceeds 64 List nesting levels");
-            offset += 5;
-        }
-        const auto base = std::string_view(spelling).substr(offset);
-        loom::TypeRef result;
-        if (base.starts_with("Message:")) {
-            const auto* saved = workspace.library.find(base.substr(8));
-            if (!saved) throw std::invalid_argument("Message:<saved draft name> needs an existing library schema");
-            result = loom::type_message(saved->schema());
-        }
-        else if (base == "Bytes") result = loom::type_of(loom::Kind::Bytes);
-        else result = loom::type_of(flow::scalar_kind(base));
-        while (lists > 0) { result = loom::type_list(std::move(result)); --lists; }
-        return result;
+    loom::TypeRef type(const std::string& spelling) const {
+        return flow::shape::type_named(spelling, workspace.library);
     }
     void keep_form() {
         if (!form) throw std::invalid_argument("open a value first");
