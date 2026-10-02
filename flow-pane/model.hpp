@@ -126,23 +126,8 @@ public:
         open_form("message", schema, schema->name(), false);
         message = which; page = Page::Messages; first_row = 0;
     }
-    loom::TypeRef type(std::string spelling) const {
-        std::size_t lists = 0, offset = 0;
-        while (spelling.compare(offset, 5, "List:") == 0) {
-            if (++lists > 64) throw std::invalid_argument("type exceeds 64 List nesting levels");
-            offset += 5;
-        }
-        const auto base = std::string_view(spelling).substr(offset);
-        loom::TypeRef result;
-        if (base.starts_with("Message:")) {
-            const auto* saved = workspace.library.find(base.substr(8));
-            if (!saved) throw std::invalid_argument("Message:<saved draft name> needs an existing library schema");
-            result = loom::type_message(saved->schema());
-        }
-        else if (base == "Bytes") result = loom::type_of(loom::Kind::Bytes);
-        else result = loom::type_of(flow::scalar_kind(base));
-        while (lists > 0) { result = loom::type_list(std::move(result)); --lists; }
-        return result;
+    loom::TypeRef type(const std::string& spelling) const {
+        return flow::shape::type_named(spelling, workspace.library);
     }
     void keep_form() {
         if (!form) throw std::invalid_argument("open a value first");

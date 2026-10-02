@@ -4,6 +4,7 @@
 #define ZENGINE_FLOW_GRAPH_EDIT_HPP
 
 #include "flow/project.hpp"
+#include "flow/shape.hpp"
 #include "operator/fold.hpp"
 #include "operator/reference.hpp"
 #include <algorithm>
@@ -105,14 +106,11 @@ public:
   std::size_t message(std::string name, std::vector<loom::Field> fields,
                       bool emitted = false) {
     editable();
-    if (name.find('.') == std::string::npos)
-      name = project.definition.name + "." + name;
+    name = shape::qualified(project.definition.name, std::move(name));
     auto &shapes =
         emitted ? project.definition.emits : project.definition.accepts;
-    for (const auto &shape : shapes)
-      if (shape->name() == name)
-        throw std::invalid_argument("message already declared");
-    shapes.push_back(loom::make_schema(name, 1, std::move(fields)));
+    shape::refuse_taken(shapes, name);
+    shapes.push_back(shape::make(name, std::move(fields)));
     changed();
     return shapes.size() - 1;
   }
@@ -122,9 +120,7 @@ public:
   std::size_t declare(std::shared_ptr<const loom::Schema> shape, bool emitted) {
     editable();
     auto &shapes = emitted ? project.definition.emits : project.definition.accepts;
-    for (const auto &declared : shapes)
-      if (declared->name() == shape->name())
-        throw std::invalid_argument("a message named " + shape->name() + " is already declared");
+    shape::refuse_taken(shapes, shape->name());
     const auto prefix = project.definition.name + ".";
     if (emitted && shape->name().rfind(prefix, 0) != 0)
       throw std::invalid_argument("an emitted message's name must begin `" + prefix + "`; `" +
@@ -149,14 +145,8 @@ public:
                      loom::TypeRef type, bool required = true) {
     editable();
     auto &shape = project.definition.accepts.at(message_index);
-    if (name.empty() || shape->find(name))
-      throw std::invalid_argument(
-          "message field name is empty or already used");
-    auto fields = shape->fields();
-    fields.push_back({name, std::move(type), required});
     const auto previous = shape;
-    shape =
-        loom::make_schema(shape->name(), shape->version(), std::move(fields));
+    shape = shape::with_field(*shape, name, std::move(type), required);
     for (auto &on : project.definition.on)
       if (loom::same_identity(*on.message, *previous))
         on.message = shape;
@@ -169,13 +159,8 @@ public:
                      bool required = true) {
     editable();
     auto &shape = project.definition.emits.at(index);
-    if (name.empty() || shape->find(name))
-      throw std::invalid_argument("message field name is empty or already used");
-    auto fields = shape->fields();
-    fields.push_back({name, std::move(type), required});
     const auto previous = shape;
-    const auto next =
-        loom::make_schema(shape->name(), shape->version(), std::move(fields));
+    const auto next = shape::with_field(*shape, name, std::move(type), required);
     for (auto &on : project.definition.on)
       for (auto &e : on.emits)
         if (loom::same_identity(*e.message, *previous)) {

@@ -32,6 +32,9 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
 - The standalone workbench owns its local Loom session. Its form switch prepares a fresh
   session and transfers state only. Workshop instead uses `flow_host::RuntimeHost` over
   the existing host bus/catalog. Never embed the standalone session in the pane.
+- A message shape is authored through `flow/shape.hpp` alone: `GraphDraft`, the pane's model,
+  the workbench and the View Builder name, field and type a shape there, so no tool keeps rules
+  of its own. A new rule for a shape is written there once.
 - `GraphDraft` keeps maker graph meaning; node positions and the viewport are workspace
   presentation metadata. Empty triggers and unwired ports may be saved as unfinished work
   without relaxing maker admission or live operator checks.

@@ -4,6 +4,7 @@
 #define ZENGINE_FLOW_AUTHOR_HPP
 
 #include "flow/project.hpp"
+#include "flow/shape.hpp"
 #include "operator/catalog.hpp"
 
 #include <algorithm>
@@ -50,14 +51,7 @@ inline std::size_t index_of(std::string_view text) {
     return static_cast<std::size_t>(value);
 }
 
-inline loom::Kind scalar_kind(std::string_view name) {
-    if (name == "Int") return loom::Kind::Int;
-    if (name == "Bool") return loom::Kind::Bool;
-    if (name == "Float") return loom::Kind::Float;
-    if (name == "Text") return loom::Kind::Text;
-    throw std::invalid_argument("scalar authoring accepts Int, Bool, Float, Text; "
-                                "import-json carries full maker schemas");
-}
+using shape::scalar_kind;
 
 inline loom::Cell scalar(loom::Kind kind, const std::string& text) {
     switch (kind) {
@@ -138,19 +132,16 @@ public:
         } else if (verb == "accept" || verb == "publish") {
             if (args.size() < 2 || builder_) throw std::invalid_argument("declare a message outside a trigger");
             auto& list = verb == "accept" ? definition_.accepts : definition_.emits;
-            const auto name = qualify(args[1]);
-            for (const auto& shape : list)
-                if (shape->name() == name) throw std::invalid_argument("duplicate message " + name);
-            std::vector<loom::Field> declared;
+            const auto name = shape::qualified(definition_.name, args[1]);
+            shape::refuse_taken(list, name);
+            auto declared = shape::make(name);
             for (std::size_t i = 2; i < args.size(); ++i) {
                 auto [field, type] = split(args[i], ':');
                 bool required = true;
                 if (!type.empty() && type.back() == '?') { required = false; type.pop_back(); }
-                for (const auto& previous : declared)
-                    if (previous.name == field) throw std::invalid_argument("duplicate field " + field);
-                declared.push_back({std::move(field), loom::type_of(scalar_kind(type)), required});
+                declared = shape::with_field(*declared, field, loom::type_of(scalar_kind(type)), required);
             }
-            list.push_back(loom::make_schema(name, 1, std::move(declared)));
+            list.push_back(std::move(declared));
         } else if (verb == "on") {
             exactly(3);
             if (builder_) throw std::invalid_argument("end the current trigger first");
@@ -221,7 +212,7 @@ public:
 private:
     void need_trigger() const { if (!builder_) throw std::invalid_argument("start a trigger with on"); }
     std::string qualify(const std::string& name) const {
-        return name.find('.') == std::string::npos ? definition_.name + "." + name : name;
+        return shape::qualified(definition_.name, name);
     }
     std::shared_ptr<const loom::Schema> find(const std::vector<std::shared_ptr<const loom::Schema>>& shapes,
                                            const std::string& name) const {
