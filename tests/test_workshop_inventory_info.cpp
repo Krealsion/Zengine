@@ -996,6 +996,51 @@ TEST_CASE("a value dragged from Inventory onto Flow's canvas reaches Flow as a c
     CHECK(pictured("[Cancel]"));
 }
 
+TEST_CASE("a value released on Flow's canvas before its carry is answered names the picture it was "
+          "released on, though Flow repainted meanwhile") {
+    InventoryStory s(191, true, false, true);
+    s.append(1, "A");
+    REQUIRE(s.flow != 0);
+    const auto released_on = s.r.session().panes.external_pane(s.flow)->stamp.aimed;
+    REQUIRE(released_on != 0);
+    std::vector<PaneCanvasValueDrop> drops;
+    unsigned buttons = 0;
+    const loom::WeaveId workshop = s.r.workshop_id;
+    const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind != loom::EventKind::Delivered) return;
+        if (e.payload && e.schema_name == PaneCanvasValueDrop::zen_name)
+            drops.push_back(loom::from_value<PaneCanvasValueDrop>(*e.payload));
+        // THE RELEASE HANDLED, its carry not yet asked for: the turn stops here.
+        if (e.target == workshop && e.schema_name == input::PointerButton::zen_name && ++buttons == 2)
+            s.r.bus.stop();
+    });
+    auto press = s.button_at(s.source, 2, true);
+    auto release = s.button_at(s.flow, 8, false);
+    release.x += 40; // over the graph, right of Flow's rail
+    auto move = release;
+    move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    s.hand->next = [&](loom::Mail& m) {
+        m.send_to_role(input::kInputRole, input::InjectInput{s.hand->session, {press, move, release}});
+    };
+    s.r.bus.send(s.hand_id, loom::Message(loom::to_value(InventoryHandDo{})));
+    for (int turn = 0; turn < 64 && buttons < 2 && s.r.bus.pending() != 0; ++turn) (void)s.r.bus.pump_pending();
+    s.hand->next = {};
+    REQUIRE(buttons == 2);
+    REQUIRE(drops.empty());
+
+    // FLOW REPAINTS before the carry is answered: typing on its search line.
+    const auto* flow = s.r.session().panes.runtime.of_kind(s.flow);
+    REQUIRE(flow != nullptr);
+    REQUIRE(s.r.bus.office_send_to_role_as(workshop, kWorkshopProvider, flow->provider,
+        loom::Message(loom::to_value(PaneTextInput{flow->pane, "m"}))).valid());
+    s.r.bus.drain_until_idle();
+    s.r.bus.remove_observer(tap);
+    INFO(s.r.last_notice());
+    CHECK(s.r.session().panes.external_pane(s.flow)->stamp.aimed != released_on);
+    REQUIRE(drops.size() == 1);
+    CHECK(drops[0].picture == released_on);
+}
+
 TEST_CASE("an operator reference dragged out of Powers is kept by Inventory like any value: the "
           "identity and the two content ids the door's row carried") {
     InventoryStory s(191 | 64, true, false, false, true); // the actor may carry a value
