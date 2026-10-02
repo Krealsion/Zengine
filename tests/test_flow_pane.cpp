@@ -1021,6 +1021,7 @@ TEST_CASE("a dropped value offers what it can be here: its shape declared, then 
     rig.edit_ok("fold-body", {"0", add[0], add[1], add[2], "rhs", "lhs"});
     rig.edit_ok("bind", {"0", "0", "$start"});
     rig.edit_ok("bind", {"0", "1", "$limit"});
+    rig.edit_ok("bind", {"0", "2", "$step"});
     rig.drop_on(count, "o initial = [unwired]");
     (void)rig.label("[Use start = 0 on %0 initial]");
     (void)rig.label("[Use limit = 10 on %0 initial]");
@@ -1033,6 +1034,26 @@ TEST_CASE("a dropped value offers what it can be here: its shape declared, then 
     const auto subject = rig.bus.role_holder("tally");
     REQUIRE(subject.valid());
     CHECK(rig.bus.weave(subject)->snapshot().get("total")->as_int() == 45);
+
+    // A REFUSAL READS WHOLE: in a narrow room its Events row continues, indented, beneath itself.
+    rig.host(ws::PaneCanvasRoom{fp::kPane, ++rig.grant, 90 * unit, 65 * unit, unit, true});
+    loom::Value zero = count;
+    zero.set("step", loom::Cell::integer(0));
+    rig.drop(zero, 40 * unit, 20 * unit);
+    rig.click("[Send as example]");
+    rig.edit_ok("inspect");
+    rig.click("[Events]");
+    std::string pictured;
+    bool continued = false;
+    for (const auto& row : rig.picture().texts) {
+        continued = continued || row.text.rfind("    ", 0) == 0;
+        for (const char c : row.text + " ")
+            if (c != ' ' || (!pictured.empty() && pictured.back() != ' ')) pictured += c;
+    }
+    CHECK(continued);
+    CHECK(pictured.find("a step of 0 never moves the count from 0 toward 10") != std::string::npos);
+    CHECK(rig.bus.weave(subject)->snapshot().get("total")->as_int() == 45);
+    rig.host(ws::PaneCanvasRoom{fp::kPane, ++rig.grant, 170 * unit, 65 * unit, unit, true});
 
     // AN EMITTED SHAPE inside the definition's namespace, and Escape puts a drop down unused.
     const auto total_schema = loom::SchemaBuilder("tally.Total", 1).field("total", loom::Kind::Int).build();

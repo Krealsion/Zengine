@@ -121,7 +121,8 @@ stores this as `low`. Change the field to `7` and save `high`. These values are 
 they carry their schemas and no sender identity, destination, grants or reply provenance.
 
 Choose **Send**, then **Events**. The current exposed state and observed outputs/refusals appear
-with send correlations. Dispatch settlement is distinct from an application result; a quiet weave
+with send correlations; a long one, such as a refusal in its owner's words, continues on the rows
+beneath it. Dispatch settlement is distinct from an application result; a quiet weave
 does not promise a reply. **Inspect** refreshes the owner's bounded record. An omission count says
 when older observations were dropped. Loom's host Recorder/Logger remain the broader history tools.
 
@@ -154,8 +155,8 @@ edit is awaiting a fresh run. The Events page continues to show live state indep
 does not save process identity, pending queues, grants or resumable native continuations.
 
 **Export** writes a completed executable Flow project for the standalone workbench and its C++
-generation path. **Import** brings such a project into this editor. **Generate native C++** in the
-pane's menu writes the generated project -- `generated.cpp`, its CMake file, `definition.bin` and
+generation path. **Import** brings such a project into this editor. **Ctrl+G**, Generate native C++,
+writes the generated project -- `generated.cpp`, its CMake file, `definition.bin` and
 `graph.svg` -- into a directory, as the workbench's `generate` does; a definition with a fold is
 refused in words and nothing is written, because the fold is the evaluator's and runs interpreted. Workspace files additionally
 contain unfinished authoring work and presentation; they are not executable projects.
