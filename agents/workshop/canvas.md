@@ -101,15 +101,15 @@ LAW — A provider that accepts `PaneCanvasHover` is told where a pointer holdin
 
 MEANS
 - the canvas on top under the pointer, from geometry Workshop holds, once per local place;
-- a leave when the pointer moves off its body, a mode, menu or sweep takes it, or a press holds;
+- a leave when the pointer moves off its body, a mode, menu or sweep takes it, or a press begins;
 - a carried value over a canvas is told with `carrying`; a fresh room puts the hover down unsaid.
 
 PROVEN BY — `workshop/pane_canvas_vocabulary.hpp` `PaneCanvasHover`; `workshop/weave_canvas.cpp`
 `canvas_hover`, `leave_canvas_hover`, `refresh_canvas_rooms`; `workshop/weave_pointer.cpp`
-`on(PointerMoved)`; `tests/test_workshop_panes_canvas.cpp` case "a canvas that accepts the hover
-door hears where the pointer rests and that it left; resting selects, focuses and presses
-nothing", case "a described view offers its own pane through the view host, Workshop seats and
-draws it, a press reaches it, and a stop leaves a picture that says so".
+`on(PointerMoved)`, `on(PointerButton)`; `tests/test_workshop_panes_canvas.cpp` case "a canvas
+that accepts the hover door hears where the pointer rests and that it left; resting selects,
+focuses and presses nothing", case "a described view offers its own pane through the view host,
+Workshop seats and draws it, a press reaches it, and a stop leaves a picture that says so".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## Do not assume

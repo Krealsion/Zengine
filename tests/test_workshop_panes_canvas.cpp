@@ -261,14 +261,15 @@ TEST_CASE("a canvas that accepts the hover door hears where the pointer rests an
     CHECK_FALSE(t.seat->hovers.back().over);
     t.move(-3 * unit, -2 * unit);
     CHECK(t.seat->hovers.size() == 3);
-    // A held press owns the motion: the hover is put down, and comes back after the release.
+    // A press owns the pointer: the hover is put down, and comes back after the release.
     t.move(unit, unit);
     REQUIRE(t.seat->hovers.size() == 4);
     t.button(1, true);
+    REQUIRE(t.seat->hovers.size() == 5); // put down by the press itself, before any motion
+    CHECK_FALSE(t.seat->hovers.back().over);
     t.move(2 * unit, unit);
     CHECK(t.seat->pointers.back().phase == canvas_pointer::kMove);
-    REQUIRE(t.seat->hovers.size() == 5);
-    CHECK_FALSE(t.seat->hovers.back().over);
+    CHECK(t.seat->hovers.size() == 5);
     t.button(1, false, 2 * unit, unit);
     t.move(unit, 2 * unit);
     REQUIRE(t.seat->hovers.size() == 6);
