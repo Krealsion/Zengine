@@ -1020,6 +1020,34 @@ TEST_CASE("a dropped operator reference becomes a node: where it was released, i
     (void)rig.label("[count rhs, acc lhs]");
 }
 
+TEST_CASE("a stale reference dropped on a fold's body slot is refused in words, never installed "
+          "at the ports the door holds now") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-fold");
+    rig.drop_on(op::encode_reference({"math.add", 1, 2}), "body = [choose]");
+    // Whatever the slot then offers carries the reference that was dropped, not the door's.
+    if (rig.shows("[count rhs, acc lhs]")) rig.click("[count rhs, acc lhs]");
+    const auto after = rig.workspace();
+    CHECK(after.graph.project.definition.on.front().body.nodes.at(1).identity != "math.add");
+    (void)rig.label("'math.add' is not the operator this reference was found at: its ports "
+                    "changed since; find it again");
+
+    // FOUND WHILE CURRENT, then reshaped before the body is chosen: the dropped one is refused,
+    // never the reshaped one installed in its place.
+    rig.drop_on(rig.reference("math.add"), "body = [choose]");
+    (void)rig.label("[count rhs, acc lhs]");
+    REQUIRE(rig.catalog.unmount("flowtest.basic"));
+    REQUIRE(rig.catalog.mount("flowtest.reshaped",
+        {op::make_operator<&op::add_int>(op::kAddInt, {"lhs", "rhs"}, "sum")}));
+    rig.edit_ok("catalog");
+    rig.click("[count rhs, acc lhs]");
+    const auto reshaped = rig.workspace();
+    CHECK(reshaped.graph.project.definition.on.front().body.nodes.at(1).identity != "math.add");
+    (void)rig.label("'math.add' is not the operator this reference was found at: its ports "
+                    "changed since; find it again");
+}
+
 TEST_CASE("a dropped value waiting on a port is put down when another workspace replaces the "
           "graph, so its offer never lands on a node of the new one") {
     Rig rig;
