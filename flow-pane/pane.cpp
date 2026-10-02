@@ -448,6 +448,8 @@ public:
       if (edit.action == "add-node" || edit.action == "add-node-into" ||
           edit.action == "add-fold" || edit.action == "fold-body")
         reveal();
+      if ((edit.action == "open" || edit.action == "import-project") && room_.grant > 0)
+        pane::reveal_graph(model_, room_);
     } catch (const std::exception &e) {
       ok = false;
       model_.notice = e.what();
@@ -850,6 +852,8 @@ private:
       else
         effect(model_.command(saved.action, values), mail);
       model_.dialog.reset();
+      if ((saved.action == "open" || saved.action == "import-project") && room_.grant > 0)
+        pane::reveal_graph(model_, room_);
       drag_.reset();
     } else if (action == "page-graph") {
       model_.page = pane::Page::Graph;
@@ -959,6 +963,8 @@ private:
       model_.workspace.pan_x = 0;
       model_.workspace.pan_y = -3 * pane::unit;
       model_.workspace.zoom = 75;
+      if (room_.grant > 0)
+        pane::reveal_graph(model_, room_);
       model_.touched();
     } else if (action == "zoom-in" || action == "zoom-out") {
       model_.workspace.zoom =

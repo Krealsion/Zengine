@@ -200,17 +200,19 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
         const ws::CanvasTextBox clip{x, y, w, std::min(h, notice_y - y)};
         const auto middle = centred(clip);
         const auto inset = up(x + surface::subs_of_pixel(4)) - x;
+        // A control is a quiet box with its words on it: in a window a filled rectangle, in a
+        // terminal a run of the quiet glyph, and either way the words stay readable. Focus is
+        // the caret and the accent of a field's words; a button's words are always accented.
         if (e.kind == Kind::number) {
             const bool focused = p.focus && *p.focus == e.id;
-            out.content.rects.push_back({x, y, w, std::min(h, notice_y - y),
-                                         focused ? ink::kAccent : ink::kMuted});
+            out.content.rects.push_back({x, y, w, std::min(h, notice_y - y), ink::kMuted});
             const auto box = field_box(p, e);
             const auto caption = e.label.empty() ? std::string() : e.label + ": ";
-            text(x + inset, middle, caption + box.text(), ink::kFill, clip,
+            text(x + inset, middle, caption + box.text(), focused ? ink::kAccent : ink::kFill, clip,
                  focused ? static_cast<std::int64_t>(caption.size() + box.caret()) : surface::kNoCaret);
         } else if (e.kind == Kind::button) {
-            out.content.rects.push_back({x, y, w, std::min(h, notice_y - y), ink::kAccent});
-            text(x + inset, middle, e.label, ink::kFill, clip);
+            out.content.rects.push_back({x, y, w, std::min(h, notice_y - y), ink::kMuted});
+            text(x + inset, middle, e.label, ink::kAccent, clip);
         } else {
             std::string words = e.label;
             std::int64_t role = ink::kFill;
@@ -252,7 +254,7 @@ inline std::pair<std::int64_t, std::int64_t> preferred_size(const Description& d
     }
     const auto cells = [](std::int64_t px) { return (px + surface::kCanvasCellPx - 1) / surface::kCanvasCellPx; };
     return {std::clamp<std::int64_t>(cells(bottom) + static_cast<std::int64_t>(kNoticeRows) + 1, 4, 60),
-            std::clamp<std::int64_t>(cells(right) + 2, 24, 200)};
+            std::clamp<std::int64_t>(cells(right) + 2, 40, 200)};
 }
 
 /// The grant a description implies: each intent it says to any accepter, and the pane
