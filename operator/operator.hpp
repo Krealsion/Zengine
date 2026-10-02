@@ -102,8 +102,8 @@ inline std::uint64_t invocations() noexcept { return detail::invocation_counter(
 /// answer, or a constant. Within one graph acyclicity is structural, not checked: `Builder`
 /// cannot make a reference to node i before node i exists, so there is nowhere to write a cycle
 /// down. A node names its operator by identity, bound at the spend, so a cycle THROUGH identities
-/// -- a composite naming itself, or another that names it -- is expressible as data, and nothing
-/// bounds its evaluation (agents/operators.md).
+/// -- a composite naming itself, or another that names it -- is expressible as data, and the
+/// evaluation's budget refuses it (agents/operators.md).
 class Binding {
 public:
     enum class From { Input, Node, Constant };

@@ -16,7 +16,9 @@
 // Who says what went wrong: an unresolved operator, or a signature that is not the authored one
 // (a `ContentId` compare), is this file's sentence; arguments or an answer a schema refuses is
 // `loom::admit`'s, quoted. There is no operator error enum. An answer is returned, not
-// delivered: a round trip needs no Switchboard, no registration and no `Emit<>`.
+// delivered: a round trip needs no Switchboard, no registration and no `Emit<>`. Every spend one
+// evaluation reaches draws on one budget, `kEvaluationSpends` spends nested `kEvaluationDepth`
+// deep, and the spend that would pass it is refused in words.
 
 #include "operator/operator.hpp"
 
@@ -56,6 +58,31 @@ inline bool same_type(const loom::TypeRef& a, const loom::TypeRef& b) {
     }
     return true;
 }
+
+} // namespace detail
+
+// ---- what one evaluation may spend --------------------------------------------
+
+/// The most operators one evaluation may spend: every node, every body a form spends and every
+/// nested composite's nodes, from the first `evaluate` to its answer. A nested loop is bounded by
+/// it, whatever its parts' own bounds allow.
+inline constexpr std::uint64_t kEvaluationSpends = 100000;
+/// The deepest one evaluation may nest, an operator spending an operator. An operator that reaches
+/// itself through identities nests without end, and its stack would run out long before its spends.
+inline constexpr std::size_t kEvaluationDepth = 32;
+
+namespace detail {
+
+/// The evaluation in progress on one catalog: opened by the outermost `evaluate` and shared by
+/// every spend it reaches, re-entry through a loaded consumer's host table included. A copy of a
+/// catalog is a different evaluator, so it starts with nothing spent.
+struct EvaluationBudget {
+    std::uint64_t spent = 0;
+    std::size_t depth = 0;
+    EvaluationBudget() = default;
+    EvaluationBudget(const EvaluationBudget&) noexcept {}
+    EvaluationBudget& operator=(const EvaluationBudget&) noexcept { return *this; }
+};
 
 } // namespace detail
 
@@ -252,6 +279,10 @@ public:
         if (def == nullptr) {
             return unresolved(identity);
         }
+        Spend spend(budget_);
+        if (std::string why = spend.charge(identity); !why.empty()) {
+            return Evaluation::refuse(std::move(why));
+        }
         return run(*def, loom::admit(std::move(args), *def->inputs()));
     }
 
@@ -263,10 +294,53 @@ public:
         if (def == nullptr) {
             return unresolved(identity);
         }
+        Spend spend(budget_);
+        if (std::string why = spend.charge(identity); !why.empty()) {
+            return Evaluation::refuse(std::move(why));
+        }
         return run(*def, loom::admit(args, def->inputs()));
     }
 
 private:
+    /// One operator spent within the evaluation in progress, or the refusal of the spend that
+    /// would pass its budget. The outermost spend opens the evaluation and closing it closes it.
+    class Spend {
+    public:
+        explicit Spend(detail::EvaluationBudget& budget) : budget_(budget) {}
+        Spend(const Spend&) = delete;
+        Spend& operator=(const Spend&) = delete;
+        ~Spend() {
+            if (!charged_) {
+                return;
+            }
+            if (--budget_.depth == 0) {
+                budget_.spent = 0;
+            }
+        }
+        std::string charge(std::string_view identity) {
+            if (budget_.spent >= kEvaluationSpends) {
+                return "spending '" + std::string(identity) +
+                       "' would pass this evaluation's budget of " +
+                       std::to_string(kEvaluationSpends) + " operator spends";
+            }
+            if (budget_.depth >= kEvaluationDepth) {
+                return "spending '" + std::string(identity) + "' would nest this evaluation " +
+                       std::to_string(kEvaluationDepth + 1) +
+                       " operators deep, past its budget of " +
+                       std::to_string(kEvaluationDepth) +
+                       ": an operator that reaches itself through identities nests without end";
+            }
+            ++budget_.spent;
+            ++budget_.depth;
+            charged_ = true;
+            return std::string();
+        }
+
+    private:
+        detail::EvaluationBudget& budget_;
+        bool charged_ = false;
+    };
+
     static Evaluation unresolved(std::string_view identity) {
         return Evaluation::refuse("unresolved operator reference '" + std::string(identity) + "'");
     }
@@ -320,8 +394,8 @@ private:
 
     /// Walk one acyclic graph: a node may only name an earlier node, so one forward pass is the
     /// whole evaluation order -- no scheduler, no visited set, no topological sort. Each step
-    /// resolves by identity here, at the spend, so a cycle through identities recurses through
-    /// `evaluate` with nothing counting it (agents/operators.md).
+    /// resolves by identity here, at the spend, and is spent through `evaluate`, so a cycle through
+    /// identities is stopped by the evaluation's budget (agents/operators.md).
     Evaluation walk(const OperatorDef& def, const loom::Value& inputs) const {
         const Composite& graph = *def.composition();
         std::vector<loom::Value> answers;
@@ -387,6 +461,10 @@ private:
     /// Who is mounted, and what each keeps alive. Apart from `ops_`: a provider whose every
     /// contribution is shadowed is still mounted, and unmounting it must still find it.
     std::map<std::string, std::shared_ptr<const void>, std::less<>> providers_;
+
+    /// The evaluation in progress, if any: the one mutable thing an evaluation touches, and never
+    /// a fact about what any operator means.
+    mutable detail::EvaluationBudget budget_;
 };
 
 // ---- authoring a composition -----------------------------------------------

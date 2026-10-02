@@ -44,14 +44,19 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   reads it to decide what may run, be reordered, removed or trusted, no schema carries it so no
   content id moves with it, and a power marked not offered is spent by whoever names it. Prose
   past `op::kMaxAboutBytes` is refused where it is written.
-- **One graph is acyclic by construction; a call cycle THROUGH IDENTITIES is not, and nothing
-  bounds it.** `Builder` cannot name a node before it exists and a decoded composition re-checks
-  the order, so a single graph holds no cycle. But a node names its operator by identity, bound
-  at the spend, so a composite that names itself — directly, or through another that names it —
-  is expressible as data: a later mount or overlay can close the loop, and maker admission does
-  not check a body's identities. `Catalog::walk` then recurses through `evaluate` with nothing
-  counting depth or spends. There is no evaluation budget; until there is, acyclicity is one
-  graph's property and never the catalog's.
+- **One graph is acyclic by construction; a call cycle THROUGH IDENTITIES is not, and the
+  evaluation's budget refuses it.** `Builder` cannot name a node before it exists and a decoded
+  composition re-checks the order, so a single graph holds no cycle. But a node names its operator
+  by identity, bound at the spend, so a composite that names itself — directly, or through another
+  that names it — is expressible as data: a later mount or overlay can close the loop, and maker
+  admission does not check a body's identities. A check at mount could not stop it, since the
+  catalog changes at every later mount. **The one budget is the evaluator's**: every operator one
+  evaluation spends, from the outermost `Catalog::evaluate` to its answer, draws on it — every
+  node, every body a form spends, a re-entry through a loaded consumer's host table — and it is
+  refused in words at the spend that would pass `op::kEvaluationSpends` spends or nest past
+  `op::kEvaluationDepth`. Spends bound nested loops; depth bounds a cycle, whose stack would run
+  out long before its spends. Nothing names a budget by an operator's identity, and the next
+  evaluation, and a copy of the catalog, start with nothing spent.
 - **`timer.normalize_delay` carries no native body**, and `is_composite()` is a public question
   precisely so a suite can say so. A `normalize_delay(delay, repeat)` registered as a native
   operator would satisfy every other case in the operator suite and would prove only that
@@ -449,7 +454,7 @@ identity                 <=>  zengine.migrate.<family>.v<from>-to-v<to>
 
 ## Do not assume
 
-- A catalog is acyclic — one graph is; a cycle through identities evaluates unbounded.
+- A catalog is acyclic — one graph is; a cycle through identities is refused by the budget.
 - An operator's words decide something — `op::Description` describes, and nothing gates on it.
 - A migration is a weave — it is a PROVIDER contribution: `zengine_provider()`, no
   switchboard, no role, no grant, no manifest, no bus. `zengine-workshop-session-history` is
