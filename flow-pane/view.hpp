@@ -31,6 +31,10 @@ struct Picture {
   /// a node where it was released. Unset off the graph page.
   std::optional<std::int64_t> graph_top;
   std::int64_t pan_x = 0, pan_y = 0, zoom = 100;
+  /// The selected node's box, top and bottom, and the graph viewport's, in authored grid units:
+  /// what `reveal_selected` reads to bring a node into view.
+  std::optional<std::pair<std::int64_t, std::int64_t>> node_extent, graph_extent;
+  std::int64_t view_upper = 0, view_lower = 0;
   const Hit *hit(std::int64_t x, std::int64_t y) const {
     for (auto at = hits.rbegin(); at != hits.rend(); ++at)
       if (at->contains(x, y, grain))
@@ -420,7 +424,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       label(0, y, model.discovered.reason, ink::kAlert);
     } else {
       struct RailRow {
-        std::string text, identity;
+        std::string text, identity, kind;
         std::int64_t role = ink::kFill;
       };
       std::vector<RailRow> rows;
@@ -430,25 +434,25 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
           if (row.kind != kind)
             continue;
           if (!headed)
-            rows.push_back({heading, "", ink::kAccent});
+            rows.push_back({heading, "", "", ink::kAccent});
           headed = true;
           rows.push_back({"  " + row.identity +
                               (row.construction == ws::kCompositeConstruction ? " (composite)" : ""),
-                          row.identity,
-                          row.identity == model.preview ? ink::kAccent : ink::kFill});
+                          row.identity, row.kind,
+                          is_previewed(model, row) ? ink::kAccent : ink::kFill});
         }
       }
       if (rows.empty())
-        rows.push_back({"none offered match", "", ink::kMuted});
+        rows.push_back({"none offered match", "", "", ink::kMuted});
       const auto listed = static_cast<std::int64_t>(model.discovered.rows.size());
       if (model.discovered.total > listed)
         rows.push_back({"+ " + std::to_string(model.discovered.total - listed) +
                             " more match -- narrow the search",
-                        "", ink::kMuted});
+                        "", "", ink::kMuted});
       for (std::size_t i = model.first_row; i < rows.size() && y < bottom; ++i) {
         label(0, y, rows[i].text, rows[i].role);
         if (!rows[i].identity.empty())
-          view.hits.push_back({0, y, 21 * unit, unit, "found", {rows[i].identity}, 0});
+          view.hits.push_back({0, y, 21 * unit, unit, "found", {rows[i].kind, rows[i].identity}, 0});
         y += unit;
       }
     }
@@ -477,11 +481,20 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     const auto extra = [&](std::size_t n) -> std::int64_t {
       return on.body.nodes[n].fold ? 1 : 0;
     };
+    // Each node's words stay inside its box: a long title is shortened and marked, never drawn
+    // across the box's edge or another node.
+    std::vector<std::pair<std::size_t, ws::CanvasTextBox>> node_clips;
     for (std::size_t n = 0; n < on.body.nodes.size(); ++n) {
       const auto [x, ny] = position(n);
       const auto &node = on.body.nodes[n];
       const auto h =
           (static_cast<std::int64_t>(node.arguments.size() + 3) + extra(n)) * unit;
+      const auto node_labels = view.content.texts.size();
+      if (model.node && *model.node == n)
+        view.node_extent = std::pair{ny, ny + h + stroke_y};
+      view.graph_extent = std::pair{view.graph_extent ? std::min(view.graph_extent->first, ny) : ny,
+                                    view.graph_extent ? std::max(view.graph_extent->second, ny + h + stroke_y)
+                                                      : ny + h + stroke_y};
       const auto role =
           model.node && *model.node == n ? ink::kAccent : ink::kFill;
       stroke(x, ny, node_width, 4, role);
@@ -498,9 +511,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
           {x, ny, node_width, unit, "node", {std::to_string(n)}, id});
       if (node.fold) {
         const bool open = slot && *slot == n;
-        label(x + unit / 2, ny + unit,
-              "body = " + (node.identity.empty() ? std::string("[choose]") : node.identity),
-              open ? ink::kAccent : ink::kFill);
+        label(x + unit / 2, ny + unit, body_slot_text(node), open ? ink::kAccent : ink::kFill);
         view.hits.push_back(
             {x, ny + unit, node_width, unit, "body-slot", {std::to_string(n)}, id});
       }
@@ -552,6 +563,10 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       button(x + unit / 2, oy,
              on.body.result_node == n ? "-> state." + on.output : "output",
              "source-node", {std::to_string(n)}, id);
+      for (auto i = node_labels; i < view.content.texts.size(); ++i)
+        // A unit of slack before the box: a node dragged off the device grain rounds its clip's
+        // edges up, which must not take the first glyph or the first row of the node's words.
+        node_clips.push_back({i, ws::CanvasTextBox{x - unit, ny - unit, node_width + unit, h + unit}});
     }
     // The graph owns a viewport within the pane. Its content and hit regions
     // are clipped by the same rectangle, so panning cannot cover controls. A
@@ -582,6 +597,14 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       view.text_clips[i] = {left, upper, std::max(std::int64_t{0}, right - left),
                             std::max(std::int64_t{0}, lower - upper)};
     }
+    for (const auto &[i, box] : node_clips) {
+      auto &c = view.text_clips[i];
+      const auto x0 = std::max(c.x, box.x), y0 = std::max(c.y, box.y);
+      const auto x1 = std::min(c.x + c.w, box.x + box.w), y1 = std::min(c.y + c.h, box.y + box.h);
+      c = {x0, y0, std::max<std::int64_t>(0, x1 - x0), std::max<std::int64_t>(0, y1 - y0)};
+    }
+    view.view_upper = upper;
+    view.view_lower = lower;
     if (model.node) {
       const auto n = std::to_string(*model.node);
       button(23 * unit, top, "Use as result", "result", {n});
@@ -634,16 +657,16 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
                 {std::to_string(*slot), shown->identity, std::to_string(in),
                  std::to_string(out), choice.count, choice.accumulator});
       } else {
-        button(room.width - 7 * unit, y0, "Add", "add-found", {shown->identity});
+        button(room.width - 7 * unit, y0, "Add", "add-found", {shown->kind, shown->identity});
         if (chosen_port)
           offer("Add into %" + std::to_string(chosen_port->node) + " " +
                     chosen_port->field.name,
                 "add-into",
-                {shown->identity, std::to_string(chosen_port->node),
+                {shown->kind, shown->identity, std::to_string(chosen_port->node),
                  std::to_string(chosen_port->port)});
         else if (model.node)
           offer("Add before %" + std::to_string(*model.node), "add-found",
-                {shown->identity, std::to_string(*model.node)});
+                {shown->kind, shown->identity, std::to_string(*model.node)});
       }
     }
     button(room.width - 22 * unit, bottom - unit, "Reset view", "fit");
@@ -714,6 +737,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       for (const auto &f : def.emits[i]->fields())
         fields += (fields.empty() ? "" : ", ") + f.name + ": " + loom::name_of(f.type.kind);
       label(unit, y, std::to_string(i) + " " + def.emits[i]->name() + " {" + fields + "}");
+      view.hits.push_back({0, y, room.width, unit, "emitted-row", {std::to_string(i)}, 0});
       y += unit;
     }
     y += unit;
@@ -771,6 +795,45 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
             ink::kAccent);
   }
   return finish_body();
+}
+/// Pan a graph that runs past the bottom of its viewport up, as far as its topmost node allows, so
+/// a workspace opened in a short pane shows its nodes whole where the room can hold them.
+inline void reveal_graph(Model &model, const ws::PaneCanvasRoom &room) {
+  if (room.grant <= 0 || room.width <= 0 || room.height <= 0)
+    return;
+  const auto drawn = picture(model, room, 0);
+  if (!drawn.graph_extent)
+    return;
+  const auto [top, bottom] = *drawn.graph_extent;
+  if (bottom <= drawn.view_lower)
+    return;
+  const auto dy = std::max(drawn.view_lower - bottom, drawn.view_upper - top);
+  if (dy >= 0)
+    return;
+  model.workspace.pan_y =
+      std::clamp(model.workspace.pan_y + dy, std::int64_t{-10000000}, std::int64_t{10000000});
+}
+
+/// Pan the graph so the selected node's whole box -- its title, body slot, ports and answer --
+/// sits inside the graph viewport, above a preview band, as this room draws it. A node just added
+/// is then seen whole; one already in view does not move.
+inline void reveal_selected(Model &model, const ws::PaneCanvasRoom &room) {
+  if (!model.node || room.grant <= 0 || room.width <= 0 || room.height <= 0)
+    return;
+  const auto drawn = picture(model, room, 0);
+  if (!drawn.node_extent)
+    return;
+  const auto [top, bottom] = *drawn.node_extent;
+  std::int64_t dy = 0;
+  if (bottom > drawn.view_lower)
+    dy = drawn.view_lower - bottom;
+  if (top + dy < drawn.view_upper)
+    dy = drawn.view_upper - top;
+  if (dy == 0)
+    return;
+  model.workspace.pan_y =
+      std::clamp(model.workspace.pan_y + dy, std::int64_t{-10000000}, std::int64_t{10000000});
+  model.touched();
 }
 } // namespace zengine::flow_pane
 #endif

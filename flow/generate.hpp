@@ -166,7 +166,8 @@ inline std::string write_generated(const maker::Definition& definition,
     };
     const auto cpp = generate_cpp(definition);
     if (cpp.size() > kMaxGeneratedBytes)
-        throw std::runtime_error("generated source exceeds the 64 MiB limit");
+        throw std::runtime_error("generated source exceeds the " +
+                                 std::to_string(kMaxGeneratedBytes >> 20) + " MiB limit");
     if (std::filesystem::exists(source)) {
         const auto previous = recover_cpp(read(source, kMaxGeneratedBytes));
         if (previous.name != definition.name)

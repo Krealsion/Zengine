@@ -9,6 +9,7 @@
 #include "operator/primitives.hpp"
 #include "operator/reference.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_operation.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/powers_door.hpp"
@@ -42,9 +43,15 @@ public:
         return {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
             loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
             loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PaneQuitAnswered>(),
-            loom::schema_of<ws::PanePassRequested>(), loom::schema_of<fp::FlowEdited>()};
+            loom::schema_of<ws::PanePassRequested>(), loom::schema_of<fp::FlowEdited>(),
+            loom::schema_of<ws::PaneMenuRequested>(), loom::schema_of<ws::PaneOperationRequested>(),
+            loom::schema_of<ws::PaneValueCarryRequested>()};
     }
-    void handle(const loom::Message& message, loom::Bus&) override {
+    loom::WeaveId self{};
+    void handle(const loom::Message& message, loom::Bus& bus) override {
+        // Workshop approves an acquisition that continues a current gesture; this stand-in does.
+        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>()))
+            (void)bus.answer(loom::Message(loom::to_value(ws::PaneOperationAnswered{true, ""}), self));
         if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PaneCanvasContent>())) {
             REQUIRE(message.provenance.authored_from_role(fp::kRole));
             pictures.push_back(loom::from_value<ws::PaneCanvasContent>(message.payload));
@@ -62,7 +69,7 @@ struct Rig {
     loom::Kernel kernel{bus, loom::trust_every_artifact("the fixture selects one Flow pane artifact")};
     fh::RuntimeHost runtime{bus, catalog};
     Presenter* presenter = nullptr;
-    loom::WeaveId workshop{}, pane{}, door{}, finder{};
+    loom::WeaveId workshop{}, pane{}, door{}, finder{}, menus{};
     std::uint64_t correlation = 0;
     std::int64_t activation = 0, grant = 1, gesture = 0;
     /// WHAT THE PANE ASKED, read off the bus: every question it put to the discovery door, the
@@ -94,13 +101,20 @@ struct Rig {
                 loom::schema_of<fp::FlowEdit>()})
             host_grant.allow_to_role(schema->name(), schema->version(), fp::kRole);
         host_grant.allow_to_any(ws::PaneQuitRequested::zen_name, ws::PaneQuitRequested::zen_version);
+        host_grant.allow_to_any(ws::PaneOperationAnswered::zen_name, ws::PaneOperationAnswered::zen_version);
         workshop = bus.register_weave(std::move(presentation), std::move(host_grant), workshop_role);
+        presenter->self = workshop;
+        loom::Grant choose;
+        choose.allow_to_role(ws::PaneMenuAnswered::zen_name, ws::PaneMenuAnswered::zen_version, fp::kRole);
+        menus = bus.register_weave(std::make_unique<Presenter>(), std::move(choose), ws::kPresenterRole);
         loom::Grant pane_grant;
         fh::allow_flow_requests(pane_grant);
         ws::allow_finding_powers(pane_grant);
         for (const auto& schema : {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
                 loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
-                loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>()})
+                loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
+                loom::schema_of<ws::PaneMenuRequested>(), loom::schema_of<ws::PaneOperationRequested>(),
+                loom::schema_of<ws::PaneValueCarryRequested>()})
             pane_grant.allow_to_role(schema->name(), schema->version(), workshop_role);
         // Answers target the concrete requester; a role-addressed grant would not
         // authorize mail.answer(), even when that requester holds Workshop.
@@ -445,6 +459,51 @@ TEST_CASE("loaded Flow pane hands a right press back to Workshop under the press
     CHECK(rig.presenter->pictures.size() == pictures);
     CHECK(rig.state().page == before.page);
     CHECK(rig.state().workspace == before.workspace);
+}
+
+TEST_CASE("a right press on a declared message offers to carry its shape, and the choice carries it out as a description") {
+    Rig rig;
+    rig.edit_ok("new", {"tally", "discard"});
+    rig.edit_ok("state-field", {"total", "Int", "required"});
+    rig.edit_ok("emitted-message", {"Total"});
+    rig.edit_ok("emitted-field", {"0", "total", "Int", "required"});
+    rig.click("[Messages]");
+    auto press = rig.press_for("0 tally.Total {total: Int}");
+    press.button = 3;
+    rig.host(press, 91);
+    const loom::Message* menu = nullptr;
+    for (const auto& m : rig.presenter->messages)
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneMenuRequested>())) menu = &m;
+    REQUIRE(menu != nullptr);
+    CHECK(menu->correlation == 91); // it continues the right press
+    const auto asked = loom::from_value<ws::PaneMenuRequested>(menu->payload);
+    CHECK(asked.subject == "tally.Total");
+    REQUIRE(asked.rows.size() == 1);
+    CHECK(asked.rows[0].label == "Carry tally.Total");
+
+    REQUIRE(rig.bus.office_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
+        loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, "tally.Total", true, "carry", ""}),
+                      rig.menus, {}, 91)).valid());
+    rig.pump();
+    const loom::Message* carried = nullptr;
+    for (const auto& m : rig.presenter->messages)
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+    REQUIRE(carried != nullptr);
+    CHECK(carried->correlation == 91);
+    const auto value = loom::from_value<ws::PaneValueCarryRequested>(carried->payload);
+    CHECK_FALSE(value.drag);
+    const auto item = zengine::inventory::decode_pair(
+        std::string_view(reinterpret_cast<const char*>(value.data.data()), value.data.size())).item;
+    REQUIRE(loom::same_identity(item.schema(), *loom::schema_desc_schema()));
+    loom::Registry none;
+    CHECK(loom::same_identity(*loom::decode_schema(item, none),
+                              *rig.workspace().graph.project.definition.emits.at(0)));
+
+    // A right press anywhere else on the page means nothing to Flow: handed back.
+    auto elsewhere = rig.press_for("Emitted");
+    elsewhere.button = 3;
+    rig.host(elsewhere, 92);
+    CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
 }
 
 TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and interaction context") {
@@ -928,7 +987,7 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     rig.click("  fold");
     (void)rig.label("fold -- a form the evaluator spends");
     rig.click("[Add]");
-    (void)rig.label("%0 fold (choose its body)");
+    (void)rig.label("%0 fold");
     (void)rig.label("o step = 1");
 
     // THE BODY SLOT asks the door for what a fold could spend, and the maker names the count's port.
@@ -944,7 +1003,8 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     rig.click("  math.add");
     (void)rig.label("[count lhs, acc rhs]");
     rig.click("[count rhs, acc lhs]");
-    (void)rig.label("%0 fold math.add (count rhs, acc lhs)");
+    (void)rig.label("%0 fold math.add");
+    (void)rig.label("count rhs, acc lhs");
     CHECK_FALSE(rig.shows("For %0 fold's body"));
 
     rig.edit_ok("bind", {"0", "0", "$start"});
@@ -1046,6 +1106,55 @@ TEST_CASE("a stale reference dropped on a fold's body slot is refused in words, 
     CHECK(reshaped.graph.project.definition.on.front().body.nodes.at(1).identity != "math.add");
     (void)rig.label("'math.add' is not the operator this reference was found at: its ports "
                     "changed since; find it again");
+
+    // REFUSED ONCE, THEN PUT DOWN: the slot no longer offers the reference it refused, so choosing
+    // again spends the row the door holds now, and the reshaped math.add is the body.
+    rig.click("[count rhs, acc lhs]");
+    const auto chosen = rig.workspace().graph.project.definition.on.front().body.nodes.at(1);
+    CHECK(chosen.identity == "math.add");
+    REQUIRE(chosen.fold.has_value());
+    CHECK(chosen.fold->count == "rhs");
+    (void)rig.label("%1 fold math.add");
+}
+
+TEST_CASE("a form and an operator that share a name are two rows: each previews and adds itself") {
+    Rig rig;
+    rig.graph_semantically();
+    // AN OPERATOR NAMED LIKE THE FORM, offered beside it in one answer.
+    REQUIRE(rig.catalog.mount("flowtest.named-fold",
+        {op::make_operator<&op::max_int>("fold", {"lhs", "rhs"}, "result",
+                                         "the larger of two, named like the form, to count")}));
+    rig.edit_ok("catalog");
+    rig.text("count");
+    const auto both = std::count_if(rig.picture().texts.begin(), rig.picture().texts.end(),
+                                    [](const auto& t) { return t.text == "  fold"; });
+    REQUIRE(both == 2);
+    // The form's row, under Forms, previews and adds the form.
+    rig.click("  fold");
+    (void)rig.label("fold -- a form the evaluator spends");
+    rig.click("[Add]");
+    auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
+    REQUIRE(nodes.size() == 2);
+    CHECK(nodes.back().fold.has_value());
+    // The operator's row, under Operators, previews and adds the operator.
+    rig.key(in::scan::kEscape); // the preview
+    rig.key(in::scan::kEscape); // the node
+    const auto operators = rig.label("Operators");
+    const ws::PaneCanvasText* named = nullptr;
+    for (const auto& t : rig.picture().texts)
+        if (t.text == "  fold" && t.y > operators.y) named = &t;
+    REQUIRE(named != nullptr);
+    ws::PaneCanvasPointer press;
+    press.pane = fp::kPane; press.grant = rig.grant; press.picture = rig.picture().picture;
+    press.gesture = ++rig.gesture; press.phase = ws::canvas_pointer::kPress; press.button = 1;
+    press.x = named->x + 4; press.y = named->y + 4;
+    rig.host(press);
+    (void)rig.label("fold -- operator, native, from flowtest.named-fold");
+    rig.key(in::scan::kReturn);
+    nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
+    REQUIRE(nodes.size() == 3);
+    CHECK_FALSE(nodes.back().fold.has_value());
+    CHECK(nodes.back().identity == "fold");
 }
 
 TEST_CASE("a dropped value waiting on a port is put down when another workspace replaces the "

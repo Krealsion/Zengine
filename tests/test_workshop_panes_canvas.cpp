@@ -8,6 +8,7 @@
 #include "workshop_support.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/screen_canvas.hpp"
+#include "view/host.hpp"
 #include <limits>
 
 namespace {
@@ -542,4 +543,101 @@ TEST_CASE("pane canvas resize preview keeps only the same provider's picture and
     CHECK_FALSE(t.view().canvas.heard);
     CHECK(t.view().canvas.content.labels.empty());
     CHECK(t.view().canvas.grant != closing_grant);
+}
+
+namespace {
+/// Asks the view host as a builder would, and keeps its answers.
+class ViewAsker : public loom::WeaveBase<ViewAsker, SeatState, loom::Accept<zengine::view::ViewAnswer>,
+                                         loom::Emit<zengine::view::ViewRun, zengine::view::ViewStop>> {
+public:
+    std::vector<zengine::view::ViewAnswer> answers;
+    void on(const zengine::view::ViewAnswer& a, loom::Mail&) { answers.push_back(a); }
+};
+}
+
+TEST_CASE("a described view offers its own pane through the view host, Workshop seats and draws it, a press reaches it, and a stop leaves a picture that says so") {
+    namespace view = zengine::view;
+    PaneRig r;
+    r.mount_workshop();
+    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.ready();
+    r.extent(150, 65);
+    view::Host views(r.bus);
+    views.mount();
+    auto asker = std::make_unique<ViewAsker>();
+    auto* client = asker.get();
+    loom::Grant asking;
+    view::allow_view_requests(asking);
+    const auto client_id = r.bus.register_weave(std::move(asker), std::move(asking));
+    client->zen_set_self(client_id);
+
+    view::Description d;
+    d.name = "tally.panel";
+    d.elements = {{"step", view::Kind::number, "step", 0, 0, 144, 24, "1"},
+                  {"count", view::Kind::button, "Count", 0, 28, 96, 24, ""},
+                  {"total", view::Kind::label, "Total", 0, 56, 192, 24, ""}};
+    const auto said = loom::SchemaBuilder("tally.panel.Count", 1).field("step", loom::Kind::Int).build();
+    d.intents = {{"count", said, {{"step", "step"}}}};
+    d.shows = {{"total", loom::SchemaBuilder("tally.Total", 1).field("total", loom::Kind::Int).build(), "total"}};
+    const auto bytes = view::description_bytes(d);
+    (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
+        loom::Message(loom::to_value(view::ViewRun{"builder", loom::Bytes(bytes.begin(), bytes.end())}), client_id, {}, 1));
+    r.bus.drain_until_idle();
+    REQUIRE(client->answers.size() == 1);
+    REQUIRE_MESSAGE(client->answers[0].ok, client->answers[0].reason);
+
+    // Offered as its own office, and seated on the desk by its own ask.
+    const auto* row = r.session().panes.runtime.find("tally.panel", view::kPane);
+    REQUIRE(row);
+    CHECK(row->name == "tally.panel");
+    CHECK(r.session().panes.has(row->kind));
+    auto* pane = r.session().panes.external_pane(row->kind);
+    REQUIRE(pane);
+    CHECK(pane->canvas.owner == r.bus.role_holder("tally.panel"));
+    REQUIRE(pane->canvas.heard);
+    const auto words = [&] {
+        std::string out;
+        for (const auto& t : r.session().panes.external_pane(row->kind)->canvas.content.texts) out += t.text + "|";
+        return out;
+    };
+    CHECK(words().find("Total: waiting|") != std::string::npos);
+
+    // A press on Count, through Workshop's own pointer route, is the view's to use.
+    const auto c = pane->canvas;
+    const auto at = [&](std::int64_t px_x, std::int64_t px_y) {
+        r.publish(loom::to_value(input::PointerButton{1, true,
+            (c.x + surface::subs_of_pixel(px_x)) / kPaneCanvasUnit,
+            (c.y + surface::subs_of_pixel(px_y)) / kPaneCanvasUnit + surface::kTuiCanvasTopRow,
+            input::space::kCells, input::mod::kNone}));
+        r.publish(loom::to_value(input::PointerButton{1, false,
+            (c.x + surface::subs_of_pixel(px_x)) / kPaneCanvasUnit,
+            (c.y + surface::subs_of_pixel(px_y)) / kPaneCanvasUnit + surface::kTuiCanvasTopRow,
+            input::space::kCells, input::mod::kNone}));
+    };
+    CHECK(words().find("Count|") != std::string::npos);
+    at(12, 36);
+    // The notice may wrap at the pane's width: read it as one sentence.
+    std::string sentence;
+    for (const auto& t : r.session().panes.external_pane(row->kind)->canvas.content.texts) sentence += t.text + " ";
+    CHECK(sentence.find("said tally.panel.Count; nothing accepts it") != std::string::npos);
+
+    // Stopped: the last picture Workshop holds says so, and no control is left looking live.
+    (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
+        loom::Message(loom::to_value(view::ViewStop{"builder"}), client_id, {}, 2));
+    r.bus.drain_until_idle();
+    REQUIRE(client->answers.size() == 2);
+    CHECK(client->answers[1].ok);
+    CHECK_FALSE(r.bus.role_holder("tally.panel").valid());
+    const auto* stopped = r.session().panes.external_pane(row->kind);
+    REQUIRE(stopped);
+    CHECK(words().find("tally.panel stopped") == 0);
+    CHECK(stopped->canvas.content.rects.size() == 1); // its ground alone
+    // ...and once Workshop repaints and sees the provider gone, the pane waits for one: neither
+    // picture leaves a field or a button that looks live.
+    r.key(input::scan::kUnknown);
+    const auto* waiting = r.session().panes.external_pane(row->kind);
+    REQUIRE(waiting);
+    CHECK(waiting->canvas.grant == 0);
+    CHECK(waiting->canvas.content.texts.empty());
+    CHECK(waiting->canvas.content.rects.empty());
 }

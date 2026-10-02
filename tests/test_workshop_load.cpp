@@ -1082,17 +1082,17 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 19); // includes the storage owner and its separate presentation
+    REQUIRE(p.artifacts.size() == 20); // includes the storage owner and its separate presentation
 
-    CHECK(p.artifacts[18].stem == "zengine-inventory-pane");
+    CHECK(p.artifacts[19].stem == "zengine-inventory-pane");
+    REQUIRE(p.artifacts[19].weave.has_value());
+    CHECK(p.artifacts[19].weave->role == "zengine.inventory-pane");
+    CHECK_FALSE(p.artifacts[19].provider.has_value());
+    CHECK(p.artifacts[19].optional);
+    CHECK(p.artifacts[18].stem == "zengine-inventory");
     REQUIRE(p.artifacts[18].weave.has_value());
-    CHECK(p.artifacts[18].weave->role == "zengine.inventory-pane");
-    CHECK_FALSE(p.artifacts[18].provider.has_value());
+    CHECK(p.artifacts[18].weave->role == "zengine.inventory");
     CHECK(p.artifacts[18].optional);
-    CHECK(p.artifacts[17].stem == "zengine-inventory");
-    REQUIRE(p.artifacts[17].weave.has_value());
-    CHECK(p.artifacts[17].weave->role == "zengine.inventory");
-    CHECK(p.artifacts[17].optional);
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
     CHECK(p.artifacts[2].stem == "zengine-skin-tui-classic");
@@ -1159,6 +1159,12 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[16].weave.has_value());
     CHECK(p.artifacts[16].weave->role == "zengine.flow");
     CHECK_FALSE(p.artifacts[16].provider.has_value());
+    // ...AND THE VIEW BUILDER BESIDE IT, a pane like Flow's: the views it runs are registered by
+    // the view host this host composes, never loaded by a row.
+    CHECK(p.artifacts[17].stem == "zengine-view-builder");
+    REQUIRE(p.artifacts[17].weave.has_value());
+    CHECK(p.artifacts[17].weave->role == "zengine.view.builder");
+    CHECK_FALSE(p.artifacts[17].provider.has_value());
     // AND THE SHIPPED PLAN AUTHORS WHICH ROWS ARE ESSENTIAL: the services a Workshop cannot be
     // seen, driven or timed without stop everything, and every PANE is a tool a weaver can be
     // told about instead. The file says it row by row; a weaver who disagrees edits the file.

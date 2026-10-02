@@ -24,6 +24,8 @@ tell them apart to use them:
 - **a pane you made** — a pane whose inside is authored data rather than compiled code,
   made in the Pane Manager by the [Pane Creator](#the-pane-creator--a-pane-made-of-data)
   and kept in a project file of its own.
+- **a view you described** — a panel of number fields, buttons and labels described in the
+  [View Builder](view-builder.md) and run as a participant of its own, in its own pane.
 
 ## Showing, going to and hiding — the Pane Manager
 
@@ -589,8 +591,9 @@ in words until you save or discard. A layout that names a pane whose file is abs
 row and reads it `unresolved` — the same retained intent an unresolved external pane has — and
 Info's `Provider` row says which file would resolve it.
 
-**What it is not.** This is the first pane implementation whose inside is data, and it is
-deliberately small: one region kind (`text`), one line of static text, no controls, no
+**What it is not.** A pane that must be told values, take typing or say something is a
+[described view](view-builder.md#the-view-builder-or-the-pane-creator), made in the View Builder.
+This is the first pane implementation whose inside is data, and it is deliberately small: one region kind (`text`), one line of static text, no controls, no
 wiring, no anchors or fill, no second region yet, and no renaming after the pane is made. It
 is one way a pane can be built, not what every pane must become: the built-in is still
 code, a loaded pane is still its provider's, and Info says so rather than pretending either
