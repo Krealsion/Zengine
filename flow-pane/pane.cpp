@@ -196,8 +196,10 @@ public:
         model_.connecting.reset();
       else if (model_.filling)
         model_.filling.reset();
-      else if (model_.body_slot)
+      else if (model_.body_slot) {
         model_.body_slot.reset();
+        model_.slot_reference.reset();
+      }
       else if (!model_.preview.empty())
         model_.preview.clear();
       else if (model_.node)
@@ -823,6 +825,7 @@ private:
         model_.body_slot = id;
         model_.filling.reset();
       }
+      model_.slot_reference.reset();
     } else if (action == "drop-send" || action == "drop-constant" || action == "drop-accept" ||
                action == "drop-emit" || action == "drop-cancel") {
       act_on_drop(action, args, mail);
@@ -909,7 +912,8 @@ private:
   }
   /// A dropped operator reference becomes a node: into the port it landed on, or as the body of
   /// the fold whose slot it landed on (the slot opens with it found, for the maker to say which
-  /// port takes the count), or else at the end of the trigger, placed where it was released.
+  /// port takes the count, and the body is chosen from this reference), or else at the end of the
+  /// trigger, placed where it was released.
   void drop_reference(const zengine::op::OperatorRef &ref, const pane::Hit *hit,
                       const pane::Picture &pictured, const ws::PaneCanvasValueDrop &drop,
                       loom::Mail &mail) {
@@ -919,7 +923,15 @@ private:
     if (model_.page != pane::Page::Graph || model_.workspace.graph.project.definition.on.empty())
       throw std::invalid_argument("Drop an operator on the graph of a trigger");
     if (hit && hit->action == "body-slot" && !hit->args.empty()) {
+      const auto described = std::find_if(
+          model_.palette.begin(), model_.palette.end(),
+          [&](const auto &ports) { return ports.identity == ref.identity; });
+      if (described != model_.palette.end() &&
+          (described->inputs->content_id() != ref.authored_in ||
+           described->outputs->content_id() != ref.authored_out))
+        throw std::invalid_argument(zengine::op::reshaped_reason(ref.identity));
       model_.body_slot = hit->subject;
+      model_.slot_reference = pane::SlotReference{hit->subject, ref};
       model_.filling.reset();
       model_.search.set(ref.identity, ref.identity.size());
       model_.preview = ref.identity;

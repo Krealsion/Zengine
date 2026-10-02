@@ -620,11 +620,19 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
           offer("Add before %" + std::to_string(*model.node), "add-fold",
                 {std::to_string(*model.node)});
       } else if (slot) {
+        // A reference dropped on this slot is the one the body is chosen from: a stale one is
+        // refused when chosen, never replaced by the ports the door holds now.
+        auto in = static_cast<std::int64_t>(shown->inputs.content_id);
+        auto out = static_cast<std::int64_t>(shown->outputs.content_id);
+        if (model.slot_reference && model.slot_reference->slot == *model.body_slot &&
+            model.slot_reference->ref.identity == shown->identity) {
+          in = static_cast<std::int64_t>(model.slot_reference->ref.authored_in);
+          out = static_cast<std::int64_t>(model.slot_reference->ref.authored_out);
+        }
         for (const auto &choice : fold_choices(model, *shown))
           offer("count " + choice.count + ", acc " + choice.accumulator, "fold-body",
-                {std::to_string(*slot), shown->identity,
-                 std::to_string(shown->inputs.content_id),
-                 std::to_string(shown->outputs.content_id), choice.count, choice.accumulator});
+                {std::to_string(*slot), shown->identity, std::to_string(in),
+                 std::to_string(out), choice.count, choice.accumulator});
       } else {
         button(room.width - 7 * unit, y0, "Add", "add-found", {shown->identity});
         if (chosen_port)
