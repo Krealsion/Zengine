@@ -24,6 +24,7 @@
 #include <zen/weave/lifecycle.hpp>
 #include <zen/weave/shape.hpp>
 #include <zen/weave/standard_shapes.hpp>
+#include <zen/weave/weave.hpp>
 
 #include <charconv>
 #include <deque>

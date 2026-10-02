@@ -65,3 +65,7 @@ and the pane conversation; it emits its intents and that conversation.
   `zen.Refused` answering one of its own intents is shown on its notice row; what it was told
   stays as it was.
 - A prose room, from a host with no canvas, gets one row saying the view needs a canvas.
+
+`view::picture(description, told, presentation, room, number)` is the one drawing of a view and
+is pure. The View Builder draws its design canvas with it too, in a room the design area's size,
+so a view is designed in the very picture it runs in, at its own pixels.

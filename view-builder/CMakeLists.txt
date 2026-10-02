@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-# The View Builder: a pane beside Flow that edits a view description and runs it through the view
-# host (docs/workshop/view-builder.md). A weave loaded by a plan row, like the Flow pane.
+# The View Builder: a pane beside Flow where a view is made by hand and run through the view host
+# (docs/workshop/view-builder.md). A weave loaded by a plan row, like the Flow pane.
 if(NOT TARGET loom::kernel)
     return()
 endif()

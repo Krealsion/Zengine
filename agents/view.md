@@ -34,13 +34,25 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   sits on the medium's lattice inside its element and is fitted by `clip_canvas_text`, so a
   terminal shows the window's picture floored to cells. A prose room gets one row saying the view
   needs a canvas; there is no second, text-row renderer.
+- ONE RENDERER: `view::picture` is the only drawing of a view. The View Builder's design canvas is
+  it, called in a room the design area's size with the medium's metrics and moved there whole
+  from a cell boundary, so the lattice holds on both media and what is designed is what runs.
+  Over it the builder draws marks alone, never an element.
 - Workshop composes the host beside the Flow host and holds no view behaviour. The View Builder
   is an ordinary pane in `zengine.view.builder`: it edits a description through
-  `view_builder::Model`, every edit whole or refused whole, asks the host to run, apply and stop
-  one session of its office, and draws its own lists, never the view. An intent is made through
-  `flow/shape.hpp`. A reload in place keeps its draft, file and whether its view runs; a dialog
-  closes. It carries an intent's shape out as a `zen.SchemaDesc` by a menu choice, and takes a
-  shape, a value or an Info field dropped on a label's row as what that label shows.
+  `view_builder::Model`, every edit whole or refused whole, and asks the host to run, apply and
+  stop one session of its office. By hand: a kind dragged from its palette is made where it is
+  let go (`add` at a place), an element dragged moves and a corner handle resizes it (`place`),
+  in whole pixels; a value is typed into its box (`set`). A release keeps a drag's edit and a
+  lost press puts back what it moved. The pointer resting on an element marks it
+  (`PaneCanvasHover`), and a carried value marks the label it would land on.
+- A gesture, a box being typed into and a mark are the builder's presentation: never saved, kept
+  across a reload or offered to the host. A reload in place keeps the draft, file and whether
+  its view runs. An intent is made through `flow/shape.hpp`. The builder carries an intent's
+  shape out as a `zen.SchemaDesc` by a press's drag or a menu choice, and takes a shape, a value
+  or an Info field dropped on a label, on the canvas or its row, as what that label shows.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
-  refusal, in-place and fresh apply, stop, and the terminal picture; the panes suite witnesses
-  the view through Workshop's real seat, pointer route and canvas admission.
+  refusal, in-place and fresh apply, stop, and the terminal picture; `tests/test_view_builder.cpp`
+  the one renderer, the palette, the drags, the boxes, the marks and the terminal floor; the
+  panes suite the view and the builder through Workshop's real seat, pointer route, drag carry
+  and canvas admission.
