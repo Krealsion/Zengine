@@ -433,7 +433,10 @@ public:
       model_.palette = std::move(palette);
       model_.notice = "Host operators refreshed";
       if (adding) {
-        if (described(adding->identity))
+        if (flow::workspace_bytes(model_.workspace) != adding->draft)
+          model_.notice = "The graph changed while the ports of " + adding->identity +
+                          " were read; Add it again";
+        else if (described(adding->identity))
           effect(model_.command(adding->command, adding->arguments), mail);
         else
           model_.notice = adding->identity + " is not in the host's catalog now";
@@ -879,7 +882,8 @@ private:
   /// and the two content ids it was found at -- spent by `add-node` or `add-node-into` once the
   /// graph's ports describe it; a form's row places the form. One the last catalog answer did not
   /// hold is read from the host first and added when that answer comes, and a reference it then
-  /// describes at other ports is refused; the latest such Add is the one kept.
+  /// describes at other ports is refused, as is one whose graph changed meanwhile; the latest such
+  /// Add is the one kept.
   void add_found(const std::string &identity, const std::string &command,
                  std::vector<std::string> where, loom::Mail &mail) {
     const auto row = std::find_if(model_.discovered.rows.begin(), model_.discovered.rows.end(),
@@ -899,7 +903,8 @@ private:
       return;
     }
     request(fh::FlowCatalog{}, "catalog", mail);
-    adding_ = Adding{identity, command, std::move(arguments), correlation_};
+    adding_ = Adding{identity, command, std::move(arguments), correlation_,
+                     flow::workspace_bytes(model_.workspace)};
     model_.notice = "Reading the ports of " + identity + " from the host";
   }
   /// A dropped operator reference becomes a node: into the port it landed on, or as the body of
@@ -935,7 +940,8 @@ private:
     }
     if (!described(ref.identity)) {
       request(fh::FlowCatalog{}, "catalog", mail);
-      adding_ = Adding{ref.identity, command, std::move(arguments), correlation_};
+      adding_ = Adding{ref.identity, command, std::move(arguments), correlation_,
+                       flow::workspace_bytes(model_.workspace)};
       model_.notice = "Reading the ports of " + ref.identity + " from the host";
       return;
     }
@@ -1041,10 +1047,12 @@ private:
     bool awaiting = false;
     loom::Ticket attempt;
   };
+  /// An Add waiting on the host, its node and port numbers meaning what they meant in `draft`.
   struct Adding {
     std::string identity, command;
     std::vector<std::string> arguments;
     std::uint64_t correlation = 0;
+    std::string draft;
   };
   Finding finding_;
   std::string asked_;
