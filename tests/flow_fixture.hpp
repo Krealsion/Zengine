@@ -60,7 +60,8 @@ inline maker::Definition boundaries(const op::Catalog& catalog) {
         trigger.message = shape; trigger.output = output;
         const auto* target = catalog.find(operator_name);
         trigger.body.nodes.push_back({operator_name, {op::Binding::input("incoming")},
-                                      target->inputs()->content_id(), target->outputs()->content_id()});
+                                      target->inputs()->content_id(), target->outputs()->content_id(),
+                                      std::nullopt});
         definition.on.push_back(std::move(trigger));
         return definition.on.back();
     };
@@ -73,7 +74,8 @@ inline maker::Definition boundaries(const op::Catalog& catalog) {
     auto& late = add("flowtest.Late", int_type, "integer", "flowtest.echo_integer");
     const auto* after = catalog.find("flowtest.after");
     late.body.nodes.push_back({"flowtest.after", {op::Binding::node(0)},
-                              after->inputs()->content_id(), after->outputs()->content_id()});
+                              after->inputs()->content_id(), after->outputs()->content_id(),
+                              std::nullopt});
     late.body.result_node = 0;
     add("flowtest.Wrong", loom::type_of(loom::Kind::Bool), "integer", "flowtest.echo_flag");
     auto& emit = add("flowtest.Emit", int_type, "integer", "flowtest.echo_integer");

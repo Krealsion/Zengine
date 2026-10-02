@@ -400,7 +400,7 @@ The discovery door is where a weaver's tools find a power: Flow's search line, t
 and the Terminal all ask it, so one question gets the same rows wherever it is asked.
 
 ```text
-FindPowers{text, takes, yields, provider, kind, construction, offered, after, limit}
+FindPowers{text, takes, yields, provider, kind, construction, offered, after, limit, fits}
     ->  zengine.powers  ->  PowersFound{ok, reason, rows, next, total, powers, providers}
 DescribePower{identity}
     ->  zengine.powers  ->  PowerDescribed{ok, reason, identity, row, stack, contribution}
@@ -414,11 +414,15 @@ DescribePower{identity}
 | `takes` | one of its inputs carries exactly this type, in Loom's own spelling: `Int`, `Text`, `List<Int>`, `Message(zengine.ProjectAnchor v1)` |
 | `yields` | one of its outputs carries exactly this type, spelled the same way |
 | `provider` | the contribution in force came from this provider |
-| `kind` | it is a `source` (no weaver inputs), a `conversion` (it takes one version of a shape and answers another) or an `operator`; an ask for `operator` finds conversions too |
-| `construction` | its contribution in force is `native` or `composite` |
+| `kind` | it is a `source` (no weaver inputs), a `conversion` (it takes one version of a shape and answers another) or an `operator`; an ask for `operator` finds conversions too; `form` asks for the evaluator's forms |
+| `construction` | its contribution in force is `native` or `composite`; a form's is `evaluator` |
 | `offered` | its contributor offers it for others to compose, or does not |
 | `after` | its identity sorts after this one — the next page, from an answer's `next` |
 | `limit` | — the most rows the answer carries, 1 to `kMaxPowerRows` (<!-- value kMaxPowerRows -->100<!-- /value -->) |
+| `fits` | `fold`: a fold could spend it as its body — one answer, an Int input for the count and another input of the answer's type for the accumulator |
+
+`fits` is `FindPowers` version 2's; the door answers version 1, which has every other field, the
+same way, so a line typed at the Terminal may say either.
 
 **A row is the contribution in force, read off its definition at the ask**: its identity, its
 provider, its kind and construction, whether it is offered, what it is for in its contributor's
@@ -431,6 +435,13 @@ words, and its unmount restores the words beneath.
 **Rows come in the catalog's order, never ranked.** `total` counts every power the ask fits, `next`
 names the last row when more remain, and `powers` and `providers` count the whole catalog.
 
+**The fold is found by what it is for.** It is not in the catalog -- the evaluator spends it, an
+operator reference as its body ([operator providers](operator-providers.md#the-fold)) -- so its row
+names the form, `fold`, with kind `form`, construction `evaluator`, no provider, its words and its
+shape. It comes first, to an ask with text that its name or words match, or to one for the kind
+`form`; a browse of the catalog with no text lists the catalog. Any `yields` may be a fold's, since
+its answer is its body's; it takes Int counts and is no fold's body.
+
 **`DescribePower` answers one identity**: its row, every contribution eligible to satisfy it with the
 one in force last — each layer's provider, construction, offering and words — and the contribution
 in force as [`zengine.OperatorContribution`](operator-providers.md#what-a-contribution-says-about-itself)
@@ -441,7 +452,7 @@ much, and nothing is found: an ask carries at most `kMaxPowersQueryBytes`
 (<!-- value kMaxPowersQueryBytes -->1024<!-- /value -->) bytes of text across its fields, a page
 holds 1 to `kMaxPowerRows` rows, and an answer carries at most `kMaxPowersAnswerBytes`
 (<!-- value kMaxPowersAnswerBytes MiB -->1<!-- /value --> MiB). A `kind` or `construction` that is
-none of its words is refused the same way.
+none of its words is refused the same way, and so is a `fits` that is not `fold`.
 
 **A power's words describe it and do nothing else.** Nothing reads them, or the `offered` mark, to
 decide what may run, be reordered, removed or trusted, and they are no part of any schema, so they
@@ -461,6 +472,7 @@ office and nothing more ([Terminal](../workshop/terminal.md#finding-a-power)):
 
 ```text
 ask @zengine.powers FindPowers 1 text=larger
+ask @zengine.powers FindPowers 2 fits=fold yields=Int
 ask @zengine.powers DescribePower 1 identity=math.max
 ```
 

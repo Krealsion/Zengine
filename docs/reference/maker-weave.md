@@ -18,11 +18,12 @@ interpreter that registers one Loom weave per definition and runs it as any nati
 
 Both are native Zen bytes — an envelope with a mandatory content id — and never JSON.
 
-**The definition** is a value of `zengine.maker.Definition v1`:
+**The definition** is a value of `zengine.maker.Definition v2`; version 1, whose trigger bodies
+hold no fold, is still read at its own door and written again as version 2 at the next save:
 
 | field | kind | what it is |
 |---|---|---|
-| `format`, `format_version` | Text, Int | the word `zengine-maker-definition` and the version, inside the value and tied to the envelope's version; a file of another version is refused by its number before a field is read, and a value whose field disagrees with its envelope is a forgery |
+| `format`, `format_version` | Text, Int | the word `zengine-maker-definition` and the version, inside the value and tied to the envelope's version; a file of a version this build does not read is refused by its number before a field is read, and a value whose field disagrees with its envelope is a forgery |
 | `name`, `revision` | Text, Int | the maker weave's stable dotted name (`hw`), which namespaces the maker weave's shapes, and the edit counter |
 | `referenced` | List of `zen.SchemaDesc`, optional | every schema the state, the accepted and emitted shapes and the conversion nest, listed before anything that references it — the manifest's own section, through the manifest's own codec |
 | `state` | `zen.SchemaDesc` | the state schema; its name must begin `<name>.` |
@@ -34,8 +35,8 @@ Both are native Zen bytes — an envelope with a mandatory content id — and ne
 own envelope, no wrapper. It is read back only at that schema: a state of another version is
 refused by name, and nothing converts a state file.
 
-There is no author, signature or provenance field of any kind. A later identity is a v2 wrapping
-this v1 as a nested message, with one conversion edge.
+There is no author, signature or provenance field of any kind. A later identity is a new version
+wrapping this one as a nested message, with one conversion edge.
 
 ### The seven kinds close the maker path
 
@@ -47,9 +48,10 @@ and it is absent in the default state.
 ## A trigger
 
 ```text
-zengine.maker.On v1
+zengine.maker.On v2
   message_name, message_version   an accepted shape
-  body                            zengine.OperatorComposition v1 — the operator seam's wire form
+  body                            zengine.OperatorComposition v2 — the operator seam's wire form,
+                                  whose steps may fold (version 1's On nests version 1)
   output                          a state field
   emit                            a list of { emitted shape, fields : how each is written }
 ```

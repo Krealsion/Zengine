@@ -20,6 +20,7 @@
 // evaluation reaches draws on one budget, `kEvaluationSpends` spends nested `kEvaluationDepth`
 // deep, and the spend that would pass it is refused in words.
 
+#include "operator/fold.hpp"
 #include "operator/operator.hpp"
 
 #include <zen/gate.hpp>
@@ -41,25 +42,6 @@
 #include <vector>
 
 namespace zengine::op {
-
-namespace detail {
-
-/// Do two ports carry the same Loom type? Kind, and for a nested message the schema's content
-/// id rather than its name: a name says which door, a content id which shape came through it.
-inline bool same_type(const loom::TypeRef& a, const loom::TypeRef& b) {
-    if (a.kind != b.kind) {
-        return false;
-    }
-    if (a.kind == loom::Kind::Message) {
-        return a.message->content_id() == b.message->content_id();
-    }
-    if (a.kind == loom::Kind::List) {
-        return same_type(*a.element, *b.element);
-    }
-    return true;
-}
-
-} // namespace detail
 
 // ---- what one evaluation may spend --------------------------------------------
 
@@ -403,42 +385,60 @@ private:
 
         for (std::size_t i = 0; i < graph.nodes.size(); ++i) {
             const Node& node = graph.nodes[i];
+            const std::string at = "'" + def.identity() + "' step " + std::to_string(i) + ": ";
             const OperatorDef* step = find(node.identity);
             if (step == nullptr) {
-                return Evaluation::refuse("'" + def.identity() + "' step " + std::to_string(i) +
-                                          ": unresolved operator reference '" + node.identity +
+                return Evaluation::refuse(at + "unresolved operator reference '" + node.identity +
                                           "'");
             }
             if (step->inputs()->content_id() != node.authored_in ||
                 step->outputs()->content_id() != node.authored_out) {
                 // Found, and not what this rule was written for: a reference that recorded no
                 // signature would bind to the new shape silently, a wrong answer, not a refusal.
-                return Evaluation::refuse("'" + def.identity() + "' step " + std::to_string(i) +
-                                          ": '" + node.identity +
+                return Evaluation::refuse(at + "'" + node.identity +
                                           "' is not the signature this composition was authored "
                                           "against");
             }
-            const std::vector<loom::Field>& ports = step->inputs()->fields();
-            loom::Value pack(step->inputs());
+            FoldPorts derived;
+            if (node.fold) {
+                try {
+                    derived = fold_ports(*step, *node.fold);
+                } catch (const std::exception& e) {
+                    return Evaluation::refuse(at + e.what());
+                }
+            }
+            const std::vector<loom::Field>& ports =
+                node.fold ? derived.inputs : step->inputs()->fields();
+            std::vector<const loom::Cell*> cells(ports.size(), nullptr);
             for (std::size_t k = 0; k < node.arguments.size() && k < ports.size(); ++k) {
                 const Binding& b = node.arguments[k];
                 switch (b.from()) {
-                case Binding::From::Input: {
-                    const loom::Cell* c = inputs.get(b.input_name());
-                    if (c == nullptr) {
-                        return Evaluation::refuse("'" + def.identity() + "' step " +
-                                                  std::to_string(i) + ": no input named '" +
-                                                  b.input_name() + "'");
+                case Binding::From::Input:
+                    cells[k] = inputs.get(b.input_name());
+                    if (cells[k] == nullptr) {
+                        return Evaluation::refuse(at + "no input named '" + b.input_name() + "'");
                     }
-                    pack.set(ports[k].name, *c);
                     break;
-                }
                 case Binding::From::Node:
-                    pack.set(ports[k].name, *answers[b.node_index()].at(0));
+                    cells[k] = answers[b.node_index()].at(0);
                     break;
                 case Binding::From::Constant:
-                    pack.set(ports[k].name, b.constant_cell());
+                    cells[k] = &b.constant_cell();
                     break;
+                }
+            }
+            if (node.fold) {
+                Evaluation folded = fold(at, node, *step, derived, cells);
+                if (!folded) {
+                    return folded;
+                }
+                answers.push_back(folded.value());
+                continue;
+            }
+            loom::Value pack(step->inputs());
+            for (std::size_t k = 0; k < cells.size(); ++k) {
+                if (cells[k] != nullptr) {
+                    pack.set(ports[k].name, *cells[k]);
                 }
             }
             Evaluation stepped = evaluate(node.identity, std::move(pack));
@@ -451,6 +451,64 @@ private:
             return Evaluation::refuse("'" + def.identity() + "' names no result step");
         }
         return Evaluation::accept(answers[graph.result_node]);
+    }
+
+    /// Spend one fold: count first, then spend the body once per count through `evaluate`, so
+    /// each spend draws on the evaluation's budget, and thread the accumulator. A refusal says
+    /// where; a body's refusal is the fold's, naming the iteration and its count.
+    Evaluation fold(const std::string& at, const Node& node, const OperatorDef& body,
+                    const FoldPorts& ports, const std::vector<const loom::Cell*>& cells) const {
+        for (std::size_t k = 0; k < 4; ++k) {
+            if (cells[k] == nullptr) {
+                return Evaluation::refuse(at + "the fold's '" + ports.inputs[k].name +
+                                          "' is not bound");
+            }
+            if (k < 3 && cells[k]->kind() != loom::Kind::Int) {
+                return Evaluation::refuse(at + "the fold's '" + ports.inputs[k].name + "' is " +
+                                          loom::name_of(cells[k]->kind()) + ", not Int");
+            }
+        }
+        const std::int64_t start = cells[0]->as_int();
+        const std::int64_t limit = cells[1]->as_int();
+        const std::int64_t by = cells[2]->as_int();
+        if (by == 0) {
+            return Evaluation::refuse(at + "a step of 0 never moves the count from " +
+                                      std::to_string(start) + " toward " + std::to_string(limit));
+        }
+        const std::uint64_t count = fold_count(start, limit, by);
+        if (count > kMaxFoldCount) {
+            return Evaluation::refuse(at + "this fold would count " + std::to_string(count) +
+                                      " times from " + std::to_string(start) + " toward " +
+                                      std::to_string(limit) + " by " + std::to_string(by) +
+                                      ", and a fold counts at most " +
+                                      std::to_string(kMaxFoldCount) + " times");
+        }
+        loom::Cell acc = *cells[3];
+        for (std::uint64_t k = 0; k < count; ++k) {
+            const std::int64_t value = fold_value(start, by, k);
+            loom::Value pack(body.inputs());
+            pack.set(node.fold->count, loom::Cell::integer(value));
+            pack.set(node.fold->accumulator, acc);
+            for (std::size_t j = 4; j < cells.size(); ++j) {
+                if (cells[j] != nullptr) {
+                    pack.set(ports.inputs[j].name, *cells[j]);
+                }
+            }
+            Evaluation spent = evaluate(node.identity, std::move(pack));
+            if (!spent) {
+                return Evaluation::refuse(at + "iteration " + std::to_string(k) + " (count " +
+                                          std::to_string(value) + "): " + spent.reason());
+            }
+            acc = *spent.value().at(0);
+        }
+        loom::Value out(body.outputs());
+        out.set(ports.answer.name, std::move(acc));
+        loom::Admission checked = loom::admit(std::move(out), *body.outputs());
+        if (!checked) {
+            return Evaluation::refuse(at + "the fold's answer is not '" + node.identity +
+                                      "''s: " + checked.first_error().message());
+        }
+        return Evaluation::accept(std::move(checked).value());
     }
 
     /// The one store: an identity maps to the stack of contributions eligible to satisfy it and
@@ -551,6 +609,44 @@ public:
         graph_.nodes.push_back(std::move(node));
         return Ref(Binding::node(graph_.nodes.size() - 1),
                    step->outputs()->fields()[0].type);
+    }
+
+    /// One fold over the operator `body`, threading its `accumulator` port and giving each count to
+    /// its `count` port. The arguments are the fold's derived ports in order -- start, limit, step,
+    /// initial, then the body's other ports -- refused by name where they do not fit, and the
+    /// answer has the body's answer type.
+    Ref fold(std::string_view body, std::string count, std::string accumulator,
+             const std::vector<Ref>& args) {
+        const OperatorDef* step = catalog_.find(body);
+        if (step == nullptr) {
+            throw std::invalid_argument("'" + identity_ + "' names an unpublished operator '" +
+                                        std::string(body) + "'");
+        }
+        Fold form{std::move(count), std::move(accumulator)};
+        const FoldPorts ports = fold_ports(*step, form);
+        if (args.size() != ports.inputs.size()) {
+            throw std::invalid_argument("a fold over '" + std::string(body) + "' takes " +
+                                        std::to_string(ports.inputs.size()) + " arguments, not " +
+                                        std::to_string(args.size()));
+        }
+        for (std::size_t k = 0; k < args.size(); ++k) {
+            if (!detail::same_type(args[k].type_, ports.inputs[k].type)) {
+                throw std::invalid_argument("a fold over '" + std::string(body) + "' port '" +
+                                            ports.inputs[k].name + "' expects " +
+                                            loom::name_of(ports.inputs[k].type.kind) + ", not " +
+                                            loom::name_of(args[k].type_.kind));
+            }
+        }
+        Node node;
+        node.identity = std::string(body);
+        node.authored_in = step->inputs()->content_id();
+        node.authored_out = step->outputs()->content_id();
+        node.fold = std::move(form);
+        for (const Ref& a : args) {
+            node.arguments.push_back(a.binding_);
+        }
+        graph_.nodes.push_back(std::move(node));
+        return Ref(Binding::node(graph_.nodes.size() - 1), ports.answer.type);
     }
 
     /// Name the composite's answer and finish. The output schema is derived from what the result

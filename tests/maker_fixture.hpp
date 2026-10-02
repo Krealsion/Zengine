@@ -136,6 +136,51 @@ inline maker::Definition high_water_v2(const op::Catalog& catalog, std::int64_t 
     return d;
 }
 
+// ---- the tally, the fold's forcing case ------------------------------------------------------
+
+/// `tally.panel.Count { start, limit, step }`, the message a tally is asked to count.
+inline std::shared_ptr<const loom::Schema> count_schema() {
+    static const auto s = loom::SchemaBuilder("tally.panel.Count", 1)
+                              .field("start", loom::Kind::Int)
+                              .field("limit", loom::Kind::Int)
+                              .field("step", loom::Kind::Int)
+                              .build();
+    return s;
+}
+
+inline loom::Value count(std::int64_t start, std::int64_t limit, std::int64_t step) {
+    loom::Value v(count_schema());
+    v.set("start", loom::Cell::integer(start));
+    v.set("limit", loom::Cell::integer(limit));
+    v.set("step", loom::Cell::integer(step));
+    return v;
+}
+
+/// The tally: tally.State v1 { total }, a trigger on tally.panel.Count folding math.add from
+/// start toward limit by step into total, the count to `rhs` and the accumulator to `lhs`, and the
+/// emit tally.Total { total }.
+inline maker::Definition tally(const op::Catalog& catalog) {
+    maker::Definition d;
+    d.name = "tally";
+    d.state = loom::SchemaBuilder("tally.State", 1).field("total", loom::Kind::Int).build();
+    d.accepts = {count_schema()};
+    const auto said = loom::SchemaBuilder("tally.Total", 1).field("total", loom::Kind::Int).build();
+    d.emits = {said};
+    maker::On on;
+    on.message = count_schema();
+    op::Builder b(catalog, d.trigger_identity(on), pack_ports(*d.state, *on.message));
+    const op::Builder::Ref total = b.fold(op::kAddInt, "rhs", "lhs",
+        {b.input("start"), b.input("limit"), b.input("step"), b.constant(std::int64_t{0})});
+    on.body = *std::move(b).result("value", total).composition();
+    on.output = "total";
+    maker::Emit e;
+    e.message = said;
+    e.fields.push_back(maker::FieldSource{"total", std::string("total"), std::nullopt});
+    on.emits.push_back(std::move(e));
+    d.on.push_back(std::move(on));
+    return d;
+}
+
 } // namespace hwfix
 
 #endif // ZENGINE_TESTS_MAKER_FIXTURE_HPP

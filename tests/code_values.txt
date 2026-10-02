@@ -89,3 +89,4 @@ kMaxPowersAnswerBytes           workshop/powers_vocabulary.hpp            kMaxPo
 # ---- the evaluator's bounds
 kEvaluationSpends               operator/catalog.hpp                      kEvaluationSpends
 kEvaluationDepth                operator/catalog.hpp                      kEvaluationDepth
+kMaxFoldCount                   operator/fold.hpp                         kMaxFoldCount
