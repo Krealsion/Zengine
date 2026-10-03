@@ -121,10 +121,10 @@ class Hand:
         self.actions["text"] += 1
         self.inject(clear_moments(self.ctx) + [moment(self.ctx, "TextEntered", text=text)])
 
-    def drag(self, start, end, duration_ms=900, bend=0, during=None):
+    def drag(self, start, end, duration_ms=900, bend=0, during=None, button=1, held=None):
         self.actions["drag"] += 1
         self.ctx.check(start["space"] == end["space"], "drag endpoints use different spaces")
-        self.inject([moment(self.ctx, "PointerButton", button=1, pressed=True,
+        self.inject([moment(self.ctx, "PointerButton", button=button, pressed=True,
                             x=start["x"], y=start["y"], space=start["space"])])
         fields = {"session": self.session, "x": end["x"], "y": end["y"],
                   "duration_ms": duration_ms, "bend": float(bend)}
@@ -139,6 +139,8 @@ class Hand:
             moved = pending.wait(duration_ms / 1000 + 10)
         self.ctx.check(moved["session"] == self.session and moved["admitted"] > 0,
                        "pointer motion did not reach its endpoint")
-        self.inject([moment(self.ctx, "PointerButton", button=1, pressed=False,
+        if held is not None:
+            held()  # at the endpoint, the button still down
+        self.inject([moment(self.ctx, "PointerButton", button=button, pressed=False,
                             x=end["x"], y=end["y"], space=end["space"])])
         return moved
