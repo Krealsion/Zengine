@@ -3,18 +3,22 @@
 #ifndef ZENGINE_VIEW_BUILDER_PICTURE_HPP
 #define ZENGINE_VIEW_BUILDER_PICTURE_HPP
 
-// The View Builder's own picture: its bar, the element kinds, the element list, the selected
-// element's properties, the field a label shows and the intent a button says. It draws lists of
-// words, never the view: the view draws itself in its own pane. Law: agents/view.md.
+// The View Builder's own picture: its bar, the kinds it makes, the element list and the selected
+// element's values in boxes, beside a design canvas where the view is drawn by its own picture
+// code at its own pixels. Over that canvas the builder draws marks alone, never an element.
+// Law: agents/view.md.
 
 #include "view-builder/model.hpp"
 #include "view-builder/vocabulary.hpp"
+#include "view/view.hpp"
 
+#include "component/text_box.hpp"
 #include "surface/pointing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
 
-#include <deque>
+#include <algorithm>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -22,26 +26,119 @@ namespace zengine::view_builder {
 namespace ws = zengine::workshop;
 namespace ink = zengine::surface::role;
 
-/// One pressable place in a picture, and what pressing it means.
-struct Hit {
+/// A rectangle of the picture in local subunits.
+struct Area {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
-    std::string action;
-    std::vector<std::string> args;
+    bool empty() const noexcept { return w <= 0 || h <= 0; }
     bool contains(std::int64_t px, std::int64_t py, std::int64_t grain) const {
         return surface::sub_span_contains(x, w, px, grain) && surface::sub_span_contains(y, h, py, grain);
     }
+    Area within(const Area& o) const {
+        const auto left = std::max(x, o.x), top = std::max(y, o.y);
+        const auto right = std::min(x + w, o.x + o.w), bottom = std::min(y + h, o.y + o.h);
+        return {left, top, right - left, bottom - top};
+    }
+};
+
+/// One pressable place in a picture, and what pressing it means.
+struct Hit {
+    Area at;
+    std::string action;
+    std::vector<std::string> args;
 };
 
 struct Picture {
     ws::PaneCanvasContent content;
     std::vector<Hit> hits;
     std::int64_t grain = 1;
+    /// Where the view is drawn: its pixel 0,0 is this area's corner.
+    Area design;
     const Hit* hit(std::int64_t x, std::int64_t y) const {
         for (auto at = hits.rbegin(); at != hits.rend(); ++at)
-            if (at->contains(x, y, grain)) return &*at;
+            if (at->at.contains(x, y, grain)) return &*at;
         return nullptr;
     }
 };
+
+/// A value with a box, being typed into: which value, of which element, and its text as typed.
+struct Box {
+    std::string field;                  ///< id, label, text, x, y, w or h; name, path or intent
+    std::optional<std::size_t> element; ///< the element the value is one of; none for the view's
+    component::TextBox text;
+};
+
+/// The builder's own presentation, never saved nor kept across a reload: the box being typed
+/// into, the element the pointer rests on, the label a carried value would land on, a kind being
+/// dragged from the palette, a New or Open waiting for its second press, and the first field a
+/// choice of fields shows.
+struct Presentation {
+    std::optional<Box> box;
+    std::optional<std::size_t> hovered, landing;
+    std::size_t choices_from = 0;
+    struct Ghost {
+        view::Kind kind = view::Kind::label;
+        std::int64_t x = 0, y = 0;
+    };
+    std::optional<Ghost> ghost;
+    std::string armed;
+};
+
+/// The values an element shows in boxes, in the order Tab walks them.
+inline std::vector<std::string> element_fields(const view::Element& e) {
+    if (e.kind == view::Kind::number) return {"id", "label", "text", "x", "y", "w", "h"};
+    return {"id", "label", "x", "y", "w", "h"};
+}
+
+/// An element's value as its box shows it.
+inline std::string value_of(const view::Element& e, const std::string& field) {
+    if (field == "id") return e.id;
+    if (field == "label") return e.label;
+    if (field == "text") return e.text;
+    if (field == "x") return std::to_string(e.x);
+    if (field == "y") return std::to_string(e.y);
+    if (field == "w") return std::to_string(e.w);
+    if (field == "h") return std::to_string(e.h);
+    return {};
+}
+
+/// An intent's name inside its view's, as its box holds it.
+inline std::string intent_name(const view::Description& d, const view::Intent& in) {
+    const auto& name = in.shape->name();
+    return name.size() > d.name.size() ? name.substr(d.name.size() + 1) : name;
+}
+
+/// One field of a choice, laid as `[name]` at a row and a column from the choice's corner.
+struct Choice {
+    std::size_t field = 0;
+    std::int64_t row = 0, col = 0;
+};
+
+/// A CHOICE OF FIELDS laid in rows `width` columns wide, from field `from`, in at most `rows`
+/// rows: a button that would pass the row's end starts the next, so one too wide for any row has
+/// a row of its own.
+inline std::vector<Choice> lay_choices(const std::vector<std::string>& fields, std::size_t from, std::int64_t width,
+                                       std::int64_t rows) {
+    std::vector<Choice> out;
+    std::int64_t row = 0, col = 0;
+    for (auto i = from; i < fields.size(); ++i) {
+        const auto w = static_cast<std::int64_t>(fields[i].size()) + 2;
+        if (col > 0 && col + w > width) {
+            ++row;
+            col = 0;
+        }
+        if (row >= rows) break;
+        out.push_back({i, row, col});
+        col += w + 1;
+    }
+    return out;
+}
+
+/// Where an element sits in the design area, in local subunits: its whole pixels from the area's
+/// corner, as the view's own picture places it.
+inline Area element_area(const Area& design, const view::Element& e) {
+    return {design.x + surface::subs_of_pixel(e.x), design.y + surface::subs_of_pixel(e.y),
+            surface::subs_of_pixel(e.w), surface::subs_of_pixel(e.h)};
+}
 
 inline std::string clean(std::string text) {
     for (auto& c : text)
@@ -49,17 +146,11 @@ inline std::string clean(std::string text) {
     return text;
 }
 
-/// A shape as one line: its name and its fields' names and kinds.
-inline std::string shape_line(const loom::Schema& shape) {
-    std::string fields;
-    for (const auto& f : shape.fields())
-        fields += (fields.empty() ? "" : ", ") + f.name + ": " + loom::name_of(f.type.kind);
-    return shape.name() + " {" + fields + "}";
-}
-
-/// THE PICTURE, laid out in text rows and columns and placed at the medium's measured advance and
-/// padded line height, so a column of words lines up in a window and in a terminal alike.
-inline Picture picture(const Model& m, const ws::PaneCanvasRoom& room, std::int64_t number) {
+/// THE PICTURE. Words sit in text rows and columns at the medium's measured advance and padded
+/// line height; the design area begins on a cell boundary, so the view's own picture, moved
+/// there whole, keeps its lattice in a window and in a terminal alike. The box being typed into
+/// keeps its caret in view at the width it is drawn, in `p` itself: a press reads that scroll.
+inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom& room, std::int64_t number) {
     Picture out;
     out.content.pane = kPane;
     out.content.grant = room.grant;
@@ -71,21 +162,42 @@ inline Picture picture(const Model& m, const ws::PaneCanvasRoom& room, std::int6
     const auto line = surface::add_cells(metrics.line, 2 * metrics.inset);
     const auto columns = std::max<std::int64_t>(1, (room.width - 2 * metrics.inset) / advance);
     const auto rows = std::max<std::int64_t>(1, room.height / std::max<std::int64_t>(1, line));
-    // A line ends where its column does: `limit` is the column it may not reach.
-    std::int64_t limit = columns;
-    const auto put = [&](std::int64_t col, std::int64_t row, std::string text, std::int64_t role = ink::kFill,
-                         std::int64_t caret = surface::kNoCaret) {
-        if (row < 0 || row >= rows) return std::int64_t{0};
-        ws::PaneCanvasText run{col * advance, row * line, clean(std::move(text)), role, caret};
-        const ws::CanvasTextBox clip{0, 0, std::min(room.width, limit * advance + 2 * metrics.inset), room.height};
+    const auto& d = m.description;
+    const bool chosen = m.selected && *m.selected < d.elements.size();
+
+    // THE LAYOUT: the bar across the top; on the left the view's name and file, the kinds and the
+    // element list; the design area beside it; the selected element's values in a column of their
+    // own on the right where the room is wide, else below the list; the status and the notice
+    // across the last three rows.
+    const auto cell = surface::kCellSubs;
+    const auto up_to_cell = [&](std::int64_t v) { return (v + cell - 1) / cell * cell; };
+    const auto rule = room.graphical ? surface::kPixelGrainSubs : out.grain;
+    const bool beside = columns >= 110;
+    const auto side = beside ? std::clamp<std::int64_t>(columns / 4, 30, 36)
+                             : std::min(columns, std::clamp<std::int64_t>(columns * 2 / 5, 30, 40));
+    const auto details = beside ? std::clamp<std::int64_t>(columns / 4, 30, 40) : std::int64_t{0};
+    const auto details_col = columns - details;
+    const auto status = std::max<std::int64_t>(1, rows - 3);
+    out.design.x = up_to_cell(side * advance + 2 * metrics.inset + rule);
+    out.design.y = up_to_cell(line + rule);
+    out.design.w = (beside ? details_col * advance - rule : room.width) - out.design.x;
+    out.design.h = status * line - out.design.y;
+
+    // A line keeps to its column, from `from` to `limit`, and a row of a column above the status.
+    std::int64_t from = 0, limit = columns, stop = rows;
+    const auto put = [&](std::int64_t col, std::int64_t row, std::string text, std::int64_t role = ink::kFill) {
+        if (row < 0 || row >= stop) return std::int64_t{0};
+        ws::PaneCanvasText run{col * advance, row * line, clean(std::move(text)), role};
+        const auto left = from * advance;
+        const ws::CanvasTextBox clip{left, 0, std::min(room.width, limit * advance + 2 * metrics.inset) - left, room.height};
         auto placed = ws::clip_canvas_text(run, clip, room);
         if (placed.visible()) out.content.texts.push_back(placed.text);
         return static_cast<std::int64_t>(run.text.size());
     };
     const auto press = [&](std::int64_t col, std::int64_t row, std::int64_t width, std::string action,
                            std::vector<std::string> args = {}) {
-        if (row < 0 || row >= rows) return;
-        out.hits.push_back({col * advance, row * line, width * advance + 2 * metrics.inset, line,
+        if (row < 0 || row >= stop) return;
+        out.hits.push_back({{col * advance, row * line, width * advance + 2 * metrics.inset, line},
                             std::move(action), std::move(args)});
     };
     const auto button = [&](std::int64_t col, std::int64_t row, const std::string& title, std::string action,
@@ -94,143 +206,274 @@ inline Picture picture(const Model& m, const ws::PaneCanvasRoom& room, std::int6
         press(col, row, width, std::move(action), std::move(args));
         return col + width + 1;
     };
-    // The bar, then what a weaver adds, then the view's name.
-    std::int64_t col = 0, row = 0;
-    const auto bar = [&](const std::string& title, const std::string& action) {
-        if (col + static_cast<std::int64_t>(title.size()) + 2 > columns) {
-            col = 0;
-            ++row;
-        }
-        col = button(col, row, title, action);
-    };
-    bar("New", "ask-new");
-    bar("Open", "ask-open");
-    bar(m.dirty ? "Save*" : "Save", "ask-save");
-    bar(m.running ? "Running" : "Run", "run");
-    bar("Apply", "apply");
-    bar("Stop", "stop");
-    ++row;
-    col = button(put(0, row, "View " + m.description.name + " ", ink::kAccent), row, "Rename", "ask-rename");
-    ++row;
-    col = put(0, row, "Add ");
-    col = button(col, row, "Number", "add", {"number"});
-    col = button(col, row, "Button", "add", {"button"});
-    col = button(col, row, "Label", "add", {"label"});
-    row += 2;
-    const auto bottom = rows - 3;
-    if (m.dialog) {
-        put(0, row++, m.dialog->title, ink::kAccent);
-        for (std::size_t i = 0; i < m.dialog->entries.size() && row < bottom; ++i) {
-            const auto& e = m.dialog->entries[i];
-            const auto prefix = (i == m.dialog->selected ? "> " : "  ") + e.label + ": ";
-            auto text = e.text;
-            const auto width = std::max<std::int64_t>(1, columns - static_cast<std::int64_t>(prefix.size()) - 1);
+    // A VALUE IN A BOX, edited where it is: a quiet box with the value on it, its caret shown
+    // while it is being typed into. Pressing it is how a weaver starts typing there.
+    const auto box = [&](std::int64_t col, std::int64_t row, std::int64_t width, const std::string& field,
+                         std::optional<std::size_t> element, const std::string& value) {
+        if (row < 1 || row >= status) return col + width + 1;
+        const bool typing = p.box && p.box->field == field && p.box->element == element;
+        const Area at{col * advance, row * line, width * advance + 2 * metrics.inset, line};
+        out.content.rects.push_back({at.x, at.y, at.w, at.h, ink::kMuted});
+        std::string shown = value;
+        std::int64_t caret = surface::kNoCaret;
+        if (typing) {
+            auto& text = p.box->text;
             text.keep_caret_visible(width);
-            put(0, row, prefix + text.visible(width), ink::kFill,
-                i == m.dialog->selected ? static_cast<std::int64_t>(prefix.size()) + static_cast<std::int64_t>(text.caret_column())
-                                        : surface::kNoCaret);
-            press(0, row, columns, "dialog-field", {std::to_string(i)});
-            ++row;
+            shown = text.visible(width);
+            caret = static_cast<std::int64_t>(text.caret_column());
         }
+        ws::PaneCanvasText run{at.x, at.y, clean(shown), typing ? ink::kAccent : ink::kFill, caret};
+        auto placed = ws::clip_canvas_text(run, {at.x, at.y, at.w, at.h}, room);
+        if (placed.visible()) out.content.texts.push_back(placed.text);
+        out.hits.push_back({at, "box", {field, element ? std::to_string(*element) : std::string()}});
+        return col + width + 1;
+    };
+
+    // The bar. A New or Open over an unsaved view waits for its second press.
+    std::int64_t col = 0;
+    col = button(col, 0, p.armed == "new" ? "New: discard?" : "New", "new");
+    col = button(col, 0, p.armed == "open" ? "Open: discard?" : "Open", "open");
+    col = button(col, 0, m.dirty ? "Save*" : "Save", "save");
+    col = button(col, 0, m.running ? "Running" : "Run", "run");
+    col = button(col, 0, "Apply", "apply");
+    button(col, 0, "Stop", "stop");
+
+    // WORDS BEFORE A CONTROL give way to it: cut to `fit` columns, ending `...`, so the control
+    // after them is drawn whole inside its column, where it can be pressed.
+    const auto giving_way = [](std::string words, std::int64_t fit) {
+        const auto keep = static_cast<std::size_t>(std::max<std::int64_t>(0, fit));
+        if (words.size() <= keep) return words;
+        return keep <= 3 ? words.substr(0, keep) : words.substr(0, keep - 3) + "...";
+    };
+
+    // THE SELECTED ELEMENT'S VALUES, from column `at` and `width` columns wide, from `row` down:
+    // the rows they took.
+    const auto values = [&](std::int64_t at, std::int64_t width, std::int64_t row) {
+        const auto top = row;
+        const auto i = *m.selected;
+        const auto index = std::to_string(i);
+        const auto& e = d.elements[i];
+        const auto head = giving_way(e.id + " (" + view::kind_word(e.kind) + ")", width - 9);
+        put(at, row, head + " ", ink::kAccent);
+        button(at + static_cast<std::int64_t>(head.size()) + 1, row, "Remove", "remove", {index});
         ++row;
-        col = button(0, row, "Confirm", "dialog-confirm");
-        button(col, row, "Cancel", "dialog-cancel");
-        put(0, row + 1, "Tab changes field; Enter confirms; Escape cancels", ink::kMuted);
-    } else {
-        const auto& d = m.description;
-        // TWO COLUMNS WHERE THE ROOM IS WIDE: the list on the left, the selected element's
-        // properties on the right; stacked, the list keeps the rows the properties leave it.
-        const bool wide = columns >= 72;
-        const auto split = wide ? columns / 2 : columns;
-        const auto right = wide ? split + 1 : std::int64_t{0};
-        const auto list_top = row;
-        const bool selected = m.selected && *m.selected < d.elements.size();
-        const auto list_end = wide || !selected ? bottom : std::max<std::int64_t>(list_top + 2, bottom - 5);
-        limit = wide ? split - 1 : columns;
-        put(0, row++, "Elements (" + std::to_string(d.elements.size()) + ")", ink::kAccent);
-        // The list: one row per element, its kind, label, place and size. Selecting one shows its
-        // properties; a shape or a field carried onto a label's row is what it shows.
-        auto first = std::min(m.first_row, d.elements.size());
-        if (selected) {
-            const auto shown = static_cast<std::size_t>(std::max<std::int64_t>(1, list_end - row));
-            if (*m.selected < first) first = *m.selected;
-            if (*m.selected >= first + shown) first = *m.selected + 1 - shown;
-        }
-        for (std::size_t i = first; i < d.elements.size() && row < list_end; ++i) {
-            const auto& e = d.elements[i];
-            const bool chosen = m.selected && *m.selected == i;
-            const auto text = std::string(chosen ? "> " : "  ") + e.id + "  " + view::kind_word(e.kind) + "  \"" +
-                              e.label + "\"  " + std::to_string(e.x) + "," + std::to_string(e.y) + " " +
-                              std::to_string(e.w) + "x" + std::to_string(e.h);
-            put(0, row, text, chosen ? ink::kAccent : ink::kFill);
-            press(0, row, limit, "select", {std::to_string(i)});
+        const auto fields = element_fields(e);
+        for (const auto* name : {"id", "label", "text"}) {
+            if (std::find(fields.begin(), fields.end(), name) == fields.end()) continue;
+            put(at, row, name);
+            box(at + 6, row, std::max<std::int64_t>(4, width - 7), name, i, value_of(e, name));
             ++row;
         }
-        limit = columns;
-        if (d.elements.empty()) put(0, row++, "  none yet: add a number field, a button and a label", ink::kMuted);
-        row = wide ? list_top : row + 1;
-        if (selected && row < bottom) {
-            const auto i = std::to_string(*m.selected);
-            const auto& e = d.elements[*m.selected];
-            col = put(right, row, e.id + " (" + view::kind_word(e.kind) + ") ", ink::kAccent);
-            if (wide) {
+        const auto pair = [&](const char* a, const char* b) {
+            put(at, row, a);
+            const auto next = box(at + 2, row, 6, a, i, value_of(e, a));
+            put(next + 1, row, b);
+            box(next + 3, row, 6, b, i, value_of(e, b));
+            ++row;
+        };
+        pair("x", "y");
+        pair("w", "h");
+        if (e.kind == view::Kind::label) {
+            if (m.choosing && m.choosing->element == e.id) {
+                // EVERY FIELD IT COULD SHOW, wrapped within the column; when the rows left cannot
+                // hold them, the last is More, which shows the next of them and then the first.
+                put(at, row++, "show which field of " + m.choosing->shape->name() + "?");
+                const auto choices = showable(*m.choosing->shape);
+                const auto first = p.choices_from < choices.size() ? p.choices_from : 0;
+                const auto left = stop - row;
+                auto laid = lay_choices(choices, first, width, left);
+                const bool paged = first > 0 || first + laid.size() < choices.size();
+                if (paged && left > 1) laid = lay_choices(choices, first, width, left - 1);
+                for (const auto& c : laid) button(at + c.col, row + c.row, choices[c.field], "show", {index, choices[c.field]});
+                row += laid.empty() ? 0 : laid.back().row + 1;
+                if (paged) {
+                    const auto next = first + laid.size() < choices.size() ? first + laid.size() : 0;
+                    button(at, row++, "More", "choices", {std::to_string(next)});
+                }
+            } else if (const auto* s = d.shown(e.id)) {
+                const auto bound = giving_way("shows " + s->shape->name() + "." + s->field, width - 9);
+                const auto said = static_cast<std::int64_t>(bound.size());
+                put(at, row, bound + " ");
+                button(at + said + 1, row, "Unshow", "unshow", {index});
+                press(at, row, said, "shows", {index});
                 ++row;
-                col = right;
+            } else {
+                put(at, row, "shows nothing: drag a shape here", ink::kMuted);
+                press(at, row, width, "shows", {index});
+                ++row;
             }
-            col = button(col, row, "Edit", "ask-element", {i});
-            col = button(col, row, "Up", "up", {i});
-            col = button(col, row, "Down", "down", {i});
-            button(col, row, "Remove", "remove", {i});
-            ++row;
-            if (e.kind == view::Kind::label) {
-                if (m.choosing && m.choosing->element == e.id) {
-                    put(right, row++, "show which field of " + m.choosing->shape->name() + "?");
-                    col = right;
-                    for (const auto& f : showable(*m.choosing->shape)) col = button(col, row, f, "show", {i, f});
-                } else if (const auto* s = d.shown(e.id)) {
-                    col = put(right, row, "shows " + s->shape->name() + "." + s->field + " ");
-                    button(right + col, row, "Unshow", "unshow", {i});
-                } else {
-                    put(right, row, "shows nothing: carry a shape or a field here", ink::kMuted);
-                }
-                press(right, row, columns - right, "shows", {i});
-            } else if (e.kind == view::Kind::button) {
-                if (const auto* intent = d.intent(e.id)) {
-                    // What it says, its name and then its fields: right-pressed, it is carried.
-                    std::string fields;
-                    for (const auto& f : intent->shape->fields())
-                        fields += (fields.empty() ? "" : ", ") + f.name + ": " + loom::name_of(f.type.kind);
-                    put(right, row, "says " + intent->shape->name());
-                    press(right, row, columns - right, "says", {i});
-                    put(right, ++row, "  {" + fields + "}");
-                    press(right, row, columns - right, "says", {i});
+        } else if (e.kind == view::Kind::button) {
+            if (const auto* intent = d.intent(e.id)) {
+                // WHAT IT SAYS: its words are the handle a drag carries its shape out by, and a
+                // right press offers to carry it; the name after them is a value in a box.
+                const auto whole = "says " + d.name + ".";
+                const auto boxed = std::max<std::int64_t>(std::min<std::int64_t>(12, width - 2),
+                                                          width - static_cast<std::int64_t>(whole.size()) - 2);
+                const auto says = giving_way(whole, width - boxed - 2);
+                const auto said = static_cast<std::int64_t>(says.size());
+                put(at, row, says, ink::kAccent);
+                press(at, row, said, "says", {index});
+                box(at + said + 1, row, boxed, "intent", i, intent_name(d, *intent));
+                ++row;
+                std::string carried;
+                for (const auto& f : intent->shape->fields())
+                    carried += (carried.empty() ? "" : ", ") + f.name + ": " + loom::name_of(f.type.kind);
+                for (const auto& part : view::wrap("{" + carried + "}", width - 2, 2)) {
+                    put(at, row, "  " + part);
+                    press(at, row, width, "says", {index});
                     ++row;
-                    col = button(right, row, "Make intent from fields", "ask-intent", {i});
-                    button(col, row, "Drop intent", "drop-intent", {i});
-                    put(right, row + 1, "right-press `says` to carry its shape", ink::kMuted);
-                } else {
-                    put(right, row, "says nothing yet", ink::kMuted);
-                    ++row;
-                    button(right, row, "Make intent from fields", "ask-intent", {i});
                 }
-            } else if (!e.text.empty()) {
-                put(right, row, "starts with " + e.text, ink::kMuted);
+                col = button(at, row, "Make intent", "intent", {index});
+                button(col, row, "Drop intent", "drop-intent", {index});
+                ++row;
+                put(at, row++, "drag `says` out, or right-press it", ink::kMuted);
+            } else {
+                put(at, row++, "says nothing yet", ink::kMuted);
+                button(at, row++, "Make intent", "intent", {index});
+            }
+        }
+        return row - top;
+    };
+
+    // THE LEFT COLUMN: the view's name and file, the kinds to drag, then the list.
+    limit = side;
+    stop = status;
+    const auto wide = std::max<std::int64_t>(4, side - 6);
+    put(0, 1, "View");
+    box(5, 1, wide, "name", std::nullopt, d.name);
+    put(0, 2, "File");
+    box(5, 2, wide, "path", std::nullopt, m.path);
+    col = put(0, 3, "Add ");
+    for (const auto kind : {view::Kind::label, view::Kind::number, view::Kind::button}) {
+        const std::string word = view::kind_word(kind);
+        const std::string title = kind == view::Kind::number ? "Number" : kind == view::Kind::button ? "Button" : "Label";
+        col = button(col, 3, title, "kind", {word});
+    }
+    std::int64_t row = 5;
+    put(0, row++, "Elements (" + std::to_string(d.elements.size()) + ")", ink::kAccent);
+    // Stacked, the values take the rows below the list, which keeps a few rows whatever they
+    // need; the list follows the selected element.
+    std::int64_t below = 0;
+    if (chosen && !beside) {
+        const auto& e = d.elements[*m.selected];
+        below = 1 + (e.kind == view::Kind::number ? 3 : 2) + 2;
+        below += e.kind == view::Kind::button ? 4 : e.kind == view::Kind::label ? 2 : 0;
+        if (e.kind == view::Kind::label && m.choosing && m.choosing->element == e.id) {
+            const auto laid = lay_choices(showable(*m.choosing->shape), 0, side, rows);
+            below += laid.empty() ? 0 : laid.back().row;
+        }
+    }
+    const auto few = std::min<std::int64_t>(4, std::max<std::int64_t>(1, static_cast<std::int64_t>(d.elements.size())));
+    const auto list_end = std::max(row + few, beside ? status : status - below - 1);
+    const auto shown_rows = static_cast<std::size_t>(std::max<std::int64_t>(1, list_end - row));
+    auto first = std::min(m.first_row, d.elements.size());
+    if (chosen) {
+        if (*m.selected < first) first = *m.selected;
+        if (*m.selected >= first + shown_rows) first = *m.selected + 1 - shown_rows;
+    }
+    for (std::size_t i = first; i < d.elements.size() && row < list_end; ++i) {
+        const auto& e = d.elements[i];
+        const bool is_chosen = m.selected && *m.selected == i;
+        if ((p.hovered && *p.hovered == i) || (p.landing && *p.landing == i))
+            out.content.rects.push_back({0, row * line, side * advance + 2 * metrics.inset, line, ink::kMuted});
+        put(0, row, std::string(is_chosen ? "> " : "  ") + e.id + "  " + view::kind_word(e.kind) + "  \"" +
+                        e.label + "\"",
+            is_chosen ? ink::kAccent : ink::kFill);
+        press(0, row, side, "select", {std::to_string(i)});
+        ++row;
+    }
+    if (d.elements.empty()) put(0, row++, "  none yet: drag a kind in", ink::kMuted);
+    if (chosen && !beside) (void)values(0, side, std::max(row, list_end) + 1);
+    if (beside) {
+        // THE DETAILS COLUMN: the selected element's values, or what selecting one shows.
+        from = details_col;
+        limit = columns;
+        if (chosen) (void)values(details_col, details, 1);
+        else put(details_col, 1, "select an element to see its values", ink::kMuted);
+    }
+    from = 0;
+    limit = columns;
+    stop = rows;
+
+    // THE DESIGN AREA: the view drawn by its own picture code, in a room the area's size and the
+    // medium's metrics, moved there whole; then the builder's marks over it.
+    const auto& area = out.design;
+    if (!area.empty()) {
+        out.hits.push_back({area, "canvas", {}});
+        out.content.rects.push_back({area.x - rule, area.y - rule, area.w + rule, rule, ink::kMuted});
+        out.content.rects.push_back({area.x - rule, area.y, rule, area.h, ink::kMuted});
+        if (beside) out.content.rects.push_back({area.x + area.w, area.y - rule, rule, area.h + rule, ink::kMuted});
+        const ws::PaneCanvasRoom inner{room.pane, room.grant, area.w, area.h, room.grain,
+                                       room.graphical, room.text_advance_px, room.text_line_px};
+        const auto drawn = view::picture(d, {}, view::Presentation{}, inner, number);
+        for (auto r : drawn.content.rects) {
+            r.x += area.x;
+            r.y += area.y;
+            out.content.rects.push_back(r);
+        }
+        for (auto t : drawn.content.texts) {
+            t.x += area.x;
+            t.y += area.y;
+            out.content.texts.push_back(t);
+        }
+        const auto mark = [&](const Area& a) {
+            const auto inside = a.within(area);
+            if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, ink::kAccent});
+        };
+        const auto outline = [&](const Area& a, std::int64_t role, std::int64_t t) {
+            for (const Area& side_of : {Area{a.x - t, a.y - t, a.w + 2 * t, t}, Area{a.x - t, a.y + a.h, a.w + 2 * t, t},
+                                        Area{a.x - t, a.y, t, a.h}, Area{a.x + a.w, a.y, t, a.h}}) {
+                const auto inside = side_of.within(area);
+                if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, role});
+            }
+        };
+        const auto thin = room.graphical ? surface::kPixelGrainSubs : out.grain;
+        for (std::size_t i = 0; i < d.elements.size(); ++i) {
+            const auto at = element_area(area, d.elements[i]).within(area);
+            if (!at.empty()) out.hits.push_back({at, "element", {std::to_string(i)}});
+        }
+        // The element the pointer rests on, in the fill's ink: a quiet field's own box is muted.
+        if (p.hovered && *p.hovered < d.elements.size() && (!chosen || *p.hovered != *m.selected))
+            outline(element_area(area, d.elements[*p.hovered]), ink::kFill, thin);
+        if (p.landing && *p.landing < d.elements.size())
+            outline(element_area(area, d.elements[*p.landing]), ink::kAccent, 2 * thin);
+        if (p.ghost) {
+            const auto [w, h] = made_size(p.ghost->kind);
+            outline(element_area(area, view::Element{"", p.ghost->kind, "", p.ghost->x, p.ghost->y, w, h, ""}),
+                    ink::kMuted, thin);
+        }
+        if (chosen) {
+            // THE SELECTED ELEMENT: marked, with a handle at each corner a drag resizes it by.
+            const auto at = element_area(area, d.elements[*m.selected]);
+            outline(at, ink::kAccent, thin);
+            const auto size = room.graphical ? surface::subs_of_pixel(8) : out.grain;
+            for (int corner = 0; corner < 4; ++corner) {
+                Area handle;
+                if (room.graphical) {
+                    handle = {(corner & 1 ? at.x + at.w : at.x) - size / 2,
+                              (corner & 2 ? at.y + at.h : at.y) - size / 2, size, size};
+                } else {
+                    // A terminal's handle is the element's own corner cell.
+                    const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
+                    handle = {down(corner & 1 ? at.x + at.w - 1 : at.x), down(corner & 2 ? at.y + at.h - 1 : at.y),
+                              size, size};
+                }
+                mark(handle);
+                const auto inside = handle.within(area);
+                if (!inside.empty())
+                    out.hits.push_back({inside, "handle", {std::to_string(*m.selected), std::to_string(corner)}});
             }
         }
     }
-    // The notice takes the last two rows when it needs them: a host's answer is often long.
-    auto notice = m.notice, rest = std::string();
-    if (static_cast<std::int64_t>(notice.size()) > columns) {
-        auto cut = notice.rfind(' ', static_cast<std::size_t>(columns));
-        if (cut == std::string::npos || cut == 0) cut = static_cast<std::size_t>(columns);
-        rest = notice.substr(cut + (notice[cut] == ' ' ? 1 : 0));
-        notice.resize(cut);
-    }
-    const auto status = rest.empty() ? rows - 2 : rows - 3;
-    put(0, status, m.description.name + (m.running ? " / running" : " / stopped") +
-                       (m.path.empty() ? std::string() : " / " + m.path), ink::kMuted);
-    put(0, status + 1, notice, ink::kAccent);
-    if (!rest.empty()) put(0, rows - 1, rest, ink::kAccent);
+
+    // The status, then the notice on the last two rows: a host's answer is often long.
+    put(0, status, d.name + (m.running ? " / running" : " / stopped") + (m.path.empty() ? std::string() : " / " + m.path),
+        ink::kMuted);
+    const auto notice = view::wrap(m.notice, columns, 2);
+    for (std::size_t i = 0; i < notice.size(); ++i)
+        put(0, status + 1 + static_cast<std::int64_t>(i), notice[i], ink::kAccent);
+    // Rectangles a room cannot hold are dropped: a picture is admitted whole or not at all.
+    std::erase_if(out.content.rects, [](const auto& r) { return r.w <= 0 || r.h <= 0; });
     return out;
 }
 

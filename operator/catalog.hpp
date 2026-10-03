@@ -385,7 +385,7 @@ private:
 
         for (std::size_t i = 0; i < graph.nodes.size(); ++i) {
             const Node& node = graph.nodes[i];
-            const std::string at = "'" + def.identity() + "' step " + std::to_string(i) + ": ";
+            const std::string at = place_in("'" + def.identity() + "'", i, node_title(node)) + ": ";
             const OperatorDef* step = find(node.identity);
             if (step == nullptr) {
                 return Evaluation::refuse(at + "unresolved operator reference '" + node.identity +

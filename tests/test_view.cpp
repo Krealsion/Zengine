@@ -366,8 +366,9 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     rig.fill("tally.panel", d.elements[2], "0");
     rig.press("tally.panel", d.elements[3]);
     CHECK(rig.total() == 45);
-    CHECK(has(rig.said("tally.panel"), "refused: "));
-    CHECK(has(rig.said("tally.panel"), "a step of 0 never moves the count from 0 toward 10"));
+    // The owner's whole sentence, which names where it happened as its weaver composed it.
+    CHECK(has(rig.said("tally.panel"), "refused: tally on tally.panel.Count at %0 fold math.add: "
+                                       "a step of 0 never moves the count from 0 toward 10"));
     CHECK(has(rig.words("tally.panel"), "Total: 45|"));
     const auto* picture = rig.latest("tally.panel");
     REQUIRE(picture != nullptr);
@@ -392,7 +393,7 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     // notice rows, floored to cells.
     const auto [rows, columns] = view::preferred_size(d);
     view::Presentation refusal;
-    refusal.notice = "refused: 'tally.r1.on.tally.panel.Count' step 0: a step of 0 never moves the count from 0 toward 10";
+    refusal.notice = "refused: tally on tally.panel.Count at %0 fold math.add: a step of 0 never moves the count from 0 toward 10";
     refusal.alert = true;
     const ws::PaneCanvasRoom asked{view::kPane, 9, 48 * columns, 48 * rows, 48, false, 0, 0};
     std::string notice;
@@ -400,6 +401,36 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
         if (t.role == zengine::surface::role::kAlert) notice += t.text + " ";
     CHECK(has(notice, "from 0 toward 10"));
     CHECK_FALSE(has(notice, "..."));
+}
+
+TEST_CASE("a refusal reaches the notice row only when Loom attests it answers the view's own intent; another participant's at that intent's correlation does not") {
+    Rig rig;
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).ok);
+    const auto id = rig.bus.role_holder("tally.panel");
+    auto heard = std::make_unique<Listener>(std::vector{hwfix::count_schema()});
+    auto* bystander = heard.get();
+    const auto other = rig.bus.register_weave(std::move(heard), loom::Grant{}.allow_any());
+    rig.room("tally.panel");
+    const auto d = panel();
+    rig.press("tally.panel", d.elements[3]);
+    REQUIRE(rig.total() == 45);
+    REQUIRE(bystander->heard.size() == 1);
+    const auto said = bystander->heard[0].correlation;
+    REQUIRE(said != 0);
+
+    // The correlation names the intent; it authenticates nothing. Said to the view by ordinary
+    // send, a refusal under it is not the answer to the view's delivery, and is not shown.
+    (void)rig.bus.send_as(other, id, loom::Message(loom::to_value(loom::Refused{"another says no"}), other, {}, said));
+    rig.pump();
+    rig.room("tally.panel");
+    CHECK_FALSE(has(rig.said("tally.panel"), "another says no"));
+    CHECK(has(rig.words("tally.panel"), "Total: 45|"));
+
+    // The tally's own refusal is Loom's answer to the view's intent, and is shown.
+    rig.fill("tally.panel", d.elements[2], "0");
+    rig.press("tally.panel", d.elements[3]);
+    CHECK(has(rig.said("tally.panel"), "refused: tally on tally.panel.Count at %0 fold math.add: "
+                                       "a step of 0 never moves the count from 0 toward 10"));
 }
 
 TEST_CASE("a label or place change at the same shapes reaches the running view in place; a change of shapes registers afresh and says so") {
@@ -440,6 +471,75 @@ TEST_CASE("a label or place change at the same shapes reaches the running view i
     const auto words = rig.words("tally.panel");
     CHECK(has(words, "Sum: 6|"));
     CHECK(has(words, "limit: 4|"));
+}
+
+TEST_CASE("a replacement that cannot register leaves the running view and its session as they were and says why; a rename at the bound takes the place of the view it renames") {
+    Rig rig;
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel(false))}).ok);
+    const auto first = rig.bus.role_holder("tally.panel");
+    rig.room("tally.panel");
+    const auto d = panel();
+
+    // The intent changed at the same name and version, which the tally still means otherwise:
+    // Loom refuses the successor, and the running view goes on as it was.
+    auto narrower = panel(true);
+    auto fewer = shape::make(shape::qualified("tally.panel", "Count"));
+    for (const char* f : {"start", "limit"})
+        fewer = shape::with_field(*fewer, f, loom::type_of(loom::Kind::Int), true);
+    narrower.intents[0].shape = fewer;
+    narrower.intents[0].fields.pop_back();
+    const auto conflict = rig.ask(view::ViewApply{"builder", bytes_of(narrower)});
+    CHECK_FALSE(conflict.ok);
+    CHECK(conflict.action == "apply");
+    CHECK(has(conflict.reason, "'tally.panel.Count' v1 is already published with a different shape"));
+    CHECK(rig.bus.role_holder("tally.panel") == first);
+    REQUIRE(rig.views.view(first.value) != nullptr);
+    rig.fill("tally.panel", d.elements[1], "4");
+    rig.press("tally.panel", d.elements[3]);
+    CHECK(rig.total() == 6);
+
+    // Renamed into a name whose intent another participant means otherwise: the same, and the
+    // view keeps its office and its picture.
+    (void)rig.bus.register_weave(std::make_unique<Listener>(std::vector{
+                                     loom::SchemaBuilder("tally.other.Count", 1).field("n", loom::Kind::Text).build()}),
+                                 loom::Grant{});
+    auto other = panel(false);
+    other.name = "tally.other";
+    other.intents[0].shape = shape::make(shape::qualified("tally.other", "Count"), count_shape()->fields());
+    const auto clash = rig.ask(view::ViewApply{"builder", bytes_of(other)});
+    CHECK_FALSE(clash.ok);
+    CHECK(has(clash.reason, "'tally.other.Count' v1 is already published with a different shape"));
+    CHECK(rig.bus.role_holder("tally.panel") == first);
+    CHECK_FALSE(rig.bus.role_holder("tally.other").valid());
+    CHECK(has(rig.words("tally.panel"), "limit: 4|"));
+    CHECK_FALSE(has(rig.said("tally.panel"), "renamed"));
+
+    // AT THE BOUND a rename takes the place of the view it renames: the count stays where it was.
+    for (std::size_t n = 1; n < view::kMaxViews; ++n) {
+        auto another = panel();
+        another.name = "panel" + std::to_string(n);
+        another.intents.clear();
+        REQUIRE(rig.ask(view::ViewRun{"s" + std::to_string(n), bytes_of(another)}).ok);
+    }
+    auto renamed = panel(false);
+    renamed.name = "tally.renamed";
+    renamed.intents[0].shape = shape::make(shape::qualified("tally.renamed", "Count"), count_shape()->fields());
+    const auto moved = rig.ask(view::ViewApply{"builder", bytes_of(renamed)});
+    REQUIRE_MESSAGE(moved.ok, moved.reason);
+    CHECK(moved.fresh);
+    CHECK(moved.office == "tally.renamed");
+    CHECK(rig.bus.role_holder("tally.renamed").valid());
+    CHECK_FALSE(rig.bus.role_holder("tally.panel").valid());
+    CHECK(rig.views.view(first.value) == nullptr);
+    auto extra = panel();
+    extra.name = "panel.extra";
+    extra.intents.clear();
+    CHECK(has(rig.ask(view::ViewRun{"extra", bytes_of(extra)}).reason,
+              "already runs " + std::to_string(view::kMaxViews) + " views"));
+    // ...and the session names the view it runs.
+    const auto stop = rig.ask(view::ViewStop{"builder"});
+    REQUIRE_MESSAGE(stop.ok, stop.reason);
+    CHECK(stop.office == "tally.renamed");
 }
 
 TEST_CASE("a stopped view leaves a picture that says it stopped, and its office is released after it") {

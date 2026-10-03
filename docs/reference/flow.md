@@ -39,7 +39,11 @@ starts at version 1, a field's name must be new and nonempty, and a type is spel
 `Bool`, `Float`, `Text`, `Bytes`, `List:<type>` or `Message:<saved draft>`. `GraphDraft`, the
 pane's messages and the workbench's `accept` and `publish` declare through it, and the
 View Builder makes a view's intent through it, so a shape keeps the
-same rules wherever it is authored. It edits shapes, never values.
+same rules wherever it is authored. It edits shapes, never values. A shape carried out of a pane
+is `shape::carried(shape)`: a `zengine.flow.CarriedShape` holding the shape (`shape`) and every
+shape it nests (`referenced`, in post-order), each a `zen.SchemaDesc`. `shape::described(value)` reads one back with those shapes and nothing
+else, and reads a bare `zen.SchemaDesc` of a shape that nests nothing; a description naming a
+shape it does not carry is refused in Loom's words.
 
 `flow/workspace.hpp` provides `Workspace`, its byte codecs and explicit file save/open
 functions. A workspace retains a project, node positions, viewport, reusable examples

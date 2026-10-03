@@ -7,7 +7,7 @@
 // whom to believe, and the door's rows are shown as it answered them, never matched again here.
 #include "flow-pane/model.hpp"
 #include "workshop/powers_vocabulary.hpp"
-#include <zen/kernel/schema_codec.hpp> // a dropped `zen.SchemaDesc` names the shape it describes
+#include "flow/shape.hpp" // a dropped description names the shape it describes
 #include <zen/registry.hpp>
 #include <zen/terminal/composer.hpp> // `describe_schema`: Loom's one spelling of a type
 #include <algorithm>
@@ -19,12 +19,8 @@
 
 namespace zengine::flow_pane {
 
-/// A node as the graph shows it: its operator, or the fold and what it spends.
-inline std::string node_title(const op::Node& node) {
-    if (!node.fold) return node.identity;
-    if (node.identity.empty()) return "fold";
-    return "fold " + node.identity;
-}
+/// A node's words are the operator package's, so a refusal names a node as this graph shows it.
+using op::node_title;
 
 /// A fold's body slot as its node shows it: the choice still to make, or which ports its body
 /// threads the count and the accumulator through.
@@ -180,16 +176,50 @@ struct DropOffer {
     std::vector<std::string> args;
 };
 
-/// The shape a dropped value offers to declare: a `zen.SchemaDesc`'s described shape, or else the
-/// value's own; none when a description names shapes it does not carry.
+/// The shape a dropped value offers to declare: a description's shape, decoded with the shapes it
+/// carries (`flow::shape::described`), or else the value's own; none when a description names
+/// shapes it does not carry.
 inline std::shared_ptr<const loom::Schema> dropped_shape(const loom::Value& value) {
-    if (!loom::same_identity(value.schema(), *loom::schema_desc_schema())) return value.schema_ptr();
+    if (!flow::shape::is_description(value)) return value.schema_ptr();
     try {
-        loom::Registry none;
-        return loom::decode_schema(value, none);
+        return flow::shape::described(value);
     } catch (const std::exception&) {
         return nullptr;
     }
+}
+
+/// WHAT A DROPPED VALUE IS, as its page names it: a carried shape by the shape it holds and every
+/// shape that one nests, with each field's type, never by the message it travels in; anything
+/// else by its own shape and fields. `why` says, in Loom's words, why a description names no
+/// shape here; it is empty otherwise.
+struct DroppedSummary {
+    std::string title;
+    std::vector<std::string> rows;
+    std::string why;
+};
+inline DroppedSummary summarize_drop(const loom::Value& value) {
+    DroppedSummary out;
+    const auto version = [](const loom::Schema& s) { return s.name() + " v" + std::to_string(s.version()); };
+    const bool carried = loom::same_identity(value.schema(), *flow::shape::carried_shape_schema());
+    if (!carried) {
+        out.title = "Dropped " + version(value.schema());
+        for (const auto& row : message_draft::Draft(value).rows()) out.rows.push_back(row.label + " = " + row.summary);
+    }
+    if (!flow::shape::is_description(value)) return out;
+    try {
+        const auto shape = flow::shape::described(value);
+        if (!carried) return out;
+        std::vector<std::shared_ptr<const loom::Schema>> nested;
+        loom::collect_referenced(*shape, nested);
+        out.title = "Dropped the shape " + version(*shape);
+        for (std::size_t i = 0; i < nested.size(); ++i) out.title += (i == 0 ? ", nesting " : ", ") + version(*nested[i]);
+        const auto spelled = loom::describe_schema(*shape).fields;
+        for (std::size_t i = 0; i < spelled.size(); ++i) out.rows.push_back(shape->fields()[i].name + ": " + spelled[i].type);
+    } catch (const std::exception& e) {
+        if (carried) out.title = "Dropped a carried shape";
+        out.why = e.what();
+    }
+    return out;
 }
 
 /// WHAT A DROPPED VALUE CAN BE HERE, in the order a maker reaches for it: an example to send when
@@ -202,7 +232,7 @@ inline std::vector<DropOffer> drop_offers(const Model& m) {
     if (!m.dropped) return out;
     const auto& value = m.dropped->value;
     const auto& def = m.workspace.graph.project.definition;
-    const bool description = loom::same_identity(value.schema(), *loom::schema_desc_schema());
+    const bool description = flow::shape::is_description(value);
     if (!description) {
         for (const auto& accepted : def.accepts)
             if (loom::same_identity(*accepted, value.schema())) {

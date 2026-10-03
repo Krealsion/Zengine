@@ -36,7 +36,7 @@ asks it, as its office or as itself:
 | ask | answer |
 |---|---|
 | `ViewRun{session, description}` | registers the view as a participant of its own, holding its name as its office, and tells it to offer its pane |
-| `ViewApply{session, description}` | the same name and shapes: adopted in place, the field text, focus and told values kept. Any other change: registered afresh, and `fresh` says so |
+| `ViewApply{session, description}` | the same name and shapes: adopted in place, the field text, focus and told values kept. Any other change: registered afresh, and `fresh` says so. The successor registers while the running view still runs, which retires only once it stands; a successor Loom refuses (a changed intent at the same name and version, say) changes nothing, and the answer says why. A rename counts as one view against `view::kMaxViews` |
 | `ViewStop{session}` | the view's last picture says it stopped, then the participant is unregistered; Workshop, seeing its provider gone, then shows the pane waiting for one |
 
 `ViewAnswer{session, action, ok, reason, office, fresh}` is the one answer. A session belongs to
@@ -62,6 +62,11 @@ and the pane conversation; it emits its intents and that conversation.
   field; a field holding no whole number is said on the notice row and nothing is published.
   Publication is by shape: every participant accepting the intent hears it.
 - Until a shape it shows has been told, its labels say `waiting` and so does its notice. A
-  `zen.Refused` answering one of its own intents is shown on its notice row; what it was told
-  stays as it was.
+  `zen.Refused` that Loom attests answers one of its own intents (`answers_ask()`, with that
+  intent's correlation) is shown on its notice row; what it was told stays as it was. Anyone
+  else's refusal, whatever correlation it carries, is not.
 - A prose room, from a host with no canvas, gets one row saying the view needs a canvas.
+
+`view::picture(description, told, presentation, room, number)` is the one drawing of a view and
+is pure. The View Builder draws its design canvas with it too, in a room the design area's size,
+so a view is designed in the very picture it runs in, at its own pixels.

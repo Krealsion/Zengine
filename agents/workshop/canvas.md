@@ -77,8 +77,45 @@ value released on Flow's canvas before its carry is answered names the picture i
 on, though Flow repainted meanwhile".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
+## WL-CANVAS-05 — A canvas press may carry a value out
+
+LAW — A primary canvas press is its provider's to continue as a prose press is: under its number the provider may carry a value out, and once the carry begins the press's hold ends as lost.
+
+MEANS
+- the press's number approves one acquisition, and the press begins a value drag;
+- motion and the release after the carry begins are the carry's, never the canvas's;
+- a release before the carry is retained, as for a prose drag; an unmoved click carries nothing.
+
+PROVEN BY — `workshop/weave_canvas.cpp` `canvas_press`; `workshop/weave_pointer.cpp`
+`on(PointerButton)`; `workshop/weave_operation.cpp` `accept_carry`, `begin_value_drag`;
+`flow-pane/pane.cpp` `carry`; `tests/test_workshop_inventory_info.cpp` case "a press on a canvas
+pane drags a value out as a prose press does: the hold ends as lost when the carry begins, the
+value lands where the hand lets go, and a click carries nothing"; `tests/test_flow_pane.cpp` case
+"a press on a declared message asks under that press to drag its shape out, and still opens it; a
+right press on a found operator is handed back".
+WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
+
+## WL-CANVAS-06 — A canvas hears where the pointer rests
+
+LAW — A provider that accepts `PaneCanvasHover` is told where a pointer holding no button rests on its canvas, and once when it leaves; resting moves no selection, focus, key or gesture.
+
+MEANS
+- the canvas on top under the pointer, from geometry Workshop holds, once per local place;
+- a leave when the pointer moves off its body, a mode, menu or sweep takes it, or a press begins;
+- a carried value over a canvas is told with `carrying`; a fresh room puts the hover down unsaid.
+
+PROVEN BY — `workshop/pane_canvas_vocabulary.hpp` `PaneCanvasHover`; `workshop/weave_canvas.cpp`
+`canvas_hover`, `leave_canvas_hover`, `refresh_canvas_rooms`; `workshop/weave_pointer.cpp`
+`on(PointerMoved)`, `on(PointerButton)`; `tests/test_workshop_panes_canvas.cpp` case "a canvas
+that accepts the hover door hears where the pointer rests and that it left; resting selects,
+focuses and presses nothing", case "a described view offers its own pane through the view host,
+Workshop seats and draws it, a press reaches it, and a stop leaves a picture that says so".
+WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
+
 ## Do not assume
 
 - That a picture fence proves physical presentation time; it orders Loom deliveries.
 - That a reloaded provider may retain grants: it must wait for its fresh room before input.
 - That a pointer gesture means any particular edit; only the provider knows its content.
+- That a window reports the pointer leaving it: a hover over a canvas the pointer left through
+  the window's edge stays until the next motion inside the window.

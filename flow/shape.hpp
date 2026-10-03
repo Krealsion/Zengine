@@ -6,10 +6,14 @@
 // The one model of an authored message shape: how a weaver names a message, adds a field and
 // spells a field's type. Flow's graph draft and workbench declare messages through it, and the
 // View Builder makes a view's intent through it, so a shape keeps these rules wherever it is
-// authored. It edits no value; values are `message_draft::Draft`'s. Reference: docs/reference/flow.md.
+// authored. It edits no value; values are `message_draft::Draft`'s. A shape carried out of a pane
+// travels as a `zengine.flow.CarriedShape` with the shapes it nests (`carried`, `described`).
+// Reference: docs/reference/flow.md.
 
 #include "message-draft/library.hpp"
 
+#include <zen/kernel/schema_codec.hpp>
+#include <zen/registry.hpp>
 #include <zen/schema.hpp>
 
 #include <memory>
@@ -96,6 +100,49 @@ inline loom::TypeRef type_named(std::string_view spelling,
         --lists;
     }
     return result;
+}
+
+/// THE MESSAGE A SHAPE IS CARRIED IN out of a pane: the shape, and every shape it nests listed
+/// before it in post-order, each a `zen.SchemaDesc`, so a reader needs nothing but this value.
+inline std::shared_ptr<const loom::Schema> carried_shape_schema() {
+    static const auto s =
+        loom::SchemaBuilder("zengine.flow.CarriedShape", 1)
+            .list("referenced", loom::type_message(loom::schema_desc_schema()), /*required=*/false)
+            .message("shape", loom::schema_desc_schema())
+            .build();
+    return s;
+}
+
+/// A shape carried out of a pane: a `zengine.flow.CarriedShape` holding it and what it nests.
+inline loom::Value carried(const std::shared_ptr<const loom::Schema>& shape) {
+    std::vector<std::shared_ptr<const loom::Schema>> nested;
+    loom::collect_referenced(*shape, nested);
+    loom::Value v(carried_shape_schema());
+    if (!nested.empty()) {
+        loom::Cell::Array cells;
+        for (const auto& s : nested) cells.push_back(loom::Cell::message(loom::encode_schema(*s)));
+        v.set("referenced", loom::Cell::list(std::move(cells)));
+    }
+    v.set("shape", loom::Cell::message(loom::encode_schema(*shape)));
+    return v;
+}
+
+/// Is `value` a description of a shape: a carried shape, or a bare `zen.SchemaDesc`?
+inline bool is_description(const loom::Value& value) {
+    return loom::same_identity(value.schema(), *carried_shape_schema()) ||
+           loom::same_identity(value.schema(), *loom::schema_desc_schema());
+}
+
+/// THE SHAPE A DESCRIPTION NAMES, decoded with the shapes it carries and nothing else: never a
+/// reader's registry or a live catalog. A bare `zen.SchemaDesc` carries nothing beside it, so it
+/// resolves only a shape that nests nothing. Throws, in Loom's words, when it names a shape it
+/// does not carry.
+inline std::shared_ptr<const loom::Schema> described(const loom::Value& value) {
+    loom::Registry carried_shapes;
+    if (!loom::same_identity(value.schema(), *carried_shape_schema()))
+        return loom::decode_schema(value, carried_shapes);
+    loom::decode_referenced(value, carried_shapes);
+    return loom::decode_schema(*value.get("shape")->as_message(), carried_shapes);
 }
 
 } // namespace zengine::flow::shape

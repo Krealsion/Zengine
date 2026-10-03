@@ -102,17 +102,20 @@ Flow, and Flow says what it can be here. Carrying copies data; it grants nothing
   its shape and the participant is running; **Use field = value on %n port** for each field of
   the port's kind when it landed on an `Int` or `Bool` port; **Declare ... as an accepted
   message** when no message of its name is declared, and **as an emitted message** when its name
-  is inside the definition's namespace. A dropped shape description (`zen.SchemaDesc`) offers the
-  declarations of the shape it describes. A declared shape is the one that came -- its name,
+  is inside the definition's namespace. A dropped shape description -- a carried shape, which
+  holds the shapes it nests and is what Flow and the View Builder carry, or a bare
+  `zen.SchemaDesc` -- offers the declarations of the shape it describes; a carried shape's page
+  names that shape, what it nests and each field's type. A description naming a shape it does
+  not carry offers no declaration, and its page says why in Loom's words (`Not declarable: ...`). A declared shape is the one that came -- its name,
   version and fields -- so values of it match it exactly. **Cancel** or **Escape** puts it down,
   and so do **New**, **Open** and **Import**, since its offers belong to the graph it landed on.
 
 ![A dropped tally.panel.Count example: send it as an example, or declare its shape as emitted](images/flow-dropped-example.png)
 
-**Carry a shape out of Flow.** In **Messages**, right-press a declared message -- an accepted one,
-or one under **Emitted** -- and choose **Carry**, then click the pane it goes to. What travels is
-the message's shape, as a description: the [View Builder](view-builder.md) takes it onto a label
-as what that label shows.
+**Carry a shape out of Flow.** In **Messages**, drag a declared message -- an accepted one, or
+one under **Emitted** -- and let go over the pane it goes to; or right-press it, choose **Carry**,
+then click that pane. What travels is the message's shape, as a description: the
+[View Builder](view-builder.md) takes it onto a label as what that label shows.
 
 ## Say what changed: emits
 
