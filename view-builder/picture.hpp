@@ -238,6 +238,14 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
     col = button(col, 0, "Apply", "apply");
     button(col, 0, "Stop", "stop");
 
+    // WORDS BEFORE A CONTROL give way to it: cut to `fit` columns, ending `...`, so the control
+    // after them is drawn whole inside its column, where it can be pressed.
+    const auto giving_way = [](std::string words, std::int64_t fit) {
+        const auto keep = static_cast<std::size_t>(std::max<std::int64_t>(0, fit));
+        if (words.size() <= keep) return words;
+        return keep <= 3 ? words.substr(0, keep) : words.substr(0, keep - 3) + "...";
+    };
+
     // THE SELECTED ELEMENT'S VALUES, from column `at` and `width` columns wide, from `row` down:
     // the rows they took.
     const auto values = [&](std::int64_t at, std::int64_t width, std::int64_t row) {
@@ -245,8 +253,9 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         const auto i = *m.selected;
         const auto index = std::to_string(i);
         const auto& e = d.elements[i];
-        col = at + put(at, row, e.id + " (" + view::kind_word(e.kind) + ") ", ink::kAccent);
-        button(col, row, "Remove", "remove", {index});
+        const auto head = giving_way(e.id + " (" + view::kind_word(e.kind) + ")", width - 9);
+        put(at, row, head + " ", ink::kAccent);
+        button(at + static_cast<std::int64_t>(head.size()) + 1, row, "Remove", "remove", {index});
         ++row;
         const auto fields = element_fields(e);
         for (const auto* name : {"id", "label", "text"}) {
@@ -282,9 +291,11 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
                     button(at, row++, "More", "choices", {std::to_string(next)});
                 }
             } else if (const auto* s = d.shown(e.id)) {
-                col = put(at, row, "shows " + s->shape->name() + "." + s->field + " ");
-                button(at + col, row, "Unshow", "unshow", {index});
-                press(at, row, col, "shows", {index});
+                const auto bound = giving_way("shows " + s->shape->name() + "." + s->field, width - 9);
+                const auto said = static_cast<std::int64_t>(bound.size());
+                put(at, row, bound + " ");
+                button(at + said + 1, row, "Unshow", "unshow", {index});
+                press(at, row, said, "shows", {index});
                 ++row;
             } else {
                 put(at, row, "shows nothing: drag a shape here", ink::kMuted);
@@ -295,11 +306,14 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
             if (const auto* intent = d.intent(e.id)) {
                 // WHAT IT SAYS: its words are the handle a drag carries its shape out by, and a
                 // right press offers to carry it; the name after them is a value in a box.
-                const auto says = "says " + d.name + ".";
+                const auto whole = "says " + d.name + ".";
+                const auto boxed = std::max<std::int64_t>(std::min<std::int64_t>(12, width - 2),
+                                                          width - static_cast<std::int64_t>(whole.size()) - 2);
+                const auto says = giving_way(whole, width - boxed - 2);
                 const auto said = static_cast<std::int64_t>(says.size());
                 put(at, row, says, ink::kAccent);
                 press(at, row, said, "says", {index});
-                box(at + said + 1, row, std::max<std::int64_t>(4, width - said - 2), "intent", i, intent_name(d, *intent));
+                box(at + said + 1, row, boxed, "intent", i, intent_name(d, *intent));
                 ++row;
                 std::string carried;
                 for (const auto& f : intent->shape->fields())

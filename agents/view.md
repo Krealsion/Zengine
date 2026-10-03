@@ -61,7 +61,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   row, as what that label shows, a description read with the shapes it carries alone
   (`flow::shape::described`); dropped on no label it is refused in words, whatever is selected.
   A shape of several fields it could show is a choice of every one: buttons wrapped within the
-  values column (`view_builder::lay_choices`), and More where the rows cannot hold them.
+  values column (`view_builder::lay_choices`), and More where the rows cannot hold them. A
+  control in the values column (Remove, Unshow, an intent's box) is drawn whole inside it: the
+  words before it give way, cut to end in `...`.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
   refusal, in-place and fresh apply, a replacement that cannot register, stop, and the terminal
   picture; `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the boxes,

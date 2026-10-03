@@ -876,6 +876,59 @@ TEST_CASE("a carried description brings the shapes it nests: a label binds a fie
     CHECK(loom::same_identity(*roots[0], *hwfix::count_schema()));
 }
 
+TEST_CASE("a control in the values column is drawn whole inside it whatever the words before it: Unshow, Remove and the intent's box") {
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    const auto metrics = ws::canvas_text_metrics(window_room());
+    // Is exactly `words` drawn, whole, right of the design area and inside the room -- on the row
+    // of `beside` when it is named?
+    const auto whole = [&](const std::string& words, const ws::PaneCanvasText* beside = nullptr) -> const ws::PaneCanvasText* {
+        const auto area = rig.design();
+        for (const auto& t : rig.picture().texts)
+            if (t.text == words && t.x >= area.x + area.w && (!beside || t.y == beside->y) &&
+                t.x + static_cast<std::int64_t>(words.size()) * metrics.advance <= window_room().width)
+                return &t;
+        return nullptr;
+    };
+    std::int64_t gesture = 80;
+    const auto press = [&](const ws::PaneCanvasText& t) {
+        rig.pointer(ws::canvas_pointer::kPress, t.x + 8, t.y + 8, ++gesture);
+        rig.pointer(ws::canvas_pointer::kRelease, t.x + 8, t.y + 8, gesture);
+    };
+
+    // UNSHOW after a long binding.
+    REQUIRE(rig.edit("select", {"4"}).ok);
+    const auto wide = loom::SchemaBuilder("tally.Wide", 1).field("the_running_total_so_far", loom::Kind::Int).build();
+    rig.drop(loom::encode_schema(*wide), "> total  label");
+    REQUIRE(rig.now().shows.size() == 1);
+    const auto* unshow = whole("[Unshow]");
+    REQUIRE(unshow != nullptr);
+    press(*unshow);
+    CHECK(rig.now().shows.empty());
+
+    // REMOVE after the longest id.
+    REQUIRE(rig.edit("set", {"4", "id", "the_label_that_shows_the_total_0"}).ok);
+    const auto* remove = whole("[Remove]");
+    REQUIRE(remove != nullptr);
+    press(*remove);
+    CHECK(rig.now().elements.size() == 4);
+
+    // THE INTENT'S BOX after `says` and the longest view name: pressed, typed into, kept.
+    REQUIRE(rig.edit("rename", {"tally.panel.with.the.longest.nm"}).ok);
+    REQUIRE(rig.edit("select", {"3"}).ok);
+    const auto* says = rig.text("says ");
+    REQUIRE(says != nullptr);
+    const auto* box = whole("Count", says);
+    REQUIRE(box != nullptr);
+    press(*box);
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
+    rig.host(ws::PaneTextInput{vb::kPane, "Sum"});
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+    const auto d = rig.now();
+    REQUIRE(d.intents.size() == 1);
+    CHECK(d.intents[0].shape->name() == "tally.panel.with.the.longest.nm.Sum");
+}
+
 TEST_CASE("a press on what a button says asks under that press to drag its intent's shape out") {
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
