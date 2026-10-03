@@ -200,6 +200,21 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(inside >= 1); // Total, and the view's last row
         for (const auto& t : pic.content.texts)
             CHECK_FALSE((t.text.rfind("start", 0) == 0 && t.x >= area.x)); // panned past: never drawn
+        // An element across the area's right edge is cut there: nothing of the view crosses it.
+        auto across = wide;
+        across.command("element", {"0", "start", "start", std::to_string(480 + sp::floor_div_px(area.w, sp::kPixelGrainSubs) - 50),
+                                   "320", "144", "24", "0"});
+        vb::Presentation same;
+        same.pan_x = 480;
+        same.pan_y = 300;
+        const auto cut = vb::picture(across, same, room, 5);
+        const auto right = area.x + area.w;
+        CHECK(std::none_of(cut.content.rects.begin(), cut.content.rects.end(), [&](const auto& r) {
+            return r.x >= area.x && r.x < right && r.x + r.w > right;
+        }));
+        CHECK(std::any_of(cut.content.rects.begin(), cut.content.rects.end(), [&](const auto& r) {
+            return r.role == zengine::surface::role::kMuted && r.x == right - sp::subs_of_pixel(50) && r.x + r.w == right;
+        }));
         // A pan past its reach is held to it: the farthest far edge, total's at 1092, at the
         // middle of the area.
         panned.pan_x = 9000;
