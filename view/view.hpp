@@ -120,9 +120,6 @@ inline std::string waiting_sentence(const Description& d, const Told& told) {
     return missing.empty() ? std::string() : "waiting to be told " + missing;
 }
 
-/// The most rows the notice takes from the bottom of the room.
-inline constexpr std::size_t kNoticeRows = 3;
-
 /// `text` in lines of at most `columns`, broken at spaces where it can be, at most `rows` of them;
 /// a last line that could not hold the rest ends in `...`.
 inline std::vector<std::string> wrap(std::string text, std::int64_t columns, std::size_t rows) {
@@ -154,21 +151,38 @@ inline component::TextBox field_box(const Presentation& p, const Element& e) {
     return box;
 }
 
-/// THE PICTURE: the description against what it was told, in its room. Whole pixels become
-/// subunits (`surface::subs_of_pixel`); the medium floors them to its grain, so a terminal shows
-/// the same picture in cells, and each line is fitted to what the medium measures.
+/// The notice's rows beneath a view's size, in subunits: `kNoticeRows` lines of the medium's text.
+inline std::int64_t notice_band(const ws::PaneCanvasRoom& room) {
+    const auto m = ws::canvas_text_metrics(room);
+    return static_cast<std::int64_t>(kNoticeRows) * surface::add_cells(m.line, 2 * m.inset);
+}
+
+/// The room a view is drawn in: its size and its notice rows beneath, within the room its pane
+/// was granted.
+inline ws::PaneCanvasRoom sized(const Description& d, ws::PaneCanvasRoom room) {
+    room.width = std::min(room.width, surface::subs_of_pixel(d.width));
+    room.height = std::min(room.height, surface::subs_of_pixel(d.height) + notice_band(room));
+    return room;
+}
+
+/// THE PICTURE: the description against what it was told, laid out in its size with its notice
+/// rows beneath, within its room, the rest of the room its ground. Whole
+/// pixels become subunits (`surface::subs_of_pixel`); the medium floors them to its grain, so a
+/// terminal shows the same picture in cells, and each line is fitted to what the medium measures.
 inline Picture picture(const Description& d, const Told& told, const Presentation& p,
-                       const ws::PaneCanvasRoom& room, std::int64_t number) {
+                       const ws::PaneCanvasRoom& granted, std::int64_t number) {
+    const auto room = sized(d, granted);
     Picture out;
     out.content.pane = kPane;
     out.content.grant = room.grant;
     out.content.picture = number;
     out.grain = std::max<std::int64_t>(1, room.grain);
-    out.content.rects.push_back({0, 0, room.width, room.height, ink::kGround});
+    out.content.rects.push_back({0, 0, granted.width, granted.height, ink::kGround});
     const auto metrics = ws::canvas_text_metrics(room);
     const auto line = surface::add_cells(metrics.line, 2 * metrics.inset);
-    // The notice row is the room's last rows: a long sentence, a refusal in its owner's words,
-    // goes on above rather than being cut where the room ends, as far as the elements leave room.
+    // The notice row is the room's last rows, beneath the size: a long sentence, a refusal in its
+    // owner's words, goes on above rather than being cut where the room ends, as far as the
+    // elements leave room. Only a pane smaller than the view brings it over an element.
     const auto columns = std::max<std::int64_t>(
         1, (room.width - 2 * metrics.inset) / std::max<std::int64_t>(1, metrics.advance));
     std::int64_t bottom = 0;
@@ -243,19 +257,21 @@ inline ws::PaneCanvasContent stopped_picture(const Description& d, const ws::Pan
     p.notice = d.name + " " + why;
     Description bare;
     bare.name = d.name;
+    bare.width = d.width;
+    bare.height = d.height;
     return picture(bare, {}, p, room, number).content;
 }
 
-/// The preferred size a view offers, in text rows and columns: its elements and its notice rows.
+/// The rows and columns a view asks its pane for: its size, in canvas cells of
+/// `surface::kCanvasCellPx` pixels, enough to hold it, and its notice rows beneath, never more
+/// than Workshop admits (`workshop::kMaxPaneComfort`); a view larger than its pane is drawn cut to
+/// the pane.
 inline std::pair<std::int64_t, std::int64_t> preferred_size(const Description& d) {
-    std::int64_t right = 0, bottom = 0;
-    for (const auto& e : d.elements) {
-        right = std::max(right, e.x + e.w);
-        bottom = std::max(bottom, e.y + e.h);
-    }
-    const auto cells = [](std::int64_t px) { return (px + surface::kCanvasCellPx - 1) / surface::kCanvasCellPx; };
-    return {std::clamp<std::int64_t>(cells(bottom) + static_cast<std::int64_t>(kNoticeRows) + 1, 4, 60),
-            std::clamp<std::int64_t>(cells(right) + 2, 40, 200)};
+    const auto cells = [](std::int64_t px, std::int64_t more) {
+        return std::clamp<std::int64_t>((px + surface::kCanvasCellPx - 1) / surface::kCanvasCellPx + more, 1,
+                                        ws::kMaxPaneComfort);
+    };
+    return {cells(d.height, static_cast<std::int64_t>(kNoticeRows)), cells(d.width, 0)};
 }
 
 /// The grant a description implies: each intent it says to any accepter, and the pane

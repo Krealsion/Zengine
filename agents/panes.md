@@ -872,7 +872,7 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
 ## Preferred space and demo owner operations
 
 `PaneOffered v1` is unchanged. `workshop::v2::PaneOffered` is version 2 with `rows` and
-`columns`: requested body text units, both 1..512 or zero/zero for the fallback. The first
+`columns`: requested body text units, both 1..`workshop::kMaxPaneComfort` or zero/zero for the fallback. The first
 accepted offer fixes the preference for that runtime pane identity. A later offer refreshes
 the label/summary but keeps the preference; authored geometry wins per axis. Workshop owns
 metric conversion, title/chrome allowance, fitting and stack seating. This is a preference,

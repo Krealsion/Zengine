@@ -470,9 +470,10 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
                                   const PaneOffered& offer, std::int64_t rows = 0,
                                   std::int64_t columns = 0) {
     Admission out;
-    if (rows < 0 || columns < 0 || rows > 512 || columns > 512 ||
+    if (rows < 0 || columns < 0 || rows > kMaxPaneComfort || columns > kMaxPaneComfort ||
         ((rows == 0) != (columns == 0))) {
-        out.written = Written::no("pane comfort must be 1..512 body rows and columns, or zero/zero");
+        out.written = Written::no("pane comfort must be 1.." + std::to_string(kMaxPaneComfort) +
+                                  " body rows and columns, or zero/zero");
         return out;
     }
     // The stamp is judged first, as a view, before anything owns a copy. An empty role is

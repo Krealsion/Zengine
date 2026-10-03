@@ -50,6 +50,10 @@ inline std::int64_t whole(const std::string& text, const char* what) {
     return out;
 }
 
+/// The size a new view is made at, in whole pixels: 40 cells by 20.
+inline constexpr std::int64_t kNewViewWidth = 480;
+inline constexpr std::int64_t kNewViewHeight = 240;
+
 /// The size an element of each kind is made at, in whole pixels.
 inline std::pair<std::int64_t, std::int64_t> made_size(view::Kind kind) {
     return {kind == view::Kind::number ? 144 : kind == view::Kind::button ? 96 : 192, 24};
@@ -64,7 +68,11 @@ public:
     std::optional<Choosing> choosing;
     std::size_t first_row = 0;
 
-    Model() { description.name = "my.view"; }
+    Model() {
+        description.name = "my.view";
+        description.width = kNewViewWidth;
+        description.height = kNewViewHeight;
+    }
 
     /// One edit, whole: on a refusal the model is as it was.
     Action command(const std::string& action, const std::vector<std::string>& args = {}) {
@@ -136,7 +144,7 @@ private:
         };
         const auto previous = notice;
         if (action == "describe") {
-            notice = "new(name,discard), rename(name), add(label|number|button[,x,y]), select(index), "
+            notice = "new(name,discard), rename(name), size(width,height), add(label|number|button[,x,y]), select(index), "
                      "set(index,id|label|text|x|y|w|h,value), place(index,x,y,w,h), "
                      "element(index,id,label,x,y,w,h,text), up(index), down(index), remove(index), "
                      "intent(index,name), drop-intent(index), show(index,field), unshow(index), "
@@ -149,6 +157,8 @@ private:
             if (running) throw std::invalid_argument("stop the running view before starting another");
             description = view::Description{};
             description.name = args[0];
+            description.width = kNewViewWidth;
+            description.height = kNewViewHeight;
             selected.reset();
             choosing.reset();
             path.clear();
@@ -163,6 +173,13 @@ private:
             }
             description.name = args[0];
             touched();
+        } else if (action == "size") {
+            // THE VIEW'S SIZE, in whole pixels; refused whole if an element would sit outside it.
+            need(2);
+            description.width = whole(args[0], "the view's width");
+            description.height = whole(args[1], "the view's height");
+            touched();
+            notice = "The view is " + args[0] + " by " + args[1];
         } else if (action == "add") {
             // MADE BELOW THE LAST, OR WHERE IT WAS DROPPED, in whole pixels.
             if (args.size() != 1 && args.size() != 3) throw std::invalid_argument("add expects a kind, and a place or none");
@@ -187,7 +204,7 @@ private:
             need(1);
             selected = index_of(args[0]);
             choosing.reset();
-            notice = description.elements[*selected].id + ": drag it to move it, a corner to resize it, or type its values";
+            notice = description.elements[*selected].id + ": drag it to move it, a side or a corner to resize it, or type its values";
         } else if (action == "set") {
             // ONE VALUE, TYPED INTO ITS BOX: the element keeps every other value.
             need(3);
