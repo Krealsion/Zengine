@@ -472,7 +472,6 @@ private:
         const auto threshold = std::max<std::int64_t>(room_.grain, surface::subs_of_pixel(4));
         if (!h.moved && std::abs(dx) < threshold && std::abs(dy) < threshold) return;
         h.moved = true;
-        const auto bound = [](std::int64_t v, std::int64_t low) { return std::clamp<std::int64_t>(v, low, view::kMaxPixels); };
         if (h.what == Held::What::make) {
             shown_.ghost.reset();
             shown_.met_x.reset();
@@ -509,19 +508,21 @@ private:
         const auto& b = h.before;
         vb::Place at{b.x, b.y, b.w, b.h, std::nullopt, std::nullopt};
         auto along_x = vb::Edges::both, along_y = vb::Edges::both;
+        // NOTHING SITS OUTSIDE THE VIEW: a dragged element stops at its edges.
+        const auto& d = model_.description;
         if (h.what == Held::What::move) {
-            at.x = bound(b.x + px, 0);
-            at.y = bound(b.y + py, 0);
+            at.x = std::clamp<std::int64_t>(b.x + px, 0, std::max<std::int64_t>(0, d.width - b.w));
+            at.y = std::clamp<std::int64_t>(b.y + py, 0, std::max<std::int64_t>(0, d.height - b.h));
         } else {
             const auto edges = [](int side) { return side < 0 ? vb::Edges::low : side > 0 ? vb::Edges::high : vb::Edges::none; };
             along_x = edges(h.sx);
             along_y = edges(h.sy);
-            if (h.sx > 0) at.w = bound(b.w + px, 1);
+            if (h.sx > 0) at.w = std::clamp<std::int64_t>(b.w + px, 1, std::max<std::int64_t>(1, d.width - b.x));
             if (h.sx < 0) {
                 at.x = std::clamp<std::int64_t>(b.x + px, 0, b.x + b.w - 1);
                 at.w = b.x + b.w - at.x;
             }
-            if (h.sy > 0) at.h = bound(b.h + py, 1);
+            if (h.sy > 0) at.h = std::clamp<std::int64_t>(b.h + py, 1, std::max<std::int64_t>(1, d.height - b.y));
             if (h.sy < 0) {
                 at.y = std::clamp<std::int64_t>(b.y + py, 0, b.y + b.h - 1);
                 at.h = b.y + b.h - at.y;
@@ -541,11 +542,16 @@ private:
         show(mail);
     }
 
-    /// Where a kind held over the canvas would be made: its corner under the pointer, snapped.
+    /// Where a kind held over the canvas would be made: its corner under the pointer, inside the
+    /// view, snapped.
     vb::Place made_at(const Held& h, const ws::PaneCanvasPointer& event) const {
         const auto [w, height] = vb::made_size(h.kind);
-        const auto at = [](std::int64_t subs) { return std::clamp<std::int64_t>(pixels(subs), 0, view::kMaxPixels); };
-        const vb::Place under{at(event.x - h.placed.x), at(event.y - h.placed.y), w, height, std::nullopt, std::nullopt};
+        const auto& d = model_.description;
+        const auto at = [](std::int64_t subs, std::int64_t most) {
+            return std::clamp<std::int64_t>(pixels(subs), 0, std::max<std::int64_t>(0, most));
+        };
+        const vb::Place under{at(event.x - h.placed.x, d.width - w), at(event.y - h.placed.y, d.height - height), w,
+                              height, std::nullopt, std::nullopt};
         return vb::snap(model_.description, std::nullopt, under, vb::Edges::both, vb::Edges::both);
     }
 
@@ -607,7 +613,8 @@ private:
         show(mail);
     }
 
-    /// Arrow keys move the selected element a pixel, or a cell with Shift.
+    /// Arrow keys move the selected element a pixel, or a cell with Shift; one that would cross
+    /// the view's edge is refused in words.
     bool nudge(const ws::PaneKey& key) {
         const std::int64_t step = (key.modifiers & input::mod::kShift) != 0 ? surface::kCanvasCellPx : 1;
         std::int64_t dx = 0, dy = 0;
@@ -618,9 +625,8 @@ private:
         else return false;
         const auto& e = model_.description.elements.at(*model_.selected);
         try {
-            model_.command("place", {std::to_string(*model_.selected), std::to_string(std::max<std::int64_t>(0, e.x + dx)),
-                                     std::to_string(std::max<std::int64_t>(0, e.y + dy)), std::to_string(e.w),
-                                     std::to_string(e.h)});
+            model_.command("place", {std::to_string(*model_.selected), std::to_string(e.x + dx), std::to_string(e.y + dy),
+                                     std::to_string(e.w), std::to_string(e.h)});
         } catch (const std::exception& error) {
             model_.notice = error.what();
         }
