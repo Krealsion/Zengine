@@ -631,6 +631,7 @@ TEST_CASE("the pointer resting on an element marks it and its row; a carried val
     std::tie(x, y) = rig.middle(d.elements[1]);
     rig.hover(x, y, true, true);
     CHECK_FALSE(rig.marked(ink::kAccent, total, 2 * thin));
+    CHECK_FALSE(rig.marked(ink::kAccent, vb::element_area(rig.design(), d.elements[1]), 2 * thin));
     // LEAVING puts every mark down.
     std::tie(x, y) = rig.middle(d.elements[0]);
     rig.hover(x, y);

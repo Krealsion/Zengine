@@ -200,7 +200,7 @@ bool WorkshopWeave::canvas_motion(const input::PointerMoved& m, loom::Mail& mail
 }
 
 // THE POINTER RESTING OVER A CANVAS: the canvas body on top under it, read from the geometry this
-// host holds, told to a holder that accepts the hover door, and once only per place and picture.
+// host holds, told to a holder that accepts the hover door, and once per place.
 // The canvas it left is told so first. A mode, a menu or a room the pointer is not over is none.
 void WorkshopWeave::canvas_hover(const input::PointerMoved& m, loom::Mail& mail) {
     std::int64_t kind = kNoPaneKind;
