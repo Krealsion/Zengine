@@ -120,8 +120,9 @@ inline std::string clean(std::string text) {
 
 /// THE PICTURE. Words sit in text rows and columns at the medium's measured advance and padded
 /// line height; the design area begins on a cell boundary, so the view's own picture, moved
-/// there whole, keeps its lattice in a window and in a terminal alike.
-inline Picture picture(const Model& m, const Presentation& p, const ws::PaneCanvasRoom& room, std::int64_t number) {
+/// there whole, keeps its lattice in a window and in a terminal alike. The box being typed into
+/// keeps its caret in view at the width it is drawn, in `p` itself: a press reads that scroll.
+inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom& room, std::int64_t number) {
     Picture out;
     out.content.pane = kPane;
     out.content.grant = room.grant;
@@ -188,7 +189,7 @@ inline Picture picture(const Model& m, const Presentation& p, const ws::PaneCanv
         std::string shown = value;
         std::int64_t caret = surface::kNoCaret;
         if (typing) {
-            auto text = p.box->text;
+            auto& text = p.box->text;
             text.keep_caret_visible(width);
             shown = text.visible(width);
             caret = static_cast<std::int64_t>(text.caret_column());

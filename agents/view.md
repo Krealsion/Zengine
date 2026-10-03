@@ -48,9 +48,11 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   `view_builder::Model`, every edit whole or refused whole, and asks the host to run, apply and
   stop one session of its office. By hand: a kind dragged from its palette is made where it is
   let go (`add` at a place), an element dragged moves and a corner handle resizes it (`place`),
-  in whole pixels; a value is typed into its box (`set`). A release keeps a drag's edit and a
-  lost press puts back what it moved. The pointer resting on an element marks it
-  (`PaneCanvasHover`), and a carried value marks the label it would land on.
+  in whole pixels; a value is typed into its box (`set`). A box narrower than its value keeps
+  its caret in view, and the picture and a press read that one scroll, so a press lands on the
+  byte drawn under it. A release keeps a drag's edit and a lost press puts back what it moved.
+  The pointer resting on an element marks it (`PaneCanvasHover`), and a carried value marks
+  the label it would land on.
 - A gesture, a box being typed into and a mark are the builder's presentation: never saved, kept
   across a reload or offered to the host. A reload in place keeps the draft, file and whether
   its view runs. An intent is made through `flow/shape.hpp`. The builder carries an intent's
