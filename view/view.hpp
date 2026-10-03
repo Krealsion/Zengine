@@ -255,9 +255,13 @@ inline ws::PaneCanvasContent stopped_picture(const Description& d, const ws::Pan
 }
 
 /// The rows and columns a view asks its pane for: its size, in canvas cells of
-/// `surface::kCanvasCellPx` pixels, enough to hold it.
+/// `surface::kCanvasCellPx` pixels, enough to hold it, and never more than Workshop admits
+/// (`workshop::kMaxPaneComfort`); a view larger than its pane is drawn cut to the pane.
 inline std::pair<std::int64_t, std::int64_t> preferred_size(const Description& d) {
-    const auto cells = [](std::int64_t px) { return (px + surface::kCanvasCellPx - 1) / surface::kCanvasCellPx; };
+    const auto cells = [](std::int64_t px) {
+        return std::clamp<std::int64_t>((px + surface::kCanvasCellPx - 1) / surface::kCanvasCellPx, 1,
+                                        ws::kMaxPaneComfort);
+    };
     return {cells(d.height), cells(d.width)};
 }
 
