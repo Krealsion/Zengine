@@ -555,25 +555,40 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         if (p.met_x) mark({out.view.x + surface::subs_of_pixel(*p.met_x), area.y, thin, area.h});
         if (p.met_y) mark({area.x, out.view.y + surface::subs_of_pixel(*p.met_y), area.w, thin});
         if (chosen) {
-            // THE SELECTED ELEMENT: marked, with a handle at each corner a drag resizes it by.
+            // THE SELECTED ELEMENT: marked, with a handle on each side, which moves that side alone,
+            // and one at each corner, which moves the two sides it joins; where a side's handle and
+            // a corner's meet, the corner's is pressed. Each handle names its sides: -1 the left or
+            // top, 1 the right or bottom, 0 neither.
             const auto at = element_area(out.view, d.elements[*m.selected]);
             outline(at, ink::kAccent, thin);
             const auto size = room.graphical ? surface::subs_of_pixel(8) : out.grain;
-            for (int corner = 0; corner < 4; ++corner) {
+            const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
+            const std::pair<int, int> sides[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}, {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
+            for (const auto& [sx, sy] : sides) {
                 Area handle;
                 if (room.graphical) {
-                    handle = {(corner & 1 ? at.x + at.w : at.x) - size / 2,
-                              (corner & 2 ? at.y + at.h : at.y) - size / 2, size, size};
+                    const auto cx = sx < 0 ? at.x : sx > 0 ? at.x + at.w : down(at.x + at.w / 2);
+                    const auto cy = sy < 0 ? at.y : sy > 0 ? at.y + at.h : down(at.y + at.h / 2);
+                    handle = {cx - size / 2, cy - size / 2, size, size};
                 } else {
-                    // A terminal's handle is the element's own corner cell.
-                    const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
-                    handle = {down(corner & 1 ? at.x + at.w - 1 : at.x), down(corner & 2 ? at.y + at.h - 1 : at.y),
+                    // A terminal's corner handle is the element's own corner cell; a side's is the
+                    // cell beside that side's middle, outside the element, so it is never a corner's,
+                    // or the side's own middle cell where the canvas ends there.
+                    const auto next_to = [&](int s, int other, std::int64_t begin, std::int64_t extent,
+                                             std::int64_t area_begin, std::int64_t area_extent) {
+                        const auto low = down(begin), high = down(begin + extent - 1);
+                        if (s == 0) return std::min(down(begin + extent / 2), high);
+                        if (other != 0) return s < 0 ? low : high;
+                        const auto outside = s < 0 ? low - out.grain : high + out.grain;
+                        return outside >= area_begin && outside < area_begin + area_extent ? outside : s < 0 ? low : high;
+                    };
+                    handle = {next_to(sx, sy, at.x, at.w, area.x, area.w), next_to(sy, sx, at.y, at.h, area.y, area.h),
                               size, size};
                 }
                 mark(handle);
                 const auto inside = handle.within(area);
                 if (!inside.empty())
-                    out.hits.push_back({inside, "handle", {std::to_string(*m.selected), std::to_string(corner)}});
+                    out.hits.push_back({inside, "handle", {std::to_string(*m.selected), std::to_string(sx), std::to_string(sy)}});
             }
         }
     }
