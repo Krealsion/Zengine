@@ -264,15 +264,17 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     REQUIRE(offered);
     CHECK(offered->columns == 50);
     CHECK(offered->rows == 25);
-    // GRANTED MORE, it draws in its size: its ground and its last row end where the size does.
+    // GRANTED MORE, it is laid out in its size: its elements and its last row end where the size
+    // does, and the rest of the room is its ground.
     rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 48 * 80, 48 * 40, 4, true, 8, 16});
     const auto* p = rig.latest("tally.panel");
     REQUIRE(p != nullptr);
     const auto size_w = zengine::surface::subs_of_pixel(600), size_h = zengine::surface::subs_of_pixel(300);
     CHECK(std::any_of(p->rects.begin(), p->rects.end(), [&](const auto& r) {
-        return r.role == zengine::surface::role::kGround && r.x == 0 && r.y == 0 && r.w == size_w && r.h == size_h;
+        return r.role == zengine::surface::role::kGround && r.x == 0 && r.y == 0 && r.w == 48 * 80 && r.h == 48 * 40;
     }));
     for (const auto& r : p->rects) {
+        if (r.role == zengine::surface::role::kGround) continue;
         CHECK(r.x + r.w <= size_w);
         CHECK(r.y + r.h <= size_h);
     }
