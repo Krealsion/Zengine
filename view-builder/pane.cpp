@@ -363,12 +363,14 @@ private:
         const auto i = static_cast<std::size_t>(std::stoul(hit.args.at(0)));
         return i < model_.description.elements.size() ? std::optional<std::size_t>(i) : std::nullopt;
     }
-    /// Put down what a gesture or a box was doing, for an edit from elsewhere. The pan stays.
+    /// Put down what a gesture or a box was doing, for an edit from elsewhere. The pan and the
+    /// grid stay.
     void settle() {
         held_.reset();
         vb::Presentation kept;
         kept.pan_x = shown_.pan_x;
         kept.pan_y = shown_.pan_y;
+        kept.grid = shown_.grid;
         shown_ = std::move(kept);
     }
 
@@ -486,10 +488,12 @@ private:
             return;
         }
         const auto px = pixels(dx), py = pixels(dy);
+        const bool snapping = !aside(event);
         if (h.what == Held::What::size) {
             const auto most = [](std::int64_t v) { return std::clamp<std::int64_t>(v, 1, view::kMaxSizePx); };
             const auto sized = vb::sized_by_hand(model_.description, most(h.width + (h.sx ? px : 0)),
-                                                 most(h.height + (h.sy ? py : 0)), h.sx != 0, h.sy != 0);
+                                                 most(h.height + (h.sy ? py : 0)), snapping && h.sx != 0,
+                                                 snapping && h.sy != 0, shown_.grid);
             const bool met = sized.met_x != shown_.met_x || sized.met_y != shown_.met_y;
             shown_.met_x = sized.met_x;
             shown_.met_y = sized.met_y;
@@ -528,7 +532,7 @@ private:
                 at.h = b.y + b.h - at.y;
             }
         }
-        const auto snapped = vb::snap(model_.description, h.element, at, along_x, along_y);
+        const auto snapped = snapping ? vb::snap(model_.description, h.element, at, along_x, along_y, shown_.grid) : at;
         const bool met = snapped.met_x != shown_.met_x || snapped.met_y != shown_.met_y;
         shown_.met_x = snapped.met_x;
         shown_.met_y = snapped.met_y;
@@ -542,8 +546,11 @@ private:
         show(mail);
     }
 
+    /// Alt held while placing by hand sets every snap aside.
+    static bool aside(const ws::PaneCanvasPointer& event) { return (event.modifiers & input::mod::kAlt) != 0; }
+
     /// Where a kind held over the canvas would be made: its corner under the pointer, inside the
-    /// view, snapped.
+    /// view, snapped unless Alt is held.
     vb::Place made_at(const Held& h, const ws::PaneCanvasPointer& event) const {
         const auto [w, height] = vb::made_size(h.kind);
         const auto& d = model_.description;
@@ -552,7 +559,8 @@ private:
         };
         const vb::Place under{at(event.x - h.placed.x, d.width - w), at(event.y - h.placed.y, d.height - height), w,
                               height, std::nullopt, std::nullopt};
-        return vb::snap(model_.description, std::nullopt, under, vb::Edges::both, vb::Edges::both);
+        if (aside(event)) return under;
+        return vb::snap(model_.description, std::nullopt, under, vb::Edges::both, vb::Edges::both, shown_.grid);
     }
 
     /// THE PRESS ENDS. A release keeps what the drag did, and a kind let go over the canvas is made
@@ -645,6 +653,7 @@ private:
         if (box.field == "name") return d.name;
         if (box.field == "path") return model_.path;
         if (box.field == "width") return std::to_string(d.width);
+        if (box.field == "grid") return std::to_string(shown_.grid);
         if (box.field == "height") return std::to_string(d.height);
         if (!box.element || *box.element >= d.elements.size()) return {};
         const auto& e = d.elements[*box.element];
@@ -680,7 +689,16 @@ private:
             return true;
         }
         try {
-            if (box.field == "name") model_.command("rename", {value});
+            if (box.field == "grid") {
+                // THE GRID is the builder's own: set here, never in the view.
+                const auto grid = vb::whole(value, "the grid");
+                if (grid < 1 || grid > vb::kMaxGrid)
+                    throw std::invalid_argument("the grid is whole pixels from 1, which is none, to " +
+                                                std::to_string(vb::kMaxGrid) + "; " + value + " is not");
+                shown_.grid = grid;
+                model_.notice = grid == 1 ? "No grid: a place by hand moves by whole pixels"
+                                          : "A place by hand snaps to a grid " + value + " pixels apart";
+            } else if (box.field == "name") model_.command("rename", {value});
             else if (box.field == "path") model_.command("path", {value});
             else if (box.field == "width") model_.command("size", {value, std::to_string(model_.description.height)});
             else if (box.field == "height") model_.command("size", {std::to_string(model_.description.width), value});
@@ -718,12 +736,16 @@ private:
         }
         (void)shown_.box->text.consume(key.scancode, key.modifiers, clipboard_);
     }
-    /// The box after this one: the view's name, its file, its width and its height; an element's
-    /// values in order.
+    /// The box after this one: the view's name, its file, its width, its height and the grid; an
+    /// element's values in order.
     std::optional<vb::Box> next_box(const vb::Box& was) const {
         vb::Box next;
         if (!was.element) {
-            next.field = was.field == "name" ? "path" : was.field == "path" ? "width" : was.field == "width" ? "height" : "name";
+            next.field = was.field == "name"     ? "path"
+                         : was.field == "path"   ? "width"
+                         : was.field == "width"  ? "height"
+                         : was.field == "height" ? "grid"
+                                                 : "name";
             return next;
         }
         if (*was.element >= model_.description.elements.size()) return std::nullopt;
