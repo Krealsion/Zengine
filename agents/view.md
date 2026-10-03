@@ -56,10 +56,11 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
 - A gesture, a box being typed into and a mark are the builder's presentation: never saved, kept
   across a reload or offered to the host. A reload in place keeps the draft, file and whether
   its view runs. An intent is made through `flow/shape.hpp`. The builder carries an intent's
-  shape out as a `zen.SchemaDesc` by a press's drag or a menu choice, and takes a shape, a value
-  or an Info field dropped on a label, on the canvas or its row, as what that label shows;
-  dropped on no label it is refused in words, whatever is selected. A
-  shape of several fields it could show is a choice of every one: buttons wrapped within the
+  shape out, with the shapes it nests (`flow::shape::carried`), by a press's drag or a menu
+  choice, and takes a shape, a value or an Info field dropped on a label, on the canvas or its
+  row, as what that label shows, a description read with the shapes it carries alone
+  (`flow::shape::described`); dropped on no label it is refused in words, whatever is selected.
+  A shape of several fields it could show is a choice of every one: buttons wrapped within the
   values column (`view_builder::lay_choices`), and More where the rows cannot hold them.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
   refusal, in-place and fresh apply, a replacement that cannot register, stop, and the terminal

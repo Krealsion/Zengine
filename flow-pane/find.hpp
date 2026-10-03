@@ -7,7 +7,7 @@
 // whom to believe, and the door's rows are shown as it answered them, never matched again here.
 #include "flow-pane/model.hpp"
 #include "workshop/powers_vocabulary.hpp"
-#include <zen/kernel/schema_codec.hpp> // a dropped `zen.SchemaDesc` names the shape it describes
+#include "flow/shape.hpp" // a dropped description names the shape it describes
 #include <zen/registry.hpp>
 #include <zen/terminal/composer.hpp> // `describe_schema`: Loom's one spelling of a type
 #include <algorithm>
@@ -176,13 +176,13 @@ struct DropOffer {
     std::vector<std::string> args;
 };
 
-/// The shape a dropped value offers to declare: a `zen.SchemaDesc`'s described shape, or else the
-/// value's own; none when a description names shapes it does not carry.
+/// The shape a dropped value offers to declare: a description's shape, decoded with the shapes it
+/// carries (`flow::shape::described`), or else the value's own; none when a description names
+/// shapes it does not carry.
 inline std::shared_ptr<const loom::Schema> dropped_shape(const loom::Value& value) {
-    if (!loom::same_identity(value.schema(), *loom::schema_desc_schema())) return value.schema_ptr();
+    if (!flow::shape::is_description(value)) return value.schema_ptr();
     try {
-        loom::Registry none;
-        return loom::decode_schema(value, none);
+        return flow::shape::described(value);
     } catch (const std::exception&) {
         return nullptr;
     }
@@ -198,7 +198,7 @@ inline std::vector<DropOffer> drop_offers(const Model& m) {
     if (!m.dropped) return out;
     const auto& value = m.dropped->value;
     const auto& def = m.workspace.graph.project.definition;
-    const bool description = loom::same_identity(value.schema(), *loom::schema_desc_schema());
+    const bool description = flow::shape::is_description(value);
     if (!description) {
         for (const auto& accepted : def.accepts)
             if (loom::same_identity(*accepted, value.schema())) {

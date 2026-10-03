@@ -654,12 +654,12 @@ private:
       return def.emits[at];
     return nullptr;
   }
-  /// ASK TO CARRY A DECLARED MESSAGE'S SHAPE OUT as a description, under the gesture it
-  /// continues: a press's drag, placed where it is released, or a menu choice's carry, placed
-  /// by a click.
+  /// ASK TO CARRY A DECLARED MESSAGE'S SHAPE OUT as a description holding what it nests, under
+  /// the gesture it continues: a press's drag, placed where it is released, or a menu choice's
+  /// carry, placed by a click.
   void carry(const std::shared_ptr<const loom::Schema> &shape, std::uint64_t gesture, bool drag,
              loom::Mail &mail) {
-    const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(*shape), {});
+    const auto bytes = zengine::inventory::encode_pair(flow::shape::carried(shape), {});
     carry_ = Carry{++correlation_, gesture, shape->name(),
                    loom::Bytes(bytes.begin(), bytes.end()), drag};
     (void)mail.as_role(pane::kRole).send_to_role(

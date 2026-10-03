@@ -40,12 +40,10 @@ namespace surface = zengine::surface;
 constexpr const char* workshop_role = "zengine.workshop";
 
 /// The shape a carried value names, and the field when the carry was one field: a description's
-/// shape, a field's root shape and its top-level name, or a value's own shape.
+/// shape, decoded with the shapes it carries; a field's root shape and its top-level name; or a
+/// value's own shape.
 std::pair<std::shared_ptr<const loom::Schema>, std::optional<std::string>> carried_shape(const loom::Value& value) {
-    if (loom::same_identity(value.schema(), *loom::schema_desc_schema())) {
-        loom::Registry none;
-        return {loom::decode_schema(value, none), std::nullopt};
-    }
+    if (zengine::flow::shape::is_description(value)) return {zengine::flow::shape::described(value), std::nullopt};
     if (zengine::message_draft::is_field_value(value)) {
         const auto& bytes = value.get("library")->as_bytes();
         const auto library = zengine::message_draft::read_library(
@@ -255,7 +253,7 @@ public:
             show(mail);
             return;
         }
-        carry(*intent->shape, mail.correlation(), false, mail);
+        carry(intent->shape, mail.correlation(), false, mail);
     }
     void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
         if (!carry_ || !mail.answers_ask() || mail.correlation() != carry_->ask) return;
@@ -415,7 +413,7 @@ private:
             // carried only if the hand moves before it lets go.
             perform("select", {std::to_string(*index)}, mail);
             if (const auto* intent = model_.description.intent(model_.description.elements[*index].id))
-                carry(*intent->shape, mail.correlation(), true, mail);
+                carry(intent->shape, mail.correlation(), true, mail);
         } else if (chosen.action == "select" || chosen.action == "shows") {
             perform("select", {std::to_string(*index)}, mail);
         } else if (chosen.action == "canvas") {
@@ -652,11 +650,12 @@ private:
         case vb::Effect::Stop: request(view::ViewStop{"builder"}, "stop", mail); return;
         }
     }
-    /// ASK TO CARRY AN INTENT'S SHAPE OUT as a description, under the gesture it continues: a
-    /// press's drag, placed where it is released, or a menu choice's carry, placed by a click.
-    void carry(const loom::Schema& shape, std::uint64_t gesture, bool drag, loom::Mail& mail) {
-        const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(shape), {});
-        carry_ = Carry{++correlation_, gesture, shape.name(), loom::Bytes(bytes.begin(), bytes.end()), drag};
+    /// ASK TO CARRY AN INTENT'S SHAPE OUT as a description holding what it nests, under the
+    /// gesture it continues: a press's drag, placed where it is released, or a menu choice's carry,
+    /// placed by a click.
+    void carry(const std::shared_ptr<const loom::Schema>& shape, std::uint64_t gesture, bool drag, loom::Mail& mail) {
+        const auto bytes = zengine::inventory::encode_pair(zengine::flow::shape::carried(shape), {});
+        carry_ = Carry{++correlation_, gesture, shape->name(), loom::Bytes(bytes.begin(), bytes.end()), drag};
         (void)mail.as_role(vb::kRole).send_to_role(
             workshop_role,
             ws::PaneOperationRequested{vb::kPane, workshop_role, ws::PaneValueCarryRequested::zen_name, 1,
