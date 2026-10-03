@@ -339,6 +339,7 @@ private:
             dirty = false;
             selected.reset();
             choosing.reset();
+            notice = "Opened " + path;
         } else if (action == "run" || action == "apply") {
             need(0);
             const auto bytes = view::description_bytes(description);

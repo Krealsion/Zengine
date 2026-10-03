@@ -34,6 +34,8 @@ pane the selected element's values sit in boxes on the right; in a narrow one, b
 - `Delete` or **Remove** removes the selected element. **New** or **Open** over an unsaved view
   asks for a second press before it discards it.
 
+![Resting on field2 marks it and its row; below, count resized by its corner, Total moved, and the intent made from the number fields](images/view-builder-hand.png)
+
 ## Make the tally panel
 
 The panel counts from a start toward a limit by a step, and shows the total a Flow definition
@@ -109,24 +111,29 @@ field or button is left that looks live.
 In a terminal Workshop the builder works as it does in a window, its picture floored to cells: a
 drag moves an element by whole cells, 12 pixels each, and a value typed into its box is still a
 pixel. The same panel works too, its picture the window's floored to cells and each line fitted
-to the cell. Here `Total` was relabelled `Sum`, and a step of 0 was refused:
+to the cell. Here a step of 0 was refused, and the total stayed:
 
 ```text
-  tally.panel @tally.panel
- .start: 0...
+> tally.panel @tally.panel
+
  ............
+ .start: 0...
+
  ............
  .limit: 10..
+
  ............
  .step: 0_...
 
- .Count..
- ........
+ ...........
+ .Count.....
 
- Sum: 45
+     Total: 45
 
- refused: tally on tally.panel.Count at %0 fold math.add: a
- step of 0 never moves the count from 0 toward 10
+
+refused: tally on tally.panel.Count at %0 fold
+math.add: a step of 0 never moves the count from 0
+toward 10
 ```
 
 ## Views here, in Info and in Inventory
