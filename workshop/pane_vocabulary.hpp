@@ -33,8 +33,12 @@ struct PaneOffered {
     ZEN_SHAPE(PaneOffered, 1, ZEN_FIELD(pane), ZEN_FIELD(name), ZEN_FIELD(summary));
 };
 
+/// The most body rows, and the most body columns, a pane may ask for (`v2::PaneOffered`).
+inline constexpr std::int64_t kMaxPaneComfort = 512;
+
 namespace v2 {
-/// Initial comfort in body text rows/columns. Zero/zero retains the v1 fallback.
+/// Initial comfort in body text rows/columns, each 1..`kMaxPaneComfort`. Zero/zero retains the
+/// v1 fallback.
 /// A refresh does not replace the first accepted preference for this pane identity.
 struct PaneOffered {
     std::string pane;

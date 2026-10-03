@@ -635,6 +635,50 @@ public:
 };
 }
 
+TEST_CASE("a described view of the greatest size its rules allow asks for a pane Workshop admits, and is seated and drawn cut to it") {
+    namespace view = zengine::view;
+    PaneRig r;
+    r.mount_workshop();
+    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.ready();
+    r.extent(150, 65);
+    view::Host views(r.bus);
+    views.mount();
+    auto asker = std::make_unique<ViewAsker>();
+    auto* client = asker.get();
+    loom::Grant asking;
+    view::allow_view_requests(asking);
+    const auto client_id = r.bus.register_weave(std::move(asker), std::move(asking));
+    client->zen_set_self(client_id);
+
+    view::Description d;
+    d.name = "wide.panel";
+    d.width = view::kMaxSizePx;
+    d.height = view::kMaxSizePx;
+    d.elements = {{"far", view::Kind::label, "Far", view::kMaxPixels, view::kMaxPixels, 192, 24, ""},
+                  {"near", view::Kind::label, "Near", 0, 0, 192, 24, ""}};
+    const auto [rows, columns] = view::preferred_size(d);
+    CHECK(rows == kMaxPaneComfort);
+    CHECK(columns == kMaxPaneComfort);
+    const auto bytes = view::description_bytes(d);
+    (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
+        loom::Message(loom::to_value(view::ViewRun{"builder", loom::Bytes(bytes.begin(), bytes.end())}), client_id, {}, 1));
+    r.bus.drain_until_idle();
+    REQUIRE(client->answers.size() == 1);
+    REQUIRE_MESSAGE(client->answers[0].ok, client->answers[0].reason);
+    // ADMITTED AND SEATED: the catalog lists it, the desk holds it, and it drew there.
+    const auto* row = r.session().panes.runtime.find("wide.panel", view::kPane);
+    REQUIRE(row);
+    CHECK(r.session().panes.has(row->kind));
+    auto* pane = r.session().panes.external_pane(row->kind);
+    REQUIRE(pane);
+    REQUIRE(pane->canvas.heard);
+    std::string words;
+    for (const auto& t : pane->canvas.content.texts) words += t.text + "|";
+    CHECK(words.find("Near|") != std::string::npos);
+    CHECK(words.find("Far|") == std::string::npos); // past the pane, cut
+}
+
 TEST_CASE("a described view offers its own pane through the view host, Workshop seats and draws it, a press reaches it, and a stop leaves a picture that says so") {
     namespace view = zengine::view;
     PaneRig r;
