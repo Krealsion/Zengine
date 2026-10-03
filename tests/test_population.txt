@@ -84,6 +84,6 @@ message_draft                     doctest           always  11
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 inventory                         doctest           always  36
-flow_pane                         doctest           always  23
+flow_pane                         doctest           always  24
 view                              doctest           always  11
-view_builder                      doctest           always  16
+view_builder                      doctest           always  17

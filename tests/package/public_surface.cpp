@@ -9,6 +9,7 @@
 #include "activation/activation.hpp"
 #include "maker/succession.hpp"
 #include "flow/graph.hpp"
+#include "flow/shape.hpp"
 
 #include "component/text_box.hpp"
 #include "component/motion.hpp"
@@ -282,6 +283,10 @@ int main() {
     const auto encoded = zengine::inventory::encode_pair(item, {item});
     const auto decoded = zengine::inventory::decode_pair(encoded);
     check(decoded.item.get("name")->as_text() == "installed", "inventory decodes an unknown schema");
+    const auto inner = loom::SchemaBuilder("stranger.Inner", 1).field("n", loom::Kind::Int).build();
+    const auto outer = loom::SchemaBuilder("stranger.Outer", 1).message("inner", inner).build();
+    check(loom::same_identity(*zengine::flow::shape::described(zengine::flow::shape::carried(outer)), *outer),
+          "a carried shape decodes with the shapes it nests and nothing else");
     check(decoded.metadata.size() == 1, "inventory keeps independent metadata roots");
     const zengine::inventory::InventoryReference reference{"owner-image", "stored-entry"};
     const zengine::inventory::InventoryListed listed{{{reference, 2, "saved value", "example.Value", 1, false}}};

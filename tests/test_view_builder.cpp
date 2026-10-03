@@ -487,9 +487,8 @@ TEST_CASE("a right press on what a button says offers to carry its intent, and t
     CHECK_FALSE(carried.drag);
     const auto item = zengine::inventory::decode_pair(
         std::string_view(reinterpret_cast<const char*>(carried.data.data()), carried.data.size())).item;
-    REQUIRE(loom::same_identity(item.schema(), *loom::schema_desc_schema()));
-    loom::Registry none;
-    CHECK(loom::same_identity(*loom::decode_schema(item, none), *hwfix::count_schema()));
+    REQUIRE(zengine::flow::shape::is_description(item));
+    CHECK(loom::same_identity(*zengine::flow::shape::described(item), *hwfix::count_schema()));
 
     // A right press elsewhere means nothing here: it is handed back.
     rig.press("Elements (5)", 3);
@@ -834,6 +833,47 @@ TEST_CASE("a value dropped on no label is refused in words whatever is selected;
     REQUIRE(d.shows.size() == 1);
     CHECK(d.shows[0].element == "total");
     CHECK(d.shows[0].field == "total");
+}
+
+TEST_CASE("a carried description brings the shapes it nests: a label binds a field of a shape nesting another from what it carries, and its own intent is carried the same way") {
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("select", {"4"}).ok);
+    const auto detail = loom::SchemaBuilder("review.Detail", 1).field("note", loom::Kind::Text).build();
+    const auto review = loom::SchemaBuilder("review.Total", 1)
+        .field("total", loom::Kind::Int).message("detail", detail).build();
+
+    // A BARE DESCRIPTION of it holds no review.Detail: refused in Loom's words, nothing bound.
+    rig.drop(loom::encode_schema(*review), "> total  label");
+    CHECK(rig.now().shows.empty());
+    CHECK(rig.notice().find("unresolved nested schema 'review.Detail'") != std::string::npos);
+
+    // AS A PANE CARRIES IT: the shape, and beside it the shapes it nests. `total` is bound, and
+    // the binding survives the description's own round trip.
+    rig.drop(loom::encode_accepted_shapes({review}), "> total  label");
+    const auto d = rig.now();
+    REQUIRE(d.shows.size() == 1);
+    CHECK(d.shows[0].field == "total");
+    CHECK(loom::same_identity(*d.shows[0].shape, *review));
+
+    // ITS OWN INTENT, carried out by a press on what the button says, holds its shape as a root.
+    REQUIRE(rig.edit("select", {"3"}).ok);
+    const auto* says = rig.text("says tally.panel.");
+    REQUIRE(says != nullptr);
+    rig.pointer(ws::canvas_pointer::kPress, says->x + 8, says->y + 8, 70);
+    const loom::Message* carried = nullptr;
+    for (const auto& m : rig.desk->heard)
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+    REQUIRE(carried != nullptr);
+    const auto bytes = loom::from_value<ws::PaneValueCarryRequested>(carried->payload).data;
+    const auto item = zengine::inventory::decode_pair(
+        std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())).item;
+    REQUIRE(loom::same_identity(item.schema(), *loom::accepted_shapes_schema()));
+    loom::Registry carried_shapes;
+    loom::decode_accepted_referenced(item, carried_shapes);
+    const auto roots = loom::decode_accepted_roots(item, carried_shapes);
+    REQUIRE(roots.size() == 1);
+    CHECK(loom::same_identity(*roots[0], *hwfix::count_schema()));
 }
 
 TEST_CASE("a press on what a button says asks under that press to drag its intent's shape out") {

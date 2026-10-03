@@ -6,11 +6,15 @@
 // The one model of an authored message shape: how a weaver names a message, adds a field and
 // spells a field's type. Flow's graph draft and workbench declare messages through it, and the
 // View Builder makes a view's intent through it, so a shape keeps these rules wherever it is
-// authored. It edits no value; values are `message_draft::Draft`'s. Reference: docs/reference/flow.md.
+// authored. It edits no value; values are `message_draft::Draft`'s. A shape carried out of a pane
+// travels with the shapes it nests (`carried`, `described`). Reference: docs/reference/flow.md.
 
 #include "message-draft/library.hpp"
 
+#include <zen/kernel/schema_codec.hpp>
+#include <zen/registry.hpp>
 #include <zen/schema.hpp>
+#include <zen/weave/describe.hpp>
 
 #include <memory>
 #include <stdexcept>
@@ -96,6 +100,35 @@ inline loom::TypeRef type_named(std::string_view spelling,
         --lists;
     }
     return result;
+}
+
+/// A SHAPE CARRIED OUT OF A PANE, as one value that holds it and every shape it nests: Loom's
+/// pairing of roots with their closure (`zen.AcceptedShapes`), the shape its one root and what it
+/// nests in `referenced`, in post-order.
+inline loom::Value carried(const std::shared_ptr<const loom::Schema>& shape) {
+    return loom::encode_accepted_shapes({shape});
+}
+
+/// Is `value` a description of a shape: a carried one, or a bare `zen.SchemaDesc`?
+inline bool is_description(const loom::Value& value) {
+    return loom::same_identity(value.schema(), *loom::accepted_shapes_schema()) ||
+           loom::same_identity(value.schema(), *loom::schema_desc_schema());
+}
+
+/// THE SHAPE A DESCRIPTION NAMES, decoded with the shapes it carries and nothing else: never a
+/// reader's registry or a live catalog. A bare `zen.SchemaDesc` carries nothing beside it, so it
+/// resolves only a shape that nests nothing. Throws, in Loom's words, when it names a shape it
+/// does not carry, and when a carried one holds other than one shape.
+inline std::shared_ptr<const loom::Schema> described(const loom::Value& value) {
+    loom::Registry carried_shapes;
+    if (!loom::same_identity(value.schema(), *loom::accepted_shapes_schema()))
+        return loom::decode_schema(value, carried_shapes);
+    loom::decode_accepted_referenced(value, carried_shapes);
+    const auto roots = loom::decode_accepted_roots(value, carried_shapes);
+    if (roots.size() != 1)
+        throw std::invalid_argument("a carried description holds one shape; this one holds " +
+                                    std::to_string(roots.size()));
+    return roots.front();
 }
 
 } // namespace zengine::flow::shape

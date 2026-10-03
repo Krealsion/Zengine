@@ -102,7 +102,8 @@ Flow, and Flow says what it can be here. Carrying copies data; it grants nothing
   its shape and the participant is running; **Use field = value on %n port** for each field of
   the port's kind when it landed on an `Int` or `Bool` port; **Declare ... as an accepted
   message** when no message of its name is declared, and **as an emitted message** when its name
-  is inside the definition's namespace. A dropped shape description (`zen.SchemaDesc`) offers the
+  is inside the definition's namespace. A dropped shape description -- what Flow and the View
+  Builder carry, which holds the shapes it nests, or a bare `zen.SchemaDesc` -- offers the
   declarations of the shape it describes. A declared shape is the one that came -- its name,
   version and fields -- so values of it match it exactly. **Cancel** or **Escape** puts it down,
   and so do **New**, **Open** and **Import**, since its offers belong to the graph it landed on.
