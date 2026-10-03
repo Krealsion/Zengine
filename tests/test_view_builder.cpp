@@ -170,6 +170,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
     {
         namespace sp = zengine::surface;
         auto wide = panel_model();
+        wide.command("size", {"1400", "800"});
         wide.command("element", {"4", "total", "Total", "900", "700", "192", "24"});
         vb::Presentation panned;
         panned.pan_x = 480;
@@ -808,6 +809,7 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     TempDir dir;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("size", {"2000", "1200"}).ok);
     REQUIRE(rig.edit("add", {"button"}).ok);
     REQUIRE(rig.edit("element", {"5", "far", "Far", "1500", "900", "96", "24"}).ok);
     REQUIRE(rig.edit("save", {(dir.directory / "far.view").string()}).ok);
@@ -915,6 +917,7 @@ TEST_CASE("in a terminal the middle button pans the design canvas by whole cells
     Rig rig;
     rig.host(terminal_room(++rig.grant));
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("size", {"1400", "700"}).ok);
     REQUIRE(rig.edit("add", {"button"}).ok);
     REQUIRE(rig.edit("element", {"5", "far", "Far", "1200", "600", "96", "24"}).ok);
     REQUIRE(rig.edit("select", {"0"}).ok);

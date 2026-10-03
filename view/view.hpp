@@ -120,9 +120,6 @@ inline std::string waiting_sentence(const Description& d, const Told& told) {
     return missing.empty() ? std::string() : "waiting to be told " + missing;
 }
 
-/// The most rows the notice takes from the bottom of the room.
-inline constexpr std::size_t kNoticeRows = 3;
-
 /// `text` in lines of at most `columns`, broken at spaces where it can be, at most `rows` of them;
 /// a last line that could not hold the rest ends in `...`.
 inline std::vector<std::string> wrap(std::string text, std::int64_t columns, std::size_t rows) {

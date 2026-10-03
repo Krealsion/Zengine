@@ -653,6 +653,8 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
 
     view::Description d;
     d.name = "tally.panel";
+    d.width = 480;
+    d.height = 120;
     d.elements = {{"step", view::Kind::number, "step", 0, 0, 144, 24, "1"},
                   {"count", view::Kind::button, "Count", 0, 28, 96, 24, ""},
                   {"total", view::Kind::label, "Total", 0, 56, 192, 24, ""}};
