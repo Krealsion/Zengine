@@ -72,6 +72,7 @@ kMaxScancode                    input/vocabulary.hpp                      kMaxSc
 kMaxHeldKeys                    input/vocabulary.hpp                      kMaxHeldKeys
 kRootContext                    ui/vocabulary.hpp                         kRootContext
 view_builder::kSnapReach        view-builder/picture.hpp                  kSnapReach
+view_builder::kMaxGrid          view-builder/picture.hpp                  kMaxGrid
 
 # ---- the Timer
 kPreparedClaimBeats             timer/vocabulary.hpp                      kPreparedClaimBeats

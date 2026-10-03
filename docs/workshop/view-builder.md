@@ -13,29 +13,38 @@ Open the Pane Manager and choose **View Builder**. The shipped plans include the
 
 ## The builder
 
-On the left are the view's name and file in boxes, **Add** with the three kinds of element, and
-the list of the view's elements. In the middle is the design canvas: the view drawn by its own
-picture code at its own pixels, 12 to a cell, the same picture it shows when it runs. In a wide
+On the left are the view's name and file in boxes, **Add** with the three kinds of element, the
+view's **Size** and the **Grid** in boxes, and the list of the view's elements. In the middle is
+the design canvas: the view drawn by its own picture code at its own pixels, 12 to a cell, in a
+room exactly its size, the same picture it shows when it runs. In a wide
 pane the selected element's values sit in boxes on the right; in a narrow one, below the list.
 
+- **Size** the view by dragging the handles on its right and bottom edges, or their corner, or
+  type its width and height into the boxes beside **Size**. A new view is 480 by 240. Its last
+  rows are where it says what it is waiting for, and when it runs it asks its pane for its size.
 - **Make** an element by dragging **Label**, **Number** or **Button** from **Add** onto the
-  canvas: it is made where you let go, snapped as a move is. A click on a kind makes one below
-  the last.
+  canvas: it is made where you let go, inside the view, snapped as a move is. A click on a kind
+  makes one below the last, if the view has room there.
 - **Select** one by clicking it on the canvas or in the list. It is outlined, with a handle on
   each side and at each corner.
 - **Move** it by dragging it, and **size** it by dragging a handle: a side's moves that side
-  alone, a corner's the two sides it meets. What you place by hand snaps: an edge you move comes
-  to the edge of another element within <!-- value view_builder::kSnapReach -->6<!-- /value -->
-  pixels, marked by a line across the canvas while you hold it, and otherwise to a grid a cell
-  apart. Nothing goes past the view's top or left. The arrow keys move the selected element a
-  pixel, and with `Shift` a cell, and a value typed into its box is exact, so a place off the
-  grid is still yours to choose. A drag cut short -- a menu opening, the pane resized -- puts
-  the element back where it was.
-- **Pan** the canvas by dragging it with the middle button: the view moves with your hand, so an
-  element past the canvas's edge can be seen, pressed and dragged, and whatever you let go there
-  lands where you see it. It pans from the view's top left corner until the farthest element's
-  far edge reaches the canvas's middle. The pan is the builder's, never the view's: it is not
-  saved, and **New** or **Open** shows a view from its corner.
+  alone, a corner's the two sides it meets. What you place by hand moves by whole pixels and
+  snaps to an edge: an edge you move comes to another element's edge, or the view's, within
+  <!-- value view_builder::kSnapReach -->6<!-- /value --> pixels, marked by a line across the
+  canvas while you hold it. Type a number into **Grid**, up to
+  <!-- value view_builder::kMaxGrid -->96<!-- /value -->, and a place by hand snaps to a grid that
+  many pixels apart as well, until you set it back to 1. Hold `Alt` while you drag to set every
+  snap aside. The arrow keys move the selected element a pixel, and with `Shift` a cell, and a
+  value typed into its box is exact. A drag cut short -- a menu opening, the pane resized -- puts
+  the element, or the size, back where it was.
+- **Nothing sits outside the view.** A dragged element stops at its edges; a value typed or a key
+  pressed that would carry it across one is refused, with the reason on the last row; and the
+  size cannot shrink past an element.
+- **Pan** the canvas by dragging it with the middle button: the view moves with your hand, so a
+  view larger than the canvas can be seen, pressed and dragged anywhere, and whatever you let go
+  there lands where you see it. It pans from the view's top left corner until its right and
+  bottom edges, and their handles, are in sight. The pan and the grid are the builder's, never
+  the view's: they are not saved, and **New** or **Open** shows a view from its corner.
 - **Type its values**: click a box -- `id`, `label`, a number field's starting `text`, `x`, `y`,
   `w`, `h` -- type, and press `Return`. `Tab` keeps the value and selects the next box's whole,
   so typing replaces it; `Escape` puts the value back. A value the view's rules refuse stays in
@@ -143,7 +152,8 @@ field or button is left that looks live.
 In a terminal Workshop the builder works as it does in a window, its picture floored to cells: a
 drag moves an element by whole cells, 12 pixels each, the middle button pans by whole cells, and
 a value typed into its box is still a pixel. A side's handle is the cell beside the middle of
-that side, outside the element, or the side's own middle cell where the canvas ends. The same panel works too, its picture the window's floored to cells and each line fitted
+that side, outside the element, or the side's own middle cell where the canvas ends; the view's
+size handles are the cells beyond its edges. The same panel works too, its picture the window's floored to cells and each line fitted
 to the cell. Here a step of 0 was refused, and the total stayed:
 
 ```text
