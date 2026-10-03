@@ -63,6 +63,8 @@ pane the selected element's values sit in boxes on the right; in a narrow one, b
 
 ![label1 dragged far right stops at the view's right edge, at 1404 in a view 1500 wide, the edge it met marked](images/view-builder-size.png)
 
+![The tally panel shrunk by its handles to its elements, 249 by 203, Total bound and not yet told: Total: waiting stays above the size's edge, and the notice, waiting to be told tally.Total, sits in its rows beneath](images/view-builder-notice.png)
+
 ## Make the tally panel
 
 The panel counts from a start toward a limit by a step, and shows the total a Flow definition
