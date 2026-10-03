@@ -578,19 +578,20 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
             const auto at = element_area(out.view, d.elements[i]).within(area);
             if (!at.empty()) out.hits.push_back({at, "element", {std::to_string(i)}});
         }
-        // THE VIEW'S SIZE: its right and bottom edges ruled, and a handle on each and at their
-        // corner that a drag sets the size by; in a terminal each is the cell beyond the edge.
+        // THE VIEW'S SIZE: its right and bottom edges ruled quietly, and a handle on each and at
+        // their corner, in the fill's ink so a terminal tells it from the rule, that a drag sets
+        // the size by; in a terminal each is the cell beyond the edge.
         {
             const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
             const auto up = [&](std::int64_t v) { return down(v) == v ? v : down(v) + out.grain; };
             const auto right = out.view.x + out.view.w, bottom = out.view.y + out.view.h;
-            const auto quiet = [&](const Area& a) {
+            const auto drawn_in = [&](const Area& a, std::int64_t role) {
                 const auto inside = a.within(area);
-                if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, ink::kMuted});
+                if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, role});
                 return inside;
             };
-            quiet({right, out.view.y, thin, out.view.h + thin});
-            quiet({out.view.x, bottom, out.view.w, thin});
+            drawn_in({right, out.view.y, thin, out.view.h + thin}, ink::kMuted);
+            drawn_in({out.view.x, bottom, out.view.w, thin}, ink::kMuted);
             const auto grip = room.graphical ? surface::subs_of_pixel(8) : out.grain;
             const std::pair<int, int> edges[] = {{1, 0}, {0, 1}, {1, 1}};
             for (const auto& [sx, sy] : edges) {
@@ -603,7 +604,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
                     handle = {sx ? up(right) : down(out.view.x + out.view.w / 2),
                               sy ? up(bottom) : down(out.view.y + out.view.h / 2), grip, grip};
                 }
-                const auto inside = quiet(handle);
+                const auto inside = drawn_in(handle, ink::kFill);
                 if (!inside.empty()) out.hits.push_back({inside, "size", {std::to_string(sx), std::to_string(sy)}});
             }
         }

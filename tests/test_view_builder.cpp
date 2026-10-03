@@ -1040,7 +1040,7 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
     const auto up = [](std::int64_t v) { return (v + unit - 1) / unit * unit; };
     const auto right = cells.x + up(px(500));
     CHECK(std::any_of(rig.picture().rects.begin(), rig.picture().rects.end(), [&](const auto& r) {
-        return r.role == ink::kMuted && r.x == right && r.w == unit && r.h == unit && r.y == cells.y + px(132) / 2 / unit * unit;
+        return r.role == ink::kFill && r.x == right && r.w == unit && r.h == unit && r.y == cells.y + px(132) / 2 / unit * unit;
     }));
     rig.host(window_room(++rig.grant));
 
