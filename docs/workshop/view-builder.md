@@ -53,11 +53,13 @@ pane the selected element's values sit in boxes on the right; in a narrow one, b
 - `Delete` or **Remove** removes the selected element. **New** or **Open** over an unsaved view
   asks for a second press before it discards it.
 
-![button1 selected, with a handle on each side and at each corner, while the pointer resting on field2 marks it and its row](images/view-builder-hand.png)
+![A new view, 480 by 240, its right and bottom edges ruled with their handles; button1 selected, with a handle on each side and at each corner, while the pointer resting on field2 marks it and its row](images/view-builder-hand.png)
 
-![Panned by the middle button to label1 at 1100,700, past the canvas's edges; dragged onto button2, made there while panned, it snaps to button2's left edge and top, both lines marked while the button is held](images/view-builder-pan-snap.png)
+![A view 1500 by 900, panned by the middle button to its far corner; label1, placed at 1100,700 and dragged onto button2, made there while panned, snaps to button2's left edge and top, both lines marked while the button is held](images/view-builder-pan-snap.png)
 
 ![label1's right side dragged alone to button2's right edge: its width 96, its left side and its row where they were](images/view-builder-side.png)
+
+![label1 dragged far right stops at the view's right edge, at 1404 in a view 1500 wide, the edge it met marked](images/view-builder-size.png)
 
 ## Make the tally panel
 
