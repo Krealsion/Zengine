@@ -158,7 +158,8 @@ inline ws::PaneCanvasRoom sized(const Description& d, ws::PaneCanvasRoom room) {
     return room;
 }
 
-/// THE PICTURE: the description against what it was told, in its size within its room. Whole
+/// THE PICTURE: the description against what it was told, laid out in its size within its room,
+/// the rest of the room its ground. Whole
 /// pixels become subunits (`surface::subs_of_pixel`); the medium floors them to its grain, so a
 /// terminal shows the same picture in cells, and each line is fitted to what the medium measures.
 inline Picture picture(const Description& d, const Told& told, const Presentation& p,
@@ -169,7 +170,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     out.content.grant = room.grant;
     out.content.picture = number;
     out.grain = std::max<std::int64_t>(1, room.grain);
-    out.content.rects.push_back({0, 0, room.width, room.height, ink::kGround});
+    out.content.rects.push_back({0, 0, granted.width, granted.height, ink::kGround});
     const auto metrics = ws::canvas_text_metrics(room);
     const auto line = surface::add_cells(metrics.line, 2 * metrics.inset);
     // The notice row is the room's last rows: a long sentence, a refusal in its owner's words,
