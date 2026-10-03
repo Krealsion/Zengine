@@ -71,13 +71,16 @@ then click where it goes.
   over a label, the label is marked where it would land. A shape with one field a label can show
   is bound at once (`shows tally.Total.total`); with several, the builder asks which, with a
   button for each, wrapped to the values' width; when they are more than the pane's rows hold,
-  **More** shows the next of them. Let go anywhere but a label and nothing is bound: the
+  **More** shows the next of them. A binding longer than the values column is cut to end in
+  `...`, so **Unshow** beside it stays whole. Let go anywhere but a label and nothing is bound: the
   builder says where to drop it. A value from Inventory binds by its shape, and a field carried
   from Info binds that field.
 
 ![Flow's emitted tally.Total dragged onto the Total label on the design canvas: shows tally.Total.total](images/view-builder-carry.png)
 
 ![The panel's own intent, its number fields given long ids, dragged onto Total: a button for each field, each on a row of its own within the values column](images/view-builder-choice.png)
+
+![The last of them chosen: the binding's words cut to end in ..., and Unshow whole beside them inside the column](images/view-builder-unshow.png)
 
 ![tally.Total let go over the Elements heading with Total selected: not shown, and Total keeps the field it shows](images/view-builder-drop-refused.png)
 
