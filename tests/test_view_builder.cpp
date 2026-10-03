@@ -32,6 +32,8 @@ namespace shape = zengine::flow::shape;
 constexpr const char* workshop_role = "zengine.workshop";
 constexpr auto unit = ws::kPaneCanvasUnit;
 
+bool has_words(const std::string& text, const std::string& part) { return text.find(part) != std::string::npos; }
+
 std::shared_ptr<const loom::Schema> total_shape() {
     return loom::SchemaBuilder("tally.Total", 1).field("total", loom::Kind::Int).build();
 }
@@ -1047,6 +1049,86 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
     const std::string saved((std::istreambuf_iterator<char>(again)), std::istreambuf_iterator<char>());
     CHECK(loom::parse(saved).claimed_version() == static_cast<std::uint32_t>(view::kFormatVersion));
     CHECK(view::read_description(saved).description.height == 192);
+}
+
+TEST_CASE("nothing sits outside the view: a dragged element stops at its edge, a typed value or a key that would cross it is refused in words, and the size cannot shrink past an element") {
+    namespace sp = zengine::surface;
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    const auto area = rig.design();
+    const auto px = [](std::int64_t v) { return sp::subs_of_pixel(v); };
+    const auto drag = [&](std::int64_t x, std::int64_t y, std::int64_t dx, std::int64_t dy, std::int64_t gesture) {
+        rig.pointer(ws::canvas_pointer::kPress, x, y, gesture);
+        rig.pointer(ws::canvas_pointer::kMove, x + px(dx), y + px(dy), gesture);
+        rig.pointer(ws::canvas_pointer::kRelease, x + px(dx), y + px(dy), gesture);
+    };
+    const auto type_into = [&](const std::string& shown, const std::string& value) {
+        const auto* box = rig.value(shown);
+        REQUIRE_MESSAGE(box != nullptr, shown);
+        rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, 70);
+        rig.pointer(ws::canvas_pointer::kRelease, box->x + 8, box->y + 8, 70);
+        rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
+        rig.host(ws::PaneTextInput{vb::kPane, value});
+        rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+    };
+    // THE SIZE CANNOT SHRINK PAST AN ELEMENT: its edge, dragged in, stops at total's far edges...
+    drag(area.x + px(480), area.y + px(120), -400, 0, 71);
+    CHECK(rig.now().width == 192);
+    drag(area.x + px(96), area.y + px(240), 0, -200, 72);
+    CHECK(rig.now().height == 136);
+    // ...and typed, it is refused in words, the box kept for repair.
+    type_into("192", "150");
+    CHECK(rig.now().width == 192);
+    CHECK(rig.notice() == "`total` reaches to 192,136, past the view's size of 150 by 136");
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kEscape, 0});
+    // A KIND MADE BELOW THE LAST, where the view has no room, is refused in words.
+    const auto* chip = rig.text("[Label]");
+    REQUIRE(chip != nullptr);
+    rig.pointer(ws::canvas_pointer::kPress, chip->x + 8, chip->y + 8, 73);
+    rig.pointer(ws::canvas_pointer::kRelease, chip->x + 8, chip->y + 8, 73);
+    CHECK(rig.now().elements.size() == 5);
+    CHECK(has_words(rig.notice(), "past the view's size of 192 by 136"));
+    REQUIRE(rig.edit("size", {"480", "240"}).ok);
+
+    // A DRAGGED ELEMENT STOPS AT THE VIEW'S EDGE: start, dragged far right and far down.
+    auto d = rig.now();
+    auto [x, y] = rig.middle(d.elements[0]);
+    drag(x, y, 1000, 1000, 74);
+    CHECK(rig.now().elements[0].x == 480 - 144);
+    CHECK(rig.now().elements[0].y == 240 - 24);
+    // ...and a corner stops there too.
+    REQUIRE(rig.edit("select", {"4"}).ok);
+    d = rig.now();
+    const auto total = vb::element_area(rig.design(), d.elements[4]);
+    drag(total.x + total.w, total.y + total.h, 1000, 1000, 75);
+    CHECK(rig.now().elements[4].w == 480);
+    CHECK(rig.now().elements[4].h == 240 - 112);
+    // A KIND LET GO AT THE EDGE is made inside it.
+    const auto* number = rig.text("[Number]");
+    REQUIRE(number != nullptr);
+    rig.pointer(ws::canvas_pointer::kPress, number->x + 8, number->y + 8, 76);
+    rig.pointer(ws::canvas_pointer::kMove, area.x + px(470), area.y + px(10), 76);
+    rig.pointer(ws::canvas_pointer::kRelease, area.x + px(470), area.y + px(10), 76);
+    REQUIRE(rig.now().elements.size() == 6);
+    CHECK(rig.now().elements[5].x + rig.now().elements[5].w == 480);
+
+    // A KEY THAT WOULD CROSS AN EDGE is refused in words: start sits on the right and bottom edges.
+    REQUIRE(rig.edit("select", {"0"}).ok);
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kRight, 0});
+    CHECK(rig.now().elements[0].x == 336);
+    CHECK(rig.notice() == "`start` reaches to 481,240, past the view's size of 480 by 240");
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kDown, 0});
+    CHECK(rig.now().elements[0].y == 216);
+    // ...and on the left, where the view begins.
+    REQUIRE(rig.edit("place", {"0", "0", "0", "144", "24"}).ok);
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kLeft, 0});
+    CHECK(rig.now().elements[0].x == 0);
+    CHECK(has_words(rig.notice(), "`start` sits at a place and a size of whole pixels, each from 0"));
+    // A TYPED VALUE THAT WOULD CROSS IT is refused in words, the box kept for repair.
+    REQUIRE(rig.edit("place", {"0", "12", "0", "144", "24"}).ok);
+    type_into("12", "400");
+    CHECK(rig.now().elements[0].x == 12);
+    CHECK(rig.notice() == "`start` reaches to 544,24, past the view's size of 480 by 240");
 }
 
 TEST_CASE("the pointer resting on an element marks it and its row; a carried value marks the label it would land on; leaving puts the marks down") {

@@ -176,8 +176,10 @@ struct Snapped {
 };
 
 /// One axis of a place by hand, from `at` and `size` wide, its `moving` edges snapped against the
-/// other elements' edges on that axis. A snap that would leave the view's rules is not taken.
-inline Snapped snap_axis(std::int64_t at, std::int64_t size, Edges moving, const std::vector<std::int64_t>& others) {
+/// other elements' edges on that axis. A snap that would leave the view's rules, or reach past
+/// `limit`, the view's own far edge, is not taken.
+inline Snapped snap_axis(std::int64_t at, std::int64_t size, Edges moving, const std::vector<std::int64_t>& others,
+                         std::int64_t limit = view::kMaxSizePx) {
     if (moving == Edges::none) return {at, size, std::nullopt};
     const auto end = at + size;
     const auto travelled = [&](std::int64_t travel) -> std::optional<Snapped> {
@@ -185,7 +187,8 @@ inline Snapped snap_axis(std::int64_t at, std::int64_t size, Edges moving, const
         if (moving != Edges::high) s.at = at + travel;
         if (moving == Edges::low) s.size = end - s.at;
         if (moving == Edges::high) s.size = size + travel;
-        if (s.at < 0 || s.size < 1 || s.at > view::kMaxPixels || s.size > view::kMaxPixels) return std::nullopt;
+        if (s.at < 0 || s.size < 1 || s.at > view::kMaxPixels || s.size > view::kMaxPixels || s.at + s.size > limit)
+            return std::nullopt;
         return s;
     };
     std::optional<Snapped> best;
@@ -228,8 +231,8 @@ inline Place snap(const view::Description& d, std::optional<std::size_t> placing
         xs.insert(xs.end(), {e.x, e.x + e.w});
         ys.insert(ys.end(), {e.y, e.y + e.h});
     }
-    const auto x = snap_axis(at.x, at.w, along_x, xs);
-    const auto y = snap_axis(at.y, at.h, along_y, ys);
+    const auto x = snap_axis(at.x, at.w, along_x, xs, d.width);
+    const auto y = snap_axis(at.y, at.h, along_y, ys, d.height);
     return {x.at, y.at, x.size, y.size, x.met, y.met};
 }
 
