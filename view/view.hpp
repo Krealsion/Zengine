@@ -347,8 +347,11 @@ public:
             return;
         }
         if (is(loom::schema_of<loom::Refused>())) {
-            // A refusal answers one of this view's own intents, by the correlation it was said on.
-            if (std::find(said_.begin(), said_.end(), in.correlation) == said_.end()) return;
+            // Shown only when Loom attests it answers this view's own delivery (ANS-01); the
+            // correlation then says which of its intents it answers.
+            if (!in.provenance.answers_ask() ||
+                std::find(said_.begin(), said_.end(), in.correlation) == said_.end())
+                return;
             const auto refused = loom::from_value<loom::Refused>(in.payload);
             presentation_.notice = "refused: " + refused.reason;
             presentation_.alert = true;

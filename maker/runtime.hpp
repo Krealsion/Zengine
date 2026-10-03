@@ -215,11 +215,17 @@ public:
 
 private:
     /// Send a substrate answer to the requester: reply_to if given, else the stamped sender --
-    /// `WeaveBase::answer_substrate`'s one rule, restated for a raw weave. A request with
-    /// neither has nowhere to answer and is performed silently by design.
+    /// `WeaveBase::answer_substrate`'s one rule, restated for a raw weave. To the stamped sender
+    /// it is Loom's answer to this delivery, through the answer door; redirected elsewhere it is
+    /// ordinary speech. A request with neither has nowhere to answer and is performed silently
+    /// by design.
     void answer(const loom::Message& in, loom::Bus& bus, loom::Value payload) {
         const loom::WeaveId to = in.reply_to.valid() ? in.reply_to : in.sender;
         if (!to.valid()) {
+            return;
+        }
+        if (to == in.sender) {
+            (void)bus.answer(loom::Message(std::move(payload), self_, {}, in.correlation));
             return;
         }
         bus.send(to, loom::Message(std::move(payload), self_, {}, in.correlation));

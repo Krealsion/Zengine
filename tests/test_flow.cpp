@@ -333,7 +333,7 @@ TEST_CASE("Flow common runtime retains inspection and rejects unarmed ceremony")
         rig->send(loom::to_value(loom::PokeDescribe{}));
         REQUIRE(rig->listener->messages.size() == 1);
         CHECK(rig->listener->messages[0].sender == rig->subject);
-        CHECK_FALSE(rig->listener->messages[0].provenance.answers_ask());
+        CHECK(rig->listener->messages[0].provenance.answers_ask());
         const auto structure = loom::from_value<loom::PokeStructure>(rig->listener->messages[0].payload);
         CHECK(structure.state_schema == "hw.State");
         CHECK(structure.fields[0].name == "high");

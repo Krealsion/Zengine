@@ -85,15 +85,19 @@ LAW — A body that cannot be spent leaves the state unchanged, answers `zen.Ref
 
 MEANS
 - the reply goes to `reply_to` if given, else the stamped sender; neither means silence;
+- to the stamped sender it is Loom's answer to that delivery (`answers_ask`); elsewhere, ordinary;
 - the deepest layer names the node; the identity heading it is `<definition> on <message>`.
 
-PROVEN BY — `maker/runtime.hpp` `Runtime::fire`, `Runtime::refused`, `Runtime::in_weaver_words`;
+PROVEN BY — `maker/runtime.hpp` `Runtime::fire`, `Runtime::refused`, `Runtime::in_weaver_words`,
+`Runtime::answer`;
 `tests/test_maker.cpp` case
 `"a body that cannot be spent leaves the state unchanged and refuses by name"`, case
 `"the answer lands in the named state field, and an answer of another kind is refused with
 the state unchanged"`, case `"a trigger's body may fold: the count is folded through math.add
 into the state, a refused fold leaves the state unchanged and says why"`; `tests/test_flow.cpp`
-case `"Flow missing and reshaped leaves refuse by the same detecting layer"`.
+case `"Flow missing and reshaped leaves refuse by the same detecting layer"`;
+`tests/test_view.cpp` case `"a refusal reaches the notice row only when Loom attests it answers
+the view's own intent; another participant's at that intent's correlation does not"`.
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-07 — The emit is published under the weave's own grant
