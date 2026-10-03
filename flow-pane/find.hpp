@@ -188,6 +188,37 @@ inline std::shared_ptr<const loom::Schema> dropped_shape(const loom::Value& valu
     }
 }
 
+/// WHAT A DROPPED VALUE IS, as its page names it: a carried shape by the shape it holds and every
+/// shape that one nests, with each field's type, never by the message it travels in; anything
+/// else by its own shape and fields.
+struct DroppedSummary {
+    std::string title;
+    std::vector<std::string> rows;
+};
+inline DroppedSummary summarize_drop(const loom::Value& value) {
+    DroppedSummary out;
+    const auto version = [](const loom::Schema& s) { return s.name() + " v" + std::to_string(s.version()); };
+    const bool carried = loom::same_identity(value.schema(), *flow::shape::carried_shape_schema());
+    if (!carried) {
+        out.title = "Dropped " + version(value.schema());
+        for (const auto& row : message_draft::Draft(value).rows()) out.rows.push_back(row.label + " = " + row.summary);
+    }
+    if (!flow::shape::is_description(value)) return out;
+    try {
+        const auto shape = flow::shape::described(value);
+        if (!carried) return out;
+        std::vector<std::shared_ptr<const loom::Schema>> nested;
+        loom::collect_referenced(*shape, nested);
+        out.title = "Dropped the shape " + version(*shape);
+        for (std::size_t i = 0; i < nested.size(); ++i) out.title += (i == 0 ? ", nesting " : ", ") + version(*nested[i]);
+        const auto spelled = loom::describe_schema(*shape).fields;
+        for (std::size_t i = 0; i < spelled.size(); ++i) out.rows.push_back(shape->fields()[i].name + ": " + spelled[i].type);
+    } catch (const std::exception&) {
+        if (carried) out.title = "Dropped a carried shape";
+    }
+    return out;
+}
+
 /// WHAT A DROPPED VALUE CAN BE HERE, in the order a maker reaches for it: an example to send when
 /// the definition accepts its shape, a constant from one of its fields when it landed on a port
 /// of that field's kind, and a declaration of its shape -- accepted, or emitted inside the

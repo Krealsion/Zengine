@@ -835,7 +835,7 @@ TEST_CASE("a value dropped on no label is refused in words whatever is selected;
     CHECK(d.shows[0].field == "total");
 }
 
-TEST_CASE("a carried description brings the shapes it nests: a label binds a field of a shape nesting another from what it carries, and its own intent is carried the same way") {
+TEST_CASE("a carried shape brings the shapes it nests: a label binds a field of a shape nesting another from what it carries, its own intent is carried the same way, and a weave's describe answer is no carried shape") {
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     REQUIRE(rig.edit("select", {"4"}).ok);
@@ -850,11 +850,18 @@ TEST_CASE("a carried description brings the shapes it nests: a label binds a fie
 
     // AS A PANE CARRIES IT: the shape, and beside it the shapes it nests. `total` is bound, and
     // the binding survives the description's own round trip.
-    rig.drop(loom::encode_accepted_shapes({review}), "> total  label");
+    rig.drop(zengine::flow::shape::carried(review), "> total  label");
     const auto d = rig.now();
     REQUIRE(d.shows.size() == 1);
     CHECK(d.shows[0].field == "total");
     CHECK(loom::same_identity(*d.shows[0].shape, *review));
+
+    // A WEAVE'S DESCRIBE ANSWER, kept and dropped here, says which shapes a weave accepts: it is
+    // not read as a carried shape, and the label keeps what it shows.
+    const auto counted = loom::SchemaBuilder("review.Count", 1).field("count", loom::Kind::Int).build();
+    rig.drop(loom::encode_accepted_shapes({counted}), "> total  label");
+    REQUIRE(rig.now().shows.size() == 1);
+    CHECK(rig.now().shows[0].shape->name() == "review.Total");
 
     // ITS OWN INTENT, carried out by a press on what the button says, holds its shape as a root.
     REQUIRE(rig.edit("select", {"3"}).ok);
@@ -868,12 +875,8 @@ TEST_CASE("a carried description brings the shapes it nests: a label binds a fie
     const auto bytes = loom::from_value<ws::PaneValueCarryRequested>(carried->payload).data;
     const auto item = zengine::inventory::decode_pair(
         std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())).item;
-    REQUIRE(loom::same_identity(item.schema(), *loom::accepted_shapes_schema()));
-    loom::Registry carried_shapes;
-    loom::decode_accepted_referenced(item, carried_shapes);
-    const auto roots = loom::decode_accepted_roots(item, carried_shapes);
-    REQUIRE(roots.size() == 1);
-    CHECK(loom::same_identity(*roots[0], *hwfix::count_schema()));
+    CHECK(item.schema().name() == "zengine.flow.CarriedShape");
+    CHECK(loom::same_identity(*zengine::flow::shape::described(item), *hwfix::count_schema()));
 }
 
 TEST_CASE("a control in the values column is drawn whole inside it whatever the words before it: Unshow, Remove and the intent's box") {
