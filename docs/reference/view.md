@@ -14,7 +14,7 @@ page is the contract beneath it.
 | part | what it holds |
 |---|---|
 | `name` | the view's name: its office, its pane's name in the Pane Manager, and its intents' namespace; at most `view::kMaxNameBytes` bytes of letters, digits, `_`, `-` and inner dots |
-| `width`, `height` | the view's size in whole pixels, its notice rows included, from `view::kMinWidthPx` by `view::kMinHeightPx` to `view::kMaxSizePx` each way: what it is drawn in and asks its pane for |
+| `width`, `height` | the view's size in whole pixels, from `view::kMinWidthPx` by `view::kMinHeightPx` to `view::kMaxSizePx` each way: what its elements sit in, with its notice rows beneath it |
 | `elements` | at most `view::kMaxElements`, each an `id` (an identifier, since an intent field is named by it), a kind (`label`, `number` field or `button`), a printable `label`, and `x`, `y`, `w`, `h` in whole pixels, inside the view's size; a number field may hold the `text` it starts with |
 | `shows` | a label showing one field of a view-model shape: the shape, closure and all, and a scalar field of it |
 | `intents` | a button's intent: a shape whose name begins with the view's name and a `.`, every field a required `Int` filled from a number field |
@@ -29,8 +29,9 @@ format word `zengine-view-description`. `view::read_description` reads the envel
 first, so a description of a version it does not read is refused by its number before a field is
 decoded, then admits the value at that version's schema, then applies the rules. Version 1, saved
 before a view had a size, still reads: it takes `view::fitting_size`, the rows and columns its
-pane was asked for then (its elements, its notice rows, at least 4 rows by 40 columns and at most
-60 by 200, never less than its elements reach), and is written again as the current version. `view::save_description` and
+pane was asked for then (its elements and its notice rows, at least 4 rows by 40 columns and at
+most 60 by 200) less the notice rows, which now lie beneath the size, never less than its elements
+reach, and is written again as the current version. `view::save_description` and
 `view::open_description` use the maker file doors: bounded, and replaced whole.
 
 ## The view host
@@ -55,13 +56,15 @@ asker's grant or from the host's trust in its plan artifacts.
 `view::View` is the participant's behaviour. It accepts the shapes its labels show, `zen.Refused`
 and the pane conversation; it emits its intents and that conversation.
 
-- It offers one pane, `view`, as its office, asking for its size in canvas cells
-  (`view::preferred_size`), and asks for a seat when it starts. Workshop reads a pane's rows and
+- It offers one pane, `view`, as its office, asking for its size and its notice rows in canvas
+  cells, never more than `workshop::kMaxPaneComfort` of either (`view::preferred_size`), and asks
+  for a seat when it starts. Workshop reads a pane's rows and
   columns in its own text metrics, so a terminal's pane is the size exactly and a window's is
   laid out by the window's text.
 - It draws in its size within the room Workshop grants: each element at its pixels, a number
-  field's text and caret, a button's label, a label and the value it shows, and a notice in its
-  last rows.
+  field's text and caret, a button's label, a label and the value it shows, and beneath the size
+  a notice in `view::kNoticeRows` lines of the medium's text (`view::notice_band`), so no element
+  is under it. A pane smaller than the view and its notice rows cuts the picture.
   Text sits on the medium's own lattice inside its element and is fitted to what the medium
   measures, so a terminal shows the same picture floored to cells.
 - Focus, caret and field text are its own. A press focuses a number field or uses a button;
@@ -78,4 +81,5 @@ and the pane conversation; it emits its intents and that conversation.
 
 `view::picture(description, told, presentation, room, number)` is the one drawing of a view and
 is pure. The View Builder draws its design canvas with it too, in a room exactly the view's
-size, so a view is designed in the very picture it runs in, at its own pixels.
+size and its notice rows, so a view is designed in the very picture it runs in, at its own
+pixels.

@@ -119,8 +119,8 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         // ONE RENDERER: everything the view's own picture code draws in a room exactly the view's
         // size is in the builder's picture, moved by the area's corner and nothing else.
         const ws::PaneCanvasRoom inner{vb::kPane, room.grant, zengine::surface::subs_of_pixel(m.description.width),
-                                       zengine::surface::subs_of_pixel(m.description.height), room.grain,
-                                       room.graphical, room.text_advance_px, room.text_line_px};
+                                       zengine::surface::subs_of_pixel(m.description.height) + view::notice_band(room),
+                                       room.grain, room.graphical, room.text_advance_px, room.text_line_px};
         const auto own = view::picture(m.description, {}, view::Presentation{}, inner, 1);
         REQUIRE_FALSE(own.content.texts.empty());
         for (const auto& t : own.content.texts) {
@@ -185,7 +185,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(pic.view.x == area.x - sp::subs_of_pixel(480));
         CHECK(pic.view.y == area.y - sp::subs_of_pixel(300));
         CHECK(pic.view.w == sp::subs_of_pixel(1400));
-        CHECK(pic.view.h == sp::subs_of_pixel(1000));
+        CHECK(pic.view.h == sp::subs_of_pixel(1000) + view::notice_band(room));
         const ws::PaneCanvasRoom inner{vb::kPane, room.grant, pic.view.w, pic.view.h, room.grain, room.graphical,
                                        room.text_advance_px, room.text_line_px};
         const auto own = view::picture(wide.description, {}, view::Presentation{}, inner, 3);
@@ -905,12 +905,13 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     rig.pointer(ws::canvas_pointer::kPress, cx, cy, 33, 2);
     rig.pointer(ws::canvas_pointer::kMove, cx - sp::subs_of_pixel(5000), cy - sp::subs_of_pixel(5000), 33, 2);
     rig.pointer(ws::canvas_pointer::kRelease, cx - sp::subs_of_pixel(5000), cy - sp::subs_of_pixel(5000), 33, 2);
-    const auto [reach_x, reach_y] = vb::pan_reach(rig.now(), area);
+    const auto [reach_x, reach_y] = vb::pan_reach(rig.now(), area, view::notice_band(window_room()));
     const vb::Area reached{area.x - sp::subs_of_pixel(reach_x), area.y - sp::subs_of_pixel(reach_y), 0, 0};
     distant = vb::element_area(reached, rig.now().elements[5]);
     CHECK(far_box(distant) == 1);
     CHECK(std::abs(reached.x + sp::subs_of_pixel(2000 + 12) - (area.x + area.w)) <= sp::subs_of_pixel(1));
-    CHECK(std::abs(reached.y + sp::subs_of_pixel(1200 + 12) - (area.y + area.h)) <= sp::subs_of_pixel(1));
+    CHECK(std::abs(reached.y + sp::subs_of_pixel(1200) + view::notice_band(window_room()) - (area.y + area.h)) <=
+          sp::subs_of_pixel(1)); // the notice rows beneath the size in sight too
     // ...and back to the view's corner, no further.
     rig.pointer(ws::canvas_pointer::kPress, cx, cy, 34, 2);
     rig.pointer(ws::canvas_pointer::kMove, cx + sp::subs_of_pixel(9000), cy + sp::subs_of_pixel(9000), 34, 2);
@@ -990,7 +991,7 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
                    r.h == sp::subs_of_pixel(h);
         });
     };
-    CHECK(ground(480, 240) == 1);
+    CHECK(ground(480, 240 + 60) == 1); // the size, and its three notice rows of 20 pixels
     const auto drag = [&](std::int64_t x, std::int64_t y, std::int64_t dx, std::int64_t dy, std::int64_t gesture,
                           std::int64_t phase = ws::canvas_pointer::kRelease) {
         rig.pointer(ws::canvas_pointer::kPress, x, y, gesture);
@@ -1003,7 +1004,7 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
     d = rig.now();
     CHECK(d.width == 576);
     CHECK(d.height == 240);
-    CHECK(ground(576, 240) == 1);
+    CHECK(ground(576, 240 + 60) == 1);
     drag(area.x + px(288), area.y + px(240), 40, 60, 61);
     CHECK(rig.now().width == 576);
     CHECK(rig.now().height == 300);
@@ -1053,13 +1054,13 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
     }
     REQUIRE(rig.edit("open", {old, "discard"}).ok);
     CHECK(rig.now().width == 480);
-    CHECK(rig.now().height == 192);
+    CHECK(rig.now().height == 156);
     CHECK(rig.now().elements.size() == 5);
     REQUIRE(rig.edit("save", {(dir.directory / "again.view").string()}).ok);
     std::ifstream again(dir.directory / "again.view", std::ios::binary);
     const std::string saved((std::istreambuf_iterator<char>(again)), std::istreambuf_iterator<char>());
     CHECK(loom::parse(saved).claimed_version() == static_cast<std::uint32_t>(view::kFormatVersion));
-    CHECK(view::read_description(saved).description.height == 192);
+    CHECK(view::read_description(saved).description.height == 156);
 }
 
 TEST_CASE("nothing sits outside the view: a dragged element stops at its edge, a typed value or a key that would cross it is refused in words, and the size cannot shrink past an element") {
@@ -1205,6 +1206,36 @@ TEST_CASE("the grid is the weaver's: none by default, so a place by hand moves b
     CHECK(rig.now().elements[4].x == 227);
     CHECK(rig.now().elements[4].y == 163);
     CHECK(with.find("grid") == std::string::npos);
+}
+
+TEST_CASE("a view shrunk to its elements while its notice shows keeps every element in sight: the notice's rows lie beneath its size on the design canvas, in a window and in a terminal") {
+    namespace sp = zengine::surface;
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    rig.drop(loom::encode_schema(*total_shape()), "  total  label");
+    REQUIRE(rig.now().shown("total") != nullptr);
+    const auto drag = [&](std::int64_t x, std::int64_t y, std::int64_t dx, std::int64_t dy, std::int64_t gesture) {
+        rig.pointer(ws::canvas_pointer::kPress, x, y, gesture);
+        rig.pointer(ws::canvas_pointer::kMove, x + sp::subs_of_pixel(dx), y + sp::subs_of_pixel(dy), gesture);
+        rig.pointer(ws::canvas_pointer::kRelease, x + sp::subs_of_pixel(dx), y + sp::subs_of_pixel(dy), gesture);
+    };
+    // SHRUNK BY HAND to its elements: Total's bottom edge, 136, is the size's.
+    const auto area = rig.design();
+    drag(area.x + sp::subs_of_pixel(240), area.y + sp::subs_of_pixel(240), 0, -400, 90);
+    drag(area.x + sp::subs_of_pixel(480), area.y + sp::subs_of_pixel(68), -400, 0, 91);
+    REQUIRE(rig.now().height == 136);
+    REQUIRE(rig.now().width == 192);
+    for (const auto& room : {window_room(++rig.grant), terminal_room(++rig.grant)}) {
+        INFO("graphical: " << room.graphical);
+        rig.host(room);
+        const auto canvas = rig.design();
+        const auto* total = rig.drawn("Total: waiting");
+        REQUIRE(total != nullptr);
+        CHECK(total->y < canvas.y + sp::subs_of_pixel(136));
+        const auto* notice = rig.drawn("waiting to");
+        REQUIRE(notice != nullptr);
+        CHECK(notice->y >= canvas.y + sp::subs_of_pixel(136));
+    }
 }
 
 TEST_CASE("the pointer resting on an element marks it and its row; a carried value marks the label it would land on; leaving puts the marks down") {

@@ -462,7 +462,7 @@ private:
         const auto dx = event.x - h.x, dy = event.y - h.y;
         if (h.what == Held::What::pan) {
             // The view follows the hand, within the pan's reach.
-            const auto [reach_x, reach_y] = vb::pan_reach(model_.description, h.design);
+            const auto [reach_x, reach_y] = vb::pan_reach(model_.description, h.design, view::notice_band(room_));
             const auto x = std::clamp<std::int64_t>(h.pan_x - pixels(dx), 0, reach_x);
             const auto y = std::clamp<std::int64_t>(h.pan_y - pixels(dy), 0, reach_y);
             if (x == shown_.pan_x && y == shown_.pan_y) return;

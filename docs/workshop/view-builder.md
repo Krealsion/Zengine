@@ -16,12 +16,14 @@ Open the Pane Manager and choose **View Builder**. The shipped plans include the
 On the left are the view's name and file in boxes, **Add** with the three kinds of element, the
 view's **Size** and the **Grid** in boxes, and the list of the view's elements. In the middle is
 the design canvas: the view drawn by its own picture code at its own pixels, 12 to a cell, in a
-room exactly its size, the same picture it shows when it runs. In a wide
+room exactly its size with its notice rows beneath, the same picture it shows when it runs. In a
+wide
 pane the selected element's values sit in boxes on the right; in a narrow one, below the list.
 
 - **Size** the view by dragging the handles on its right and bottom edges, or their corner, or
-  type its width and height into the boxes beside **Size**. A new view is 480 by 240. Its last
-  rows are where it says what it is waiting for, and when it runs it asks its pane for its size.
+  type its width and height into the boxes beside **Size**. A new view is 480 by 240. Beneath
+  its size are three rows of text where it says what it is waiting for, so nothing you place is
+  ever under them, and when it runs it asks its pane for its size and those rows.
 - **Make** an element by dragging **Label**, **Number** or **Button** from **Add** onto the
   canvas: it is made where you let go, inside the view, snapped as a move is. A click on a kind
   makes one below the last, if the view has room there.
