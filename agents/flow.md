@@ -65,8 +65,9 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
 - The pane carries a declared message's shape out, with every shape it nests
   (`flow::shape::carried`), from a press's drag or a right press on its row in Messages. A
   dropped description is read with the shapes it carries and nothing else
-  (`flow::shape::described`), never the pane's catalog or a registry. It carries no value and no
-  operator out.
+  (`flow::shape::described`), never the pane's catalog or a registry; one naming a shape it does
+  not carry declares nothing, and its page and notice say why in Loom's words. It carries no
+  value and no operator out.
 - The pane consumes the shared canvas seam and host-manager messages. It owns no private
   catalog, fallback primitives, nested host, native-code loading policy or bus pumping.
 - The pane finds powers through the discovery door (`flow-pane/find.hpp`) and never through

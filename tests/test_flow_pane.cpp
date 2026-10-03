@@ -585,6 +585,23 @@ TEST_CASE("a declared message that nests another is carried out as a carried sha
     CHECK(rig.workspace().graph.project.definition.accepts.size() == 2);
 }
 
+TEST_CASE("a dropped description that names a shape it does not carry declares nothing, and Flow says why in Loom's words") {
+    Rig rig;
+    const auto detail = loom::SchemaBuilder("review.Detail", 1).field("note", loom::Kind::Text).build();
+    const auto review = loom::SchemaBuilder("review.Total", 1)
+        .field("total", loom::Kind::Int).message("detail", detail).build();
+    rig.edit_ok("new", {"review", "discard"});
+    // A BARE DESCRIPTION of a shape that nests another carries nothing beside it.
+    rig.drop(loom::encode_schema(*review), 40 * unit, 20 * unit);
+    // Said on the page itself, which stays until it is put down, and in the notice.
+    const auto said = std::count_if(rig.picture().texts.begin(), rig.picture().texts.end(), [](const auto& row) {
+        return row.text.find("Not declarable: schema descriptor: unresolved nested schema 'review.Detail'") != std::string::npos;
+    });
+    CHECK(said == 2);
+    CHECK_FALSE(rig.shows_part("[Declare review.Total"));
+    CHECK(rig.shows("[Cancel]"));
+}
+
 TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and interaction context") {
     Rig rig;
     rig.graph_semantically();

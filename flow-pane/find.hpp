@@ -190,10 +190,12 @@ inline std::shared_ptr<const loom::Schema> dropped_shape(const loom::Value& valu
 
 /// WHAT A DROPPED VALUE IS, as its page names it: a carried shape by the shape it holds and every
 /// shape that one nests, with each field's type, never by the message it travels in; anything
-/// else by its own shape and fields.
+/// else by its own shape and fields. `why` says, in Loom's words, why a description names no
+/// shape here; it is empty otherwise.
 struct DroppedSummary {
     std::string title;
     std::vector<std::string> rows;
+    std::string why;
 };
 inline DroppedSummary summarize_drop(const loom::Value& value) {
     DroppedSummary out;
@@ -213,8 +215,9 @@ inline DroppedSummary summarize_drop(const loom::Value& value) {
         for (std::size_t i = 0; i < nested.size(); ++i) out.title += (i == 0 ? ", nesting " : ", ") + version(*nested[i]);
         const auto spelled = loom::describe_schema(*shape).fields;
         for (std::size_t i = 0; i < spelled.size(); ++i) out.rows.push_back(shape->fields()[i].name + ": " + spelled[i].type);
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         if (carried) out.title = "Dropped a carried shape";
+        out.why = e.what();
     }
     return out;
 }
