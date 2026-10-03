@@ -151,11 +151,19 @@ inline component::TextBox field_box(const Presentation& p, const Element& e) {
     return box;
 }
 
-/// THE PICTURE: the description against what it was told, in its room. Whole pixels become
-/// subunits (`surface::subs_of_pixel`); the medium floors them to its grain, so a terminal shows
-/// the same picture in cells, and each line is fitted to what the medium measures.
+/// The room a view is drawn in: its size, within the room its pane was granted.
+inline ws::PaneCanvasRoom sized(const Description& d, ws::PaneCanvasRoom room) {
+    room.width = std::min(room.width, surface::subs_of_pixel(d.width));
+    room.height = std::min(room.height, surface::subs_of_pixel(d.height));
+    return room;
+}
+
+/// THE PICTURE: the description against what it was told, in its size within its room. Whole
+/// pixels become subunits (`surface::subs_of_pixel`); the medium floors them to its grain, so a
+/// terminal shows the same picture in cells, and each line is fitted to what the medium measures.
 inline Picture picture(const Description& d, const Told& told, const Presentation& p,
-                       const ws::PaneCanvasRoom& room, std::int64_t number) {
+                       const ws::PaneCanvasRoom& granted, std::int64_t number) {
+    const auto room = sized(d, granted);
     Picture out;
     out.content.pane = kPane;
     out.content.grant = room.grant;
@@ -240,19 +248,16 @@ inline ws::PaneCanvasContent stopped_picture(const Description& d, const ws::Pan
     p.notice = d.name + " " + why;
     Description bare;
     bare.name = d.name;
+    bare.width = d.width;
+    bare.height = d.height;
     return picture(bare, {}, p, room, number).content;
 }
 
-/// The preferred size a view offers, in text rows and columns: its elements and its notice rows.
+/// The rows and columns a view asks its pane for: its size, in canvas cells of
+/// `surface::kCanvasCellPx` pixels, enough to hold it.
 inline std::pair<std::int64_t, std::int64_t> preferred_size(const Description& d) {
-    std::int64_t right = 0, bottom = 0;
-    for (const auto& e : d.elements) {
-        right = std::max(right, e.x + e.w);
-        bottom = std::max(bottom, e.y + e.h);
-    }
     const auto cells = [](std::int64_t px) { return (px + surface::kCanvasCellPx - 1) / surface::kCanvasCellPx; };
-    return {std::clamp<std::int64_t>(cells(bottom) + static_cast<std::int64_t>(kNoticeRows) + 1, 4, 60),
-            std::clamp<std::int64_t>(cells(right) + 2, 40, 200)};
+    return {cells(d.height), cells(d.width)};
 }
 
 /// The grant a description implies: each intent it says to any accepter, and the pane

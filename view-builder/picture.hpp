@@ -498,6 +498,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
     const auto& area = out.design;
     if (!area.empty()) {
         out.hits.push_back({area, "canvas", {}});
+        out.content.rects.push_back({area.x, area.y, area.w, area.h, ink::kGround});
         out.content.rects.push_back({area.x - rule, area.y - rule, area.w + rule, rule, ink::kMuted});
         out.content.rects.push_back({area.x - rule, area.y, rule, area.h, ink::kMuted});
         if (beside) out.content.rects.push_back({area.x + area.w, area.y - rule, rule, area.h + rule, ink::kMuted});
