@@ -28,11 +28,13 @@ std::shared_ptr<const loom::Schema> total_shape() {
     return loom::SchemaBuilder("tally.Total", 1).field("total", loom::Kind::Int).build();
 }
 
-/// The tally panel: three number fields, a button saying `tally.panel.Count`, and a label;
-/// `bound` shows `tally.Total.total` on it.
+/// The tally panel: three number fields, a button saying `tally.panel.Count`, and a label, in a
+/// view 480 by 192; `bound` shows `tally.Total.total` on it.
 view::Description panel(bool bound = true, std::string total_label = "Total") {
     view::Description d;
     d.name = "tally.panel";
+    d.width = 480;
+    d.height = 192;
     d.elements = {{"start", view::Kind::number, "start", 0, 0, 144, 24, "0"},
                   {"limit", view::Kind::number, "limit", 0, 28, 144, 24, "10"},
                   {"step", view::Kind::number, "step", 0, 56, 144, 24, "1"},
@@ -46,6 +48,17 @@ view::Description panel(bool bound = true, std::string total_label = "Total") {
 loom::Bytes bytes_of(const view::Description& d) {
     const auto text = view::description_bytes(d);
     return {text.begin(), text.end()};
+}
+
+/// The bytes a view description was saved as before a view had a size: version 1, every field
+/// of the current form but the size.
+std::string first_version_bytes(const view::Description& d) {
+    const auto now = view::encode(d);
+    loom::Value v(view::description_schema_v1());
+    for (const auto& f : view::description_schema_v1()->fields())
+        if (const auto* cell = now.get(f.name)) v.set(f.name, *cell);
+    v.set("format_version", loom::Cell::integer(1));
+    return loom::serialize(v);
 }
 
 /// Stands in for Workshop's office: hears what a pane says, and speaks to a view as Workshop.
@@ -190,13 +203,16 @@ TEST_CASE("a view description saves and reads back whole, and another version is
     CHECK(loom::same_identity(*read.description.shows[0].shape, *total_shape()));
     CHECK(view::same_shapes(d, read.description));
 
+    CHECK(read.description.width == 480);
+    CHECK(read.description.height == 192);
+
     // The same fields under a newer envelope: refused by the number it claims, before a field.
-    auto later = loom::SchemaBuilder("zengine.view.Description", 2).field("format", loom::Kind::Text).build();
+    auto later = loom::SchemaBuilder("zengine.view.Description", 3).field("format", loom::Kind::Text).build();
     loom::Value v(later);
     v.set("format", loom::Cell::text(view::kFormat));
     const auto refused = view::read_description(loom::serialize(v));
     CHECK_FALSE(refused.ok);
-    CHECK(has(refused.reason, "a view description of version 2; this build reads version 1"));
+    CHECK(has(refused.reason, "a view description of version 3; this build reads versions 1 to 2"));
     CHECK(has(view::read_description("not a value").reason, "not a Zen value"));
 }
 
@@ -231,6 +247,60 @@ TEST_CASE("a description that breaks a rule is refused in words, and none is wri
     placed.elements[0].w = 0;
     CHECK(has(view::problem(placed), "sits at a place and a size of whole pixels"));
     CHECK(view::problem(panel()).empty());
+}
+
+TEST_CASE("a view has a size that holds its elements; one saved without a size reads with the size its elements and notice need, and is written with it") {
+    // THE SIZE IS SAVED with the view, and every element sits inside it.
+    auto d = panel();
+    d.width = 600;
+    d.height = 300;
+    auto read = view::read_description(view::description_bytes(d));
+    REQUIRE_MESSAGE(read.ok, read.reason);
+    CHECK(read.description.width == 600);
+    CHECK(read.description.height == 300);
+    auto past = panel();
+    past.elements[4].x = 300; // total, 192 wide, to 492 in a view 480 wide
+    CHECK(has(view::problem(past), "`total` reaches to 492,136, past the view's size of 480 by 192"));
+    auto low = panel();
+    low.height = 120;
+    CHECK(has(view::problem(low), "`total` reaches to 192,136, past the view's size of 480 by 120"));
+    auto tiny = panel();
+    tiny.elements.clear();
+    tiny.intents.clear();
+    tiny.shows.clear();
+    tiny.width = view::kMinWidthPx - 1;
+    CHECK(has(view::problem(tiny), "a view's size is whole pixels from 120 by 48 to 16384 by 16384; 119 by 192 is not"));
+    tiny.width = view::kMinWidthPx;
+    tiny.height = view::kMaxSizePx + 1;
+    CHECK_FALSE(view::problem(tiny).empty());
+    tiny.height = view::kMinHeightPx;
+    CHECK(view::problem(tiny).empty());
+
+    // A VIEW SAVED BEFORE A VIEW HAD A SIZE reads whole, with the size its elements and notice
+    // rows need: rows below its lowest element, two columns past its rightmost, at least 40
+    // columns, as its pane was asked for then.
+    const auto old = first_version_bytes(panel());
+    CHECK(loom::parse(old).claimed_version() == 1);
+    read = view::read_description(old);
+    REQUIRE_MESSAGE(read.ok, read.reason);
+    CHECK(read.description.width == 40 * 12);
+    CHECK(read.description.height == (12 + 3 + 1) * 12);
+    CHECK(read.description.elements.size() == 5);
+    CHECK(view::same_shapes(read.description, panel()));
+    // ...one reaching far gets a size that holds it,
+    auto far_out = panel();
+    far_out.width = view::kMaxSizePx;
+    far_out.height = view::kMaxSizePx;
+    far_out.elements[4].x = view::kMaxPixels;
+    far_out.elements[4].y = 1000;
+    read = view::read_description(first_version_bytes(far_out));
+    REQUIRE_MESSAGE(read.ok, read.reason);
+    CHECK(read.description.width == view::kMaxPixels + 192);
+    CHECK(read.description.height == 1024);
+    // ...and it is written again as the current version, with that size.
+    const auto again = view::description_bytes(read.description);
+    CHECK(loom::parse(again).claimed_version() == static_cast<std::uint32_t>(view::kFormatVersion));
+    CHECK(view::read_description(again).description.width == view::kMaxPixels + 192);
 }
 
 TEST_CASE("the view host registers a view as its own participant, granted only its intents and its pane conversation") {
