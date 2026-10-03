@@ -69,8 +69,10 @@ then click where it goes.
 - **What Flow says, onto a label.** In Flow's **Messages**, drag `tally.Total` from under
   **Emitted** onto the `Total` label on the canvas, or onto its row in the list. While you hold it
   over a label, the label is marked where it would land. A shape with one field a label can show
-  is bound at once (`shows tally.Total.total`); with several, the builder asks which. A value
-  from Inventory binds by its shape, and a field carried from Info binds that field.
+  is bound at once (`shows tally.Total.total`); with several, the builder asks which, with a
+  button for each, wrapped to the values' width; when they are more than the pane's rows hold,
+  **More** shows the next of them. A value from Inventory binds by its shape, and a field
+  carried from Info binds that field.
 
 ![Flow's emitted tally.Total dragged onto the Total label on the design canvas: shows tally.Total.total](images/view-builder-carry.png)
 
