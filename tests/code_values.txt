@@ -71,6 +71,7 @@ kTextInsetPx                    surface/region.hpp                        kTextI
 kMaxScancode                    input/vocabulary.hpp                      kMaxScancode
 kMaxHeldKeys                    input/vocabulary.hpp                      kMaxHeldKeys
 kRootContext                    ui/vocabulary.hpp                         kRootContext
+view_builder::kSnapReach        view-builder/picture.hpp                  kSnapReach
 
 # ---- the Timer
 kPreparedClaimBeats             timer/vocabulary.hpp                      kPreparedClaimBeats
