@@ -463,6 +463,12 @@
           "type": "text",
           "default": "left",
           "help": "the button held through the drag: left, middle or right"
+        },
+        {
+          "name": "hold",
+          "type": "text",
+          "default": "",
+          "help": "modifiers held through the drag, such as alt or ctrl+shift; then it moves in straight steps"
         }
       ],
       "outputs": [

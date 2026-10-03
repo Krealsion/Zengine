@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Joshua DeMoss
 """Press, request Zengine-owned timed motion, release; retain before, held and after evidence."""
 from hand import Hand
-from workshop_steps import button_of, link_session, picture, point
+from workshop_steps import MODIFIERS, button_of, link_session, picture, point
 
 
 def run(ctx):
@@ -14,9 +14,14 @@ def run(ctx):
     hand = Hand(ctx, link)
     before, _ = picture(ctx, link, "before")
     rows = [dict(x=p[0], y=p[1], space=p[2]) for p in (start, end)]
+    modifiers = 0
+    for word in filter(None, ctx.inputs.get("hold", "").lower().split("+")):
+        if word not in MODIFIERS:
+            raise ValueError("'%s' is not a modifier (shift, ctrl, alt)" % word)
+        modifiers |= MODIFIERS[word]
     moved = hand.drag(*rows, ctx.inputs.get("duration_ms", 900), ctx.inputs.get("bend", 0),
                       button=button_of(ctx.inputs.get("button", "left")),
-                      held=lambda: picture(ctx, link, "held"))
+                      held=lambda: picture(ctx, link, "held"), modifiers=modifiers)
     after, _ = picture(ctx, link, "after")
     ctx.check(after["frame"] > before["frame"], "no later frame after the drag")
     hand.close()

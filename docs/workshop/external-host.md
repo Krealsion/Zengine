@@ -669,7 +669,9 @@ font; `hand.control(provider, pane, label)` and `hand.field(...)` in `hand.py` u
 
 `workshop/drag` uses the session's timed Input motion; `duration_ms` controls time, `bend`
 selects a linear path (zero) or cubic Bezier, and `button` is the one held through it (left,
-middle or right; left unless named); `held.bmp` is Workshop at the end of the motion with the
+middle or right; left unless named); `hold` names modifiers held through it (`alt`,
+`ctrl+shift`), and then the drag moves in sixteen straight steps the tool injects, since Input's
+timed motion carries no modifier; `held.bmp` is Workshop at the end of the motion with the
 button still down, between `before.bmp` and `after.bmp`. `workshop/act`'s `rest` step moves the pointer to a
 window pixel or cell with no button held, so a canvas pane that asks for its hover is told where
 it rests. The [Inventory-to-Compose demo](inventory-compose.md)

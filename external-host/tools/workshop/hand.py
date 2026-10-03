@@ -121,11 +121,24 @@ class Hand:
         self.actions["text"] += 1
         self.inject(clear_moments(self.ctx) + [moment(self.ctx, "TextEntered", text=text)])
 
-    def drag(self, start, end, duration_ms=900, bend=0, during=None, button=1, held=None):
+    def drag(self, start, end, duration_ms=900, bend=0, during=None, button=1, held=None, modifiers=0):
+        """Press, move, release. Input's timed motion carries no modifier, so a drag with one held
+        moves in steps this hand injects itself, each carrying it, in a straight line."""
         self.actions["drag"] += 1
         self.ctx.check(start["space"] == end["space"], "drag endpoints use different spaces")
-        self.inject([moment(self.ctx, "PointerButton", button=button, pressed=True,
+        self.inject([moment(self.ctx, "PointerButton", button=button, pressed=True, modifiers=modifiers,
                             x=start["x"], y=start["y"], space=start["space"])])
+        if modifiers:
+            steps = 16
+            path = [moment(self.ctx, "PointerMoved", modifiers=modifiers, space=start["space"],
+                           x=start["x"] + (end["x"] - start["x"]) * i // steps,
+                           y=start["y"] + (end["y"] - start["y"]) * i // steps) for i in range(1, steps + 1)]
+            moved = self.inject(path)
+            if held is not None:
+                held()  # at the endpoint, the button still down
+            self.inject([moment(self.ctx, "PointerButton", button=button, pressed=False, modifiers=modifiers,
+                                x=end["x"], y=end["y"], space=end["space"])])
+            return moved
         fields = {"session": self.session, "x": end["x"], "y": end["y"],
                   "duration_ms": duration_ms, "bend": float(bend)}
         if during is None:
