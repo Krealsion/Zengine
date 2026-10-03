@@ -219,7 +219,8 @@ public:
         show(mail);
     }
     /// A SHAPE OR A FIELD CARRIED HERE, placed on a label on the canvas or its row: the label shows
-    /// it. Carrying it granted nothing, and nothing else in the builder changes.
+    /// it. Placed anywhere else it is refused in words, whatever is selected. Carrying it granted
+    /// nothing, and nothing else in the builder changes.
     void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
         if (!host(mail, drop.pane) || drop.grant != room_.grant) return;
         try {
@@ -228,9 +229,9 @@ public:
             if (pictured == pictures_.end())
                 throw std::invalid_argument("The picture changed while the value was carried; drop it again");
             const auto* hit = pictured->hit(drop.x, drop.y);
-            std::optional<std::size_t> index = hit ? element_of(*hit) : std::nullopt;
-            if (!index) index = model_.selected;
-            if (!index) throw std::invalid_argument("Drop a shape or a field on a label");
+            const auto index = hit ? element_of(*hit) : std::nullopt;
+            if (!index)
+                throw std::invalid_argument("Not shown: drop a shape or a field on a label, on the canvas or in the list");
             const auto value = zengine::inventory::decode_pair(
                 std::string_view(reinterpret_cast<const char*>(drop.data.data()), drop.data.size())).item;
             auto [shape, field] = carried_shape(value);
