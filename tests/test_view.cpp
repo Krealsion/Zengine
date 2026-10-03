@@ -443,6 +443,75 @@ TEST_CASE("a label or place change at the same shapes reaches the running view i
     CHECK(has(words, "limit: 4|"));
 }
 
+TEST_CASE("a replacement that cannot register leaves the running view and its session as they were and says why; a rename at the bound takes the place of the view it renames") {
+    Rig rig;
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel(false))}).ok);
+    const auto first = rig.bus.role_holder("tally.panel");
+    rig.room("tally.panel");
+    const auto d = panel();
+
+    // The intent changed at the same name and version, which the tally still means otherwise:
+    // Loom refuses the successor, and the running view goes on as it was.
+    auto narrower = panel(true);
+    auto fewer = shape::make(shape::qualified("tally.panel", "Count"));
+    for (const char* f : {"start", "limit"})
+        fewer = shape::with_field(*fewer, f, loom::type_of(loom::Kind::Int), true);
+    narrower.intents[0].shape = fewer;
+    narrower.intents[0].fields.pop_back();
+    const auto conflict = rig.ask(view::ViewApply{"builder", bytes_of(narrower)});
+    CHECK_FALSE(conflict.ok);
+    CHECK(conflict.action == "apply");
+    CHECK(has(conflict.reason, "'tally.panel.Count' v1 is already published with a different shape"));
+    CHECK(rig.bus.role_holder("tally.panel") == first);
+    REQUIRE(rig.views.view(first.value) != nullptr);
+    rig.fill("tally.panel", d.elements[1], "4");
+    rig.press("tally.panel", d.elements[3]);
+    CHECK(rig.total() == 6);
+
+    // Renamed into a name whose intent another participant means otherwise: the same, and the
+    // view keeps its office and its picture.
+    (void)rig.bus.register_weave(std::make_unique<Listener>(std::vector{
+                                     loom::SchemaBuilder("tally.other.Count", 1).field("n", loom::Kind::Text).build()}),
+                                 loom::Grant{});
+    auto other = panel(false);
+    other.name = "tally.other";
+    other.intents[0].shape = shape::make(shape::qualified("tally.other", "Count"), count_shape()->fields());
+    const auto clash = rig.ask(view::ViewApply{"builder", bytes_of(other)});
+    CHECK_FALSE(clash.ok);
+    CHECK(has(clash.reason, "'tally.other.Count' v1 is already published with a different shape"));
+    CHECK(rig.bus.role_holder("tally.panel") == first);
+    CHECK_FALSE(rig.bus.role_holder("tally.other").valid());
+    CHECK(has(rig.words("tally.panel"), "limit: 4|"));
+    CHECK_FALSE(has(rig.said("tally.panel"), "renamed"));
+
+    // AT THE BOUND a rename takes the place of the view it renames: the count stays where it was.
+    for (std::size_t n = 1; n < view::kMaxViews; ++n) {
+        auto another = panel();
+        another.name = "panel" + std::to_string(n);
+        another.intents.clear();
+        REQUIRE(rig.ask(view::ViewRun{"s" + std::to_string(n), bytes_of(another)}).ok);
+    }
+    auto renamed = panel(false);
+    renamed.name = "tally.renamed";
+    renamed.intents[0].shape = shape::make(shape::qualified("tally.renamed", "Count"), count_shape()->fields());
+    const auto moved = rig.ask(view::ViewApply{"builder", bytes_of(renamed)});
+    REQUIRE_MESSAGE(moved.ok, moved.reason);
+    CHECK(moved.fresh);
+    CHECK(moved.office == "tally.renamed");
+    CHECK(rig.bus.role_holder("tally.renamed").valid());
+    CHECK_FALSE(rig.bus.role_holder("tally.panel").valid());
+    CHECK(rig.views.view(first.value) == nullptr);
+    auto extra = panel();
+    extra.name = "panel.extra";
+    extra.intents.clear();
+    CHECK(has(rig.ask(view::ViewRun{"extra", bytes_of(extra)}).reason,
+              "already runs " + std::to_string(view::kMaxViews) + " views"));
+    // ...and the session names the view it runs.
+    const auto stop = rig.ask(view::ViewStop{"builder"});
+    REQUIRE_MESSAGE(stop.ok, stop.reason);
+    CHECK(stop.office == "tally.renamed");
+}
+
 TEST_CASE("a stopped view leaves a picture that says it stopped, and its office is released after it") {
     Rig rig;
     REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).ok);

@@ -76,7 +76,10 @@ then click where it goes.
 
 Binding `Total` changes what the view is told, so **Apply** registers the view afresh and says
 so; its field text starts again from the description. A later change to a label, a place or a
-size keeps the same shapes, and **Apply** takes it in place: what you typed stays.
+size keeps the same shapes, and **Apply** takes it in place: what you typed stays. If the new
+view cannot register -- an intent whose fields changed while something still listens for the
+old ones under the same name and version, say -- **Apply** says why, and the running panel goes
+on as it was.
 
 ## Use it
 

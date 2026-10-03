@@ -36,7 +36,7 @@ asks it, as its office or as itself:
 | ask | answer |
 |---|---|
 | `ViewRun{session, description}` | registers the view as a participant of its own, holding its name as its office, and tells it to offer its pane |
-| `ViewApply{session, description}` | the same name and shapes: adopted in place, the field text, focus and told values kept. Any other change: registered afresh, and `fresh` says so |
+| `ViewApply{session, description}` | the same name and shapes: adopted in place, the field text, focus and told values kept. Any other change: registered afresh, and `fresh` says so. The successor registers while the running view still runs, which retires only once it stands; a successor Loom refuses (a changed intent at the same name and version, say) changes nothing, and the answer says why. A rename counts as one view against `view::kMaxViews` |
 | `ViewStop{session}` | the view's last picture says it stopped, then the participant is unregistered; Workshop, seeing its provider gone, then shows the pane waiting for one |
 
 `ViewAnswer{session, action, ok, reason, office, fresh}` is the one answer. A session belongs to
