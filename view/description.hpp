@@ -52,7 +52,8 @@ inline constexpr std::int64_t kMaxPixels = 8192;
 inline constexpr std::int64_t kMinWidthPx = 120;
 inline constexpr std::int64_t kMinHeightPx = 48;
 inline constexpr std::int64_t kMaxSizePx = 2 * kMaxPixels;
-/// The most rows the notice takes from the bottom of the view.
+/// The rows the notice has beneath the view's size: lines of the medium's text, so no element,
+/// which sits inside the size, is ever under it.
 inline constexpr std::size_t kNoticeRows = 3;
 
 enum class Kind { label, number, button };
@@ -105,8 +106,8 @@ struct Intent {
 
 struct Description {
     std::string name;
-    /// The view's size in whole pixels, its notice rows included: every element sits inside it,
-    /// and it is what the view is drawn in and asks its pane for.
+    /// The view's size in whole pixels: every element sits inside it, and its notice rows lie
+    /// beneath it, in the medium's lines.
     std::int64_t width = 0, height = 0;
     std::vector<Element> elements;
     std::vector<Shows> shows;
@@ -160,10 +161,10 @@ inline bool same_shapes(const Description& a, const Description& b) {
     return same(a.told(), b.told()) && same(a.says(), b.says());
 }
 
-/// THE SIZE A DESCRIPTION WITHOUT ONE TAKES: its elements and its notice rows, as a view's pane
-/// was asked for before a view had a size -- rows below its lowest element for the notice, two
-/// columns past its rightmost, at least 4 rows by 40 columns and at most 60 by 200 -- and never
-/// less than its elements reach.
+/// THE SIZE A DESCRIPTION WITHOUT ONE TAKES: the pane it was asked for before a view had a size --
+/// a row below its lowest element and its notice rows, two columns past its rightmost, at least 4
+/// rows by 40 columns and at most 60 by 200 -- less the notice rows, which now lie beneath the
+/// size, and never less than its elements reach.
 inline std::pair<std::int64_t, std::int64_t> fitting_size(const Description& d) {
     std::int64_t right = 0, bottom = 0;
     for (const auto& e : d.elements) {
@@ -175,7 +176,8 @@ inline std::pair<std::int64_t, std::int64_t> fitting_size(const Description& d) 
     const auto columns = std::clamp<std::int64_t>(cells(right) + 2, 40, 200);
     const auto rows = std::clamp<std::int64_t>(cells(bottom) + static_cast<std::int64_t>(kNoticeRows) + 1, 4, 60);
     return {std::clamp<std::int64_t>(std::max(columns * cell, right), kMinWidthPx, kMaxSizePx),
-            std::clamp<std::int64_t>(std::max(rows * cell, bottom), kMinHeightPx, kMaxSizePx)};
+            std::clamp<std::int64_t>(std::max((rows - static_cast<std::int64_t>(kNoticeRows)) * cell, bottom),
+                                     kMinHeightPx, kMaxSizePx)};
 }
 
 // ---- the saved format ------------------------------------------------------------------------

@@ -256,16 +256,17 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     d.height = 300;
     const auto run = rig.ask(view::ViewRun{"builder", bytes_of(d)});
     REQUIRE_MESSAGE(run.ok, run.reason);
-    // ASKED FOR ITS SIZE, in canvas cells: 600 by 300 pixels is 50 columns by 25 rows.
+    // ASKED FOR ITS SIZE, in canvas cells: 600 by 300 pixels is 50 columns by 25 rows, and the
+    // notice's three rows beneath it.
     std::optional<ws::v2::PaneOffered> offered;
     for (const auto& m : rig.desk->heard)
         if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v2::PaneOffered>()))
             offered = loom::from_value<ws::v2::PaneOffered>(m.payload);
     REQUIRE(offered);
     CHECK(offered->columns == 50);
-    CHECK(offered->rows == 25);
-    // GRANTED MORE, it is laid out in its size: its elements and its last row end where the size
-    // does, and the rest of the room is its ground.
+    CHECK(offered->rows == 25 + 3); // and its notice rows beneath
+    // GRANTED MORE, it is laid out in its size: its elements end where the size does, its notice
+    // rows lie beneath it, and the rest of the room is its ground.
     rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 48 * 80, 48 * 40, 4, true, 8, 16});
     const auto* p = rig.latest("tally.panel");
     REQUIRE(p != nullptr);
@@ -281,7 +282,7 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     REQUIRE_FALSE(p->texts.empty());
     const auto& last = p->texts.back(); // what it still waits to be told, on its last row
     CHECK(has(last.text, "waiting to be told"));
-    CHECK(last.y + 4 * (16 + 2 * 2) == size_h);
+    CHECK(last.y + 4 * (16 + 2 * 2) == size_h + 3 * 4 * (16 + 2 * 2)); // the notice rows beneath the size
     // GRANTED LESS, it draws in what it was granted.
     rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 48 * 20, 48 * 10, 4, true, 8, 16});
     p = rig.latest("tally.panel");
@@ -290,6 +291,40 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
         CHECK(r.x + r.w <= 48 * 20);
         CHECK(r.y + r.h <= 48 * 10);
     }
+}
+
+TEST_CASE("no size the rules accept puts an element under the notice: its rows lie beneath the view's size, lines of the medium's text, in a window and in a terminal") {
+    // The tally panel shrunk to its elements, Total bound and not yet told: 192 by 136, Total
+    // from 112 to 136, and a notice that says what it waits for.
+    auto d = panel();
+    d.width = 192;
+    d.height = 136;
+    REQUIRE(view::problem(d).empty());
+    const ws::PaneCanvasRoom window{view::kPane, 1, 48 * 40, 48 * 40, 4, true, 8, 16};
+    const ws::PaneCanvasRoom terminal{view::kPane, 1, 48 * 40, 48 * 40, 48, false, 0, 0};
+    for (const auto& room : {window, terminal}) {
+        INFO("graphical: " << room.graphical);
+        const auto p = view::picture(d, {}, view::Presentation{}, room, 1);
+        const auto size_h = zengine::surface::subs_of_pixel(136);
+        bool total = false, notice = false;
+        for (const auto& t : p.content.texts) {
+            if (t.text.rfind("Total", 0) == 0) {
+                total = true;
+                CHECK(t.y < size_h);
+            }
+            if (t.text.rfind("waiting to", 0) == 0) {
+                notice = true;
+                CHECK(t.y >= size_h); // beneath the size, never over an element
+            }
+        }
+        CHECK(total);
+        CHECK(notice);
+        // The notice's rows are the medium's lines: three of them beneath the size.
+        const auto line = room.graphical ? 4 * (16 + 2 * 2) : 48;
+        CHECK(view::notice_band(room) == 3 * line);
+    }
+    // ...and the pane it asks for holds the size and the notice rows: 12 cells high, and 3.
+    CHECK(view::preferred_size(d).first == 12 + 3);
 }
 
 TEST_CASE("a view has a size that holds its elements; one saved without a size reads with the size its elements and notice need, and is written with it") {
@@ -327,7 +362,7 @@ TEST_CASE("a view has a size that holds its elements; one saved without a size r
     read = view::read_description(old);
     REQUIRE_MESSAGE(read.ok, read.reason);
     CHECK(read.description.width == 40 * 12);
-    CHECK(read.description.height == (12 + 3 + 1) * 12);
+    CHECK(read.description.height == (12 + 1) * 12); // the rows asked for then, less the notice's
     CHECK(read.description.elements.size() == 5);
     CHECK(view::same_shapes(read.description, panel()));
     // ...one reaching far gets a size that holds it,

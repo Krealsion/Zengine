@@ -9,8 +9,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
 - A view description is presentation as data: its size, elements inside it, the field a label
   shows, the intent a button says. It holds no business value, no resolved geometry and no
   position in cells or in a fraction of a pixel. Places and sizes are whole pixels,
-  `surface::kCanvasCellPx` to a cell; the view's size includes its notice rows, and no element
-  sits outside it.
+  `surface::kCanvasCellPx` to a cell. No element sits outside the view's size, and its notice
+  rows lie beneath the size, `view::kNoticeRows` lines of the medium's text (`view::notice_band`),
+  so no size the rules accept puts an element under the notice.
 - `view::problem` is the one set of rules. Every door applies it -- the writer, the reader, the
   host -- so a description that would be refused is never written. The saved form is read like a
   maker definition: the envelope's claim, then the gate, then the rules; a version it does not
@@ -38,17 +39,19 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   told says `waiting`. An intent is published as the participant, by shape: whoever accepts it
   hears it, and the view claims no exclusive audience. A refusal is shown only when Loom attests
   it answers the view's own delivery (`answers_ask()`); the correlation then says which intent.
-- A running view asks its pane for its size in canvas cells (`view::preferred_size`), and draws
-  in its size within the room it is granted.
+- A running view asks its pane for its size and its notice rows in canvas cells, never past
+  `workshop::kMaxPaneComfort` (`view::preferred_size`), and draws in its size and notice rows
+  within the room it is granted; a pane smaller than that cuts it.
 - `view::picture` is pure: the description, what was told and the presentation, in the view's
-  size within one room. Text
+  size and its notice rows within one room. Text
   sits on the medium's lattice inside its element and is fitted by `clip_canvas_text`, so a
   terminal shows the window's picture floored to cells. A prose room gets one row saying the view
   needs a canvas; there is no second, text-row renderer.
 - ONE RENDERER: `view::picture` is the only drawing of a view. The View Builder's design canvas is
-  it, called in a room exactly the view's size with the medium's metrics, and moved there whole
-  from a cell boundary less the pan, by whole grains, so the lattice holds on both media and what is designed is what runs. Nothing of the
-  view is drawn outside the design area. Over it the builder draws marks alone, never an element.
+  it, called in a room exactly the view's size and its notice rows with the medium's metrics, and
+  moved there whole from a cell boundary less the pan, by whole grains, so the lattice holds on
+  both media and what is designed is what runs. Nothing of the view is drawn outside the design
+  area. Over it the builder draws marks alone, never an element.
 - Workshop composes the host beside the Flow host and holds no view behaviour. The View Builder
   is an ordinary pane in `zengine.view.builder`: it edits a description through
   `view_builder::Model`, every edit whole or refused whole, and asks the host to run, apply and

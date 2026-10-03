@@ -55,7 +55,7 @@ struct Picture {
     /// Where the view is drawn: nothing of it outside this area.
     Area design;
     /// The view's own room as the canvas places it: its pixel 0,0 is this corner, the design
-    /// area's corner less the pan, and it is the view's size.
+    /// area's corner less the pan, and it is the view's size with its notice rows beneath.
     Area view;
     const Hit* hit(std::int64_t x, std::int64_t y) const {
         for (auto at = hits.rbegin(); at != hits.rend(); ++at)
@@ -152,12 +152,14 @@ inline Area element_area(const Area& view, const view::Element& e) {
 }
 
 /// How far the design canvas pans, in whole pixels: from the view's top left corner until its
-/// size's far edges, and a cell beyond them where their handles sit, are in the canvas.
-inline std::pair<std::int64_t, std::int64_t> pan_reach(const view::Description& d, const Area& design) {
+/// right edge and a cell beyond it, where its handles sit, and its notice rows beneath its size,
+/// `notice` subunits of them, are in the canvas.
+inline std::pair<std::int64_t, std::int64_t> pan_reach(const view::Description& d, const Area& design,
+                                                       std::int64_t notice) {
     const auto px = [](std::int64_t subs) { return surface::floor_div_px(subs, surface::kPixelGrainSubs); };
     const auto beyond = surface::kCanvasCellPx;
     return {std::max<std::int64_t>(0, d.width + beyond - px(design.w)),
-            std::max<std::int64_t>(0, d.height + beyond - px(design.h))};
+            std::max<std::int64_t>(0, d.height + std::max(beyond, px(notice)) - px(design.h))};
 }
 
 /// THE SNAP of a place made, moved or resized by hand: an edge the hand moves comes to an edge of
@@ -538,12 +540,13 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         out.content.rects.push_back({area.x - rule, area.y - rule, area.w + rule, rule, ink::kMuted});
         out.content.rects.push_back({area.x - rule, area.y, rule, area.h, ink::kMuted});
         if (beside) out.content.rects.push_back({area.x + area.w, area.y - rule, rule, area.h + rule, ink::kMuted});
-        const auto [reach_x, reach_y] = pan_reach(d, area);
+        const auto [reach_x, reach_y] = pan_reach(d, area, view::notice_band(room));
         p.pan_x = std::clamp<std::int64_t>(p.pan_x, 0, reach_x);
         p.pan_y = std::clamp<std::int64_t>(p.pan_y, 0, reach_y);
         const auto grained = [&](std::int64_t px) { return surface::floor_div_px(surface::subs_of_pixel(px), out.grain) * out.grain; };
         const auto left = grained(p.pan_x), top = grained(p.pan_y);
-        out.view = {area.x - left, area.y - top, surface::subs_of_pixel(d.width), surface::subs_of_pixel(d.height)};
+        out.view = {area.x - left, area.y - top, surface::subs_of_pixel(d.width),
+                    surface::subs_of_pixel(d.height) + view::notice_band(room)};
         const ws::PaneCanvasRoom inner{room.pane, room.grant, out.view.w, out.view.h, room.grain,
                                        room.graphical, room.text_advance_px, room.text_line_px};
         const auto drawn = view::picture(d, {}, view::Presentation{}, inner, number);
@@ -584,13 +587,14 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         {
             const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
             const auto up = [&](std::int64_t v) { return down(v) == v ? v : down(v) + out.grain; };
-            const auto right = out.view.x + out.view.w, bottom = out.view.y + out.view.h;
+            const auto size_h = surface::subs_of_pixel(d.height);
+            const auto right = out.view.x + out.view.w, bottom = out.view.y + size_h;
             const auto drawn_in = [&](const Area& a, std::int64_t role) {
                 const auto inside = a.within(area);
                 if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, role});
                 return inside;
             };
-            drawn_in({right, out.view.y, thin, out.view.h + thin}, ink::kMuted);
+            drawn_in({right, out.view.y, thin, size_h + thin}, ink::kMuted);
             drawn_in({out.view.x, bottom, out.view.w, thin}, ink::kMuted);
             const auto grip = room.graphical ? surface::subs_of_pixel(8) : out.grain;
             const std::pair<int, int> edges[] = {{1, 0}, {0, 1}, {1, 1}};
@@ -598,11 +602,11 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
                 Area handle;
                 if (room.graphical) {
                     const auto cx = sx ? right : down(out.view.x + out.view.w / 2);
-                    const auto cy = sy ? bottom : down(out.view.y + out.view.h / 2);
+                    const auto cy = sy ? bottom : down(out.view.y + size_h / 2);
                     handle = {cx - grip / 2, cy - grip / 2, grip, grip};
                 } else {
                     handle = {sx ? up(right) : down(out.view.x + out.view.w / 2),
-                              sy ? up(bottom) : down(out.view.y + out.view.h / 2), grip, grip};
+                              sy ? up(bottom) : down(out.view.y + size_h / 2), grip, grip};
                 }
                 const auto inside = drawn_in(handle, ink::kFill);
                 if (!inside.empty()) out.hits.push_back({inside, "size", {std::to_string(sx), std::to_string(sy)}});
