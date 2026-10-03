@@ -18,6 +18,7 @@
 #include "workshop/pane_canvas_vocabulary.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <optional>
 #include <string>
 #include <vector>
@@ -51,8 +52,11 @@ struct Picture {
     ws::PaneCanvasContent content;
     std::vector<Hit> hits;
     std::int64_t grain = 1;
-    /// Where the view is drawn: its pixel 0,0 is this area's corner.
+    /// Where the view is drawn: nothing of it outside this area.
     Area design;
+    /// The view's own room as the canvas places it: its pixel 0,0 is this corner, the design
+    /// area's corner less the pan, and it is the view's size with its notice rows beneath.
+    Area view;
     const Hit* hit(std::int64_t x, std::int64_t y) const {
         for (auto at = hits.rbegin(); at != hits.rend(); ++at)
             if (at->at.contains(x, y, grain)) return &*at;
@@ -69,8 +73,9 @@ struct Box {
 
 /// The builder's own presentation, never saved nor kept across a reload: the box being typed
 /// into, the element the pointer rests on, the label a carried value would land on, a kind being
-/// dragged from the palette, a New or Open waiting for its second press, and the first field a
-/// choice of fields shows.
+/// dragged from the palette, a New or Open waiting for its second press, the first field a
+/// choice of fields shows, how far the design canvas is panned, the grid a place by hand snaps
+/// to, and the edges a snap met.
 struct Presentation {
     std::optional<Box> box;
     std::optional<std::size_t> hovered, landing;
@@ -81,6 +86,12 @@ struct Presentation {
     };
     std::optional<Ghost> ghost;
     std::string armed;
+    /// How far into the view the design canvas looks, in whole pixels from its top left corner.
+    std::int64_t pan_x = 0, pan_y = 0;
+    /// The grid a place by hand snaps to, in whole pixels apart; one is no grid.
+    std::int64_t grid = 1;
+    /// The edge of another element a place by hand came to, in the view's pixels, while held.
+    std::optional<std::int64_t> met_x, met_y;
 };
 
 /// The values an element shows in boxes, in the order Tab walks them.
@@ -133,11 +144,125 @@ inline std::vector<Choice> lay_choices(const std::vector<std::string>& fields, s
     return out;
 }
 
-/// Where an element sits in the design area, in local subunits: its whole pixels from the area's
-/// corner, as the view's own picture places it.
-inline Area element_area(const Area& design, const view::Element& e) {
-    return {design.x + surface::subs_of_pixel(e.x), design.y + surface::subs_of_pixel(e.y),
+/// Where an element sits on the canvas, in local subunits: its whole pixels from the corner of the
+/// view's room as the canvas places it (`Picture::view`), as the view's own picture places it.
+inline Area element_area(const Area& view, const view::Element& e) {
+    return {view.x + surface::subs_of_pixel(e.x), view.y + surface::subs_of_pixel(e.y),
             surface::subs_of_pixel(e.w), surface::subs_of_pixel(e.h)};
+}
+
+/// How far the design canvas pans, in whole pixels: from the view's top left corner until its
+/// right edge and a cell beyond it, where its handles sit, and its notice rows beneath its size,
+/// `notice` subunits of them, are in the canvas.
+inline std::pair<std::int64_t, std::int64_t> pan_reach(const view::Description& d, const Area& design,
+                                                       std::int64_t notice) {
+    const auto px = [](std::int64_t subs) { return surface::floor_div_px(subs, surface::kPixelGrainSubs); };
+    const auto beyond = surface::kCanvasCellPx;
+    return {std::max<std::int64_t>(0, d.width + beyond - px(design.w)),
+            std::max<std::int64_t>(0, d.height + std::max(beyond, px(notice)) - px(design.h))};
+}
+
+/// THE SNAP of a place made, moved or resized by hand: an edge the hand moves comes to an edge of
+/// another element or of the view within `kSnapReach` pixels; else, when the weaver set a grid,
+/// to its nearest line, and without one it stays at the whole pixel the hand left it on. The
+/// grid is at most `kMaxGrid` pixels apart. Alt held sets every snap aside, and the arrow keys
+/// and a typed value place exactly.
+inline constexpr std::int64_t kSnapReach = 6;
+inline constexpr std::int64_t kMaxGrid = 96;
+
+/// Which edges of an element the hand moves along one axis: both (a move), the low or the high
+/// one (a side or a corner of a resize), or neither.
+enum class Edges { both, low, high, none };
+
+/// One axis of a place: where it begins, how far it reaches, and the other element's edge it
+/// came to when that, not the grid, placed it.
+struct Snapped {
+    std::int64_t at = 0, size = 0;
+    std::optional<std::int64_t> met;
+};
+
+/// One axis of a place by hand, from `at` and `size` wide, its `moving` edges snapped against the
+/// other elements' edges on that axis. A snap that would leave the view's rules, or reach past
+/// `limit`, the view's own far edge, is not taken.
+inline Snapped snap_axis(std::int64_t at, std::int64_t size, Edges moving, const std::vector<std::int64_t>& others,
+                         std::int64_t limit = view::kMaxSizePx, std::int64_t grid = 1) {
+    if (moving == Edges::none) return {at, size, std::nullopt};
+    const auto end = at + size;
+    const auto travelled = [&](std::int64_t travel) -> std::optional<Snapped> {
+        Snapped s{at, size, std::nullopt};
+        if (moving != Edges::high) s.at = at + travel;
+        if (moving == Edges::low) s.size = end - s.at;
+        if (moving == Edges::high) s.size = size + travel;
+        if (s.at < 0 || s.size < 1 || s.at > view::kMaxPixels || s.size > view::kMaxPixels || s.at + s.size > limit)
+            return std::nullopt;
+        return s;
+    };
+    std::optional<Snapped> best;
+    auto nearest = kSnapReach + 1;
+    const auto meet = [&](std::int64_t edge) {
+        for (const auto to : others) {
+            if (std::abs(to - edge) >= nearest) continue;
+            if (auto s = travelled(to - edge)) {
+                nearest = std::abs(to - edge);
+                s->met = to;
+                best = s;
+            }
+        }
+    };
+    if (moving != Edges::high) meet(at);
+    if (moving != Edges::low) meet(end);
+    if (best) return *best;
+    if (grid <= 1) return {at, size, std::nullopt};
+    const auto edge = moving == Edges::high ? end : at;
+    const auto below = surface::floor_div_px(edge, grid) * grid;
+    const bool nearer_below = edge - below < below + grid - edge;
+    for (const auto line : {nearer_below ? below : below + grid, nearer_below ? below + grid : below})
+        if (auto s = travelled(line - edge)) return *s;
+    return {at, size, std::nullopt};
+}
+
+/// A place by hand, in whole pixels, and the other elements' edges it came to.
+struct Place {
+    std::int64_t x = 0, y = 0, w = 0, h = 0;
+    std::optional<std::int64_t> met_x, met_y;
+};
+
+/// A place by hand snapped on both axes against the view's own edges and every element of `d` but
+/// `placing`, the one being placed, whose own edges never pull it.
+inline Place snap(const view::Description& d, std::optional<std::size_t> placing, const Place& at, Edges along_x,
+                  Edges along_y, std::int64_t grid = 1) {
+    std::vector<std::int64_t> xs{0, d.width}, ys{0, d.height};
+    for (std::size_t i = 0; i < d.elements.size(); ++i) {
+        if (placing && *placing == i) continue;
+        const auto& e = d.elements[i];
+        xs.insert(xs.end(), {e.x, e.x + e.w});
+        ys.insert(ys.end(), {e.y, e.y + e.h});
+    }
+    const auto x = snap_axis(at.x, at.w, along_x, xs, d.width, grid);
+    const auto y = snap_axis(at.y, at.h, along_y, ys, d.height, grid);
+    return {x.at, y.at, x.size, y.size, x.met, y.met};
+}
+
+/// THE VIEW'S SIZE BY HAND, `width` by `height` as the hand left it: each far edge the hand
+/// moves snapped as an element's edge is, against every element's edges, and never inside an
+/// element it holds or past the size's bounds.
+inline Place sized_by_hand(const view::Description& d, std::int64_t width, std::int64_t height, bool along_x,
+                           bool along_y, std::int64_t grid = 1) {
+    std::vector<std::int64_t> xs, ys;
+    std::int64_t right = view::kMinWidthPx, bottom = view::kMinHeightPx;
+    for (const auto& e : d.elements) {
+        xs.insert(xs.end(), {e.x, e.x + e.w});
+        ys.insert(ys.end(), {e.y, e.y + e.h});
+        right = std::max(right, e.x + e.w);
+        bottom = std::max(bottom, e.y + e.h);
+    }
+    const auto x = snap_axis(0, width, along_x ? Edges::high : Edges::none, xs, view::kMaxSizePx, grid);
+    const auto y = snap_axis(0, height, along_y ? Edges::high : Edges::none, ys, view::kMaxSizePx, grid);
+    Place out{0, 0, std::clamp<std::int64_t>(x.size, right, view::kMaxSizePx),
+              std::clamp<std::int64_t>(y.size, bottom, view::kMaxSizePx), x.met, y.met};
+    if (out.w != x.size) out.met_x.reset();
+    if (out.h != y.size) out.met_y.reset();
+    return out;
 }
 
 inline std::string clean(std::string text) {
@@ -349,7 +474,16 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         const std::string title = kind == view::Kind::number ? "Number" : kind == view::Kind::button ? "Button" : "Label";
         col = button(col, 3, title, "kind", {word});
     }
-    std::int64_t row = 5;
+    // THE VIEW'S SIZE, in whole pixels, as values in boxes.
+    col = put(0, 4, "Size ");
+    col = box(col, 4, 6, "width", std::nullopt, std::to_string(d.width));
+    col += put(col, 4, "by ");
+    box(col, 4, 6, "height", std::nullopt, std::to_string(d.height));
+    // THE GRID a place by hand snaps to: the builder's own, never the view's.
+    col = put(0, 5, "Grid ");
+    col = box(col, 5, 4, "grid", std::nullopt, std::to_string(p.grid));
+    put(col, 5, p.grid <= 1 ? "px: none" : "px", ink::kMuted);
+    std::int64_t row = 6;
     put(0, row++, "Elements (" + std::to_string(d.elements.size()) + ")", ink::kAccent);
     // Stacked, the values take the rows below the list, which keeps a few rows whatever they
     // need; the list follows the selected element.
@@ -395,26 +529,41 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
     limit = columns;
     stop = rows;
 
-    // THE DESIGN AREA: the view drawn by its own picture code, in a room the area's size and the
-    // medium's metrics, moved there whole; then the builder's marks over it.
+    // THE DESIGN AREA: the view drawn by its own picture code, in a room exactly its size with the
+    // medium's metrics, moved there whole, less the pan; nothing of it outside the area; then the
+    // builder's marks over it. The pan is kept in `p` within its reach, and moves the view by
+    // whole grains, so a terminal pans by cells.
     const auto& area = out.design;
     if (!area.empty()) {
         out.hits.push_back({area, "canvas", {}});
+        out.content.rects.push_back({area.x, area.y, area.w, area.h, ink::kGround});
         out.content.rects.push_back({area.x - rule, area.y - rule, area.w + rule, rule, ink::kMuted});
         out.content.rects.push_back({area.x - rule, area.y, rule, area.h, ink::kMuted});
         if (beside) out.content.rects.push_back({area.x + area.w, area.y - rule, rule, area.h + rule, ink::kMuted});
-        const ws::PaneCanvasRoom inner{room.pane, room.grant, area.w, area.h, room.grain,
+        const auto [reach_x, reach_y] = pan_reach(d, area, view::notice_band(room));
+        p.pan_x = std::clamp<std::int64_t>(p.pan_x, 0, reach_x);
+        p.pan_y = std::clamp<std::int64_t>(p.pan_y, 0, reach_y);
+        const auto grained = [&](std::int64_t px) { return surface::floor_div_px(surface::subs_of_pixel(px), out.grain) * out.grain; };
+        const auto left = grained(p.pan_x), top = grained(p.pan_y);
+        out.view = {area.x - left, area.y - top, surface::subs_of_pixel(d.width),
+                    surface::subs_of_pixel(d.height) + view::notice_band(room)};
+        const ws::PaneCanvasRoom inner{room.pane, room.grant, out.view.w, out.view.h, room.grain,
                                        room.graphical, room.text_advance_px, room.text_line_px};
         const auto drawn = view::picture(d, {}, view::Presentation{}, inner, number);
         for (auto r : drawn.content.rects) {
-            r.x += area.x;
-            r.y += area.y;
+            const auto inside = Area{r.x + out.view.x, r.y + out.view.y, r.w, r.h}.within(area);
+            if (inside.empty()) continue;
+            r.x = inside.x;
+            r.y = inside.y;
+            r.w = inside.w;
+            r.h = inside.h;
             out.content.rects.push_back(r);
         }
         for (auto t : drawn.content.texts) {
-            t.x += area.x;
-            t.y += area.y;
-            out.content.texts.push_back(t);
+            t.x += out.view.x;
+            t.y += out.view.y;
+            auto placed = ws::clip_canvas_text(t, {area.x, area.y, area.w, area.h}, room);
+            if (placed.visible()) out.content.texts.push_back(placed.text);
         }
         const auto mark = [&](const Area& a) {
             const auto inside = a.within(area);
@@ -429,39 +578,88 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         };
         const auto thin = room.graphical ? surface::kPixelGrainSubs : out.grain;
         for (std::size_t i = 0; i < d.elements.size(); ++i) {
-            const auto at = element_area(area, d.elements[i]).within(area);
+            const auto at = element_area(out.view, d.elements[i]).within(area);
             if (!at.empty()) out.hits.push_back({at, "element", {std::to_string(i)}});
+        }
+        // THE VIEW'S SIZE: its right and bottom edges ruled quietly, and a handle on each and at
+        // their corner, in the fill's ink so a terminal tells it from the rule, that a drag sets
+        // the size by; in a terminal each is the cell beyond the edge.
+        {
+            const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
+            const auto up = [&](std::int64_t v) { return down(v) == v ? v : down(v) + out.grain; };
+            const auto size_h = surface::subs_of_pixel(d.height);
+            const auto right = out.view.x + out.view.w, bottom = out.view.y + size_h;
+            const auto drawn_in = [&](const Area& a, std::int64_t role) {
+                const auto inside = a.within(area);
+                if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, role});
+                return inside;
+            };
+            drawn_in({right, out.view.y, thin, size_h + thin}, ink::kMuted);
+            drawn_in({out.view.x, bottom, out.view.w, thin}, ink::kMuted);
+            const auto grip = room.graphical ? surface::subs_of_pixel(8) : out.grain;
+            const std::pair<int, int> edges[] = {{1, 0}, {0, 1}, {1, 1}};
+            for (const auto& [sx, sy] : edges) {
+                Area handle;
+                if (room.graphical) {
+                    const auto cx = sx ? right : down(out.view.x + out.view.w / 2);
+                    const auto cy = sy ? bottom : down(out.view.y + size_h / 2);
+                    handle = {cx - grip / 2, cy - grip / 2, grip, grip};
+                } else {
+                    handle = {sx ? up(right) : down(out.view.x + out.view.w / 2),
+                              sy ? up(bottom) : down(out.view.y + size_h / 2), grip, grip};
+                }
+                const auto inside = drawn_in(handle, ink::kFill);
+                if (!inside.empty()) out.hits.push_back({inside, "size", {std::to_string(sx), std::to_string(sy)}});
+            }
         }
         // The element the pointer rests on, in the fill's ink: a quiet field's own box is muted.
         if (p.hovered && *p.hovered < d.elements.size() && (!chosen || *p.hovered != *m.selected))
-            outline(element_area(area, d.elements[*p.hovered]), ink::kFill, thin);
+            outline(element_area(out.view, d.elements[*p.hovered]), ink::kFill, thin);
         if (p.landing && *p.landing < d.elements.size())
-            outline(element_area(area, d.elements[*p.landing]), ink::kAccent, 2 * thin);
+            outline(element_area(out.view, d.elements[*p.landing]), ink::kAccent, 2 * thin);
         if (p.ghost) {
             const auto [w, h] = made_size(p.ghost->kind);
-            outline(element_area(area, view::Element{"", p.ghost->kind, "", p.ghost->x, p.ghost->y, w, h, ""}),
+            outline(element_area(out.view, view::Element{"", p.ghost->kind, "", p.ghost->x, p.ghost->y, w, h, ""}),
                     ink::kMuted, thin);
         }
+        // THE EDGE A SNAP MET, while the hand holds what it places: a line across the canvas.
+        if (p.met_x) mark({out.view.x + surface::subs_of_pixel(*p.met_x), area.y, thin, area.h});
+        if (p.met_y) mark({area.x, out.view.y + surface::subs_of_pixel(*p.met_y), area.w, thin});
         if (chosen) {
-            // THE SELECTED ELEMENT: marked, with a handle at each corner a drag resizes it by.
-            const auto at = element_area(area, d.elements[*m.selected]);
+            // THE SELECTED ELEMENT: marked, with a handle on each side, which moves that side alone,
+            // and one at each corner, which moves the two sides it joins; where a side's handle and
+            // a corner's meet, the corner's is pressed. Each handle names its sides: -1 the left or
+            // top, 1 the right or bottom, 0 neither.
+            const auto at = element_area(out.view, d.elements[*m.selected]);
             outline(at, ink::kAccent, thin);
             const auto size = room.graphical ? surface::subs_of_pixel(8) : out.grain;
-            for (int corner = 0; corner < 4; ++corner) {
+            const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
+            const std::pair<int, int> sides[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}, {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
+            for (const auto& [sx, sy] : sides) {
                 Area handle;
                 if (room.graphical) {
-                    handle = {(corner & 1 ? at.x + at.w : at.x) - size / 2,
-                              (corner & 2 ? at.y + at.h : at.y) - size / 2, size, size};
+                    const auto cx = sx < 0 ? at.x : sx > 0 ? at.x + at.w : down(at.x + at.w / 2);
+                    const auto cy = sy < 0 ? at.y : sy > 0 ? at.y + at.h : down(at.y + at.h / 2);
+                    handle = {cx - size / 2, cy - size / 2, size, size};
                 } else {
-                    // A terminal's handle is the element's own corner cell.
-                    const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
-                    handle = {down(corner & 1 ? at.x + at.w - 1 : at.x), down(corner & 2 ? at.y + at.h - 1 : at.y),
+                    // A terminal's corner handle is the element's own corner cell; a side's is the
+                    // cell beside that side's middle, outside the element, so it is never a corner's,
+                    // or the side's own middle cell where the canvas ends there.
+                    const auto next_to = [&](int s, int other, std::int64_t begin, std::int64_t extent,
+                                             std::int64_t area_begin, std::int64_t area_extent) {
+                        const auto low = down(begin), high = down(begin + extent - 1);
+                        if (s == 0) return std::min(down(begin + extent / 2), high);
+                        if (other != 0) return s < 0 ? low : high;
+                        const auto outside = s < 0 ? low - out.grain : high + out.grain;
+                        return outside >= area_begin && outside < area_begin + area_extent ? outside : s < 0 ? low : high;
+                    };
+                    handle = {next_to(sx, sy, at.x, at.w, area.x, area.w), next_to(sy, sx, at.y, at.h, area.y, area.h),
                               size, size};
                 }
                 mark(handle);
                 const auto inside = handle.within(area);
                 if (!inside.empty())
-                    out.hits.push_back({inside, "handle", {std::to_string(*m.selected), std::to_string(corner)}});
+                    out.hits.push_back({inside, "handle", {std::to_string(*m.selected), std::to_string(sx), std::to_string(sy)}});
             }
         }
     }

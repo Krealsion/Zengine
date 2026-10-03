@@ -28,11 +28,13 @@ std::shared_ptr<const loom::Schema> total_shape() {
     return loom::SchemaBuilder("tally.Total", 1).field("total", loom::Kind::Int).build();
 }
 
-/// The tally panel: three number fields, a button saying `tally.panel.Count`, and a label;
-/// `bound` shows `tally.Total.total` on it.
+/// The tally panel: three number fields, a button saying `tally.panel.Count`, and a label, in a
+/// view 480 by 192; `bound` shows `tally.Total.total` on it.
 view::Description panel(bool bound = true, std::string total_label = "Total") {
     view::Description d;
     d.name = "tally.panel";
+    d.width = 480;
+    d.height = 192;
     d.elements = {{"start", view::Kind::number, "start", 0, 0, 144, 24, "0"},
                   {"limit", view::Kind::number, "limit", 0, 28, 144, 24, "10"},
                   {"step", view::Kind::number, "step", 0, 56, 144, 24, "1"},
@@ -46,6 +48,17 @@ view::Description panel(bool bound = true, std::string total_label = "Total") {
 loom::Bytes bytes_of(const view::Description& d) {
     const auto text = view::description_bytes(d);
     return {text.begin(), text.end()};
+}
+
+/// The bytes a view description was saved as before a view had a size: version 1, every field
+/// of the current form but the size.
+std::string first_version_bytes(const view::Description& d) {
+    const auto now = view::encode(d);
+    loom::Value v(view::description_schema_v1());
+    for (const auto& f : view::description_schema_v1()->fields())
+        if (const auto* cell = now.get(f.name)) v.set(f.name, *cell);
+    v.set("format_version", loom::Cell::integer(1));
+    return loom::serialize(v);
 }
 
 /// Stands in for Workshop's office: hears what a pane says, and speaks to a view as Workshop.
@@ -190,13 +203,16 @@ TEST_CASE("a view description saves and reads back whole, and another version is
     CHECK(loom::same_identity(*read.description.shows[0].shape, *total_shape()));
     CHECK(view::same_shapes(d, read.description));
 
+    CHECK(read.description.width == 480);
+    CHECK(read.description.height == 192);
+
     // The same fields under a newer envelope: refused by the number it claims, before a field.
-    auto later = loom::SchemaBuilder("zengine.view.Description", 2).field("format", loom::Kind::Text).build();
+    auto later = loom::SchemaBuilder("zengine.view.Description", 3).field("format", loom::Kind::Text).build();
     loom::Value v(later);
     v.set("format", loom::Cell::text(view::kFormat));
     const auto refused = view::read_description(loom::serialize(v));
     CHECK_FALSE(refused.ok);
-    CHECK(has(refused.reason, "a view description of version 2; this build reads version 1"));
+    CHECK(has(refused.reason, "a view description of version 3; this build reads versions 1 to 2"));
     CHECK(has(view::read_description("not a value").reason, "not a Zen value"));
 }
 
@@ -231,6 +247,138 @@ TEST_CASE("a description that breaks a rule is refused in words, and none is wri
     placed.elements[0].w = 0;
     CHECK(has(view::problem(placed), "sits at a place and a size of whole pixels"));
     CHECK(view::problem(panel()).empty());
+}
+
+TEST_CASE("a running view asks its pane for its size, and draws in its size whatever room its pane is granted") {
+    Rig rig;
+    auto d = panel();
+    d.width = 600;
+    d.height = 300;
+    const auto run = rig.ask(view::ViewRun{"builder", bytes_of(d)});
+    REQUIRE_MESSAGE(run.ok, run.reason);
+    // ASKED FOR ITS SIZE, in canvas cells: 600 by 300 pixels is 50 columns by 25 rows, and the
+    // notice's three rows beneath it.
+    std::optional<ws::v2::PaneOffered> offered;
+    for (const auto& m : rig.desk->heard)
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v2::PaneOffered>()))
+            offered = loom::from_value<ws::v2::PaneOffered>(m.payload);
+    REQUIRE(offered);
+    CHECK(offered->columns == 50);
+    CHECK(offered->rows == 25 + 3); // and its notice rows beneath
+    // GRANTED MORE, it is laid out in its size: its elements end where the size does, its notice
+    // rows lie beneath it, and the rest of the room is its ground.
+    rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 48 * 80, 48 * 40, 4, true, 8, 16});
+    const auto* p = rig.latest("tally.panel");
+    REQUIRE(p != nullptr);
+    const auto size_w = zengine::surface::subs_of_pixel(600), size_h = zengine::surface::subs_of_pixel(300);
+    CHECK(std::any_of(p->rects.begin(), p->rects.end(), [&](const auto& r) {
+        return r.role == zengine::surface::role::kGround && r.x == 0 && r.y == 0 && r.w == 48 * 80 && r.h == 48 * 40;
+    }));
+    for (const auto& r : p->rects) {
+        if (r.role == zengine::surface::role::kGround) continue;
+        CHECK(r.x + r.w <= size_w);
+        CHECK(r.y + r.h <= size_h);
+    }
+    REQUIRE_FALSE(p->texts.empty());
+    const auto& last = p->texts.back(); // what it still waits to be told, on its last row
+    CHECK(has(last.text, "waiting to be told"));
+    CHECK(last.y + 4 * (16 + 2 * 2) == size_h + 3 * 4 * (16 + 2 * 2)); // the notice rows beneath the size
+    // GRANTED LESS, it draws in what it was granted.
+    rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 48 * 20, 48 * 10, 4, true, 8, 16});
+    p = rig.latest("tally.panel");
+    REQUIRE(p != nullptr);
+    for (const auto& r : p->rects) {
+        CHECK(r.x + r.w <= 48 * 20);
+        CHECK(r.y + r.h <= 48 * 10);
+    }
+}
+
+TEST_CASE("no size the rules accept puts an element under the notice: its rows lie beneath the view's size, lines of the medium's text, in a window and in a terminal") {
+    // The tally panel shrunk to its elements, Total bound and not yet told: 192 by 136, Total
+    // from 112 to 136, and a notice that says what it waits for.
+    auto d = panel();
+    d.width = 192;
+    d.height = 136;
+    REQUIRE(view::problem(d).empty());
+    const ws::PaneCanvasRoom window{view::kPane, 1, 48 * 40, 48 * 40, 4, true, 8, 16};
+    const ws::PaneCanvasRoom terminal{view::kPane, 1, 48 * 40, 48 * 40, 48, false, 0, 0};
+    for (const auto& room : {window, terminal}) {
+        INFO("graphical: " << room.graphical);
+        const auto p = view::picture(d, {}, view::Presentation{}, room, 1);
+        const auto size_h = zengine::surface::subs_of_pixel(136);
+        bool total = false, notice = false;
+        for (const auto& t : p.content.texts) {
+            if (t.text.rfind("Total", 0) == 0) {
+                total = true;
+                CHECK(t.y < size_h);
+            }
+            if (t.text.rfind("waiting to", 0) == 0) {
+                notice = true;
+                CHECK(t.y >= size_h); // beneath the size, never over an element
+            }
+        }
+        CHECK(total);
+        CHECK(notice);
+        // The notice's rows are the medium's lines: three of them beneath the size.
+        const auto line = room.graphical ? 4 * (16 + 2 * 2) : 48;
+        CHECK(view::notice_band(room) == 3 * line);
+    }
+    // ...and the pane it asks for holds the size and the notice rows: 12 cells high, and 3.
+    CHECK(view::preferred_size(d).first == 12 + 3);
+}
+
+TEST_CASE("a view has a size that holds its elements; one saved without a size reads with the size its elements and notice need, and is written with it") {
+    // THE SIZE IS SAVED with the view, and every element sits inside it.
+    auto d = panel();
+    d.width = 600;
+    d.height = 300;
+    auto read = view::read_description(view::description_bytes(d));
+    REQUIRE_MESSAGE(read.ok, read.reason);
+    CHECK(read.description.width == 600);
+    CHECK(read.description.height == 300);
+    auto past = panel();
+    past.elements[4].x = 300; // total, 192 wide, to 492 in a view 480 wide
+    CHECK(has(view::problem(past), "`total` reaches to 492,136, past the view's size of 480 by 192"));
+    auto low = panel();
+    low.height = 120;
+    CHECK(has(view::problem(low), "`total` reaches to 192,136, past the view's size of 480 by 120"));
+    auto tiny = panel();
+    tiny.elements.clear();
+    tiny.intents.clear();
+    tiny.shows.clear();
+    tiny.width = view::kMinWidthPx - 1;
+    CHECK(has(view::problem(tiny), "a view's size is whole pixels from 120 by 48 to 16384 by 16384; 119 by 192 is not"));
+    tiny.width = view::kMinWidthPx;
+    tiny.height = view::kMaxSizePx + 1;
+    CHECK_FALSE(view::problem(tiny).empty());
+    tiny.height = view::kMinHeightPx;
+    CHECK(view::problem(tiny).empty());
+
+    // A VIEW SAVED BEFORE A VIEW HAD A SIZE reads whole, with the size its elements and notice
+    // rows need: rows below its lowest element, two columns past its rightmost, at least 40
+    // columns, as its pane was asked for then.
+    const auto old = first_version_bytes(panel());
+    CHECK(loom::parse(old).claimed_version() == 1);
+    read = view::read_description(old);
+    REQUIRE_MESSAGE(read.ok, read.reason);
+    CHECK(read.description.width == 40 * 12);
+    CHECK(read.description.height == (12 + 1) * 12); // the rows asked for then, less the notice's
+    CHECK(read.description.elements.size() == 5);
+    CHECK(view::same_shapes(read.description, panel()));
+    // ...one reaching far gets a size that holds it,
+    auto far_out = panel();
+    far_out.width = view::kMaxSizePx;
+    far_out.height = view::kMaxSizePx;
+    far_out.elements[4].x = view::kMaxPixels;
+    far_out.elements[4].y = 1000;
+    read = view::read_description(first_version_bytes(far_out));
+    REQUIRE_MESSAGE(read.ok, read.reason);
+    CHECK(read.description.width == view::kMaxPixels + 192);
+    CHECK(read.description.height == 1024);
+    // ...and it is written again as the current version, with that size.
+    const auto again = view::description_bytes(read.description);
+    CHECK(loom::parse(again).claimed_version() == static_cast<std::uint32_t>(view::kFormatVersion));
+    CHECK(view::read_description(again).description.width == view::kMaxPixels + 192);
 }
 
 TEST_CASE("the view host registers a view as its own participant, granted only its intents and its pane conversation") {

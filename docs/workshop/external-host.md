@@ -667,8 +667,12 @@ zero; the query is not an interaction lease. Receivers must fence their own drop
 the picture the caller read, so a tool presses a control such as `[Save copy]` without knowing a
 font; `hand.control(provider, pane, label)` and `hand.field(...)` in `hand.py` use it.
 
-`workshop/drag` uses the session's timed Input motion; `duration_ms` controls time and `bend`
-selects a linear path (zero) or cubic Bezier. `workshop/act`'s `rest` step moves the pointer to a
+`workshop/drag` uses the session's timed Input motion; `duration_ms` controls time, `bend`
+selects a linear path (zero) or cubic Bezier, and `button` is the one held through it (left,
+middle or right; left unless named); `hold` names modifiers held through it (`alt`,
+`ctrl+shift`), and then the drag moves in sixteen straight steps the tool injects, since Input's
+timed motion carries no modifier; `held.bmp` is Workshop at the end of the motion with the
+button still down, between `before.bmp` and `after.bmp`. `workshop/act`'s `rest` step moves the pointer to a
 window pixel or cell with no button held, so a canvas pane that asks for its hover is told where
 it rests. The [Inventory-to-Compose demo](inventory-compose.md)
 finds visible rows and verifies owner state without screen-coordinate constants. Its helpers

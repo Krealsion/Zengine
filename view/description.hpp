@@ -3,10 +3,10 @@
 #ifndef ZENGINE_VIEW_DESCRIPTION_HPP
 #define ZENGINE_VIEW_DESCRIPTION_HPP
 
-// A view described as data: its elements placed in whole pixels, the field each label shows,
-// and the intent each control says. It holds no business value and no resolved geometry, and
-// its saved bytes are `zengine.view.Description`, refused by version number before a field is
-// read. Law: agents/view.md. Reference: docs/reference/view.md.
+// A view described as data: its size and its elements placed inside it in whole pixels, the
+// field each label shows, and the intent each control says. It holds no business value and no
+// resolved geometry, and its saved bytes are `zengine.view.Description`, refused by version
+// number before a field is read. Law: agents/view.md. Reference: docs/reference/view.md.
 
 #include "maker/files.hpp"
 #include "surface/vocabulary.hpp"
@@ -26,14 +26,17 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 namespace zengine::view {
 
 /// The word a description file says it is.
 inline constexpr const char* kFormat = "zengine-view-description";
-/// The description format's version, carried inside the value and as its envelope's version.
-inline constexpr std::int64_t kFormatVersion = 1;
+/// The description format's version, carried inside the value and as its envelope's version:
+/// the one this build writes. It reads version 1 too, a description without a size.
+inline constexpr std::int64_t kFormatVersion = 2;
 
 /// A view's name is its office and its intents' namespace, and Workshop lists it as a pane.
 inline constexpr std::size_t kMaxNameBytes = 32;
@@ -44,6 +47,14 @@ inline constexpr std::size_t kMaxLabelBytes = 64;
 inline constexpr std::size_t kMaxFieldTextBytes = 32;
 /// A place or a size in whole pixels, `surface::kCanvasCellPx` to a cell, at most this.
 inline constexpr std::int64_t kMaxPixels = 8192;
+/// A view's own size in whole pixels: at least room for a few columns and a notice row, and at
+/// most as far as any element may reach, so every element a place allows fits in some size.
+inline constexpr std::int64_t kMinWidthPx = 120;
+inline constexpr std::int64_t kMinHeightPx = 48;
+inline constexpr std::int64_t kMaxSizePx = 2 * kMaxPixels;
+/// The rows the notice has beneath the view's size: lines of the medium's text, so no element,
+/// which sits inside the size, is ever under it.
+inline constexpr std::size_t kNoticeRows = 3;
 
 enum class Kind { label, number, button };
 
@@ -95,6 +106,9 @@ struct Intent {
 
 struct Description {
     std::string name;
+    /// The view's size in whole pixels: every element sits inside it, and its notice rows lie
+    /// beneath it, in the medium's lines.
+    std::int64_t width = 0, height = 0;
     std::vector<Element> elements;
     std::vector<Shows> shows;
     std::vector<Intent> intents;
@@ -147,6 +161,25 @@ inline bool same_shapes(const Description& a, const Description& b) {
     return same(a.told(), b.told()) && same(a.says(), b.says());
 }
 
+/// THE SIZE A DESCRIPTION WITHOUT ONE TAKES: the pane it was asked for before a view had a size --
+/// a row below its lowest element and its notice rows, two columns past its rightmost, at least 4
+/// rows by 40 columns and at most 60 by 200 -- less the notice rows, which now lie beneath the
+/// size, and never less than its elements reach.
+inline std::pair<std::int64_t, std::int64_t> fitting_size(const Description& d) {
+    std::int64_t right = 0, bottom = 0;
+    for (const auto& e : d.elements) {
+        right = std::max(right, e.x + e.w);
+        bottom = std::max(bottom, e.y + e.h);
+    }
+    const auto cell = surface::kCanvasCellPx;
+    const auto cells = [&](std::int64_t px) { return (px + cell - 1) / cell; };
+    const auto columns = std::clamp<std::int64_t>(cells(right) + 2, 40, 200);
+    const auto rows = std::clamp<std::int64_t>(cells(bottom) + static_cast<std::int64_t>(kNoticeRows) + 1, 4, 60);
+    return {std::clamp<std::int64_t>(std::max(columns * cell, right), kMinWidthPx, kMaxSizePx),
+            std::clamp<std::int64_t>(std::max((rows - static_cast<std::int64_t>(kNoticeRows)) * cell, bottom),
+                                     kMinHeightPx, kMaxSizePx)};
+}
+
 // ---- the saved format ------------------------------------------------------------------------
 
 inline std::shared_ptr<const loom::Schema> element_schema() {
@@ -191,11 +224,30 @@ inline std::shared_ptr<const loom::Schema> intent_schema() {
     return s;
 }
 
-/// The description artifact: every shape it tells or says listed once in `shapes`, after the
-/// shapes they nest in `referenced`.
+/// The description artifact: its size, and every shape it tells or says listed once in
+/// `shapes`, after the shapes they nest in `referenced`.
 inline std::shared_ptr<const loom::Schema> description_schema() {
     static const auto s =
         loom::SchemaBuilder("zengine.view.Description", static_cast<std::uint32_t>(kFormatVersion))
+            .field("format", loom::Kind::Text)
+            .field("format_version", loom::Kind::Int)
+            .field("name", loom::Kind::Text)
+            .field("width", loom::Kind::Int)
+            .field("height", loom::Kind::Int)
+            .list("referenced", loom::type_message(loom::schema_desc_schema()), /*required=*/false)
+            .list("shapes", loom::type_message(loom::schema_desc_schema()))
+            .list("elements", loom::type_message(element_schema()))
+            .list("shows", loom::type_message(shows_schema()))
+            .list("intents", loom::type_message(intent_schema()))
+            .build();
+    return s;
+}
+
+/// The first description artifact, read and never written: no size, which its reader takes
+/// from `fitting_size`.
+inline std::shared_ptr<const loom::Schema> description_schema_v1() {
+    static const auto s =
+        loom::SchemaBuilder("zengine.view.Description", 1)
             .field("format", loom::Kind::Text)
             .field("format_version", loom::Kind::Int)
             .field("name", loom::Kind::Text)
@@ -263,14 +315,21 @@ inline bool scalar(loom::Kind kind) {
 
 } // namespace detail
 
-/// THE RULES A DESCRIPTION KEEPS, the same at every door: a usable name; at most `kMaxElements`
-/// elements of distinct identifier ids, printable labels and places inside `kMaxPixels`; each
+/// THE RULES A DESCRIPTION KEEPS, the same at every door: a usable name; a size from
+/// `kMinWidthPx` by `kMinHeightPx` to `kMaxSizePx` each way; at most `kMaxElements` elements of
+/// distinct identifier ids, printable labels and places inside `kMaxPixels`, each inside the
+/// size; each
 /// label showing one scalar field of a shape, two shapes of one name and version agreeing; each
 /// intent on a button, inside the view's name, every field an `Int` from a number field.
 inline std::string problem(const Description& d) {
     if (!detail::view_name(d.name))
         return "a view's name is 1 to " + std::to_string(kMaxNameBytes) +
                " bytes of letters, digits, `_`, `-` and inner dots; `" + d.name + "` is not";
+    if (d.width < kMinWidthPx || d.height < kMinHeightPx || d.width > kMaxSizePx || d.height > kMaxSizePx)
+        return "a view's size is whole pixels from " + std::to_string(kMinWidthPx) + " by " +
+               std::to_string(kMinHeightPx) + " to " + std::to_string(kMaxSizePx) + " by " +
+               std::to_string(kMaxSizePx) + "; " + std::to_string(d.width) + " by " +
+               std::to_string(d.height) + " is not";
     if (d.elements.size() > kMaxElements)
         return "a view holds at most " + std::to_string(kMaxElements) + " elements";
     for (std::size_t i = 0; i < d.elements.size(); ++i) {
@@ -288,6 +347,10 @@ inline std::string problem(const Description& d) {
             e.w > kMaxPixels || e.h > kMaxPixels)
             return "`" + e.id + "` sits at a place and a size of whole pixels, each from 0 (a size "
                    "from 1) to " + std::to_string(kMaxPixels);
+        if (e.x + e.w > d.width || e.y + e.h > d.height)
+            return "`" + e.id + "` reaches to " + std::to_string(e.x + e.w) + "," +
+                   std::to_string(e.y + e.h) + ", past the view's size of " + std::to_string(d.width) +
+                   " by " + std::to_string(d.height);
         if (e.kind != Kind::number && !e.text.empty())
             return "`" + e.id + "` is a " + kind_word(e.kind) + "; only a number field starts with text";
         if (e.text.size() > kMaxFieldTextBytes || !detail::printable(e.text))
@@ -362,6 +425,8 @@ inline loom::Value encode(const Description& d) {
     v.set("format", loom::Cell::text(kFormat));
     v.set("format_version", loom::Cell::integer(kFormatVersion));
     v.set("name", loom::Cell::text(d.name));
+    v.set("width", loom::Cell::integer(d.width));
+    v.set("height", loom::Cell::integer(d.height));
     std::vector<std::shared_ptr<const loom::Schema>> shapes = d.told();
     for (const auto& s : d.says()) shapes.push_back(s);
     std::vector<std::shared_ptr<const loom::Schema>> referenced;
@@ -424,8 +489,10 @@ inline std::string description_bytes(const Description& d) {
     return loom::serialize(encode(d));
 }
 
-/// ADMIT A DESCRIPTION VALUE that passed the gate at `description_schema()`: the format word and
-/// version, the shapes decoded with their closure first, each element's kind, then `problem`.
+/// ADMIT A DESCRIPTION VALUE that passed the gate at `description_schema()` or, for version 1,
+/// `description_schema_v1()`: the format word and version, the shapes decoded with their closure
+/// first, each element's kind, the size (for version 1, the one its elements fit), then
+/// `problem`.
 inline Admitted admit(const loom::Value& v) {
     try {
         if (v.get("format")->as_text() != kFormat)
@@ -480,6 +547,12 @@ inline Admitted admit(const loom::Value& v) {
                                      f.as_message()->get("element")->as_text()});
             d.intents.push_back(std::move(in));
         }
+        if (v.schema().version() == 1) {
+            std::tie(d.width, d.height) = fitting_size(d);
+        } else {
+            d.width = v.get("width")->as_int();
+            d.height = v.get("height")->as_int();
+        }
         if (auto why = problem(d); !why.empty()) return Admitted::no(why);
         Admitted a;
         a.ok = true;
@@ -491,17 +564,20 @@ inline Admitted admit(const loom::Value& v) {
 }
 
 /// READ A DESCRIPTION: the envelope's claim first -- another shape, or a version this build does
-/// not read, is refused by its number before a field is decoded -- then the gate, then `admit`.
+/// not read, is refused by its number before a field is decoded -- then the gate at that
+/// version's shape, then `admit`. Version 1 reads with the size its elements fit, and is written
+/// again as the current version.
 inline Admitted read_description(std::string_view bytes) {
     const loom::Unverified claim = loom::parse(bytes);
     if (!claim.well_formed()) return Admitted::no("these bytes are not a Zen value");
     if (claim.claimed_name() != description_schema()->name())
         return Admitted::no("not a view description: the bytes claim `" + claim.claimed_name() + "`");
-    if (claim.claimed_version() != static_cast<std::uint32_t>(kFormatVersion))
+    const bool first = claim.claimed_version() == 1;
+    if (claim.claimed_version() != static_cast<std::uint32_t>(kFormatVersion) && !first)
         return Admitted::no("a view description of version " +
-                            std::to_string(claim.claimed_version()) + "; this build reads version " +
+                            std::to_string(claim.claimed_version()) + "; this build reads versions 1 to " +
                             std::to_string(kFormatVersion) + " and converts no other");
-    auto admitted = loom::admit(claim, description_schema());
+    auto admitted = loom::admit(claim, first ? description_schema_v1() : description_schema());
     if (!admitted) return Admitted::no(admitted.first_error().message());
     return admit(admitted.value());
 }

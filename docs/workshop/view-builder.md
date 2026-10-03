@@ -13,19 +13,40 @@ Open the Pane Manager and choose **View Builder**. The shipped plans include the
 
 ## The builder
 
-On the left are the view's name and file in boxes, **Add** with the three kinds of element, and
-the list of the view's elements. In the middle is the design canvas: the view drawn by its own
-picture code at its own pixels, 12 to a cell, the same picture it shows when it runs. In a wide
+On the left are the view's name and file in boxes, **Add** with the three kinds of element, the
+view's **Size** and the **Grid** in boxes, and the list of the view's elements. In the middle is
+the design canvas: the view drawn by its own picture code at its own pixels, 12 to a cell, in a
+room exactly its size with its notice rows beneath, the same picture it shows when it runs. In a
+wide
 pane the selected element's values sit in boxes on the right; in a narrow one, below the list.
 
+- **Size** the view by dragging the handles on its right and bottom edges, or their corner, or
+  type its width and height into the boxes beside **Size**. A new view is 480 by 240. Beneath
+  its size are three rows of text where it says what it is waiting for, so nothing you place is
+  ever under them, and when it runs it asks its pane for its size and those rows.
 - **Make** an element by dragging **Label**, **Number** or **Button** from **Add** onto the
-  canvas: it is made where you let go. A click on a kind makes one below the last.
-- **Select** one by clicking it on the canvas or in the list. It is outlined, with a handle at
-  each corner.
-- **Move** it by dragging it, and **size** it by dragging a corner handle, in whole pixels; it
-  never goes past the canvas's top or left. The arrow keys move the selected element a pixel,
-  and with `Shift` a cell. A drag cut short -- a menu opening, the pane resized -- puts the
-  element back where it was.
+  canvas: it is made where you let go, inside the view, snapped as a move is. A click on a kind
+  makes one below the last, if the view has room there.
+- **Select** one by clicking it on the canvas or in the list. It is outlined, with a handle on
+  each side and at each corner.
+- **Move** it by dragging it, and **size** it by dragging a handle: a side's moves that side
+  alone, a corner's the two sides it meets. What you place by hand moves by whole pixels and
+  snaps to an edge: an edge you move comes to another element's edge, or the view's, within
+  <!-- value view_builder::kSnapReach -->6<!-- /value --> pixels, marked by a line across the
+  canvas while you hold it. Type a number into **Grid**, up to
+  <!-- value view_builder::kMaxGrid -->96<!-- /value -->, and a place by hand snaps to a grid that
+  many pixels apart as well, until you set it back to 1. Hold `Alt` while you drag to set every
+  snap aside. The arrow keys move the selected element a pixel, and with `Shift` a cell, and a
+  value typed into its box is exact. A drag cut short -- a menu opening, the pane resized -- puts
+  the element, or the size, back where it was.
+- **Nothing sits outside the view.** A dragged element stops at its edges; a value typed or a key
+  pressed that would carry it across one is refused, with the reason on the last row; and the
+  size cannot shrink past an element.
+- **Pan** the canvas by dragging it with the middle button: the view moves with your hand, so a
+  view larger than the canvas can be seen, pressed and dragged anywhere, and whatever you let go
+  there lands where you see it. It pans from the view's top left corner until its right and
+  bottom edges, and their handles, are in sight. The pan and the grid are the builder's, never
+  the view's: they are not saved, and **New** or **Open** shows a view from its corner.
 - **Type its values**: click a box -- `id`, `label`, a number field's starting `text`, `x`, `y`,
   `w`, `h` -- type, and press `Return`. `Tab` keeps the value and selects the next box's whole,
   so typing replaces it; `Escape` puts the value back. A value the view's rules refuse stays in
@@ -34,7 +55,15 @@ pane the selected element's values sit in boxes on the right; in a narrow one, b
 - `Delete` or **Remove** removes the selected element. **New** or **Open** over an unsaved view
   asks for a second press before it discards it.
 
-![Resting on field2 marks it and its row; below, count resized by its corner, Total moved, and the intent made from the number fields](images/view-builder-hand.png)
+![A new view, 480 by 240, its right and bottom edges ruled with their handles; button1 selected, with a handle on each side and at each corner, while the pointer resting on field2 marks it and its row](images/view-builder-hand.png)
+
+![A view 1500 by 900, panned by the middle button to its far corner; label1, placed at 1100,700 and dragged onto button2, made there while panned, snaps to button2's left edge and top, both lines marked while the button is held](images/view-builder-pan-snap.png)
+
+![label1's right side dragged alone to button2's right edge: its width 96, its left side and its row where they were](images/view-builder-side.png)
+
+![label1 dragged far right stops at the view's right edge, at 1404 in a view 1500 wide, the edge it met marked](images/view-builder-size.png)
+
+![The tally panel shrunk by its handles to its elements, 249 by 203, Total bound and not yet told: Total: waiting stays above the size's edge, and the notice, waiting to be told tally.Total, sits in its rows beneath](images/view-builder-notice.png)
 
 ## Make the tally panel
 
@@ -127,8 +156,10 @@ stopped, and once Workshop sees its participant gone it says it is waiting for t
 field or button is left that looks live.
 
 In a terminal Workshop the builder works as it does in a window, its picture floored to cells: a
-drag moves an element by whole cells, 12 pixels each, and a value typed into its box is still a
-pixel. The same panel works too, its picture the window's floored to cells and each line fitted
+drag moves an element by whole cells, 12 pixels each, the middle button pans by whole cells, and
+a value typed into its box is still a pixel. A side's handle is the cell beside the middle of
+that side, outside the element, or the side's own middle cell where the canvas ends; the view's
+size handles are the cells beyond its edges. The same panel works too, its picture the window's floored to cells and each line fitted
 to the cell. Here a step of 0 was refused, and the total stayed:
 
 ```text
@@ -175,7 +206,7 @@ told values, take typing, or say something when a control is used. The two stay 
 
 Three element kinds: a label, a number field that holds a whole number, and a button, placed
 side by side, never inside one another. A button says at most one intent, made from all the
-view's number fields. A label shows one top-level field. The canvas shows the view from its top
-left corner and does not scroll or zoom. A window does not say when the pointer leaves it, so a
+view's number fields. A label shows one top-level field. The canvas pans but does not zoom. A
+window does not say when the pointer leaves it, so a
 mark made under the pointer stays until the pointer moves inside the window again; a terminal
 reports no resting pointer at all, so there only a carried value is marked.
