@@ -249,6 +249,47 @@ TEST_CASE("a description that breaks a rule is refused in words, and none is wri
     CHECK(view::problem(panel()).empty());
 }
 
+TEST_CASE("a running view asks its pane for its size, and draws in its size whatever room its pane is granted") {
+    Rig rig;
+    auto d = panel();
+    d.width = 600;
+    d.height = 300;
+    const auto run = rig.ask(view::ViewRun{"builder", bytes_of(d)});
+    REQUIRE_MESSAGE(run.ok, run.reason);
+    // ASKED FOR ITS SIZE, in canvas cells: 600 by 300 pixels is 50 columns by 25 rows.
+    std::optional<ws::v2::PaneOffered> offered;
+    for (const auto& m : rig.desk->heard)
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v2::PaneOffered>()))
+            offered = loom::from_value<ws::v2::PaneOffered>(m.payload);
+    REQUIRE(offered);
+    CHECK(offered->columns == 50);
+    CHECK(offered->rows == 25);
+    // GRANTED MORE, it draws in its size: its ground and its last row end where the size does.
+    rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 48 * 80, 48 * 40, 4, true, 8, 16});
+    const auto* p = rig.latest("tally.panel");
+    REQUIRE(p != nullptr);
+    const auto size_w = zengine::surface::subs_of_pixel(600), size_h = zengine::surface::subs_of_pixel(300);
+    CHECK(std::any_of(p->rects.begin(), p->rects.end(), [&](const auto& r) {
+        return r.role == zengine::surface::role::kGround && r.x == 0 && r.y == 0 && r.w == size_w && r.h == size_h;
+    }));
+    for (const auto& r : p->rects) {
+        CHECK(r.x + r.w <= size_w);
+        CHECK(r.y + r.h <= size_h);
+    }
+    REQUIRE_FALSE(p->texts.empty());
+    const auto& last = p->texts.back(); // what it still waits to be told, on its last row
+    CHECK(has(last.text, "waiting to be told"));
+    CHECK(last.y + 4 * (16 + 2 * 2) == size_h);
+    // GRANTED LESS, it draws in what it was granted.
+    rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 48 * 20, 48 * 10, 4, true, 8, 16});
+    p = rig.latest("tally.panel");
+    REQUIRE(p != nullptr);
+    for (const auto& r : p->rects) {
+        CHECK(r.x + r.w <= 48 * 20);
+        CHECK(r.y + r.h <= 48 * 10);
+    }
+}
+
 TEST_CASE("a view has a size that holds its elements; one saved without a size reads with the size its elements and notice need, and is written with it") {
     // THE SIZE IS SAVED with the view, and every element sits inside it.
     auto d = panel();
