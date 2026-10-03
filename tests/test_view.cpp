@@ -403,6 +403,36 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     CHECK_FALSE(has(notice, "..."));
 }
 
+TEST_CASE("a refusal reaches the notice row only when Loom attests it answers the view's own intent; another participant's at that intent's correlation does not") {
+    Rig rig;
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).ok);
+    const auto id = rig.bus.role_holder("tally.panel");
+    auto heard = std::make_unique<Listener>(std::vector{hwfix::count_schema()});
+    auto* bystander = heard.get();
+    const auto other = rig.bus.register_weave(std::move(heard), loom::Grant{}.allow_any());
+    rig.room("tally.panel");
+    const auto d = panel();
+    rig.press("tally.panel", d.elements[3]);
+    REQUIRE(rig.total() == 45);
+    REQUIRE(bystander->heard.size() == 1);
+    const auto said = bystander->heard[0].correlation;
+    REQUIRE(said != 0);
+
+    // The correlation names the intent; it authenticates nothing. Said to the view by ordinary
+    // send, a refusal under it is not the answer to the view's delivery, and is not shown.
+    (void)rig.bus.send_as(other, id, loom::Message(loom::to_value(loom::Refused{"another says no"}), other, {}, said));
+    rig.pump();
+    rig.room("tally.panel");
+    CHECK_FALSE(has(rig.said("tally.panel"), "another says no"));
+    CHECK(has(rig.words("tally.panel"), "Total: 45|"));
+
+    // The tally's own refusal is Loom's answer to the view's intent, and is shown.
+    rig.fill("tally.panel", d.elements[2], "0");
+    rig.press("tally.panel", d.elements[3]);
+    CHECK(has(rig.said("tally.panel"), "refused: tally on tally.panel.Count at %0 fold math.add: "
+                                       "a step of 0 never moves the count from 0 toward 10"));
+}
+
 TEST_CASE("a label or place change at the same shapes reaches the running view in place; a change of shapes registers afresh and says so") {
     Rig rig;
     REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel(false))}).ok);

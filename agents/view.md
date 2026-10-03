@@ -33,8 +33,8 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
 - `view::View` keeps only presentation: field text, focus, caret, its notice, and the latest value
   of each shape it was told. It calls nothing current that it was not told: a label it was never
   told says `waiting`. An intent is published as the participant, by shape: whoever accepts it
-  hears it, and the view claims no exclusive audience. A refusal is shown when it answers one of
-  the view's own intents, by correlation.
+  hears it, and the view claims no exclusive audience. A refusal is shown only when Loom attests
+  it answers the view's own delivery (`answers_ask()`); the correlation then says which intent.
 - `view::picture` is pure: the description, what was told and the presentation, in one room. Text
   sits on the medium's lattice inside its element and is fitted by `clip_canvas_text`, so a
   terminal shows the window's picture floored to cells. A prose room gets one row saying the view

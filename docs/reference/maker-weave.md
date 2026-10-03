@@ -63,7 +63,8 @@ The body answers on one port whose type is the target field's own, so the catalo
 is the kind check, and the answer lands in the named field. Then each emit is written field by
 field from the new state — a same-named or renamed state field, or a scalar constant — and
 published under the weave's own grant. A body that cannot be spent leaves the state, answers
-`zen.Refused` with the deepest layer's words, and counts.
+`zen.Refused` with the deepest layer's words, and counts. Its answers to the stamped sender go
+through Loom's answer door, so the asker reads them as answers to its own delivery.
 
 A field name both the state and the message carry is refused at admission, as are a trigger on an
 unaccepted message, an output the state does not declare, an undeclared emit, and an emit or
