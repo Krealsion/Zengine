@@ -562,7 +562,8 @@ private:
         shown_.box = std::move(box);
         place_caret(hit, event);
     }
-    /// The caret where the box was pressed, at the medium's measured advance.
+    /// The caret where the box was pressed, at the medium's measured advance, counted from the
+    /// scroll the picture drew the box at.
     void place_caret(const vb::Hit& hit, const ws::PaneCanvasPointer& event) {
         const auto metrics = ws::canvas_text_metrics(room_);
         const auto column = (event.x - hit.at.x - metrics.inset) / std::max<std::int64_t>(1, metrics.advance);

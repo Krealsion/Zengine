@@ -104,7 +104,8 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
     m.selected = 4;
     for (const auto& room : {window_room(), terminal_room()}) {
         INFO("graphical: " << room.graphical);
-        const auto pic = vb::picture(m, {}, room, 1);
+        vb::Presentation none;
+        const auto pic = vb::picture(m, none, room, 1);
         const auto& area = pic.design;
         REQUIRE_FALSE(area.empty());
         // On a cell boundary, so the view keeps its lattice in a window and a terminal alike.
@@ -160,7 +161,8 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(listed("  start  number"));
     }
     // An empty view says what to do, in the list's place.
-    const auto empty = vb::picture(vb::Model{}, {}, terminal_room(), 2);
+    vb::Presentation none;
+    const auto empty = vb::picture(vb::Model{}, none, terminal_room(), 2);
     CHECK(std::any_of(empty.content.texts.begin(), empty.content.texts.end(),
                       [](const auto& t) { return t.text == "  none yet: drag a kind in"; }));
 }
@@ -684,6 +686,46 @@ TEST_CASE("a value typed into its box is kept by Return or Tab, refused in words
     const auto d = rig.now();
     CHECK(d.elements[0].x == 8);
     CHECK(rig.text("limit (number) ") != nullptr);
+}
+
+TEST_CASE("a box scrolled to show its caret is pressed where it shows: the caret lands at the byte under the press") {
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    const std::string long_label = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMN";
+    REQUIRE(rig.edit("set", {"4", "label", long_label}).ok);
+    REQUIRE(rig.edit("select", {"4"}).ok);
+    // The label's box, beside the design area, holding the front of the label.
+    const auto boxed = [&](const std::string& start) -> const ws::PaneCanvasText* {
+        const auto area = rig.design();
+        for (const auto& t : rig.picture().texts)
+            if (t.text.rfind(start, 0) == 0 && t.x >= area.x + area.w) return &t;
+        return nullptr;
+    };
+    const auto* box = boxed("abcdefgh");
+    REQUIRE(box != nullptr);
+    rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, 50);
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kEnd, 0});
+    // Typing at its end scrolls the box: it shows the label's tail, not its front.
+    const auto* scrolled = [&]() -> const ws::PaneCanvasText* {
+        for (const auto& t : rig.picture().texts)
+            if (t.role == zengine::surface::role::kAccent && !t.text.empty() &&
+                long_label.size() >= t.text.size() &&
+                long_label.compare(long_label.size() - t.text.size(), t.text.size(), t.text) == 0)
+                return &t;
+        return nullptr;
+    }();
+    REQUIRE(scrolled != nullptr);
+    const auto first = long_label.size() - scrolled->text.size();
+    REQUIRE(first > 5);
+    // A PRESS ON ITS SIXTH SHOWN COLUMN puts the caret before the byte drawn there.
+    const auto metrics = ws::canvas_text_metrics(window_room());
+    const auto x = scrolled->x + metrics.inset + 5 * metrics.advance + metrics.advance / 2;
+    rig.pointer(ws::canvas_pointer::kPress, x, scrolled->y + 8, 51);
+    rig.host(ws::PaneTextInput{vb::kPane, "#"});
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+    auto expected = long_label;
+    expected.insert(first + 5, "#");
+    CHECK(rig.now().elements[4].label == expected);
 }
 
 TEST_CASE("a press on what a button says asks under that press to drag its intent's shape out") {
