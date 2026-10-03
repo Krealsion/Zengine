@@ -427,7 +427,7 @@
     {
       "name": "drag",
       "script": "drag.py",
-      "summary": "Press, move, and release once; capture Workshop before and after.",
+      "summary": "Press, move, and release once; capture Workshop before, while held, and after.",
       "description": "Press, ask Zengine Input to follow a timed path, then release. Input owns sampling against elapsed time; the script owns only the sequence. Linear by default; a bend selects a cubic Bezier. Settlement reports delivery, not application success.",
       "inputs": [
         {
@@ -457,12 +457,22 @@
           "type": "int",
           "default": 0,
           "help": "Bezier control offset; zero is linear, in endpoint coordinate units"
+        },
+        {
+          "name": "button",
+          "type": "text",
+          "default": "left",
+          "help": "the button held through the drag: left, middle or right"
         }
       ],
       "outputs": [
         {
           "name": "before.bmp",
           "help": "Workshop pixels before input"
+        },
+        {
+          "name": "held.bmp",
+          "help": "Workshop pixels at the end of the motion, the button still held"
         },
         {
           "name": "after.bmp",
