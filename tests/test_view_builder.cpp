@@ -114,10 +114,11 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         // On a cell boundary, so the view keeps its lattice in a window and a terminal alike.
         CHECK(area.x % unit == 0);
         CHECK(area.y % unit == 0);
-        // ONE RENDERER: everything the view's own picture code draws in a room the area's size is
-        // in the builder's picture, moved by the area's corner and nothing else.
-        const ws::PaneCanvasRoom inner{vb::kPane, room.grant, area.w, area.h, room.grain, room.graphical,
-                                       room.text_advance_px, room.text_line_px};
+        // ONE RENDERER: everything the view's own picture code draws in a room exactly the view's
+        // size is in the builder's picture, moved by the area's corner and nothing else.
+        const ws::PaneCanvasRoom inner{vb::kPane, room.grant, zengine::surface::subs_of_pixel(m.description.width),
+                                       zengine::surface::subs_of_pixel(m.description.height), room.grain,
+                                       room.graphical, room.text_advance_px, room.text_line_px};
         const auto own = view::picture(m.description, {}, view::Presentation{}, inner, 1);
         REQUIRE_FALSE(own.content.texts.empty());
         for (const auto& t : own.content.texts) {
@@ -164,13 +165,13 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(listed("> total  label"));
         CHECK(listed("  start  number"));
     }
-    // PANNED, the view is drawn by the same code in a room reaching from its corner to the area's
-    // far edges, moved whole by the area's corner less the pan: what lies wholly inside the area is
-    // there once, moved, and nothing of the view lies outside it.
+    // PANNED, the view is drawn by the same code in a room exactly its size, moved whole by the
+    // area's corner less the pan: what lies wholly inside the area is there once, moved, and
+    // nothing of the view lies outside it.
     {
         namespace sp = zengine::surface;
         auto wide = panel_model();
-        wide.command("size", {"1400", "800"});
+        wide.command("size", {"1400", "1000"});
         wide.command("element", {"4", "total", "Total", "900", "700", "192", "24"});
         vb::Presentation panned;
         panned.pan_x = 480;
@@ -181,7 +182,8 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(panned.pan_x == 480);
         CHECK(pic.view.x == area.x - sp::subs_of_pixel(480));
         CHECK(pic.view.y == area.y - sp::subs_of_pixel(300));
-        CHECK(pic.view.x + pic.view.w == area.x + area.w);
+        CHECK(pic.view.w == sp::subs_of_pixel(1400));
+        CHECK(pic.view.h == sp::subs_of_pixel(1000));
         const ws::PaneCanvasRoom inner{vb::kPane, room.grant, pic.view.w, pic.view.h, room.grain, room.graphical,
                                        room.text_advance_px, room.text_line_px};
         const auto own = view::picture(wide.description, {}, view::Presentation{}, inner, 3);
@@ -216,11 +218,11 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(std::any_of(cut.content.rects.begin(), cut.content.rects.end(), [&](const auto& r) {
             return r.role == zengine::surface::role::kMuted && r.x == right - sp::subs_of_pixel(50) && r.x + r.w == right;
         }));
-        // A pan past its reach is held to it: the farthest far edge, total's at 1092, at the
-        // middle of the area.
+        // A pan past its reach is held to it: the view's right edge, and a cell beyond it where
+        // its handles sit, at the area's right edge.
         panned.pan_x = 9000;
         (void)vb::picture(wide, panned, room, 4);
-        CHECK(panned.pan_x == 1092 - sp::floor_div_px(area.w, sp::kPixelGrainSubs) / 2);
+        CHECK(panned.pan_x == 1400 + 12 - sp::floor_div_px(area.w, sp::kPixelGrainSubs));
     }
     // An empty view says what to do, in the list's place.
     vb::Presentation none;
@@ -885,8 +887,8 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     CHECK_FALSE(read("far.view").empty());
     CHECK(read("far2.view") == read("far.view"));
     CHECK(rig.drawn("Far") != nullptr); // an edit from elsewhere keeps the pan
-    // THE PAN'S REACH: the farthest element's far edge no further left or up than the canvas's
-    // middle, however far the hand goes.
+    // THE PAN'S REACH: the view's far edges, and a cell beyond them where its handles sit, no
+    // further left or up than the canvas's own, however far the hand goes.
     rig.pointer(ws::canvas_pointer::kPress, cx, cy, 33, 2);
     rig.pointer(ws::canvas_pointer::kMove, cx - sp::subs_of_pixel(5000), cy - sp::subs_of_pixel(5000), 33, 2);
     rig.pointer(ws::canvas_pointer::kRelease, cx - sp::subs_of_pixel(5000), cy - sp::subs_of_pixel(5000), 33, 2);
@@ -894,8 +896,8 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     const vb::Area reached{area.x - sp::subs_of_pixel(reach_x), area.y - sp::subs_of_pixel(reach_y), 0, 0};
     distant = vb::element_area(reached, rig.now().elements[5]);
     CHECK(far_box(distant) == 1);
-    CHECK(std::abs(distant.x + distant.w - (area.x + area.w / 2)) <= sp::subs_of_pixel(1));
-    CHECK(std::abs(distant.y + distant.h - (area.y + area.h / 2)) <= sp::subs_of_pixel(1));
+    CHECK(std::abs(reached.x + sp::subs_of_pixel(2000 + 12) - (area.x + area.w)) <= sp::subs_of_pixel(1));
+    CHECK(std::abs(reached.y + sp::subs_of_pixel(1200 + 12) - (area.y + area.h)) <= sp::subs_of_pixel(1));
     // ...and back to the view's corner, no further.
     rig.pointer(ws::canvas_pointer::kPress, cx, cy, 34, 2);
     rig.pointer(ws::canvas_pointer::kMove, cx + sp::subs_of_pixel(9000), cy + sp::subs_of_pixel(9000), 34, 2);
@@ -924,15 +926,15 @@ TEST_CASE("in a terminal the middle button pans the design canvas by whole cells
     const auto area = rig.design();
     CHECK(rig.drawn("Far") == nullptr);
     rig.pointer(ws::canvas_pointer::kPress, area.x + 2 * unit, area.y + 2 * unit, 50, 2);
-    rig.pointer(ws::canvas_pointer::kMove, area.x + 2 * unit - 80 * unit, area.y + 2 * unit - 35 * unit, 50, 2);
-    rig.pointer(ws::canvas_pointer::kRelease, area.x + 2 * unit - 80 * unit, area.y + 2 * unit - 35 * unit, 50, 2);
+    rig.pointer(ws::canvas_pointer::kMove, area.x + 2 * unit - 60 * unit, area.y + 2 * unit - 30 * unit, 50, 2);
+    rig.pointer(ws::canvas_pointer::kRelease, area.x + 2 * unit - 60 * unit, area.y + 2 * unit - 30 * unit, 50, 2);
     const auto* distant = rig.drawn("Far");
     REQUIRE(distant != nullptr);
     for (const auto& t : rig.picture().texts) {
         CHECK(t.x % unit == 0);
         CHECK(t.y % unit == 0);
     }
-    const vb::Area placed{area.x - 80 * unit, area.y - 35 * unit, 0, 0};
+    const vb::Area placed{area.x - 60 * unit, area.y - 30 * unit, 0, 0};
     const auto at = vb::element_area(placed, rig.now().elements[5]);
     CHECK(distant->x >= at.x);
     CHECK(distant->y >= at.y);
@@ -942,6 +944,109 @@ TEST_CASE("in a terminal the middle button pans the design canvas by whole cells
     rig.pointer(ws::canvas_pointer::kRelease, at.x + 2 * unit, at.y + unit, 51);
     CHECK(rig.now().elements[5].x == 1200 + sp::kCanvasCellPx);
     CHECK(rig.now().elements[5].y == 600 + sp::kCanvasCellPx);
+}
+
+namespace {
+/// The bytes a view was saved as before a view had a size: version 1, without the size.
+std::string first_version_bytes(const view::Description& d) {
+    const auto now = view::encode(d);
+    loom::Value v(view::description_schema_v1());
+    for (const auto& f : view::description_schema_v1()->fields())
+        if (const auto* cell = now.get(f.name)) v.set(f.name, *cell);
+    v.set("format_version", loom::Cell::integer(1));
+    return loom::serialize(v);
+}
+} // namespace
+
+TEST_CASE("the view's size is set by its handles on the design canvas or typed into its boxes; the canvas draws the view in exactly its size; its edges snap as an element's do, and an element's to them; a view saved without a size opens with the size it needs") {
+    namespace sp = zengine::surface;
+    namespace ink = zengine::surface::role;
+    TempDir dir;
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    // A NEW VIEW is 480 by 240, its size in boxes, and the canvas draws it in exactly that room.
+    auto d = rig.now();
+    CHECK(d.width == vb::kNewViewWidth);
+    CHECK(d.height == vb::kNewViewHeight);
+    CHECK(rig.value("480") != nullptr);
+    CHECK(rig.value("240") != nullptr);
+    const auto area = rig.design();
+    const auto ground = [&](std::int64_t w, std::int64_t h) {
+        return std::count_if(rig.picture().rects.begin(), rig.picture().rects.end(), [&](const auto& r) {
+            return r.role == ink::kGround && r.x == area.x && r.y == area.y && r.w == sp::subs_of_pixel(w) &&
+                   r.h == sp::subs_of_pixel(h);
+        });
+    };
+    CHECK(ground(480, 240) == 1);
+    const auto drag = [&](std::int64_t x, std::int64_t y, std::int64_t dx, std::int64_t dy, std::int64_t gesture,
+                          std::int64_t phase = ws::canvas_pointer::kRelease) {
+        rig.pointer(ws::canvas_pointer::kPress, x, y, gesture);
+        rig.pointer(ws::canvas_pointer::kMove, x + sp::subs_of_pixel(dx), y + sp::subs_of_pixel(dy), gesture);
+        rig.pointer(phase, x + sp::subs_of_pixel(dx), y + sp::subs_of_pixel(dy), gesture);
+    };
+    const auto px = [](std::int64_t v) { return sp::subs_of_pixel(v); };
+    // THE RIGHT EDGE'S HANDLE sets the width alone, the bottom's the height, the corner's both.
+    drag(area.x + px(480), area.y + px(120), 96, 30, 60);
+    d = rig.now();
+    CHECK(d.width == 576);
+    CHECK(d.height == 240);
+    CHECK(ground(576, 240) == 1);
+    drag(area.x + px(288), area.y + px(240), 40, 60, 61);
+    CHECK(rig.now().width == 576);
+    CHECK(rig.now().height == 300);
+    drag(area.x + px(576), area.y + px(300), -60, -12, 62);
+    CHECK(rig.now().width == 516);
+    CHECK(rig.now().height == 288);
+    // TYPED into its box, the width is exact.
+    const auto* box = rig.value("516");
+    REQUIRE(box != nullptr);
+    rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, 63);
+    rig.pointer(ws::canvas_pointer::kRelease, box->x + 8, box->y + 8, 63);
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
+    rig.host(ws::PaneTextInput{vb::kPane, "500"});
+    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+    CHECK(rig.now().width == 500);
+    CHECK(rig.notice() == "The view is 500 by 288");
+    // AN ELEMENT'S EDGE SNAPS TO THE VIEW'S: total's right edge, three pixels short of it, comes to it.
+    d = rig.now();
+    auto [x, y] = rig.middle(d.elements[4]);
+    drag(x, y, 305, 0, 64);
+    CHECK(rig.now().elements[4].x == 308);
+    CHECK(rig.now().elements[4].x + rig.now().elements[4].w == 500);
+    CHECK(rig.now().elements[4].y == 108); // its top to count's bottom, four pixels from it
+    // THE SIZE'S EDGE SNAPS TO AN ELEMENT'S: the bottom, four pixels past total's, comes to it.
+    drag(area.x + px(250), area.y + px(288), 0, -152, 65);
+    CHECK(rig.now().height == 132);
+    // A DRAG CUT SHORT puts the size back.
+    drag(area.x + px(500), area.y + px(66), 120, 0, 66, ws::canvas_pointer::kLost);
+    CHECK(rig.now().width == 500);
+    CHECK(rig.notice() == "The view's size is back where it was: the drag ended before it was let go");
+    // IN A TERMINAL each of its handles is the cell beyond its edge.
+    rig.host(terminal_room(++rig.grant));
+    const auto cells = rig.design();
+    const auto up = [](std::int64_t v) { return (v + unit - 1) / unit * unit; };
+    const auto right = cells.x + up(px(500));
+    CHECK(std::any_of(rig.picture().rects.begin(), rig.picture().rects.end(), [&](const auto& r) {
+        return r.role == ink::kMuted && r.x == right && r.w == unit && r.h == unit && r.y == cells.y + px(132) / 2 / unit * unit;
+    }));
+    rig.host(window_room(++rig.grant));
+
+    // A VIEW SAVED WITHOUT A SIZE opens with the size its elements and notice rows need, and is
+    // saved again with it.
+    const auto old = (dir.directory / "old.view").string();
+    {
+        std::ofstream file(old, std::ios::binary);
+        file << first_version_bytes(panel_model().description);
+    }
+    REQUIRE(rig.edit("open", {old, "discard"}).ok);
+    CHECK(rig.now().width == 480);
+    CHECK(rig.now().height == 192);
+    CHECK(rig.now().elements.size() == 5);
+    REQUIRE(rig.edit("save", {(dir.directory / "again.view").string()}).ok);
+    std::ifstream again(dir.directory / "again.view", std::ios::binary);
+    const std::string saved((std::istreambuf_iterator<char>(again)), std::istreambuf_iterator<char>());
+    CHECK(loom::parse(saved).claimed_version() == static_cast<std::uint32_t>(view::kFormatVersion));
+    CHECK(view::read_description(saved).description.height == 192);
 }
 
 TEST_CASE("the pointer resting on an element marks it and its row; a carried value marks the label it would land on; leaving puts the marks down") {
