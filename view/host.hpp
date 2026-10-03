@@ -65,22 +65,36 @@ private:
     std::map<std::uint64_t, bool> retiring_;
 
     /// REGISTER ONE VIEW from an admitted description: its own participant, holding its name as
-    /// its office, granted what the description implies; then told to offer its pane.
-    std::uint64_t create(Description description) {
-        if (views_.size() >= kMaxViews)
+    /// its office, granted what the description implies. `succeeding` names the running view it
+    /// replaces, which the bound does not count. Loom's registration is the step that can refuse,
+    /// and it is taken while that view still runs, so a refusal changes nothing. At the same
+    /// name the successor stands sealed to the host's office until the office moves to it, with
+    /// no delivery between; the caller then retires the view it succeeds.
+    std::uint64_t create(Description description, std::uint64_t succeeding = 0) {
+        if (views_.size() - views_.count(succeeding) >= kMaxViews)
             throw std::invalid_argument("the view host already runs " + std::to_string(kMaxViews) + " views");
-        if (bus_.role_holder(description.name).valid())
-            throw std::invalid_argument("`" + description.name + "` is already held by a running participant");
-        auto grant = view_grant(description);
         const auto name = description.name;
+        const View* incumbent = view(succeeding);
+        const bool same_office = incumbent && incumbent->description().name == name;
+        if (!same_office && bus_.role_holder(name).valid())
+            throw std::invalid_argument("`" + name + "` is already held by a running participant");
+        auto grant = view_grant(description);
         auto view = std::make_unique<View>(std::move(description));
         View* raw = view.get();
-        const auto id = bus_.register_weave(std::move(view), std::move(grant), name);
+        const auto id = same_office ? bus_.register_weave(std::move(view), std::move(grant))
+                                    : bus_.register_weave(std::move(view), std::move(grant), name);
+        if (same_office && !(bus_.seal_weave(id, manager_) &&
+                             bus_.commit_candidate(id, loom::WeaveId{succeeding}, name))) {
+            bus_.unregister_weave(id);
+            throw std::invalid_argument("`" + name + "` could not pass to its successor");
+        }
         raw->set_self(id);
         views_.emplace(id.value, raw);
-        bus_.send(id, loom::Message(loom::to_value(detail::ViewStart{})));
         return id.value;
     }
+
+    /// Tell a registered view to offer its pane.
+    void start(std::uint64_t id) { bus_.send(loom::WeaveId{id}, loom::Message(loom::to_value(detail::ViewStart{}))); }
 
     /// A change at the same shapes, taken by the running participant.
     void apply(std::uint64_t id, Description description) {
@@ -103,7 +117,7 @@ private:
                                    loom::Message(loom::to_value(detail::ViewRetire{static_cast<std::int64_t>(id)}), manager_));
     }
 
-    /// Unregister at once: the successor takes the same office in the same turn.
+    /// Unregister at once: its successor already holds the office.
     void remove(std::uint64_t id) {
         if (!views_.count(id)) return;
         views_.erase(id);
@@ -158,7 +172,9 @@ public:
                 auto admitted = read(loom::from_value<ViewRun>(request.payload).description);
                 const auto told = told_words(admitted);
                 answer.office = admitted.name;
-                owned_.emplace(key, host_.create(std::move(admitted)));
+                const auto id = host_.create(std::move(admitted));
+                owned_.emplace(key, id);
+                host_.start(id);
                 answer.fresh = true;
                 answer.reason = "registered " + answer.office + told;
             } else {
@@ -178,18 +194,16 @@ public:
                         answer.reason = "applied in place: " + answer.office + " tells and says the same shapes";
                     } else {
                         // A NEW SURFACE IS A NEW PARTICIPANT: Loom fixes what a weave accepts and
-                        // emits when it registers, so a change of shapes registers afresh.
-                        const auto before = live->description().name;
+                        // emits when it registers, so a change of shapes registers afresh, and
+                        // the running view retires only once its successor stands.
+                        const bool renamed = next.name != live->description().name;
                         const auto told = told_words(next);
-                        if (next.name != before) {
-                            if (host_.bus_.role_holder(next.name).valid())
-                                throw std::invalid_argument("`" + next.name + "` is already held by a running participant");
-                            host_.stop(found->second, "was renamed " + next.name);
-                        } else {
-                            host_.remove(found->second);
-                        }
                         answer.office = next.name;
-                        found->second = host_.create(std::move(next));
+                        const auto successor = host_.create(std::move(next), found->second);
+                        if (renamed) host_.stop(found->second, "was renamed " + answer.office);
+                        else host_.remove(found->second);
+                        found->second = successor;
+                        host_.start(successor);
                         answer.fresh = true;
                         answer.reason = "registered " + answer.office + " afresh: its shapes changed" + told;
                     }

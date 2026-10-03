@@ -16,6 +16,7 @@
 #include "input/input_weave.hpp"
 #include "terminal-pane/vocabulary.hpp"
 #include "flow-pane/vocabulary.hpp"
+#include "view-builder/picture.hpp"
 #include "view-builder/vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 #include <zen/host/grant_wiring.hpp>
@@ -1113,6 +1114,51 @@ void choose(InventoryStory& s, const std::string& label) {
     e.pressed = false;
     s.event(e);
 }
+/// Where a canvas pane drew a line beginning `start`, as a hand's pointer event in cells.
+input::InjectedEvent at_text(InventoryStory& s, std::int64_t kind, const std::string& start,
+                             const char* what = "PointerButton") {
+    const auto* pane = s.r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    const auto& c = pane->canvas;
+    input::InjectedEvent e;
+    e.kind = what; e.button = 1; e.space = input::space::kCells;
+    for (const auto& t : c.content.texts)
+        if (t.text.rfind(start, 0) == 0) {
+            e.x = (c.x + t.x) / surface::kCellSubs + 1;
+            e.y = (c.y + t.y) / surface::kCellSubs + surface::kTuiCanvasTopRow;
+            return e;
+        }
+    std::string all;
+    for (const auto& t : c.content.texts) all += t.text + " | ";
+    FAIL("no line beginning `" << start << "` in " << all);
+    return e;
+}
+/// A local place of a canvas pane, in subunits, as a hand's pointer event in cells.
+input::InjectedEvent at_local(InventoryStory& s, std::int64_t kind, std::int64_t x, std::int64_t y,
+                              const char* what = "PointerButton") {
+    const auto* pane = s.r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    input::InjectedEvent e;
+    e.kind = what; e.button = 1; e.space = input::space::kCells;
+    e.x = (pane->canvas.x + x) / surface::kCellSubs;
+    e.y = (pane->canvas.y + y) / surface::kCellSubs + surface::kTuiCanvasTopRow;
+    return e;
+}
+/// The View Builder's design area, read off its picture: the ground the view's own picture brought.
+zengine::view_builder::Area design_of(InventoryStory& s) {
+    for (const auto& r : s.r.session().panes.external_pane(s.builder)->canvas.content.rects)
+        if (r.role == surface::role::kGround && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
+    FAIL("the builder drew no design area");
+    return {};
+}
+/// A hand's drag in one batch: pressed where `from` was drawn, moved, and released at `to`.
+void drag_between(InventoryStory& s, input::InjectedEvent from, input::InjectedEvent to) {
+    from.kind = "PointerButton"; from.pressed = true;
+    to.kind = "PointerButton"; to.pressed = false;
+    auto move = to;
+    move.kind = "PointerMoved"; move.dx = to.x - from.x; move.dy = to.y - from.y;
+    s.batch({from, move, to});
+}
 bool pictured(InventoryStory& s, std::int64_t kind, const std::string& part) {
     for (const auto& t : s.r.session().panes.external_pane(kind)->canvas.content.texts)
         if (t.text.find(part) != std::string::npos) return true;
@@ -1154,8 +1200,136 @@ TEST_CASE("shapes cross between Flow and the View Builder by carry: what Flow sa
     // THE BUILDER'S INTENT ONTO FLOW: its `says` line offers to carry it, and Flow, given it,
     // offers to declare it accepted.
     tell(s, vb::kRole, vb::ViewEdit{"select", {"1"}});
-    press_text(s, s.builder, "says tally.panel.Count", 3);
+    press_text(s, s.builder, "says tally.panel.", 3);
     choose(s, "Carry tally.panel.Count");
     press_text(s, s.flow, "Emitted");
     CHECK(pictured(s, s.flow, "[Declare tally.panel.Count v1 as an accepted message]"));
+}
+
+TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the hold ends as lost "
+          "when the carry begins, the value lands where the hand lets go, and a click carries nothing") {
+    InventoryStory s(255, false, false, true, false, true);
+    REQUIRE(s.flow != 0);
+    REQUIRE(s.builder != 0);
+    namespace fp = zengine::flow_pane;
+    namespace vb = zengine::view_builder;
+    for (const auto& [action, args] : std::vector<std::pair<std::string, std::vector<std::string>>>{
+             {"new", {"tally", "discard"}}, {"state-field", {"total", "Int", "required"}},
+             {"emitted-message", {"Total"}}, {"emitted-field", {"0", "total", "Int", "required"}}})
+        tell(s, fp::kRole, fp::FlowEdit{action, args});
+    for (const auto& [action, args] : std::vector<std::pair<std::string, std::vector<std::string>>>{
+             {"new", {"tally.panel", "discard"}}, {"add", {"label"}}, {"select", {"0"}}})
+        tell(s, vb::kRole, vb::ViewEdit{action, args});
+    press_text(s, s.flow, "[Messages]");
+    REQUIRE(pictured(s, s.flow, "0 tally.Total {total: Int}"));
+    const auto* flow = s.r.session().panes.runtime.of_kind(s.flow);
+    REQUIRE(flow != nullptr);
+    const auto flow_id = s.r.bus.role_holder(flow->provider);
+    std::vector<PaneCanvasPointer> told_flow;
+    std::vector<PaneCanvasValueDrop> drops;
+    const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind != loom::EventKind::Delivered || !e.payload) return;
+        if (e.target == flow_id && e.schema_name == PaneCanvasPointer::zen_name)
+            told_flow.push_back(loom::from_value<PaneCanvasPointer>(*e.payload));
+        if (e.schema_name == PaneCanvasValueDrop::zen_name)
+            drops.push_back(loom::from_value<PaneCanvasValueDrop>(*e.payload));
+    });
+    RemoveObserver untap{s.r.bus, tap};
+
+    // A CLICK ON THE MESSAGE: Flow asks to carry it under the press, and the carry begins, so the
+    // press's hold ends as lost; the hand never moved, so nothing lands and nothing is held.
+    auto click = at_text(s, s.flow, "0 tally.Total");
+    click.pressed = true; s.event(click);
+    REQUIRE(told_flow.size() == 2);
+    CHECK(told_flow[0].phase == canvas_pointer::kPress);
+    CHECK(told_flow[1].phase == canvas_pointer::kLost);
+    CHECK(told_flow[1].gesture == told_flow[0].gesture);
+    click.pressed = false; s.event(click);
+    CHECK(told_flow.size() == 2);
+    CHECK(drops.empty());
+    CHECK_FALSE(pictured(s, s.builder, "shows tally.Total"));
+    CHECK(s.r.last_notice().find("Dragging") == std::string::npos);
+
+    // A DRAG FROM IT TO THE LABEL'S ROW, the hand's moments one by one: the motion is the
+    // carry's, never Flow's, and the builder is told where the value was released.
+    told_flow.clear();
+    auto from = at_text(s, s.flow, "0 tally.Total");
+    auto to = at_text(s, s.builder, "> label1  label");
+    from.pressed = true; s.event(from);
+    auto move = to; move.kind = "PointerMoved"; move.dx = to.x - from.x; move.dy = to.y - from.y;
+    s.event(move);
+    CHECK(s.r.last_notice().find("Dragging tally.Total") == 0);
+    to.pressed = false; s.event(to);
+    INFO(s.r.last_notice());
+    REQUIRE(told_flow.size() == 2);
+    CHECK(told_flow[1].phase == canvas_pointer::kLost);
+    REQUIRE(drops.size() == 1);
+    CHECK(drops[0].pane == vb::kPane);
+    CHECK(drops[0].source_office == flow->provider);
+    CHECK(pictured(s, s.builder, "shows tally.Total.total"));
+
+    // THE SAME DRAG IN ONE BATCH: the release reaches Workshop before Flow asks to carry, so Flow
+    // sees its own release, and the carry still lands where the hand let go.
+    told_flow.clear();
+    drops.clear();
+    tell(s, vb::kRole, vb::ViewEdit{"unshow", {"0"}});
+    REQUIRE_FALSE(pictured(s, s.builder, "shows tally.Total"));
+    drag_between(s, at_text(s, s.flow, "0 tally.Total"), at_text(s, s.builder, "> label1  label"));
+    REQUIRE(told_flow.size() == 3);
+    CHECK(told_flow[2].phase == canvas_pointer::kRelease);
+    REQUIRE(drops.size() == 1);
+    CHECK(pictured(s, s.builder, "shows tally.Total.total"));
+}
+
+TEST_CASE("shapes cross between Flow and the View Builder by dragging: the intent onto Flow, and Flow's "
+          "message onto a label on the design canvas, which marks where it would land") {
+    InventoryStory s(255, false, false, true, false, true);
+    REQUIRE(s.flow != 0);
+    REQUIRE(s.builder != 0);
+    namespace fp = zengine::flow_pane;
+    namespace vb = zengine::view_builder;
+    for (const auto& [action, args] : std::vector<std::pair<std::string, std::vector<std::string>>>{
+             {"new", {"tally", "discard"}}, {"state-field", {"total", "Int", "required"}},
+             {"emitted-message", {"Total"}}, {"emitted-field", {"0", "total", "Int", "required"}}})
+        tell(s, fp::kRole, fp::FlowEdit{action, args});
+    for (const auto& [action, args] : std::vector<std::pair<std::string, std::vector<std::string>>>{
+             {"new", {"tally.panel", "discard"}}, {"add", {"number"}}, {"add", {"button"}},
+             {"element", {"1", "count", "Count", "0", "28", "96", "24"}}, {"intent", {"1", "Count"}},
+             {"add", {"label"}}, {"select", {"1"}}})
+        tell(s, vb::kRole, vb::ViewEdit{action, args});
+    press_text(s, s.flow, "[Messages]");
+    REQUIRE(pictured(s, s.flow, "0 tally.Total {total: Int}"));
+
+    // THE INTENT ONTO FLOW: dragged from what `count` says, and let go over Flow's messages.
+    drag_between(s, at_text(s, s.builder, "says tally.panel."), at_text(s, s.flow, "Emitted"));
+    INFO(s.r.last_notice());
+    CHECK(pictured(s, s.flow, "[Declare tally.panel.Count v1 as an accepted message]"));
+    press_text(s, s.flow, "[Declare tally.panel.Count v1 as an accepted message]");
+    press_text(s, s.flow, "[Messages]");
+    REQUIRE(pictured(s, s.flow, "tally.panel.Count"));
+
+    // FLOW'S MESSAGE ONTO THE LABEL where the view draws it, a moment at a time: over the label the
+    // builder marks where it would land, and the label shows it once the hand lets go.
+    const auto area = design_of(s);
+    const auto label = vb::element_area(area, zengine::view::Element{"label1", zengine::view::Kind::label, "", 0, 56, 192, 24, ""});
+    auto from = at_text(s, s.flow, "0 tally.Total");
+    from.pressed = true;
+    s.event(from);
+    auto over = at_local(s, s.builder, label.x + 2 * surface::kCellSubs, label.y + surface::kCellSubs / 2, "PointerMoved");
+    over.dx = over.x - from.x; over.dy = over.y - from.y;
+    s.event(over);
+    const auto landing = [&] {
+        const auto& rects = s.r.session().panes.external_pane(s.builder)->canvas.content.rects;
+        return std::any_of(rects.begin(), rects.end(), [&](const auto& r) {
+            return r.role == surface::role::kAccent && r.y == label.y + label.h && r.h == 2 * surface::kCellSubs;
+        });
+    };
+    CHECK(landing());
+    CHECK_FALSE(pictured(s, s.builder, "shows tally.Total"));
+    auto to = over;
+    to.kind = "PointerButton"; to.pressed = false;
+    s.event(to);
+    CHECK(pictured(s, s.builder, "shows tally.Total.total"));
+    CHECK(pictured(s, s.builder, "label1: waiting"));
+    CHECK_FALSE(landing());
 }

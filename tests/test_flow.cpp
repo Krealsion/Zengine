@@ -295,7 +295,9 @@ TEST_CASE("Flow missing and reshaped leaves refuse by the same detecting layer")
     for (auto* rig : {&a, &b}) {
         rig->catalog.unmount("flowtest.operators");
         rig->send("flowtest.Set_integer", loom::Cell::integer(29));
-        CHECK(rig->refusal().find("unresolved operator reference 'flowtest.echo_integer'") != std::string::npos);
+        // Interpreted or generated, the reaction is named as its weaver named it, then the node.
+        CHECK(rig->refusal() == "flowtest on flowtest.Set_integer at %0 flowtest.echo_integer: "
+                                "unresolved operator reference 'flowtest.echo_integer'");
     }
     CHECK(a.refusal() == b.refusal());
     for (auto* rig : {&a, &b}) {
@@ -331,7 +333,7 @@ TEST_CASE("Flow common runtime retains inspection and rejects unarmed ceremony")
         rig->send(loom::to_value(loom::PokeDescribe{}));
         REQUIRE(rig->listener->messages.size() == 1);
         CHECK(rig->listener->messages[0].sender == rig->subject);
-        CHECK_FALSE(rig->listener->messages[0].provenance.answers_ask());
+        CHECK(rig->listener->messages[0].provenance.answers_ask());
         const auto structure = loom::from_value<loom::PokeStructure>(rig->listener->messages[0].payload);
         CHECK(structure.state_schema == "hw.State");
         CHECK(structure.fields[0].name == "high");

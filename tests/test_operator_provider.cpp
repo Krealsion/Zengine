@@ -234,8 +234,9 @@ TEST_CASE("a fold crosses a real module boundary as structure, is spent by the h
     limit.set("limit", loom::Cell::integer(1000));
     const op::Evaluation refused = catalog.evaluate("host.outer", limit);
     REQUIRE_FALSE(refused.ok());
-    CHECK(refused.reason() == "'host.outer' step 0: iteration 99 (count 99): 'prov.thousand' step 0: "
-                              "iteration 899 (count 899): spending 'math.add' would pass this "
+    CHECK(refused.reason() == "'host.outer' at %0 fold prov.thousand: iteration 99 (count 99): "
+                              "'prov.thousand' at %0 fold math.add: iteration 899 (count 899): "
+                              "spending 'math.add' would pass this "
                               "evaluation's budget of " +
                                   std::to_string(op::kEvaluationSpends) + " operator spends");
     limit.set("limit", loom::Cell::integer(10));

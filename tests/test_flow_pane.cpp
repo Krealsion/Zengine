@@ -3,6 +3,7 @@
 #include "doctest.h"
 #include "flow-pane/vocabulary.hpp"
 #include "flow-host/runtime.hpp"
+#include "flow/shape.hpp"
 #include "flow/workspace.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/codec.hpp"
@@ -494,9 +495,8 @@ TEST_CASE("a right press on a declared message offers to carry its shape, and th
     CHECK_FALSE(value.drag);
     const auto item = zengine::inventory::decode_pair(
         std::string_view(reinterpret_cast<const char*>(value.data.data()), value.data.size())).item;
-    REQUIRE(loom::same_identity(item.schema(), *loom::schema_desc_schema()));
-    loom::Registry none;
-    CHECK(loom::same_identity(*loom::decode_schema(item, none),
+    REQUIRE(zengine::flow::shape::is_description(item));
+    CHECK(loom::same_identity(*zengine::flow::shape::described(item),
                               *rig.workspace().graph.project.definition.emits.at(0)));
 
     // A right press anywhere else on the page means nothing to Flow: handed back.
@@ -504,6 +504,102 @@ TEST_CASE("a right press on a declared message offers to carry its shape, and th
     elsewhere.button = 3;
     rig.host(elsewhere, 92);
     CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
+}
+
+TEST_CASE("a press on a declared message asks under that press to drag its shape out, and still opens it; a right press on a found operator is handed back") {
+    Rig rig;
+    rig.edit_ok("new", {"tally", "discard"});
+    rig.edit_ok("state-field", {"total", "Int", "required"});
+    rig.edit_ok("emitted-message", {"Total"});
+    rig.edit_ok("emitted-field", {"0", "total", "Int", "required"});
+    rig.click("[Messages]");
+    rig.host(rig.press_for("0 tally.Total {total: Int}"), 93);
+    const loom::Message* carried = nullptr;
+    for (const auto& m : rig.presenter->messages)
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+    REQUIRE(carried != nullptr);
+    CHECK(carried->correlation == 93); // the acquisition continues the primary press
+    const auto value = loom::from_value<ws::PaneValueCarryRequested>(carried->payload);
+    CHECK(value.drag);
+    CHECK(value.label == "tally.Total");
+    // The press still does what it did: the row says how its shape is carried.
+    CHECK(rig.shows("Drag an emitted message, or right-press it, to carry its shape to another pane"));
+
+    // A row whose words name no message, right-pressed, is handed back rather than misread.
+    rig.edit_ok("message", {"Count"});
+    rig.edit_ok("message-field", {"0", "by", "Int", "required"});
+    rig.edit_ok("trigger", {"0", "total"});
+    auto found = rig.press_for("  math.max");
+    found.button = 3;
+    rig.host(found, 94);
+    CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
+    CHECK(rig.presenter->messages.back().correlation == 94);
+}
+
+TEST_CASE("a declared message that nests another is carried out as a carried shape with the shape it nests, and dropped back it is named for that shape and declared from what it carries") {
+    Rig rig;
+    const auto detail = loom::SchemaBuilder("review.Detail", 1).field("note", loom::Kind::Text).build();
+    const auto review = loom::SchemaBuilder("review.Total", 1)
+        .field("total", loom::Kind::Int).message("detail", detail).build();
+    loom::Value said(review);
+    said.set("total", loom::Cell::integer(7));
+    loom::Value note(detail);
+    note.set("note", loom::Cell::text("seven"));
+    said.set("detail", loom::Cell::message(note));
+    rig.edit_ok("new", {"review", "discard"});
+    rig.edit_ok("state-field", {"total", "Int", "required"});
+    rig.drop(said, 40 * unit, 20 * unit);
+    rig.click("[Declare review.Total v1 as an accepted message]");
+    REQUIRE(rig.workspace().graph.project.definition.accepts.size() == 1);
+
+    // CARRIED OUT by a press on its row: what is carried holds review.Detail beside review.Total.
+    rig.click("[Messages]");
+    rig.host(rig.press_for("[review.Total]"), 95);
+    const loom::Message* carried = nullptr;
+    for (const auto& m : rig.presenter->messages)
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+    REQUIRE(carried != nullptr);
+    const auto bytes = loom::from_value<ws::PaneValueCarryRequested>(carried->payload).data;
+    const auto item = zengine::inventory::decode_pair(
+        std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())).item;
+    CHECK(item.schema().name() == "zengine.flow.CarriedShape");
+
+    // DROPPED BACK into a fresh draft, its page names the shape and what it nests, never the
+    // message it travels in, and it is declared from what it carries alone.
+    rig.edit_ok("new", {"again", "discard"});
+    rig.drop(item, 40 * unit, 20 * unit);
+    CHECK(rig.shows("Dropped the shape review.Total v1, nesting review.Detail v1"));
+    CHECK(rig.shows_part("total: Int"));
+    CHECK_FALSE(rig.shows_part("AcceptedShapes"));
+    CHECK_FALSE(rig.shows_part("accepted ="));
+    CHECK_FALSE(rig.shows_part("CarriedShape"));
+    rig.click("[Declare review.Total v1 as an accepted message]");
+    const auto& accepts = rig.workspace().graph.project.definition.accepts;
+    REQUIRE(accepts.size() == 1);
+    CHECK(loom::same_identity(*accepts[0], *review));
+
+    // A BARE DESCRIPTION of a shape that nests nothing still declares.
+    const auto flat = loom::SchemaBuilder("again.Flat", 1).field("n", loom::Kind::Int).build();
+    rig.drop(loom::encode_schema(*flat), 40 * unit, 20 * unit);
+    rig.click("[Declare again.Flat v1 as an accepted message]");
+    CHECK(rig.workspace().graph.project.definition.accepts.size() == 2);
+}
+
+TEST_CASE("a dropped description that names a shape it does not carry declares nothing, and Flow says why in Loom's words") {
+    Rig rig;
+    const auto detail = loom::SchemaBuilder("review.Detail", 1).field("note", loom::Kind::Text).build();
+    const auto review = loom::SchemaBuilder("review.Total", 1)
+        .field("total", loom::Kind::Int).message("detail", detail).build();
+    rig.edit_ok("new", {"review", "discard"});
+    // A BARE DESCRIPTION of a shape that nests another carries nothing beside it.
+    rig.drop(loom::encode_schema(*review), 40 * unit, 20 * unit);
+    // Said on the page itself, which stays until it is put down, and in the notice.
+    const auto said = std::count_if(rig.picture().texts.begin(), rig.picture().texts.end(), [](const auto& row) {
+        return row.text.find("Not declarable: schema descriptor: unresolved nested schema 'review.Detail'") != std::string::npos;
+    });
+    CHECK(said == 2);
+    CHECK_FALSE(rig.shows_part("[Declare review.Total"));
+    CHECK(rig.shows("[Cancel]"));
 }
 
 TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and interaction context") {

@@ -176,6 +176,19 @@ struct Node {
     std::optional<Fold> fold;
 };
 
+/// A node as a graph shows it to the one composing it: its operator, or `fold` and the operator
+/// its body spends.
+inline std::string node_title(const Node& node) {
+    if (!node.fold) return node.identity;
+    return node.identity.empty() ? "fold" : "fold " + node.identity;
+}
+
+/// Where in a composition something happened, in its author's words: the composition, then the
+/// node numbered and titled as a graph shows it (`'t.sum' at %0 fold math.add`).
+inline std::string place_in(std::string_view composition, std::size_t index, std::string_view title) {
+    return std::string(composition) + " at %" + std::to_string(index) + " " + std::string(title);
+}
+
 /// An acyclic value graph, and nothing more. A node's answer is its operator's single output
 /// port; `Builder` refuses a multi-output operator's answer as an argument rather than silently
 /// meaning the first.

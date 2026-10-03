@@ -668,7 +668,9 @@ the picture the caller read, so a tool presses a control such as `[Save copy]` w
 font; `hand.control(provider, pane, label)` and `hand.field(...)` in `hand.py` use it.
 
 `workshop/drag` uses the session's timed Input motion; `duration_ms` controls time and `bend`
-selects a linear path (zero) or cubic Bezier. The [Inventory-to-Compose demo](inventory-compose.md)
+selects a linear path (zero) or cubic Bezier. `workshop/act`'s `rest` step moves the pointer to a
+window pixel or cell with no button held, so a canvas pane that asks for its hover is told where
+it rests. The [Inventory-to-Compose demo](inventory-compose.md)
 finds visible rows and verifies owner state without screen-coordinate constants. Its helpers
 live in `external-host/tools/workshop/hand.py`; interpolation and schema/authority decisions
 remain in Zengine. Existing input-only guests acquire no inventory operation authority.

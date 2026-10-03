@@ -215,11 +215,17 @@ public:
 
 private:
     /// Send a substrate answer to the requester: reply_to if given, else the stamped sender --
-    /// `WeaveBase::answer_substrate`'s one rule, restated for a raw weave. A request with
-    /// neither has nowhere to answer and is performed silently by design.
+    /// `WeaveBase::answer_substrate`'s one rule, restated for a raw weave. To the stamped sender
+    /// it is Loom's answer to this delivery, through the answer door; redirected elsewhere it is
+    /// ordinary speech. A request with neither has nowhere to answer and is performed silently
+    /// by design.
     void answer(const loom::Message& in, loom::Bus& bus, loom::Value payload) {
         const loom::WeaveId to = in.reply_to.valid() ? in.reply_to : in.sender;
         if (!to.valid()) {
+            return;
+        }
+        if (to == in.sender) {
+            (void)bus.answer(loom::Message(std::move(payload), self_, {}, in.correlation));
             return;
         }
         bus.send(to, loom::Message(std::move(payload), self_, {}, in.correlation));
@@ -251,7 +257,7 @@ private:
         op::Evaluation answered = evaluate_body(trigger, in.payload);
         if (!answered) {
             ++refused_;
-            refuse(in, bus, answered.reason());
+            refuse(in, bus, in_weaver_words(trigger, answered.reason()));
             return;
         }
         loom::Value next = state_;
@@ -268,6 +274,15 @@ private:
             }
             bus.publish(loom::Message(std::move(*written.value), self_, {}, in.correlation));
         }
+    }
+
+    /// A body's refusal as its weaver reads it: the body's identity, which every evaluator quotes
+    /// at the head of the place it names, is the definition and the message it reacts to.
+    std::string in_weaver_words(const On& trigger, std::string reason) const {
+        const std::string head = "'" + definition_.trigger_identity(trigger) + "' ";
+        if (reason.rfind(head, 0) == 0)
+            reason = definition_.name + " on " + trigger.message->name() + " " + reason.substr(head.size());
+        return reason;
     }
 
     /// The preparation ask: admit the converted bytes at THIS weave's own state schema -- the

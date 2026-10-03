@@ -151,11 +151,12 @@ no reflow.
 
 ### Pointing without pressing reaches nobody in a terminal
 
-Nothing in Workshop uses an idle pointer — a cut row is [not read past](panes.md#a-value-a-pane-had-to-cut-stays-cut)
-— but the difference between the two media is real and worth knowing before anything asks for
-one. **In the
-graphical window a hover is reported.** In a terminal Workshop asks for button-event mouse
-reporting only — presses, releases and drags — so an idle pointer is reported to nobody.
+A text pane never uses an idle pointer — a cut row is [not read past](panes.md#a-value-a-pane-had-to-cut-stays-cut)
+— but a canvas pane may ask where one rests: the [View Builder](view-builder.md) marks the
+element under it. **In the graphical window a hover is reported.** In a terminal Workshop asks
+for button-event mouse reporting only — presses, releases and drags — so an idle pointer is
+reported to nobody, and the builder marks only where a value carried with a held button would
+land.
 Asking terminals for every idle motion would pay for that gesture on every keystroke of every
 session, which is not a trade this application has chosen to make.
 

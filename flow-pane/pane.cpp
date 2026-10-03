@@ -346,6 +346,10 @@ public:
       }
       if (event.button != 1 || !hit)
         return;
+      // A PRESS ON A DECLARED MESSAGE may drag its shape out: asked under the press, it is
+      // carried only if the hand moves before it lets go, and the press still opens the row.
+      if (const auto shape = pressed_message(event))
+        carry(shape, mail.correlation(), true, mail);
       const auto chosen = *hit;
       if (chosen.action == "node") {
         model_.node = flow::index_of(chosen.args.at(0));
@@ -389,7 +393,9 @@ public:
         if (hit && hit->action == "port" && hit->args.size() == 2)
           port = pane::PortChoice{hit->subject, flow::index_of(hit->args[1])};
         model_.dropped = pane::Dropped{value, port};
-        model_.notice = "Dropped " + value.schema().name() + ": choose what it becomes here";
+        const auto summary = pane::summarize_drop(value);
+        model_.notice = summary.why.empty() ? summary.title + ": choose what it becomes here"
+                                            : "Not declarable: " + summary.why;
       }
     } catch (const std::exception &e) {
       model_.notice = e.what();
@@ -409,14 +415,7 @@ public:
       show(mail);
       return;
     }
-    const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(*shape), {});
-    carry_ = Carry{++correlation_, mail.correlation(), shape->name(),
-                   loom::Bytes(bytes.begin(), bytes.end())};
-    (void)mail.as_role(pane::kRole).send_to_role(
-        workshop_role,
-        ws::PaneOperationRequested{pane::kPane, workshop_role, ws::PaneValueCarryRequested::zen_name,
-                                   1, static_cast<std::int64_t>(carry_->gesture)},
-        carry_->ask);
+    carry(shape, mail.correlation(), false, mail);
   }
   void on(const ws::PaneOperationAnswered &answer, loom::Mail &mail) {
     if (!carry_ || !mail.answers_ask() || mail.correlation() != carry_->ask)
@@ -428,7 +427,8 @@ public:
       return;
     }
     (void)mail.as_role(pane::kRole).send_to_role(
-        workshop_role, ws::PaneValueCarryRequested{pane::kPane, carry->label, carry->bytes, false},
+        workshop_role,
+        ws::PaneValueCarryRequested{pane::kPane, carry->label, carry->bytes, carry->drag},
         carry->gesture);
   }
   void on(const ws::PaneCarryAnswered &answer, loom::Mail &mail) {
@@ -645,15 +645,30 @@ private:
     if (it == pictures_.end() || it->revision != model_.workspace.graph.project.definition.revision)
       return nullptr;
     const auto *hit = it->hit(event.x, event.y);
-    if (!hit || hit->args.empty())
+    if (!hit || hit->args.empty() ||
+        (hit->action != "message-open" && hit->action != "emitted-row"))
       return nullptr;
     const auto &def = model_.workspace.graph.project.definition;
-    const auto at = static_cast<std::size_t>(std::stoul(hit->args.front()));
+    const auto at = flow::index_of(hit->args.front());
     if (hit->action == "message-open" && at < def.accepts.size())
       return def.accepts[at];
     if (hit->action == "emitted-row" && at < def.emits.size())
       return def.emits[at];
     return nullptr;
+  }
+  /// ASK TO CARRY A DECLARED MESSAGE'S SHAPE OUT as a description holding what it nests, under
+  /// the gesture it continues: a press's drag, placed where it is released, or a menu choice's
+  /// carry, placed by a click.
+  void carry(const std::shared_ptr<const loom::Schema> &shape, std::uint64_t gesture, bool drag,
+             loom::Mail &mail) {
+    const auto bytes = zengine::inventory::encode_pair(flow::shape::carried(shape), {});
+    carry_ = Carry{++correlation_, gesture, shape->name(),
+                   loom::Bytes(bytes.begin(), bytes.end()), drag};
+    (void)mail.as_role(pane::kRole).send_to_role(
+        workshop_role,
+        ws::PaneOperationRequested{pane::kPane, workshop_role, ws::PaneValueCarryRequested::zen_name,
+                                   1, static_cast<std::int64_t>(carry_->gesture)},
+        carry_->ask);
   }
   std::shared_ptr<const loom::Schema> declared(const std::string &name) const {
     const auto &def = model_.workspace.graph.project.definition;
@@ -958,7 +973,7 @@ private:
       }
       reveal();
     } else if (action == "emitted-row") {
-      model_.notice = "Right-press an emitted message to carry its shape to another pane";
+      model_.notice = "Drag an emitted message, or right-press it, to carry its shape to another pane";
     } else if (action == "fit") {
       model_.workspace.pan_x = 0;
       model_.workspace.pan_y = -3 * pane::unit;
@@ -1182,11 +1197,12 @@ private:
     std::string draft;
   };
   /// A declared message's shape being carried out: the acquisition's own ask, the gesture it
-  /// continues, and the bytes Workshop will carry.
+  /// continues, the bytes Workshop will carry, and whether a release or a click places them.
   struct Carry {
     std::uint64_t ask = 0, gesture = 0;
     std::string label;
     loom::Bytes bytes;
+    bool drag = false;
   };
   Finding finding_;
   std::string asked_;

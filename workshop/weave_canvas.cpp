@@ -4,6 +4,7 @@
 #include "screen_canvas.hpp"
 #include <cmath>
 #include <limits>
+#include <utility>
 
 namespace zengine::workshop {
 
@@ -61,6 +62,7 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
             if (canvas_holds_[i].active && canvas_holds_[i].kind == pane.kind) lose_canvas_hold(i, mail);
         for (auto& continuation : secondary_cont_)
             if (continuation.kind == pane.kind) continuation = SecondaryContinuation{};
+        if (canvas_hover_.kind == pane.kind) canvas_hover_ = CanvasHover{};
         // Only geometry may carry an old picture forward as an explicitly stale preview.
         // Input and grant identity still start over, including throughout repeated resizes.
         const bool preview = capable && c.owner == owner && c.grant > 0 &&
@@ -140,6 +142,9 @@ bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& 
     const auto sent = mail.as_role(kWorkshopProvider).send(c.owner, event, correlation);
     if (!sent.valid()) return true;
     canvas_holds_[slot] = CanvasHold{true, kind, c.owner, c.x, c.y, event, sent};
+    // A primary press is the pane's to continue, as a prose press is: under its number the
+    // provider may ask to carry a value out, and the press's release is where it lands.
+    if (slot == 0) press_sent_ = GestureSent{kind, gestures_, correlation};
     if (slot > 0) {
         auto& continuation = secondary_cont_[slot - 1];
         continuation = SecondaryContinuation{};
@@ -192,6 +197,51 @@ bool WorkshopWeave::canvas_motion(const input::PointerMoved& m, loom::Mail& mail
         note_routed(held.kind);
     }
     return sent;
+}
+
+// THE POINTER RESTING OVER A CANVAS: the canvas body on top under it, read from the geometry this
+// host holds, told to a holder that accepts the hover door, and once per place.
+// The canvas it left is told so first. A mode, a menu or a room the pointer is not over is none.
+void WorkshopWeave::canvas_hover(const input::PointerMoved& m, loom::Mail& mail) {
+    std::int64_t kind = kNoPaneKind;
+    PaneCanvasHover over;
+    loom::WeaveId owner{};
+    const auto at = canvas_point_of(m.space, m.x, m.y);
+    if (at.understood && !session_.arrange.open && !session_.context.open && !session_.presented.open) {
+        const Occupancy here = occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
+        const auto* row = here.occupied ? session_.panes.runtime.of_kind(here.kind) : nullptr;
+        const auto* pane = here.occupied ? session_.panes.external_pane(here.kind) : nullptr;
+        if (row && pane && canvas_owner_current(here.kind) && pane->canvas.heard &&
+            pane->stamp.aimed > 0 && host_->holder_accepts &&
+            host_->holder_accepts(row->provider, *loom::schema_of<PaneCanvasHover>())) {
+            const auto& c = pane->canvas;
+            if (FineRect{c.x, c.y, c.width, c.height}.contains_at(at.sub.x, at.sub.y, at.grain)) {
+                kind = here.kind;
+                owner = c.owner;
+                over = PaneCanvasHover{row->pane, c.grant, pane->stamp.aimed,
+                                       surface::sub_px(at.sub.x, c.x), surface::sub_px(at.sub.y, c.y),
+                                       true, !carried_.data.empty()};
+            }
+        }
+    }
+    if (canvas_hover_.kind != kNoPaneKind && (canvas_hover_.kind != kind || canvas_hover_.grant != over.grant))
+        leave_canvas_hover(mail);
+    if (kind == kNoPaneKind) return;
+    if (canvas_hover_.kind == kind && canvas_hover_.x == over.x && canvas_hover_.y == over.y &&
+        canvas_hover_.carrying == over.carrying)
+        return;
+    (void)mail.as_role(kWorkshopProvider).send(owner, over);
+    canvas_hover_ = CanvasHover{kind, over.grant, over.x, over.y, owner, over.pane, over.carrying};
+}
+
+void WorkshopWeave::leave_canvas_hover(loom::Mail& mail) {
+    const auto was = std::exchange(canvas_hover_, CanvasHover{});
+    if (was.kind == kNoPaneKind) return;
+    const auto* pane = session_.panes.external_pane(was.kind);
+    // A provider whose room was granted afresh has already put its hover down with that room.
+    if (!pane || !canvas_owner_current(was.kind) || pane->canvas.grant != was.grant) return;
+    (void)mail.as_role(kWorkshopProvider).send(was.owner,
+        PaneCanvasHover{was.pane, was.grant, pane->stamp.aimed, was.x, was.y, false, false});
 }
 
 bool WorkshopWeave::canvas_wheel(std::int64_t kind, const input::PointerWheel& w, loom::Mail& mail) {

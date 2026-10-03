@@ -6,7 +6,7 @@
 // A view described as data: its elements placed in whole pixels, the field each label shows,
 // and the intent each control says. It holds no business value and no resolved geometry, and
 // its saved bytes are `zengine.view.Description`, refused by version number before a field is
-// read. Law: agents/view.md. Reference: docs/reference/view.md. Law: agents/view.md. Reference: docs/reference/view.md.
+// read. Law: agents/view.md. Reference: docs/reference/view.md.
 
 #include "maker/files.hpp"
 #include "surface/vocabulary.hpp"

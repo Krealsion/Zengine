@@ -24,7 +24,7 @@ tell them apart to use them:
 - **a pane you made** — a pane whose inside is authored data rather than compiled code,
   made in the Pane Manager by the [Pane Creator](#the-pane-creator--a-pane-made-of-data)
   and kept in a project file of its own.
-- **a view you described** — a panel of number fields, buttons and labels described in the
+- **a view you described** — a panel of number fields, buttons and labels made by hand in the
   [View Builder](view-builder.md) and run as a participant of its own, in its own pane.
 
 ## Showing, going to and hiding — the Pane Manager
