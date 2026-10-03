@@ -20,6 +20,7 @@
 
 #include <chrono>
 #include <filesystem>
+#include <set>
 
 namespace {
 namespace vb = zengine::view_builder;
@@ -726,6 +727,79 @@ TEST_CASE("a box scrolled to show its caret is pressed where it shows: the caret
     auto expected = long_label;
     expected.insert(first + 5, "#");
     CHECK(rig.now().elements[4].label == expected);
+}
+
+TEST_CASE("every field a label could show can be chosen: the choice wraps within its column, and what the rows cannot hold is reached by More") {
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("select", {"4"}).ok);
+    // Is `[name]` drawn whole inside its column, so a press on it chooses that field? The values
+    // sit right of the design area in a wide pane, and left of it in a narrow one.
+    auto room = window_room();
+    const auto offered = [&](const std::string& name) -> const ws::PaneCanvasText* {
+        const auto* t = rig.text("[" + name + "]");
+        if (!t || t->text != "[" + name + "]") return nullptr;
+        const auto area = rig.design();
+        const auto right = t->x >= area.x + area.w ? room.width : area.x;
+        const auto metrics = ws::canvas_text_metrics(room);
+        return t->x + static_cast<std::int64_t>(t->text.size()) * metrics.advance <= right ? t : nullptr;
+    };
+    std::int64_t gesture = 60;
+    const auto choose = [&](const std::string& name) {
+        const auto* t = offered(name);
+        REQUIRE_MESSAGE(t != nullptr, name);
+        rig.pointer(ws::canvas_pointer::kPress, t->x + 4, t->y + 4, ++gesture);
+    };
+    const auto shown = [&] {
+        const auto d = rig.now();
+        const auto* s = d.shown("total");
+        return s ? s->shape->name() + "." + s->field : std::string();
+    };
+
+    // LONG NAMES: three that one row of the values column cannot hold side by side.
+    loom::SchemaBuilder wide("tally.Wide", 1);
+    const std::vector<std::string> names = {"the_running_total_so_far", "the_number_of_steps_taken",
+                                            "the_last_value_counted_in"};
+    for (const auto& n : names) wide.field(n, loom::Kind::Int);
+    rig.drop(loom::encode_schema(*wide.build()), "> total  label");
+    REQUIRE(rig.text("show which field of tally.Wide?") != nullptr);
+    for (const auto& n : names) CHECK_MESSAGE(offered(n) != nullptr, n);
+    choose(names.back());
+    CHECK(shown() == "tally.Wide.the_last_value_counted_in");
+    // ...and in a pane too narrow for a values column, where they sit below the list.
+    room = window_room(++rig.grant);
+    room.width = zengine::surface::subs_of_pixel(800);
+    rig.host(room);
+    rig.drop(loom::encode_schema(*wide.build()), "> total  label");
+    REQUIRE(rig.text("show which field of tally.Wide?") != nullptr);
+    REQUIRE(rig.text("show which field of tally.Wide?")->x < rig.design().x);
+    for (const auto& n : names) CHECK_MESSAGE(offered(n) != nullptr, n);
+    choose(names.front());
+    CHECK(shown() == "tally.Wide.the_running_total_so_far");
+    room = window_room(++rig.grant);
+    rig.host(room);
+
+    // MORE FIELDS THAN THE ROWS HOLD: More pages through them, and the last one is chosen.
+    loom::SchemaBuilder many("tally.Many", 1);
+    std::vector<std::string> fields;
+    for (int i = 0; i < 40; ++i) {
+        fields.push_back("field_number_" + std::to_string(100 + i) + "_of_the_shape");
+        many.field(fields.back(), loom::Kind::Int);
+    }
+    rig.drop(loom::encode_schema(*many.build()), "> total  label");
+    REQUIRE(rig.text("show which field of tally.Many?") != nullptr);
+    std::set<std::string> seen;
+    for (int page = 0; page < 40 && !offered(fields.back()); ++page) {
+        for (const auto& f : fields)
+            if (offered(f)) seen.insert(f);
+        REQUIRE(offered("More") != nullptr);
+        choose("More");
+    }
+    for (const auto& f : fields)
+        if (offered(f)) seen.insert(f);
+    CHECK(seen.size() == fields.size());
+    choose(fields.back());
+    CHECK(shown() == "tally.Many." + fields.back());
 }
 
 TEST_CASE("a press on what a button says asks under that press to drag its intent's shape out") {

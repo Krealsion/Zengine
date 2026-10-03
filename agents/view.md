@@ -57,7 +57,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   across a reload or offered to the host. A reload in place keeps the draft, file and whether
   its view runs. An intent is made through `flow/shape.hpp`. The builder carries an intent's
   shape out as a `zen.SchemaDesc` by a press's drag or a menu choice, and takes a shape, a value
-  or an Info field dropped on a label, on the canvas or its row, as what that label shows.
+  or an Info field dropped on a label, on the canvas or its row, as what that label shows. A
+  shape of several fields it could show is a choice of every one: buttons wrapped within the
+  values column (`view_builder::lay_choices`), and More where the rows cannot hold them.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
   refusal, in-place and fresh apply, a replacement that cannot register, stop, and the terminal
   picture; `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the boxes,

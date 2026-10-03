@@ -236,6 +236,7 @@ public:
             auto [shape, field] = carried_shape(value);
             if (!shape) throw std::invalid_argument("That description names shapes it does not carry");
             model_.carried(*index, std::move(shape), std::move(field));
+            shown_.choices_from = 0;
         } catch (const std::exception& e) {
             model_.notice = e.what();
         }
@@ -419,6 +420,8 @@ private:
         } else if (chosen.action == "canvas") {
             model_.selected.reset();
             model_.choosing.reset();
+        } else if (chosen.action == "choices") {
+            shown_.choices_from = std::stoul(chosen.args.at(0));
         } else {
             perform(chosen.action, chosen.args, mail);
         }

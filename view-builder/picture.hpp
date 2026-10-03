@@ -69,10 +69,12 @@ struct Box {
 
 /// The builder's own presentation, never saved nor kept across a reload: the box being typed
 /// into, the element the pointer rests on, the label a carried value would land on, a kind being
-/// dragged from the palette, and a New or Open waiting for its second press.
+/// dragged from the palette, a New or Open waiting for its second press, and the first field a
+/// choice of fields shows.
 struct Presentation {
     std::optional<Box> box;
     std::optional<std::size_t> hovered, landing;
+    std::size_t choices_from = 0;
     struct Ghost {
         view::Kind kind = view::Kind::label;
         std::int64_t x = 0, y = 0;
@@ -103,6 +105,32 @@ inline std::string value_of(const view::Element& e, const std::string& field) {
 inline std::string intent_name(const view::Description& d, const view::Intent& in) {
     const auto& name = in.shape->name();
     return name.size() > d.name.size() ? name.substr(d.name.size() + 1) : name;
+}
+
+/// One field of a choice, laid as `[name]` at a row and a column from the choice's corner.
+struct Choice {
+    std::size_t field = 0;
+    std::int64_t row = 0, col = 0;
+};
+
+/// A CHOICE OF FIELDS laid in rows `width` columns wide, from field `from`, in at most `rows`
+/// rows: a button that would pass the row's end starts the next, so one too wide for any row has
+/// a row of its own.
+inline std::vector<Choice> lay_choices(const std::vector<std::string>& fields, std::size_t from, std::int64_t width,
+                                       std::int64_t rows) {
+    std::vector<Choice> out;
+    std::int64_t row = 0, col = 0;
+    for (auto i = from; i < fields.size(); ++i) {
+        const auto w = static_cast<std::int64_t>(fields[i].size()) + 2;
+        if (col > 0 && col + w > width) {
+            ++row;
+            col = 0;
+        }
+        if (row >= rows) break;
+        out.push_back({i, row, col});
+        col += w + 1;
+    }
+    return out;
 }
 
 /// Where an element sits in the design area, in local subunits: its whole pixels from the area's
@@ -238,10 +266,21 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         pair("w", "h");
         if (e.kind == view::Kind::label) {
             if (m.choosing && m.choosing->element == e.id) {
+                // EVERY FIELD IT COULD SHOW, wrapped within the column; when the rows left cannot
+                // hold them, the last is More, which shows the next of them and then the first.
                 put(at, row++, "show which field of " + m.choosing->shape->name() + "?");
-                col = at;
-                for (const auto& f : showable(*m.choosing->shape)) col = button(col, row, f, "show", {index, f});
-                ++row;
+                const auto choices = showable(*m.choosing->shape);
+                const auto first = p.choices_from < choices.size() ? p.choices_from : 0;
+                const auto left = stop - row;
+                auto laid = lay_choices(choices, first, width, left);
+                const bool paged = first > 0 || first + laid.size() < choices.size();
+                if (paged && left > 1) laid = lay_choices(choices, first, width, left - 1);
+                for (const auto& c : laid) button(at + c.col, row + c.row, choices[c.field], "show", {index, choices[c.field]});
+                row += laid.empty() ? 0 : laid.back().row + 1;
+                if (paged) {
+                    const auto next = first + laid.size() < choices.size() ? first + laid.size() : 0;
+                    button(at, row++, "More", "choices", {std::to_string(next)});
+                }
             } else if (const auto* s = d.shown(e.id)) {
                 col = put(at, row, "shows " + s->shape->name() + "." + s->field + " ");
                 button(at + col, row, "Unshow", "unshow", {index});
@@ -305,6 +344,10 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         const auto& e = d.elements[*m.selected];
         below = 1 + (e.kind == view::Kind::number ? 3 : 2) + 2;
         below += e.kind == view::Kind::button ? 4 : e.kind == view::Kind::label ? 2 : 0;
+        if (e.kind == view::Kind::label && m.choosing && m.choosing->element == e.id) {
+            const auto laid = lay_choices(showable(*m.choosing->shape), 0, side, rows);
+            below += laid.empty() ? 0 : laid.back().row;
+        }
     }
     const auto few = std::min<std::int64_t>(4, std::max<std::int64_t>(1, static_cast<std::int64_t>(d.elements.size())));
     const auto list_end = std::max(row + few, beside ? status : status - below - 1);
