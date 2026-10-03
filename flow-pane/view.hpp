@@ -291,14 +291,12 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
   if (model.dropped) {
     // A DROPPED VALUE'S PAGE: what came, and what it can become here; nothing is done until the
     // maker chooses, and Escape or Cancel puts it down.
-    const auto &value = model.dropped->value;
-    label(0, top, "Dropped " + value.schema().name() + " v" +
-                      std::to_string(value.schema().version()),
-          ink::kAccent);
+    const auto summary = summarize_drop(model.dropped->value);
+    label(0, top, summary.title, ink::kAccent);
     std::int64_t y = top + unit;
-    for (const auto &row : zengine::message_draft::Draft(value).rows()) {
+    for (const auto &row : summary.rows) {
       if (y >= top + 6 * unit) break;
-      label(unit, y, row.label + " = " + row.summary, ink::kMuted);
+      label(unit, y, row, ink::kMuted);
       y += unit;
     }
     y += unit;

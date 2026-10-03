@@ -536,7 +536,7 @@ TEST_CASE("a press on a declared message asks under that press to drag its shape
     CHECK(rig.presenter->messages.back().correlation == 94);
 }
 
-TEST_CASE("a declared message that nests another is carried out with the shape it nests, and the description dropped back is declared from what it carries") {
+TEST_CASE("a declared message that nests another is carried out as a carried shape with the shape it nests, and dropped back it is named for that shape and declared from what it carries") {
     Rig rig;
     const auto detail = loom::SchemaBuilder("review.Detail", 1).field("note", loom::Kind::Text).build();
     const auto review = loom::SchemaBuilder("review.Total", 1)
@@ -562,10 +562,17 @@ TEST_CASE("a declared message that nests another is carried out with the shape i
     const auto bytes = loom::from_value<ws::PaneValueCarryRequested>(carried->payload).data;
     const auto item = zengine::inventory::decode_pair(
         std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())).item;
+    CHECK(item.schema().name() == "zengine.flow.CarriedShape");
 
-    // DROPPED BACK into a fresh draft, it is declared from what it carries alone.
+    // DROPPED BACK into a fresh draft, its page names the shape and what it nests, never the
+    // message it travels in, and it is declared from what it carries alone.
     rig.edit_ok("new", {"again", "discard"});
     rig.drop(item, 40 * unit, 20 * unit);
+    CHECK(rig.shows("Dropped the shape review.Total v1, nesting review.Detail v1"));
+    CHECK(rig.shows_part("total: Int"));
+    CHECK_FALSE(rig.shows_part("AcceptedShapes"));
+    CHECK_FALSE(rig.shows_part("accepted ="));
+    CHECK_FALSE(rig.shows_part("CarriedShape"));
     rig.click("[Declare review.Total v1 as an accepted message]");
     const auto& accepts = rig.workspace().graph.project.definition.accepts;
     REQUIRE(accepts.size() == 1);

@@ -393,7 +393,8 @@ public:
         if (hit && hit->action == "port" && hit->args.size() == 2)
           port = pane::PortChoice{hit->subject, flow::index_of(hit->args[1])};
         model_.dropped = pane::Dropped{value, port};
-        model_.notice = "Dropped " + value.schema().name() + ": choose what it becomes here";
+        const auto summary = pane::summarize_drop(value);
+        model_.notice = summary.title + ": choose what it becomes here";
       }
     } catch (const std::exception &e) {
       model_.notice = e.what();

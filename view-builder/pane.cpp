@@ -42,7 +42,7 @@ constexpr const char* workshop_role = "zengine.workshop";
 /// The shape a carried value names, and the field when the carry was one field: a description's
 /// shape, decoded with the shapes it carries; a field's root shape and its top-level name; or a
 /// value's own shape.
-std::pair<std::shared_ptr<const loom::Schema>, std::optional<std::string>> carried_shape(const loom::Value& value) {
+std::pair<std::shared_ptr<const loom::Schema>, std::optional<std::string>> label_source(const loom::Value& value) {
     if (zengine::flow::shape::is_description(value)) return {zengine::flow::shape::described(value), std::nullopt};
     if (zengine::message_draft::is_field_value(value)) {
         const auto& bytes = value.get("library")->as_bytes();
@@ -232,7 +232,7 @@ public:
                 throw std::invalid_argument("Not shown: drop a shape or a field on a label, on the canvas or in the list");
             const auto value = zengine::inventory::decode_pair(
                 std::string_view(reinterpret_cast<const char*>(drop.data.data()), drop.data.size())).item;
-            auto [shape, field] = carried_shape(value);
+            auto [shape, field] = label_source(value);
             if (!shape) throw std::invalid_argument("That description names shapes it does not carry");
             model_.carried(*index, std::move(shape), std::move(field));
             shown_.choices_from = 0;

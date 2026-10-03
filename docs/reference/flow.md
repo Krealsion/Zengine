@@ -40,8 +40,8 @@ starts at version 1, a field's name must be new and nonempty, and a type is spel
 pane's messages and the workbench's `accept` and `publish` declare through it, and the
 View Builder makes a view's intent through it, so a shape keeps the
 same rules wherever it is authored. It edits shapes, never values. A shape carried out of a pane
-is `shape::carried(shape)`: Loom's `zen.AcceptedShapes` with the shape its one root and every
-shape it nests beside it. `shape::described(value)` reads one back with those shapes and nothing
+is `shape::carried(shape)`: a `zengine.flow.CarriedShape` holding the shape (`shape`) and every
+shape it nests (`referenced`, in post-order), each a `zen.SchemaDesc`. `shape::described(value)` reads one back with those shapes and nothing
 else, and reads a bare `zen.SchemaDesc` of a shape that nests nothing; a description naming a
 shape it does not carry is refused in Loom's words.
 
