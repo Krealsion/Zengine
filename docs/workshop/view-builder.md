@@ -77,12 +77,18 @@ then click where it goes.
 
 ![Flow's emitted tally.Total dragged onto the Total label on the design canvas: shows tally.Total.total](images/view-builder-carry.png)
 
+![The panel's own intent, its number fields given long ids, dragged onto Total: a button for each field, each on a row of its own within the values column](images/view-builder-choice.png)
+
+![tally.Total let go over the Elements heading with Total selected: not shown, and Total keeps the field it shows](images/view-builder-drop-refused.png)
+
 Binding `Total` changes what the view is told, so **Apply** registers the view afresh and says
 so; its field text starts again from the description. A later change to a label, a place or a
 size keeps the same shapes, and **Apply** takes it in place: what you typed stays. If the new
 view cannot register -- an intent whose fields changed while something still listens for the
 old ones under the same name and version, say -- **Apply** says why, and the running panel goes
 on as it was.
+
+![step's id changed and the intent made again as tally.panel.Count v1, which tally still means with step: Apply refused in Loom's words, and the running panel still counting](images/view-builder-apply-refused.png)
 
 ## Use it
 
