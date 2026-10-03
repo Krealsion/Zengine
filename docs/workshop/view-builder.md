@@ -19,13 +19,23 @@ picture code at its own pixels, 12 to a cell, the same picture it shows when it 
 pane the selected element's values sit in boxes on the right; in a narrow one, below the list.
 
 - **Make** an element by dragging **Label**, **Number** or **Button** from **Add** onto the
-  canvas: it is made where you let go. A click on a kind makes one below the last.
-- **Select** one by clicking it on the canvas or in the list. It is outlined, with a handle at
-  each corner.
-- **Move** it by dragging it, and **size** it by dragging a corner handle, in whole pixels; it
-  never goes past the canvas's top or left. The arrow keys move the selected element a pixel,
-  and with `Shift` a cell. A drag cut short -- a menu opening, the pane resized -- puts the
-  element back where it was.
+  canvas: it is made where you let go, snapped as a move is. A click on a kind makes one below
+  the last.
+- **Select** one by clicking it on the canvas or in the list. It is outlined, with a handle on
+  each side and at each corner.
+- **Move** it by dragging it, and **size** it by dragging a handle: a side's moves that side
+  alone, a corner's the two sides it meets. What you place by hand snaps: an edge you move comes
+  to the edge of another element within <!-- value view_builder::kSnapReach -->6<!-- /value -->
+  pixels, marked by a line across the canvas while you hold it, and otherwise to a grid a cell
+  apart. Nothing goes past the view's top or left. The arrow keys move the selected element a
+  pixel, and with `Shift` a cell, and a value typed into its box is exact, so a place off the
+  grid is still yours to choose. A drag cut short -- a menu opening, the pane resized -- puts
+  the element back where it was.
+- **Pan** the canvas by dragging it with the middle button: the view moves with your hand, so an
+  element past the canvas's edge can be seen, pressed and dragged, and whatever you let go there
+  lands where you see it. It pans from the view's top left corner until the farthest element's
+  far edge reaches the canvas's middle. The pan is the builder's, never the view's: it is not
+  saved, and **New** or **Open** shows a view from its corner.
 - **Type its values**: click a box -- `id`, `label`, a number field's starting `text`, `x`, `y`,
   `w`, `h` -- type, and press `Return`. `Tab` keeps the value and selects the next box's whole,
   so typing replaces it; `Escape` puts the value back. A value the view's rules refuse stays in
@@ -127,8 +137,9 @@ stopped, and once Workshop sees its participant gone it says it is waiting for t
 field or button is left that looks live.
 
 In a terminal Workshop the builder works as it does in a window, its picture floored to cells: a
-drag moves an element by whole cells, 12 pixels each, and a value typed into its box is still a
-pixel. The same panel works too, its picture the window's floored to cells and each line fitted
+drag moves an element by whole cells, 12 pixels each, the middle button pans by whole cells, and
+a value typed into its box is still a pixel. A side's handle is the cell beside the middle of
+that side, outside the element, or the side's own middle cell where the canvas ends. The same panel works too, its picture the window's floored to cells and each line fitted
 to the cell. Here a step of 0 was refused, and the total stayed:
 
 ```text
@@ -175,7 +186,7 @@ told values, take typing, or say something when a control is used. The two stay 
 
 Three element kinds: a label, a number field that holds a whole number, and a button, placed
 side by side, never inside one another. A button says at most one intent, made from all the
-view's number fields. A label shows one top-level field. The canvas shows the view from its top
-left corner and does not scroll or zoom. A window does not say when the pointer leaves it, so a
+view's number fields. A label shows one top-level field. The canvas pans but does not zoom. A
+window does not say when the pointer leaves it, so a
 mark made under the pointer stays until the pointer moves inside the window again; a terminal
 reports no resting pointer at all, so there only a carried value is marked.

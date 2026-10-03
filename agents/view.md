@@ -40,21 +40,29 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   terminal shows the window's picture floored to cells. A prose room gets one row saying the view
   needs a canvas; there is no second, text-row renderer.
 - ONE RENDERER: `view::picture` is the only drawing of a view. The View Builder's design canvas is
-  it, called in a room the design area's size with the medium's metrics and moved there whole
-  from a cell boundary, so the lattice holds on both media and what is designed is what runs.
-  Over it the builder draws marks alone, never an element.
+  it, called in a room reaching from the view's top left corner to the design area's far edges,
+  with the medium's metrics, and moved there whole from a cell boundary less the pan, by whole
+  grains, so the lattice holds on both media and what is designed is what runs. Nothing of the
+  view is drawn outside the design area. Over it the builder draws marks alone, never an element.
 - Workshop composes the host beside the Flow host and holds no view behaviour. The View Builder
   is an ordinary pane in `zengine.view.builder`: it edits a description through
   `view_builder::Model`, every edit whole or refused whole, and asks the host to run, apply and
   stop one session of its office. By hand: a kind dragged from its palette is made where it is
-  let go (`add` at a place), an element dragged moves and a corner handle resizes it (`place`),
-  in whole pixels; a value is typed into its box (`set`). A box narrower than its value keeps
+  let go (`add` at a place); an element dragged moves, a side's handle moves that side alone and
+  a corner's the two it joins (`place`). Each place by hand snaps (`view_builder::snap`): an edge
+  the hand moves comes to another element's edge within `view_builder::kSnapReach` pixels, else to
+  a grid `view_builder::kSnapGrid` apart, and the edge it met is marked while held. The arrow keys
+  and a value typed into its box (`set`) place exactly. A middle-button drag pans the design
+  canvas within `view_builder::pan_reach`; a press, a hover and a drop are read against the
+  picture they name, panned as it was drawn, and New and Open show a view from its corner. A
+  terminal pans by cells, and a side's handle there is the cell beside that side's middle,
+  outside the element, or the side's own where the canvas ends. A box narrower than its value keeps
   its caret in view, and the picture and a press read that one scroll, so a press lands on the
   byte drawn under it. A release keeps a drag's edit and a lost press puts back what it moved.
   The pointer resting on an element marks it (`PaneCanvasHover`), and a carried value marks
   the label it would land on.
-- A gesture, a box being typed into and a mark are the builder's presentation: never saved, kept
-  across a reload or offered to the host. A reload in place keeps the draft, file and whether
+- A gesture, the pan, a box being typed into and a mark are the builder's presentation: never
+  saved, kept across a reload or offered to the host; no pan, grid or snap is in a description. A reload in place keeps the draft, file and whether
   its view runs. An intent is made through `flow/shape.hpp`. The builder carries an intent's
   shape out, with the shapes it nests (`flow::shape::carried`), by a press's drag or a menu
   choice, and takes a shape, a value or an Info field dropped on a label, on the canvas or its
@@ -66,6 +74,6 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   words before it give way, cut to end in `...`.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
   refusal, in-place and fresh apply, a replacement that cannot register, stop, and the terminal
-  picture; `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the boxes,
-  the marks and the terminal floor; the panes suite the view and the builder through
+  picture; `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
+  the side handles, the pan, the boxes, the marks and the terminal floor; the panes suite the view and the builder through
   Workshop's real seat, pointer route, drag carry and canvas admission.
