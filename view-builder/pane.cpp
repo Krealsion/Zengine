@@ -338,7 +338,7 @@ private:
     /// element moved or resized on the design canvas, or the canvas panned. Only a release keeps
     /// what a drag did to the view.
     struct Held {
-        enum class What { make, move, resize, pan };
+        enum class What { make, move, resize, pan, size };
         std::int64_t gesture = 0;
         What what = What::make;
         view::Kind kind = view::Kind::label;
@@ -349,6 +349,7 @@ private:
         bool dirty = false, moved = false;
         vb::Area design{}, placed{}; ///< the pressed picture's design area and the view's room on it
         std::int64_t pan_x = 0, pan_y = 0;
+        std::int64_t width = 0, height = 0; ///< the view's size when the press began
     };
 
     bool host(const loom::Mail& mail, const std::string& which) const {
@@ -427,6 +428,11 @@ private:
                          .sy = handle ? std::stoi(chosen.args.at(2)) : 0, .x = event.x, .y = event.y,
                          .before = model_.description.elements[*index], .dirty = model_.dirty, .design = design,
                          .placed = placed};
+        } else if (chosen.action == "size") {
+            held_ = Held{.gesture = event.gesture, .what = Held::What::size, .sx = std::stoi(chosen.args.at(0)),
+                         .sy = std::stoi(chosen.args.at(1)), .x = event.x, .y = event.y, .dirty = model_.dirty,
+                         .design = design, .placed = placed, .width = model_.description.width,
+                         .height = model_.description.height};
         } else if (chosen.action == "says") {
             // A PRESS ON WHAT A BUTTON SAYS may drag its intent's shape out: asked under the press,
             // carried only if the hand moves before it lets go.
@@ -480,13 +486,28 @@ private:
             show(mail);
             return;
         }
+        const auto px = pixels(dx), py = pixels(dy);
+        if (h.what == Held::What::size) {
+            const auto most = [](std::int64_t v) { return std::clamp<std::int64_t>(v, 1, view::kMaxSizePx); };
+            const auto sized = vb::sized_by_hand(model_.description, most(h.width + (h.sx ? px : 0)),
+                                                 most(h.height + (h.sy ? py : 0)), h.sx != 0, h.sy != 0);
+            const bool met = sized.met_x != shown_.met_x || sized.met_y != shown_.met_y;
+            shown_.met_x = sized.met_x;
+            shown_.met_y = sized.met_y;
+            if (sized.w == model_.description.width && sized.h == model_.description.height) {
+                if (met) show(mail);
+                return;
+            }
+            perform("size", {std::to_string(sized.w), std::to_string(sized.h)}, mail);
+            show(mail);
+            return;
+        }
         if (!still_held(h)) {
             held_.reset();
             return;
         }
         const auto& b = h.before;
         vb::Place at{b.x, b.y, b.w, b.h, std::nullopt, std::nullopt};
-        const auto px = pixels(dx), py = pixels(dy);
         auto along_x = vb::Edges::both, along_y = vb::Edges::both;
         if (h.what == Held::What::move) {
             at.x = bound(b.x + px, 0);
@@ -547,6 +568,12 @@ private:
                 perform("add", {view::kind_word(h.kind), std::to_string(at.x), std::to_string(at.y)}, mail);
             } else if (released) {
                 model_.notice = "Let go over the canvas to make a " + std::string(view::kind_word(h.kind)) + " there";
+            }
+        } else if (h.what == Held::What::size) {
+            if (!released && h.moved) {
+                perform("size", {std::to_string(h.width), std::to_string(h.height)}, mail);
+                model_.dirty = h.dirty;
+                model_.notice = "The view's size is back where it was: the drag ended before it was let go";
             }
         } else if (!released && h.moved && still_held(h)) {
             const auto& b = h.before;
@@ -611,6 +638,8 @@ private:
         const auto& d = model_.description;
         if (box.field == "name") return d.name;
         if (box.field == "path") return model_.path;
+        if (box.field == "width") return std::to_string(d.width);
+        if (box.field == "height") return std::to_string(d.height);
         if (!box.element || *box.element >= d.elements.size()) return {};
         const auto& e = d.elements[*box.element];
         if (box.field == "intent") {
@@ -647,6 +676,8 @@ private:
         try {
             if (box.field == "name") model_.command("rename", {value});
             else if (box.field == "path") model_.command("path", {value});
+            else if (box.field == "width") model_.command("size", {value, std::to_string(model_.description.height)});
+            else if (box.field == "height") model_.command("size", {std::to_string(model_.description.width), value});
             else if (box.field == "intent") model_.command("intent", {std::to_string(*box.element), value});
             else model_.command("set", {std::to_string(*box.element), box.field, value});
             shown_.box.reset();
@@ -681,11 +712,12 @@ private:
         }
         (void)shown_.box->text.consume(key.scancode, key.modifiers, clipboard_);
     }
-    /// The box after this one: the view's name, then its file; an element's values in order.
+    /// The box after this one: the view's name, its file, its width and its height; an element's
+    /// values in order.
     std::optional<vb::Box> next_box(const vb::Box& was) const {
         vb::Box next;
         if (!was.element) {
-            next.field = was.field == "name" ? "path" : "name";
+            next.field = was.field == "name" ? "path" : was.field == "path" ? "width" : was.field == "width" ? "height" : "name";
             return next;
         }
         if (*was.element >= model_.description.elements.size()) return std::nullopt;
