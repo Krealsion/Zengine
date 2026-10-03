@@ -22,6 +22,11 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
 - Loom fixes a participant's accept-set and emit-set at registration. A change at the same name
   and shapes (`view::same_shapes`) is adopted in place, keeping field text, focus and what the
   view was told; any other change is a fresh registration, and the answer says so.
+- A successor registers while the view it replaces still runs, so a registration Loom refuses
+  (`loom::SchemaConflict`, a held name) leaves that view and its session as they were, and the
+  answer says why. At the same name the successor is registered unbound, sealed to the host's
+  office and given the office by `commit_candidate`, with no delivery between; then the old view
+  is removed. Renamed, the old view stops. The bound counts the pair as one view.
 - A stop queues the view's last picture as its office while it still holds it, then retires the
   participant behind that delivery: the pane says the view stopped until Workshop sees the
   provider gone and shows it waiting for one (WL-CANVAS-02). Neither picture has a control.
@@ -52,7 +57,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   shape out as a `zen.SchemaDesc` by a press's drag or a menu choice, and takes a shape, a value
   or an Info field dropped on a label, on the canvas or its row, as what that label shows.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
-  refusal, in-place and fresh apply, stop, and the terminal picture; `tests/test_view_builder.cpp`
-  the one renderer, the palette, the drags, the boxes, the marks and the terminal floor; the
-  panes suite the view and the builder through Workshop's real seat, pointer route, drag carry
-  and canvas admission.
+  refusal, in-place and fresh apply, a replacement that cannot register, stop, and the terminal
+  picture; `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the boxes,
+  the marks and the terminal floor; the panes suite the view and the builder through
+  Workshop's real seat, pointer route, drag carry and canvas admission.
