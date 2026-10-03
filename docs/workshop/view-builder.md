@@ -63,7 +63,8 @@ Shapes cross both ways by dragging them, or by a menu: right-press the line, cho
 then click where it goes.
 
 - **The intent into Flow.** In the builder, select `count` and drag its `says tally.panel.` words
-  onto Flow. Flow offers **Declare tally.panel.Count v1 as an accepted message**. Make the
+  onto Flow. Flow's page names the shape it was given and its fields, and offers **Declare
+  tally.panel.Count v1 as an accepted message**. Make the
   `tally` definition there with a fold of `math.add` ([finding the fold](flow.md#find-what-to-compose))
   and an emitted `tally.Total {total}` ([emits](flow.md#say-what-changed-emits)).
 - **What Flow says, onto a label.** In Flow's **Messages**, drag `tally.Total` from under
@@ -75,6 +76,8 @@ then click where it goes.
   `...`, so **Unshow** beside it stays whole. Let go anywhere but a label and nothing is bound: the
   builder says where to drop it. A value from Inventory binds by its shape, and a field carried
   from Info binds that field.
+
+![The intent's says dragged onto Flow: Dropped the shape tally.panel.Count v1, its three Int fields, and the offer to declare it](images/view-builder-intent-onto-flow.png)
 
 ![Flow's emitted tally.Total dragged onto the Total label on the design canvas: shows tally.Total.total](images/view-builder-carry.png)
 
