@@ -115,7 +115,8 @@ public:
     }
     void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
         if (!host(mail, room.pane)) return;
-        // A fresh room ends whatever the old one held: a drag, a hover, a mark.
+        // A fresh room ends whatever the old one held: a drag, a hover, a mark. The pan stays,
+        // held within what the new room reaches.
         room_ = room;
         pictures_.clear();
         held_.reset();
@@ -279,6 +280,7 @@ public:
             pictures_.clear();
             settle();
             effect(model_.command(edit.action, edit.arguments), mail);
+            if (edit.action == "new" || edit.action == "open") from_corner();
         } catch (const std::exception& e) {
             ok = false;
             model_.notice = e.what();
@@ -330,19 +332,21 @@ private:
         loom::Bytes bytes;
         bool drag = false;
     };
-    /// A PRESS THE BUILDER HOLDS while the button is down: a kind dragged from the palette, or an
-    /// element moved or resized on the design canvas. Only a release keeps what it did.
+    /// A PRESS THE BUILDER HOLDS while the button is down: a kind dragged from the palette, an
+    /// element moved or resized on the design canvas, or the canvas panned. Only a release keeps
+    /// what a drag did to the view.
     struct Held {
-        enum class What { make, move, resize };
+        enum class What { make, move, resize, pan };
         std::int64_t gesture = 0;
         What what = What::make;
         view::Kind kind = view::Kind::label;
         std::size_t element = 0;
         int corner = 3;
         std::int64_t x = 0, y = 0;
-        view::Element before;
+        view::Element before{};
         bool dirty = false, moved = false;
-        vb::Area design;
+        vb::Area design{}, placed{}; ///< the pressed picture's design area and the view's room on it
+        std::int64_t pan_x = 0, pan_y = 0;
     };
 
     bool host(const loom::Mail& mail, const std::string& which) const {
@@ -356,10 +360,13 @@ private:
         const auto i = static_cast<std::size_t>(std::stoul(hit.args.at(0)));
         return i < model_.description.elements.size() ? std::optional<std::size_t>(i) : std::nullopt;
     }
-    /// Put down what a gesture or a box was doing, for an edit from elsewhere.
+    /// Put down what a gesture or a box was doing, for an edit from elsewhere. The pan stays.
     void settle() {
         held_.reset();
-        shown_ = vb::Presentation{};
+        vb::Presentation kept;
+        kept.pan_x = shown_.pan_x;
+        kept.pan_y = shown_.pan_y;
+        shown_ = std::move(kept);
     }
 
     void press(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
@@ -380,6 +387,14 @@ private:
                         .send(mail, vb::kRole);
             return;
         }
+        if (event.button == 2) {
+            // A MIDDLE PRESS ON THE DESIGN CANVAS pans it while the hand holds it.
+            if (pictured != pictures_.end() && pictured->design.contains(event.x, event.y, room_.grain))
+                held_ = Held{.gesture = event.gesture, .what = Held::What::pan, .x = event.x, .y = event.y,
+                             .design = pictured->design, .pan_x = shown_.pan_x,
+                             .pan_y = shown_.pan_y};
+            return;
+        }
         if (event.button != 1) return;
         if (pictured == pictures_.end()) {
             model_.notice = "That picture has changed; choose again.";
@@ -388,7 +403,7 @@ private:
         }
         if (!hit) return;
         const auto chosen = *hit; // acting clears the pictures the hit points into
-        const auto design = pictured->design;
+        const auto design = pictured->design, placed = pictured->view;
         // A value being typed is kept before anything else is pressed; a refusal keeps its box.
         if (shown_.box && !(chosen.action == "box" && same_box(chosen)) && !commit()) {
             show(mail);
@@ -400,14 +415,16 @@ private:
             if (!shown_.box || !same_box(chosen)) focus(chosen, event);
             else place_caret(chosen, event);
         } else if (chosen.action == "kind") {
-            held_ = Held{event.gesture, Held::What::make, *view::kind_of(chosen.args.at(0)), 0, 3,
-                         event.x, event.y, {}, model_.dirty, false, design};
+            held_ = Held{.gesture = event.gesture, .what = Held::What::make, .kind = *view::kind_of(chosen.args.at(0)),
+                         .x = event.x, .y = event.y, .dirty = model_.dirty, .design = design, .placed = placed};
         } else if (chosen.action == "element" || chosen.action == "handle") {
             perform("select", {std::to_string(*index)}, mail);
-            const auto what = chosen.action == "handle" ? Held::What::resize : Held::What::move;
-            const int corner = chosen.action == "handle" ? std::stoi(chosen.args.at(1)) : 3;
-            held_ = Held{event.gesture, what, view::Kind::label, *index, corner, event.x, event.y,
-                         model_.description.elements[*index], model_.dirty, false, design};
+            const bool handle = chosen.action == "handle";
+            held_ = Held{.gesture = event.gesture, .what = handle ? Held::What::resize : Held::What::move,
+                         .element = *index, .corner = handle ? std::stoi(chosen.args.at(1)) : 3,
+                         .x = event.x, .y = event.y,
+                         .before = model_.description.elements[*index], .dirty = model_.dirty, .design = design,
+                         .placed = placed};
         } else if (chosen.action == "says") {
             // A PRESS ON WHAT A BUTTON SAYS may drag its intent's shape out: asked under the press,
             // carried only if the hand moves before it lets go.
@@ -427,19 +444,31 @@ private:
         show(mail);
     }
 
-    /// THE HAND MOVED WHILE THE BUILDER HOLDS ITS PRESS, in whole pixels: a kind is shown where it
-    /// would be made, an element moves, or a corner resizes it. Each is the model's whole edit.
+    /// THE HAND MOVED WHILE THE BUILDER HOLDS ITS PRESS, in whole pixels: the canvas pans with it,
+    /// a kind is shown where it would be made, an element moves, or a corner resizes it. Each is
+    /// the model's whole edit.
     void drag(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
         auto& h = *held_;
         const auto dx = event.x - h.x, dy = event.y - h.y;
+        if (h.what == Held::What::pan) {
+            // The view follows the hand, within the pan's reach.
+            const auto [reach_x, reach_y] = vb::pan_reach(model_.description, h.design);
+            const auto x = std::clamp<std::int64_t>(h.pan_x - pixels(dx), 0, reach_x);
+            const auto y = std::clamp<std::int64_t>(h.pan_y - pixels(dy), 0, reach_y);
+            if (x == shown_.pan_x && y == shown_.pan_y) return;
+            shown_.pan_x = x;
+            shown_.pan_y = y;
+            show(mail);
+            return;
+        }
         const auto threshold = std::max<std::int64_t>(room_.grain, surface::subs_of_pixel(4));
         if (!h.moved && std::abs(dx) < threshold && std::abs(dy) < threshold) return;
         h.moved = true;
         const auto bound = [](std::int64_t v, std::int64_t low) { return std::clamp<std::int64_t>(v, low, view::kMaxPixels); };
         if (h.what == Held::What::make) {
             if (h.design.contains(event.x, event.y, room_.grain))
-                shown_.ghost = vb::Presentation::Ghost{h.kind, bound(pixels(event.x - h.design.x), 0),
-                                                       bound(pixels(event.y - h.design.y), 0)};
+                shown_.ghost = vb::Presentation::Ghost{h.kind, bound(pixels(event.x - h.placed.x), 0),
+                                                       bound(pixels(event.y - h.placed.y), 0)};
             else
                 shown_.ghost.reset();
             show(mail);
@@ -475,18 +504,20 @@ private:
     }
 
     /// THE PRESS ENDS. A release keeps what the drag did, and a kind let go over the canvas is made
-    /// there (a click makes it below the last); a lost press puts back what it moved.
+    /// there (a click makes it below the last); a lost press puts back what it moved. A pan stays
+    /// where the hand left it.
     void finish(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
         const auto h = *held_;
         held_.reset();
         shown_.ghost.reset();
         const bool released = event.phase == ws::canvas_pointer::kRelease;
+        if (h.what == Held::What::pan) return;
         if (h.what == Held::What::make) {
             if (released && !h.moved) {
                 perform("add", {view::kind_word(h.kind)}, mail);
             } else if (released && h.design.contains(event.x, event.y, room_.grain)) {
-                perform("add", {view::kind_word(h.kind), std::to_string(std::max<std::int64_t>(0, pixels(event.x - h.design.x))),
-                                std::to_string(std::max<std::int64_t>(0, pixels(event.y - h.design.y)))}, mail);
+                perform("add", {view::kind_word(h.kind), std::to_string(std::max<std::int64_t>(0, pixels(event.x - h.placed.x))),
+                                std::to_string(std::max<std::int64_t>(0, pixels(event.y - h.placed.y)))}, mail);
             } else if (released) {
                 model_.notice = "Let go over the canvas to make a " + std::string(view::kind_word(h.kind)) + " there";
             }
@@ -498,6 +529,12 @@ private:
             model_.notice = b.id + " is back where it was: the drag ended before it was let go";
         }
         show(mail);
+    }
+
+    /// A view made new or opened is shown from its top left corner.
+    void from_corner() {
+        shown_.pan_x = 0;
+        shown_.pan_y = 0;
     }
 
     /// Is the element a drag holds still the one it pressed? An edit from a key or another
@@ -689,9 +726,13 @@ private:
                     return;
                 }
                 shown_.armed.clear();
+                if (action == "open" && model_.path.empty()) {
+                    model_.notice = "Type the view's file under File, then Open";
+                    return;
+                }
                 if (action == "new") effect(model_.command("new", {"my.view", "discard"}), mail);
-                else if (model_.path.empty()) model_.notice = "Type the view's file under File, then Open";
                 else effect(model_.command("open", {model_.path, "discard"}), mail);
+                from_corner();
                 return;
             }
             if (action == "intent" && args.size() == 1) {
