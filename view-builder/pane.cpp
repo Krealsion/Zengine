@@ -123,6 +123,8 @@ public:
         shown_.hovered.reset();
         shown_.landing.reset();
         shown_.ghost.reset();
+        shown_.met_x.reset();
+        shown_.met_y.reset();
         show(mail);
     }
     void on(const ws::PaneCanvasRejected& answer, loom::Mail& mail) {
@@ -444,9 +446,9 @@ private:
         show(mail);
     }
 
-    /// THE HAND MOVED WHILE THE BUILDER HOLDS ITS PRESS, in whole pixels: the canvas pans with it,
-    /// a kind is shown where it would be made, an element moves, or a corner resizes it. Each is
-    /// the model's whole edit.
+    /// THE HAND MOVED WHILE THE BUILDER HOLDS ITS PRESS: the canvas pans with it, a kind is shown
+    /// where it would be made, an element moves, or a corner resizes it, each snapped
+    /// (`vb::snap`). Each is the model's whole edit.
     void drag(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
         auto& h = *held_;
         const auto dx = event.x - h.x, dy = event.y - h.y;
@@ -466,11 +468,15 @@ private:
         h.moved = true;
         const auto bound = [](std::int64_t v, std::int64_t low) { return std::clamp<std::int64_t>(v, low, view::kMaxPixels); };
         if (h.what == Held::What::make) {
-            if (h.design.contains(event.x, event.y, room_.grain))
-                shown_.ghost = vb::Presentation::Ghost{h.kind, bound(pixels(event.x - h.placed.x), 0),
-                                                       bound(pixels(event.y - h.placed.y), 0)};
-            else
-                shown_.ghost.reset();
+            shown_.ghost.reset();
+            shown_.met_x.reset();
+            shown_.met_y.reset();
+            if (h.design.contains(event.x, event.y, room_.grain)) {
+                const auto at = made_at(h, event);
+                shown_.ghost = vb::Presentation::Ghost{h.kind, at.x, at.y};
+                shown_.met_x = at.met_x;
+                shown_.met_y = at.met_y;
+            }
             show(mail);
             return;
         }
@@ -479,28 +485,46 @@ private:
             return;
         }
         const auto& b = h.before;
-        auto x = b.x, y = b.y, w = b.w, h_ = b.h;
+        vb::Place at{b.x, b.y, b.w, b.h, std::nullopt, std::nullopt};
         const auto px = pixels(dx), py = pixels(dy);
+        auto along_x = vb::Edges::both, along_y = vb::Edges::both;
         if (h.what == Held::What::move) {
-            x = bound(b.x + px, 0);
-            y = bound(b.y + py, 0);
+            at.x = bound(b.x + px, 0);
+            at.y = bound(b.y + py, 0);
         } else {
-            if (h.corner & 1) w = bound(b.w + px, 1);
+            along_x = h.corner & 1 ? vb::Edges::high : vb::Edges::low;
+            along_y = h.corner & 2 ? vb::Edges::high : vb::Edges::low;
+            if (h.corner & 1) at.w = bound(b.w + px, 1);
             else {
-                x = std::clamp<std::int64_t>(b.x + px, 0, b.x + b.w - 1);
-                w = b.x + b.w - x;
+                at.x = std::clamp<std::int64_t>(b.x + px, 0, b.x + b.w - 1);
+                at.w = b.x + b.w - at.x;
             }
-            if (h.corner & 2) h_ = bound(b.h + py, 1);
+            if (h.corner & 2) at.h = bound(b.h + py, 1);
             else {
-                y = std::clamp<std::int64_t>(b.y + py, 0, b.y + b.h - 1);
-                h_ = b.y + b.h - y;
+                at.y = std::clamp<std::int64_t>(b.y + py, 0, b.y + b.h - 1);
+                at.h = b.y + b.h - at.y;
             }
         }
+        const auto snapped = vb::snap(model_.description, h.element, at, along_x, along_y);
+        const bool met = snapped.met_x != shown_.met_x || snapped.met_y != shown_.met_y;
+        shown_.met_x = snapped.met_x;
+        shown_.met_y = snapped.met_y;
         const auto& now = model_.description.elements[h.element];
-        if (now.x == x && now.y == y && now.w == w && now.h == h_) return;
-        perform("place", {std::to_string(h.element), std::to_string(x), std::to_string(y), std::to_string(w),
-                          std::to_string(h_)}, mail);
+        if (now.x == snapped.x && now.y == snapped.y && now.w == snapped.w && now.h == snapped.h) {
+            if (met) show(mail);
+            return;
+        }
+        perform("place", {std::to_string(h.element), std::to_string(snapped.x), std::to_string(snapped.y),
+                          std::to_string(snapped.w), std::to_string(snapped.h)}, mail);
         show(mail);
+    }
+
+    /// Where a kind held over the canvas would be made: its corner under the pointer, snapped.
+    vb::Place made_at(const Held& h, const ws::PaneCanvasPointer& event) const {
+        const auto [w, height] = vb::made_size(h.kind);
+        const auto at = [](std::int64_t subs) { return std::clamp<std::int64_t>(pixels(subs), 0, view::kMaxPixels); };
+        const vb::Place under{at(event.x - h.placed.x), at(event.y - h.placed.y), w, height, std::nullopt, std::nullopt};
+        return vb::snap(model_.description, std::nullopt, under, vb::Edges::both, vb::Edges::both);
     }
 
     /// THE PRESS ENDS. A release keeps what the drag did, and a kind let go over the canvas is made
@@ -510,14 +534,16 @@ private:
         const auto h = *held_;
         held_.reset();
         shown_.ghost.reset();
+        shown_.met_x.reset();
+        shown_.met_y.reset();
         const bool released = event.phase == ws::canvas_pointer::kRelease;
         if (h.what == Held::What::pan) return;
         if (h.what == Held::What::make) {
             if (released && !h.moved) {
                 perform("add", {view::kind_word(h.kind)}, mail);
             } else if (released && h.design.contains(event.x, event.y, room_.grain)) {
-                perform("add", {view::kind_word(h.kind), std::to_string(std::max<std::int64_t>(0, pixels(event.x - h.placed.x))),
-                                std::to_string(std::max<std::int64_t>(0, pixels(event.y - h.placed.y)))}, mail);
+                const auto at = made_at(h, event);
+                perform("add", {view::kind_word(h.kind), std::to_string(at.x), std::to_string(at.y)}, mail);
             } else if (released) {
                 model_.notice = "Let go over the canvas to make a " + std::string(view::kind_word(h.kind)) + " there";
             }

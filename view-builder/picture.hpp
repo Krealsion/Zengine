@@ -18,6 +18,7 @@
 #include "workshop/pane_canvas_vocabulary.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <optional>
 #include <string>
 #include <vector>
@@ -73,7 +74,7 @@ struct Box {
 /// The builder's own presentation, never saved nor kept across a reload: the box being typed
 /// into, the element the pointer rests on, the label a carried value would land on, a kind being
 /// dragged from the palette, a New or Open waiting for its second press, the first field a
-/// choice of fields shows, and how far the design canvas is panned.
+/// choice of fields shows, how far the design canvas is panned, and the edges a snap met.
 struct Presentation {
     std::optional<Box> box;
     std::optional<std::size_t> hovered, landing;
@@ -86,6 +87,8 @@ struct Presentation {
     std::string armed;
     /// How far into the view the design canvas looks, in whole pixels from its top left corner.
     std::int64_t pan_x = 0, pan_y = 0;
+    /// The edge of another element a place by hand came to, in the view's pixels, while held.
+    std::optional<std::int64_t> met_x, met_y;
 };
 
 /// The values an element shows in boxes, in the order Tab walks them.
@@ -155,6 +158,82 @@ inline std::pair<std::int64_t, std::int64_t> pan_reach(const view::Description& 
     }
     const auto half = [](std::int64_t subs) { return surface::floor_div_px(subs, surface::kPixelGrainSubs) / 2; };
     return {std::max<std::int64_t>(0, right - half(design.w)), std::max<std::int64_t>(0, bottom - half(design.h))};
+}
+
+/// THE SNAP of a place made, moved or resized by hand: an edge the hand moves comes to an edge of
+/// another element within `kSnapReach` pixels, else to the nearest line of a grid `kSnapGrid`
+/// pixels apart, a cell, so a snapped place sits on a terminal's lattice too. The arrow keys and
+/// a typed value place exactly.
+inline constexpr std::int64_t kSnapGrid = surface::kCanvasCellPx;
+inline constexpr std::int64_t kSnapReach = 6;
+
+/// Which edges of an element the hand moves along one axis: both (a move), the low or the high
+/// one (a side or a corner of a resize), or neither.
+enum class Edges { both, low, high, none };
+
+/// One axis of a place: where it begins, how far it reaches, and the other element's edge it
+/// came to when that, not the grid, placed it.
+struct Snapped {
+    std::int64_t at = 0, size = 0;
+    std::optional<std::int64_t> met;
+};
+
+/// One axis of a place by hand, from `at` and `size` wide, its `moving` edges snapped against the
+/// other elements' edges on that axis. A snap that would leave the view's rules is not taken.
+inline Snapped snap_axis(std::int64_t at, std::int64_t size, Edges moving, const std::vector<std::int64_t>& others) {
+    if (moving == Edges::none) return {at, size, std::nullopt};
+    const auto end = at + size;
+    const auto travelled = [&](std::int64_t travel) -> std::optional<Snapped> {
+        Snapped s{at, size, std::nullopt};
+        if (moving != Edges::high) s.at = at + travel;
+        if (moving == Edges::low) s.size = end - s.at;
+        if (moving == Edges::high) s.size = size + travel;
+        if (s.at < 0 || s.size < 1 || s.at > view::kMaxPixels || s.size > view::kMaxPixels) return std::nullopt;
+        return s;
+    };
+    std::optional<Snapped> best;
+    auto nearest = kSnapReach + 1;
+    const auto meet = [&](std::int64_t edge) {
+        for (const auto to : others) {
+            if (std::abs(to - edge) >= nearest) continue;
+            if (auto s = travelled(to - edge)) {
+                nearest = std::abs(to - edge);
+                s->met = to;
+                best = s;
+            }
+        }
+    };
+    if (moving != Edges::high) meet(at);
+    if (moving != Edges::low) meet(end);
+    if (best) return *best;
+    const auto edge = moving == Edges::high ? end : at;
+    const auto below = surface::floor_div_px(edge, kSnapGrid) * kSnapGrid;
+    const bool nearer_below = edge - below < below + kSnapGrid - edge;
+    for (const auto line : {nearer_below ? below : below + kSnapGrid, nearer_below ? below + kSnapGrid : below})
+        if (auto s = travelled(line - edge)) return *s;
+    return {at, size, std::nullopt};
+}
+
+/// A place by hand, in whole pixels, and the other elements' edges it came to.
+struct Place {
+    std::int64_t x = 0, y = 0, w = 0, h = 0;
+    std::optional<std::int64_t> met_x, met_y;
+};
+
+/// A place by hand snapped on both axes against every element of `d` but `placing`, the one
+/// being placed, whose own edges never pull it.
+inline Place snap(const view::Description& d, std::optional<std::size_t> placing, const Place& at, Edges along_x,
+                  Edges along_y) {
+    std::vector<std::int64_t> xs, ys;
+    for (std::size_t i = 0; i < d.elements.size(); ++i) {
+        if (placing && *placing == i) continue;
+        const auto& e = d.elements[i];
+        xs.insert(xs.end(), {e.x, e.x + e.w});
+        ys.insert(ys.end(), {e.y, e.y + e.h});
+    }
+    const auto x = snap_axis(at.x, at.w, along_x, xs);
+    const auto y = snap_axis(at.y, at.h, along_y, ys);
+    return {x.at, y.at, x.size, y.size, x.met, y.met};
 }
 
 inline std::string clean(std::string text) {
@@ -472,6 +551,9 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
             outline(element_area(out.view, view::Element{"", p.ghost->kind, "", p.ghost->x, p.ghost->y, w, h, ""}),
                     ink::kMuted, thin);
         }
+        // THE EDGE A SNAP MET, while the hand holds what it places: a line across the canvas.
+        if (p.met_x) mark({out.view.x + surface::subs_of_pixel(*p.met_x), area.y, thin, area.h});
+        if (p.met_y) mark({area.x, out.view.y + surface::subs_of_pixel(*p.met_y), area.w, thin});
         if (chosen) {
             // THE SELECTED ELEMENT: marked, with a handle at each corner a drag resizes it by.
             const auto at = element_area(out.view, d.elements[*m.selected]);
