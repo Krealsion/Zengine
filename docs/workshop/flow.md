@@ -105,7 +105,8 @@ Flow, and Flow says what it can be here. Carrying copies data; it grants nothing
   is inside the definition's namespace. A dropped shape description -- a carried shape, which
   holds the shapes it nests and is what Flow and the View Builder carry, or a bare
   `zen.SchemaDesc` -- offers the declarations of the shape it describes; a carried shape's page
-  names that shape, what it nests and each field's type. A declared shape is the one that came -- its name,
+  names that shape, what it nests and each field's type. A description naming a shape it does
+  not carry offers no declaration, and its page says why in Loom's words (`Not declarable: ...`). A declared shape is the one that came -- its name,
   version and fields -- so values of it match it exactly. **Cancel** or **Escape** puts it down,
   and so do **New**, **Open** and **Import**, since its offers belong to the graph it landed on.
 

@@ -299,6 +299,10 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       label(unit, y, row, ink::kMuted);
       y += unit;
     }
+    if (!summary.why.empty()) {
+      label(unit, y, "Not declarable: " + summary.why, ink::kAlert);
+      y += unit;
+    }
     y += unit;
     for (const auto &offer : drop_offers(model)) {
       if (y >= bottom) break;
