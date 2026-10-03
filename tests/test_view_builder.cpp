@@ -802,6 +802,40 @@ TEST_CASE("every field a label could show can be chosen: the choice wraps within
     CHECK(shown() == "tally.Many." + fields.back());
 }
 
+TEST_CASE("a value dropped on no label is refused in words whatever is selected; dropped on a label on the canvas, it binds that label") {
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("select", {"4"}).ok);
+    const auto total = loom::encode_schema(*total_shape());
+    const auto drop_at = [&](std::int64_t x, std::int64_t y) {
+        const auto bytes = zengine::inventory::encode_pair(total, {});
+        rig.host(ws::PaneCanvasValueDrop{vb::kPane, rig.grant, rig.picture().picture, x, y,
+                                         loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
+    };
+    const std::string refused = "Not shown: drop a shape or a field on a label, on the canvas or in the list";
+    // ON A HEADING: no label is there, so none is bound, though Total is selected.
+    rig.drop(total, "Elements (5)");
+    CHECK(rig.now().shows.empty());
+    CHECK(rig.notice() == refused);
+    // ON THE CANVAS WHERE NO ELEMENT IS: the same.
+    const auto area = rig.design();
+    drop_at(area.x + area.w - zengine::surface::subs_of_pixel(8), area.y + area.h - zengine::surface::subs_of_pixel(8));
+    CHECK(rig.now().shows.empty());
+    CHECK(rig.notice() == refused);
+    // ON A NUMBER FIELD: refused in words that name it.
+    auto [x, y] = rig.middle(rig.now().elements[0]);
+    drop_at(x, y);
+    CHECK(rig.now().shows.empty());
+    CHECK(rig.notice() == "`start` is a number; carry a shape onto a label to show one of its fields");
+    // ON THE LABEL ON THE CANVAS: bound.
+    std::tie(x, y) = rig.middle(rig.now().elements[4]);
+    drop_at(x, y);
+    const auto d = rig.now();
+    REQUIRE(d.shows.size() == 1);
+    CHECK(d.shows[0].element == "total");
+    CHECK(d.shows[0].field == "total");
+}
+
 TEST_CASE("a press on what a button says asks under that press to drag its intent's shape out") {
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
