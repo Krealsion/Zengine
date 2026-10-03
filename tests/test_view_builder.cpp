@@ -144,13 +144,14 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
             CHECK(hit->action == "element");
             CHECK(hit->args.at(0) == std::to_string(i));
         }
-        // THE SELECTED ELEMENT: marked, with a handle at each corner, and its values in boxes.
+        // THE SELECTED ELEMENT: marked, with a handle on each side and at each corner, and its
+        // values in boxes.
         std::vector<std::string> handles, boxes;
         for (const auto& hit : pic.hits) {
-            if (hit.action == "handle") handles.push_back(hit.args.at(1));
+            if (hit.action == "handle") handles.push_back(hit.args.at(1) + "," + hit.args.at(2));
             if (hit.action == "box" && hit.args.at(1) == "4") boxes.push_back(hit.args.at(0));
         }
-        CHECK(handles == std::vector<std::string>{"0", "1", "2", "3"});
+        CHECK(handles == std::vector<std::string>{"0,-1", "0,1", "-1,0", "1,0", "-1,-1", "1,-1", "-1,1", "1,1"});
         CHECK(boxes == std::vector<std::string>{"id", "label", "x", "y", "w", "h"});
         const auto total = vb::element_area(area, m.description.elements[4]);
         CHECK(std::any_of(pic.content.rects.begin(), pic.content.rects.end(), [&](const auto& r) {
@@ -720,6 +721,70 @@ TEST_CASE("a place by hand snaps: an edge it moves comes to another element's ed
     CHECK(placed.y == 4); // its bottom edge to limit's top
     CHECK(placed.met_y == 28);
     CHECK_FALSE(placed.met_x);
+}
+
+TEST_CASE("each side of the selected element has a handle that moves that side alone, in a window and floored to cells in a terminal") {
+    namespace sp = zengine::surface;
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("select", {"4"}).ok);
+    // THE RIGHT SIDE: its handle at the side's middle; the left side stays, the height too.
+    auto d = rig.now();
+    auto at = vb::element_area(rig.design(), d.elements[4]);
+    const auto drag = [&](std::int64_t x, std::int64_t y, std::int64_t dx, std::int64_t dy, std::int64_t gesture) {
+        rig.pointer(ws::canvas_pointer::kPress, x, y, gesture);
+        rig.pointer(ws::canvas_pointer::kMove, x + dx, y + dy, gesture);
+        rig.pointer(ws::canvas_pointer::kRelease, x + dx, y + dy, gesture);
+    };
+    drag(at.x + at.w, at.y + at.h / 2, sp::subs_of_pixel(40), sp::subs_of_pixel(30), 20);
+    auto e = rig.now().elements[4];
+    CHECK(e.x == 0);
+    CHECK(e.y == 112);
+    CHECK(e.h == 24);
+    CHECK(e.w == 228); // its right edge to the grid's line at 228
+    // THE LEFT SIDE: the right one stays where it was.
+    at = vb::element_area(rig.design(), e);
+    drag(at.x, at.y + at.h / 2, sp::subs_of_pixel(50), sp::subs_of_pixel(-30), 21);
+    e = rig.now().elements[4];
+    CHECK(e.x == 48);
+    CHECK(e.x + e.w == 228);
+    CHECK(e.y == 112);
+    CHECK(e.h == 24);
+    // THE TOP SIDE: the bottom stays, and neither side moves.
+    at = vb::element_area(rig.design(), e);
+    drag(at.x + at.w / 2, at.y, sp::subs_of_pixel(30), sp::subs_of_pixel(-58), 22);
+    e = rig.now().elements[4];
+    CHECK(e.x == 48);
+    CHECK(e.w == 180);
+    CHECK(e.y == 52); // to limit's bottom, within reach, where the grid would say 60
+    CHECK(e.y + e.h == 136);
+    // THE BOTTOM SIDE: the top stays.
+    at = vb::element_area(rig.design(), e);
+    drag(at.x + at.w / 2, at.y + at.h, 0, sp::subs_of_pixel(-54), 23);
+    e = rig.now().elements[4];
+    CHECK(e.y == 52);
+    CHECK(e.y + e.h == 80); // to step's bottom, within reach, where the grid would say 84
+    CHECK(e.x == 48);
+    // IN A TERMINAL a side's handle is the cell beside that side's middle, outside the element, so
+    // it is never a corner's; a drag of it in cells moves that side alone.
+    rig.host(terminal_room(++rig.grant));
+    const auto unit_px = sp::kCanvasCellPx;
+    e = rig.now().elements[4];
+    at = vb::element_area(rig.design(), e);
+    const auto down = [](std::int64_t v) { return sp::floor_div_px(v, unit) * unit; };
+    const auto right = down(at.x + at.w - 1) + unit;
+    const auto middle = std::min(down(at.y + at.h / 2), down(at.y + at.h - 1));
+    std::vector<std::string> sides;
+    for (const auto& r : rig.picture().rects)
+        if (r.role == zengine::surface::role::kAccent && r.x == right && r.y == middle && r.w == unit && r.h == unit)
+            sides.push_back("right");
+    CHECK(sides == std::vector<std::string>{"right"});
+    drag(right, middle, 2 * unit, unit, 24);
+    const auto moved = rig.now().elements[4];
+    CHECK(moved.x == e.x);
+    CHECK(moved.y == e.y);
+    CHECK(moved.h == e.h);
+    CHECK(moved.x + moved.w == 228 + 2 * unit_px);
 }
 
 TEST_CASE("the middle button pans the design canvas: an element past its edge is seen, pressed, dragged and dropped on where it is drawn, nothing of the view is drawn outside the canvas, and the pan is never saved") {

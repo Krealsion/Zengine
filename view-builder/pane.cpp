@@ -343,7 +343,7 @@ private:
         What what = What::make;
         view::Kind kind = view::Kind::label;
         std::size_t element = 0;
-        int corner = 3;
+        int sx = 0, sy = 0; ///< the sides a handle moves: -1 the left or top, 1 the right or bottom
         std::int64_t x = 0, y = 0;
         view::Element before{};
         bool dirty = false, moved = false;
@@ -423,8 +423,8 @@ private:
             perform("select", {std::to_string(*index)}, mail);
             const bool handle = chosen.action == "handle";
             held_ = Held{.gesture = event.gesture, .what = handle ? Held::What::resize : Held::What::move,
-                         .element = *index, .corner = handle ? std::stoi(chosen.args.at(1)) : 3,
-                         .x = event.x, .y = event.y,
+                         .element = *index, .sx = handle ? std::stoi(chosen.args.at(1)) : 0,
+                         .sy = handle ? std::stoi(chosen.args.at(2)) : 0, .x = event.x, .y = event.y,
                          .before = model_.description.elements[*index], .dirty = model_.dirty, .design = design,
                          .placed = placed};
         } else if (chosen.action == "says") {
@@ -447,7 +447,7 @@ private:
     }
 
     /// THE HAND MOVED WHILE THE BUILDER HOLDS ITS PRESS: the canvas pans with it, a kind is shown
-    /// where it would be made, an element moves, or a corner resizes it, each snapped
+    /// where it would be made, an element moves, or a side or a corner resizes it, each snapped
     /// (`vb::snap`). Each is the model's whole edit.
     void drag(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
         auto& h = *held_;
@@ -492,15 +492,16 @@ private:
             at.x = bound(b.x + px, 0);
             at.y = bound(b.y + py, 0);
         } else {
-            along_x = h.corner & 1 ? vb::Edges::high : vb::Edges::low;
-            along_y = h.corner & 2 ? vb::Edges::high : vb::Edges::low;
-            if (h.corner & 1) at.w = bound(b.w + px, 1);
-            else {
+            const auto edges = [](int side) { return side < 0 ? vb::Edges::low : side > 0 ? vb::Edges::high : vb::Edges::none; };
+            along_x = edges(h.sx);
+            along_y = edges(h.sy);
+            if (h.sx > 0) at.w = bound(b.w + px, 1);
+            if (h.sx < 0) {
                 at.x = std::clamp<std::int64_t>(b.x + px, 0, b.x + b.w - 1);
                 at.w = b.x + b.w - at.x;
             }
-            if (h.corner & 2) at.h = bound(b.h + py, 1);
-            else {
+            if (h.sy > 0) at.h = bound(b.h + py, 1);
+            if (h.sy < 0) {
                 at.y = std::clamp<std::int64_t>(b.y + py, 0, b.y + b.h - 1);
                 at.h = b.y + b.h - at.y;
             }

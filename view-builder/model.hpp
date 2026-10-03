@@ -187,7 +187,7 @@ private:
             need(1);
             selected = index_of(args[0]);
             choosing.reset();
-            notice = description.elements[*selected].id + ": drag it to move it, a corner to resize it, or type its values";
+            notice = description.elements[*selected].id + ": drag it to move it, a side or a corner to resize it, or type its values";
         } else if (action == "set") {
             // ONE VALUE, TYPED INTO ITS BOX: the element keeps every other value.
             need(3);
