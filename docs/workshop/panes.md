@@ -139,11 +139,13 @@ menu, a line you are typing into and the arrangement all answer `Esc` first, in 
 way — `Esc` clears the selection: the
 pane's edge goes back to ordinary, it drops back to its authored place in the order, and the
 keys return to Workshop. Nothing closes, moves or is written; it is exactly what pressing an
-empty part of the desk does, for a desk that has no empty part left. A place you **type**
-into keeps `Esc` for as long as it holds the keys: the Editor ignores it, and a pane such
-as Compose receives it as its own key (its form goes back to its catalog). To put one of
-those down, press a pane that takes no typing — `Layouts` is always there — or the desk,
-then `Esc`.
+empty part of the desk does, for a desk that has no empty part left. Every pane that holds the
+keys answers `Esc` the same way unless `Esc` means more there: it first lets go of what you
+chose in it — the weave you picked in Loaded, a power in Powers — and the next `Esc` puts the
+pane down. A list's cursor is where the list rests, not a choice, so Files, Inventory and the
+Pane Manager are put down at once. Compose's form goes back to its catalog first, and the
+Terminal sheds its list and its line. Only the two editors keep every `Esc`: to put one of those
+down, press a pane that takes no typing — `Layouts` is always there — or the desk, then `Esc`.
 
 **The wheel goes to the pane under the pointer**, front-most first, so a pane in front never
 scrolls the one it covers; it does not select the pane and does not move the keys. What it
