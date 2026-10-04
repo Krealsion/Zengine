@@ -29,16 +29,11 @@ void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
         }
         const bool held = s.pane_drag.active && s.pane_drag.sizing && s.pane_drag.pane == ref;
         for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
-            const FineRect at = pane_edge_cell(where.rect, edge);
+            const PixelRect at = pane_edge_cell(where.rect, edge);
             const bool chosen = held ? s.pane_drag.edge == edge : emphasized;
-            // The wire spelling, cells plus remainders (`wire_rect_of`): a label's x/y are canvas
-            // cells, so raw sub-units would paint every mark off the canvas.
-            const std::int64_t cx = surface::cell_of_subs(at.x);
-            const std::int64_t cy = surface::cell_of_subs(at.y);
             layer.labels.push_back(surface::SurfaceLabel{
-                cx, cy, std::string(pane_edge_glyph(edge)),
-                chosen ? surface::role::kAccent : surface::role::kMuted,
-                at.x - surface::subs_of_cells(cx), at.y - surface::subs_of_cells(cy)});
+                at.x, at.y, std::string(pane_edge_glyph(edge)),
+                chosen ? surface::role::kAccent : surface::role::kMuted});
         }
     };
     if (!s.arrange.desk) {

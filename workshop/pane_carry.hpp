@@ -65,9 +65,23 @@ struct PaneValueDrop {
               ZEN_FIELD(picture), ZEN_FIELD(source_office), ZEN_FIELD(source_pane), ZEN_FIELD(token));
 };
 } // namespace v2
-/// A value copy placed on a canvas pane: where it landed in the canvas's own local subunits, in
+/// A value copy placed on a canvas pane: where it landed in the canvas's own local pixels, in
 /// which granted room and on which picture, with v2's attribution. A canvas has no rows, so its
 /// provider hit-tests the place in the picture it drew and owns what the drop means there.
+struct PaneCanvasValueDrop {
+    std::string pane;
+    std::int64_t grant = 0, picture = 0, x = 0, y = 0;
+    loom::Bytes data;
+    std::string source_office, source_pane, token;
+    ZEN_SHAPE(PaneCanvasValueDrop, 2, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
+              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(data), ZEN_FIELD(source_office),
+              ZEN_FIELD(source_pane), ZEN_FIELD(token));
+};
+
+namespace v1 {
+
+/// The same drop at its earlier version, in sub-units (`kPaneCanvasLegacySubs` to the pixel),
+/// for a provider that accepts only the earlier canvas doors.
 struct PaneCanvasValueDrop {
     std::string pane;
     std::int64_t grant = 0, picture = 0, x = 0, y = 0;
@@ -77,6 +91,8 @@ struct PaneCanvasValueDrop {
               ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(data), ZEN_FIELD(source_office),
               ZEN_FIELD(source_pane), ZEN_FIELD(token));
 };
+
+} // namespace v1
 struct PaneDrop {
     std::string pane;
     loom::Bytes data;

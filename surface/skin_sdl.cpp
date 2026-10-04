@@ -336,8 +336,8 @@ public:
         }
     }
 
-    /// How much room this window has, in canvas cells, measured from the renderer's output size
-    /// each time; no window answers {0,0}, which the shell turns into silence. The text metric
+    /// How much room this window has, in canvas pixels (one per window pixel), measured from the
+    /// renderer's output size each time; no window answers {0,0}, which the shell turns into silence. The text metric
     /// comes from the opened face (`SdlTypeface`), zero without one: "text is a cell", which is
     /// what the bitmap face draws. `cell_px` is reported whether or not a face opened.
     SurfaceExtent extent() const {
@@ -347,8 +347,8 @@ public:
         SurfaceExtent e = extent_of_drawable(drawable());
         e.text_advance_px = text_.advance_px();
         e.text_line_px = text_.line_px();
-        // `kCanvasCellPx` is what `plan_canvas` lays this canvas out at, consulted rather than
-        // restated, so geometry spelled in pixels and a quad drawn in pixels agree.
+        // A canvas cell is `kCanvasCellPx` of this window's pixels: `plan_canvas` draws a canvas
+        // pixel on a window pixel, consulted rather than restated.
         e.cell_px = kCanvasCellPx;
         return e;
     }

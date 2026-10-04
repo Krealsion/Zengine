@@ -141,7 +141,7 @@ struct Rig {
     }
     /// Workshop's room: a window's 12-pixel cell and its measured face, or a terminal's cell.
     void room(const std::string& office, bool terminal = false) {
-        ws::PaneCanvasRoom r{view::kPane, ++grant, 48 * 40, 48 * 16, terminal ? 48 : 4, !terminal,
+        ws::PaneCanvasRoom r{view::kPane, ++grant, 12 * 40, 12 * 16, terminal ? 12 : 1, !terminal,
                              terminal ? 0 : 8, terminal ? 0 : 16};
         tell(office, r);
     }
@@ -173,8 +173,8 @@ struct Rig {
         const auto* p = latest(office);
         REQUIRE(p != nullptr);
         tell(office, ws::PaneCanvasPointer{view::kPane, p->grant, p->picture, 1, ws::canvas_pointer::kPress,
-                                           button, zengine::surface::subs_of_pixel(e.x + e.w / 2),
-                                           zengine::surface::subs_of_pixel(e.y + e.h / 2)});
+                                           button, (e.x + e.w / 2),
+                                           (e.y + e.h / 2)});
     }
     /// Replace a number field's text: press it, clear it, type.
     void fill(const std::string& office, const view::Element& e, const std::string& text) {
@@ -267,12 +267,12 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     CHECK(offered->rows == 25 + 3); // and its notice rows beneath
     // GRANTED MORE, it is laid out in its size: its elements end where the size does, its notice
     // rows lie beneath it, and the rest of the room is its ground.
-    rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 48 * 80, 48 * 40, 4, true, 8, 16});
+    rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 12 * 80, 12 * 40, 1, true, 8, 16});
     const auto* p = rig.latest("tally.panel");
     REQUIRE(p != nullptr);
-    const auto size_w = zengine::surface::subs_of_pixel(600), size_h = zengine::surface::subs_of_pixel(300);
+    const auto size_w = 600, size_h = 300;
     CHECK(std::any_of(p->rects.begin(), p->rects.end(), [&](const auto& r) {
-        return r.role == zengine::surface::role::kGround && r.x == 0 && r.y == 0 && r.w == 48 * 80 && r.h == 48 * 40;
+        return r.role == zengine::surface::role::kGround && r.x == 0 && r.y == 0 && r.w == 12 * 80 && r.h == 12 * 40;
     }));
     for (const auto& r : p->rects) {
         if (r.role == zengine::surface::role::kGround) continue;
@@ -282,14 +282,14 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     REQUIRE_FALSE(p->texts.empty());
     const auto& last = p->texts.back(); // what it still waits to be told, on its last row
     CHECK(has(last.text, "waiting to be told"));
-    CHECK(last.y + 4 * (16 + 2 * 2) == size_h + 3 * 4 * (16 + 2 * 2)); // the notice rows beneath the size
+    CHECK(last.y + (16 + 2 * 2) == size_h + 3 * (16 + 2 * 2)); // the notice rows beneath the size
     // GRANTED LESS, it draws in what it was granted.
-    rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 48 * 20, 48 * 10, 4, true, 8, 16});
+    rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 12 * 20, 12 * 10, 1, true, 8, 16});
     p = rig.latest("tally.panel");
     REQUIRE(p != nullptr);
     for (const auto& r : p->rects) {
-        CHECK(r.x + r.w <= 48 * 20);
-        CHECK(r.y + r.h <= 48 * 10);
+        CHECK(r.x + r.w <= 12 * 20);
+        CHECK(r.y + r.h <= 12 * 10);
     }
 }
 
@@ -300,12 +300,12 @@ TEST_CASE("no size the rules accept puts an element under the notice: its rows l
     d.width = 192;
     d.height = 136;
     REQUIRE(view::problem(d).empty());
-    const ws::PaneCanvasRoom window{view::kPane, 1, 48 * 40, 48 * 40, 4, true, 8, 16};
-    const ws::PaneCanvasRoom terminal{view::kPane, 1, 48 * 40, 48 * 40, 48, false, 0, 0};
+    const ws::PaneCanvasRoom window{view::kPane, 1, 12 * 40, 12 * 40, 1, true, 8, 16};
+    const ws::PaneCanvasRoom terminal{view::kPane, 1, 12 * 40, 12 * 40, 12, false, 0, 0};
     for (const auto& room : {window, terminal}) {
         INFO("graphical: " << room.graphical);
         const auto p = view::picture(d, {}, view::Presentation{}, room, 1);
-        const auto size_h = zengine::surface::subs_of_pixel(136);
+        const auto size_h = 136;
         bool total = false, notice = false;
         for (const auto& t : p.content.texts) {
             if (t.text.rfind("Total", 0) == 0) {
@@ -320,7 +320,7 @@ TEST_CASE("no size the rules accept puts an element under the notice: its rows l
         CHECK(total);
         CHECK(notice);
         // The notice's rows are the medium's lines: three of them beneath the size.
-        const auto line = room.graphical ? 4 * (16 + 2 * 2) : 48;
+        const auto line = room.graphical ? (16 + 2 * 2) : 12;
         CHECK(view::notice_band(room) == 3 * line);
     }
     // ...and the pane it asks for holds the size and the notice rows: 12 cells high, and 3.
@@ -543,7 +543,7 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     view::Presentation refusal;
     refusal.notice = "refused: tally on tally.panel.Count at %0 fold math.add: a step of 0 never moves the count from 0 toward 10";
     refusal.alert = true;
-    const ws::PaneCanvasRoom asked{view::kPane, 9, 48 * columns, 48 * rows, 48, false, 0, 0};
+    const ws::PaneCanvasRoom asked{view::kPane, 9, 12 * columns, 12 * rows, 12, false, 0, 0};
     std::string notice;
     for (const auto& t : view::picture(d, {}, refusal, asked, 1).content.texts)
         if (t.role == zengine::surface::role::kAlert) notice += t.text + " ";
@@ -724,8 +724,8 @@ TEST_CASE("a stopped view leaves a picture that says it stopped, and its office 
 
 TEST_CASE("a view's terminal picture is the window's picture floored to cells, its text fitted to the cell") {
     const auto d = panel();
-    ws::PaneCanvasRoom window{view::kPane, 1, 48 * 40, 48 * 12, 4, true, 8, 16};
-    ws::PaneCanvasRoom terminal{view::kPane, 2, 48 * 40, 48 * 12, 48, false, 0, 0};
+    ws::PaneCanvasRoom window{view::kPane, 1, 12 * 40, 12 * 12, 1, true, 8, 16};
+    ws::PaneCanvasRoom terminal{view::kPane, 2, 12 * 40, 12 * 12, 12, false, 0, 0};
     const auto a = view::picture(d, {}, {}, window, 1);
     const auto b = view::picture(d, {}, {}, terminal, 1);
     REQUIRE(a.content.rects.size() == b.content.rects.size());
@@ -735,10 +735,10 @@ TEST_CASE("a view's terminal picture is the window's picture floored to cells, i
         CHECK(a.content.rects[i].w == b.content.rects[i].w);
     }
     // The number field `start` is 144 pixels: 12 cells, so its text gets at most 12 - 1 columns.
-    CHECK(b.content.rects[1].w == zengine::surface::subs_of_pixel(144));
+    CHECK(b.content.rects[1].w == 144);
     for (const auto& t : b.content.texts) {
-        CHECK(t.x % 48 == 0);
-        CHECK(t.y % 48 == 0);
+        CHECK(t.x % 12 == 0);
+        CHECK(t.y % 12 == 0);
     }
     view::Presentation long_text;
     long_text.fields["start"].set("123456789012345678901234567890", 30);
@@ -767,8 +767,8 @@ TEST_CASE("a view's terminal picture is the window's picture floored to cells, i
     }
     // Presses read the same map in both media.
     CHECK(a.hits.size() == b.hits.size());
-    REQUIRE(b.hit(zengine::surface::subs_of_pixel(10), zengine::surface::subs_of_pixel(90)) != nullptr);
-    CHECK(b.hit(zengine::surface::subs_of_pixel(10), zengine::surface::subs_of_pixel(90))->element == "count");
+    REQUIRE(b.hit(10, 90) != nullptr);
+    CHECK(b.hit(10, 90)->element == "count");
 }
 
 TEST_CASE("a view hands back a right press and an Escape it has no use for") {

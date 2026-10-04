@@ -5,7 +5,7 @@ Router: [`../workshop.md`](../workshop.md). The wire contract is in [`../panes.m
 
 ## WL-CANVAS-01 — A picture occupies only its granted body
 
-LAW — A canvas provider draws in local subunits inside the pane body; Workshop clips before translating, below its title, on the pane's existing plane.
+LAW — A canvas provider draws in local canvas pixels inside the pane body; Workshop clips before translating, below its title, on the pane's existing plane.
 
 MEANS
 - bounded rectangles, fixed cell labels and measured one-line text, below the title;
@@ -32,14 +32,19 @@ MEANS
 - text metrics renew room; providers do not retain grants or gestures across reload;
 - resizing may show a marked, input-free preview only while owner and metrics agree.
 
+DOES NOT MEAN
+- that a holder of only the earlier doors is refused: it is answered in their sub-units.
+
 PROVEN BY — `workshop/weave.hpp` `HostContext::role_holder`;
 `workshop/weave_canvas.cpp` `canvas_owner_current`, `refresh_canvas_rooms`,
-`on(PaneCanvasContent)`;
+`on(PaneCanvasContent)`; `workshop/pane_canvas_vocabulary.hpp` `kPaneCanvasLegacySubs`,
+`canvas_content_of_legacy`;
 `tests/test_workshop_panes_canvas.cpp` case
 "pane canvas grants turn over on reoffer and old content and capture cannot survive", case
 "pane canvas provider replacement cannot acquire its predecessor's held gesture", case
 "pane canvas text metric changes renew the grant even when its body stays fixed", case
-"pane canvas resize preview keeps only the same provider's picture and never its input".
+"pane canvas resize preview keeps only the same provider's picture and never its input", case
+"a canvas provider that speaks only the earlier doors is answered in them".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-03 — A canvas gesture ends explicitly
@@ -62,7 +67,7 @@ WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-04 — A carried value lands on a canvas as a local place
 
-LAW — A value dropped on a canvas reaches a provider accepting `PaneCanvasValueDrop` as local subunits in its granted room and aimed picture; another provider is sent nothing and the value stays held.
+LAW — A value dropped on a canvas reaches a provider accepting `PaneCanvasValueDrop` as local pixels in its granted room and aimed picture; another provider is sent nothing and the value stays held.
 
 MEANS
 - the provider hit-tests the place in the picture it drew and owns what the drop means;

@@ -281,7 +281,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -353,9 +353,12 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, zengine::workshop::PaneCanvasRoom,
+                                        zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
+                                        zengine::workshop::v1::PaneCanvasPointer,
                                         zengine::workshop::PaneCanvasHover,
+                                        zengine::workshop::v1::PaneCanvasHover,
                                         zengine::workshop::PaneCanvasRejected,
                                         zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
@@ -483,7 +486,7 @@ public:
     /// The canvas a value was released on: the picture it showed, its grant and its body then.
     struct CanvasRelease {
         std::int64_t picture = 0, grant = 0;
-        FineRect body;
+        PixelRect body;
     };
     bool drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail,
                     std::int64_t picture = -1, const PointedAt& point = PointedAt{},
@@ -773,6 +776,16 @@ public:
     /// decode-memory one.
     void on(const PaneContent& content, loom::Mail& mail);
     void on(const PaneCanvasContent& content, loom::Mail& mail);
+    /// A picture in the earlier canvas door's sub-units, read at their floor and then admitted as
+    /// any picture is.
+    void on(const v2::PaneCanvasContent& content, loom::Mail& mail);
+    void admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail);
+    /// One pointer moment to a canvas holder, in the version its room was granted in.
+    loom::Ticket send_canvas_pointer(loom::WeaveId owner, const PaneCanvasPointer& event, bool legacy,
+                                     loom::Mail& mail, std::uint64_t correlation = 0);
+    /// ...and where the pointer rests, the same way.
+    void send_canvas_hover(loom::WeaveId owner, const PaneCanvasHover& hover, bool legacy,
+                           loom::Mail& mail);
 
     /// Is this update inside the room granted, and can a canvas carry every row? Pure, and judged
     /// before anything is copied: row count, row width, and `SurfaceTextRow`'s plain-ASCII
@@ -1068,7 +1081,7 @@ private:
 
     /// THE WINDOW A GESTURE MEASURES FROM: authored where authored, resolved where
     /// reactive — the RESOLVED window, never the visible one (see `managed_bounds`).
-    FineRect managed_window_base();
+    PixelRect managed_window_base();
 
     /// AUTHOR AN ABSOLUTE PLACE. `x`/`y` are the whole proposal, saturated by the caller.
     void arrange_place(std::int64_t x, std::int64_t y, loom::Mail& mail);
@@ -1077,7 +1090,7 @@ private:
     /// place yet, then the delta.
     void arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& mail);
 
-    /// AUTHOR WHAT ONE RESIZE GESTURE PROPOSES — the whole window, in sub-units, split into its two axes.
+    /// AUTHOR WHAT ONE RESIZE GESTURE PROPOSES — the whole window, in pixels, split into its two axes.
     void arrange_resize(std::int64_t edge, std::int64_t base_x, std::int64_t base_y,
                         std::int64_t base_w, std::int64_t base_h, std::int64_t dx,
                         std::int64_t dy, loom::Mail& mail);
@@ -1111,7 +1124,7 @@ private:
 
     /// A MOTION WHILE A PANE GESTURE IS HELD. It targets the pane that CLAIMED THE PRESS,
     /// looked up by its reference, so nothing under the pointer can take the gesture over.
-    void arrange_motion(std::int64_t sub_x, std::int64_t sub_y, loom::Mail& mail);
+    void arrange_motion(std::int64_t px_x, std::int64_t px_y, loom::Mail& mail);
 
     /// A PRESS INSIDE THE LAYOUTS PANE -- the tab run's own inverse, and the whole
     /// of what the top band's two global pointer arms became.
@@ -1175,6 +1188,7 @@ private:
         loom::WeaveId owner{};
         std::string pane;
         bool carrying = false;
+        bool legacy = false;
     } canvas_hover_;
     struct CanvasHold {
         bool active = false;
@@ -1183,6 +1197,7 @@ private:
         std::int64_t origin_x = 0, origin_y = 0;
         PaneCanvasPointer event;
         loom::Ticket attempt{};
+        bool legacy = false;
     } canvas_holds_[3];
     std::int64_t canvas_grants_ = 0, canvas_gestures_ = 0;
 

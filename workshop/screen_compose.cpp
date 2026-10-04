@@ -18,7 +18,7 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
     const std::int64_t lifted = selected_pane(panes);
     for (const std::int64_t kind : effective_pane_order(s.setup.active, panes)) {
         const OpenPane p{kind};
-        const FineRect b = bounds_of(panes, s.setup.active, p.kind, sc).rect;
+        const PixelRect b = bounds_of(panes, s.setup.active, p.kind, sc).rect;
         if (b.w <= 0 || b.h <= 0) {
             continue;
         }
@@ -63,7 +63,7 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
 }
 
 surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
-    const ui::Rect b = band_bounds(sc);
+    const PixelRect b = band_bounds(sc);
     const surface::RegionFit fit = band_fit(sc);
     surface::SurfaceTextRegion band;
     band.x = b.x;
@@ -171,18 +171,19 @@ surface::SurfaceCanvas paint(const Session& s) {
     };
 
     // The room, as a thing with edges a weaver can see.
-    rect(kWorkspaceX, kWorkspaceY, sc.room_w, sc.room_h, surface::role::kMuted);
+    rect(0, sc.room_y, sc.room_w, sc.room_h, surface::role::kMuted);
 
     // The room's floor: the desktop's own words, painted at the place and in the roles it said,
-    // clipped to the room (the law WL-DESK-05). Workshop composes nothing here, and an empty
-    // `backdrop` paints nothing.
+    // clipped to the room (the law WL-DESK-05), one cell row each from a cell below the room's
+    // top. Workshop composes nothing here, and an empty `backdrop` paints nothing.
+    const std::int64_t cell = surface::kCanvasCellPx;
     for (std::size_t i = 0; i < s.backdrop.size(); ++i) {
-        const std::int64_t y = kWorkspaceY + 1 + static_cast<std::int64_t>(i);
-        if (y >= kWorkspaceY + sc.room_h) {
+        const std::int64_t y = sc.room_y + cell * (1 + static_cast<std::int64_t>(i));
+        if (y + cell > sc.room_y + sc.room_h) {
             break; // the room ran out; the rest is not drawn and nothing is invented
         }
         const surface::SurfaceTextRow& row = s.backdrop[i];
-        label(kWorkspaceX + 2, y, detail::fit(row.text, sc.room_w - 4), row.role);
+        label(2 * cell, y, detail::fit(row.text, surface::cell_of_pixel(sc.room_w) - 4), row.role);
     }
 
     // Every dynamic pane, Info included, each on a plane of its own in canonical front order.

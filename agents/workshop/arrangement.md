@@ -12,7 +12,7 @@ MEANS
 - outside arrangement an addressed pane behind another claims no press and no address auto-raises;
 - each motion is interpreted; unchanged geometry, address, gesture and notice need no new picture.
 
-PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `Session::pane_drag`, `kPaneEdgeBandSubs`;
+PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `Session::pane_drag`, `kPaneEdgeBandPx`;
 `workshop/screen_arrange.cpp` `pane_edge_at`; `workshop/weave_arrange.cpp` `take_pane_hold`,
 `arrange_motion`; `workshop/weave_pointer.cpp` `on(PointerMoved)`;
 `tests/test_workshop_panes_window.cpp` case `"one press claims one gesture, and crossing anything

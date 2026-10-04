@@ -5,7 +5,7 @@
 #define ZENGINE_SURFACE_REGION_HPP
 
 // A bounded region of a canvas, resolved: the one arithmetic a publisher and a medium both use
-// to turn a region's cell bounds and a medium's text metric into a pixel viewport, a local
+// to turn a region's pixel bounds and a medium's text metric into a viewport, a local
 // origin and a capacity, so a publisher's "12 earlier" and the medium's drawing never disagree.
 // A zero metric is the cell projection, a real answer: a terminal's text is a cell. Every
 // product saturates, because a region's bounds are numbers a publisher chose. Reference:
@@ -38,7 +38,7 @@ inline constexpr std::int64_t kCaretWidthPx = 2;
 inline constexpr std::int64_t kMaxCellsInPixels =
     (std::numeric_limits<std::int64_t>::max)() / kCanvasCellPx;
 
-/// A cell coordinate in device pixels, saturating at both ends.
+/// A cell coordinate in canvas pixels, saturating at both ends.
 inline constexpr std::int64_t px_of_cells(std::int64_t cells) noexcept {
     if (cells >= kMaxCellsInPixels) {
         return kMaxCellsInPixels * kCanvasCellPx;
@@ -84,116 +84,73 @@ inline constexpr std::int64_t floor_div_px(std::int64_t v, std::int64_t d) noexc
     return (v % d < 0) ? q - 1 : q;
 }
 
-// ---- The sub-cell lattice, as arithmetic -----------------------------------------------
+// ---- The pixel lattice and the cell a character medium floors it to -------------------------
 //
-// The conversions every consumer of a fine coordinate needs; the model is `kCellSubs`. The wire
-// carries a coordinate decomposed, whole cells plus a remainder, and `sub_rem` reads the
-// remainder.
+// A canvas coordinate is a whole canvas pixel. A medium whose device unit is the cell shows the
+// span [L, R) on cells [floor(L/12), floor(R/12)) and hit-tests by the same floor, so the first
+// cell it paints is the first that answers a hand.
 
-/// A wire remainder, read safely: a value outside [0, kCellSubs) reads as zero, the whole-cell
-/// picture, because a number nobody could mean resolves to the reading that changes nothing.
-inline constexpr std::int64_t sub_rem(std::int64_t v) noexcept {
-    return (v >= 0 && v < kCellSubs) ? v : 0;
+/// The cell a canvas pixel lands in: FLOORED, because `/` truncates toward zero and would put
+/// pixel -1 in cell 0, so a click just outside the canvas would select what is just inside. A
+/// span [L, R) covers the cells [cell_of_pixel(L), cell_of_pixel(R)). Total over every value.
+inline constexpr std::int64_t cell_of_pixel(std::int64_t v) noexcept {
+    const std::int64_t q = v / kCanvasCellPx;
+    return (v % kCanvasCellPx < 0) ? q - 1 : q;
 }
 
-/// The largest cell coordinate that survives being multiplied into sub-units.
-inline constexpr std::int64_t kMaxCellsInSubs =
-    (std::numeric_limits<std::int64_t>::max)() / kCellSubs;
-
-/// A cell coordinate in sub-units, saturating at both ends — `px_of_cells`' shape
-/// on the finer lattice.
-inline constexpr std::int64_t subs_of_cells(std::int64_t cells) noexcept {
-    if (cells >= kMaxCellsInSubs) {
-        return kMaxCellsInSubs * kCellSubs;
-    }
-    if (cells <= -kMaxCellsInSubs) {
-        return -kMaxCellsInSubs * kCellSubs;
-    }
-    return cells * kCellSubs;
-}
-
-/// The cell a sub-unit coordinate lands in: FLOORED, `cell_of_pixel`'s own rule —
-/// the boundaries must be evenly spaced across zero. This is the character
-/// medium's half of the one quantization law: a fine span [L, R) covers the
-/// cells [cell_of_subs(L), cell_of_subs(R)), both edges through this flooring.
-inline constexpr std::int64_t cell_of_subs(std::int64_t subs) noexcept {
-    const std::int64_t q = subs / kCellSubs;
-    return (subs % kCellSubs < 0) ? q - 1 : q;
-}
-
-/// A sub-unit coordinate in device pixels, floored and saturating: the shipped graphical
-/// medium's half of the quantization law. Both edges of a span go through it, so a plan's quad,
-/// a fit's viewport and a hit test's pixel are one arithmetic.
-inline constexpr std::int64_t px_of_subs(std::int64_t subs) noexcept {
-    const std::int64_t s = subs > kMaxCellsInPixels
-                               ? kMaxCellsInPixels
-                               : (subs < -kMaxCellsInPixels ? -kMaxCellsInPixels : subs);
-    return floor_div_px(s * kCanvasCellPx, kCellSubs);
-}
-
-/// `px_of_subs` for a medium that reported its own cell size (`SurfaceExtent::cell_px`): the
-/// same arithmetic (asserted below), so a caller spelling geometry in pixels and a plan drawing
-/// it cannot disagree about a fractional edge. `cell_px <= 0` means the device unit is the
-/// cell, and the answer is a cell count. Total over every argument.
-inline constexpr std::int64_t device_of_subs(std::int64_t subs, std::int64_t cell_px) noexcept {
+/// A canvas pixel in a medium's device unit, for a medium that reported its own cell size
+/// (`SurfaceExtent::cell_px`, device pixels per canvas cell): floored, so a caller spelling
+/// geometry in that unit and a medium drawing it cannot disagree about a fractional edge.
+/// `cell_px <= 0` means the device unit is the cell, and the answer is a cell count. Total over
+/// every argument.
+inline constexpr std::int64_t device_of_px(std::int64_t px, std::int64_t cell_px) noexcept {
     if (cell_px <= 0) {
-        return cell_of_subs(subs);
+        return cell_of_pixel(px);
     }
     const std::int64_t bound = (std::numeric_limits<std::int64_t>::max)() / cell_px;
-    const std::int64_t s = subs > bound ? bound : (subs < -bound ? -bound : subs);
-    return floor_div_px(s * cell_px, kCellSubs);
+    const std::int64_t s = px > bound ? bound : (px < -bound ? -bound : px);
+    return floor_div_px(s * cell_px, kCanvasCellPx);
 }
 
-static_assert(device_of_subs(kCellSubs, kCanvasCellPx) == px_of_subs(kCellSubs),
-              "the shipped graphical medium's own device unit and a medium that REPORTS "
-              "kCanvasCellPx are one arithmetic, not two");
-static_assert(device_of_subs(kCellSubs * 3, 0) == 3,
+static_assert(device_of_px(kCanvasCellPx, kCanvasCellPx) == kCanvasCellPx,
+              "the shipped window's device pixel IS the canvas pixel");
+static_assert(device_of_px(kCanvasCellPx * 3, 0) == 3,
               "a medium whose device unit is the cell answers in cells");
 
-/// Whether a sub-unit coordinate is exactly sayable in that medium's device unit, or only its
-/// floor is: what a readout needs to tell what a weaver chose from what a medium can show.
-inline constexpr bool subs_exact_in_device(std::int64_t subs, std::int64_t cell_px) noexcept {
+/// Whether a canvas pixel is exactly sayable in that medium's device unit, or only its floor is:
+/// what a readout needs to tell what a weaver chose from what a medium can show.
+inline constexpr bool px_exact_in_device(std::int64_t px, std::int64_t cell_px) noexcept {
     if (cell_px <= 0) {
-        return subs % kCellSubs == 0;
+        return px % kCanvasCellPx == 0;
     }
     const std::int64_t bound = (std::numeric_limits<std::int64_t>::max)() / cell_px;
-    if (subs > bound || subs < -bound) {
+    if (px > bound || px < -bound) {
         return false;
     }
-    return (subs * cell_px) % kCellSubs == 0;
+    return (px * cell_px) % kCanvasCellPx == 0;
 }
 
-/// The thinnest span a medium can show, in sub-units: one of its device units, which is what a
-/// publisher drawing a boundary asks. A whole cell where the device unit is the cell. A ceiling,
-/// not a division, so `device_of_subs` of it is never zero, even on a cell the lattice does not
-/// divide; a medium finer than the lattice gets one sub-unit.
-inline constexpr std::int64_t subs_of_one_device(std::int64_t cell_px) noexcept {
+/// The thinnest span a medium can show, in canvas pixels: one of its device units, which is what
+/// a publisher drawing a boundary asks. A whole cell where the device unit is the cell. A
+/// ceiling, so `device_of_px` of it is never zero, even on a cell size the canvas pixel does not
+/// divide; a medium finer than the canvas pixel gets one pixel.
+inline constexpr std::int64_t px_of_one_device(std::int64_t cell_px) noexcept {
     if (cell_px <= 0) {
-        return kCellSubs;
+        return kCanvasCellPx;
     }
-    if (cell_px >= kCellSubs) {
+    if (cell_px >= kCanvasCellPx) {
         return 1;
     }
-    return (kCellSubs + cell_px - 1) / cell_px;
+    return (kCanvasCellPx + cell_px - 1) / cell_px;
 }
 
-static_assert(subs_of_one_device(0) == kCellSubs,
+static_assert(px_of_one_device(0) == kCanvasCellPx,
               "a medium whose device unit is the cell can show nothing thinner than one");
-static_assert(subs_of_one_device(kCanvasCellPx) == kCellSubs / kCanvasCellPx,
-              "the shipped graphical medium's device unit is the pixel grain "
-              "`kPixelGrainSubs` names, reached from its REPORT rather than its constant");
-static_assert(device_of_subs(subs_of_one_device(kCanvasCellPx), kCanvasCellPx) == 1,
-              "one device unit reads back as exactly one device unit");
-static_assert(device_of_subs(subs_of_one_device(7), 7) == 1 &&
-                  device_of_subs(subs_of_one_device(7) - 1, 7) == 0,
-              "and it is the SMALLEST span that does, on a cell size the lattice does "
-              "not divide evenly");
-
-/// A decomposed wire coordinate (whole cells + remainder), as one sub-unit
-/// number — the composition every consumer of a fine shape performs first.
-inline constexpr std::int64_t subs_of_wire(std::int64_t cells, std::int64_t rem) noexcept {
-    return add_cells(subs_of_cells(cells), sub_rem(rem));
-}
+static_assert(px_of_one_device(kCanvasCellPx) == 1,
+              "the shipped window's device unit is one canvas pixel, reached from its REPORT");
+static_assert(device_of_px(px_of_one_device(7), 7) == 1 &&
+                  device_of_px(px_of_one_device(7) - 1, 7) == 0,
+              "and it is the SMALLEST span that does, on a cell size the pixel does not divide");
 
 /// A region's outer rectangle in a graphical medium, in device pixels: the whole rectangle it
 /// was granted, not what is visible (`clip_viewport`). A medium clips to it and draws in
@@ -229,16 +186,9 @@ struct RegionFit {
     friend bool operator==(const RegionFit&, const RegionFit&) = default;
 };
 
-/// A CELL RECTANGLE AS A PIXEL VIEWPORT. One multiply per number, saturated.
-inline constexpr RegionViewport viewport_of_cells(std::int64_t x, std::int64_t y, std::int64_t w,
-                                                  std::int64_t h) noexcept {
-    return RegionViewport{px_of_cells(x), px_of_cells(y), px_of_cells(w > 0 ? w : 0),
-                          px_of_cells(h > 0 ? h : 0)};
-}
-
-/// The shared core of the resolution: a viewport and a cell capacity become a fit. The cell
-/// entry and the sub-unit entry both call it, so they cannot disagree about how a metric turns
-/// pixels into prose, or about the fallback.
+/// The shared core of the resolution: a viewport and a cell capacity become a fit, so the
+/// capacity a medium with a face and a medium without one tell a publisher cannot disagree about
+/// how a metric turns pixels into prose, or about the fallback.
 inline constexpr RegionFit resolve_region_fit(const RegionViewport& view,
                                               std::int64_t cell_columns, std::int64_t cell_rows,
                                               std::int64_t text_advance_px,
@@ -265,95 +215,78 @@ inline constexpr RegionFit resolve_region_fit(const RegionViewport& view,
     return f;
 }
 
-/// The one resolution: a region's cell bounds and a medium's text metric become a viewport, an
+/// The one resolution: a region's pixel bounds and a medium's text metric become a viewport, an
 /// origin and a capacity, and every party asks this for all three. Total over every argument. A
-/// non-positive advance or line is "text is a cell": the region's own cell bounds, no inset. A
-/// region too small for one line of the medium's type resolves the same way, so it is drawn in
-/// cells rather than vanishing (one cell tall holds no row of an 18-pixel face).
+/// non-positive advance or line is "text is a cell": the capacity is the cells the bounds cover
+/// (each edge floored), with no inset. A region too small for one line of the medium's type
+/// resolves the same way, so it is drawn in cells rather than vanishing (one cell tall holds no
+/// row of an 18-pixel face).
 inline constexpr RegionFit fit_region(std::int64_t x, std::int64_t y, std::int64_t w,
                                       std::int64_t h, std::int64_t text_advance_px,
                                       std::int64_t text_line_px) noexcept {
-    return resolve_region_fit(viewport_of_cells(x, y, w, h), w, h, text_advance_px,
-                              text_line_px);
-}
-
-/// The same resolution for fine bounds, in sub-units: each edge through `px_of_subs` for the
-/// viewport, and the covered cells (`cell_of_subs` of each edge) for the fallback. Exact-cell
-/// bounds answer what the cell entry answers.
-inline constexpr RegionFit fit_region_subs(std::int64_t sx, std::int64_t sy, std::int64_t sw,
-                                           std::int64_t sh, std::int64_t text_advance_px,
-                                           std::int64_t text_line_px) noexcept {
-    const std::int64_t w = sw > 0 ? sw : 0;
-    const std::int64_t h = sh > 0 ? sh : 0;
-    const std::int64_t x_px = px_of_subs(sx);
-    const std::int64_t y_px = px_of_subs(sy);
-    const RegionViewport view{x_px, y_px, px_of_subs(add_cells(sx, w)) - x_px,
-                              px_of_subs(add_cells(sy, h)) - y_px};
-    const std::int64_t cell_columns = cell_of_subs(add_cells(sx, w)) - cell_of_subs(sx);
-    const std::int64_t cell_rows = cell_of_subs(add_cells(sy, h)) - cell_of_subs(sy);
+    const std::int64_t ww = w > 0 ? w : 0;
+    const std::int64_t hh = h > 0 ? h : 0;
+    const RegionViewport view{x, y, ww, hh};
+    const std::int64_t cell_columns = cell_of_pixel(add_cells(x, ww)) - cell_of_pixel(x);
+    const std::int64_t cell_rows = cell_of_pixel(add_cells(y, hh)) - cell_of_pixel(y);
     return resolve_region_fit(view, cell_columns, cell_rows, text_advance_px, text_line_px);
 }
 
-/// The same resolution from the shapes, through the sub-unit entry, so a region is fitted at the
-/// fine place it is painted.
+/// The same resolution from the shapes, so a region is fitted where it is painted.
 inline constexpr RegionFit fit_region(const SurfaceTextRegion& r,
                                       const SurfaceExtent& metric) noexcept {
-    return fit_region_subs(subs_of_wire(r.x, r.sub_x), subs_of_wire(r.y, r.sub_y),
-                           add_cells(subs_of_cells(r.w > 0 ? r.w : 0), sub_rem(r.sub_w)),
-                           add_cells(subs_of_cells(r.h > 0 ? r.h : 0), sub_rem(r.sub_h)),
-                           metric.text_advance_px, metric.text_line_px);
+    return fit_region(r.x, r.y, r.w, r.h, metric.text_advance_px, metric.text_line_px);
 }
 
-/// A prose capacity, read backwards into cells.
-struct RegionCells {
-    std::int64_t w = 0; ///< whole canvas cells
+/// A prose capacity, read backwards into canvas pixels.
+struct RegionPixels {
+    std::int64_t w = 0;
     std::int64_t h = 0;
 
-    friend bool operator==(const RegionCells&, const RegionCells&) = default;
+    friend bool operator==(const RegionPixels&, const RegionPixels&) = default;
 };
 
-/// The one resolution read backwards: the smallest whole-cell extent for which `fit_region`
-/// answers at least `columns` by `rows`. A publisher sizing a region to its content asks this
-/// rather than inverting the metric itself, which would be a second measurer one inset away
-/// from a last row that does not fit. A "text is a cell" metric answers in cells.
-inline constexpr RegionCells region_cells_for(std::int64_t columns, std::int64_t rows,
-                                              std::int64_t text_advance_px,
-                                              std::int64_t text_line_px) noexcept {
-    RegionCells out;
+/// The one resolution read backwards: the smallest pixel extent, at a cell-aligned place, for
+/// which `fit_region` answers at least `columns` by `rows`. A publisher sizing a region to its
+/// content asks this rather than inverting the metric itself, which would be a second measurer
+/// one inset away from a last row that does not fit. A "text is a cell" metric answers whole
+/// cells.
+inline constexpr RegionPixels region_px_for(std::int64_t columns, std::int64_t rows,
+                                            std::int64_t text_advance_px,
+                                            std::int64_t text_line_px) noexcept {
+    RegionPixels out;
     if (columns <= 0 || rows <= 0) {
         return out;
     }
     if (text_advance_px > 0 && text_line_px > 0) {
-        const std::int64_t want_w = columns * text_advance_px + 2 * kTextInsetPx;
-        const std::int64_t want_h = rows * text_line_px + 2 * kTextInsetPx;
-        out.w = (want_w + kCanvasCellPx - 1) / kCanvasCellPx;
-        out.h = (want_h + kCanvasCellPx - 1) / kCanvasCellPx;
+        out.w = add_cells(mul_px(columns, text_advance_px), 2 * kTextInsetPx);
+        out.h = add_cells(mul_px(rows, text_line_px), 2 * kTextInsetPx);
         return out;
     }
-    out.w = columns;
-    out.h = rows;
+    out.w = px_of_cells(columns);
+    out.h = px_of_cells(rows);
     return out;
 }
 
 // The inverse property, held at compile time for the shipped face's metric (8x18) and the
-// cell projection: what this function answers is sufficient, and one cell less is not.
-static_assert(fit_region(0, 0, region_cells_for(20, 5, 8, 18).w,
-                         region_cells_for(20, 5, 8, 18).h, 8, 18)
+// cell projection: what this function answers is sufficient, and one pixel less is not.
+static_assert(fit_region(0, 0, region_px_for(20, 5, 8, 18).w, region_px_for(20, 5, 8, 18).h,
+                         8, 18)
                       .columns >= 20 &&
-                  fit_region(0, 0, region_cells_for(20, 5, 8, 18).w,
-                             region_cells_for(20, 5, 8, 18).h, 8, 18)
+                  fit_region(0, 0, region_px_for(20, 5, 8, 18).w,
+                             region_px_for(20, 5, 8, 18).h, 8, 18)
                           .rows >= 5,
               "the backward read must satisfy the forward one");
-static_assert(fit_region(0, 0, region_cells_for(20, 5, 8, 18).w - 1,
-                         region_cells_for(20, 5, 8, 18).h, 8, 18)
+static_assert(fit_region(0, 0, region_px_for(20, 5, 8, 18).w - 1,
+                         region_px_for(20, 5, 8, 18).h, 8, 18)
                       .columns < 20,
-              "one cell narrower no longer holds the asked columns");
-static_assert(fit_region(0, 0, region_cells_for(20, 5, 8, 18).w,
-                         region_cells_for(20, 5, 8, 18).h - 1, 8, 18)
+              "one pixel narrower no longer holds the asked columns");
+static_assert(fit_region(0, 0, region_px_for(20, 5, 8, 18).w,
+                         region_px_for(20, 5, 8, 18).h - 1, 8, 18)
                       .rows < 5,
-              "one cell shorter no longer holds the asked rows");
-static_assert(region_cells_for(20, 5, 0, 0) == RegionCells{20, 5},
-              "a metric with no type answers in cells, the fallback's own sentence");
+              "one pixel shorter no longer holds the asked rows");
+static_assert(region_px_for(20, 5, 0, 0) == RegionPixels{20 * kCanvasCellPx, 5 * kCanvasCellPx},
+              "a metric with no type answers in whole cells, the fallback's own sentence");
 
 /// The part of a viewport actually on the surface, in device pixels. Separate from the fit on
 /// purpose: a window two pixels too small draws less, and does not change how much prose the
@@ -426,8 +359,8 @@ struct ProjectedRow {
     std::int64_t sel_end = 0;
 };
 
-/// A region's rows as canvas labels, the cell projection every cell medium shares: row `i` at
-/// cell `(x, y + i)`, cut at `w`, dropped past `h`. Every cell row gets a label padded to the
+/// A region's rows as canvas labels, the cell projection every cell medium shares: row `i` one
+/// cell below row 0, cut at the covered cells' width, dropped past their height. Every cell row gets a label padded to the
 /// full width, because a region is an overlay and an unwritten row shows its emptiness. A caret
 /// is a character inserted at its column before the cut (this projection does not scroll).
 /// Under `kGroundBeneath` a row is cut but not padded, unless it named its own ground, and an
@@ -436,12 +369,10 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
     if (r.w <= 0 || r.h <= 0) {
         return; // a region with no bounds shows nothing, and says nothing about it
     }
-    // The capacity is the covered cells: a fine right edge that crosses a cell boundary earns
-    // that cell, so the cut, the padding and a fine pane's backdrop agree to the cell.
-    const std::int64_t covered_w =
-        r.w + (sub_rem(r.sub_x) + sub_rem(r.sub_w)) / kCellSubs;
-    const std::int64_t covered_h =
-        r.h + (sub_rem(r.sub_y) + sub_rem(r.sub_h)) / kCellSubs;
+    // The capacity is the covered cells: a right edge that crosses a cell boundary earns that
+    // cell, so the cut, the padding and a pane's backdrop agree to the cell.
+    const std::int64_t covered_w = cell_of_pixel(add_cells(r.x, r.w)) - cell_of_pixel(r.x);
+    const std::int64_t covered_h = cell_of_pixel(add_cells(r.y, r.h)) - cell_of_pixel(r.y);
     const std::size_t width = static_cast<std::size_t>(
         covered_w < static_cast<std::int64_t>(kMaxProjectedWidth) ? covered_w
                                                                   : kMaxProjectedWidth);
@@ -479,10 +410,10 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
         if (span.end > static_cast<std::int64_t>(text.size())) {
             span.end = static_cast<std::int64_t>(text.size()); // the cut cuts highlights too
         }
-        // The remainders ride the label: a character medium floors them away at its `put`,
-        // and the bitmap face spends them as pixels.
-        out.push_back(ProjectedRow{SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role,
-                                                sub_rem(r.sub_x), sub_rem(r.sub_y)},
+        // Row `i` is `i` cells below row 0: a character medium floors the anchor to its cell,
+        // and the bitmap face draws it where it is.
+        out.push_back(ProjectedRow{SurfaceLabel{r.x, add_cells(r.y, px_of_cells(i)),
+                                                std::move(text), role},
                                    back, r.ground, span.begin, span.end});
     }
 }

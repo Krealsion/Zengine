@@ -26,9 +26,9 @@ inline constexpr CanvasTextMetrics canvas_text_metrics(const PaneCanvasRoom& roo
     CanvasTextMetrics out;
     out.grain = room.grain > 0 ? room.grain : kPaneCanvasUnit;
     if (room.text_advance_px > 0 && room.text_line_px > 0) {
-        out.advance = surface::subs_of_pixel(room.text_advance_px);
-        out.line = surface::subs_of_pixel(room.text_line_px);
-        out.inset = surface::subs_of_pixel(surface::kTextInsetPx);
+        out.advance = room.text_advance_px;
+        out.line = room.text_line_px;
+        out.inset = surface::kTextInsetPx;
         out.graphical = true;
     }
     return out;
@@ -107,7 +107,7 @@ inline CanvasTextLayout clip_canvas_text(const PaneCanvasText& text, const Canva
     const auto width = surface::add_cells(surface::mul_px(columns, m.advance), pad);
     out.bounds = {x, y, width, height};
     out.first_column = first;
-    out.fit = surface::fit_region_subs(x, y, width, height,
+    out.fit = surface::fit_region(x, y, width, height,
                                       room.text_advance_px, room.text_line_px);
     return out;
 }
@@ -117,17 +117,10 @@ inline surface::SurfaceTextRegion canvas_text_region(const CanvasTextLayout& tex
                                                        std::int64_t offset_y = 0) {
     surface::SurfaceTextRegion region;
     if (!text.visible()) return region;
-    const auto x = surface::add_cells(text.bounds.x, offset_x);
-    const auto y = surface::add_cells(text.bounds.y, offset_y);
-    const auto split = [](std::int64_t value, std::int64_t& cells, std::int64_t& rem) {
-        cells = surface::cell_of_subs(value);
-        rem = value % kPaneCanvasUnit;
-        if (rem < 0) rem += kPaneCanvasUnit;
-    };
-    split(x, region.x, region.sub_x);
-    split(y, region.y, region.sub_y);
-    split(text.bounds.w, region.w, region.sub_w);
-    split(text.bounds.h, region.h, region.sub_h);
+    region.x = surface::add_cells(text.bounds.x, offset_x);
+    region.y = surface::add_cells(text.bounds.y, offset_y);
+    region.w = text.bounds.w;
+    region.h = text.bounds.h;
     region.ground = surface::kGroundBeneath;
     region.rows.push_back({text.text.text, text.text.role});
     if (text.text.caret_col >= 0) {

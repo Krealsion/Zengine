@@ -7,7 +7,7 @@ supports is in [weaver-pane](../workshop/maker-pane.md).
 make one (`df06ac5`, "Let a maker create a pane, because a pane can be data").
 
 **Decision.** `PaneDefinition{name, regions[], next_id}` with `TextRegion{id, kind, x, y, w, h,
-text}` — one admitted kind, ids minted and never reused, geometry in sub-units relative to the
+text}` — one admitted kind, ids minted and never reused, geometry in pixels relative to the
 pane's interior — is the first pane implementation whose interior is authored data, and one is
 open. The identity is minted from the name under a Workshop-owned provider namespace no office
 may offer a pane in. `kWeaverPaneKind` is a handle, a third kind class. The pane on the desk is

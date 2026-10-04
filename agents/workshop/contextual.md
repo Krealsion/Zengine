@@ -36,7 +36,7 @@ WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-03 — The popup is local and its bounds are derived
 
-LAW — The popup remembers only the press's canvas cell; its rectangle is re-derived at every paint and press from the current level's rows, through the one popup measurer, capped at a maximum width.
+LAW — The popup remembers only the press's canvas point; its rectangle is re-derived at every paint and press from the current level's rows, through the one popup measurer, capped at a maximum width.
 
 MEANS
 - the keyboard entrance is `anchored == false` and opens at the overlay stack's corner;
@@ -46,7 +46,7 @@ MEANS
 PROVEN BY — `workshop/context.hpp` `ContextMenu`, `ContextMenu::anchored`,
 `ContextMenu::anchor_x`; `workshop/screen_attention.cpp` `context_bounds`, `context_entry_text`;
 `workshop/screen_pane_state.cpp` `popup_bounds_at`; `workshop/screen.hpp` `kContextMaxCols`,
-`chrome_outer_of`; `surface/region.hpp` `region_cells_for`; `tests/test_workshop_screen.cpp`
+`chrome_outer_of`; `surface/region.hpp` `region_px_for`; `tests/test_workshop_screen.cpp`
 case `"the popup opens at the press's own cell, and its extent is its content"`, case
 `"the popup shifts to stay usable inside the room, at every boundary"`, case `"the keyboard
 entrance has no pointer and invents none"`, case `"entering a group stays at the anchor,

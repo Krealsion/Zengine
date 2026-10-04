@@ -43,7 +43,7 @@ Info lists lose a row each, and the Compose form no longer fits the default slot
 desk by [the coarse step](why-the-coarse-step-is-four.md). On the shipped window a 576x108 slot
 has a 574x106 interior, one pixel a side, and nothing pads it back. The rungs cannot oscillate
 because each candidate is a larger interior than the last; a two-cell pane exists on every face,
-wears no ring on a terminal and no selected ink on the last rung; `chrome_subs == 0` on the cell
+wears no ring on a terminal and no selected ink on the last rung; `chrome_px == 0` on the cell
 medium.
 
 **Laws supported.** [WL-CHROME-01](../workshop/chrome.md), [WL-CHROME-02](../workshop/chrome.md),

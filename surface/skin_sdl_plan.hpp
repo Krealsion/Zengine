@@ -138,32 +138,22 @@ static_assert(kCanvasCellPx % kGlyphCols == 0,
 static_assert(kCanvasCellPx % kGlyphRows == 0,
               "a canvas cell must be a whole number of glyph pixels tall");
 
-/// The largest canvas extent this medium considers, in cells: not a policy, but what a pixel
-/// number can hold, so every `cell * kCanvasCellPx` in this file is safe by construction.
-inline constexpr std::int64_t kMaxCanvasCells =
-    (std::numeric_limits<std::int64_t>::max)() / kCanvasCellPx;
-
-/// The canvas extent this plan will actually work in, in cells: what was
-/// published, floored at nothing and capped at what pixels can express.
+/// The canvas extent this plan will actually work in, in canvas pixels: what was published,
+/// floored at nothing. A canvas pixel is a window pixel here.
 inline constexpr std::int64_t canvas_extent(std::int64_t published) noexcept {
-    if (published <= 0) {
-        return 0;
-    }
-    return published < kMaxCanvasCells ? published : kMaxCanvasCells;
+    return published > 0 ? published : 0;
 }
 
-/// The window this canvas asks for: its extent in cells, in pixels.
+/// The window this canvas asks for: its extent, one window pixel per canvas pixel.
 inline constexpr PlanSize canvas_window_size(const SurfaceCanvas& c) noexcept {
-    return PlanSize{canvas_extent(c.width) * kCanvasCellPx,
-                    canvas_extent(c.height) * kCanvasCellPx};
+    return PlanSize{canvas_extent(c.width), canvas_extent(c.height)};
 }
 
-/// How many whole canvas cells a drawable of this many pixels has room for. Floored: a partial
-/// cell is not room, and the remainder is background (`canvas` clears the whole drawable). No
-/// room answers zero, which `SkinT::report_extent` turns into silence.
+/// The room a drawable of this many pixels has: all of it, since the picture is drawn one to one
+/// and nothing is lost to a partial cell. No room answers zero, which `SkinT::report_extent`
+/// turns into silence.
 inline constexpr SurfaceExtent extent_of_drawable(const PlanSize& px) noexcept {
-    return SurfaceExtent{px.w > 0 ? px.w / kCanvasCellPx : 0,
-                         px.h > 0 ? px.h / kCanvasCellPx : 0};
+    return SurfaceExtent{px.w > 0 ? px.w : 0, px.h > 0 ? px.h : 0};
 }
 
 /// One layer as one flat list of opaque quads in painter's order: rects in list order, then
@@ -181,10 +171,10 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
         return out; // an empty canvas is a legitimate picture: it draws nothing
     }
 
-    // Every quad clips to the canvas's own pixels, here and nowhere else: a fine coordinate can
-    // put a quad astride the canvas edge, and no pixel outside the canvas is ever emitted.
-    const std::int64_t w_px = w * kCanvasCellPx;
-    const std::int64_t h_px = h * kCanvasCellPx;
+    // Every quad clips to the canvas's own pixels, here and nowhere else: a coordinate can put a
+    // quad astride the canvas edge, and no pixel outside the canvas is ever emitted.
+    const std::int64_t w_px = w;
+    const std::int64_t h_px = h;
     const auto quad = [&out, w_px, h_px](std::int64_t x, std::int64_t y, std::int64_t pw,
                                          std::int64_t ph, PlanInk ink) {
         const std::int64_t x0 = x > 0 ? x : 0;
@@ -198,20 +188,12 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
     };
 
     for (const SurfaceRect& r : layer.rects) {
-        // Each fine edge goes through `px_of_subs`, never an extent through a multiply of its
-        // own, so a rect occupies exactly the pixels a fit resolves and a hit test compares.
-        if (r.w < 0 || r.h < 0 || (r.w == 0 && sub_rem(r.sub_w) == 0) ||
-            (r.h == 0 && sub_rem(r.sub_h) == 0)) {
-            continue; // a negative extent is nothing, and so is a zero one with no remainder
+        // A rect is drawn on exactly the pixels it names, the pixels a fit resolves and a hit
+        // test compares.
+        if (r.w <= 0 || r.h <= 0) {
+            continue; // a negative or zero extent is nothing
         }
-        const std::int64_t sx = subs_of_wire(r.x, r.sub_x);
-        const std::int64_t sy = subs_of_wire(r.y, r.sub_y);
-        const std::int64_t sw = add_cells(subs_of_cells(r.w), sub_rem(r.sub_w));
-        const std::int64_t sh = add_cells(subs_of_cells(r.h), sub_rem(r.sub_h));
-        const std::int64_t x_px = px_of_subs(sx);
-        const std::int64_t y_px = px_of_subs(sy);
-        quad(x_px, y_px, px_of_subs(add_cells(sx, sw)) - x_px,
-             px_of_subs(add_cells(sy, sh)) - y_px, ink_for_role(r.role));
+        quad(r.x, r.y, r.w, r.h, ink_for_role(r.role));
     }
 
     // With no real face this face also draws the text regions, through region.hpp's cell
@@ -228,16 +210,15 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
     const auto draw_label = [&](const SurfaceLabel& l, std::int64_t background,
                                 std::int64_t region_ground, std::int64_t sel_begin,
                                 std::int64_t sel_end) {
-        // The anchor may be fine: its pixel origin is the quantization law at the pixel grain,
-        // and every byte advances a whole cell from it.
-        const std::int64_t label_y = px_of_subs(subs_of_wire(l.y, l.sub_y));
+        // The anchor is a canvas pixel, and every byte advances a whole cell from it.
+        const std::int64_t label_y = l.y;
         if (add_cells(label_y, kCanvasCellPx) <= 0 || label_y >= h_px) {
             return; // no pixel row of this canvas belongs to it
         }
         const PlanInk ink = ink_for_role(l.role);
         const bool takes_the_cell = background >= 0 || region_ground != kGroundBeneath;
         const PlanInk under = background < 0 ? kCanvasBackground : ink_for_role(background);
-        const std::int64_t label_x = px_of_subs(subs_of_wire(l.x, l.sub_x));
+        const std::int64_t label_x = l.x;
         for (std::size_t i = 0; i < l.text.size(); ++i) {
             const std::int64_t cell_x =
                 add_cells(label_x, static_cast<std::int64_t>(i) * kCanvasCellPx);
@@ -288,7 +269,7 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
 
 // ---- Bounded regions, resolved for a medium that owns a real face --------------------
 //
-// What any bounded interior needs: its cell rectangle as a pixel viewport clipped to the
+// What any bounded interior needs: its pixel rectangle as a viewport clipped to the
 // surface, the local origin its interior is drawn from, and the row pitch. Rasterizing is the
 // SDL edge's, since a real font is a dependency the lanes pinning this header do not build.
 
@@ -466,10 +447,10 @@ inline std::vector<PlanLayer> plan_canvas(const SurfaceCanvas& c, const SurfaceE
 // every plane, through the same region machinery. One voice, `role::kAlert`: a slot carries no
 // role, and severity lives in the canvas and in the words.
 
-/// The chip as a canvas layer, in canvas cells: an ordinary `SurfaceTextRegion`, so its fit,
-/// cut, ink, ground and clip are this medium's usual machinery. Two cells hold one row of an
-/// 18-pixel face (24 pixels less the inset on each side is 20); a taller face takes more. The
-/// width is what the text asks for, clamped to the canvas, where the region cuts honestly.
+/// The chip as a canvas layer: an ordinary `SurfaceTextRegion` of whole cells, so its fit, cut,
+/// ink, ground and clip are this medium's usual machinery. Two cells hold one row of an 18-pixel
+/// face (24 pixels less the inset on each side is 20); a taller face takes more. The width is
+/// what the text asks for in whole cells, clamped to the canvas, where the region cuts honestly.
 inline SurfaceLayer attention_chip_layer(const std::string& text, std::int64_t canvas_w,
                                          const SurfaceExtent& metric) {
     SurfaceLayer layer;
@@ -485,8 +466,9 @@ inline SurfaceLayer attention_chip_layer(const std::string& text, std::int64_t c
     const std::int64_t want_h = add_cells(line, 2 * kTextInsetPx);
     const std::int64_t cells_h = want_h / kCanvasCellPx + (want_h % kCanvasCellPx != 0 ? 1 : 0);
     SurfaceTextRegion region;
-    region.w = cells_w < canvas_w ? cells_w : canvas_w;
-    region.h = cells_h;
+    const std::int64_t box_w = px_of_cells(cells_w);
+    region.w = box_w < canvas_w ? box_w : canvas_w;
+    region.h = px_of_cells(cells_h);
     region.x = canvas_w - region.w;
     region.y = 0;
     // The row names its own ground: the region clears to the canvas ground and the row paints

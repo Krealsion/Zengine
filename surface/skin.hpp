@@ -280,7 +280,7 @@ private:
 
     /// Say how much room there is, when it changes and only then: asked after every act that
     /// could change it (a frame can create a window; the beat notices a drag). The change guard
-    /// is the policy, and compares the whole value -- cells, text metric and `cell_px` move
+    /// is the policy, and compares the whole value -- room, text metric and `cell_px` move
     /// independently. {0,0} is no opinion and never published, but it is remembered, so a medium
     /// that loses its surface and regains it at the same size says so again. A plain member: a
     /// successor reports its own room.

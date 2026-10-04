@@ -99,11 +99,12 @@ void timer_surface() {
 void surface_surface() {
     namespace sf = zengine::surface;
 
+    // Canvas pixels, twelve to a cell: ten cells by two.
     sf::SurfaceTextRegion region;
-    region.x = 2;
-    region.y = 1;
-    region.w = 10;
-    region.h = 2;
+    region.x = 2 * sf::kCanvasCellPx;
+    region.y = 1 * sf::kCanvasCellPx;
+    region.w = 10 * sf::kCanvasCellPx;
+    region.h = 2 * sf::kCanvasCellPx;
     region.rows.push_back(sf::SurfaceTextRow{"hello"});
     region.rows.push_back(sf::SurfaceTextRow{"stranger"});
 

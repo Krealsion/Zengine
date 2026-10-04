@@ -56,18 +56,17 @@ TEST_CASE("every mode spelling round-trips, pixels included") {
     Setup s = two_overlays();
     // ONE ROW PER MODE COMBINATION THE GRAMMAR HAS, so the round trip is a claim about the
     // format rather than about the one arrangement a case happened to build.
-    // A FINE place and a fine width, deliberately not on cell boundaries: the format's own
-    // resolution is the thing round-tripping here.
-    s.panes[0].place = PanePlace{pane_unit::kSubcells, subs(6) + 13, subs(5) + 1};
-    s.panes[0].width = PaneSize{pane_unit::kSubcells, subs(40) + 24};
+    // A place and a width deliberately not on cell boundaries: the format's own resolution is
+    // the thing round-tripping here.
+    s.panes[0].place = PanePlace{pane_unit::kPixels, cells_px(6) + 3, cells_px(5) + 1};
+    s.panes[0].width = PaneSize{pane_unit::kPixels, cells_px(40) + 6};
     s.panes[0].height = PaneSize{pane_unit::kPixels, 220};
-    s.panes[1].width = PaneSize{pane_unit::kPixels, 1};
+    s.panes[1].width = PaneSize{pane_unit::kPixels, kPanePxMin + 1};
     REQUIRE(check_setup(s).accepted);
 
     const std::string a = setup_persist::to_text(s);
     INFO(a);
     CHECK(a.find("\"mode\":\"subcells\"") != std::string::npos);
-    CHECK(a.find("\"mode\":\"pixels\"") != std::string::npos);
     CHECK(a.find("\"mode\":\"default\"") != std::string::npos);
 
     const setup_persist::LoadedSetup read = setup_persist::from_text(a);
@@ -102,34 +101,33 @@ TEST_CASE("a default mode carries no numbers, and that is one canonical spelling
 }
 
 TEST_CASE("the cell and pixel bounds are pinned at both ends") {
-    // SUBCELLS: at least one whole cell, at most the document's own authored-size bound -- the
-    // same CELL walls, expressed on the fine lattice, so the floor is `kPaneSubMin` and one
-    // sub-unit below it is the first refusal.
-    CHECK_FALSE(check_pane_size(PaneSize{pane_unit::kSubcells, 0}, "width").accepted);
-    CHECK_FALSE(check_pane_size(PaneSize{pane_unit::kSubcells, kPaneSubMin - 1}, "width").accepted);
-    CHECK(check_pane_size(PaneSize{pane_unit::kSubcells, kPaneSubMin}, "width").accepted);
-    CHECK(check_pane_size(PaneSize{pane_unit::kSubcells, kPaneSubMin + 1}, "width").accepted);
-    CHECK(check_pane_size(PaneSize{pane_unit::kSubcells, kPaneSubMax}, "width").accepted);
-    CHECK_FALSE(check_pane_size(PaneSize{pane_unit::kSubcells, kPaneSubMax + 1}, "width").accepted);
+    // A SIZE: at least one whole cell, so the floor is `kPanePxMin` and one pixel below it is
+    // the first refusal.
+    CHECK_FALSE(check_pane_size(PaneSize{pane_unit::kPixels, 0}, "width").accepted);
+    CHECK_FALSE(check_pane_size(PaneSize{pane_unit::kPixels, kPanePxMin - 1}, "width").accepted);
+    CHECK(check_pane_size(PaneSize{pane_unit::kPixels, kPanePxMin}, "width").accepted);
+    CHECK(check_pane_size(PaneSize{pane_unit::kPixels, kPanePxMin + 1}, "width").accepted);
+    CHECK(check_pane_size(PaneSize{pane_unit::kPixels, kMaxPanePixels}, "width").accepted);
+    CHECK_FALSE(check_pane_size(PaneSize{pane_unit::kPixels, kMaxPanePixels + 1}, "width").accepted);
 
-    // PIXELS: at least one, at most this file's own absolute ceiling. The ceiling is
-    // MEDIUM-INDEPENDENT, which is what makes a setup legal on a terminal legal on a window.
+    // ...at most this file's own absolute ceiling. The ceiling is MEDIUM-INDEPENDENT, which is
+    // what makes a setup legal on a terminal legal on a window.
     CHECK_FALSE(check_pane_size(PaneSize{pane_unit::kPixels, 0}, "height").accepted);
-    CHECK(check_pane_size(PaneSize{pane_unit::kPixels, 1}, "height").accepted);
+    CHECK(check_pane_size(PaneSize{pane_unit::kPixels, kPanePxMin}, "height").accepted);
     CHECK(check_pane_size(PaneSize{pane_unit::kPixels, kMaxPanePixels}, "height").accepted);
     CHECK_FALSE(check_pane_size(PaneSize{pane_unit::kPixels, kMaxPanePixels + 1}, "height")
                     .accepted);
     CHECK(check_pane_size(PaneSize{pane_unit::kPixels, kMaxPanePixels + 1}, "height")
               .refusal.find(std::to_string(kMaxPanePixels)) != std::string::npos);
 
-    // AND A PLACE: never negative, bounded above, and every sub-unit between is sayable.
-    CHECK_FALSE(check_pane_place(PanePlace{pane_unit::kSubcells, -1, 0}).accepted);
-    CHECK_FALSE(check_pane_place(PanePlace{pane_unit::kSubcells, 0, -1}).accepted);
-    CHECK(check_pane_place(PanePlace{pane_unit::kSubcells, 0, 0}).accepted);
-    CHECK(check_pane_place(PanePlace{pane_unit::kSubcells, 1, 1}).accepted);
-    CHECK(check_pane_place(PanePlace{pane_unit::kSubcells, kPaneSubMax, kPaneSubMax}).accepted);
+    // AND A PLACE: never negative, bounded above, and every pixel between is sayable.
+    CHECK_FALSE(check_pane_place(PanePlace{pane_unit::kPixels, -1, 0}).accepted);
+    CHECK_FALSE(check_pane_place(PanePlace{pane_unit::kPixels, 0, -1}).accepted);
+    CHECK(check_pane_place(PanePlace{pane_unit::kPixels, 0, 0}).accepted);
+    CHECK(check_pane_place(PanePlace{pane_unit::kPixels, 1, 1}).accepted);
+    CHECK(check_pane_place(PanePlace{pane_unit::kPixels, kMaxPanePixels, kMaxPanePixels}).accepted);
     CHECK_FALSE(
-        check_pane_place(PanePlace{pane_unit::kSubcells, kPaneSubMax + 1, 0}).accepted);
+        check_pane_place(PanePlace{pane_unit::kPixels, kMaxPanePixels + 1, 0}).accepted);
 }
 
 TEST_CASE("a refused VALUE writes nothing, on either axis") {
@@ -148,8 +146,8 @@ TEST_CASE("a refused VALUE writes nothing, on either axis") {
 
     // AND A SIZE VALUE WHOSE HEIGHT IS ILLEGAL NARROWS NOTHING: both axes are judged
     // before either is written.
-    CHECK_FALSE(author_pane_size(s, builder, PaneSize{pane_unit::kSubcells, subs(30)},
-                                 PaneSize{pane_unit::kSubcells, 0})
+    CHECK_FALSE(author_pane_size(s, builder, PaneSize{pane_unit::kPixels, cells_px(30)},
+                                 PaneSize{pane_unit::kPixels, 0})
                     .accepted);
     CHECK(s == before);
 
@@ -162,8 +160,8 @@ TEST_CASE("a refused VALUE writes nothing, on either axis") {
     CHECK(huge.h == kBig);
     CHECK_FALSE(huge.place_moved_x);
     CHECK_FALSE(huge.place_moved_y);
-    CHECK_FALSE(author_pane_size(s, builder, PaneSize{pane_unit::kSubcells, huge.w},
-                                 PaneSize{pane_unit::kSubcells, huge.h})
+    CHECK_FALSE(author_pane_size(s, builder, PaneSize{pane_unit::kPixels, huge.w},
+                                 PaneSize{pane_unit::kPixels, huge.h})
                     .accepted);
     CHECK(s == before);
 }
@@ -239,7 +237,7 @@ TEST_CASE("a desk row may NAME the right column, and any pane resolves into it")
     Setup contradictory = named;
     for (SetupPane& row : contradictory.panes) {
         if (row.ref == ref_of(stock::kKind)) {
-            row.place = PanePlace{pane_unit::kRightColumn, surface::subs_of_cells(3), 0};
+            row.place = PanePlace{pane_unit::kRightColumn, surface::px_of_cells(3), 0};
         }
     }
     const Written both = check_setup(contradictory);
@@ -264,14 +262,14 @@ TEST_CASE("a desk row may NAME the right column, and any pane resolves into it")
     const PaneBounds after =
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
     CHECK(after.placed_in == placement::kSideRegion);
-    CHECK(after.rect == fine_of_cells(placement_bounds(placement::kSideRegion, 0, sc)));
+    CHECK(after.rect == placement_bounds(placement::kSideRegion, 0, sc));
     CHECK(after.rect != before.rect);
 
     // FOUR: NAMING A PLACE IS NOT NAMING A SIZE. An authored width still lays over the named
     // rectangle, per axis, exactly as it lays over a slot's -- which is what keeps this one
     // mode from becoming a second geometry with rules of its own.
     REQUIRE(author_pane_size(live(t).setup.active, ref_of(stock::kKind),
-                             PaneSize{pane_unit::kSubcells, surface::subs_of_cells(10)},
+                             PaneSize{pane_unit::kPixels, surface::px_of_cells(10)},
                              PaneSize{pane_unit::kDefault, 0})
                 .accepted);
     const PaneBounds sized =
@@ -279,7 +277,7 @@ TEST_CASE("a desk row may NAME the right column, and any pane resolves into it")
     CHECK(sized.placed_in == placement::kSideRegion);
     CHECK(sized.rect.x == after.rect.x);
     CHECK(sized.rect.h == after.rect.h);
-    CHECK(sized.rect.w == surface::subs_of_cells(10));
+    CHECK(sized.rect.w == surface::px_of_cells(10));
 }
 
 TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {
@@ -355,8 +353,8 @@ TEST_CASE("an unresolved reference round-trips every authored field exactly") {
     // not clamped on the way in or on the way out, so a file may legally hold a place the
     // current canvas has no cell for. Clamping it at LOAD would make a weaver's saved arrangement
     // depend on the screen they last opened it on.
-    s.panes[1].place = PanePlace{pane_unit::kSubcells, subs(900) + 7, subs(700)};
-    s.panes[1].width = PaneSize{pane_unit::kSubcells, subs(33) + 1};
+    s.panes[1].place = PanePlace{pane_unit::kPixels, cells_px(900) + 7, cells_px(700)};
+    s.panes[1].width = PaneSize{pane_unit::kPixels, cells_px(33) + 1};
     s.panes[1].height = PaneSize{pane_unit::kPixels, 400};
     // A DELIBERATE RANK, and it has to be a REAL move: `add_pane` already put this row at
     // the front, so sending it there again is the no-op the ordering doors answer `false` to.
@@ -372,10 +370,10 @@ TEST_CASE("an unresolved reference round-trips every authored field exactly") {
     // its own row.
     const SetupPane* held = pane_of(read.setup, stranger());
     REQUIRE(held != nullptr);
-    CHECK(held->place.mode == pane_unit::kSubcells);
-    CHECK(held->place.x == subs(900) + 7);
-    CHECK(held->place.y == subs(700));
-    CHECK(held->width.amount == subs(33) + 1);
+    CHECK(held->place.mode == pane_unit::kPixels);
+    CHECK(held->place.x == cells_px(900) + 7);
+    CHECK(held->place.y == cells_px(700));
+    CHECK(held->width.amount == cells_px(33) + 1);
     CHECK(held->height.mode == pane_unit::kPixels);
     CHECK(held->height.amount == 400);
     CHECK(held->front == 0);
@@ -424,31 +422,31 @@ TEST_CASE("each axis is independent -- a place edit freezes no size, and back") 
     Setup s = two_overlays();
     const PaneRef builder = ref_of(stock::kKind);
 
-    REQUIRE(author_pane_place(s, builder, subs(6), subs(5)).accepted);
+    REQUIRE(author_pane_place(s, builder, cells_px(6), cells_px(5)).accepted);
     const SetupPane* row = pane_of(s, builder);
     REQUIRE(row != nullptr);
-    CHECK(row->place.mode == pane_unit::kSubcells);
+    CHECK(row->place.mode == pane_unit::kPixels);
     // BOTH SIZES ARE STILL THE DEVELOPER'S, which is the whole return on sparseness: a
     // weaver who moved a pane has said nothing about how big it should be.
     CHECK(row->width.mode == pane_unit::kDefault);
     CHECK(row->height.mode == pane_unit::kDefault);
 
     // A WIDTH-ONLY EDIT MOVES NEITHER THE PLACE NOR THE HEIGHT.
-    REQUIRE(author_pane_size(s, builder, PaneSize{pane_unit::kSubcells, subs(40)}, row->height)
+    REQUIRE(author_pane_size(s, builder, PaneSize{pane_unit::kPixels, cells_px(40)}, row->height)
                 .accepted);
     row = pane_of(s, builder);
-    CHECK(row->width.amount == subs(40));
+    CHECK(row->width.amount == cells_px(40));
     CHECK(row->height.mode == pane_unit::kDefault);
-    CHECK(row->place.x == subs(6));
-    CHECK(row->place.y == subs(5));
+    CHECK(row->place.x == cells_px(6));
+    CHECK(row->place.y == cells_px(5));
 
     // ...AND A HEIGHT-ONLY EDIT IS THE MIRROR.
-    REQUIRE(author_pane_size(s, builder, row->width, PaneSize{pane_unit::kSubcells, subs(4)})
+    REQUIRE(author_pane_size(s, builder, row->width, PaneSize{pane_unit::kPixels, cells_px(4)})
                 .accepted);
     row = pane_of(s, builder);
-    CHECK(row->width.amount == subs(40));
-    CHECK(row->height.amount == subs(4));
-    CHECK(row->place.x == subs(6));
+    CHECK(row->width.amount == cells_px(40));
+    CHECK(row->height.amount == cells_px(4));
+    CHECK(row->place.x == cells_px(6));
 }
 
 TEST_CASE("a default width still takes half the surplus after a place edit") {
@@ -458,21 +456,21 @@ TEST_CASE("a default width still takes half the surplus after a place edit") {
     s.setup.active = two_overlays();
     s.panes.open = {OpenPane{stock::kKind}, OpenPane{second::kKind}};
     const PaneRef builder = ref_of(stock::kKind);
-    REQUIRE(author_pane_place(s.setup.active, builder, subs(6), subs(5)).accepted);
+    REQUIRE(author_pane_place(s.setup.active, builder, cells_px(6), cells_px(5)).accepted);
 
     // THE PLACE IS THE WEAVER'S AND THE WIDTH IS STILL THE ROOM'S. Measured at three extents,
     // against the slot's own half-share expression -- so a later change to it moves this pane
     // with it, which is exactly what "the developer authors a default" is worth.
     for (const std::int64_t w : {78, 120, 200}) {
         CAPTURE(w);
-        s.screen_w = w;
-        s.screen_h = 40;
+        s.screen_w = cells_px(w);
+        s.screen_h = cells_px(40);
         const Screen sc = screen_of(s);
         const ui::Rect got =
 cells_covered(bounds_of(s.panes, s.setup.active, stock::kKind, sc).rect);
-        const ui::Rect reactive = placement_bounds(placement::kOverlayStack, 0, sc);
+        const ui::Rect reactive = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
         CHECK(got.w == reactive.w);
-        CHECK(got.w == kStackW + (sc.room_w - kStackW) / 2);
+        CHECK(got.w == kStackW + (cells_of(sc).room_w - kStackW) / 2);
         CHECK(got.h == reactive.h);
         // ...and the place did NOT follow the room.
         CHECK(got.x == 6);
@@ -488,11 +486,11 @@ TEST_CASE("an authored place is absolute canvas position, not an offset from the
     s.panes.open = {OpenPane{stock::kKind}, OpenPane{second::kKind}};
     REQUIRE(author_pane_place(s.setup.active, ref_of(stock::kKind), 0, 0).accepted);
     const Screen sc = screen_of(s);
-    // THE DEVELOPER'S OWN SLOT IS AT `kStackY`, NOT AT ZERO. So a place of (0,0) that
+    // THE DEVELOPER'S OWN SLOT IS AT `kRoomCellY`, NOT AT ZERO. So a place of (0,0) that
     // resolved to the developer's row would be an offset; one that resolves to the canvas
     // corner is absolute, and that is the whole difference.
-    CHECK(placement_bounds(placement::kOverlayStack, 0, sc).y == kStackY);
-    CHECK(kStackY != 0);
+    CHECK(placement_bounds(placement::kOverlayStack, 0, sc).y == sc.room_y);
+    CHECK(sc.room_y != 0);
     const ui::Rect got =
 cells_covered(bounds_of(s.panes, s.setup.active, stock::kKind, sc).rect);
     CHECK(got.x == 0);
@@ -507,9 +505,9 @@ TEST_CASE("a partly off-room pane is clipped, and its intent is not rewritten") 
     s.panes.open = {OpenPane{stock::kKind}, OpenPane{second::kKind}};
     const Screen sc = screen_of(s);
     const PaneRef builder = ref_of(stock::kKind);
-    REQUIRE(author_pane_place(s.setup.active, builder, subs(sc.w - 4), subs(2)).accepted);
-    REQUIRE(author_pane_size(s.setup.active, builder, PaneSize{pane_unit::kSubcells, subs(20)},
-                             PaneSize{pane_unit::kSubcells, subs(5)})
+    REQUIRE(author_pane_place(s.setup.active, builder, sc.w - cells_px(4), cells_px(2)).accepted);
+    REQUIRE(author_pane_size(s.setup.active, builder, PaneSize{pane_unit::kPixels, cells_px(20)},
+                             PaneSize{pane_unit::kPixels, cells_px(5)})
                 .accepted);
     // IN FRONT, so the state this case is about is CLIPPING and not coverage. The four
     // columns this pane has left sit over the Info column, and behind it they would be
@@ -517,20 +515,19 @@ TEST_CASE("a partly off-room pane is clipped, and its intent is not rewritten") 
     REQUIRE(send_to_front(s.setup.active, builder));
 
     const PaneBounds where = bounds_of(s.panes, s.setup.active, stock::kKind, sc);
-    CHECK(where.projected);
     // WHAT WAS ASKED FOR runs past the canvas...
-    CHECK(where.resolved.x == subs(sc.w - 4));
-    CHECK(where.resolved.w == subs(20));
+    CHECK(where.resolved.x == sc.w - cells_px(4));
+    CHECK(where.resolved.w == cells_px(20));
     // ...AND WHAT IS SHOWN IS THE PART THIS SCREEN HAS.
-    CHECK(where.rect.x == subs(sc.w - 4));
-    CHECK(where.rect.w == subs(4));
-    CHECK(where.rect.h == subs(5));
+    CHECK(where.rect.x == sc.w - cells_px(4));
+    CHECK(where.rect.w == cells_px(4));
+    CHECK(where.rect.h == cells_px(5));
     // AND THE AUTHORED VALUE IS BYTE-FOR-BYTE WHAT THE WEAVER SAID. A clamp written back
     // would make a weaver's intent depend on the screen it was last looked at.
     const SetupPane* row = pane_of(s.setup.active, builder);
     REQUIRE(row != nullptr);
-    CHECK(row->place.x == subs(sc.w - 4));
-    CHECK(row->width.amount == subs(20));
+    CHECK(row->place.x == sc.w - cells_px(4));
+    CHECK(row->width.amount == cells_px(20));
     CHECK(pane_state_of(s.panes, s.setup.active, sc, CatalogRow{stock::kKind, builder,
                                                                 "Builder", ""}) ==
           pane_state::kOpen);
@@ -544,13 +541,12 @@ TEST_CASE("a wholly off-room pane is off-room, recoverable, and painted by nobod
     s.panes.open = {OpenPane{stock::kKind}, OpenPane{second::kKind}};
     const Screen sc = screen_of(s);
     const PaneRef builder = ref_of(stock::kKind);
-    REQUIRE(author_pane_place(s.setup.active, builder, subs(sc.w + 40), subs(sc.h + 40))
+    REQUIRE(author_pane_place(s.setup.active, builder, sc.w + cells_px(40), sc.h + cells_px(40))
                 .accepted);
 
     const PaneBounds where = bounds_of(s.panes, s.setup.active, stock::kKind, sc);
     CHECK(where.open);
-    CHECK(where.projected);
-    CHECK(where.resolved.x == subs(sc.w + 40));
+    CHECK(where.resolved.x == sc.w + cells_px(40));
     CHECK(where.rect.w == 0);
     CHECK(where.rect.h == 0);
     CHECK(pane_state_of(s.panes, s.setup.active, sc,
@@ -561,9 +557,9 @@ TEST_CASE("a wholly off-room pane is off-room, recoverable, and painted by nobod
     // empty rectangle contains nothing and is drawn by nobody.
     const surface::SurfaceCanvas c = paint(s);
     for (const surface::SurfaceRect& r : all_rects(c)) {
-        CHECK_FALSE((r.x == sc.w + 40 && r.y == sc.h + 40));
+        CHECK_FALSE((r.x == cells_of(sc).w + 40 && r.y == cells_of(sc).h + 40));
     }
-    CHECK_FALSE(occupied_at(s.panes, s.setup.active, sc, sc.w + 40, sc.h + 40).occupied);
+    CHECK_FALSE(occupied_at(s.panes, s.setup.active, sc, cells_of(sc).w + 40, cells_of(sc).h + 40).occupied);
 
     // AND IT IS STILL IN THE INVENTORY, which is the recovery invariant: a weaver reaches it
     // by its row, resets its place, and gets it back.
@@ -576,7 +572,7 @@ TEST_CASE("a wholly off-room pane is off-room, recoverable, and painted by nobod
     CHECK(listed);
     CHECK(reset_pane_place(s.setup.active, builder));
     CHECK(bounds_of(s.panes, s.setup.active, stock::kKind, sc).rect ==
-          fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)));
+          placement_bounds(placement::kOverlayStack, 0, sc));
 }
 
 TEST_CASE("an authored place spends no reactive slot, and cannot wait for one") {
@@ -612,7 +608,7 @@ TEST_CASE("an authored place spends no reactive slot, and cannot wait for one") 
     // is not in the tiling -- so the reactive one behind it gets the slot, and the placed one
     // is not waiting either, because it never asked the stack for anything.
     Setup placed = s;
-    REQUIRE(author_pane_place(placed, ref_of(stock::kKind), subs(2), subs(2)).accepted);
+    REQUIRE(author_pane_place(placed, ref_of(stock::kKind), cells_px(2), cells_px(2)).accepted);
     const Seating after = seat_panes(placed, panes, stack_capacity(kMinScreen));
     CHECK(after.waiting.empty());
     REQUIRE(after.wanted.size() == 2);
@@ -627,10 +623,10 @@ TEST_CASE("an authored place spends no reactive slot, and cannot wait for one") 
     sess.panes = panes;
     sess.panes.open = {OpenPane{stock::kKind}, OpenPane{got.kind}};
     const Screen sc = screen_of(sess);
-    CHECK(bounds_of(sess.panes, sess.setup.active, stock::kKind, sc).rect.x == subs(2));
-    CHECK(bounds_of(sess.panes, sess.setup.active, stock::kKind, sc).rect.y == subs(2));
+    CHECK(bounds_of(sess.panes, sess.setup.active, stock::kKind, sc).rect.x == cells_px(2));
+    CHECK(bounds_of(sess.panes, sess.setup.active, stock::kKind, sc).rect.y == cells_px(2));
     CHECK(bounds_of(sess.panes, sess.setup.active, got.kind, sc).rect ==
-          fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)));
+          placement_bounds(placement::kOverlayStack, 0, sc));
 
     // ...AND RESETTING THE PLACE PUTS IT BACK IN THE TILING, which is what makes the reset a
     // real recovery rather than a different arrangement.
@@ -639,10 +635,10 @@ TEST_CASE("an authored place spends no reactive slot, and cannot wait for one") 
     CHECK(back.waiting.size() == 1);
     CHECK(back.waiting[0] == got.kind);
 }
-TEST_CASE("a pixel axis is setup-valid, projection-refused, and never falls back") {
+TEST_CASE("an axis in pixels is presented at exactly its pixels, on every medium") {
     Setup s = two_overlays();
     const PaneRef builder = ref_of(stock::kKind);
-    REQUIRE(author_pane_size(s, builder, PaneSize{pane_unit::kPixels, 240},
+    REQUIRE(author_pane_size(s, builder, PaneSize{pane_unit::kPixels, 241},
                              PaneSize{pane_unit::kDefault, 0})
                 .accepted);
     // VALID, on every medium, at load and in memory.
@@ -660,45 +656,17 @@ TEST_CASE("a pixel axis is setup-valid, projection-refused, and never falls back
         sess.text_line_px = adv > 0 ? 18 : 0;
         const Screen sc = screen_of(sess);
         const PaneBounds where = bounds_of(sess.panes, sess.setup.active, stock::kKind, sc);
-        // NOT PROJECTED, AND NOT FALLEN BACK. The rectangle is empty rather than the
-        // developer's width or the authored number read as cells, which is the silent
-        // default this contract exists to refuse.
-        CHECK_FALSE(where.projected);
-        CHECK(where.rect.w == 0);
-        CHECK_FALSE(where.rect.w ==
-                    subs(placement_bounds(placement::kOverlayStack, 0, sc).w));
-        CHECK_FALSE(where.rect.w == 240);
+        // THE AUTHORED PIXELS, whatever the medium: a terminal floors them where it paints, and
+        // the geometry is the same number on both.
+        CHECK(where.open);
+        CHECK(where.rect.w == 241);
         CHECK(pane_state_of(sess.panes, sess.setup.active, sc,
                             CatalogRow{stock::kKind, builder, "Builder", ""}) ==
-              pane_state::kRefused);
+              pane_state::kOpen);
     }
-    // AND THE AUTHORED BYTES ARE UNTOUCHED BY THE REFUSAL.
-    CHECK(pane_of(sess.setup.active, builder)->width.amount == 240);
+    // AND THE AUTHORED BYTES ARE UNTOUCHED BY ANY PRESENTATION.
+    CHECK(pane_of(sess.setup.active, builder)->width.amount == 241);
     CHECK(pane_of(sess.setup.active, builder)->width.mode == pane_unit::kPixels);
-}
-
-TEST_CASE("a refused pane is refused rather than waiting, and it still SEATS") {
-    // THE PRECEDENCE, MEASURED. Seating is medium-independent and knows nothing about
-    // units, so a default-place row with a pixel axis takes its tile exactly as it always
-    // did -- and the classifier reports the UNIT, because a taller window would give it the
-    // tile and it still would not be presented.
-    Setup s = two_overlays();
-    const PaneRef builder = ref_of(stock::kKind);
-    REQUIRE(author_pane_size(s, builder, PaneSize{pane_unit::kPixels, 240},
-                             PaneSize{pane_unit::kDefault, 0})
-                .accepted);
-    Panes panes;
-    admit_stock(panes); // the stand-in, first (stock)
-    panes.open.clear();
-    const Seating seated = seat_panes(s, panes, stack_capacity(screen_of(120, 44)));
-    CHECK(seated.waiting.empty());
-    bool wanted = false;
-    for (const std::int64_t k : seated.wanted) {
-        if (k == stock::kKind) {
-            wanted = true;
-        }
-    }
-    CHECK(wanted);
 }
 
 // ---- ORDER ----------------------------------------------------------------------------
@@ -812,17 +780,17 @@ TEST_CASE("ordering changes paint order and NOTHING else") {
     Session s;
     admit_stock(s.panes); // the stand-in, first (stock)
     admit_second(s.panes); // ...and the second
-    s.screen_w = 120;
-    s.screen_h = 40;
+    s.screen_w = cells_px(120);
+    s.screen_h = cells_px(40);
     s.setup.active = two_overlays();
     REQUIRE(add_pane(s.setup.active, stranger()));
     s.panes.open = {OpenPane{stock::kKind}, OpenPane{second::kKind}};
     const Screen sc = screen_of(s);
 
     const std::vector<std::int64_t> paint_before = painted_order(s);
-    const FineRect builder_before =
+    const PixelRect builder_before =
         bounds_of(s.panes, s.setup.active, stock::kKind, sc).rect;
-    const FineRect info_before = bounds_of(s.panes, s.setup.active, second::kKind, sc).rect;
+    const PixelRect info_before = bounds_of(s.panes, s.setup.active, second::kKind, sc).rect;
     const std::vector<std::int64_t> open_before = open_kinds(s.panes);
     const Setup geometry_before = s.setup.active;
 
@@ -856,8 +824,8 @@ TEST_CASE("hit order is the exact reverse of paint order") {
     Session s;
     admit_stock(s.panes); // the stand-in, first (stock)
     admit_second(s.panes); // ...and the second
-    s.screen_w = 120;
-    s.screen_h = 40;
+    s.screen_w = cells_px(120);
+    s.screen_h = cells_px(40);
     s.setup.active = two_overlays();
     s.panes.open = {OpenPane{stock::kKind}, OpenPane{second::kKind}};
     const Screen sc = screen_of(s);
@@ -898,8 +866,8 @@ TEST_CASE("every setup-named pane has exactly one management row, in every state
     Session s;
     admit_stock(s.panes); // the stand-in, first (stock)
     admit_second(s.panes); // ...and the second
-    s.screen_w = 120;
-    s.screen_h = 40;
+    s.screen_w = cells_px(120);
+    s.screen_h = cells_px(40);
     Setup& setup = s.setup.active;
     setup = Setup{};
     setup.name = "Every state";
@@ -954,9 +922,8 @@ TEST_CASE("every setup-named pane has exactly one management row, in every state
 
     // AND EVERY STATE HAS ITS OWN WORD, none of them empty and none of them equal.
     const std::vector<std::int64_t> all = {pane_state::kClosed,  pane_state::kUnresolved,
-                                           pane_state::kRefused, pane_state::kWaiting,
-                                           pane_state::kOffRoom, pane_state::kCovered,
-                                           pane_state::kOpen};
+                                           pane_state::kWaiting, pane_state::kOffRoom,
+                                           pane_state::kCovered, pane_state::kOpen};
     for (std::size_t i = 0; i < all.size(); ++i) {
         CHECK(std::string(pane_state_word(all[i])).size() > 0);
         for (std::size_t j = 0; j < i; ++j) {
@@ -971,8 +938,8 @@ TEST_CASE("two panes that each cover HALF of a third leave nothing of it showing
     // with no weave and no library, exactly as the seating case builds its second one.
     Session s;
     admit_stock(s.panes); // the stand-in, first (stock)
-    s.screen_w = 200;
-    s.screen_h = 60;
+    s.screen_w = cells_px(200);
+    s.screen_h = cells_px(60);
     const Admission left =
         admit_pane_offer(s.panes.runtime, "left.tools",
                          PaneOffered{"half", "Left", "the left half of the cover"});
@@ -996,9 +963,9 @@ TEST_CASE("two panes that each cover HALF of a third leave nothing of it showing
     // AN EIGHT-BY-TWO PANE, AND TWO FOUR-BY-TWO PANES THAT PARTITION IT EXACTLY. Neither half
     // contains the whole, and together they leave not one cell of it visible.
     const auto place = [&](const PaneRef& ref, std::int64_t x, std::int64_t w) {
-        REQUIRE(author_pane_place(setup, ref, subs(x), subs(20)).accepted);
-        REQUIRE(author_pane_size(setup, ref, PaneSize{pane_unit::kSubcells, subs(w)},
-                                 PaneSize{pane_unit::kSubcells, subs(2)})
+        REQUIRE(author_pane_place(setup, ref, cells_px(x), cells_px(20)).accepted);
+        REQUIRE(author_pane_size(setup, ref, PaneSize{pane_unit::kPixels, cells_px(w)},
+                                 PaneSize{pane_unit::kPixels, cells_px(2)})
                     .accepted);
     };
     place(under, 0, 8);
@@ -1025,14 +992,14 @@ cells_covered(bounds_of(s.panes, setup, right.kind, sc).rect);
     CHECK(pane_state_of(s.panes, setup, sc, row_under) == pane_state::kCovered);
 
     // MOVE ONE HALF AWAY AND FOUR CELLS COME BACK, which is enough to be open.
-    REQUIRE(author_pane_place(setup, b, subs(40), subs(20)).accepted);
+    REQUIRE(author_pane_place(setup, b, cells_px(40), cells_px(20)).accepted);
     CHECK(pane_state_of(s.panes, setup, sc, row_under) == pane_state::kOpen);
 
     // AND A PANE BEHIND ONLY *PART* OF THE UNION IS OPEN TOO -- one visible cell is the whole
     // test, said from the other side.
-    REQUIRE(author_pane_place(setup, b, subs(4), subs(20)).accepted);
-    REQUIRE(author_pane_size(setup, b, PaneSize{pane_unit::kSubcells, subs(3)},
-                             PaneSize{pane_unit::kSubcells, subs(2)})
+    REQUIRE(author_pane_place(setup, b, cells_px(4), cells_px(20)).accepted);
+    REQUIRE(author_pane_size(setup, b, PaneSize{pane_unit::kPixels, cells_px(3)},
+                             PaneSize{pane_unit::kPixels, cells_px(2)})
                 .accepted);
     CHECK(pane_state_of(s.panes, setup, sc, row_under) == pane_state::kOpen);
 }
@@ -1041,8 +1008,8 @@ TEST_CASE("coverage is the UNION of what is in front, not containment by one pan
     Session s;
     admit_stock(s.panes); // the stand-in, first (stock)
     admit_second(s.panes); // ...and the second
-    s.screen_w = 200;
-    s.screen_h = 60;
+    s.screen_w = cells_px(200);
+    s.screen_h = cells_px(60);
     Setup& setup = s.setup.active;
     setup = Setup{};
     setup.name = "Covered";
@@ -1058,23 +1025,23 @@ TEST_CASE("coverage is the UNION of what is in front, not containment by one pan
     // front (rank 1), so every visible cell of the Editor is behind it -- the claim is about
     // coverage, not about the place the front pane is in. The front pane is placed first, away
     // from the stack's own corner, so the case has room to move the covered one two cells left.
-    REQUIRE(author_pane_place(setup, over, subs(10), subs(6)).accepted);
+    REQUIRE(author_pane_place(setup, over, cells_px(10), cells_px(6)).accepted);
     const ui::Rect side = cells_covered(bounds_of(s.panes, setup, second::kKind, sc).rect);
     REQUIRE(side.w > 0);
-    REQUIRE(author_pane_place(setup, under, subs(side.x), subs(side.y)).accepted);
-    REQUIRE(author_pane_size(setup, under, PaneSize{pane_unit::kSubcells, subs(4)},
-                             PaneSize{pane_unit::kSubcells, subs(4)})
+    REQUIRE(author_pane_place(setup, under, cells_px(side.x), cells_px(side.y)).accepted);
+    REQUIRE(author_pane_size(setup, under, PaneSize{pane_unit::kPixels, cells_px(4)},
+                             PaneSize{pane_unit::kPixels, cells_px(4)})
                 .accepted);
     CHECK(pane_state_of(s.panes, setup, sc, row_under) == pane_state::kCovered);
 
     // PARTIAL COVERAGE IS NOT COVERAGE: one cell a weaver can see is enough to be open.
-    REQUIRE(author_pane_place(setup, under, subs(side.x - 2), subs(side.y)).accepted);
+    REQUIRE(author_pane_place(setup, under, cells_px(side.x - 2), cells_px(side.y)).accepted);
     CHECK(pane_state_of(s.panes, setup, sc, row_under) == pane_state::kOpen);
 
     // AND FRONT/BACK CHANGES THE STATE WITHOUT CHANGING ONE RECTANGLE.
-    REQUIRE(author_pane_place(setup, under, subs(side.x), subs(side.y)).accepted);
+    REQUIRE(author_pane_place(setup, under, cells_px(side.x), cells_px(side.y)).accepted);
     REQUIRE(pane_state_of(s.panes, setup, sc, row_under) == pane_state::kCovered);
-    const FineRect was = bounds_of(s.panes, setup, stock::kKind, sc).rect;
+    const PixelRect was = bounds_of(s.panes, setup, stock::kKind, sc).rect;
     REQUIRE(send_to_front(setup, under));
     CHECK(pane_state_of(s.panes, setup, sc, row_under) == pane_state::kOpen);
     CHECK(bounds_of(s.panes, setup, stock::kKind, sc).rect == was);
@@ -1103,7 +1070,7 @@ TEST_CASE("the `w` that opens the desk arrangement does not type itself") {
 
 TEST_CASE("the keyboard alone reaches every window operation") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
     // TWO OVERLAY PANES, so ordering is observable at all.
     open_pane(t, ref_of(stock::kKind));
     REQUIRE(t.session().panes.has(stock::kKind));
@@ -1151,9 +1118,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
     }
     const SetupPane* row = pane_of(t.session().setup.active, ref_of(stock::kKind));
     REQUIRE(row != nullptr);
-    CHECK(row->place.mode == pane_unit::kSubcells);
-    CHECK(row->place.x == subs(before.x + 4));
-    CHECK(row->place.y == subs(before.y + 4));
+    CHECK(row->place.mode == pane_unit::kPixels);
+    CHECK(row->place.x == cells_px(before.x + 4));
+    CHECK(row->place.y == cells_px(before.y + 4));
     CHECK(row->width.mode == pane_unit::kDefault);
 
     // SIZE, in the same state: a shifted arrow pulls the EXTENT, anchored at the place --
@@ -1161,12 +1128,12 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
     // move under either. The other six anchors are the pointer's, on the handles themselves,
     // pinned by the pointer cases and `pane_window_proposal`'s own suite.
     const SetupPane* was = pane_of(t.session().setup.active, ref_of(stock::kKind));
-    const std::int64_t w0 = was->width.mode == pane_unit::kSubcells
+    const std::int64_t w0 = was->width.mode == pane_unit::kPixels
                                 ? was->width.amount
                                 : bounds_of(t.session().panes, t.session().setup.active,
                                             stock::kKind, screen_of(t.session()))
                                       .rect.w;
-    const std::int64_t h0 = was->height.mode == pane_unit::kSubcells
+    const std::int64_t h0 = was->height.mode == pane_unit::kPixels
                                 ? was->height.amount
                                 : bounds_of(t.session().panes, t.session().setup.active,
                                             stock::kKind, screen_of(t.session()))
@@ -1174,20 +1141,20 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
     t.key(input::scan::kRight, input::mod::kShift);
     t.key(input::scan::kDown, input::mod::kShift);
     const SetupPane* grown = pane_of(t.session().setup.active, ref_of(stock::kKind));
-    CHECK(grown->width.mode == pane_unit::kSubcells);
-    CHECK(grown->width.amount == w0 + subs(1));
-    CHECK(grown->height.mode == pane_unit::kSubcells);
-    CHECK(grown->height.amount == h0 + subs(1));
-    CHECK(grown->place.x == subs(before.x + 4));
-    CHECK(grown->place.y == subs(before.y + 4));
+    CHECK(grown->width.mode == pane_unit::kPixels);
+    CHECK(grown->width.amount == w0 + cells_px(1));
+    CHECK(grown->height.mode == pane_unit::kPixels);
+    CHECK(grown->height.amount == h0 + cells_px(1));
+    CHECK(grown->place.x == cells_px(before.x + 4));
+    CHECK(grown->place.y == cells_px(before.y + 4));
     // ...and the pulls reverse, place still untouched.
     t.key(input::scan::kLeft, input::mod::kShift);
     t.key(input::scan::kUp, input::mod::kShift);
     const SetupPane* shrunk = pane_of(t.session().setup.active, ref_of(stock::kKind));
     CHECK(shrunk->width.amount == w0);
     CHECK(shrunk->height.amount == h0);
-    CHECK(shrunk->place.x == subs(before.x + 4));
-    CHECK(shrunk->place.y == subs(before.y + 4));
+    CHECK(shrunk->place.x == cells_px(before.x + 4));
+    CHECK(shrunk->place.y == cells_px(before.y + 4));
 
     // ORDER: all four operations, by key.
     const std::int64_t front_before =
@@ -1212,9 +1179,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->width.mode ==
           pane_unit::kDefault);
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->height.mode ==
-          pane_unit::kSubcells);
+          pane_unit::kPixels);
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->place.mode ==
-          pane_unit::kSubcells);
+          pane_unit::kPixels);
     t.key(input::scan::k0);
     t.key(input::scan::kH);
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->height.mode ==
@@ -1234,17 +1201,17 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
 
 TEST_CASE("escape unwinds one level and rolls nothing back") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
     open_pane(t, ref_of(second::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(second::kKind));
     // THE SIDE COLUMN'S PANE MOVES: the screen reserves nothing (`the-room-is-the-screen`), so a
     // geometry step on the pane the shipped desk named a place for AUTHORS, writing a place in
-    // sub-cells over the named one.
+    // pixels over the named one.
     t.key(input::scan::kRight);
     CHECK(t.notice().find("reserved side column") == std::string::npos);
     CHECK(pane_of(t.session().setup.active, ref_of(second::kKind))->place.mode ==
-          pane_unit::kSubcells);
+          pane_unit::kPixels);
 
     // ORDER STILL WORKS ON IT, which is what makes a geometry refusal narrow rather than a
     // dead end: `f` moves the pane forward and says so, and sending it forward twice is what
@@ -1288,14 +1255,14 @@ TEST_CASE("a hand and a key author the same setup values") {
     };
 
     Live keyed;
-    keyed.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    keyed.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
     open_pane(keyed, ref_of(stock::kKind));
     arrange_by_key(keyed);
     const PanePlace by_key =
         pane_of(keyed.session().setup.active, ref_of(stock::kKind))->place;
 
     Live handed;
-    handed.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    handed.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
     open_pane(handed, ref_of(stock::kKind));
     enter_arrange_desk(handed);
     select_pane(handed, ref_of(stock::kKind));
@@ -1317,13 +1284,13 @@ cells_covered(bounds_of(handed.session().panes, handed.session().setup.active,
     const PanePlace by_hand =
         pane_of(handed.session().setup.active, ref_of(stock::kKind))->place;
 
-    CHECK(by_key.mode == pane_unit::kSubcells);
+    CHECK(by_key.mode == pane_unit::kPixels);
     CHECK(by_hand == by_key);
 }
 
 TEST_CASE("one press claims one gesture, and crossing anything does not move it") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
@@ -1348,7 +1315,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKi
                                                  input::space::kCells, input::mod::kNone}));
     CHECK(t.session().pane_drag.pane == ref_of(stock::kKind));
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->place.mode ==
-          pane_unit::kSubcells);
+          pane_unit::kPixels);
 
     // AN ORDERING CHANGE MID-DRAG DOES NOT TRANSFER CUSTODY EITHER.
     REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
@@ -1365,7 +1332,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKi
 
 TEST_CASE("outside arrangement, an addressed pane behind another clicks through nothing") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0}));
     // THE PANE THIS ONE HIDES BEHIND IS OPENED FIRST: Info is a weave and arrives with its
     // office, so a case that needs two panes on the desk opens both.
     open_pane(t, ref_of(second::kKind));
@@ -1373,14 +1340,14 @@ TEST_CASE("outside arrangement, an addressed pane behind another clicks through 
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     // PUT THE STAND-IN UNDER THE SECOND PANE AND SEND IT TO THE BACK -- two rows down from the
-    // second's own corner, in sub-units of the cells the second covers, so the two share a run
+    // second's own corner, in pixels of the cells the second covers, so the two share a run
     // of cells.
     const Screen sc = screen_of(t.session());
     const ui::Rect side =
         cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind,
                                 sc).rect);
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), subs(side.x),
-                              subs(side.y + 2))
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(side.x),
+                              cells_px(side.y + 2))
                 .accepted);
     REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
     t.key(input::scan::kEscape);
@@ -1424,15 +1391,15 @@ TEST_CASE("move writes only place, resize only size, and order only front") {
     const PaneRef b = ref_of(stock::kKind);
 
     Setup after_move = s;
-    REQUIRE(author_pane_place(after_move, b, subs(3), subs(4)).accepted);
+    REQUIRE(author_pane_place(after_move, b, cells_px(3), cells_px(4)).accepted);
     CHECK(pane_of(after_move, b)->width == pane_of(s, b)->width);
     CHECK(pane_of(after_move, b)->height == pane_of(s, b)->height);
     CHECK(pane_of(after_move, b)->front == pane_of(s, b)->front);
     CHECK(ranks_of(after_move) == ranks_of(s));
 
     Setup after_size = s;
-    REQUIRE(author_pane_size(after_size, b, PaneSize{pane_unit::kSubcells, subs(30)},
-                             PaneSize{pane_unit::kSubcells, subs(7)})
+    REQUIRE(author_pane_size(after_size, b, PaneSize{pane_unit::kPixels, cells_px(30)},
+                             PaneSize{pane_unit::kPixels, cells_px(7)})
                 .accepted);
     CHECK(pane_of(after_size, b)->place == pane_of(s, b)->place);
     CHECK(pane_of(after_size, b)->front == pane_of(s, b)->front);
@@ -1446,7 +1413,7 @@ TEST_CASE("move writes only place, resize only size, and order only front") {
 
 TEST_CASE("clearing the selected pane clears its gesture safely") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
@@ -1485,16 +1452,16 @@ inline void step_to(Live& t, const PaneRef& ref) {
     FAIL("the arrangement desk never stepped to ", ref_text(ref));
 }
 
-/// A GEOMETRY NO MEDIUM HERE CAN SAY THE SAME WAY TWICE. Each number is a whole number of the
-/// shipped window's pixels (four sub-units) and none is a whole number of cells, so a green
-/// produced by values that happen to divide evenly is impossible.
-inline constexpr std::int64_t kOddPlaceX = 4 * 77;   //  77 px, 6 cells + 20/48
-inline constexpr std::int64_t kOddPlaceY = 4 * 53;   //  53 px, 4 cells + 20/48
-inline constexpr std::int64_t kOddWidth = 4 * 417;   // 417 px, 34 cells + 36/48
-inline constexpr std::int64_t kOddHeight = 4 * 233;  // 233 px, 19 cells + 20/48
+/// A GEOMETRY NO MEDIUM HERE CAN SAY THE SAME WAY TWICE. Each number is a whole number of
+/// pixels and none is a whole number of cells, so a green produced by values that happen to
+/// divide evenly is impossible.
+inline constexpr std::int64_t kOddPlaceX = 77;   //  6 cells + 5 px
+inline constexpr std::int64_t kOddPlaceY = 53;   //  4 cells + 5 px
+inline constexpr std::int64_t kOddWidth = 417;   // 34 cells + 9 px
+inline constexpr std::int64_t kOddHeight = 233;  // 19 cells + 5 px
 
-static_assert(kOddWidth % surface::kCellSubs != 0, "the falsifier must not divide evenly");
-static_assert(kOddPlaceX % surface::kCellSubs != 0, "the falsifier must not divide evenly");
+static_assert(kOddWidth % surface::kCanvasCellPx != 0, "the falsifier must not divide evenly");
+static_assert(kOddPlaceX % surface::kCanvasCellPx != 0, "the falsifier must not divide evenly");
 
 } // namespace
 
@@ -1503,13 +1470,13 @@ TEST_CASE("the arrangement notice speaks the unit the FACE reported") {
     // language is the medium's own answer about its canvas, never a constant Workshop
     // holds. Nothing here authors anything: the two readings are of one desk.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0, 0}));
     open_pane(t, ref_of(stock::kKind));
     Setup& desk = live(t).setup.active;
     const PaneRef builder = ref_of(stock::kKind);
     REQUIRE(author_pane_place(desk, builder, kOddPlaceX, kOddPlaceY).accepted);
-    REQUIRE(author_pane_size(desk, builder, PaneSize{pane_unit::kSubcells, kOddWidth},
-                             PaneSize{pane_unit::kSubcells, kOddHeight})
+    REQUIRE(author_pane_size(desk, builder, PaneSize{pane_unit::kPixels, kOddWidth},
+                             PaneSize{pane_unit::kPixels, kOddHeight})
                 .accepted);
     enter_arrange_desk(t);
     step_to(t, builder);
@@ -1526,7 +1493,7 @@ TEST_CASE("the arrangement notice speaks the unit the FACE reported") {
     // THE SAME DESK ON THE SHIPPED WINDOW: pixels, exactly, with nothing marked -- these
     // are the numbers a hand at that face's own grain would have authored.
     t.publish(loom::to_value(
-        surface::SurfaceExtent{200, 60, 8, 18, surface::kCanvasCellPx}));
+        surface::SurfaceExtent{cells_px(200), cells_px(60), 8, 18, surface::kCanvasCellPx}));
     t.key(input::scan::kTab);
     step_to(t, builder);
     const std::string in_px = t.notice();
@@ -1551,7 +1518,7 @@ TEST_CASE("the notice says where a pane the weaver did not place actually is") {
     // is followed by where it currently resolves, in the same unit, marked `now`.
     Live t;
     t.publish(loom::to_value(
-        surface::SurfaceExtent{200, 60, 8, 18, surface::kCanvasCellPx}));
+        surface::SurfaceExtent{cells_px(200), cells_px(60), 8, 18, surface::kCanvasCellPx}));
     open_pane(t, ref_of(second::kKind));
     enter_arrange_desk(t);
     step_to(t, ref_of(second::kKind));
@@ -1565,18 +1532,18 @@ TEST_CASE("the notice says where a pane the weaver did not place actually is") {
     const Screen sc = screen_of(t.session());
     const PaneBounds b =
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc);
-    CHECK(reactive.find("now " + fine_rect_text(b.resolved, t.session().cell_px)) !=
+    CHECK(reactive.find("now " + pixel_rect_text(b.resolved, t.session().cell_px)) !=
           std::string::npos);
 
     // ONCE THE WEAVER HAS AUTHORED THE WHOLE WINDOW, the authored text IS the rectangle
     // and saying it twice would be noise.
     Setup& desk = live(t).setup.active;
-    REQUIRE(author_pane_place(desk, ref_of(second::kKind), subs(2), subs(2)).accepted);
+    REQUIRE(author_pane_place(desk, ref_of(second::kKind), cells_px(2), cells_px(2)).accepted);
     t.key(input::scan::kTab);
     step_to(t, ref_of(second::kKind));
     CHECK(t.notice().find(" -- now @") != std::string::npos); // extents still reactive
-    REQUIRE(author_pane_size(desk, ref_of(second::kKind), PaneSize{pane_unit::kSubcells, subs(20)},
-                             PaneSize{pane_unit::kSubcells, subs(6)})
+    REQUIRE(author_pane_size(desk, ref_of(second::kKind), PaneSize{pane_unit::kPixels, cells_px(20)},
+                             PaneSize{pane_unit::kPixels, cells_px(6)})
                 .accepted);
     t.key(input::scan::kTab);
     step_to(t, ref_of(second::kKind));
@@ -1586,7 +1553,7 @@ TEST_CASE("the notice says where a pane the weaver did not place actually is") {
 
 TEST_CASE("the coarse step is the resize seam with a bigger delta") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0, 0}));
     open_pane(t, ref_of(second::kKind));
     open_pane(t, ref_of(stock::kKind));
     const PaneRef builder = ref_of(stock::kKind);
@@ -1594,7 +1561,7 @@ TEST_CASE("the coarse step is the resize seam with a bigger delta") {
     enter_arrange_desk(t);
     step_to(t, builder);
 
-    const FineRect before =
+    const PixelRect before =
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .resolved;
@@ -1606,10 +1573,10 @@ TEST_CASE("the coarse step is the resize seam with a bigger delta") {
     t.key(input::scan::kEquals);
     const SetupPane* row = pane_of(t.session().setup.active, builder);
     REQUIRE(row != nullptr);
-    CHECK(row->width.mode == pane_unit::kSubcells);
-    CHECK(row->height.mode == pane_unit::kSubcells);
-    CHECK(row->width.amount == before.w + subs(kCoarseStepCells));
-    CHECK(row->height.amount == before.h + subs(kCoarseStepCells));
+    CHECK(row->width.mode == pane_unit::kPixels);
+    CHECK(row->height.mode == pane_unit::kPixels);
+    CHECK(row->width.amount == before.w + cells_px(kCoarseStepCells));
+    CHECK(row->height.amount == before.h + cells_px(kCoarseStepCells));
 
     // IT GOES THROUGH THE EXISTING AUTHORING DOOR, so it cannot move the pane it is
     // resizing: a bottom-right anchor writes no place at all, and the pane stays in the
@@ -1636,8 +1603,8 @@ TEST_CASE("the coarse step is the resize seam with a bigger delta") {
     }
     const SetupPane* fine = pane_of(t.session().setup.active, builder);
     REQUIRE(fine != nullptr);
-    CHECK(fine->width.amount == before.w + subs(kCoarseStepCells));
-    CHECK(fine->height.amount == before.h + subs(kCoarseStepCells));
+    CHECK(fine->width.amount == before.w + cells_px(kCoarseStepCells));
+    CHECK(fine->height.amount == before.h + cells_px(kCoarseStepCells));
 }
 
 TEST_CASE("the coarse step is ordinary action vocabulary, not pane chrome") {
@@ -1645,7 +1612,7 @@ TEST_CASE("the coarse step is ordinary action vocabulary, not pane chrome") {
     // other gesture is -- the keymap, the band's legend, and the effective keymap the Hotkeys
     // pane lists -- and nowhere else.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0, 0}));
 
     // IT IS AN ACTION WITH A DURABLE ID, which is what a weaver's own keymap file rebinds --
     // and the id is in the catalog for BOTH scopes, which is what the file can say.
@@ -1674,7 +1641,7 @@ TEST_CASE("the coarse step is ordinary action vocabulary, not pane chrome") {
     enter_arrange_desk(t);
     const Screen sc = screen_of(t.session());
     std::string band;
-    for (const std::int64_t y : {sc.help_y, sc.help_y + 1}) {
+    for (const std::int64_t y : {help_row(sc), help_row(sc) + 1}) {
         band += inspector_row(t.canvases.back(), 0, y) + " | ";
     }
     INFO(band);
@@ -1692,12 +1659,12 @@ TEST_CASE("a coarse shrink meets the same per-axis refusal a fine one does") {
     // the independent axis still settles. The coarse step inherits this because it IS the same
     // proposal, not because it repeats the rule.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0, 0}));
     open_pane(t, ref_of(stock::kKind));
     const PaneRef builder = ref_of(stock::kKind);
     Setup& desk = live(t).setup.active;
-    REQUIRE(author_pane_size(desk, builder, PaneSize{pane_unit::kSubcells, subs(2)},
-                             PaneSize{pane_unit::kSubcells, subs(20)})
+    REQUIRE(author_pane_size(desk, builder, PaneSize{pane_unit::kPixels, cells_px(2)},
+                             PaneSize{pane_unit::kPixels, cells_px(20)})
                 .accepted);
     enter_arrange_desk(t);
     step_to(t, builder);
@@ -1705,11 +1672,11 @@ TEST_CASE("a coarse shrink meets the same per-axis refusal a fine one does") {
     t.key(input::scan::kMinus);
     const SetupPane* row = pane_of(t.session().setup.active, builder);
     REQUIRE(row != nullptr);
-    CHECK(row->width.amount == subs(2));                           // refused, and KEPT
-    CHECK(row->height.amount == subs(20) - subs(kCoarseStepCells)); // still settled
+    CHECK(row->width.amount == cells_px(2));                           // refused, and KEPT
+    CHECK(row->height.amount == cells_px(20) - cells_px(kCoarseStepCells)); // still settled
 
     // NOTHING IS CLAMPED TO A WALL THE WEAVER NEVER REACHED.
-    CHECK(row->width.amount != subs(1));
+    CHECK(row->width.amount != cells_px(1));
 }
 
 TEST_CASE("stepping names the pane, its state and its authored window in words") {
@@ -1717,7 +1684,7 @@ TEST_CASE("stepping names the pane, its state and its authored window in words")
     // the pane's STATE word -- which keeps an invisible pane recoverable by ear: step to it, read
     // what it is, reset it.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0}));
     open_pane(t, ref_of(second::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(second::kKind));
@@ -1759,7 +1726,7 @@ TEST_CASE("a place-only change publishes no room, and a size change publishes on
 
     // A PLACE-ONLY CHANGE WITH THE SAME BODY CAPACITY SAYS NOTHING. The provider is told
     // rows and columns, and neither moved.
-    REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), subs(2), subs(2))
+    REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), cells_px(2), cells_px(2))
                 .accepted);
     r.extent(200, 60, 0, 0); // one repaint, no extent change
     r.key(input::scan::kEscape);
@@ -1767,8 +1734,8 @@ TEST_CASE("a place-only change publishes no room, and a size change publishes on
 
     // A SIZE CHANGE THAT MOVES THE PROSE CAPACITY PUBLISHES EXACTLY ONE FRESH ROOM...
     REQUIRE(author_pane_size(r.session().setup.active, hello_ref(),
-                             PaneSize{pane_unit::kSubcells, subs(30)},
-                             PaneSize{pane_unit::kSubcells, subs(6)})
+                             PaneSize{pane_unit::kPixels, cells_px(30)},
+                             PaneSize{pane_unit::kPixels, cells_px(6)})
                 .accepted);
     r.key(input::scan::kEscape);
     REQUIRE(seat->rooms.size() == rooms_before + 1);
@@ -1843,7 +1810,7 @@ TEST_CASE("input spent on the open surface reaches no provider") {
     // bounds -- is consumed silently.
     r.press_cell(
         context_cell_x(r.session()),
-        surface::cell_of_subs(context_bounds(r.session(), screen_of(r.session())).y));
+        surface::cell_of_pixel(context_bounds(r.session(), screen_of(r.session())).y));
     CHECK(seat->presses.size() == presses_before);
     CHECK(r.session().context.open);
     // Removing THIS pane through its own menu: still nothing crosses -- a pane on the desk is a
@@ -1864,7 +1831,7 @@ TEST_CASE("input spent on the open surface reaches no provider") {
 
 TEST_CASE("the one-pane scope is bound -- another pane cannot be drawn into it") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0}));
     // THE OTHER PANE IS OPENED, NOT INHERITED. This case needs a second pane with a
     // rectangle of its own to press into; the desk's Info row is a weave with no office
     // here, and an unresolved row has no rectangle.
@@ -1931,10 +1898,10 @@ TEST_CASE("the desk manipulates panes directly, and a press is its own targeting
 
     // Two overlay panes on one desk; spread them so each has its own cells.
     const std::int64_t hello_kind = r.session().panes.runtime.find(kHelloOffice, kHelloPane)->kind;
-    REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), subs(4), subs(4))
+    REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), cells_px(4), cells_px(4))
                 .accepted);
-    REQUIRE(author_pane_place(r.session().setup.active, ref_of(stock::kKind), subs(80),
-                              subs(20))
+    REQUIRE(author_pane_place(r.session().setup.active, ref_of(stock::kKind), cells_px(80),
+                              cells_px(20))
                 .accepted);
     r.key(input::scan::kW);
     r.text("w");
@@ -1993,21 +1960,21 @@ TEST_CASE("participation stays the doors'; arrangement does not add or offer") {
 }
 
 TEST_CASE("an arrow steps the AUTHORED value, not the medium's floor") {
-    // ⚔ THE MASK THIS CASE CLOSES: deleting `managed_window_base`'s sub-cell restoration -- a
+    // ⚔ THE MASK THIS CASE CLOSES: deleting `managed_window_base`'s pixel restoration -- a
     // nudge proposing from `managed_bounds().resolved`, what the ACTIVE MEDIUM could show -- left
     // every other arrangement case green, since each authors on the lattice or runs on a medium
     // fine enough to say the value back. Only a value the medium CANNOT say, moved one step,
     // tells them apart: an off-lattice place on a character medium, which floors at the cell.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0})); // no metric: cells
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0})); // no metric: cells
     open_pane(t, ref_of(stock::kKind));
-    const std::int64_t x = surface::subs_of_cells(12) + 7; // deliberately off the lattice
-    const std::int64_t y = surface::subs_of_cells(6) + 5;
+    const std::int64_t x = surface::px_of_cells(12) + 7; // deliberately off the lattice
+    const std::int64_t y = surface::px_of_cells(6) + 5;
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), x, y).accepted);
 
     const Screen sc = screen_of(t.session());
     REQUIRE(t.session().cell_px == 0); // this medium's own grain IS the cell
-    const FineRect shown =
+    const PixelRect shown =
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect;
     REQUIRE(shown.x == x); // the RECTANGLE is the authored value; only the SPELLING floors
     REQUIRE(geometry_spelling(x, t.session().cell_px).exact == false);
@@ -2023,8 +1990,8 @@ TEST_CASE("an arrow steps the AUTHORED value, not the medium's floor") {
 
     const SetupPane* row = pane_of(t.session().setup.active, ref_of(stock::kKind));
     REQUIRE(row != nullptr);
-    CHECK(row->place.x == x - surface::kCellSubs);
-    CHECK(row->place.y == y); // the axis nobody named keeps every sub-unit it had
+    CHECK(row->place.x == x - surface::kCanvasCellPx);
+    CHECK(row->place.y == y); // the axis nobody named keeps every pixel it had
 }
 
 // ============================================================================
@@ -2046,15 +2013,15 @@ TEST_CASE("on the shipped face the border is chrome and the first body pixel is 
     r.extent_on_window(1000, 700);
     REQUIRE(r.session().cell_px == surface::kCanvasCellPx);
 
-    const FineRect outer = external_pane_rect(r.session(), kind);
+    const PixelRect outer = external_pane_rect(r.session(), kind);
     const ExternalBodyPlace body = external_body_of(r.session(), kind);
     REQUIRE(body.present);
     REQUIRE(body.fit.graphical());
 
     // THE PRECONDITION, ASSERTED: this face draws the boundary as ONE pixel, so the body's
     // viewport begins exactly one pixel inside the pane on both axes.
-    const std::int64_t left = surface::px_of_subs(outer.x);
-    const std::int64_t top = surface::px_of_subs(outer.y);
+    const std::int64_t left = outer.x;
+    const std::int64_t top = outer.y;
     REQUIRE(body.fit.view.x == left + 1);
     REQUIRE(body.fit.view.y == top + 1);
 
@@ -2069,7 +2036,7 @@ TEST_CASE("on the shipped face the border is chrome and the first body pixel is 
 
     // 1. THE BORDER PIXEL IS CHROME. Both edges, at a height that is squarely a body row --
     // so what refuses the press is the boundary and not the row.
-    for (const std::int64_t x : {left, surface::px_of_subs(surface::add_cells(outer.x, outer.w)) - 1}) {
+    for (const std::int64_t x : {left, (surface::add_cells(outer.x, outer.w)) - 1}) {
         seat->presses.clear();
         r.press_pixel(x, body_y(0));
         CHECK(seat->presses.empty());
@@ -2112,8 +2079,8 @@ TEST_CASE("on the shipped face the border is chrome and the first body pixel is 
     const Screen sc = screen_of(r.session());
     const PointedAt on_border{true,
                               surface::canvas_of_window_pixels(left, body_y(0)),
-                              surface::canvas_subs_of_window_pixels(left, body_y(0)),
-                              surface::kPixelGrainSubs};
+                              surface::canvas_px_of_window_pixels(left, body_y(0)),
+                              surface::kPixelGrainPx};
     CHECK(occupied_at(r.session().panes, r.session().setup.active, sc, on_border).kind == kind);
 }
 
@@ -2132,14 +2099,14 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent_on_window(1000, 700);
 
-    const FineRect outer = external_pane_rect(r.session(), kind);
+    const PixelRect outer = external_pane_rect(r.session(), kind);
     const ExternalBodyPlace on_window = external_body_of(r.session(), kind);
     REQUIRE(on_window.present);
 
     // THE ROOM IS THE PIXELS, DIVIDED BY THE FACE -- not a cell count wearing a new name.
     // ⚔ MUTATION: the room kept at the cell-inset capacity "so the tests do not move".
-    const FineRect cell_inset = pane_interior(outer, kChromeSubs);
-    const surface::RegionFit was = surface::fit_region_subs(
+    const PixelRect cell_inset = pane_interior(outer, kChromePx);
+    const surface::RegionFit was = surface::fit_region(
         cell_inset.x, cell_inset.y, cell_inset.w, cell_inset.h, 8, 18);
     CHECK(on_window.fit.rows > was.rows);
     CHECK(on_window.fit.columns > was.columns);
@@ -2151,8 +2118,8 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     // pixel, which is the strongest form of the question: even a press ON the chrome
     // leaves the chrome exactly as thick as it was.
     const std::size_t rooms_before = seat->rooms.size();
-    r.press_pixel(surface::px_of_subs(outer.x),
-                  surface::px_of_subs(outer.y) + on_window.fit.view.h / 2);
+    r.press_pixel(outer.x,
+                  outer.y + on_window.fit.view.h / 2);
     REQUIRE(r.session().panes.selected == kind);
 
     const ExternalBodyPlace selected = external_body_of(r.session(), kind);
@@ -2161,27 +2128,24 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     CHECK(selected.columns == on_window.columns);
     CHECK(selected.region_x == on_window.region_x);
     CHECK(selected.region_y == on_window.region_y);
-    CHECK(selected.region_sub_x == on_window.region_sub_x);
-    CHECK(selected.region_sub_y == on_window.region_sub_y);
     CHECK(selected.fit == on_window.fit);
-    CHECK(pane_inside(outer, screen_of(r.session())).chrome_subs ==
+    CHECK(pane_inside(outer, screen_of(r.session())).chrome_px ==
           chrome_grain(screen_of(r.session())));
     // ...and no new room was granted, because nothing about the room changed.
     CHECK(seat->rooms.size() == rooms_before);
 
     // AND THE PICTURE ITSELF, not only the resolution. ⚔ MUTATION: a PAINTER insetting a selected
     // pane further -- no body place, room or press inverse would notice, and the contents would
-    // jump under the hand. So this pane's published region is compared where it is, sub-cell
-    // remainders included, searched BACK TO FRONT as `context_rows_on` searches: the pane's own
+    // jump under the hand. So this pane's published region is compared where it is, to the
+    // pixel, searched BACK TO FRONT as `context_rows_on` searches: the pane's own
     // plane is published after what it covers, and the topmost region inside it is its body.
     const auto published = [&](const surface::SurfaceCanvas& c) {
-        const ui::Rect box = cells_covered(outer);
         for (std::size_t li = c.layers.size(); li > 0; --li) {
             const surface::SurfaceLayer& l = c.layers[li - 1];
             for (std::size_t ri = l.texts.size(); ri > 0; --ri) {
                 const surface::SurfaceTextRegion& reg = l.texts[ri - 1];
-                if (reg.x >= box.x && reg.x < box.x + box.w && reg.y >= box.y &&
-                    reg.y < box.y + box.h) {
+                if (reg.x >= outer.x && reg.x < outer.x + outer.w && reg.y >= outer.y &&
+                    reg.y < outer.y + outer.h) {
                     return reg;
                 }
             }
@@ -2194,8 +2158,6 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     CHECK(chosen_picture.y == on_window.region_y);
     CHECK(chosen_picture.w == on_window.region_w);
     CHECK(chosen_picture.h == on_window.region_h);
-    CHECK(chosen_picture.sub_x == on_window.region_sub_x);
-    CHECK(chosen_picture.sub_y == on_window.region_sub_y);
 
     // AND BACK: choosing something else restores the identical geometry.
     r.press_cell(0, 0); // bare workspace -- nothing is selected there
@@ -2209,8 +2171,6 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     CHECK(plain_picture.y == chosen_picture.y);
     CHECK(plain_picture.w == chosen_picture.w);
     CHECK(plain_picture.h == chosen_picture.h);
-    CHECK(plain_picture.sub_x == chosen_picture.sub_x);
-    CHECK(plain_picture.sub_y == chosen_picture.sub_y);
 }
 
 TEST_CASE("the thinner boundary rewrites no authored value and no foreground law") {
@@ -2229,12 +2189,16 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
     // 1000x700 window would move the pane because the ROOM moved, and would prove nothing.
     r.extent(1000, 700, 0, 0, 0);
 
-    // AN EXPLICIT SIZE FIRST, because a DEFAULT amount is zero and zero survives every
+    // AN EXPLICIT PLACE AND SIZE FIRST, because a DEFAULT amount is zero and zero survives every
     // projection there is -- a case resting on it would pass over a medium that writes its
-    // own answer back, which is the one thing this claim is about.
+    // own answer back, which is the one thing this claim is about. (A default place would also
+    // move with the room, whose top is where each face's top band ends.)
+    REQUIRE(author_pane_place(const_cast<Setup&>(r.session().setup.active), hello_ref(),
+                              surface::px_of_cells(5), surface::px_of_cells(8))
+                .accepted);
     REQUIRE(author_pane_size(const_cast<Setup&>(r.session().setup.active), hello_ref(),
-                             PaneSize{pane_unit::kSubcells, surface::subs_of_cells(37) + 17},
-                             PaneSize{pane_unit::kSubcells, surface::subs_of_cells(11) + 5})
+                             PaneSize{pane_unit::kPixels, surface::px_of_cells(37) + 17},
+                             PaneSize{pane_unit::kPixels, surface::px_of_cells(11) + 5})
                 .accepted);
 
     // WHAT THE WEAVER AUTHORED, on the terminal, before any window ever spoke.
@@ -2242,7 +2206,7 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
     REQUIRE(row != nullptr);
     const SetupPane authored = *row;
     const std::vector<std::int64_t> order = presentation_order(r.session().setup.active, r.session().panes);
-    const FineRect on_cells = external_pane_rect(r.session(), kind);
+    const PixelRect on_cells = external_pane_rect(r.session(), kind);
 
     // THE WINDOW OPENS. The boundary thins; the authored rectangle does not move.
     r.extent_on_window(1000, 700);
@@ -2257,7 +2221,7 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
 
     // SELECTING, ARRANGING AND LEAVING leaves the authored order byte-stable, and the
     // foreground answer is still the one `effective_pane_order` gives.
-    r.press_pixel(surface::px_of_subs(on_cells.x) + 4, surface::px_of_subs(on_cells.y) + 4);
+    r.press_pixel(on_cells.x + 4, on_cells.y + 4);
     REQUIRE(r.session().panes.selected == kind);
     CHECK(presentation_order(r.session().setup.active, r.session().panes) == order);
     const std::vector<std::int64_t> lifted =
@@ -2270,7 +2234,7 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
 
     // AND GOING BACK TO A TERMINAL restores the cell boundary without touching the value.
     r.extent(1000, 700, 0, 0, 0);
-    CHECK(chrome_grain(screen_of(r.session())) == kChromeSubs);
+    CHECK(chrome_grain(screen_of(r.session())) == kChromePx);
     const SetupPane* home = pane_of(r.session().setup.active, hello_ref());
     REQUIRE(home != nullptr);
     CHECK(home->place.x == authored.place.x);
@@ -2459,14 +2423,14 @@ TEST_CASE("an inactive layout's rows are dormant, not maintained") {
 
 TEST_CASE("unchanged arrangement motion retains its gesture without another picture") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 8, 18, surface::kCanvasCellPx}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, surface::kCanvasCellPx}));
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     const auto bounds = bounds_of(t.session().panes, t.session().setup.active,
                                   stock::kKind, screen_of(t.session()));
-    const auto x = surface::px_of_subs(bounds.rect.x + bounds.rect.w) - 1;
-    const auto y = surface::px_of_subs(bounds.rect.y + bounds.rect.h) - 1;
+    const auto x = (bounds.rect.x + bounds.rect.w) - 1;
+    const auto y = (bounds.rect.y + bounds.rect.h) - 1;
     t.press_at(x, y, input::space::kPixels);
     REQUIRE(t.session().pane_drag.active);
     REQUIRE(t.session().pane_drag.sizing);
@@ -2503,14 +2467,14 @@ TEST_CASE("unchanged arrangement motion retains its gesture without another pict
 
 TEST_CASE("repeated refused arrangement motion retains the refusal and can recover") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 8, 18, surface::kCanvasCellPx}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, surface::kCanvasCellPx}));
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     const auto bounds = bounds_of(t.session().panes, t.session().setup.active,
                                   stock::kKind, screen_of(t.session()));
-    const auto x = surface::px_of_subs(bounds.rect.x + bounds.rect.w) - 1;
-    const auto y = surface::px_of_subs(bounds.rect.y + bounds.rect.h) - 1;
+    const auto x = (bounds.rect.x + bounds.rect.w) - 1;
+    const auto y = (bounds.rect.y + bounds.rect.h) - 1;
     t.press_at(x, y, input::space::kPixels);
     REQUIRE(t.session().pane_drag.sizing);
     const SetupPane original = *pane_of(t.session().setup.active, ref_of(stock::kKind));
@@ -2531,19 +2495,19 @@ TEST_CASE("repeated refused arrangement motion retains the refusal and can recov
     CHECK_FALSE(t.session().notice_is_bad);
     CHECK(t.canvases.size() == painted + 2);
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->width.amount ==
-          bounds.resolved.w + 3 * surface::kPixelGrainSubs);
+          bounds.resolved.w + 3 * surface::kPixelGrainPx);
 }
 
 TEST_CASE("queued arrangement motions retain order through release") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 8, 18, surface::kCanvasCellPx}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, surface::kCanvasCellPx}));
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     const auto bounds = bounds_of(t.session().panes, t.session().setup.active,
                                   stock::kKind, screen_of(t.session()));
-    const auto x = surface::px_of_subs(bounds.rect.x + bounds.rect.w) - 1;
-    const auto y = surface::px_of_subs(bounds.rect.y + bounds.rect.h) - 1;
+    const auto x = (bounds.rect.x + bounds.rect.w) - 1;
+    const auto y = (bounds.rect.y + bounds.rect.h) - 1;
     t.press_at(x, y, input::space::kPixels);
     REQUIRE(t.session().pane_drag.sizing);
     const auto painted = t.canvases.size();
@@ -2559,8 +2523,8 @@ TEST_CASE("queued arrangement motions retain order through release") {
     CHECK_FALSE(t.session().pane_drag.active);
     const auto* row = pane_of(t.session().setup.active, ref_of(stock::kKind));
     REQUIRE(row != nullptr);
-    CHECK(row->width.amount == bounds.resolved.w + 8 * surface::kPixelGrainSubs);
-    CHECK(row->height.amount == bounds.resolved.h + 8 * surface::kPixelGrainSubs);
+    CHECK(row->width.amount == bounds.resolved.w + 8 * surface::kPixelGrainPx);
+    CHECK(row->height.amount == bounds.resolved.h + 8 * surface::kPixelGrainPx);
     CHECK(t.canvases.size() == painted + 9);
     CHECK(t.bus.pending() == 0);
 }

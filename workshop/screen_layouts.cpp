@@ -76,10 +76,16 @@ std::string setup_rest_text(const SetupState& setup, const Panes& panes,
 }
 
 std::string workspace_text(const Session& s) {
-    // The room's size in cells: the unit a pane's typed placement is in.
+    // The room's size in the face's unit, the unit a pane's typed placement is in.
     const Screen sc = screen_of(s);
-    return "workspace " + std::to_string(sc.room_w) + "x" + std::to_string(sc.room_h) +
-           " cells";
+    bool projected = false;
+    std::string text = "workspace " + geometry_amount_text(sc.room_w, s.cell_px, projected) + "x" +
+                       geometry_amount_text(sc.room_h, s.cell_px, projected) + " " +
+                       geometry_unit(s.cell_px);
+    if (projected) {
+        text += kProjectedNote;
+    }
+    return text;
 }
 
 // ---- THE LAYOUT TABS: the left of the status row -----------------------------------------
@@ -280,7 +286,7 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
     // interior, from the same `layouts_body` the painter publishes at. A pane-local inverse:
     // ordinary occupancy answers `Layouts` first, so a pane in front takes the press.
     const ExternalBodyPlace place = layouts_body(s, sc);
-    const ProseAt at = prose_at(space, x, y, place.region_x, place.region_y, place.fit);
+    const ProseAt at = prose_at(space, x, y, place.fit);
     if (!at.understood || at.row != row) {
         return {};
     }
@@ -301,7 +307,7 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 
 // WL-TAB-01 -- agents/workshop/tab-run.md
 // WL-TAB-01, WL-TAB-05 -- agents/workshop/tab-run.md
-void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
+void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRect& b,
                    const Screen& sc, std::int64_t chrome) {
     paint_pane_frame(layer, b, chrome);
     const ExternalBodyPlace place = external_body_place(b, sc, 0);
@@ -310,10 +316,6 @@ void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const FineRec
     band.y = place.region_y;
     band.w = place.region_w;
     band.h = place.region_h;
-    band.sub_x = place.region_sub_x;
-    band.sub_y = place.region_sub_y;
-    band.sub_w = place.region_sub_w;
-    band.sub_h = place.region_sub_h;
     const std::int64_t budget = place.rows;
     const std::int64_t columns = place.columns;
     if (!place.present) {

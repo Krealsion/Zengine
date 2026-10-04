@@ -12,8 +12,8 @@ MEANS
 - a terminal spends one cell; the shipped window spends one device pixel, drawn inside the pane.
 
 PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`, `pane_interior`; `workshop/screen.hpp`
-`pane_interior`, `chrome_grain`, `kChromeCells`, `kChromeSubs`; `surface/region.hpp`
-`subs_of_one_device`; `tests/test_workshop_screen.cpp` case `"a pane's interior is its outer
+`pane_interior`, `chrome_grain`, `kChromeCells`, `kChromePx`; `surface/region.hpp`
+`px_of_one_device`; `tests/test_workshop_screen.cpp` case `"a pane's interior is its outer
 rectangle less one cell of chrome"`, case `"the chrome a pane wears is one unit of the face
 in front of the weaver"`, case `"the graphical boundary is one device pixel, drawn
 INSIDE the pane"`.
@@ -46,7 +46,7 @@ DOES NOT MEAN
 - that the arrangement handles, the desk's stepping or the notice change with it.
 
 PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`, `detail::pane_inside_at`;
-`workshop/screen.hpp` `chrome_grain`, `kChromeSubs`; `tests/test_workshop_screen.cpp` case
+`workshop/screen.hpp` `chrome_grain`, `kChromePx`; `tests/test_workshop_screen.cpp` case
 `"a face that describes an interior in CELLS pays the cell"`, case `"a two-cell pane keeps
 its content and drops its boundary"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`

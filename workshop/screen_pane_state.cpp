@@ -13,17 +13,17 @@ namespace zengine::workshop {
 
 // WL-CHROME-04 -- agents/workshop/chrome.md; WL-PANE-05 -- agents/workshop/panes-and-windows.md
 // WL-CHROME-04 -- agents/workshop/chrome.md; WL-PANE-05 -- agents/workshop/panes-and-windows.md
-void paint_pane_frame(surface::SurfaceLayer& layer, const FineRect& b,
+void paint_pane_frame(surface::SurfaceLayer& layer, const PixelRect& b,
                        std::int64_t role) {
     layer.rects.push_back(wire_rect_of(b, role));
 }
 
 // WL-CHROME-05 -- agents/workshop/chrome.md; WL-RGN-01 -- agents/workshop/regions.md
-ProsePlace prose_place(const FineRect& b, const Screen& sc) {
+ProsePlace prose_place(const PixelRect& b, const Screen& sc) {
     ProsePlace p;
     const PaneInside inside = pane_inside(b, sc);
     p.inside = inside.rect;
-    p.chrome_subs = inside.chrome_subs;
+    p.chrome_px = inside.chrome_px;
     if (inside.rect.w <= 0 || inside.rect.h <= 0) {
         return p;
     }
@@ -42,10 +42,6 @@ surface::SurfaceTextRegion prose_region(const ProsePlace& place) {
     region.y = wire.y;
     region.w = wire.w;
     region.h = wire.h;
-    region.sub_x = wire.sub_x;
-    region.sub_y = wire.sub_y;
-    region.sub_w = wire.sub_w;
-    region.sub_h = wire.sub_h;
     return region;
 }
 
@@ -54,7 +50,6 @@ surface::SurfaceTextRegion prose_region(const ProsePlace& place) {
 const char* pane_state_word(std::int64_t state) {
     switch (state) {
     case pane_state::kUnresolved: return "unresolved";
-    case pane_state::kRefused: return "refused";
     case pane_state::kWaiting: return "waiting";
     case pane_state::kOffRoom: return "off-room";
     case pane_state::kCovered: return "covered";
@@ -68,7 +63,6 @@ const char* pane_state_remedy(std::int64_t state) {
     switch (state) {
     case pane_state::kClosed: return "show it from the Pane Manager";
     case pane_state::kUnresolved: return "check the spelling, or the provider is not loaded";
-    case pane_state::kRefused: return "reset its size, or open it on the other medium";
     case pane_state::kWaiting: return "make the window taller, or place it yourself";
     case pane_state::kOffRoom: return "reset its place";
     case pane_state::kCovered: return "raise it";
@@ -78,7 +72,7 @@ const char* pane_state_remedy(std::int64_t state) {
 
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md; WL-FRONT-05 -- agents/workshop/planes.md
 bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
-                     std::int64_t kind, const FineRect& mine) {
+                     std::int64_t kind, const PixelRect& mine) {
     if (mine.w <= 0 || mine.h <= 0) {
         return false; // nothing visible is OFF-ROOM, which is a different word
     }
@@ -93,9 +87,9 @@ bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
     if (me == order.size()) {
         return false;
     }
-    std::vector<FineRect> ahead;
+    std::vector<PixelRect> ahead;
     for (std::size_t i = me + 1; i < order.size(); ++i) {
-        const FineRect r = bounds_of(panes, setup, order[i], sc).rect;
+        const PixelRect r = bounds_of(panes, setup, order[i], sc).rect;
         if (r.w > 0 && r.h > 0) {
             ahead.push_back(r);
         }
@@ -103,11 +97,11 @@ bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
     if (ahead.empty()) {
         return false;
     }
-    // Exact on the fine lattice, by edge compression: the union is constant between edges, so one
-    // point per stripe answers, never a lattice walk. A sliver of one sub-unit still means `open`.
+    // Exact to the pixel, by edge compression: the union is constant between edges, so one point
+    // per stripe answers, never a pixel walk. A sliver of one pixel still means `open`.
     std::vector<std::int64_t> xs{mine.x, surface::add_cells(mine.x, mine.w)};
     std::vector<std::int64_t> ys{mine.y, surface::add_cells(mine.y, mine.h)};
-    for (const FineRect& r : ahead) {
+    for (const PixelRect& r : ahead) {
         xs.push_back(r.x);
         xs.push_back(surface::add_cells(r.x, r.w));
         ys.push_back(r.y);
@@ -128,7 +122,7 @@ bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
                 continue;
             }
             bool hidden = false;
-            for (const FineRect& r : ahead) {
+            for (const PixelRect& r : ahead) {
                 if (x >= r.x && x < surface::add_cells(r.x, r.w) && y >= r.y &&
                     y < surface::add_cells(r.y, r.h)) {
                     hidden = true;
@@ -151,22 +145,12 @@ std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen&
     if (row.kind == kNoPaneKind || !resolvable(row.ref, panes)) {
         return pane_state::kUnresolved;
     }
-    // A UNIT OUTRANKS A WANT OF ROOM, and this is where that precedence is spent. A pane
-    // with a pixel axis AND no tile left is refused rather than waiting: a taller window
-    // would give it the tile and it still would not be presented, so telling the weaver to
-    // make the window taller would be a true sentence about the wrong problem.
-    if (!pane_unit_projectable(pane_of(setup, row.ref))) {
-        return pane_state::kRefused;
-    }
     const PaneBounds where = bounds_of(panes, setup, row.kind, sc);
     if (!where.open) {
-        // Named, resolved, projectable and not presented -- which is what `waiting` has
+        // Named, resolved and not presented -- which is what `waiting` has
         // always meant here. `seat_panes` is the only thing that produces it and it is
         // medium-independent, which is why this branch does not consult one.
         return pane_state::kWaiting;
-    }
-    if (!where.projected) {
-        return pane_state::kRefused;
     }
     if (where.rect.w <= 0 || where.rect.h <= 0) {
         return pane_state::kOffRoom;
@@ -184,14 +168,14 @@ const char* geometry_unit(std::int64_t cell_px) {
 }
 
 // WL-GEO-09, WL-GEO-10 -- agents/workshop/geometry.md
-GeometrySpelling geometry_spelling(std::int64_t subs, std::int64_t cell_px) {
-    return GeometrySpelling{std::to_string(surface::device_of_subs(subs, cell_px)),
-                            surface::subs_exact_in_device(subs, cell_px)};
+GeometrySpelling geometry_spelling(std::int64_t px, std::int64_t cell_px) {
+    return GeometrySpelling{std::to_string(surface::device_of_px(px, cell_px)),
+                            surface::px_exact_in_device(px, cell_px)};
 }
 
-std::string geometry_amount_text(std::int64_t subs, std::int64_t cell_px,
+std::string geometry_amount_text(std::int64_t px, std::int64_t cell_px,
                                  bool& any_projected) {
-    const GeometrySpelling spelled = geometry_spelling(subs, cell_px);
+    const GeometrySpelling spelled = geometry_spelling(px, cell_px);
     if (spelled.exact) {
         return spelled.amount;
     }
@@ -227,11 +211,11 @@ FaceAmount parse_face_amount(std::string_view text, std::int64_t cell_px) {
         return out;
     }
     out.accepted = true;
-    out.subs = subs_of_device_amount(*amount, cell_px);
+    out.px = px_of_device_amount(*amount, cell_px);
     return out;
 }
 
-std::string fine_rect_text(const FineRect& r, std::int64_t cell_px) {
+std::string pixel_rect_text(const PixelRect& r, std::int64_t cell_px) {
     bool projected = false;
     std::string text = "@" + geometry_amount_text(r.x, cell_px, projected) + "," +
                        geometry_amount_text(r.y, cell_px, projected) + " " +
@@ -251,16 +235,13 @@ std::string pane_window_text(const SetupPane* row, std::int64_t cell_px) {
     }
     bool projected = false;
     const auto axis = [cell_px, &projected](const PaneSize& s) -> std::string {
-        if (s.mode == pane_unit::kSubcells) {
-            return geometry_amount_text(s.amount, cell_px, projected);
-        }
         if (s.mode == pane_unit::kPixels) {
-            return std::to_string(s.amount) + "px";
+            return geometry_amount_text(s.amount, cell_px, projected);
         }
         return std::string("-");
     };
     std::string text;
-    if (row->place.mode == pane_unit::kSubcells) {
+    if (row->place.mode == pane_unit::kPixels) {
         text += "@" + geometry_amount_text(row->place.x, cell_px, projected) + "," +
                 geometry_amount_text(row->place.y, cell_px, projected) + " ";
     }
@@ -268,8 +249,8 @@ std::string pane_window_text(const SetupPane* row, std::int64_t cell_px) {
     // THE UNIT IS SAID ONCE, AND ONLY WHERE A NUMBER IN IT WAS PRINTED. A row default
     // on every axis has said nothing measurable, and appending `cells` to `-x-` would
     // be naming the unit of a number that is not there.
-    if (row->place.mode == pane_unit::kSubcells || row->width.mode == pane_unit::kSubcells ||
-        row->height.mode == pane_unit::kSubcells) {
+    if (row->place.mode == pane_unit::kPixels || row->width.mode == pane_unit::kPixels ||
+        row->height.mode == pane_unit::kPixels) {
         text += " " + std::string(geometry_unit(cell_px));
     }
     text += " f" + std::to_string(row->front);
@@ -291,15 +272,14 @@ bool pane_window_partly_default(const SetupPane* row) {
 // ---- A SURFACE SIZED BY WHAT IT SAYS, PLACED ---------------------------------------------
 
 // WL-CTX-03 -- agents/workshop/contextual.md
-FineRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
-                         std::int64_t x, std::int64_t y, const Screen& sc) {
-    const surface::RegionCells cells =
-        surface::region_cells_for(want_cols, want_rows, sc.text_advance_px, sc.text_line_px);
-    const ui::Rect outer = chrome_outer_of(0, 0, cells.w, cells.h);
-    const std::int64_t floor_y = kWorkspaceY + sc.room_h;
+PixelRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
+                          std::int64_t x, std::int64_t y, const Screen& sc) {
+    const surface::RegionPixels inner =
+        surface::region_px_for(want_cols, want_rows, sc.text_advance_px, sc.text_line_px);
+    const PixelRect outer = chrome_outer_of(0, 0, inner.w, inner.h);
+    const std::int64_t floor_y = sc.room_y + sc.room_h;
     const std::int64_t w = outer.w > sc.w ? sc.w : outer.w;
-    const std::int64_t room_rows = floor_y - kStackY;
-    const std::int64_t h = outer.h > room_rows ? room_rows : outer.h;
+    const std::int64_t h = outer.h > sc.room_h ? sc.room_h : outer.h;
     if (x + w > sc.w) {
         x = sc.w - w;
     }
@@ -309,10 +289,10 @@ FineRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
     if (y + h > floor_y) {
         y = floor_y - h;
     }
-    if (y < kStackY) {
-        y = kStackY;
+    if (y < sc.room_y) {
+        y = sc.room_y;
     }
-    return fine_of_cells(ui::Rect{x, y, w, h});
+    return PixelRect{x, y, w, h};
 }
 
 } // namespace zengine::workshop

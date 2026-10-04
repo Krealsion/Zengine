@@ -350,8 +350,8 @@ TEST_CASE("portable slots: one batched drag moves into a row and a forged transf
     InventoryStory s(191,true); s.append(1,"A"); const auto a=s.entry("A").reference;
     const auto row=s.create("row"); const auto kind=s.r.session().panes.runtime.find(slots::kRole,row)->kind;
     for(auto& p:s.r.session().setup.active.panes) if(p.ref.pane==row) {
-        p.place={pane_unit::kSubcells,2*surface::kCellSubs,34*surface::kCellSubs};
-        p.width={pane_unit::kSubcells,72*surface::kCellSubs}; p.height={pane_unit::kSubcells,10*surface::kCellSubs};
+        p.place={pane_unit::kPixels,2*surface::kCanvasCellPx,34*surface::kCanvasCellPx};
+        p.width={pane_unit::kPixels,72*surface::kCanvasCellPx}; p.height={pane_unit::kPixels,10*surface::kCanvasCellPx};
     }
     s.r.extent(180,60);
     auto press=s.button_at(s.source,2,true),release=s.button_at(kind,1,false),move=release;
@@ -661,9 +661,9 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         r.pick(composer_ref());
         const auto compose_kind = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
         for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
-            p.place = {pane_unit::kSubcells, 85*surface::kCellSubs, 4*surface::kCellSubs};
-            p.width = {pane_unit::kSubcells, 80*surface::kCellSubs};
-            p.height = {pane_unit::kSubcells, 24*surface::kCellSubs};
+            p.place = {pane_unit::kPixels, 85*surface::kCanvasCellPx, 4*surface::kCanvasCellPx};
+            p.width = {pane_unit::kPixels, 80*surface::kCanvasCellPx};
+            p.height = {pane_unit::kPixels, 24*surface::kCanvasCellPx};
         }
         r.extent(180, 60);
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
@@ -734,7 +734,7 @@ TEST_CASE("pane view reports the painter's rows and refuses hidden content") {
     CHECK(s.hand->refusals.back().find("covered") != std::string::npos);
     s.r.session().context.open = false;
     for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.inventory-pane")
-        p.place.y = 55 * surface::kCellSubs;
+        p.place.y = 55 * surface::kCanvasCellPx;
     s.r.extent(180, 60);
     query();
     REQUIRE(s.hand->refusals.size() == 2);
@@ -751,9 +751,9 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         REQUIRE(r.session().keymap.app_row_of_id("desktop.deselect") != nullptr);
         REQUIRE(r.session().keymap.app_row_of_id("desktop.panes") != nullptr);
         for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
-            p.place = {pane_unit::kSubcells, 85*surface::kCellSubs, 32*surface::kCellSubs};
-            p.width = {pane_unit::kSubcells, 80*surface::kCellSubs};
-            p.height = {pane_unit::kSubcells, 24*surface::kCellSubs};
+            p.place = {pane_unit::kPixels, 85*surface::kCanvasCellPx, 32*surface::kCanvasCellPx};
+            p.width = {pane_unit::kPixels, 80*surface::kCanvasCellPx};
+            p.height = {pane_unit::kPixels, 24*surface::kCanvasCellPx};
         }
         r.extent(180, 60);
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
@@ -843,9 +843,9 @@ TEST_CASE("terminal capture: primary drag stores exact authored content and name
     s.r.pick({"zengine.terminal", "terminal"});
     const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
     for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.terminal") {
-        p.place = {pane_unit::kSubcells, 2 * surface::kCellSubs, 31 * surface::kCellSubs};
-        p.width = {pane_unit::kSubcells, 80 * surface::kCellSubs};
-        p.height = {pane_unit::kSubcells, 24 * surface::kCellSubs};
+        p.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 31 * surface::kCanvasCellPx};
+        p.width = {pane_unit::kPixels, 80 * surface::kCanvasCellPx};
+        p.height = {pane_unit::kPixels, 24 * surface::kCanvasCellPx};
     }
     const auto sent = terminal->send(loom::Address::to_role("zengine.skin"),
         surface::SurfaceText::zen_name, 1, {{std::string("slot"), loom::FieldValue{std::string("score")}}, {std::string("text"), loom::FieldValue{std::string("captured original")}}});
@@ -896,8 +896,8 @@ TEST_CASE("terminal capture: retrieval and Inventory storage need separate curre
         REQUIRE(s.r.run_plan(plan).ok); s.r.pick({"zengine.terminal","terminal"});
         const auto kind=s.r.session().panes.runtime.find("zengine.terminal","terminal")->kind;
         for(auto& p:s.r.session().setup.active.panes) if(p.ref.provider=="zengine.terminal") {
-            p.place={pane_unit::kSubcells,2*surface::kCellSubs,31*surface::kCellSubs};
-            p.width={pane_unit::kSubcells,80*surface::kCellSubs}; p.height={pane_unit::kSubcells,24*surface::kCellSubs};
+            p.place={pane_unit::kPixels,2*surface::kCanvasCellPx,31*surface::kCanvasCellPx};
+            p.width={pane_unit::kPixels,80*surface::kCanvasCellPx}; p.height={pane_unit::kPixels,24*surface::kCanvasCellPx};
         }
         s.r.bus.send(terminal->id(),loom::Message(loom::to_value(loom::Ack{})));
         s.r.extent(181,60);
@@ -923,9 +923,9 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     s.r.pick({"zengine.terminal", "terminal"});
     const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
     for (auto& pane : s.r.session().setup.active.panes) if (pane.ref.provider == "zengine.terminal") {
-        pane.place = {pane_unit::kSubcells, 2 * surface::kCellSubs, 31 * surface::kCellSubs};
-        pane.width = {pane_unit::kSubcells, 24 * surface::kCellSubs};
-        pane.height = {pane_unit::kSubcells, 26 * surface::kCellSubs};
+        pane.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 31 * surface::kCanvasCellPx};
+        pane.width = {pane_unit::kPixels, 24 * surface::kCanvasCellPx};
+        pane.height = {pane_unit::kPixels, 26 * surface::kCanvasCellPx};
     }
     REQUIRE(terminal->send(loom::Address::to_role(surface::kSkinRole), surface::SurfaceText::zen_name, 1,
         {{"slot", loom::FieldValue{std::string("score")}}, {"text", loom::FieldValue{std::string("wrapped")}}}));
@@ -1090,8 +1090,8 @@ void press_text(InventoryStory& s, std::int64_t kind, const std::string& start, 
         if (t.text.rfind(start, 0) == 0) {
             input::InjectedEvent e;
             e.kind = "PointerButton"; e.button = button; e.pressed = true; e.space = input::space::kCells;
-            e.x = (c.x + t.x) / surface::kCellSubs + 1;
-            e.y = (c.y + t.y) / surface::kCellSubs + surface::kTuiCanvasTopRow;
+            e.x = (c.x + t.x) / surface::kCanvasCellPx + 1;
+            e.y = (c.y + t.y) / surface::kCanvasCellPx + surface::kTuiCanvasTopRow;
             s.event(e);
             e.pressed = false;
             s.event(e);
@@ -1124,8 +1124,8 @@ input::InjectedEvent at_text(InventoryStory& s, std::int64_t kind, const std::st
     e.kind = what; e.button = 1; e.space = input::space::kCells;
     for (const auto& t : c.content.texts)
         if (t.text.rfind(start, 0) == 0) {
-            e.x = (c.x + t.x) / surface::kCellSubs + 1;
-            e.y = (c.y + t.y) / surface::kCellSubs + surface::kTuiCanvasTopRow;
+            e.x = (c.x + t.x) / surface::kCanvasCellPx + 1;
+            e.y = (c.y + t.y) / surface::kCanvasCellPx + surface::kTuiCanvasTopRow;
             return e;
         }
     std::string all;
@@ -1133,15 +1133,15 @@ input::InjectedEvent at_text(InventoryStory& s, std::int64_t kind, const std::st
     FAIL("no line beginning `" << start << "` in " << all);
     return e;
 }
-/// A local place of a canvas pane, in subunits, as a hand's pointer event in cells.
+/// A local place of a canvas pane, in pixels, as a hand's pointer event in cells.
 input::InjectedEvent at_local(InventoryStory& s, std::int64_t kind, std::int64_t x, std::int64_t y,
                               const char* what = "PointerButton") {
     const auto* pane = s.r.session().panes.external_pane(kind);
     REQUIRE(pane != nullptr);
     input::InjectedEvent e;
     e.kind = what; e.button = 1; e.space = input::space::kCells;
-    e.x = (pane->canvas.x + x) / surface::kCellSubs;
-    e.y = (pane->canvas.y + y) / surface::kCellSubs + surface::kTuiCanvasTopRow;
+    e.x = (pane->canvas.x + x) / surface::kCanvasCellPx;
+    e.y = (pane->canvas.y + y) / surface::kCanvasCellPx + surface::kTuiCanvasTopRow;
     return e;
 }
 /// The View Builder's design area, read off its picture: the ground the view's own picture brought.
@@ -1315,13 +1315,13 @@ TEST_CASE("shapes cross between Flow and the View Builder by dragging: the inten
     auto from = at_text(s, s.flow, "0 tally.Total");
     from.pressed = true;
     s.event(from);
-    auto over = at_local(s, s.builder, label.x + 2 * surface::kCellSubs, label.y + surface::kCellSubs / 2, "PointerMoved");
+    auto over = at_local(s, s.builder, label.x + 2 * surface::kCanvasCellPx, label.y + surface::kCanvasCellPx / 2, "PointerMoved");
     over.dx = over.x - from.x; over.dy = over.y - from.y;
     s.event(over);
     const auto landing = [&] {
         const auto& rects = s.r.session().panes.external_pane(s.builder)->canvas.content.rects;
         return std::any_of(rects.begin(), rects.end(), [&](const auto& r) {
-            return r.role == surface::role::kAccent && r.y == label.y + label.h && r.h == 2 * surface::kCellSubs;
+            return r.role == surface::role::kAccent && r.y == label.y + label.h && r.h == 2 * surface::kCanvasCellPx;
         });
     };
     CHECK(landing());
@@ -1501,9 +1501,9 @@ TEST_CASE("views: every view Inventory makes is offered beside the other panes, 
         REQUIRE(add_pane(desk, ref));
         for (SetupPane& row : desk.panes) {
             if (row.ref == ref) {
-                row.place = {pane_unit::kSubcells, x * surface::kCellSubs, y * surface::kCellSubs};
-                row.width = {pane_unit::kSubcells, w * surface::kCellSubs};
-                row.height = {pane_unit::kSubcells, h * surface::kCellSubs};
+                row.place = {pane_unit::kPixels, x * surface::kCanvasCellPx, y * surface::kCanvasCellPx};
+                row.width = {pane_unit::kPixels, w * surface::kCanvasCellPx};
+                row.height = {pane_unit::kPixels, h * surface::kCanvasCellPx};
             }
         }
     };

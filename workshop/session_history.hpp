@@ -186,8 +186,8 @@ place_v2_to_v3(const setup_persist::v2::WorkshopPanePlace& w) {
     }
     if (w.mode == setup_persist::v2::kUnitCells) {
         out.mode = setup_persist::kUnitSubcells;
-        out.x = surface::subs_of_cells(w.x);
-        out.y = surface::subs_of_cells(w.y);
+        out.x = surface::px_of_cells(w.x) * setup_persist::kSubsPerPixel;
+        out.y = surface::px_of_cells(w.y) * setup_persist::kSubsPerPixel;
         return out;
     }
     throw std::invalid_argument(
@@ -207,7 +207,7 @@ size_v2_to_v3(const setup_persist::v2::WorkshopPaneSize& w, const char* which) {
     }
     if (w.mode == setup_persist::v2::kUnitCells) {
         out.mode = setup_persist::kUnitSubcells;
-        out.amount = surface::subs_of_cells(w.amount);
+        out.amount = surface::px_of_cells(w.amount) * setup_persist::kSubsPerPixel;
         return out;
     }
     if (w.mode == setup_persist::kUnitPixels) {

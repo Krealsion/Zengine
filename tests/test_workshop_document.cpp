@@ -305,11 +305,11 @@ TEST_CASE("a notice a weaver's own path makes too long is marked on screen, not 
     // The refusal is whole in the session, and it is genuinely longer than a
     // line -- the path alone overruns the screen, whatever the platform's own
     // wording for a missing file happens to be.
-    REQUIRE(t.notice().size() > static_cast<std::size_t>(kMinScreen.w));
+    REQUIRE(t.notice().size() > static_cast<std::size_t>(cells_of(kMinScreen).w));
     CHECK(t.notice().find(t.host.setup_path) != std::string::npos);
 
-    const std::string shown = label_at(t.canvases.back(), 0, kMinScreen.notice_y);
-    CHECK(shown.size() == static_cast<std::size_t>(kMinScreen.w));
+    const std::string shown = label_at(t.canvases.back(), 0, cells_of(kMinScreen).notice_y);
+    CHECK(shown.size() == static_cast<std::size_t>(cells_of(kMinScreen).w));
     CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);
     CHECK(t.notice().compare(0, shown.size() - 3, shown, 0, shown.size() - 3) == 0);
 
@@ -734,8 +734,8 @@ TEST_CASE("an authored override changes dispatch AND every displayed spelling") 
     // (The legend packs the command rows in catalog order and wraps; this pair is its second
     // row's on the minimum screen.)
     const Screen sc = screen_of(t.session());
-    const std::string legend = label_at(t.canvases.back(), 0, sc.help_y) + " | " +
-                               label_at(t.canvases.back(), 0, sc.help_y + 1);
+    const std::string legend = label_at(t.canvases.back(), 0, help_row(sc)) + " | " +
+                               label_at(t.canvases.back(), 0, help_row(sc) + 1);
     CHECK(legend.find("g new layout") != std::string::npos);
     CHECK(legend.find("= new layout") == std::string::npos);
     CHECK(keymap_text(t.session()).find("command mode | g | new layout | layout.new *") !=
@@ -1143,16 +1143,16 @@ TEST_CASE("the legend's three modes project the band, and hidden unbinds nothing
     const Screen sc = screen_of(compact.session());
     // The legend rows are rows of the band's one region, so they are read through the cell
     // projection with the region's padding trimmed.
-    CHECK(inspector_row(compact.canvases.back(), 0, sc.help_y) ==
+    CHECK(inspector_row(compact.canvases.back(), 0, help_row(sc)) ==
           "^t terminal | ^p panes | ^k hotkeys");
-    CHECK(inspector_row(compact.canvases.back(), 0, sc.help_y + 1).empty());
+    CHECK(inspector_row(compact.canvases.back(), 0, help_row(sc) + 1).empty());
 
     write_keymap_file(path, keymap_file_text("hidden", {}));
     Keyed hidden(path);
     // Blank rows -- and ONLY blank rows: the band's geometry is `screen_of`'s
     // and the notice and setup line are untouched.
-    CHECK(inspector_row(hidden.canvases.back(), 0, sc.help_y).empty());
-    CHECK(inspector_row(hidden.canvases.back(), 0, sc.help_y + 1).empty());
+    CHECK(inspector_row(hidden.canvases.back(), 0, help_row(sc)).empty());
+    CHECK(inspector_row(hidden.canvases.back(), 0, help_row(sc) + 1).empty());
     // Hidden never makes the full list unreachable: the binding is dispatch's,
     // and the legend is read by nothing but the band's painter.
     DesktopSeat* desk = mount_desktop(hidden);
@@ -1162,7 +1162,7 @@ TEST_CASE("the legend's three modes project the band, and hidden unbinds nothing
 
     write_keymap_file(path, keymap_file_text("full", {}));
     Keyed full(path);
-    CHECK(label_at(full.canvases.back(), 0, sc.help_y).rfind("q quit", 0) == 0);
+    CHECK(label_at(full.canvases.back(), 0, help_row(sc)).rfind("q quit", 0) == 0);
 }
 
 TEST_CASE("a written gesture is modifier words in one order out, any order in, and never twice") {
@@ -1264,7 +1264,7 @@ namespace {
 
 /// The band region a canvas actually published, or nullptr -- by its place.
 const surface::SurfaceTextRegion* band_on(const surface::SurfaceCanvas& c, const Screen& sc) {
-    const ui::Rect b = band_bounds(sc);
+    const PixelRect b = band_bounds(sc);
     for (const surface::SurfaceLayer& layer : c.layers) {
         for (const surface::SurfaceTextRegion& r : layer.texts) {
             if (r.x == b.x && r.y == b.y && r.h == b.h) {
@@ -1311,7 +1311,7 @@ TEST_CASE("the shipped face reads every Workshop-owned sentence as real type") {
     for (const surface::SurfaceTextRegion& r : all_texts(c)) {
         CAPTURE(r.x);
         CAPTURE(r.y);
-        CHECK(surface::fit_region(r, surface::SurfaceExtent{0, 0, 8, 18}).graphical());
+        CHECK(surface::fit_region(r, surface::SurfaceExtent{cells_px(0), cells_px(0), 8, 18}).graphical());
     }
     CHECK(band_on(c, sc) != nullptr);
 }
@@ -1346,12 +1346,12 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     // the bottom band's, and neither writes in the other's rectangle.
     CHECK(band_row(cband, 0).find("\"Default\"") == std::string::npos);
     CHECK(band_row(ctop, 0).find("a notice") == std::string::npos);
-    CHECK(ctop->y + ctop->h == cells_covered(fine_of_cells(ui::Rect{0, kWorkspaceY, 1, 1})).y);
-    CHECK(cband->y == kWorkspaceY + csc.room_h); // the body ends where the band begins
+    CHECK(ctop->y + ctop->h == csc.room_y);
+    CHECK(cband->y == csc.room_y + csc.room_h); // the body ends where the band begins
 
-    // THE SHIPPED FACE: one row at the top (the identity with the workspace fact folded in)
-    // and two at the foot (the notice and one packed legend row) -- THREE face rows of chrome.
-    Session sdl = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    // THE SHIPPED FACE: the same rows, each band as tall as its rows of type -- two at the top
+    // (the identity, then the workspace fact) and four at the foot (the notice and the legend).
+    Session sdl = screen_session(kScreenMinW, kScreenMinH, 8, 18, surface::kCanvasCellPx);
     sdl.notice = "a notice";
     const Screen ssc = screen_of(sdl);
     const surface::SurfaceCanvas sdl_canvas = paint(sdl);
@@ -1359,27 +1359,21 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     const surface::SurfaceTextRegion* sband = band_on(sdl_canvas, ssc);
     REQUIRE(stop != nullptr);
     REQUIRE(sband != nullptr);
-    CHECK(layouts_body(sdl, ssc).rows == 1);
-    CHECK(band_fit(ssc).rows == 2);
-    REQUIRE(stop->rows.size() == 1);
-    REQUIRE(sband->rows.size() == 2);
+    CHECK(layouts_body(sdl, ssc).rows == kTopRows);
+    CHECK(band_fit(ssc).rows == kBottomRows);
+    REQUIRE(stop->rows.size() == 2);
+    // The notice and the legend: the face's wider rows pack the legend into fewer of them.
+    REQUIRE(sband->rows.size() >= 2);
+    CHECK(sband->rows.size() <= static_cast<std::size_t>(kBottomRows));
     CHECK(band_row(stop, 0).rfind(">Default<", 0) == 0);
-    CHECK(band_row(stop, 0).find("| workspace 78x16 cells") != std::string::npos);
+    CHECK(band_row(stop, 1).find("workspace 936x146 px") != std::string::npos);
     CHECK(band_row(sband, 0) == "a notice");
     CHECK(band_row(sband, 1).rfind("q quit", 0) == 0);
 
-    // DEGRADE HONESTLY BELOW THAT, and each band degrades in its own rectangle: the legend
-    // gives way first at the foot, and the workspace fact folds into the identity at the top.
-    Session three = screen_session(kScreenMinW, kScreenMinH, 8, 14); // 44/14 = 3 band rows
-    three.notice = "a notice";
-    const surface::SurfaceCanvas three_canvas = paint(three);
-    const surface::SurfaceTextRegion* tband = band_on(three_canvas, screen_of(three));
-    REQUIRE(tband != nullptr);
-    REQUIRE(tband->rows.size() == 3);
-    CHECK(band_row(tband, 0) == "a notice");
-    CHECK(band_row(tband, 1).rfind("q quit", 0) == 0);
-
-    Session one = screen_session(kScreenMinW, kScreenMinH, 8, 30); // 44/30 = 1 band row
+    // DEGRADE HONESTLY BELOW THAT. A face too tall for its bands to fit beside a room keeps the
+    // bands in cells, and each band degrades in its own rectangle: the legend gives way first at
+    // the foot, while the identity keeps its band at the top.
+    Session one = screen_session(kScreenMinW, kScreenMinH, 8, 40); // 44/40 = 1 band row
     one.notice = "a notice";
     const surface::SurfaceCanvas one_canvas = paint(one);
     const surface::SurfaceTextRegion* oband = band_on(one_canvas, screen_of(one));

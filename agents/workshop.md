@@ -18,7 +18,7 @@ consumer-specific behavior of its extracted panes.
 
 | the task touches… | read |
 |---|---|
-| the composition in cells, the right column, the fine lattice, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
+| the composition in pixels, the right column, the whole pixel, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
 | the setup file, a pane's default and the weaver's override, places and slots, the seven states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
 | the pane catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |

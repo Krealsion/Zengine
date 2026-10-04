@@ -51,8 +51,8 @@ MEANS
 - at 79 columns the surplus is one and the odd column stays the weaver's;
 - a width edit never buys a slot: `stack_slots_that_fit` reads `y` and `h` only.
 
-PROVEN BY — `workshop/screen.hpp` `placement_bounds`, `kStackW`, `stack_slots_that_fit`,
-`kStackX`; `tests/test_workshop_host.cpp` case `"the right column keeps its width and the stack
+PROVEN BY — `workshop/screen.hpp` `placement_bounds`, `kStackW`, `stack_slots_that_fit`;
+`tests/test_workshop_host.cpp` case `"the right column keeps its width and the stack
 takes half the surplus"`, case `"the half-share pays at the bottom of the range too, and
 buys no slot"`.
 WHY — `agents/decisions/half-the-surplus.md`
@@ -109,7 +109,7 @@ WHY — `agents/decisions/front-is-a-permutation.md`
 LAW — An authored row's geometry is spent wherever the pane stands; every refusal `arrange_geometry_ready` still makes belongs to a pane with no rectangle, so none can be reached by pointing.
 
 MEANS
-- absent, unresolved, sized in pixels or off the screen — each is invisible as well as refused;
+- absent, unresolved or off the screen — each is invisible as well as refused;
 - the right column's pane is arranged by the keys and the hand that arrange every other.
 
 DOES NOT MEAN
@@ -120,7 +120,7 @@ PROVEN BY — `workshop/screen_chrome.cpp` `project_pane`; `workshop/screen.hpp`
 `workshop/weave_arrange.cpp` `arrange_geometry_ready`;
 `tests/test_workshop_screen.cpp` case `"every pane a weaver can point at can be arranged, and the
 refusals are blind"`; `tests/test_workshop_panes_window.cpp`
-case `"a pixel axis is setup-valid, projection-refused, and never falls back"`.
+case `"a wholly off-room pane is off-room, recoverable, and painted by nobody"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-PANE-09 — The host clips and never rewrites
@@ -137,26 +137,26 @@ off-room pane is clipped, and its intent is not rewritten"`, case `"a wholly off
 is off-room, recoverable, and painted by nobody"`.
 WHY — `agents/decisions/three-places.md`
 
-## WL-PANE-10 — Seven states, one classifier, one precedence
+## WL-PANE-10 — Six states, one classifier, one precedence
 
-LAW — `closed`, `unresolved`, `refused`, `waiting`, `off-room`, `covered`, `open`: a unit outranks a want of room, `covered` is coverage by the union of what is in front, one visible cell is `open`.
+LAW — `closed`, `unresolved`, `waiting`, `off-room`, `covered`, `open`: a want of a resolution outranks a want of room, `covered` is coverage by the union of what is in front, one visible cell is `open`.
 
 MEANS
-- a pane with a pixel axis and no tile left is `refused`, because a taller window would not help;
+- every unit a row can be authored in is presented, so no state answers a unit;
 - two panes that each cover half of a third leave nothing of it showing.
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `pane_state_of`, `pane_state_word`,
 `pane_state_remedy`, `pane_is_covered`; `workshop/screen.hpp` `pane_state`,
 `PaneProjection`; `workshop/weave_session.cpp` `unresolved_note`; `workshop/panes.hpp`
-`Panes::waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"a refused pane is
-refused rather than waiting, and it still SEATS"`, case `"two panes that each cover HALF of a
+`Panes::waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"every setup-named pane
+has exactly one management row, in every state"`, case `"two panes that each cover HALF of a
 third leave nothing of it showing"`, case `"coverage is the UNION of what is in front,
 not containment by one pane"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-11 — An authored place is absolute, and each axis is independent
 
-LAW — An authored place is absolute on the fine lattice. A place edit freezes no size; each unauthored dimension follows the accepted preference or its placement fallback.
+LAW — An authored place is absolute, in canvas pixels. A place edit freezes no size; each unauthored dimension follows the accepted preference or its placement fallback.
 
 PROVEN BY — `workshop/setup.hpp` `author_pane_place`, `author_pane_size`, `PanePlace`;
 `workshop/screen_chrome.cpp` `project_pane`; `tests/test_workshop_panes_window.cpp` case `"an
