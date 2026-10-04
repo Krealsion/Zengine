@@ -33,6 +33,14 @@ an enabled item to an inactive context makes it inactive without erasing its con
 Conflicting active keys refuse; existing mappings remain. Closing a window leaves its explicit
 activation setting in place. The current actor still needs permission for the actual command.
 
+Inventory makes up to <!-- value kMaxPortableViews -->36<!-- /value --> portable views, and each opens beside the other panes on a desk.
+It keeps up to <!-- value kMaxConfiguredHotkeys -->512<!-- /value --> configured command hotkeys, and every one of them may be on at once,
+each on a chord of its own; a chord another live hotkey already holds is refused.
+
+![Thirty-six portable views on one desk below Inventory, Loaded, Compose, Info and the Demo controls](images/inventory-slots-thirty-six.png)
+
+![Main Inventory with its hotkeys ON, its commands listed by chord, the last one queued](images/inventory-slots-hotkeys-on.png)
+
 ![A command occupies the single box while its displaced entry and disabled duplicate remain in Inventory](images/inventory-slots-displaced.png)
 
 After moving into an enabled row, the original command can run. Its independent duplicate still

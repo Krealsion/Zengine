@@ -119,7 +119,12 @@ wholly on a monitor restores exactly, and one hanging off a monitor — a window
 edge, an unplugged monitor, a moved dock — is moved in only until the whole window is on the
 monitor it belongs to, instead of being replayed blindly. A window too large for its monitor
 keeps its title bar on the screen. A fresh window, with nothing remembered, opens centred on
-its monitor and stays centred while the desk loads and grows it. Second, a
+its monitor and stays centred while the desk loads and grows it. A room wider or taller than its
+monitor opens in the room the monitor holds, and the desk is laid out in that room.
+
+![Monitors in grey: a window remembered past the primary monitor's right edge (red) comes back whole on it (green)](images/window-remembered-whole.png)
+
+Second, a
 **terminal** run has no window of its own to place — the emulator owns it — so it neither
 restores nor claims a position; it simply carries your remembered one forward untouched for
 the next graphical run.

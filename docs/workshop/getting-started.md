@@ -236,7 +236,7 @@ layout for you either way.
 | layouts | `s` save · `r` restore · `=` new · `.` `,` next / previous · `Ctrl`+`w` remove ([setups](setups.md)) — the **last** session needs neither |
 | quit | `q` · `Ctrl`+`c` where nothing takes text |
 | in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter` `Tab`, the [Builder](builder.md)'s `b` `c` `f` `o`, the [browser](files.md)'s `u` `m` `a`, [Attention](attention.md)'s `↑` `↓` `d`, the [Terminal](terminal.md)'s `Enter` `Tab` `↑` `↓` `Esc` and `Ctrl`+`↑` `Ctrl`+`↓` `Ctrl`+`Home` `Ctrl`+`End` |
-| leaving a pane | `Esc` where the pane has nothing of its own left to do with it — the [Terminal](terminal.md) after its list and its line — or a press elsewhere. Both editors keep every `Esc`; a press elsewhere is the way out of those |
+| leaving a pane | `Esc`: the pane first lets go of what you chose in it (a row in Loaded or Powers), Compose leaves its form and the [Terminal](terminal.md) sheds its list and its line; the next `Esc` puts the pane down. Or a press elsewhere. Both editors keep every `Esc`; a press elsewhere is the way out of those |
 
 These are the defaults; every binding can be remapped through the keymap file, and the
 on-screen hints and the Hotkeys pane always spell the effective one ([hotkeys](hotkeys.md)).
