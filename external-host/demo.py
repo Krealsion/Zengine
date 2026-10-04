@@ -396,8 +396,9 @@ def main():
                 try:
                     tool(session, "demo-stop")
                 except RuntimeError as refused:
-                    raise RuntimeError("stop: %s. Nothing was stopped: the demo is still running. "
-                                       "Save or discard what is named, then stop again." % refused)
+                    said = (str(refused).splitlines() or [""])[0]  # the tool's words, not its cleanup notes
+                    raise RuntimeError("stop: %s Nothing was stopped: the demo is still running. "
+                                       "Save or discard what is named, then stop again." % said)
                 try:
                     session.cancel(config["service"], "demo stopped")
                     session.wait(config["service"], timeout=15)
