@@ -4,7 +4,7 @@
 import json
 from hand import Hand
 from demo_setup import Measured, layout
-from workshop_steps import moment, picture, chord_moments
+from workshop_steps import moment, picture, chord_moments, TOP
 
 
 def run(ctx):
@@ -68,11 +68,11 @@ def run(ctx):
         panes[:] = [p for p in panes if p["provider"] in (inv[0], "zengine.info", "zengine.demo")]
         for p in panes:
             if p["provider"] == "zengine.info":
-                p["place"] = {"mode": "pixels", "x": "12", "y": str(25 * 12)}
+                p["place"] = {"mode": "pixels", "x": "12", "y": str(25 * 12 + TOP)}
                 p["width"]["amount"], p["height"]["amount"] = str(50 * 12), str(17 * 12)
         for key, x, y, width, height in ids:
             panes.append({"provider": inv[0], "pane": key,
-                          "place": {"mode": "pixels", "x": str(x * 12), "y": str(y * 12)},
+                          "place": {"mode": "pixels", "x": str(x * 12), "y": str(y * 12 + TOP)},
                           "width": {"mode": "pixels", "amount": str(width * 12)},
                           "height": {"mode": "pixels", "amount": str(height * 12)}, "front": str(len(panes))})
         for i, p in enumerate(panes):
