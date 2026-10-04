@@ -302,10 +302,12 @@ Absence is **silence**, not zeroes: `(0,0)` is a real place on every desktop, so
 no window — every terminal skin, whose window belongs to the emulator — simply never says one.
 `SurfacePlacementRemembered{x, y, maximized}` is the road back: sent to the skin's role once,
 by a publisher restoring a session, and it is a *want*, not an instruction. The skin validates
-it against the displays that exist **now** — a reachable position (a hand's width of the
-window's top strip on some display's usable area) restores verbatim, deliberate overhangs
-included; a stranded one is clamped into the nearest display's usable bounds; and with no
-display truth at all nothing moves, because an uninformed move is a blind replay. The maximize
+it against the displays that exist **now** — a position wholly on a display restores verbatim;
+any other moves in only until the whole window, its frame included, is on the usable area of
+the display it overlaps most (a window larger than that area keeps its top-left there); and
+with no display truth at all nothing moves, because an uninformed move is a blind replay. A
+window nobody placed opens centred on its display, and stays centred as pictures grow it until
+someone moves it; a placed one is kept whole as it grows. The maximize
 is applied after the position, so unmaximizing lands where the offer put the frame — and what
 the publisher then hears is the truth through the ordinary report, never an echo.
 

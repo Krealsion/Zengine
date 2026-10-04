@@ -114,10 +114,12 @@ whole cell), its **desktop position**, and whether it was **maximized** — a ma
 comes back maximized, and unmaximizing lands on the size and place you had before maximizing.
 
 Two honest bounds. First, the remembered position is validated against the monitors that exist
-*at restore time*, by the graphical medium (the only party that can see them): a reachable
-position restores exactly, partial off-screen overhangs included, and a position that would
-leave the window's grab strip unreachable — an unplugged monitor, a moved dock — is brought
-back inside the nearest display's usable area instead of being replayed blindly. Second, a
+*at restore time*, by the graphical medium (the only party that can see them): a position
+wholly on a monitor restores exactly, and one hanging off a monitor — a window parked past an
+edge, an unplugged monitor, a moved dock — is moved in only until the whole window is on the
+monitor it belongs to, instead of being replayed blindly. A window too large for its monitor
+keeps its title bar on the screen. A fresh window, with nothing remembered, opens centred on
+its monitor and stays centred while the desk loads and grows it. Second, a
 **terminal** run has no window of its own to place — the emulator owns it — so it neither
 restores nor claims a position; it simply carries your remembered one forward untouched for
 the next graphical run.
