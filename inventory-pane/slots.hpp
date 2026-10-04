@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <stdexcept>
 namespace zengine::inventory_pane {
+/// The most portable views one Inventory makes: room for many single boxes beside rows and
+/// columns, each one a pane Workshop's catalog holds.
+inline constexpr std::size_t kMaxPortableViews = 36;
 inline std::string key(const inventory::InventoryReference& r) { return r.owner + ":" + r.entry; }
 inline bool same(const inventory::InventoryReference& a, const inventory::InventoryReference& b) {
     return a.owner == b.owner && a.entry == b.entry;
@@ -40,7 +43,9 @@ inline void move(InventoryViews& s, const inventory::InventoryReference& r,
 }
 inline InventoryViews edited(InventoryViews s, const InventoryViewEdit& op) {
     if (op.operation == "create") {
-        if (s.views.size() >= 12) throw std::invalid_argument("At most twelve portable inventory views");
+        if (s.views.size() >= kMaxPortableViews)
+            throw std::invalid_argument("At most " + std::to_string(kMaxPortableViews) +
+                                        " portable inventory views");
         if (op.text != "single" && op.text != "row" && op.text != "column")
             throw std::invalid_argument("Choose single, row or column");
         const auto id = "inventory." + std::to_string(++s.serial);

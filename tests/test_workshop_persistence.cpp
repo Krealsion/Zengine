@@ -4162,6 +4162,23 @@ TEST_CASE("a current run this Workshop could not have made is refused as CURRENT
     CHECK(session_persist::from_text(as_text(hand_built(kMaxLayouts, 0))).outcome.accepted);
 }
 
+TEST_CASE("a desk at its pane bound, every key at its own bound, is a setup file a launch reads") {
+    // The row bound and the file's byte bound are two owners' numbers: raising the rows must
+    // not let a weaver save a desk the next launch refuses as too large.
+    const std::string long_key(kMaxPaneKeyLen, 'k');
+    Setup s = setup_of(std::string(kMaxSetupNameLen, 'n'), {});
+    while (s.panes.size() < kMaxSetupPanes) {
+        const std::string tail = std::to_string(s.panes.size());
+        REQUIRE(add_pane(s, PaneRef{long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail,
+                                    long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail}));
+    }
+    const std::string text = setup_persist::to_text(s);
+    CHECK(text.size() <= setup_persist::kMaxSetupBytes);
+    const auto read = setup_persist::from_text(text);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.setup.panes.size() == kMaxSetupPanes);
+}
+
 TEST_CASE("a session may hold as much as it may hold, and be read back") {
     // THE CASE THAT MAKES THE DERIVED READ CEILING LOAD-BEARING: `kMaxLayouts` desks of
     // `kMaxSetupPanes` rows, each row up to two `kMaxPaneKeyLen` keys, is LARGER THAN ONE
@@ -4190,7 +4207,7 @@ TEST_CASE("a session may hold as much as it may hold, and be read back") {
     CHECK(text.size() > setup_persist::kMaxSetupBytes);
     CHECK(text.size() <= session_persist::kMaxSessionBytes);
     // AND THE BOUND IS PROVEN FROM THE FORMAT'S OWN NUMBERS, not this measurement: with
-    // `kMaxSetupBytes` an order of magnitude above the largest legal desk, a ceiling of one
+    // `kMaxSetupBytes` above the largest legal desk, a ceiling of one
     // desk per layout would pass a size case while wrong about what a layout MAY hold. The read
     // bound must admit all the per-field bounds allow: its desk, its association's, the path.
     CHECK(session_persist::kMaxSessionBytes >=

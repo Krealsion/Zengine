@@ -60,8 +60,8 @@ checking that the source stays unchanged.
 The test context is turned OFF on completion/cleanup; entries and view identities remain.
 
 Use Reset before another run and choose a fresh short label. This demo arranges its own panes;
-run it in the dedicated demo host. Each run adds three views, within the current twelve-view
-bound. Restart the demo host for further independent sessions. Reset preserves stored entries;
+run it in the dedicated demo host. Each run adds three views, within the bound of
+<!-- value kMaxPortableViews -->36<!-- /value --> views. Restart the demo host for further independent sessions. Reset preserves stored entries;
 it does not undo earlier commands or make view identities reusable by name.
 
 See [Inventory's contract](../reference/inventory.md#portable-boxes-strips-and-command-hotkeys)

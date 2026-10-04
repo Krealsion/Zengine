@@ -57,6 +57,8 @@ kMaxLayouts                     workshop/setup.hpp                        kMaxLa
 kMaxSetupBytes                  workshop/setup_persist.hpp                kMaxSetupBytes
 kMaxLinkPathBytes               workshop/session_persist.hpp              kMaxLinkPathBytes
 kMaxPaneCatalogEntries          workshop/panes.hpp                        kMaxPaneCatalogEntries
+kMaxSetupPanes                  workshop/setup.hpp                        kMaxSetupPanes
+kMaxPortableViews               inventory-pane/slots.hpp                  kMaxPortableViews
 
 # ---- the surface and input
 kCanvasCellPx                   surface/vocabulary.hpp                    kCanvasCellPx
