@@ -48,6 +48,7 @@ installation stay separate from preparation. Run from the Zengine source checkou
 ```sh
 python external-host/demo.py start --setup workbench --root demo-runs/workbench --build build --loom-prefix ../Loom/build/_install
 python external-host/demo.py status --root demo-runs/workbench
+python external-host/demo.py walk escape --root demo-runs/presets --pictures walks/escape-1
 python external-host/demo.py reset --root demo-runs/workbench
 python external-host/demo.py stop --root demo-runs/workbench
 ```
@@ -183,6 +184,30 @@ then restores the named demo. The tool package's
 search terms include `demo`, `setup`, `reset` and `workspace`. Its descriptors explain required
 authority, outputs and recovery. Script failures remain named runs, with their evidence.
 
+## Replay a setup's walks
+
+A setup may carry **walks**: named lists of [`workshop/act`](external-host.md#3-from-a-loom-session-journeys-as-python-tools)
+steps that press, click and type as a weaver would, expect or rule out what a pane paints, and take
+pictures. `describe` lists them. `walk` replays one against a running root, in a window or in a
+terminal, and puts what the run kept -- each picture, any rows a step kept, and `steps.json` with
+every step's time -- in the folder `--pictures` names, which must be new or empty:
+
+```sh
+python external-host/demo.py start --setup presets --root demo-runs/presets --build build --loom-prefix ../Loom/build/_install
+python external-host/demo.py walk escape --root demo-runs/presets --pictures walks/escape-1
+python external-host/demo.py walk escape --root demo-runs/presets --pictures walks/escape-2
+```
+
+A window's pictures are PNG files and a terminal's are its cells (`<name>.cells.txt`). The answer
+says `passed`, or `failed` with the step that could not be done and what the pane painted
+instead (`failed-step-rows.json`), and exits non-zero; what the run kept up to that step is in the
+folder either way. A walk leaves the desk where its last step left it: walk again from there, or
+press **Reset demo** first when the walk needs the starting desk.
+
+The walk is read from the setup's directory as it is now, so an edited walk replays without a new
+root; the desk it walks is the one the root prepared, and the answer says `description_changed`
+when the two differ.
+
 ## Measure the work behind one command
 
 `start`, `reset` and `status` report end-to-end milliseconds and the latest preparation sample.
@@ -248,9 +273,15 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
   the Builder, and arranges the desk again;
 - `guide_files` -- files or directories the guide shows or links to (its pictures), inside the
   setup's directory beside a guide that is too, so a copy keeps them where the guide points;
-- `tools` -- Loom tool packages the session approves beside `workshop`;
+- `tools` -- Loom tool packages the session approves beside `workshop`. They run from the copy
+  `start` makes in the root's `prepared/<name>/`, so an edit to the setup's own package does not
+  reach a running root: start a new root to run the edited tools;
 - `starting` -- [`workshop/act`](external-host.md#3-from-a-loom-session-journeys-as-python-tools)
-  steps run after the desk is ready and on every Reset (a new game, say).
+  steps run after the desk is ready and on every Reset (a new game, say);
+- `walks` -- `{"<name>": {"about": "what it checks", "steps": [...]}}`: `workshop/act` steps that
+  [`walk`](#replay-a-setups-walks) replays. A name is lower-case letters, digits and hyphens; a
+  `picture` step names its picture with letters, digits, `.`, `-` and `_`, once in its walk, and no
+  step names a `save` path, since the replay says where pictures go.
 
 Asset paths are relative to the setup's directory and never absolute; they may reach shared
 material with `..`. `python external-host/demo.py export --setup NAME --to DIR` copies the
