@@ -764,7 +764,7 @@ TEST_CASE("setup bytes carry no descriptor, room or handle") {
     CHECK(setup_persist::to_text(back.setup) == text);
     // AND THE VERSION IS THE ONE THIS BUILD READS AND WRITES, said here because this case
     // is where an external reference meets the file.
-    CHECK(setup_persist::kFormatVersion == 3);
+    CHECK(setup_persist::kFormatVersion == 4);
 }
 
 // ---- Runtime spatial capacity -----------------------------------------------------

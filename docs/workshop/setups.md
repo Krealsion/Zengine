@@ -312,8 +312,8 @@ Three consequences worth knowing:
   by number, naming the conversion that is missing:
 
 ```text
-session version 3 cannot be read: no live conversion from `WorkshopSession` v3 to v5
-(`zengine.migrate.WorkshopSession.v3-to-v5`) -- opening with the default setup
+session version 3 cannot be read: no live conversion from `WorkshopSession` v3 to v7
+(`zengine.migrate.WorkshopSession.v3-to-v7`) -- opening with the default setup
 ```
 
   **and that run keeps no session at all** — closing it writes nothing, so your file is still
@@ -365,7 +365,7 @@ Source-traced, precisely:
 | persisting pane size | **yes** | authored size in cells or pixels, in both |
 | persisting which panes are open | **yes** | the pane list, in both |
 | persisting pane order (depth) | **yes** | the rank permutation, in both |
-| persisting the window's size | **yes** | the session's viewport, in cells — the *normal* window's room |
+| persisting the window's size | **yes** | the session's viewport, in pixels — the *normal* window's room |
 | persisting the window's position and maximized state | **yes** | remembered opaquely from the medium's own reports; the medium validates them against live displays at restore |
 | **restoring the desk and the room at launch** | **yes** | automatic, from the `--session` file |
 | **reopening the source you were editing** | **no** | the Editor starts empty; open it again from Files or the Builder's `e` |

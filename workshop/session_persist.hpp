@@ -39,7 +39,7 @@ inline constexpr const char* kFormat = "zengine-workshop-session";
 // WL-MIG-01, WL-MIG-04, WL-MIG-06 -- agents/workshop/migration.md
 // WL-GEO-11 -- agents/workshop/geometry.md
 // WL-SESSION-05 -- agents/workshop/session-restore.md
-inline constexpr std::int64_t kFormatVersion = 6;
+inline constexpr std::int64_t kFormatVersion = 7;
 
 /// Where the last session lives when the host does not say otherwise.
 inline constexpr const char* kDefaultSessionFileName = "workshop-session.json";
@@ -54,13 +54,14 @@ inline constexpr std::uintmax_t kMaxSessionBytes =
 
 // ---- The file's own shapes ----------------------------------------------------
 
-/// HOW MUCH ROOM THE SURFACE HAD, in canvas cells.
+/// HOW MUCH ROOM THE SURFACE HAD, in canvas pixels.
 // WL-SESSION-07 -- agents/workshop/session-restore.md
 struct WorkshopViewport {
     std::int64_t width = 0;
     std::int64_t height = 0;
 
-    ZEN_SHAPE(WorkshopViewport, 1, ZEN_FIELD(width), ZEN_FIELD(height));
+    /// Version 2: the room is canvas pixels. Same fields — the version IS the semantic gate.
+    ZEN_SHAPE(WorkshopViewport, 2, ZEN_FIELD(width), ZEN_FIELD(height));
 };
 
 // ---- The placement's words, and why they are words -----------------------------------
@@ -93,7 +94,7 @@ struct WorkshopSetupLink {
     std::string path;
     setup_persist::WorkshopSetup known;
 
-    ZEN_SHAPE(WorkshopSetupLink, 1, ZEN_FIELD(path), ZEN_FIELD(known));
+    ZEN_SHAPE(WorkshopSetupLink, 2, ZEN_FIELD(path), ZEN_FIELD(known));
 };
 
 /// ONE SAVED LAYOUT: the desk, and the artifact it is associated with.
@@ -103,7 +104,7 @@ struct WorkshopLayout {
     setup_persist::WorkshopSetup desk;
     WorkshopSetupLink link;
 
-    ZEN_SHAPE(WorkshopLayout, 1, ZEN_FIELD(desk), ZEN_FIELD(link));
+    ZEN_SHAPE(WorkshopLayout, 2, ZEN_FIELD(desk), ZEN_FIELD(link));
 };
 
 /// A WHOLE SAVED SESSION: what it is, which version of that it is, the room it was in, the
@@ -119,7 +120,7 @@ struct WorkshopSession {
     WorkshopPlacement placement;
 
     // WL-MIG-03 -- agents/workshop/migration.md; WL-SESSION-05 -- agents/workshop/session-restore.md
-    ZEN_SHAPE(WorkshopSession, 6, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    ZEN_SHAPE(WorkshopSession, 7, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
               ZEN_FIELD(placement));
 };
@@ -133,7 +134,7 @@ static_assert(WorkshopSession::zen_version == static_cast<std::uint32_t>(kFormat
               "fields are judged against this version's shape");
 
 /// AND THE DESK'S VERSION IS PINNED HERE ON PURPOSE.
-static_assert(setup_persist::WorkshopSetup::zen_version == 3,
+static_assert(setup_persist::WorkshopSetup::zen_version == 4,
               "the session file nests the setup's own shape: when the desk's version moves, "
               "this format's version moves with it, and the refusal is worded here rather "
               "than left to the gate");
@@ -187,9 +188,7 @@ inline WorkshopSession to_session(const std::vector<Layout>& run, std::size_t ac
     WorkshopSession out;
     out.format = kFormat;
     out.format_version = kFormatVersion;
-    // The file's viewport is in canvas cells; the session holds pixels.
-    out.viewport = WorkshopViewport{surface::cell_of_pixel(viewport_w),
-                                    surface::cell_of_pixel(viewport_h)};
+    out.viewport = WorkshopViewport{viewport_w, viewport_h};
     out.layouts.reserve(run.size());
     for (const Layout& layout : run) {
         out.layouts.push_back(
@@ -457,8 +456,8 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     // THE VIEWPORT IS JUDGED AND NOT REFUSED (inside `loaded_from`). A well-formed session
     // whose size this build will not open at is still a session, and the desks in it are
     // still the weaver's.
-    return loaded_from(std::move(run), active, surface::px_of_cells(file.viewport.width),
-                       surface::px_of_cells(file.viewport.height), place, converted);
+    return loaded_from(std::move(run), active, file.viewport.width, file.viewport.height,
+                       place, converted);
 }
 
 /// Text to a session. Total: every input is either a session or a refusal with a reason, and

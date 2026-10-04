@@ -9,8 +9,8 @@ from workshop_steps import moment, picture
 
 def run(ctx):
     link = ctx.inputs["link"]
-    layout = {"zen": 1, "schema": "WorkshopSetup", "version": 3, "fields": {
-        "format": "zengine-workshop-setup", "format_version": "3", "name": "Default comfort",
+    layout = {"zen": 1, "schema": "WorkshopSetup", "version": 4, "fields": {
+        "format": "zengine-workshop-setup", "format_version": "4", "name": "Default comfort",
         "panes": [{"provider": "zengine.inventory-pane", "pane": "inventory",
                    "place": {"mode": "default", "x": "0", "y": "0"},
                    "width": {"mode": "default", "amount": "0"},
