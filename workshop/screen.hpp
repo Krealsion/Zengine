@@ -461,8 +461,11 @@ inline constexpr StackCapacity stack_capacity(const Screen& sc) noexcept {
     const auto column = graphical ? std::min(sc.text_advance_px, std::int64_t{8192})
                                   : surface::kCanvasCellPx;
     const auto border = graphical ? chrome_grain(sc) + surface::kTextInsetPx : kChromePx;
+    const auto text_row = graphical ? line + 2 * surface::kTextInsetPx : surface::kCanvasCellPx;
     return StackCapacity{stack_slots_that_fit(sc), sc.room_h, sc.room_w, line, column, border,
-                         surface::px_of_cells(kStackRows), surface::px_of_cells(kStackGap)};
+                         surface::px_of_cells(kStackRows), surface::px_of_cells(kStackGap),
+                         graphical ? chrome_grain(sc) : kChromePx, text_row, text_row,
+                         chrome_grain(sc)};
 }
 
 static_assert(kMinScreen.room_y + kMinScreen.room_h == kMinScreen.notice_y,

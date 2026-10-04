@@ -746,9 +746,9 @@ TEST_CASE("a described view of the greatest size its rules allow asks for a pane
     d.height = view::kMaxSizePx;
     d.elements = {{"far", view::Kind::label, "Far", view::kMaxPixels, view::kMaxPixels, 192, 24, ""},
                   {"near", view::Kind::label, "Near", 0, 0, 192, 24, ""}};
-    const auto [rows, columns] = view::preferred_size(d);
-    CHECK(rows == kMaxPaneComfort);
-    CHECK(columns == kMaxPaneComfort);
+    const auto asked = view::offered(d);
+    CHECK(asked.width == kMaxPaneBodyPx);
+    CHECK(asked.height == kMaxPaneBodyPx);
     const auto bytes = view::description_bytes(d);
     (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
         loom::Message(loom::to_value(view::ViewRun{"builder", loom::Bytes(bytes.begin(), bytes.end())}), client_id, {}, 1));
@@ -766,6 +766,67 @@ TEST_CASE("a described view of the greatest size its rules allow asks for a pane
     for (const auto& t : pane->canvas.content.texts) words += t.text + "|";
     CHECK(words.find("Near|") != std::string::npos);
     CHECK(words.find("Far|") == std::string::npos); // past the pane, cut
+}
+
+TEST_CASE("a view asks for its size in pixels and its pane grants exactly that room: to the pixel in a window, to the cells that hold it in a terminal") {
+    namespace view = zengine::view;
+    PaneRig r;
+    r.mount_workshop();
+    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.ready();
+    r.extent(160, 90, 8, 18, surface::kCanvasCellPx); // the shipped window's face
+    view::Host views(r.bus);
+    views.mount();
+    auto asker = std::make_unique<ViewAsker>();
+    auto* client = asker.get();
+    loom::Grant asking;
+    view::allow_view_requests(asking);
+    const auto client_id = r.bus.register_weave(std::move(asker), std::move(asking));
+    client->zen_set_self(client_id);
+
+    struct Size { const char* name; std::int64_t w, h; };
+    for (const Size& size : {Size{"even.view", 680, 360}, Size{"odd.view", 683, 361}}) {
+        const std::string named = size.name;
+        CAPTURE(named);
+        view::Description d;
+        d.name = size.name;
+        d.width = size.w;
+        d.height = size.h;
+        d.elements = {{"note", view::Kind::label, "Note", 0, 0, 96, 24, ""}};
+        const auto bytes = view::description_bytes(d);
+        (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
+            loom::Message(loom::to_value(view::ViewRun{size.name, loom::Bytes(bytes.begin(), bytes.end())}), client_id, {}, 1));
+        r.bus.drain_until_idle();
+        REQUIRE_FALSE(client->answers.empty());
+        REQUIRE_MESSAGE(client->answers.back().ok, client->answers.back().reason);
+        const auto* row = r.session().panes.runtime.find(size.name, view::kPane);
+        REQUIRE(row);
+        REQUIRE(r.session().panes.has(row->kind));
+
+        // IN THE WINDOW: the size to the pixel, and the notice's three rows of the face beneath it.
+        const auto band = 3 * (18 + 2 * surface::kTextInsetPx);
+        const auto* pane = r.session().panes.external_pane(row->kind);
+        REQUIRE(pane);
+        CHECK(pane->canvas.width == size.w);
+        CHECK(pane->canvas.height == size.h + band);
+        CHECK(pane->canvas.grain == 1);
+    }
+
+    // IN A TERMINAL, the same panes derived: each size rounded up to the whole cells that hold
+    // it, and three rows of cells beneath.
+    r.extent(160, 90);
+    for (const Size& size : {Size{"even.view", 680, 360}, Size{"odd.view", 683, 361}}) {
+        const std::string named = size.name;
+        CAPTURE(named);
+        const auto* row = r.session().panes.runtime.find(size.name, view::kPane);
+        REQUIRE(row);
+        const auto* pane = r.session().panes.external_pane(row->kind);
+        REQUIRE(pane);
+        const auto up = [](std::int64_t px) { return (px + 11) / 12 * 12; };
+        CHECK(pane->canvas.width == up(size.w));
+        CHECK(pane->canvas.height == up(size.h) + 3 * surface::kCanvasCellPx);
+        CHECK(pane->canvas.grain == surface::kCanvasCellPx);
+    }
 }
 
 TEST_CASE("a described view offers its own pane through the view host, Workshop seats and draws it, a press reaches it, and a stop leaves a picture that says so") {

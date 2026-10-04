@@ -218,16 +218,20 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PANE-17 — Preferred body space is resolved by Workshop
 
-LAW — A preferred size budgets body text plus title and chrome in the current medium, bounded by available workspace; an authored dimension wins, and seating and drawing spend the same default height.
+LAW — A preferred size budgets body text, or a canvas body of whole pixels, plus title and chrome in the current medium, bounded by the workspace; an authored dimension wins.
 
 MEANS
+- a pixel body is granted exactly: to the pixel in a window, rounded up to cells in a terminal;
 - a first accepted offer fixes the runtime preference; refresh cannot resize it;
-- old providers retain their fallback, and small authored dimensions remain legal.
+- seating and drawing spend the same default height; old providers keep their fallback.
 
-PROVEN BY — `workshop/setup.hpp` `preferred_extent`, `seat_panes`, `admit_pane_offer`;
-`workshop/screen.hpp` `stack_capacity`; `workshop/screen_chrome.cpp` `project_pane`, `bounds_of`;
-`tests/test_workshop_demo.cpp` case
+PROVEN BY — `workshop/setup.hpp` `preferred_extent`, `seat_panes`, `admit_pane_offer`,
+`PaneBody`; `workshop/pane_vocabulary.hpp` `kMaxPaneBodyPx`; `workshop/screen.hpp`
+`stack_capacity`; `workshop/screen_chrome.cpp` `project_pane`, `bounds_of`; `view/view.hpp`
+`offered`; `tests/test_workshop_demo.cpp` case
 `"pane comfort budgets body text with chrome in both real medium metrics"`,
 case `"pane comfort survives offer refresh and rejects malformed preferences"`,
-case `"pane comfort seating and drawing spend the same vertical space"`.
+case `"pane comfort seating and drawing spend the same vertical space"`;
+`tests/test_workshop_panes_canvas.cpp` case `"a view asks for its size in pixels and its pane
+grants exactly that room: to the pixel in a window, to the cells that hold it in a terminal"`.
 WHY — `agents/decisions/preferred-pane-space.md`
