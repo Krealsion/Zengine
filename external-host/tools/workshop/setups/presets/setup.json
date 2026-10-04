@@ -61,5 +61,180 @@
  "reset": {
   "scope": "the layout, the nine Demo input entries' values and labels, Inventory's selection and the Info/Compose drafts on the desk",
   "keeps": "every entry you created, including saved copies and commands; submitted commands are not undone"
+ },
+ "walks": {
+  "escape": {
+   "about": "Escape in Inventory, Loaded, Compose, Info and the Demo controls: a selection let go first, then the pane put down",
+   "steps": [
+    {
+     "click": [
+      "zengine.inventory-pane",
+      "inventory",
+      "Demo input 3"
+     ]
+    },
+    {
+     "expect": [
+      "zengine.inventory-pane",
+      "inventory",
+      "> Demo input 3"
+     ]
+    },
+    {
+     "picture": "inventory-1-chosen"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "picture": "inventory-2-down"
+    },
+    {
+     "click": [
+      "zengine.introspection",
+      "loaded",
+      "zengine-timer"
+     ]
+    },
+    {
+     "expect": [
+      "zengine.introspection",
+      "loaded",
+      "> zengine-timer"
+     ]
+    },
+    {
+     "picture": "loaded-1-marked"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "absent": [
+      "zengine.introspection",
+      "loaded",
+      "> zengine-timer"
+     ]
+    },
+    {
+     "picture": "loaded-2-unmarked"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "picture": "loaded-3-down"
+    },
+    {
+     "click": [
+      "zengine.introspection",
+      "loaded",
+      "zengine-timer"
+     ]
+    },
+    {
+     "click": [
+      "zengine.composer",
+      "compose",
+      "StartTimer v1"
+     ]
+    },
+    {
+     "expect": [
+      "zengine.composer",
+      "compose",
+      "StartTimer v1 -> @zengine.timer"
+     ]
+    },
+    {
+     "picture": "compose-1-form"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "expect": [
+      "zengine.composer",
+      "compose",
+      "accepted messages"
+     ]
+    },
+    {
+     "absent": [
+      "zengine.composer",
+      "compose",
+      "StartTimer v1 -> @zengine.timer"
+     ]
+    },
+    {
+     "picture": "compose-2-catalog"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "picture": "compose-3-down"
+    },
+    {
+     "click": [
+      "zengine.info",
+      "info",
+      "Loaded -- open"
+     ]
+    },
+    {
+     "expect": [
+      "zengine.info",
+      "info",
+      "PANE Loaded"
+     ]
+    },
+    {
+     "picture": "info-1-chosen"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "picture": "info-2-down"
+    },
+    {
+     "click": [
+      "zengine.demo",
+      "controls",
+      "Command presets"
+     ]
+    },
+    {
+     "picture": "demo-1-chosen"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "picture": "demo-2-down"
+    },
+    {
+     "click": [
+      "zengine.introspection",
+      "loaded",
+      "zengine-timer"
+     ]
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "absent": [
+      "zengine.introspection",
+      "loaded",
+      "> zengine-timer"
+     ]
+    },
+    {
+     "press": "escape"
+    }
+   ]
+  }
  }
 }

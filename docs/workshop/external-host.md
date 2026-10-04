@@ -164,6 +164,14 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   never force-pushes. [The tower defense example](../../examples/tower-defense/README.md) was
   made with them, and replays how.
 
+**Steps kept with a setup.** A [ready-to-use setup](demo-setups.md) may carry named **walks** --
+lists of `workshop/act` steps, the same steps its `starting` list uses -- and
+`python external-host/demo.py walk <name> --root <root> --pictures <folder>` replays one against
+that setup's running root, in a window or in a terminal, and puts the pictures it takes in the
+folder named, beside `steps.json` ([replaying a setup's walks](demo-setups.md#replay-a-setups-walks)).
+A walk worth keeping goes in its setup rather than in a scratch file, so the next reader replays
+it instead of pressing it again.
+
 **A capability change updates its own manifest help in the same change.** `loom-session
 tools`/`describe` reads a tool's accepted inputs, outputs and refusals from `loom-tool.json` and
 the tool's own docstring, never by running it — so a weaver who only ever reads `describe` sees

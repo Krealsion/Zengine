@@ -62,5 +62,102 @@
  "reset": {
   "scope": "the layout, the nine Demo input entries' values and labels, Inventory's selection and the Info/Compose drafts on the desk",
   "keeps": "every entry you created, including saved copies and commands; submitted commands are not undone"
+ },
+ "walks": {
+  "layouts": {
+   "about": "the Layouts row taken off the desk from the Pane Manager, then brought back",
+   "steps": [
+    {
+     "expect": [
+      "zengine.info",
+      "info",
+      "Layouts -- open"
+     ]
+    },
+    {
+     "picture": "layouts-1-on"
+    },
+    {
+     "press": "ctrl+p"
+    },
+    {
+     "select": [
+      "zengine.desktop",
+      "launcher",
+      "[open] Layouts"
+     ]
+    },
+    {
+     "press": "x"
+    },
+    {
+     "expect": [
+      "zengine.desktop",
+      "launcher",
+      "[    ] Layouts"
+     ]
+    },
+    {
+     "press": "ctrl+p"
+    },
+    {
+     "absent": [
+      "zengine.desktop",
+      "launcher",
+      "PANES"
+     ]
+    },
+    {
+     "expect": [
+      "zengine.info",
+      "info",
+      "Layouts -- closed"
+     ]
+    },
+    {
+     "picture": "layouts-2-off"
+    },
+    {
+     "press": "ctrl+p"
+    },
+    {
+     "select": [
+      "zengine.desktop",
+      "launcher",
+      "[    ] Layouts"
+     ]
+    },
+    {
+     "press": "return"
+    },
+    {
+     "expect": [
+      "zengine.desktop",
+      "launcher",
+      "[open] Layouts"
+     ]
+    },
+    {
+     "press": "ctrl+p"
+    },
+    {
+     "absent": [
+      "zengine.desktop",
+      "launcher",
+      "PANES"
+     ]
+    },
+    {
+     "expect": [
+      "zengine.info",
+      "info",
+      "Layouts -- open"
+     ]
+    },
+    {
+     "picture": "layouts-3-back"
+    }
+   ]
+  }
  }
 }

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""List, describe, prepare, inspect, reset, stop or export a described Workshop setup.
+"""List, describe, prepare, inspect, walk, reset, stop or export a described Workshop setup.
 
 `start` makes one dedicated Workshop and Loom session per root, prepares the setup through
 Workshop's own owners and waits until it is usable; run again on the same root it returns to the
-running desk without resetting it. Uses an existing Zengine build and installed Loom. Python owns
+running desk without resetting it. `walk` replays one of the setup's named walks against it. Uses an existing Zengine build and installed Loom. Python owns
 launch policy; every Workshop mutation crosses the admitted link. docs/workshop/demo-setups.md."""
 import argparse
 import json
@@ -297,6 +297,45 @@ def launch(args, source, root):
         raise
 
 
+def walk(module, session, config, name, folder, seconds):
+    """Replay the setup's walk `name` through `workshop/act` against this root's Workshop, and copy
+    what the run kept -- its pictures, any rows it kept and steps.json -- into `folder`, which must
+    be new or empty. The walk is read from the setup's directory as it is now, so an edited walk
+    replays without a new root; the desk it walks is the one this root prepared."""
+    setup = find(config["directory"])
+    if name not in setup.walks():
+        raise RuntimeError("setup %s carries no walk %r; it carries: %s"
+                           % (setup.name, name, ", ".join(sorted(setup.walks())) or "none"))
+    folder = folder.resolve()
+    if folder.exists() and any(folder.iterdir()):
+        raise RuntimeError("%s already holds files; name a new or empty folder, so one replay's "
+                           "pictures never mix with another's" % folder)
+    # A window's picture is kept as a PNG too; a terminal's is its cells, whatever is asked.
+    steps = [dict(s, png=True) if "picture" in s else dict(s) for s in setup.walks()[name]["steps"]]
+    run_name = "walk-%s-%s" % (name, uuid.uuid4().hex[:10])
+    session.start("workshop/act", run_name, {"steps": json.dumps(steps)})
+    try:
+        record = session.wait(run_name, timeout=seconds)
+    except module.NotAnswered:
+        raise RuntimeError("the walk had not finished within %gs and goes on; `loom-session show %s %s` "
+                           "shows the step it is on" % (seconds, config["session"], run_name))
+    folder.mkdir(parents=True, exist_ok=True)
+    kept = []
+    for made in record.get("artifacts", []):
+        if made["name"].endswith(".bmp"):
+            continue  # the PNG beside it is the same picture
+        shutil.copyfile(made["path"], folder / made["name"])
+        kept.append(made["name"])
+    result = {"walk": name, "state": record["state"], "medium": config["medium"], "run": run_name,
+              "steps": len(steps), "folder": str(folder), "kept": kept}
+    if record["state"] != "passed":
+        result["failure"] = record.get("failure") or record.get("summary")
+    if setup.digest() != config.get("digest"):
+        result["description_changed"] = ("the walk was read from the setup's directory as it is now; "
+                                         "this root prepared an earlier revision (%s)" % config.get("prepared"))
+    return result
+
+
 def existing(args, root):
     """The root's recorded instance, or an explanation of why it cannot be returned to."""
     config_path = root / "demo.json"
@@ -331,8 +370,8 @@ def attach(config):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["list", "describe", "start", "status", "reset", "stop", "export"])
-    parser.add_argument("name", nargs="?", help="describe: the setup's name or directory")
+    parser.add_argument("action", choices=["list", "describe", "start", "status", "walk", "reset", "stop", "export"])
+    parser.add_argument("name", nargs="?", help="describe: the setup's name or directory; walk: the walk's name")
     parser.add_argument("--root", type=Path, help="dedicated instance directory; never a source or weaver state directory")
     parser.add_argument("--setup", help="a setup's name (see list) or a directory holding setup.json; a first start defaults to values")
     parser.add_argument("--build", help="configured, built Zengine tree")
@@ -341,7 +380,8 @@ def main():
     parser.add_argument("--toolchain-bin", help="a directory put first on PATH for Workshop and the Loom host")
     parser.add_argument("--tui", action="store_true", help="use the classic terminal medium")
     parser.add_argument("--neovim", help="a Neovim program: the Neovim-backed Editor holds the Editor's office from the start")
-    parser.add_argument("--wait", type=float, default=900, help="seconds start/status wait for readiness before answering pending")
+    parser.add_argument("--wait", type=float, default=900, help="seconds start/status wait for readiness, or walk for its run, before answering")
+    parser.add_argument("--pictures", type=Path, help="walk: a new or empty folder for the walk's pictures, rows and steps.json")
     parser.add_argument("--json", action="store_true", help="list/describe: the machine-readable description")
     parser.add_argument("--to", type=Path, help="export: a new directory to copy the setup and its assets into")
     args = parser.parse_args()
@@ -388,7 +428,11 @@ def main():
         config = existing(args, root)
         module, session = attach(config)
         with session:
-            if args.action == "reset":
+            if args.action == "walk":
+                if not args.name or not args.pictures:
+                    parser.error("walk needs the walk's name and --pictures")
+                result = walk(module, session, config, args.name, args.pictures, args.wait)
+            elif args.action == "reset":
                 result = artifact(tool(session, "demo-reset", timeout=args.wait + 15, seconds=args.wait), "reset.json")
                 result["preparation"] = preparation(session, config)
             elif args.action == "stop":
@@ -434,7 +478,7 @@ def main():
                     result["guidance"] = guidance(find(config.get("prepared") or config["directory"]), root)
     result["elapsed_ms"] = (time.monotonic() - started) * 1000
     print(json.dumps(result, indent=2, default=str))
-    if result.get("state") not in ("ready", "stopped", None):
+    if result.get("state") not in ("ready", "stopped", "passed", None):
         sys.exit(1 if result.get("state") == "failed" else 3)
 
 
