@@ -6,6 +6,7 @@
 #include "command.hpp"
 #include "toolbox.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_escape.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/setup_control.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
@@ -38,7 +39,7 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         inv::v2::InventorySnapshot, inv::InventoryRestored,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
         loom::Ack, loom::Refused, loom::DispatchRefused>,
-    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v3::PaneContent, ws::PaneMenuRequested,
+    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v3::PaneContent, ws::PaneMenuRequested, ws::PaneEscapeUnspent,
         ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested, ws::PaneCarryRequested,
         ws::PaneValueCarryRequested, ws::v2::PaneValueCarryRequested, ws::PaneShortcuts,
         ws::PaneLaunchRequested, slots::InventoryViews, inv::v2::InventoryList, inv::InventoryRead,
@@ -293,6 +294,9 @@ public:
         while(v.wheel<=-1) { step(w.pane,1); v.wheel+=1; } remove_armed_=false; draw(m);
     }
     void on(const ws::PaneKey& k, loom::Mail& m) {
+        // Escape's default: a view's marker rests on a row as a cursor does, not a selection, so
+        // Escape goes back to Workshop.
+        if(host(m) && known(k.pane) && ws::pane_escape::answer(k,m,office,[] { return false; })) return;
         if(host(m) && k.pane==current_ && editing_!=Editing::none && editing_!=Editing::toolbox_confirm && line_.consume(k.scancode,k.modifiers,clipboard_)) draw(m);
     }
     void on(const ws::PaneTextInput& t, loom::Mail& m) {

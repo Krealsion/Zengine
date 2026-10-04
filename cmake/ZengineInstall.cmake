@@ -139,6 +139,7 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
                                       workshop/pane_canvas_vocabulary.hpp
                                       workshop/pane_canvas_text.hpp
                                       workshop/pane_menu.hpp
+                                      workshop/pane_escape.hpp
                                       workshop/presenter_vocabulary.hpp
                                       workshop/guest_seam_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.

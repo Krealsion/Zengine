@@ -24,6 +24,7 @@
 #include "activation/activation.hpp"
 #include "value_view.hpp"
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_escape.hpp"
 #include "workshop/setup_control.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
@@ -260,6 +261,7 @@ class InfoPaneWeave
                      PaneSubjectRequested, InspectPaneRequested, PaneCommitRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested, ws::v3::PaneContent,
                      ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
+                     ws::PaneEscapeUnspent,
                      ws::PaneObservationEnded, loom::PokeDescribe, ws::PaneLaunchRequested,
                      ws::PaneCloseRequested>> {
 public:
@@ -581,6 +583,11 @@ public:
     void on(const PaneKey& key, loom::Mail& mail) {
         pane::ValueView* v = view_of(key.pane);
         if (!mail.authored_from_role(kWorkshopRole) || !v) {
+            return;
+        }
+        // Escape's default: a view holds nothing selected (its drafts answer Escape with their own
+        // rows), so Escape goes back to Workshop.
+        if (ws::pane_escape::answer(key, mail, pane::kInfoPaneRole, [] { return false; })) {
             return;
         }
         if (value_mode(*v)) { v->key(key); say(*v, mail); return; }

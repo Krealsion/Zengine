@@ -48,11 +48,19 @@ older number answers nothing, and a spent number is spent. Pinned by case `"a se
 not lend its identity to the first Escape's answer"` and case `"an answer to an Escape that is over
 cannot borrow the next Escape's identity"`.
 
+**A default, and where it lives.** Silence keeping Escape meant every pane written without a
+thought for Escape kept the weaver there. Escape now deselects by default: a pane that holds the
+keys drops what it has selected, then says the Escape was unspent (`workshop/pane_escape.hpp`,
+pane-side, because only the pane knows its selection). A holder declares that it judges its own
+Escape by listing `PaneEscapeUnspent` in what it emits; Workshop sends a bare Escape to no other,
+so a pane made later that never mentions Escape is put down by it -- a declaration read, as the
+accept-set is, never a silence. A marker that always rests on a row is not a selection. Pinned by
+case `"a pane that never mentions Escape is put down by it, and is sent nothing"`.
+
 **Consequences.** `unselect_pane` is the press-on-nothing line spent from the keyboard, the
-fourth writer of `Panes::selected`. A pane that takes text keeps Escape unless it says otherwise:
-the Terminal sheds its list, then its line, then itself, and the two editors keep every Escape, so
-the way out of them is the way in -- press a pane that takes no text (every desk has Layouts) or
-the workspace. A pane whose holder takes no keys at all is put down by Escape where it used to
+fourth writer of `Panes::selected`. The Terminal sheds its list, then its line, then itself, and
+the two editors keep every Escape, so the way out of them is the way in -- press a pane that takes
+no text (every desk has Layouts) or the workspace. A pane whose holder takes no keys at all is put down by Escape where it used to
 swallow it at Loom's gate. Presence changes only through the two doors the Pane Manager spends
 (WL-DESK-03, WL-DESK-12); the picker was that door when this was decided.
 

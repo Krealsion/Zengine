@@ -683,6 +683,9 @@ struct Live {
             }
             return holder_accepts_on(bus, role, shape);
         };
+        host.holder_emits = [this](std::string_view role, const loom::Schema& shape) {
+            return holder_emits_on(bus, role, shape);
+        };
         host.role_holder = [this](std::string_view role) { return bus.role_holder(role); };
         host.destinations = [this] {
             return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
@@ -2371,6 +2374,9 @@ struct PaneRig {
                 return true;
             }
             return holder_accepts_on(bus, role, shape);
+        };
+        host.holder_emits = [this](std::string_view role, const loom::Schema& shape) {
+            return holder_emits_on(bus, role, shape);
         };
         host.role_holder = [this](std::string_view role) { return bus.role_holder(role); };
         // ...and where a terminal line can go, read off the same bus at the ask, as workshop.cpp

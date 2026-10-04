@@ -66,6 +66,21 @@ bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
     return false;
 }
 
+// WL-ARR-16 -- agents/workshop/arrangement.md
+bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
+                     const loom::Schema& shape) {
+    const loom::WeaveId holder = bus.role_holder(role);
+    if (!holder.valid()) {
+        return false;
+    }
+    for (const std::shared_ptr<const loom::Schema>& said : bus.emitted_schemas(holder)) {
+        if (said != nullptr && loom::same_identity(*said, shape)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // WL-PRESS-04 -- agents/workshop/press-chain.md; WL-FOCUS-04 -- agents/workshop/focus.md
 bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
                                    bool keys_went_here, loom::Mail& mail) {
@@ -174,6 +189,13 @@ bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
     // declared no row for it, so the key is this host's. A host that cannot ask sends it.
     if (escape && host_->holder_accepts &&
         !host_->holder_accepts(row->provider, *loom::schema_of<PaneKey>())) {
+        return false;
+    }
+    // ...and one it could never hand back: a holder that does not declare `PaneEscapeUnspent`
+    // among what it emits has no way to say the Escape meant nothing there, so Escape keeps its
+    // default meaning and the key is this host's too (WL-ARR-16).
+    if (escape && host_->holder_emits &&
+        !host_->holder_emits(row->provider, *loom::schema_of<PaneEscapeUnspent>())) {
         return false;
     }
     (void)mail.as_role(kWorkshopProvider)
