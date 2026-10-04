@@ -799,6 +799,29 @@ TEST_CASE("toolbox restore is a conditional whole-collection replacement with fr
     CHECK(r.caller->entries.back().revision == 1);
 }
 
+TEST_CASE("Inventory makes portable views up to its bound and refuses the next in words") {
+    namespace slots = zengine::inventory_pane;
+    slots::InventoryViews state;
+    for (std::size_t i = 0; i < slots::kMaxPortableViews; ++i) {
+        slots::InventoryViewEdit op;
+        op.operation = "create";
+        op.text = i % 3 == 0 ? "single" : (i % 3 == 1 ? "row" : "column");
+        state = slots::edited(state, op);
+    }
+    REQUIRE(state.views.size() == slots::kMaxPortableViews);
+    CHECK(state.views.size() == 36);
+    slots::InventoryViewEdit more;
+    more.operation = "create";
+    more.text = "single";
+    CHECK_THROWS_WITH(slots::edited(state, more), "At most 36 portable inventory views");
+    // ...and a toolbox file holds every one of them, and no more.
+    slots::v2::InventoryToolbox file;
+    for (const auto& v : state.views) file.views.push_back({v.id, v.kind, {}});
+    CHECK_NOTHROW(slots::validate_toolbox(file));
+    file.views.push_back({"inventory.999", "row", {}});
+    CHECK_THROWS(slots::validate_toolbox(file));
+}
+
 TEST_CASE("toolbox files round trip nested typed data partial commands and inactive configuration") {
     namespace slots = zengine::inventory_pane;
     namespace draft = zengine::message_draft;
@@ -846,7 +869,8 @@ TEST_CASE("toolbox files round trip nested typed data partial commands and inact
     auto named = read; named.views.front().id = "inventory.9";
     CHECK(slots::toolbox_layout(named, {}).views.front().id == "inventory.9");
     slots::InventoryViews full;
-    for (int i = 10; i < 22; ++i) full.views.push_back({"inventory." + std::to_string(i), "row", false, {}});
+    for (std::size_t i = 0; i < slots::kMaxPortableViews; ++i)
+        full.views.push_back({"inventory." + std::to_string(10 + i), "row", false, {}});
     CHECK_THROWS(slots::toolbox_layout(read, full));
     // Ordinary overwrite works on Windows as well as Linux, and invalid candidates do not write.
     file.archive.entries[0].label = "Updated"; slots::write_toolbox(path, file);
