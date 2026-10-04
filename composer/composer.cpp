@@ -15,6 +15,7 @@
 #include "surface/vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_escape.hpp"
 #include "inventory/codec.hpp"
 #include "inventory/pane_client.hpp"
 
@@ -99,6 +100,14 @@ public:
                 loom::schema_of<surface::ClipboardText>(),
                 loom::accepted_shapes_schema(),
                 loom::schema_of<loom::Refused>()};
+    }
+
+    /// What this weave says to Workshop. A submitted command is whatever shape the weaver
+    /// filled, so it is not listed.
+    std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
+        return {loom::schema_of<PaneOffered>(), loom::schema_of<ws::v3::PaneContent>(),
+                loom::schema_of<ws::PaneActions>(), loom::schema_of<ws::PaneOperationRequested>(),
+                loom::schema_of<ws::PaneEscapeUnspent>()};
     }
 
     void handle(const loom::Message& in, loom::Bus& bus) override {
@@ -309,7 +318,14 @@ private:
         case input::scan::kUp: move_cursor(-1); break;
         case input::scan::kDown: move_cursor(+1); break;
         case input::scan::kReturn: enter(mail); return;
-        case input::scan::kEscape: back_to_catalog(mail); return;
+        case input::scan::kEscape:
+            // Escape means more in a form, which it leaves; at the catalog it goes back.
+            if (composing_.stage == stage::kForm) {
+                back_to_catalog(mail);
+            } else if (ws::pane_escape::bare(key)) {
+                ws::pane_escape::unspent(mail, kComposerRole, key.pane);
+            }
+            return;
         case input::scan::kTab: cycle_field(); break;
         default: return; // a key this pane has no word for changes nothing and says nothing
         }

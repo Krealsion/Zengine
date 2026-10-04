@@ -197,15 +197,19 @@ screen says so, is Workshop routing law
   `zen.DescribeAccepted`, which is the door that already answers exactly that question.
 - **No key release, no focus-changed shape and no IME.** The
   shape's ARRIVAL is the gesture, the press's rule one gesture on.
-- **A focused pane owns Escape, and says so by keeping quiet (WL-ARR-15).** The key
-  crosses and no `consumed` comes back, so Workshop cannot see a pane decline it: the Composer
-  spends it (form → catalog, keep typing) and the editors keep every Escape. A pane that had
-  nothing more specific to do may SAY so — `PaneEscapeUnspent{pane}`, provider → Workshop as the
-  office that offered it, **echoing the correlation that Escape arrived under** — and Workshop
-  then spends its own last Escape meaning, putting that pane down, while the pane still has the
-  desk and the keys and that Escape is still the last gesture the host handled. There is no answer
-  and no retry; a later key, text, press or wheel makes the word stale. The Terminal says it with
-  no recall, no list and an empty line. **The correlation is what names the Escape**: Workshop
+- **Escape deselects by default (WL-ARR-15).** A bare Escape no row of the pane claims reaches
+  it only when its office's holder lists `PaneEscapeUnspent` in what it emits: the declaration
+  that it judges its own Escape. It drops what it has selected, or, with nothing selected, says
+  `PaneEscapeUnspent{pane}` as the office that offered the pane, **echoing the correlation that
+  Escape arrived under**, and Workshop puts the pane down while the pane still has the desk and
+  the keys and that Escape is still the last gesture the host handled. `workshop/pane_escape.hpp`
+  is that default (`pane_escape::answer`). What counts as a selection is the pane's: a chosen row
+  it can let go (Loaded, Powers), never a marker that always rests on a row (Files, Inventory and
+  its views, the Desktop's lists, a field cursor). A pane whose Escape means more spends it (the
+  Composer leaves a form; the Terminal sheds its list, then its line) and the editors keep every
+  Escape. A holder that does not declare the word is never sent a bare Escape: it could not hand
+  one back, so Escape's last meaning answers at once (`holder_emits`). There is no answer and no
+  retry; a later key, text, press or wheel makes the word stale. **The correlation is what names the Escape**: Workshop
   mints one per bare Escape and carries it on whichever message delivers it, because a second
   Escape restores every other check the first one met, and an answer about the first would
   otherwise be spent on the second. Zero, an older Escape's number and an already-spent one all

@@ -1333,3 +1333,42 @@ TEST_CASE("shapes cross between Flow and the View Builder by dragging: the inten
     CHECK(pictured(s, s.builder, "label1: waiting"));
     CHECK_FALSE(landing());
 }
+
+TEST_CASE("escape: Loaded and Powers let go of the row a weaver chose first, and are put down next") {
+    // Escape's default in a pane that holds the keys: the first Escape drops the chosen row and
+    // keeps the pane, the second finds nothing selected and hands the Escape back (WL-ARR-15).
+    InventoryStory s(191, false, false, false, true);
+    (void)mount_desktop(s.r);
+    s.r.pick({intro::kIntrospectionRole, intro::kLoadedPane});
+    const RuntimePane* loaded = s.r.session().panes.runtime.find(intro::kIntrospectionRole, intro::kLoadedPane);
+    REQUIRE(loaded != nullptr);
+    REQUIRE(s.r.session().panes.has(loaded->kind));
+    // A loaded weave's row in Loaded: the first row a press there marks.
+    std::int64_t entry_row = -1;
+    for (std::int64_t row = 0; row < 12 && entry_row < 0; ++row) {
+        const std::string before = s.shown(loaded->kind);
+        s.click(loaded->kind, row);
+        if (s.shown(loaded->kind) != before) entry_row = row;
+    }
+    REQUIRE_MESSAGE(entry_row >= 0, s.shown(loaded->kind));
+    struct Chosen {
+        std::int64_t kind;
+        std::function<void()> choose;
+    };
+    for (const Chosen& c : {Chosen{loaded->kind, [&] { s.click(loaded->kind, entry_row); }},
+                            Chosen{s.powers, [&] { s.click(s.powers); s.key(input::scan::kTab);
+                                                   s.key(input::scan::kDown); }}}) {
+        CAPTURE(c.kind);
+        c.choose();
+        REQUIRE(s.r.session().panes.keyboard == c.kind);
+        const std::string marked = s.shown(c.kind);
+        s.key(input::scan::kEscape);
+        CHECK(s.r.session().panes.selected == c.kind);
+        CHECK(s.r.session().panes.keyboard == c.kind);
+        CHECK_MESSAGE(s.shown(c.kind) != marked, marked);
+        s.key(input::scan::kEscape);
+        CHECK(s.r.session().panes.selected == kNoPaneKind);
+        CHECK(s.r.session().panes.keyboard == kNoPaneKind);
+        CHECK(s.r.session().panes.has(c.kind));
+    }
+}

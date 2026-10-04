@@ -533,17 +533,33 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   product**: no host boots it. A registration hook would have proved nothing about the ABI it
   exists to exercise.
 
-**One key has a way back, and only one.** Workshop's last meaning for `Esc` is to put the selected
-pane down, and while a pane holds the keys Workshop cannot see whether it spent the key — so a pane
-that has something to do with `Esc` keeps it, in silence. A pane that had *nothing* more specific to
-do may say so: `PaneEscapeUnspent{pane}`, sent as the office that offered the pane and **under
-the correlation the Escape arrived on**, after which Workshop spends its own meaning for that
-Escape. It is honoured only while the pane is still selected, still where the keys go, and that
-Escape is still the last gesture Workshop handled — a key, some text, a press or the wheel since
-makes it stale — and there is no answer and no retry. A
-bare `Esc` is not sent at all when the office's holder accepts no `PaneKey` and the pane declared no
-row for it: nothing could have spent it, so Workshop answers at once. That is the holder's own
-accept-set read off the bus, never an inference from a pane's silence.
+### Escape in a pane that holds the keys
+
+Workshop's last meaning for `Esc` is to put the selected pane down, and every pane that holds the
+keys answers a bare `Esc` the same way unless it means more there: it **drops what it has
+selected**, and with nothing selected it says so — `PaneEscapeUnspent{pane}`, sent as the office
+that offered the pane and **under the correlation the Escape arrived on** — and Workshop puts the
+pane down. That default is `workshop/pane_escape.hpp`, installed beside the protocol:
+
+```cpp
+void on(const PaneKey& key, loom::Mail& mail) {
+    if (pane_escape::answer(key, mail, kOffice, [&] { return drop_selection(mail); }))
+        return;   // a bare Escape: the selection dropped, or the Escape handed back unspent
+    ...           // the pane's own keys
+}
+```
+
+A selection is a row the weaver chose and the pane can let go of (Loaded's weave, a power in
+Powers); a marker that always stands on some row is where a list rests, not a selection, and
+Escape passes it by. A pane that lists `PaneEscapeUnspent` in its `Emit<...>` declares that it
+judges its own Escape and is sent it; the editors declare it and keep every Escape, and a pane
+whose Escape means more (leaving a form, shedding a line) spends it. **A pane that never mentions
+Escape is put down by it without being sent it**: its holder declares no way to hand an Escape
+back, so Workshop answers at once. So is one whose holder accepts no `PaneKey` and whose pane
+declared no row for it. Both are the holder's own declarations read off the bus at the keystroke,
+never an inference from a pane's silence. The word is honoured only while the pane is still
+selected, still where the keys go, and that Escape is still the last gesture Workshop handled — a
+key, some text, a press or the wheel since makes it stale — and there is no answer and no retry.
 
 Deliberately absent: no focus-changed notification, idle hover over a text pane (a canvas pane
 may ask for one, [below](#optional-pane-local-canvas)), key release or double-press
@@ -853,7 +869,8 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   request is refused in words rather than opened over whatever the weaver did next. The primary
   press is what lets a pane that draws its own controls answer a click on a `[menu]` of its own;
   it moves no keys and no selection, exactly as the other two do not.
-- **The helpers are optional and installed beside the protocol.** `workshop/pane_menu.hpp`:
+- **The helpers are optional and installed beside the protocol.** `workshop/pane_escape.hpp` is
+  Escape's default ([above](#escape-in-a-pane-that-holds-the-keys)). `workshop/pane_menu.hpp`:
   `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
   request continuing the delivery's gesture and returns its `Asked`; `.submenu(id, label)` is a
   row whose choice opens another menu, its label ending in the one mark the host's own groups

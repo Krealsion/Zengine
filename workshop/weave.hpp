@@ -88,6 +88,10 @@ struct HostContext {
     /// delivery; empty answers no, and the first version crosses.
     // WL-FOCUS-04 -- agents/workshop/focus.md
     std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
+    /// Does whoever holds `role` now declare it emits `shape`? Read off the bus at the call
+    /// (`holder_emits_on`); empty answers nothing, and the caller acts as before.
+    // WL-ARR-16 -- agents/workshop/arrangement.md
+    std::function<bool(std::string_view role, const loom::Schema& shape)> holder_emits;
     // Current incarnation, read afresh: canvas grants and held input never cross replacement.
     std::function<loom::WeaveId(std::string_view role)> role_holder;
     // A host-issued capability to read this actor's current authority. The ceiling is empty;
@@ -263,6 +267,11 @@ struct HostContext {
 /// a holder accepting by mode, is no.
 bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
                        const loom::Schema& shape);
+
+/// The host's answer to `holder_emits`, read off `bus` at the call: the weave holding `role` now,
+/// and whether its declared emit-set holds exactly `shape`'s identity. Nobody holding it is no.
+bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
+                     const loom::Schema& shape);
 
 /// The host's answer to `destinations`, read off `bus` at the call: every weave that is not a
 /// sealed candidate, its office, accepted shapes and liveness, and `self` marked. A reading, not a
