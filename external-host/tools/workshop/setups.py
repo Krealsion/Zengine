@@ -26,6 +26,8 @@ RESETTABLE = ("zengine.inventory-pane", "zengine.info", "zengine.composer")
 CHORD = re.compile(r"^((shift|ctrl|alt)\+)*[a-z0-9]+$")
 TEXT_FIELDS = ("title", "summary", "task", "choose")
 RECIPES_FILE = "build-recipes.json"  # the launcher writes it into the project
+WALK_NAME = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+PICTURE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")  # it becomes a file name
 IGNORED = ("__pycache__",)
 
 
@@ -75,6 +77,38 @@ def project_target_problems(files):
             if key == other or inside(key, other) or inside(other, key):
                 out.append("project files %r and %r would land on one path" % (first, target))
         seen[key] = target
+    return out
+
+
+def walk_problems(d):
+    """Why the setup's named walks cannot be replayed. A walk is a list of `workshop/act` steps that
+    `demo.py walk` replays against a running root; act spells each step's verb before any Workshop
+    contact. The replay decides where pictures go, so a picture is named here and no step names a
+    path."""
+    walks = d.get("walks", {})
+    if not isinstance(walks, dict):
+        return ["walks maps each walk's name to {about, steps}"]
+    out = []
+    for name, walk in walks.items():
+        if not WALK_NAME.match(name):
+            out.append("walk name %r is lower-case letters, digits and hyphens" % name)
+        if not (isinstance(walk, dict) and isinstance(walk.get("about"), str) and walk["about"].strip()):
+            out.append("walk %r needs `about`: what it checks" % name)
+        steps = walk.get("steps") if isinstance(walk, dict) else None
+        if not (isinstance(steps, list) and steps and all(isinstance(s, dict) and s for s in steps)):
+            out.append("walk %r needs `steps`: a non-empty list of workshop/act steps" % name)
+            continue
+        pictures = [s["picture"] for s in steps if "picture" in s]
+        bad = [p for p in pictures if not (isinstance(p, str) and PICTURE_NAME.match(p))]
+        if bad:
+            out.append("walk %r names picture(s) %s; a picture's name is letters, digits, '.', '-' "
+                       "and '_'" % (name, bad))
+        twice = sorted({p for p in pictures if isinstance(p, str) and pictures.count(p) > 1})
+        if twice:
+            out.append("walk %r names picture(s) %s twice" % (name, twice))
+        if any("save" in s for s in steps):
+            out.append("walk %r: a step names no `save` path; the replay says where its pictures go"
+                       % name)
     return out
 
 
@@ -219,6 +253,10 @@ class Setup:
     def hotkeys(self):
         return self.data.get("hotkeys", [])
 
+    def walks(self):
+        """The named walks: {name: {about, steps}}, each replayed by `demo.py walk`."""
+        return self.data.get("walks", {})
+
     def views(self):
         """The portable views the hotkeys declare, in order: (view kind, [hotkeys]). Hotkeys naming
         one kind share one view; declared view i sits in view slot i."""
@@ -300,6 +338,7 @@ class Setup:
         if self.providers() and not (d.get("project") or {}).get("recipes"):
             out.append("a provider built by this setup needs a project with recipes")
         out += guide_problems(d)
+        out += walk_problems(d)
         files = (d.get("project") or {}).get("files") or {}
         out += project_target_problems(files)
         try:
@@ -349,6 +388,10 @@ class Setup:
             for hk in self.hotkeys():
                 lines.append("  %-7s %s -> %s: %s" % (hk["key"], hk["entry"], hk["target"], hk["means"]))
         lines += ["First task:  " + d["first_task"]["do"], "Expect:      " + d["first_task"]["expect"]]
+        if self.walks():
+            lines.append("Walks (demo.py walk NAME --root ROOT --pictures DIR replays one):")
+            for name, walk in sorted(self.walks().items()):
+                lines.append("  %-12s %s" % (name, walk["about"]))
         reset = d.get("reset") or {}
         if reset.get("scope"):
             lines.append("Reset:       " + reset["scope"])

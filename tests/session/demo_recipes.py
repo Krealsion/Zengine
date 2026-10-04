@@ -376,6 +376,71 @@ class Recipes(unittest.TestCase):
         setup.describe(); setup.summary()
         self.assertEqual(owner.calls, [])
 
+    # ---- walks ------------------------------------------------------------------------------------
+    def test_a_walk_needs_a_name_what_it_checks_and_steps_that_name_no_path(self):
+        make(self.tmp, "walks", walks={
+            "Bad Name": {"about": "a", "steps": [{"press": "x"}]},
+            "no-about": {"steps": [{"press": "x"}]},
+            "no-steps": {"about": "a", "steps": []},
+            "pictures": {"about": "a", "steps": [{"picture": "p/1"}, {"picture": "two"}, {"picture": "two"},
+                                                  {"picture": "three", "save": "C:/x.png"}]}})
+        with self.assertRaises(described.SetupError) as refused:
+            described.Setup(Path(self.tmp) / "walks")
+        said = str(refused.exception)
+        for words in ("walk name 'Bad Name'", "walk 'no-about' needs `about`", "walk 'no-steps' needs `steps`",
+                      "names picture(s) ['p/1']", "names picture(s) ['two'] twice", "names no `save` path"):
+            self.assertIn(words, said)
+        with self.assertRaisesRegex(described.SetupError, "walks maps each walk's name"):
+            described.Setup(make(self.tmp, "listed", walks=[{"press": "x"}]))
+
+    def test_a_walk_replays_through_act_and_keeps_what_it_made_in_the_folder_named(self):
+        root = make(self.tmp, "walked", walks={"look": {"about": "a look", "steps": [
+            {"press": "ctrl+p"}, {"picture": "one", "crop": [0, 0, 8, 8]}, {"expect": ["p", "k", "x"]}]}})
+        made = Path(self.tmp) / "run-out"
+        made.mkdir()
+        for name, data in (("one.bmp", b"bmp"), ("one.png", b"png"), ("steps.json", b"[]")):
+            (made / name).write_bytes(data)
+
+        class Session:
+            def __init__(self, state="passed"):
+                self.state, self.started = state, []
+
+            def start(self, tool, name, inputs):
+                self.started.append((tool, json.loads(inputs["steps"])))
+
+            def wait(self, name, timeout):
+                if self.state == "late":
+                    raise TimeoutError(name)
+                return {"state": self.state, "failure": "step 3 of 3: expect: p/k never painted 'x' within 10s",
+                        "artifacts": [{"name": n, "path": str(made / n)} for n in ("one.bmp", "one.png", "steps.json")]}
+        module = types.SimpleNamespace(NotAnswered=TimeoutError)
+        config = {"directory": str(root), "digest": described.Setup(root).digest(), "medium": "sdl",
+                  "session": "S", "prepared": "P"}
+        session, out = Session(), Path(self.tmp) / "pictures"
+        result = launcher.walk(module, session, config, "look", out, 60)
+        self.assertEqual(session.started, [("workshop/act", [{"press": "ctrl+p"},
+                         {"picture": "one", "crop": [0, 0, 8, 8], "png": True}, {"expect": ["p", "k", "x"]}])])
+        self.assertEqual(sorted(p.name for p in out.iterdir()), ["one.png", "steps.json"])
+        self.assertEqual((result["state"], result["kept"], result["steps"]), ("passed", ["one.png", "steps.json"], 3))
+        self.assertNotIn("description_changed", result)
+        with self.assertRaisesRegex(RuntimeError, "already holds files"):
+            launcher.walk(module, Session(), config, "look", out, 60)
+        with self.assertRaisesRegex(RuntimeError, "carries no walk 'gone'; it carries: look"):
+            launcher.walk(module, Session(), config, "gone", Path(self.tmp) / "unknown", 60)
+        with self.assertRaisesRegex(RuntimeError, "had not finished within 60s and goes on; `loom-session show S walk-look-"):
+            launcher.walk(module, Session("late"), config, "look", Path(self.tmp) / "late", 60)
+        failed = launcher.walk(module, Session("failed"), config, "look", Path(self.tmp) / "failed", 60)
+        self.assertEqual(failed["state"], "failed")
+        self.assertIn("never painted", failed["failure"])
+        self.assertTrue((Path(self.tmp) / "failed" / "one.png").is_file())
+        # An edited walk is read as it is now; the answer says the root prepared another revision.
+        data = json.loads((root / "setup.json").read_text(encoding="utf-8"))
+        data["walks"]["look"]["steps"].append({"wait": 0})
+        (root / "setup.json").write_text(json.dumps(data), encoding="utf-8")
+        changed = launcher.walk(module, Session(), config, "look", Path(self.tmp) / "edited", 60)
+        self.assertEqual(changed["steps"], 4)
+        self.assertIn("this root prepared an earlier revision (P)", changed["description_changed"])
+
     # ---- toolbox material and hotkeys ---------------------------------------------------------------
     def toolbox_setup(self, **more):
         (Path(self.tmp) / "box.toolbox").write_bytes(b"fake")
