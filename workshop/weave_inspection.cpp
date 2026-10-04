@@ -20,7 +20,10 @@ std::string WorkshopWeave::visible_text_body(const std::string& provider, const 
         return "pane view unavailable: closed, unknown or covered by an interaction";
     }
     const auto* content = session_.panes.external_pane(pane->kind);
-    if (!content || !content->heard || content->awaiting || content->canvas.heard ||
+    if (content && content->canvas.heard) {
+        return "pane view unavailable: the pane draws a picture, not text rows";
+    }
+    if (!content || !content->heard || content->awaiting ||
         content->picture != content->stamp.aimed) {
         return "pane view unavailable: no settled text picture";
     }

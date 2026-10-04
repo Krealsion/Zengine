@@ -294,6 +294,7 @@ class WorkshopWeave
                                           zengine::workshop::PaneOffered,
                                           zengine::workshop::v2::PaneOffered,
                                           zengine::workshop::SetupApplyRequested,
+                                          zengine::workshop::WorkshopQuitRequested,
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::v2::PaneActions,
                                           zengine::workshop::PaneContent,
@@ -724,6 +725,7 @@ public:
     /// last answer decides -- every permission ends the process, any refusal keeps it open,
     /// says why, and replays the gestures held while the room was being asked.
     void on(const PaneQuitAnswered& said, loom::Mail& mail);
+    void on(const WorkshopQuitRequested& asked, loom::Mail& mail);
 
     /// THE HOST'S WAKE-UP: a delivery of a quit question was refused, and the book says which.
     /// The wake-up carries nothing and decides nothing; an entry for the quit in flight refuses
@@ -1309,6 +1311,8 @@ private:
     /// deliver): `why` is said with the count of gestures dropped, the held gestures replay in
     /// order, and the desk repaints. Nothing is saved and the bus keeps running.
     void refuse_quit(std::string why, loom::Mail& mail);
+    /// Answer the guest's `WorkshopQuitRequested` still owed, if any: `Ack`, or `Refused{why}`.
+    void answer_quit_ask(const std::string& why, loom::Mail& mail);
 
     struct InputActor {
         bool known = false;
@@ -1496,6 +1500,7 @@ private:
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;
     std::vector<std::string> quit_refusals_;
+    loom::DeferredAnswer quit_asked_; ///< a guest's ask for this quit, owed its outcome
     std::vector<HeldInput> held_input_;
     std::size_t held_dropped_ = 0;
 

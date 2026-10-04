@@ -45,7 +45,7 @@ class GuestVocabulary final
           loom::Emit<zengine::inventory_pane::InventoryViewEdit, zengine::inventory_pane::InventoryViewsRequested,
                      zengine::inventory_pane::InventoryToolboxSave, zengine::inventory_pane::InventoryToolboxRestore,
                      zengine::inventory_pane::InventoryToolboxFinished,
-                     zengine::inventory_pane::InventoryViews, zengine::workshop::SetupApplyRequested, zengine::workshop::PaneResetRequested,
+                     zengine::inventory_pane::InventoryViews, zengine::workshop::SetupApplyRequested, zengine::workshop::PaneResetRequested, zengine::workshop::WorkshopQuitRequested,
                      zengine::demo::DemoServiceOpened, zengine::demo::DemoServiceClosed,
                      zengine::demo::DemoWorkRequested, zengine::demo::DemoWork, zengine::demo::DemoWorkFinished,
                      zengine::demo::DemoResetRequested, zengine::demo::DemoStatusRequested, zengine::demo::DemoStatus,

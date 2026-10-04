@@ -149,6 +149,37 @@ void WorkshopWeave::finish_quit() {
     }
 }
 
+// WL-SESSION-13 -- agents/workshop/session.md
+void WorkshopWeave::on(const WorkshopQuitRequested&, loom::Mail& mail) {
+    if (quit_asked_.valid()) {
+        (void)mail.answer(loom::Refused{"a quit already asked is still waiting for its answer"});
+        return;
+    }
+    quit_asked_ = mail.defer_answer();
+    if (!quit_asked_.valid()) {
+        return; // nothing can carry an answer back, and nothing is asked
+    }
+    quit(mail);
+    if (quitting_) {
+        return; // the room is being asked, and its last answer settles this ask
+    }
+    // Decided at once: the process ends, or the quit was refused in the words now on the notice.
+    answer_quit_ask(host_->quit ? std::string() : session_.notice, mail);
+}
+
+void WorkshopWeave::answer_quit_ask(const std::string& why, loom::Mail& mail) {
+    if (!quit_asked_.valid()) {
+        return;
+    }
+    loom::DeferredAnswer due = std::move(quit_asked_);
+    quit_asked_ = loom::DeferredAnswer{};
+    if (why.empty()) {
+        (void)loom::answer_deferred(due, mail, loom::Ack{});
+    } else {
+        (void)loom::answer_deferred(due, mail, loom::Refused{why});
+    }
+}
+
 // WL-EDIT-03 -- agents/workshop/editor.md
 void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
     if (!mail.answers_ask() || !quitting_ || mail.correlation() != quit_ask_) {
@@ -167,6 +198,7 @@ void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
     }
     if (quit_refusals_.empty()) {
         quitting_ = false;
+        answer_quit_ask({}, mail);
         finish_quit();
         return;
     }
@@ -223,6 +255,7 @@ void WorkshopWeave::refuse_quit(std::string why, loom::Mail& mail) {
         why += " (" + std::to_string(held_dropped_) +
                " gesture(s) that arrived while the quit was pending were dropped)";
     }
+    answer_quit_ask(why, mail);
     say(std::move(why), true);
     // AND THE WEAVER'S HANDS GET BACK WHAT THEY DID MEANWHILE, in order, through the same
     // handlers -- a refused quit costs no keystroke.

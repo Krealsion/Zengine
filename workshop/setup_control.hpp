@@ -16,5 +16,10 @@ struct PaneResetRequested {
     std::string pane;
     ZEN_SHAPE(PaneResetRequested, 1, ZEN_FIELD(pane));
 };
+/// Ask Workshop to end through the one quit its `q` and close box use. Answered `Ack` when it
+/// ends, or `Refused` in the words of what kept it open (a pane holding unsaved work, say).
+struct WorkshopQuitRequested {
+    ZEN_SHAPE(WorkshopQuitRequested, 1);
+};
 } // namespace zengine::workshop
 #endif
