@@ -20,14 +20,15 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 LAW — A retired shape is copied verbatim and keeps the wire identity an old file's bytes claim, every historical id is pinned with its provenance, and the catalog reads current off the reader's schema.
 
 MEANS
-- `v1` to `v6` composes `session_v1_to_v3`, `v3_to_v4`, `v4_to_v5` and `v5_to_v6` in C++;
+- `v1` to `v7` composes `session_v1_to_v3`, `v3_to_v4`, `v4_to_v5`, `v5_to_v6`, `v6_to_v7`;
 - the catalog holds no `v1` to `v3` or `v3` to `v4` edge, so there is no chain to walk.
 
-PROVEN BY — `workshop/session_history.hpp` `v1`, `v2`, `v3`, `v4`, `v5`, `conversions`,
+PROVEN BY — `workshop/session_history.hpp` `v1`, `v2`, `v3`, `v4`, `v5`, `v6`, `conversions`,
 `session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5`, `session_v5_to_v6`,
-`v3::WorkshopSession`, `v4::WorkshopSession`, `v5::WorkshopSession`, `session_v2_to_v3`,
-`session_v1_to_v6`, `desk_v2_to_v3`; `tests/test_workshop_persistence.cpp` case `"a retired
-shape's wire identity is the identity it was written at"`, case `"three DIRECT edges, and
+`session_v6_to_v7`, `v3::WorkshopSession`, `v4::WorkshopSession`, `v5::WorkshopSession`,
+`v6::WorkshopSession`, `session_v2_to_v3`, `session_v1_to_v7`, `desk_v2_to_v3`, `desk_v3_to_v4`;
+`tests/test_workshop_persistence.cpp` case `"a retired shape's wire identity is the identity it
+was written at"`, case `"three DIRECT edges, and
 no chain to walk even if one wanted to"`, case `"a conversion owns yesterday's
 semantics and does not rewrite history"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`

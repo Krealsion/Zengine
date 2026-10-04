@@ -335,10 +335,11 @@ pointer, reaching the same doors. Panes may overlap, and **every pane the setup 
 whether or not it can currently be seen.** Workshop's unit is the **whole canvas pixel**,
 twelve to a cell: a pane a weaver dragged by a single window pixel differs from its neighbour
 by exactly one, while a pane on a cell boundary is an exact multiple and the character medium's
-picture of it has not moved by a byte. Setup format is **version 3**, whose file still says
-the lattice it was written on — `subcells`, four to a pixel — and is read back to the pixel
-each edge was painted at; a **version-2** whole-cell file still loads, its cells mapped exactly
-(x 12). The next explicit save writes version 3. A version-1 file is refused by its number.
+picture of it has not moved by a byte. Setup format is **version 4**, its amounts in pixels
+under the word `pixels`. A **version-3** file (`subcells`, four to a pixel) is read back to the
+pixel each edge was painted at, and a **version-2** whole-cell file still loads, its cells
+mapped exactly (x 12); the next explicit save writes version 4. A version-1 file is refused by
+its number.
 
 ```text
 authored setup                 resolved presentation          session interaction

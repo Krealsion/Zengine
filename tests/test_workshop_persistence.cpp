@@ -571,7 +571,7 @@ TEST_CASE("a setup file says what it is, in words a weaver can read") {
 
     // ITS OWN FORMAT IDENTITY, beside the document's and not equal to it.
     CHECK(text.find("\"format\":\"zengine-workshop-setup\"") != std::string::npos);
-    CHECK(text.find("\"format_version\":\"3\"") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"4\"") != std::string::npos);
     CHECK(text.find("\"name\":\"Default\"") != std::string::npos);
     CHECK(text.find("\"provider\":\"zengine.workshop\"") != std::string::npos);
     CHECK(text.find("\"pane\":\"info\"") != std::string::npos);
@@ -673,11 +673,11 @@ TEST_CASE("a malformed setup file is refused, and the live setup is untouched") 
     cases.push_back({"the wrong format identity",
                      forged_setup(good, "\"zengine-workshop-setup\"", "\"someone-elses-tool\"")});
     cases.push_back({"an unsupported format version",
-                     forged_setup(good, "\"format_version\":\"3\"", "\"format_version\":\"9\"")});
+                     forged_setup(good, "\"format_version\":\"4\"", "\"format_version\":\"9\"")});
     cases.push_back({"a missing required field",
                      forged_setup(good, "\"name\":\"Everything\",", "")});
     cases.push_back({"a field of the wrong kind",
-                     forged_setup(good, "\"format_version\":\"3\"", "\"format_version\":3")});
+                     forged_setup(good, "\"format_version\":\"4\"", "\"format_version\":3")});
     cases.push_back({"a field the setup does not declare",
                      forged_setup(good, "\"name\":", "\"colour\":\"red\",\"name\":")});
     cases.push_back({"a field a pane reference does not declare",
@@ -1825,7 +1825,7 @@ TEST_CASE("a name carrying a quote and a backslash survives its file exactly") {
     // THE FORMAT WORD IS UNCHANGED AND THE VERSION IS NOT: an authored name carrying the two
     // bytes the quoting owner escapes comes back exactly as it went in, whatever the version,
     // and handing Workshop the wrong one of its own two files is still named, not half-read.
-    CHECK(setup_persist::kFormatVersion == 3);
+    CHECK(setup_persist::kFormatVersion == 4);
     CHECK(std::string(setup_persist::kFormat) == "zengine-workshop-setup");
 
     const std::string path = dir.file("q.json");
@@ -1833,7 +1833,7 @@ TEST_CASE("a name carrying a quote and a backslash survives its file exactly") {
     const std::string a = slurp(path);
     INFO(a);
     CHECK(a.find("\"format\":\"zengine-workshop-setup\"") != std::string::npos);
-    CHECK(a.find("\"format_version\":\"3\"") != std::string::npos);
+    CHECK(a.find("\"format_version\":\"4\"") != std::string::npos);
 
     const setup_persist::LoadedSetup read = setup_persist::load_file(path);
     REQUIRE(read.outcome.accepted);
@@ -2106,9 +2106,9 @@ TEST_CASE("a malformed session costs the desk and nothing else") {
          [] {
              std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
                                                          session_persist::Placement{});
-             const std::size_t at = text.find("\"version\":6");
+             const std::size_t at = text.find("\"version\":7");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":6").size(), "\"version\":7");
+             text.replace(at, std::string("\"version\":7").size(), "\"version\":8");
              return text;
          }()},
         {"a session whose desk is not a legal setup",
@@ -2148,9 +2148,9 @@ TEST_CASE("an unreadable session names its version by NUMBER") {
     TempDir dir("wux0-d-version");
     std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
                                                 session_persist::Placement{});
-    const std::size_t at = text.find("\"version\":6");
+    const std::size_t at = text.find("\"version\":7");
     REQUIRE(at != std::string::npos);
-    text.replace(at, std::string("\"version\":6").size(), "\"version\":7");
+    text.replace(at, std::string("\"version\":7").size(), "\"version\":8");
     const session_persist::LoadedSession refused = session_persist::from_text(text);
     CHECK(refused.present);
     CHECK_FALSE(refused.outcome.accepted);
@@ -2158,8 +2158,8 @@ TEST_CASE("an unreadable session names its version by NUMBER") {
     // version to this one is live. The identity of the missing power is named, because it is
     // a fact this host knows and a weaver can look for.
     CHECK(refused.outcome.refusal ==
-          "session version 7 cannot be read: no live conversion from `WorkshopSession` v7 to "
-          "v6 (`zengine.migrate.WorkshopSession.v7-to-v6`)");
+          "session version 8 cannot be read: no live conversion from `WorkshopSession` v8 to "
+          "v7 (`zengine.migrate.WorkshopSession.v8-to-v7`)");
     // AND IT CLAIMS NOTHING IT CANNOT KNOW: not that a converter exists on disk, not that
     // one should be installed. There is no unloaded discovery in this system to be honest
     // about, so the sentence does not pretend there is.
@@ -2174,15 +2174,15 @@ TEST_CASE("a current-version file whose own field says otherwise is a forgery") 
     // forgery produces one.
     std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
                                                 session_persist::Placement{});
-    const std::size_t at = text.find("\"format_version\":\"7\"");
+    const std::size_t at = text.find("\"format_version\":\"8\"");
     REQUIRE(at == std::string::npos);
     // ⚠ THE SESSION'S OWN FIELD AND A LAYOUT'S ARE TWO FACTS AND TWO NUMBERS: a session nests
     // desks at their own version. The case edits the session's and asserts the session's
     // sentence; the desk's own has a separate owner, and the case below proves it.
-    const std::size_t field = text.find("\"format_version\":\"6\"");
+    const std::size_t field = text.find("\"format_version\":\"7\"");
     REQUIRE(field != std::string::npos);
-    text.replace(field, std::string("\"format_version\":\"6\"").size(),
-                 "\"format_version\":\"7\"");
+    text.replace(field, std::string("\"format_version\":\"7\"").size(),
+                 "\"format_version\":\"8\"");
 
     op::Catalog conversions;
     REQUIRE(conversions.mount("suite", session_history::conversions()));
@@ -2190,7 +2190,7 @@ TEST_CASE("a current-version file whose own field says otherwise is a forgery") 
         session_persist::from_text(text, &conversions);
     CHECK_FALSE(refused.outcome.accepted);
     CHECK(refused.outcome.refusal ==
-          "this session claims version 6 and its own format_version field says 7");
+          "this session claims version 7 and its own format_version field says 8");
     // ...and it did not become a conversion request on the way past.
     CHECK(refused.outcome.refusal.find("conversion") == std::string::npos);
 }
@@ -2353,7 +2353,7 @@ TEST_CASE("a session file holds the desk and the room, and nothing runtime") {
     // THE DESK IS THE SETUP'S OWN REPRESENTATION, not a paraphrase of it: every pane
     // row a setup file would have written is in here, spelled the same way.
     for (const char* fragment : {"\"provider\":\"zengine.test.stack\"", "\"pane\":\"stack\"",
-                                 "\"pane\":\"second\"", "\"mode\":\"subcells\"",
+                                 "\"pane\":\"second\"", "\"mode\":\"pixels\"",
                                  "\"front\":", "\"format\":\"zengine-workshop-setup\""}) {
         CHECK_MESSAGE(text.find(fragment) != std::string::npos, fragment);
     }
@@ -2855,8 +2855,8 @@ TEST_CASE("a version-2 session still loads, its placement reading as absence") {
     session_history::v2::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = 2;
-    old.viewport = session_persist::WorkshopViewport{110, 38};
-    old.desk = setup_persist::to_setup(arranged_desk("Yesterday"));
+    old.viewport = session_history::v6::WorkshopViewport{110, 38};
+    old.desk = v3_desk(arranged_desk("Yesterday"));
     const std::string bytes = loom::compat::serialize(loom::to_value(old));
 
     op::Catalog conversions;
@@ -2874,7 +2874,7 @@ TEST_CASE("a version-2 session still loads, its placement reading as absence") {
     // The next close writes the current version, byte-stable thereafter.
     const std::string saved = session_persist::to_text(read.layouts, read.active, read.viewport_w,
                                                        read.viewport_h, read.placement);
-    CHECK(saved.find("\"format_version\":\"3\"") != std::string::npos);
+    CHECK(saved.find("\"format_version\":\"4\"") != std::string::npos);
     CHECK(session_persist::from_text(saved).outcome.accepted);
 }
 
@@ -3311,7 +3311,7 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
     CHECK(live_layout(read) == second_authored);
     CHECK(has_pane(read.layouts[1].desk, ref_of(stock::kKind)));
     CHECK_FALSE(has_pane(read.layouts[0].desk, ref_of(stock::kKind)));
-    CHECK(slurp(session).find("\"version\":6") != std::string::npos);
+    CHECK(slurp(session).find("\"version\":7") != std::string::npos);
     CHECK(slurp(session).find("\"layouts\":") != std::string::npos);
 
     // AND THE NEXT RUN COMES BACK ON ALL THREE, standing on the one it left on.
@@ -3389,9 +3389,9 @@ TEST_CASE("crossing media never writes a device value into any layout") {
           setup_persist::to_text(fine));
     CHECK(setup_persist::to_text(layout_at(t.session().setup, 1)) ==
           setup_persist::to_text(whole));
-    // No projected spelling reached the bytes: a device unit has no word in this format.
+    // No projected spelling reached the bytes: a device unit has no field in this format.
     CHECK(setup_persist::to_text(fine).find("px") == std::string::npos);
-    CHECK(setup_persist::to_text(fine).find("pixels") == std::string::npos);
+    CHECK(setup_persist::to_text(fine).find("cells") == std::string::npos);
 }
 
 // =============================================================================
@@ -3410,7 +3410,7 @@ session_history::v1::WorkshopSession old_v1_session(const char* name, std::int64
     session_history::v1::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = 1;
-    old.viewport = session_persist::WorkshopViewport{w, h};
+    old.viewport = session_history::v6::WorkshopViewport{w, h};
     old.desk.format = setup_persist::kFormat;
     old.desk.format_version = 2;
     old.desk.name = name;
@@ -3439,8 +3439,8 @@ session_history::v2::WorkshopSession old_v2_session(const char* name, std::int64
     session_history::v2::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = 2;
-    old.viewport = session_persist::WorkshopViewport{w, h};
-    old.desk = setup_persist::to_setup(arranged_desk(name));
+    old.viewport = session_history::v6::WorkshopViewport{w, h};
+    old.desk = v3_desk(arranged_desk(name));
     return old;
 }
 
@@ -3469,11 +3469,12 @@ TEST_CASE("the shipped artifact supplies exactly the conventional edges") {
     // THE IDENTITIES ARE DERIVED FROM THE EDGES, so this list is a reading of the
     // convention rather than a list somebody typed twice.
     const std::vector<std::string> supplied = history.catalog.identities();
-    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v6",
-                                               "zengine.migrate.WorkshopSession.v2-to-v6",
-                                               "zengine.migrate.WorkshopSession.v3-to-v6",
-                                               "zengine.migrate.WorkshopSession.v4-to-v6",
-                                               "zengine.migrate.WorkshopSession.v5-to-v6"});
+    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v7",
+                                               "zengine.migrate.WorkshopSession.v2-to-v7",
+                                               "zengine.migrate.WorkshopSession.v3-to-v7",
+                                               "zengine.migrate.WorkshopSession.v4-to-v7",
+                                               "zengine.migrate.WorkshopSession.v5-to-v7",
+                                               "zengine.migrate.WorkshopSession.v6-to-v7"});
     // ...and each of them declares the edge its name claims.
     for (const std::string& identity : supplied) {
         CAPTURE(identity);
@@ -3557,7 +3558,7 @@ TEST_CASE("a version-1 session means EXACTLY what its own reader meant") {
 TEST_CASE("a version-2 session means exactly what its own reader meant") {
     const session_history::v2::WorkshopSession old = old_v2_session("Yesterday", 110, 38);
     Setup predecessor;
-    REQUIRE(setup_persist::setup_in(old.desk, predecessor).accepted);
+    REQUIRE(v3_setup_in(old.desk, predecessor).accepted);
 
     MountedHistory history;
     REQUIRE(history.mounted.ok);
@@ -3601,7 +3602,7 @@ TEST_CASE("an old session's OWN law still runs -- the conversion skips no check"
         CHECK(no.outcome.refusal.find("default or cells") != std::string::npos);
         // The conversion that refused is named, because a weaver who has one converter
         // mounted and another missing needs to know which spoke.
-        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v6") !=
+        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v7") !=
               std::string::npos);
     }
     SUBCASE("a viewport this build will not open at is declined, and the desk still comes") {
@@ -3709,8 +3710,8 @@ TEST_CASE("reading an old session does not rewrite it; the next close does") {
     // 4. AND THE ORDINARY CLOSE-TIME SAVE WROTE THE CURRENT SHAPE, on its own existing law.
     const std::string now = slurp(path);
     CHECK(now != original);
-    CHECK(now.find("\"version\":6") != std::string::npos);
-    CHECK(now.find("\"format_version\":\"3\"") != std::string::npos);
+    CHECK(now.find("\"version\":7") != std::string::npos);
+    CHECK(now.find("\"format_version\":\"4\"") != std::string::npos);
 
     // 5. ...SO THE NEXT RUN NEEDS NO CONVERTER AT ALL.
     Live back;
@@ -3822,8 +3823,8 @@ TEST_CASE("the session reader owns no historical shape and no conversion") {
         CHECK(source.find(forbidden) == std::string::npos);
     }
     // ...and the one number it does carry is the one it writes.
-    CHECK(session_persist::kFormatVersion == 6);
-    CHECK(session_persist::WorkshopSession::zen_version == 6u);
+    CHECK(session_persist::kFormatVersion == 7);
+    CHECK(session_persist::WorkshopSession::zen_version == 7u);
 }
 
 TEST_CASE("a session this run could not read is never written over") {
@@ -3845,8 +3846,8 @@ TEST_CASE("a session this run could not read is never written over") {
                  session_history::v3::WorkshopSession old;
                  old.format = session_persist::kFormat;
                  old.format_version = 3;
-                 old.viewport = session_persist::WorkshopViewport{120, 44};
-                 old.desk = setup_persist::to_setup(arranged_desk("Retired"));
+                 old.viewport = session_history::v6::WorkshopViewport{120, 44};
+                 old.desk = v3_desk(arranged_desk("Retired"));
                  old.placement = session_history::absent_placement();
                  return old;
              }())),
@@ -3854,9 +3855,9 @@ TEST_CASE("a session this run could not read is never written over") {
         {"a version this build has never written", [] {
              std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
                                                          session_persist::Placement{});
-             const std::size_t at = text.find("\"version\":6");
+             const std::size_t at = text.find("\"version\":7");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":6").size(), "\"version\":9");
+             text.replace(at, std::string("\"version\":7").size(), "\"version\":9");
              return text;
          }(), true},
         {"bytes that are not a session at all", std::string("{"), true},
@@ -3950,17 +3951,17 @@ TEST_CASE("a conversion owns yesterday's semantics and does not rewrite history"
         CHECK(no.outcome.refusal.find("this desk claims version 2 and its own "
                                       "format_version field says 9") != std::string::npos);
     }
-    SUBCASE("a version-2 session's desk is judged by the CURRENT setup reader, unchanged") {
+    SUBCASE("a version-2 session's desk is judged by its own vintage's setup reader") {
         // The v2 edge passes the desk through whole, because a version-2 session already
-        // nests the shape `setup_in` reads -- so a wrong number there is that reader's
-        // sentence, in that reader's own words.
+        // nests version 3's desk -- so a wrong number there is that version's reader's
+        // sentence, in its own words, naming the layout it is in.
         session_history::v2::WorkshopSession old = old_v2_session("Forged", 100, 30);
         old.desk.format_version = 2;
         const session_persist::LoadedSession no =
             session_persist::from_text(as_text(old), &history.catalog);
         CHECK_FALSE(no.outcome.accepted);
-        CHECK(no.outcome.refusal ==
-              "layout at position 0: " + setup_persist::wrong_version(2));
+        CHECK(no.outcome.refusal.find("layout at position 0: " +
+                                      setup_persist::wrong_version(2)) != std::string::npos);
     }
 }
 
@@ -4014,11 +4015,11 @@ session_persist::WorkshopSession hand_built(std::size_t layouts, std::int64_t ac
     session_persist::WorkshopSession out;
     out.format = session_persist::kFormat;
     out.format_version = session_persist::kFormatVersion;
-    out.viewport = session_persist::WorkshopViewport{110, 40};
+    out.viewport = session_persist::WorkshopViewport{cells_px(110), cells_px(40)};
     for (std::size_t i = 0; i < layouts; ++i) {
         out.layouts.push_back(session_persist::WorkshopLayout{
             setup_persist::to_setup(setup_of("L" + std::to_string(i), {second::kKind})),
-            session_history::absent_link()});
+            session_persist::to_link(SetupLink{})});
     }
     out.active = active;
     out.placement = session_history::absent_placement();
@@ -4036,8 +4037,8 @@ session_history::v3::WorkshopSession old_v3_session(const char* name, std::int64
     session_history::v3::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = 3;
-    old.viewport = session_persist::WorkshopViewport{w, h};
-    old.desk = setup_persist::to_setup(arranged_desk(name));
+    old.viewport = session_history::v6::WorkshopViewport{w, h};
+    old.desk = v3_desk(arranged_desk(name));
     old.placement = session_history::absent_placement();
     return old;
 }
@@ -4088,8 +4089,8 @@ TEST_CASE("a whole layout run round-trips exactly, active in the middle") {
     CHECK(session_persist::to_text(read.layouts, read.active, read.viewport_w,
                                    read.viewport_h, read.placement) == text);
     // AND THE FILE SAYS WHAT IT IS: the current version, a run, and a position.
-    CHECK(text.find("\"version\":6") != std::string::npos);
-    CHECK(text.find("\"format_version\":\"6\"") != std::string::npos);
+    CHECK(text.find("\"version\":7") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"7\"") != std::string::npos);
     CHECK(text.find("\"layouts\":") != std::string::npos);
     CHECK(text.find("\"active\":\"1\"") != std::string::npos);
     // ...and every layout in it is an ordinary setup, at the setup format's own version.
@@ -4252,6 +4253,10 @@ TEST_CASE("a retired shape's wire identity is the identity it was written at") {
         // bytes claim, corroborated by bytes, not a compiler's reading of a retyped struct.
         {"v5", loom::schema_of<session_history::v5::WorkshopSession>(), 5u,
          0x6f5b0dfc72bfa501ull},
+        // v6's is read off session files version 6 builds wrote (kept outside this
+        // repository): every one says `"content_id":"0x65ddb2477e598d18"`.
+        {"v6", loom::schema_of<session_history::v6::WorkshopSession>(), 6u,
+         0x65ddb2477e598d18ull},
     };
     for (const Vintage& v : history) {
         CAPTURE(v.what);
@@ -4262,7 +4267,7 @@ TEST_CASE("a retired shape's wire identity is the identity it was written at") {
     // ...and the current shape is none of them, which is what makes them history.
     const std::shared_ptr<const loom::Schema> current =
         loom::schema_of<session_persist::WorkshopSession>();
-    CHECK(current->version() == 6u);
+    CHECK(current->version() == 7u);
     for (const Vintage& v : history) {
         CAPTURE(v.what);
         CHECK_FALSE(loom::same_identity(*current, *v.shape));
@@ -4345,7 +4350,7 @@ TEST_CASE("a version-3 session becomes exactly one layout, live at zero") {
     old.placement.window = session_persist::kWindowMaximized;
 
     Setup predecessor;
-    REQUIRE(setup_persist::setup_in(old.desk, predecessor).accepted);
+    REQUIRE(v3_setup_in(old.desk, predecessor).accepted);
 
     MountedHistory history;
     REQUIRE(history.mounted.ok);
@@ -4409,9 +4414,9 @@ TEST_CASE("three DIRECT edges, and no chain to walk even if one wanted to") {
         CAPTURE(absent);
         CHECK(history.catalog.find(absent) == nullptr);
     }
-    for (const char* live : {"zengine.migrate.WorkshopSession.v1-to-v6",
-                             "zengine.migrate.WorkshopSession.v2-to-v6",
-                             "zengine.migrate.WorkshopSession.v3-to-v6"}) {
+    for (const char* live : {"zengine.migrate.WorkshopSession.v1-to-v7",
+                             "zengine.migrate.WorkshopSession.v2-to-v7",
+                             "zengine.migrate.WorkshopSession.v3-to-v7"}) {
         CAPTURE(live);
         REQUIRE(history.catalog.find(live) != nullptr);
     }
@@ -4441,7 +4446,7 @@ TEST_CASE("a version-3 file with no conversion live refuses and is not rewritten
 
         CHECK(t.session().notice_is_bad);
         CHECK(t.notice().find("session version 3 cannot be read") != std::string::npos);
-        CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v3-to-v6`") !=
+        CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v3-to-v7`") !=
               std::string::npos);
         CHECK(t.session().setup.active == default_setup());
         CHECK(layout_count(t.session().setup) == 1);
@@ -4665,7 +4670,7 @@ TEST_CASE("crossing media never rewrites a persisted layout's geometry") {
     REQUIRE(t.host.quit);
 
     CHECK(slurp(session) == never_crossed);
-    CHECK(slurp(session).find("pixels") == std::string::npos);
+    CHECK(slurp(session).find("cell_px") == std::string::npos);
 }
 
 // ---- F: the Setup ASSOCIATION, through the real weave -------------
@@ -4867,7 +4872,7 @@ TEST_CASE("the whole run and every association come back after a restart") {
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.layouts == authored);
     CHECK(read.active == 0);
-    CHECK(slurp(session).find("\"version\":6") != std::string::npos);
+    CHECK(slurp(session).find("\"version\":7") != std::string::npos);
     CHECK(slurp(session).find("\"link\":") != std::string::npos);
 
     // AND THE NEXT RUN COMES BACK ON ALL THREE, with all three verdicts.
@@ -4991,9 +4996,9 @@ TEST_CASE("a version-4 session opens with its run whole and every link none") {
     session_history::v4::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = session_history::kV4FormatVersion;
-    old.viewport = session_persist::WorkshopViewport{132, 41};
+    old.viewport = session_history::v6::WorkshopViewport{132, 41};
     for (const Setup& desk : three_desks()) {
-        old.layouts.push_back(setup_persist::to_setup(desk));
+        old.layouts.push_back(v3_desk(desk));
     }
     old.active = 2;
     old.placement.mode = session_persist::kPlacementDesktop;
@@ -5032,7 +5037,7 @@ TEST_CASE("a version-4 session opens with its run whole and every link none") {
     (void)session_persist::from_text(loom::compat::serialize(loom::to_value(old)),
                                      &history.catalog);
     CHECK(op::invocations() == before + 1);
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v4-to-v6") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v4-to-v7") != nullptr);
     // ...and no intermediate rung was added for the older vintages to be routed through.
     CHECK(history.catalog.find("zengine.migrate.WorkshopSession.v1-to-v4") == nullptr);
     CHECK(history.catalog.find("zengine.migrate.WorkshopSession.v3-to-v4") == nullptr);
@@ -5100,15 +5105,15 @@ session_history::v5::WorkshopSession old_v5_session(const std::string& artifact)
     session_history::v5::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = session_history::kV5FormatVersion;
-    old.viewport = session_persist::WorkshopViewport{132, 41};
+    old.viewport = session_history::v6::WorkshopViewport{132, 41};
     const std::vector<Setup> desks = three_desks();
     for (std::size_t i = 0; i < desks.size(); ++i) {
-        session_persist::WorkshopLayout row;
-        row.desk = setup_persist::to_setup(desks[i]);
+        session_history::v6::WorkshopLayout row;
+        row.desk = v3_desk(desks[i]);
         // THE FIRST LAYOUT IS ASSOCIATED AND MATCHING: its remembered value is its own desk,
         // which is what `save_setup` leaves behind and what makes the row read `current`.
         row.link = i == 0 && !artifact.empty()
-                       ? session_persist::WorkshopSetupLink{artifact, row.desk}
+                       ? session_history::v6::WorkshopSetupLink{artifact, row.desk}
                        : session_history::absent_link();
         old.layouts.push_back(std::move(row));
     }
@@ -5186,7 +5191,7 @@ TEST_CASE("a real version-5 session comes back with nothing lost") {
     CHECK(read.placement.maximized);
 
     // AND THE EDGE IS ONE AUTHORED CONVERSION, SPENT ONCE.
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v5-to-v6") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v5-to-v7") != nullptr);
     const std::uint64_t before = op::invocations();
     REQUIRE(session_persist::from_text(as_text(old), &history.catalog).outcome.accepted);
     CHECK(op::invocations() == before + 1);
@@ -5238,8 +5243,8 @@ TEST_CASE("the weaver sees no loss, and the next run spends no conversion") {
 
     // THE FILE IS THE CURRENT SHAPE NOW, and only the current shape.
     const std::string bytes = slurp(session);
-    CHECK(bytes.find("\"version\":6") != std::string::npos);
-    CHECK(bytes.find("\"format_version\":\"6\"") != std::string::npos);
+    CHECK(bytes.find("\"version\":7") != std::string::npos);
+    CHECK(bytes.find("\"format_version\":\"7\"") != std::string::npos);
     CHECK(bytes.find("\"pane\":\"layouts\"") != std::string::npos);
 
     // ...AND THE NEXT RUN READS IT WITH NO CONVERSION IN THE ARRANGEMENT AT ALL, which is
@@ -5259,15 +5264,14 @@ TEST_CASE("an explicit historical row is preserved, never duplicated") {
     session_history::v5::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = session_history::kV5FormatVersion;
-    old.viewport = session_persist::WorkshopViewport{120, 40};
+    old.viewport = session_history::v6::WorkshopViewport{120, 40};
     Setup authored = setup_of("Deliberate", {second::kKind, pane_kind::kLayouts});
     // ...AND THE WEAVER PUT IT SOMEWHERE OF THEIR OWN, which is the fact a duplicate row
     // would hide behind a default.
     REQUIRE(author_pane_place(authored, ref_of(pane_kind::kLayouts), cells_px(4), cells_px(9)).accepted);
     REQUIRE(send_to_back(authored, ref_of(pane_kind::kLayouts)));
     old.layouts.push_back(
-        session_persist::WorkshopLayout{setup_persist::to_setup(authored),
-                                        session_history::absent_link()});
+        session_history::v6::WorkshopLayout{v3_desk(authored), session_history::absent_link()});
     old.active = 0;
     old.placement = session_history::absent_placement();
 
@@ -5306,7 +5310,7 @@ TEST_CASE("a version-5 file with no conversion live refuses, and is not rewritte
     t.host.session_path = path; // no `conversions` hook: this arrangement mounts none
     t.publish(loom::to_value(surface::SurfaceReady{}));
     CHECK(t.session().notice_is_bad);
-    CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v5-to-v6`") != std::string::npos);
+    CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v5-to-v7`") != std::string::npos);
     // ...and it claims nothing it cannot know.
     CHECK(t.notice().find("install") == std::string::npos);
 
@@ -5333,10 +5337,9 @@ TEST_CASE("a full desk refuses the conversion rather than losing either fact") {
     session_history::v5::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = session_history::kV5FormatVersion;
-    old.viewport = session_persist::WorkshopViewport{120, 40};
+    old.viewport = session_history::v6::WorkshopViewport{120, 40};
     old.layouts.push_back(
-        session_persist::WorkshopLayout{setup_persist::to_setup(full),
-                                        session_history::absent_link()});
+        session_history::v6::WorkshopLayout{v3_desk(full), session_history::absent_link()});
     old.active = 0;
     old.placement = session_history::absent_placement();
 
@@ -5456,7 +5459,7 @@ TEST_CASE("the legacy road converts too, because the browser is older than it") 
     // easily as a version-3 one, because the pane predates both numbers.
     setup_persist::v2::WorkshopSetup old;
     old.format = setup_persist::kFormat;
-    old.format_version = setup_persist::kLegacyFormatVersion;
+    old.format_version = setup_persist::v2::kRetainedVersion;
     old.name = "Whole cells";
     setup_persist::v2::WorkshopSetupPane files;
     files.provider = "zengine.workshop";
@@ -5514,7 +5517,7 @@ TEST_CASE("every desk in a session is converted, and the run counts once") {
     session_persist::WorkshopSession file;
     file.format = session_persist::kFormat;
     file.format_version = session_persist::kFormatVersion;
-    file.viewport = session_persist::WorkshopViewport{132, 41};
+    file.viewport = session_persist::WorkshopViewport{cells_px(132), cells_px(41)};
     file.active = 1;
     file.placement = session_history::absent_placement();
     for (const Layout& l : run) {
@@ -5548,7 +5551,7 @@ TEST_CASE("the weaver is told once, in the pane's own durable names") {
     session_persist::WorkshopSession file;
     file.format = session_persist::kFormat;
     file.format_version = session_persist::kFormatVersion;
-    file.viewport = session_persist::WorkshopViewport{132, 41};
+    file.viewport = session_persist::WorkshopViewport{cells_px(132), cells_px(41)};
     file.active = 0;
     file.placement = session_history::absent_placement();
     for (int i = 0; i < 2; ++i) {
@@ -5677,7 +5680,7 @@ TEST_CASE("a session with nothing to convert says nothing about it") {
     session_persist::WorkshopSession file;
     file.format = session_persist::kFormat;
     file.format_version = session_persist::kFormatVersion;
-    file.viewport = session_persist::WorkshopViewport{132, 41};
+    file.viewport = session_persist::WorkshopViewport{cells_px(132), cells_px(41)};
     file.active = 0;
     file.placement = session_history::absent_placement();
     session_persist::WorkshopLayout out;

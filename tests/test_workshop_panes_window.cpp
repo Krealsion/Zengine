@@ -20,7 +20,7 @@
 
 // ---- ADMISSION ------------------------------------------------------------------------
 
-TEST_CASE("a fresh setup is version 3, sparse, and carries the identity ranks") {
+TEST_CASE("a fresh setup is the current version, sparse, and carries the identity ranks") {
     const Setup fresh = default_setup();
     REQUIRE(check_setup(fresh).accepted);
     REQUIRE(fresh.panes.size() == kDefaultPaneCount + 1); // ...and the Info pane the desk names
@@ -44,10 +44,10 @@ TEST_CASE("a fresh setup is version 3, sparse, and carries the identity ranks") 
         CHECK(fresh.panes[i].front == static_cast<std::int64_t>(i));
     }
     CHECK(is_permutation(fresh));
-    CHECK(setup_persist::kFormatVersion == 3);
+    CHECK(setup_persist::kFormatVersion == 4);
     const std::string text = setup_persist::to_text(fresh);
     INFO(text);
-    CHECK(text.find("\"format_version\":\"3\"") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"4\"") != std::string::npos);
     CHECK(text.find("\"mode\":\"default\"") != std::string::npos);
     CHECK(text.find("\"front\":\"0\"") != std::string::npos);
 }
@@ -66,7 +66,7 @@ TEST_CASE("every mode spelling round-trips, pixels included") {
 
     const std::string a = setup_persist::to_text(s);
     INFO(a);
-    CHECK(a.find("\"mode\":\"subcells\"") != std::string::npos);
+    CHECK(a.find("\"mode\":\"pixels\"") != std::string::npos);
     CHECK(a.find("\"mode\":\"default\"") != std::string::npos);
 
     const setup_persist::LoadedSetup read = setup_persist::from_text(a);
@@ -180,21 +180,21 @@ TEST_CASE("an unknown mode word names what it found and what would have worked")
     cases.push_back({"an unknown PLACE word",
                      forged_setup(good, "\"place\":{\"mode\":\"default\"",
                                   "\"place\":{\"mode\":\"furlongs\""),
-                     "furlongs", "default, right-column or subcells"});
-    // `pixels` IS NOT A PLACE UNIT, and this is where that is said. A place has one unit;
-    // offering it a size's is offering a word this field's vocabulary does not have.
-    cases.push_back({"a SIZE word offered to a place",
-                     forged_setup(good, "\"place\":{\"mode\":\"default\"",
-                                  "\"place\":{\"mode\":\"pixels\""),
-                     "pixels", "default, right-column or subcells"});
+                     "furlongs", "default, right-column or pixels"});
+    // `right-column` IS NOT A SIZE, and this is where that is said: it names a place, and
+    // offering it to a size is offering a word this field's vocabulary does not have.
+    cases.push_back({"a PLACE word offered to a size",
+                     forged_setup(good, "\"width\":{\"mode\":\"default\"",
+                                  "\"width\":{\"mode\":\"right-column\""),
+                     "right-column", "default or pixels"});
     cases.push_back({"an unknown WIDTH word",
                      forged_setup(good, "\"width\":{\"mode\":\"default\"",
                                   "\"width\":{\"mode\":\"ems\""),
-                     "ems", "default, subcells or pixels"});
+                     "ems", "default or pixels"});
     cases.push_back({"an unknown HEIGHT word",
                      forged_setup(good, "\"height\":{\"mode\":\"default\"",
                                   "\"height\":{\"mode\":\"\""),
-                     "", "default, subcells or pixels"});
+                     "", "default or pixels"});
 
     for (const Case& c : cases) {
         CAPTURE(c.what);
@@ -296,7 +296,7 @@ TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {
     INFO(refused.outcome.refusal);
     // BY ITS NUMBER, and in Workshop's own words.
     CHECK(refused.outcome.refusal.find("setup version 1") != std::string::npos);
-    CHECK(refused.outcome.refusal.find("reads versions 2 and 3") != std::string::npos);
+    CHECK(refused.outcome.refusal.find("reads versions 2, 3 and 4") != std::string::npos);
     // AND NOT BY A ROW FIELD. That sentence would be true and would name the wrong cause --
     // a weaver fixing a missing `place` would never find out their file is a version old.
     CHECK(refused.outcome.refusal.find("place") == std::string::npos);
@@ -307,7 +307,7 @@ TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {
     // THE FIELD IS STILL CHECKED TOO, for the forgery that only a reader of this format
     // would produce: a version-3 envelope whose own stated version is not 3.
     const setup_persist::LoadedSetup forged = setup_persist::from_text(
-        forged_setup(two_overlays(), "\"format_version\":\"3\"", "\"format_version\":\"1\""));
+        forged_setup(two_overlays(), "\"format_version\":\"4\"", "\"format_version\":\"1\""));
     CHECK_FALSE(forged.outcome.accepted);
     CHECK(forged.outcome.refusal.find("setup version 1") != std::string::npos);
 }

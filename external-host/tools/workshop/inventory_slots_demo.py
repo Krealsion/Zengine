@@ -68,13 +68,13 @@ def run(ctx):
         panes[:] = [p for p in panes if p["provider"] in (inv[0], "zengine.info", "zengine.demo")]
         for p in panes:
             if p["provider"] == "zengine.info":
-                p["place"] = {"mode": "subcells", "x": "48", "y": str(25 * 48)}
-                p["width"]["amount"], p["height"]["amount"] = str(50 * 48), str(17 * 48)
+                p["place"] = {"mode": "pixels", "x": "12", "y": str(25 * 12)}
+                p["width"]["amount"], p["height"]["amount"] = str(50 * 12), str(17 * 12)
         for key, x, y, width, height in ids:
             panes.append({"provider": inv[0], "pane": key,
-                          "place": {"mode": "subcells", "x": str(x * 48), "y": str(y * 48)},
-                          "width": {"mode": "subcells", "amount": str(width * 48)},
-                          "height": {"mode": "subcells", "amount": str(height * 48)}, "front": str(len(panes))})
+                          "place": {"mode": "pixels", "x": str(x * 12), "y": str(y * 12)},
+                          "width": {"mode": "pixels", "amount": str(width * 12)},
+                          "height": {"mode": "pixels", "amount": str(height * 12)}, "front": str(len(panes))})
         for i, p in enumerate(panes):
             p["front"] = str(i)
         hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)

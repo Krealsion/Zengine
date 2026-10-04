@@ -39,11 +39,11 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-SESSION-07 — The viewport is one level above the desk, and is declined, never clamped
 
-LAW — The viewport, in canvas cells, sits one level above the desk in the file; a viewport outside the screen's minimum-to-maximum band on either axis is declined, never clamped.
+LAW — The viewport, in canvas pixels, sits one level above the desk in the file; a viewport outside the screen's minimum-to-maximum band on either axis is declined, never clamped.
 
 MEANS
 - Workshop then opens at its floor and names the value;
-- a restored window is the weaver's chosen size floored to whole cells;
+- a restored window is the weaver's chosen size, to the pixel;
 - whether a size fits the current display is not a question Workshop can put to anybody.
 
 PROVEN BY — `workshop/session_persist.hpp` `WorkshopLayout::desk`, `viewport_honoured`,

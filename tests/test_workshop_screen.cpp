@@ -2384,7 +2384,7 @@ TEST_CASE("the TUI projects a pane onto its covered cells and rewrites nothing")
 TEST_CASE("a version-2 whole-cell setup loads at exactly its old picture") {
     // THE LEGACY ROAD: the retained `v2` shapes write a version-2 file -- that namespace IS
     // those shapes, so this text is byte-honest -- and this build reads it, scales it exactly
-    // onto the fine lattice, and resolves it to the rectangle a version-2 build resolved.
+    // onto pixels, and resolves it to the rectangle a version-2 build resolved.
     setup_persist::v2::WorkshopSetup old;
     old.format = setup_persist::kFormat;
     old.format_version = 2;
@@ -2410,14 +2410,14 @@ TEST_CASE("a version-2 whole-cell setup loads at exactly its old picture") {
     CHECK(got.place.y == cells_px(5));
     CHECK(got.width.mode == pane_unit::kPixels);
     CHECK(got.width.amount == cells_px(40));
-    // A PIXEL AXIS IS DEVICE PIXELS IN BOTH VERSIONS AND CROSSES UNSCALED.
+    // A PIXEL AXIS IS PIXELS IN EVERY VERSION AND CROSSES UNSCALED.
     CHECK(got.height.mode == pane_unit::kPixels);
     CHECK(got.height.amount == 220);
 
-    // AND THE NEXT SAVE WRITES VERSION 3, WHICH ROUND-TRIPS BYTE-IDENTICALLY.
+    // AND THE NEXT SAVE WRITES THE CURRENT VERSION, WHICH ROUND-TRIPS BYTE-IDENTICALLY.
     const std::string saved = setup_persist::to_text(read.setup);
-    CHECK(saved.find("\"format_version\":\"3\"") != std::string::npos);
-    CHECK(saved.find("\"mode\":\"subcells\"") != std::string::npos);
+    CHECK(saved.find("\"format_version\":\"4\"") != std::string::npos);
+    CHECK(saved.find("\"mode\":\"pixels\"") != std::string::npos);
     const setup_persist::LoadedSetup back = setup_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);
     CHECK(back.setup == read.setup);
@@ -2442,7 +2442,7 @@ TEST_CASE("a version-1 session restores a whole-cell desk through a conversion")
     session_history::v1::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = 1;
-    old.viewport = session_persist::WorkshopViewport{120, 44};
+    old.viewport = session_history::v6::WorkshopViewport{120, 44};
     old.desk.format = setup_persist::kFormat;
     old.desk.format_version = 2;
     old.desk.name = "Yesterday";
@@ -2489,8 +2489,8 @@ TEST_CASE("a version-1 session restores a whole-cell desk through a conversion")
     // different number, and a search for the bare field would find that one.
     const std::string saved = session_persist::to_text(read.layouts, read.active, read.viewport_w,
                                                        read.viewport_h, read.placement);
-    CHECK(saved.find("\"version\":6") != std::string::npos);
-    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"6\"") !=
+    CHECK(saved.find("\"version\":7") != std::string::npos);
+    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"7\"") !=
           std::string::npos);
     const session_persist::LoadedSession back = session_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);
@@ -2526,16 +2526,16 @@ TEST_CASE("a fine setup opens where the window painted it, to the pixel") {
     // A FILE WRITTEN ON THE 1/48 LATTICE, four sub-units to a window pixel: each edge lands on
     // the pixel the window painted it at -- floored, never rounded -- so the width is the painted
     // span, not the authored count divided.
-    setup_persist::WorkshopSetup old;
+    setup_persist::v3::WorkshopSetup old;
     old.format = setup_persist::kFormat;
     old.format_version = 3;
     old.name = "Fine desk";
-    setup_persist::WorkshopSetupPane pane;
+    setup_persist::v3::WorkshopSetupPane pane;
     pane.provider = "zengine.workshop";
     pane.pane = "builder";
-    pane.place = setup_persist::WorkshopPanePlace{"subcells", 301, 242}; // pixels 75.25, 60.5
-    pane.width = setup_persist::WorkshopPaneSize{"subcells", 1927};      // right edge 557.0
-    pane.height = setup_persist::WorkshopPaneSize{"pixels", 5};          // less than a cell
+    pane.place = setup_persist::v3::WorkshopPanePlace{"subcells", 301, 242}; // pixels 75.25, 60.5
+    pane.width = setup_persist::v3::WorkshopPaneSize{"subcells", 1927};      // right edge 557.0
+    pane.height = setup_persist::v3::WorkshopPaneSize{"pixels", 5};          // less than a cell
     pane.front = 0;
     old.panes.push_back(pane);
     const setup_persist::LoadedSetup read =

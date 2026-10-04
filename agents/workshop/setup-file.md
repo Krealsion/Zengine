@@ -1,13 +1,13 @@
 # Workshop law — the setup file
 
-Register `WL-SETUP`: the setup file's shape, its one legacy reader, and one spelling per fact.
+Register `WL-SETUP`: the setup file's shape, its two retained readers, and one spelling per fact.
 One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 Retired: WL-SETUP-06.
 
 ## WL-SETUP-01 — A setup row is a reference plus the smallest authored difference
 
-LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->3<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}` per axis, `front`, and nothing else.
+LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->4<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}` per axis, `front`, and nothing else.
 
 MEANS
 - a fresh setup is sparse: the developer's defaults are absent, not written;
@@ -18,8 +18,8 @@ PROVEN BY — `workshop/setup_persist.hpp` `kFormatVersion`, `WorkshopSetup`, `t
 `WorkshopPaneSize`, `WorkshopSetupPane`; `workshop/setup.hpp` `PaneRef`, `kMaxPaneKeyLen`,
 `PaneSize`, `SetupPane`, `pane_ref_of`, `kNoPaneRow`, `kMaxSetupPanes`, `pane_row`;
 `workshop/panes.hpp` `kWorkshopProvider`, `BuiltinPane`, `every_kind_is_referable`;
-`tests/test_workshop_panes_window.cpp` case `"a fresh setup is version 3, sparse, and carries the
-identity ranks"`, case `"an unresolved reference round-trips every authored field
+`tests/test_workshop_panes_window.cpp` case `"a fresh setup is the current version, sparse, and
+carries the identity ranks"`, case `"an unresolved reference round-trips every authored field
 exactly"`; `tests/test_workshop_panes_seam.cpp` case `"setup bytes carry no descriptor, room
 or handle"`.
 WHY — `agents/decisions/setup-format-v3.md`
@@ -30,15 +30,16 @@ LAW — A version-3 file's sub-units cross at the door, each edge floored to the
 
 MEANS
 - an old desk resolves to the identical pixels; an extent is its painted span, never a quotient;
-- a `pixels` extent under one cell is raised to one cell, the bound the setup law enforces;
-- the retained v2 shapes are one namespace, not a migration framework.
+- an old `pixels` extent under one cell is raised to one cell, the bound the setup law enforces;
+- the retained shapes are two namespaces, each read in its own words, not a migration framework.
 
-PROVEN BY — `workshop/setup_persist.hpp` `v2`, `setup_in`, `from_text`, `setup_in_v2`,
-`pixels_of_subcells`, `kSubsPerPixel`; `surface/vocabulary.hpp` `kCanvasCellPx`;
-`workshop/session_history.hpp` `place_v2_to_v3`, `desk_v2_to_v3`; `tests/test_workshop_screen.cpp`
-case `"a version-2 whole-cell setup loads at exactly its old picture"`, case `"a fine setup opens
-where the window painted it, to the pixel"`; `tests/test_workshop_panes_window.cpp` case `"a
-version-1 file is refused BY NUMBER, before its rows are judged"`.
+PROVEN BY — `workshop/setup_persist.hpp` `v2`, `v3`, `setup_in`, `from_text`, `setup_in_v2`,
+`v3::to_current`, `v3::kSubsPerPixel`, `at_least_a_cell`; `surface/vocabulary.hpp`
+`kCanvasCellPx`; `workshop/session_history.hpp` `place_v2_to_v3`, `desk_v2_to_v3`,
+`desk_v3_to_v4`; `tests/test_workshop_screen.cpp` case `"a version-2 whole-cell setup loads at
+exactly its old picture"`, case `"a fine setup opens where the window painted it, to the pixel"`;
+`tests/test_workshop_panes_window.cpp` case `"a version-1 file is refused BY NUMBER, before its
+rows are judged"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-03 — `default` is a value whose unused numbers are zero
@@ -54,20 +55,20 @@ PROVEN BY — `workshop/setup.hpp` `check_pane_place`, `check_pane_size`,
 `check_pane_place_coord`, `pane_unit::kDefault`, `pane_unit::kRightColumn`, `PanePlace`,
 `kMaxPanePixels`, `default_setup`; `workshop/screen_chrome.cpp` `bounds_of`;
 `tests/test_workshop_panes_window.cpp` case `"a default mode carries no numbers, and that is one
-canonical spelling"`, case `"a fresh setup is version 3, sparse, and carries the identity
-ranks"`, case `"a desk row may NAME the right column, and any pane resolves into it"`.
+canonical spelling"`, case `"a fresh setup is the current version, sparse, and carries the
+identity ranks"`, case `"a desk row may NAME the right column, and any pane resolves into it"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-04 — A mode is a word from a closed set
 
-LAW — A place has three mode words and a size three; an unrecognised word refuses the whole candidate, naming what it found and what would have worked.
+LAW — A place has three mode words and a size two; an unrecognised word refuses the whole candidate, naming what it found and what would have worked.
 
 MEANS
 - the in-memory numbers are arbitrary: a renumber would silently change every saved arrangement;
-- `pixels` offered to a place is a word that field's vocabulary does not have;
+- `right-column` offered to a size is a word that field's vocabulary does not have;
 - adding a word is not a version: the shape is unchanged and an older build refuses out loud.
 
-PROVEN BY — `workshop/setup_persist.hpp` `from_text`, `kUnitDefault`, `kUnitSubcells`,
+PROVEN BY — `workshop/setup_persist.hpp` `from_text`, `kUnitDefault`, `kUnitPixels`,
 `kUnitRightColumn`, `kPlaceWords`, `unit_word`, `place_in`; `workshop/setup.hpp` `pane_unit`,
 `kPixels`;
 `tests/test_workshop_panes_window.cpp` case `"an unknown mode word names what it found and what
@@ -155,5 +156,5 @@ WHY — `agents/decisions/setup-format-v3.md`
 
 ## Do not assume
 
-- That the setup keeps no old reader — it keeps exactly the v2 one, because a setup is a named
+- That the setup keeps no old reader — it keeps the v2 and v3 ones, because a setup is a named
   artifact with no session to ride (WL-SETUP-02); the session reader keeps none (WL-MIG-01).

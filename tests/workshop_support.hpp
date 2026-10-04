@@ -1333,6 +1333,44 @@ inline std::vector<std::int64_t> open_kinds(const Panes& panes) {
     return out;
 }
 
+/// A desk as a version-3 Workshop wrote it: every pixel amount in sub-units, four to a pixel.
+inline setup_persist::v3::WorkshopSetup v3_desk(const Setup& s) {
+    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
+    setup_persist::v3::WorkshopSetup out;
+    out.format = now.format;
+    out.format_version = setup_persist::v3::kRetainedVersion;
+    out.name = now.name;
+    const auto word = [](const std::string& mode) {
+        return mode == setup_persist::kUnitPixels ? std::string(setup_persist::v3::kUnitSubcells)
+                                                  : mode;
+    };
+    const auto subs = [](const std::string& mode, std::int64_t v) {
+        return mode == setup_persist::kUnitPixels ? v * setup_persist::v3::kSubsPerPixel : v;
+    };
+    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
+        setup_persist::v3::WorkshopSetupPane row;
+        row.provider = p.provider;
+        row.pane = p.pane;
+        row.front = p.front;
+        row.place = setup_persist::v3::WorkshopPanePlace{word(p.place.mode),
+                                                         subs(p.place.mode, p.place.x),
+                                                         subs(p.place.mode, p.place.y)};
+        row.width = setup_persist::v3::WorkshopPaneSize{word(p.width.mode),
+                                                        subs(p.width.mode, p.width.amount)};
+        row.height = setup_persist::v3::WorkshopPaneSize{word(p.height.mode),
+                                                         subs(p.height.mode, p.height.amount)};
+        out.panes.push_back(std::move(row));
+    }
+    return out;
+}
+
+/// A version-3 desk read as its own reader would: landed on pixels, then the setup law.
+inline Written v3_setup_in(const setup_persist::v3::WorkshopSetup& old, Setup& out) {
+    setup_persist::WorkshopSetup now;
+    const Written landed = setup_persist::v3::to_current(old, now);
+    return landed.accepted ? setup_persist::setup_in(now, out) : landed;
+}
+
 /// A setup file's text with one substring replaced -- how the refusal cases
 /// forge a file the honest writer could never produce. The document tier's own
 /// `forged`, asked about the other artifact.

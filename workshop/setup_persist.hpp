@@ -30,11 +30,11 @@ namespace zengine::workshop::setup_persist {
 inline constexpr const char* kFormat = "zengine-workshop-setup";
 
 /// The setup format version this build WRITES, and the newest it reads.
-inline constexpr std::int64_t kFormatVersion = 3;
+inline constexpr std::int64_t kFormatVersion = 4;
 
-/// The one older version this build still reads: the
-/// whole-cell format, translated on load — never rewritten in place.
-inline constexpr std::int64_t kLegacyFormatVersion = 2;
+/// The oldest version this build still reads. Version 2 (whole cells) and version 3 (sub-units)
+/// are each translated on load — never rewritten in place.
+inline constexpr std::int64_t kOldestFormatVersion = 2;
 
 /// A setup is a smaller thing than a document, and its ceiling says so.
 // WL-SESSION-06 -- agents/workshop/session-restore.md
@@ -44,10 +44,8 @@ inline constexpr std::uintmax_t kMaxSetupBytes = 1u << 16;
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 
 inline constexpr const char* kUnitDefault = "default";
-/// VERSION 3'S GEOMETRY WORD: amounts in sub-units, 48 to a canvas cell and
-/// `kSubsPerPixel` to a canvas pixel.
+/// THE GEOMETRY WORD: amounts in canvas pixels, twelve to a canvas cell.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
-inline constexpr const char* kUnitSubcells = "subcells";
 inline constexpr const char* kUnitPixels = "pixels";
 /// The place-only word: the right column, named. Adding it is not a format version: the shape
 /// is unchanged, and an older build refuses the word by name.
@@ -57,21 +55,13 @@ inline constexpr const char* kUnitRightColumn = "right-column";
 /// The words a PLACE may be said in, and the words a SIZE may be said in -- two
 /// lists, because they are two different closed sets.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
-inline constexpr const char* kPlaceWords = "default, right-column or subcells";
-inline constexpr const char* kSizeWords = "default, subcells or pixels";
+inline constexpr const char* kPlaceWords = "default, right-column or pixels";
+inline constexpr const char* kSizeWords = "default or pixels";
 
-/// Sub-units per canvas pixel in a `subcells` amount.
-inline constexpr std::int64_t kSubsPerPixel = 4;
-
-/// A `subcells` coordinate as the pixel the window painted it on: floored.
-inline constexpr std::int64_t px_of_subcells(std::int64_t subs) noexcept {
-    return surface::floor_div_px(subs, kSubsPerPixel);
-}
-
-/// A `subcells` extent from `at` as the pixels the window painted: its far edge floored, less
-/// its near edge floored.
-inline constexpr std::int64_t px_extent_of_subcells(std::int64_t at, std::int64_t extent) noexcept {
-    return px_of_subcells(surface::add_cells(at, extent)) - px_of_subcells(at);
+/// An extent an older file said in pixels, raised to one cell where it was less: a pane is
+/// never narrower than a cell. A count that is not positive is left for the law to refuse.
+inline constexpr std::int64_t at_least_a_cell(std::int64_t px) noexcept {
+    return px > 0 && px < kPanePxMin ? kPanePxMin : px;
 }
 
 // ---- The file's own shapes ---------------------------------------------------
@@ -83,9 +73,9 @@ struct WorkshopPaneSize {
     std::string mode;
     std::int64_t amount = 0;
 
-    /// Version 2: the amount's geometry unit became sub-cells and the mode
-    /// word moved with it. Same fields — the version IS the semantic gate.
-    ZEN_SHAPE(WorkshopPaneSize, 2, ZEN_FIELD(mode), ZEN_FIELD(amount));
+    /// Version 3: the amount is canvas pixels, word `pixels`. Same fields — the version IS the
+    /// semantic gate.
+    ZEN_SHAPE(WorkshopPaneSize, 3, ZEN_FIELD(mode), ZEN_FIELD(amount));
 };
 
 /// AN AUTHORED PLACE AS WRITTEN. One mode for the pair, for `PanePlace`'s reason.
@@ -94,8 +84,8 @@ struct WorkshopPanePlace {
     std::int64_t x = 0;
     std::int64_t y = 0;
 
-    /// Version 2: coordinates in sub-cells, word `subcells`.
-    ZEN_SHAPE(WorkshopPanePlace, 2, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y));
+    /// Version 3: coordinates in canvas pixels, word `pixels`.
+    ZEN_SHAPE(WorkshopPanePlace, 3, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y));
 };
 
 /// ONE PANE ROW AS WRITTEN: the durable reference, the authored window, and how
@@ -109,7 +99,7 @@ struct WorkshopSetupPane {
     WorkshopPaneSize height;
     std::int64_t front = 0;
 
-    ZEN_SHAPE(WorkshopSetupPane, 3, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
+    ZEN_SHAPE(WorkshopSetupPane, 4, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
               ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front));
 };
 
@@ -121,9 +111,8 @@ struct WorkshopSetup {
     std::string name;
     std::vector<WorkshopSetupPane> panes;
 
-    /// Version 2, because the rows it holds grew four fields; version 3,
-    /// because their geometry became sub-cell units.
-    ZEN_SHAPE(WorkshopSetup, 3, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
+    /// Version 4, because the geometry its rows hold became canvas pixels.
+    ZEN_SHAPE(WorkshopSetup, 4, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
               ZEN_FIELD(panes));
 };
 
@@ -131,7 +120,7 @@ struct WorkshopSetup {
 static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kFormatVersion),
               "the setup file's format version and its envelope's shape version are one "
               "number: a version-1 file must be refused by ITS NUMBER, before its rows are "
-              "judged against version 2's shape");
+              "judged against a later version's shape");
 
 // ---- Writing -------------------------------------------------------------------
 
@@ -141,7 +130,7 @@ static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kFormatVe
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline const char* unit_word(std::int64_t mode) {
     if (mode == pane_unit::kPixels) {
-        return kUnitSubcells;
+        return kUnitPixels;
     }
     if (mode == pane_unit::kRightColumn) {
         return kUnitRightColumn;
@@ -150,16 +139,10 @@ inline const char* unit_word(std::int64_t mode) {
 }
 
 inline WorkshopPanePlace place_out(const PanePlace& p) {
-    if (p.mode == pane_unit::kPixels) {
-        return WorkshopPanePlace{unit_word(p.mode), p.x * kSubsPerPixel, p.y * kSubsPerPixel};
-    }
     return WorkshopPanePlace{unit_word(p.mode), p.x, p.y};
 }
 
 inline WorkshopPaneSize size_out(const PaneSize& s) {
-    if (s.mode == pane_unit::kPixels) {
-        return WorkshopPaneSize{unit_word(s.mode), s.amount * kSubsPerPixel};
-    }
     return WorkshopPaneSize{unit_word(s.mode), s.amount};
 }
 
@@ -174,9 +157,8 @@ inline WorkshopSetup to_setup(const Setup& s) {
     out.panes.reserve(s.panes.size());
     for (const SetupPane& row : s.panes) {
         // THE AUTHORED VALUES, AS AUTHORED. Not resolved, not clamped against the
-        // current screen, not sorted by rank, not dropped for being unpresentable
-        // on this medium, and not renumbered. A `pixels` width no medium in this
-        // build can project is written exactly as the weaver said it.
+        // current screen, not sorted by rank, not dropped for being off this screen,
+        // and not renumbered.
         out.panes.push_back(WorkshopSetupPane{row.ref.provider, row.ref.pane,
                                               place_out(row.place), size_out(row.width),
                                               size_out(row.height), row.front});
@@ -207,20 +189,21 @@ struct LoadedSetup {
 /// `format_version` field -- cannot come to word it differently.
 // WL-SETUP-05 -- agents/workshop/setup-file.md
 inline std::string wrong_version(std::int64_t found) {
-    return "setup version " + std::to_string(found) + " -- this Workshop reads versions " +
-           std::to_string(kLegacyFormatVersion) + " and " + std::to_string(kFormatVersion);
+    std::string read;
+    for (std::int64_t v = kOldestFormatVersion; v < kFormatVersion; ++v) {
+        read += std::to_string(v) + (v + 1 < kFormatVersion ? ", " : " and ");
+    }
+    return "setup version " + std::to_string(found) + " -- this Workshop reads versions " + read +
+           std::to_string(kFormatVersion);
 }
 
-/// The authored place a written one means. False for a mode this format has no
-/// word for -- and `pixels` is deliberately one of those FOR A PLACE, because a
-/// place has no pixel unit at all.
+/// The authored place a written one means. False for a mode this format has no word for.
 inline bool place_in(const WorkshopPanePlace& w, PanePlace& out) {
     if (w.mode == kUnitDefault) {
         out = PanePlace{pane_unit::kDefault, w.x, w.y};
         return true;
     }
-    if (w.mode == kUnitSubcells) {
-        // Still in sub-units here: `pixels_of_subcells` lands the row, place and extent together.
+    if (w.mode == kUnitPixels) {
         out = PanePlace{pane_unit::kPixels, w.x, w.y};
         return true;
     }
@@ -235,16 +218,10 @@ inline bool place_in(const WorkshopPanePlace& w, PanePlace& out) {
     return false;
 }
 
-/// The authored size a written one means. `pixels` IS a word here and is admitted
-/// on every medium -- whether this build can PROJECT one is screen.hpp's question,
-/// asked against a screen this function has never seen.
+/// The authored size a written one means.
 inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
     if (w.mode == kUnitDefault) {
         out = PaneSize{pane_unit::kDefault, w.amount};
-        return true;
-    }
-    if (w.mode == kUnitSubcells) {
-        out = PaneSize{pane_unit::kPixels, w.amount};
         return true;
     }
     if (w.mode == kUnitPixels) {
@@ -252,30 +229,6 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
         return true;
     }
     return false;
-}
-
-/// ONE ROW READ IN SUB-UNITS, LANDED ON THE PIXELS THE WINDOW PAINTED IT AT. A place floors; an
-/// extent is its painted span from the authored place on its axis, or from a whole cell when the
-/// place is the code's (every default place is one). An extent said in `pixels` is a pixel count
-/// already, raised to one cell if it was less: a pane is never narrower than a cell.
-inline void pixels_of_subcells(SetupPane& row, const WorkshopSetupPane& written) {
-    const bool place = written.place.mode == kUnitSubcells;
-    const std::int64_t x0 = place ? row.place.x : 0;
-    const std::int64_t y0 = place ? row.place.y : 0;
-    if (written.width.mode == kUnitSubcells) {
-        row.width.amount = px_extent_of_subcells(x0, row.width.amount);
-    } else if (written.width.mode == kUnitPixels && row.width.amount < kPanePxMin) {
-        row.width.amount = kPanePxMin;
-    }
-    if (written.height.mode == kUnitSubcells) {
-        row.height.amount = px_extent_of_subcells(y0, row.height.amount);
-    } else if (written.height.mode == kUnitPixels && row.height.amount < kPanePxMin) {
-        row.height.amount = kPanePxMin;
-    }
-    if (place) {
-        row.place.x = px_of_subcells(row.place.x);
-        row.place.y = px_of_subcells(row.place.y);
-    }
 }
 
 /// What to say about a mode with no word: what was found and what would have worked, since a
@@ -326,6 +279,9 @@ struct WorkshopSetup {
               ZEN_FIELD(panes));
 };
 
+inline constexpr std::int64_t kRetainedVersion = 2;
+static_assert(kRetainedVersion == kOldestFormatVersion, "version 2 is the oldest this build reads");
+
 /// Version 2's word for a whole-cell amount — alive only behind this reader.
 inline constexpr const char* kUnitCells = "cells";
 inline constexpr const char* kPlaceWords = "default or cells";
@@ -354,7 +310,7 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
         return true;
     }
     if (w.mode == kUnitPixels) {
-        out = PaneSize{pane_unit::kPixels, w.amount};
+        out = PaneSize{pane_unit::kPixels, at_least_a_cell(w.amount)};
         return true;
     }
     return false;
@@ -362,15 +318,140 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
 
 } // namespace v2
 
+// ---- VERSION 3, RETAINED FOR READING -----------------------------------------------------
+// WL-SETUP-02 -- agents/workshop/setup-file.md
+namespace v3 {
+
+inline constexpr std::int64_t kRetainedVersion = 3;
+
+struct WorkshopPaneSize {
+    std::string mode;
+    std::int64_t amount = 0;
+
+    ZEN_SHAPE(WorkshopPaneSize, 2, ZEN_FIELD(mode), ZEN_FIELD(amount));
+};
+
+struct WorkshopPanePlace {
+    std::string mode;
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+
+    ZEN_SHAPE(WorkshopPanePlace, 2, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y));
+};
+
+struct WorkshopSetupPane {
+    std::string provider;
+    std::string pane;
+    WorkshopPanePlace place;
+    WorkshopPaneSize width;
+    WorkshopPaneSize height;
+    std::int64_t front = 0;
+
+    ZEN_SHAPE(WorkshopSetupPane, 3, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
+              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front));
+};
+
+struct WorkshopSetup {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::string name;
+    std::vector<WorkshopSetupPane> panes;
+
+    ZEN_SHAPE(WorkshopSetup, 3, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
+              ZEN_FIELD(panes));
+};
+
+static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kRetainedVersion),
+              "a retained setup shape's envelope version and its format version are one "
+              "number, as the current one's are");
+
+/// Version 3's word for a geometry amount — sub-units, 48 to a canvas cell and
+/// `kSubsPerPixel` to a canvas pixel; alive only behind this reader.
+inline constexpr const char* kUnitSubcells = "subcells";
+inline constexpr const char* kPlaceWords = "default, right-column or subcells";
+inline constexpr const char* kSizeWords = "default, subcells or pixels";
+inline constexpr std::int64_t kSubsPerPixel = 4;
+
+/// A `subcells` coordinate as the pixel the window painted it on: floored.
+inline constexpr std::int64_t px_of_subcells(std::int64_t subs) noexcept {
+    return surface::floor_div_px(subs, kSubsPerPixel);
+}
+
+/// A `subcells` extent from `at` as the pixels the window painted: its far edge floored, less
+/// its near edge floored.
+inline constexpr std::int64_t px_extent_of_subcells(std::int64_t at, std::int64_t extent) noexcept {
+    return px_of_subcells(surface::add_cells(at, extent)) - px_of_subcells(at);
+}
+
+/// ONE DESK OF VERSION 3 IN THE CURRENT SHAPE, LANDED ON THE PIXELS THE WINDOW PAINTED IT AT. A
+/// place floors; an extent is its painted span from the authored place on its axis, or from a
+/// whole cell when the place is the code's (every default place is one); a `pixels` extent is a
+/// pixel count already, raised to one cell if it was less. Refused, in version 3's own words,
+/// for a claim or a word that version never had.
+// WL-SETUP-02 -- agents/workshop/setup-file.md
+inline Written to_current(const WorkshopSetup& old, setup_persist::WorkshopSetup& out) {
+    if (old.format != kFormat) {
+        return Written::no("not a Workshop setup: it says it is `" + old.format + "`");
+    }
+    if (old.format_version != kRetainedVersion) {
+        return Written::no(wrong_version(old.format_version));
+    }
+    setup_persist::WorkshopSetup made;
+    made.format = old.format;
+    made.format_version = setup_persist::kFormatVersion;
+    made.name = old.name;
+    made.panes.reserve(old.panes.size());
+    for (const WorkshopSetupPane& p : old.panes) {
+        setup_persist::WorkshopSetupPane row;
+        row.provider = p.provider;
+        row.pane = p.pane;
+        row.front = p.front;
+        const bool placed = p.place.mode == kUnitSubcells;
+        if (p.place.mode == kUnitDefault || p.place.mode == kUnitRightColumn) {
+            row.place = setup_persist::WorkshopPanePlace{p.place.mode, p.place.x, p.place.y};
+        } else if (placed) {
+            row.place = setup_persist::WorkshopPanePlace{
+                kUnitPixels, px_of_subcells(p.place.x), px_of_subcells(p.place.y)};
+        } else {
+            return Written::no(unknown_unit(p.place.mode, "place", kPlaceWords));
+        }
+        const auto axis = [](const WorkshopPaneSize& w, std::int64_t at,
+                             setup_persist::WorkshopPaneSize& to) {
+            if (w.mode == kUnitDefault) {
+                to = setup_persist::WorkshopPaneSize{kUnitDefault, w.amount};
+            } else if (w.mode == kUnitSubcells) {
+                to = setup_persist::WorkshopPaneSize{kUnitPixels,
+                                                     px_extent_of_subcells(at, w.amount)};
+            } else if (w.mode == kUnitPixels) {
+                to = setup_persist::WorkshopPaneSize{kUnitPixels, at_least_a_cell(w.amount)};
+            } else {
+                return false;
+            }
+            return true;
+        };
+        if (!axis(p.width, placed ? p.place.x : 0, row.width)) {
+            return Written::no(unknown_unit(p.width.mode, "width", kSizeWords));
+        }
+        if (!axis(p.height, placed ? p.place.y : 0, row.height)) {
+            return Written::no(unknown_unit(p.height.mode, "height", kSizeWords));
+        }
+        made.panes.push_back(std::move(row));
+    }
+    out = std::move(made);
+    return Written::ok();
+}
+
+} // namespace v3
+
 /// A version-2 SETUP AS A LIVE ONE — the same four layers `setup_in` below walks, against
-/// version 2's own format claim and word vocabulary, landing on the fine lattice.
+/// version 2's own format claim and word vocabulary, landing on pixels.
 // WL-SETUP-02 -- agents/workshop/setup-file.md
 inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out,
                            pane_migration::Converted* converted = nullptr) {
     if (file.format != kFormat) {
         return Written::no("not a Workshop setup: it says it is `" + file.format + "`");
     }
-    if (file.format_version != kLegacyFormatVersion) {
+    if (file.format_version != v2::kRetainedVersion) {
         return Written::no(wrong_version(file.format_version));
     }
     Setup candidate;
@@ -448,7 +529,6 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out,
         if (!size_in(p.height, row.height)) {
             return Written::no(unknown_unit(p.height.mode, "height", kSizeWords));
         }
-        pixels_of_subcells(row, p);
         candidate.panes.push_back(std::move(row));
     }
     // A pane that changed hands is rewritten here, in the one function that turns written rows
@@ -481,8 +561,8 @@ inline LoadedSetup from_text(std::string_view bytes) {
     }
     // The version preflight orders, never loosens: it reads the claim, which exists before
     // admission, so a version-1 file is refused by its number rather than by the first field
-    // version 2 added. A version-2 claim takes the legacy road: admitted at full strength against
-    // version 2's retained shape, then moved onto the fine lattice by one exact multiply.
+    // version 2 added. A version-2 or version-3 claim takes its own road: admitted at full
+    // strength against that version's retained shape, then landed on pixels.
     if (claim.claimed_name() == std::string(WorkshopSetup::zen_name) &&
         claim.claimed_version() == v2::WorkshopSetup::zen_version) {
         const loom::Admission old =
@@ -494,6 +574,31 @@ inline LoadedSetup from_text(std::string_view bytes) {
         pane_migration::Converted converted;
         const Written understood = setup_in_v2(
             loom::from_value<v2::WorkshopSetup>(old.value()), candidate, &converted);
+        if (!understood.accepted) {
+            return LoadedSetup::no(understood.refusal);
+        }
+        LoadedSetup loaded;
+        loaded.outcome = Written::ok();
+        loaded.setup = std::move(candidate);
+        loaded.converted = converted;
+        return loaded;
+    }
+    if (claim.claimed_name() == std::string(WorkshopSetup::zen_name) &&
+        claim.claimed_version() == v3::WorkshopSetup::zen_version) {
+        const loom::Admission old =
+            loom::admit(claim, loom::schema_of<v3::WorkshopSetup>(), loom::Report::FirstError);
+        if (!old.ok()) {
+            return LoadedSetup::no(old.first_error().message());
+        }
+        WorkshopSetup current;
+        const Written landed =
+            v3::to_current(loom::from_value<v3::WorkshopSetup>(old.value()), current);
+        if (!landed.accepted) {
+            return LoadedSetup::no(landed.refusal);
+        }
+        Setup candidate;
+        pane_migration::Converted converted;
+        const Written understood = setup_in(current, candidate, &converted);
         if (!understood.accepted) {
             return LoadedSetup::no(understood.refusal);
         }
