@@ -15,7 +15,7 @@ input                             doctest           always  50
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 input                             doctest           sdl     3
-surface                           doctest           always  104
+surface                           doctest           always  106
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  44

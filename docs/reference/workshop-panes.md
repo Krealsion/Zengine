@@ -998,8 +998,8 @@ directory they happened to be browsing when they quit is deliberately not rememb
   medium reports where its *normal* window sits (its own desktop units, maximized state
   beside it), Workshop remembers the last report in the session — coordinates it cannot
   interpret and does not try to — and offers it back once at restore. The medium then
-  validates against the displays that exist *now*: a reachable position restores verbatim,
-  a stranded one is clamped into the nearest display's usable area, and with no display
+  validates against the displays that exist *now*: a position wholly on a display restores
+  verbatim, any other moves in only until the whole window is on one, and with no display
   truth nothing moves (`surface/agents` law; the arithmetic is `placement_within`). A
   terminal run reports no placement, applies none, and *retains* the remembered value
   rather than erasing it. The saved viewport is the **normal** window's room, so a

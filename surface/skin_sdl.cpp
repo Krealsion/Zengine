@@ -309,38 +309,27 @@ public:
         return SurfacePlacement{normal_x_, normal_y_, maximized};
     }
 
-    /// A remembered placement offered back: judged by `placement_within` against every current
-    /// display's usable bounds and the window's size in window coordinates (not the drawable).
-    /// No display truth, no move. The maximize waits for the room, which only a picture gives:
-    /// maximizing now would freeze the normal rectangle at the window's creation size, since the
-    /// platform refuses to resize a maximized window, and unmaximizing would land on the floor.
-    /// So the want is recorded here and lands in `pump`.
+    /// A remembered placement offered back, judged by `placement_within` against the displays and
+    /// the window's frame, so it comes back whole on a screen; no display truth, no move. From here
+    /// the window is no longer centred as it grows. A maximize waits for the room only a picture
+    /// gives (the platform refuses to resize a maximized window, so maximizing now would freeze
+    /// the normal rectangle at the creation size): the want is recorded here and lands in `pump`.
     void place(const SurfacePlacementRemembered& want) {
         if (!ok_ || window_ == nullptr) {
             return;
         }
-        std::vector<DesktopSpan> usable;
-        int display_count = 0;
-        if (SDL_DisplayID* ids = SDL_GetDisplays(&display_count)) {
-            for (int i = 0; i < display_count; ++i) {
-                SDL_Rect r{};
-                if (SDL_GetDisplayUsableBounds(ids[i], &r)) {
-                    usable.push_back(DesktopSpan{r.x, r.y, r.w, r.h});
-                }
-            }
-            SDL_free(ids);
-        }
-        int w = 0;
-        int h = 0;
-        if (!SDL_GetWindowSize(window_, &w, &h)) {
+        centring_ = false;
+        const std::optional<Frame> now = frame_of();
+        if (!now.has_value()) {
             return; // a window whose size cannot be asked is not one to move blind
         }
+        Frame f = *now;
+        f.x = want.x - f.left;
+        f.y = want.y - f.top;
         const std::optional<DesktopPoint> at =
-            placement_within(want.x, want.y, w, h, usable);
-        if (at.has_value() &&
-            !SDL_SetWindowPosition(window_, static_cast<int>(at->x),
-                                   static_cast<int>(at->y))) {
-            complain("SDL_SetWindowPosition");
+            placement_within(f.x, f.y, f.w, f.h, usable_displays());
+        if (at.has_value()) {
+            move_frame(f, *at);
         }
         if (want.maximized) {
             offered_max_ = OfferedMaximize::kWaitingForRoom;
@@ -430,12 +419,11 @@ private:
         return ensure_sized_window(window_size_of(v));
     }
 
-    /// The window never shows less than the picture asks for, and is otherwise the person's.
-    /// Created at the first picture's size, which becomes its minimum, and resizable; grown only
-    /// by a picture that does not fit. A canvas publisher sizes itself to the reported extent,
-    /// so sizing the window to the canvas would be two parties resizing each other (a canvas
-    /// rounds down, so the window would shrink a little at every drag). The minimum never moves,
-    /// or a canvas following the window would ratchet it up.
+    /// The window shows all a picture asks for that its display holds, and is otherwise the
+    /// person's: created at the first picture's size, its minimum, and grown only by a picture
+    /// that does not fit (`grown_within`), never shrunk to one, since a canvas sizes itself to the
+    /// reported extent and rounds down. The minimum never moves, or a canvas following the window
+    /// would ratchet it up. Created and grown, it is kept whole on a screen (`keep_whole`).
     bool ensure_sized_window(const PlanSize& want) {
         if (want.w <= 0 || want.h <= 0) {
             return false;
@@ -443,12 +431,19 @@ private:
         if (window_ == nullptr) {
             // Resizable: a larger window is a larger surface the publisher is told about.
             // Focusable, because this window is an ear as well as a surface.
+            // Hidden until it is centred on the display the platform opened it on, so it is
+            // never seen anywhere else.
             window_ = SDL_CreateWindow(title_of(status_, score_).c_str(),
                                        static_cast<int>(want.w), static_cast<int>(want.h),
-                                       SDL_WINDOW_RESIZABLE);
+                                       SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN);
             if (window_ == nullptr) {
                 complain("SDL_CreateWindow");
                 return false;
+            }
+            centring_ = true;
+            keep_whole();
+            if (!SDL_ShowWindow(window_)) {
+                complain("SDL_ShowWindow");
             }
             // The floor under every later drag. A failure only lets the window be dragged
             // smaller than its picture, which is clipped as the canvas contract says.
@@ -474,11 +469,111 @@ private:
             return true;
         }
         const PlanSize have = drawable();
-        if (want.w > have.w || want.h > have.h) {
-            SDL_SetWindowSize(window_, static_cast<int>(want.w > have.w ? want.w : have.w),
-                              static_cast<int>(want.h > have.h ? want.h : have.h));
+        if ((want.w > have.w || want.h > have.h) &&
+            (SDL_GetWindowFlags(window_) & SDL_WINDOW_MAXIMIZED) == 0) {
+            PlanSize grown{want.w > have.w ? want.w : have.w, want.h > have.h ? want.h : have.h};
+            const std::optional<Frame> f = frame_of();
+            const std::vector<DesktopSpan> usable = usable_displays();
+            if (f.has_value() && !usable.empty()) {
+                grown = grown_within(grown, have, f->left + f->right, f->top + f->bottom,
+                                     home_display(f->x, f->y, f->w, f->h, usable));
+            }
+            if (grown.w != have.w || grown.h != have.h) {
+                SDL_SetWindowSize(window_, static_cast<int>(grown.w), static_cast<int>(grown.h));
+                (void)SDL_SyncWindow(window_); // the grown size, not the old one, is kept whole
+                keep_whole();
+            }
         }
         return true;
+    }
+
+    /// Every current display's usable area, in window coordinates; empty when SDL can say
+    /// nothing, and then nothing moves.
+    static std::vector<DesktopSpan> usable_displays() {
+        std::vector<DesktopSpan> usable;
+        int display_count = 0;
+        if (SDL_DisplayID* ids = SDL_GetDisplays(&display_count)) {
+            for (int i = 0; i < display_count; ++i) {
+                SDL_Rect r{};
+                if (SDL_GetDisplayUsableBounds(ids[i], &r)) {
+                    usable.push_back(DesktopSpan{r.x, r.y, r.w, r.h});
+                }
+            }
+            SDL_free(ids);
+        }
+        return usable;
+    }
+
+    /// The window's frame in window coordinates: its rectangle with the platform's borders, and
+    /// the borders themselves, which turn a frame position back into the window's own.
+    struct Frame {
+        std::int64_t x = 0;
+        std::int64_t y = 0;
+        std::int64_t w = 0;
+        std::int64_t h = 0;
+        std::int64_t left = 0;
+        std::int64_t top = 0;
+        std::int64_t right = 0;
+        std::int64_t bottom = 0;
+    };
+
+    std::optional<Frame> frame_of() const {
+        int x = 0;
+        int y = 0;
+        int w = 0;
+        int h = 0;
+        if (!SDL_GetWindowPosition(window_, &x, &y) || !SDL_GetWindowSize(window_, &w, &h)) {
+            return std::nullopt;
+        }
+        int top = 0;
+        int left = 0;
+        int bottom = 0;
+        int right = 0;
+        // A window the platform draws no borders for reports none, and its frame is itself.
+        (void)SDL_GetWindowBordersSize(window_, &top, &left, &bottom, &right);
+        return Frame{x - left, y - top, w + left + right, h + top + bottom,
+                     left, top, right, bottom};
+    }
+
+    /// Put the frame's top-left at `at`, and remember where that put the window.
+    void move_frame(const Frame& f, const DesktopPoint& at) {
+        const int x = static_cast<int>(at.x + f.left);
+        const int y = static_cast<int>(at.y + f.top);
+        if (!SDL_SetWindowPosition(window_, x, y)) {
+            complain("SDL_SetWindowPosition");
+            return;
+        }
+        (void)SDL_SyncWindow(window_);
+        seated_x_ = x;
+        seated_y_ = y;
+    }
+
+    /// The window whole on a screen. While this medium placed it and nobody has moved it since,
+    /// it is centred on its display; once the weaver or a remembered placement has placed it, it
+    /// is moved in only until the whole window is on its display (`placement_within`). A
+    /// maximized window is the platform's to place.
+    void keep_whole() {
+        if ((SDL_GetWindowFlags(window_) & SDL_WINDOW_MAXIMIZED) != 0) {
+            return;
+        }
+        const std::optional<Frame> f = frame_of();
+        const std::vector<DesktopSpan> usable = usable_displays();
+        if (!f.has_value() || usable.empty()) {
+            return;
+        }
+        if (centring_ && seated_x_.has_value() &&
+            (f->x + f->left != *seated_x_ || f->y + f->top != *seated_y_)) {
+            centring_ = false; // moved since this medium placed it: the weaver's place now
+        }
+        if (centring_) {
+            const DesktopSpan& home = home_display(f->x, f->y, f->w, f->h, usable);
+            move_frame(*f, centred_within(f->w, f->h, home));
+            return;
+        }
+        const std::optional<DesktopPoint> at = placement_within(f->x, f->y, f->w, f->h, usable);
+        if (at.has_value() && (at->x != f->x || at->y != f->y)) {
+            move_frame(*f, *at);
+        }
     }
 
     /// What this medium draws on, in pixels, asked of SDL and never remembered: a person
@@ -495,6 +590,9 @@ private:
 
     SDL_Window* window_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
+    bool centring_ = false; ///< centred on its display until someone else places it
+    std::optional<std::int64_t> seated_x_; ///< where this medium last put the window...
+    std::optional<std::int64_t> seated_y_;
     std::int64_t normal_x_ = 0; ///< the normal window's last observed position...
     std::int64_t normal_y_ = 0;
     bool have_normal_ = false;  ///< ...and whether it has ever been observed at all

@@ -505,10 +505,10 @@ inline PlanLayer plan_attention_chip(const std::string& text, const SurfaceCanva
                      plan_layer_regions(chip, metric, surface)};
 }
 
-// ---- Restoring a remembered desktop placement -----------------------------------------
+// ---- The window on the desktop ----------------------------------------------------------
 //
-// `SurfacePlacementRemembered`'s judgment as pure arithmetic every lane pins: the SDL edge
-// supplies the displays and the window's size, and applies the answer.
+// Where the window sits on the desktop, as pure arithmetic every lane pins: the SDL edge supplies
+// the displays and the window's frame, and applies the answer.
 
 /// One display's USABLE area — its bounds less the platform's own reservations (taskbar,
 /// dock, menu bar) — in the same desktop units window positions are spoken in.
@@ -526,38 +526,10 @@ struct DesktopPoint {
     std::int64_t y = 0;
 };
 
-/// How much of a window must show for a remembered position to be reachable: this much of its
-/// width, within its top strip (its first this-many rows), on one display's usable area. The
-/// top strip is what a hand drags a window by, so its visibility decides.
-inline constexpr std::int64_t kPlacementGraspPx = 32;
-
-/// A reachable position restores verbatim, deliberate overhangs included; a stranded one is
-/// clamped into the usable area of the nearest display (most overlap, else nearest centre),
-/// top-left first, so the grab strip comes back and an oversized window overflows right and
-/// down; with no display truth there is no answer, since an uninformed move is a blind replay.
-/// Reachable: the top strip meets one display vertically at all, with `kPlacementGraspPx` of
-/// width showing (all of a narrower window). It moves a window and never sizes one.
-inline std::optional<DesktopPoint> placement_within(std::int64_t x, std::int64_t y,
-                                                    std::int64_t w, std::int64_t h,
-                                                    const std::vector<DesktopSpan>& usable) {
-    if (usable.empty()) {
-        return std::nullopt;
-    }
-    const std::int64_t need_w = w < kPlacementGraspPx ? w : kPlacementGraspPx;
-    const std::int64_t strip_h = h < kPlacementGraspPx ? h : kPlacementGraspPx;
-    // Reachable on some single display, verbatim.
-    for (const DesktopSpan& s : usable) {
-        const std::int64_t vis_w =
-            (x + w < s.x + s.w ? x + w : s.x + s.w) - (x > s.x ? x : s.x);
-        const std::int64_t vis_h =
-            (y + strip_h < s.y + s.h ? y + strip_h : s.y + s.h) - (y > s.y ? y : s.y);
-        if (vis_w >= need_w && vis_h >= 1) {
-            return DesktopPoint{x, y};
-        }
-    }
-    // Stranded: pick the nearest display — most overlap with the remembered rectangle,
-    // else smallest center-to-center distance — and clamp the top-left into its usable
-    // area.
+/// The display a window belongs to: the one it overlaps most, else the one whose centre is
+/// nearest its own. `usable` is not empty.
+inline const DesktopSpan& home_display(std::int64_t x, std::int64_t y, std::int64_t w,
+                                       std::int64_t h, const std::vector<DesktopSpan>& usable) {
     const DesktopSpan* home = &usable.front();
     std::int64_t best_overlap = -1;
     std::int64_t best_distance = std::numeric_limits<std::int64_t>::max();
@@ -576,15 +548,53 @@ inline std::optional<DesktopPoint> placement_within(std::int64_t x, std::int64_t
             home = &s;
         }
     }
-    const auto clamp_into = [](std::int64_t v, std::int64_t lo, std::int64_t hi) {
-        // hi may sit below lo when the window outsizes the span; the top-left edge wins.
-        if (hi < lo) {
-            return lo;
-        }
-        return v < lo ? lo : (v > hi ? hi : v);
+    return *home;
+}
+
+/// One coordinate moved in only as far as it must for `[v, v + size)` to lie within
+/// `[lo, lo + room)`; a size larger than the room keeps its near edge at `lo`.
+inline std::int64_t moved_within(std::int64_t v, std::int64_t size, std::int64_t lo,
+                                 std::int64_t room) {
+    if (size >= room || v < lo) {
+        return lo;
+    }
+    return v + size > lo + room ? lo + room - size : v;
+}
+
+/// Where a window, its frame included, sits whole on a display: its rectangle moved in only as
+/// far as it must to lie inside its home display's usable area (`home_display`). A window larger
+/// than that area keeps its top-left there, so the strip a hand drags it by stays on the screen,
+/// and the rest overflows right and down. With no display truth there is no answer, since an
+/// uninformed move is a blind replay. It moves a window and never sizes one.
+inline std::optional<DesktopPoint> placement_within(std::int64_t x, std::int64_t y,
+                                                    std::int64_t w, std::int64_t h,
+                                                    const std::vector<DesktopSpan>& usable) {
+    if (usable.empty()) {
+        return std::nullopt;
+    }
+    const DesktopSpan& home = home_display(x, y, w, h, usable);
+    return DesktopPoint{moved_within(x, w, home.x, home.w), moved_within(y, h, home.y, home.h)};
+}
+
+/// Where a window, its frame included, sits centred on `display`'s usable area; a window larger
+/// than that area keeps its top-left there, as `placement_within` does.
+inline DesktopPoint centred_within(std::int64_t w, std::int64_t h, const DesktopSpan& display) {
+    return DesktopPoint{moved_within(display.x + (display.w - w) / 2, w, display.x, display.w),
+                        moved_within(display.y + (display.h - h) / 2, h, display.y, display.h)};
+}
+
+/// How large a picture may grow a window: to the picture, but no further than `display`'s usable
+/// area holds with the frame's own `frame_w` and `frame_h` around it, and never smaller than the
+/// window already is. What is cut off is clipped, as the canvas contract says, and the publisher,
+/// told the room the window really has, lays itself out in it.
+inline PlanSize grown_within(const PlanSize& want, const PlanSize& have, std::int64_t frame_w,
+                             std::int64_t frame_h, const DesktopSpan& display) {
+    const auto axis = [](std::int64_t want_v, std::int64_t have_v, std::int64_t room) {
+        const std::int64_t grown = want_v < room ? want_v : room;
+        return grown > have_v ? grown : have_v;
     };
-    return DesktopPoint{clamp_into(x, home->x, home->x + home->w - w),
-                        clamp_into(y, home->y, home->y + home->h - h)};
+    return PlanSize{axis(want.w, have.w, display.w - frame_w),
+                    axis(want.h, have.h, display.h - frame_h)};
 }
 
 /// The window title carries the text slots — a real, visible projection of
