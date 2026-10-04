@@ -19,7 +19,8 @@ inline bool archive_key(const std::string& key) {
 }
 /// The whole candidate or nothing: entry rows, then the folder tree and every membership.
 inline void validate_archive(const v2::InventoryArchive& archive) {
-    if (archive.entries.size() > 257) throw std::invalid_argument("toolbox exceeds the inventory capacity");
+    if (archive.entries.size() > kMaxSavedEntries + 1) // the saved entries and the compatibility slot
+        throw std::invalid_argument("toolbox exceeds the inventory capacity");
     std::set<std::string> keys;
     std::size_t bytes = 0, saved = 0, captures = 0;
     for (const auto& row : archive.entries) {

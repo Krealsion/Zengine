@@ -829,6 +829,21 @@ TEST_CASE("Inventory keeps its bound of hotkeys configured, every one on at once
                       "toolbox exceeds the portable view or binding limit");
 }
 
+TEST_CASE("a toolbox archive holds every saved entry a collection may, beside the slot, and no more") {
+    const auto pair = as_bytes(inv::encode_pair(make_sample(7, "data", {}), {}));
+    inv::v2::InventoryArchive archive;
+    const auto key = [](std::size_t i) {
+        std::string k = std::to_string(i);
+        return std::string(32 - k.size(), '0') + k;
+    };
+    archive.entries.push_back({key(0), "slot", pair, true, {}});
+    for (std::size_t i = 1; i <= inv::kMaxSavedEntries; ++i)
+        archive.entries.push_back({key(i), "entry " + std::to_string(i), pair, false, {}});
+    CHECK_NOTHROW(inv::validate_archive(archive));
+    archive.entries.push_back({key(inv::kMaxSavedEntries + 1), "one more", pair, false, {}});
+    CHECK_THROWS_WITH(inv::validate_archive(archive), "toolbox exceeds the inventory capacity");
+}
+
 TEST_CASE("Inventory makes portable views up to its bound and refuses the next in words") {
     namespace slots = zengine::inventory_pane;
     slots::InventoryViews state;
