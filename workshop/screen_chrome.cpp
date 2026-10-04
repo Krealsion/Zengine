@@ -107,12 +107,20 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
     std::size_t slot = 0;
     std::int64_t stack_y = kStackY * surface::kCellSubs;
     const auto capacity = stack_capacity(sc);
+    // Each desk row resolved once, so the walk below costs one pass over the desk, not one per
+    // open pane: a desk of many panes is asked this for every pane on every repaint.
+    std::vector<std::pair<std::int64_t, const SetupPane*>> named_rows;
+    named_rows.reserve(setup.panes.size());
+    for (const SetupPane& row : setup.panes) {
+        if (const std::optional<std::int64_t> named = resolve_pane(row.ref, panes)) {
+            named_rows.emplace_back(*named, &row);
+        }
+    }
     for (const OpenPane& p : panes.open) {
         const SetupPane* authored = nullptr;
-        for (const SetupPane& row : setup.panes) {
-            const std::optional<std::int64_t> named = resolve_pane(row.ref, panes);
-            if (named.has_value() && *named == p.kind) {
-                authored = &row;
+        for (const auto& [named, row] : named_rows) {
+            if (named == p.kind) {
+                authored = row;
                 break;
             }
         }
