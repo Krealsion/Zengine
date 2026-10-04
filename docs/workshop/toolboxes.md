@@ -83,10 +83,10 @@ After the collection commit, Desktop clears the old active shortcuts. A failure 
 step explicitly reports that entries were restored and hotkeys are OFF; it does not claim rollback.
 A missing answer can remain pending. Inspect the collection and logs before repeating a replacement.
 
-The file limit is 32 MiB, including at most 8 MiB of encoded pair data, 256 saved entries plus
+The file limit is 32 MiB, including at most 8 MiB of encoded pair data, <!-- value kMaxSavedEntries -->1024<!-- /value --> saved entries plus
 the compatibility slot, 128 folders nested at most eight deep,
-<!-- value kMaxPortableViews -->36<!-- /value --> portable views and sixteen
-bindings. A folder tree with a missing parent, a cycle, a name clash or an entry filed in a
+<!-- value kMaxPortableViews -->36<!-- /value --> portable views and
+<!-- value kMaxConfiguredHotkeys -->512<!-- /value --> bindings. A folder tree with a missing parent, a cycle, a name clash or an entry filed in a
 missing folder refuses before the collection changes. One writer per file path; this is explicit
 snapshot persistence, not a synchronized database or power-loss recovery log.
 Schema descriptions travel with the values, so an absent source is not required to read them.

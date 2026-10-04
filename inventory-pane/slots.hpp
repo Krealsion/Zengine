@@ -10,6 +10,10 @@ namespace zengine::inventory_pane {
 /// The most portable views one Inventory makes: room for many single boxes beside rows and
 /// columns, each one a pane Workshop's catalog holds.
 inline constexpr std::size_t kMaxPortableViews = 36;
+/// The most command hotkeys Inventory keeps configured. Items in different views may share a key,
+/// so what is configured has a bound of its own; the hotkeys switched on never share one, so the
+/// keyboard bounds those, and every configured one may be on at once.
+inline constexpr std::size_t kMaxConfiguredHotkeys = 512;
 inline std::string key(const inventory::InventoryReference& r) { return r.owner + ":" + r.entry; }
 inline bool same(const inventory::InventoryReference& a, const inventory::InventoryReference& b) {
     return a.owner == b.owner && a.entry == b.entry;
@@ -61,7 +65,9 @@ inline InventoryViews edited(InventoryViews s, const InventoryViewEdit& op) {
             throw std::invalid_argument("A binding needs an explicit target office and key");
         auto it = std::find_if(s.bindings.begin(), s.bindings.end(), [&](const auto& b) { return same(b.reference, op.entry); });
         if (it == s.bindings.end()) {
-            if (s.bindings.size() >= 16) throw std::invalid_argument("At most sixteen configured command bindings");
+            if (s.bindings.size() >= kMaxConfiguredHotkeys)
+                throw std::invalid_argument("At most " + std::to_string(kMaxConfiguredHotkeys) +
+                                            " configured command hotkeys");
             s.bindings.push_back({op.entry, op.text, op.scancode, op.modifiers, ++s.serial, false});
         } else { it->target = op.text; it->scancode = op.scancode; it->modifiers = op.modifiers; }
     } else if (op.operation == "enable") {
@@ -86,7 +92,8 @@ inline std::vector<workshop::PaneShortcut> shortcuts(const InventoryViews& s) {
 inline void duplicate_binding(InventoryViews& s, const inventory::InventoryReference& source,
                               const inventory::InventoryReference& copy) {
     if (const auto* b = binding(s, source)) {
-        if (s.bindings.size() >= 16) throw std::invalid_argument("No room to retain the duplicate's binding");
+        if (s.bindings.size() >= kMaxConfiguredHotkeys)
+            throw std::invalid_argument("No room to retain the duplicate's binding");
         auto value = *b; value.reference = copy; value.enabled = false; value.serial = ++s.serial;
         s.bindings.push_back(std::move(value));
     }

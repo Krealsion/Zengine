@@ -1384,3 +1384,101 @@ TEST_CASE("a text view of a pane that draws a picture is refused in words that s
     REQUIRE(s.hand->refusals.size() == 1);
     CHECK(s.hand->refusals.back() == "pane view unavailable: the pane draws a picture, not text rows");
 }
+
+namespace {
+
+/// An office that counts the story's commands it is sent: where a hotkey's command lands.
+struct SinkState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(SinkState, 1, ZEN_FIELD(heard));
+};
+class StorySink final : public loom::Weave {
+public:
+    StorySink()
+        : shape_(loom::SchemaBuilder("story.RuntimeItem", 1).field("count", loom::Kind::Int).build()) {}
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override { return {shape_}; }
+    void handle(const loom::Message& in, loom::Bus&) override {
+        if (loom::same_identity(*shape_, in.payload.schema())) ++state_.heard;
+    }
+    loom::Value snapshot() const override { return loom::to_value(state_); }
+    loom::Value policy() const override {
+        loom::Value v(loom::lifecycle_policy_schema());
+        v.set("max_reloads", loom::Cell::integer(0));
+        v.set("revive_from_last_good", loom::Cell::boolean(false));
+        return v;
+    }
+    void revive(const loom::Value& state) override { state_ = loom::from_value<SinkState>(state); }
+    SinkState state_;
+
+private:
+    std::shared_ptr<const loom::Schema> shape_;
+};
+
+} // namespace
+
+TEST_CASE("hotkeys: many hotkeys on at once, each reaching its own command, nothing refusing first") {
+    // Nothing between a configured hotkey and its command refuses first: Inventory, one provider's
+    // shortcuts at Desktop, the application rows and the pane's own rows. Sixty-four runs the whole
+    // chain at a fraction of the full bound's cost, which is one pane edit per hotkey; each bound
+    // is pinned at its full size by its own case. The chords are the keymap's own names under
+    // modifier sets no host row uses.
+    InventoryStory s(191 | 512, true);
+    std::vector<std::pair<std::int64_t, std::int64_t>> chords;
+    using input::mod::kAlt;
+    using input::mod::kCtrl;
+    using input::mod::kShift;
+    using input::mod::kSuper;
+    for (const std::int64_t mods : {kSuper, kSuper | kCtrl, kSuper | kAlt, kSuper | kShift,
+                                    kSuper | kCtrl | kAlt, kSuper | kCtrl | kShift,
+                                    kSuper | kAlt | kShift, kSuper | kCtrl | kAlt | kShift,
+                                    kCtrl | kAlt | kShift}) {
+        for (std::int64_t sc = 1; sc < 512; ++sc) {
+            if (key_name_of(sc) != nullptr) chords.emplace_back(sc, mods);
+        }
+    }
+    const std::size_t count = 64;
+    REQUIRE(chords.size() > slots::kMaxConfiguredHotkeys);
+    const auto padded = [](std::size_t i) {
+        std::string n = std::to_string(i);
+        return std::string(4 - n.size(), '0') + n;
+    };
+    std::vector<inv::InventoryReference> refs;
+    for (std::size_t i = 0; i < count; ++i) s.append(static_cast<std::int64_t>(i), "cmd" + padded(i));
+    s.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryList{}); });
+    for (const auto& e : s.hand->listing.entries) {
+        if (e.label.rfind("cmd", 0) == 0) refs.push_back(e.reference);
+    }
+    REQUIRE(refs.size() == count);
+    for (std::size_t i = 0; i < count; ++i) {
+        slots::InventoryViewEdit op;
+        op.operation = "bind"; op.entry = refs[i]; op.text = "story.target." + padded(i);
+        op.scancode = chords[i].first; op.modifiers = chords[i].second;
+        s.change(op);
+        op = {}; op.operation = "enable"; op.entry = refs[i]; op.enabled = true;
+        s.change(op);
+    }
+    REQUIRE(s.layout().bindings.size() == count);
+    // ALL ON AT ONCE: one registration of every one of them.
+    s.context("inventory", true);
+    REQUIRE(slots::shortcuts(s.layout()).size() == count);
+    // PRESSED ON THE WEAVER'S OWN KEYBOARD, whose commands need no guest's authority: the first,
+    // a middle and the last chord each send their own command to their own office, and only there.
+    std::vector<std::pair<std::size_t, StorySink*>> sinks;
+    for (const std::size_t i : {std::size_t{0}, count / 2, count - 1}) {
+        auto made = std::make_unique<StorySink>();
+        sinks.emplace_back(i, made.get());
+        (void)s.r.bus.register_weave(std::move(made), loom::Grant{}, "story.target." + padded(i));
+    }
+    for (const auto& [i, sink] : sinks) {
+        CAPTURE(i);
+        input::KeyPressed pressed;
+        pressed.scancode = chords[i].first;
+        pressed.modifiers = chords[i].second;
+        s.physical->push_back(pressed);
+        s.pump_physical();
+        CHECK_MESSAGE(sink->state_.heard == 1, (s.shown(s.source) + s.r.last_notice()));
+    }
+    for (const auto& [i, sink] : sinks) {
+        CHECK(sink->state_.heard == 1); // and no chord reached another's office
+    }
+}

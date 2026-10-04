@@ -508,7 +508,9 @@ private:
         return {{owner_identity_, row.entry}, row.revision, row.pair};
     }
     InventoryEntry add(loom::Bytes pair, std::string label, std::string folder = {}) {
-        if (state_.entries.size() >= 256) throw std::invalid_argument("inventory has reached its 256 saved-entry limit");
+        if (state_.entries.size() >= kMaxSavedEntries)
+            throw std::invalid_argument("inventory has reached its " + std::to_string(kMaxSavedEntries) +
+                                        " saved-entry limit");
         (void)decode_pair(view(pair)); validate_label(label);
         StoredEntry row{new_identity(), 1, std::move(pair), std::move(label), std::move(folder)};
         auto answer = stored_snapshot(row);

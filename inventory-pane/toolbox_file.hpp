@@ -57,7 +57,7 @@ inline std::int64_t toolbox_view_number(const std::string& id) {
 
 inline void validate_toolbox(const v2::InventoryToolbox& file) {
     inventory::validate_archive(file.archive);
-    if (file.views.size() > kMaxPortableViews || file.bindings.size() > 16)
+    if (file.views.size() > kMaxPortableViews || file.bindings.size() > kMaxConfiguredHotkeys)
         throw std::invalid_argument("toolbox exceeds the portable view or binding limit");
     std::set<std::string> entries, placed, bound, views;
     for (const auto& e : file.archive.entries) entries.insert(e.key);
