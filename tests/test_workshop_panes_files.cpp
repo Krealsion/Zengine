@@ -235,8 +235,8 @@ struct FilesRig {
         r.pick(files_ref());
         kind = row()->kind;
         REQUIRE(author_pane_size(r.session().setup.active, files_ref(),
-            {pane_unit::kSubcells, subs(placement_bounds(placement::kOverlayStack, 0,
-                screen_of(width, height)).w)}, PaneSize{}).accepted);
+            {pane_unit::kPixels, cells_px(placement_bounds(placement::kOverlayStack, 0,
+                screen_of(cells_px(width), cells_px(height))).w)}, PaneSize{}).accepted);
         // A PRESS ON WORKSHOP'S TITLE ROW POINTS THE KEYS AT THE PANE AND SELECTS NOTHING: the
         // title sits above every row the pane was granted, so the pane is sent no press at all,
         // and this is the one gesture that focuses without also selecting or activating. A
@@ -408,7 +408,7 @@ struct FilesRig {
     /// back on its first row.
     void author_height(std::int64_t cells, std::int64_t width, std::int64_t height) {
         const Written wrote = author_pane_size(r.session().setup.active, files_ref(), PaneSize{},
-                                               PaneSize{pane_unit::kSubcells, subs(cells)});
+                                               PaneSize{pane_unit::kPixels, cells_px(cells)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         r.extent(width, height);
     }
@@ -2250,7 +2250,7 @@ TEST_CASE("an open the desk cannot show opens nothing, and Files says why") {
     // answer to its own request -- which Files says in its own first row.
     FilesRig f("files-noroom");
     put_file(f.root / "alpha.cpp", "the project\n");
-    f.open(160, kMinScreen.h, /*with_editor=*/true);
+    f.open(160, cells_of(kMinScreen).h, /*with_editor=*/true);
     // THE ONE STACK SLOT THIS SCREEN HAS IS FILES' OWN.
     REQUIRE(f.r.session().panes.has(f.kind));
     REQUIRE_FALSE(f.r.session().panes.has(f.editor_kind()));
@@ -2320,7 +2320,7 @@ TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
         // `fit` cuts the row long before the dash at byte 121 of the unspelled notice, so fixed
         // and unfixed code admit it alike. Holding width at its floor rules out a narrow room
         // dodging the byte as the reason the wide case passes.
-        f.open(kScreenMinW, kMinScreen.h);
+        f.open(kScreenMinCols, kScreenMinRows);
         f.point_at("not-a-catalog.txt");
         const ExternalPane* granted = f.r.session().panes.external_pane(f.kind);
         REQUIRE(granted != nullptr);
@@ -2988,8 +2988,8 @@ TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column auth
     // Thirty content columns, plus the ordinary terminal border on both sides. Height stays
     // ample so this measures WIDTH, independently of the short-pane repair above.
     const Written narrow = author_pane_size(f.r.session().setup.active, files_ref(),
-                                            PaneSize{pane_unit::kSubcells, subs(32)},
-                                            PaneSize{pane_unit::kSubcells, subs(9)});
+                                            PaneSize{pane_unit::kPixels, cells_px(32)},
+                                            PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(narrow.accepted, narrow.refusal);
     f.r.extent(160, 47);
     REQUIRE(typing_pane(f.r.session()) == f.kind);
@@ -3001,8 +3001,8 @@ TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column auth
 
     // SEPARATE ACCEPTANCE FROM VISIBILITY: the same draft reveals its text once the room widens.
     const Written wide = author_pane_size(f.r.session().setup.active, files_ref(),
-                                          PaneSize{pane_unit::kSubcells, subs(80)},
-                                          PaneSize{pane_unit::kSubcells, subs(9)});
+                                          PaneSize{pane_unit::kPixels, cells_px(80)},
+                                          PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(wide.accepted, wide.refusal);
     f.r.extent(160, 48);
     CHECK_MESSAGE(any_row(f.shown(), "package prefix (comma-separated)> narrowvalue"),

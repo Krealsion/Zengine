@@ -375,6 +375,9 @@ struct ExternalPane {
         std::int64_t grant = 0, x = 0, y = 0, width = 0, height = 0, grain = 0;
         std::int64_t text_advance_px = 0, text_line_px = 0;
         bool graphical = false, heard = false, preview = false;
+        /// The holder speaks only the earlier canvas doors, in sub-units: its room, pointer and
+        /// hover cross times `kPaneCanvasLegacySubs`, and its picture is read at their floor.
+        bool legacy = false;
         PaneCanvasContent content;
     } canvas;
     /// A re-offer (a reloaded image numbers its pictures afresh) or a close: no earlier number

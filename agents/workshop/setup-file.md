@@ -3,6 +3,8 @@
 Register `WL-SETUP`: the setup file's shape, its one legacy reader, and one spelling per fact.
 One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
+Retired: WL-SETUP-06.
+
 ## WL-SETUP-01 — A setup row is a reference plus the smallest authored difference
 
 LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->3<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}` per axis, `front`, and nothing else.
@@ -22,19 +24,21 @@ exactly"`; `tests/test_workshop_panes_seam.cpp` case `"setup bytes carry no desc
 or handle"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
-## WL-SETUP-02 — A version-2 whole-cell setup still loads, and nothing else old does
+## WL-SETUP-02 — An old setup opens where it was painted
 
-LAW — A version-2 file is admitted against the retained v2 shapes and its cells are mapped exactly (×48) onto the fine lattice; every other version is refused by its number.
+LAW — A version-3 file's sub-units cross at the door, each edge floored to the pixel it painted; a version-2 file's cells are mapped exactly (×12); every other version is refused by number.
 
 MEANS
-- an old desk resolves to the identical pixels and characters; the next explicit save writes v3;
-- this is one namespace and one multiply, not a migration framework.
+- an old desk resolves to the identical pixels; an extent is its painted span, never a quotient;
+- a `pixels` extent under one cell is raised to one cell, the bound the setup law enforces;
+- the retained v2 shapes are one namespace, not a migration framework.
 
-PROVEN BY — `workshop/setup_persist.hpp` `v2`, `setup_in`, `from_text`, `setup_in_v2`;
-`surface/vocabulary.hpp` `kCellSubs`; `workshop/session_history.hpp` `place_v2_to_v3`,
-`desk_v2_to_v3`; `tests/test_workshop_screen.cpp` case `"a version-2 whole-cell setup loads at
-exactly its old picture"`; `tests/test_workshop_panes_window.cpp` case `"a version-1 file is
-refused BY NUMBER, before its rows are judged"`.
+PROVEN BY — `workshop/setup_persist.hpp` `v2`, `setup_in`, `from_text`, `setup_in_v2`,
+`pixels_of_subcells`, `kSubsPerPixel`; `surface/vocabulary.hpp` `kCanvasCellPx`;
+`workshop/session_history.hpp` `place_v2_to_v3`, `desk_v2_to_v3`; `tests/test_workshop_screen.cpp`
+case `"a version-2 whole-cell setup loads at exactly its old picture"`, case `"a fine setup opens
+where the window painted it, to the pixel"`; `tests/test_workshop_panes_window.cpp` case `"a
+version-1 file is refused BY NUMBER, before its rows are judged"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-03 — `default` is a value whose unused numbers are zero
@@ -48,7 +52,7 @@ MEANS
 
 PROVEN BY — `workshop/setup.hpp` `check_pane_place`, `check_pane_size`,
 `check_pane_place_coord`, `pane_unit::kDefault`, `pane_unit::kRightColumn`, `PanePlace`,
-`default_setup`; `workshop/screen_chrome.cpp` `bounds_of`;
+`kMaxPanePixels`, `default_setup`; `workshop/screen_chrome.cpp` `bounds_of`;
 `tests/test_workshop_panes_window.cpp` case `"a default mode carries no numbers, and that is one
 canonical spelling"`, case `"a fresh setup is version 3, sparse, and carries the identity
 ranks"`, case `"a desk row may NAME the right column, and any pane resolves into it"`.
@@ -65,7 +69,7 @@ MEANS
 
 PROVEN BY — `workshop/setup_persist.hpp` `from_text`, `kUnitDefault`, `kUnitSubcells`,
 `kUnitRightColumn`, `kPlaceWords`, `unit_word`, `place_in`; `workshop/setup.hpp` `pane_unit`,
-`pane_unit::kSubcells`;
+`kPixels`;
 `tests/test_workshop_panes_window.cpp` case `"an unknown mode word names what it found and what
 would have worked"`, case `"every mode spelling round-trips, pixels included"`, case
 `"a desk row may NAME the right column, and any pane resolves into it"`.
@@ -83,25 +87,6 @@ PROVEN BY — `workshop/setup_persist.hpp` `kFormatVersion`, `WorkshopSetup`, `f
 `WorkshopSetup::format_version`, `wrong_version`; `tests/test_workshop_panes_window.cpp` case
 `"a version-1 file is refused BY NUMBER, before its rows are judged"`, case `"a version-1
 file leaves the live setup and its on-file copy untouched"`.
-WHY — `agents/decisions/setup-format-v3.md`
-
-## WL-SETUP-06 — `pixels` is declared, valid everywhere, and refused at projection
-
-LAW — A pane with either axis in `pixels` is not presented on any medium, Info included; its bytes stay exact, reset and order still recover it, and there is no per-axis fallback.
-
-MEANS
-- no medium here publishes a trustworthy per-axis device-pixel scale for a canvas cell;
-- a unit outranks a reservation in `arrange_geometry_ready`, as in `pane_state_of`.
-
-DOES NOT MEAN
-- that fixed placement is permission to present an unsupported unit as understood.
-
-PROVEN BY — `workshop/screen_chrome.cpp` `pane_unit_projectable`;
-`workshop/screen_pane_state.cpp` `pane_state_of`; `workshop/setup.hpp` `pane_unit`,
-`kMaxPanePixels`, `kPixels`, `check_pane_size`; `workshop/weave_arrange.cpp`
-`arrange_geometry_ready`; `tests/test_workshop_panes_window.cpp` case `"a pixel axis is
-setup-valid, projection-refused, and never falls back"`; `tests/test_workshop_screen.cpp` case
-`"a pixel axis refuses every current pane projection"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-07 — `front` is a canonical rank, never a counter

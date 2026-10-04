@@ -130,20 +130,20 @@ TEST_CASE("pane comfort survives offer refresh and rejects malformed preferences
 TEST_CASE("pane comfort budgets body text with chrome in both real medium metrics") {
     RuntimePane p; p.preferred_rows = 7; p.preferred_columns = 54;
     for (const bool graphical : {false, true}) {
-        auto sc = screen_of(120, 56);
+        auto sc = screen_of(cells_px(120), cells_px(56));
         if (graphical) { sc.cell_px = 12; sc.text_advance_px = 8; sc.text_line_px = 18; }
         const auto got = project_pane(placement::kOverlayStack, 0, nullptr, sc, &p);
         const auto body = external_body_place(got.visible, sc, 1);
         CHECK(body.rows >= 7);
         CHECK(body.columns >= 54);
         SetupPane authored;
-        authored.width = {pane_unit::kSubcells, 48 * 30};
-        authored.height = {pane_unit::kSubcells, 48 * 8};
+        authored.width = {pane_unit::kPixels, cells_px(30)};
+        authored.height = {pane_unit::kPixels, cells_px(8)};
         const auto smaller = project_pane(placement::kOverlayStack, 0, &authored, sc, &p);
-        CHECK(smaller.resolved.w == 48 * 30);
-        CHECK(smaller.resolved.h == 48 * 8);
+        CHECK(smaller.resolved.w == cells_px(30));
+        CHECK(smaller.resolved.h == cells_px(8));
         CHECK(project_pane(placement::kOverlayStack, 0, nullptr, sc).resolved ==
-              fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)));
+              placement_bounds(placement::kOverlayStack, 0, sc));
     }
 }
 
@@ -155,21 +155,21 @@ TEST_CASE("pane comfort seating and drawing spend the same vertical space") {
         SetupPane row; row.ref = {"test.pane", key}; row.front = static_cast<std::int64_t>(setup.panes.size());
         setup.panes.push_back(row);
     }
-    auto sc = screen_of(120, 30);
+    auto sc = screen_of(cells_px(120), cells_px(30));
     const auto seats = seat_panes(setup, p, stack_capacity(sc));
     CHECK(seats.wanted.size() == 2);
     CHECK(seats.waiting.size() == 1);
     reconcile(p, setup, stack_capacity(sc));
     const auto first = bounds_of(p, setup, seats.wanted[0], sc);
     const auto second = bounds_of(p, setup, seats.wanted[1], sc);
-    CHECK(second.resolved.y == first.resolved.y + first.resolved.h + 48);
-    CHECK(second.resolved.y + second.resolved.h <= (kWorkspaceY + sc.room_h) * 48);
+    CHECK(second.resolved.y == first.resolved.y + first.resolved.h + cells_px(kStackGap));
+    CHECK(second.resolved.y + second.resolved.h <= sc.room_y + sc.room_h);
     // An authored position is outside reactive capacity, even when the default stack is full.
-    setup.panes.back().place = {pane_unit::kSubcells, 48 * 60, 48 * 2};
+    setup.panes.back().place = {pane_unit::kPixels, cells_px(60), cells_px(2)};
     CHECK(seat_panes(setup, p, stack_capacity(sc)).waiting.empty());
     p.runtime.entries[0].preferred_rows = 512;
     const auto clipped = preferred_extent(&p.runtime.entries[0], stack_capacity(sc));
-    CHECK(clipped.height == sc.room_h * 48);
+    CHECK(clipped.height == sc.room_h);
 }
 
 TEST_CASE("semantic setup refuses malformed or missing panes before changing the active layout") {

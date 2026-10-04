@@ -32,6 +32,10 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
     speak.allow_to_any(PaneCanvasHover::zen_name, PaneCanvasHover::zen_version);
     speak.allow_to_any(PaneCanvasRejected::zen_name, PaneCanvasRejected::zen_version);
+    speak.allow_to_any(v1::PaneCanvasValueDrop::zen_name, v1::PaneCanvasValueDrop::zen_version);
+    speak.allow_to_any(v2::PaneCanvasRoom::zen_name, v2::PaneCanvasRoom::zen_version);
+    speak.allow_to_any(v1::PaneCanvasPointer::zen_name, v1::PaneCanvasPointer::zen_version);
+    speak.allow_to_any(v1::PaneCanvasHover::zen_name, v1::PaneCanvasHover::zen_version);
     speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);

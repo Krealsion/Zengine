@@ -151,7 +151,7 @@ inline constexpr bool viewport_honoured(std::int64_t width, std::int64_t height)
 /// because a weaver looking at their own file can act on that.
 inline std::string declined_viewport(std::int64_t width, std::int64_t height) {
     return "the saved window size " + std::to_string(width) + "x" + std::to_string(height) +
-           " cells is not one this Workshop opens at (" + std::to_string(kScreenMinW) + "x" +
+           " pixels is not one this Workshop opens at (" + std::to_string(kScreenMinW) + "x" +
            std::to_string(kScreenMinH) + " to " + std::to_string(kScreenMaxW) + "x" +
            std::to_string(kScreenMaxH) + ") -- opening at the default size";
 }
@@ -187,7 +187,9 @@ inline WorkshopSession to_session(const std::vector<Layout>& run, std::size_t ac
     WorkshopSession out;
     out.format = kFormat;
     out.format_version = kFormatVersion;
-    out.viewport = WorkshopViewport{viewport_w, viewport_h};
+    // The file's viewport is in canvas cells; the session holds pixels.
+    out.viewport = WorkshopViewport{surface::cell_of_pixel(viewport_w),
+                                    surface::cell_of_pixel(viewport_h)};
     out.layouts.reserve(run.size());
     for (const Layout& layout : run) {
         out.layouts.push_back(
@@ -455,8 +457,8 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     // THE VIEWPORT IS JUDGED AND NOT REFUSED (inside `loaded_from`). A well-formed session
     // whose size this build will not open at is still a session, and the desks in it are
     // still the weaver's.
-    return loaded_from(std::move(run), active, file.viewport.width, file.viewport.height,
-                       place, converted);
+    return loaded_from(std::move(run), active, surface::px_of_cells(file.viewport.width),
+                       surface::px_of_cells(file.viewport.height), place, converted);
 }
 
 /// Text to a session. Total: every input is either a session or a refusal with a reason, and

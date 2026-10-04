@@ -11,36 +11,32 @@ namespace zengine::workshop {
 
 // ---- A WEAVER-MADE PANE, PRESENTED: authored regions on an offered interior -----------------
 
-RegionPresentation present_region(const TextRegion& r, const FineRect& interior,
+RegionPresentation present_region(const TextRegion& r, const PixelRect& interior,
                                   const Screen& sc) {
     RegionPresentation p;
     if (interior.empty()) {
         return p;
     }
-    p.asked = FineRect{surface::add_cells(interior.x, r.x), surface::add_cells(interior.y, r.y),
+    p.asked = PixelRect{surface::add_cells(interior.x, r.x), surface::add_cells(interior.y, r.y),
                        r.w, r.h};
-    p.shown = clip_to_fine(p.asked, interior);
+    p.shown = clip_to_px(p.asked, interior);
     p.clipped = !(p.shown == p.asked);
     if (p.shown.empty()) {
         return p;
     }
-    p.fit = surface::fit_region_subs(p.shown.x, p.shown.y, p.shown.w, p.shown.h,
+    p.fit = surface::fit_region(p.shown.x, p.shown.y, p.shown.w, p.shown.h,
                                      sc.text_advance_px, sc.text_line_px);
     p.present = true;
     return p;
 }
 
-surface::SurfaceTextRegion region_over(const FineRect& r) {
+surface::SurfaceTextRegion region_over(const PixelRect& r) {
     surface::SurfaceTextRegion region;
     const surface::SurfaceRect wire = wire_rect_of(r, surface::role::kFill);
     region.x = wire.x;
     region.y = wire.y;
     region.w = wire.w;
     region.h = wire.h;
-    region.sub_x = wire.sub_x;
-    region.sub_y = wire.sub_y;
-    region.sub_w = wire.sub_w;
-    region.sub_h = wire.sub_h;
     return region;
 }
 
@@ -52,10 +48,10 @@ const TextRegion* weaver_region(const Session& s, const PaneRef& ref, std::int64
     return region_of(m.definition, id);
 }
 
-FineRect weaver_pane_interior(const Session& s, const Screen& sc) {
+PixelRect weaver_pane_interior(const Session& s, const Screen& sc) {
     const PaneBounds where = bounds_of(s.panes, s.setup.active, kWeaverPaneKind, sc);
     if (!where.open || where.rect.empty()) {
-        return FineRect{};
+        return PixelRect{};
     }
     return pane_inside(where.rect, sc).rect;
 }
@@ -96,7 +92,7 @@ Written write_region_axis(Session& s, const PaneRef& ref, std::int64_t id,
     if (!typed.accepted) {
         return Written::no(typed.refusal);
     }
-    return author_region_axis(s.panes.weaver.definition, id, axis, typed.subs);
+    return author_region_axis(s.panes.weaver.definition, id, axis, typed.px);
 }
 
 Written write_region_text(Session& s, const PaneRef& ref, std::int64_t id,
@@ -113,13 +109,13 @@ std::string region_resolved_text(const Session& s, const PaneRef& ref, std::int6
         return "--";
     }
     const Screen sc = screen_of(s);
-    const FineRect interior = weaver_pane_interior(s, sc);
+    const PixelRect interior = weaver_pane_interior(s, sc);
     const RegionPresentation p = present_region(*r, interior, sc);
     if (!p.present) {
         return "- (the pane is not presented, or the region lies outside it)";
     }
-    const FineRect local{p.shown.x - interior.x, p.shown.y - interior.y, p.shown.w, p.shown.h};
-    std::string out = fine_rect_text(local, s.cell_px);
+    const PixelRect local{p.shown.x - interior.x, p.shown.y - interior.y, p.shown.w, p.shown.h};
+    std::string out = pixel_rect_text(local, s.cell_px);
     if (p.clipped) {
         out += " (clipped by the pane)";
     }
@@ -157,17 +153,17 @@ std::string interior_capture_text(const Session& s, const PaneRef& ref) {
     }
     const ProsePlace place = prose_place(where.rect, sc);
     if (!place.present) {
-        return std::string(whose) + " -- body " + fine_rect_text(place.inside, s.cell_px) +
+        return std::string(whose) + " -- body " + pixel_rect_text(place.inside, s.cell_px) +
                ", no room for a row; no authored interior";
     }
-    return std::string(whose) + " -- body " + fine_rect_text(place.inside, s.cell_px) + ", " +
+    return std::string(whose) + " -- body " + pixel_rect_text(place.inside, s.cell_px) + ", " +
            std::to_string(place.rows) + (place.rows == 1 ? " row x " : " rows x ") +
            std::to_string(place.columns) + (place.columns == 1 ? " column " : " columns ") +
            (place.fit.graphical() ? "in type" : "as cells") + "; no authored interior";
 }
 
 // WL-MAKER-05 -- agents/workshop/maker-pane.md
-void paint_weaver_pane(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
+void paint_weaver_pane(surface::SurfaceLayer& layer, const Session& s, const PixelRect& b,
                       const Screen& sc, std::int64_t chrome) {
     paint_pane_frame(layer, b, chrome);
     const PaneInside inside = pane_inside(b, sc);
@@ -233,21 +229,21 @@ void paint_creator_region_mark(surface::SurfaceLayer& layer, const Session& s,
 // ---- A WORKSHOP PANE AS A SUBJECT, inspected and edited through its owners (Info's) ------
 
 // WL-PED-05 -- agents/workshop/pane-manager.md
-FineRect pane_window_base(const Session& s, const PaneRef& ref) {
-    FineRect out;
+PixelRect pane_window_base(const Session& s, const PaneRef& ref) {
+    PixelRect out;
     const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);
     if (kind.has_value()) {
         out = bounds_of(s.panes, s.setup.active, *kind, screen_of(s)).resolved;
     }
     const SetupPane* row = pane_of(s.setup.active, ref);
-    if (row != nullptr && row->place.mode == pane_unit::kSubcells) {
+    if (row != nullptr && row->place.mode == pane_unit::kPixels) {
         out.x = row->place.x;
         out.y = row->place.y;
     }
-    if (row != nullptr && row->width.mode == pane_unit::kSubcells) {
+    if (row != nullptr && row->width.mode == pane_unit::kPixels) {
         out.w = row->width.amount;
     }
-    if (row != nullptr && row->height.mode == pane_unit::kSubcells) {
+    if (row != nullptr && row->height.mode == pane_unit::kPixels) {
         out.h = row->height.amount;
     }
     return out;
@@ -282,17 +278,14 @@ std::string pane_axis_text(const Session& s, const PaneRef& ref, std::size_t axi
     bool projected = false;
     std::string out;
     if (axis < 2) {
-        if (row->place.mode != pane_unit::kSubcells) {
+        if (row->place.mode != pane_unit::kPixels) {
             return "-";
         }
         out = geometry_amount_text(axis == 0 ? row->place.x : row->place.y, s.cell_px,
                                    projected);
     } else {
         const PaneSize& size = axis == 2 ? row->width : row->height;
-        if (size.mode == pane_unit::kPixels) {
-            return std::to_string(size.amount) + "px";
-        }
-        if (size.mode != pane_unit::kSubcells) {
+        if (size.mode != pane_unit::kPixels) {
             return "-";
         }
         out = geometry_amount_text(size.amount, s.cell_px, projected);
@@ -343,16 +336,16 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
     if (!typed.accepted) {
         return Written::no(typed.refusal);
     }
-    const FineRect from = pane_window_base(s, ref);
+    const PixelRect from = pane_window_base(s, ref);
     PaneAxisProposal horizontal;
     PaneAxisProposal vertical;
     horizontal.base = from.x;
     vertical.base = from.y;
     switch (axis) {
-    case 0: horizontal.position = typed.subs; break;
-    case 1: vertical.position = typed.subs; break;
-    case 2: horizontal.extent = PaneSize{pane_unit::kSubcells, typed.subs}; break;
-    default: vertical.extent = PaneSize{pane_unit::kSubcells, typed.subs}; break;
+    case 0: horizontal.position = typed.px; break;
+    case 1: vertical.position = typed.px; break;
+    case 2: horizontal.extent = PaneSize{pane_unit::kPixels, typed.px}; break;
+    default: vertical.extent = PaneSize{pane_unit::kPixels, typed.px}; break;
     }
     return author_pane_window(s.setup.active, ref, horizontal, vertical).written;
 }
@@ -487,10 +480,7 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
         if (!where.open) {
             return std::string("-");
         }
-        if (!where.projected) {
-            return std::string("refused -- a pixel axis projects on no medium here");
-        }
-        return fine_rect_text(where.resolved, sp->cell_px);
+        return pixel_rect_text(where.resolved, sp->cell_px);
     }));
     rows.push_back(Row::show("State", [sp, found] {
         const std::optional<CatalogRow> row = found();

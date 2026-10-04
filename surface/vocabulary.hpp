@@ -42,37 +42,29 @@ inline constexpr std::int64_t kGround = 4; ///< opaque, empty material beneath c
 inline constexpr std::int64_t kNone = -1;
 } // namespace role
 
-/// One filled rectangle, in canvas cells: a character column in a terminal, `kCanvasCellPx`
-/// pixels in the shipped window. `sub_*` refine a coordinate on the same lattice (`kCellSubs`);
-/// zero is the whole-cell picture. A layer's rects paint in list order, so a publisher puts a
-/// rect behind another by publishing it earlier; there is no z field.
+/// One filled rectangle, in canvas pixels: one device pixel in the shipped window, and a twelfth
+/// of a character cell in a terminal, whose Skin floors each edge to its cells (`kCanvasCellPx`).
+/// A layer's rects paint in list order, so a publisher puts a rect behind another by publishing
+/// it earlier; there is no z field.
 struct SurfaceRect {
     std::int64_t x = 0;
     std::int64_t y = 0;
     std::int64_t w = 0;
     std::int64_t h = 0;
     std::int64_t role = role::kFill;
-    std::int64_t sub_x = 0; ///< sub-cell remainder of x, in 1/kCellSubs cells; 0..kCellSubs-1
-    std::int64_t sub_y = 0;
-    std::int64_t sub_w = 0; ///< sub-cell remainder of w — the extent may be fine too
-    std::int64_t sub_h = 0;
-    ZEN_SHAPE(SurfaceRect, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
-              ZEN_FIELD(role), ZEN_FIELD(sub_x), ZEN_FIELD(sub_y), ZEN_FIELD(sub_w),
-              ZEN_FIELD(sub_h));
+    ZEN_SHAPE(SurfaceRect, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+              ZEN_FIELD(role));
 };
 
-/// One run of plain text anchored at a canvas cell, drawn over its layer's rects: one cell per
-/// byte in every medium. A Skin says which bytes it has a glyph for and draws something visible
-/// for the rest; no Skin drops a character silently.
+/// One run of plain text anchored at a canvas pixel, drawn over its layer's rects: one canvas
+/// cell (`kCanvasCellPx` pixels) per byte in every medium. A Skin says which bytes it has a glyph
+/// for and draws something visible for the rest; no Skin drops a character silently.
 struct SurfaceLabel {
     std::int64_t x = 0;
     std::int64_t y = 0;
     std::string text;
     std::int64_t role = role::kFill;
-    std::int64_t sub_x = 0; ///< sub-cell remainders of the anchor; a label has no fine extent
-    std::int64_t sub_y = 0;
-    ZEN_SHAPE(SurfaceLabel, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role),
-              ZEN_FIELD(sub_x), ZEN_FIELD(sub_y));
+    ZEN_SHAPE(SurfaceLabel, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role));
 };
 
 /// One row of prose in a bounded text region: plain text, a role, and a background to set it on.
@@ -104,10 +96,10 @@ inline constexpr char kCaretGlyph = '_';
 /// A region with no selection; negative for `kNoCaret`'s reason.
 inline constexpr std::int64_t kNoSelection = -1;
 
-/// A bounded region of prose, placed in canvas cells like a rect and filled with rows the medium
-/// sets in its own text metric: a terminal draws one row per cell row, cut at `w` and dropped
-/// past `h`; a window with a real face draws at its own advance and line height, inside the
-/// rectangle the bounds resolve to. How many rows and columns fit is not on this shape: the
+/// A bounded region of prose, placed in canvas pixels like a rect and filled with rows the medium
+/// sets in its own text metric: a terminal draws one row per cell row of the cells the bounds
+/// cover, cut at their width and dropped past their height; a window with a real face draws at
+/// its own advance and line height, inside the bounds. How many rows and columns fit is not on this shape: the
 /// publisher asks `fit_region` (surface/region.hpp), the function the medium itself uses, and
 /// sends what fits. A row longer than the region is the medium's to cut.
 ///
@@ -129,15 +121,10 @@ struct SurfaceTextRegion {
     std::int64_t sel_begin_col = 0;            ///< inclusive, a caret-like position
     std::int64_t sel_end_row = kNoSelection;   ///< reading-order end row
     std::int64_t sel_end_col = 0;              ///< exclusive, a caret-like position
-    std::int64_t sub_x = 0; ///< sub-cell remainders of the bounds; the prose lattice
-    std::int64_t sub_y = 0; ///< (rows, columns, caret, selection) is untouched by them
-    std::int64_t sub_w = 0;
-    std::int64_t sub_h = 0;
-    ZEN_SHAPE(SurfaceTextRegion, 6, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+    ZEN_SHAPE(SurfaceTextRegion, 7, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(rows), ZEN_FIELD(caret_row), ZEN_FIELD(caret_col), ZEN_FIELD(ground),
               ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
-              ZEN_FIELD(sel_end_col), ZEN_FIELD(sub_x), ZEN_FIELD(sub_y), ZEN_FIELD(sub_w),
-              ZEN_FIELD(sub_h));
+              ZEN_FIELD(sel_end_col));
 };
 
 /// One painter's plane: its rects in list order, then its labels, then its text regions, drawn
@@ -148,10 +135,10 @@ struct SurfaceLayer {
     std::vector<SurfaceRect> rects;
     std::vector<SurfaceLabel> labels;
     std::vector<SurfaceTextRegion> texts;
-    ZEN_SHAPE(SurfaceLayer, 4, ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
+    ZEN_SHAPE(SurfaceLayer, 5, ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
 };
 
-/// A whole picture: an extent in whole cells and its planes, `layers[0]` back-most. A drawing,
+/// A whole picture: an extent in canvas pixels and its planes, `layers[0]` back-most. A drawing,
 /// not a layout: no parent/child, anchors or percentages -- whoever publishes has decided where
 /// things go. Elements outside the extent are the Skin's to clip. A canvas with no layers is a
 /// picture of nothing, and clears the previous one.
@@ -159,28 +146,17 @@ struct SurfaceCanvas {
     std::int64_t width = 0;
     std::int64_t height = 0;
     std::vector<SurfaceLayer> layers;
-    ZEN_SHAPE(SurfaceCanvas, 8, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
+    ZEN_SHAPE(SurfaceCanvas, 9, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
 };
 
-/// One canvas cell in the shipped graphical Skin, in pixels. Another medium's cell may differ: a
-/// consumer spells geometry with the size its medium reports (`SurfaceExtent::cell_px`).
+/// One canvas cell, in canvas pixels: the width of one label byte, and the character cell a
+/// terminal floors the pixel picture to. In the shipped window a canvas pixel is a device pixel.
 inline constexpr std::int64_t kCanvasCellPx = 12;
 
-/// Sub-cell units per canvas cell: the lattice's resolution. A geometry shape's coordinate is
-/// whole cells plus a `sub_*` remainder in [0, kCellSubs); a remainder outside it reads as zero.
-/// A medium whose device unit is `g` sub-units shows the span [L, R) on units
-/// [floor(L/g), floor(R/g)), and a pointer's hit test floors the same way (surface/pointing.hpp).
-/// Forty-eight is finer than the shipped Skin's pixel (four sub-units) and is no medium's own
-/// scale, so authored geometry stays medium-independent.
-inline constexpr std::int64_t kCellSubs = 48;
-static_assert(kCellSubs % kCanvasCellPx == 0,
-              "the shipped graphical cell embeds exactly: one pixel is a whole number of "
-              "sub-units TODAY (a lattice fact worth noticing when it changes, not a "
-              "requirement a future medium must meet)");
-
-/// How much room the active surface has, in canvas cells: a fact only the medium holds, offered
-/// to publishers (one that ignores it keeps its own extent, and the Skin clips). Published when
-/// it changes; a medium with no answer publishes nothing rather than zeroes.
+/// How much room the active surface has, in canvas pixels: a fact only the medium holds, offered
+/// to publishers (one that ignores it keeps its own extent, and the Skin clips). A terminal's
+/// room is its cells times `kCanvasCellPx`. Published when it changes; a medium with no answer
+/// publishes nothing rather than zeroes.
 ///
 /// `text_advance_px` and `text_line_px` are one character's advance and the row pitch, in the
 /// medium's device pixels, when it sets real type; zero means text is a cell. The medium
@@ -194,7 +170,7 @@ struct SurfaceExtent {
     std::int64_t text_advance_px = 0;
     std::int64_t text_line_px = 0;
     std::int64_t cell_px = 0;
-    ZEN_SHAPE(SurfaceExtent, 3, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(text_advance_px),
+    ZEN_SHAPE(SurfaceExtent, 4, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(text_advance_px),
               ZEN_FIELD(text_line_px), ZEN_FIELD(cell_px));
 };
 

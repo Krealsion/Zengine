@@ -14,7 +14,7 @@ actually see").
 **Decision.** The medium says it. `SurfaceExtent` carries `cell_px` beside the text metric;
 `adopt_screen` takes it and `Session::cell_px` holds it; zero means "my device unit IS the
 cell", every terminal's permanent answer. Workshop derives no unit, and a change of unit alone
-is a change. One derivation — five pure functions over `surface::device_of_subs`, the same
+is a change. One derivation — five pure functions over `surface::device_of_px`, the same
 arithmetic the shipped face paints and hit-tests by — spells a pane's geometry in the face's
 unit: no unit type, no registry, no per-medium table, no second conversion constant. A value not
 exact in the face's unit wears `~`, and the line says `(~ projected)` once. Looking is not
@@ -34,8 +34,7 @@ authoring. The notice says where a pane the weaver did not place actually is.
 **Consequences.** A weaver reads `@77,53 417x233 px` on the shipped window and `@~6,~4 ~34x~19
 cells (~ projected)` in a terminal, of the same desk. A session that crosses both media reading
 a geometry no terminal can say writes the same file byte for byte, and the unit reaches no
-durable file; a restore hands this run's unit straight back. An axis authored in `pixels` keeps
-its own inline `px` (`483x220px px`, state `refused`). The mark is ASCII because the shipped
+durable file; a restore hands this run's unit straight back. The mark is ASCII because the shipped
 face's letterform is 0x20–0x7E. A partly reactive window is followed by ` -- now @x,y WxH
 <unit>` from the unclipped ask, the rectangle a gesture measures from.
 

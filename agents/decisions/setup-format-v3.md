@@ -13,10 +13,11 @@ moved to sub-cells, version 3 followed and a version-2 whole-cell file had to ke
 **Decision.** Each row carries a `PaneRef` plus `place {mode, x, y}`, `width` and `height
 {mode, amount}` per axis, and `front`, and nothing else. `default` is a value whose unused
 numbers are zero. A mode is a word from a closed set — two for a place, three for a size. The
-format version and the envelope's shape version are one number, asserted. `pixels` is declared,
-valid on every medium, and refused at projection whole. The value doors are atomic. A version-2
-file is admitted against the retained v2 shapes and its cells mapped exactly (×48) onto the fine
-lattice; every other version is refused by its number. An authored place is absolute, and each
+format version and the envelope's shape version are one number, asserted. `pixels` is declared
+and valid on every medium; it was refused at projection until the whole pixel presented it
+([the-whole-pixel](the-whole-pixel.md)). The value doors are atomic. A version-2 file is admitted
+against the retained v2 shapes and its cells mapped exactly onto the lattice; every other version
+is refused by its number. An authored place is absolute, and each
 axis is independent.
 
 **Alternatives considered.**
@@ -29,8 +30,8 @@ axis is independent.
 - *Judging the `format_version` field first* — rejected: a version-1 file would be reported as
   "a pane row is missing `place`", a true sentence about a false cause; the envelope claim gates
   first, pinned by case `"a version-1 file is refused BY NUMBER, before its rows are judged"`.
-- *A per-axis fallback for `pixels`* — refused as exactly the silent default; pinned by case
-  `"a pixel axis is setup-valid, projection-refused, and never falls back"`.
+- *A per-axis fallback for `pixels`* — refused as exactly the silent default, while the unit was
+  refused; the whole pixel presents it instead.
 - *A migration framework for version 2* — rejected: one namespace and one exact multiply; the
   clean-break stance stands for every other transition, and the session reader keeps no old
   shape at all ([yesterday-belongs-to-a-conversion](yesterday-belongs-to-a-conversion.md)).
@@ -38,13 +39,11 @@ axis is independent.
   place is absolute canvas position, not an offset from the default"`.
 
 **Consequences.** A fresh setup is sparse, an unresolved reference round-trips every authored
-field, and setup bytes carry no descriptor, room, handle or runtime fact. A pane with a pixel
-axis is not presented on any medium, Info included, reads `refused`, and its bytes stay exact
-through the refusal. A unit outranks a reservation. The setup keeps exactly one old reader
+field, and setup bytes carry no descriptor, room, handle or runtime fact. The setup keeps exactly one old reader
 because a setup is a weaver's named artifact with no session to ride.
 
 **Laws supported.** [WL-PANE-11](../workshop/panes-and-windows.md),
 [WL-SETUP-01](../workshop/setup-file.md), [WL-SETUP-02](../workshop/setup-file.md),
 [WL-SETUP-03](../workshop/setup-file.md), [WL-SETUP-04](../workshop/setup-file.md),
-[WL-SETUP-05](../workshop/setup-file.md), [WL-SETUP-06](../workshop/setup-file.md),
+[WL-SETUP-05](../workshop/setup-file.md),
 [WL-SETUP-08](../workshop/setup-file.md), [WL-SETUP-11](../workshop/setup-file.md).

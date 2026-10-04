@@ -56,9 +56,6 @@ std::pair<std::shared_ptr<const loom::Schema>, std::optional<std::string>> label
     return {value.schema_ptr(), std::nullopt};
 }
 
-/// Subunits as whole pixels, floored: a terminal's cell is twelve of them.
-std::int64_t pixels(std::int64_t subs) { return surface::floor_div_px(subs, surface::kPixelGrainSubs); }
-
 class ViewBuilderPane final
     : public loom::WeaveBase<
           ViewBuilderPane, vb::BuilderState,
@@ -463,15 +460,15 @@ private:
         if (h.what == Held::What::pan) {
             // The view follows the hand, within the pan's reach.
             const auto [reach_x, reach_y] = vb::pan_reach(model_.description, h.design, view::notice_band(room_));
-            const auto x = std::clamp<std::int64_t>(h.pan_x - pixels(dx), 0, reach_x);
-            const auto y = std::clamp<std::int64_t>(h.pan_y - pixels(dy), 0, reach_y);
+            const auto x = std::clamp<std::int64_t>(h.pan_x - dx, 0, reach_x);
+            const auto y = std::clamp<std::int64_t>(h.pan_y - dy, 0, reach_y);
             if (x == shown_.pan_x && y == shown_.pan_y) return;
             shown_.pan_x = x;
             shown_.pan_y = y;
             show(mail);
             return;
         }
-        const auto threshold = std::max<std::int64_t>(room_.grain, surface::subs_of_pixel(4));
+        const auto threshold = std::max<std::int64_t>(room_.grain, 4);
         if (!h.moved && std::abs(dx) < threshold && std::abs(dy) < threshold) return;
         h.moved = true;
         if (h.what == Held::What::make) {
@@ -487,7 +484,7 @@ private:
             show(mail);
             return;
         }
-        const auto px = pixels(dx), py = pixels(dy);
+        const auto px = dx, py = dy;
         const bool snapping = !aside(event);
         if (h.what == Held::What::size) {
             const auto most = [](std::int64_t v) { return std::clamp<std::int64_t>(v, 1, view::kMaxSizePx); };
@@ -554,8 +551,8 @@ private:
     vb::Place made_at(const Held& h, const ws::PaneCanvasPointer& event) const {
         const auto [w, height] = vb::made_size(h.kind);
         const auto& d = model_.description;
-        const auto at = [](std::int64_t subs, std::int64_t most) {
-            return std::clamp<std::int64_t>(pixels(subs), 0, std::max<std::int64_t>(0, most));
+        const auto at = [](std::int64_t px, std::int64_t most) {
+            return std::clamp<std::int64_t>(px, 0, std::max<std::int64_t>(0, most));
         };
         const vb::Place under{at(event.x - h.placed.x, d.width - w), at(event.y - h.placed.y, d.height - height), w,
                               height, std::nullopt, std::nullopt};

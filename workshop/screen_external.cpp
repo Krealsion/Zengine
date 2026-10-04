@@ -20,23 +20,18 @@ std::int64_t external_title_rows(const Panes& panes, std::int64_t kind,
 // WL-CHROME-05 -- agents/workshop/chrome.md
 // WL-EDIT-12 -- agents/workshop/editor.md
 // WL-PANE-06 -- agents/workshop/panes-and-windows.md
-ExternalBodyPlace external_body_place(const FineRect& pane_rect, const Screen& sc,
+ExternalBodyPlace external_body_place(const PixelRect& pane_rect, const Screen& sc,
                                       std::int64_t header_rows) {
     ExternalBodyPlace p;
     const PaneInside inside = pane_inside(pane_rect, sc);
-    const FineRect inner = inside.rect;
+    const PixelRect inner = inside.rect;
     if (inner.w <= 0 || inner.h <= 0) {
         return p;
     }
-    const surface::SurfaceRect wire = wire_rect_of(inner, surface::role::kFill);
-    p.region_x = wire.x;
-    p.region_y = wire.y;
-    p.region_w = wire.w;
-    p.region_h = wire.h;
-    p.region_sub_x = wire.sub_x;
-    p.region_sub_y = wire.sub_y;
-    p.region_sub_w = wire.sub_w;
-    p.region_sub_h = wire.sub_h;
+    p.region_x = inner.x;
+    p.region_y = inner.y;
+    p.region_w = inner.w;
+    p.region_h = inner.h;
     p.fit = inside.fit;
     p.header_rows = header_rows;
     p.rows = p.fit.rows > header_rows ? p.fit.rows - header_rows : 0;
@@ -58,7 +53,7 @@ ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
     if (!body.present) {
         return ExternalPressAt{};
     }
-    const ProseAt at = prose_at(space, x, y, body.region_x, body.region_y, body.fit);
+    const ProseAt at = prose_at(space, x, y, body.fit);
     if (!at.understood) {
         return ExternalPressAt{};
     }
@@ -77,7 +72,7 @@ std::string external_header(const RuntimePane& row, bool typing) {
 
 // WL-FOCUS-10 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
-                    const FineRect& b, const Screen& sc, bool titles,
+                    const PixelRect& b, const Screen& sc, bool titles,
                     std::int64_t chrome) {
     paint_pane_frame(layer, b, chrome);
     const RuntimePane* row = panes.runtime.of_kind(kind);
@@ -94,10 +89,6 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
     region.y = body.region_y;
     region.w = body.region_w;
     region.h = body.region_h;
-    region.sub_x = body.region_sub_x;
-    region.sub_y = body.region_sub_y;
-    region.sub_w = body.region_sub_w;
-    region.sub_h = body.region_sub_h;
     // Workshop's header is the region's first row, fitted to its columns, and exists exactly when
     // the resolution reserved one: hidden titles return it to the provider, but the keyboard pane
     // keeps its title and its `> ` mark (`external_title_rows`).
@@ -122,7 +113,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         return;
     }
     if (pane->canvas.grant > 0 && (pane->canvas.heard || pane->canvas.preview)) {
-        const FineRect canvas = canvas_body_place(b, sc, body.header_rows);
+        const PixelRect canvas = canvas_body_place(b, sc, body.header_rows);
         paint_pane_canvas(layer, canvas, pane->canvas.content, sc.text_advance_px,
                           sc.text_line_px, chrome_grain(sc));
         if (pane->canvas.preview) {
@@ -137,11 +128,10 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         }
         if (!region.rows.empty()) {
             const auto inside = pane_inside(b, sc).rect;
-            const auto header = wire_rect_of(FineRect{inside.x, inside.y, inside.w,
+            const auto header = wire_rect_of(PixelRect{inside.x, inside.y, inside.w,
                                                        surface::sub_px(canvas.y, inside.y)},
                                               surface::role::kFill);
             region.h = header.h;
-            region.sub_h = header.sub_h;
             layer.texts.push_back(std::move(region));
         }
         return;

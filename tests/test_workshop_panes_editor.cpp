@@ -778,7 +778,7 @@ struct EditorRig {
     void give_rows(std::int64_t rows) {
         const Written wrote =
             author_pane_size(r.session().setup.active, editor_ref(), PaneSize{},
-                             PaneSize{pane_unit::kSubcells, subs(rows + 3)});
+                             PaneSize{pane_unit::kPixels, cells_px(rows + 3)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         focus();
         REQUIRE(seat() != nullptr);
@@ -1080,7 +1080,7 @@ TEST_CASE("an opening that cannot be shown opens nothing, and the requester is t
     // authored setup and the file as they were, and the requester is answered with the launch
     // door's own refusal instead of a success it would find hollow.
     EditorRig e("edit-noroom");
-    e.open(160, kMinScreen.h, /*pick_it=*/false);
+    e.open(160, cells_of(kMinScreen).h, /*pick_it=*/false);
     // A DOCUMENT ALREADY OPEN, so the refusal has something to preserve.
     put_bytes(e.root / "first.cpp", "first\n");
     REQUIRE(e.ask_open(spelled(e.root / "first.cpp")).accepted);
@@ -1299,8 +1299,8 @@ TEST_CASE("arranging the Editor pane moves its window and not one byte of its so
     e.press_doc(0, 1);
     e.type("Z");
     const std::string before = e.text();
-    const Written moved = author_pane_place(e.r.session().setup.active, editor_ref(), subs(6),
-                                            subs(4));
+    const Written moved = author_pane_place(e.r.session().setup.active, editor_ref(), cells_px(6),
+                                            cells_px(4));
     REQUIRE_MESSAGE(moved.accepted, moved.refusal);
     e.focus();
     CHECK(e.text() == before);
@@ -1901,7 +1901,7 @@ TEST_CASE("a horizontal window follows the caret and recovers the room an erase 
     e.open_file("a.cpp", std::string(60, 'a') + "\nshort\n");
     // A narrow pane: forty columns of body.
     const Written wrote = author_pane_size(e.r.session().setup.active, editor_ref(),
-                                           PaneSize{pane_unit::kSubcells, subs(42)}, PaneSize{});
+                                           PaneSize{pane_unit::kPixels, cells_px(42)}, PaneSize{});
     REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
     e.focus();
     e.press_doc(0, 0);
@@ -1974,7 +1974,7 @@ TEST_CASE("long and tabbed lines are windowed by displayed columns, exactly") {
     e.open();
     e.open_file("a.cpp", "\t\tx" + std::string(200, 'y') + "\n");
     const Written wrote = author_pane_size(e.r.session().setup.active, editor_ref(),
-                                           PaneSize{pane_unit::kSubcells, subs(22)}, PaneSize{});
+                                           PaneSize{pane_unit::kPixels, cells_px(22)}, PaneSize{});
     REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
     e.focus();
     CHECK(e.doc_row(0).rfind("        x", 0) == 0);
@@ -2709,7 +2709,7 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
     // THE SHRINK, queued behind the request -- and therefore AHEAD of the ask the pane will
     // send when it handles that request.
     (void)e.r.bus.publish(loom::Message(
-        loom::to_value(surface::SurfaceExtent{160, kMinScreen.h, 0, 0}), loom::WeaveId{},
+        loom::to_value(surface::SurfaceExtent{cells_px(160), kMinScreen.h, 0, 0}), loom::WeaveId{},
         loom::WeaveId{}, 0));
     // MILESTONE 2: one turn delivers the request (the manager binds the Editor and the desk as
     // they are, and asks the desk for a trial) and then the shrink (the Editor, authored
@@ -2760,7 +2760,7 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
     const std::int64_t committed = e.opening().committed;
     const auto shrink = [&e] {
         (void)e.r.bus.publish(loom::Message(
-            loom::to_value(surface::SurfaceExtent{160, kMinScreen.h, 0, 0}), loom::WeaveId{},
+            loom::to_value(surface::SurfaceExtent{cells_px(160), kMinScreen.h, 0, 0}), loom::WeaveId{},
             loom::WeaveId{}, 0));
     };
     const auto after = [&e, &before, &b_path, &a_path, &committed] {
@@ -3894,7 +3894,7 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
     }
     SUBCASE("no room refuses the open in the launch door's words, and nothing is authored or moved") {
         EditorRig e("edit-old-door-noroom");
-        e.open(160, kMinScreen.h, /*pick_it=*/false);
+        e.open(160, cells_of(kMinScreen).h, /*pick_it=*/false);
         put_bytes(e.root / "first.cpp", "first\n");
         REQUIRE(e.ask_open_direct(spelled(e.root / "first.cpp")).accepted);
         REQUIRE(e.r.session().panes.has(e.kind));

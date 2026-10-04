@@ -10,7 +10,8 @@
 #include "lattice.hpp" // `kMaxCells` -- the one lattice bound every authored extent already has
 #include "property.hpp" // `Written` -- the one refusal-with-reason shape
 
-#include "surface/vocabulary.hpp" // `kCellSubs` -- the fine lattice a region is authored on
+#include "surface/region.hpp"     // `floor_div_px` -- a written sub-unit landed on its pixel
+#include "surface/vocabulary.hpp" // `kCanvasCellPx` -- the cell the lattice's ceiling is counted in
 #include "ui/layout.hpp"          // `ui::kMinCells` -- the one-cell floor an authored extent has
 
 #include <cstddef>
@@ -44,9 +45,14 @@ inline constexpr std::size_t kMaxRegions = 16;
 /// the presentation wherever the region is narrower.
 inline constexpr std::size_t kMaxRegionTextLen = 256;
 
-/// THE AUTHORED LATTICE'S WALLS, in sub-units.
+/// THE AUTHORED LATTICE'S WALLS, in canvas pixels.
 // WL-MAKER-01 -- agents/workshop/maker-pane.md
-inline constexpr std::int64_t kRegionSubMax = kMaxCells * surface::kCellSubs;
+inline constexpr std::int64_t kRegionPxMax = kMaxCells * surface::kCanvasCellPx;
+
+/// Sub-units per pixel in a written definition: the file keeps the lattice it was written on,
+/// 48 to the cell.
+// WL-MAKER-06 -- agents/workshop/maker-pane.md
+inline constexpr std::int64_t kRegionSubsPerPixel = 4;
 
 /// The first identity the mint hands out. Never 0, so an absent identity has a number no
 /// region can carry.
@@ -122,13 +128,13 @@ inline Written check_region_text(const std::string& text) {
     return Written::ok();
 }
 
-/// ONE COORDINATE of a region's place: not negative (the interior has no sub-units there),
+/// ONE COORDINATE of a region's place: not negative (the interior has no pixels there),
 /// and inside the lattice's ceiling.
 inline Written check_region_coord(std::int64_t v) {
     if (v < 0) {
         return Written::no("a region place cannot be negative");
     }
-    if (v > kRegionSubMax) {
+    if (v > kRegionPxMax) {
         return Written::no("a region place is at most " + std::to_string(kMaxCells) +
                            " cells");
     }
@@ -136,13 +142,13 @@ inline Written check_region_coord(std::int64_t v) {
 }
 
 /// ONE AXIS of a region's extent: positive, and inside the lattice's ceiling. The floor is
-/// one sub-unit and not one cell, deliberately -- a region finer than a cell is honest
+/// one pixel and not one cell, deliberately -- a region finer than a cell is honest
 /// intent, and which faces can show anything of it is those faces' answer.
 inline Written check_region_extent(std::int64_t v, const char* which) {
     if (v <= 0) {
         return Written::no(std::string("a region ") + which + " must be positive");
     }
-    if (v > kRegionSubMax) {
+    if (v > kRegionPxMax) {
         return Written::no(std::string("a region ") + which + " is at most " +
                            std::to_string(kMaxCells) + " cells");
     }
@@ -274,45 +280,45 @@ inline Written set_region_text(PaneDefinition& d, std::int64_t id, std::string t
 }
 
 /// AUTHOR ONE AXIS OF A REGION'S GEOMETRY: 0 = X, 1 = Y, 2 = width, 3 = height, in
-/// sub-units. Each axis is its own fact and its own refusal -- refuse-never-clamp, per axis
+/// canvas pixels. Each axis is its own fact and its own refusal -- refuse-never-clamp, per axis
 /// -- and an accepted write moves exactly the one number.
 inline Written author_region_axis(PaneDefinition& d, std::int64_t id, std::size_t axis,
-                                  std::int64_t subs) {
+                                  std::int64_t px) {
     TextRegion* r = region_of(d, id);
     if (r == nullptr) {
         return Written::no("no region #" + std::to_string(id) + " in this pane");
     }
     switch (axis) {
     case 0: {
-        const Written ok = check_region_coord(subs);
+        const Written ok = check_region_coord(px);
         if (!ok.accepted) {
             return ok;
         }
-        r->x = subs;
+        r->x = px;
         return ok;
     }
     case 1: {
-        const Written ok = check_region_coord(subs);
+        const Written ok = check_region_coord(px);
         if (!ok.accepted) {
             return ok;
         }
-        r->y = subs;
+        r->y = px;
         return ok;
     }
     case 2: {
-        const Written ok = check_region_extent(subs, "width");
+        const Written ok = check_region_extent(px, "width");
         if (!ok.accepted) {
             return ok;
         }
-        r->w = subs;
+        r->w = px;
         return ok;
     }
     default: {
-        const Written ok = check_region_extent(subs, "height");
+        const Written ok = check_region_extent(px, "height");
         if (!ok.accepted) {
             return ok;
         }
-        r->h = subs;
+        r->h = px;
         return ok;
     }
     }
@@ -322,8 +328,8 @@ inline Written author_region_axis(PaneDefinition& d, std::int64_t id, std::size_
 // WL-MAKER-11 -- agents/workshop/maker-pane.md
 inline constexpr std::int64_t kNewRegionX = 0;
 inline constexpr std::int64_t kNewRegionY = 0;
-inline constexpr std::int64_t kNewRegionW = 24 * surface::kCellSubs;
-inline constexpr std::int64_t kNewRegionH = 2 * surface::kCellSubs;
+inline constexpr std::int64_t kNewRegionW = 24 * surface::kCanvasCellPx;
+inline constexpr std::int64_t kNewRegionH = 2 * surface::kCanvasCellPx;
 
 /// A FRESH DEFINITION FOR A NAME: one empty text region, minted as #1. The name is the
 /// caller's to have judged (`check_weaver_pane_name`) -- this composes a legal value and does

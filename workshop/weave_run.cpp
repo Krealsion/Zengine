@@ -62,11 +62,11 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     auto canvas = paint(session_);
     if (carried_.drag && value_drag_.moved && !value_drag_.released && drag_pointer_.understood) {
         surface::SurfaceLayer overlay;
-        const auto rect = wire_rect_of(FineRect{drag_pointer_.sub.x, drag_pointer_.sub.y,
-            12 * surface::kCellSubs, surface::kCellSubs}, surface::role::kAccent);
+        const auto rect = wire_rect_of(PixelRect{drag_pointer_.px.x, drag_pointer_.px.y,
+            12 * surface::kCanvasCellPx, surface::kCanvasCellPx}, surface::role::kAccent);
         overlay.rects.push_back(rect);
-        overlay.labels.push_back(surface::SurfaceLabel{rect.x, rect.y, "[value]", surface::role::kFill,
-                                                       rect.sub_x, rect.sub_y});
+        overlay.labels.push_back(
+            surface::SurfaceLabel{rect.x, rect.y, "[value]", surface::role::kFill});
         canvas.layers.push_back(std::move(overlay));
     }
     mail.publish(std::move(canvas));

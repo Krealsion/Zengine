@@ -112,8 +112,10 @@ inline WorkshopPaneDefinition to_file(const PaneDefinition& d) {
     out.next_id = d.next_id;
     out.regions.reserve(d.regions.size());
     for (const TextRegion& r : d.regions) {
-        out.regions.push_back(
-            WorkshopPaneRegion{r.id, kind_word(r.kind), r.x, r.y, r.w, r.h, r.text});
+        // The file keeps sub-units, `kRegionSubsPerPixel` to the pixel.
+        out.regions.push_back(WorkshopPaneRegion{
+            r.id, kind_word(r.kind), r.x * kRegionSubsPerPixel, r.y * kRegionSubsPerPixel,
+            r.w * kRegionSubsPerPixel, r.h * kRegionSubsPerPixel, r.text});
     }
     return out;
 }
@@ -176,12 +178,14 @@ inline Written definition_in(const WorkshopPaneDefinition& file, PaneDefinition&
             return Written::no("region #" + std::to_string(w.id) + ": `" + w.kind +
                                "` is not a region kind (" + kKindWords + ")");
         }
-        // COPIED, NEVER JUDGED HERE. Whether the numbers are on the lattice and the text is
-        // sayable is the definition's own law, asked once on the whole candidate below.
-        r.x = w.x;
-        r.y = w.y;
-        r.w = w.width;
-        r.h = w.height;
+        // LANDED, NEVER JUDGED HERE: the file's sub-units become the pixels the window painted
+        // them on -- a place floored, an extent its floored far edge less its floored near edge.
+        // Whether the numbers are in bounds and the text is sayable is the definition's own law,
+        // asked once on the whole candidate below.
+        r.x = surface::floor_div_px(w.x, kRegionSubsPerPixel);
+        r.y = surface::floor_div_px(w.y, kRegionSubsPerPixel);
+        r.w = surface::floor_div_px(surface::add_cells(w.x, w.width), kRegionSubsPerPixel) - r.x;
+        r.h = surface::floor_div_px(surface::add_cells(w.y, w.height), kRegionSubsPerPixel) - r.y;
         r.text = w.text;
         candidate.regions.push_back(std::move(r));
     }

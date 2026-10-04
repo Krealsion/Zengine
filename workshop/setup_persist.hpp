@@ -44,7 +44,8 @@ inline constexpr std::uintmax_t kMaxSetupBytes = 1u << 16;
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 
 inline constexpr const char* kUnitDefault = "default";
-/// VERSION 3'S GEOMETRY WORD: amounts in 1/surface::kCellSubs of a canvas cell.
+/// VERSION 3'S GEOMETRY WORD: amounts in sub-units, 48 to a canvas cell and
+/// `kSubsPerPixel` to a canvas pixel.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr const char* kUnitSubcells = "subcells";
 inline constexpr const char* kUnitPixels = "pixels";
@@ -58,6 +59,20 @@ inline constexpr const char* kUnitRightColumn = "right-column";
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr const char* kPlaceWords = "default, right-column or subcells";
 inline constexpr const char* kSizeWords = "default, subcells or pixels";
+
+/// Sub-units per canvas pixel in a `subcells` amount.
+inline constexpr std::int64_t kSubsPerPixel = 4;
+
+/// A `subcells` coordinate as the pixel the window painted it on: floored.
+inline constexpr std::int64_t px_of_subcells(std::int64_t subs) noexcept {
+    return surface::floor_div_px(subs, kSubsPerPixel);
+}
+
+/// A `subcells` extent from `at` as the pixels the window painted: its far edge floored, less
+/// its near edge floored.
+inline constexpr std::int64_t px_extent_of_subcells(std::int64_t at, std::int64_t extent) noexcept {
+    return px_of_subcells(surface::add_cells(at, extent)) - px_of_subcells(at);
+}
 
 // ---- The file's own shapes ---------------------------------------------------
 
@@ -125,11 +140,8 @@ static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kFormatVe
 /// where a value is judged.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline const char* unit_word(std::int64_t mode) {
-    if (mode == pane_unit::kSubcells) {
-        return kUnitSubcells;
-    }
     if (mode == pane_unit::kPixels) {
-        return kUnitPixels;
+        return kUnitSubcells;
     }
     if (mode == pane_unit::kRightColumn) {
         return kUnitRightColumn;
@@ -138,10 +150,16 @@ inline const char* unit_word(std::int64_t mode) {
 }
 
 inline WorkshopPanePlace place_out(const PanePlace& p) {
+    if (p.mode == pane_unit::kPixels) {
+        return WorkshopPanePlace{unit_word(p.mode), p.x * kSubsPerPixel, p.y * kSubsPerPixel};
+    }
     return WorkshopPanePlace{unit_word(p.mode), p.x, p.y};
 }
 
 inline WorkshopPaneSize size_out(const PaneSize& s) {
+    if (s.mode == pane_unit::kPixels) {
+        return WorkshopPaneSize{unit_word(s.mode), s.amount * kSubsPerPixel};
+    }
     return WorkshopPaneSize{unit_word(s.mode), s.amount};
 }
 
@@ -202,7 +220,8 @@ inline bool place_in(const WorkshopPanePlace& w, PanePlace& out) {
         return true;
     }
     if (w.mode == kUnitSubcells) {
-        out = PanePlace{pane_unit::kSubcells, w.x, w.y};
+        // Still in sub-units here: `pixels_of_subcells` lands the row, place and extent together.
+        out = PanePlace{pane_unit::kPixels, w.x, w.y};
         return true;
     }
     // THE COORDINATES COME THROUGH UNTOUCHED, and `check_pane_place` refuses them if they are
@@ -225,7 +244,7 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
         return true;
     }
     if (w.mode == kUnitSubcells) {
-        out = PaneSize{pane_unit::kSubcells, w.amount};
+        out = PaneSize{pane_unit::kPixels, w.amount};
         return true;
     }
     if (w.mode == kUnitPixels) {
@@ -233,6 +252,30 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
         return true;
     }
     return false;
+}
+
+/// ONE ROW READ IN SUB-UNITS, LANDED ON THE PIXELS THE WINDOW PAINTED IT AT. A place floors; an
+/// extent is its painted span from the authored place on its axis, or from a whole cell when the
+/// place is the code's (every default place is one). An extent said in `pixels` is a pixel count
+/// already, raised to one cell if it was less: a pane is never narrower than a cell.
+inline void pixels_of_subcells(SetupPane& row, const WorkshopSetupPane& written) {
+    const bool place = written.place.mode == kUnitSubcells;
+    const std::int64_t x0 = place ? row.place.x : 0;
+    const std::int64_t y0 = place ? row.place.y : 0;
+    if (written.width.mode == kUnitSubcells) {
+        row.width.amount = px_extent_of_subcells(x0, row.width.amount);
+    } else if (written.width.mode == kUnitPixels && row.width.amount < kPanePxMin) {
+        row.width.amount = kPanePxMin;
+    }
+    if (written.height.mode == kUnitSubcells) {
+        row.height.amount = px_extent_of_subcells(y0, row.height.amount);
+    } else if (written.height.mode == kUnitPixels && row.height.amount < kPanePxMin) {
+        row.height.amount = kPanePxMin;
+    }
+    if (place) {
+        row.place.x = px_of_subcells(row.place.x);
+        row.place.y = px_of_subcells(row.place.y);
+    }
 }
 
 /// What to say about a mode with no word: what was found and what would have worked, since a
@@ -294,8 +337,8 @@ inline bool place_in(const WorkshopPanePlace& w, PanePlace& out) {
         return true;
     }
     if (w.mode == kUnitCells) {
-        out = PanePlace{pane_unit::kSubcells, surface::subs_of_cells(w.x),
-                        surface::subs_of_cells(w.y)};
+        out = PanePlace{pane_unit::kPixels, surface::px_of_cells(w.x),
+                        surface::px_of_cells(w.y)};
         return true;
     }
     return false;
@@ -307,7 +350,7 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
         return true;
     }
     if (w.mode == kUnitCells) {
-        out = PaneSize{pane_unit::kSubcells, surface::subs_of_cells(w.amount)};
+        out = PaneSize{pane_unit::kPixels, surface::px_of_cells(w.amount)};
         return true;
     }
     if (w.mode == kUnitPixels) {
@@ -405,6 +448,7 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out,
         if (!size_in(p.height, row.height)) {
             return Written::no(unknown_unit(p.height.mode, "height", kSizeWords));
         }
+        pixels_of_subcells(row, p);
         candidate.panes.push_back(std::move(row));
     }
     // A pane that changed hands is rewritten here, in the one function that turns written rows

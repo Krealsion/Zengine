@@ -40,15 +40,15 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-06 — A typed value is refused, never clamped
 
-LAW — A typed amount is a whole number in the face's own unit, refused and never clamped: the other face's word is refused rather than converted, and the inverse to sub-units on that grain is a ceiling.
+LAW — A typed amount is a whole number in the face's own unit, refused and never clamped: the other face's word is refused rather than converted, and the inverse to pixels is exact.
 
 MEANS
-- the setup's own checks then judge the fine value; a refusal goes back to the asker's draft;
+- the setup's own checks then judge the pixel value; a refusal goes back to the asker's draft;
 - `pane_geometry_typeable` is the arrangement's admission less one refusal: off-room is typeable.
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `parse_face_amount`, `geometry_unit`;
-`workshop/screen.hpp` `subs_of_device_amount`, `FaceAmount`; `workshop/screen_pane_subject.cpp`
-`pane_geometry_typeable`; `surface/region.hpp` `device_of_subs`; `tests/test_workshop_host.cpp`
+`workshop/screen.hpp` `px_of_device_amount`, `FaceAmount`; `workshop/screen_pane_subject.cpp`
+`pane_geometry_typeable`; `surface/region.hpp` `device_of_px`; `tests/test_workshop_host.cpp`
 case `"a typed amount is read and written in the face's own unit"`, case `"a typed value
 that is not admissible is refused, and the authored row is untouched"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`

@@ -190,8 +190,8 @@ struct OutputRig {
         // A WIDTH AND HEIGHT OF ITS OWN, so a compiler's line and a reader's page fit in the room.
         const Written sized =
             author_pane_size(r.session().setup.active, builder_ref(),
-                             PaneSize{pane_unit::kSubcells, subs(150)},
-                             PaneSize{pane_unit::kSubcells, subs(24)});
+                             PaneSize{pane_unit::kPixels, cells_px(150)},
+                             PaneSize{pane_unit::kPixels, cells_px(24)});
         REQUIRE_MESSAGE(sized.accepted, sized.refusal);
         r.extent(width, height + 1);
         const ExternalPane* pane = seat_of();
@@ -582,8 +582,8 @@ void out_choose_row(OutputRig& o, const std::string& row) {
 /// A READER IN A ROOM TOO NARROW FOR ITS WHOLE STRIP.
 void narrow(OutputRig& o) {
     const Written sized = author_pane_size(o.r.session().setup.active, builder_ref(),
-                                           PaneSize{pane_unit::kSubcells, subs(30)},
-                                           PaneSize{pane_unit::kSubcells, subs(9)});
+                                           PaneSize{pane_unit::kPixels, cells_px(30)},
+                                           PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(sized.accepted, sized.refusal);
     o.r.extent(199, 56); // a DIFFERENT extent, so the room is genuinely granted again
     const ExternalPane* pane = o.seat_of();
