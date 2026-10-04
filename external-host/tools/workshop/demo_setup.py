@@ -13,6 +13,7 @@ import setups as described
 
 ROLE = "zengine.demo"
 PANE = "zengine.inventory-pane"
+WORKSHOP = "zengine.workshop"
 NO_ENTRY = {"owner": "", "entry": ""}
 CANNOT_PRESENT = "setup names a pane this Workshop cannot present: "
 
@@ -352,8 +353,11 @@ def prepare(ctx, setup, state, link):
         finally:
             weaver.close()
     stage(state, "readiness")
-    # The visible reading comes from Workshop, not a private model of its typography.
+    # The visible reading comes from Workshop, not a private model of its typography. Workshop's
+    # own panes (Layouts) are painted by Workshop itself and have no provider to wait for.
     for row in desk["fields"]["panes"]:
+        if row["provider"] == WORKSHOP:
+            continue
         view = hand.view(row["provider"], row["pane"])
         ctx.check(bool(view["rows"]), "a desk pane is not ready: %s %s" % (row["provider"], row["pane"]))
     stage(state, "ready")

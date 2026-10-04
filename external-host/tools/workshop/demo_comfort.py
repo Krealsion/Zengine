@@ -14,7 +14,11 @@ def run(ctx):
         "panes": [{"provider": "zengine.inventory-pane", "pane": "inventory",
                    "place": {"mode": "default", "x": "0", "y": "0"},
                    "width": {"mode": "default", "amount": "0"},
-                   "height": {"mode": "default", "amount": "0"}, "front": "0"}]}}
+                   "height": {"mode": "default", "amount": "0"}, "front": "0"},
+                  {"provider": "zengine.workshop", "pane": "layouts",
+                   "place": {"mode": "default", "x": "0", "y": "0"},
+                   "width": {"mode": "default", "amount": "0"},
+                   "height": {"mode": "default", "amount": "0"}, "front": "1"}]}}
     ctx.ask("zengine.inventory-pane", "PaneResetRequested", {"pane": "inventory"}, via=link, settle=True)
     ctx.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(layout)}, via=link, settle=True)
     hand = Hand(ctx, link)
