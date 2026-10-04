@@ -584,6 +584,11 @@ without this capability continues to grant `PaneRoom`, so a provider can keep a 
 Once a canvas grant exists, Workshop ignores that pane's prose content until the canvas
 capability leaves. Keyboard, text input, actions, pane placement and menus keep their owners.
 
+A canvas pane asks for its room with `v3::PaneOffered{pane, name, summary, width, height,
+text_rows}`: a body of whole canvas pixels and rows of the medium's text beneath it. Workshop
+grants exactly that body in a window, and the cells that hold it in a terminal, so a 680 by 360
+view runs in a 680 by 360 room.
+
 `PaneCanvasRoom` v3 carries `pane, grant, width, height, grain, graphical,
 text_advance_px, text_line_px`. It grants local coordinates in canvas pixels, twelve to a
 canvas cell, below the title and inside the chrome. `grain` states the medium's device

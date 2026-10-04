@@ -45,7 +45,7 @@ class FlowPane final
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered,
                        ws::PaneOperationAnswered, ws::PaneCarryAnswered,
                        loom::DispatchRefused>,
-          loom::Emit<ws::v2::PaneOffered, ws::PaneContent, ws::PaneCanvasContent,
+          loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::PaneCanvasContent,
                      ws::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested,
                      ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop,
@@ -740,8 +740,8 @@ private:
     (void)mail.as_role(pane::kRole)
         .send_to_role(
             workshop_role,
-            ws::v2::PaneOffered{pane::kPane, "Flow",
-                            "author and exercise message-driven graphs", 22, 88});
+            ws::v3::PaneOffered{pane::kPane, "Flow",
+                                "author and exercise message-driven graphs", 704, 396, 0});
     (void)mail.as_role(pane::kRole)
         .send_to_role(
             workshop_role,

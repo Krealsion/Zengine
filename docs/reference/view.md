@@ -56,11 +56,10 @@ asker's grant or from the host's trust in its plan artifacts.
 `view::View` is the participant's behaviour. It accepts the shapes its labels show, `zen.Refused`
 and the pane conversation; it emits its intents and that conversation.
 
-- It offers one pane, `view`, as its office, asking for its size and its notice rows in canvas
-  cells, never more than `workshop::kMaxPaneComfort` of either (`view::preferred_size`), and asks
-  for a seat when it starts. Workshop reads a pane's rows and
-  columns in its own text metrics, so a terminal's pane is the size exactly and a window's is
-  laid out by the window's text.
+- It offers one pane, `view`, as its office, asking for its size in canvas pixels, never more
+  than `workshop::kMaxPaneBodyPx` of either, and its notice rows of text beneath
+  (`view::offered`), and asks for a seat when it starts. Workshop grants that body exactly: a
+  window's pane is the size to the pixel, and a terminal's the cells that hold it.
 - It draws in its size within the room Workshop grants: each element at its pixels, a number
   field's text and caret, a button's label, a label and the value it shows, and beneath the size
   a notice in `view::kNoticeRows` lines of the medium's text (`view::notice_band`), so no element

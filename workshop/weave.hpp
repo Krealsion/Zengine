@@ -293,6 +293,7 @@ class WorkshopWeave
                                           zengine::surface::ClipboardCopy,
                                           zengine::workshop::PaneOffered,
                                           zengine::workshop::v2::PaneOffered,
+                                          zengine::workshop::v3::PaneOffered,
                                           zengine::workshop::SetupApplyRequested,
                                           zengine::workshop::WorkshopQuitRequested,
                                           zengine::workshop::PaneActions,
@@ -588,9 +589,10 @@ public:
     /// is bounded before a byte is retained.
     void on(const PaneOffered& offer, loom::Mail& mail);
     void on(const v2::PaneOffered& offer, loom::Mail& mail);
+    void on(const v3::PaneOffered& offer, loom::Mail& mail);
     void on(const SetupApplyRequested& request, loom::Mail& mail);
     void accept_pane_offer(const PaneOffered& offer, loom::Mail& mail,
-                           std::int64_t rows, std::int64_t columns);
+                           std::int64_t rows, std::int64_t columns, PaneBody body = {});
 
     /// An office declares what one of its panes can do, judged whole under the offer's stamp
     /// (`admit_pane_actions`, then `join_pane_rows` and the collision law) and retained only when

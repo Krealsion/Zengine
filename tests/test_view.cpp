@@ -66,7 +66,7 @@ class Desk final : public loom::Weave {
 public:
     std::vector<loom::Message> heard;
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<ws::v2::PaneOffered>(), loom::schema_of<ws::PaneContent>(),
+        return {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::PaneContent>(),
                 loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::PaneEscapeUnspent>(),
                 loom::schema_of<ws::PanePassRequested>(), loom::schema_of<ws::PaneRevealRequested>()};
     }
@@ -256,15 +256,15 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     d.height = 300;
     const auto run = rig.ask(view::ViewRun{"builder", bytes_of(d)});
     REQUIRE_MESSAGE(run.ok, run.reason);
-    // ASKED FOR ITS SIZE, in canvas cells: 600 by 300 pixels is 50 columns by 25 rows, and the
-    // notice's three rows beneath it.
-    std::optional<ws::v2::PaneOffered> offered;
+    // ASKED FOR ITS SIZE, in canvas pixels, and the notice's three rows of text beneath it.
+    std::optional<ws::v3::PaneOffered> offered;
     for (const auto& m : rig.desk->heard)
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v2::PaneOffered>()))
-            offered = loom::from_value<ws::v2::PaneOffered>(m.payload);
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>()))
+            offered = loom::from_value<ws::v3::PaneOffered>(m.payload);
     REQUIRE(offered);
-    CHECK(offered->columns == 50);
-    CHECK(offered->rows == 25 + 3); // and its notice rows beneath
+    CHECK(offered->width == 600);
+    CHECK(offered->height == 300);
+    CHECK(offered->text_rows == 3); // its notice rows beneath
     // GRANTED MORE, it is laid out in its size: its elements end where the size does, its notice
     // rows lie beneath it, and the rest of the room is its ground.
     rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 12 * 80, 12 * 40, 1, true, 8, 16});
@@ -323,8 +323,10 @@ TEST_CASE("no size the rules accept puts an element under the notice: its rows l
         const auto line = room.graphical ? (16 + 2 * 2) : 12;
         CHECK(view::notice_band(room) == 3 * line);
     }
-    // ...and the pane it asks for holds the size and the notice rows: 12 cells high, and 3.
-    CHECK(view::preferred_size(d).first == 12 + 3);
+    // ...and the pane it asks for holds the size, to the pixel, and the notice rows beneath it.
+    CHECK(view::offered(d).width == d.width);
+    CHECK(view::offered(d).height == d.height);
+    CHECK(view::offered(d).text_rows == 3);
 }
 
 TEST_CASE("a view has a size that holds its elements; one saved without a size reads with the size its elements and notice need, and is written with it") {
@@ -398,7 +400,7 @@ TEST_CASE("the view host registers a view as its own participant, granted only i
     bool offered = false, seat = false;
     for (const auto& m : rig.desk->heard) {
         if (m.provenance.authored_role() != "tally.panel") continue;
-        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v2::PaneOffered>());
+        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>());
         seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
     }
     CHECK(offered);
@@ -538,12 +540,14 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     CHECK(rig.total() == 45);
 
     // The pane a view asks for is wide enough that the refusal of a step of 0 reads whole on its
-    // notice rows, floored to cells.
-    const auto [rows, columns] = view::preferred_size(d);
+    // notice rows, in a terminal's cells: its size rounded up to whole cells, and three rows.
+    const auto o = view::offered(d);
     view::Presentation refusal;
     refusal.notice = "refused: tally on tally.panel.Count at %0 fold math.add: a step of 0 never moves the count from 0 toward 10";
     refusal.alert = true;
-    const ws::PaneCanvasRoom asked{view::kPane, 9, 12 * columns, 12 * rows, 12, false, 0, 0};
+    const auto up = [](std::int64_t px) { return (px + 11) / 12 * 12; };
+    const ws::PaneCanvasRoom asked{view::kPane, 9, up(o.width), up(o.height) + 12 * o.text_rows,
+                                   12, false, 0, 0};
     std::string notice;
     for (const auto& t : view::picture(d, {}, refusal, asked, 1).content.texts)
         if (t.role == zengine::surface::role::kAlert) notice += t.text + " ";

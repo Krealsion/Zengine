@@ -258,6 +258,11 @@ struct RuntimePane {
     std::int64_t declaration = 0;
     std::int64_t preferred_rows = 0;
     std::int64_t preferred_columns = 0;
+    /// A canvas body asked for in canvas pixels (`v3::PaneOffered`), and the rows of text beneath
+    /// it; zero when the pane asked in text, or not at all.
+    std::int64_t preferred_width = 0;
+    std::int64_t preferred_height = 0;
+    std::int64_t preferred_text_rows = 0;
 };
 
 /// Catalog rows this session holds, built-ins included: room for the standard panes, Info's and

@@ -445,18 +445,33 @@ struct Admission {
     std::int64_t kind = kFirstRuntimeKind;   ///< valid only when `written.accepted`
 };
 
+/// A canvas body a pane asked for (`v3::PaneOffered`): pixels, and rows of text beneath them.
+struct PaneBody {
+    std::int64_t width = 0, height = 0, text_rows = 0;
+};
+
 /// Admit one `PaneOffered` under the office Loom stamped on it, `mail.authored_role()`: the shape
 /// has no provider field, and `mail.sender()` is a WeaveId, which would make a reloaded provider a
 /// different pane. A refresh at capacity is allowed: capacity bounds distinct panes.
 // WL-CAT-03 -- agents/workshop/catalog.md
 inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stamped_office,
                                   const PaneOffered& offer, std::int64_t rows = 0,
-                                  std::int64_t columns = 0) {
+                                  std::int64_t columns = 0, PaneBody body = {}) {
     Admission out;
     if (rows < 0 || columns < 0 || rows > kMaxPaneComfort || columns > kMaxPaneComfort ||
         ((rows == 0) != (columns == 0))) {
         out.written = Written::no("pane comfort must be 1.." + std::to_string(kMaxPaneComfort) +
                                   " body rows and columns, or zero/zero");
+        return out;
+    }
+    if (body.width < 0 || body.height < 0 || body.width > kMaxPaneBodyPx ||
+        body.height > kMaxPaneBodyPx || ((body.width == 0) != (body.height == 0)) ||
+        body.text_rows < 0 || body.text_rows > kMaxPaneComfort ||
+        (body.width == 0 && body.text_rows != 0)) {
+        out.written = Written::no("a pane body must be 1.." + std::to_string(kMaxPaneBodyPx) +
+                                  " pixels wide and tall with 0.." +
+                                  std::to_string(kMaxPaneComfort) +
+                                  " rows of text beneath, or zero/zero");
         return out;
     }
     // The stamp is judged first, as a view, before anything owns a copy. An empty role is
@@ -519,6 +534,9 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
     row.summary = offer.summary;
     row.preferred_rows = rows;
     row.preferred_columns = columns;
+    row.preferred_width = body.width;
+    row.preferred_height = body.height;
+    row.preferred_text_rows = body.text_rows;
     out.kind = row.kind;
     runtime.entries.push_back(std::move(row));
     return out;
@@ -981,12 +999,30 @@ struct StackCapacity {
     std::size_t slots = 0;
     std::int64_t height = 0, width = 0;
     std::int64_t line = 0, column = 0, border = 0, fallback_height = 0, gap = 0;
+    /// A canvas body's own measures: the pane's edge on each side, its one header row, one row of
+    /// the medium's text, and the device unit a body is laid out on -- all canvas pixels.
+    std::int64_t edge = 0, header = 0, text_row = 0, grain = 1;
 };
 
 struct PreferredExtent { std::int64_t width = 0, height = 0; };
 
+/// The outer extent that grants a pane the body it asked for: text rows and columns at the
+/// medium's metric, or a canvas body of exactly its pixels -- rounded up to the device unit where
+/// the medium cannot say a pixel -- with its text rows beneath; never more than the room.
+// WL-PANE-17 -- agents/workshop/panes-and-windows.md
 inline PreferredExtent preferred_extent(const RuntimePane* pane, const StackCapacity& room) {
-    if (!pane || !pane->preferred_rows || !room.height) return {};
+    if (!pane || !room.height) return {};
+    if (pane->preferred_width) {
+        const auto up = [&room](std::int64_t px) {
+            const std::int64_t g = room.grain > 0 ? room.grain : 1;
+            return (px + g - 1) / g * g;
+        };
+        return {std::min(room.width, up(pane->preferred_width) + 2 * room.edge),
+                std::min(room.height, up(pane->preferred_height) +
+                                          pane->preferred_text_rows * room.text_row +
+                                          room.header + 2 * room.edge)};
+    }
+    if (!pane->preferred_rows) return {};
     return {std::min(room.width, pane->preferred_columns * room.column + 2 * room.border),
             std::min(room.height, (pane->preferred_rows + 1) * room.line + 2 * room.border)};
 }

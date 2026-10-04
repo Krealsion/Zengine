@@ -132,7 +132,9 @@ struct InventoryStory {
         }
         const auto done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
-        r.ready(); r.extent(180, 60);
+        // Tall while the panes are picked, so each seats at the size it asks for; the story's
+        // own extent follows, once every pane has the place authored below.
+        r.ready(); r.extent(180, 120);
         r.pick({"zengine.inventory-pane", "inventory"});
         source = r.session().panes.runtime.find("zengine.inventory-pane", "inventory")->kind;
         info = r.session().panes.runtime.find("zengine.info", "info")->kind;

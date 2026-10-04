@@ -881,6 +881,10 @@ accepted offer fixes the preference for that runtime pane identity. A later offe
 the label/summary but keeps the preference; authored geometry wins per axis. Workshop owns
 metric conversion, title/chrome allowance, fitting and stack seating. This is a preference,
 not a minimum size or a rectangle the provider may enforce. Simple v1 examples remain supported.
+`workshop::v3::PaneOffered` is version 3 with `width`, `height` and `text_rows`: a canvas body in
+canvas pixels, each 1..`workshop::kMaxPaneBodyPx`, and rows of the medium's own text beneath it,
+or zero/zero. Workshop grants that body exactly, rounded up to the cells that hold it in a
+terminal; the view host, Flow and the View Builder offer it.
 
 `workshop/setup_control.hpp` carries `SetupApplyRequested` (serialized setup),
 `PaneResetRequested` (pane name) and `WorkshopQuitRequested` (the one quit, answered with its

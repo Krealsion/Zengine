@@ -64,7 +64,7 @@ class ViewBuilderPane final
                        ws::PaneTextInput, ws::PaneActionRequested, ws::ActionsJudged, ws::PaneQuitRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, loom::DispatchRefused>,
-          loom::Emit<ws::v2::PaneOffered, ws::PaneContent, ws::PaneCanvasContent, ws::PaneActions,
+          loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::PaneCanvasContent, ws::PaneActions,
                      ws::PaneEscapeUnspent, ws::PanePassRequested, ws::PaneMenuRequested,
                      ws::PaneQuitAnswered, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
                      vb::ViewEdited, view::ViewRun, view::ViewApply, view::ViewStop>> {
@@ -785,7 +785,7 @@ private:
     }
     void offer(loom::Mail& mail) {
         (void)mail.as_role(vb::kRole).send_to_role(
-            workshop_role, ws::v2::PaneOffered{vb::kPane, "View Builder", "make a view by hand, then run it beside Flow", 30, 110});
+            workshop_role, ws::v3::PaneOffered{vb::kPane, "View Builder", "make a view by hand, then run it beside Flow", 880, 540, 0});
         (void)mail.as_role(vb::kRole).send_to_role(
             workshop_role, ws::PaneActions{vb::kPane,
                                            {{"save", "Save the view", input::scan::kS, input::mod::kCtrl},
