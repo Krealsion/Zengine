@@ -3610,6 +3610,13 @@ TEST_CASE("the SDL window is the person's to resize, and says how much room it h
     REQUIRE(SDL_GetWindowSize(win, &now_w, &now_h));
     CHECK(now_w == 80 * kCanvasCellPx);
     CHECK(now_h == 22 * kCanvasCellPx);
+    // ...AND, NOBODY HAVING MOVED IT, IT IS CENTRED AGAIN at its grown size.
+    {
+        int x = 0;
+        int y = 0;
+        REQUIRE(SDL_GetWindowPosition(win, &x, &y));
+        CHECK(x == usable.x + (usable.w - 80 * static_cast<int>(kCanvasCellPx)) / 2);
+    }
     // ...BUT NO FURTHER THAN ITS DISPLAY HOLDS IT: a picture wider than the display grows the
     // window to the display's usable width, and the rest is clipped.
     c.width = usable.w / static_cast<int>(kCanvasCellPx) + 40;

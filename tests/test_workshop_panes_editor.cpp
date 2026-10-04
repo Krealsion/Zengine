@@ -1586,6 +1586,9 @@ TEST_CASE("^o is the Editor's to hear while it has the keys, and the host answer
 TEST_CASE("Escape means nothing in the Editor -- no mode closes, no text moves") {
     EditorRig e("edit-escape");
     e.open();
+    // The desktop's put-down row is mounted, so an Escape Workshop answered itself would put the
+    // Editor down: the Editor keeps it because it declares that it judges its own Escape.
+    (void)mount_desktop(e.r);
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 1);
     e.key(input::scan::kEscape);
