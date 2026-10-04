@@ -242,6 +242,7 @@ loom::Grant grant_for(const GuestRow& row) {
                                       "DemoWorkFinished", "DemoResetRequested", "DemoStatusRequested", "DemoReadyRequested"})
                 g.allow_to_role(shape, 1, zengine::demo::kRole);
             g.allow_to_role(SetupApplyRequested::zen_name, 1, "zengine.workshop");
+            g.allow_to_role(WorkshopQuitRequested::zen_name, 1, "zengine.workshop");
             for (const char* role : {"zengine.info", "zengine.composer", "zengine.inventory-pane"})
                 g.allow_to_role(PaneResetRequested::zen_name, 1, role);
         } else if (power == kPowerOpen) {

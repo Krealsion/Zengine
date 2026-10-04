@@ -267,10 +267,10 @@ TEST_CASE("two offices offering one pane key stay two panes, and neither can mov
     CHECK(resolve_pane(PaneRef{kOtherOffice, "hello"}, panes).value() == b.kind);
 }
 
-TEST_CASE("the combined catalog stops at thirty-two entries, built-ins included") {
+TEST_CASE("the combined catalog stops at its bound, built-ins included") {
     Panes panes;
     RuntimeCatalog& cat = panes.runtime;
-    // THIRTY RUNTIME ROWS, because the two compile-time ones are part of the total.
+    // THE BOUND LESS THE BUILT-INS IN RUNTIME ROWS, because the built-ins are part of the total.
     for (std::size_t i = 0; i < kMaxPaneCatalogEntries - kBuiltinPaneCount; ++i) {
         const Admission a = admit_pane_offer(
             cat, kHelloOffice, PaneOffered{"pane" + std::to_string(i), "P", "one of many"});
@@ -280,13 +280,13 @@ TEST_CASE("the combined catalog stops at thirty-two entries, built-ins included"
     CHECK(cat.entries.size() == kMaxPaneCatalogEntries - kBuiltinPaneCount);
     CHECK(cat.entries.size() + kBuiltinPaneCount == kMaxPaneCatalogEntries);
 
-    // THE THIRTY-THIRD TOTAL ROW IS REFUSED, VISIBLY, AND CHANGES NOTHING.
+    // THE ROW PAST THE BOUND IS REFUSED, VISIBLY, AND CHANGES NOTHING.
     const Admission over =
         admit_pane_offer(cat, kHelloOffice, PaneOffered{"one-too-many", "Extra", "over"});
     CHECK_FALSE(over.written.accepted);
     CHECK(over.written.refusal ==
-          "Workshop holds at most 32 panes -- `zengine.test.workshop-hello/one-too-many` was "
-          "not added");
+          "Workshop holds at most " + std::to_string(kMaxPaneCatalogEntries) +
+              " panes -- `zengine.test.workshop-hello/one-too-many` was not added");
     CHECK(cat.entries.size() == kMaxPaneCatalogEntries - kBuiltinPaneCount);
     CHECK_FALSE(resolve_pane(PaneRef{kHelloOffice, "one-too-many"}, panes).has_value());
 

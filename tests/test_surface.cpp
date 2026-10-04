@@ -3541,6 +3541,18 @@ TEST_CASE("the SDL window is the person's to resize, and says how much room it h
 
     // RESIZABLE: a person can take hold of its edge, and everything below depends on it.
     CHECK((SDL_GetWindowFlags(win) & SDL_WINDOW_RESIZABLE) != 0);
+    // SHOWN, CENTRED on its display: created hidden, placed, then shown, so it is never seen
+    // anywhere else (`keep_whole`).
+    CHECK((SDL_GetWindowFlags(win) & SDL_WINDOW_HIDDEN) == 0);
+    {
+        SDL_Rect display{};
+        REQUIRE(SDL_GetDisplayUsableBounds(SDL_GetDisplayForWindow(win), &display));
+        int x = 0;
+        int y = 0;
+        REQUIRE(SDL_GetWindowPosition(win, &x, &y));
+        CHECK(x == display.x + (display.w - 78 * static_cast<int>(kCanvasCellPx)) / 2);
+        CHECK(y == display.y + (display.h - 22 * static_cast<int>(kCanvasCellPx)) / 2);
+    }
 
     // ...WITH A FLOOR, and the floor is the first picture's own size. 78x22 cells at
     // kCanvasCellPx is what a Workshop asks for, and it is what this window will never be
@@ -3589,11 +3601,33 @@ TEST_CASE("the SDL window is the person's to resize, and says how much room it h
     // A PICTURE THAT GENUINELY DOES NOT FIT STILL GROWS THE WINDOW -- the rule that keeps a
     // board (whose publisher hears nothing) whole. Same medium, same function, no per-shape
     // special case.
-    c.width = 120;
+    SDL_Rect usable{};
+    REQUIRE(SDL_GetDisplayUsableBounds(SDL_GetDisplayForWindow(win), &usable));
+    REQUIRE(usable.w >= 80 * kCanvasCellPx);
+    c.width = 80;
     c.height = 22;
     r.intent(skin, c);
     REQUIRE(SDL_GetWindowSize(win, &now_w, &now_h));
-    CHECK(now_w == 120 * kCanvasCellPx);
+    CHECK(now_w == 80 * kCanvasCellPx);
+    CHECK(now_h == 22 * kCanvasCellPx);
+    // ...AND, NOBODY HAVING MOVED IT, IT IS CENTRED AGAIN at its grown size.
+    {
+        int x = 0;
+        int y = 0;
+        REQUIRE(SDL_GetWindowPosition(win, &x, &y));
+        CHECK(x == usable.x + (usable.w - 80 * static_cast<int>(kCanvasCellPx)) / 2);
+    }
+    // ...BUT NO FURTHER THAN ITS DISPLAY HOLDS IT: a picture wider than the display grows the
+    // window to the display's usable width, and the rest is clipped.
+    c.width = usable.w / static_cast<int>(kCanvasCellPx) + 40;
+    r.intent(skin, c);
+    REQUIRE(SDL_GetWindowSize(win, &now_w, &now_h));
+    int left = 0;
+    int top = 0;
+    int bottom = 0;
+    int right = 0;
+    (void)SDL_GetWindowBordersSize(win, &top, &left, &bottom, &right);
+    CHECK(now_w == usable.w - left - right);
     CHECK(now_h == 22 * kCanvasCellPx);
 }
 
@@ -4743,61 +4777,58 @@ TEST_CASE("a remembered placement is the medium's to judge, and the truth report
     CHECK(heard[0].maximized);
 }
 
-// ---- The adaptation law, pure (placement_within) --------------------------------------
+// ---- The window whole on a screen, pure (placement_within, centred_within) -----------------
 
-TEST_CASE("a reachable remembered position restores VERBATIM, partial overhangs included") {
+TEST_CASE("a remembered position wholly on a display restores verbatim") {
     const std::vector<DesktopSpan> one = {{0, 0, 1920, 1040}};
-    // Comfortably inside.
     auto at = placement_within(100, 100, 800, 600, one);
     REQUIRE(at.has_value());
     CHECK(at->x == 100);
     CHECK(at->y == 100);
-    // A weaver who parked most of the window off the LEFT edge meant it: 100 visible
-    // pixels of the top strip is a grab, and the intent survives.
-    at = placement_within(-700, 100, 800, 600, one);
+    // Touching every edge is still whole.
+    at = placement_within(1120, 440, 800, 600, one);
     REQUIRE(at.has_value());
-    CHECK(at->x == -700);
-    // A title bar nudged one pixel above the top is intent too, not a defect.
-    at = placement_within(100, -1, 800, 600, one);
-    REQUIRE(at.has_value());
-    CHECK(at->y == -1);
-    // The title bar reaching the bottom edge of the work area is still a grab.
-    at = placement_within(100, 1030, 800, 600, one);
-    REQUIRE(at.has_value());
-    CHECK(at->y == 1030);
+    CHECK(at->x == 1120);
+    CHECK(at->y == 440);
 }
 
-TEST_CASE("the grasp boundary is exact, in both axes") {
+TEST_CASE("a remembered position hanging off a display moves in only until it is whole") {
     const std::vector<DesktopSpan> one = {{0, 0, 1000, 500}};
-    // 32 visible pixels of width: reachable. 31: stranded, clamped fully back inside.
-    auto at = placement_within(968, 100, 200, 100, one);
+    // Most of it off the left edge: in to the edge, and the other axis stays.
+    auto at = placement_within(-700, 100, 200, 100, one);
     REQUIRE(at.has_value());
-    CHECK(at->x == 968);
-    at = placement_within(969, 100, 200, 100, one);
-    REQUIRE(at.has_value());
-    CHECK(at->x == 800); // clamped to span.x + span.w - w
+    CHECK(at->x == 0);
     CHECK(at->y == 100);
-    // The whole top strip above the display: stranded -- a window whose bottom half is
-    // visible but whose title bar is not is exactly as lost as one wholly off.
-    at = placement_within(100, -32, 200, 100, one);
+    // One pixel past the right edge: one pixel in, no more.
+    at = placement_within(801, 100, 200, 100, one);
+    REQUIRE(at.has_value());
+    CHECK(at->x == 800);
+    // The title strip above the top, and the bottom past the bottom edge.
+    at = placement_within(100, -1, 200, 100, one);
+    REQUIRE(at.has_value());
+    CHECK(at->y == 0);
+    at = placement_within(100, 450, 200, 100, one);
     REQUIRE(at.has_value());
     CHECK(at->x == 100);
-    CHECK(at->y == 0);
-    // ...and one row of the strip still on screen is a grab.
-    at = placement_within(100, -31, 200, 100, one);
-    REQUIRE(at.has_value());
-    CHECK(at->y == -31);
+    CHECK(at->y == 400);
 }
 
-TEST_CASE("a stranded position is clamped into the NEAREST current display") {
+TEST_CASE("a window is made whole on the display it belongs to") {
     // Two monitors, one at negative x -- desktop coordinates are signed territory.
     const std::vector<DesktopSpan> two = {{0, 0, 1920, 1040}, {-1920, 0, 1920, 1040}};
     // On the negative monitor, verbatim.
     auto at = placement_within(-1800, 50, 800, 600, two);
     REQUIRE(at.has_value());
     CHECK(at->x == -1800);
-    // Far left of everything: the negative monitor is nearest, and the clamp lands on
-    // its usable edge.
+    // Straddling the seam, mostly on the primary: whole on the primary.
+    at = placement_within(-200, 50, 800, 600, two);
+    REQUIRE(at.has_value());
+    CHECK(at->x == 0);
+    // Straddling the seam, mostly on the negative monitor: whole on it.
+    at = placement_within(-600, 50, 800, 600, two);
+    REQUIRE(at.has_value());
+    CHECK(at->x == -800);
+    // Far left of everything: the negative monitor is nearest.
     at = placement_within(-5000, 50, 800, 600, two);
     REQUIRE(at.has_value());
     CHECK(at->x == -1920);
@@ -4806,23 +4837,25 @@ TEST_CASE("a stranded position is clamped into the NEAREST current display") {
     at = placement_within(5000, 50, 800, 600, two);
     REQUIRE(at.has_value());
     CHECK(at->x == 1920 - 800);
-    // Wholly below the primary (no overlap with anything): the center distance picks
-    // the primary, and only the stranded axis moves.
+    // Wholly below the primary: the center distance picks it, and only that axis moves.
     at = placement_within(400, 1200, 800, 600, two);
     REQUIRE(at.has_value());
     CHECK(at->x == 400);
     CHECK(at->y == 1040 - 600);
 }
 
-TEST_CASE("a window larger than the work area aligns to its top-left corner") {
+TEST_CASE("a window larger than the work area keeps its top-left on it") {
     const std::vector<DesktopSpan> one = {{0, 0, 1280, 720}};
-    const auto at = placement_within(-4000, -4000, 2400, 1400, one);
+    // The strip a hand drags it by stays on the screen; the excess overflows right and down.
+    // The SIZE is untouched -- this law moves a window, never sizes one.
+    auto at = placement_within(-4000, -4000, 2400, 1400, one);
     REQUIRE(at.has_value());
-    // The grab strip is brought fully inside; the excess overflows right and down,
-    // where the platform's own affordances still reach it. The SIZE is untouched --
-    // this law moves a window, never sizes one.
     CHECK(at->x == 0);
     CHECK(at->y == 0);
+    at = placement_within(300, 200, 2400, 600, one);
+    REQUIRE(at.has_value());
+    CHECK(at->x == 0);
+    CHECK(at->y == 120);
 }
 
 TEST_CASE("with no display truth there is NO answer, and no blind move") {
@@ -4831,6 +4864,41 @@ TEST_CASE("with no display truth there is NO answer, and no blind move") {
     // refuse; answering any other position would be a guess. No answer: the window
     // stays where the platform put it.
     CHECK_FALSE(placement_within(100, 100, 800, 600, {}).has_value());
+}
+
+TEST_CASE("a window nobody placed is centred on its display, and a larger one keeps its corner") {
+    const DesktopSpan primary{0, 0, 1920, 1040};
+    auto at = centred_within(800, 600, primary);
+    CHECK(at.x == 560);
+    CHECK(at.y == 220);
+    // A display at negative coordinates is centred in its own territory.
+    at = centred_within(800, 600, DesktopSpan{-1920, -1080, 1920, 1040});
+    CHECK(at.x == -1920 + 560);
+    CHECK(at.y == -1080 + 220);
+    // Grown past the display's height: centred across, its top on the screen.
+    at = centred_within(800, 1400, primary);
+    CHECK(at.x == 560);
+    CHECK(at.y == 0);
+    // The display it belongs to is the one it overlaps most.
+    const std::vector<DesktopSpan> two = {primary, {-1920, 0, 1920, 1040}};
+    CHECK(home_display(-700, 50, 800, 600, two).x == -1920);
+    CHECK(home_display(-100, 50, 800, 600, two).x == 0);
+}
+
+TEST_CASE("a picture grows a window only as far as its display holds it, frame and all") {
+    const DesktopSpan display{0, 0, 1920, 1032};
+    // Room enough: the picture's size.
+    PlanSize grown = grown_within(PlanSize{1200, 700}, PlanSize{800, 600}, 16, 39, display);
+    CHECK(grown.w == 1200);
+    CHECK(grown.h == 700);
+    // A picture wider and taller than the display: the usable area less the frame, no more.
+    grown = grown_within(PlanSize{2400, 1440}, PlanSize{800, 600}, 16, 39, display);
+    CHECK(grown.w == 1920 - 16);
+    CHECK(grown.h == 1032 - 39);
+    // Never smaller than the window already is: a weaver's own larger window stays.
+    grown = grown_within(PlanSize{2400, 700}, PlanSize{2200, 600}, 16, 39, display);
+    CHECK(grown.w == 2200);
+    CHECK(grown.h == 700);
 }
 
 // ---- What a medium makes of the attention slot --------------------------------------------

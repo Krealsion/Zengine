@@ -194,9 +194,9 @@ Escape meaning answers first, and deselection waits"`, case `"a desk with no
 unoccupied cell still reaches selection = none"`.
 WHY — `agents/decisions/escape-is-back.md`
 
-## WL-ARR-14 — A place a weaver types into keeps Escape
+## WL-ARR-14 — A pane that judges its own Escape is sent it
 
-LAW — A focused external pane that takes keys is sent the key and keeps it -- the Editor's Escape is a pinned no-op in its own image -- so the way out is a press elsewhere, or the pane's own word (WL-ARR-15).
+LAW — A focused external pane whose holder lists `PaneEscapeUnspent` among what it emits is sent a bare Escape no row claims, and keeps it unless it says it was unspent; the editors keep every Escape.
 
 PROVEN BY — `workshop/weave_external.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
 `default_row_context`, `keyboard_context`; `tests/test_workshop_panes_input.cpp` case
@@ -211,7 +211,7 @@ LAW — `PaneEscapeUnspent{pane}` from the office that offered it, echoing the n
 
 MEANS
 - what is shed is `unselect_pane`'s two lines: nothing closes, and no arrangement moves;
-- a pane that never says it keeps Escape: silence is not permission, and nothing answers it;
+- the default a pane gets is to drop its selection first, then say the word (`pane_escape`);
 - zero, another Escape's number, a spent one, or a later gesture: the word moves nothing.
 
 DOES NOT MEAN — a consumption protocol: it is Escape's own last meaning, asked for by the party
@@ -220,7 +220,8 @@ that knows whether Escape meant anything there.
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneEscapeUnspent`; `workshop/weave.hpp`
 `WorkshopWeave::gestures_`, `WorkshopWeave::escape_sent_`, `WorkshopWeave::GestureSent`,
 `WorkshopWeave::gesture_asks_`; `workshop/weave_external.cpp` `on(PaneEscapeUnspent)`,
-`WorkshopWeave::external_key`; `terminal-pane/pane.cpp` `composing_nothing`;
+`WorkshopWeave::external_key`; `workshop/pane_escape.hpp` `answer`, `unspent`, `bare`;
+`terminal-pane/pane.cpp` `composing_nothing`;
 `tests/test_workshop_panes_input.cpp` case `"a pane that takes keys keeps Escape until it says the
 Escape was unspent"`, case `"a word about an Escape moves nothing when it is stale or anonymous or
 about another pane"`, case `"an answer to an Escape that is over cannot borrow the next Escape's
@@ -233,15 +234,20 @@ WHY — `agents/decisions/escape-is-back.md`
 
 ## WL-ARR-16 — An Escape no holder could take crosses as nothing, and the last meaning answers
 
-LAW — A bare Escape is not sent to the keyboard's pane when that office's holder accepts no `PaneKey` and the pane declared no row for it; nothing crosses, and the selection is shed as it is in command mode.
+LAW — A bare Escape no pane row claims is not sent when the office's holder accepts no `PaneKey` or declares no `PaneEscapeUnspent`; nothing crosses, and the selection is shed as in command mode.
 
 MEANS
-- the accept-set is the holder's own declaration, read off the bus at that keystroke;
+- the accept-set and emit-set are the holder's declarations, read off the bus at the keystroke;
 - a host that cannot answer which doors a holder has sends the key exactly as before;
 - a pane that declared a row on Escape is sent the resolved id and owns it (WL-KEY-15).
 
-PROVEN BY — `workshop/weave_external.cpp` `external_key`; `workshop/weave_handlers.cpp`
-`on(KeyPressed)`; `workshop/weave.hpp` `HostContext::holder_accepts`;
+PROVEN BY — `workshop/weave_external.cpp` `external_key`, `holder_emits_on`;
+`workshop/weave_handlers.cpp` `on(KeyPressed)`; `workshop/weave.hpp`
+`HostContext::holder_accepts`, `HostContext::holder_emits`;
+`tests/test_workshop_panes_input.cpp` case `"a pane that never mentions Escape is put down by it,
+and is sent nothing"`, case `"every shipped pane that holds the keys and selects nothing hands a
+bare Escape back"`; `tests/test_workshop_inventory_info.cpp` case
+`"escape: Loaded and Powers let go of the row a weaver chose first, and are put down next"`;
 `tests/test_workshop_panes_attention.cpp` case `"a pane whose holder has no door for a key is put
 down by Escape, and nothing is sent"`.
 WHY — `agents/decisions/escape-is-back.md`
@@ -250,5 +256,6 @@ WHY — `agents/decisions/escape-is-back.md`
 
 - That Escape with a pane selected does nothing, or closes the pane — it puts the selection
   down, last, and closes, moves, ranks and writes nothing (WL-ARR-13).
-- That a focused pane's Escape reaches Workshop by itself — a pane that takes keys keeps it
-  until it says the Escape was unspent (WL-ARR-15, WL-ARR-16).
+- That a focused pane's Escape reaches Workshop by itself — a pane that judges its own Escape
+  keeps it until it says the Escape was unspent, and one that does not judge it is never sent it
+  (WL-ARR-15, WL-ARR-16).

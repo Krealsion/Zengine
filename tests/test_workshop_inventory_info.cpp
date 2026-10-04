@@ -1333,3 +1333,199 @@ TEST_CASE("shapes cross between Flow and the View Builder by dragging: the inten
     CHECK(pictured(s, s.builder, "label1: waiting"));
     CHECK_FALSE(landing());
 }
+
+TEST_CASE("escape: Loaded and Powers let go of the row a weaver chose first, and are put down next") {
+    // Escape's default in a pane that holds the keys: the first Escape drops the chosen row and
+    // keeps the pane, the second finds nothing selected and hands the Escape back (WL-ARR-15).
+    InventoryStory s(191, false, false, false, true);
+    (void)mount_desktop(s.r);
+    s.r.pick({intro::kIntrospectionRole, intro::kLoadedPane});
+    const RuntimePane* loaded = s.r.session().panes.runtime.find(intro::kIntrospectionRole, intro::kLoadedPane);
+    REQUIRE(loaded != nullptr);
+    REQUIRE(s.r.session().panes.has(loaded->kind));
+    // A loaded weave's row in Loaded: the first row a press there marks.
+    std::int64_t entry_row = -1;
+    for (std::int64_t row = 0; row < 12 && entry_row < 0; ++row) {
+        const std::string before = s.shown(loaded->kind);
+        s.click(loaded->kind, row);
+        if (s.shown(loaded->kind) != before) entry_row = row;
+    }
+    REQUIRE_MESSAGE(entry_row >= 0, s.shown(loaded->kind));
+    struct Chosen {
+        std::int64_t kind;
+        std::function<void()> choose;
+    };
+    for (const Chosen& c : {Chosen{loaded->kind, [&] { s.click(loaded->kind, entry_row); }},
+                            Chosen{s.powers, [&] { s.click(s.powers); s.key(input::scan::kTab);
+                                                   s.key(input::scan::kDown); }}}) {
+        CAPTURE(c.kind);
+        c.choose();
+        REQUIRE(s.r.session().panes.keyboard == c.kind);
+        const std::string marked = s.shown(c.kind);
+        s.key(input::scan::kEscape);
+        CHECK(s.r.session().panes.selected == c.kind);
+        CHECK(s.r.session().panes.keyboard == c.kind);
+        CHECK_MESSAGE(s.shown(c.kind) != marked, marked);
+        s.key(input::scan::kEscape);
+        CHECK(s.r.session().panes.selected == kNoPaneKind);
+        CHECK(s.r.session().panes.keyboard == kNoPaneKind);
+        CHECK(s.r.session().panes.has(c.kind));
+    }
+}
+
+TEST_CASE("a text view of a pane that draws a picture is refused in words that say so") {
+    // `demo.py` reads a desk pane as shown when Workshop gives its rows or says it draws a picture;
+    // the View Builder draws one, and a pane with no picture yet is refused in other words.
+    InventoryStory s(191, false, false, false, false, true);
+    s.hand->expect_refusal = true;
+    s.act([](loom::Mail& m) {
+        m.send_to_role("zengine.workshop", PaneViewRequested{"zengine.view.builder", "view-builder"});
+    });
+    REQUIRE(s.hand->refusals.size() == 1);
+    CHECK(s.hand->refusals.back() == "pane view unavailable: the pane draws a picture, not text rows");
+}
+
+namespace {
+
+/// An office that counts the story's commands it is sent: where a hotkey's command lands.
+struct SinkState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(SinkState, 1, ZEN_FIELD(heard));
+};
+class StorySink final : public loom::Weave {
+public:
+    StorySink()
+        : shape_(loom::SchemaBuilder("story.RuntimeItem", 1).field("count", loom::Kind::Int).build()) {}
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override { return {shape_}; }
+    void handle(const loom::Message& in, loom::Bus&) override {
+        if (loom::same_identity(*shape_, in.payload.schema())) ++state_.heard;
+    }
+    loom::Value snapshot() const override { return loom::to_value(state_); }
+    loom::Value policy() const override {
+        loom::Value v(loom::lifecycle_policy_schema());
+        v.set("max_reloads", loom::Cell::integer(0));
+        v.set("revive_from_last_good", loom::Cell::boolean(false));
+        return v;
+    }
+    void revive(const loom::Value& state) override { state_ = loom::from_value<SinkState>(state); }
+    SinkState state_;
+
+private:
+    std::shared_ptr<const loom::Schema> shape_;
+};
+
+} // namespace
+
+TEST_CASE("hotkeys: many hotkeys on at once, each reaching its own command, nothing refusing first") {
+    // Nothing between a configured hotkey and its command refuses first: Inventory, one provider's
+    // shortcuts at Desktop, the application rows and the pane's own rows. Sixty-four runs the whole
+    // chain at a fraction of the full bound's cost, which is one pane edit per hotkey; each bound
+    // is pinned at its full size by its own case. The chords are the keymap's own names under
+    // modifier sets no host row uses.
+    InventoryStory s(191 | 512, true);
+    std::vector<std::pair<std::int64_t, std::int64_t>> chords;
+    using input::mod::kAlt;
+    using input::mod::kCtrl;
+    using input::mod::kShift;
+    using input::mod::kSuper;
+    for (const std::int64_t mods : {kSuper, kSuper | kCtrl, kSuper | kAlt, kSuper | kShift,
+                                    kSuper | kCtrl | kAlt, kSuper | kCtrl | kShift,
+                                    kSuper | kAlt | kShift, kSuper | kCtrl | kAlt | kShift,
+                                    kCtrl | kAlt | kShift}) {
+        for (std::int64_t sc = 1; sc < 512; ++sc) {
+            if (key_name_of(sc) != nullptr) chords.emplace_back(sc, mods);
+        }
+    }
+    const std::size_t count = 64;
+    REQUIRE(chords.size() > slots::kMaxConfiguredHotkeys);
+    const auto padded = [](std::size_t i) {
+        std::string n = std::to_string(i);
+        return std::string(4 - n.size(), '0') + n;
+    };
+    std::vector<inv::InventoryReference> refs;
+    for (std::size_t i = 0; i < count; ++i) s.append(static_cast<std::int64_t>(i), "cmd" + padded(i));
+    s.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryList{}); });
+    for (const auto& e : s.hand->listing.entries) {
+        if (e.label.rfind("cmd", 0) == 0) refs.push_back(e.reference);
+    }
+    REQUIRE(refs.size() == count);
+    for (std::size_t i = 0; i < count; ++i) {
+        slots::InventoryViewEdit op;
+        op.operation = "bind"; op.entry = refs[i]; op.text = "story.target." + padded(i);
+        op.scancode = chords[i].first; op.modifiers = chords[i].second;
+        s.change(op);
+        op = {}; op.operation = "enable"; op.entry = refs[i]; op.enabled = true;
+        s.change(op);
+    }
+    REQUIRE(s.layout().bindings.size() == count);
+    // ALL ON AT ONCE: one registration of every one of them.
+    s.context("inventory", true);
+    REQUIRE(slots::shortcuts(s.layout()).size() == count);
+    // PRESSED ON THE WEAVER'S OWN KEYBOARD, whose commands need no guest's authority: the first,
+    // a middle and the last chord each send their own command to their own office, and only there.
+    std::vector<std::pair<std::size_t, StorySink*>> sinks;
+    for (const std::size_t i : {std::size_t{0}, count / 2, count - 1}) {
+        auto made = std::make_unique<StorySink>();
+        sinks.emplace_back(i, made.get());
+        (void)s.r.bus.register_weave(std::move(made), loom::Grant{}, "story.target." + padded(i));
+    }
+    for (const auto& [i, sink] : sinks) {
+        CAPTURE(i);
+        input::KeyPressed pressed;
+        pressed.scancode = chords[i].first;
+        pressed.modifiers = chords[i].second;
+        s.physical->push_back(pressed);
+        s.pump_physical();
+        CHECK_MESSAGE(sink->state_.heard == 1, (s.shown(s.source) + s.r.last_notice()));
+    }
+    for (const auto& [i, sink] : sinks) {
+        CHECK(sink->state_.heard == 1); // and no chord reached another's office
+    }
+}
+
+TEST_CASE("views: every view Inventory makes is offered beside the other panes, and one desk seats them all") {
+    // Each view is a pane Workshop's catalog holds, beside the panes this story loads, and a desk
+    // naming all of them is applied and every view seated. Applying it is a repaint per pane, so it
+    // is also the case that keeps that repaint's cost from growing with the desk's square.
+    InventoryStory s(191, true, false, false, true, true);
+    s.r.extent(156, 60);
+    for (std::size_t i = 0; i < slots::kMaxPortableViews; ++i)
+        (void)s.create(i % 3 == 0 ? "single" : (i % 3 == 1 ? "row" : "column"));
+    const auto views = s.layout().views;
+    REQUIRE(views.size() == slots::kMaxPortableViews);
+    for (const auto& v : views) REQUIRE(s.r.session().panes.runtime.find(slots::kRole, v.id) != nullptr);
+    CHECK(s.r.session().panes.runtime.entries.size() + kBuiltinPaneCount > 32);
+    Setup desk;
+    desk.name = "Thirty-six views";
+    const auto seat = [&](const PaneRef& ref, std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) {
+        REQUIRE(add_pane(desk, ref));
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref) {
+                row.place = {pane_unit::kSubcells, x * surface::kCellSubs, y * surface::kCellSubs};
+                row.width = {pane_unit::kSubcells, w * surface::kCellSubs};
+                row.height = {pane_unit::kSubcells, h * surface::kCellSubs};
+            }
+        }
+    };
+    REQUIRE(add_pane(desk, PaneRef{"zengine.workshop", "layouts"}));
+    seat({slots::kRole, "inventory"}, 1, 2, 50, 22);
+    seat({"zengine.info", "info"}, 122, 2, 33, 22);
+    for (std::size_t i = 0; i < views.size(); ++i) {
+        const auto col = static_cast<std::int64_t>(i % 6), line = static_cast<std::int64_t>(i / 6);
+        seat({slots::kRole, views[i].id}, 1 + col * 25, 29 + line * 5, 24, 5);
+    }
+    REQUIRE(desk.panes.size() > 32);
+    const Written judged = check_setup(desk);
+    REQUIRE_MESSAGE(judged.accepted, judged.refusal);
+    // As the demo guest's door would: Workshop's own setup application, whole.
+    (void)s.r.bus.send_to_role("zengine.workshop",
+                               loom::Message(loom::to_value(SetupApplyRequested{setup_persist::to_text(desk)})));
+    s.r.bus.drain_until_idle();
+    CHECK(s.r.session().setup.active.name == "Thirty-six views");
+    for (const auto& v : views) {
+        CAPTURE(v.id);
+        const RuntimePane* row = s.r.session().panes.runtime.find(slots::kRole, v.id);
+        REQUIRE(row != nullptr);
+        CHECK(s.r.session().panes.has(row->kind));
+    }
+}

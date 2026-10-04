@@ -9,6 +9,9 @@
 #include <optional>
 #include <set>
 namespace zengine::desktop_pane {
+/// The most switched-on shortcuts one provider may propose: as many as Inventory may switch on.
+/// Each becomes an application row, and two rows never share a gesture.
+inline constexpr std::size_t kMaxProviderShortcuts = 512;
 class Shortcuts {
     struct Owner { loom::WeaveId holder; std::vector<workshop::PaneShortcut> rows; };
     using Owners = std::map<std::string, Owner>;
@@ -34,7 +37,9 @@ public:
         const std::string office(mail.authored_role());
         if (office.empty()) return refuse("Shortcuts require an authored provider office");
         if (pending_) return refuse("Another shortcut declaration is pending; try again");
-        if (request.rows.size() > 24) return refuse("A provider may propose at most 24 active shortcuts");
+        if (request.rows.size() > kMaxProviderShortcuts)
+            return refuse("A provider may propose at most " + std::to_string(kMaxProviderShortcuts) +
+                          " active shortcuts");
         std::set<std::string> ids;
         for (const auto& row : request.rows)
             if (row.id.empty() || row.pane.empty() || row.action.empty() || row.label.empty() ||

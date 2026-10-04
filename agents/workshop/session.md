@@ -76,15 +76,19 @@ LAW — The quit key, the interrupt chord and the medium's close request all rea
 
 MEANS
 - crash durability is not claimed: `write_file` does not fsync; a killed run loses its session;
-- `finish_quit` is the one place the desk is written and the bus stopped.
+- `finish_quit` is the one place the desk is written and the bus stopped;
+- a guest's `WorkshopQuitRequested` is that quit too, answered `Ack` or the refusal's own words.
 
-PROVEN BY — `workshop/weave_run.cpp` `quit`, `finish_quit`; `workshop/weave_session.cpp`
-`save_last_session`;
+PROVEN BY — `workshop/weave_run.cpp` `quit`, `finish_quit`, `on(WorkshopQuitRequested)`,
+`answer_quit_ask`; `workshop/setup_control.hpp` `WorkshopQuitRequested`;
+`workshop/weave_session.cpp` `save_last_session`;
 `workshop/weave_handlers.cpp` `on(SurfaceCloseRequested)`; `workshop/weave.hpp`
 `HostContext::session_path`; `workshop/persist.hpp` `write_file`; `surface/vocabulary.hpp`
 `SurfaceCloseRequested`; `workshop/session_persist.hpp` `save_file`;
-`tests/test_workshop_persistence.cpp` case `"the second session replaces the first, room and desk
-both"`, case `"a write that fails leaves the last good session where it was"`;
+`tests/test_workshop_panes_editor.cpp` case `"a guest's quit is answered in the words of what kept
+Workshop open, and Ack once it ends"`; `tests/test_workshop_persistence.cpp` case `"the second
+session replaces the first, room and desk both"`, case `"a write that fails leaves the last good
+session where it was"`;
 `tests/test_workshop_document.cpp` case `"the native close request reaches the quit policy `q`
 already had"`.
 WHY — `agents/decisions/three-ownership-domains.md`

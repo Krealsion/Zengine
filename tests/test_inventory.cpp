@@ -738,14 +738,15 @@ TEST_CASE("collection: malformed additions and capacity refusal preserve all sav
     r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{{1,2}, "broken"}); });
     r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, "bad\nname"}); });
     REQUIRE(r.caller->refusals.size() == 2);
-    for (int i = 0; i < 256; ++i)
+    for (std::size_t i = 0; i < inv::kMaxSavedEntries; ++i)
         r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, std::to_string(i)}); });
-    REQUIRE(r.caller->entries.size() == 256);
+    REQUIRE(r.caller->entries.size() == inv::kMaxSavedEntries);
     const auto first = r.caller->entries.front();
     r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, "overflow"}); });
     REQUIRE(r.caller->refusals.size() == 3);
     r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryList{}); });
-    CHECK(r.caller->lists.back().entries.size() == 256);
+    CHECK(r.caller->lists.back().entries.size() == inv::kMaxSavedEntries);
+    CHECK(r.caller->refusals.back() == "inventory has reached its 1024 saved-entry limit");
     r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{first.reference}); });
     CHECK(r.caller->entries.back().pair == first.pair);
 }
@@ -799,6 +800,73 @@ TEST_CASE("toolbox restore is a conditional whole-collection replacement with fr
     CHECK(r.caller->entries.back().revision == 1);
 }
 
+TEST_CASE("Inventory keeps its bound of hotkeys configured, every one on at once, and refuses the next") {
+    namespace slots = zengine::inventory_pane;
+    slots::InventoryViews state;
+    state.inventory_active = true;
+    const auto entry = [](std::size_t i) {
+        return zengine::inventory::InventoryReference{"owner", "e" + std::to_string(i)};
+    };
+    for (std::size_t i = 0; i < slots::kMaxConfiguredHotkeys; ++i) {
+        slots::InventoryViewEdit op;
+        op.operation = "bind"; op.entry = entry(i); op.text = "target.office";
+        op.scancode = static_cast<std::int64_t>(1 + i % 400);
+        op.modifiers = static_cast<std::int64_t>(i / 400 + 1);
+        state = slots::edited(state, op);
+        op.operation = "enable"; op.enabled = true;
+        state = slots::edited(state, op);
+    }
+    CHECK(state.bindings.size() == 512);
+    CHECK(slots::shortcuts(state).size() == slots::kMaxConfiguredHotkeys);
+    slots::InventoryViewEdit more;
+    more.operation = "bind"; more.entry = entry(slots::kMaxConfiguredHotkeys);
+    more.text = "target.office"; more.scancode = 4;
+    CHECK_THROWS_WITH(slots::edited(state, more), "At most 512 configured command hotkeys");
+    // A toolbox file holds no more of them than Inventory keeps.
+    slots::v2::InventoryToolbox file;
+    file.bindings.resize(slots::kMaxConfiguredHotkeys + 1);
+    CHECK_THROWS_WITH(slots::validate_toolbox(file),
+                      "toolbox exceeds the portable view or binding limit");
+}
+
+TEST_CASE("a toolbox archive holds every saved entry a collection may, beside the slot, and no more") {
+    const auto pair = as_bytes(inv::encode_pair(make_sample(7, "data", {}), {}));
+    inv::v2::InventoryArchive archive;
+    const auto key = [](std::size_t i) {
+        std::string k = std::to_string(i);
+        return std::string(32 - k.size(), '0') + k;
+    };
+    archive.entries.push_back({key(0), "slot", pair, true, {}});
+    for (std::size_t i = 1; i <= inv::kMaxSavedEntries; ++i)
+        archive.entries.push_back({key(i), "entry " + std::to_string(i), pair, false, {}});
+    CHECK_NOTHROW(inv::validate_archive(archive));
+    archive.entries.push_back({key(inv::kMaxSavedEntries + 1), "one more", pair, false, {}});
+    CHECK_THROWS_WITH(inv::validate_archive(archive), "toolbox exceeds the inventory capacity");
+}
+
+TEST_CASE("Inventory makes portable views up to its bound and refuses the next in words") {
+    namespace slots = zengine::inventory_pane;
+    slots::InventoryViews state;
+    for (std::size_t i = 0; i < slots::kMaxPortableViews; ++i) {
+        slots::InventoryViewEdit op;
+        op.operation = "create";
+        op.text = i % 3 == 0 ? "single" : (i % 3 == 1 ? "row" : "column");
+        state = slots::edited(state, op);
+    }
+    REQUIRE(state.views.size() == slots::kMaxPortableViews);
+    CHECK(state.views.size() == 36);
+    slots::InventoryViewEdit more;
+    more.operation = "create";
+    more.text = "single";
+    CHECK_THROWS_WITH(slots::edited(state, more), "At most 36 portable inventory views");
+    // ...and a toolbox file holds every one of them, and no more.
+    slots::v2::InventoryToolbox file;
+    for (const auto& v : state.views) file.views.push_back({v.id, v.kind, {}});
+    CHECK_NOTHROW(slots::validate_toolbox(file));
+    file.views.push_back({"inventory.999", "row", {}});
+    CHECK_THROWS(slots::validate_toolbox(file));
+}
+
 TEST_CASE("toolbox files round trip nested typed data partial commands and inactive configuration") {
     namespace slots = zengine::inventory_pane;
     namespace draft = zengine::message_draft;
@@ -846,7 +914,8 @@ TEST_CASE("toolbox files round trip nested typed data partial commands and inact
     auto named = read; named.views.front().id = "inventory.9";
     CHECK(slots::toolbox_layout(named, {}).views.front().id == "inventory.9");
     slots::InventoryViews full;
-    for (int i = 10; i < 22; ++i) full.views.push_back({"inventory." + std::to_string(i), "row", false, {}});
+    for (std::size_t i = 0; i < slots::kMaxPortableViews; ++i)
+        full.views.push_back({"inventory." + std::to_string(10 + i), "row", false, {}});
     CHECK_THROWS(slots::toolbox_layout(read, full));
     // Ordinary overwrite works on Windows as well as Linux, and invalid candidates do not write.
     file.archive.entries[0].label = "Updated"; slots::write_toolbox(path, file);

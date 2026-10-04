@@ -15,7 +15,7 @@ input                             doctest           always  50
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 input                             doctest           sdl     3
-surface                           doctest           always  104
+surface                           doctest           always  106
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  44
@@ -51,10 +51,10 @@ workshop_host                   doctest           always  96
 # workshop/arrangement.hpp, workshop/powers_door.hpp, the Introspection, Builder, Info, Terminal
 # and Editor panes' sources and CMake files, and tests/weavelib/legacy_pane.cpp as text
 # (VM-WALL-11).
-workshop_panes                    doctest           always  871
+workshop_panes                    doctest           always  880
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text
 # (VM-WALL-11).
-workshop_persistence              doctest           always  156
+workshop_persistence              doctest           always  157
 workshop_load                     doctest           always  161
 workshop_editor_switch            doctest           always  11
 workshop_neovim                   doctest           always  8
@@ -83,7 +83,7 @@ flow                              doctest           always  60
 message_draft                     doctest           always  11
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
-inventory                         doctest           always  36
+inventory                         doctest           always  39
 flow_pane                         doctest           always  25
 view                              doctest           always  14
 view_builder                      doctest           always  26

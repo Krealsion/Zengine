@@ -57,7 +57,7 @@ inline std::int64_t toolbox_view_number(const std::string& id) {
 
 inline void validate_toolbox(const v2::InventoryToolbox& file) {
     inventory::validate_archive(file.archive);
-    if (file.views.size() > 12 || file.bindings.size() > 16)
+    if (file.views.size() > kMaxPortableViews || file.bindings.size() > kMaxConfiguredHotkeys)
         throw std::invalid_argument("toolbox exceeds the portable view or binding limit");
     std::set<std::string> entries, placed, bound, views;
     for (const auto& e : file.archive.entries) entries.insert(e.key);
@@ -114,8 +114,10 @@ inline InventoryViews toolbox_layout(const v2::InventoryToolbox& file, const Inv
         layout.serial = std::max(layout.serial, toolbox_view_number(saved.id));
         auto* view = find(layout, saved.id);
         if (!view) {
-            if (layout.views.size() >= 12)
-                throw std::invalid_argument("toolbox plus already offered views exceed twelve; restore in a fresh Workshop");
+            if (layout.views.size() >= kMaxPortableViews)
+                throw std::invalid_argument("toolbox plus already offered views exceed " +
+                                            std::to_string(kMaxPortableViews) +
+                                            "; restore in a fresh Workshop");
             layout.views.push_back({saved.id, saved.kind, false, {}});
             view = &layout.views.back();
         }

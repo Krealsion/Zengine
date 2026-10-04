@@ -17,6 +17,7 @@
 #include "workshop/pane_text.hpp"
 
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_escape.hpp"
 
 #include "activation/activation.hpp"
 #include "builder/vocabulary.hpp"
@@ -197,7 +198,7 @@ class BuilderPaneWeave
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
                      RecipeSourceRequested, OpenSourceRequested, PaneMenuRequested,
-                     PanePassRequested, ws::PaneKeyboardRequested,
+                     PanePassRequested, ws::PaneKeyboardRequested, ws::PaneEscapeUnspent,
                      surface::ClipboardCopy, surface::ClipboardTextRequested,
                      builder::BuildOutputRequested>> {
 public:
@@ -237,6 +238,10 @@ public:
     /// component's, not the pane's commands.
     void on(const PaneKey& key, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || key.pane != pane::kBuilderPane) {
+            return;
+        }
+        // Escape's default: this pane holds nothing selected, so it hands Escape back.
+        if (ws::pane_escape::answer(key, mail, pane::kBuilderPaneRole, [] { return false; })) {
             return;
         }
         if (!role_.open) {

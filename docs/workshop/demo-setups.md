@@ -15,6 +15,9 @@ its Python service for the whole instance. Your normal Workshop and its saved fi
 | `editor-materials` | Editor, Inventory, Files, Terminal, Demo | Carry a selection, a Terminal command and a file place into named folders, save a toolbox, and bring them back in another Workshop ([carrying](editor.md#carrying-text-commands-and-file-places)) |
 | `tower-defense` | Editor, Files, Builder, the game, Inventory, a hotkey row, Demo | The [tower defense example](../../examples/tower-defense/README.md#a-ready-development-desk) built and loaded; **Alt+1..Alt+5** run its game commands |
 
+Every starting desk also has the Layouts row along the top, which you can take off and bring
+back as on any desk.
+
 ![The workbench setup ready: its toolbox restored and its Alt+1 capture row ON](images/setup-workbench-ready.png)
 
 ![A value edited in Info beside Inventory and Reset demo](images/demo-values.png)
@@ -52,8 +55,10 @@ python external-host/demo.py stop --root demo-runs/workbench
 Substitute your build tree and installed prefix. A missing prerequisite is named, with the flag or
 build step that supplies it, before anything starts. `start` makes a **new** root: Workshop, its
 guest file, a Loom session and the setup's preparation service. It returns once the service says
-the setup is ready -- every desk pane described by Workshop, every declared entry present, every
-declared hotkey read back ON -- with the first task, the hotkeys, the guide's path and the
+the setup is ready -- every declared entry present, every declared hotkey read back ON, and each
+desk pane showing its text rows or the picture it draws; a pane that has not shown within a few
+seconds is named in the note and in `not_showing`, since the rest of the desk is usable -- with the
+first task, the hotkeys, the guide's path and the
 preparation's own request counts. The default medium is SDL; `--tui` uses the classic terminal
 medium, whose retained cell picture can be inspected when output is redirected. A setup names
 the media it supports and refuses the others by name.
@@ -62,7 +67,7 @@ What each answer means, and what to do:
 
 | `start` or `status` says | meaning | next |
 |---|---|---|
-| `ready` | usable as described | the first task |
+| `ready` | usable as described; a pane this Workshop does not offer yet (a described view nobody has run) is left off the desk and named in the note and in `unseated` | the first task |
 | `failed` | an owner refused; the note quotes it and names the step reached | read the note; fix, then `reset` or a new root |
 | `pending` | not ready within `--wait` seconds (900 by default); preparation goes on | `status --root R --wait 300` waits again |
 | `lost` | the recorded Loom session does not answer | nothing is stopped or removed; close the Workshop window yourself, start a new root |
@@ -77,8 +82,10 @@ The root keeps the setup's files, the guest policy, both process logs, the Loom 
 setup with a project, `project/` and a development runtime. `start` first copies the setup, as
 `export` does, into `prepared/<name>/` in the root: the desk, toolbox, project files and tool
 packages come from that copy, so the root prepares -- and every Reset restores -- the revision it
-started with, whatever later happens to the setup's own directory. `stop` asks Workshop to quit, sees the
-link close, then ends the Loom session; if a pane refuses quit it says so and leaves both running.
+started with, whatever later happens to the setup's own directory. `stop` asks Workshop to quit
+(`WorkshopQuitRequested`), sees the link close, then ends the Loom session. If the quit is refused
+it says why in Workshop's own words -- the pane holding unsaved work, say -- exits non-zero and
+leaves the demo running as it was; save or discard what it names and stop again.
 A stopped root is evidence: start again in a new one.
 
 This is a local development harness. Starting a setup authorizes the shipped Python packages it
@@ -205,7 +212,7 @@ A setup is a directory. Adding one is adding a directory -- no launcher or servi
 | file | holds |
 |---|---|
 | `setup.json` | the description below |
-| a desk | Workshop's own setup file (`WorkshopSetup`, what `s` writes), holding the `zengine.demo` controls pane |
+| a desk | Workshop's own setup file (`WorkshopSetup`, what `s` writes), holding the `zengine.demo` controls pane and the Layouts row (`zengine.workshop` `layouts`, its place and size `default`): Workshop applies a desk as written, so one that leaves Layouts out opens without it |
 | a guide | how to use it: first task, hotkeys, reset and limits, with the pictures it shows |
 | the assets it names | a toolbox, project files and a recipe template, a Loom tool package |
 
@@ -271,7 +278,9 @@ replacing the active layout and refuses an unresolved pane (naming the first one
 for room, or an open menu. It clears selection, detaches the saved-layout association, applies the
 setup and answers `zen.Ack`. It neither writes a setup file nor resets provider state.
 `PaneResetRequested v1` names a pane; Info, Compose and Inventory implement their own
-transient-state reset and refuse pending work. The separate `demo` guest power grants these
+transient-state reset and refuse pending work. `WorkshopQuitRequested v1` runs Workshop's one quit,
+the one `q` runs, and is answered `zen.Ack` when Workshop ends or `zen.Refused` in the words of what
+kept it open. The separate `demo` guest power grants these
 specific owner doors and the demo service protocol; the `demo-control` weave owns only the button,
 the work generation and the result.
 

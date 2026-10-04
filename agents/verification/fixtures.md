@@ -50,8 +50,8 @@ position is caught).
 METHOD — A test that needs a fixed population derives it from a capacity the code owns and states its own oracle, never calling the function under test to compute its expectation.
 BECAUSE — a census in a case costs every future author two red cases and a decision about
 whether they broke something; a case that calls the function under test agrees with itself.
-SEEN — `tests/test_workshop_panes_seam.cpp` case `"the combined catalog stops at thirty-two
-entries, built-ins included"`.
+SEEN — `tests/test_workshop_panes_seam.cpp` case `"the combined catalog stops at its
+bound, built-ins included"`.
 
 ## VM-FIX-07 — Capture the prior fact, then anchor it
 

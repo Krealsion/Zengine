@@ -138,12 +138,17 @@ desktop truth never enters it.
   session sends its remembered placement to `kSkinRole`, once. It is a want, not an
   instruction — the medium can see the displays that exist NOW and the publisher cannot,
   so the judgment is the medium's: `placement_within` (skin_sdl_plan.hpp, pure, pinned on
-  every lane) restores a reachable position VERBATIM (partial overhangs are intent — the
-  test is a hand's width, `kPlacementGraspPx`, of the window's top strip on some single
-  display's usable area), clamps a stranded one into the nearest display's usable bounds
-  top-left-first, and answers NOTHING with no display truth — an uninformed move is a
-  blind replay, refused. What comes back to the publisher is the truth through
+  every lane) restores a position wholly on a display VERBATIM, moves any other in only until
+  the whole window, its frame included, is on the usable area of the display it belongs to
+  (most overlap, else nearest centre; `home_display`), keeps the top-left of a window larger
+  than that area on it so the strip a hand drags it by stays reachable, and answers NOTHING
+  with no display truth — an uninformed move is a blind replay, refused. What comes back to the publisher is the truth through
   the ordinary report, never an echo.
+- **The window is whole on a screen from the start.** A window nobody placed opens centred
+  on the display the platform opened it on (`centred_within`; created hidden, centred, then
+  shown) and is centred again each time a picture grows it, until the weaver moves it or an
+  offer places it; from then on a growth moves it in only until it is whole again
+  (`placement_within`, `keep_whole` in skin_sdl.cpp). A maximized window is the platform's.
 - **⚠⚠ THE MAXIMIZE IS APPLIED AFTER THE POSITION *AND AFTER THE ROOM*, AND THE
   SECOND HALF IS THE ONE THAT IS EASY TO LOSE.** A maximize is presentation laid over a
   latent NORMAL rectangle, and the offer carries only half of that rectangle: the position

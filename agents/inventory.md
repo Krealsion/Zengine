@@ -47,7 +47,7 @@ verification follows [verification](verification.md).
 
 - Collection Add/CaptureAdd append independent entries; List returns summaries. Rename/Remove
   require the current entry revision. The legacy Set/Get/CaptureDescribe slot remains separate
-  and cannot overwrite appended entries. Up to 256 saved entries coexist with that slot.
+  and cannot overwrite appended entries. Up to `kMaxSavedEntries` saved entries coexist with that slot.
   Add v1, captures and the slot land at the root; `v2::InventoryAdd` names a folder.
 
 - The owner holds named folders and each entry's folder beside its label (`inventory/folders.hpp`

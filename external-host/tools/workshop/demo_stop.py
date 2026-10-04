@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""Request ordinary orderly quit. The launcher separately observes the connection ending."""
+"""Ask Workshop to quit through its one orderly quit, and say what refused it when it stays open.
+The launcher separately observes the connection ending."""
 from loom_session.tool import LinkOutcome
 from workshop_steps import chord_moments, moment
 
@@ -16,19 +17,17 @@ def run(ctx):
                 raise
     ctx.on_cleanup(release, "release input if the demo is still connected")
     try:
-        # A PRESENTED INTERACTION -- a menu a failed run left open -- covers the desk, and Workshop
-        # refuses the controls' view under it: Escape answers it first, as a weaver would.
+        # A PRESENTED INTERACTION -- a menu a failed run left open -- is answered first by Escape,
+        # as a weaver would.
         ctx.ask("zengine.input", "InjectInput", {"session": opened["session"],
                 "events": chord_moments(ctx, "escape")}, via=link, settle=True)
-        view = ctx.ask("zengine.workshop", "PaneViewRequested", {"provider": "zengine.demo", "pane": "controls"}, via=link)
-        row = view["rows"][0]
-        events = [moment(ctx, "PointerButton", button=1, pressed=p,
-                         x=row["x"], y=row["y"], space=row["space"]) for p in (True, False)]
-        ctx.ask("zengine.input", "InjectInput", {"session": opened["session"],
-                "events": events + chord_moments(ctx, "escape")}, via=link, settle=True)
-        ctx.ask("zengine.input", "InjectInput", {"session": opened["session"],
-                "events": chord_moments(ctx, "q")}, via=link)
+        try:
+            ctx.ask("zengine.workshop", "WorkshopQuitRequested", {}, via=link, timeout=60)
+        except LinkOutcome:
+            raise
+        except Exception as refused:
+            ctx.check(False, "Workshop stays open: %s" % refused)
     except LinkOutcome as result:
         if result.state not in ("lost", "unlinked"):
             raise
-    return "Quit requested; observe the link closing before declaring the demo stopped."
+    return "Quit accepted; observe the link closing before declaring the demo stopped."

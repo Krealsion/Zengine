@@ -3247,3 +3247,198 @@ TEST_CASE("Loaded wheel browses without publishing a different selected target")
     CHECK(watch->content.back().rows[1].text.rfind("> a-hello", 0) == 0);
     CHECK(ears.heard.size() == 1);
 }
+
+// ---- Escape's default: drop the selection, then the pane ----------------------------------
+
+namespace {
+
+/// A provider that takes keys and never mentions Escape: it declares no `PaneEscapeUnspent`, the
+/// way a pane written without a thought for Escape does. It records every key it is sent.
+class MuteSeat
+    : public loom::WeaveBase<MuteSeat, SeatState,
+                             loom::Accept<PaneCatalogRequested, PaneRoom, PaneKey, SeatDo>,
+                             loom::Emit<PaneOffered, PaneContent>> {
+public:
+    void on(const PaneCatalogRequested&, loom::Mail&) {}
+    void on(const SeatDo&, loom::Mail& mail) {
+        (void)mail.as_role("example.mute").send_to_role(
+            kWorkshopProvider, PaneOffered{"pane", "Mute", "never says Escape"});
+    }
+    void on(const PaneRoom& r, loom::Mail& mail) {
+        (void)mail.as_role("example.mute").send_to_role(
+            kWorkshopProvider, PaneContent{r.pane, {surface::SurfaceTextRow{"a pane", 0, 0}}});
+    }
+    void on(const PaneKey& k, loom::Mail&) { keys.push_back(k); }
+    std::vector<PaneKey> keys;
+};
+
+} // namespace
+
+TEST_CASE("a pane that never mentions Escape is put down by it, and is sent nothing") {
+    // ⚠ NOT SILENCE, A DECLARATION: Workshop reads the holder's declared emit-set at the
+    // keystroke, and a holder that cannot say `PaneEscapeUnspent` could never hand an Escape
+    // back, so Escape keeps its default meaning without asking (WL-ARR-15).
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    mount_desktop(r);
+    auto seat = std::make_unique<MuteSeat>();
+    MuteSeat* mute = seat.get();
+    loom::Grant grant;
+    grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+    grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+    const loom::WeaveId id = r.bus.register_weave(std::move(seat), std::move(grant), "example.mute");
+    mute->zen_set_self(id);
+    REQUIRE(holder_accepts_on(r.bus, "example.mute", *loom::schema_of<PaneKey>()));
+    REQUIRE_FALSE(holder_emits_on(r.bus, "example.mute", *loom::schema_of<PaneEscapeUnspent>()));
+    (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+    r.pick(PaneRef{"example.mute", "pane"});
+    const RuntimePane* row = r.session().panes.runtime.find("example.mute", "pane");
+    REQUIRE(row != nullptr);
+    const std::int64_t kind = row->kind;
+    press_body(r, kind);
+    REQUIRE(r.session().panes.selected == kind);
+    REQUIRE(r.session().panes.keyboard == kind);
+    // IT TAKES KEYS: a letter crosses.
+    r.key(input::scan::kA);
+    REQUIRE(mute->keys.size() == 1);
+    const Setup desk = r.session().setup.active;
+    r.key(input::scan::kEscape);
+    CHECK(mute->keys.size() == 1);
+    CHECK(r.session().panes.selected == kNoPaneKind);
+    CHECK(r.session().panes.keyboard == kNoPaneKind);
+    CHECK(r.session().setup.active == desk);
+    CHECK(r.session().panes.has(kind));
+}
+
+TEST_CASE("every shipped pane that holds the keys and selects nothing hands a bare Escape back") {
+    // The real images, loaded as a plan loads them: each takes keys, each declares the word, and
+    // each, holding no selection, says the Escape was unspent, so Workshop puts it down.
+    struct Shipped {
+        const char* stem;
+        const char* role;
+        const char* pane;
+    };
+    for (const Shipped& s : {Shipped{"zengine-builder-pane", "zengine.builder-pane", "builder"},
+                             Shipped{"zengine-files", "zengine.files", "project-files"},
+                             Shipped{"zengine-info-pane", "zengine.info", "info"},
+                             Shipped{"zengine-composer", "zengine.composer", "compose"},
+                             Shipped{"zengine-introspection", "zengine.introspection", "loaded"},
+                             Shipped{"zengine-introspection", "zengine.introspection", "powers"},
+                             Shipped{"zengine-inventory-pane", "zengine.inventory-pane", "inventory"},
+                             Shipped{"zengine-desktop-pane", "zengine.desktop", "launcher"},
+                             Shipped{"zengine-desktop-pane", "zengine.desktop", "hotkeys"}}) {
+        const std::string named = std::string(s.role) + " " + s.pane;
+        CAPTURE(named);
+        PaneRig r;
+        r.mount_workshop();
+        load::LoadPlan plan;
+        load::ArtifactIntent tool;
+        tool.stem = s.stem;
+        tool.weave = load::WeaveIntent{s.role};
+        plan.artifacts.push_back(tool);
+        const load::Executed done = r.run_plan(plan);
+        REQUIRE_MESSAGE(done.ok, done.refusal);
+        r.ready();
+        r.extent(160, 48);
+        if (std::string(s.role) != "zengine.desktop") {
+            mount_desktop(r); // the declarer of Escape-to-deselect (WL-DESK-02)
+        }
+        REQUIRE(holder_emits_on(r.bus, s.role, *loom::schema_of<PaneEscapeUnspent>()));
+        const RuntimePane* row = r.session().panes.runtime.find(s.role, s.pane);
+        REQUIRE(row != nullptr);
+        const std::int64_t kind = row->kind;
+        if (!r.session().panes.has(kind)) {
+            r.pick(PaneRef{s.role, s.pane}); // Info is on a fresh desk already
+        }
+        press_body(r, kind);
+        if (r.session().panes.keyboard != kind) {
+            // Info takes the keys only when it asks for them (a draft, a field); the keyboard is
+            // handed to it here as its own ask would, with nothing open to answer Escape.
+            r.session().panes.keyboard = kind;
+        }
+        REQUIRE(r.session().panes.keyboard == kind);
+        REQUIRE(r.session().panes.selected == kind);
+        r.key(input::scan::kEscape);
+        CHECK(r.session().panes.selected == kNoPaneKind);
+        CHECK(r.session().panes.keyboard == kNoPaneKind);
+        CHECK(r.session().panes.has(kind));
+    }
+}
+
+namespace {
+
+/// A provider proposing its switched-on shortcuts to Desktop, as Inventory does, keeping the answer.
+struct ProposerState {
+    std::int64_t asks = 0;
+    ZEN_SHAPE(ProposerState, 1, ZEN_FIELD(asks));
+};
+class ShortcutProposer
+    : public loom::WeaveBase<ShortcutProposer, ProposerState,
+                             loom::Accept<PaneShortcutsAnswered, PaneShortcutsWithdrawn, SeatDo>,
+                             loom::Emit<PaneShortcuts>> {
+public:
+    void on(const SeatDo&, loom::Mail& mail) {
+        ++state_.asks;
+        (void)mail.as_role("example.proposer").send_to_role(kDesktopRole, next);
+    }
+    void on(const PaneShortcutsAnswered& a, loom::Mail&) { answers.push_back(a); }
+    void on(const PaneShortcutsWithdrawn&, loom::Mail&) {}
+    PaneShortcuts next;
+    std::vector<PaneShortcutsAnswered> answers;
+};
+
+} // namespace
+
+TEST_CASE("Desktop takes every shortcut one provider may switch on, and refuses one more in words") {
+    PaneRig r;
+    r.mount_workshop();
+    load::LoadPlan plan;
+    load::ArtifactIntent desktop;
+    desktop.stem = "zengine-desktop-pane";
+    desktop.weave = load::WeaveIntent{kDesktopRole};
+    plan.artifacts.push_back(desktop);
+    const load::Executed done = r.run_plan(plan);
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.ready();
+    r.extent(160, 48);
+    auto made = std::make_unique<ShortcutProposer>();
+    ShortcutProposer* proposer = made.get();
+    loom::Grant grant;
+    grant.allow_to_role(PaneShortcuts::zen_name, PaneShortcuts::zen_version, kDesktopRole);
+    const loom::WeaveId id = r.bus.register_weave(std::move(made), std::move(grant), "example.proposer");
+    proposer->zen_set_self(id);
+    // As many chords as one provider may switch on, all under modifier sets no host row uses.
+    std::vector<PaneShortcut> rows;
+    for (const std::int64_t mods :
+         {input::mod::kSuper, input::mod::kSuper | input::mod::kCtrl,
+          input::mod::kSuper | input::mod::kAlt, input::mod::kSuper | input::mod::kShift,
+          input::mod::kSuper | input::mod::kCtrl | input::mod::kAlt,
+          input::mod::kSuper | input::mod::kCtrl | input::mod::kShift,
+          input::mod::kSuper | input::mod::kAlt | input::mod::kShift,
+          input::mod::kSuper | input::mod::kCtrl | input::mod::kAlt | input::mod::kShift,
+          input::mod::kCtrl | input::mod::kAlt | input::mod::kShift}) {
+        for (std::int64_t sc = 1; sc < 512; ++sc) {
+            if (key_name_of(sc) != nullptr) {
+                const std::string n = std::to_string(rows.size());
+                rows.push_back(PaneShortcut{"s." + n, "run " + n, "pane", "slot." + n, sc, mods});
+            }
+        }
+    }
+    REQUIRE(rows.size() > 512);
+    const auto propose = [&](std::size_t count) {
+        proposer->next = PaneShortcuts{std::vector<PaneShortcut>(rows.begin(), rows.begin() +
+                                                                 static_cast<std::ptrdiff_t>(count))};
+        (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+        r.bus.drain_until_idle();
+        REQUIRE_FALSE(proposer->answers.empty());
+        return proposer->answers.back();
+    };
+    const PaneShortcutsAnswered all = propose(512);
+    CHECK_MESSAGE(all.accepted, all.reason);
+    CHECK(r.session().keymap.app.size() >= 512);
+    const PaneShortcutsAnswered over = propose(513);
+    CHECK_FALSE(over.accepted);
+    CHECK(over.reason == "A provider may propose at most 512 active shortcuts");
+}

@@ -137,6 +137,7 @@ class EditorPaneWeave
                        ws::PaneValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered>,
           loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v3::PaneContent, ws::v2::PaneCaret,
+                     ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                      PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
                      ProjectRootRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
@@ -299,6 +300,7 @@ public:
                      ws::PaneValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                      ws::PaneCarryAnswered>,
         loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v3::PaneContent, ws::v2::PaneCaret,
+                     ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                    PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
                    ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
                    EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted,
