@@ -35,7 +35,7 @@
   ],
   "viewport": [
    150,
-   72
+   76
   ]
  },
  "requires": {
@@ -83,7 +83,7 @@
  "view_slots": [
   {
    "x": 76,
-   "y": 46,
+   "y": 48,
    "width": 48,
    "height": 14
   }

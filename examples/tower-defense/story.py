@@ -828,7 +828,7 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
     width, height = (int(v) for v in viewport.split("x"))
     desk = {"format": "zengine-workshop-setup", "format_version": "4", "name": "Default",
             "panes": [{"provider": "zengine.info", "pane": "info",
-                       "place": {"mode": "pixels", "x": str((width - 46) * 12), "y": str(2 * 12)},
+                       "place": {"mode": "pixels", "x": str((width - 46) * 12), "y": "42"},
                        "width": {"mode": "pixels", "amount": str(44 * 12)},
                        "height": {"mode": "pixels", "amount": str(16 * 12)}, "front": "0"},
                       {"provider": "zengine.workshop", "pane": "layouts",
