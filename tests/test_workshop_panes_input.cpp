@@ -3366,3 +3366,79 @@ TEST_CASE("every shipped pane that holds the keys and selects nothing hands a ba
         CHECK(r.session().panes.has(kind));
     }
 }
+
+namespace {
+
+/// A provider proposing its switched-on shortcuts to Desktop, as Inventory does, keeping the answer.
+struct ProposerState {
+    std::int64_t asks = 0;
+    ZEN_SHAPE(ProposerState, 1, ZEN_FIELD(asks));
+};
+class ShortcutProposer
+    : public loom::WeaveBase<ShortcutProposer, ProposerState,
+                             loom::Accept<PaneShortcutsAnswered, PaneShortcutsWithdrawn, SeatDo>,
+                             loom::Emit<PaneShortcuts>> {
+public:
+    void on(const SeatDo&, loom::Mail& mail) {
+        ++state_.asks;
+        (void)mail.as_role("example.proposer").send_to_role(kDesktopRole, next);
+    }
+    void on(const PaneShortcutsAnswered& a, loom::Mail&) { answers.push_back(a); }
+    void on(const PaneShortcutsWithdrawn&, loom::Mail&) {}
+    PaneShortcuts next;
+    std::vector<PaneShortcutsAnswered> answers;
+};
+
+} // namespace
+
+TEST_CASE("Desktop takes every shortcut one provider may switch on, and refuses one more in words") {
+    PaneRig r;
+    r.mount_workshop();
+    load::LoadPlan plan;
+    load::ArtifactIntent desktop;
+    desktop.stem = "zengine-desktop-pane";
+    desktop.weave = load::WeaveIntent{kDesktopRole};
+    plan.artifacts.push_back(desktop);
+    const load::Executed done = r.run_plan(plan);
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.ready();
+    r.extent(160, 48);
+    auto made = std::make_unique<ShortcutProposer>();
+    ShortcutProposer* proposer = made.get();
+    loom::Grant grant;
+    grant.allow_to_role(PaneShortcuts::zen_name, PaneShortcuts::zen_version, kDesktopRole);
+    const loom::WeaveId id = r.bus.register_weave(std::move(made), std::move(grant), "example.proposer");
+    proposer->zen_set_self(id);
+    // As many chords as one provider may switch on, all under modifier sets no host row uses.
+    std::vector<PaneShortcut> rows;
+    for (const std::int64_t mods :
+         {input::mod::kSuper, input::mod::kSuper | input::mod::kCtrl,
+          input::mod::kSuper | input::mod::kAlt, input::mod::kSuper | input::mod::kShift,
+          input::mod::kSuper | input::mod::kCtrl | input::mod::kAlt,
+          input::mod::kSuper | input::mod::kCtrl | input::mod::kShift,
+          input::mod::kSuper | input::mod::kAlt | input::mod::kShift,
+          input::mod::kSuper | input::mod::kCtrl | input::mod::kAlt | input::mod::kShift,
+          input::mod::kCtrl | input::mod::kAlt | input::mod::kShift}) {
+        for (std::int64_t sc = 1; sc < 512; ++sc) {
+            if (key_name_of(sc) != nullptr) {
+                const std::string n = std::to_string(rows.size());
+                rows.push_back(PaneShortcut{"s." + n, "run " + n, "pane", "slot." + n, sc, mods});
+            }
+        }
+    }
+    REQUIRE(rows.size() > 512);
+    const auto propose = [&](std::size_t count) {
+        proposer->next = PaneShortcuts{std::vector<PaneShortcut>(rows.begin(), rows.begin() +
+                                                                 static_cast<std::ptrdiff_t>(count))};
+        (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+        r.bus.drain_until_idle();
+        REQUIRE_FALSE(proposer->answers.empty());
+        return proposer->answers.back();
+    };
+    const PaneShortcutsAnswered all = propose(512);
+    CHECK_MESSAGE(all.accepted, all.reason);
+    CHECK(r.session().keymap.app.size() >= 512);
+    const PaneShortcutsAnswered over = propose(513);
+    CHECK_FALSE(over.accepted);
+    CHECK(over.reason == "A provider may propose at most 512 active shortcuts");
+}

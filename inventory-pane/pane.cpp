@@ -698,7 +698,7 @@ private:
         if(!summary(target_.reference)) {notice_="That entry is unavailable"; draw(m); return;}
         const auto* binding=slots::binding(state_.layout,target_.reference);
         if(mode==Mode::run && !binding) {notice_="Configure an explicit command target first"; draw(m); return;}
-        if(mode==Mode::duplicate && binding && state_.layout.bindings.size()>=16) {notice_="No room to retain the duplicate's hotkey"; draw(m); return;}
+        if(mode==Mode::duplicate && binding && state_.layout.bindings.size()>=slots::kMaxConfiguredHotkeys) {notice_="No room to retain the duplicate's hotkey"; draw(m); return;}
         const auto correlation=++asks_;
         auto ticket=m.send_to_role(inv::kInventoryRole,inv::InventoryRead{target_.reference},correlation);
         if(!ticket.valid()) {notice_="Entry read could not be queued"; draw(m); return;}

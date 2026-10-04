@@ -219,7 +219,8 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
             many.push_back(declared(("x.r" + std::to_string(i)).c_str(), "row",
                                     input::scan::kUnknown));
         }
-        CHECK(refused(many).find("at most 32 actions") != std::string::npos);
+        CHECK(refused(many).find("at most " + std::to_string(kMaxPaneActionRows) + " actions") !=
+              std::string::npos);
         many.pop_back();
         (void)accepted(many);
     }
@@ -1171,6 +1172,43 @@ TEST_CASE("an application row is joined, is requested above the modes, and reach
     t.key(input::scan::kT, input::mod::kCtrl);
     REQUIRE(desk->asked().size() == 2);
     CHECK(desk->asked()[1] == DesktopSeat::kTerminalId);
+}
+
+TEST_CASE("an application holds a shortcut for every hotkey Inventory keeps, and its bound is said") {
+    // Inventory may switch every one of its configured hotkeys on, and each becomes one of these
+    // rows above the modes; two of them never share a gesture, so the keyboard bounds them, and
+    // the declaration's own bound only keeps it finite.
+    std::vector<AppRow> rows;
+    for (const std::int64_t mods :
+         {input::mod::kSuper, input::mod::kSuper | input::mod::kCtrl,
+          input::mod::kSuper | input::mod::kAlt, input::mod::kSuper | input::mod::kShift,
+          input::mod::kSuper | input::mod::kCtrl | input::mod::kAlt,
+          input::mod::kSuper | input::mod::kCtrl | input::mod::kShift,
+          input::mod::kSuper | input::mod::kAlt | input::mod::kShift,
+          input::mod::kSuper | input::mod::kCtrl | input::mod::kAlt | input::mod::kShift,
+          input::mod::kCtrl | input::mod::kAlt | input::mod::kShift}) {
+        for (std::int64_t sc = 1; sc < 512 && rows.size() < 512; ++sc) {
+            if (key_name_of(sc) != nullptr) {
+                rows.push_back(AppRow{"shortcut." + std::to_string(rows.size()), "run",
+                                      Gesture{sc, mods}, 0});
+            }
+        }
+    }
+    REQUIRE(rows.size() == 512);
+    while (rows.size() < kMaxAppActionRows) {
+        rows.push_back(AppRow{"unbound." + std::to_string(rows.size()), "run",
+                              Gesture{input::scan::kUnknown, input::mod::kNone}, 0});
+    }
+    Keymap k;
+    const Written all = join_app_rows(k, rows);
+    REQUIRE_MESSAGE(all.accepted, all.refusal);
+    CHECK(k.app.size() == kMaxAppActionRows);
+    rows.push_back(AppRow{"one.more", "run", Gesture{input::scan::kUnknown, input::mod::kNone}, 0});
+    const Written over = join_app_rows(k, rows);
+    CHECK_FALSE(over.accepted);
+    CHECK(over.refusal.find("at most " + std::to_string(kMaxAppActionRows) + " actions") !=
+          std::string::npos);
+    CHECK(k.app.size() == kMaxAppActionRows); // the refused declaration wrote nothing
 }
 
 TEST_CASE("a weaver's authored row moves an application row, and `none` disables it") {

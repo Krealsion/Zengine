@@ -738,14 +738,15 @@ TEST_CASE("collection: malformed additions and capacity refusal preserve all sav
     r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{{1,2}, "broken"}); });
     r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, "bad\nname"}); });
     REQUIRE(r.caller->refusals.size() == 2);
-    for (int i = 0; i < 256; ++i)
+    for (std::size_t i = 0; i < inv::kMaxSavedEntries; ++i)
         r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, std::to_string(i)}); });
-    REQUIRE(r.caller->entries.size() == 256);
+    REQUIRE(r.caller->entries.size() == inv::kMaxSavedEntries);
     const auto first = r.caller->entries.front();
     r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, "overflow"}); });
     REQUIRE(r.caller->refusals.size() == 3);
     r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryList{}); });
-    CHECK(r.caller->lists.back().entries.size() == 256);
+    CHECK(r.caller->lists.back().entries.size() == inv::kMaxSavedEntries);
+    CHECK(r.caller->refusals.back() == "inventory has reached its 1024 saved-entry limit");
     r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{first.reference}); });
     CHECK(r.caller->entries.back().pair == first.pair);
 }
@@ -797,6 +798,35 @@ TEST_CASE("toolbox restore is a conditional whole-collection replacement with fr
         inv::InventoryRead{{now.owner, held.reference.entry}}); });
     CHECK(r.caller->entries.back().pair == original);
     CHECK(r.caller->entries.back().revision == 1);
+}
+
+TEST_CASE("Inventory keeps its bound of hotkeys configured, every one on at once, and refuses the next") {
+    namespace slots = zengine::inventory_pane;
+    slots::InventoryViews state;
+    state.inventory_active = true;
+    const auto entry = [](std::size_t i) {
+        return zengine::inventory::InventoryReference{"owner", "e" + std::to_string(i)};
+    };
+    for (std::size_t i = 0; i < slots::kMaxConfiguredHotkeys; ++i) {
+        slots::InventoryViewEdit op;
+        op.operation = "bind"; op.entry = entry(i); op.text = "target.office";
+        op.scancode = static_cast<std::int64_t>(1 + i % 400);
+        op.modifiers = static_cast<std::int64_t>(i / 400 + 1);
+        state = slots::edited(state, op);
+        op.operation = "enable"; op.enabled = true;
+        state = slots::edited(state, op);
+    }
+    CHECK(state.bindings.size() == 512);
+    CHECK(slots::shortcuts(state).size() == slots::kMaxConfiguredHotkeys);
+    slots::InventoryViewEdit more;
+    more.operation = "bind"; more.entry = entry(slots::kMaxConfiguredHotkeys);
+    more.text = "target.office"; more.scancode = 4;
+    CHECK_THROWS_WITH(slots::edited(state, more), "At most 512 configured command hotkeys");
+    // A toolbox file holds no more of them than Inventory keeps.
+    slots::v2::InventoryToolbox file;
+    file.bindings.resize(slots::kMaxConfiguredHotkeys + 1);
+    CHECK_THROWS_WITH(slots::validate_toolbox(file),
+                      "toolbox exceeds the portable view or binding limit");
 }
 
 TEST_CASE("Inventory makes portable views up to its bound and refuses the next in words") {
