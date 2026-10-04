@@ -71,6 +71,8 @@ class Owner:
         if self.fail == shape:
             raise ValueError(role + ": deliberately refused " + shape)
         if shape == "PaneViewRequested":
+            if fields["provider"] == "zengine.workshop":
+                raise ValueError("pane view unavailable: no settled text picture")
             return {"rows": ["ready"]}
         if shape == "InventoryList":
             return {"owner": "inventory", "entries": deepcopy(self.entries), "folders": []}
@@ -210,7 +212,7 @@ class Recipes(unittest.TestCase):
         panes = [(p["provider"], p["pane"]) for p in layout("editor-materials")["fields"]["panes"]]
         self.assertEqual(panes, [("zengine.editor", "editor"), ("zengine.inventory-pane", "inventory"),
                                  ("zengine.files", "project-files"), ("zengine.terminal", "terminal"),
-                                 ("zengine.demo", "controls")])
+                                 ("zengine.demo", "controls"), ("zengine.workshop", "layouts")])
 
     def test_warm_reset_restores_owned_values_and_labels_but_preserves_user_copies(self):
         owner, state = Owner(), {"fixtures": []}
@@ -270,11 +272,24 @@ class Recipes(unittest.TestCase):
 
     def test_named_layouts_resolve_to_distinct_stories_and_reject_typos(self):
         self.assertEqual([p["pane"] for p in layout("values")["fields"]["panes"]],
-                         ["inventory", "info", "controls"])
+                         ["inventory", "info", "controls", "layouts"])
         self.assertEqual([p["pane"] for p in layout("commands")["fields"]["panes"]],
-                         ["inventory", "loaded", "compose", "controls"])
+                         ["inventory", "loaded", "compose", "controls", "layouts"])
         with self.assertRaises(ValueError):
             layout("value")
+
+    def test_every_shipped_desk_shows_layouts_and_readiness_asks_its_providers_alone(self):
+        # Workshop applies a desk as written, so a desk that leaves Layouts out opens without it.
+        found = described.collection([REPO / "examples"])
+        for name, directory in found.items():
+            rows = described.Setup(directory).desk()["fields"]["panes"]
+            self.assertIn(("zengine.workshop", "layouts"), [(r["provider"], r["pane"]) for r in rows], name)
+        owner, state = Owner(), {"fixtures": []}
+        self.run_setup(owner, "values", state)
+        self.assertEqual(state["reached"], "ready")
+        asked = [f["provider"] for f in owner.shapes("PaneViewRequested")]
+        self.assertNotIn("zengine.workshop", asked)
+        self.assertEqual(sorted(asked), ["zengine.demo", "zengine.info", "zengine.inventory-pane"])
 
     # ---- descriptions ---------------------------------------------------------------------------
     def test_every_shipped_setup_is_usable_and_says_how_to_use_it(self):

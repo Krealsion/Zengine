@@ -60,6 +60,24 @@
      "amount": "480"
     },
     "front": "2"
+   },
+   {
+    "provider": "zengine.workshop",
+    "pane": "layouts",
+    "place": {
+     "mode": "default",
+     "x": "0",
+     "y": "0"
+    },
+    "width": {
+     "mode": "default",
+     "amount": "0"
+    },
+    "height": {
+     "mode": "default",
+     "amount": "0"
+    },
+    "front": "3"
    }
   ]
  }

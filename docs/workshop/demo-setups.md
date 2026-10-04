@@ -15,6 +15,9 @@ its Python service for the whole instance. Your normal Workshop and its saved fi
 | `editor-materials` | Editor, Inventory, Files, Terminal, Demo | Carry a selection, a Terminal command and a file place into named folders, save a toolbox, and bring them back in another Workshop ([carrying](editor.md#carrying-text-commands-and-file-places)) |
 | `tower-defense` | Editor, Files, Builder, the game, Inventory, a hotkey row, Demo | The [tower defense example](../../examples/tower-defense/README.md#a-ready-development-desk) built and loaded; **Alt+1..Alt+5** run its game commands |
 
+Every starting desk also has the Layouts row along the top, which you can take off and bring
+back as on any desk.
+
 ![The workbench setup ready: its toolbox restored and its Alt+1 capture row ON](images/setup-workbench-ready.png)
 
 ![A value edited in Info beside Inventory and Reset demo](images/demo-values.png)
@@ -205,7 +208,7 @@ A setup is a directory. Adding one is adding a directory -- no launcher or servi
 | file | holds |
 |---|---|
 | `setup.json` | the description below |
-| a desk | Workshop's own setup file (`WorkshopSetup`, what `s` writes), holding the `zengine.demo` controls pane |
+| a desk | Workshop's own setup file (`WorkshopSetup`, what `s` writes), holding the `zengine.demo` controls pane and the Layouts row (`zengine.workshop` `layouts`, its place and size `default`): Workshop applies a desk as written, so one that leaves Layouts out opens without it |
 | a guide | how to use it: first task, hotkeys, reset and limits, with the pictures it shows |
 | the assets it names | a toolbox, project files and a recipe template, a Loom tool package |
 
