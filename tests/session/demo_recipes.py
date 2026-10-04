@@ -647,7 +647,7 @@ class Recipes(unittest.TestCase):
         self.assertEqual(state["unseated"], [])
         self.assertIn("td.game", [p["provider"] for p in owner.desk["fields"]["panes"]])
 
-    def test_a_pane_that_draws_a_picture_is_ready_and_one_that_never_shows_is_not(self):
+    def test_a_pane_that_draws_a_picture_is_ready_and_one_that_never_shows_is_named(self):
         import demo_setup
         self.addCleanup(setattr, demo_setup, "READY_SECONDS", demo_setup.READY_SECONDS)
         demo_setup.READY_SECONDS = 0.3
@@ -655,13 +655,16 @@ class Recipes(unittest.TestCase):
         owner, state = Owner(), {"fixtures": []}
         owner.pictures = {"zengine.view.builder"}
         prepare(owner, described.Setup(root), state, "workshop")
-        self.assertEqual(state["reached"], "ready")
+        self.assertEqual((state["reached"], state["not_showing"]), ("ready", []))
+        # A pane that never shows does not make a usable desk a failure: it is named.
         owner, state = Owner(), {"fixtures": []}
         owner.unsettled = {"zengine.view.builder"}
-        with self.assertRaisesRegex(ValueError, r"not ready after .*zengine.view.builder view-builder "
-                                                r"\(pane view unavailable: no settled text picture\)"):
-            prepare(owner, described.Setup(root), state, "workshop")
-        self.assertEqual(state["reached"], "readiness")
+        setup = described.Setup(root)
+        prepare(owner, setup, state, "workshop")
+        self.assertEqual(state["reached"], "ready")
+        self.assertEqual(state["not_showing"],
+                         ["zengine.view.builder view-builder (pane view unavailable: no settled text picture)"])
+        self.assertIn("Not showing after", demo_setup.ready_note(setup, state))
 
     def test_a_refused_stop_says_what_kept_workshop_open(self):
         tool = types.ModuleType("loom_session.tool")

@@ -55,8 +55,10 @@ python external-host/demo.py stop --root demo-runs/workbench
 Substitute your build tree and installed prefix. A missing prerequisite is named, with the flag or
 build step that supplies it, before anything starts. `start` makes a **new** root: Workshop, its
 guest file, a Loom session and the setup's preparation service. It returns once the service says
-the setup is ready -- every desk pane showing (its text rows, or the picture it draws, within a few
-seconds), every declared entry present, every declared hotkey read back ON -- with the first task, the hotkeys, the guide's path and the
+the setup is ready -- every declared entry present, every declared hotkey read back ON, and each
+desk pane showing its text rows or the picture it draws; a pane that has not shown within a few
+seconds is named in the note and in `not_showing`, since the rest of the desk is usable -- with the
+first task, the hotkeys, the guide's path and the
 preparation's own request counts. The default medium is SDL; `--tui` uses the classic terminal
 medium, whose retained cell picture can be inspected when output is redirected. A setup names
 the media it supports and refuses the others by name.
