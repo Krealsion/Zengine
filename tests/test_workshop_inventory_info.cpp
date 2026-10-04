@@ -1372,3 +1372,15 @@ TEST_CASE("escape: Loaded and Powers let go of the row a weaver chose first, and
         CHECK(s.r.session().panes.has(c.kind));
     }
 }
+
+TEST_CASE("a text view of a pane that draws a picture is refused in words that say so") {
+    // `demo.py` reads a desk pane as shown when Workshop gives its rows or says it draws a picture;
+    // the View Builder draws one, and a pane with no picture yet is refused in other words.
+    InventoryStory s(191, false, false, false, false, true);
+    s.hand->expect_refusal = true;
+    s.act([](loom::Mail& m) {
+        m.send_to_role("zengine.workshop", PaneViewRequested{"zengine.view.builder", "view-builder"});
+    });
+    REQUIRE(s.hand->refusals.size() == 1);
+    CHECK(s.hand->refusals.back() == "pane view unavailable: the pane draws a picture, not text rows");
+}

@@ -51,6 +51,7 @@ class Owner:
         self.held = set()        # providers Workshop can present beyond its own
         self.refuse_enable = None
         self.desk = None
+        self.pictures, self.unsettled = set(), set()  # providers whose panes draw, or never show
 
     def check(self, ok, why):
         if not ok:
@@ -71,7 +72,9 @@ class Owner:
         if self.fail == shape:
             raise ValueError(role + ": deliberately refused " + shape)
         if shape == "PaneViewRequested":
-            if fields["provider"] == "zengine.workshop":
+            if fields["provider"] in self.pictures:
+                raise ValueError("pane view unavailable: the pane draws a picture, not text rows")
+            if fields["provider"] == "zengine.workshop" or fields["provider"] in self.unsettled:
                 raise ValueError("pane view unavailable: no settled text picture")
             return {"rows": ["ready"]}
         if shape == "InventoryList":
@@ -626,10 +629,85 @@ class Recipes(unittest.TestCase):
         prepare(owner, setup, state, "workshop")
         self.assertEqual(len(built), 1)
 
-    def test_a_pane_the_setup_cannot_provide_is_named_in_the_failure(self):
+    def test_a_pane_nobody_offers_is_left_off_a_ready_desk_and_named(self):
+        # A described view nobody has run yet: Workshop cannot present it and the setup does not
+        # build it, and the rest of the desk is usable, so the demo is ready and says what is missing.
+        import demo_setup
         owner, state = Owner(), {"fixtures": []}
-        with self.assertRaisesRegex(ValueError, "cannot present: td.game td; this setup does not prepare td.game"):
-            prepare(owner, self.provider_setup(providers=False), state, "workshop")
+        setup = self.provider_setup(providers=False)
+        prepare(owner, setup, state, "workshop")
+        self.assertEqual(state["reached"], "ready")
+        self.assertEqual(state["unseated"], ["td.game td"])
+        self.assertEqual([p["provider"] for p in owner.desk["fields"]["panes"]],
+                         ["zengine.builder-pane", "zengine.demo"])
+        self.assertIn("Not on the desk: td.game td", demo_setup.ready_note(setup, state))
+        # Offered by the next Reset, it takes its seat and is no longer named.
+        owner.held.add("td.game")
+        prepare(owner, setup, state, "workshop")
+        self.assertEqual(state["unseated"], [])
+        self.assertIn("td.game", [p["provider"] for p in owner.desk["fields"]["panes"]])
+
+    def test_a_pane_that_draws_a_picture_is_ready_and_one_that_never_shows_is_not(self):
+        import demo_setup
+        self.addCleanup(setattr, demo_setup, "READY_SECONDS", demo_setup.READY_SECONDS)
+        demo_setup.READY_SECONDS = 0.3
+        root = make(self.tmp, panes=[("zengine.view.builder", "view-builder"), ("zengine.demo", "controls")])
+        owner, state = Owner(), {"fixtures": []}
+        owner.pictures = {"zengine.view.builder"}
+        prepare(owner, described.Setup(root), state, "workshop")
+        self.assertEqual(state["reached"], "ready")
+        owner, state = Owner(), {"fixtures": []}
+        owner.unsettled = {"zengine.view.builder"}
+        with self.assertRaisesRegex(ValueError, r"not ready after .*zengine.view.builder view-builder "
+                                                r"\(pane view unavailable: no settled text picture\)"):
+            prepare(owner, described.Setup(root), state, "workshop")
+        self.assertEqual(state["reached"], "readiness")
+
+    def test_a_refused_stop_says_what_kept_workshop_open(self):
+        tool = types.ModuleType("loom_session.tool")
+
+        class LinkOutcome(Exception):
+            state = "lost"
+        tool.LinkOutcome = LinkOutcome
+        sys.modules["loom_session.tool"] = tool
+        self.addCleanup(sys.modules.pop, "loom_session.tool")
+        sys.modules.pop("demo_stop", None)
+        import demo_stop
+        self.addCleanup(sys.modules.pop, "demo_stop")
+        demo_stop.chord_moments = lambda ctx, spelling: []
+
+        class Ctx:
+            inputs = {"link": "workshop"}
+
+            def __init__(self, answer):
+                self.answer, self.asked = answer, []
+
+            def ask(self, role, shape, fields, **kwargs):
+                self.asked.append(shape)
+                if shape == "InputSessionRequested":
+                    return {"session": 1}
+                if shape == "WorkshopQuitRequested":
+                    return self.answer()
+                return {}
+
+            def on_cleanup(self, fn, why):
+                pass
+
+            def check(self, ok, why):
+                if not ok:
+                    raise ValueError(why)
+
+        def refused():
+            raise ValueError("The View Builder has an unsaved view. Save it before quitting.")
+        with self.assertRaisesRegex(ValueError, "Workshop stays open: The View Builder has an unsaved view"):
+            demo_stop.run(Ctx(refused))
+        accepted = Ctx(lambda: {})
+        self.assertIn("Quit accepted", demo_stop.run(accepted))
+        self.assertEqual(accepted.asked, ["InputSessionRequested", "InjectInput", "WorkshopQuitRequested"])
+
+    def test_a_wait_that_runs_out_names_what_it_waited_for(self):
+        with self.assertRaisesRegex(RuntimeError, "Workshop closing its link did not happen within 0.2s"):
+            launcher.wait_for(lambda: False, 0.2, "Workshop closing its link")
 
     # ---- the prepared revision ------------------------------------------------------------------------------
     def test_reset_prepares_the_revision_it_loaded_not_a_later_edit(self):
