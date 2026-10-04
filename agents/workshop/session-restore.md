@@ -56,7 +56,7 @@ WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-08 — The desktop placement is remembered opaque and judged by the medium
 
-LAW — The medium reports where its normal window sits (`SurfacePlacement`), Workshop remembers the last report and hands it back once at restore, where the medium validates it (`placement_within`).
+LAW — The medium reports where its normal window sits (`SurfacePlacement`); Workshop hands the last report back once at restore, and the medium brings the window back whole on a display (`placement_within`).
 
 MEANS
 - a run whose medium reports no placement, every terminal, retains the remembered value;

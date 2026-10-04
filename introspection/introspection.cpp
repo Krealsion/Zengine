@@ -28,6 +28,7 @@
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_escape.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
@@ -125,6 +126,7 @@ class IntrospectionWeave
                      ArrangementRequested, DescribePower, SampleRequested,
                      zengine::workshop::PaneOperationRequested,
                      zengine::workshop::PaneValueCarryRequested,
+                     zengine::workshop::PaneEscapeUnspent,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
     /// First breath, only if Loom says so: `ActivationCursor` requires Loom's attestation and a
@@ -305,6 +307,10 @@ public:
             ++state_.refused;
             return;
         }
+        if (zengine::workshop::pane_escape::answer(key, mail, kIntrospectionRole,
+                                                   [&] { return drop_selection(key.pane, mail); })) {
+            return;
+        }
         if (key.pane != kPowersPane) {
             return;
         }
@@ -324,6 +330,23 @@ public:
             ask_powers(mail);
         }
         say_powers(mail);
+    }
+
+    /// Escape's default: the row a weaver chose in Loaded or Powers is let go, and the pane
+    /// repainted; false when there was none. Like any clearing it publishes nothing.
+    bool drop_selection(const std::string& pane, loom::Mail& mail) {
+        if (pane == kLoadedPane && !selected_.empty()) {
+            selected_.clear();
+            zengine::introspection::mark_selected(view_, selected_, loaded_.columns);
+            say_rows(mail, kLoadedPane, view_.rows);
+            return true;
+        }
+        if (pane == kPowersPane && !powers_ui_.selected().empty()) {
+            powers_ui_.select(std::string());
+            say_powers(mail);
+            return true;
+        }
+        return false;
     }
 
     /// One of this pane's declared actions, by its resolved id: Workshop matched the keystroke

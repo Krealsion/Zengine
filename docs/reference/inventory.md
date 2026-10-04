@@ -15,7 +15,7 @@ can restore saved entries and portable configuration into that fresh instance.
 `InventoryAdd{pair, label}` appends an entry at the root and answers `InventoryEntry`;
 `v2::InventoryAdd{pair, label, folder}` appends it to a [named folder](#named-folders). An empty
 label uses the item schema name in the presentation. Names accept up to 80 printable ASCII characters.
-There are at most 256 saved entries, plus the compatibility slot below; a full collection
+There are at most <!-- value kMaxSavedEntries -->1024<!-- /value --> saved entries, plus the compatibility slot below; a full collection
 refuses an addition without removing anything. Toolbox snapshots also impose a byte limit.
 
 `InventoryList{}` answers `InventoryListed{entries}`: each summary gives its reference, revision,
@@ -378,8 +378,8 @@ and `context` (view). Main's view id is `inventory`; other ids are returned by d
 These operations configure presentation and never send stored commands. Workshop's guest
 `inventory` power includes them; it does not confer permission to execute unrelated messages.
 
-This implementation bounds one presentation to twelve extra views and sixteen configured
-bindings. Arrow keys/wheel browse overflowing strips. Entry identities, arrangement and bindings
+This implementation bounds one presentation to <!-- value kMaxPortableViews -->36<!-- /value --> extra views and
+<!-- value kMaxConfiguredHotkeys -->512<!-- /value --> configured command hotkeys, every one of which may be on at once. Arrow keys/wheel browse overflowing strips. Entry identities, arrangement and bindings
 survive a same-shape presentation reload; pending gestures/operations do not. Inventory owner
 replacement invalidates old references instead of rebinding by label. Explicit toolbox snapshots
 provide disk persistence; focus-dependent contexts and automatic migration remain separate work.
@@ -422,14 +422,14 @@ A later cleanup refusal says entries were already restored, rather than claiming
 Missing answers remain pending. Loaded-image replacement can lose pending coordinator work;
 inspect the actual collection before retrying. This is not a distributed transaction.
 
-At most 257 rows (one compatibility slot plus 256 saved entries), 8 MiB total encoded pair data,
-32 MiB file bytes, 128 folders eight deep, twelve views and sixteen bindings are accepted. Bounded
+At most one compatibility slot plus <!-- value kMaxSavedEntries -->1024<!-- /value --> saved entries, 8 MiB total encoded pair data,
+32 MiB file bytes, 128 folders eight deep, <!-- value kMaxPortableViews -->36<!-- /value --> views and <!-- value kMaxConfiguredHotkeys -->512<!-- /value --> bindings are accepted. Bounded
 reading, schema checks, unique keys, folder names, parents, cycles, depth and every member's
 folder, placement membership and binding validation all precede replacement. Folder keys are
 kept, folder revisions restart at one, and browsing restarts at the root. Single-writer file
 saves use the existing sibling-write/replace discipline; no automatic save, crash journal or
 power-loss guarantee. Save refuses unresolved configured references rather than guessing by name.
 Restore reuses matching offered view identities; unused ones remain empty inactive spares. A union
-of old and saved identities exceeding twelve refuses before the data commit; use a fresh Workshop.
+of old and saved identities exceeding <!-- value kMaxPortableViews -->36<!-- /value --> refuses before the data commit; use a fresh Workshop.
 
 See [saving and restoring toolboxes](../workshop/toolboxes.md) for the weaver and one-request ELH path.

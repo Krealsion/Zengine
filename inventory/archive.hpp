@@ -10,13 +10,17 @@
 
 namespace zengine::inventory {
 inline constexpr std::size_t kMaxArchivePairBytes = 8u << 20;
+/// The most saved entries one collection holds, beside the compatibility slot: room for a stored
+/// command behind every hotkey Inventory may configure (512) and as many values again.
+inline constexpr std::size_t kMaxSavedEntries = 1024;
 inline bool archive_key(const std::string& key) {
     return key.size() == 32 && std::all_of(key.begin(), key.end(),
         [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
 }
 /// The whole candidate or nothing: entry rows, then the folder tree and every membership.
 inline void validate_archive(const v2::InventoryArchive& archive) {
-    if (archive.entries.size() > 257) throw std::invalid_argument("toolbox exceeds the inventory capacity");
+    if (archive.entries.size() > kMaxSavedEntries + 1) // the saved entries and the compatibility slot
+        throw std::invalid_argument("toolbox exceeds the inventory capacity");
     std::set<std::string> keys;
     std::size_t bytes = 0, saved = 0, captures = 0;
     for (const auto& row : archive.entries) {
@@ -29,7 +33,8 @@ inline void validate_archive(const v2::InventoryArchive& archive) {
             throw std::invalid_argument("toolbox pairs exceed the 8 MiB limit");
         bytes += row.pair.size();
         row.capture_slot ? ++captures : ++saved;
-        if (captures > 1 || saved > 256) throw std::invalid_argument("toolbox exceeds the inventory capacity");
+        if (captures > 1 || saved > kMaxSavedEntries)
+            throw std::invalid_argument("toolbox exceeds the inventory capacity");
         (void)decode_pair({reinterpret_cast<const char*>(row.pair.data()), row.pair.size()});
     }
     std::vector<FolderTree::Row> rows;

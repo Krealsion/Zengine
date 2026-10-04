@@ -830,7 +830,11 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
             "panes": [{"provider": "zengine.info", "pane": "info",
                        "place": {"mode": "subcells", "x": str((width - 46) * 48), "y": str(2 * 48)},
                        "width": {"mode": "subcells", "amount": str(44 * 48)},
-                       "height": {"mode": "subcells", "amount": str(16 * 48)}, "front": "0"}]}
+                       "height": {"mode": "subcells", "amount": str(16 * 48)}, "front": "0"},
+                      {"provider": "zengine.workshop", "pane": "layouts",
+                       "place": {"mode": "default", "x": "0", "y": "0"},
+                       "width": {"mode": "default", "amount": "0"},
+                       "height": {"mode": "default", "amount": "0"}, "front": "1"}]}
     # A guest cannot size the window: a session file's viewport does, beside Workshop's first desk.
     save(wdir / "session.json", {"zen": 1, "schema": "WorkshopSession", "version": 6, "fields": {
         "format": "zengine-workshop-session", "format_version": "6",

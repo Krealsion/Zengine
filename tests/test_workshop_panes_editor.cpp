@@ -1362,6 +1362,66 @@ TEST_CASE("an orderly quit refuses while source is unsaved, and proceeds once it
     CHECK(e.quit_by_key());
 }
 
+namespace {
+
+/// A guest asking Workshop to end, as `demo.py stop` does, and keeping the answer it is given.
+struct QuitAskerState {
+    std::int64_t asks = 0;
+    ZEN_SHAPE(QuitAskerState, 1, ZEN_FIELD(asks));
+};
+class QuitAsker : public loom::WeaveBase<QuitAsker, QuitAskerState,
+                                         loom::Accept<loom::Ack, loom::Refused, SeatDo>,
+                                         loom::Emit<WorkshopQuitRequested>> {
+public:
+    void on(const SeatDo&, loom::Mail& mail) {
+        ++state_.asks;
+        (void)mail.as_role("zengine.test.quit-asker").send_to_role(kWorkshopProvider,
+                                                                   WorkshopQuitRequested{});
+    }
+    void on(const loom::Ack&, loom::Mail&) { ++acks; }
+    void on(const loom::Refused& r, loom::Mail&) { refusals.push_back(r.reason); }
+    int acks = 0;
+    std::vector<std::string> refusals;
+};
+
+} // namespace
+
+TEST_CASE("a guest's quit is answered in the words of what kept Workshop open, and Ack once it ends") {
+    EditorRig e("edit-quit-asked");
+    e.open();
+    e.open_file("a.cpp", "one\n");
+    e.press_doc(0, 3);
+    e.type("!");
+    REQUIRE(e.dirty());
+    auto made = std::make_unique<QuitAsker>();
+    QuitAsker* asker = made.get();
+    loom::Grant grant;
+    grant.allow_to_role(WorkshopQuitRequested::zen_name, WorkshopQuitRequested::zen_version,
+                        kWorkshopProvider);
+    const loom::WeaveId id =
+        e.r.bus.register_weave(std::move(made), std::move(grant), "zengine.test.quit-asker");
+    asker->zen_set_self(id);
+    const auto ask = [&] {
+        (void)e.r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                             loom::WeaveId{}, 0));
+        e.settle();
+    };
+    ask();
+    REQUIRE(asker->refusals.size() == 1);
+    CHECK(asker->refusals[0].find("unsaved changes") != std::string::npos);
+    CHECK(asker->refusals[0].find("a.cpp") != std::string::npos);
+    CHECK(asker->acks == 0);
+    CHECK_FALSE(e.r.host.quit);
+    // SAVED, THE SAME ASK ENDS THE RUN, AND SAYS SO.
+    e.focus();
+    e.save();
+    REQUIRE(e.clean());
+    ask();
+    CHECK(asker->acks == 1);
+    CHECK(asker->refusals.size() == 1);
+    CHECK(e.r.host.quit);
+}
+
 TEST_CASE("an authoritative `no source open` permits the quit, and so does a clean one") {
     EditorRig e("edit-quit-clean");
     e.open();
@@ -1526,6 +1586,9 @@ TEST_CASE("^o is the Editor's to hear while it has the keys, and the host answer
 TEST_CASE("Escape means nothing in the Editor -- no mode closes, no text moves") {
     EditorRig e("edit-escape");
     e.open();
+    // The desktop's put-down row is mounted, so an Escape Workshop answered itself would put the
+    // Editor down: the Editor keeps it because it declares that it judges its own Escape.
+    (void)mount_desktop(e.r);
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 1);
     e.key(input::scan::kEscape);

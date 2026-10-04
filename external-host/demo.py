@@ -40,7 +40,7 @@ def runtime(prefix):
     return module
 
 
-def wait_for(fn, seconds=40):
+def wait_for(fn, seconds, what):
     end, last = time.monotonic() + seconds, None
     while time.monotonic() < end:
         try:
@@ -50,7 +50,7 @@ def wait_for(fn, seconds=40):
         except Exception as error:
             last = error
         time.sleep(.1)
-    raise RuntimeError("readiness deadline expired: " + str(last))
+    raise RuntimeError("%s did not happen within %gs%s" % (what, seconds, "; last error: %s" % last if last else ""))
 
 
 def tool(session, name, timeout=70, **inputs):
@@ -249,7 +249,7 @@ def launch(args, source, root):
                           "--guests", wdir / "guests.json", "--log", wdir / "workshop.log",
                           "--log-refusals", "--demo-history", "--dump", wdir / "history.txt"]
                          , cwd, wdir / "process.log")
-        port = wait_for(lambda: (wdir / "guests.port").read_text().strip(), 90)
+        port = wait_for(lambda: (wdir / "guests.port").read_text().strip(), 90, "Workshop writing its guest port")
         runs = prefix / "lib" / "loom" / ("loom-runs" + LIB)
         vocab = build / "external-host" / ("zengine-guest-vocabulary" + LIB)
         save_json(sdir / "loom-boot.json", {"boot": [{"name": "runs", "path": str(runs), "role": "loom.runs"},
@@ -271,7 +271,7 @@ def launch(args, source, root):
                 session.tools()
                 return any(r["name"] == "workshop" and r["state"] == "admitted" for r in session.describe()["links"])
 
-        wait_for(admitted, 90)
+        wait_for(admitted, 90, "the Loom session admitting its link to Workshop")
         with module.Session.attach(str(sdir)) as session:
             service = session.start("workshop/demo-serve", "demo-service", {"setup": str(setup.root)})
             config = {"setup": setup.name, "directory": str(source.root), "digest": source.digest(),
@@ -392,11 +392,21 @@ def main():
                 result = artifact(tool(session, "demo-reset", timeout=args.wait + 15, seconds=args.wait), "reset.json")
                 result["preparation"] = preparation(session, config)
             elif args.action == "stop":
-                session.cancel(config["service"], "demo stopped")
-                session.wait(config["service"], timeout=15)
-                tool(session, "demo-stop")
+                # The quit first: refused, it leaves the demo exactly as it was, service and all.
+                try:
+                    tool(session, "demo-stop")
+                except RuntimeError as refused:
+                    said = (str(refused).splitlines() or [""])[0].rstrip(". ")  # not its cleanup notes
+                    raise RuntimeError("stop: %s. Nothing was stopped: the demo is still running. "
+                                       "Save or discard what is named, then stop again." % said)
+                try:
+                    session.cancel(config["service"], "demo stopped")
+                    session.wait(config["service"], timeout=15)
+                except Exception:
+                    pass  # the service ends with the link Workshop closed
                 wait_for(lambda: all(r["name"] != "workshop" or r["state"] != "admitted"
-                                     for r in session.describe()["links"]), 20)
+                                     for r in session.describe()["links"]), 20,
+                         "Workshop closing its link after the quit it accepted")
                 session.shutdown("demo stopped")
                 config["stopped_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 save_json(root / "demo.json", config)

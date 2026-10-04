@@ -9,13 +9,15 @@ LAW — `pane_kind::kLayouts` (`placement::kTopBand`) is a catalog row, a setup 
 
 MEANS
 - what moved is who owns the rectangle, hence what a weaver may do to it; the composition did not;
-- removing the pane strands nobody: the keys step the run and the Pane Manager brings it back.
+- removing the pane strands nobody: the keys step the run and the Pane Manager brings it back;
+- a desk is applied as written, so every desk the repository ships names it.
 
 PROVEN BY — `workshop/panes.hpp` `kLayouts`, `kTopBand`, `kDefaultPanes`;
 `workshop/screen_layouts.cpp` `paint_layouts`, `layouts_body`; `tests/test_workshop_screen.cpp`
 case `"the Layouts pane's developer default IS the historical rectangle"`, case
 `"authored geometry moves the Layouts pane, and the tabs with it"`, case
-`"removing the Layouts pane strands nobody"`.
+`"removing the Layouts pane strands nobody"`; `tests/session/demo_recipes.py`
+`test_every_shipped_desk_shows_layouts_and_readiness_asks_its_providers_alone`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-02 — The status is the active layout's association, in three sentences

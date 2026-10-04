@@ -260,9 +260,10 @@ struct RuntimePane {
     std::int64_t preferred_columns = 0;
 };
 
-/// Catalog rows this session holds, built-ins included.
+/// Catalog rows this session holds, built-ins included: room for the standard panes, Info's and
+/// the view host's views, and Inventory's portable views beside them.
 // WL-CAT-04 -- agents/workshop/catalog.md
-inline constexpr std::size_t kMaxPaneCatalogEntries = 32;
+inline constexpr std::size_t kMaxPaneCatalogEntries = 96;
 
 /// The runtime catalog, and the mint for its handles.
 // WL-CAT-05 -- agents/workshop/catalog.md

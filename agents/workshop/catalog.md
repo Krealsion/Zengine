@@ -58,7 +58,7 @@ MEANS
 - it bounds what a chatty or malicious provider can make this session retain.
 
 PROVEN BY — `workshop/panes.hpp` `kMaxPaneCatalogEntries`; `tests/test_workshop_panes_seam.cpp`
-case `"the combined catalog stops at thirty-two entries, built-ins included"`.
+case `"the combined catalog stops at its bound, built-ins included"`.
 WHY — `agents/decisions/the-catalog-is-one-list.md`
 
 ## WL-CAT-05 — Runtime rows keep first-accepted-offer order, and nothing points into them

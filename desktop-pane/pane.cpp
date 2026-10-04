@@ -25,6 +25,7 @@
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_escape.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -266,6 +267,7 @@ class DesktopWeave
                      WeaverPaneRequested, DeselectRequested, DesktopFace, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
+                     ws::PaneEscapeUnspent,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -396,6 +398,11 @@ public:
     /// open, and nothing otherwise: a key that means nothing here is no act, and says nothing.
     void on(const PaneKey& key, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
+            return;
+        }
+        // Escape's default: a list's marker always stands on a row, which is where it rests and
+        // not a selection, so Escape goes back to Workshop.
+        if (ws::pane_escape::answer(key, mail, pane::kDesktopRole, [] { return false; })) {
             return;
         }
         if (key.pane == pane::kHotkeysPane) {

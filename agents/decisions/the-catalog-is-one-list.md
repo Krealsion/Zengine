@@ -17,8 +17,8 @@ judges a descriptor whole, the stamped office first and as a view, then the two 
 file's own law, then the name and the summary, and only then copies, so an offer wrong in its
 fourth field leaves nothing of its first three behind; a refresh keeps its handle, and an invalid
 refresh keeps the last accepted descriptor. A runtime offer may not shadow a built-in, and two
-offices offering one key are two panes. The catalog holds at most thirty-two panes, built-ins
-included, in first-accepted-offer order, never sorted, and nothing holds a pointer into it.
+offices offering one key are two panes. The catalog holds at most `kMaxPaneCatalogEntries` panes,
+built-ins included, in first-accepted-offer order, never sorted, and nothing holds a pointer into it.
 
 **Alternatives considered.**
 - *Tried: an owned string as the office check's argument* — the copy became the precondition of

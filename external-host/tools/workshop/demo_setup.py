@@ -13,8 +13,11 @@ import setups as described
 
 ROLE = "zengine.demo"
 PANE = "zengine.inventory-pane"
+WORKSHOP = "zengine.workshop"
 NO_ENTRY = {"owner": "", "entry": ""}
 CANNOT_PRESENT = "setup names a pane this Workshop cannot present: "
+DRAWS_PICTURE = "the pane draws a picture"  # Workshop's refusal of a text view of a canvas pane
+READY_SECONDS = 15                           # how long a desk pane has to show its first picture
 
 
 def layout(name, views=()):
@@ -273,21 +276,37 @@ def apply(hand, desk):
     hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(desk)}, settle=True)
 
 
+def without_pane(desk, provider, pane):
+    """`desk` less one pane, its front ranks renumbered."""
+    desk = json.loads(json.dumps(desk))
+    desk["fields"]["panes"] = [p for p in desk["fields"]["panes"]
+                               if (p["provider"], p["pane"]) != (provider, pane)]
+    for i, p in enumerate(desk["fields"]["panes"]):
+        p["front"] = str(i)
+    return desk
+
+
 def seat_desk(ctx, hand, setup, state, link):
-    """The whole desk; a pane Workshop cannot present is prepared when the setup says how."""
+    """The whole desk. A pane Workshop cannot present is prepared when the setup says how; one the
+    setup does not prepare (a described view nobody has run yet, say) is left off the desk and
+    named in state["unseated"], since the rest of the desk is usable without it."""
     desk = setup.desk(seated_views(hand, setup, state))
-    try:
-        apply(hand, desk)
-        return desk
-    except Exception as refused:
-        said = str(refused)
-        if CANNOT_PRESENT not in said:
-            raise
-        missing = said.split(CANNOT_PRESENT, 1)[1].split()[0]
-        declared = [p for p in setup.providers() if p["role"] == missing]
-        ctx.check(bool(declared), "%s; this setup does not prepare %s -- check its prerequisites "
-                  "and the load plan" % (said, missing))
-    stage(state, "desk without " + ", ".join(p["role"] for p in setup.providers()))
+    roles = [p["role"] for p in setup.providers()]
+    state["unseated"] = []
+    for _ in range(len(desk["fields"]["panes"]) + 1):
+        try:
+            apply(hand, desk)
+            return desk
+        except Exception as refused:
+            said = str(refused)
+            if CANNOT_PRESENT not in said:
+                raise
+            provider, pane = (said.split(CANNOT_PRESENT, 1)[1].split() + [""])[:2]
+            if provider in roles:
+                break
+            state["unseated"].append("%s %s" % (provider, pane))
+            desk = without_pane(desk, provider, pane)
+    stage(state, "desk without " + ", ".join(roles))
     apply(hand, setup.without(desk, [p["role"] for p in setup.providers()]))
     for provider in setup.providers():
         stage(state, "build " + provider["role"])
@@ -352,11 +371,44 @@ def prepare(ctx, setup, state, link):
         finally:
             weaver.close()
     stage(state, "readiness")
-    # The visible reading comes from Workshop, not a private model of its typography.
+    # The visible reading comes from Workshop, not a private model of its typography. Workshop's
+    # own panes (Layouts) are painted by Workshop itself and have no provider to wait for. A pane
+    # that has not shown by then is named; the rest of the desk is usable without it.
+    state["not_showing"] = []
     for row in desk["fields"]["panes"]:
-        view = hand.view(row["provider"], row["pane"])
-        ctx.check(bool(view["rows"]), "a desk pane is not ready: %s %s" % (row["provider"], row["pane"]))
+        if row["provider"] != WORKSHOP:
+            why = shown(hand, row["provider"], row["pane"])
+            if why:
+                state["not_showing"].append("%s %s (%s)" % (row["provider"], row["pane"], why))
     stage(state, "ready")
+
+
+def shown(hand, provider, pane):
+    """Wait, a bounded while, until Workshop shows the pane: text rows, or a picture it draws.
+    Nothing when it shows; Workshop's last word about it when it has not."""
+    deadline, why = time.monotonic() + READY_SECONDS, "no rows"
+    while True:
+        try:
+            if hand.view(provider, pane)["rows"]:
+                return None
+            why = "no rows"
+        except Exception as refused:
+            if DRAWS_PICTURE in str(refused):
+                return None
+            why = str(refused)
+        if time.monotonic() >= deadline:
+            return why
+        time.sleep(0.2)
+
+
+def ready_note(setup, state):
+    """What a ready demo says: the first task, and any pane the desk could not seat."""
+    note = "Ready. %s" % setup.get("first_task")["do"]
+    if state.get("unseated"):
+        note += " Not on the desk: %s, which this Workshop does not offer yet." % ", ".join(state["unseated"])
+    if state.get("not_showing"):
+        note += " Not showing after %ds: %s." % (READY_SECONDS, ", ".join(state["not_showing"]))
+    return note
 
 
 def failure_note(error, state):
@@ -375,21 +427,23 @@ def serve(ctx):
     ctx.ask(ROLE, "DemoServiceOpened", {"name": setup.get("title")[:64]}, via=link)
     ctx.on_cleanup(lambda: ctx.ask(ROLE, "DemoServiceClosed", {}, via=link, timeout=10),
                    "detach the reset service")
-    ready = "Ready. %s" % setup.get("first_task")["do"]
     while True:
         ctx.step("waiting for initial setup or Reset demo")
         work = ctx.ask(ROLE, "DemoWorkRequested", {}, via=link, timeout=86400)
         started = time.monotonic()
-        passed, note = True, ready
+        passed = True
         ctx.step("prepare " + setup.name)
         measured = Measured(ctx)
         try:
             prepare(measured, setup, state, link)
+            note = ready_note(setup, state)
         except Exception as error:
             passed, note = False, failure_note(error, state)
         state["samples"].append({"generation": work["generation"], "passed": passed,
                                  "elapsed_ms": (time.monotonic() - started) * 1000,
                                  "note": note, "reached": state.get("reached"),
+                                 "unseated": list(state.get("unseated", [])),
+                                 "not_showing": list(state.get("not_showing", [])),
                                  "request_calls": dict(measured.calls),
                                  "outcomes": dict(measured.outcomes)})
         state["samples"] = state["samples"][-64:]

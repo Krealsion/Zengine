@@ -42,9 +42,9 @@ inline constexpr std::size_t kMaxSetupNameLen = 32;
 // WL-SETUP-01, WL-SETUP-10 -- agents/workshop/setup-file.md
 inline constexpr std::size_t kMaxPaneKeyLen = 64;
 
-/// How many pane references one setup may carry.
+/// How many pane references one setup may carry: a desk may seat every pane a catalog holds.
 // WL-MIG-03 -- agents/workshop/migration.md; WL-SETUP-01 -- agents/workshop/setup-file.md
-inline constexpr std::size_t kMaxSetupPanes = 32;
+inline constexpr std::size_t kMaxSetupPanes = 96;
 
 /// How long a RUNTIME pane descriptor's two prose fields may be.
 // WL-CAT-02 -- agents/workshop/catalog.md

@@ -22,6 +22,7 @@
 #include "workshop/persist.hpp"
 
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_escape.hpp"
 
 #include "activation/activation.hpp"
 #include "builder/vocabulary.hpp"
@@ -272,7 +273,7 @@ class FilesWeave
           loom::Emit<PaneOffered, PaneActions, ws::v3::PaneContent, ProjectRootRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
                      zengine::builder::StatusRequested, PaneMenuRequested, PanePassRequested,
-                     ws::PaneKeyboardRequested, surface::ClipboardCopy,
+                     ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -453,6 +454,11 @@ public:
 
     void on(const PaneKey& key, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || key.pane != files::kProjectFilesPane) {
+            return;
+        }
+        // Escape's default: the cursor is where the list rests, not a selection, so Escape goes
+        // back to Workshop.
+        if (ws::pane_escape::answer(key, mail, files::kFilesRole, [] { return false; })) {
             return;
         }
         // ONLY THE AUTHORING LINE READS RAW KEYS. Everything else this pane does arrives as

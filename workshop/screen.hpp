@@ -990,9 +990,11 @@ bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
 
 /// THE ONE STATE CLASSIFIER. Asked of an inventory row -- which is the union of the catalog
 /// and everything the setup names -- so every authored pane gets exactly one answer and no
-/// row is silently omitted because the runtime catalog lacks it.
+/// row is silently omitted because the runtime catalog lacks it. A caller that only asks
+/// whether a pane is on the screen at all passes `judge_cover` false, and a covered pane then
+/// answers `open`, sparing the comparison against every pane in front of it.
 std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen& sc,
-                                  const CatalogRow& row);
+                                  const CatalogRow& row, bool judge_cover = true);
 
 
 

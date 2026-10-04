@@ -8,6 +8,7 @@
 // `pane_menu::Asked::take`; a forger answers under the ask's number. A failed check returns
 // non-zero, which run.cmake's exit test catches.
 
+#include "workshop/pane_escape.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/presenter_vocabulary.hpp"
@@ -499,6 +500,12 @@ void list_helpers() {
 int main() {
     live_menu();
     list_helpers();
+    // Escape's default helper, from the installed header: a bare Escape is its, nothing else is.
+    check(ws::pane_escape::bare(ws::PaneKey{"p", zengine::input::scan::kEscape, 0}),
+          "pane_escape::bare takes a bare Escape");
+    check(!ws::pane_escape::bare(ws::PaneKey{"p", zengine::input::scan::kEscape,
+                                             zengine::input::mod::kShift}),
+          "pane_escape::bare leaves a modified Escape to the pane");
     if (failures == 0) {
         std::printf("pane-menu consumer: ok -- a live menu asked, presented and answered across "
                     "four offices; forged, host-chosen, duplicate and replaced answers took "

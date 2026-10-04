@@ -702,15 +702,16 @@ struct AppRow {
     std::int64_t precedence = 0; ///< `app_precedence::kAboveModes` / `kDefault`
 };
 
-/// How many application rows one declaration may carry: a pane's bound, because a declarer
-/// needing more gestures above every mode is claiming the keyboard.
+/// How many application rows one declaration may carry. The rows are a weaver's own shortcuts
+/// beside the desktop's few, and two rows never share a gesture, so the keyboard bounds them; this
+/// only keeps one declaration finite, with room for every hotkey Inventory may switch on (512).
 // WL-DESK-07 -- agents/workshop/desktop.md
-inline constexpr std::size_t kMaxAppActionRows = 32;
+inline constexpr std::size_t kMaxAppActionRows = 1024;
 
 /// How many rows one pane may declare: its own bound on what a chatty provider can make this
-/// session retain.
+/// session retain, with room for a row per command hotkey Inventory keeps (512) beside its own.
 // WL-KEY-15 -- agents/workshop/keyboard.md
-inline constexpr std::size_t kMaxPaneActionRows = 32;
+inline constexpr std::size_t kMaxPaneActionRows = 1024;
 
 /// THE BOUNDS ON ONE ROW'S TWO STRINGS, in BYTES -- an id is spelled in the keymap file
 /// and a label on the band, and neither is a place for a paragraph.

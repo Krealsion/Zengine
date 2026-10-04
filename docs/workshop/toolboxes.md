@@ -23,7 +23,7 @@ Commands containing old live references may need fresh fields before they can ru
 Toolboxes contain data and slot configuration. Use [setups](setups.md) for screen positions.
 Restored portable views are offered in the pane list; open them there or apply a setup that uses
 them. Saved view identities are preserved; existing ones are reused. Extra offered views become
-empty inactive spares. If the combined identities exceed twelve, restore in a fresh Workshop.
+empty inactive spares. If the combined identities exceed <!-- value kMaxPortableViews -->36<!-- /value -->, restore in a fresh Workshop.
 Info/Compose edits remain local; save them to Inventory before saving the toolbox. A live Info
 draft from before a restore keeps its text and shows **LINK STALE**; its old reference cannot save
 over the new entry, and Save copy stores the text. A restore never turns a watch on.
@@ -83,9 +83,10 @@ After the collection commit, Desktop clears the old active shortcuts. A failure 
 step explicitly reports that entries were restored and hotkeys are OFF; it does not claim rollback.
 A missing answer can remain pending. Inspect the collection and logs before repeating a replacement.
 
-The file limit is 32 MiB, including at most 8 MiB of encoded pair data, 256 saved entries plus
-the compatibility slot, 128 folders nested at most eight deep, twelve portable views and sixteen
-bindings. A folder tree with a missing parent, a cycle, a name clash or an entry filed in a
+The file limit is 32 MiB, including at most 8 MiB of encoded pair data, <!-- value kMaxSavedEntries -->1024<!-- /value --> saved entries plus
+the compatibility slot, 128 folders nested at most eight deep,
+<!-- value kMaxPortableViews -->36<!-- /value --> portable views and
+<!-- value kMaxConfiguredHotkeys -->512<!-- /value --> bindings. A folder tree with a missing parent, a cycle, a name clash or an entry filed in a
 missing folder refuses before the collection changes. One writer per file path; this is explicit
 snapshot persistence, not a synchronized database or power-loss recovery log.
 Schema descriptions travel with the values, so an absent source is not required to read them.

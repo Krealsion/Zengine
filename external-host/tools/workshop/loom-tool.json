@@ -806,8 +806,8 @@
       "recovery": "Read the named owner failure and the service run. Reset restores only recipe-owned fixtures; user copies survive. Stop a failed service explicitly before attaching another.",
       "name": "demo-stop",
       "script": "demo_stop.py",
-      "summary": "Request ordinary orderly quit of an owned demo.",
-      "description": "Focuses the demo controls, deselects, then sends the ordinary q quit key. The launcher waits separately for the link to close.",
+      "summary": "Ask an owned demo's Workshop to quit, and say what refused it.",
+      "description": "Answers any open menu with Escape, then asks Workshop's one orderly quit (WorkshopQuitRequested). A refused quit fails the run in Workshop's own words and leaves everything running; an accepted one ends Workshop, and the launcher waits separately for the link to close.",
       "inputs": [
         {
           "name": "link",
@@ -823,8 +823,7 @@
         "InjectInput v1",
         "InputInjected v1",
         "InputSessionClosed v1",
-        "PaneViewRequested v1",
-        "PaneView v1"
+        "WorkshopQuitRequested v1"
       ],
       "example": "loom-session run <dir> workshop/demo-stop --name stop"
     },
