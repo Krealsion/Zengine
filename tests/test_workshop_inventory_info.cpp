@@ -1482,3 +1482,50 @@ TEST_CASE("hotkeys: many hotkeys on at once, each reaching its own command, noth
         CHECK(sink->state_.heard == 1); // and no chord reached another's office
     }
 }
+
+TEST_CASE("views: every view Inventory makes is offered beside the other panes, and one desk seats them all") {
+    // Each view is a pane Workshop's catalog holds, beside the panes this story loads, and a desk
+    // naming all of them is applied and every view seated. Applying it is a repaint per pane, so it
+    // is also the case that keeps that repaint's cost from growing with the desk's square.
+    InventoryStory s(191, true, false, false, true, true);
+    s.r.extent(156, 60);
+    for (std::size_t i = 0; i < slots::kMaxPortableViews; ++i)
+        (void)s.create(i % 3 == 0 ? "single" : (i % 3 == 1 ? "row" : "column"));
+    const auto views = s.layout().views;
+    REQUIRE(views.size() == slots::kMaxPortableViews);
+    for (const auto& v : views) REQUIRE(s.r.session().panes.runtime.find(slots::kRole, v.id) != nullptr);
+    CHECK(s.r.session().panes.runtime.entries.size() + kBuiltinPaneCount > 32);
+    Setup desk;
+    desk.name = "Thirty-six views";
+    const auto seat = [&](const PaneRef& ref, std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) {
+        REQUIRE(add_pane(desk, ref));
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref) {
+                row.place = {pane_unit::kSubcells, x * surface::kCellSubs, y * surface::kCellSubs};
+                row.width = {pane_unit::kSubcells, w * surface::kCellSubs};
+                row.height = {pane_unit::kSubcells, h * surface::kCellSubs};
+            }
+        }
+    };
+    REQUIRE(add_pane(desk, PaneRef{"zengine.workshop", "layouts"}));
+    seat({slots::kRole, "inventory"}, 1, 2, 50, 22);
+    seat({"zengine.info", "info"}, 122, 2, 33, 22);
+    for (std::size_t i = 0; i < views.size(); ++i) {
+        const auto col = static_cast<std::int64_t>(i % 6), line = static_cast<std::int64_t>(i / 6);
+        seat({slots::kRole, views[i].id}, 1 + col * 25, 29 + line * 5, 24, 5);
+    }
+    REQUIRE(desk.panes.size() > 32);
+    const Written judged = check_setup(desk);
+    REQUIRE_MESSAGE(judged.accepted, judged.refusal);
+    // As the demo guest's door would: Workshop's own setup application, whole.
+    (void)s.r.bus.send_to_role("zengine.workshop",
+                               loom::Message(loom::to_value(SetupApplyRequested{setup_persist::to_text(desk)})));
+    s.r.bus.drain_until_idle();
+    CHECK(s.r.session().setup.active.name == "Thirty-six views");
+    for (const auto& v : views) {
+        CAPTURE(v.id);
+        const RuntimePane* row = s.r.session().panes.runtime.find(slots::kRole, v.id);
+        REQUIRE(row != nullptr);
+        CHECK(s.r.session().panes.has(row->kind));
+    }
+}

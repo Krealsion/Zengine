@@ -144,7 +144,7 @@ bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
 }
 
 std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen& sc,
-                           const CatalogRow& row) {
+                           const CatalogRow& row, bool judge_cover) {
     if (!has_pane(setup, row.ref)) {
         return pane_state::kClosed;
     }
@@ -171,7 +171,7 @@ std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen&
     if (where.rect.w <= 0 || where.rect.h <= 0) {
         return pane_state::kOffRoom;
     }
-    if (pane_is_covered(panes, setup, sc, row.kind, where.rect)) {
+    if (judge_cover && pane_is_covered(panes, setup, sc, row.kind, where.rect)) {
         return pane_state::kCovered;
     }
     return pane_state::kOpen;
