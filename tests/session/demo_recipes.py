@@ -197,6 +197,24 @@ def make(tmp, name="made", **fields):
     return root
 
 
+def act_module():
+    """workshop/act, imported with Loom's runtime stood in for; its verbs are what a test reads."""
+    tool = types.ModuleType("loom_session.tool")
+    tool.Refused = type("Refused", (Exception,), {})
+    saved = sys.modules.get("loom_session.tool")
+    sys.modules["loom_session.tool"] = tool
+    try:
+        spec = importlib.util.spec_from_file_location("act_verbs", REPO / "external-host/tools/workshop/act.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        if saved is None:
+            sys.modules.pop("loom_session.tool", None)
+        else:
+            sys.modules["loom_session.tool"] = saved
+
+
 class Recipes(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -392,6 +410,18 @@ class Recipes(unittest.TestCase):
             self.assertIn(words, said)
         with self.assertRaisesRegex(described.SetupError, "walks maps each walk's name"):
             described.Setup(make(self.tmp, "listed", walks=[{"press": "x"}]))
+
+    def test_every_shipped_walk_names_one_of_acts_verbs_per_step(self):
+        verbs, walked = act_module().VERBS, set()
+        for name, directory in described.collection([REPO / "examples"]).items():
+            setup = described.Setup(directory)
+            for walk, described_walk in setup.walks().items():
+                walked.add(name + "/" + walk)
+                for i, step in enumerate(described_walk["steps"]):
+                    self.assertEqual(len([v for v in verbs if v in step]), 1, "%s %s step %d" % (name, walk, i))
+            if setup.walks():
+                self.assertIn("Walks (demo.py walk", setup.describe(), name)
+        self.assertTrue({"values/layouts", "presets/escape", "editor-materials/escape"} <= walked, walked)
 
     def test_a_walk_replays_through_act_and_keeps_what_it_made_in_the_folder_named(self):
         root = make(self.tmp, "walked", walks={"look": {"about": "a look", "steps": [

@@ -46,5 +46,73 @@
  "reset": {
   "scope": "the layout and Inventory's selection",
   "keeps": "every Inventory entry and every file"
+ },
+ "walks": {
+  "escape": {
+   "about": "Escape in Files and the Terminal puts each down; the Editor keeps Escape for itself",
+   "steps": [
+    {
+     "click": [
+      "zengine.editor",
+      "editor",
+      "no source open"
+     ]
+    },
+    {
+     "picture": "editor-1-chosen"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "picture": "editor-2-kept"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "picture": "editor-3-kept"
+    },
+    {
+     "click": [
+      "zengine.files",
+      "project-files",
+      "guests.port"
+     ]
+    },
+    {
+     "expect": [
+      "zengine.files",
+      "project-files",
+      "> guests.port"
+     ]
+    },
+    {
+     "picture": "files-1-chosen"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "picture": "files-2-down"
+    },
+    {
+     "click": [
+      "zengine.terminal",
+      "terminal",
+      "TERMINAL"
+     ]
+    },
+    {
+     "picture": "terminal-1-chosen"
+    },
+    {
+     "press": "escape"
+    },
+    {
+     "picture": "terminal-2-down"
+    }
+   ]
+  }
  }
 }

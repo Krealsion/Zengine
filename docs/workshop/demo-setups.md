@@ -206,7 +206,15 @@ press **Reset demo** first when the walk needs the starting desk.
 
 The walk is read from the setup's directory as it is now, so an edited walk replays without a new
 root; the desk it walks is the one the root prepared, and the answer says `description_changed`
-when the two differ.
+when the two differ. The shipped walks:
+
+| setup | walk | checks |
+|---|---|---|
+| `values` | `layouts` | the Layouts row taken off the desk from the Pane Manager and brought back, as Info lists it |
+| `presets` | `escape` | Escape in Inventory, Loaded, Compose, Info and the Demo controls: a selection let go first, then the pane put down |
+| `editor-materials` | `escape` | Escape in Files and the Terminal puts each down; the Editor keeps Escape for itself |
+
+![The values setup's layouts walk replayed in a window: its three pictures, the Layouts row on, taken off and back](images/walk-values-layouts.png)
 
 ## Measure the work behind one command
 
