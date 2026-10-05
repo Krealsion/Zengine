@@ -882,8 +882,11 @@ zengine_workshop_suite(neovim SOURCES test_workshop_neovim.cpp test_workshop_neo
     NEEDS zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture zengine-inventory
           zengine-inventory-pane)
 
+# Also the hotkeys guide's keymap example, read from the guide as a weaver copies it
+# (tests/text_checks.cmake names the guide, so a change to it runs this lane).
 zengine_workshop_suite(document SOURCES test_workshop_document.cpp
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
+                "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
     NEEDS zengine-composer)
 
 zengine_workshop_suite(screen SOURCES test_workshop_screen.cpp)

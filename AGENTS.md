@@ -107,7 +107,8 @@ cmake -P tests/documentation_lane.cmake
   for a documentation-only change; CI runs those checks on every change and skips the build and
   test jobs for a documentation-only one. A C/C++ file is the official lane's even when only its
   comments changed, because compiled tests read source as text (`tests/text_checks.cmake` says
-  which); so is a CMake file, CI and the lane itself.
+  which); so is a CMake file, CI, the lane itself, and a guide a compiled test reads, which that
+  list names.
 
 - **Quote `tests/verify.cmake`, never a bare `ctest`** — a bare run cannot say whether the
   population that ran is the population this repository meant to run.
