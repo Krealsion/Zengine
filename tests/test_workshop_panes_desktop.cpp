@@ -232,7 +232,7 @@ TEST_CASE("WL-DESK-14: a deliberate second press on the marked name, with the ke
 
 TEST_CASE("WL-DESK-14: the wheel walks the marker one row per notch, and a press names the picture it was aimed at -- a press queued behind a change of the list is refused, never resolved against the moved rows") {
     Desk d;
-    author_test_pane_room(d.r, d.launcher, 6, 100);
+    author_test_pane_room(d.r, d.launcher, 7, 100); // the gone note keeps a row of its own
     d.r.extent(161, 60);
     const std::string first = marked(d.rows());
     d.r.wheel_cell(-1.0, body_x(d.r, d.launcher, kNameCol), body_y(d.r, d.launcher, 1));
@@ -454,7 +454,7 @@ struct Keys {
 
 } // namespace
 
-TEST_CASE("WL-KEY-17: right-click a binding, Modify (press a key): the change is live at once, written to the file, listed in the table, and the floor teaches it; the keys stayed where they were") {
+TEST_CASE("WL-KEY-17: right-click a binding, Modify (press a key): the change is live at once, written to the file and listed in the table; the keys stayed where they were") {
     Keys k("hotkeys-modify-press");
     const std::int64_t row = k.row_of("desktop.terminal");
     REQUIRE(row >= 0);

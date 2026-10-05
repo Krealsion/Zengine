@@ -2,7 +2,7 @@
 
 Register `WL-DESK`, the presenting half: what a presenter of the host's readings is told and
 when, and how the launcher holds a weaver's place in a list that moves. The owner's own laws —
-the defaults weave, precedence, launching, closing, the floor — are in
+the defaults weave, precedence, launching, closing — are in
 [`desktop.md`](desktop.md), and the ids are one series. One law per heading; cite by ID.
 Router: [`../workshop.md`](../workshop.md).
 
@@ -93,7 +93,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-11 — The effective keymap is said out loud, and presenters print only it
 
-LAW — The host publishes every binding in force, grouped by where it is answered, when it changes and to an arriving asker; the floor and the Hotkeys pane print keys from it and from nothing else.
+LAW — The host publishes every binding in force, grouped by where it is answered, when it changes and to an arriving asker; the Hotkeys pane prints keys from it and from nothing else.
 
 MEANS
 - a moved row prints where it moved, a disabled one as having no key, `*` marking the weaver's;
@@ -107,7 +107,7 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `ShownBinding`, `KeymapShow
 `keymap_shown`, `keyboard_context_name`; `workshop/weave.hpp` `publish_keymap`,
 `on(KeymapRequested)`; `workshop/weave_desktop.cpp` `publish_keymap`, `on(KeymapRequested)`;
 `desktop-pane/pane.cpp` `DesktopWeave`; `desktop-pane/vocabulary.hpp` `kHotkeysPane`,
-`kActionHotkeys`; `tests/test_workshop_panes_actions.cpp` case `"the floor and the Hotkeys pane
+`kActionHotkeys`; `tests/test_workshop_panes_actions.cpp` case `"the band and the Hotkeys pane
 teach the application's keys as they are in force: a moved row where it moved, a disabled one as
 having no key"`; `tests/test_workshop_document.cpp` case `"the effective keymap lists every place
 a key is answered, and marks the text box's keys as nobody's to move"`.

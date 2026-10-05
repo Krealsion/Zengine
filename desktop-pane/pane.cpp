@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Desktop: a loadable weave that owns what this application does by default -- which
-// gestures open or focus which tool, what a key nothing more specific claimed means, what a
-// weaver reads in the empty room, and what is said about a tool that is not there. It offers the
+// gestures open or focus which tool, what a key nothing more specific claimed means, and what is
+// said about a tool that is not there. It offers the
 // Pane Manager (launch, focus, close, and the Pane Creator's acts asked of the host) and the
 // Hotkeys pane. None of it is a fact about room, focus, realization or roots, the host's four.
 // Workshop law: agents/workshop/desktop.md
@@ -65,7 +65,6 @@ using ws::AppActionRequested;
 using ws::AppActionRow;
 using ws::AppActions;
 using ws::DeselectRequested;
-using ws::DesktopFace;
 using ws::InspectPaneRequested;
 using ws::InventoryPane;
 using ws::KeymapEditAnswered;
@@ -264,7 +263,7 @@ class DesktopWeave
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v3::PaneContent, AppActions,
                      PaneLaunchRequested, PaneCloseRequested, PaneToggleRequested,
-                     WeaverPaneRequested, DeselectRequested, DesktopFace, PaneInventoryRequested,
+                     WeaverPaneRequested, DeselectRequested, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
                      ws::PaneEscapeUnspent,
@@ -531,12 +530,11 @@ public:
         heard_ = true;
         find_cursor();
         say(mail);
-        face(mail);
     }
 
     /// THE KEYMAP IN FORCE, AS THE HOST RESOLVED IT -- the one binding truth, published when it
-    /// changes or answered to this image's ask. The floor's key hints and the Hotkeys pane are
-    /// both read from it; this weave keeps no gesture of its own to print (WL-DESK-11).
+    /// changes or answered to this image's ask. The Hotkeys pane is read from it; this weave
+    /// keeps no gesture of its own to print (WL-DESK-11).
     void on(const KeymapShown& said, loom::Mail& mail) {
         if (!from_workshop(mail)) {
             return;
@@ -544,7 +542,6 @@ public:
         keymap_ = said;
         keys_heard_ = true;
         say_keys(mail);
-        face(mail);
     }
 
     /// WHAT A LAUNCH CAME TO -- Loom's answer to this image's latest launch, and no older one:
@@ -600,7 +597,6 @@ public:
         }
         say(mail);
         say_keys(mail);
-        face(mail);
     }
 
     /// ...AND A DECLARATION IN FORCE LEAVING THE KEYMAP. Only the number this image was told
@@ -619,7 +615,6 @@ public:
         d.word = "keys withdrawn: " + said.refusal;
         say(mail);
         say_keys(mail);
-        face(mail);
     }
 
     // ---- The mouse: a press names a picture, a wheel walks the cursor, a right press offers --
@@ -791,10 +786,9 @@ private:
         // image arriving while nothing changes would otherwise wait for an unrelated change.
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneInventoryRequested{});
-        // ...AND THE KEYMAP IN FORCE, for the same reason: what the floor and the Hotkeys pane
-        // print is what the host resolved, never this image's own defaults.
+        // ...AND THE KEYMAP IN FORCE, for the same reason: what the Hotkeys pane prints is what
+        // the host resolved, never this image's own defaults.
         (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, KeymapRequested{});
-        face(mail);
     }
 
     /// THE THREE APPLICATION ROWS, AND WHY EACH GESTURE.
@@ -1270,7 +1264,16 @@ private:
             choice_.lost ? (held_name_.empty() ? state_.cursor_pane : held_name_) +
                                " left the list -- choose a row before Return shows anything"
                          : std::string();
-        const std::string* said[] = {&lost, &notice_, &pane_rows_.word, &app_.word};
+        // (!) A ROW MARKED GONE IS EXPLAINED FOR AS LONG AS ONE IS, on the same terms: the host
+        // supplied the fact (`InventoryPane::available`, asked of the office's holder now), and
+        // what brings the tool back is the weaver's. Still to come is not missing.
+        bool any_gone = false;
+        for (const InventoryPane& p : known_) {
+            any_gone = any_gone || (!p.available && !p.pending);
+        }
+        const std::string gone =
+            any_gone ? std::string("[gone]: build its provider, then launch again") : std::string();
+        const std::string* said[] = {&lost, &notice_, &gone, &pane_rows_.word, &app_.word};
         for (const std::string* word : said) {
             if (!word->empty()) {
                 notes.push_back(drawable(*word));
@@ -1764,68 +1767,6 @@ private:
         said.rows = std::move(rows);
         said.picture = keys_map_.settle();
         (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, said);
-    }
-
-    // ---- What stands in the empty room ------------------------------------------------------
-
-    /// (*) THE FLOOR. This is the small visible behaviour a replacement changes: rebuild this
-    /// weave with different words here, reload it, and the room a weaver is looking at says
-    /// them -- while every other pane keeps its document, its draft and its unsaved work,
-    /// because none of that was ever this weave's.
-    void face(loom::Mail& mail) {
-        std::vector<surface::SurfaceTextRow> out;
-        const auto push = [&out](std::string text, std::int64_t role) {
-            out.push_back(surface::SurfaceTextRow{std::move(text), role});
-        };
-        push("Zen Workshop", surface::role::kAccent);
-        // (!) THE KEYS ARE THE HOST'S ANSWER, NOT THIS WEAVE'S DEFAULTS: a row the weaver moved is
-        // printed where they moved it, one they disabled says so, and before the keymap is heard
-        // no key is claimed at all (WL-DESK-11). An action with several keys prints its first.
-        if (keys_heard_) {
-            std::string hints;
-            for (const AppActionRow& mine : app_rows()) {
-                if (mine.precedence != ws::app_precedence::kAboveModes) {
-                    continue;
-                }
-                for (const ShownBinding& b : keymap_.rows) {
-                    if (b.id != mine.id) {
-                        continue;
-                    }
-                    const std::string hint =
-                        b.gesture.empty() ? b.label + ": no key" : b.gesture + "  " + b.label;
-                    hints += (hints.empty() ? "" : "      ") + hint;
-                    break;
-                }
-            }
-            if (!hints.empty()) {
-                push(hints, surface::role::kMuted);
-            }
-        }
-        // (!) AND THE TOOLS THAT ARE NOT HERE ARE NAMED ON THE FLOOR. The host supplied the
-        // fact (`InventoryPane::available`, asked of the office's holder now); this weave
-        // decided it belongs here.
-        std::vector<std::string> gone;
-        for (const InventoryPane& p : known_) {
-            if (!p.available && !p.pending) { // still to come is not missing
-                gone.push_back(p.name);
-            }
-        }
-        if (!gone.empty()) {
-            std::string line = "unavailable: ";
-            for (std::size_t i = 0; i < gone.size(); ++i) {
-                line += (i == 0 ? "" : ", ") + gone[i];
-            }
-            push(line, surface::role::kAlert);
-            push("  its provider is not in this Workshop -- build it, then launch again",
-                 surface::role::kMuted);
-        }
-        for (const Declared* d : {&app_, &pane_rows_}) {
-            if (!d->word.empty()) {
-                push(d->word, surface::role::kAlert);
-            }
-        }
-        (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, DesktopFace{std::move(out)});
     }
 
     // ---- State not in the shape ----------------------------------------------------------

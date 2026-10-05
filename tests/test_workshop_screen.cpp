@@ -692,6 +692,54 @@ char cell_seen_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t 
 
 } // namespace
 
+TEST_CASE("nothing is painted behind the panes: where no pane stands, the room is the medium's own "
+          "ground") {
+    // EVERY MARK THE CANVAS CARRIES lies in a pane it belongs to or in the bottom band, so a cell
+    // of the room no pane covers shows whatever the medium shows for nothing at all.
+    Session s;
+    admit_stock(s.panes);
+    s.screen_w = cells_px(120);
+    s.screen_h = cells_px(40);
+    s.setup.active = two_overlays();
+    s.panes.open = {OpenPane{stock::kKind}};
+    const surface::SurfaceCanvas c = paint(s);
+    const Screen sc = screen_of(s);
+    std::vector<PixelRect> owned{band_bounds(sc)};
+    for (const std::int64_t kind : effective_pane_order(s.setup.active, s.panes)) {
+        const PaneBounds b = bounds_of(s.panes, s.setup.active, kind, sc);
+        if (b.open) {
+            owned.push_back(b.rect);
+        }
+    }
+    REQUIRE(owned.size() >= 2); // the band and the stand-in
+    const auto inside = [&owned](std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) {
+        for (const PixelRect& r : owned) {
+            if (x >= r.x && y >= r.y && x + w <= r.x + r.w && y + h <= r.y + r.h) {
+                return true;
+            }
+        }
+        return false;
+    };
+    std::size_t marks = 0;
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        for (const surface::SurfaceRect& r : layer.rects) {
+            CHECK_MESSAGE(inside(r.x, r.y, r.w, r.h), r.x << "," << r.y << " " << r.w << "x" << r.h);
+            ++marks;
+        }
+        for (const surface::SurfaceLabel& l : layer.labels) {
+            CHECK_MESSAGE(inside(l.x, l.y, 1, 1), l.x << "," << l.y << " " << l.text);
+            ++marks;
+        }
+        for (const surface::SurfaceTextRegion& t : layer.texts) {
+            CHECK_MESSAGE(inside(t.x, t.y, t.w, t.h), t.x << "," << t.y << " " << t.w << "x" << t.h);
+            ++marks;
+        }
+    }
+    CHECK(marks > 0);
+    // ...AND THE ROOM HAS GROUND TO SHOW: a cell of it under no pane.
+    CHECK_FALSE(inside(surface::px_of_cells(60), sc.room_y + surface::px_of_cells(20), 1, 1));
+}
+
 TEST_CASE("an overlapping pane is painted where it is hit, in both front orders") {
     // Two stand-ins share the stack, so their overlap is authored, and the claim is that what
     // the hand meets is what the eye reads, in either front order.

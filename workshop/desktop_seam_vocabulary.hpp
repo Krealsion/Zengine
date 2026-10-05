@@ -5,10 +5,10 @@
 #define ZENGINE_WORKSHOP_DESKTOP_SEAM_VOCABULARY_HPP
 
 // The desktop seam: what crosses between Workshop and the weave that owns the application's
-// defaults -- the gestures it answers above every pane, launching and closing, and what stands in
-// the empty room (WL-DESK-01). The desktop decides which requests to make and when; the host
-// decides whether they can be performed. A desktop that failed to load leaves no defaults and no
-// backdrop, never a process a weaver cannot leave.
+// defaults -- the gestures it answers above every pane, launching and closing (WL-DESK-01). The
+// desktop decides which requests to make and when; the host decides whether they can be
+// performed. A desktop that failed to load leaves no defaults, never a process a weaver cannot
+// leave.
 
 #include "surface/vocabulary.hpp"
 
@@ -271,18 +271,6 @@ struct KeymapRequested {
     ZEN_SHAPE(KeymapRequested, 1);
 };
 
-// ---- The backdrop ---------------------------------------------------------------------------
-
-/// What stands in the empty room: rows the host paints behind every pane (WL-DESK-05). Not a pane
-/// and taking no input -- the desktop owns the words, the host the wall. Refused whole past
-/// `kMaxBackdropRows`.
-struct DesktopFace {
-    std::vector<surface::SurfaceTextRow> rows;
-    ZEN_SHAPE(DesktopFace, 1, ZEN_FIELD(rows));
-};
-
-/// How many rows a backdrop may say: its own bound on what a desktop can make the host retain.
-inline constexpr std::size_t kMaxBackdropRows = 64;
 
 } // namespace zengine::workshop
 

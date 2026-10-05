@@ -726,9 +726,6 @@ struct Session {
     std::int64_t place_x = 0;
     std::int64_t place_y = 0;
     bool place_maximized = false;
-    /// What stands in the empty room: the rows the desktop said, painted behind every pane.
-    /// Replaced whole, never merged or persisted, and empty until the desktop speaks (WL-DESK-05).
-    std::vector<surface::SurfaceTextRow> backdrop;
     /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
     // WL-ATTN-01 -- agents/workshop/attention.md
     std::string notice;
