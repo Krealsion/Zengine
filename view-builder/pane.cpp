@@ -31,7 +31,9 @@
 #include <deque>
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
+#include <utility>
 
 namespace {
 namespace vb = zengine::view_builder;
@@ -81,6 +83,7 @@ public:
         } catch (const std::exception&) {
         }
         saved.path = model_.path;
+        saved.file = file_;
         saved.dirty = model_.dirty;
         saved.running = model_.running;
         return loom::to_value(saved);
@@ -101,28 +104,37 @@ public:
                     model_.path = state_.path;
                     model_.dirty = state_.dirty;
                     model_.running = state_.running;
+                    file_ = state_.file;
                 } else {
                     model_.notice = "Could not restore the View Builder: " + read.reason;
                 }
             }
-            remembered_ = {model_.path, model_.running};
-            file_ = model_.path;
             root_ask_ = ++correlation_;
             (void)mail.as_role(vb::kRole).send_to_role(ws::kProjectRole, ws::ProjectRootRequested{}, root_ask_);
         }
         offer(mail);
     }
-    /// WHERE THE PROJECT IS: where this builder's own file lives, and, at a launch, what it runs.
+    /// WHERE THE PROJECT IS: where this builder's own file lives, what that file holds, read
+    /// rather than assumed, and, at a launch, what it runs. A successor writes there at once what
+    /// its predecessor could not.
     void on(const ws::ProjectRoot& said, loom::Mail& mail) {
         if (!mail.answers_ask() || mail.correlation() != root_ask_) return;
         project_dir_ = said.project_dir;
-        if (!std::exchange(launch_, false)) return;
+        const bool launch = std::exchange(launch_, false);
         if (project_dir_.empty()) {
+            if (!launch) return;
             model_.notice = "No project directory: the view this builder runs is not remembered across a launch";
             show(mail);
             return;
         }
-        resume(mail);
+        std::string why;
+        remembered_ = recorded(why);
+        if (launch) {
+            if (!remembered_) model_.notice = why;
+            resume(mail);
+        } else {
+            remember();
+        }
         show(mail);
     }
     void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
@@ -882,48 +894,54 @@ private:
         if (inside.empty() || *inside.begin() == "..") return path;
         return inside.generic_string();
     }
-    /// KEEP, IN THE PROJECT, THE FILE THE DRAFT IS AND WHETHER ITS VIEW RUNS, when either changed.
+    /// KEEP, IN THE PROJECT, THE FILE THE DRAFT IS AND WHETHER ITS VIEW RUNS, when either differs
+    /// from what the project file holds. What it holds is counted only once the write succeeds, so
+    /// a write that failed is made again at the next chance.
     void remember() {
-        const std::string kept = project_relative(file_);
-        if (project_dir_.empty() || remembered_ == std::make_pair(kept, model_.running)) return;
-        remembered_ = {kept, model_.running};
-        const vb::ViewBuilderRun record{vb::kRunFormat, vb::kRunFormatVersion, kept, model_.running};
+        if (project_dir_.empty()) return;
+        const std::pair<std::string, bool> now{project_relative(file_), model_.running};
+        if (remembered_ == now) return;
+        const vb::ViewBuilderRun record{vb::kRunFormat, vb::kRunFormatVersion, now.first, now.second};
         const auto error = zengine::maker::write_file(in_project(vb::kRunFileName), loom::compat::serialize(loom::to_value(record)));
-        if (!error.empty()) model_.notice += " (not remembered for the next launch: " + error + ")";
+        if (!error.empty()) {
+            model_.notice += " (not remembered for the next launch: " + error + ")";
+            return;
+        }
+        remembered_ = now;
+    }
+    /// WHAT THE PROJECT FILE HOLDS: the view file it names and whether its view ran -- nothing named
+    /// when there is no file -- or none, `why` saying so, when this builder cannot read it.
+    std::optional<std::pair<std::string, bool>> recorded(std::string& why) const {
+        std::error_code ec;
+        const auto record_path = in_project(vb::kRunFileName);
+        if (!std::filesystem::exists(record_path, ec)) return std::make_pair(std::string(), false);
+        const auto read = zengine::maker::read_file(record_path);
+        if (!read) {
+            why = read.reason;
+            return std::nullopt;
+        }
+        const loom::Unverified claim = loom::compat::parse(read.bytes);
+        auto admitted = loom::admit(claim, loom::schema_of<vb::ViewBuilderRun>());
+        if (!admitted) {
+            why = std::string(vb::kRunFileName) + ": " + admitted.first_error().message();
+            return std::nullopt;
+        }
+        const auto record = loom::from_value<vb::ViewBuilderRun>(admitted.value());
+        if (record.format != vb::kRunFormat || record.format_version != vb::kRunFormatVersion) {
+            why = std::string(vb::kRunFileName) + " is not this builder's file";
+            return std::nullopt;
+        }
+        return std::make_pair(record.path, record.running);
     }
     /// A LAUNCH: open the view file the project file names and, if its view ran, run it again with
     /// its pane asking nothing -- the desk the weaver left seats it.
     void resume(loom::Mail& mail) {
-        std::string path;
-        bool run = false;
-        std::error_code ec;
-        const auto record_path = in_project(vb::kRunFileName);
-        if (std::filesystem::exists(record_path, ec)) {
-            const auto read = zengine::maker::read_file(record_path);
-            if (!read) {
-                model_.notice = read.reason;
-                return;
-            }
-            const loom::Unverified claim = loom::compat::parse(read.bytes);
-            auto admitted = loom::admit(claim, loom::schema_of<vb::ViewBuilderRun>());
-            if (!admitted) {
-                model_.notice = std::string(vb::kRunFileName) + ": " + admitted.first_error().message();
-                return;
-            }
-            const auto record = loom::from_value<vb::ViewBuilderRun>(admitted.value());
-            if (record.format != vb::kRunFormat || record.format_version != vb::kRunFormatVersion) {
-                model_.notice = std::string(vb::kRunFileName) + " is not this builder's file";
-                return;
-            }
-            path = record.path;
-            run = record.running;
-        }
-        if (path.empty()) return;
+        if (!remembered_ || remembered_->first.empty()) return;
+        const auto [path, run] = *remembered_;
         try {
             effect(model_.command("open", {in_project(path), "discard"}), mail);
             from_corner();
             file_ = model_.path;
-            remembered_ = {path, run};
             if (!run) {
                 remember();
                 return;
@@ -955,13 +973,14 @@ private:
     zengine::ActivationCursor activation_;
     bool restored_ = false;
     /// WHERE THE PROJECT IS, as `zengine.project` answered the ask numbered `root_ask_`; whether
-    /// that answer is a launch's; the file the draft is (opened or saved); and what the project
-    /// file last held.
+    /// that answer is a launch's; the file the draft was saved to or opened from, never a name only
+    /// typed into File; and what the project file holds, as last read or written, none while that
+    /// is not known.
     std::string project_dir_;
     std::uint64_t root_ask_ = 0;
     bool launch_ = false;
     std::string file_;
-    std::pair<std::string, bool> remembered_;
+    std::optional<std::pair<std::string, bool>> remembered_;
     ws::PaneCanvasRoom room_;
     std::int64_t rows_ = 0, columns_ = 0, picture_number_ = 0;
     std::uint64_t correlation_ = 0;

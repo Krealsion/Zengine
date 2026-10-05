@@ -395,6 +395,7 @@ struct Rig {
     zengine::maker::Registered tally;
     std::uint64_t correlation = 0;
     std::int64_t grant = 1;
+    std::int64_t activation = 1;
 
     /// A Workshop beside the builder; with `project`, `zengine.project` answers that directory, as
     /// a launch from it does.
@@ -418,9 +419,26 @@ struct Rig {
         REQUIRE(loaded.ok);
         pane = loaded.id;
         door = zengine::testing::mount_door(bus);
-        zengine::testing::order_activation(bus, door, pane, 1);
+        zengine::testing::order_activation(bus, door, pane, activation);
         pump();
         host(window_room(grant));
+    }
+    /// THE BUILDER'S IMAGE REPLACED IN PLACE, as a rebuilt weave is: its successor keeps what the
+    /// predecessor held, is activated, and is given its room again.
+    void reload() {
+        const auto reloaded = kernel.reload_from("view-builder", VIEW_BUILDER_ARTIFACT);
+        INFO(reloaded.error);
+        REQUIRE(reloaded.ok);
+        REQUIRE(reloaded.reloaded);
+        zengine::testing::order_activation(bus, door, pane, ++activation);
+        pump();
+        host(window_room(++grant));
+    }
+    /// What the builder keeps across a reload, read from its snapshot.
+    vb::BuilderState state() {
+        const auto admitted = loom::admit(loom::parse(bus.snapshot_bytes(pane)), loom::schema_of<vb::BuilderState>());
+        REQUIRE(admitted);
+        return loom::from_value<vb::BuilderState>(admitted.value());
     }
     void pump() {
         for (int n = 0; n < 64 && bus.pending() != 0; ++n) bus.pump_pending();
@@ -450,6 +468,11 @@ struct Rig {
         return nullptr;
     }
     std::string notice() const { return picture().texts.back().text; }
+    /// Whether any line of the latest picture holds `words`: a notice wraps over its rows.
+    bool says(const std::string& words) const {
+        return std::any_of(picture().texts.begin(), picture().texts.end(),
+                           [&](const ws::PaneCanvasText& t) { return has_words(t.text, words); });
+    }
     void press(const std::string& start, std::int64_t button = 1) {
         const auto* t = text(start);
         REQUIRE_MESSAGE(t != nullptr, start);
@@ -1703,6 +1726,71 @@ TEST_CASE("the View Builder runs again at a launch the view it ran, its pane sea
         CHECK_FALSE(fresh.bus.role_holder("notes").valid());
         CHECK_FALSE(std::filesystem::exists(empty.directory / vb::kRunFileName));
     }
+}
+
+TEST_CASE("a reload keeps the file a view was saved to apart from a name typed into File and not saved, and the launch record names only the file") {
+    // ⚔ MUTATION: the restore taking the file from the File box -- the record names
+    // `other.view`, which was never saved, and the next launch opens nothing.
+    TempDir project;
+    const auto dir = project.directory.generic_string();
+    const auto saved = (project.directory / "notes.view").generic_string();
+    const auto typed = (project.directory / "other.view").generic_string();
+    {
+        Rig rig(dir);
+        REQUIRE(rig.edit("new", {"notes", "discard"}).ok);
+        REQUIRE(rig.edit("add", {"label"}).ok);
+        REQUIRE(rig.edit("save", {saved}).ok);
+        REQUIRE(rig.edit("run").ok);
+        // A NAME TYPED INTO FILE AND NOT SAVED is the box's alone...
+        REQUIRE(rig.edit("path", {typed}).ok);
+        CHECK(run_file(project.directory).path == "notes.view");
+        // ...AND A RELOAD IN PLACE KEEPS BOTH: the box still holds the name typed into it...
+        rig.reload();
+        CHECK(rig.state().path == typed);
+        CHECK(rig.bus.role_holder("notes").valid());
+        // ...WHILE A STOP IS REMEMBERED BY THE FILE THE VIEW WAS SAVED TO.
+        REQUIRE(rig.edit("stop").ok);
+        CHECK(run_file(project.directory).path == "notes.view");
+        CHECK_FALSE(run_file(project.directory).running);
+        CHECK_FALSE(std::filesystem::exists(typed));
+    }
+    // THE NEXT LAUNCH OPENS THE FILE THE VIEW WAS SAVED TO.
+    Rig relaunch(dir);
+    CHECK(relaunch.now().name == "notes");
+}
+
+TEST_CASE("a launch record that could not be written is written at the next chance, a reload among them") {
+    // ⚔ MUTATION: what the record holds counted before its write succeeded -- the next chance
+    // finds nothing to write, and the project keeps no record of the view.
+    TempDir project;
+    const auto dir = project.directory.generic_string();
+    const auto record = project.directory / vb::kRunFileName;
+    Rig rig(dir);
+    REQUIRE(rig.edit("new", {"notes", "discard"}).ok);
+    REQUIRE(rig.edit("add", {"label"}).ok);
+    // THE RECORD'S PLACE IS TAKEN, so its write fails, and the builder says so...
+    std::filesystem::create_directory(record);
+    const auto refused = rig.edit("save", {(project.directory / "notes.view").generic_string()});
+    REQUIRE(refused.ok);
+    CHECK(has_words(refused.reason, "not remembered for the next launch"));
+    // ...AND WITH THE PLACE FREE AGAIN, THE NEXT EDIT WRITES WHAT WAS NOT WRITTEN, though it changes
+    // neither the file nor the run.
+    std::filesystem::remove(record);
+    REQUIRE(rig.edit("select", {"0"}).ok);
+    REQUIRE(std::filesystem::is_regular_file(record));
+    CHECK(run_file(project.directory).path == "notes.view");
+    CHECK_FALSE(run_file(project.directory).running);
+    // A RELOAD IS A CHANCE TOO: a run whose record could not be written before it is written as
+    // soon as the successor knows the project, with no edit asked of the weaver.
+    std::filesystem::remove(record);
+    std::filesystem::create_directory(record);
+    REQUIRE(rig.edit("run").ok);
+    CHECK(rig.says("not remembered for the next launch"));
+    std::filesystem::remove(record);
+    rig.reload();
+    REQUIRE(std::filesystem::is_regular_file(record));
+    CHECK(run_file(project.directory).path == "notes.view");
+    CHECK(run_file(project.directory).running);
 }
 
 TEST_CASE("in a terminal the builder's picture and its drags are floored to cells") {
