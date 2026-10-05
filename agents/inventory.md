@@ -127,6 +127,12 @@ verification follows [verification](verification.md).
   Main Inventory and new contexts start inactive. Explicit duplication appends an independent
   owner entry and copies binding settings disabled. Movement never executes. A filled single box
   returns its displaced reference to main Inventory; an unsuccessful proposal retains placement.
+- A pane is offered when Workshop has not heard it or its offer changed -- each one on an
+  activation or a catalog request -- since Workshop takes a re-offer as a reloaded image and
+  starts that pane's picture over; and a view's picture is sent only when it differs from the last
+  one sent since its room was granted, since Workshop repaints the desk for each. So making a view
+  offers and draws that view alone (`tests/test_workshop_inventory_info.cpp` case `"views: making
+  a view offers only that view, so a view already on the desk never stands blank"`).
 - Desktop admits active globals atomically through PaneShortcuts. Invocation traverses Workshop's
   current attributed action and checks actor permission for the stored message's actual target
   and version. Configuration grants and metadata do not authorize execution. Complete messages
