@@ -181,7 +181,7 @@ Hotkeys pane's edits or by your hand:
   "format":"zengine-workshop-keymap","format_version":"2",
   "legend":"default",
   "overrides":[
-    {"action":"desktop.terminal","gesture":"ctrl+g"},
+    {"action":"desktop.terminal","gesture":"ctrl+f"},
     {"action":"layout.new","gesture":"n"},
     {"action":"layout.next","gesture":"."},
     {"action":"layout.next","gesture":"ctrl+n"}
