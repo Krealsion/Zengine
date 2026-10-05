@@ -129,10 +129,11 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
 The **room** is the whole screen. Panes are drawn **over** it — none of them sits beside it —
 and nothing is drawn where no pane is: the window's own dark ground, or a terminal's. Where
 things are is the legend's to say — `Ctrl`+`p` shows the Pane Manager, which lists every pane,
-marks a tool that is not in this Workshop `[gone]` and says how to bring it back. Panes cover the
-room you are working in. That is uncomfortable on purpose: inventing a docking system before anybody had
-felt the discomfort would be answering a demand nobody had made. A wider terminal splits the
-surplus evenly between a pane and the room underneath it, so the room always keeps half.
+marks a tool that is not in this Workshop `[gone]` and says how to bring it back. Panes cover
+the room you are working in. That is uncomfortable on purpose: inventing a docking system before
+anybody had felt the discomfort would be answering a demand nobody had made. A wider terminal
+splits the surplus evenly between a pane and the room underneath it, so the room always keeps
+half.
 
 **Info** is a loadable weave that arrives with its own artifact, not something Workshop
 compiles in. Your desk names it, so it is there on a first run, in a fixed place at the right
@@ -151,9 +152,9 @@ It is a report about the gesture you made, and the next thing Workshop says repl
 
 Something that is **still true** when you read it — a settings file that could not be read, a
 pane of yours that is off the screen, a tool that could not load — does not go there. It goes
-to attention: the **Attention** pane leads with the most serious and how many more, and lists them
-all — show it from the Pane Manager. Those disappear when they stop being true and at no other
-moment. See [what needs your attention](attention.md).
+to attention: the **Attention** pane leads with the most serious and how many more, and lists
+them all — show it from the Pane Manager. Those disappear when they stop being true and at no
+other moment. See [what needs your attention](attention.md).
 
 The **first row** is a pane — [the layout selector](setups.md#several-layouts-in-one-workshop),
 called **Layouts**: your layouts as tabs on the left with the one you are on between `>` and
@@ -172,8 +173,8 @@ source. See [hotkeys and the keymap](hotkeys.md).
 **A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, and the room.
 The Layouts row says `>Default< +` beside `setup: none` — the one layout you have, marked as the
 one you are on, related to no Setup file yet. `none` is not a warning: Workshop remembers that
-layout for you either way. Nothing is painted behind the panes, and the band's first row says how
-to open one: `^t terminal | ^p panes | ^k hotkeys`.
+layout for you either way. Nothing is painted behind the panes, and the band's first row says
+how to open one: `^t terminal | ^p panes | ^k hotkeys`.
 
 ![A fresh Workshop at its smallest window: the Layouts row, Info at the right, nothing behind them, and the band leading with the keys that open a pane](images/desk-fresh.png)
 

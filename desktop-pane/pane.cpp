@@ -3,10 +3,9 @@
 
 // The Desktop: a loadable weave that owns what this application does by default -- which
 // gestures open or focus which tool, what a key nothing more specific claimed means, and what is
-// said about a tool that is not there. It offers the
-// Pane Manager (launch, focus and close, and `n` for the View Builder, where a weaver makes a pane
-// of their own) and the Hotkeys pane. None of it is a fact about room, focus, realization or
-// roots, the host's four.
+// said about a tool that is not there. It offers the Pane Manager (launch, focus and close, and
+// `n` for the View Builder, where a weaver makes a pane of their own) and the Hotkeys pane. None
+// of it is a fact about room, focus, realization or roots, the host's four.
 // Workshop law: agents/workshop/desktop.md
 
 // It is not privileged: it cannot open a pane the host's inventory does not hold, cause an

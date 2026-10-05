@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PANES_HPP
 
 // The pane catalog, the panes open this session, and each open pane's view.
-// Workshop law: agents/workshop/maker-pane.md (+10 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/panes-and-windows.md (+9 registers; agents/workshop.md routes)
 
 #include "pane_vocabulary.hpp"
 #include "pane_canvas_vocabulary.hpp"
