@@ -58,6 +58,17 @@ inline constexpr const char* kUnitRightColumn = "right-column";
 inline constexpr const char* kPlaceWords = "default, right-column or pixels";
 inline constexpr const char* kSizeWords = "default or pixels";
 
+/// Where the room began on the canvas when a place was measured from the canvas -- a version 2 or
+/// 3 setup, and every session before version 7: two cells down.
+inline constexpr std::int64_t kCanvasRoomTopPx = 2 * surface::kCanvasCellPx;
+
+/// A place such a file measured from the canvas, as a place in the room: two cells less, and one
+/// above that room's top at the room's top, the nearest place the room has.
+// WL-SETUP-02 -- agents/workshop/setup-file.md
+inline constexpr std::int64_t room_place_of_canvas(std::int64_t px) noexcept {
+    return px > kCanvasRoomTopPx ? px - kCanvasRoomTopPx : 0;
+}
+
 /// An extent an older file said in pixels, raised to one cell where it was less: a pane is
 /// never narrower than a cell. A count that is not positive is left for the law to refuse.
 inline constexpr std::int64_t at_least_a_cell(std::int64_t px) noexcept {
@@ -294,7 +305,7 @@ inline bool place_in(const WorkshopPanePlace& w, PanePlace& out) {
     }
     if (w.mode == kUnitCells) {
         out = PanePlace{pane_unit::kPixels, surface::px_of_cells(w.x),
-                        surface::px_of_cells(w.y)};
+                        room_place_of_canvas(surface::px_of_cells(w.y))};
         return true;
     }
     return false;
@@ -384,7 +395,7 @@ inline constexpr std::int64_t px_extent_of_subcells(std::int64_t at, std::int64_
 }
 
 /// ONE DESK OF VERSION 3 IN THE CURRENT SHAPE, LANDED ON THE PIXELS THE WINDOW PAINTED IT AT. A
-/// place floors; an extent is its painted span from the authored place on its axis, or from a
+/// place floors and is said in the room (`room_place_of_canvas`); an extent is its painted span from the authored place on its axis, or from a
 /// whole cell when the place is the code's (every default place is one); a `pixels` extent is a
 /// pixel count already, raised to one cell if it was less. Refused, in version 3's own words,
 /// for a claim or a word that version never had.
@@ -411,7 +422,8 @@ inline Written to_current(const WorkshopSetup& old, setup_persist::WorkshopSetup
             row.place = setup_persist::WorkshopPanePlace{p.place.mode, p.place.x, p.place.y};
         } else if (placed) {
             row.place = setup_persist::WorkshopPanePlace{
-                kUnitPixels, px_of_subcells(p.place.x), px_of_subcells(p.place.y)};
+                kUnitPixels, px_of_subcells(p.place.x),
+                room_place_of_canvas(px_of_subcells(p.place.y))};
         } else {
             return Written::no(unknown_unit(p.place.mode, "place", kPlaceWords));
         }

@@ -239,6 +239,21 @@ inline constexpr surface::SurfaceRect wire_rect_of(const PixelRect& f,
     return surface::SurfaceRect{f.x, f.y, f.w > 0 ? f.w : 0, f.h > 0 ? f.h : 0, role};
 }
 
+/// AN AUTHORED PLACE ON THE CANVAS: a place is measured from the room's top-left, which stands
+/// at (0, `room_y`) -- directly under the top band, whatever height that band was fitted to.
+// WL-PANE-11 -- agents/workshop/panes-and-windows.md
+inline constexpr PixelRect canvas_of_room(PixelRect r, const Screen& sc) noexcept {
+    r.y = surface::add_cells(r.y, sc.room_y);
+    return r;
+}
+
+/// ...AND A RECTANGLE ON THE CANVAS AS A PLACE IN THE ROOM, for what a hand or a readout measures.
+// WL-PANE-11 -- agents/workshop/panes-and-windows.md
+inline constexpr PixelRect room_of_canvas(PixelRect r, const Screen& sc) noexcept {
+    r.y = surface::add_cells(r.y, -sc.room_y);
+    return r;
+}
+
 /// The part of a pixel rectangle this canvas has.
 inline constexpr PixelRect clip_to_canvas_px(const PixelRect& r, const Screen& sc) noexcept {
     const std::int64_t x0 = r.x < 0 ? 0 : r.x;

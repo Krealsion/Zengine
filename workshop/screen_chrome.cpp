@@ -69,8 +69,10 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
     // `placement_bounds` answered, per axis, for every place.
     if (authored != nullptr) {
         if (authored->place.mode == pane_unit::kPixels) {
-            out.resolved.x = authored->place.x;
-            out.resolved.y = authored->place.y;
+            const PixelRect at =
+                canvas_of_room(PixelRect{authored->place.x, authored->place.y, 0, 0}, sc);
+            out.resolved.x = at.x;
+            out.resolved.y = at.y;
         }
         if (authored->width.mode == pane_unit::kPixels) {
             out.resolved.w = authored->width.amount;

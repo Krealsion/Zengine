@@ -336,7 +336,7 @@ inline Written check_pane_place_coord(std::int64_t v) {
     return Written::ok();
 }
 
-/// A PLACE: default with nothing said, a named place, or an absolute position in pixels.
+/// A PLACE: default with nothing said, a named place, or pixels from the room's top-left.
 inline Written check_pane_place(const PanePlace& p) {
     if (p.mode == pane_unit::kDefault) {
         if (p.x != 0 || p.y != 0) {
@@ -776,7 +776,9 @@ inline bool lower_one(Setup& s, const PaneRef& ref) {
 // ---- THE GEOMETRY DOORS: what a hand and a key both end at ------------------------------
 // WL-SETUP-08 -- agents/workshop/setup-file.md
 
-/// AUTHOR AN ABSOLUTE PLACE. Writes the place and nothing else. `x`/`y` are canvas pixels.
+/// AUTHOR A PLACE. Writes the place and nothing else. `x`/`y` are pixels from the room's
+/// top-left, directly under the top band.
+// WL-PANE-11 -- agents/workshop/panes-and-windows.md
 inline Written author_pane_place(Setup& s, const PaneRef& ref, std::int64_t x,
                                  std::int64_t y) {
     SetupPane* row = pane_of(s, ref);
@@ -870,14 +872,17 @@ inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
     if (place_written) {
         // A PLACE IS ONE FIELD. The axis that settled a position writes it; the
         // other contributes what it already stood at — its authored coordinate,
-        // or the resolved base the caller measured — never a clamped wall.
+        // or the resolved base the caller measured, in the room. A pane standing
+        // above the room (the Layouts pane in its band) has no room place on that
+        // axis, so it comes down to the room's edge, the nearest one it has.
         const bool authored = row->place.mode == pane_unit::kPixels;
+        const auto in_room = [](std::int64_t v) { return v < 0 ? std::int64_t{0} : v; };
         const std::int64_t x = h_lands && horizontal.position.has_value()
                                    ? *horizontal.position
-                                   : (authored ? row->place.x : horizontal.base);
+                                   : (authored ? row->place.x : in_room(horizontal.base));
         const std::int64_t y = v_lands && vertical.position.has_value()
                                    ? *vertical.position
-                                   : (authored ? row->place.y : vertical.base);
+                                   : (authored ? row->place.y : in_room(vertical.base));
         row->place = PanePlace{pane_unit::kPixels, x, y};
     }
     if (h_lands && horizontal.extent.has_value()) {

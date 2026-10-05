@@ -111,7 +111,7 @@ std::string WorkshopWeave::arrange_status() const {
     std::string text = "arrange " + ref_text(a.pane) + " (" + state + ") -- " +
                        pane_window_text(row, session_.cell_px);
     if (pane_window_partly_default(row)) {
-        const PixelRect now = managed_bounds().resolved;
+        const PixelRect now = room_of_canvas(managed_bounds().resolved, screen_of(session_));
         if (now.w > 0 && now.h > 0) {
             text += " -- now " + pixel_rect_text(now, session_.cell_px);
         }
@@ -506,15 +506,16 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
         session_.pane_drag.from_x = at.px.x;
         session_.pane_drag.from_y = at.px.y;
         const SetupPane* row = pane_of(session_.setup.active, ref);
-        // The affordance is on the visible boundary and the base is the resolved window: an
-        // anchored top or left pull authors place and size from this one captured rectangle, as
-        // a key does.
+        // The affordance is on the visible boundary and the base is the resolved window, in the
+        // room: an anchored top or left pull authors place and size from this one captured
+        // rectangle, as a key does.
+        const PixelRect in_room = room_of_canvas(mine.resolved, sc);
         session_.pane_drag.base_x = row != nullptr && row->place.mode == pane_unit::kPixels
                                         ? row->place.x
-                                        : mine.resolved.x;
+                                        : in_room.x;
         session_.pane_drag.base_y = row != nullptr && row->place.mode == pane_unit::kPixels
                                         ? row->place.y
-                                        : mine.resolved.y;
+                                        : in_room.y;
         session_.pane_drag.base_w = row != nullptr && row->width.mode == pane_unit::kPixels
                                         ? row->width.amount
                                         : mine.resolved.w;
@@ -598,8 +599,11 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, loom::M
                        detail::minus(px_x, g.from_x), detail::minus(px_y, g.from_y),
                        mail);
     } else {
-        arrange_place(detail::minus(px_x, g.grab_dx), detail::minus(px_y, g.grab_dy),
-                      mail);
+        // The hand is on the canvas and a place is in the room.
+        const PixelRect at = room_of_canvas(
+            PixelRect{detail::minus(px_x, g.grab_dx), detail::minus(px_y, g.grab_dy), 0, 0},
+            screen_of(session_));
+        arrange_place(at.x, at.y, mail);
     }
     if (!has_pane(session_.setup.active, held)) {
         session_.arrange.pane = was_addressed;

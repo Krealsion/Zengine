@@ -689,7 +689,7 @@ TEST_CASE("a region is placed relative to the pane's INTERIOR and painted throug
     const std::string before = definition_bytes(t);
     REQUIRE(hand_commit(t, "Y", "30").accepted); // the pane's AUTHORED Y
     const PixelRect moved = interior_of(t);
-    CHECK(moved.y == cells_px(30) + kChromePx);
+    CHECK(moved.y == screen_of(t.session()).room_y + cells_px(30) + kChromePx);
     CHECK(presentation_of(t).shown.y == moved.y + cells_px(1));
     CHECK(definition_bytes(t) == before);
 }
@@ -903,7 +903,7 @@ TEST_CASE("a code-backed subject's interior is a read-only capture, and an unres
     const Screen sc = screen_of(t.session());
     const ProsePlace place = prose_place(
         bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc).rect, sc);
-    CHECK(capture.find(pixel_rect_text(place.inside, 0)) != std::string::npos);
+    CHECK(capture.find(pixel_rect_text(room_of_canvas(place.inside, sc), 0)) != std::string::npos);
     CHECK(capture.find(std::to_string(place.rows) + " rows x ") != std::string::npos);
     // A CLOSED PANE: not presented, and said so -- and the one closed pane a fresh desk has
     // is the runtime stand-in, whose interior is its provider's.

@@ -154,16 +154,24 @@ third leave nothing of it showing"`, case `"coverage is the UNION of what is in 
 not containment by one pane"`.
 WHY — `agents/decisions/three-places.md`
 
-## WL-PANE-11 — An authored place is absolute, and each axis is independent
+## WL-PANE-11 — An authored place is measured from the room, and each axis is independent
 
-LAW — An authored place is absolute, in canvas pixels. A place edit freezes no size; each unauthored dimension follows the accepted preference or its placement fallback.
+LAW — An authored place is pixels from the room's top-left, directly under the top band on every face, and never negative. A place edit freezes no size; each unauthored dimension follows its default.
 
-PROVEN BY — `workshop/setup.hpp` `author_pane_place`, `author_pane_size`, `PanePlace`;
-`workshop/screen_chrome.cpp` `project_pane`; `tests/test_workshop_panes_window.cpp` case `"an
-authored place is absolute canvas position, not an offset from the default"`, case `"each axis
-is independent -- a place edit freezes no size, and back"`, case `"a default width still
-takes half the surplus after a place edit"`.
-WHY — `agents/decisions/setup-format-v3.md`
+MEANS
+- what writes, shows or takes a place agrees: a drag, an arrow, Info's `X`, `Y` and `Window`;
+- a pane above the room (Layouts, in its band) placed by one axis comes down to the room's top.
+
+PROVEN BY — `workshop/setup.hpp` `author_pane_place`, `author_pane_size`, `author_pane_window`,
+`PanePlace`; `workshop/screen.hpp` `canvas_of_room`, `room_of_canvas`;
+`workshop/screen_chrome.cpp` `project_pane`; `workshop/screen_pane_subject.cpp`
+`pane_window_base`;
+`tests/test_workshop_panes_window.cpp` case `"an authored place is measured from the room's
+top-left, not an offset from the default"`, case `"each axis is independent -- a place edit
+freezes no size, and back"`, case `"a default width still takes half the surplus after a place
+edit"`; `tests/test_workshop_host.cpp` case `"a typed value that is not admissible is refused,
+and the authored row is untouched"`.
+WHY — `agents/decisions/the-whole-pixel.md`
 
 ## WL-PANE-12 — Presence is the desk's, through two doors, and arrangement never touches it
 

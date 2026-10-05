@@ -17,8 +17,8 @@ format version and the envelope's shape version are one number, asserted. `pixel
 and valid on every medium; it was refused at projection until the whole pixel presented it
 ([the-whole-pixel](the-whole-pixel.md)). The value doors are atomic. A version-2 file is admitted
 against the retained v2 shapes and its cells mapped exactly onto the lattice; every other version
-is refused by its number. An authored place is absolute, and each
-axis is independent.
+is refused by its number. An authored place is not an offset from the default, and each axis is
+independent; where a place is measured from is [the-whole-pixel](the-whole-pixel.md)'s.
 
 **Alternatives considered.**
 - *Spelling absence by omitting a field, or by a magic coordinate* — rejected: admission has no
@@ -36,7 +36,7 @@ axis is independent.
   clean-break stance stands for every other transition, and the session reader keeps no old
   shape at all ([yesterday-belongs-to-a-conversion](yesterday-belongs-to-a-conversion.md)).
 - *An authored place as an offset from the default* — rejected; pinned by case `"an authored
-  place is absolute canvas position, not an offset from the default"`.
+  place is measured from the room's top-left, not an offset from the default"`.
 
 **Consequences.** A fresh setup is sparse, an unresolved reference round-trips every authored
 field, and setup bytes carry no descriptor, room, handle or runtime fact. The setup keeps exactly one old reader
@@ -45,8 +45,7 @@ because a setup is a weaver's named artifact with no session to ride.
 Version 4 keeps every rule here and says its amounts in canvas pixels, word `pixels`
 ([the-whole-pixel](the-whole-pixel.md)); a version-3 file is read back to the pixel it painted.
 
-**Laws supported.** [WL-PANE-11](../workshop/panes-and-windows.md),
-[WL-SETUP-01](../workshop/setup-file.md), [WL-SETUP-02](../workshop/setup-file.md),
+**Laws supported.** [WL-SETUP-01](../workshop/setup-file.md), [WL-SETUP-02](../workshop/setup-file.md),
 [WL-SETUP-03](../workshop/setup-file.md), [WL-SETUP-04](../workshop/setup-file.md),
 [WL-SETUP-05](../workshop/setup-file.md),
 [WL-SETUP-08](../workshop/setup-file.md), [WL-SETUP-11](../workshop/setup-file.md).

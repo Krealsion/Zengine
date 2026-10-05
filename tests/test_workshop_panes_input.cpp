@@ -2893,7 +2893,7 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
 
     // PUT `second` OVER `hello`, offset so a strip of `hello` stays uncovered.
     const ui::Rect hello = cells_covered(external_pane_rect(r.session(), hello_kind));
-    REQUIRE(author_pane_place(r.session().setup.active, second_ref,
+    REQUIRE(place_at_canvas(const_cast<Session&>(r.session()), second_ref,
                               surface::px_of_cells(hello.x + 4),
                               surface::px_of_cells(hello.y + 3))
                 .accepted);

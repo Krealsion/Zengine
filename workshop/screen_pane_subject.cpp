@@ -153,10 +153,10 @@ std::string interior_capture_text(const Session& s, const PaneRef& ref) {
     }
     const ProsePlace place = prose_place(where.rect, sc);
     if (!place.present) {
-        return std::string(whose) + " -- body " + pixel_rect_text(place.inside, s.cell_px) +
+        return std::string(whose) + " -- body " + pixel_rect_text(room_of_canvas(place.inside, sc), s.cell_px) +
                ", no room for a row; no authored interior";
     }
-    return std::string(whose) + " -- body " + pixel_rect_text(place.inside, s.cell_px) + ", " +
+    return std::string(whose) + " -- body " + pixel_rect_text(room_of_canvas(place.inside, sc), s.cell_px) + ", " +
            std::to_string(place.rows) + (place.rows == 1 ? " row x " : " rows x ") +
            std::to_string(place.columns) + (place.columns == 1 ? " column " : " columns ") +
            (place.fit.graphical() ? "in type" : "as cells") + "; no authored interior";
@@ -233,7 +233,8 @@ PixelRect pane_window_base(const Session& s, const PaneRef& ref) {
     PixelRect out;
     const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);
     if (kind.has_value()) {
-        out = bounds_of(s.panes, s.setup.active, *kind, screen_of(s)).resolved;
+        const Screen sc = screen_of(s);
+        out = room_of_canvas(bounds_of(s.panes, s.setup.active, *kind, sc).resolved, sc);
     }
     const SetupPane* row = pane_of(s.setup.active, ref);
     if (row != nullptr && row->place.mode == pane_unit::kPixels) {
@@ -475,12 +476,13 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
         if (!kind.has_value()) {
             return std::string("-");
         }
-        const PaneBounds where =
-            bounds_of(sp->panes, sp->setup.active, *kind, screen_of(*sp));
+        const Screen sc = screen_of(*sp);
+        const PaneBounds where = bounds_of(sp->panes, sp->setup.active, *kind, sc);
         if (!where.open) {
             return std::string("-");
         }
-        return pixel_rect_text(where.resolved, sp->cell_px);
+        // Said in the room, where the pane's X and Y are measured from.
+        return pixel_rect_text(room_of_canvas(where.resolved, sc), sp->cell_px);
     }));
     rows.push_back(Row::show("State", [sp, found] {
         const std::optional<CatalogRow> row = found();

@@ -361,11 +361,13 @@ authored setup                 resolved presentation          session interactio
 - **Each axis is independent.** Moving a pane freezes neither size axis; resizing one axis freezes
   neither the place nor the other axis. A default-width pane goes on taking its half-share of
   the room after a place edit.
-- **An authored place is absolute, not an offset** from where the developer put it. An
-  offset is authored against a default a later build may change, so the same saved bytes would
-  silently mean somewhere else. **Resetting** is what gives back "wherever the default puts
-  it". The unit is the canvas's own pixel — the window's, drawn 1:1, and a twelfth of a
-  terminal's cell — so a desk keeps its meaning on either medium.
+- **An authored place is measured from the room's top-left, not an offset** from where the
+  developer put it. An offset is authored against a default a later build may change, so the
+  same saved bytes would silently mean somewhere else. **Resetting** is what gives back
+  "wherever the default puts it". A place at y 0 stands directly under the top band, whatever
+  height that band was fitted to on this face, so one desk is arranged alike in a window and a
+  terminal; a place is never negative, so no pane stands over the band. The unit is the canvas's
+  own pixel — the window's, drawn 1:1, and a twelfth of a terminal's cell.
 - **An axis authored in `pixels` is presented at exactly its pixels, on every medium.** The
   window draws it there; a terminal shows the cells it covers. An older build wrote such an
   axis without presenting it; one under a cell is read back as one cell.
