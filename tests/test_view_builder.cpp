@@ -1803,6 +1803,70 @@ TEST_CASE("a launch record that could not be written is written at the next chan
     CHECK(run_file(project.directory).running);
 }
 
+namespace {
+/// The builder's project file as a launch finds it: naming `path`, and whether its view ran.
+void put_run_file(const std::filesystem::path& project, const std::string& path, bool running) {
+    std::ofstream out(project / vb::kRunFileName, std::ios::binary);
+    out << loom::compat::serialize(
+        loom::to_value(vb::ViewBuilderRun{vb::kRunFormat, vb::kRunFormatVersion, path, running}));
+}
+} // namespace
+
+TEST_CASE("a launch record whose view file is missing keeps that file and its run until the view opens again or the weaver opens, saves or starts another; a name typed into File is none of these") {
+    // ⚔ MUTATION: the record written from what the builder holds after a launch that could not
+    // open its file -- an edit or a reload names no file there, and the file's return brings
+    // nothing back.
+    TempDir project;
+    const auto dir = project.directory.generic_string();
+    const auto saved = project.directory / "notes.view";
+    const auto away = project.directory / "notes.view.away";
+    {
+        Rig launch(dir);
+        REQUIRE(launch.edit("new", {"notes", "discard"}).ok);
+        REQUIRE(launch.edit("add", {"label"}).ok);
+        REQUIRE(launch.edit("save", {saved.generic_string()}).ok);
+        REQUIRE(launch.edit("run").ok);
+    }
+    // THE FILE MOVED AWAY ACROSS A LAUNCH: the builder cannot open it and says so, and the record
+    // stands through an edit, a name typed into File, and a reload in place...
+    std::filesystem::rename(saved, away);
+    {
+        Rig missing(dir);
+        CHECK(missing.says("Could not run notes.view again"));
+        CHECK_FALSE(missing.bus.role_holder("notes").valid());
+        REQUIRE(missing.edit("describe").ok);
+        REQUIRE(missing.edit("path", {(project.directory / "other.view").generic_string()}).ok);
+        missing.reload();
+        REQUIRE(missing.edit("describe").ok);
+        CHECK(run_file(project.directory).path == "notes.view");
+        CHECK(run_file(project.directory).running);
+    }
+    // ...SO ITS RETURN BRINGS THE VIEW BACK at the next launch, running.
+    std::filesystem::rename(away, saved);
+    {
+        Rig back(dir);
+        CHECK(back.bus.role_holder("notes").valid());
+        CHECK(back.now().name == "notes");
+        CHECK(run_file(project.directory).path == "notes.view");
+        CHECK(run_file(project.directory).running);
+    }
+    // WHAT THE WEAVER OPENS, SAVES OR STARTS while the file is missing is the record's from then on.
+    std::filesystem::rename(saved, away);
+    std::filesystem::copy_file(away, project.directory / "second.view");
+    const auto release = [&](const std::string& action, std::vector<std::string> args, const std::string& names) {
+        put_run_file(project.directory, "notes.view", true);
+        Rig rig(dir);
+        CHECK(rig.says("Could not run notes.view again"));
+        CHECK(run_file(project.directory).path == "notes.view");
+        REQUIRE(rig.edit(action, std::move(args)).ok);
+        CHECK(run_file(project.directory).path == names);
+        CHECK_FALSE(run_file(project.directory).running);
+    };
+    release("open", {(project.directory / "second.view").generic_string(), "discard"}, "second.view");
+    release("save", {(project.directory / "third.view").generic_string()}, "third.view");
+    release("new", {"fourth", "discard"}, "");
+}
+
 TEST_CASE("in a terminal the builder's picture and its drags are floored to cells") {
     namespace sp = zengine::surface;
     Rig rig;

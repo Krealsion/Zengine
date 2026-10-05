@@ -86,6 +86,7 @@ public:
         saved.file = file_;
         saved.dirty = model_.dirty;
         saved.running = model_.running;
+        saved.kept = kept_;
         return loom::to_value(saved);
     }
 
@@ -105,6 +106,7 @@ public:
                     model_.dirty = state_.dirty;
                     model_.running = state_.running;
                     file_ = state_.file;
+                    kept_ = state_.kept;
                 } else {
                     model_.notice = "Could not restore the View Builder: " + read.reason;
                 }
@@ -874,10 +876,13 @@ private:
             model_.notice = e.what();
         }
     }
-    /// AN EDIT THAT WAS TAKEN: an open or a save names the file the draft is, a new names none.
+    /// AN EDIT THAT WAS TAKEN: an open or a save names the file the draft is, a new names none, and
+    /// each makes the project file the builder's to write again.
     void edited(const std::string& action) {
-        if (action == "open" || action == "save") file_ = model_.path;
-        else if (action == "new") file_.clear();
+        if (action == "open" || action == "save" || action == "new") {
+            file_ = action == "new" ? std::string() : model_.path;
+            kept_ = false;
+        }
         remember();
     }
     /// A path as this builder's project file and its Open mean it: relative to the project.
@@ -896,9 +901,11 @@ private:
     }
     /// KEEP, IN THE PROJECT, THE FILE THE DRAFT IS AND WHETHER ITS VIEW RUNS, when either differs
     /// from what the project file holds. What it holds is counted only once the write succeeds, so
-    /// a write that failed is made again at the next chance.
+    /// a write that failed is made again at the next chance. A project file naming a view this
+    /// builder could not open at a launch stands as it is until the weaver opens, saves or starts
+    /// a view, so the file's return brings that view back.
     void remember() {
-        if (project_dir_.empty()) return;
+        if (project_dir_.empty() || kept_) return;
         const std::pair<std::string, bool> now{project_relative(file_), model_.running};
         if (remembered_ == now) return;
         const vb::ViewBuilderRun record{vb::kRunFormat, vb::kRunFormatVersion, now.first, now.second};
@@ -934,12 +941,15 @@ private:
         return std::make_pair(record.path, record.running);
     }
     /// A LAUNCH: open the view file the project file names and, if its view ran, run it again with
-    /// its pane asking nothing -- the desk the weaver left seats it.
+    /// its pane asking nothing -- the desk the weaver left seats it. A file it cannot open leaves
+    /// the project file as it found it.
     void resume(loom::Mail& mail) {
         if (!remembered_ || remembered_->first.empty()) return;
         const auto [path, run] = *remembered_;
+        bool opened = false;
         try {
             effect(model_.command("open", {in_project(path), "discard"}), mail);
+            opened = true;
             from_corner();
             file_ = model_.path;
             if (!run) {
@@ -952,6 +962,7 @@ private:
             // SAID FOR WHAT WAS ASKED: a stopped view's file was only to be opened.
             model_.notice =
                 (run ? "Could not run " + path + " again: " : "Could not open " + path + ": ") + e.what();
+            kept_ = !opened;
         }
     }
     void show(loom::Mail& mail) {
@@ -976,13 +987,15 @@ private:
     bool restored_ = false;
     /// WHERE THE PROJECT IS, as `zengine.project` answered the ask numbered `root_ask_`; whether
     /// that answer is a launch's; the file the draft was saved to or opened from, never a name only
-    /// typed into File; and what the project file holds, as last read or written, none while that
-    /// is not known.
+    /// typed into File; what the project file holds, as last read or written, none while that is
+    /// not known; and whether it stands as a launch found it, naming a view file this builder
+    /// could not open.
     std::string project_dir_;
     std::uint64_t root_ask_ = 0;
     bool launch_ = false;
     std::string file_;
     std::optional<std::pair<std::string, bool>> remembered_;
+    bool kept_ = false;
     ws::PaneCanvasRoom room_;
     std::int64_t rows_ = 0, columns_ = 0, picture_number_ = 0;
     std::uint64_t correlation_ = 0;
