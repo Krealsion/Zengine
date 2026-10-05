@@ -43,7 +43,7 @@ story_journey                     program           session
 neovim_journey                    program           session-neovim
 
 workshop_document                 doctest           always  45
-workshop_screen                   doctest           always  129
+workshop_screen                   doctest           always  130
 # Tripwires in this suite read workshop/attention.hpp, workshop/pane_definition.hpp and
 # workshop/pane_definition_persist.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  96

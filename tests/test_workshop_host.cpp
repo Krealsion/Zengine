@@ -2475,8 +2475,10 @@ TEST_CASE("the subject's rows say identity, then AUTHORED, then RESOLVED") {
     CHECK(rows[11].section());
     const Screen sc = screen_of(s);
     const PaneBounds where = bounds_of(s.panes, s.setup.active, pane_kind::kLayouts, sc);
-    CHECK(subject_value(s, "Window") == pixel_rect_text(where.resolved, 0));
-    CHECK(subject_value(s, "Window") == "@0,0 132x2 cells");
+    CHECK(subject_value(s, "Window") == pixel_rect_text(room_of_canvas(where.resolved, sc), 0));
+    // In the room, where a place is measured from: the Layouts pane stands in the top band,
+    // its own height above the room.
+    CHECK(subject_value(s, "Window") == "@0,-2 132x2 cells");
     CHECK(subject_value(s, "State") == "open");
     // WHICH ROWS ARE THE WEAVER'S TO TOUCH says which truth is which.
     for (const char* authored : {"X", "Y", "Width", "Height"}) {
@@ -2515,18 +2517,19 @@ TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs fo
     // THE RESOLVED ROW FOLLOWED, FRESH...
     const PaneBounds where =
         bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc);
-    CHECK(where.rect.y == cells_px(20));
+    CHECK(where.rect.y == sc.room_y + cells_px(20)); // twenty cells into the room
     CHECK(subject_value(t.session(), "Window") == "@0,20 132x2 cells");
     // ...AND SO DID THE TABS: the run's body is at the new row, and the press inverse
     // answers there and not at the old one.
-    CHECK(layouts_body(t.session(), sc).region_y == cells_px(20));
+    CHECK(layouts_body(t.session(), sc).region_y == sc.room_y + cells_px(20));
+    const std::int64_t room_row = surface::cell_of_pixel(sc.room_y);
     CHECK(band_tab_at(t.session(), sc, input::space::kCells, 2,
-                      20 + surface::kTuiCanvasTopRow)
+                      room_row + 20 + surface::kTuiCanvasTopRow)
               .hit);
     CHECK_FALSE(band_tab_at(t.session(), sc, input::space::kCells, 2,
                             surface::kTuiCanvasTopRow)
                     .hit);
-    CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, 2, 20).kind ==
+    CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, 2, room_row + 20).kind ==
           pane_kind::kLayouts);
     CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, 2, 0).occupied);
     // A TYPED WIDTH IS THE SAME DOOR, ONE AXIS: the place and the height stand.
@@ -2602,6 +2605,10 @@ TEST_CASE("a typed value that is not admissible is refused, and the authored row
     // resolved row says what this screen makes of it.
     CHECK(hand_commit(t, "X", "500").accepted);
     CHECK(pane_of(t.session().setup.active, layouts)->place.x == cells_px(500));
+    // ...AND THE UNTYPED AXIS IS A PLACE IN THE ROOM: the Layouts pane stood in its band,
+    // above the room, so it comes down to the room's top rather than to a negative place.
+    CHECK(pane_of(t.session().setup.active, layouts)->place.y == 0);
+    CHECK(check_setup(t.session().setup.active).accepted);
     CHECK(subject_value(t.session(), "State").find("off-room") == 0);
     CHECK(subject_value(t.session(), "Window") == "@500,0 132x2 cells");
 
@@ -2629,13 +2636,13 @@ TEST_CASE("looking never authors") {
     const std::string small = subject_value(t.session(), "Window");
     t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 0, 0}));
     CHECK(subject_value(t.session(), "Window") != small);
-    CHECK(subject_value(t.session(), "Window") == "@0,0 160x2 cells");
+    CHECK(subject_value(t.session(), "Window") == "@0,-2 160x2 cells");
     CHECK(subject_value(t.session(), "X") == "-");
     CHECK(t.session().setup.active == born);
     // THE FACE CHANGES: the same value, spelled in pixels, and nothing written.
     t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, surface::kCanvasCellPx}));
     // ...where the top band is as tall as the face's two rows of type in their boundary.
-    CHECK(subject_value(t.session(), "Window") == "@0,0 1920x42 px");
+    CHECK(subject_value(t.session(), "Window") == "@0,-42 1920x42 px");
     CHECK(subject_value(t.session(), "X") == "-");
     CHECK(t.session().setup.active == born);
     // SELECTING PANES, PRESSING AROUND: still nothing.
@@ -2773,7 +2780,8 @@ TEST_CASE("a pane edit survives a restart through the session, and the subject d
     const SetupPane* row = pane_of(back.session().setup.active, ref_of(pane_kind::kLayouts));
     REQUIRE(row != nullptr);
     CHECK(row->place == PanePlace{pane_unit::kPixels, 0, cells_px(20)});
-    CHECK(layouts_body(back.session(), screen_of(back.session())).region_y == cells_px(20));
+    CHECK(layouts_body(back.session(), screen_of(back.session())).region_y ==
+          screen_of(back.session()).room_y + cells_px(20));
     // THE SUBJECT IS INTERACTION STATE AND IS NOT PERSISTED.
     CHECK_FALSE(back.session().inspected.addressed());
     CHECK(back.session().inspected.rows.empty());
@@ -2905,11 +2913,9 @@ TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
     t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
-    // The Builder over the whole room, the side column included -- an authored window is
-    // canvas-absolute, and the room is what a pane may cover.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind),
-                              surface::px_of_cells(0), surface::px_of_cells(kTopRows))
-                .accepted);
+    // The Builder over the whole room, the side column included -- an authored place is
+    // measured from the room's top-left, and the room is what a pane may cover.
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 0, 0).accepted);
     const Written sized =
         author_pane_size(live(t).setup.active, ref_of(stock::kKind),
                          PaneSize{pane_unit::kPixels, sc.w},

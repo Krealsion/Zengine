@@ -35,7 +35,7 @@ where it has always been and the strip beneath it is ordinary room.
 - *Naming Info's office in host code as the right column's occupant* — refused for the same
   reason one step later: the host would still be the party that knows Info is furniture.
 - *Absolute coordinates in the shipped desk* — measured impossible, not merely ugly. A place is
-  two numbers in canvas pixels and a size is an amount; `28` and `39` are right for one
+  two numbers in pixels from the room and a size is an amount; `28` and `39` are right for one
   screen and wrong for every other, and a desk shipped for everybody has no screen.
 - *A `place_in` field on `SetupPane` beside the coordinates* — rejected as the same fact twice.
   `PanePlace::mode` already carries a named place: `kDefault` does not say what unit `x` and `y`

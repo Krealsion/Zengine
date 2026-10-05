@@ -1333,7 +1333,8 @@ inline std::vector<std::int64_t> open_kinds(const Panes& panes) {
     return out;
 }
 
-/// A desk as a version-3 Workshop wrote it: every pixel amount in sub-units, four to a pixel.
+/// A desk as a version-3 Workshop wrote it: every pixel amount in sub-units, four to a pixel,
+/// and a place measured from the canvas, whose room began `kCanvasRoomTopPx` down.
 inline setup_persist::v3::WorkshopSetup v3_desk(const Setup& s) {
     const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
     setup_persist::v3::WorkshopSetup out;
@@ -1352,9 +1353,12 @@ inline setup_persist::v3::WorkshopSetup v3_desk(const Setup& s) {
         row.provider = p.provider;
         row.pane = p.pane;
         row.front = p.front;
+        const std::int64_t canvas_y = p.place.mode == setup_persist::kUnitPixels
+                                          ? p.place.y + setup_persist::kCanvasRoomTopPx
+                                          : p.place.y;
         row.place = setup_persist::v3::WorkshopPanePlace{word(p.place.mode),
                                                          subs(p.place.mode, p.place.x),
-                                                         subs(p.place.mode, p.place.y)};
+                                                         subs(p.place.mode, canvas_y)};
         row.width = setup_persist::v3::WorkshopPaneSize{word(p.width.mode),
                                                         subs(p.width.mode, p.width.amount)};
         row.height = setup_persist::v3::WorkshopPaneSize{word(p.height.mode),
@@ -3145,6 +3149,12 @@ inline Setup two_overlays() {
 /// A `Live`'s session, mutably -- the same door `PaneRig::session` already opens, so a case
 /// that has to arrange a setup DIRECTLY (rather than through the keys it is measuring) can.
 inline Session& live(Live& t) { return const_cast<Session&>(t.session()); }
+
+/// AUTHOR A PLACE AT A CANVAS POSITION: what a case measured on the canvas, said in the room an
+/// authored place is measured from.
+inline Written place_at_canvas(Session& s, const PaneRef& ref, std::int64_t x, std::int64_t y) {
+    return author_pane_place(s.setup.active, ref, x, y - screen_of(s).room_y);
+}
 
 /// The kinds a setup AUTHORS, in the order the file holds them: the BASE, not what a weaver sees
 /// -- `painted_order` below is the effective one.

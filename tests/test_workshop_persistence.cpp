@@ -3523,7 +3523,7 @@ TEST_CASE("a version-1 session means EXACTLY what its own reader meant") {
     CHECK(live_layout(read).panes[0].ref == info_ref());
     CHECK(live_layout(read).panes[0].place.mode == pane_unit::kPixels);
     CHECK(live_layout(read).panes[0].place.x == cells_px(3));
-    CHECK(live_layout(read).panes[0].place.y == cells_px(2));
+    CHECK(live_layout(read).panes[0].place.y == 0); // the canvas's row 2: the room's top
     CHECK(live_layout(read).panes[0].width.amount == cells_px(28));
     CHECK(live_layout(read).panes[0].width.mode == pane_unit::kPixels);
     CHECK(live_layout(read).panes[0].height.mode == pane_unit::kDefault);

@@ -714,7 +714,7 @@ TEST_CASE("an overlapping pane is painted where it is hit, in both front orders"
     REQUIRE(manager.w > 0);
     const std::int64_t x = manager.x;
     const std::int64_t y = manager.y;
-    REQUIRE(author_pane_place(s.setup.active, ref_of(stock::kKind),
+    REQUIRE(place_at_canvas(s, ref_of(stock::kKind),
                               surface::px_of_cells(x - kChromeCells),
                               surface::px_of_cells(y - kChromeCells))
                 .accepted);
@@ -736,7 +736,7 @@ TEST_CASE("an overlapping pane is painted where it is hit, in both front orders"
         one.setup.active.name = "one";
         REQUIRE(add_pane(one.setup.active, ref_of(kind)));
         if (kind == stock::kKind) {
-            REQUIRE(author_pane_place(one.setup.active, ref_of(kind),
+            REQUIRE(place_at_canvas(one, ref_of(kind),
                                       surface::px_of_cells(x - kChromeCells),
                                       surface::px_of_cells(y - kChromeCells))
                         .accepted);
@@ -791,7 +791,7 @@ TEST_CASE("a clipped default resize begins from the full resolved size") {
         t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
         open_pane(t, ref_of(stock::kKind));
         const PaneRef builder = ref_of(stock::kKind);
-        REQUIRE(author_pane_place(live(t).setup.active, builder, cells_px(156), cells_px(2))
+        REQUIRE(place_at_canvas(live(t), builder, cells_px(156), cells_px(2))
                     .accepted);
 
         const Screen sc = screen_of(t.session());
@@ -850,7 +850,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
         t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
         open_pane(t, ref_of(stock::kKind));
         const PaneRef builder = ref_of(stock::kKind);
-        REQUIRE(author_pane_place(live(t).setup.active, builder, 0, cells_px(42)).accepted);
+        REQUIRE(place_at_canvas(live(t), builder, 0, cells_px(42)).accepted);
 
         const Screen sc = screen_of(t.session());
         const PaneBounds where =
@@ -1828,6 +1828,9 @@ struct FineRig : Live {
                          screen_of(session()))
             .rect;
     }
+
+    /// Where the room begins on the canvas: an authored place is measured from it.
+    std::int64_t room_y() { return screen_of(session()).room_y; }
 };
 
 } // namespace
@@ -1852,7 +1855,7 @@ TEST_CASE("a one-pixel drag moves a pane by exactly one pixel of lattice") {
     REQUIRE(row->place.mode == pane_unit::kPixels);
     const std::int64_t base_x = at.x;
     CHECK(row->place.x == base_x + surface::kPixelGrainPx);
-    CHECK(row->place.y == at.y);
+    CHECK(row->place.y == at.y - t.room_y()); // the same row, said in the room
 
     // TWELVE ONE-PIXEL STEPS LAND EXACTLY ONE CELL OVER — stability under repeated small
     // deltas: every motion proposes from the press's base, so the sum is the distance the
@@ -1861,7 +1864,7 @@ TEST_CASE("a one-pixel drag moves a pane by exactly one pixel of lattice") {
         t.motion_at(press_x + i, press_y, input::space::kPixels);
     }
     CHECK(t.builder_row()->place.x == base_x + cells_px(1));
-    CHECK(t.builder_row()->place.y == at.y);
+    CHECK(t.builder_row()->place.y == at.y - t.room_y());
     // ...and the SAME hand position always means the same place: jitter back and forth
     // and the pane is wherever the pointer last was, not somewhere error piled up.
     t.motion_at(press_x + 5, press_y, input::space::kPixels);
@@ -1923,7 +1926,7 @@ TEST_CASE("every edge resizes pixel-fine and preserves its opposite anchor") {
         const std::int64_t now_x =
             row->place.mode == pane_unit::kPixels ? row->place.x : base.x;
         const std::int64_t now_y =
-            row->place.mode == pane_unit::kPixels ? row->place.y : base.y;
+            row->place.mode == pane_unit::kPixels ? row->place.y + t.room_y() : base.y;
         const std::int64_t now_w =
             row->width.mode == pane_unit::kPixels ? row->width.amount : base.w;
         const std::int64_t now_h =
@@ -1962,7 +1965,7 @@ TEST_CASE("the reported top-edge defect is dead -- the bottom edge holds still")
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 0, cells_px(20))
                 .accepted);
     const PixelRect base = t.builder_rect();
-    REQUIRE(base.y == cells_px(20));
+    REQUIRE(base.y == cells_px(20) + t.room_y());
     REQUIRE(base.h == cells_px(9));
     const std::int64_t bottom_before = surface::add_cells(base.y, base.h);
 
@@ -1980,8 +1983,8 @@ TEST_CASE("the reported top-edge defect is dead -- the bottom edge holds still")
     // THE HEIGHT GREW BY THE PULL, `y` MOVED WITH IT, AND THE BOTTOM EDGE DID NOT MOVE.
     CHECK(row->height.mode == pane_unit::kPixels);
     CHECK(row->height.amount == base.h + cells_px(1));
-    CHECK(row->place.y == base.y - cells_px(1));
-    CHECK(row->place.y + row->height.amount == bottom_before);
+    CHECK(row->place.y == cells_px(20) - cells_px(1));
+    CHECK(t.room_y() + row->place.y + row->height.amount == bottom_before);
     t.release(0, 0);
 }
 
@@ -2052,9 +2055,9 @@ TEST_CASE("a right or bottom resize leaves a default place reactive") {
     const std::int64_t ty = top_mark.y + 2;
     t.press_at(tx, ty, input::space::kPixels);
     REQUIRE(t.session().pane_drag.edge == pane_edge::kTop);
-    t.motion_at(tx, ty - 1, input::space::kPixels);
+    t.motion_at(tx, ty + 1, input::space::kPixels);
     CHECK(t.builder_row()->place.mode == pane_unit::kPixels);
-    CHECK(t.builder_row()->place.y == grown.y - surface::kPixelGrainPx);
+    CHECK(t.builder_row()->place.y == grown.y - t.room_y() + surface::kPixelGrainPx);
     t.release(0, 0);
 }
 
@@ -2081,7 +2084,7 @@ TEST_CASE("a move blocked at the left wall still follows the hand down") {
     REQUIRE(row != nullptr);
     REQUIRE(row->place.mode == pane_unit::kPixels);
     CHECK(row->place.x == 5);
-    CHECK(row->place.y == at.y + 7 * surface::kPixelGrainPx);
+    CHECK(row->place.y == cells_px(20) + 7 * surface::kPixelGrainPx);
     // SOMETHING LANDED, so this is a status and not an alert: the visible stop at the wall
     // is the refusal's consequence, and the pane tracking the hand is the statement.
     CHECK_FALSE(t.session().notice_is_bad);
@@ -2094,7 +2097,7 @@ TEST_CASE("a move blocked at the top wall still follows the hand sideways") {
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(20), 5)
                 .accepted);
     const PixelRect at = t.builder_rect();
-    REQUIRE(at.y == 5);
+    REQUIRE(at.y == t.room_y() + 5); // five pixels below the room's top, its wall
     const std::int64_t press_x = at.x + 30;
     const std::int64_t press_y = at.y + 20;
     t.press_at(press_x, press_y, input::space::kPixels);
@@ -2150,7 +2153,7 @@ TEST_CASE("a refused nudge does not author a reactive place") {
     REQUIRE(row != nullptr);
     CHECK(row->place.mode == pane_unit::kPixels);
     CHECK(row->place.x == at.x);
-    CHECK(row->place.y == at.y + surface::kCanvasCellPx);
+    CHECK(row->place.y == at.y - t.room_y() + surface::kCanvasCellPx);
     CHECK_FALSE(t.session().notice_is_bad);
 }
 
@@ -2322,7 +2325,7 @@ TEST_CASE("the TUI projects a pane onto its covered cells and rewrites nothing")
     // however many frames are drawn.
     Live t; // a character medium: no text metric
     open_pane(t, ref_of(stock::kKind));
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(6) + 6,
+    REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind), cells_px(6) + 6,
                               cells_px(6) + 10)
                 .accepted);
     REQUIRE(author_pane_size(live(t).setup.active, ref_of(stock::kKind),
@@ -2368,7 +2371,7 @@ TEST_CASE("the TUI projects a pane onto its covered cells and rewrites nothing")
 
     // AND EXACT-CELL VALUES STAY EXACT: reauthor on the boundary and the covered cells are the
     // authored cells, byte for byte the whole-cell picture of the same desk.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(6),
+    REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind), cells_px(6),
                               cells_px(6))
                 .accepted);
     REQUIRE(author_pane_size(live(t).setup.active, ref_of(stock::kKind),
@@ -2404,10 +2407,11 @@ TEST_CASE("a version-2 whole-cell setup loads at exactly its old picture") {
     CHECK(read.setup.name == "Old desk");
     REQUIRE(read.setup.panes.size() == 1);
     const SetupPane& got = read.setup.panes[0];
-    // CELLS BECAME PIXELS, EXACTLY — the same place, said finer.
+    // CELLS BECAME PIXELS, EXACTLY — the same place, said finer and in the room, whose top was
+    // the canvas's row 2.
     CHECK(got.place.mode == pane_unit::kPixels);
     CHECK(got.place.x == cells_px(6));
-    CHECK(got.place.y == cells_px(5));
+    CHECK(got.place.y == cells_px(3));
     CHECK(got.width.mode == pane_unit::kPixels);
     CHECK(got.width.amount == cells_px(40));
     // A PIXEL AXIS IS PIXELS IN EVERY VERSION AND CROSSES UNSCALED.
@@ -2522,10 +2526,11 @@ TEST_CASE("pixel geometry survives the setup file without losing a pixel") {
     }
 }
 
-TEST_CASE("a fine setup opens where the window painted it, to the pixel") {
+TEST_CASE("a fine setup opens where the window painted it, its place in the room") {
     // A FILE WRITTEN ON THE 1/48 LATTICE, four sub-units to a window pixel: each edge lands on
     // the pixel the window painted it at -- floored, never rounded -- so the width is the painted
-    // span, not the authored count divided.
+    // span, not the authored count divided; and the place, measured from the canvas then, is said
+    // from the room's top, two cells down.
     setup_persist::v3::WorkshopSetup old;
     old.format = setup_persist::kFormat;
     old.format_version = 3;
@@ -2544,7 +2549,7 @@ TEST_CASE("a fine setup opens where the window painted it, to the pixel") {
     REQUIRE(read.setup.panes.size() == 1);
     const SetupPane& got = read.setup.panes[0];
     CHECK(got.place.x == 75);
-    CHECK(got.place.y == 60);
+    CHECK(got.place.y == 60 - 24);
     CHECK(got.width.amount == 557 - 75); // floor((301 + 1927) / 4) less the floored place
     CHECK(got.height.amount == kPanePxMin); // a pane is never narrower than a cell
 
@@ -2553,6 +2558,76 @@ TEST_CASE("a fine setup opens where the window painted it, to the pixel") {
         setup_persist::from_text(setup_persist::to_text(read.setup));
     REQUIRE(back.outcome.accepted);
     CHECK(back.setup == read.setup);
+}
+
+TEST_CASE("a place in an older file keeps its place in the room") {
+    // VERSIONS 2 AND 3, AND EVERY SESSION BEFORE 7, MEASURED A PLACE FROM THE CANVAS, while the
+    // room began two cells down. So each place reads two cells less and stands where it stood in
+    // its room; one above that room's top lands at the room's top, the nearest place there is.
+    // Extents read as they always did.
+    struct Row { const char* pane; std::int64_t x, y; std::int64_t room_y; };
+    const Row rows[] = {{"top", 48, 96, 0},     // the old room's top: pixel 24
+                        {"inside", 300, 400, 76}, // pixel 100
+                        {"above", 40, 40, 0}};    // pixel 10, above the old room's top
+    setup_persist::v3::WorkshopSetup three;
+    three.format = setup_persist::kFormat;
+    three.format_version = 3;
+    three.name = "Room";
+    for (const Row& r : rows) {
+        setup_persist::v3::WorkshopSetupPane p;
+        p.provider = "test.room";
+        p.pane = r.pane;
+        p.place = setup_persist::v3::WorkshopPanePlace{"subcells", r.x, r.y};
+        p.width = setup_persist::v3::WorkshopPaneSize{"subcells", 480};
+        p.height = setup_persist::v3::WorkshopPaneSize{"subcells", 480};
+        p.front = static_cast<std::int64_t>(three.panes.size());
+        three.panes.push_back(p);
+    }
+    const setup_persist::LoadedSetup read =
+        setup_persist::from_text(loom::compat::serialize(loom::to_value(three)));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    for (std::size_t i = 0; i < 3; ++i) {
+        CAPTURE(rows[i].pane);
+        CHECK(read.setup.panes[i].place.x == rows[i].x / 4);
+        CHECK(read.setup.panes[i].place.y == rows[i].room_y);
+        CHECK(read.setup.panes[i].height.amount == cells_px(10));
+    }
+
+    // VERSION 2, IN CELLS: row 5 of the canvas is row 3 of the room.
+    setup_persist::v2::WorkshopSetup two;
+    two.format = setup_persist::kFormat;
+    two.format_version = 2;
+    two.name = "Cells";
+    setup_persist::v2::WorkshopSetupPane cell;
+    cell.provider = "test.room";
+    cell.pane = "cells";
+    cell.place = setup_persist::v2::WorkshopPanePlace{"cells", 6, 5};
+    cell.width = setup_persist::v2::WorkshopPaneSize{"cells", 20};
+    cell.height = setup_persist::v2::WorkshopPaneSize{"cells", 4};
+    two.panes.push_back(cell);
+    const setup_persist::LoadedSetup old =
+        setup_persist::from_text(loom::compat::serialize(loom::to_value(two)));
+    REQUIRE_MESSAGE(old.outcome.accepted, old.outcome.refusal);
+    CHECK(old.setup.panes[0].place == PanePlace{pane_unit::kPixels, cells_px(6), cells_px(3)});
+    CHECK(old.setup.panes[0].height.amount == cells_px(4));
+
+    // A SESSION OF VERSION 6, through its conversion: the same places, the same rule.
+    session_history::v6::WorkshopSession six;
+    six.format = session_persist::kFormat;
+    six.format_version = 6;
+    six.viewport = session_history::v6::WorkshopViewport{120, 44};
+    six.layouts.push_back(session_history::v6::WorkshopLayout{three, session_history::absent_link()});
+    six.active = 0;
+    six.placement = session_history::absent_placement();
+    op::Catalog conversions;
+    REQUIRE(conversions.mount("suite", session_history::conversions()));
+    const session_persist::LoadedSession restored = session_persist::from_text(
+        loom::compat::serialize(loom::to_value(six)), &conversions);
+    REQUIRE_MESSAGE(restored.outcome.accepted, restored.outcome.refusal);
+    for (std::size_t i = 0; i < 3; ++i) {
+        CAPTURE(rows[i].pane);
+        CHECK(live_layout(restored).panes[i].place.y == rows[i].room_y);
+    }
 }
 
 TEST_CASE("one authored value, spelled in whatever unit the active face reported") {
@@ -3117,7 +3192,7 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
     const Screen sc = screen_of(t.session());
     const ui::Rect side = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect);
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind),
+    REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind),
                               surface::px_of_cells(side.x - 4),
                               surface::px_of_cells(side.y + 2))
                 .accepted);
@@ -3725,7 +3800,7 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
     const Screen sc = screen_of(t.session());
     const ui::Rect side = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect);
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind),
+    REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind),
                               surface::px_of_cells(side.x - 4),
                               surface::px_of_cells(side.y + 2))
                 .accepted);
@@ -3862,7 +3937,7 @@ TEST_CASE("the arrangement desk's pointer takes what is visibly in front") {
     // THE SECOND PANE LEAVES THE STACK FIRST, and only then is the other pane's rectangle read:
     // a pane taken out of the composition lets the ones under it move up, so a rectangle
     // read before that is a rectangle about a desk that no longer exists.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(second::kKind),
+    REQUIRE(place_at_canvas(live(t), ref_of(second::kKind),
                               surface::px_of_cells(1), surface::px_of_cells(30))
                 .accepted);
     const PaneBounds second_at = bounds_of(t.session().panes, t.session().setup.active,
@@ -3870,7 +3945,7 @@ TEST_CASE("the arrangement desk's pointer takes what is visibly in front") {
     REQUIRE(second_at.open);
     const ui::Rect files = cells_covered(second_at.rect);
     REQUIRE(files.w > 4);
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(second::kKind),
+    REQUIRE(place_at_canvas(live(t), ref_of(second::kKind),
                               surface::px_of_cells(files.x + 2),
                               surface::px_of_cells(files.y + 2))
                 .accepted);
@@ -5055,7 +5130,7 @@ TEST_CASE("authored geometry moves the Layouts pane, and the tabs with it") {
     REQUIRE(bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc)
                 .rect == top_band_bounds(sc));
 
-    REQUIRE(author_pane_place(live(t).setup.active, layouts, cells_px(10), cells_px(20)).accepted);
+    REQUIRE(place_at_canvas(live(t), layouts, cells_px(10), cells_px(20)).accepted);
     REQUIRE(author_pane_size(live(t).setup.active, layouts,
                              PaneSize{pane_unit::kPixels, cells_px(40)},
                              PaneSize{pane_unit::kPixels, cells_px(4)})
@@ -5102,12 +5177,16 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
     const std::size_t live_at = t.session().setup.active_at;
 
     open_pane(t, ref_of(stock::kKind));
-    // Author the Builder OVER the tab run, covering it whole. It is already front-most --
-    // the launch door appends the front-most rank -- which is exactly the arrangement a weaver
-    // gets by opening a pane and dragging it up there, and is why `send_to_front` would
-    // answer "already".
+    // THE LAYOUTS PANE MOVED INTO THE ROOM, and the Builder authored OVER its tab run, covering
+    // it whole: a place is measured from the room, so no pane can stand over the band itself.
+    // The Builder is already front-most -- the launch door appends the front-most rank --
+    // which is why `send_to_front` would answer "already".
     const Screen sc = screen_of(t.session());
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 0, 0).accepted);
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(pane_kind::kLayouts), 0,
+                              cells_px(5))
+                .accepted);
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 0, cells_px(5))
+                .accepted);
     REQUIRE(author_pane_size(live(t).setup.active, ref_of(stock::kKind),
                              PaneSize{pane_unit::kPixels, sc.w},
                              PaneSize{pane_unit::kPixels, surface::px_of_cells(kTopRows)})
@@ -5119,11 +5198,12 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
     const BandStatus row = band_status(t.session(), sc);
     REQUIRE_FALSE(row.tabs.empty());
     const std::int64_t at_x = row.tabs.front().column;
-    CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, at_x, 0).kind ==
+    const std::int64_t at_y = surface::cell_of_pixel(layouts_body(t.session(), sc).region_y);
+    CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, at_x, at_y).kind ==
           stock::kKind);
     // ...AND SO IS THE PRESS. The layout does not switch and the Builder is what the weaver
     // is pointing at.
-    t.press_canvas(at_x, 0);
+    t.press_canvas(at_x, at_y);
     CHECK(t.session().panes.selected == stock::kKind);
     CHECK(t.session().setup.active_at == live_at);
 
@@ -5140,9 +5220,9 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
     t.press_canvas(cells_of(sc).side_x - 1, cells_of(sc).h - kBottomRows - 1); // bare workspace: selects nothing
     REQUIRE(t.session().panes.selected == kNoPaneKind);
     REQUIRE(send_to_front(live(t).setup.active, ref_of(pane_kind::kLayouts)));
-    CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, at_x, 0).kind ==
+    CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, at_x, at_y).kind ==
           pane_kind::kLayouts);
-    t.press_canvas(at_x, 0);
+    t.press_canvas(at_x, at_y);
     CHECK(t.session().panes.selected == pane_kind::kLayouts);
     CHECK(t.session().setup.active_at == row.tabs.front().at);
 }

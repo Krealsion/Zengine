@@ -34,13 +34,24 @@ exactly its pixels on every medium; there is no refused state.
 - *Rounding an old fine value to the nearest pixel* — rejected: an old desk opens where it was
   painted, which is its edges floored, not rounded; pinned by case `"pixel geometry survives the
   setup file without losing a pixel"`.
+- *A place measured from the canvas* — tried: an old desk's panes at y 24 lay 18 pixels under the
+  window's band, every shipped walk failed at its first step until the shipped desks were lowered
+  for the window, and one desk was arranged differently in each medium; pinned by case `"an
+  authored place is measured from the room's top-left, not an offset from the default"`.
+
+**A place is measured from the room.** With the bands fitted, the room's top is not the same
+pixel on every face: 42 in the shipped window, 24 in a terminal. A place measured from the room's
+top-left, as a default place already was, stands directly under the band on every face. An older
+file's places were measured from the canvas while the room began two cells down, so each reads two
+cells less.
 
 **Consequences.** A one-pixel drag moves a pane one pixel, and the file keeps every one. An old
-desk opens to the pixel it painted at; a v3 pixel axis under one cell is raised to one cell. The
-window's top band is 42 pixels on the shipped face, so a pane placed at the old 24-pixel room top
-overlaps it until moved. Canvas panes that ask for the old shapes are answered in them, four
+desk's extents open to the pixel they painted and its places where they stood in their room; a
+v3 pixel axis under one cell is raised to one cell, and a place above the old room's top lands at
+the room's top. No pane is placed over the top band: the Layouts pane stands there by default, and
+resetting its place is how it returns. Canvas panes that ask for the old shapes are answered in them, four
 sub-units to a pixel. A terminal reads the same desk in cells, marked `~` where a pixel is not a
 whole cell.
 
 **Laws supported.** [WL-GEO-05](../workshop/geometry.md), [WL-GEO-06](../workshop/geometry.md),
-[WL-GEO-07](../workshop/geometry.md).
+[WL-GEO-07](../workshop/geometry.md), [WL-PANE-11](../workshop/panes-and-windows.md).
