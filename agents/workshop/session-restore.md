@@ -7,7 +7,7 @@ heading; cite by ID. The files and their domains are in [`session.md`](session.m
 
 ## WL-SESSION-05 — The session holds the run of layouts with their associations
 
-LAW — Version 6 holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
+LAW — Version <!-- value session_persist::kFormatVersion -->7<!-- /value --> holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
 
 MEANS
 - an empty path is the absence with exactly one spelling; `link_in` refuses the half-association;

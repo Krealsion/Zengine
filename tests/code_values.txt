@@ -26,7 +26,9 @@ ZEN_LAW_DNM_MAX                 tests/check_law_register.cmake            ZEN_LA
 # ---- file formats
 setup_persist::kFormatVersion   workshop/setup_persist.hpp                kFormatVersion
 claim   setup_persist::kFormatVersion  setup file is format version {}
+claim   setup_persist::kFormatVersion  Setup format is **version {}**
 session_persist::kFormatVersion workshop/session_persist.hpp              kFormatVersion
+claim   session_persist::kFormatVersion  session format is **version {}**
 keymap_persist::kFormatVersion  workshop/keymap_persist.hpp               kFormatVersion
 claim   keymap_persist::kFormatVersion  `zengine-workshop-keymap` version {}
 recipe_persist::kFormatVersion  workshop/recipe_persist.hpp               kFormatVersion
