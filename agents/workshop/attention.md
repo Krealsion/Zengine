@@ -38,11 +38,11 @@ LAW — `attention_conditions` reads the held set and the derived owners, ranks,
 
 MEANS
 - what a weaver has hidden is subtracted on the PANE's side and nowhere here;
-- so the compact chip says what is true, and the pane says what this weaver is looking at.
+- so the glance says what is true, and the list says what this weaver is looking at.
 
 PROVEN BY — `workshop/screen_attention.cpp` `attention_conditions`;
 `tests/test_workshop_host.cpp` case `"a held condition stands until its owner retracts it"`,
-case `"the compact line is ranked by truth, and says how many it is not saying"`.
+case `"the glance is ranked by truth, and says how many it is not saying"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-04 — A derived condition stays derived
@@ -77,20 +77,24 @@ PROVEN BY — `workshop/screen_attention.cpp` `attention_conditions`;
 every true pane state deserves ambient attention"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
-## WL-ATTN-06 — The compact channel is the `kSlotScore` slot, and empty is the retraction
+## WL-ATTN-06 — The glance is the Attention pane's first row
 
-LAW — The loudest CURRENT condition plus an honest `(+N more)` is published as `SurfaceText` on every repaint before the canvas, because the SDL medium composes it into the picture; no band row was taken.
+LAW — The loudest condition the host says is true, with an honest `(+N more)`, leads the Attention pane in that condition's role; Workshop puts nothing on Surface's attention slot.
 
 MEANS
-- it is the medium's own furniture and Workshop cannot be pointed at it in either medium;
-- a weaver who hides a row in the pane still sees it here, because it is still true.
+- a weaver who hides a row still reads it in the glance, because it is still true;
+- a pane one row tall is the glance alone; nothing true is said in words, never an empty box.
 
-PROVEN BY — `workshop/weave_run.cpp` `kSlotScore`; `surface/vocabulary.hpp` `kSlotScore`,
-`SurfaceText`; `workshop/screen_attention.cpp` `attention_compact`;
-`tests/test_workshop_host.cpp` case `"a healthy Workshop says nothing on the attention slot at
-all"`, case `"the compact line is ranked by truth, and says how many it is not saying"`;
-`tests/test_surface.cpp` case `"the attention chip is a region in the picture, and
-empty draws nothing"`.
+DOES NOT MEAN
+- that Surface's slot is gone: a Skin draws it, in the picture and the title, for whoever uses it.
+
+PROVEN BY — `workshop/attention_seam_vocabulary.hpp` `attention_glance`;
+`attention-pane/pane.cpp` `say_view`; `workshop/weave_run.cpp` `WorkshopWeave::repaint`;
+`tests/test_workshop_host.cpp` case `"Workshop puts nothing on the attention slot, healthy or
+not: what is true is said to whoever presents it"`, case `"the glance is ranked by truth, and
+says how many it is not saying"`; `tests/test_workshop_panes_attention.cpp` case `"the Attention
+pane leads with the glance: the loudest condition that is true and how many more, hidden ones
+counted"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-07 — Ranking is `ranks_before`: loudness, then key
@@ -98,8 +102,8 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 LAW — `attention_rank` is the one place this application claims one role is more urgent than another: total, with an unknown role last.
 
 PROVEN BY — `workshop/attention.hpp` `ranks_before`, `attention_rank`;
-`tests/test_workshop_host.cpp` case `"the compact line is ranked by truth, and says how many it
-is not saying"`.
+`tests/test_workshop_host.cpp` case `"the glance is ranked by truth, and says how many it is not
+saying"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-08 — Dismissal is the PANE's, scoped to the statement and not to the key

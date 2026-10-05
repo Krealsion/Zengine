@@ -73,18 +73,6 @@ std::vector<Condition> attention_conditions(const Session& s,
     return out;
 }
 
-// WL-ATTN-06 -- agents/workshop/attention.md
-std::string attention_compact(const std::vector<Condition>& shown) {
-    if (shown.empty()) {
-        return std::string();
-    }
-    std::string line = shown.front().compact;
-    if (shown.size() > 1) {
-        line += " (+" + std::to_string(shown.size() - 1) + " more)";
-    }
-    return line;
-}
-
 // WL-ATTN-12 -- agents/workshop/attention.md
 std::vector<StandingCondition> standing_conditions(const Session& s,
                                                    const ProjectFrontier& frontier) {
