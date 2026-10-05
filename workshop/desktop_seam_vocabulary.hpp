@@ -236,7 +236,6 @@ struct KeymapRequested {
     ZEN_SHAPE(KeymapRequested, 1);
 };
 
-
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_DESKTOP_SEAM_VOCABULARY_HPP

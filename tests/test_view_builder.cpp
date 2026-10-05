@@ -1718,6 +1718,16 @@ TEST_CASE("the View Builder runs again at a launch the view it ran, its pane sea
         REQUIRE(elsewhere.edit("run").ok);
         REQUIRE(elsewhere.bus.role_holder("notes").valid());
         CHECK(run_file(moved.directory).path == "notes.view");
+        REQUIRE(elsewhere.edit("stop").ok);
+    }
+    // A VIEW FILE GONE SINCE IS SAID FOR WHAT WAS ASKED OF IT: a stopped view's file could not be
+    // opened, and nothing was run.
+    std::filesystem::remove(moved.directory / "notes.view");
+    {
+        Rig gone(moved.directory.generic_string());
+        CHECK(gone.says("Could not open notes.view"));
+        CHECK_FALSE(gone.says("again"));
+        CHECK_FALSE(gone.bus.role_holder("notes").valid());
     }
     // A PROJECT WITH NEITHER FILE runs nothing and writes nothing.
     TempDir empty;

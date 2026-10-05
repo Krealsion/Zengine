@@ -86,9 +86,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   `zengine.project` for the project and reads that file; at a launch it opens the view the file
   names and, if its view ran, runs it again by `view::ViewResume`: a run whose pane asks nothing
   of the desk, so the restored desk seats it where it stood or leaves it hidden. An intent is made
-  through `flow/shape.hpp`. The builder carries an intent's
-  shape out, with the shapes it nests (`flow::shape::carried`), by a press's drag or a menu
-  choice, and takes a shape, a value or an Info field dropped on a label, on the canvas or its
+  through `flow/shape.hpp`. The builder carries an intent's shape out, with the shapes it nests
+  (`flow::shape::carried`), by a press's drag or a menu choice, and takes a shape, a value or an
+  Info field dropped on a label, on the canvas or its
   row, as what that label shows, a description read with the shapes it carries alone
   (`flow::shape::described`); dropped on no label it is refused in words, whatever is selected.
   A shape of several fields it could show is a choice of every one: buttons wrapped within the
@@ -100,7 +100,6 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   picture; `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
   the side handles, the pan, the size, nothing outside it, the grid, the boxes, the marks and the
   terminal floor, the run again at a launch, and the launch record across a reload and a failed
-  write; `tests/test_view.cpp` also the size, a version 1
-  description, a view asking for its size, and a resumed view; the
-  panes suite the view and the builder through
-  Workshop's real seat, pointer route, drag carry and canvas admission.
+  write; `tests/test_view.cpp` also the size, a version 1 description, a view asking for its size,
+  and a resumed view; the panes suite the view and the builder through Workshop's real seat,
+  pointer route, drag carry and canvas admission.

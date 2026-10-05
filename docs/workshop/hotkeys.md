@@ -115,8 +115,8 @@ menu presenter ([panes](panes.md#replacing-the-menu-presenter)); another present
 same rows its own way and the edits do not change.
 
 Press a key, and the change is **live at once** — the band's legend and the table both say the
-new key — **and written to your keymap file** in the same breath. The notice
-row says both facts, or which of them did not happen. While a key is being captured, only `Esc`
+new key — **and written to your keymap file** in the same breath. The notice row says both
+facts, or which of them did not happen. While a key is being captured, only `Esc`
 is a key of the pane's; every other key is the one you meant. A chord that opens a tool above
 every mode — `Ctrl`+`p`, `Ctrl`+`t`, `Ctrl`+`k` — cannot be captured, because it does what it
 does before the pane sees it: type its spelling instead. A modifier pressed alone is refused as

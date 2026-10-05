@@ -955,7 +955,7 @@ TEST_CASE("a terminal below the composition's minimum is published, not fictiona
 
 TEST_CASE("Workshop puts nothing on the attention slot, healthy or not: what is true is said to "
           "whoever presents it") {
-    // ⚔ MUTATION: `repaint` publishing the glance on `kSlotScore` again -- the medium would draw
+    // ⚔ MUTATION: `repaint` publishing the glance on `kSlotScore` -- the medium would draw
     // it outside every pane, and the last check goes red.
     Live t;
     t.publish(loom::to_value(surface::SurfaceReady{}));

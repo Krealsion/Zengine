@@ -1383,7 +1383,6 @@ private:
     static constexpr const char* kNoSetupFile =
         "no setup file -- start Workshop with --setup <path>";
 
-
     /// The versions a `Shape v<N>` can name. `parse_u64` answers in 64 bits and
     /// a schema version is 32, so a wider number is REFUSED rather than
     /// truncated -- `send @x Foo 4294967297` must not quietly become version 1.

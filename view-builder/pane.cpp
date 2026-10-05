@@ -949,7 +949,9 @@ private:
             const auto bytes = view::description_bytes(model_.description);
             request(view::ViewResume{"builder", loom::Bytes(bytes.begin(), bytes.end())}, "resume", mail);
         } catch (const std::exception& e) {
-            model_.notice = "Could not run " + path + " again: " + e.what();
+            // SAID FOR WHAT WAS ASKED: a stopped view's file was only to be opened.
+            model_.notice =
+                (run ? "Could not run " + path + " again: " : "Could not open " + path + ": ") + e.what();
         }
     }
     void show(loom::Mail& mail) {

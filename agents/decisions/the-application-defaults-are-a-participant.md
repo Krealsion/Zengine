@@ -24,8 +24,9 @@ application row by naming its id on its own row, the accepted `supersedes` mecha
 Launching is a request the host performs against the ONE inventory: a pane already on the desk
 is FOCUSED, never closed and never unloaded, and a pane whose office nobody holds now is refused.
 What the desktop says about the room it says in its own panes; nothing is painted behind them.
-The inventory is said when it changes and answered to a presenter that arrives. A plan row may declare itself optional, and a
-refused optional row is an unavailable tool rather than a refused project.
+The inventory is said when it changes and answered to a presenter that arrives. A plan row may
+declare itself optional, and a refused optional row is an unavailable tool rather than a refused
+project.
 
 **Alternatives considered.**
 - *One precedence class* — rejected, and it is the decision's core. A single class either puts
@@ -56,7 +57,7 @@ refused optional row is an unavailable tool rather than a refused project.
   retained shapes (Loom GATE-04's rule, as `v2::PaneActions` took it).
 
 **Consequences.** A Workshop whose desktop did not load has no application defaults: `Ctrl+t`
-does nothing, Escape sheds no selection, and no Pane Manager opens. That is the honest reading of a
+does nothing, Escape sheds no selection, no Pane Manager opens. That is the honest reading of a
 replaceable shell and it is diagnosable from three surfaces at once — the boot's own stdout, the
 standing conditions the Attention pane lists, and the launcher's `[gone]` rows. Every suite that
 asserts the deselect now supplies the declarer, which is stronger evidence than the line it
