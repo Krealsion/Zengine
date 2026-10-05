@@ -5,7 +5,7 @@ import hashlib
 import json
 from hand import Hand
 from demo_setup import Measured, layout
-from workshop_steps import picture, TOP
+from workshop_steps import picture
 
 
 def run(ctx):
@@ -56,7 +56,7 @@ def run(ctx):
         slot = next(v for v in state["views"] if command["reference"] in v["entries"])
         setup = layout("values")
         setup["fields"]["panes"].append(dict(provider=office, pane=slot["id"],
-            place=dict(mode="pixels", x="12", y=str(37 * 12 + TOP)),
+            place=dict(mode="pixels", x="12", y=str(35 * 12)),
             width=dict(mode="pixels", amount=str(50 * 12)),
             height=dict(mode="pixels", amount=str(11 * 12)), front="3"))
         hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)

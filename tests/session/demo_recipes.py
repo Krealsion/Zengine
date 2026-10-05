@@ -182,7 +182,7 @@ def make(tmp, name="made", **fields):
     root.mkdir()
     desk = {"zen": 1, "schema": "WorkshopSetup", "version": 4, "fields": {
         "format": "zengine-workshop-setup", "format_version": "4", "name": name, "panes": [
-            {"provider": p, "pane": k, "place": {"mode": "pixels", "x": "12", "y": "24"},
+            {"provider": p, "pane": k, "place": {"mode": "pixels", "x": "12", "y": "0"},
              "width": {"mode": "pixels", "amount": "120"}, "height": {"mode": "pixels", "amount": "120"},
              "front": str(i)} for i, (p, k) in enumerate(fields.pop("panes", [
                  ("zengine.inventory-pane", "inventory"), ("zengine.demo", "controls")]))]}}

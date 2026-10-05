@@ -13,7 +13,7 @@
     "place": {
      "mode": "pixels",
      "x": "12",
-     "y": "42"
+     "y": "0"
     },
     "width": {
      "mode": "pixels",
@@ -31,7 +31,7 @@
     "place": {
      "mode": "pixels",
      "x": "12",
-     "y": "306"
+     "y": "264"
     },
     "width": {
      "mode": "pixels",
@@ -49,7 +49,7 @@
     "place": {
      "mode": "pixels",
      "x": "648",
-     "y": "42"
+     "y": "0"
     },
     "width": {
      "mode": "pixels",
@@ -67,7 +67,7 @@
     "place": {
      "mode": "pixels",
      "x": "648",
-     "y": "330"
+     "y": "288"
     },
     "width": {
      "mode": "pixels",
@@ -85,7 +85,7 @@
     "place": {
      "mode": "pixels",
      "x": "12",
-     "y": "534"
+     "y": "492"
     },
     "width": {
      "mode": "pixels",
