@@ -1,7 +1,11 @@
 # One way a pane can be implemented
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [weaver-pane](../workshop/maker-pane.md).
+supported is in [weaver-pane](../../../agents/workshop/maker-pane.md).
+
+**Superseded.** The Pane Creator retired into described views:
+[a-pane-made-from-data-is-a-view](../../../agents/decisions/a-pane-made-from-data-is-a-view.md).
+What follows is the decision as it was made.
 
 **Context.** Every pane's interior was code, or a provider's behind its seam; a weaver could not
 make one (`df06ac5`, "Let a maker create a pane, because a pane can be data").
@@ -42,9 +46,8 @@ weaver namespace hears nothing across a load, a press, a key and a wheel. The re
 compares two spellings of one path through one function, which the MSVC lane found was needed on
 Windows. The session carries the row and not one byte of the interior.
 
-**Laws supported.** [WL-MAKER-01](../workshop/maker-pane.md),
-[WL-MAKER-03](../workshop/maker-pane.md), [WL-MAKER-04](../workshop/maker-pane.md),
-[WL-MAKER-05](../workshop/maker-pane.md), [WL-MAKER-06](../workshop/maker-pane.md),
-[WL-MAKER-07](../workshop/maker-pane.md), [WL-MAKER-08](../workshop/maker-pane.md),
-[WL-MAKER-09](../workshop/maker-pane.md), [WL-MAKER-10](../workshop/maker-pane.md),
-[WL-MAKER-11](../workshop/maker-pane.md), [WL-MAKER-12](../workshop/maker-pane.md).
+**Laws supported.** [WL-MAKER-01](../../../agents/workshop/maker-pane.md) to
+[WL-MAKER-10](../../../agents/workshop/maker-pane.md) until the Pane Creator retired;
+[WL-MAKER-11](../../../agents/workshop/maker-pane.md) and
+[WL-MAKER-12](../../../agents/workshop/maker-pane.md) stand on
+[a-pane-made-from-data-is-a-view](../../../agents/decisions/a-pane-made-from-data-is-a-view.md) now.

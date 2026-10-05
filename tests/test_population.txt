@@ -44,17 +44,16 @@ neovim_journey                    program           session-neovim
 
 workshop_document                 doctest           always  45
 workshop_screen                   doctest           always  131
-# Tripwires in this suite read workshop/attention.hpp, workshop/pane_definition.hpp and
-# workshop/pane_definition_persist.hpp as text (VM-WALL-11).
-workshop_host                   doctest           always  96
+# Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
+workshop_host                   doctest           always  76
 # Tripwires in this suite read Workshop's presentation sources, workshop/workshop.cpp,
 # workshop/arrangement.hpp, workshop/powers_door.hpp, the Introspection, Builder, Info, Terminal
 # and Editor panes' sources and CMake files, and tests/weavelib/legacy_pane.cpp as text
 # (VM-WALL-11).
-workshop_panes                    doctest           always  884
+workshop_panes                    doctest           always  875
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text
 # (VM-WALL-11).
-workshop_persistence              doctest           always  157
+workshop_persistence              doctest           always  158
 workshop_load                     doctest           always  161
 workshop_editor_switch            doctest           always  11
 workshop_neovim                   doctest           always  8
@@ -85,5 +84,5 @@ source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 inventory                         doctest           always  39
 flow_pane                         doctest           always  25
-view                              doctest           always  14
-view_builder                      doctest           always  26
+view                              doctest           always  16
+view_builder                      doctest           always  27

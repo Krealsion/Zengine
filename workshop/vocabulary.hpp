@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_VOCABULARY_HPP
 
 // The Workshop host weave's state shape, empty: nothing the host holds is weave state. The desk,
-// keymap, preferences, session and a weaver-made pane are files; the rest is `Session`.
+// keymap, preferences and session are files; the rest is `Session`.
 
 #include <zen/weave/shape.hpp>
 

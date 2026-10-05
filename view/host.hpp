@@ -93,8 +93,10 @@ private:
         return id.value;
     }
 
-    /// Tell a registered view to offer its pane.
-    void start(std::uint64_t id) { bus_.send(loom::WeaveId{id}, loom::Message(loom::to_value(detail::ViewStart{}))); }
+    /// Tell a registered view to offer its pane, and whether to ask Workshop to show it.
+    void start(std::uint64_t id, bool reveal = true) {
+        bus_.send(loom::WeaveId{id}, loom::Message(loom::to_value(detail::ViewStart{reveal})));
+    }
 
     /// A change at the same shapes, taken by the running participant.
     void apply(std::uint64_t id, Description description) {
@@ -130,15 +132,15 @@ private:
     }
 };
 
-/// THE VIEW HOST'S OFFICE: run, apply and stop, each for the asker's own session.
+/// THE VIEW HOST'S OFFICE: run, resume, apply and stop, each for the asker's own session.
 class Manager final : public loom::Weave {
 public:
     explicit Manager(Host& host) : host_(host) {}
     void set_self(loom::WeaveId id) { self_ = id; }
 
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<ViewRun>(), loom::schema_of<ViewApply>(), loom::schema_of<ViewStop>(),
-                loom::schema_of<detail::ViewRetire>()};
+        return {loom::schema_of<ViewRun>(), loom::schema_of<ViewResume>(), loom::schema_of<ViewApply>(),
+                loom::schema_of<ViewStop>(), loom::schema_of<detail::ViewRetire>()};
     }
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
         return {loom::schema_of<ViewAnswer>()};
@@ -153,7 +155,11 @@ public:
             return;
         }
         ViewAnswer answer;
-        answer.action = is(loom::schema_of<ViewRun>()) ? "run" : is(loom::schema_of<ViewApply>()) ? "apply" : "stop";
+        const bool resume = is(loom::schema_of<ViewResume>());
+        answer.action = is(loom::schema_of<ViewRun>()) ? "run"
+                        : resume                        ? "resume"
+                        : is(loom::schema_of<ViewApply>()) ? "apply"
+                                                           : "stop";
         try {
             if (!request.sender.valid()) throw std::invalid_argument("a live requesting participant is required");
             answer.session = request.payload.get("session")->as_text();
@@ -166,15 +172,18 @@ public:
                                                            : "office/" + office,
                                             answer.session);
             const auto found = owned_.find(key);
-            if (is(loom::schema_of<ViewRun>())) {
+            if (is(loom::schema_of<ViewRun>()) || resume) {
                 if (found != owned_.end())
                     throw std::invalid_argument("this session already runs a view; apply a change or stop it first");
-                auto admitted = read(loom::from_value<ViewRun>(request.payload).description);
+                auto admitted = read(resume ? loom::from_value<ViewResume>(request.payload).description
+                                            : loom::from_value<ViewRun>(request.payload).description);
                 const auto told = told_words(admitted);
                 answer.office = admitted.name;
                 const auto id = host_.create(std::move(admitted));
                 owned_.emplace(key, id);
-                host_.start(id);
+                // A RESUMED VIEW ASKS NOTHING OF THE DESK: the desk a weaver left says where its
+                // pane stands, or that it is hidden.
+                host_.start(id, !resume);
                 answer.fresh = true;
                 answer.reason = "registered " + answer.office + told;
             } else {
@@ -263,8 +272,8 @@ inline loom::WeaveId Host::mount() {
 /// Deliberate host policy: install on a participant allowed to run views. Knowing these shapes
 /// confers no authority by itself.
 inline void allow_view_requests(loom::Grant& grant) {
-    for (const auto& schema : {loom::schema_of<ViewRun>(), loom::schema_of<ViewApply>(),
-                               loom::schema_of<ViewStop>()})
+    for (const auto& schema : {loom::schema_of<ViewRun>(), loom::schema_of<ViewResume>(),
+                               loom::schema_of<ViewApply>(), loom::schema_of<ViewStop>()})
         grant.allow_to_role(schema->name(), schema->version(), kViewHostRole);
 }
 

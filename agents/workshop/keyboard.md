@@ -91,7 +91,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 LAW — An action's identity is kept across migrations; a retired id's authored row is preserved byte-for-byte, and applied when something declares it or, for a renamed id, its successor.
 
 MEANS
-- a renamed id is read as its successor; a retired one (the canvas's) is kept, said, unanswered;
+- a renamed id is read as its successor; a retired one is kept, said, and unanswered;
 - a row that left this host for a PANE keeps its id, so the weaver's override moves with it;
 - reusing one gesture across mutually exclusive contexts is legal.
 

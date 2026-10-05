@@ -139,21 +139,7 @@ inline PaneRef pane_ref_of(std::int64_t kind) {
     return PaneRef{row.provider, row.pane};
 }
 
-/// THE DURABLE REFERENCE A WEAVER-MADE PANE EARNS FROM ITS NAME, and the whole of how that
-/// identity is minted: Workshop's weaver namespace, and the definition's own name.
-// WL-MAKER-03 -- agents/workshop/maker-pane.md
-inline PaneRef weaver_pane_ref(const std::string& name) {
-    return PaneRef{kMakerPaneProvider, name};
-}
-
-/// A weaver-made pane's name meets the reference's own key law by construction: the name
-/// bound is under the key bound, and the name law refuses every byte the key law refuses.
-static_assert(kMaxWeaverPaneNameLen <= kMaxPaneKeyLen,
-              "a weaver-made pane's name is the pane half of its durable reference, so its "
-              "bound must sit under the reference's");
-
 /// WHICH INTERNAL KIND THIS REFERENCE NAMES, OR NOTHING.
-// WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline std::optional<std::int64_t> resolve_builtin_pane(const PaneRef& ref) {
     for (std::size_t i = 0; i < kBuiltinPaneCount; ++i) {
         if (ref.provider == kBuiltinPanes[i].provider && ref.pane == kBuiltinPanes[i].pane) {
@@ -165,17 +151,10 @@ inline std::optional<std::int64_t> resolve_builtin_pane(const PaneRef& ref) {
 
 /// WHICH KIND THIS REFERENCE NAMES ON THIS SCREEN, IN THIS RUN, OR NOTHING --
 /// asked of the compile-time catalog and of what this session has been offered.
-// WL-MAKER-03, WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline std::optional<std::int64_t> resolve_pane(const PaneRef& ref, const Panes& panes) {
     const std::optional<std::int64_t> built_in = resolve_builtin_pane(ref);
     if (built_in.has_value()) {
         return built_in;
-    }
-    if (ref.provider == kMakerPaneProvider) {
-        if (panes.weaver.open() && panes.weaver.definition.name == ref.pane) {
-            return kWeaverPaneKind;
-        }
-        return std::nullopt; // the namespace is Workshop's: no office can answer for it
     }
     if (const RuntimePane* row = panes.runtime.find(ref.provider, ref.pane)) {
         return row->kind;
@@ -201,26 +180,17 @@ struct CatalogRow {
     std::string summary;
 };
 
-/// The one line a list reads under a weaver-made pane's name.
-inline constexpr const char* kWeaverPaneSummary = "a pane you made -- Pane Creator";
-
 /// THE WHOLE POPULATION A WEAVER MAY CHOOSE FROM, in the one order: every compile-time
 /// built-in in the catalog's own order, then every admitted runtime pane in
 /// first-accepted-offer order. Built as a value rather than walked twice, and cached nowhere.
 // WL-CAT-05 -- agents/workshop/catalog.md
 inline std::vector<CatalogRow> combined_catalog(const Panes& panes) {
     std::vector<CatalogRow> rows;
-    rows.reserve(kBuiltinPaneCount + 1 + panes.runtime.entries.size());
+    rows.reserve(kBuiltinPaneCount + panes.runtime.entries.size());
     for (std::size_t i = 0; i < kBuiltinPaneCount; ++i) {
         rows.push_back(CatalogRow{kBuiltinPanes[i].kind,
                                   PaneRef{kBuiltinPanes[i].provider, kBuiltinPanes[i].pane},
                                   kBuiltinPanes[i].name, kBuiltinPanes[i].summary});
-    }
-    // The weaver's own pane sits between the built-ins and the strangers: Workshop-owned, and the
-    // newest. Its name and identity are the definition's; nothing is copied here.
-    if (panes.weaver.open()) {
-        rows.push_back(CatalogRow{kWeaverPaneKind, weaver_pane_ref(panes.weaver.definition.name),
-                                  panes.weaver.definition.name, kWeaverPaneSummary});
     }
     for (const RuntimePane& r : panes.runtime.entries) {
         rows.push_back(CatalogRow{r.kind, PaneRef{r.provider, r.pane}, r.name, r.summary});
@@ -228,16 +198,13 @@ inline std::vector<CatalogRow> combined_catalog(const Panes& panes) {
     return rows;
 }
 
-/// The name a weaver reads for a kind, built-in, weaver-made or runtime; empty for one none knows.
+/// The name a weaver reads for a kind, built-in or runtime; empty for one none knows.
 inline std::string kind_name(const Panes& panes, std::int64_t kind) {
     if (is_runtime_kind(kind)) {
         if (const RuntimePane* row = panes.runtime.of_kind(kind)) {
             return row->name;
         }
         return std::string();
-    }
-    if (is_weaver_kind(kind)) {
-        return panes.weaver.open() ? panes.weaver.definition.name : std::string();
     }
     return std::string(builtin_pane(kind).name);
 }
@@ -500,14 +467,6 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
     const PaneRef ref{std::string(stamped_office), offer.pane};
     if (resolve_builtin_pane(ref).has_value()) {
         out.written = Written::no("`" + ref_text(ref) + "` is a built-in pane");
-        return out;
-    }
-    // The weaver namespace is Workshop's own: an offer stamped with it would put a stranger's rows
-    // behind a weaver's name.
-    if (ref.provider == kMakerPaneProvider) {
-        out.written = Written::no("`" + ref.provider +
-                                  "` is Workshop's namespace for panes a weaver made -- no "
-                                  "office may offer a pane in it");
         return out;
     }
     // EVERY FIELD HAS PASSED; ONLY NOW IS ANYTHING WRITTEN.
@@ -924,7 +883,6 @@ inline bool reset_pane_height(Setup& s, const PaneRef& ref) {
 
 /// The references this build cannot currently present, IN THE ORDER THE SETUP
 /// HOLDS THEM.
-// WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panes& panes) {
     std::vector<PaneRef> out;
     for (const SetupPane& row : s.panes) {

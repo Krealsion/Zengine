@@ -146,7 +146,14 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
             : "object document " + host_->retired_document +
                   " left as it is -- the object canvas retired, and nothing here reads or "
                   "writes it";
-    const std::string* parts[] = {&keymap_word_, &host_->transition_note, &retired};
+    // ...AND A PANE CREATOR FILE, on the same terms: a view now, and the View Builder's to open.
+    const std::string retired_pane =
+        host_->retired_pane.empty()
+            ? std::string()
+            : "--pane " + host_->retired_pane +
+                  " left as it is -- the Pane Creator retired; the View Builder opens it as a view";
+    const std::string* parts[] = {&keymap_word_, &host_->transition_note, &retired,
+                                  &retired_pane};
     for (const std::string* part : parts) {
         if (part->empty()) {
             continue;
@@ -179,40 +186,12 @@ void WorkshopWeave::on(const zengine::surface::SurfaceReady&, loom::Mail& mail) 
     // The prefs beside it, BEFORE the first paint: the first band and the
     // first pane headers a weaver reads are already wearing their own preference.
     load_prefs();
-    // ...and the weaver's own pane before the session is taken back: `apply_setup` seats a
-    // reference only if it resolves then, so the definition opens first and the session finds
-    // it as it finds a built-in.
-    load_pane_definition(mail);
     // ...and whatever the host already knew was standing, so the first picture
     // of the run already carries every condition this launch is going to have.
     take_host_conditions();
     repaint(mail);
     restore_last_session(mail);
     speak_startup_notes(mail);
-}
-
-// WL-MAKER-08, WL-MAKER-09 -- agents/workshop/maker-pane.md
-void WorkshopWeave::load_pane_definition(loom::Mail& mail) {
-    if (pane_loaded_) {
-        return;
-    }
-    pane_loaded_ = true;
-    const std::string path = host_pane_path();
-    if (path.empty()) {
-        return;
-    }
-    if (!std::filesystem::exists(path)) {
-        return;
-    }
-    open_weaver_pane(path, mail);
-}
-
-// WL-MAKER-08 -- agents/workshop/maker-pane.md
-std::string WorkshopWeave::host_pane_path() const {
-    if (host_->pane_path.empty()) {
-        return std::string();
-    }
-    return persist::resolved_against(host_->project_dir, host_->pane_path);
 }
 
 // WL-GEO-08 -- agents/workshop/geometry.md

@@ -126,16 +126,13 @@ void WorkshopWeave::refresh_inspected() {
     if (!in.addressed()) {
         return;
     }
-    // THE THREE THINGS A NAME STANDS FOR: this pane (the door keeps it), this desk, and this
-    // layout of rows. A value moving is none of them -- the rows read fresh -- and neither is a
-    // provider arriving or leaving: its rows say so, and a write it made impossible is refused
-    // by the owner in its own words.
-    const std::int64_t region = inspected_region(session_, in.ref);
-    if (in.name != 0 && in.desk == session_.setup.put_live && in.region == region) {
+    // THE TWO THINGS A NAME STANDS FOR: this pane (the door keeps it) and this desk. A value
+    // moving is neither -- the rows read fresh -- and neither is a provider arriving or leaving:
+    // its rows say so, and a write it made impossible is refused by the owner in its own words.
+    if (in.name != 0 && in.desk == session_.setup.put_live) {
         return;
     }
     in.rows = pane_subject_rows(session_, in.ref);
-    in.region = region;
     in.desk = session_.setup.put_live;
     in.name = ++in.minted;
 }

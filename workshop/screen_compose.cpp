@@ -12,7 +12,6 @@ namespace zengine::workshop {
 // ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 
 // WL-FRONT-01, WL-FRONT-05, WL-FRONT-07 -- agents/workshop/planes.md
-// WL-MAKER-05 -- agents/workshop/maker-pane.md
 void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) {
     const Panes& panes = s.panes;
     const std::int64_t lifted = selected_pane(panes);
@@ -29,10 +28,6 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
                 // `bounds_of`'s and the order `effective_pane_order`'s, so a pane in front is
                 // drawn over it.
                 paint_layouts(layer, s, b, sc, chrome);
-            } else if (is_weaver_kind(p.kind)) {
-                // The weaver's own pane: the same rectangle, order and chrome; only the painter
-                // differs, reading an authored interior.
-                paint_weaver_pane(layer, s, b, sc, chrome);
             } else if (is_runtime_kind(p.kind)) {
                 // One generic arm for every external pane: each is presented identically, a
                 // header Workshop writes and a region the provider fills.
@@ -40,13 +35,6 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
             }
         });
     }
-    // THE PANE CREATOR'S REGION MARK: over the panes, in the affordances' own
-    // position and for their reason -- it says which rectangle of the weaver's pane the
-    // rows an inspector is reading describe, derived from the same resolution that painted it,
-    // and it is drawn on a plane of its own so the pane's own interior cannot cover it.
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_creator_region_mark(layer, s, sc);
-    });
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_pane_affordances(layer, s, sc);
     });

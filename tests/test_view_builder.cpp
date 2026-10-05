@@ -11,9 +11,11 @@
 #include "view-builder/model.hpp"
 #include "view-builder/picture.hpp"
 #include "view-builder/vocabulary.hpp"
+#include "view/creator_pane.hpp"
 #include "view/host.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/kernel/kernel.hpp>
@@ -332,7 +334,8 @@ public:
     bool allow = true;
     loom::WeaveId self{};
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<ws::v2::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
+        return {loom::schema_of<ws::v2::PaneOffered>(), loom::schema_of<ws::v3::PaneOffered>(),
+                loom::schema_of<ws::PaneActions>(),
                 loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
                 loom::schema_of<ws::PaneRevealRequested>(), loom::schema_of<ws::PaneMenuRequested>(),
@@ -350,6 +353,28 @@ public:
     loom::Value snapshot() const override { return loom::Value(loom::make_schema("vbtest.Desk", 1, {})); }
     loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
     void revive(const loom::Value&) override {}
+};
+
+/// `zengine.project`'s one answer the builder asks for: where the project is.
+class ProjectStub final : public loom::Weave {
+public:
+    explicit ProjectStub(std::string dir) : dir_(std::move(dir)) {}
+    loom::WeaveId self{};
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
+        return {loom::schema_of<ws::ProjectRootRequested>()};
+    }
+    std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
+        return {loom::schema_of<ws::ProjectRoot>()};
+    }
+    void handle(const loom::Message&, loom::Bus& bus) override {
+        (void)bus.answer(loom::Message(loom::to_value(ws::ProjectRoot{dir_, ""}), self));
+    }
+    loom::Value snapshot() const override { return loom::Value(loom::make_schema("vbtest.Project", 1, {})); }
+    loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
+    void revive(const loom::Value&) override {}
+
+private:
+    std::string dir_;
 };
 
 class Menus final : public loom::Weave {
@@ -372,7 +397,9 @@ struct Rig {
     std::uint64_t correlation = 0;
     std::int64_t grant = 1;
 
-    Rig() {
+    /// A Workshop beside the builder; with `project`, `zengine.project` answers that directory, as
+    /// a launch from it does.
+    explicit Rig(const std::string& project = std::string()) {
         zengine::op::publish_primitives(catalog);
         views.mount();
         auto d = std::make_unique<Desk>();
@@ -380,6 +407,11 @@ struct Rig {
         workshop = bus.register_weave(std::move(d), loom::Grant{}.allow_any(), workshop_role);
         desk->self = workshop;
         menus = bus.register_weave(std::make_unique<Menus>(), loom::Grant{}.allow_any(), ws::kPresenterRole);
+        if (!project.empty()) {
+            auto stub = std::make_unique<ProjectStub>(project);
+            ProjectStub* raw = stub.get();
+            raw->self = bus.register_weave(std::move(stub), loom::Grant{}.allow_any(), ws::kProjectRole);
+        }
         tally = zengine::maker::register_definition(bus, catalog, hwfix::tally(catalog));
         REQUIRE(tally.ok);
         const auto loaded = kernel.load("view-builder", VIEW_BUILDER_ARTIFACT, vb::kRole, loom::Grant{}.allow_any());
@@ -1586,6 +1618,82 @@ TEST_CASE("a press on what a button says asks under that press to drag its inten
     const auto value = loom::from_value<ws::PaneValueCarryRequested>(carried->payload);
     CHECK(value.drag);
     CHECK(value.label == "tally.panel.Count");
+}
+
+namespace {
+/// What a view's office said to Workshop: whether it offered its pane, and whether it asked to be
+/// shown.
+std::pair<bool, bool> offered_and_shown(const Desk& desk, const std::string& office) {
+    bool offered = false, shown = false;
+    for (const auto& m : desk.heard) {
+        if (m.provenance.authored_role() != office) continue;
+        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>());
+        shown |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+    }
+    return {offered, shown};
+}
+
+/// The builder's own project file, as it wrote it.
+vb::ViewBuilderRun run_file(const std::filesystem::path& project) {
+    std::ifstream in(project / vb::kRunFileName, std::ios::binary);
+    const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    const auto admitted = loom::admit(loom::parse(bytes), loom::schema_of<vb::ViewBuilderRun>());
+    REQUIRE(admitted);
+    return loom::from_value<vb::ViewBuilderRun>(admitted.value());
+}
+} // namespace
+
+TEST_CASE("the View Builder runs again at a launch the view it ran, its pane seated by the desk, and in a project that remembers none, the pane the Pane Creator saved there") {
+    // ⚔ MUTATION: a launch that forgets the builder's project file -- the second launch runs
+    // nothing, and `notes` has no holder there.
+    TempDir project;
+    const auto dir = project.directory.generic_string();
+    view::WorkshopPaneDefinition pane;
+    pane.format = view::kCreatorPaneFormat;
+    pane.format_version = view::kCreatorPaneFormatVersion;
+    pane.name = "notes";
+    pane.next_id = 2;
+    pane.regions = {{1, "text", 0, 0, 1152, 96, "Notes made by the Pane Creator"}};
+    {
+        std::ofstream out(project.directory / view::kCreatorPaneFileName, std::ios::binary);
+        out << loom::compat::serialize(loom::to_value(pane));
+    }
+    const auto creator_file = (project.directory / view::kCreatorPaneFileName).generic_string();
+
+    // THE FIRST LAUNCH: no file of the builder's, so the Pane Creator's pane runs, read as a view,
+    // its pane offered and asking nothing -- the desk the weaver left seats it, or does not.
+    {
+        Rig launch(dir);
+        REQUIRE(launch.bus.role_holder("notes").valid());
+        CHECK(offered_and_shown(*launch.desk, "notes") == std::make_pair(true, false));
+        CHECK(launch.text("notes / running") != nullptr);
+        CHECK(launch.now().elements.size() == 1);
+        const auto kept = run_file(project.directory);
+        CHECK(kept.path == creator_file);
+        CHECK(kept.running);
+    }
+    // THE NEXT LAUNCH reads the builder's own file, and runs the same view again.
+    {
+        Rig relaunch(dir);
+        REQUIRE(relaunch.bus.role_holder("notes").valid());
+        CHECK(offered_and_shown(*relaunch.desk, "notes") == std::make_pair(true, false));
+        // STOPPED, it is remembered as stopped...
+        REQUIRE(relaunch.edit("stop").ok);
+        CHECK_FALSE(run_file(project.directory).running);
+    }
+    // ...SO THE LAUNCH AFTER OPENS IT AND RUNS NOTHING.
+    {
+        Rig stopped(dir);
+        CHECK_FALSE(stopped.bus.role_holder("notes").valid());
+        CHECK(stopped.now().name == "notes");
+    }
+    // A PROJECT WITH NEITHER FILE runs nothing and writes nothing.
+    TempDir empty;
+    {
+        Rig fresh(empty.directory.generic_string());
+        CHECK_FALSE(fresh.bus.role_holder("notes").valid());
+        CHECK_FALSE(std::filesystem::exists(empty.directory / vb::kRunFileName));
+    }
 }
 
 TEST_CASE("in a terminal the builder's picture and its drags are floored to cells") {

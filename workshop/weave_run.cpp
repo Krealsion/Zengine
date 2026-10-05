@@ -89,19 +89,12 @@ void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& 
 }
 
 // WL-EDIT-03 -- agents/workshop/editor.md
-// WL-MAKER-08 -- agents/workshop/maker-pane.md
 // WL-SESSION-13 -- agents/workshop/session.md
 void WorkshopWeave::quit(loom::Mail& mail) {
     if (quitting_) {
         say("quitting -- waiting for " + std::to_string(quit_outstanding_) +
                 " pane(s) to answer",
             true);
-        return;
-    }
-    // A weaver-made pane holds the door synchronously: a definition that differs from its file is
-    // authored truth this host holds, and it leaves only by the weaver's save or discard.
-    if (session_.panes.weaver.dirty()) {
-        say(weaver_pane_dirty_sentence("Workshop stays open"), true);
         return;
     }
     // The unsaved-loss floor at the one exit, asked of the room: every pane holding a weaver's

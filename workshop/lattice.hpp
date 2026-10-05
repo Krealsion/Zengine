@@ -4,8 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_LATTICE_HPP
 #define ZENGINE_WORKSHOP_LATTICE_HPP
 
-// The one bound every authored cell count has: a pane's place and extent on the desk, and a
-// weaver-made pane's region, share it rather than inventing a second number.
+// The one bound every authored cell count has: a pane's place and extent on the desk share it
+// rather than each inventing a number.
 
 #include <cstdint>
 

@@ -7,13 +7,18 @@
 // A pane that changed hands, and the one rewrite that says so: a saved file naming a pane by the
 // office that offered it before it moved is converted at load, in memory, before the setup's law.
 // Not a format version (a `PaneRef` is opaque data, and a version gate would refuse older files),
-// not an alias (one name per pane, WL-CAT-03), and not a general mechanism: a hand-written table.
+// not an alias (one name per pane, WL-CAT-03), and not a general mechanism: a hand-written table,
+// and one rule beside it for the panes the Pane Creator made, which are views now.
 
 #include "setup.hpp"
 
+#include "view/creator_pane.hpp"
+
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace zengine::workshop::pane_migration {
 
@@ -64,6 +69,10 @@ inline constexpr const char* kRetiredManagerProvider = "zengine.workshop";
 inline constexpr const char* kRetiredManagerPane = "pane-editor";
 inline constexpr const char* kManagerProvider = "zengine.desktop";
 inline constexpr const char* kManagerPane = "launcher";
+
+/// THE PANE A VIEW OFFERS, in the office its description names: what a desk naming a Pane Creator
+/// pane names now. Spelled here for `kFilesProvider`'s reason (`view/view.hpp`), checked by a case.
+inline constexpr const char* kViewPane = "view";
 
 // ---- The table -------------------------------------------------------------------------
 // Info made it a table: its place moved with its office. A saved `default` place meant the right
@@ -117,13 +126,22 @@ inline bool names_the_retired_manager(const PaneRef& ref) {
     return ref.provider == kRetiredManagerProvider && ref.pane == kRetiredManagerPane;
 }
 
+/// WHAT A DESK NAMING A PANE THE PANE CREATOR MADE NAMES NOW: the view its file reads as, in the
+/// office that view's name is, by the one rule the file's reader uses (`view::read_description`).
+// WL-MAKER-15 -- agents/workshop/maker-pane.md
+inline PaneRef view_of_creator_pane(const std::string& pane) {
+    return PaneRef{view::view_name_of_creator_pane(pane), kViewPane};
+}
+
 /// WHICH RETIRED REFERENCES ONE SETUP HELD -- counted per table row, because the sentence a
-/// weaver reads names what THEIR file held rather than everything that ever moved.
+/// weaver reads names what THEIR file held rather than everything that ever moved -- and the Pane
+/// Creator panes it named, by the names it wrote, one per row.
 struct Converted {
     std::int64_t rows[kRetiredCount] = {};
+    std::vector<std::string> creator;
 
     std::int64_t total() const {
-        std::int64_t n = 0;
+        std::int64_t n = static_cast<std::int64_t>(creator.size());
         for (const std::int64_t r : rows) {
             n += r;
         }
@@ -131,6 +149,13 @@ struct Converted {
     }
     /// Did this file hold the reference in table row `which`? Total over the index.
     bool held(std::size_t which) const { return which < kRetiredCount && rows[which] > 0; }
+    /// ANOTHER SETUP'S, COUNTED INTO THIS ONE: a session's desks and links are one file's to say.
+    void add(const Converted& more) {
+        for (std::size_t i = 0; i < kRetiredCount; ++i) {
+            rows[i] += more.rows[i];
+        }
+        creator.insert(creator.end(), more.creator.begin(), more.creator.end());
+    }
 };
 
 /// HOW MANY ROWS OF ONE SETUP HELD ONE PARTICULAR RETIRED REFERENCE -- named by the office the
@@ -149,11 +174,18 @@ inline std::int64_t held_count(const Converted& converted, const char* now_provi
 }
 
 /// Rewrite every retired reference in one setup, and say which. The place is written only over a
-/// `default`: a weaver's own place outranks the one the catalog gave. It runs before the setup's
-/// law, so a file naming both spellings of one pane is refused by `check_setup`.
+/// `default`: a weaver's own place outranks the one the catalog gave. A Pane Creator pane names its
+/// view, keeping its place, size and front. It runs before the setup's law, so a file naming both
+/// spellings of one pane is refused by `check_setup`.
+// WL-MAKER-15 -- agents/workshop/maker-pane.md
 inline Converted convert_retired_panes(Setup& s) {
     Converted converted;
     for (SetupPane& row : s.panes) {
+        if (row.ref.provider == view::kCreatorPaneProvider) {
+            converted.creator.push_back(row.ref.pane);
+            row.ref = view_of_creator_pane(row.ref.pane);
+            continue;
+        }
         for (std::size_t i = 0; i < kRetiredCount; ++i) {
             const Retired& moved = kRetired[i];
             if (row.ref.provider != moved.was_provider || row.ref.pane != moved.was_pane) {
@@ -183,6 +215,18 @@ inline std::string converted_note(const Converted& converted) {
         const Retired& moved = kRetired[i];
         said += std::string(named == 0 ? " -- " : ", and ") + moved.was_provider + "/" +
                 moved.was_pane + " is now " + moved.now_provider + "/" + moved.now_pane;
+        ++named;
+    }
+    // Each Pane Creator pane once, however many desks of the file named it.
+    std::vector<std::string> told;
+    for (const std::string& pane : converted.creator) {
+        if (std::find(told.begin(), told.end(), pane) != told.end()) {
+            continue;
+        }
+        told.push_back(pane);
+        const PaneRef now = view_of_creator_pane(pane);
+        said += std::string(named == 0 ? " -- " : ", and ") + view::kCreatorPaneProvider + "/" +
+                pane + " is now " + now.provider + "/" + now.pane;
         ++named;
     }
     return said;

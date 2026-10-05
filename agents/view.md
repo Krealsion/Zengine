@@ -17,6 +17,11 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   maker definition: the envelope's claim, then the gate, then the rules; a version it does not
   read is refused by its number. A changed shape takes a new version and the old one still reads:
   version 1, without a size, takes `view::fitting_size` and is written as the current version.
+- A pane the retired Pane Creator saved reads as a view at every door (`view/creator_pane.hpp`,
+  its JSON claim gated at `WorkshopPaneDefinition` version 1): a label per region, its text at
+  the pixels Workshop painted, under the pane's name made a view's name by
+  `view::view_name_of_creator_pane`, judged by `view::problem` and written as the current
+  version. A label holds `view::kMaxLabelBytes`, so a region's line comes whole.
 - A view's intent sits inside the view's own name, as a definition's emits do (MW-DEF-08): a
   description is pure data and its participant publishes, so a name outside its namespace could
   speak for another participant. A label may show any scalar field of any shape: a view listens.
@@ -77,7 +82,13 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
 - A gesture, the pan, the grid, a box being typed into and a mark are the builder's
   presentation: never saved, kept across a reload or offered to the host; no pan, grid or snap is
   in a description. A reload in place keeps the draft, file and whether
-  its view runs. An intent is made through `flow/shape.hpp`. The builder carries an intent's
+  its view runs, and so does a relaunch: the builder writes the file it has open and whether its
+  view runs to the project's `view-builder.json` (`view_builder::ViewBuilderRun`) when either
+  changes, and at its first activation asks `zengine.project` for the project, opens that file
+  and, if its view ran, runs it again by `view::ViewResume`: a run whose pane asks nothing of the
+  desk, so the restored desk seats it where it stood or leaves it hidden. A project with no such
+  file runs its Pane Creator file (`workshop-pane.json`). An intent is made through
+  `flow/shape.hpp`. The builder carries an intent's
   shape out, with the shapes it nests (`flow::shape::carried`), by a press's drag or a menu
   choice, and takes a shape, a value or an Info field dropped on a label, on the canvas or its
   row, as what that label shows, a description read with the shapes it carries alone
@@ -90,6 +101,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   refusal, in-place and fresh apply, a replacement that cannot register, stop, and the terminal
   picture; `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
   the side handles, the pan, the size, nothing outside it, the grid, the boxes, the marks and the
-  terminal floor; `tests/test_view.cpp` also the size, a version 1 description read, and a view
-  asking for its size; the panes suite the view and the builder through
+  terminal floor, and the run again at a launch; `tests/test_view.cpp` also the size, a version 1
+  description and a Pane Creator file read, a view asking for its size, and a resumed view; the
+  panes suite the view and the builder through
   Workshop's real seat, pointer route, drag carry and canvas admission.

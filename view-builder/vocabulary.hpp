@@ -3,11 +3,13 @@
 #ifndef ZENGINE_VIEW_BUILDER_VOCABULARY_HPP
 #define ZENGINE_VIEW_BUILDER_VOCABULARY_HPP
 
-// What another participant may ask the View Builder, and what it keeps across a reload of its own
-// image. The edits are the ones its controls spend; `describe` names their grammar.
+// What another participant may ask the View Builder, what it keeps across a reload of its own
+// image, and the project file it keeps across a launch. The edits are the ones its controls spend;
+// `describe` names their grammar.
 
 #include <zen/weave/shape.hpp>
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -37,6 +39,23 @@ struct BuilderState {
     std::string path;
     bool dirty = false, running = false;
     ZEN_SHAPE(BuilderState, 1, ZEN_FIELD(description), ZEN_FIELD(path), ZEN_FIELD(dirty),
+              ZEN_FIELD(running));
+};
+
+/// THE VIEW BUILDER'S OWN PROJECT FILE, beside the views it saves: the view file it has open and
+/// whether the view host runs it for this office. A launch reads it and runs that view again, its
+/// pane seated by the desk the weaver left; a project with none runs the pane the Pane Creator
+/// saved there (`view::kCreatorPaneFileName`).
+inline constexpr const char* kRunFileName = "view-builder.json";
+inline constexpr const char* kRunFormat = "zengine-view-builder";
+inline constexpr std::int64_t kRunFormatVersion = 1;
+
+struct ViewBuilderRun {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::string path;
+    bool running = false;
+    ZEN_SHAPE(ViewBuilderRun, 1, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(path),
               ZEN_FIELD(running));
 };
 

@@ -44,9 +44,11 @@ inline constexpr const char* kPane = "view";
 inline constexpr std::size_t kRememberedIntents = 16;
 
 namespace detail {
-/// The host's two words to a view it registered, sent with no sender.
+/// The host's two words to a view it registered, sent with no sender. A start offers the pane,
+/// and asks Workshop to show it when `reveal` says so.
 struct ViewStart {
-    ZEN_SHAPE(ViewStart, 1);
+    bool reveal = true;
+    ZEN_SHAPE(ViewStart, 2, ZEN_FIELD(reveal));
 };
 struct ViewRedraw {
     ZEN_SHAPE(ViewRedraw, 1);
@@ -351,7 +353,7 @@ public:
         if (is(loom::schema_of<detail::ViewStart>())) {
             if (!host) return;
             offer(bus);
-            say(bus, ws::PaneRevealRequested{kPane});
+            if (loom::from_value<detail::ViewStart>(in.payload).reveal) say(bus, ws::PaneRevealRequested{kPane});
             return;
         }
         if (is(loom::schema_of<detail::ViewRedraw>())) {
