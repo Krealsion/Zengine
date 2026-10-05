@@ -221,8 +221,7 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
         // ⚠ CLOSED PARTICIPATION AND AN ABSENT PROVIDER ARE DIFFERENT ANSWERS. A row with no
         // kind is one a DESK authored and no office resolves -- the tool is unavailable, not
         // closed -- and saying "opened" for it would be the presentation claiming a seat it
-        // does not have. This is the sentence the desktop's backdrop turns into an
-        // explanation a weaver can act on.
+        // does not have; the Pane Manager marks the row gone and says what would bring it.
         out.refusal = pending ? not_yet(name)
                               : name + " is not available -- `" + ref.provider +
                                     "` is not offering it in this Workshop";
@@ -795,28 +794,6 @@ void WorkshopWeave::on(const KeymapRequested&, loom::Mail& mail) {
         return; // an office asks
     }
     (void)mail.answer(keymap_shown(session_, host_->keymap_path, keymap_standing_));
-}
-
-// ---- The floor of the empty room ------------------------------------------------------------
-
-// WL-DESK-05 -- agents/workshop/desktop.md
-void WorkshopWeave::on(const DesktopFace& face, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty() || office != kDesktopRole) {
-        return; // the room's floor is the desktop office's to say, and nobody else's
-    }
-    if (face.rows.size() > kMaxBackdropRows) {
-        // REFUSED WHOLE RATHER THAN TRUNCATED, for `PaneContent`'s reason: a floor showing
-        // an unmarked part of what the desktop said would be this host presenting a partial
-        // sentence as a complete answer.
-        say("the desktop said " + std::to_string(face.rows.size()) + " rows; the room's floor "
-            "holds " + std::to_string(kMaxBackdropRows),
-            true);
-        repaint(mail);
-        return;
-    }
-    session_.backdrop = face.rows;
-    repaint(mail);
 }
 
 } // namespace zengine::workshop

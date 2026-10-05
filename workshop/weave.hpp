@@ -328,7 +328,6 @@ class WorkshopWeave
                                           zengine::workshop::KeymapEditRequested,
                                           zengine::workshop::WeaverPaneRequested,
                                           zengine::workshop::DeselectRequested,
-                                          zengine::workshop::DesktopFace,
                                           zengine::workshop::PaneInventoryRequested,
                                           zengine::workshop::KeymapRequested,
                                           zengine::workshop::TerminalValueRequested,
@@ -653,10 +652,6 @@ public:
     /// ONE OF THE PANE CREATOR'S THREE ACTS, asked by the office presenting them: make, save or
     /// discard, through the doors below, answered with the sentence the band says.
     void on(const WeaverPaneRequested& asked, loom::Mail& mail);
-
-    /// WHAT STANDS IN THE EMPTY ROOM. Retained whole and painted behind every pane; refused
-    /// whole when it exceeds `kMaxBackdropRows`, for `PaneContent`'s reason.
-    void on(const DesktopFace& face, loom::Mail& mail);
 
     /// THE DESKTOP'S ANSWER TO ONE OF ITS OWN REQUESTED ROWS: put the weaver's selection down.
     /// Judged against the particular ask it echoes and the gesture that raised it, exactly as

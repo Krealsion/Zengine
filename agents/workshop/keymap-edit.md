@@ -29,10 +29,9 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `KeymapEditRequested`,
 takes the keyboard through the guarded transition and captures the key"`, case `"WL-KEY-17: a
 mouse choice and its own release take the keyboard for an UNFOCUSED Hotkeys edit -- batched or
 separated, capture or typed spelling; a newer act still defeats it"`, case `"WL-KEY-17:
-right-click a binding, Modify (press a
-key): the change is live at once, written to the file, listed in the table, and the floor
-teaches it; the keys stayed where they were"`, case `"WL-KEY-17: Add a key, Remove one, remove
-the last (disabled, aloud), Reset -- by menu and by the same door from the keyboard; two
+right-click a binding, Modify (press a key): the change is live at once, written to the file and
+listed in the table; the keys stayed where they were"`, case `"WL-KEY-17: Add a key, Remove one,
+remove the last (disabled, aloud), Reset -- by menu and by the same door from the keyboard; two
 consecutive writes; the table lists every key"`, case `"WL-KEY-17: a collision refuses the edit
 in the collision law's own words, and nothing changes -- not the live map, not the file, not the
 rows"`.

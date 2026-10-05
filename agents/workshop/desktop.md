@@ -6,12 +6,14 @@ keystroke becomes an action at all is the keymap's law, in [`keyboard.md`](keybo
 the desktop's panes are told, and how the launcher holds its place, is
 [`desktop-presenting.md`](desktop-presenting.md).
 
+Retired: WL-DESK-05.
+
 ## WL-DESK-01 — The application's defaults are a weave, and the host keeps four things
 
 LAW — One office, `zengine.desktop`, holds the application's default behaviour; the host keeps room, focus, realization and roots, and compiles none of what that office decides.
 
 MEANS
-- a Workshop whose desktop did not load has no launch bindings, key list, default Escape or floor;
+- a Workshop whose desktop did not load has no launch bindings, key list or default Escape;
 - the weave is built, loaded, edited and reloaded by the means every pane weave is.
 
 DOES NOT MEAN
@@ -72,8 +74,8 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneLaunchRequested`,
 `kActionTerminal`, `kActionPanes`, `kActionLaunch`; `tests/test_workshop_panes_actions.cpp` case
 `"a pane whose provider left is unavailable in the launcher and refused at launch, while its
 identity and the desk row naming it stay"`, case `"a pane the run is still loading is pending,
-not unavailable: the launcher marks it `[load]`, the floor names nothing to build, and a launch
-says it is not here yet"`.
+not unavailable: the launcher marks it `[load]`, names nothing to build, and a launch says it is
+not here yet"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-04 — The inventory is said out loud, and it is not a second inventory
@@ -96,26 +98,10 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `InventoryPane`, `PaneInven
 `workshop/setup.hpp` `inventory_rows`; `tests/test_workshop_panes_actions.cpp` case `"a pane
 whose provider left is unavailable in the launcher and refused at launch, while its identity and
 the desk row naming it stay"`, case `"a pane the run is still loading is pending, not
-unavailable: the launcher marks it `[load]`, the floor names nothing to build, and a launch says
-it is not here yet"`; `tests/test_workshop_load.cpp` case `"an office is still to come while a
+unavailable: the launcher marks it `[load]`, names nothing to build, and a launch says it is not
+here yet"`; `tests/test_workshop_load.cpp` case `"an office is still to come while a
 plan row loading it has not settled, and is owed nothing once every such row resolved or was
 stepped over"`.
-WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
-
-## WL-DESK-05 — The room's floor is the desktop's words and the host's wall
-
-LAW — The floor carries the rows the host paints in the workspace behind every pane: retained whole, refused whole past its bound, composed by nobody here, empty until the desktop speaks.
-
-MEANS
-- the floor takes no input and is granted no room: a press there means what it always meant;
-- an empty floor is the honest picture of a Workshop whose desktop never loaded.
-
-DOES NOT MEAN
-- that the floor is a pane: it is not seated, ordered, covered, arranged or removable.
-
-PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `DesktopFace`, `kMaxBackdropRows`;
-`workshop/screen.hpp` `Session::backdrop`; `workshop/weave.hpp` `on(DesktopFace)`;
-`workshop/weave_desktop.cpp` `on(DesktopFace)`; `workshop/screen_compose.cpp` `paint`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-06 — A declaration is answered with its verdict, and withdrawn by its number

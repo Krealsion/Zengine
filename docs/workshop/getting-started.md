@@ -118,8 +118,8 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
  | Layouts: >Default< +                                    setup: none |
  +--------------------------------------------+------------------------+
  |                                            |                        |
- |   the room: the desktop's floor, and the   |   Info: the panes,     |
- |   panes you open, stacked here             |   and the one you      |
+ |   the room: the panes you open,            |   Info: the panes,     |
+ |   stacked here                             |   and the one you      |
  |                                            |   inspect              |
  |                                            |                        |
  +--------------------------------------------+------------------------+
@@ -129,9 +129,10 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
 ```
 
 The **room** is the whole screen. Panes are drawn **over** it — none of them sits beside it —
-and what shows through where no pane is, is the **desktop's floor**: a few lines saying where
-things are, including any tool that is not in this Workshop. Panes cover the room you are
-working in. That is uncomfortable on purpose: inventing a docking system before anybody had
+and nothing is drawn where no pane is: the window's own dark ground, or a terminal's. Where
+things are is the legend's to say — `Ctrl`+`p` shows the Pane Manager, which lists every pane,
+marks a tool that is not in this Workshop `[gone]` and says how to bring it back. Panes cover the
+room you are working in. That is uncomfortable on purpose: inventing a docking system before anybody had
 felt the discomfort would be answering a demand nobody had made. A wider terminal splits the
 surplus evenly between a pane and the room underneath it, so the room always keeps half.
 

@@ -151,20 +151,23 @@ LAW — `full`/`compact`/`hidden` (`default` is the code's answer) govern every 
 
 MEANS
 - the full rows fold four families exactly while every member sits on its default (`help_pairs`);
-- compact is the application's rows above every mode; the effective keymap stays the full list.
+- compact is the application's rows above every mode; the effective keymap stays the full list;
+- where no pane holds the keys, the full rows lead with the application's rows above every mode.
 
 PROVEN BY — `workshop/screen_compose.cpp` `band_region`; `workshop/screen_gestures.cpp`
 `help_rows`; `workshop/screen_bindings.cpp` `help_pairs`; `workshop/keymap.hpp` `legend_mode`;
 `workshop/keymap_persist.hpp` `kLegendDefault`; `tests/test_workshop_document.cpp` case `"the
 legend's three modes project the band, and hidden unbinds nothing"`, case `"the legend modes
-move only the legend rows, in both budgets"`.
+move only the legend rows, in both budgets"`; `tests/test_workshop_panes_actions.cpp` case `"the
+band and the Hotkeys pane teach the application's keys as they are in force: a moved row where it
+moved, a disabled one as having no key"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-10 — The key list is the desktop's Hotkeys pane
 
 LAW — The key list is the desktop's Hotkeys pane, seated and arranged like any pane; nothing in this host anchors, sizes or paints a key list.
 
-PROVEN BY — `tests/test_workshop_panes_actions.cpp` case `"the floor and the Hotkeys pane
+PROVEN BY — `tests/test_workshop_panes_actions.cpp` case `"the band and the Hotkeys pane
 teach the application's keys as they are in force: a moved row where it moved, a disabled one as
 having no key"`.
 WHY — `agents/decisions/content-sized-popups.md`

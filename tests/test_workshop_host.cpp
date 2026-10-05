@@ -327,10 +327,11 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     const Screen sc = screen_of(t.session());
     CHECK(c.width == cells_px(100));
     CHECK(c.height == cells_px(33));
-    // MORE USABLE SURFACE, not a stretched picture: the workspace rectangle a weaver builds
-    // inside is genuinely bigger, in cells.
-    CHECK(has_rect(c, kRoomCellX, kRoomCellY, 100, 27, surface::role::kMuted));
+    // MORE USABLE SURFACE, not a stretched picture: the workspace a weaver builds inside is
+    // genuinely bigger, in cells -- and nothing is painted over it where no pane stands.
     CHECK(cells_of(sc).room_w == 100);
+    CHECK(cells_of(sc).room_h == 27);
+    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 100, 27, surface::role::kMuted));
     // The workspace fact lives in the band's own row, and it moved with the extent: what a
     // share resolves against is said where the tool speaks. It is the whole surface, so the
     // room runs under the pane rather than stopping short of the edge.
@@ -369,7 +370,8 @@ TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     CHECK(c.height == kScreenMinH);
     CHECK(cells_of(screen_of(s)).w == 78);
     CHECK(cells_of(screen_of(s)).h == 22);
-    CHECK(has_rect(c, kRoomCellX, kRoomCellY, 78, 16, surface::role::kMuted));
+    CHECK(cells_of(screen_of(s)).room_h == 16);
+    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 78, 16, surface::role::kMuted));
     // THE COMPOSITION, 78 by 22 -- the workspace at its full extent, the bands where they
     // belong -- with no objects column: a default `Session` opens what `kDefaultPanes` names,
     // and a run with no medium has no load plan. The two help rows hold what the keymap

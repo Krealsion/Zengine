@@ -1771,11 +1771,10 @@ TEST_CASE("a withdrawal naming a predecessor's declaration does not reach the su
     r.bus.drain_until_idle();
     REQUIRE(r.load_refusals.empty());
 
-    std::string floor;
-    for (const surface::SurfaceTextRow& row : r.session().backdrop) {
-        floor += row.text + "\n";
-    }
-    CAPTURE(floor);
+    // ITS OWN ROWS WERE REFUSED, so its chord opens nothing: the host's door shows the Manager.
+    r.pick(PaneRef{kDesktopRole, dp::kLauncherPane});
+    const std::string shown = launcher_text(r);
+    CAPTURE(shown);
     const std::string notice = r.last_notice();
     CAPTURE(notice);
     const bool app_rows_in_force = r.session().keymap.app_row_of_id("desktop.terminal") != nullptr;
@@ -1783,9 +1782,9 @@ TEST_CASE("a withdrawal naming a predecessor's declaration does not reach the su
     const std::string word = r.session().keymap.authored.empty() ? "no authored rows" : "authored";
     CAPTURE(word);
     // THE SUCCESSOR'S OWN DECLARATION MEETS THE SAME FILE AND IS REFUSED -- its verdict, shown.
-    CHECK(floor.find("keys refused:") != std::string::npos);
+    CHECK(shown.find("keys refused:") != std::string::npos);
     // THE PREDECESSOR'S WITHDRAWAL NAMES A NUMBER THIS IMAGE NEVER HELD, and is not shown.
-    CHECK(floor.find("keys withdrawn:") == std::string::npos);
+    CHECK(shown.find("keys withdrawn:") == std::string::npos);
 }
 
 TEST_CASE("a pane whose provider left is unavailable in the launcher and refused at launch, while "
@@ -1809,11 +1808,8 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
     REQUIRE_FALSE(r.host.holder_accepts("zengine.info", *loom::schema_of<PaneRoom>()));
     manager_here(r); // a gesture: the reading is taken again, now
     CHECK(launcher_text(r).find("[gone] Info") != std::string::npos);
-    std::string floor;
-    for (const surface::SurfaceTextRow& row : r.session().backdrop) {
-        floor += row.text + "\n";
-    }
-    CHECK(floor.find("unavailable: Info") != std::string::npos);
+    CHECK(launcher_text(r).find("[gone]: build its provider, then launch again") !=
+          std::string::npos);
 
     // THE LAUNCH JUDGMENT ASKS THE SAME FACT, AT ITS OWN MOMENT.
     const std::vector<CatalogRow> rows = inventory_rows(r.session().setup.active,
@@ -1842,10 +1838,10 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
 }
 
 TEST_CASE("a pane the run is still loading is pending, not unavailable: the launcher marks it "
-          "`[load]`, the floor names nothing to build, and a launch says it is not here yet") {
+          "`[load]`, names nothing to build, and a launch says it is not here yet") {
     // ⚔ MUTATION: `inventory_reading` leaving `pending` unset -- the launcher says `[gone]`
-    // and the floor tells a weaver to build a tool whose plan row has not been reached.
-    // ⚔ MUTATION: the floor listing every unavailable row, pending or not -- the floor half.
+    // and tells a weaver to build a tool whose plan row has not been reached.
+    // ⚔ MUTATION: the gone note counting every unavailable row, pending or not.
     PaneRig r;
     bool info_to_come = true; // the host's answer, as `workshop.cpp` wires it over the executor
     r.host.office_pending = [&info_to_come](std::string_view office) {
@@ -1857,18 +1853,11 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
     load_real_desktop(r);
     const PaneRef info{"zengine.info", "info"};
     REQUIRE(has_pane(r.session().setup.active, info)); // the shipped desk names it; nothing offers it
-    const auto floor_text = [&r] {
-        std::string floor;
-        for (const surface::SurfaceTextRow& row : r.session().backdrop) {
-            floor += row.text + "\n";
-        }
-        return floor;
-    };
 
     manager_here(r);
     CHECK(launcher_text(r).find("[load] info") != std::string::npos);
     CHECK(launcher_text(r).find("[gone]") == std::string::npos);
-    CHECK(floor_text().find("unavailable") == std::string::npos);
+    CHECK(launcher_text(r).find("build its provider") == std::string::npos);
 
     // THE LAUNCH IS STILL REFUSED -- a launch loads nothing -- IN WORDS THAT ARE NOT A VERDICT.
     const std::vector<CatalogRow> rows = inventory_rows(r.session().setup.active,
@@ -1888,11 +1877,11 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
     CHECK(r.last_notice().find("is not here yet") != std::string::npos);
     CHECK(r.last_notice().find("build it") == std::string::npos);
 
-    // ...AND ONCE THE RUN HAS SETTLED WITHOUT IT, THE VERDICT IS SAID: gone, and on the floor.
+    // ...AND ONCE THE RUN HAS SETTLED WITHOUT IT, THE VERDICT IS SAID: gone, and what brings it.
     info_to_come = false;
     manager_here(r); // a gesture: the reading is taken again, now
     CHECK(launcher_text(r).find("[gone] info") != std::string::npos);
-    CHECK(floor_text().find("unavailable: info") != std::string::npos);
+    CHECK(launcher_text(r).find("build its provider, then launch again") != std::string::npos);
 }
 
 TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider holding; a close "
@@ -2091,12 +2080,10 @@ TEST_CASE("the shipped desktop shows Workshop's verdict on its own declaration, 
     r.ready(); // the file first: the desktop's declaration meets it at admission
     r.extent(160, 48);
     load_real_desktop(r);
-    std::string floor;
-    for (const surface::SurfaceTextRow& row : r.session().backdrop) {
-        floor += row.text + "\n";
-    }
-    CAPTURE(floor);
-    CHECK(floor.find("keys refused:") != std::string::npos);
+    r.pick(PaneRef{kDesktopRole, dp::kLauncherPane});
+    const std::string shown = launcher_text(r);
+    CAPTURE(shown);
+    CHECK(shown.find("keys refused:") != std::string::npos);
     CHECK(r.session().keymap.app_row_of_id("desktop.terminal") == nullptr);
 }
 
@@ -2906,7 +2893,6 @@ TEST_CASE("a Pane Creator the host's admission denies the weaver door says so fo
         allow(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version);
         allow(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version);
         allow(DeselectRequested::zen_name, DeselectRequested::zen_version);
-        allow(DesktopFace::zen_name, DesktopFace::zen_version);
         allow(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version);
         allow(KeymapRequested::zen_name, KeymapRequested::zen_version);
         allow(surface::ClipboardCopy::zen_name, surface::ClipboardCopy::zen_version);
@@ -3003,14 +2989,6 @@ TEST_CASE("the shipped Pane Manager cuts a long pane name at its room and MARKS 
 
 namespace {
 
-std::string floor_text(PaneRig& r) {
-    std::string floor;
-    for (const surface::SurfaceTextRow& row : r.session().backdrop) {
-        floor += row.text + "\n";
-    }
-    return floor;
-}
-
 /// WHAT THE DESKTOP'S HOTKEYS PANE IS SHOWING, one row per line.
 std::string hotkeys_pane_text(PaneRig& r) {
     const RuntimePane* row = r.session().panes.runtime.find(kDesktopRole, dp::kHotkeysPane);
@@ -3027,10 +3005,10 @@ std::string hotkeys_pane_text(PaneRig& r) {
 
 } // namespace
 
-TEST_CASE("the floor and the Hotkeys pane teach the application's keys as they are in force: a "
+TEST_CASE("the band and the Hotkeys pane teach the application's keys as they are in force: a "
           "moved row where it moved, a disabled one as having no key") {
-    // ⚔ MUTATION: `face()` printing its own declared defaults -- the floor says `ctrl+t` for a row
-    // the weaver moved to `ctrl+y`.
+    // ⚔ MUTATION: the band teaching the declared defaults -- it says `^t` for a row the weaver
+    // moved to `ctrl+g`.
     TempDir dir("desktop-effective-keys");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "ctrl+g"},
@@ -3045,12 +3023,14 @@ TEST_CASE("the floor and the Hotkeys pane teach the application's keys as they a
     REQUIRE(moved != nullptr);
     REQUIRE(moved->gesture == Gesture{input::scan::kG, input::mod::kCtrl}); // dispatch uses it
 
-    const std::string floor = floor_text(r);
-    CAPTURE(floor);
-    CHECK(floor.find("ctrl+g  terminal") != std::string::npos);
-    CHECK(floor.find("ctrl+t") == std::string::npos);
-    CHECK(floor.find("panes: no key") != std::string::npos);
-    CHECK(floor.find("ctrl+k  hotkeys") != std::string::npos);
+    // THE BAND, WHERE NO PANE HOLDS THE KEYS, LEADS WITH THEM: the moved row where it moved, and
+    // the disabled one teaching no key.
+    const std::vector<std::string> band = band_lines(r);
+    REQUIRE_FALSE(band.empty());
+    CAPTURE(band[0]);
+    CHECK(band[0].rfind("^g terminal | ^k hotkeys", 0) == 0);
+    CHECK(band[0].find("^t") == std::string::npos);
+    CHECK(band[0].find("panes") == std::string::npos);
 
     // THE HOTKEYS PANE, LAUNCHED BY ITS OWN APPLICATION ROW, lists the same truth -- with the
     // weaver's two authored rows marked, and where to move one. Made tall, as a weaver would.

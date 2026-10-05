@@ -154,39 +154,10 @@ surface::SurfaceCanvas paint(const Session& s) {
     c.width = sc.w;
     c.height = sc.h;
 
-    // The room's plane: the room's edges and the desktop's floor, written before any pane, since a
-    // pane stands in front of the room. The screen's own chrome is a later plane: a pane painted
-    // over the band would erase the notice that just told the weaver what happened. A reference
-    // into `c.layers` is spent before any other layer is added.
-    c.layers.emplace_back();
-    surface::SurfaceLayer* on = &c.layers.back();
-
-    const auto rect = [&on](std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h,
-                            std::int64_t role) {
-        on->rects.push_back(surface::SurfaceRect{x, y, w, h, role});
-    };
-    const auto label = [&on](std::int64_t x, std::int64_t y, std::string text,
-                             std::int64_t role) {
-        on->labels.push_back(surface::SurfaceLabel{x, y, std::move(text), role});
-    };
-
-    // The room, as a thing with edges a weaver can see.
-    rect(0, sc.room_y, sc.room_w, sc.room_h, surface::role::kMuted);
-
-    // The room's floor: the desktop's own words, painted at the place and in the roles it said,
-    // clipped to the room (the law WL-DESK-05), one cell row each from a cell below the room's
-    // top. Workshop composes nothing here, and an empty `backdrop` paints nothing.
-    const std::int64_t cell = surface::kCanvasCellPx;
-    for (std::size_t i = 0; i < s.backdrop.size(); ++i) {
-        const std::int64_t y = sc.room_y + cell * (1 + static_cast<std::int64_t>(i));
-        if (y + cell > sc.room_y + sc.room_h) {
-            break; // the room ran out; the rest is not drawn and nothing is invented
-        }
-        const surface::SurfaceTextRow& row = s.backdrop[i];
-        label(2 * cell, y, detail::fit(row.text, surface::cell_of_pixel(sc.room_w) - 4), row.role);
-    }
-
-    // Every dynamic pane, Info included, each on a plane of its own in canonical front order.
+    // NOTHING IS PAINTED BEHIND THE PANES: where no pane stands, each medium shows its own ground.
+    // Every dynamic pane, Info included, each on a plane of its own in canonical front order. The
+    // screen's own chrome is a later plane: a pane painted over the band would erase the notice
+    // that just told the weaver what happened.
     paint_panes(c, s, sc);
 
     // The screen's own chrome over them, on its own plane: the bottom band, where the tool speaks.
