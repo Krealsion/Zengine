@@ -783,9 +783,9 @@ struct PaneAxisProposal {
 };
 
 /// What authoring a window proposal did: `written` answers for the gesture as a
-/// whole, and `place_written` says whether the place moved — the caller owes a
-/// reseat (`apply_setup`) exactly then, because an authored place leaves the
-/// reactive stack.
+/// whole, and `place_written` says whether the place moved — the caller reconciles
+/// (`apply_setup`) exactly then, because an authored place takes the pane out of the
+/// stack; with no room rationing the stack, that reconcile opens and closes nothing.
 struct WindowWritten {
     Written written;
     bool place_written = false;

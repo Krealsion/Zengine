@@ -224,10 +224,10 @@ void WorkshopWeave::arrange_place(std::int64_t x, std::int64_t y, loom::Mail& ma
         say(done.written.refusal, true);
         return;
     }
-    // AND THE SEATING IS RECONCILED, because authoring a place takes the pane OUT of the
-    // reactive stack -- it stops spending a tile, and whatever was waiting for one may
-    // now have it. Resetting the place puts it back. This is the one door that opens or
-    // closes a pane, so a geometry edit cannot produce a screen the setup disagrees with.
+    // AND THE DESK IS RECONCILED, because authoring a place takes the pane OUT of the
+    // stack and resetting it puts it back. `apply_setup` is the one door that opens or
+    // closes a pane, so a geometry edit cannot produce a screen the setup disagrees with;
+    // no room rations the stack, so for a place it opens and closes nothing.
     if (done.place_written) {
         apply_setup(mail);
     }
@@ -292,9 +292,9 @@ void WorkshopWeave::arrange_window(const PaneWindowProposal& want, std::int64_t 
         // own reconciliation, owed here the moment an anchored resize writes one.
         apply_setup(mail);
     } else {
-        // A SIZE-ONLY CHANGE CANNOT MOVE A PANE BETWEEN SEATED AND WAITING -- only a
-        // PLACE does that -- but the room an external pane was granted may have moved,
-        // and `repaint` owns that (`refresh_external_rooms`). Nothing is reconciled here.
+        // A SIZE-ONLY CHANGE TAKES NO PANE IN OR OUT OF THE STACK -- only a PLACE does
+        // that -- but the room an external pane was granted may have moved, and `repaint`
+        // owns that (`refresh_external_rooms`). Nothing is reconciled here.
         (void)mail;
     }
     say(arrange_status(), false);
@@ -373,8 +373,8 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
             say(ref_text(ref) + " already takes the developer's " + what, true);
             return;
         }
-        // A PLACE RESET PUTS THE PANE BACK IN THE REACTIVE STACK, so the seating has
-        // to be reconciled for the same reason authoring one does.
+        // A PLACE RESET PUTS THE PANE BACK IN THE STACK, so the desk is reconciled for
+        // the same reason authoring one is.
         apply_setup(mail);
         say(ref_text(ref) + " " + what + " reset -- " +
                 pane_window_text(pane_of(s, ref), session_.cell_px),
@@ -384,8 +384,8 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     // REMOVE THIS PANE. The close door's own semantics through the setup's own
     // door: the intent leaves the setup, `apply_setup` is what closes the
     // presentation, and what the pane was presenting is untouched -- a pane on the desk is a
-    // presentation, and removing one removes a presentation. A removal works on a
-    // waiting or unresolved row exactly as on an open one (rule).
+    // presentation, and removing one removes a presentation. A removal works on an
+    // unresolved row exactly as on an open one (rule).
     case Act::kManageRemove: {
         const std::string name = ref_text(ref);
         if (!remove_pane(s, ref)) {
