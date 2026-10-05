@@ -153,9 +153,8 @@ It is a report about the gesture you made, and the next thing Workshop says repl
 
 Something that is **still true** when you read it — a settings file that could not be read, a
 pane of yours that is off the screen, a tool that could not load — does not go there. It goes
-to attention: one compact line where the medium can always show it (a box in the corner of the
-window, the second reserved row of a terminal), and the **Attention** pane lists them all —
-show it from the Pane Manager. Those disappear when they stop being true and at no other
+to attention: the **Attention** pane leads with the most serious and how many more, and lists them
+all — show it from the Pane Manager. Those disappear when they stop being true and at no other
 moment. See [what needs your attention](attention.md).
 
 The **first row** is a pane — [the layout selector](setups.md#several-layouts-in-one-workshop),
@@ -253,7 +252,7 @@ privilege the [snake example](../reference/snake.md) does not.
 | labels | the terminal's own font | an embedded 6x6 bitmap face, printable ASCII only; any other byte draws a visible unknown box |
 | colour | an SGR *and a glyph* per role, so a monochrome terminal is not lied to | RGB per role |
 | the title | two reserved slot lines | the window title carries the slot lines |
-| what needs attention | the second reserved line | a compact box in the picture's top-right corner, and the title |
+| what needs attention | the Attention pane, where you put it | the Attention pane, where you put it |
 
 Neither is a degraded version of the other, and the same published intent produces both.
 

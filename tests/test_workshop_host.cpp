@@ -953,17 +953,30 @@ TEST_CASE("a terminal below the composition's minimum is published, not fictiona
     CHECK(t.session().screen_w == kScreenMinW);
 }
 
-TEST_CASE("a healthy Workshop says nothing on the attention slot at all") {
+TEST_CASE("Workshop puts nothing on the attention slot, healthy or not: what is true is said to "
+          "whoever presents it") {
+    // ⚔ MUTATION: `repaint` publishing the glance on `kSlotScore` again -- the medium would draw
+    // it outside every pane, and the last check goes red.
     Live t;
     t.publish(loom::to_value(surface::SurfaceReady{}));
     CHECK(t.conditions().empty());
-    CHECK(t.attention_note().empty()); // EMPTY IS THE RETRACTION, and it is also the floor
-    // ...AND THE ANSWER IS STILL SAID OUT LOUD. "Is anything wrong?" is a question a weaver is
-    // entitled to ask when the answer is no, and the empty chip is not an answer -- so the
-    // seam carries one publication with no rows, which the Attention pane
-    // (`tests/test_workshop_panes_attention.cpp`) turns into `nothing needs your attention`.
+    // THE ANSWER IS STILL SAID OUT LOUD. "Is anything wrong?" is a question a weaver is entitled
+    // to ask when the answer is no -- so the seam carries one publication with no rows, which the
+    // Attention pane (`tests/test_workshop_panes_attention.cpp`) turns into `nothing needs your
+    // attention right now`.
     REQUIRE_FALSE(t.said_conditions.empty());
     CHECK(t.said_conditions.back().rows.empty());
+    CHECK(t.glance().empty());
+
+    // A WALL: true, said across the seam, the glance a presenter leads with...
+    live(t).conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
+                                           surface::role::kAlert, std::string()});
+    t.key(input::scan::kDown);
+    CHECK(t.glance() == "a wall");
+    // ...AND STILL NOTHING ON THE SLOT: no Skin is handed it to draw outside the panes.
+    for (const surface::SurfaceText& note : t.notes) {
+        CHECK(std::string(note.slot) != surface::kSlotScore);
+    }
 }
 
 TEST_CASE("an unavailable tool is named by its artifact on the host's own condition row, which "
@@ -981,16 +994,15 @@ TEST_CASE("an unavailable tool is named by its artifact on the host's own condit
     CHECK(gone.role == surface::role::kAlert);
     CHECK(gone.action == "build its artifact, then launch again");
 
-    // ...SAID ON THE MEDIUM'S OWN FURNITURE. This rig loads no desktop and no Attention pane --
-    // the case the row exists for: with the desktop missing, nothing can open the pane that
-    // lists conditions, and the compact slot is still read.
+    // ...SAID ACROSS THE SEAM, in the host's own order: the glance a presenter leads with names the
+    // loudest by its artifact and counts the rest.
     Live t;
     t.host.standing_conditions.push_back(gone);
     t.host.standing_conditions.push_back(
         unavailable_tool("zengine-files", "artifact 'zengine-files': weave load refused"));
     ++t.host.conditions_generation;
     t.publish(loom::to_value(surface::SurfaceReady{}));
-    CHECK(t.attention_note() == "zengine-desktop-pane is not in this Workshop (+1 more)");
+    CHECK(t.glance() == "zengine-desktop-pane is not in this Workshop (+1 more)");
     const std::vector<Condition> now = t.conditions();
     REQUIRE(now.size() == 2);
     CHECK(now[0].key == "load.unavailable/zengine-desktop-pane"); // same loudness: by key
@@ -1007,7 +1019,7 @@ TEST_CASE("a held condition stands until its owner retracts it") {
     s.conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
                                      surface::role::kAlert, std::string()});
     REQUIRE(attention_conditions(s).size() == 1);
-    CHECK(attention_compact(attention_conditions(s)) == "a wall");
+    CHECK(attention_glance(standing_conditions(s, {})) == "a wall");
 
     // AN UPDATE UNDER THE SAME KEY IS ONE CONDITION, not a second row.
     s.conditions.establish(Condition{"test.wall", "the same wall", "a better reason",
@@ -1018,7 +1030,7 @@ TEST_CASE("a held condition stands until its owner retracts it") {
     // AND IT GOES BECAUSE ITS OWNER SAID SO, by name.
     s.conditions.retract("test.wall");
     CHECK(attention_conditions(s).empty());
-    CHECK(attention_compact(attention_conditions(s)).empty());
+    CHECK(attention_glance(standing_conditions(s, {})).empty());
     // Retracting what was never established is silence rather than an error.
     s.conditions.retract("test.wall");
     CHECK(attention_conditions(s).empty());
@@ -1097,7 +1109,7 @@ TEST_CASE("the project frontier is a condition while it waits and nothing after"
     t.host.frontier = [&live] { return live; };
     t.publish(loom::to_value(surface::SurfaceReady{}));
     CHECK(t.conditions().empty());
-    CHECK(t.attention_note().empty());
+    CHECK(t.glance().empty());
 
     live.waiting = true;
     live.artifact = "zengine-thing";
@@ -1113,12 +1125,12 @@ TEST_CASE("the project frontier is a condition while it waits and nothing after"
         CHECK(waiting->role == surface::role::kAccent);
         CHECK(waiting->action == "builder.frontier");
     }
-    CHECK(t.attention_note().find("project waiting") != std::string::npos);
+    CHECK(t.glance().find("project waiting") != std::string::npos);
 
     live = ProjectFrontier{};
     t.key(input::scan::kTab);
     CHECK(condition_by_key(t.conditions(), kFrontierKey) == nullptr);
-    CHECK(t.attention_note().empty());
+    CHECK(t.glance().empty());
 }
 
 TEST_CASE("event sentences stay events, and a condition needs no sentence") {
@@ -1129,7 +1141,7 @@ TEST_CASE("event sentences stay events, and a condition needs no sentence") {
     Live t;
     t.host.prefs_path = prefs;
     t.publish(loom::to_value(surface::SurfaceReady{}));
-    const std::string standing = t.attention_note();
+    const std::string standing = t.glance();
     REQUIRE_FALSE(standing.empty());
 
     // AN ORDINARY EVENT SENTENCE DOES NOT BECOME A CONDITION -- here, the layout run's.
@@ -1142,9 +1154,9 @@ TEST_CASE("event sentences stay events, and a condition needs no sentence") {
     CHECK(t.conditions().size() == conditions_now);
 
     // ...AND THE STANDING CONDITION DOES NOT DEPEND ON A LATER `say()` TO SURVIVE OR TO
-    // BE HEARD. Four sentences have been written over the notice row since; the compact
-    // attention line is byte-for-byte what it was, because it was never a sentence.
-    CHECK(t.attention_note() == standing);
+    // BE HEARD. Four sentences have been written over the notice row since; the glance is
+    // byte-for-byte what it was, because it was never a sentence.
+    CHECK(t.glance() == standing);
     CHECK(t.session().notice != standing);
 }
 
@@ -1250,7 +1262,7 @@ TEST_CASE("a condition names an action and what crosses is the weaver's own gest
     CHECK(t.session().arrange.open);
 }
 
-TEST_CASE("the compact line is ranked by truth, and says how many it is not saying") {
+TEST_CASE("the glance is ranked by truth, and says how many it is not saying") {
     Session s;
     // Established in the OPPOSITE order to the one they rank in, so a projection that
     // ordered by arrival would pick the wrong winner.
@@ -1265,13 +1277,13 @@ TEST_CASE("the compact line is ranked by truth, and says how many it is not sayi
     CHECK(shown[0].key == "z.loud");  // loudest first, whatever its key
     CHECK(shown[1].key == "a.quiet"); // then the key, so the order cannot wobble
     CHECK(shown[2].key == "b.quiet");
-    CHECK(attention_compact(shown) == "a loud thing (+2 more)");
+    CHECK(attention_glance(standing_conditions(s, {})) == "a loud thing (+2 more)");
 
     // ONE CONDITION SAYS NO COUNT AT ALL -- a bound that announces itself when there is
     // nothing to bound is noise.
     s.conditions.retract("a.quiet");
     s.conditions.retract("b.quiet");
-    CHECK(attention_compact(attention_conditions(s)) == "a loud thing");
+    CHECK(attention_glance(standing_conditions(s, {})) == "a loud thing");
 
     // AND RANKING IS TOTAL OVER A ROLE THIS VOCABULARY DOES NOT HAVE YET.
     CHECK(attention_rank(surface::role::kAlert) < attention_rank(surface::role::kAccent));
@@ -1340,7 +1352,7 @@ TEST_CASE("nothing new is nothing said, which is what stops the seam looping") {
     CHECK(t.said_conditions.size() == after_first + 1);
 
     // AND SO IS ITS RESOLUTION: the last condition retracting is one publication with no
-    // rows in it, which is the retraction the compact chip makes with an empty string.
+    // rows in it, which is the retraction: the glance a presenter leads with is empty.
     s.conditions.retract("test.wall");
     t.key(input::scan::kDown);
     REQUIRE(t.said_conditions.size() == after_first + 2);

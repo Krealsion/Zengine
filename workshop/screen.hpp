@@ -1093,11 +1093,6 @@ inline constexpr const char* kFrontierKey = "project.frontier-waiting";
 std::vector<Condition> attention_conditions(const Session& s,
                                                    const ProjectFrontier& frontier = {});
 
-/// The compact line, or empty when nothing deserves attention. It spends every current condition:
-/// which ones this weaver dismissed is the Attention pane's to know, and dismissing resolves
-/// nothing (WL-ATTN-08).
-std::string attention_compact(const std::vector<Condition>& shown);
-
 /// Every current condition as the sentence that crosses the pane seam: its four fields, and its
 /// action resolved into words against the effective keymap (empty when none answers).
 std::vector<StandingCondition> standing_conditions(const Session& s,

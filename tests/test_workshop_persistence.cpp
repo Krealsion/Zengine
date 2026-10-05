@@ -2747,7 +2747,7 @@ TEST_CASE("a refused prefs file is spoken, stands, and is never overwritten") {
         CHECK(wall->compact.find("defaults stand") != std::string::npos);
         CHECK(wall->role == surface::role::kAlert);
     }
-    CHECK(t.attention_note().find("preferences refused") != std::string::npos);
+    CHECK(t.glance().find("preferences refused") != std::string::npos);
     CHECK(t.session().pane_titles);
 
     // A toggle changes the LIVE preference and deliberately writes nothing: Workshop

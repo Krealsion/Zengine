@@ -66,6 +66,27 @@ struct AttentionRig {
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
 
+    /// IS THIS CONDITION A ROW OF THE LIST -- what this weaver has not hidden, the cursor's row
+    /// or another -- as opposed to the glance, which counts what is true?
+    bool listed(const std::string& compact) {
+        for (const std::string& row_text : shown()) {
+            if (row_text == "> " + compact || row_text == "  " + compact) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// DOES THE PANE PAINT THIS ROW, whole -- the glance, say?
+    bool paints(const std::string& line) {
+        for (const std::string& row_text : shown()) {
+            if (row_text == line) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// Every row the pane published, joined -- what a weaver reads at the pane's rectangle.
     std::string text() {
         std::string all;
@@ -188,10 +209,10 @@ TEST_CASE("the pane shows every current condition in its owner's own words") {
     f.establish(thing("b.two", "the second thing", "and one for the second",
                       surface::role::kAccent));
 
-    // ALL OF THEM, not only the compact winner -- and in the host's own ranking.
-    CHECK(f.text().find("ATTENTION -- 2 conditions") != std::string::npos);
-    CHECK(f.text().find("the first thing") != std::string::npos);
-    CHECK(f.text().find("the second thing") != std::string::npos);
+    // ALL OF THEM, not only the loudest the glance names -- and in the host's own ranking.
+    CHECK(f.paints("the first thing (+1 more)"));
+    CHECK(f.listed("the first thing"));
+    CHECK(f.listed("the second thing"));
     // ...and the owner's own explanation for the one being read.
     CHECK(f.text().find("a sentence its owner already had") != std::string::npos);
 
@@ -231,10 +252,47 @@ TEST_CASE("a pane that arrives after the host has spoken is told again") {
     f.kind = f.row()->kind;
 
     // IT KNOWS WHAT IS TRUE, without having asked and without anything having changed.
-    CHECK(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
-    CHECK(f.text().find("a wall") != std::string::npos);
+    CHECK(f.paints("a wall"));
+    CHECK(f.listed("a wall"));
     CHECK(f.text().find("waiting") == std::string::npos);
 }
+TEST_CASE("the Attention pane leads with the glance: the loudest condition that is true and how "
+          "many more, hidden ones counted") {
+    // ⚔ MUTATION: the glance counting only what is listed -- after the loudest is hidden it names
+    // the quiet one, and the last check goes red.
+    AttentionRig f;
+    f.open();
+    CHECK(f.shown().front() == "nothing needs your attention right now");
+    f.unfocus(); // `establish` repaints with a key, which must not be this pane's
+    f.establish(thing("b.quiet", "a quiet thing", "why the quiet", surface::role::kAccent));
+    f.establish(thing("a.loud", "a loud thing", "why the loud", surface::role::kAlert));
+    f.focus();
+
+    // THE LOUDEST, WHATEVER ITS ARRIVAL, AND THE COUNT OF THE REST, IN THE LOUDEST'S ROLE.
+    const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
+    REQUIRE(seat != nullptr);
+    REQUIRE_FALSE(seat->shown.empty());
+    CHECK(seat->shown[0].text == "a loud thing (+1 more)");
+    CHECK(seat->shown[0].role == surface::role::kAlert);
+
+    // A PANE ONE ROW TALL IS THE GLANCE, alone.
+    author_test_pane_room(f.r, f.kind, 1, 60);
+    f.r.extent(150, 44);
+    seat = f.r.session().panes.external_pane(f.kind);
+    REQUIRE(seat != nullptr);
+    REQUIRE(seat->shown.size() == 1);
+    CHECK(seat->shown[0].text == "a loud thing (+1 more)");
+
+    // HIDING THE LOUDEST CHANGES WHAT IS LISTED, NOT THE GLANCE: it still counts what is true.
+    author_test_pane_room(f.r, f.kind, 12, 60);
+    f.r.extent(160, 48);
+    f.letter(input::scan::kD, "d");
+    f.r.key(input::scan::kUp); // the notice about the gesture is spent
+    CHECK_FALSE(f.listed("a loud thing"));
+    CHECK(f.listed("a quiet thing"));
+    CHECK(f.shown().front() == "a loud thing (+1 more)");
+}
+
 TEST_CASE("dismissal hides a presentation and changes nothing that is true") {
     // FALSIFIER 2, AT THE SEAM -- a dismissal that mutates truth. The condition's owner is this
     // host; the pane can hide a statement and can do nothing else to it, which is a fact about
@@ -246,12 +304,13 @@ TEST_CASE("dismissal hides a presentation and changes nothing that is true") {
 
     // HIDE THE ONE THE CURSOR IS ON.
     f.letter(input::scan::kD, "d");
-    CHECK(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
+    CHECK_FALSE(f.listed("a wall"));
     CHECK(f.text().find("hidden -- a wall is still true") != std::string::npos);
 
     // ...AND THE TRUTH IS NOT TOUCHED. The host still holds the condition, still derives it, and
-    // still says it on the compact chip -- "dismiss is not resolve": the chip says what is true,
-    // and the pane says what this weaver has chosen to look at.
+    // the glance still says it -- "dismiss is not resolve": the glance says what is true, and the
+    // list says what this weaver has chosen to look at.
+    CHECK(f.paints("a wall"));
     CHECK(f.r.session().conditions.holds("test.wall"));
     CHECK(attention_conditions(f.r.session()).size() == 1);
 }
@@ -264,18 +323,17 @@ TEST_CASE("a dismissed condition comes back when it materially changes") {
     f.open();
     f.establish(thing("test.wall", "a wall", "the first reason"));
     f.letter(input::scan::kD, "d");
-    REQUIRE(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
+    REQUIRE_FALSE(f.listed("a wall"));
 
     // THE SAME STATEMENT, SAID AGAIN, IS STILL HIDDEN -- a dismissal a republication undid
     // would be a gesture with no effect.
     f.establish(thing("test.wall", "a wall", "the first reason"));
-    CHECK(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
+    CHECK_FALSE(f.listed("a wall"));
 
     // A MATERIALLY DIFFERENT STATEMENT UNDER THE SAME KEY IS VISIBLE AGAIN, with nobody
     // clearing anything.
     f.establish(thing("test.wall", "a WIDER wall", "the first reason"));
-    CHECK(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
-    CHECK(f.text().find("a WIDER wall") != std::string::npos);
+    CHECK(f.listed("a WIDER wall"));
 }
 
 TEST_CASE("a dismissal does not outlive the condition it was about") {
@@ -288,14 +346,14 @@ TEST_CASE("a dismissal does not outlive the condition it was about") {
     f.open();
     f.establish(thing("test.wall", "a wall", "why"));
     f.letter(input::scan::kD, "d");
-    REQUIRE(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
+    REQUIRE_FALSE(f.listed("a wall"));
 
     // RESOLVED, AND THE HIDING GOES WITH IT: dismiss is still not resolve -- what is
     // dropped is the weaver's decision not to LOOK, once there is nothing left to look at.
     f.retract("test.wall");
-    CHECK(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
+    CHECK(f.paints("nothing needs your attention right now"));
     f.establish(thing("test.wall", "a wall", "why"));
-    CHECK(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
+    CHECK(f.listed("a wall"));
 }
 
 TEST_CASE("an id the Attention pane never declared is no act: the notice, the hiding and both conditions stand through a new room, and spending the notice un-says nothing true") {
@@ -310,10 +368,11 @@ TEST_CASE("an id the Attention pane never declared is no act: the notice, the hi
     f.establish(thing("a.one", "the first thing", "why the first"));
     f.establish(thing("b.two", "the second thing", "why the second", surface::role::kAccent));
     f.focus();
-    REQUIRE(f.text().find("ATTENTION -- 2 conditions") != std::string::npos);
+    REQUIRE(f.listed("the first thing"));
+    REQUIRE(f.listed("the second thing"));
     f.letter(input::scan::kD, "d"); // the loudest, where the cursor rests
     REQUIRE(f.text().find("hidden -- the first thing is still true") != std::string::npos);
-    REQUIRE(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
+    REQUIRE_FALSE(f.listed("the first thing"));
 
     const PaneRig::OfficeAction unknown = f.r.workshop_action(
         pane::kAttentionPaneRole, pane::kAttentionPane, "attention.no-such-action");
@@ -325,7 +384,7 @@ TEST_CASE("an id the Attention pane never declared is no act: the notice, the hi
     CHECK(f.text().find("hidden -- the first thing is still true") != std::string::npos);
     // ...AND IT HID NOTHING AND RESOLVED NOTHING: the second is still shown with its explanation,
     // the first is still hidden, and the host holds both.
-    CHECK(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
+    CHECK_FALSE(f.listed("the first thing"));
     CHECK(f.text().find("> the second thing") != std::string::npos);
     CHECK(f.text().find("why the second") != std::string::npos);
     CHECK(f.r.session().conditions.holds("a.one"));
@@ -338,22 +397,22 @@ TEST_CASE("an id the Attention pane never declared is no act: the notice, the hi
     REQUIRE(up.delivered);
     CHECK(f.text().find("hidden -- the first thing") == std::string::npos);
     // SPENDING THE SENTENCE UN-SAYS NOTHING TRUE. The hiding stands, through a new room as well;
-    // the condition stands; and the host still says it, on the compact chip and across the seam.
+    // the condition stands; and the host still says it across the seam, so the glance names it.
     f.regrant();
-    CHECK(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
-    CHECK(f.text().find("the first thing") == std::string::npos);
+    CHECK_FALSE(f.listed("the first thing"));
+    CHECK(f.paints("the first thing (+1 more)"));
     CHECK(f.r.session().conditions.holds("a.one"));
     CHECK(attention_conditions(f.r.session()).size() == 2);
-    CHECK(f.r.attention_note().find("the first thing") != std::string::npos);
+    CHECK(f.r.glance() == "the first thing (+1 more)");
     REQUIRE_FALSE(f.r.said_conditions.empty());
     CHECK(f.r.said_conditions.back().rows.size() == 2);
 }
 
 TEST_CASE("an Attention pane whose every current condition is hidden says they are hidden and still true, through a spent notice and a new room, and says nothing needs attention only when nothing is true") {
-    // HIDING IS A PRESENTATION CHOICE. With every current condition hidden the list was empty,
-    // and the pane said the sentence it says when NOTHING is true -- `nothing needs your
-    // attention right now` -- while the host held the condition, the chip named it and the
-    // publication carried it.
+    // HIDING IS A PRESENTATION CHOICE. With every current condition hidden the list is empty, and
+    // the pane must not say the sentence it says when NOTHING is true -- `nothing needs your
+    // attention right now` -- while the host holds the condition, the glance names it and the
+    // publication carries it.
     AttentionRig f;
     f.open();
     const std::string empty = "nothing needs your attention right now";
@@ -375,11 +434,12 @@ TEST_CASE("an Attention pane whose every current condition is hidden says they a
     f.regrant();
     CHECK(f.text().find("all conditions hidden -- 1 is still true") != std::string::npos);
     CHECK(f.text().find(empty) == std::string::npos);
-    // ...AND WHAT IS TRUE IS UNTOUCHED: the host holds it, the chip names it, the seam carries
+    // ...AND WHAT IS TRUE IS UNTOUCHED: the host holds it, the glance names it, the seam carries
     // it.
     CHECK(f.r.session().conditions.holds("a.one"));
     CHECK(attention_conditions(f.r.session()).size() == 1);
-    CHECK(f.r.attention_note().find("the first thing") != std::string::npos);
+    CHECK(f.paints("the first thing"));
+    CHECK(f.r.glance() == "the first thing");
     REQUIRE_FALSE(f.r.said_conditions.empty());
     CHECK(f.r.said_conditions.back().rows.size() == 1);
 
@@ -387,7 +447,7 @@ TEST_CASE("an Attention pane whose every current condition is hidden says they a
     f.unfocus();
     f.establish(thing("b.two", "the second thing", "why the second", surface::role::kAccent));
     f.focus();
-    REQUIRE(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
+    REQUIRE(f.listed("the second thing"));
     f.letter(input::scan::kD, "d");
     CHECK(f.text().find("all conditions hidden -- 2 are still true") != std::string::npos);
 
@@ -407,15 +467,15 @@ TEST_CASE("the Attention pane's keys act only after the weaver has pressed into 
     AttentionRig f;
     f.open();
     f.establish(thing("test.wall", "a wall", "why"));
-    REQUIRE(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
+    REQUIRE(f.listed("a wall"));
 
     f.unfocus();
     f.letter(input::scan::kD, "d");
-    CHECK(f.text().find("ATTENTION -- 1 condition") != std::string::npos); // nothing hidden
+    CHECK(f.listed("a wall")); // nothing hidden
 
     f.focus();
     f.letter(input::scan::kD, "d");
-    CHECK(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
+    CHECK_FALSE(f.listed("a wall"));
 }
 
 TEST_CASE("the action a condition names arrives as words and not as a name") {

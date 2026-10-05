@@ -590,10 +590,10 @@ round-trip exactly. See [the source editor](docs/workshop/editor.md).
 **What needs attention** (the **Attention** pane, opened from the Pane Manager) — `↑` `↓`
 choose, `d` hides one. It lists what is **currently true** and worth knowing — a settings file
 that could not be read, a pane of yours with no part of it on the screen, a tool that is not in
-this Workshop, a project waiting on an artifact — each in its owner's own words. One compact
-line advertises it wherever the medium can always show it: a box in the window's top-right
-corner, or the terminal's second reserved row. Hiding one is not fixing it: the condition stays
-true, and it reappears if it materially changes. A condition disappears when it stops being true
+this Workshop, a project waiting on an artifact — each in its owner's own words. Its first row
+is the glance: the most serious condition and how many more. Nothing outside the pane says it.
+Hiding one is not fixing it: the condition stays true, the glance still counts it, and it
+reappears if it materially changes. A condition disappears when it stops being true
 and at no other moment. The **notice row** in the bottom band is the other voice and keeps its
 own job: what just happened, replaced by whatever happens next. See
 [what needs your attention](docs/workshop/attention.md).

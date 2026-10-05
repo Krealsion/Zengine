@@ -933,11 +933,14 @@ struct Live {
         return std::string();
     }
     std::string status_note() const { return note_on(surface::kSlotStatus); }
-    /// The compact attention line, as the medium was handed it. Empty is the honest answer
-    /// and the retraction both: nothing currently deserves a glance.
-    std::string attention_note() const { return note_on(surface::kSlotScore); }
+    /// THE GLANCE A PRESENTER OF WHAT IS TRUE LEADS WITH, from what this Workshop last said
+    /// (`attention_glance`). Empty is the honest answer: nothing is true.
+    std::string glance() const {
+        return said_conditions.empty() ? std::string()
+                                       : attention_glance(said_conditions.back().rows);
+    }
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the one projection the
-    /// screen, the compact indicator and the view all spend.
+    /// screen and the view both spend.
     std::vector<Condition> conditions() const {
         return attention_conditions(w->session(),
                                     host.frontier ? host.frontier() : ProjectFrontier{});
@@ -3054,24 +3057,19 @@ struct PaneRig {
     Session& session() { return const_cast<Session&>(w->session()); }
     const surface::SurfaceCanvas& last_canvas() const { return canvases.back(); }
     /// THE NOTICE LINE, READ WHERE IT LIVES. `Session::notice` is painted onto the canvas, not
-    /// published as a `SurfaceText`: the published texts are the status slot, the document's line,
-    /// and the attention slot, which says what is CURRENTLY true.
+    /// published as a `SurfaceText`: the published text is the status slot.
     const std::string& last_notice() const { return w->session().notice; }
 
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the same projection the
-    /// screen and the compact indicator both spend -- never a second walk of the owners.
+    /// screen and the view both spend -- never a second walk of the owners.
     std::vector<Condition> conditions() const {
         return attention_conditions(w->session(),
                                     host.frontier ? host.frontier() : ProjectFrontier{});
     }
-    /// The compact attention line, as the medium was handed it.
-    std::string attention_note() const {
-        for (std::size_t i = notes.size(); i > 0; --i) {
-            if (notes[i - 1].slot == surface::kSlotScore) {
-                return notes[i - 1].text;
-            }
-        }
-        return std::string();
+    /// THE GLANCE A PRESENTER OF WHAT IS TRUE LEADS WITH, from what this Workshop last said.
+    std::string glance() const {
+        return said_conditions.empty() ? std::string()
+                                       : attention_glance(said_conditions.back().rows);
     }
 
     std::vector<loom::WeaveId> seat_ids;

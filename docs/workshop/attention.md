@@ -12,30 +12,25 @@ The difference matters because the two need opposite lifetimes. A report about t
 finished the moment it is said; a standing truth has to disappear **when it stops being true**
 and at no other moment. A sentence somebody said once cannot do that.
 
-## The compact indicator
+## The Attention pane
 
-When at least one thing currently deserves your attention, Workshop puts one line where the
-active medium can always show it:
+What is true is a **pane**: show it from the Pane Manager (`Ctrl`+`p`), put it where you want it
+on the desk, and it stays there. Nothing outside it — no corner of the window, no title, no
+terminal row — says what needs attention.
 
-- in a **graphical window**, a compact box in the top-right corner of the picture — and the
-  same line in the window title;
-- in a **terminal**, the second reserved row at the top of the screen.
-
-It carries the most serious condition and an honest count of the rest:
+Its first row is the **glance**: the most serious condition and an honest count of the rest, in
+that condition's colour:
 
 ```text
 keymap refused -- default bindings stand (+2 more)
 ```
 
 The order is decided by how loud each condition currently is, then by its identity — never by
-which one arrived last, so the line does not re-shuffle itself when something unrelated
-changes. When nothing deserves attention the line is **empty**, and the box is not drawn at
-all.
+which one arrived last, so the row does not re-shuffle itself when something unrelated changes.
+When nothing deserves attention it says so: `nothing needs your attention right now`. Make the
+pane one row tall and the glance is all it shows.
 
-## The Attention pane
-
-The full list is a **pane**: show it from the Pane Manager (`Ctrl`+`p`), put it where you want
-it on the desk, and it stays there. It shows every condition that is currently true, in the words of
+Beneath the glance the pane lists every condition that is currently true, in the words of
 whatever owns it, with the cursor on one of them.
 
 | key | does |
@@ -64,15 +59,13 @@ however serious — opens a pane, steals the keyboard or interrupts what you wer
 > **select all** of whatever text field has your keys, everywhere, with no exception to
 > remember.
 
-The compact indicator does not depend on the pane at all: it is there whether or not the pane
-is open, and it says what is **true** — so a condition you have hidden in the pane is still
-counted on the indicator. Hiding is a decision about what you are reading, not about what is
-the case.
+The glance says what is **true** — so a condition you have hidden from the list is still named or
+counted there. Hiding is a decision about what you are reading, not about what is the case.
 
 ## Hiding is not fixing
 
-`d` hides one condition from the pane's list. The compact indicator still counts it, and it
-changes **nothing** about what is true:
+`d` hides one condition from the pane's list. The glance still counts it, and it changes
+**nothing** about what is true:
 
 - the condition is still true, and whatever owns it still holds it;
 - the wall it describes is still standing — a refused preferences file is still refused, and

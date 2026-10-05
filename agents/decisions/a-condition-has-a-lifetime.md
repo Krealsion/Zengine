@@ -36,8 +36,8 @@ power, and the condition path has no wire form.
 - *A keys-modal view* — rejected: its four gestures are catalog rows a keymap file must see.
 
 **Consequences.** `closed`, `unresolved`, `covered` and `open` earn nothing — the model may know
-more than the projection surfaces. The SDL medium composes the chip into the picture; no band
-row was taken. `workshop/attention.hpp` includes exactly `surface/vocabulary.hpp`, witnessed with
+more than the projection surfaces. The glance -- the loudest true condition and how many more --
+is the Attention pane's first row; no band row was taken and no slot outside the panes carries it. `workshop/attention.hpp` includes exactly `surface/vocabulary.hpp`, witnessed with
 the Recorder and Logger attached to a live bus. `workshop.attention` is a no-text row on `^a`,
 the component owning that chord inside a text field.
 
