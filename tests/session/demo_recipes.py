@@ -742,6 +742,33 @@ class Recipes(unittest.TestCase):
         self.assertEqual(state["unseated"], [])
         self.assertIn("td.game", [p["provider"] for p in owner.desk["fields"]["panes"]])
 
+    def test_a_start_builds_and_seats_whatever_order_a_built_pane_and_an_unoffered_one_stand_in(self):
+        # A pane the setup builds and a pane nobody offers, in both orders: the desk without the
+        # built pane leaves the unoffered one off too, so the build runs, and the final desk leaves
+        # it off and names it.
+        built_then_missing = [("zengine.builder-pane", "builder"), ("td.game", "td"),
+                              ("td.missing", "view"), ("zengine.demo", "controls")]
+        missing_then_built = [("zengine.builder-pane", "builder"), ("td.missing", "view"),
+                              ("td.game", "td"), ("zengine.demo", "controls")]
+        for name, panes in (("built-first", built_then_missing), ("missing-first", missing_then_built)):
+            with self.subTest(order=name):
+                owner, state, built = Owner(), {"fixtures": []}, []
+                fake = types.ModuleType("builder")
+                fake.perform = lambda ctx, inputs, name, owner=owner, built=built: (
+                    built.append(inputs), owner.held.add("td.game"), "built")[2]
+                sys.modules["builder"] = fake
+                self.addCleanup(sys.modules.pop, "builder", None)
+                (Path(self.tmp) / "recipes.json").write_text("{}", encoding="utf-8")
+                setup = described.Setup(make(self.tmp, name=name, panes=panes,
+                                             project={"recipes": "../recipes.json"},
+                                             providers=[{"role": "td.game", "prepare": "build"}]))
+                prepare(owner, setup, state, "workshop")
+                self.assertEqual(state["reached"], "ready")
+                self.assertEqual([b["act"] for b in built], ["frontier"])
+                self.assertEqual(state["unseated"], ["td.missing view"])
+                self.assertEqual(sorted(p["provider"] for p in owner.desk["fields"]["panes"]),
+                                 ["td.game", "zengine.builder-pane", "zengine.demo"])
+
     def test_a_pane_that_draws_a_picture_is_ready_and_one_that_never_shows_is_named(self):
         import demo_setup
         self.addCleanup(setattr, demo_setup, "READY_SECONDS", demo_setup.READY_SECONDS)
