@@ -863,7 +863,7 @@ TEST_CASE("the hotkeys guide's keymap example is a file Workshop reads and appli
     REQUIRE(loaded.outcome.accepted);
     REQUIRE(loaded.keymap.authored.size() == 4);
     CHECK(loaded.keymap.authored[0].action == "desktop.terminal");
-    CHECK(loaded.keymap.authored[0].gesture == "ctrl+g");
+    CHECK(loaded.keymap.authored[0].gesture == "ctrl+f");
     CHECK(loaded.keymap.authored[3].action == "layout.next");
     CHECK(loaded.keymap.authored[3].gesture == "ctrl+n");
     // COPIED, IT IS APPLIED: the load says so with its count, and its keys answer.
