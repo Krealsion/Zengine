@@ -21,15 +21,16 @@ skin's hello, published once per incarnation on its first message; text publishe
 their current line on hearing it, so a fresh painter starts complete — the tally line survives
 the painter being replaced mid-game).
 
-`SurfaceCanvas{width, height, layers}` is the **general** canvas: an extent in cells and an
+`SurfaceCanvas{width, height, layers}` is the **general** canvas: an extent in canvas pixels and an
 ordered list of `SurfaceLayer{rects, labels, texts}` — each one a complete plane of filled
 `SurfaceRect`s in painter's (list) order, `SurfaceLabel` text runs over them, and bounded text
 regions over those. Each
 element carries a semantic **role** — `kFill`/`kAccent`/`kMuted`/`kAlert`/`kGround` — never a colour, so
 the terminal media pick an SGR *and a glyph* per role (colour alone would be a lie on a
-monochrome terminal) while the SDL medium picks RGB, from one unchanged publisher. Cells, not
-pixels: a cell is the coarsest unit a terminal can address, so a canvas lands somewhere real in
-every medium. It is a *drawing* vocabulary and pointedly not a layout one — no parent/child, no
+monochrome terminal) while the SDL medium picks RGB, from one unchanged publisher. Every
+coordinate and extent is a whole **canvas pixel**, `kCanvasCellPx` (<!-- value kCanvasCellPx -->12<!-- /value -->) to a cell: the window
+draws the picture 1:1, and a terminal — whose coarsest address is a cell — floors it to the cells
+it covers, so one picture lands somewhere real in every medium. It is a *drawing* vocabulary and pointedly not a layout one — no parent/child, no
 anchors, no percentages; whoever publishes has already decided where things go.
 
 `kGround` means opaque empty material. A rectangle bearing it covers earlier material
@@ -86,13 +87,13 @@ labels-vanish defect again at character granularity. `SurfaceText` — the named
 lines, which are a different shape — still lands in the window's *title*, because the canvas
 occupies the whole window.
 
-`SurfaceTextRegion{x, y, w, h, rows, caret_row, caret_col, ground}` is the **one place a canvas admits a medium may be
-finer than a cell**. It is placed in cells like everything else — so where it sits is
+`SurfaceTextRegion{x, y, w, h, rows, caret_row, caret_col, ground}` is the **one place a canvas admits a medium may set
+its own type**. It is placed in canvas pixels like everything else — so where it sits is
 the same kind of fact as where a rect sits, and every medium can honour it — and what happens
-*inside* is the medium's: a terminal draws one `SurfaceTextRow{text, role}` per cell row, cut
-at `w` and dropped past `h`; a window that has a real face open draws the rows at its own
-advance and line height, inside the pixel rectangle those cells resolve to, clipped to its own
-viewport. Neither is pretending: the terminal is never asked to invent a pixel, and the window
+*inside* is the medium's: a terminal draws one `SurfaceTextRow{text, role}` per cell row of the
+cells the region covers, cut at its width and dropped past its height; a window that has a real
+face open draws the rows at its own advance and line height, inside the region's own pixels,
+clipped to its own viewport. Neither is pretending: the terminal is never asked to invent a pixel, and the window
 is never asked to round its type onto a twelve-pixel lattice. The cell projection is
 `surface/region.hpp`'s `project_text_regions`, one function shared by the terminal skins *and*
 by the SDL medium whenever it has no font — so the lower-fidelity answer is not a stub, it is
@@ -149,20 +150,15 @@ a value no publisher could mean is the absence, never a guess. Which end the car
 restated: the caret fields already say it. It is *not* per-span styling — one range, meaning
 selection — and not multiple selections.
 
-**A coordinate may carry a sub-cell remainder.** `SurfaceRect` and
-`SurfaceTextRegion` carry `sub_x`/`sub_y`/`sub_w`/`sub_h`, and `SurfaceLabel` carries
-`sub_x`/`sub_y` — remainders in 1/`kCellSubs` (<!-- value kCellSubs -->48<!-- /value -->) of a cell, `[0, kCellSubs)`, defaulting to zero,
-so a publisher that thinks in whole cells publishes exactly the bytes it always published and
-means exactly what its silence always meant. The remainders refine the ONE lattice; they are
-not a second coordinate system and not device pixels (the shipped skin's pixel happens to be
-four sub-units, an alignment rather than a contract). Each medium resolves a fine value at
-its own grain by **one quantization law** — a device unit of `g` sub-units shows the fine
-span `[L, R)` on units `[floor(L/g), floor(R/g))` — so a terminal shows a finely-placed
-rectangle on the cells its floored edges cover, the SDL medium places it to the pixel, and
-exact-cell geometry lands where it always did in both. A remainder outside `[0, 48)` reads
-as zero: a value nobody could mean resolves to the whole-cell picture, never a guess. The
-one publisher that earned the fineness is Workshop's pane arrangement; the prose lattice
-(rows, columns, carets, selections) and the canvas's own extent stay as coarse as they were.
+**A coordinate is a whole pixel, and each medium floors at its own grain.** `SurfaceRect`,
+`SurfaceLabel` and `SurfaceTextRegion` say their place and extent in canvas pixels and carry no
+remainder. A publisher that thinks in whole cells multiplies once and says exactly what it
+always said. Each medium resolves a value at its own grain by **one quantization law** — a
+device unit of `g` canvas pixels shows the span `[L, R)` on units `[floor(L/g), floor(R/g))` —
+so a terminal shows a rectangle on the cells its floored edges cover and a label from the cell
+its anchor floors to, the SDL medium draws it on exactly its pixels, and whole-cell geometry
+lands where it always did in both. The prose lattice (rows, columns, carets, selections) stays
+the metric's business, not the canvas's.
 
 ## A capture: what the active surface presented, through its own medium
 
@@ -177,8 +173,8 @@ picture is retained at a time (the newest replaces it, by number); one over 32 M
 never cut.
 
 **What a picture proves.** Presentation at one frame, in the medium's units: `frame` is the
-Skin's own count, `cell_px` maps a window's pixels to the canvas lattice a pointer moment is
-spelled in (0 on a terminal, where a cell is the unit). It proves nothing about asynchronous
+Skin's own count, `cell_px` is the medium's device pixels per canvas cell (12 on the shipped
+window, whose device pixel is a canvas pixel; 0 on a terminal, where a cell is the unit). It proves nothing about asynchronous
 work still pending.
 
 **Ordering a picture after input is the injector's host's job, not this door's.**
@@ -206,14 +202,14 @@ one field to a row moves three numbers.
 
 | shape | version |
 |---|---|
-| `SurfaceRect` | 2 |
-| `SurfaceLabel` | 2 |
+| `SurfaceRect` | 3 |
+| `SurfaceLabel` | 3 |
 | `SurfaceTextRow` | 2 |
-| `SurfaceTextRegion` | 6 |
-| `SurfaceLayer` | 4 |
-| `SurfaceCanvas` | 8 |
+| `SurfaceTextRegion` | 7 |
+| `SurfaceLayer` | 5 |
+| `SurfaceCanvas` | 9 |
 | `SurfaceText` | 1 |
-| `SurfaceExtent` | 2 |
+| `SurfaceExtent` | 4 |
 | `SurfacePlacement` | 1 |
 | `SurfacePlacementRemembered` | 1 |
 
@@ -250,9 +246,10 @@ a system clipboard, and the asker then pastes its in-process mirror instead. The
 are separate because an empty platform clipboard and an unreadable one are different
 sentences, and collapsing them would paste stale mirror text the platform no longer holds.
 
-`SurfaceExtent{width, height, text_advance_px, text_line_px}` is the one fact that travels the
-*other* way — a medium answering how much room it has, in canvas cells, and how big one
-character of its own type is, in its own device pixels. Every other shape here is intent flowing
+`SurfaceExtent{width, height, text_advance_px, text_line_px, cell_px}` is the one fact that
+travels the *other* way — a medium answering how much room it has, in canvas pixels, how big
+one character of its own type is, in its own device pixels, and how many of those a canvas cell
+is. Every other shape here is intent flowing
 publisher → skin; this is the only one flowing skin → publisher, and it exists because
 "how many cells is there room for" is a fact **only the medium holds**. The active skin
 publishes it when the answer CHANGES and at no other time (its own 10ms beat is what notices
@@ -269,8 +266,9 @@ the operating system about the far end of it — `ioctl(TIOCGWINSZ)` on POSIX,
 repository that names an operating system for this. The question is asked of the **Sink**, because
 the Sink is the thing that holds the terminal: `TuiTerminal` has a real console and answers, a
 `std::string` in a suite has none and says so, and a pipe is a far end that is not a terminal at
-all. What the medium then reports is not the terminal's size but what a **canvas** fits in it:
-`kTuiReservedRows` (<!-- value kTuiReservedRows -->3<!-- /value -->) come off the top — two for the status and score slots, and one because
+all. What the medium then reports is not the terminal's size but what a **canvas** fits in it,
+in canvas pixels — its cells times twelve, so a terminal's room is derived from its cells and
+nothing it reports can be finer: `kTuiReservedRows` (<!-- value kTuiReservedRows -->3<!-- /value -->) come off the top — two for the status and score slots, and one because
 `canvas_body` ends its last row with a feed and a feed on a terminal's bottom row *scrolls*. The
 text metric stays `0 / 0`, which is not a missing measurement: in a terminal a character IS a
 cell. So a redirected, piped, captured or CI run measures nothing, says nothing, and paints
@@ -367,7 +365,6 @@ is created at the size its first picture asks for, that size becomes its **minim
 carries `SDL_WINDOW_RESIZABLE`, and after that it is grown only by a picture that genuinely
 does not fit — which is how a snake board that grew mid-run still comes up whole, while a
 canvas publisher that heard `SurfaceExtent` never moves it at all. The alternative is two
-parties resizing each other: a canvas rounds down to whole cells, so a medium that sized the
-window to the canvas would nibble the window a few pixels smaller every time somebody dragged
-it. The extent the skin reports is measured from the renderer's own output size, never
+parties resizing each other, and a publisher that clamps or rounds its canvas would then move
+the window every time somebody dragged it. The extent the skin reports is measured from the renderer's own output size, never
 remembered, because a person dragging an edge changes that number and no message says so.

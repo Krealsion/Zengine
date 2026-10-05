@@ -480,15 +480,16 @@ another row; the subject you had stays yours, and so does the choice when Info i
 
 **Authored and resolved are two different truths**, and the rows keep them apart:
 
-- `AUTHORED` is what *you* said — a place, a width, a height, each `-` until you say
-  something; the pane's rank in the front order; whether it is on this layout at all. These
+- `AUTHORED` is what *you* said — a place, measured from the room's top-left (directly under
+  the top band), a width, a height, each `-` until you say something; the pane's rank in the front order; whether it is on this layout at all. These
   are the same facts the desk arrangement (`w`) and the Pane Manager author, and the rank and
   presence are read here: ordering is the arrangement's, opening and closing the Pane
   Manager's.
 - `RESOLVED` is what the screen you are looking at *makes* of that, right now: the rectangle
-  the pane actually occupies, in the unit your face reports (cells in a terminal, pixels in a
-  window), and its state word — `open`, `covered`, `off-room`, `waiting`, `refused`, `closed`,
-  `unresolved` — with what you can do about it.
+  the pane actually occupies, measured from the room like the place and in the unit your face
+  reports (cells in a terminal, pixels in a window), and its state word — `open`, `covered`,
+  `off-room`, `waiting`, `closed`, `unresolved` — with what you can do about it. The Layouts pane
+  stands in the top band, above the room, so its `Window` starts at a negative `Y`.
 
 Reading the resolved rows never writes anything. Resize the window, switch to the other face,
 select other panes, look as long as you like: the authored values are byte-for-byte what they

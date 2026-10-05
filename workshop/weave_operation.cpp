@@ -296,7 +296,7 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
     return true;
 }
 
-// A VALUE PLACED ON A CANVAS: the place in the canvas's local subunits and the picture it was
+// A VALUE PLACED ON A CANVAS: the place in the canvas's local pixels and the picture it was
 // aimed at, for the provider to hit-test in what it drew; a provider without the canvas drop door
 // is told nothing and the value stays held, as on any place that does not accept it. A drag's
 // drop names the canvas its release met, however long the carry took to be answered.
@@ -306,25 +306,33 @@ bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& 
                                    loom::Mail& mail) {
     const auto& c = presentation.canvas;
     const CanvasRelease at = released ? *released
-        : CanvasRelease{presentation.stamp.aimed, c.grant, FineRect{c.x, c.y, c.width, c.height}};
+        : CanvasRelease{presentation.stamp.aimed, c.grant, PixelRect{c.x, c.y, c.width, c.height}};
     if (at.grant != c.grant) {
         say("The canvas the value was released on is gone; Escape cancels", true);
         return true;
     }
     if (!carried_.value || !point.understood || !host_->holder_accepts ||
-        !host_->holder_accepts(pane.provider, *loom::schema_of<PaneCanvasValueDrop>()) ||
-        !at.body.contains_at(point.sub.x, point.sub.y, point.grain)) {
+        !host_->holder_accepts(pane.provider, c.legacy
+                                                  ? *loom::schema_of<v1::PaneCanvasValueDrop>()
+                                                  : *loom::schema_of<PaneCanvasValueDrop>()) ||
+        !at.body.contains_at(point.px.x, point.px.y, point.grain)) {
         say("This place does not accept the carried item; Escape cancels", true);
         return true;
     }
     const auto correlation = ++gesture_asks_;
-    const auto sent = mail.as_role(kWorkshopProvider).send_to_role(pane.provider,
-        PaneCanvasValueDrop{pane.pane, at.grant, at.picture,
-                            surface::sub_px(point.sub.x, at.body.x),
-                            surface::sub_px(point.sub.y, at.body.y),
-                            carried_.data, carried_.source_office, carried_.source_pane,
-                            carried_.token},
-        correlation);
+    const std::int64_t x = surface::sub_px(point.px.x, at.body.x);
+    const std::int64_t y = surface::sub_px(point.px.y, at.body.y);
+    const auto sent = c.legacy
+        ? mail.as_role(kWorkshopProvider).send_to_role(pane.provider,
+              v1::PaneCanvasValueDrop{pane.pane, at.grant, at.picture, legacy_subs_of_px(x),
+                                      legacy_subs_of_px(y), carried_.data,
+                                      carried_.source_office, carried_.source_pane,
+                                      carried_.token},
+              correlation)
+        : mail.as_role(kWorkshopProvider).send_to_role(pane.provider,
+              PaneCanvasValueDrop{pane.pane, at.grant, at.picture, x, y, carried_.data,
+                                  carried_.source_office, carried_.source_pane, carried_.token},
+              correlation);
     if (!sent.valid()) {
         say("Item placement could not be queued; it is still held", true);
         return true;
@@ -386,7 +394,7 @@ bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom:
                 const auto& c = presentation->canvas;
                 if (c.grant != 0)
                     drag.canvas = CanvasRelease{presentation->stamp.aimed, c.grant,
-                                                FineRect{c.x, c.y, c.width, c.height}};
+                                                PixelRect{c.x, c.y, c.width, c.height}};
             }
         }
     }

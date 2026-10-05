@@ -2,7 +2,7 @@
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [geometry](../workshop/geometry.md). It reverses the reservation half of
-[the reserved column is nobody's to spend](the-reserved-column.md), and keeps that record's other
+[the reserved column is nobody's to spend](../../docs/history/decisions/the-reserved-column.md), and keeps that record's other
 half: overlaps inside one owner's room, and a composition settled in cells before any metric.
 
 **Context.** `screen_of` subtracted 28 columns and a two-cell gap from every screen's width before
@@ -35,7 +35,7 @@ where it has always been and the strip beneath it is ordinary room.
 - *Naming Info's office in host code as the right column's occupant* — refused for the same
   reason one step later: the host would still be the party that knows Info is furniture.
 - *Absolute coordinates in the shipped desk* — measured impossible, not merely ugly. A place is
-  two numbers on the fine lattice and a size is an amount; `28` and `39` are right for one
+  two numbers in pixels from the room and a size is an amount; `28` and `39` are right for one
   screen and wrong for every other, and a desk shipped for everybody has no screen.
 - *A `place_in` field on `SetupPane` beside the coordinates* — rejected as the same fact twice.
   `PanePlace::mode` already carries a named place: `kDefault` does not say what unit `x` and `y`
@@ -47,7 +47,7 @@ where it has always been and the strip beneath it is ordinary room.
 
 **Consequences.** The workspace is thirty columns wider at every extent, so every %-wide object
 resolves against the bigger number — 60% of a 160-column surface is 96 cells where it was 78.
-That is the move [the reserved column](the-reserved-column.md) refused when Info became
+That is the move [the reserved column](../../docs/history/decisions/the-reserved-column.md) refused when Info became
 removable, and the reason it refused it does not apply here: it refused a room that changed with
 which panes were open, so that hiding a list of names would resize a weaver's material. This room
 does not change with anything; it is the surface, at every moment, whatever stands on it. The

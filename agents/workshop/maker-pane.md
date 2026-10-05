@@ -8,7 +8,7 @@ ID. Router: [`../workshop.md`](../workshop.md).
 LAW — A definition is a name, a list of text regions — each an id, a kind, a place, a size and a line of text — and a mint: the first pane implementation whose interior is authored data; one is open.
 
 MEANS
-- one admitted kind (`region_kind::kText`), ids minted and never reused, geometry in sub-units;
+- one admitted kind (`region_kind::kText`), ids minted and never reused, geometry in pixels;
 - geometry is relative to the pane's interior, never to the canvas.
 
 DOES NOT MEAN
@@ -16,7 +16,7 @@ DOES NOT MEAN
 - that a widget set, controls, anchors, fill, nesting or a second renderer may grow on this value.
 
 PROVEN BY — `workshop/pane_definition.hpp` `PaneDefinition`, `TextRegion`, `region_kind::kText`,
-`WeaverPane`, `kMaxRegions`, `kMaxWeaverPaneNameLen`, `kRegionSubMax`; `workshop/panes.hpp`
+`WeaverPane`, `kMaxRegions`, `kMaxWeaverPaneNameLen`, `kRegionPxMax`; `workshop/panes.hpp`
 `Panes::weaver`; `tests/test_workshop_host_creator.cpp` case `"a definition is a name and a
 list of text regions with stable ids"`, case `"the whole-definition law refuses what no
 door could have made"`, case `"a code-backed subject's interior is a read-only
@@ -61,13 +61,13 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 LAW — The desk pane is the preview and there is no second renderer: the weaver's pane is one more arm of the ordinary pane painter — bounds, interior, each region presented, then owned-ground regions.
 
 MEANS
-- `present_region`: interior origin plus authored place, clipped, then `fit_region_subs`;
+- `present_region`: interior origin plus authored place, clipped, then `fit_region`;
 - a region authored at 126 px sits at pixel 126 of the interior; a terminal reads `~10 cells`;
 - too small for the face is the face's own answer; nothing rewrites the authored number to fit.
 
 PROVEN BY — `workshop/screen_compose.cpp` `paint_panes`; `workshop/screen_pane_subject.cpp`
 `paint_weaver_pane`, `present_region`; `workshop/screen_chrome.cpp` `bounds_of`, `pane_inside`,
-`fit_region_subs`; `workshop/screen.hpp` `clip_to_fine`; `surface/vocabulary.hpp` `kGroundOwn`;
+`fit_region`; `workshop/screen.hpp` `clip_to_px`; `surface/vocabulary.hpp` `kGroundOwn`;
 `tests/test_workshop_host_creator.cpp` case `"a region is placed relative to the pane's INTERIOR
 and painted through the ordinary pane path in cells"`, case `"one authored fine
 value, read in pixels on the window and projected to cells on a terminal, and looking writes
@@ -85,6 +85,7 @@ MEANS
 
 PROVEN BY — `workshop/screen_pane_subject.cpp` `weaver_region`, `present_region`,
 `paint_creator_region_mark`; `workshop/pane_definition_persist.hpp` `to_text`, `to_file`;
+`workshop/pane_definition.hpp` `kRegionSubsPerPixel`;
 `tests/test_workshop_host_creator.cpp` case `"the Pane Creator marks the region it is editing on
 the pane itself, from the same resolution, and writes nothing"`, case `"one authored
 fine value, read in pixels on the window and projected to cells on a terminal, and looking

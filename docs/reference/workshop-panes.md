@@ -332,13 +332,14 @@ how far. So do pane drag/resize, authored pane geometry and an arrange mode, equ
 A weaver can **select a pane, move it, resize it by an edge or corner, change what is in front of
 what, reset any of that, and save the arrangement by name** — with the keyboard alone, or with a
 pointer, reaching the same doors. Panes may overlap, and **every pane the setup names is reachable
-whether or not it can currently be seen.** The arrangement lattice is **fine**:
-authored pane geometry is held in *sub-cell units* — 1/48 of a canvas cell, `subcells` in the
-file — so a pane a weaver dragged by a single window pixel differs from its neighbour by a few
-of them, while a pane on a cell boundary is an exact multiple and the character medium's
-picture of it has not moved by a byte. Setup format is **version 3**; a **version-2**
-whole-cell file still loads, its cells mapped exactly onto the finer lattice (x 48), and the
-next explicit save writes version 3. A version-1 file is refused by its number, as ever.
+whether or not it can currently be seen.** Workshop's unit is the **whole canvas pixel**,
+twelve to a cell: a pane a weaver dragged by a single window pixel differs from its neighbour
+by exactly one, while a pane on a cell boundary is an exact multiple and the character medium's
+picture of it has not moved by a byte. Setup format is **version 4**, its amounts in pixels
+under the word `pixels`. A **version-3** file (`subcells`, four to a pixel) is read back to the
+pixel each edge was painted at, and a **version-2** whole-cell file still loads, its cells
+mapped exactly (x 12); the next explicit save writes version 4. A version-1 file is refused by
+its number.
 
 ```text
 authored setup                 resolved presentation          session interaction
@@ -360,19 +361,16 @@ authored setup                 resolved presentation          session interactio
 - **Each axis is independent.** Moving a pane freezes neither size axis; resizing one axis freezes
   neither the place nor the other axis. A default-width pane goes on taking its half-share of
   the room after a place edit.
-- **`subcells` on a place is absolute, not an offset** from where the developer put it. An
-  offset is authored against a default a later build may change, so the same saved bytes would
-  silently mean somewhere else. **Resetting** is what gives back "wherever the default puts
-  it". The unit is medium-independent on purpose: a sub-cell is a fraction of the canvas's own
-  cell, never a monitor pixel, so a desk keeps its meaning when the hardware changes.
-- **`pixels` is declared, valid everywhere, and currently unprojectable.** No medium in this build
-  publishes a trustworthy per-axis device-pixel scale for a canvas cell — the text metric
-  identifies a medium that sets real *type*, which is a different fact, and `kCanvasCellPx` is one
-  Skin's layout number that `surface/pointing.hpp` forbids Workshop to hold as a standing fact. So
-  a pixel axis **saves, loads and round-trips exactly**, and is **refused at projection**, whole:
-  the pane is not presented, rather than presented at the default width with an honoured height.
-  There is no fallback. The future rule, once a real scale exists, is
-  `cells = max(1, pixels / scale)`, floored, per axis.
+- **An authored place is measured from the room's top-left, not an offset** from where the
+  developer put it. An offset is authored against a default a later build may change, so the
+  same saved bytes would silently mean somewhere else. **Resetting** is what gives back
+  "wherever the default puts it". A place at y 0 stands directly under the top band, whatever
+  height that band was fitted to on this face, so one desk is arranged alike in a window and a
+  terminal; a place is never negative, so no pane stands over the band. The unit is the canvas's
+  own pixel — the window's, drawn 1:1, and a twelfth of a terminal's cell.
+- **An axis authored in `pixels` is presented at exactly its pixels, on every medium.** The
+  window draws it there; a terminal shows the cells it covers. An older build wrote such an
+  axis without presenting it; one under a cell is read back as one cell.
 - **`front` is a canonical rank, not an accumulating counter.** Over `n` rows the set of ranks is
   exactly `{0 … n-1}` — 0 back-most, `n-1` front-most, no tie and therefore no secondary key.
   Paint walks it ascending, the pointer descending. A permutation of `0..n-1` is *unique* for a
@@ -408,14 +406,14 @@ authored setup                 resolved presentation          session interactio
   Only a gesture refused on every axis it moved writes nothing. Edits commit immediately;
   `esc` is *back*, not *cancel*, and there is no undo.
 - **Graphical interaction is pixel-responsive; the TUI stays honestly cell-grained.** A window
-  pointer's press and motion are spent at their own resolution — one pixel of hand is four
-  sub-units of lattice, with no whole-cell threshold anywhere on the path — and what a medium
-  paints is the *one quantization law* at its own grain: a fine span `[L, R)` lands on the
+  pointer's press and motion are spent at their own resolution — one pixel of hand is one
+  pixel of pane, with no whole-cell threshold anywhere on the path — and what a medium
+  paints is the *one quantization law* at its own grain: a span `[L, R)` lands on the
   device units `[floor(L/g), floor(R/g))`, one window pixel or one terminal cell per unit. Hit
-  testing floors by the same grain, so the first painted pixel of a fractional edge answers
-  the hand and the pixel before it does not. A terminal therefore shows a finely-placed pane
-  on the cells its floored edges cover — snapped, truthfully — and projecting it rewrites
-  nothing: exact-cell values stay exact, sub-cell values resolve deterministically, and the
+  testing floors by the same grain, so the first painted cell of an edge inside a cell answers
+  the hand and the cell before it does not. A terminal therefore shows a pane placed inside a
+  cell on the cells its floored edges cover — snapped, truthfully — and projecting it rewrites
+  nothing: whole-cell values stay exact, other values resolve deterministically, and the
   underlying arrangement is untouched by any number of frames.
 - **A pointer press claims one gesture until release.** Crossing another pane, crossing the
   Terminal's rectangle, and reordering mid-drag all change nothing about who is being moved.
@@ -588,22 +586,28 @@ without this capability continues to grant `PaneRoom`, so a provider can keep a 
 Once a canvas grant exists, Workshop ignores that pane's prose content until the canvas
 capability leaves. Keyboard, text input, actions, pane placement and menus keep their owners.
 
-`PaneCanvasRoom` v2 carries `pane, grant, width, height, grain, graphical,
-text_advance_px, text_line_px`. It grants local coordinates in
-1/48 canvas-cell units, below the title and inside the chrome. `grain` states the medium's
-device resolution in those units. `graphical` describes its reported device scale, not the
+A canvas pane asks for its room with `v3::PaneOffered{pane, name, summary, width, height,
+text_rows}`: a body of whole canvas pixels and rows of the medium's text beneath it. Workshop
+grants exactly that body in a window, and the cells that hold it in a terminal, so a 680 by 360
+view runs in a 680 by 360 room.
+
+`PaneCanvasRoom` v3 carries `pane, grant, width, height, grain, graphical,
+text_advance_px, text_line_px`. It grants local coordinates in canvas pixels, twelve to a
+canvas cell, below the title and inside the chrome. `grain` states the medium's device
+resolution in those pixels: 1 in the window, which draws the picture 1:1, and 12 in a terminal,
+which floors it to the cells it covers. `graphical` describes its reported device scale, not the
 presence of a prose font. The text metric is the active medium's measured advance and line
 height; zero means the cell projection, including a graphical medium whose font is unavailable.
 Zero width or height revokes usable room. The host mints a new
 positive grant when room geometry, text metric or provider changes and on re-offer; never persist grants
 or held gestures in a provider's reload state. A fresh image waits for a fresh room.
 
-`PaneCanvasContent` v2 carries `pane, grant, picture, rects, labels, texts` and replaces one
+`PaneCanvasContent` v3 carries `pane, grant, picture, rects, labels, texts` and replaces one
 whole picture. Rectangles
 carry local `x,y,w,h,role`; labels carry `x,y,text,role`. Rectangles are painted in vector order,
 then labels and measured text above them, on the pane's own plane. Workshop clips before translating, so no
 primitive can escape its body. Offscreen positions are legal, allowing a provider to own pan
-and zoom. Labels are fixed-size canvas lettering: one 48-by-48 cell per printable ASCII byte,
+and zoom. Labels are fixed-size canvas lettering: one 12-by-12 cell per printable ASCII byte,
 with partially visible edge glyphs omitted whole; they are not prose-font text or scaled type.
 Lines may be made from thin rectangles; there are no paths, textures, transforms or scenegraph.
 
@@ -615,7 +619,7 @@ highlight. Its ground stays beneath the text, so a graph or button background sh
 
 Use the installed `workshop/pane_canvas_text.hpp` for the same sizing the host uses.
 `canvas_text_metrics(room)` returns advance, line height, inset and device grain in local
-subunits; the complete one-row region is `line + 2*inset` tall. `clip_canvas_text(run, clip,
+pixels; the complete one-row region is `line + 2*inset` tall. `clip_canvas_text(run, clip,
 room)` returns the visible adjusted run and its exact padded `bounds`, suitable for hit tests.
 The clip may be a sidebar or graph viewport inside the room. For example:
 
@@ -634,8 +638,12 @@ Caret and selection columns follow the crop, including the cell projection's ins
 An empty line with a caret reserves one column. Keep measured sizes out of saved authoring data:
 they describe the current room, not a document or graph's durable coordinates.
 
-The v2 room and content identities must be used together. Fixed labels and the pointer and
-rejection schemas retain their versions and meaning; no Surface schema changed. Participants
+The v3 room and content identities must be used together, with `PaneCanvasPointer` v2,
+`PaneCanvasHover` v2 and `PaneCanvasValueDrop` v2, which say their places in the same pixels.
+A provider built against the earlier doors — room and content v2, pointer, hover and drop v1,
+all in 1/48 canvas-cell sub-units, four to a pixel — is still answered in them: Workshop asks
+which version its holder accepts, sends its room, pointer, hover and drop times four, and reads
+its picture back with every edge floored to the pixel the window painted it at. Participants
 whose declarations change must be rebuilt and restarted before using the new conversation.
 
 Admission is whole: positive extents, one of the five Surface roles (including the opaque
@@ -653,7 +661,7 @@ zero room, re-offer, owner/capability change, or changed text metric.
 
 `PaneCanvasHover{pane,grant,picture,x,y,over,carrying}` is the one idle-pointer fact, for a
 provider whose holder accepts it: Workshop tells the canvas on top under a pointer that holds no
-button where it rests, in local subunits on the picture handed to the medium, once per place, and
+button where it rests, in local pixels on the picture handed to the medium, once per place, and
 tells it `over=false` once when the pointer leaves its body, a mode or menu opens, a sweep
 takes the motion, or any press begins: the gesture a press begins owns the pointer.
 `carrying` is true while a carried value is over it, so a receiver may mark where it would land;
@@ -1070,7 +1078,7 @@ The pane must still send the operation under its own ordinary bus grant and hand
 | `PaneValueDrop{pane, data, row, column, picture}` | A value copy, separate from the reference door |
 | `PaneCarryAnswered{carried, reason}` | Authenticated answer to that request |
 | `PaneDrop{pane, data, row, column, picture}` | Workshop to the selected receiver, under a new input correlation; `picture` is the aimed prose picture as for `PanePressed v3` |
-| `PaneCanvasValueDrop{pane, grant, picture, x, y, data, source_office, source_pane, token}` | A value copy placed on a canvas pane: the place in the canvas's local subunits, its room grant and the aimed picture, with v2's attribution |
+| `PaneCanvasValueDrop{pane, grant, picture, x, y, data, source_office, source_pane, token}` | A value copy placed on a canvas pane: the place in the canvas's local pixels, its room grant and the aimed picture, with v2's attribution |
 
 The actor picks up the reference and clicks a receiving pane to place it. Escape cancels;
 another actor cannot place or cancel the held reference. If the initiating guest participant
@@ -1081,7 +1089,7 @@ A request that cannot be queued leaves the reference held. A later Loom dispatch
 is reported with its destination and attempt; it is never retried automatically.
 A successful send is not a completed receiver operation. The reference door serves prose panes
 only. A value released or clicked onto a **canvas** pane reaches a provider that accepts
-`PaneCanvasValueDrop` as that place in its local subunits, within the room it was granted and
+`PaneCanvasValueDrop` as that place in its local pixels, within the room it was granted and
 against the picture the medium showed, so the provider hit-tests what it drew; a canvas
 provider without that door is sent nothing and the value stays held, as anywhere it is not
 accepted. A drag's drop names the picture and place its release met, even when the carry is

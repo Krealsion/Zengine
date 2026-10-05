@@ -42,9 +42,7 @@ kBottomRows                     workshop/screen.hpp                       kBotto
 kCoarseStepCells                workshop/screen.hpp                       kCoarseStepCells
 kStackRows                      workshop/screen.hpp                       kStackRows
 kStackW                         workshop/screen.hpp                       kStackW
-kStackY                         workshop/screen.hpp                       kStackY
 kScreenMinW                     workshop/screen.hpp                       kScreenMinW
-kWorkspaceY                     workshop/screen.hpp                       kWorkspaceY
 kNewRegionX                     workshop/pane_definition.hpp              kNewRegionX
 kNewRegionY                     workshop/pane_definition.hpp              kNewRegionY
 kNewRegionW                     workshop/pane_definition.hpp              kNewRegionW
@@ -67,11 +65,10 @@ kMaxPaneActionRows              workshop/keymap.hpp                       kMaxPa
 
 # ---- the surface and input
 kCanvasCellPx                   surface/vocabulary.hpp                    kCanvasCellPx
-kCellSubs                       surface/vocabulary.hpp                    kCellSubs
 kNoCaret                        surface/vocabulary.hpp                    kNoCaret
 kNoSelection                    surface/vocabulary.hpp                    kNoSelection
-kCellGrainSubs                  surface/pointing.hpp                      kCellGrainSubs
-kPixelGrainSubs                 surface/pointing.hpp                      kPixelGrainSubs
+kCellGrainPx                    surface/pointing.hpp                      kCellGrainPx
+kPixelGrainPx                   surface/pointing.hpp                      kPixelGrainPx
 kTuiCanvasTopRow                surface/pointing.hpp                      kTuiCanvasTopRow
 kTuiReservedRows                surface/skin_tui.hpp                      kTuiReservedRows
 kTextInsetPx                    surface/region.hpp                        kTextInsetPx

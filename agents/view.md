@@ -39,9 +39,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   told says `waiting`. An intent is published as the participant, by shape: whoever accepts it
   hears it, and the view claims no exclusive audience. A refusal is shown only when Loom attests
   it answers the view's own delivery (`answers_ask()`); the correlation then says which intent.
-- A running view asks its pane for its size and its notice rows in canvas cells, never past
-  `workshop::kMaxPaneComfort` (`view::preferred_size`), and draws in its size and notice rows
-  within the room it is granted; a pane smaller than that cuts it.
+- A running view asks its pane for its size in canvas pixels, never past
+  `workshop::kMaxPaneBodyPx`, with its notice rows of text beneath (`view::offered`), and draws
+  in its size and notice rows within the room it is granted; a pane smaller than that cuts it.
 - `view::picture` is pure: the description, what was told and the presentation, in the view's
   size and its notice rows within one room. Text
   sits on the medium's lattice inside its element and is fitted by `clip_canvas_text`, so a

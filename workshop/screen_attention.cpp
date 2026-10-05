@@ -47,8 +47,7 @@ std::vector<Condition> attention_conditions(const Session& s,
     // one classifier, and the remedy column that was already written beside it.
     for (const CatalogRow& row : inventory_rows(s.setup.active, s.panes)) {
         const std::int64_t state = pane_state_of(s.panes, s.setup.active, sc, row, false);
-        if (state != pane_state::kRefused && state != pane_state::kWaiting &&
-            state != pane_state::kOffRoom) {
+        if (state != pane_state::kWaiting && state != pane_state::kOffRoom) {
             continue;
         }
         out.push_back(Condition{pane_window_key(row.ref),
@@ -190,7 +189,7 @@ std::string context_row_text(const Session& s, const ContextEntry& entry,
 }
 
 // WL-CTX-03 -- agents/workshop/contextual.md
-FineRect context_bounds(const Session& s, const Screen& sc) {
+PixelRect context_bounds(const Session& s, const Screen& sc) {
     const ContextMenu& menu = s.context;
     const std::vector<ContextEntry> rows = context_population(menu);
     const std::int64_t label_cols = context_label_columns(rows);
@@ -205,11 +204,11 @@ FineRect context_bounds(const Session& s, const Screen& sc) {
     std::int64_t x = menu.anchor_x;
     std::int64_t y = menu.anchor_y;
     if (!menu.anchored) {
-        const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
+        const PixelRect slot = placement_bounds(placement::kOverlayStack, 0, sc);
         x = slot.x;
         y = slot.y;
     }
-    const FineRect fitted = popup_bounds_at(want_cols, want_rows, x, y, sc);
+    const PixelRect fitted = popup_bounds_at(want_cols, want_rows, x, y, sc);
     // A POPUP THE ROOM CUT IS WIDE ENOUGH TO SAY SO: a level taller than the room shows
     // `... n more`, and a marker cut to dots would say nothing. A level that fits keeps the width
     // of its rows (WL-CTX-04).
@@ -229,7 +228,7 @@ void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen&
     if (!s.context.open) {
         return;
     }
-    const FineRect b = context_bounds(s, sc);
+    const PixelRect b = context_bounds(s, sc);
     paint_pane_frame(layer, b, kTransientChrome);
     const ProsePlace place = prose_place(b, sc);
     if (!place.present) {
@@ -268,19 +267,18 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
     if (!s.context.open) {
         return out;
     }
-    const FineRect b = context_bounds(s, sc);
-    if (!b.contains_at(at.sub.x, at.sub.y, at.grain)) {
+    const PixelRect b = context_bounds(s, sc);
+    if (!b.contains_at(at.px.x, at.px.y, at.grain)) {
         return out;
     }
     out.inside = true;
     // The same call the painter makes (`prose_place`), so the inset, metric and row budget
-    // are one answer; `prose_at` takes the region's cell origin, the wire's spelling of it.
+    // are one answer.
     const ProsePlace place = prose_place(b, sc);
     if (!place.present) {
         return out;
     }
-    const surface::SurfaceTextRegion wire = prose_region(place);
-    const ProseAt where = prose_at(space, x, y, wire.x, wire.y, place.fit);
+    const ProseAt where = prose_at(space, x, y, place.fit);
     if (!where.understood || where.column < 0 || where.column >= place.columns ||
         where.row < 0 || where.row >= place.rows) {
         return out;
@@ -309,7 +307,7 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
 // ---- A PANE'S MENU, AS ITS PRESENTER SHOWED IT -----------------------------------------------
 
 namespace {
-/// THE ANCHOR A PRESENTED MENU OPENS AT: the cell it was granted beside, or the overlay stack's
+/// THE ANCHOR A PRESENTED MENU OPENS AT: the pixel it was granted beside, or the overlay stack's
 /// corner for a menu no place in a pane anchors (a pane with no body on this screen).
 struct PresentedAnchor {
     std::int64_t x = 0;
@@ -319,7 +317,7 @@ PresentedAnchor presented_anchor(bool anchored, std::int64_t x, std::int64_t y, 
     if (anchored) {
         return PresentedAnchor{x, y};
     }
-    const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
+    const PixelRect slot = placement_bounds(placement::kOverlayStack, 0, sc);
     return PresentedAnchor{slot.x, slot.y};
 }
 } // namespace
@@ -333,10 +331,10 @@ ProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const S
 }
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
-FineRect presented_bounds(const Session& s, const Screen& sc) {
+PixelRect presented_bounds(const Session& s, const Screen& sc) {
     const PresentedMenu& menu = s.presented;
     if (!menu.open || menu.lines.empty()) {
-        return FineRect{};
+        return PixelRect{};
     }
     std::int64_t want_cols = 1;
     for (const surface::SurfaceTextRow& line : menu.lines) {
@@ -351,7 +349,7 @@ FineRect presented_bounds(const Session& s, const Screen& sc) {
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
-    const FineRect b = presented_bounds(s, sc);
+    const PixelRect b = presented_bounds(s, sc);
     if (!s.presented.open || s.presented.lines.empty()) {
         return; // granted and not yet shown: nothing is drawn until the presenter says what
     }
@@ -378,9 +376,9 @@ void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Scree
 PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int64_t space,
                                     std::int64_t x, std::int64_t y, const PointedAt& at) {
     PresentedPressAt out;
-    const FineRect b = presented_bounds(s, sc);
+    const PixelRect b = presented_bounds(s, sc);
     if (!s.presented.open || s.presented.lines.empty() ||
-        !b.contains_at(at.sub.x, at.sub.y, at.grain)) {
+        !b.contains_at(at.px.x, at.px.y, at.grain)) {
         return out;
     }
     out.inside = true;
@@ -390,8 +388,7 @@ PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int
     if (!place.present) {
         return out;
     }
-    const surface::SurfaceTextRegion wire = prose_region(place);
-    const ProseAt where = prose_at(space, x, y, wire.x, wire.y, place.fit);
+    const ProseAt where = prose_at(space, x, y, place.fit);
     if (!where.understood || where.column < 0 || where.column >= place.columns ||
         where.row < 0 || where.row >= place.rows ||
         where.row >= static_cast<std::int64_t>(s.presented.lines.size())) {

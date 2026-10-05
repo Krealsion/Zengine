@@ -10,8 +10,9 @@ and reseats the desk. The tool then reads the AUTHORED row back and fails unless
 value typed. A refused value leaves the authored one where it was, and the run says which.
 
 UNITS ARE THE FACE'S. A window takes pixels ("120" means 120 px), a terminal cells. X and Y are
-one place -- writing either sets both -- so X is written before Y. The placement lands in the
-layout you are on and returns with the next launch's desk; `s` in Layouts writes a Setup file."""
+one place, measured from the room's top-left -- writing either sets both -- so X is written
+before Y. The placement lands in the layout you are on and returns with the next launch's desk;
+`s` in Layouts writes a Setup file."""
 import json
 import time
 
@@ -117,14 +118,14 @@ def run(ctx):
             placed = {"pane": p["pane"]}
             for key, label in FIELDS:
                 if key in p:
-                    if key == "y" and p["pane"] == "Info" and int(str(p["y"]).rstrip("px")) > 24:
-                        # INFO PLACES ITSELF LAST, FROM THE TOP. Moving it down before it is resized
-                        # can run its old height past the room's bottom, and Workshop stops
+                    if key == "y" and p["pane"] == "Info" and int(str(p["y"]).rstrip("px")) > 0:
+                        # INFO PLACES ITSELF LAST, FROM THE ROOM'S TOP. Moving it down before it is
+                        # resized can run its old height past the room's bottom, and Workshop stops
                         # describing the very pane these keys are typed into.
-                        write(ctx, hand, "Y", "24")
+                        write(ctx, hand, "Y", "0")
                         continue
                     placed[key] = write(ctx, hand, label, str(p[key]))
-            if p["pane"] == "Info" and "y" in p and int(str(p["y"]).rstrip("px")) > 24:
+            if p["pane"] == "Info" and "y" in p and int(str(p["y"]).rstrip("px")) > 0:
                 placed["y"] = write(ctx, hand, "Y", str(p["y"]))
             done.append(placed)
     finally:

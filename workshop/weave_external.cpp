@@ -146,7 +146,7 @@ void WorkshopWeave::external_drag(std::int64_t kind, const zengine::input::Point
     if (!body.present) {
         return; // a room too small for a row: the sweep waits for one, and sends nothing
     }
-    const ProseAt at = prose_at(m.space, m.x, m.y, body.region_x, body.region_y, body.fit);
+    const ProseAt at = prose_at(m.space, m.x, m.y, body.fit);
     if (!at.understood) {
         return;
     }
@@ -327,7 +327,7 @@ bool WorkshopWeave::external_release(std::int64_t button, const zengine::input::
                 where.rect, sc, external_title_rows(session_.panes, kind, session_.pane_titles));
             if (body.present) {
                 const ProseAt at =
-                    prose_at(b.space, b.x, b.y, body.region_x, body.region_y, body.fit);
+                    prose_at(b.space, b.x, b.y, body.fit);
                 if (at.understood) {
                     prow = at.row - body.header_rows;
                     pcol = at.column;
@@ -443,8 +443,8 @@ void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
     ContextMenu next;
     next.open = true;
     next.anchored = true;
-    next.anchor_x = c->cell.cell.x;
-    next.anchor_y = c->cell.cell.y;
+    next.anchor_x = c->cell.px.x;
+    next.anchor_y = c->cell.px.y;
     next.subject = context_subject::kPane;
     next.pane = PaneRef{row->provider, row->pane};
     session_.context = next;
@@ -472,12 +472,18 @@ PointedAt WorkshopWeave::cell_of_body_place(std::int64_t kind, std::int64_t row,
     // no longer has (the room shrank behind its request), and the menu still opens beside it.
     const std::int64_t r = row >= 0 && row < body.fit.rows ? row : 0;
     const std::int64_t c = column >= 0 && column < body.fit.columns ? column : 0;
+    // The place's first pixel, in the fit the body was granted: a character and a line of the
+    // medium's type, or a cell each where text is a cell.
+    const std::int64_t advance = body.fit.graphical() ? body.fit.advance_px : surface::kCanvasCellPx;
+    const std::int64_t line = body.fit.graphical() ? body.fit.line_px : surface::kCanvasCellPx;
     out.understood = true;
-    out.cell.x = body.region_x + c;
-    out.cell.y = body.region_y + body.header_rows + r;
-    out.sub.x = out.cell.x * surface::kCellGrainSubs;
-    out.sub.y = out.cell.y * surface::kCellGrainSubs;
-    out.grain = surface::kCellGrainSubs;
+    out.px.x = surface::add_cells(surface::add_cells(body.fit.view.x, body.fit.origin_x),
+                                  surface::mul_px(c, advance));
+    out.px.y = surface::add_cells(surface::add_cells(body.fit.view.y, body.fit.origin_y),
+                                  surface::mul_px(body.header_rows + r, line));
+    out.cell.x = surface::cell_of_pixel(out.px.x);
+    out.cell.y = surface::cell_of_pixel(out.px.y);
+    out.grain = body.fit.graphical() ? surface::kPixelGrainPx : surface::kCellGrainPx;
     return out;
 }
 
@@ -571,7 +577,7 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
     withdraw_menu("replaced by a newer menu", mail);
     close_context();
     const ProsePlace room =
-        presented_room(at.understood, at.cell.x, at.cell.y, screen_of(session_));
+        presented_room(at.understood, at.px.x, at.px.y, screen_of(session_));
     PresentedMenu next;
     next.open = true;
     next.menu = ++menus_;
@@ -580,8 +586,8 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
     next.subject = asked.subject;
     next.correlation = correlation;
     next.anchored = at.understood;
-    next.anchor_x = at.cell.x;
-    next.anchor_y = at.cell.y;
+    next.anchor_x = at.px.x;
+    next.anchor_y = at.px.y;
     next.room_rows = room.present ? room.rows : 0;
     next.room_columns = room.present ? room.columns : 0;
     next.first_input = gestures_;
@@ -898,8 +904,10 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
             c.gesture = act;
             c.correlation = ended.correlation;
             c.cell.understood = ended.anchored;
-            c.cell.cell.x = ended.anchor_x;
-            c.cell.cell.y = ended.anchor_y;
+            c.cell.px.x = ended.anchor_x;
+            c.cell.px.y = ended.anchor_y;
+            c.cell.cell.x = surface::cell_of_pixel(ended.anchor_x);
+            c.cell.cell.y = surface::cell_of_pixel(ended.anchor_y);
             c.spent = false;
             choice_answered_ = c;
         }
@@ -1024,8 +1032,8 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
     ContextMenu next;
     next.open = true;
     next.anchored = choice_answered_.cell.understood;
-    next.anchor_x = choice_answered_.cell.cell.x;
-    next.anchor_y = choice_answered_.cell.cell.y;
+    next.anchor_x = choice_answered_.cell.px.x;
+    next.anchor_y = choice_answered_.cell.px.y;
     next.subject = context_subject::kPane;
     next.pane = subject;
     session_.context = next;

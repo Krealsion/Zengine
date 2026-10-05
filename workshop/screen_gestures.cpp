@@ -171,29 +171,20 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
     return out;
 }
 
-// ---- Where a pointer is, in workspace cells --------------------------------------------
+// ---- Where a pointer is, in a region's prose -------------------------------------------
 
 ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
-                 std::int64_t region_x, std::int64_t region_y,
                  const surface::RegionFit& fit) noexcept {
+    surface::CanvasPoint at;
     if (space == input::space::kPixels) {
-        return ProseAt{true, surface::prose_column_of_pixel(x, region_x, fit),
-                       surface::prose_row_of_pixel(y, region_y, fit)};
+        at = surface::canvas_px_of_window_pixels(x, y);
+    } else if (space == input::space::kCells) {
+        at = surface::canvas_px_of_terminal_cells(x, y);
+    } else {
+        return ProseAt{};
     }
-    if (space == input::space::kCells) {
-        const surface::CanvasPoint at = surface::canvas_of_terminal_cells(x, y);
-        return ProseAt{true, surface::sub_px(at.x, region_x), surface::sub_px(at.y, region_y)};
-    }
-    return ProseAt{};
-}
-
-// WL-GEO-06 -- agents/workshop/geometry.md
-std::int64_t workspace_cell_x(std::int64_t canvas_x) noexcept {
-    return detail::minus(canvas_x, kWorkspaceX);
-}
-
-std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
-    return detail::minus(canvas_y, kWorkspaceY);
+    return ProseAt{true, surface::prose_column_of_pixel(at.x, fit),
+                   surface::prose_row_of_pixel(at.y, fit)};
 }
 
 // ---- A bounded list: what it shows, and what it must say it cannot ---------------------------

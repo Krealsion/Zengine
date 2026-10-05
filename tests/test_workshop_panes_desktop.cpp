@@ -395,8 +395,8 @@ struct Keys {
         r.key(input::scan::kK, input::mod::kCtrl);
         const Written tall = author_pane_size(r.session().setup.active,
                                               PaneRef{kDesktopRole, dp::kHotkeysPane},
-                                              PaneSize{pane_unit::kSubcells, subs(120)},
-                                              PaneSize{pane_unit::kSubcells, subs(40)});
+                                              PaneSize{pane_unit::kPixels, cells_px(120)},
+                                              PaneSize{pane_unit::kPixels, cells_px(40)});
         REQUIRE_MESSAGE(tall.accepted, tall.refusal);
         r.extent(200, 60);
         hotkeys = kind_of(r, kDesktopRole, dp::kHotkeysPane);

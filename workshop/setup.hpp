@@ -7,8 +7,7 @@
 // What a weaver calls the arrangement they are working in, and what that may mean.
 // Workshop law: agents/workshop/layouts.md (+7 registers; agents/workshop.md routes)
 
-#include "lattice.hpp" // `kMaxCells` -- the bound an authored cell count already has
-#include "surface/vocabulary.hpp" // `kCellSubs` -- the fine lattice authored amounts live on
+#include "surface/vocabulary.hpp" // `kCanvasCellPx` -- the cell an authored minimum is one of
 #include "pane_vocabulary.hpp"
 #include "panes.hpp"
 #include "property.hpp"
@@ -52,8 +51,8 @@ inline constexpr std::size_t kMaxPaneNameLen = 32;
 // WL-CAT-02 -- agents/workshop/catalog.md
 inline constexpr std::size_t kMaxPaneSummaryLen = 64;
 
-/// THE LARGEST DEVICE-PIXEL AMOUNT A PANE MAY BE AUTHORED AT.
-// WL-SETUP-06 -- agents/workshop/setup-file.md
+/// THE LARGEST PIXEL AMOUNT A PANE MAY BE AUTHORED AT, a place or an extent.
+// WL-SETUP-03 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kMaxPanePixels = 65536;
 
 // ---- The value ---------------------------------------------------------------
@@ -69,15 +68,12 @@ struct PaneRef {
 
 // ---- THE AUTHORED WINDOW: the smallest difference from a default --------------
 
-/// THE UNITS A PANE'S AUTHORED WINDOW MAY BE SAID IN, and there is not a fourth.
-// WL-SETUP-03, WL-SETUP-04, WL-SETUP-06 -- agents/workshop/setup-file.md
+/// THE UNITS A PANE'S AUTHORED WINDOW MAY BE SAID IN, and there is not a third.
+// WL-SETUP-03, WL-SETUP-04 -- agents/workshop/setup-file.md
 namespace pane_unit {
 inline constexpr std::int64_t kDefault = 0; ///< the developer's answer, whatever it becomes
-/// AN ABSOLUTE COUNT OF SUB-CELL UNITS — 1/`surface::kCellSubs` of a canvas cell.
+/// AN ABSOLUTE COUNT OF CANVAS PIXELS: one window pixel each, twelve to a terminal's cell.
 // WL-GEO-06 -- agents/workshop/geometry.md; WL-SETUP-04 -- agents/workshop/setup-file.md
-inline constexpr std::int64_t kSubcells = 1;
-/// DEVICE PIXELS, declared from the beginning and currently unprojectable.
-// WL-SETUP-06 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kPixels = 2;
 /// The right column, named: a place a desk asks for, carrying no coordinates. Why a place is a
 /// unit: agents/decisions/the-room-is-the-screen.md.
@@ -85,16 +81,15 @@ inline constexpr std::int64_t kPixels = 2;
 inline constexpr std::int64_t kRightColumn = 3;
 } // namespace pane_unit
 
-/// THE AUTHORED LATTICE'S WALLS, in sub-units: the same cell bounds the setup
-/// law has always enforced, expressed at the resolution the amounts now carry.
+/// THE SMALLEST AUTHORED EXTENT, in canvas pixels: one cell, the bound the setup law has always
+/// enforced.
 // WL-GEO-06 -- agents/workshop/geometry.md
-inline constexpr std::int64_t kPaneSubMin = ui::kMinCells * surface::kCellSubs;
-inline constexpr std::int64_t kPaneSubMax = kMaxCells * surface::kCellSubs;
+inline constexpr std::int64_t kPanePxMin = ui::kMinCells * surface::kCanvasCellPx;
 
 /// WHERE A WEAVER PUT A PANE -- one fact, both coordinates.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md
 struct PanePlace {
-    /// `kDefault`, `kSubcells` or `kRightColumn`; never `kPixels`
+    /// `kDefault`, `kPixels` or `kRightColumn`
     std::int64_t mode = pane_unit::kDefault;
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -105,7 +100,7 @@ struct PanePlace {
 /// HOW BIG A WEAVER MADE ONE AXIS OF A PANE.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PaneSize {
-    std::int64_t mode = pane_unit::kDefault; ///< `kDefault`, `kSubcells` or `kPixels`
+    std::int64_t mode = pane_unit::kDefault; ///< `kDefault` or `kPixels`
     std::int64_t amount = 0;
 
     friend bool operator==(const PaneSize&, const PaneSize&) = default;
@@ -334,15 +329,14 @@ inline Written check_pane_place_coord(std::int64_t v) {
     if (v < 0) {
         return Written::no("a pane place cannot be negative");
     }
-    if (v > kPaneSubMax) {
-        return Written::no("a pane place is at most " + std::to_string(kMaxCells) +
-                           " cells");
+    if (v > kMaxPanePixels) {
+        return Written::no("a pane place is at most " + std::to_string(kMaxPanePixels) +
+                           " pixels");
     }
     return Written::ok();
 }
 
-/// A PLACE: default with nothing said, a named place, or an absolute position on the fine
-/// lattice.
+/// A PLACE: default with nothing said, a named place, or pixels from the room's top-left.
 inline Written check_pane_place(const PanePlace& p) {
     if (p.mode == pane_unit::kDefault) {
         if (p.x != 0 || p.y != 0) {
@@ -357,8 +351,8 @@ inline Written check_pane_place(const PanePlace& p) {
         }
         return Written::ok();
     }
-    if (p.mode != pane_unit::kSubcells) {
-        return Written::no("a pane place is default, right-column or subcells");
+    if (p.mode != pane_unit::kPixels) {
+        return Written::no("a pane place is default, right-column or pixels");
     }
     const Written x = check_pane_place_coord(p.x);
     if (!x.accepted) {
@@ -367,9 +361,8 @@ inline Written check_pane_place(const PanePlace& p) {
     return check_pane_place_coord(p.y);
 }
 
-/// ONE AXIS OF A SIZE: default, a count of sub-cell units, or a count of device
-/// pixels.
-// WL-SETUP-03, WL-SETUP-06 -- agents/workshop/setup-file.md
+/// ONE AXIS OF A SIZE: default, or a count of pixels.
+// WL-SETUP-03 -- agents/workshop/setup-file.md
 inline Written check_pane_size(const PaneSize& s, const char* which) {
     if (s.mode == pane_unit::kDefault) {
         if (s.amount != 0) {
@@ -377,20 +370,10 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
         }
         return Written::ok();
     }
-    if (s.mode == pane_unit::kSubcells) {
-        if (s.amount < kPaneSubMin) {
-            return Written::no(std::string("a pane ") + which + " is at least " +
-                               std::to_string(ui::kMinCells) + " cell");
-        }
-        if (s.amount > kPaneSubMax) {
-            return Written::no(std::string("a pane ") + which + " is at most " +
-                               std::to_string(kMaxCells) + " cells");
-        }
-        return Written::ok();
-    }
     if (s.mode == pane_unit::kPixels) {
-        if (s.amount < 1) {
-            return Written::no(std::string("a pane ") + which + " is at least 1 pixel");
+        if (s.amount < kPanePxMin) {
+            return Written::no(std::string("a pane ") + which + " is at least " +
+                               std::to_string(kPanePxMin) + " pixels");
         }
         if (s.amount > kMaxPanePixels) {
             return Written::no(std::string("a pane ") + which + " is at most " +
@@ -398,7 +381,7 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
         }
         return Written::ok();
     }
-    return Written::no(std::string("a pane ") + which + " is default, subcells or pixels");
+    return Written::no(std::string("a pane ") + which + " is default or pixels");
 }
 
 /// EVERY LAW ONE AUTHORED ROW MEETS, minus the two that are about the WHOLE setup
@@ -462,18 +445,33 @@ struct Admission {
     std::int64_t kind = kFirstRuntimeKind;   ///< valid only when `written.accepted`
 };
 
+/// A canvas body a pane asked for (`v3::PaneOffered`): pixels, and rows of text beneath them.
+struct PaneBody {
+    std::int64_t width = 0, height = 0, text_rows = 0;
+};
+
 /// Admit one `PaneOffered` under the office Loom stamped on it, `mail.authored_role()`: the shape
 /// has no provider field, and `mail.sender()` is a WeaveId, which would make a reloaded provider a
 /// different pane. A refresh at capacity is allowed: capacity bounds distinct panes.
 // WL-CAT-03 -- agents/workshop/catalog.md
 inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stamped_office,
                                   const PaneOffered& offer, std::int64_t rows = 0,
-                                  std::int64_t columns = 0) {
+                                  std::int64_t columns = 0, PaneBody body = {}) {
     Admission out;
     if (rows < 0 || columns < 0 || rows > kMaxPaneComfort || columns > kMaxPaneComfort ||
         ((rows == 0) != (columns == 0))) {
         out.written = Written::no("pane comfort must be 1.." + std::to_string(kMaxPaneComfort) +
                                   " body rows and columns, or zero/zero");
+        return out;
+    }
+    if (body.width < 0 || body.height < 0 || body.width > kMaxPaneBodyPx ||
+        body.height > kMaxPaneBodyPx || ((body.width == 0) != (body.height == 0)) ||
+        body.text_rows < 0 || body.text_rows > kMaxPaneComfort ||
+        (body.width == 0 && body.text_rows != 0)) {
+        out.written = Written::no("a pane body must be 1.." + std::to_string(kMaxPaneBodyPx) +
+                                  " pixels wide and tall with 0.." +
+                                  std::to_string(kMaxPaneComfort) +
+                                  " rows of text beneath, or zero/zero");
         return out;
     }
     // The stamp is judged first, as a view, before anything owns a copy. An empty role is
@@ -536,6 +534,9 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
     row.summary = offer.summary;
     row.preferred_rows = rows;
     row.preferred_columns = columns;
+    row.preferred_width = body.width;
+    row.preferred_height = body.height;
+    row.preferred_text_rows = body.text_rows;
     out.kind = row.kind;
     runtime.entries.push_back(std::move(row));
     return out;
@@ -775,15 +776,16 @@ inline bool lower_one(Setup& s, const PaneRef& ref) {
 // ---- THE GEOMETRY DOORS: what a hand and a key both end at ------------------------------
 // WL-SETUP-08 -- agents/workshop/setup-file.md
 
-/// AUTHOR AN ABSOLUTE PLACE. Writes the place and nothing else. `x`/`y` are
-/// sub-units, the authored lattice's own resolution.
+/// AUTHOR A PLACE. Writes the place and nothing else. `x`/`y` are pixels from the room's
+/// top-left, directly under the top band.
+// WL-PANE-11 -- agents/workshop/panes-and-windows.md
 inline Written author_pane_place(Setup& s, const PaneRef& ref, std::int64_t x,
                                  std::int64_t y) {
     SetupPane* row = pane_of(s, ref);
     if (row == nullptr) {
         return Written::no("`" + ref_text(ref) + "` is not in this setup");
     }
-    const PanePlace proposed{pane_unit::kSubcells, x, y};
+    const PanePlace proposed{pane_unit::kPixels, x, y};
     const Written legal = check_pane_place(proposed);
     if (!legal.accepted) {
         return legal;
@@ -870,15 +872,18 @@ inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
     if (place_written) {
         // A PLACE IS ONE FIELD. The axis that settled a position writes it; the
         // other contributes what it already stood at — its authored coordinate,
-        // or the resolved base the caller measured — never a clamped wall.
-        const bool authored = row->place.mode == pane_unit::kSubcells;
+        // or the resolved base the caller measured, in the room. A pane standing
+        // above the room (the Layouts pane in its band) has no room place on that
+        // axis, so it comes down to the room's edge, the nearest one it has.
+        const bool authored = row->place.mode == pane_unit::kPixels;
+        const auto in_room = [](std::int64_t v) { return v < 0 ? std::int64_t{0} : v; };
         const std::int64_t x = h_lands && horizontal.position.has_value()
                                    ? *horizontal.position
-                                   : (authored ? row->place.x : horizontal.base);
+                                   : (authored ? row->place.x : in_room(horizontal.base));
         const std::int64_t y = v_lands && vertical.position.has_value()
                                    ? *vertical.position
-                                   : (authored ? row->place.y : vertical.base);
-        row->place = PanePlace{pane_unit::kSubcells, x, y};
+                                   : (authored ? row->place.y : in_room(vertical.base));
+        row->place = PanePlace{pane_unit::kPixels, x, y};
     }
     if (h_lands && horizontal.extent.has_value()) {
         row->width = *horizontal.extent;
@@ -999,12 +1004,30 @@ struct StackCapacity {
     std::size_t slots = 0;
     std::int64_t height = 0, width = 0;
     std::int64_t line = 0, column = 0, border = 0, fallback_height = 0, gap = 0;
+    /// A canvas body's own measures: the pane's edge on each side, its one header row, one row of
+    /// the medium's text, and the device unit a body is laid out on -- all canvas pixels.
+    std::int64_t edge = 0, header = 0, text_row = 0, grain = 1;
 };
 
 struct PreferredExtent { std::int64_t width = 0, height = 0; };
 
+/// The outer extent that grants a pane the body it asked for: text rows and columns at the
+/// medium's metric, or a canvas body of exactly its pixels -- rounded up to the device unit where
+/// the medium cannot say a pixel -- with its text rows beneath; never more than the room.
+// WL-PANE-17 -- agents/workshop/panes-and-windows.md
 inline PreferredExtent preferred_extent(const RuntimePane* pane, const StackCapacity& room) {
-    if (!pane || !pane->preferred_rows || !room.height) return {};
+    if (!pane || !room.height) return {};
+    if (pane->preferred_width) {
+        const auto up = [&room](std::int64_t px) {
+            const std::int64_t g = room.grain > 0 ? room.grain : 1;
+            return (px + g - 1) / g * g;
+        };
+        return {std::min(room.width, up(pane->preferred_width) + 2 * room.edge),
+                std::min(room.height, up(pane->preferred_height) +
+                                          pane->preferred_text_rows * room.text_row +
+                                          room.header + 2 * room.edge)};
+    }
+    if (!pane->preferred_rows) return {};
     return {std::min(room.width, pane->preferred_columns * room.column + 2 * room.border),
             std::min(room.height, (pane->preferred_rows + 1) * room.line + 2 * room.border)};
 }

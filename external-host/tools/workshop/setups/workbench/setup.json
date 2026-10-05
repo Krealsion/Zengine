@@ -25,11 +25,11 @@
   "Info drafts are disposable here: Reset empties the three views",
   "A stored command runs with the pressing actor's own permission; this setup's guest may capture into Inventory"
  ],
- "medium": {"supports": ["sdl", "tui"], "viewport": [120, 71]},
+ "medium": {"supports": ["sdl", "tui"], "viewport": [120, 76]},
  "requires": {"notes": ["the packaged workbench toolbox (in this tool package)"]},
  "authority": {"may": ["input", "capture", "inspect", "inventory", "toolbox", "demo", "open"]},
  "desk": "desk.json",
- "view_slots": [{"x": 1, "y": 53, "width": 44, "height": 14}],
+ "view_slots": [{"x": 1, "y": 51, "width": 44, "height": 14}],
  "material": {"toolbox": "../../toolboxes/inspection-workbench.toolbox"},
  "hotkeys": [
   {"key": "alt+1", "entry": "Workbench capture command", "target": "zengine.inventory",

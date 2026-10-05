@@ -199,9 +199,9 @@ def launch(args, source, root):
     first = setup.without(setup.desk(), providers)
     save_json(wdir / "setup.json", first)
     columns, rows = setup.get("medium")["viewport"]
-    save_json(wdir / "session.json", {"zen": 1, "schema": "WorkshopSession", "version": 6, "fields": {
-        "format": "zengine-workshop-session", "format_version": "6",
-        "viewport": {"width": str(columns), "height": str(rows)}, "active": "0",
+    save_json(wdir / "session.json", {"zen": 1, "schema": "WorkshopSession", "version": 7, "fields": {
+        "format": "zengine-workshop-session", "format_version": "7",
+        "viewport": {"width": str(columns * 12), "height": str(rows * 12)}, "active": "0",
         "placement": {"mode": "none", "x": "0", "y": "0", "window": "normal"},
         "layouts": [{"desk": first["fields"], "link": {"path": str(wdir / "setup.json"), "known": first["fields"]}}]}})
     plan = json.loads((host_dir / ("default-load-plan.json" if args.tui else "graphical-load-plan.json")).read_text(encoding="utf-8"))

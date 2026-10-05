@@ -32,8 +32,8 @@ struct Deliveries {
 /// room is changed and changed back (the Info views suite's technique).
 void place(InventoryStory& s, const std::string& key) {
     for (auto& p : s.r.session().setup.active.panes) if (p.ref.pane == key) {
-        p.place = {pane_unit::kSubcells, 2 * surface::kCellSubs, 34 * surface::kCellSubs};
-        p.width = {pane_unit::kSubcells, 72 * surface::kCellSubs}; p.height = {pane_unit::kSubcells, 10 * surface::kCellSubs};
+        p.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 34 * surface::kCanvasCellPx};
+        p.width = {pane_unit::kPixels, 72 * surface::kCanvasCellPx}; p.height = {pane_unit::kPixels, 10 * surface::kCanvasCellPx};
     }
     s.r.extent(179, 60); s.r.extent(180, 60);
 }

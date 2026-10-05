@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
+#include "flow-pane/view.hpp" // `unit` -- Flow's authored grid, which a drag lands in
 #include "flow-pane/vocabulary.hpp"
 #include "flow-host/runtime.hpp"
 #include "flow/shape.hpp"
@@ -629,13 +630,14 @@ TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and i
     CHECK(rig.workspace().graph.places.front().x == start.x);
     --motion.gesture;
     rig.host(motion);
-    CHECK(rig.workspace().graph.places.front().x == start.x + 97);
-    CHECK(rig.workspace().graph.places.front().y == start.y + 31);
+    // Flow's grid is `fp::unit` to a character, and a character is a cell in this room.
+    CHECK(rig.workspace().graph.places.front().x == start.x + 97 * fp::unit / unit);
+    CHECK(rig.workspace().graph.places.front().y == start.y + 31 * fp::unit / unit);
     auto release = motion; release.phase = ws::canvas_pointer::kRelease;
     rig.host(release);
     motion.x += 77;
     rig.host(motion);
-    CHECK(rig.workspace().graph.places.front().x == start.x + 97);
+    CHECK(rig.workspace().graph.places.front().x == start.x + 97 * fp::unit / unit);
 
     drag = rig.press_for("%0 math.max", true);
     rig.host(drag);
@@ -835,7 +837,7 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     Rig rig;
     rig.graph_semantically();
     auto native_room = ws::PaneCanvasRoom{fp::kPane, ++rig.grant,
-        170 * 36, 65 * 88, 4, true};
+        170 * 9, 65 * 22, 1, true};
     native_room.text_advance_px = 9;
     native_room.text_line_px = 18;
     rig.host(native_room);
@@ -847,10 +849,10 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     rig.host(drag);
     auto motion = drag;
     motion.phase = ws::canvas_pointer::kMove;
-    motion.x += 5 * 36; motion.y += 3 * 88;
+    motion.x += 5 * 9; motion.y += 3 * 22;
     rig.host(motion);
-    CHECK(rig.workspace().graph.places.front().x == start.x + 5 * unit);
-    CHECK(rig.workspace().graph.places.front().y == start.y + 3 * unit);
+    CHECK(rig.workspace().graph.places.front().x == start.x + 5 * fp::unit);
+    CHECK(rig.workspace().graph.places.front().y == start.y + 3 * fp::unit);
     CHECK(rig.state().dirty);
     auto release = motion; release.phase = ws::canvas_pointer::kRelease;
     rig.host(release);
@@ -859,10 +861,10 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     pan.button = 2;
     rig.host(pan);
     motion = pan; motion.phase = ws::canvas_pointer::kMove;
-    motion.x += 3 * 36; motion.y += 2 * 88;
+    motion.x += 3 * 9; motion.y += 2 * 22;
     rig.host(motion);
-    CHECK(rig.workspace().pan_x == 3 * unit);
-    CHECK(rig.workspace().pan_y == 2 * unit);
+    CHECK(rig.workspace().pan_x == 3 * fp::unit);
+    CHECK(rig.workspace().pan_y == 2 * fp::unit);
     release = motion; release.phase = ws::canvas_pointer::kRelease;
     rig.host(release);
     rig.edit_ok("save", {files.file()});

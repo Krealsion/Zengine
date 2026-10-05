@@ -66,8 +66,8 @@ struct Picture {
     std::int64_t grain = 1;
     const Hit* hit(std::int64_t x, std::int64_t y) const {
         for (auto at = hits.rbegin(); at != hits.rend(); ++at)
-            if (surface::sub_span_contains(at->x, at->w, x, grain) &&
-                surface::sub_span_contains(at->y, at->h, y, grain))
+            if (surface::px_span_contains(at->x, at->w, x, grain) &&
+                surface::px_span_contains(at->y, at->h, y, grain))
                 return &*at;
         return nullptr;
     }
@@ -151,7 +151,7 @@ inline component::TextBox field_box(const Presentation& p, const Element& e) {
     return box;
 }
 
-/// The notice's rows beneath a view's size, in subunits: `kNoticeRows` lines of the medium's text.
+/// The notice's rows beneath a view's size, in pixels: `kNoticeRows` lines of the medium's text.
 inline std::int64_t notice_band(const ws::PaneCanvasRoom& room) {
     const auto m = ws::canvas_text_metrics(room);
     return static_cast<std::int64_t>(kNoticeRows) * surface::add_cells(m.line, 2 * m.inset);
@@ -160,15 +160,15 @@ inline std::int64_t notice_band(const ws::PaneCanvasRoom& room) {
 /// The room a view is drawn in: its size and its notice rows beneath, within the room its pane
 /// was granted.
 inline ws::PaneCanvasRoom sized(const Description& d, ws::PaneCanvasRoom room) {
-    room.width = std::min(room.width, surface::subs_of_pixel(d.width));
-    room.height = std::min(room.height, surface::subs_of_pixel(d.height) + notice_band(room));
+    room.width = std::min(room.width, d.width);
+    room.height = std::min(room.height, d.height + notice_band(room));
     return room;
 }
 
 /// THE PICTURE: the description against what it was told, laid out in its size with its notice
-/// rows beneath, within its room, the rest of the room its ground. Whole
-/// pixels become subunits (`surface::subs_of_pixel`); the medium floors them to its grain, so a
-/// terminal shows the same picture in cells, and each line is fitted to what the medium measures.
+/// rows beneath, within its room, the rest of the room its ground. Its pixels are the canvas's;
+/// the medium floors them to its grain, so a terminal shows the same picture in cells, and each
+/// line is fitted to what the medium measures.
 inline Picture picture(const Description& d, const Told& told, const Presentation& p,
                        const ws::PaneCanvasRoom& granted, std::int64_t number) {
     const auto room = sized(d, granted);
@@ -186,7 +186,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     const auto columns = std::max<std::int64_t>(
         1, (room.width - 2 * metrics.inset) / std::max<std::int64_t>(1, metrics.advance));
     std::int64_t bottom = 0;
-    for (const auto& e : d.elements) bottom = std::max(bottom, surface::subs_of_pixel(e.y + e.h));
+    for (const auto& e : d.elements) bottom = std::max(bottom, e.y + e.h);
     const auto free_rows = static_cast<std::size_t>(
         std::max<std::int64_t>(1, (room.height - bottom) / std::max<std::int64_t>(1, line)));
     const auto notice_lines = wrap(p.notice.empty() ? waiting_sentence(d, told) : p.notice, columns,
@@ -209,12 +209,11 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
         return room_left < line ? top : top + down((room_left - line) / 2);
     };
     for (const auto& e : d.elements) {
-        const auto x = surface::subs_of_pixel(e.x), y = surface::subs_of_pixel(e.y);
-        const auto w = surface::subs_of_pixel(e.w), h = surface::subs_of_pixel(e.h);
+        const auto x = e.x, y = e.y, w = e.w, h = e.h;
         // Elements sit above the notice row; one placed lower is clipped there, never over it.
         const ws::CanvasTextBox clip{x, y, w, std::min(h, notice_y - y)};
         const auto middle = centred(clip);
-        const auto inset = up(x + surface::subs_of_pixel(4)) - x;
+        const auto inset = up(x + 4) - x;
         // A control is a quiet box with its words on it: in a window a filled rectangle, in a
         // terminal a run of the quiet glyph, and either way the words stay readable. Focus is
         // the caret and the accent of a field's words; a button's words are always accented.
@@ -262,16 +261,13 @@ inline ws::PaneCanvasContent stopped_picture(const Description& d, const ws::Pan
     return picture(bare, {}, p, room, number).content;
 }
 
-/// The rows and columns a view asks its pane for: its size, in canvas cells of
-/// `surface::kCanvasCellPx` pixels, enough to hold it, and its notice rows beneath, never more
-/// than Workshop admits (`workshop::kMaxPaneComfort`); a view larger than its pane is drawn cut to
-/// the pane.
-inline std::pair<std::int64_t, std::int64_t> preferred_size(const Description& d) {
-    const auto cells = [](std::int64_t px, std::int64_t more) {
-        return std::clamp<std::int64_t>((px + surface::kCanvasCellPx - 1) / surface::kCanvasCellPx + more, 1,
-                                        ws::kMaxPaneComfort);
-    };
-    return {cells(d.height, static_cast<std::int64_t>(kNoticeRows)), cells(d.width, 0)};
+/// The body a view asks its pane for: its size in canvas pixels, never more than Workshop admits
+/// (`workshop::kMaxPaneBodyPx`), with its notice rows beneath in the medium's own text; a view
+/// larger than its pane is drawn cut to the pane.
+inline ws::v3::PaneOffered offered(const Description& d) {
+    const auto px = [](std::int64_t v) { return std::clamp<std::int64_t>(v, 1, ws::kMaxPaneBodyPx); };
+    return ws::v3::PaneOffered{kPane, d.name, "a view made in the View Builder", px(d.width),
+                               px(d.height), static_cast<std::int64_t>(kNoticeRows)};
 }
 
 /// The grant a description implies: each intent it says to any accepter, and the pane
@@ -282,7 +278,7 @@ inline loom::Grant view_grant(const Description& d) {
     const auto to_workshop = [&grant](const char* name, std::uint32_t version) {
         grant.allow_to_role(name, version, kWorkshopRole);
     };
-    to_workshop(ws::v2::PaneOffered::zen_name, ws::v2::PaneOffered::zen_version);
+    to_workshop(ws::v3::PaneOffered::zen_name, ws::v3::PaneOffered::zen_version);
     to_workshop(ws::PaneContent::zen_name, ws::PaneContent::zen_version);
     to_workshop(ws::PaneCanvasContent::zen_name, ws::PaneCanvasContent::zen_version);
     to_workshop(ws::PaneEscapeUnspent::zen_name, ws::PaneEscapeUnspent::zen_version);
@@ -340,7 +336,7 @@ public:
 
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
         auto out = description_.says();
-        for (auto s : {loom::schema_of<ws::v2::PaneOffered>(), loom::schema_of<ws::PaneContent>(),
+        for (auto s : {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::PaneContent>(),
                        loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::PaneEscapeUnspent>(),
                        loom::schema_of<ws::PanePassRequested>(), loom::schema_of<ws::PaneRevealRequested>()})
             out.push_back(std::move(s));
@@ -449,11 +445,7 @@ private:
                                       loom::Message(loom::to_value(value), self_, {}, correlation));
     }
 
-    void offer(loom::Bus& bus) {
-        const auto [rows, columns] = preferred_size(description_);
-        say(bus, ws::v2::PaneOffered{kPane, description_.name, "a view made in the View Builder",
-                                     rows, columns});
-    }
+    void offer(loom::Bus& bus) { say(bus, offered(description_)); }
 
     component::TextBox& field(const std::string& id) {
         const auto found = presentation_.fields.find(id);

@@ -28,8 +28,8 @@ std::string WorkshopWeave::visible_text_body(const std::string& provider, const 
         return "pane view unavailable: no settled text picture";
     }
     const auto bounds = bounds_of(session_.panes, session_.setup.active, pane->kind, sc);
-    if (!bounds.open || bounds.rect.y < surface::subs_of_cells(kWorkspaceY) ||
-        bounds.rect.y + bounds.rect.h > surface::subs_of_cells(sc.notice_y)) {
+    if (!bounds.open || bounds.rect.y < sc.room_y ||
+        bounds.rect.y + bounds.rect.h > sc.notice_y) {
         return "pane view unavailable: pane extends outside the visible workspace";
     }
     bool above = false;
@@ -65,13 +65,13 @@ bool WorkshopWeave::cell_center(const VisibleBody& visible, std::int64_t row, st
             x = body.fit.view.x + body.fit.origin_x + column*body.fit.advance_px + body.fit.advance_px/2;
             y = body.fit.view.y + body.fit.origin_y + (row+body.header_rows)*body.fit.line_px + body.fit.line_px/2;
         } else {
-            x = surface::px_of_cells(body.region_x+column) + surface::px_of_cells(1)/2;
-            y = surface::px_of_cells(body.region_y+row+body.header_rows) + surface::px_of_cells(1)/2;
+            x = body.region_x + surface::px_of_cells(column) + surface::kCanvasCellPx/2;
+            y = body.region_y + surface::px_of_cells(row+body.header_rows) + surface::kCanvasCellPx/2;
         }
     } else {
         space = input::space::kCells;
-        x = body.region_x+column;
-        y = body.region_y+row+body.header_rows+surface::kTuiCanvasTopRow;
+        x = surface::cell_of_pixel(body.region_x)+column;
+        y = surface::cell_of_pixel(body.region_y)+row+body.header_rows+surface::kTuiCanvasTopRow;
     }
     const auto hit = external_press_at(session_.panes, session_.setup.active, sc, visible.kind,
         session_.pane_titles, space, x, y);

@@ -42,50 +42,41 @@
 
 namespace zengine::workshop {
 
-// ---- The one screen's layout, in canvas cells ------------------------------------------
+// ---- The one screen's layout, in canvas pixels -----------------------------------------
 
-/// The smallest surface this screen is laid out on -- and, deliberately, the extent it uses
-/// when nothing tells it otherwise.
+/// The smallest surface this screen is laid out on, in canvas pixels -- 78 by 22 cells -- and,
+/// deliberately, the extent it uses when nothing tells it otherwise.
 // WL-GEO-02 -- agents/workshop/geometry.md
-inline constexpr std::int64_t kScreenMinW = 78;
-inline constexpr std::int64_t kScreenMinH = 22;
+inline constexpr std::int64_t kScreenMinW = 78 * surface::kCanvasCellPx;
+inline constexpr std::int64_t kScreenMinH = 22 * surface::kCanvasCellPx;
 
-/// The largest surface this screen will lay out.
+/// The largest surface this screen will lay out, in canvas pixels: 640 by 400 cells.
 // WL-SESSION-07 -- agents/workshop/session-restore.md
-inline constexpr std::int64_t kScreenMaxW = 640;
-inline constexpr std::int64_t kScreenMaxH = 400;
+inline constexpr std::int64_t kScreenMaxW = 640 * surface::kCanvasCellPx;
+inline constexpr std::int64_t kScreenMaxH = 400 * surface::kCanvasCellPx;
 
-/// THE ROWS RESERVED AT THE TOP OF THE SCREEN, and they are the first thing a weaver reads.
+/// THE ROWS OF TEXT RESERVED AT THE TOP OF THE SCREEN, and they are the first thing a weaver
+/// reads. The band is as tall as these rows of the active medium's type need (`screen_of`).
 // WL-GEO-03 -- agents/workshop/geometry.md; WL-FRONT-03 -- agents/workshop/planes.md
 inline constexpr std::int64_t kTopRows = 2;
 
-inline constexpr std::int64_t kWorkspaceX = 0; ///< the workspace's origin ON THE CANVAS...
-inline constexpr std::int64_t kWorkspaceY = kTopRows; ///< ...under the top band, which owns row 0
-inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a share visibly shrink
-
-/// The right column (`placement::kSideRegion`): a place at the screen's right edge, fixed width,
-/// reserving nothing -- a pane standing here covers room, as a stacked one does.
+/// The right column (`placement::kSideRegion`): a place at the screen's right edge, fixed width
+/// in cells, reserving nothing -- a pane standing here covers room, as a stacked one does.
 // WL-GEO-03 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kSideCols = 28;
 
-/// The side region's top edge.
-// WL-GEO-03 -- agents/workshop/geometry.md
-inline constexpr std::int64_t kSideY = kWorkspaceY; ///< the region's top edge: the body's own
-
-/// The band under the workspace.
+/// The rows of text in the band under the workspace, fitted the same way.
 // WL-GEO-03 -- agents/workshop/geometry.md
 // WL-FRONT-03 -- agents/workshop/planes.md
 // WL-RGN-03 -- agents/workshop/regions.md
 inline constexpr std::int64_t kBottomRows = 4;
 
 static_assert(kTopRows + kBottomRows == 6,
-              "the reserved chrome is six rows and may not grow: the workspace's "
+              "the reserved chrome is six rows of text and may not grow: the workspace's "
               "extent is what a share resolves against");
 
-// ---- THE OVERLAY STACK (`placement::kOverlayStack`) -----------------------------------------
+// ---- THE OVERLAY STACK (`placement::kOverlayStack`), in cells -------------------------------
 // WL-PANE-04 -- agents/workshop/panes-and-windows.md
-inline constexpr std::int64_t kStackX = 0;
-inline constexpr std::int64_t kStackY = kWorkspaceY; ///< directly under the screen's title row
 /// THE MINIMUM WIDTH, and the base the surplus is measured from: wide enough for a build
 /// recipe's tail on the 78x22 composition, where it is also the whole of the workspace.
 inline constexpr std::int64_t kStackW = 48;
@@ -93,16 +84,16 @@ inline constexpr std::int64_t kStackRows = 9; ///< fallback height for providers
 inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked panes
 
 
-/// THE SCREEN'S FURNITURE, DERIVED IN ONE PLACE.
+/// THE SCREEN'S FURNITURE, DERIVED IN ONE PLACE, in canvas pixels.
 // WL-GEO-05 -- agents/workshop/geometry.md
 struct Screen {
-    std::int64_t w = kScreenMinW;  ///< the canvas extent this screen paints, in cells
+    std::int64_t w = kScreenMinW;  ///< the canvas extent this screen paints
     std::int64_t h = kScreenMinH;
     std::int64_t side_x = 0;      ///< the right column's left edge: a place, not a reservation
+    std::int64_t room_y = 0;      ///< the workspace's top: the top band's floor
     std::int64_t room_w = 0;       ///< the widest the workspace may be on this screen...
     std::int64_t room_h = 0;       ///< ...and the tallest
-    std::int64_t notice_y = 0;
-    std::int64_t help_y = 0;       ///< the first of two help lines
+    std::int64_t notice_y = 0;     ///< the bottom band's top, where the tool speaks
     /// THE METRIC THIS SCREEN WAS RESOLVED WITH, carried rather than looked up.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t text_advance_px = 0;
@@ -111,6 +102,15 @@ struct Screen {
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
 };
+
+/// How tall `rows` rows of text stand in a band, inside `chrome` on each side: the face's lines
+/// and inset where the medium sets type, whole cells where text is a cell.
+inline constexpr std::int64_t band_px_for(std::int64_t rows, std::int64_t text_advance_px,
+                                          std::int64_t text_line_px,
+                                          std::int64_t chrome) noexcept {
+    return surface::add_cells(surface::region_px_for(1, rows, text_advance_px, text_line_px).h,
+                              2 * chrome);
+}
 
 /// The furniture for a surface of this extent -- TOTAL over every std::int64_t, because the
 /// extent it is given came off the bus.
@@ -125,17 +125,11 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     s.cell_px = cell_px > 0 ? cell_px : 0;
     s.w = want_w < kScreenMinW ? kScreenMinW : (want_w > kScreenMaxW ? kScreenMaxW : want_w);
     s.h = want_h < kScreenMinH ? kScreenMinH : (want_h > kScreenMaxH ? kScreenMaxH : want_h);
-    s.side_x = s.w - kSideCols;
+    s.side_x = s.w - surface::px_of_cells(kSideCols);
     // The room is the surface: nothing reserves the right column, so the room runs under it whole
     // and what a share means never depends on which panes are open
-    // (agents/decisions/the-reserved-column.md).
+    // (docs/history/decisions/the-reserved-column.md).
     s.room_w = s.w;
-    // The height still loses its bands: the top and bottom rows are chrome this screen paints,
-    // coverable by no pane.
-    s.room_h = s.h - kWorkspaceY - kBottomRows;
-    // The bottom band's first two rows, as the band's origin plus an offset.
-    s.notice_y = s.h - kBottomRows;
-    s.help_y = s.notice_y + 1;
     // The fit is resolved here because the screen carries the metric, which arrives on the bus.
     const surface::RegionFit fit =
         surface::fit_region(0, 0, s.w, s.h, text_advance_px, text_line_px);
@@ -143,130 +137,162 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     // cell", so a screen never carries half a metric.
     s.text_advance_px = fit.advance_px;
     s.text_line_px = fit.line_px;
+    // The bands are as tall as the text they hold: the Layouts pane's rows inside one device
+    // unit of chrome at the top, and the tool's rows at the bottom. Where text is a cell they are
+    // whole cells, the Layouts pane drawing no boundary in its two. A metric whose bands would
+    // leave no room of a cell is not spent on them: the cell bands stand instead.
+    const bool type = s.text_advance_px > 0 && s.text_line_px > 0;
+    std::int64_t top = surface::px_of_cells(kTopRows);
+    std::int64_t band = surface::px_of_cells(kBottomRows);
+    if (type) {
+        const std::int64_t typed_top = band_px_for(kTopRows, s.text_advance_px, s.text_line_px,
+                                                   surface::px_of_one_device(s.cell_px));
+        const std::int64_t typed_band =
+            band_px_for(kBottomRows, s.text_advance_px, s.text_line_px, 0);
+        if (surface::add_cells(typed_top, typed_band) <= s.h - surface::kCanvasCellPx) {
+            top = typed_top;
+            band = typed_band;
+        }
+    }
+    s.room_y = top;
+    // The height loses its bands: the top and bottom rows are chrome this screen paints,
+    // coverable by no pane.
+    s.notice_y = s.h - band;
+    s.room_h = s.notice_y - s.room_y;
     return s;
 }
 
-/// The minimum screen, the one the terminal projection keeps; the assertions pin every number the
-/// 78x22 composition was written with.
+/// The minimum screen with no metric, the one the terminal projection keeps; the assertions pin
+/// every number the 78x22 composition was written with, in pixels.
 inline constexpr Screen kMinScreen = screen_of(kScreenMinW, kScreenMinH);
 
-static_assert(kMinScreen.side_x == 50, "the right column has not moved on the minimum screen");
+static_assert(kMinScreen.side_x == 50 * surface::kCanvasCellPx,
+              "the right column has not moved on the minimum screen");
 static_assert(kMinScreen.room_w == kMinScreen.w,
               "the room IS the surface: nothing comes off its width. The 48 this read before "
               "was 78 less the right column's 28 and the two-cell gap beside it, and those "
               "thirty columns are the room's");
-static_assert(kMinScreen.room_h == 16, "the workspace's documented default height");
-static_assert(kMinScreen.notice_y == 18 && kMinScreen.help_y == 19, "the bottom band");
+static_assert(kMinScreen.room_h == 16 * surface::kCanvasCellPx,
+              "the workspace's documented default height");
+static_assert(kMinScreen.notice_y == 18 * surface::kCanvasCellPx, "the bottom band");
 // THE MINIMUM COMPOSITION'S THREE REGIONS, WRITTEN OUT.
-static_assert(kTopRows == 2 && kWorkspaceY == 2, "the top band owns rows 0 and 1");
-static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.h - kBottomRows,
-              "the workspace's floor IS the bottom band's top -- no cell between them, and "
+static_assert(kMinScreen.room_y == 2 * surface::kCanvasCellPx,
+              "where text is a cell, the top band owns rows 0 and 1");
+static_assert(kMinScreen.room_y + kMinScreen.room_h == kMinScreen.notice_y,
+              "the workspace's floor IS the bottom band's top -- no pixel between them, and "
               "none reserved twice");
+static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, surface::kCanvasCellPx).room_y ==
+                  2 * 18 + 2 * surface::kTextInsetPx + 2,
+              "where a face sets type, the top band is the Layouts pane's two rows of it, "
+              "inside a boundary of one device pixel");
+static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, surface::kCanvasCellPx).notice_y ==
+                  kScreenMinH - (4 * 18 + 2 * surface::kTextInsetPx),
+              "...and the bottom band is the tool's four");
 
 
-// ---- PLACEMENT RESOLVED: a place, on a screen, is a rectangle ---------------------------
-// WL-GEO-03 -- agents/workshop/geometry.md; WL-PANE-04 -- agents/workshop/panes-and-windows.md
-
-/// THE BOUNDS A PLACE RESOLVES TO on this screen, in canvas cells.
-// WL-GEO-03 -- agents/workshop/geometry.md; WL-PANE-04 -- agents/workshop/panes-and-windows.md
-inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
-                                           const Screen& sc) noexcept {
-    if (where == placement::kTopBand) {
-        // The top band's two reserved rows, whole; the slot is nothing to it (one pane fits, and
-        // panes.hpp asserts it).
-        return ui::Rect{0, 0, sc.w, kTopRows};
-    }
-    if (where == placement::kSideRegion) {
-        // From the workspace's top to its floor, against the right edge: over the material.
-        return ui::Rect{sc.side_x, kSideY, kSideCols, kWorkspaceY + sc.room_h - kSideY};
-    }
-    const std::int64_t n = slot >= static_cast<std::size_t>(kScreenMaxH)
-                               ? kScreenMaxH
-                               : static_cast<std::int64_t>(slot);
-    // The width is the minimum plus half the room's surplus over it, floored so the odd column
-    // stays the weaver's; `x + w < room_w` at every extent.
-    return ui::Rect{kStackX, kStackY + n * (kStackRows + kStackGap),
-                    kStackW + (sc.room_w - kStackW) / 2, kStackRows};
-}
-
-// ---- THE FINE LATTICE, AS A RECTANGLE --------------------------------------------------
+// ---- THE PIXEL LATTICE, AS A RECTANGLE --------------------------------------------------
 // WL-GEO-06 -- agents/workshop/geometry.md
 
-/// A rectangle on the canvas's fine lattice, in sub-units.
-struct FineRect {
+/// A rectangle on the canvas, in canvas pixels.
+struct PixelRect {
     std::int64_t x = 0;
     std::int64_t y = 0;
     std::int64_t w = 0;
     std::int64_t h = 0;
 
-    friend bool operator==(const FineRect&, const FineRect&) = default;
+    friend bool operator==(const PixelRect&, const PixelRect&) = default;
 
     constexpr bool empty() const noexcept { return w <= 0 || h <= 0; }
 
-    /// DOES A POINTER AT THIS SUB-UNIT POSITION, REPORTED AT THIS GRAIN, LAND ON
-    /// THIS RECTANGLE.
+    /// DOES A POINTER AT THIS PIXEL, REPORTED AT THIS GRAIN, LAND ON THIS RECTANGLE.
     // WL-GEO-07 -- agents/workshop/geometry.md
     constexpr bool contains_at(std::int64_t sx, std::int64_t sy,
                                std::int64_t grain) const noexcept {
-        return surface::sub_span_contains(x, w, sx, grain) &&
-               surface::sub_span_contains(y, h, sy, grain);
+        return surface::px_span_contains(x, w, sx, grain) &&
+               surface::px_span_contains(y, h, sy, grain);
     }
 };
 
-/// A cell rectangle on the fine lattice — exact, saturating, the one door a
-/// developer default walks through on its way to being arrangement truth.
-inline constexpr FineRect fine_of_cells(const ui::Rect& r) noexcept {
-    return FineRect{surface::subs_of_cells(r.x), surface::subs_of_cells(r.y),
-                    surface::subs_of_cells(r.w), surface::subs_of_cells(r.h)};
+/// A cell rectangle in canvas pixels — exact, saturating, the one door a cell-counted layout
+/// walks through on its way to being arrangement truth.
+inline constexpr PixelRect pixels_of_cells(const ui::Rect& r) noexcept {
+    return PixelRect{surface::px_of_cells(r.x), surface::px_of_cells(r.y),
+                     surface::px_of_cells(r.w), surface::px_of_cells(r.h)};
 }
 
-/// THE CELLS A FINE RECTANGLE COVERS — the cell-grain quantization law as a
-/// rectangle: [floor(left), floor(right)) per axis.
+/// THE CELLS A PIXEL RECTANGLE COVERS — the cell-grain quantization law as a rectangle:
+/// [floor(left), floor(right)) per axis.
 // WL-GEO-06 -- agents/workshop/geometry.md
-inline constexpr ui::Rect cells_covered(const FineRect& f) noexcept {
-    const std::int64_t x0 = surface::cell_of_subs(f.x);
-    const std::int64_t y0 = surface::cell_of_subs(f.y);
+inline constexpr ui::Rect cells_covered(const PixelRect& f) noexcept {
+    const std::int64_t x0 = surface::cell_of_pixel(f.x);
+    const std::int64_t y0 = surface::cell_of_pixel(f.y);
     if (f.w <= 0 || f.h <= 0) {
         return ui::Rect{x0, y0, 0, 0};
     }
-    return ui::Rect{x0, y0, surface::cell_of_subs(surface::add_cells(f.x, f.w)) - x0,
-                    surface::cell_of_subs(surface::add_cells(f.y, f.h)) - y0};
+    return ui::Rect{x0, y0, surface::cell_of_pixel(surface::add_cells(f.x, f.w)) - x0,
+                    surface::cell_of_pixel(surface::add_cells(f.y, f.h)) - y0};
 }
 
-/// A fine rectangle, decomposed onto a published `SurfaceRect` (cells plus
-/// remainders, the wire's one spelling of a fine value).
-inline constexpr surface::SurfaceRect wire_rect_of(const FineRect& f,
+/// A pixel rectangle as a published `SurfaceRect`; a negative extent publishes as none.
+inline constexpr surface::SurfaceRect wire_rect_of(const PixelRect& f,
                                                    std::int64_t role) noexcept {
-    const std::int64_t cx = surface::cell_of_subs(f.x);
-    const std::int64_t cy = surface::cell_of_subs(f.y);
-    const std::int64_t cw = surface::cell_of_subs(f.w > 0 ? f.w : 0);
-    const std::int64_t ch = surface::cell_of_subs(f.h > 0 ? f.h : 0);
-    return surface::SurfaceRect{cx,
-                                cy,
-                                cw,
-                                ch,
-                                role,
-                                f.x - surface::subs_of_cells(cx),
-                                f.y - surface::subs_of_cells(cy),
-                                (f.w > 0 ? f.w : 0) - surface::subs_of_cells(cw),
-                                (f.h > 0 ? f.h : 0) - surface::subs_of_cells(ch)};
+    return surface::SurfaceRect{f.x, f.y, f.w > 0 ? f.w : 0, f.h > 0 ? f.h : 0, role};
 }
 
-/// The part of a fine rectangle this canvas has — `clip_to_canvas`, one lattice
-/// finer, against the same canvas expressed in sub-units.
-inline constexpr FineRect clip_to_canvas_fine(const FineRect& r, const Screen& sc) noexcept {
-    const std::int64_t cw = surface::subs_of_cells(sc.w);
-    const std::int64_t ch = surface::subs_of_cells(sc.h);
+/// AN AUTHORED PLACE ON THE CANVAS: a place is measured from the room's top-left, which stands
+/// at (0, `room_y`) -- directly under the top band, whatever height that band was fitted to.
+// WL-PANE-11 -- agents/workshop/panes-and-windows.md
+inline constexpr PixelRect canvas_of_room(PixelRect r, const Screen& sc) noexcept {
+    r.y = surface::add_cells(r.y, sc.room_y);
+    return r;
+}
+
+/// ...AND A RECTANGLE ON THE CANVAS AS A PLACE IN THE ROOM, for what a hand or a readout measures.
+// WL-PANE-11 -- agents/workshop/panes-and-windows.md
+inline constexpr PixelRect room_of_canvas(PixelRect r, const Screen& sc) noexcept {
+    r.y = surface::add_cells(r.y, -sc.room_y);
+    return r;
+}
+
+/// The part of a pixel rectangle this canvas has.
+inline constexpr PixelRect clip_to_canvas_px(const PixelRect& r, const Screen& sc) noexcept {
     const std::int64_t x0 = r.x < 0 ? 0 : r.x;
     const std::int64_t y0 = r.y < 0 ? 0 : r.y;
     const std::int64_t x1 =
-        surface::add_cells(r.x, r.w) < cw ? surface::add_cells(r.x, r.w) : cw;
+        surface::add_cells(r.x, r.w) < sc.w ? surface::add_cells(r.x, r.w) : sc.w;
     const std::int64_t y1 =
-        surface::add_cells(r.y, r.h) < ch ? surface::add_cells(r.y, r.h) : ch;
+        surface::add_cells(r.y, r.h) < sc.h ? surface::add_cells(r.y, r.h) : sc.h;
     if (x1 <= x0 || y1 <= y0) {
-        return FineRect{};
+        return PixelRect{};
     }
-    return FineRect{x0, y0, x1 - x0, y1 - y0};
+    return PixelRect{x0, y0, x1 - x0, y1 - y0};
+}
+
+
+// ---- PLACEMENT RESOLVED: a place, on a screen, is a rectangle ---------------------------
+// WL-GEO-03 -- agents/workshop/geometry.md; WL-PANE-04 -- agents/workshop/panes-and-windows.md
+
+/// THE BOUNDS A PLACE RESOLVES TO on this screen, in canvas pixels.
+// WL-GEO-03 -- agents/workshop/geometry.md; WL-PANE-04 -- agents/workshop/panes-and-windows.md
+inline constexpr PixelRect placement_bounds(std::int64_t where, std::size_t slot,
+                                            const Screen& sc) noexcept {
+    if (where == placement::kTopBand) {
+        // The top band, whole; the slot is nothing to it (one pane fits, and panes.hpp asserts
+        // it).
+        return PixelRect{0, 0, sc.w, sc.room_y};
+    }
+    if (where == placement::kSideRegion) {
+        // From the workspace's top to its floor, against the right edge: over the material.
+        return PixelRect{sc.side_x, sc.room_y, surface::px_of_cells(kSideCols), sc.room_h};
+    }
+    const std::int64_t n = slot >= static_cast<std::size_t>(kScreenMaxH)
+                               ? kScreenMaxH
+                               : static_cast<std::int64_t>(slot);
+    // The width is the minimum plus half the room's surplus over it, floored so the odd pixel
+    // stays the weaver's; `x + w < room_w` at every extent.
+    const std::int64_t stack_w = surface::px_of_cells(kStackW);
+    return PixelRect{0, sc.room_y + n * surface::px_of_cells(kStackRows + kStackGap),
+                     stack_w + (sc.room_w - stack_w) / 2, surface::px_of_cells(kStackRows)};
 }
 
 // ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES --------------------------------
@@ -275,57 +301,57 @@ inline constexpr FineRect clip_to_canvas_fine(const FineRect& r, const Screen& s
 /// The coarsest honest boundary, one every medium can show: one canvas cell, and the ceiling
 /// `chrome_outer_of` reserves for a surface sized by its own content.
 inline constexpr std::int64_t kChromeCells = 1;
-inline constexpr std::int64_t kChromeSubs = surface::subs_of_cells(kChromeCells);
+inline constexpr std::int64_t kChromePx = surface::px_of_cells(kChromeCells);
 
-/// ONE UNIT OF THE ACTIVE FACE, in sub-units -- what this screen's chrome costs before the
+/// ONE UNIT OF THE ACTIVE FACE, in canvas pixels -- what this screen's chrome costs before the
 /// interior's own presentation gets a say (`pane_inside` below is where it gets one).
 inline constexpr std::int64_t chrome_grain(const Screen& sc) noexcept {
-    return surface::subs_of_one_device(sc.cell_px);
+    return surface::px_of_one_device(sc.cell_px);
 }
 
-/// The rectangle inside a pane's chrome: `outer` less `chrome_subs` on every side, empty
+/// The rectangle inside a pane's chrome: `outer` less `chrome_px` on every side, empty
 /// when the outer rectangle cannot hold both edges.
 // WL-CHROME-01, WL-CHROME-05 -- agents/workshop/chrome.md
-inline constexpr FineRect pane_interior(const FineRect& outer,
-                                        std::int64_t chrome_subs) noexcept {
-    const std::int64_t w = outer.w - 2 * chrome_subs;
-    const std::int64_t h = outer.h - 2 * chrome_subs;
+inline constexpr PixelRect pane_interior(const PixelRect& outer,
+                                        std::int64_t chrome_px) noexcept {
+    const std::int64_t w = outer.w - 2 * chrome_px;
+    const std::int64_t h = outer.h - 2 * chrome_px;
     if (w <= 0 || h <= 0) {
-        return FineRect{};
+        return PixelRect{};
     }
-    return FineRect{surface::add_cells(outer.x, chrome_subs),
-                    surface::add_cells(outer.y, chrome_subs), w, h};
+    return PixelRect{surface::add_cells(outer.x, chrome_px),
+                    surface::add_cells(outer.y, chrome_px), w, h};
 }
 
 /// THE INTERIOR OF A PANE AND THE PRESENTATION IT GETS, RESOLVED TOGETHER.
 // WL-CHROME-05 -- agents/workshop/chrome.md
 struct PaneInside {
-    FineRect rect{};              ///< the interior: `outer` less the chrome on every side
+    PixelRect rect{};              ///< the interior: `outer` less the chrome on every side
     surface::RegionFit fit{};     ///< ...resolved with the ACTIVE medium's own text metric
-    std::int64_t chrome_subs = 0; ///< what one side of that boundary cost, in sub-units
+    std::int64_t chrome_px = 0;    ///< what one side of that boundary cost
 };
 
 namespace detail {
 
 /// One candidate: inset by this much, and fit what is left. Total over every rectangle.
-PaneInside pane_inside_at(const FineRect& outer, const Screen& sc,
-                                 std::int64_t chrome_subs);
+PaneInside pane_inside_at(const PixelRect& outer, const Screen& sc,
+                                 std::int64_t chrome_px);
 
 } // namespace detail
 
 /// The one call: a pane's outer rectangle in, its interior and that interior's resolution out,
 /// across the finest boundary the face in front of the weaver will present.
-PaneInside pane_inside(const FineRect& outer, const Screen& sc);
+PaneInside pane_inside(const PixelRect& outer, const Screen& sc);
 
 /// The rectangle inside a pane's chrome, for a consumer that wants only the geometry.
-FineRect pane_interior(const FineRect& outer, const Screen& sc);
+PixelRect pane_interior(const PixelRect& outer, const Screen& sc);
 
-/// The same subtraction read backwards, in whole cells: the outer extent a surface sized by its
-/// own content needs to hold that content inside its chrome.
+/// The same subtraction read backwards: the outer extent a surface sized by its own content
+/// needs to hold that content inside its chrome.
 // WL-CHROME-06 -- agents/workshop/chrome.md; WL-CTX-03 -- agents/workshop/contextual.md
-inline constexpr ui::Rect chrome_outer_of(std::int64_t x, std::int64_t y, std::int64_t w,
-                                          std::int64_t h) noexcept {
-    return ui::Rect{x, y, w + 2 * kChromeCells, h + 2 * kChromeCells};
+inline constexpr PixelRect chrome_outer_of(std::int64_t x, std::int64_t y, std::int64_t w,
+                                           std::int64_t h) noexcept {
+    return PixelRect{x, y, w + 2 * kChromePx, h + 2 * kChromePx};
 }
 
 /// HOW MUCH ROOM ONE COARSE GROW GIVES A PANE, in canvas cells on both axes.
@@ -349,33 +375,13 @@ inline constexpr std::int64_t kTransientChrome = surface::role::kMuted;
 /// WHAT ONE PANE'S AUTHORED INTENT RESOLVES TO ON THIS SCREEN.
 // WL-PANE-09, WL-PANE-10 -- agents/workshop/panes-and-windows.md
 struct PaneProjection {
-    bool projected = true;
-    /// What the authored intent asks for before the canvas gets a say, in sub-units; it may run
+    /// What the authored intent asks for before the canvas gets a say, in pixels; it may run
     /// past the screen's edge, which is legal intent and is not rewritten.
-    FineRect resolved{};
+    PixelRect resolved{};
     /// ...AND THE PART OF IT THIS CANVAS ACTUALLY HAS. Empty when nothing of the pane is on
     /// screen, which is what `off-room` means and how it is told from `waiting`.
-    FineRect visible{};
+    PixelRect visible{};
 };
-
-/// The part of a rectangle this canvas has. A pure intersection, and the one place a pane's
-/// rectangle meets the screen's edge.
-inline constexpr ui::Rect clip_to_canvas(const ui::Rect& r, const Screen& sc) noexcept {
-    const std::int64_t x0 = r.x < 0 ? 0 : r.x;
-    const std::int64_t y0 = r.y < 0 ? 0 : r.y;
-    const std::int64_t x1 = r.x + r.w < sc.w ? r.x + r.w : sc.w;
-    const std::int64_t y1 = r.y + r.h < sc.h ? r.y + r.h : sc.h;
-    if (x1 <= x0 || y1 <= y0) {
-        return ui::Rect{};
-    }
-    return ui::Rect{x0, y0, x1 - x0, y1 - y0};
-}
-
-
-/// CAN THIS MEDIUM PROJECT THE AUTHORED UNIT? A pane with either axis in pixels is not
-/// presented in any current build: the unit is a fact about the authored row, and fixed
-/// placement is not permission to present an unsupported unit as though it were understood.
-bool pane_unit_projectable(const SetupPane* authored) noexcept;
 
 /// THE DEVELOPER'S ANSWER, THEN THE WEAVER'S, PER AXIS -- and then the canvas.
 PaneProjection project_pane(std::int64_t where, std::size_t slot,
@@ -392,14 +398,10 @@ struct PaneBounds {
     /// EMPTY WHEN THE PANE IS NOT OPEN, deliberately.
     // WL-ARR-04 -- agents/workshop/arrangement.md
     // WL-PANE-09 -- agents/workshop/panes-and-windows.md
-    FineRect rect{};
+    PixelRect rect{};
     /// ...and what the authored intent ASKED for, unclipped. Read by the state classifier,
     /// which has to tell "partly cut off" from "not on this screen at all".
-    FineRect resolved{};
-    /// FALSE WHEN THIS MEDIUM CANNOT PROJECT THE AUTHORED UNIT. `rect` is then empty too,
-    /// so nothing paints, nothing is met and no room is granted -- but the reason is a
-    /// different one from off-room and a weaver is told which.
-    bool projected = true;
+    PixelRect resolved{};
 };
 
 /// WHERE AN OPEN PANE IS RIGHT NOW — the one narrow path, and the only thing that knows how
@@ -410,8 +412,9 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
 // The two places fit the SMALLEST screen this composition is honest on, which is where they
 // are tightest.
 // WL-GEO-04 -- agents/workshop/geometry.md
-inline constexpr ui::Rect kMinSide = placement_bounds(placement::kSideRegion, 0, kMinScreen);
-inline constexpr ui::Rect kMinStack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
+inline constexpr PixelRect kMinSide = placement_bounds(placement::kSideRegion, 0, kMinScreen);
+inline constexpr PixelRect kMinStack =
+    placement_bounds(placement::kOverlayStack, 0, kMinScreen);
 
 // The two places may meet: a pane covering a pane is what an overlay is for. What the
 // half-share promises is that a slot never covers the whole room.
@@ -420,29 +423,31 @@ static_assert(kMinStack.x + kMinStack.w < kMinScreen.room_w,
               "which at the smallest screen it did NOT before: 48 of 48 left nothing, and 63 "
               "of 78 leaves fifteen");
 // AND THE HALF-SHARE IS THE SAME ARITHMETIC IT WAS, over a bigger room.
-static_assert(kMinStack.w == kStackW + (kMinScreen.room_w - kStackW) / 2 && kMinStack.w == 63,
-              "48 + (78 - 48)/2 -- the half-share on the minimum screen, spelled out");
-static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(79, 22)).w == 63,
-              "an odd surplus is FLOORED: 48 + (79 - 48)/2 is 63, not 64 -- the odd column "
+static_assert(kMinStack.w == 63 * surface::kCanvasCellPx,
+              "48 + (78 - 48)/2 cells -- the half-share on the minimum screen, spelled out");
+static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(kScreenMinW + 1, kScreenMinH))
+                      .w == 63 * surface::kCanvasCellPx,
+              "an odd surplus is FLOORED: 576 + (937 - 576)/2 is 756, not 757 -- the odd pixel "
               "stays the weaver's");
-static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(200, 60)).w == 124,
-              "48 + (200 - 48)/2 -- the half-share, spelled out");
-static_assert(placement_bounds(placement::kOverlayStack, 3, screen_of(200, 60)).w ==
-                  placement_bounds(placement::kOverlayStack, 0, screen_of(200, 60)).w,
+static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(2400, 720)).w ==
+                  576 + (2400 - 576) / 2,
+              "the half-share, spelled out in pixels");
+static_assert(placement_bounds(placement::kOverlayStack, 3, screen_of(2400, 720)).w ==
+                  placement_bounds(placement::kOverlayStack, 0, screen_of(2400, 720)).w,
               "the width is a fact about the SCREEN, not about which slot a pane sits in");
 static_assert(kMinStack.y + kMinStack.h <= kMinScreen.notice_y,
               "the stack's first slot stays clear of the notice line");
 static_assert(kMinSide.x + kMinSide.w == kMinScreen.w,
               "the side region reaches the screen's right edge");
-static_assert(kMinSide.y + kMinSide.h == kWorkspaceY + kMinScreen.room_h,
+static_assert(kMinSide.y + kMinSide.h == kMinScreen.room_y + kMinScreen.room_h,
               "the side region ends where the workspace does, above the bottom band");
 
 /// THE OVERLAY COLUMN: the stack's first slot's corner and width, from its top to the
 /// workspace's bottom -- the floor `stack_capacity` itself respects, one row above the
 /// setup line, so nothing placed here can erase the line naming the arrangement.
-inline constexpr FineRect overlay_column(const Screen& sc) noexcept {
-    const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
-    return fine_of_cells(ui::Rect{slot.x, slot.y, slot.w, kWorkspaceY + sc.room_h - slot.y});
+inline constexpr PixelRect overlay_column(const Screen& sc) noexcept {
+    const PixelRect slot = placement_bounds(placement::kOverlayStack, 0, sc);
+    return PixelRect{slot.x, slot.y, slot.w, sc.room_y + sc.room_h - slot.y};
 }
 
 /// How many overlay slots this screen has room for: the one answer to "may another pane be
@@ -450,10 +455,10 @@ inline constexpr FineRect overlay_column(const Screen& sc) noexcept {
 // WL-PANE-03, WL-PANE-04 -- agents/workshop/panes-and-windows.md
 // WL-EDIT-13 -- agents/workshop/editor.md
 inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
-    const std::int64_t floor_y = kWorkspaceY + sc.room_h;
+    const std::int64_t floor_y = sc.room_y + sc.room_h;
     std::size_t fit = 0;
     while (fit < kMaxSetupPanes) {
-        const ui::Rect b = placement_bounds(placement::kOverlayStack, fit, sc);
+        const PixelRect b = placement_bounds(placement::kOverlayStack, fit, sc);
         if (b.y + b.h > floor_y) {
             break;
         }
@@ -466,19 +471,19 @@ inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
 /// conversion itself.
 inline constexpr StackCapacity stack_capacity(const Screen& sc) noexcept {
     const bool graphical = sc.text_advance_px > 0 && sc.text_line_px > 0;
-    const auto pixel = surface::kCellSubs / surface::kCanvasCellPx;
-    const auto line = graphical ? std::min(sc.text_line_px, std::int64_t{8192}) * pixel
-                                : surface::kCellSubs;
-    const auto column = graphical ? std::min(sc.text_advance_px, std::int64_t{8192}) * pixel
-                                  : surface::kCellSubs;
-    const auto border = graphical ? chrome_grain(sc) + surface::kTextInsetPx * pixel
-                                  : kChromeSubs;
-    return StackCapacity{stack_slots_that_fit(sc), sc.room_h * surface::kCellSubs,
-                         sc.room_w * surface::kCellSubs, line, column, border,
-                         kStackRows * surface::kCellSubs, kStackGap * surface::kCellSubs};
+    const auto line = graphical ? std::min(sc.text_line_px, std::int64_t{8192})
+                                : surface::kCanvasCellPx;
+    const auto column = graphical ? std::min(sc.text_advance_px, std::int64_t{8192})
+                                  : surface::kCanvasCellPx;
+    const auto border = graphical ? chrome_grain(sc) + surface::kTextInsetPx : kChromePx;
+    const auto text_row = graphical ? line + 2 * surface::kTextInsetPx : surface::kCanvasCellPx;
+    return StackCapacity{stack_slots_that_fit(sc), sc.room_h, sc.room_w, line, column, border,
+                         surface::px_of_cells(kStackRows), surface::px_of_cells(kStackGap),
+                         graphical ? chrome_grain(sc) : kChromePx, text_row, text_row,
+                         chrome_grain(sc)};
 }
 
-static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.notice_y,
+static_assert(kMinScreen.room_y + kMinScreen.room_h == kMinScreen.notice_y,
               "the overlay floor is the workspace's bottom, which is the bottom band's own "
               "top row: a slot allowed past it would erase the row the tool speaks in");
 static_assert(stack_slots_that_fit(kMinScreen) == 1,
@@ -491,17 +496,17 @@ static_assert(stack_slots_that_fit(kMinScreen) == 1,
 /// with a kind, and a consumer that forgot to test it falls outside every lookup.
 inline constexpr std::int64_t kNoKind = -1;
 
-/// The canvas cell a reported pointer position lands on, whatever medium
-/// reported it -- or nothing, for a space this application cannot place.
+/// The canvas pixel a reported pointer position lands on, whatever medium reported it, and the
+/// cell that pixel is in -- or nothing, for a space this application cannot place.
 // WL-GEO-07 -- agents/workshop/geometry.md
 struct PointedAt {
     bool understood = false;
     surface::CanvasPoint cell;
-    /// The same moment one lattice finer: the position in sub-units, and the grain the reporting
-    /// medium can honestly distinguish (one window pixel or one terminal cell).
+    /// The same moment in canvas pixels, and the grain the reporting medium can honestly
+    /// distinguish (one window pixel or one terminal cell).
     // WL-GEO-07 -- agents/workshop/geometry.md
-    surface::CanvasPoint sub;
-    std::int64_t grain = surface::kCellGrainSubs;
+    surface::CanvasPoint px;
+    std::int64_t grain = surface::kCellGrainPx;
 };
 
 PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept;
@@ -579,14 +584,14 @@ inline constexpr const char* pane_edge_mark(std::int64_t edge) noexcept {
     }
 }
 
-/// HOW DEEP AN EDGE'S GRAB BAND REACHES INTO THE PANE, in sub-units: one cell —
+/// HOW DEEP AN EDGE'S GRAB BAND REACHES INTO THE PANE, in canvas pixels: one cell —
 /// exactly the ring the affordances have always occupied.
 // WL-ARR-01 -- agents/workshop/arrangement.md
-inline constexpr std::int64_t kPaneEdgeBandSubs = surface::kCellSubs;
+inline constexpr std::int64_t kPaneEdgeBandPx = surface::kCanvasCellPx;
 
-/// THE ONE CELL-SIZED MARK AN AFFORDANCE IS DRAWN ON — at the pane's own fine
+/// THE ONE CELL-SIZED MARK AN AFFORDANCE IS DRAWN ON — at the pane's own
 /// edges.
-FineRect pane_edge_cell(const FineRect& r, std::int64_t edge) noexcept;
+PixelRect pane_edge_cell(const PixelRect& r, std::int64_t edge) noexcept;
 
 /// What "take hold here" looks like: one character, used by none of the medium's role glyphs
 /// (`.` room, `#` body, `*` ring, `!` alert).
@@ -606,7 +611,7 @@ inline constexpr const char* pane_edge_glyph(std::int64_t edge) noexcept {
 
 /// WHICH AFFORDANCE OF THIS RECTANGLE A POINTER IS ON, or `kNoPaneEdge` — at the
 /// pointer's own grain.
-std::int64_t pane_edge_at(const FineRect& r, std::int64_t sx, std::int64_t sy,
+std::int64_t pane_edge_at(const PixelRect& r, std::int64_t sx, std::int64_t sy,
                                  std::int64_t grain) noexcept;
 
 /// THE ARRANGEMENT STATE: WHICH SCOPE A WEAVER IS ARRANGING, AND WHICH PANE THE
@@ -645,7 +650,7 @@ struct PaneGesture {
     std::int64_t edge = kNoPaneEdge;
     std::int64_t grab_dx = 0; ///< move: where inside the pane's rectangle the hand took hold
     std::int64_t grab_dy = 0;
-    std::int64_t from_x = 0;  ///< size: the sub-unit position the press landed on
+    std::int64_t from_x = 0;  ///< size: the pixel the press landed on
     std::int64_t from_y = 0;
     std::int64_t base_x = 0;  ///< size: the pane's window at that moment — place...
     std::int64_t base_y = 0;
@@ -698,7 +703,7 @@ struct LayoutTabDrag {
 /// The session: what a weaver is currently doing, as opposed to what they authored -- kept apart
 /// from every file a weaver owns, so selection is never mistaken for content.
 struct Session {
-    /// How much room the surface said it has, in canvas cells.
+    /// How much room the surface said it has, in canvas pixels.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t screen_w = kScreenMinW;
     std::int64_t screen_h = kScreenMinH;
@@ -866,7 +871,7 @@ std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
                                           std::int64_t width, std::size_t rows,
                                           std::int64_t pane = kNoPaneKind);
 
-/// A PANE WINDOW PROPOSAL, IN SUB-UNITS: what one resize gesture asks the whole
+/// A PANE WINDOW PROPOSAL, IN CANVAS PIXELS: what one resize gesture asks the whole
 /// window to become.
 // WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
 struct PaneWindowProposal {
@@ -898,13 +903,7 @@ struct ProseAt {
 };
 
 ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
-                        std::int64_t region_x, std::int64_t region_y,
-                        const surface::RegionFit& fit) noexcept;
-
-/// The workspace cell a CANVAS cell lands on -- Workshop's own composition, and
-/// nothing else.
-std::int64_t workspace_cell_x(std::int64_t canvas_x) noexcept;
-std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept;
+                 const surface::RegionFit& fit) noexcept;
 
 // ---- A bounded list: what it shows, and what it must say it cannot ---------------------------
 // WL-INFO-03 -- agents/workshop/info-body.md
@@ -926,21 +925,10 @@ ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t r
 /// What one omission marker says. `... 2 earlier` / `... 4 more`: a count and a direction.
 std::string omitted_text(std::size_t how_many, const char* which);
 
-/// The cell row, from the pane's top, that its prose row `n` begins on; with no metric a prose row
-/// is a cell row.
-inline constexpr std::int64_t pane_prose_top_cell(const Screen& sc, std::int64_t prose_row) noexcept {
-    if (sc.text_advance_px <= 0 || sc.text_line_px <= 0) {
-        return prose_row > 0 ? prose_row : 0;
-    }
-    const std::int64_t top =
-        surface::add_cells(surface::kTextInsetPx, surface::mul_px(prose_row, sc.text_line_px));
-    return surface::floor_div_px(top, surface::kCanvasCellPx);
-}
-
 // ---- The dynamic panes, painted -------------------------------------------------------
 
 /// THE BACKDROP OF A PANE: its whole bounds, in one rect.
-void paint_pane_frame(surface::SurfaceLayer& layer, const FineRect& b,
+void paint_pane_frame(surface::SurfaceLayer& layer, const PixelRect& b,
                               std::int64_t role);
 
 /// THE POPUP'S OR A PANE'S BODY AS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE.
@@ -952,16 +940,15 @@ struct ProsePlace {
     /// The resolution itself, so a press inverse spends the fit the painter was handed.
     surface::RegionFit fit{};
     /// The interior the fit was resolved for: the published region is the rectangle measured.
-    FineRect inside{};
-    std::int64_t chrome_subs = 0;
+    PixelRect inside{};
+    std::int64_t chrome_px = 0;
 };
 
-/// The one call, total over the rectangle: a closed pane answers with an empty one. Fine bounds
-/// fit at their fine place.
-ProsePlace prose_place(const FineRect& b, const Screen& sc);
+/// The one call, total over the rectangle: a closed pane answers with an empty one. Bounds fit
+/// where they are.
+ProsePlace prose_place(const PixelRect& b, const Screen& sc);
 
-/// The region a `ProsePlace` was resolved for, empty and ready for its rows — the fine
-/// bounds decomposed onto the wire's cells-plus-remainder spelling.
+/// The region a `ProsePlace` was resolved for, empty and ready for its rows.
 surface::SurfaceTextRegion prose_region(const ProsePlace& place);
 
 // ---- WHAT STATE ONE PANE IS IN -- the recovery invariant, as one word -----------------
@@ -970,7 +957,6 @@ surface::SurfaceTextRegion prose_region(const ProsePlace& place);
 namespace pane_state {
 inline constexpr std::int64_t kClosed = 0;
 inline constexpr std::int64_t kUnresolved = 1;
-inline constexpr std::int64_t kRefused = 2;
 inline constexpr std::int64_t kWaiting = 3;
 inline constexpr std::int64_t kOffRoom = 4;
 inline constexpr std::int64_t kCovered = 5;
@@ -986,7 +972,7 @@ const char* pane_state_remedy(std::int64_t state);
 
 /// IS EVERY VISIBLE CELL OF THIS PANE BEHIND ANOTHER ONE?
 bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
-                            std::int64_t kind, const FineRect& mine);
+                            std::int64_t kind, const PixelRect& mine);
 
 /// THE ONE STATE CLASSIFIER. Asked of an inventory row -- which is the union of the catalog
 /// and everything the setup names -- so every authored pane gets exactly one answer and no
@@ -1001,7 +987,7 @@ std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen&
 // ---- SAYING A PANE'S GEOMETRY IN THE FACE'S OWN LANGUAGE ------------------------------
 // WL-GEO-09, WL-GEO-10 -- agents/workshop/geometry.md
 
-/// WHAT ONE FINE VALUE IS IN THE ACTIVE MEDIUM'S UNIT, AND WHETHER THAT IS THE
+/// WHAT ONE PIXEL VALUE IS IN THE ACTIVE MEDIUM'S UNIT, AND WHETHER THAT IS THE
 /// AUTHORED NUMBER ITSELF. `exact` false means the amount shown is this medium's
 /// floor of a value it cannot say -- a projection, which the readout marks.
 struct GeometrySpelling {
@@ -1013,8 +999,8 @@ struct GeometrySpelling {
 /// where its unit is the cell.
 const char* geometry_unit(std::int64_t cell_px);
 
-/// ONE FINE COORDINATE OR EXTENT, SPELLED FOR THIS MEDIUM.
-GeometrySpelling geometry_spelling(std::int64_t subs, std::int64_t cell_px);
+/// ONE PIXEL COORDINATE OR EXTENT, SPELLED FOR THIS MEDIUM.
+GeometrySpelling geometry_spelling(std::int64_t px, std::int64_t cell_px);
 
 /// The mark an inexact spelling wears: ASCII, because the shipped face covers printable ASCII only.
 inline constexpr const char* kProjectedMark = "~";
@@ -1022,31 +1008,31 @@ inline constexpr const char* kProjectedMark = "~";
 /// The clause a line carries only when a number on it is a projection.
 inline constexpr const char* kProjectedNote = " (~ projected)";
 
-/// ONE FINE VALUE, WITH ITS MARK. `any_projected` accumulates, so a caller decides
+/// ONE PIXEL VALUE, WITH ITS MARK. `any_projected` accumulates, so a caller decides
 /// once whether the line it is building owes the clause above.
-std::string geometry_amount_text(std::int64_t subs, std::int64_t cell_px,
+std::string geometry_amount_text(std::int64_t px, std::int64_t cell_px,
                                         bool& any_projected);
 
 /// THE SAME SPELLING READ BACKWARDS: a whole number a weaver TYPED in the active
-/// face's unit, as a fine value.
+/// face's unit, as canvas pixels: exact on the window, whole cells where the unit is the cell.
 // WL-PED-06 -- agents/workshop/pane-manager.md
-inline constexpr std::int64_t subs_of_device_amount(std::int64_t amount,
+inline constexpr std::int64_t px_of_device_amount(std::int64_t amount,
                                                     std::int64_t cell_px) noexcept {
-    const std::int64_t bound = (std::numeric_limits<std::int64_t>::max)() / surface::kCellSubs;
+    const std::int64_t bound = (std::numeric_limits<std::int64_t>::max)() / surface::kCanvasCellPx;
     const std::int64_t a = amount > bound ? bound : (amount < -bound ? -bound : amount);
     if (cell_px <= 0) {
-        return a * surface::kCellSubs;
+        return a * surface::kCanvasCellPx;
     }
-    const std::int64_t num = a * surface::kCellSubs;
+    const std::int64_t num = a * surface::kCanvasCellPx;
     if (num < 0) {
         return -((-num + cell_px - 1) / cell_px);
     }
     return (num + cell_px - 1) / cell_px;
 }
 
-static_assert(subs_of_device_amount(10, 0) == 10 * surface::kCellSubs,
+static_assert(px_of_device_amount(10, 0) == 10 * surface::kCanvasCellPx,
               "on a cell medium a typed cell count is that many whole cells");
-static_assert(subs_of_device_amount(120, surface::kCanvasCellPx) == 10 * surface::kCellSubs,
+static_assert(px_of_device_amount(120, surface::kCanvasCellPx) == 10 * surface::kCanvasCellPx,
               "on the shipped window a typed pixel count is exact where the grain divides");
 
 /// WHAT A WEAVER TYPED FOR ONE GEOMETRY AMOUNT: `10`, `10 cells`, `120px` -- a whole number,
@@ -1054,14 +1040,14 @@ static_assert(subs_of_device_amount(120, surface::kCanvasCellPx) == 10 * surface
 // WL-PED-06 -- agents/workshop/pane-manager.md
 struct FaceAmount {
     bool accepted = false;
-    std::int64_t subs = 0;
+    std::int64_t px = 0;
     std::string refusal;
 };
 
 FaceAmount parse_face_amount(std::string_view text, std::int64_t cell_px);
 
-/// A WHOLE FINE RECTANGLE, IN THE ACTIVE MEDIUM'S UNIT -- `@x,y WxH unit`.
-std::string fine_rect_text(const FineRect& r, std::int64_t cell_px);
+/// A WHOLE PIXEL RECTANGLE, IN THE ACTIVE MEDIUM'S UNIT -- `@x,y WxH unit`.
+std::string pixel_rect_text(const PixelRect& r, std::int64_t cell_px);
 
 /// WHAT A WEAVER AUTHORED FOR ONE PANE'S WINDOW, in the active medium's own unit.
 std::string pane_window_text(const SetupPane* row, std::int64_t cell_px);
@@ -1073,7 +1059,7 @@ bool pane_window_partly_default(const SetupPane* row);
 // ---- A SURFACE SIZED BY WHAT IT SAYS, PLACED ---------------------------------------------
 
 /// Where a surface sized by its own content opens, asked at an anchor.
-FineRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
+PixelRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
                                 std::int64_t x, std::int64_t y, const Screen& sc);
 
 // ---- THE EFFECTIVE KEYMAP, AS A VALUE -----------------------------------------------------
@@ -1162,7 +1148,7 @@ std::string context_row_text(const Session& s, const ContextEntry& entry,
 
 /// WHERE THE CONTEXTUAL SURFACE OPENS: beside the press that asked, sized by what
 /// it has to say.
-FineRect context_bounds(const Session& s, const Screen& sc);
+PixelRect context_bounds(const Session& s, const Screen& sc);
 
 
 /// The cursor, bounded by the population's size: the population is derived, so it can move
@@ -1203,7 +1189,7 @@ ProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const S
 /// WHERE THE PRESENTED MENU OPENS: beside its anchor, sized by the lines the presenter showed;
 /// empty while it has shown none.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
-FineRect presented_bounds(const Session& s, const Screen& sc);
+PixelRect presented_bounds(const Session& s, const Screen& sc);
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
@@ -1243,16 +1229,12 @@ inline constexpr const char* kExternalRefused =
 /// ACTIVE medium fits in it -- which is exactly the budget the provider is granted.
 struct ExternalBodyPlace {
     bool present = false;
-    /// The pane's bounds as the wire spells them: whole cells plus sub-cell remainders; `fit` is
-    /// resolved from the fine value.
+    /// The body's bounds in canvas pixels, as the published region states them; `fit` is
+    /// resolved from them.
     std::int64_t region_x = 0;
     std::int64_t region_y = 0;
     std::int64_t region_w = 0;
     std::int64_t region_h = 0;
-    std::int64_t region_sub_x = 0;
-    std::int64_t region_sub_y = 0;
-    std::int64_t region_sub_w = 0;
-    std::int64_t region_sub_h = 0;
     surface::RegionFit fit{};
     /// The header rows this resolution reserved: the painter and the press path spend this number.
     std::int64_t header_rows = 0;
@@ -1262,7 +1244,7 @@ struct ExternalBodyPlace {
 
 /// The body under an external pane's header row: the pane's whole bounds, less that row's
 /// share of the PROSE the active medium fits in them.
-ExternalBodyPlace external_body_place(const FineRect& pane_rect, const Screen& sc,
+ExternalBodyPlace external_body_place(const PixelRect& pane_rect, const Screen& sc,
                                              std::int64_t header_rows);
 
 /// WHERE A PRESS LANDED IN AN EXTERNAL PANE'S GRANTED ROOM -- the `PaneRoom`
@@ -1291,7 +1273,7 @@ std::string external_header(const RuntimePane& row, bool typing);
 /// ONE EXTERNAL PANE: Workshop's backdrop, Workshop's header, and ONE region carrying
 /// whatever that office last validly said inside the room it was granted.
 void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
-                           const FineRect& b, const Screen& sc, bool titles,
+                           const PixelRect& b, const Screen& sc, bool titles,
                            std::int64_t chrome = kPaneChrome);
 
 // ---- The arrangement's affordance rings --------------------------------------------------
@@ -1334,7 +1316,7 @@ inline constexpr std::int64_t kSetupNameMinCols = 8;
 /// THE ROWS THE SCREEN RESERVES AT THE TOP, AS A RECTANGLE -- and that is the
 /// LAYOUTS PANE'S DEVELOPER DEFAULT rather than a band's private geometry.
 // WL-FRONT-03 -- agents/workshop/planes.md
-inline constexpr ui::Rect top_band_bounds(const Screen& sc) noexcept {
+inline constexpr PixelRect top_band_bounds(const Screen& sc) noexcept {
     return placement_bounds(placement::kTopBand, 0, sc);
 }
 
@@ -1343,15 +1325,15 @@ inline constexpr ui::Rect top_band_bounds(const Screen& sc) noexcept {
 ExternalBodyPlace layouts_body(const Session& s, const Screen& sc);
 
 /// THE BOTTOM BAND'S RECTANGLE AND ITS FIT -- what the tool just said, and what the keys
-/// mean right now, composed against whatever the ACTIVE medium answers for these cells
+/// mean right now, composed against whatever the ACTIVE medium answers for these pixels
 /// through the same `fit_region` every bounded region resolves with.
 // WL-FRONT-02, WL-FRONT-03 -- agents/workshop/planes.md; WL-RGN-03 -- agents/workshop/regions.md
-inline constexpr ui::Rect band_bounds(const Screen& sc) noexcept {
-    return ui::Rect{0, sc.h - kBottomRows, sc.w, kBottomRows};
+inline constexpr PixelRect band_bounds(const Screen& sc) noexcept {
+    return PixelRect{0, sc.notice_y, sc.w, sc.h - sc.notice_y};
 }
 
 inline constexpr surface::RegionFit band_fit(const Screen& sc) noexcept {
-    const ui::Rect b = band_bounds(sc);
+    const PixelRect b = band_bounds(sc);
     return surface::fit_region(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
 }
 
@@ -1491,15 +1473,15 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 /// THE LAYOUTS PANE, PAINTED: the layout selector and the standing identity beside
 /// it, the workspace fact under them where the medium fits a second row, and the setup-name
 /// editor's caret and selection while a weaver is typing a name.
-void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
+void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRect& b,
                           const Screen& sc, std::int64_t chrome = kPaneChrome);
 
 // ---- A WEAVER-MADE PANE, PRESENTED: authored regions on an offered interior -----------------
 // WL-MAKER-05 -- agents/workshop/maker-pane.md
 
-/// The part of one fine rectangle inside another. A region authored past its pane's interior is
+/// The part of one pixel rectangle inside another. A region authored past its pane's interior is
 /// legal intent, clipped here at presentation; the authored value is untouched.
-inline constexpr FineRect clip_to_fine(const FineRect& r, const FineRect& within) noexcept {
+inline constexpr PixelRect clip_to_px(const PixelRect& r, const PixelRect& within) noexcept {
     const std::int64_t x0 = r.x > within.x ? r.x : within.x;
     const std::int64_t y0 = r.y > within.y ? r.y : within.y;
     const std::int64_t rx1 = surface::add_cells(r.x, r.w);
@@ -1509,16 +1491,16 @@ inline constexpr FineRect clip_to_fine(const FineRect& r, const FineRect& within
     const std::int64_t x1 = rx1 < wx1 ? rx1 : wx1;
     const std::int64_t y1 = ry1 < wy1 ? ry1 : wy1;
     if (x1 <= x0 || y1 <= y0) {
-        return FineRect{};
+        return PixelRect{};
     }
-    return FineRect{x0, y0, x1 - x0, y1 - y0};
+    return PixelRect{x0, y0, x1 - x0, y1 - y0};
 }
 
 /// WHAT ONE AUTHORED REGION RESOLVES TO INSIDE ONE OFFERED INTERIOR, on this screen.
 struct RegionPresentation {
     bool present = false;     ///< some of the region lies inside the interior
-    FineRect asked{};         ///< the authored rectangle on the canvas: interior origin + place
-    FineRect shown{};         ///< the part inside the interior -- what is painted and read
+    PixelRect asked{};         ///< the authored rectangle on the canvas: interior origin + place
+    PixelRect shown{};         ///< the part inside the interior -- what is painted and read
     bool clipped = false;     ///< the interior cut some of it away
     surface::RegionFit fit{}; ///< `shown`, resolved with the active face's metric
 };
@@ -1526,12 +1508,11 @@ struct RegionPresentation {
 /// THE ONE RESOLUTION OF A REGION: interior origin plus authored place, clipped to the
 /// interior, fitted with the face's metric. Pure, total, and the same call the painter,
 /// the region mark and a subject's RESOLVED rows spend -- one measurer.
-RegionPresentation present_region(const TextRegion& r, const FineRect& interior,
+RegionPresentation present_region(const TextRegion& r, const PixelRect& interior,
                                          const Screen& sc);
 
-/// A published region over a fine rectangle, empty and ready for its rows -- the fine
-/// bounds decomposed onto the wire's cells-plus-remainder spelling.
-surface::SurfaceTextRegion region_over(const FineRect& r);
+/// A published region over a pixel rectangle, empty and ready for its rows.
+surface::SurfaceTextRegion region_over(const PixelRect& r);
 
 /// The region a reference and an id name in the OPEN definition, or nothing: nothing when
 /// no definition is open, when the reference is not the open definition's, or when the id
@@ -1542,7 +1523,7 @@ const TextRegion* weaver_region(const Session& s, const PaneRef& ref, std::int64
 /// THE WEAVER-MADE PANE'S INTERIOR RIGHT NOW, or an empty rectangle: the ordinary pane path's
 /// answer for its handle, less the chrome. One call, so the painter, the mark and the rows
 /// cannot resolve it three ways.
-FineRect weaver_pane_interior(const Session& s, const Screen& sc);
+PixelRect weaver_pane_interior(const Session& s, const Screen& sc);
 
 /// ONE AUTHORED AXIS OF A REGION AS A WEAVER READS IT -- the amount in the face's own unit
 /// (`geometry_amount_text`, the pane rows' own grammar), marked where this face cannot say
@@ -1552,7 +1533,7 @@ std::string region_axis_text(const Session& s, const PaneRef& ref, std::int64_t 
 
 /// WRITE ONE AUTHORED AXIS OF A REGION FROM WHAT A WEAVER TYPED -- a whole number in the
 /// face's own unit, through the definition's own door (`author_region_axis`), which judges
-/// the fine value in its own words. A region has no `default` mode, so `-` is refused in
+/// the value in its own words. A region has no `default` mode, so `-` is refused in
 /// words rather than read as a reset that does not exist.
 Written write_region_axis(Session& s, const PaneRef& ref, std::int64_t id,
                                  std::size_t axis, const std::string& text);
@@ -1579,7 +1560,7 @@ std::string interior_capture_text(const Session& s, const PaneRef& ref);
 /// THE WEAVER-MADE PANE, PAINTED: the frame, one region owning the whole interior (so the
 /// material beneath the pane is cleared and the ring shows, `paint_pane_frame`'s own
 /// arithmetic), then one `kGroundOwn` region per authored region.
-void paint_weaver_pane(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
+void paint_weaver_pane(surface::SurfaceLayer& layer, const Session& s, const PixelRect& b,
                              const Screen& sc, std::int64_t chrome = kPaneChrome);
 
 /// THE ROLE THE PANE CREATOR'S REGION MARK IS DRAWN IN: the one thing being pointed at, the
@@ -1599,7 +1580,7 @@ void paint_creator_region_mark(surface::SurfaceLayer& layer, const Session& s,
 
 /// The window a typed edit measures the other axis from: authored where authored, resolved where
 /// reactive -- `managed_window_base`'s rule (weave.hpp).
-FineRect pane_window_base(const Session& s, const PaneRef& ref);
+PixelRect pane_window_base(const Session& s, const PaneRef& ref);
 
 /// MAY THIS PANE'S GEOMETRY BE TYPED RIGHT NOW, and if not, why not -- the arrangement's
 /// admission (`arrange_geometry_ready`, weave.hpp) less the one refusal a typed value does

@@ -114,7 +114,7 @@ struct TerminalRig {
     void give_rows(std::int64_t rows) {
         const Written wrote =
             author_pane_size(r.session().setup.active, pane_terminal_ref(), PaneSize{},
-                             PaneSize{pane_unit::kSubcells, subs(rows + 3)});
+                             PaneSize{pane_unit::kPixels, cells_px(rows + 3)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         focus();
         REQUIRE(seat() != nullptr);
@@ -126,8 +126,8 @@ struct TerminalRig {
     void give_room(std::int64_t rows, std::int64_t columns) {
         const Written wrote =
             author_pane_size(r.session().setup.active, pane_terminal_ref(),
-                             PaneSize{pane_unit::kSubcells, subs(columns + 2)},
-                             PaneSize{pane_unit::kSubcells, subs(rows + 3)});
+                             PaneSize{pane_unit::kPixels, cells_px(columns + 2)},
+                             PaneSize{pane_unit::kPixels, cells_px(rows + 3)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         focus();
         REQUIRE(seat() != nullptr);
@@ -211,7 +211,7 @@ struct TerminalRig {
         const ui::Rect body = external_body_rect(r.session(), kind);
         const std::vector<surface::SurfaceTextRegion> texts = all_texts(r.last_canvas());
         for (const surface::SurfaceTextRegion& one : texts) {
-            if (one.x == body.x && one.y == body.y) {
+            if (covered_cells(one).x == body.x && covered_cells(one).y == body.y) {
                 return one;
             }
         }
@@ -656,7 +656,8 @@ TEST_CASE("the list is rows INSIDE the pane, above the line it belongs to") {
     std::size_t regions = 0;
     for (const surface::SurfaceLayer& layer : t.r.canvases.back().layers) {
         for (const surface::SurfaceTextRegion& one : layer.texts) {
-            if (one.x == body.x && one.y <= body.y && one.y + one.h >= body.y + body.h) {
+            if (covered_cells(one).x == body.x && covered_cells(one).y <= body.y &&
+                covered_cells(one).y + covered_cells(one).h >= body.y + body.h) {
                 ++regions;
             }
         }
@@ -673,7 +674,7 @@ TEST_CASE("the selection survives a recomputation and not a change of question")
     // THE PANE NEEDS ROOM FOR A LIST WITH TWO ROWS IN IT, and a weaver gives a pane room by
     // arranging it.
     const Written taller = author_pane_size(t.r.session().setup.active, pane_terminal_ref(),
-                                           PaneSize{}, PaneSize{pane_unit::kSubcells, subs(24)});
+                                           PaneSize{}, PaneSize{pane_unit::kPixels, cells_px(24)});
     REQUIRE_MESSAGE(taller.accepted, taller.refusal);
     t.r.extent(240, 100);
     t.focus();

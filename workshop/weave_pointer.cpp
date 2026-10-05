@@ -16,8 +16,8 @@ void WorkshopWeave::open_context_at(const PointedAt& at) {
     next.open = true;
     // The press's own cell anchors the surface beside the hand, on both media at the cell grain.
     next.anchored = true;
-    next.anchor_x = at.cell.x;
-    next.anchor_y = at.cell.y;
+    next.anchor_x = at.px.x;
+    next.anchor_y = at.px.y;
     const Occupancy here =
         occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
     if (here.occupied) {
@@ -41,8 +41,8 @@ void WorkshopWeave::open_context_on_layout(const PointedAt& at, std::size_t layo
     ContextMenu next;
     next.open = true;
     next.anchored = true;
-    next.anchor_x = at.cell.x;
-    next.anchor_y = at.cell.y;
+    next.anchor_x = at.px.x;
+    next.anchor_y = at.px.y;
     next.subject = context_subject::kLayout;
     next.layout = layout;
     session_.context = next;
@@ -572,7 +572,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         // Interpret every motion, including refusals and loss of the held pane. Repeating
         // an accepted proposal can write the same values, so compare the resulting row
         // rather than treating a write attempt as a new picture.
-        arrange_motion(here.sub.x, here.sub.y, mail);
+        arrange_motion(here.px.x, here.px.y, mail);
         const SetupPane* after_row = pane_of(session_.setup.active, held);
         const bool changed_row = before.has_value()
                                      ? after_row == nullptr || *after_row != *before

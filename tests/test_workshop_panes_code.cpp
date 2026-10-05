@@ -223,7 +223,7 @@ struct CodeRig {
     void widen_builder(std::int64_t cells) {
         const Written wrote =
             author_pane_size(r.session().setup.active, builder_ref(),
-                             PaneSize{pane_unit::kSubcells, subs(cells)}, PaneSize{});
+                             PaneSize{pane_unit::kPixels, cells_px(cells)}, PaneSize{});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         r.extent(cells + 60, 64);
         const ExternalPane* seat = r.session().panes.external_pane(kind_of(builder_ref()));

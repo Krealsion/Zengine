@@ -14,7 +14,7 @@ unmaximized onto 78x22 (`209c7da`, "Maximize a restored window over the room it 
 back to").
 
 **Decision.** `on(SurfaceReady)` repaints at the minimum extent and then takes the session back;
-the room, then the desk into it. The viewport is `{width, height}` in canvas cells, one level
+the room, then the desk into it. The viewport is `{width, height}` in canvas pixels, one level
 above the desk, and a viewport outside the screen's band is declined, never clamped. The desktop
 placement is remembered opaque and judged by the medium (`placement_within`). The saved viewport
 is the normal window's. A maximized restore repositions, re-grows through the canvas

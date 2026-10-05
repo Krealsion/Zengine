@@ -764,7 +764,7 @@ TEST_CASE("setup bytes carry no descriptor, room or handle") {
     CHECK(setup_persist::to_text(back.setup) == text);
     // AND THE VERSION IS THE ONE THIS BUILD READS AND WRITES, said here because this case
     // is where an external reference meets the file.
-    CHECK(setup_persist::kFormatVersion == 3);
+    CHECK(setup_persist::kFormatVersion == 4);
 }
 
 // ---- Runtime spatial capacity -----------------------------------------------------
@@ -773,19 +773,19 @@ TEST_CASE("the overlay floor is the workspace's own bottom, which is the band's 
     // THE BOUNDARY, STATED IN BOTH SPELLINGS AND MEASURED AGAINST THE COMPOSITION. A slot allowed
     // past it erases the row the tool speaks in -- the NOTICE's row.
     for (std::int64_t h : {22, 23, 24, 30, 40, 60}) {
-        const Screen sc = screen_of(78, h);
+        const Screen sc = screen_of(cells_px(78), cells_px(h));
         INFO("height ", h);
-        CHECK(kWorkspaceY + sc.room_h == sc.notice_y);
+        CHECK(kRoomCellY + cells_of(sc).room_h == cells_of(sc).notice_y);
         const std::size_t fits = stack_slots_that_fit(sc);
         for (std::size_t slot = 0; slot < fits; ++slot) {
-            const ui::Rect b = placement_bounds(placement::kOverlayStack, slot, sc);
-            CHECK(b.y + b.h <= kWorkspaceY + sc.room_h);
+            const ui::Rect b = cells_covered(placement_bounds(placement::kOverlayStack, slot, sc));
+            CHECK(b.y + b.h <= kRoomCellY + cells_of(sc).room_h);
         }
-        const ui::Rect over = placement_bounds(placement::kOverlayStack, fits, sc);
-        CHECK(over.y + over.h > kWorkspaceY + sc.room_h);
+        const ui::Rect over = cells_covered(placement_bounds(placement::kOverlayStack, fits, sc));
+        CHECK(over.y + over.h > kRoomCellY + cells_of(sc).room_h);
     }
     CHECK(stack_slots_that_fit(kMinScreen) == 1);
-    CHECK(stack_slots_that_fit(screen_of(78, 42)) >= 2);
+    CHECK(stack_slots_that_fit(screen_of(cells_px(78), cells_px(42))) >= 2);
 }
 
 TEST_CASE("a second overlay at the minimum screen is refused before it reaches Panes::open") {
@@ -819,8 +819,8 @@ TEST_CASE("a second overlay at the minimum screen is refused before it reaches P
         const ui::Rect b =
 cells_covered(bounds_of(r.session().panes, r.session().setup.active, p.kind, sc).rect);
         INFO("kind ", p.kind);
-        CHECK(b.y + b.h <= kWorkspaceY + sc.room_h);
-        CHECK(b.y + b.h <= sc.notice_y); // the band's first row is not the pane's
+        CHECK(b.y + b.h <= kRoomCellY + cells_of(sc).room_h);
+        CHECK(b.y + b.h <= cells_of(sc).notice_y); // the band's first row is not the pane's
     }
 }
 
@@ -945,18 +945,16 @@ TEST_CASE("opening an external pane grants exactly the fit_region room, authored
 cells_covered(bounds_of(r.session().panes, r.session().setup.active, kind, sc).rect);
     CHECK(pane_rect == ui::Rect{0, 2, 63, 9});
     const ExternalBodyPlace body = external_body_place(
-        fine_of_cells(pane_rect), sc,
+        pixels_of_cells(pane_rect), sc,
         external_title_rows(r.session().panes, kind, r.session().pane_titles));
     // THE ROOM IS THE PANE'S INTERIOR: the rectangle the placement path gives it is unchanged,
     // and the one cell of visible boundary on every side comes off before the provider is told
     // what it has -- the same reservation the header is.
     const ui::Rect inside = pane_body_cells(pane_rect);
     CHECK(inside == ui::Rect{1, 3, 61, 7});
-    CHECK(body.region_x == inside.x);
-    CHECK(body.region_y == inside.y);
-    CHECK(body.region_w == inside.w);
-    CHECK(body.region_h == inside.h);
-    const surface::RegionFit fit = surface::fit_region(inside.x, inside.y, inside.w, inside.h,
+    CHECK(cells_covered(PixelRect{body.region_x, body.region_y, body.region_w, body.region_h}) ==
+          inside);
+    const surface::RegionFit fit = surface::fit_region(cells_px(inside.x), cells_px(inside.y), cells_px(inside.w), cells_px(inside.h),
                                                        sc.text_advance_px, sc.text_line_px);
     CHECK(seat->rooms[0].rows == fit.rows - kExternalHeaderRows);
     CHECK(seat->rooms[0].columns == fit.columns);
@@ -987,9 +985,9 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     // taller half of the resize changes nothing: the slot's height is `kStackRows` at every
     // extent and the header takes one row of it.
     r.extent(100, 40);
-    CHECK(screen_of(r.session()).w == 100);
+    CHECK(screen_of(r.session()).w == cells_px(100));
     CHECK(bounds_of(r.session().panes, r.session().setup.active, kind, screen_of(r.session())).rect ==
-          fine_of_cells(ui::Rect{0, 2, 74, 9}));
+          pixels_of_cells(ui::Rect{0, 2, 74, 9}));
     REQUIRE(seat->rooms.size() == 2);
     CHECK(seat->rooms[1].rows == 6);       // unchanged: the rows are the slot's interior's
     CHECK(seat->rooms[1].columns == 72);   // moved: the columns are the room's share, inside
@@ -1006,7 +1004,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     // does.
     r.extent(100, 52);
     CHECK(bounds_of(r.session().panes, r.session().setup.active, kind, screen_of(r.session())).rect ==
-          fine_of_cells(ui::Rect{0, 2, 74, 9}));
+          pixels_of_cells(ui::Rect{0, 2, 74, 9}));
     CHECK(seat->rooms.size() == 2);
 
     // A TEXT METRIC MOVES IT TOO: the same cells, set in a real face, hold fewer rows and
@@ -1015,10 +1013,13 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     REQUIRE(seat->rooms.size() == 3);
     const Screen typed = screen_of(r.session());
     CHECK(typed.text_advance_px == 9);
-    const ui::Rect graphical = external_body_rect(r.session(), kind);
-    CHECK(graphical.w == 72); // the widened body's INTERIOR, before the face is consulted
-    const surface::RegionFit gfit = surface::fit_region(graphical.x, graphical.y, graphical.w,
-                                                        graphical.h, 9, 18);
+    const ExternalBodyPlace graphical = external_body_of(r.session(), kind);
+    // the widened body's INTERIOR, before the face is consulted
+    CHECK(cells_covered(PixelRect{graphical.region_x, graphical.region_y, graphical.region_w,
+                                  graphical.region_h})
+              .w == 72);
+    const surface::RegionFit gfit = surface::fit_region(
+        graphical.region_x, graphical.region_y, graphical.region_w, graphical.region_h, 9, 18);
     CHECK(gfit.graphical());
     CHECK(seat->rooms[2].rows == gfit.rows - kExternalHeaderRows);
     CHECK(seat->rooms[2].columns == gfit.columns);
@@ -1117,9 +1118,9 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
         said = seat->rooms.size();
         // DERIVED, NOT DUPLICATED: the body Workshop resolved, put through the one function
         // production puts it through.
-        const ui::Rect body = external_body_rect(r.session(), kind);
-        const surface::RegionFit fit =
-            surface::fit_region(body.x, body.y, body.w, body.h, g.advance, g.line);
+        const ExternalBodyPlace place = external_body_of(r.session(), kind);
+        const surface::RegionFit fit = surface::fit_region(
+            place.region_x, place.region_y, place.region_w, place.region_h, g.advance, g.line);
         CHECK(seat->rooms.back().rows == fit.rows - kExternalHeaderRows);
         CHECK(seat->rooms.back().columns == fit.columns);
         // ...and the answers themselves, so a `fit_region` that changed would be named here
@@ -1746,7 +1747,7 @@ TEST_CASE("a caret is judged against the CONTENT, and merged with the header's o
     const std::vector<surface::SurfaceTextRegion> texts = all_texts(t.r.last_canvas());
     const surface::SurfaceTextRegion* region = nullptr;
     for (const surface::SurfaceTextRegion& one : texts) {
-        if (one.x == body.x && one.y == body.y) {
+        if (covered_cells(one).x == body.x && covered_cells(one).y == body.y) {
             region = &one;
         }
     }

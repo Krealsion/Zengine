@@ -3,7 +3,9 @@
 **Decision.** A versioned offer carries preferred body rows and columns. Workshop converts them
 with the current text metric and reserves title/chrome space. The first admitted preference is
 stable for the runtime pane identity; authored sizes win per axis. Stack seating and bounds use
-the same preferred height. Version 1 keeps its fallback.
+the same preferred height. Version 1 keeps its fallback. A canvas pane asks at version 3 for a
+body of whole pixels and rows of text beneath it, and is granted exactly that body, rounded up to
+the cells that hold it where a medium cannot say a pixel ([the-whole-pixel](the-whole-pixel.md)).
 
 **Why.** Uniform canvas rectangles can leave a list with fewer useful items than its omission
 markers. The provider knows its content needs; the host knows how text fits the current medium.

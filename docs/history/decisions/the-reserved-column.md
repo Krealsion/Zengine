@@ -1,11 +1,13 @@
 # The reserved column is nobody's to spend
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [geometry](../workshop/geometry.md).
+supports is in [geometry](../../../agents/workshop/geometry.md).
 
-> **The reservation half of this record no longer holds.** `screen_of` subtracts nothing from
+> **Neither half of this record holds now.** The composition is pixels, its bands fitted to
+> the text they hold — see [the whole pixel](../../../agents/decisions/the-whole-pixel.md).
+> **The reservation half no longer held before that.** `screen_of` subtracts nothing from
 > the width, the right column is an ordinary place, and the Terminal pane's right edge is the
-> screen's — see [the room is the screen](the-room-is-the-screen.md), which names what it
+> screen's — see [the room is the screen](../../../agents/decisions/the-room-is-the-screen.md), which names what it
 > reverses and what of this record it keeps. Everything below is the state of the argument
 > until then, including the alternative it went on to take.
 
@@ -56,4 +58,4 @@ composition lays out: the pane covered the full 28-column side region and betwee
 rows, so the Info pane published its lists and its footer and a later region erased them in the
 same frame.
 
-**Laws supported.** [WL-GEO-05](../workshop/geometry.md).
+**Laws supported.** [WL-GEO-05](../../../agents/workshop/geometry.md).

@@ -51,6 +51,27 @@ struct PaneOffered {
 };
 } // namespace v2
 
+/// The widest, and the tallest, canvas body a pane may ask for, in canvas pixels
+/// (`v3::PaneOffered`): the text comfort's bound, in pixels.
+inline constexpr std::int64_t kMaxPaneBodyPx = kMaxPaneComfort * surface::kCanvasCellPx;
+
+namespace v3 {
+/// A canvas pane's initial body: `width` by `height` canvas pixels, each 1..`kMaxPaneBodyPx`, and
+/// `text_rows` rows of the medium's own text beneath them (0..`kMaxPaneComfort`), so a picture is
+/// granted exactly its size whatever the medium sets type at. Zero/zero retains the v1 fallback.
+/// A refresh does not replace the first accepted preference for this pane identity.
+struct PaneOffered {
+    std::string pane;
+    std::string name;
+    std::string summary;
+    std::int64_t width = 0;
+    std::int64_t height = 0;
+    std::int64_t text_rows = 0;
+    ZEN_SHAPE(PaneOffered, 3, ZEN_FIELD(pane), ZEN_FIELD(name), ZEN_FIELD(summary),
+              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(text_rows));
+};
+} // namespace v3
+
 /// Workshop -> provider: the prose rows and columns granted to the pane's body -- never cells,
 /// pixels or a rectangle. Sent when the pane opens, on a valid re-offer, and when the fit changes.
 struct PaneRoom {

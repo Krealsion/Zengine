@@ -111,9 +111,9 @@ std::string WorkshopWeave::arrange_status() const {
     std::string text = "arrange " + ref_text(a.pane) + " (" + state + ") -- " +
                        pane_window_text(row, session_.cell_px);
     if (pane_window_partly_default(row)) {
-        const FineRect now = managed_bounds().resolved;
+        const PixelRect now = room_of_canvas(managed_bounds().resolved, screen_of(session_));
         if (now.w > 0 && now.h > 0) {
-            text += " -- now " + fine_rect_text(now, session_.cell_px);
+            text += " -- now " + pixel_rect_text(now, session_.cell_px);
         }
     }
     return text;
@@ -148,7 +148,6 @@ void WorkshopWeave::arrange_step(std::int64_t by) {
 // WL-ARR-07 -- agents/workshop/arrangement.md
 // WL-CTX-02 -- agents/workshop/contextual.md
 // WL-PANE-08 -- agents/workshop/panes-and-windows.md
-// WL-SETUP-06 -- agents/workshop/setup-file.md
 Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
     if (ref.provider.empty()) {
         return Written::no("no pane is addressed -- " + hotkey(Act::kManageNext) +
@@ -167,24 +166,11 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
                            " is unresolved -- its place and size cannot be measured; "
                            "0 resets it and f/b/r/l still order it");
     }
-    // A UNIT OUTRANKS A RESERVATION, the same precedence `pane_state_of` spends between
-    // a unit and a want of room. Both sentences are true of a fixed pane
-    // sized in pixels, and only one of them tells a weaver what to press.
-    if (!pane_unit_projectable(pane_of(session_.setup.active, ref))) {
-        return Written::no(kind_name(session_.panes, *kind) +
-                           " is sized in pixels, which no medium here can project -- "
-                           "0 then w or h resets that axis");
-    }
     const PaneBounds where =
         bounds_of(session_.panes, session_.setup.active, *kind, screen_of(session_));
     if (!where.open) {
         return Written::no(kind_name(session_.panes, *kind) +
                            " has no room on this screen yet -- 0 resets it");
-    }
-    if (!where.projected) {
-        return Written::no(kind_name(session_.panes, *kind) +
-                           " is sized in pixels, which no medium here can project -- "
-                           "0 then w or h resets that axis");
     }
     if (where.rect.w <= 0 || where.rect.h <= 0) {
         return Written::no(kind_name(session_.panes, *kind) +
@@ -204,7 +190,7 @@ PaneBounds WorkshopWeave::managed_bounds() const {
 }
 
 // WL-ARR-04 -- agents/workshop/arrangement.md; WL-PED-05 -- agents/workshop/pane-manager.md
-FineRect WorkshopWeave::managed_window_base() {
+PixelRect WorkshopWeave::managed_window_base() {
     // One reading for the hand and the typed value: `pane_window_base` (screen.hpp), so a subject
     // row's per-axis write measures from the arrangement's window.
     return pane_window_base(session_, session_.arrange.pane);
@@ -217,7 +203,7 @@ void WorkshopWeave::arrange_place(std::int64_t x, std::int64_t y, loom::Mail& ma
         say(ready.refusal, true);
         return;
     }
-    const FineRect from = managed_window_base();
+    const PixelRect from = managed_window_base();
     PaneAxisProposal horizontal;
     horizontal.base = from.x;
     if (x != from.x) {
@@ -253,9 +239,9 @@ void WorkshopWeave::arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& 
         return;
     }
     // THE RESOLVED CORNER, NEVER THE CLIPPED ONE -- see `managed_bounds`.
-    const FineRect from = managed_window_base();
-    arrange_place(detail::step(from.x, dx * surface::kCellSubs),
-                  detail::step(from.y, dy * surface::kCellSubs), mail);
+    const PixelRect from = managed_window_base();
+    arrange_place(detail::step(from.x, dx * surface::kCanvasCellPx),
+                  detail::step(from.y, dy * surface::kCanvasCellPx), mail);
 }
 
 // WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
@@ -275,7 +261,7 @@ void WorkshopWeave::arrange_resize(std::int64_t edge, std::int64_t base_x, std::
         horizontal.position = want.x;
     }
     if (want.w != base_w) {
-        horizontal.extent = PaneSize{pane_unit::kSubcells, want.w};
+        horizontal.extent = PaneSize{pane_unit::kPixels, want.w};
     }
     PaneAxisProposal vertical;
     vertical.base = base_y;
@@ -283,7 +269,7 @@ void WorkshopWeave::arrange_resize(std::int64_t edge, std::int64_t base_x, std::
         vertical.position = want.y;
     }
     if (want.h != base_h) {
-        vertical.extent = PaneSize{pane_unit::kSubcells, want.h};
+        vertical.extent = PaneSize{pane_unit::kPixels, want.h};
     }
     const WindowWritten done = author_pane_window(session_.setup.active,
                                                   session_.arrange.pane, horizontal,
@@ -313,9 +299,9 @@ void WorkshopWeave::arrange_grow(std::int64_t dx, std::int64_t dy, loom::Mail& m
         return;
     }
     // THE RESOLVED WINDOW, NEVER THE VISIBLE ONE -- see `managed_bounds`.
-    const FineRect base = managed_window_base();
+    const PixelRect base = managed_window_base();
     arrange_resize(pane_edge::kBottomRight, base.x, base.y, base.w, base.h,
-                   dx * surface::kCellSubs, dy * surface::kCellSubs, mail);
+                   dx * surface::kCanvasCellPx, dy * surface::kCanvasCellPx, mail);
 }
 
 // WL-CTX-07 -- agents/workshop/contextual.md
@@ -510,42 +496,43 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
     if (!mine.open || mine.rect.w <= 0 || mine.rect.h <= 0) {
         return false;
     }
-    const std::int64_t edge = pane_edge_at(mine.rect, at.sub.x, at.sub.y, at.grain);
+    const std::int64_t edge = pane_edge_at(mine.rect, at.px.x, at.px.y, at.grain);
     if (edge != kNoPaneEdge) {
         session_.pane_drag = PaneGesture{};
         session_.pane_drag.active = true;
         session_.pane_drag.pane = ref;
         session_.pane_drag.sizing = true;
         session_.pane_drag.edge = edge;
-        session_.pane_drag.from_x = at.sub.x;
-        session_.pane_drag.from_y = at.sub.y;
+        session_.pane_drag.from_x = at.px.x;
+        session_.pane_drag.from_y = at.px.y;
         const SetupPane* row = pane_of(session_.setup.active, ref);
-        // The affordance is on the visible boundary and the base is the resolved window: an
-        // anchored top or left pull authors place and size from this one captured rectangle, as
-        // a key does.
-        session_.pane_drag.base_x = row != nullptr && row->place.mode == pane_unit::kSubcells
+        // The affordance is on the visible boundary and the base is the resolved window, in the
+        // room: an anchored top or left pull authors place and size from this one captured
+        // rectangle, as a key does.
+        const PixelRect in_room = room_of_canvas(mine.resolved, sc);
+        session_.pane_drag.base_x = row != nullptr && row->place.mode == pane_unit::kPixels
                                         ? row->place.x
-                                        : mine.resolved.x;
-        session_.pane_drag.base_y = row != nullptr && row->place.mode == pane_unit::kSubcells
+                                        : in_room.x;
+        session_.pane_drag.base_y = row != nullptr && row->place.mode == pane_unit::kPixels
                                         ? row->place.y
-                                        : mine.resolved.y;
-        session_.pane_drag.base_w = row != nullptr && row->width.mode == pane_unit::kSubcells
+                                        : in_room.y;
+        session_.pane_drag.base_w = row != nullptr && row->width.mode == pane_unit::kPixels
                                         ? row->width.amount
                                         : mine.resolved.w;
         session_.pane_drag.base_h =
-            row != nullptr && row->height.mode == pane_unit::kSubcells
+            row != nullptr && row->height.mode == pane_unit::kPixels
                 ? row->height.amount
                 : mine.resolved.h;
         say(std::string("sizing ") + ref_text(ref) + " by its " + pane_edge_name(edge),
             false);
         return true;
     }
-    if (mine.rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
+    if (mine.rect.contains_at(at.px.x, at.px.y, at.grain)) {
         session_.pane_drag = PaneGesture{};
         session_.pane_drag.active = true;
         session_.pane_drag.pane = ref;
-        session_.pane_drag.grab_dx = detail::minus(at.sub.x, mine.rect.x);
-        session_.pane_drag.grab_dy = detail::minus(at.sub.y, mine.rect.y);
+        session_.pane_drag.grab_dx = detail::minus(at.px.x, mine.rect.x);
+        session_.pane_drag.grab_dy = detail::minus(at.px.y, mine.rect.y);
         say("moving " + ref_text(ref) + " -- drag to place it", false);
         return true;
     }
@@ -570,7 +557,7 @@ void WorkshopWeave::arrange_press(const PointedAt& at) {
     for (std::size_t i = order.size(); i > 0; --i) {
         const std::int64_t kind = order[i - 1];
         if (!bounds_of(session_.panes, session_.setup.active, kind, sc)
-                 .rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
+                 .rect.contains_at(at.px.x, at.px.y, at.grain)) {
             continue;
         }
         for (const SetupPane& row : session_.setup.active.panes) {
@@ -591,7 +578,7 @@ void WorkshopWeave::arrange_press(const PointedAt& at) {
 }
 
 // WL-ARR-01 -- agents/workshop/arrangement.md
-void WorkshopWeave::arrange_motion(std::int64_t sub_x, std::int64_t sub_y, loom::Mail& mail) {
+void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, loom::Mail& mail) {
     PaneGesture& g = session_.pane_drag;
     if (!g.active) {
         return;
@@ -609,11 +596,14 @@ void WorkshopWeave::arrange_motion(std::int64_t sub_x, std::int64_t sub_y, loom:
     session_.arrange.pane = held;
     if (g.sizing) {
         arrange_resize(g.edge, g.base_x, g.base_y, g.base_w, g.base_h,
-                       detail::minus(sub_x, g.from_x), detail::minus(sub_y, g.from_y),
+                       detail::minus(px_x, g.from_x), detail::minus(px_y, g.from_y),
                        mail);
     } else {
-        arrange_place(detail::minus(sub_x, g.grab_dx), detail::minus(sub_y, g.grab_dy),
-                      mail);
+        // The hand is on the canvas and a place is in the room.
+        const PixelRect at = room_of_canvas(
+            PixelRect{detail::minus(px_x, g.grab_dx), detail::minus(px_y, g.grab_dy), 0, 0},
+            screen_of(session_));
+        arrange_place(at.x, at.y, mail);
     }
     if (!has_pane(session_.setup.active, held)) {
         session_.arrange.pane = was_addressed;

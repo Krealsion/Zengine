@@ -11,8 +11,10 @@ namespace pane = zengine::flow_pane;
 namespace ws = zengine::workshop;
 namespace flow = zengine::flow;
 constexpr auto unit = pane::unit;
+/// A room's cell, in its pixels: one character where no face is measured.
+constexpr std::int64_t cell = zengine::surface::kCanvasCellPx;
 
-ws::PaneCanvasRoom room() { return {"flow", 7, 100 * unit, 45 * unit, 4, true}; }
+ws::PaneCanvasRoom room() { return {"flow", 7, 100 * cell, 45 * cell, 1, true}; }
 pane::Model graph(std::size_t nodes) {
     pane::Model model;
     flow::Ports signature{"view.Rule",
@@ -111,28 +113,29 @@ TEST_CASE("Flow marks shortened observations and retains their complete source")
     CHECK(model.events.at(0).size() == 5000);
     for (const auto& label : view.content.texts) {
         CHECK(label.x >= 0);
-        CHECK(label.x + static_cast<std::int64_t>(label.text.size()) * unit <= room().width);
+        CHECK(label.x + static_cast<std::int64_t>(label.text.size()) * cell <= room().width);
     }
 }
 
-TEST_CASE("Flow pointer hits use the medium grain at subpixel and half-cell edges") {
+TEST_CASE("Flow pointer hits use the medium grain at pixel and half-cell edges") {
     pane::Picture view;
     view.hits.push_back({3, 3, 49, 49, "pixel-edge", {}, 0});
-    view.grain = 4;
-    REQUIRE(view.hit(0, 0));
-    CHECK(view.hit(0, 0)->action == "pixel-edge");
-    CHECK(view.hit(48, 48) != nullptr);
-    CHECK(view.hit(52, 48) == nullptr);
-    view.hits = {{24, 24, 96, 96, "cell-edge", {}, 0}};
-    view.grain = unit;
+    view.grain = 1;
+    CHECK(view.hit(3, 3) != nullptr);
+    CHECK(view.hit(3, 3)->action == "pixel-edge");
+    CHECK(view.hit(2, 3) == nullptr);
+    CHECK(view.hit(51, 51) != nullptr);
+    CHECK(view.hit(52, 51) == nullptr);
+    view.hits = {{6, 6, 24, 24, "cell-edge", {}, 0}};
+    view.grain = cell;
     CHECK(view.hit(0, 0) != nullptr);
-    CHECK(view.hit(unit, unit) != nullptr);
-    CHECK(view.hit(2 * unit, unit) == nullptr);
+    CHECK(view.hit(cell, cell) != nullptr);
+    CHECK(view.hit(2 * cell, cell) == nullptr);
 }
 
 TEST_CASE("Flow clips content and hit maps to the same narrow pane body") {
     auto model = graph(1);
-    auto narrow = room(); narrow.width = 15 * unit; narrow.height = 10 * unit;
+    auto narrow = room(); narrow.width = 15 * cell; narrow.height = 10 * cell;
     const auto view = pane::picture(model, narrow, 5);
     CHECK(ws::canvas_content_problem(view.content).empty());
     for (const auto& hit : view.hits) {
@@ -154,7 +157,7 @@ TEST_CASE("Flow keeps its discovery rail and viewport controls separate from nod
     REQUIRE(action_has(view, "found"));
     for (const auto& hit : view.hits) {
         if (hit.action == "found" || hit.action == "source-field" || hit.action == "select-trigger")
-            CHECK(hit.x + hit.w <= 22 * unit);
+            CHECK(hit.x + hit.w <= 22 * cell);
     }
     const pane::Hit* reset = nullptr;
     const pane::Hit* minus = nullptr;
@@ -177,7 +180,7 @@ TEST_CASE("Flow keeps its discovery rail and viewport controls separate from nod
     answered(model, rows);
     auto shorter = room();
     shorter.text_advance_px = 8; shorter.text_line_px = 18;
-    shorter.width = 150 * 32; shorter.height = 23 * 88 + 44;
+    shorter.width = 150 * 8; shorter.height = 23 * 22 + 11;
     const pane::GridProjection grid(shorter);
     const auto footer = grid.y(grid.grid_y(shorter.height) - 2 * unit);
     const auto rail = pane::picture(model, shorter, 7);
@@ -216,8 +219,8 @@ TEST_CASE("Flow projects native text and hit regions through independent measure
     auto native_room = room();
     native_room.text_advance_px = 9;
     native_room.text_line_px = 18;
-    native_room.width = 100 * 36;
-    native_room.height = 45 * 88;
+    native_room.width = 100 * 9;
+    native_room.height = 45 * 22;
     const auto view = pane::picture(model, native_room, 2);
     CHECK(ws::canvas_content_problem(view.content).empty());
     CHECK(view.content.labels.empty());
@@ -232,23 +235,23 @@ TEST_CASE("Flow projects native text and hit regions through independent measure
     const auto cell_node = std::find_if(cell_view.hits.begin(), cell_view.hits.end(),
         [](const auto& hit) { return hit.action == "node"; });
     REQUIRE(cell_node != cell_view.hits.end());
-    CHECK(node->x == cell_node->x * 36 / unit);
-    CHECK(node->y == cell_node->y * 88 / unit);
-    CHECK(node->w == cell_node->w * 36 / unit);
-    CHECK(node->h == 88);
-    CHECK(view.hit(node->x + 8, node->y + 8)->action == "node");
+    CHECK(node->x == cell_node->x * 9 / cell);
+    CHECK(node->y == cell_node->y * 22 / cell);
+    CHECK(node->w == cell_node->w * 9 / cell);
+    CHECK(node->h == 22);
+    CHECK(view.hit(node->x + 2, node->y + 2)->action == "node");
     zengine::surface::SurfaceLayer layer;
     ws::paint_pane_canvas(layer, {0, 0, native_room.width, native_room.height},
         view.content, native_room.text_advance_px, native_room.text_line_px, native_room.grain);
-    const auto quads = zengine::surface::plan_layer_quads(layer, 100, 100,
+    const auto quads = zengine::surface::plan_layer_quads(layer, 100 * cell, 100 * cell,
         zengine::surface::SurfaceExtent{0, 0, 9, 18, 12});
     REQUIRE_FALSE(quads.empty());
     CHECK(quads.front().r == 0);
     CHECK(quads.front().g == 0);
     CHECK(quads.front().b == 0);
-    const auto px = node->x / 4, py = node->y / 4, pw = node->w / 4;
+    const auto px = node->x, py = node->y, pw = node->w;
     // One input yields a four-row box, and all four authored edges must survive the actual SDL
-    // plan: a subpixel vertical strip that vanishes here is the defect this case guards.
+    // plan: a strip thinner than a pixel that vanishes here is the defect this case guards.
     const auto edge = [&](std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) {
         return std::any_of(quads.begin(), quads.end(), [&](const auto& quad) {
             return quad.x == x && quad.y == y && quad.w >= w && quad.h >= h;
@@ -277,7 +280,7 @@ TEST_CASE("Flow projects native text and hit regions through independent measure
     const auto clipped_node = std::find_if(clipped.hits.begin(), clipped.hits.end(),
         [](const auto& hit) { return hit.action == "node"; });
     REQUIRE(clipped_node != clipped.hits.end());
-    CHECK(clipped_node->x == 22 * 36);
+    CHECK(clipped_node->x == 22 * 9);
 
     auto extreme = native_room;
     extreme.text_advance_px = (std::numeric_limits<std::int64_t>::max)();
@@ -314,7 +317,7 @@ TEST_CASE("the fold node's picture fits: its words inside its box, and a node ju
     answered(model, {found_row("math.add", ws::kOperatorKind)});
     model.preview = "math.add";
     REQUIRE(model.node.has_value());
-    ws::PaneCanvasRoom offered{"flow", 7, 88 * unit, 22 * unit, unit, false};
+    ws::PaneCanvasRoom offered{"flow", 7, 88 * cell, 22 * cell, cell, false};
     // Placed where Flow places a new node, its answer row is under the preview band: brought into view.
     const auto before = pane::picture(model, offered, 1);
     REQUIRE(before.node_extent.has_value());
@@ -332,7 +335,7 @@ TEST_CASE("the fold node's picture fits: its words inside its box, and a node ju
     opened.node.reset();
     opened.preview.clear();
     opened.workspace.pan_y = 0;
-    ws::PaneCanvasRoom short_room{"flow", 7, 88 * unit, 17 * unit, unit, false};
+    ws::PaneCanvasRoom short_room{"flow", 7, 88 * cell, 17 * cell, cell, false};
     const auto low = pane::picture(opened, short_room, 4);
     REQUIRE(low.graph_extent.has_value());
     CHECK(low.graph_extent->second > low.view_lower);
@@ -388,11 +391,11 @@ TEST_CASE("Flow's rail is called In scope, and the door's rows are grouped by cl
         if (hit.action == "node" || hit.action == "port") CHECK(hit.y + hit.h <= said);
     // ...IN EVERY ROOM WITH MEASURED TEXT TOO. Its clip rounds to the device grain, so a line set at
     // the very top of a clip can round out of it and vanish while the lines beneath stay drawn.
-    for (std::int64_t height = 30 * 88; height < 31 * 88; height += 4) {
+    for (std::int64_t height = 30 * 22; height < 31 * 22; ++height) {
         auto measured = room();
         measured.text_advance_px = 9;
         measured.text_line_px = 18;
-        measured.width = 100 * 36;
+        measured.width = 100 * 9;
         measured.height = height;
         const auto band = pane::picture(model, measured, 12);
         CHECK_MESSAGE(row_of(band, "view.op -- operator, native, from view.provider") >= 0, height);

@@ -1,6 +1,6 @@
 # Workshop law — geometry
 
-Register `WL-GEO`: the composition in canvas cells, the right column, the fine lattice and the
+Register `WL-GEO`: the composition in canvas pixels, the right column, the whole pixel and the
 unit a face reports. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-GEO-01 — One geometry draws a thing and hits it
@@ -40,7 +40,7 @@ WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-03 — The room is the surface, and the right column stands on it
 
-LAW — `room_w` is the screen's whole width; only the top and bottom bands come off the height. The right column is a PLACE at `w - kSideCols`, reserved out of nothing.
+LAW — `room_w` is the screen's whole width; only the top and bottom bands come off the height. The right column is a PLACE `kSideCols` cells from the right edge, reserved out of nothing.
 
 MEANS
 - a pane's presence, place, size or removal changes no room, and neither does the column;
@@ -50,7 +50,7 @@ DOES NOT MEAN
 - that the bands are a pane's — `placement_bounds` merely defaults the Layouts pane to them.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::room_w`, `Screen::room_h`, `kTopRows`,
-`kBottomRows`, `placement_bounds`, `kSideCols`, `kSideY`; `workshop/panes.hpp` `kTopBand`,
+`kBottomRows`, `placement_bounds`, `kSideCols`, `Screen::room_y`; `workshop/panes.hpp` `kTopBand`,
 `placement::kSideRegion`; `tests/test_workshop_screen.cpp` case `"the screen's furniture cannot
 see a pane, open or closed"`, case `"the reservation does not follow the Layouts pane"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
@@ -72,60 +72,66 @@ it legible"`, case `"an overlapping pane is painted where it is hit, in
 both front orders"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
-## WL-GEO-05 — The composition is settled in cells before any metric
+## WL-GEO-05 — The composition is pixels, its bands fitted to the text they hold
 
-LAW — `screen_of` answers in canvas cells with no text metric consulted; the metric does not change screen furniture. Pane preferences resolve separately using that metric.
-
-MEANS
-- the same composition truth holds in a medium that sets type;
-- a resize recomputes all of it, and nothing about it is remembered from one screen.
-
-PROVEN BY — `workshop/screen.hpp` `screen_of`, `kMinScreen`, `Screen`;
-`tests/test_workshop_screen.cpp` case `"the screen's furniture cannot see a pane, open or
-closed"`, case `"the screen's extent is TOTAL over whatever a medium published"`.
-WHY — `agents/decisions/the-reserved-column.md`
-
-## WL-GEO-06 — Pane rectangles are sub-units of the canvas lattice
-
-LAW — A pane rectangle is a fine rectangle in sub-units of a cell, 48 to the cell, a type distinct from the cell rectangle; a cell value enters the lattice by one multiply, at projection.
+LAW — `screen_of` answers in canvas pixels: each band is as tall as the rows it holds in the face's metric, inside one device unit of chrome, or whole cells without type; the room is what is left.
 
 MEANS
-- conversion is only `fine_of_cells` / `cells_covered`; nothing passes through `workspace_cell_x`;
-- furniture and fallbacks stay whole cells; preferred sizes use the fine lattice;
-- a one-pixel drag moves a pane by exactly one pixel of lattice; the file keeps every sub-unit.
+- the top band holds the Layouts pane's `kTopRows` rows and the foot `kBottomRows`, on every face;
+- a resize or a new metric recomputes all of it, and nothing of it is remembered from one screen;
+- pane preferences resolve separately, against the room this answers.
 
-PROVEN BY — `workshop/screen.hpp` `FineRect`, `fine_of_cells`, `cells_covered`;
-`workshop/screen_chrome.cpp` `project_pane`; `workshop/screen_gestures.cpp` `workspace_cell_x`;
-`surface/vocabulary.hpp` `kCellSubs`; `ui/layout.hpp` `Rect`; `workshop/setup.hpp` `kSubcells`,
-`kPaneSubMin`; `tests/test_workshop_screen.cpp` case `"a one-pixel drag moves a pane by exactly
-one pixel of lattice"`, case `"fine geometry survives the setup file without losing a
-sub-unit"`; `tests/test_surface.cpp` case `"the sub-cell conversions are exact,
-floored, and total"`.
-WHY — `agents/decisions/the-fine-lattice.md`
+PROVEN BY — `workshop/screen.hpp` `screen_of`, `band_px_for`, `kMinScreen`, `Screen`,
+`Screen::room_y`, `Screen::notice_y`; `tests/test_workshop_screen.cpp` case `"the screen's
+furniture cannot see a pane, open or closed"`, case `"the screen's extent is TOTAL over whatever
+a medium published"`, case `"the notice is a band row, and the SENTENCE is never shortened"`.
+WHY — `agents/decisions/the-whole-pixel.md`
+
+## WL-GEO-06 — Workshop's unit is the whole pixel
+
+LAW — A pane rectangle is a `PixelRect` of whole canvas pixels, twelve to the cell, distinct from the cell rectangle; a cell enters by one multiply, and a span leaves only as the cells it covers.
+
+MEANS
+- conversion is only `pixels_of_cells` / `cells_covered`; nothing finer than a pixel is held;
+- an axis authored in `pixels` is presented at exactly its pixels, on every medium;
+- a one-pixel drag moves a pane by exactly one pixel; the file keeps every pixel.
+
+PROVEN BY — `workshop/screen.hpp` `PixelRect`, `pixels_of_cells`, `cells_covered`;
+`workshop/screen_chrome.cpp` `project_pane`; `surface/vocabulary.hpp` `kCanvasCellPx`;
+`ui/layout.hpp` `Rect`; `workshop/setup.hpp` `kPixels`, `kPanePxMin`;
+`tests/test_workshop_screen.cpp` case `"a one-pixel drag moves a pane by exactly one pixel of
+lattice"`, case `"pixel geometry survives the setup file without losing a pixel"`;
+`tests/test_workshop_panes_window.cpp` case `"an axis in pixels is presented at exactly its
+pixels, on every medium"`; `tests/test_surface.cpp` case `"the pixel and cell conversions are
+exact, floored, and total"`.
+WHY — `agents/decisions/the-whole-pixel.md`
 
 ## WL-GEO-07 — One quantization law, every consumer, every grain
 
-LAW — A presenter of device grain g shows a fine span [L,R) on device units [floor(L/g), floor(R/g)) and hit-tests by the same floor: the first painted unit answers the hand.
+LAW — A presenter of grain g shows a pixel span [L,R) on device units [floor(L/g), floor(R/g)) and hits by the same floor: a window's grain is a pixel, a terminal's a cell.
 
 MEANS
-- the device unit before a fractional edge does not answer — what you see is what you can grab;
+- the window draws the picture 1:1; a terminal floors every span to the cells it covers;
+- the cell before an edge inside a cell does not answer — what you see is what you can grab;
 - the TUI quantizes at its projection and never writes back; a thousand frames rewrite nothing.
 
-PROVEN BY — `workshop/screen.hpp` `sub_span_contains`, `FineRect::contains_at`, `PointedAt`,
-`PointedAt::sub`; `workshop/screen_arrange.cpp` `pane_edge_at`; `surface/skin_tui.hpp`
-`canvas_body`; `surface/pointing.hpp` `sub_span_contains`; `tests/test_workshop_screen.cpp` case
-`"the hand meets exactly the pixels a fine pane paints"`, case `"the TUI projects a fine
-pane onto its covered cells and rewrites nothing"`; `tests/test_surface.cpp` case `"one
-quantization law -- a span lands on device units by flooring both edges"`.
-WHY — `agents/decisions/the-fine-lattice.md`
+PROVEN BY — `workshop/screen.hpp` `PixelRect::contains_at`, `PointedAt`, `PointedAt::px`;
+`workshop/screen_arrange.cpp` `pane_edge_at`; `surface/skin_tui.hpp` `canvas_body`;
+`surface/pointing.hpp` `px_span_contains`, `kPixelGrainPx`, `kCellGrainPx`;
+`tests/test_workshop_screen.cpp` case `"the hand meets exactly the pixels and cells a pane
+paints"`, case `"the TUI projects a pane onto its covered cells and rewrites nothing"`;
+`tests/test_surface.cpp` case `"one quantization law -- a span lands on device units by flooring
+both edges"`.
+WHY — `agents/decisions/the-whole-pixel.md`
 
-## WL-GEO-08 — The unit is the medium's answer, never Workshop's
+## WL-GEO-08 — The room and the unit are the medium's answer, never Workshop's
 
-LAW — `Session::cell_px` is the device unit the medium reported on `SurfaceExtent`; zero means the cell is the device unit. Workshop derives no unit, and a change of unit alone is a change.
+LAW — `SurfaceExtent` says the room in canvas pixels and `cell_px` the device unit; zero means the cell, a terminal's room is its cells times twelve, and Workshop derives neither.
 
 MEANS
 - every terminal, and any run no medium has spoken to, reads cells;
-- a window that opens its canvas late does not leave a weaver reading cells until something moves.
+- a terminal's geometry is derived from its cells, never measured or written back (WL-GEO-11);
+- a change of unit alone is a change: a window opened late does not leave a weaver in cells.
 
 DOES NOT MEAN
 - that Workshop may hold one Skin's layout number — correct only while there is one medium.
@@ -144,11 +150,11 @@ LAW — A pane's geometry has one spelling path — one unit, one amount, one re
 
 MEANS
 - there is no unit type in Workshop;
-- an axis authored in `pixels` keeps its own inline `px` whatever the face (`483x220px px`).
+- the unit is said once per line, where a number in it was printed (`@75,60 482x12 px f0`).
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `geometry_unit`, `geometry_spelling`,
-`geometry_amount_text`, `fine_rect_text`, `pane_window_text`; `workshop/screen.hpp`
-`GeometrySpelling`; `surface/region.hpp` `device_of_subs`; `tests/test_workshop_screen.cpp` case
+`geometry_amount_text`, `pixel_rect_text`, `pane_window_text`; `workshop/screen.hpp`
+`GeometrySpelling`; `surface/region.hpp` `device_of_px`; `tests/test_workshop_screen.cpp` case
 `"one authored value, spelled in whatever unit the active face reported"`;
 `tests/test_surface.cpp` case `"a medium's own device unit, and whether it can say
 a value exactly"`.
@@ -166,7 +172,7 @@ DOES NOT MEAN
 - that a rounded value is ever presented as the stored one — the mark is the distinction.
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `geometry_spelling`, `geometry_amount_text`,
-`fine_rect_text`; `workshop/screen.hpp` `GeometrySpelling`; `tests/test_workshop_screen.cpp` case
+`pixel_rect_text`; `workshop/screen.hpp` `GeometrySpelling`; `tests/test_workshop_screen.cpp` case
 `"one authored value, spelled in whatever unit the active face reported"`;
 `tests/test_workshop_panes_window.cpp` case `"the arrangement notice speaks the unit
 the FACE reported"`.
@@ -204,4 +210,5 @@ WHY — `agents/decisions/the-face-reports-the-unit.md`
 ## Do not assume
 
 - That the right column is reserved out of the room — the room is the surface (WL-GEO-03).
-- That a metric ever chooses a placement — it chooses how much prose fits (WL-GEO-05).
+- That a metric chooses where a pane goes — it sizes the two bands, and a default place is
+  measured from what they leave (WL-GEO-05).

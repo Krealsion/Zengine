@@ -23,7 +23,12 @@ pane the selected element's values sit in boxes on the right; in a narrow one, b
 - **Size** the view by dragging the handles on its right and bottom edges, or their corner, or
   type its width and height into the boxes beside **Size**. A new view is 480 by 240. Beneath
   its size are three rows of text where it says what it is waiting for, so nothing you place is
-  ever under them, and when it runs it asks its pane for its size and those rows.
+  ever under them, and when it runs it asks its pane for its size and those rows, and gets them:
+  in a window, a view of 680 by 360 runs in a pane exactly 680 pixels wide, and one of 683 by 361
+  in one exactly 683; a terminal gives it the whole cells that hold it.
+
+  ![Two running views, each in a pane exactly its size: 680 by 360 above, 683 by 361 below, the notice's three rows beneath each](images/view-room-exact.png)
+
 - **Make** an element by dragging **Label**, **Number** or **Button** from **Add** onto the
   canvas: it is made where you let go, inside the view, snapped as a move is. A click on a kind
   makes one below the last, if the view has room there.

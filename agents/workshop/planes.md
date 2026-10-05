@@ -37,14 +37,14 @@ WHY — `agents/decisions/two-bands.md`
 
 ## WL-FRONT-03 — Three regions tile the screen exactly
 
-LAW — Three regions tile the screen exactly: the first rows are reserved (the Layouts pane's default), the body follows, and the last rows are the foot; the reserved and foot rows together are six, asserted.
+LAW — Three regions tile the screen exactly: the top band is reserved (the Layouts pane's default), the body follows, and the bottom band is the foot; each band is fitted to its rows (`WL-GEO-05`).
 
 MEANS
 - `room_h` never moved: chrome that moves must not resize a weaver's document;
-- the reserved rows are two because one cell holds zero rows of a real face;
-- slots, the side region, the overlay column and occupancy all begin at `kWorkspaceY`.
+- the reserved rows are two because the Layouts pane's identity and tabs are two rows;
+- slots, the side region, the overlay column and occupancy all begin at `Screen::room_y`.
 
-PROVEN BY — `workshop/screen.hpp` `kTopRows`, `kBottomRows`, `kWorkspaceY`, `Screen::room_h`,
+PROVEN BY — `workshop/screen.hpp` `kTopRows`, `kBottomRows`, `Screen::room_y`, `Screen::room_h`,
 `band_bounds`, `top_band_bounds`; `tests/test_workshop_screen.cpp` case `"the layout selector is
 the first Workshop row, on both media"`, case `"the move re-homed reserved rows and
 did not add one"`, case `"every owner of the body agrees about

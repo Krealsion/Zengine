@@ -149,7 +149,7 @@ struct ProjectRig {
     }
 
     void resize_screen(std::int64_t h) {
-        t.publish(loom::to_value(surface::SurfaceExtent{78, h, 0, 0}));
+        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(78), cells_px(h), 0, 0}));
     }
     const Session& session() const { return t.w->session(); }
     std::string notice() const { return session().notice; }

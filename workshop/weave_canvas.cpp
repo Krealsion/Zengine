@@ -15,12 +15,34 @@ bool WorkshopWeave::canvas_owner_current(std::int64_t kind) const {
         host_->role_holder && host_->role_holder(row->provider) == pane->canvas.owner;
 }
 
+loom::Ticket WorkshopWeave::send_canvas_pointer(loom::WeaveId owner, const PaneCanvasPointer& e,
+                                               bool legacy, loom::Mail& mail,
+                                               std::uint64_t correlation) {
+    if (!legacy) return mail.as_role(kWorkshopProvider).send(owner, e, correlation);
+    return mail.as_role(kWorkshopProvider).send(owner,
+        v1::PaneCanvasPointer{e.pane, e.grant, e.picture, e.gesture, e.phase, e.button,
+                              legacy_subs_of_px(e.x), legacy_subs_of_px(e.y), e.modifiers, e.dx,
+                              e.dy, e.keys_went_here},
+        correlation);
+}
+
+void WorkshopWeave::send_canvas_hover(loom::WeaveId owner, const PaneCanvasHover& h, bool legacy,
+                                      loom::Mail& mail) {
+    if (!legacy) {
+        (void)mail.as_role(kWorkshopProvider).send(owner, h);
+        return;
+    }
+    (void)mail.as_role(kWorkshopProvider).send(owner,
+        v1::PaneCanvasHover{h.pane, h.grant, h.picture, legacy_subs_of_px(h.x),
+                            legacy_subs_of_px(h.y), h.over, h.carrying});
+}
+
 void WorkshopWeave::lose_canvas_hold(std::size_t slot, loom::Mail& mail) {
     auto& held = canvas_holds_[slot];
     if (!held.active) return;
     auto event = held.event;
     event.phase = canvas_pointer::kLost;
-    (void)mail.as_role(kWorkshopProvider).send(held.owner, event);
+    (void)send_canvas_pointer(held.owner, event, held.legacy, mail);
     if (slot > 0) secondary_cont_[slot - 1] = SecondaryContinuation{};
     held = CanvasHold{};
 }
@@ -43,19 +65,28 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         const auto* row = session_.panes.runtime.of_kind(pane.kind);
         if (!row) continue;
         const auto owner = host_->role_holder ? host_->role_holder(row->provider) : loom::WeaveId{};
-        const bool capable = owner.valid() && host_->holder_accepts &&
-            host_->holder_accepts(row->provider, *loom::schema_of<PaneCanvasRoom>()) &&
-            host_->holder_accepts(row->provider, *loom::schema_of<PaneCanvasPointer>());
+        const auto accepts = [&](const auto& schema) {
+            return host_->holder_accepts && host_->holder_accepts(row->provider, *schema);
+        };
+        // The pixel doors first; a holder that accepts only the earlier sub-unit doors is met in
+        // them, with the same geometry translated at the door.
+        const bool current = owner.valid() && accepts(loom::schema_of<PaneCanvasRoom>()) &&
+            accepts(loom::schema_of<PaneCanvasPointer>());
+        const bool legacy = !current && owner.valid() &&
+            accepts(loom::schema_of<v2::PaneCanvasRoom>()) &&
+            accepts(loom::schema_of<v1::PaneCanvasPointer>());
+        const bool capable = current || legacy;
         const auto where = bounds_of(session_.panes, session_.setup.active, pane.kind, sc);
         const auto body = capable && where.open
             ? canvas_body_place(where.rect, sc,
-                external_title_rows(session_.panes, pane.kind, session_.pane_titles)) : FineRect{};
+                external_title_rows(session_.panes, pane.kind, session_.pane_titles)) : PixelRect{};
         auto& c = pane.canvas;
         const auto grain = chrome_grain(sc);
         const bool graphical = sc.cell_px > 0;
         if (capable && c.owner == owner && c.grant != 0 && c.x == body.x && c.y == body.y &&
             c.width == body.w && c.height == body.h && c.grain == grain && c.graphical == graphical &&
-            c.text_advance_px == sc.text_advance_px && c.text_line_px == sc.text_line_px)
+            c.text_advance_px == sc.text_advance_px && c.text_line_px == sc.text_line_px &&
+            c.legacy == legacy)
             continue;
         if (!capable && c.grant == 0) continue;
         for (std::size_t i = 0; i < 3; ++i)
@@ -68,7 +99,8 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         const bool preview = capable && c.owner == owner && c.grant > 0 &&
             (c.heard || c.preview) && c.width > 0 && c.height > 0 && !body.empty() &&
             c.grain == grain && c.graphical == graphical &&
-            c.text_advance_px == sc.text_advance_px && c.text_line_px == sc.text_line_px;
+            c.text_advance_px == sc.text_advance_px && c.text_line_px == sc.text_line_px &&
+            c.legacy == legacy;
         PaneCanvasContent previous;
         if (preview) previous = std::move(c.content);
         c = ExternalPane::Canvas{};
@@ -83,15 +115,31 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         c.grain = grain; c.graphical = graphical;
         c.text_advance_px = sc.text_advance_px; c.text_line_px = sc.text_line_px;
         c.preview = preview;
+        c.legacy = legacy;
         if (preview) c.content = std::move(previous);
-        (void)mail.as_role(kWorkshopProvider).send(owner,
-            PaneCanvasRoom{row->pane, c.grant, c.width, c.height, grain, graphical,
-                           c.text_advance_px, c.text_line_px});
+        if (legacy) {
+            (void)mail.as_role(kWorkshopProvider).send(owner,
+                v2::PaneCanvasRoom{row->pane, c.grant, legacy_subs_of_px(c.width),
+                                   legacy_subs_of_px(c.height), legacy_subs_of_px(grain), graphical,
+                                   c.text_advance_px, c.text_line_px});
+        } else {
+            (void)mail.as_role(kWorkshopProvider).send(owner,
+                PaneCanvasRoom{row->pane, c.grant, c.width, c.height, grain, graphical,
+                               c.text_advance_px, c.text_line_px});
+        }
     }
     end_canvas_holds(mail);
 }
 
 void WorkshopWeave::on(const PaneCanvasContent& content, loom::Mail& mail) {
+    admit_canvas_content(content, mail);
+}
+
+void WorkshopWeave::on(const v2::PaneCanvasContent& content, loom::Mail& mail) {
+    admit_canvas_content(canvas_content_of_legacy(content), mail);
+}
+
+void WorkshopWeave::admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail) {
     const auto* row = session_.panes.runtime.find(mail.authored_role(), content.pane);
     if (!row || mail.authored_role().empty()) return;
     auto* pane = session_.panes.external_pane(row->kind);
@@ -128,20 +176,20 @@ bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& 
     if (!row || !pane || pane->canvas.grant == 0 || !at.understood || b.button < 1 || b.button > 3)
         return false;
     const auto& c = pane->canvas;
-    const FineRect body{c.x, c.y, c.width, c.height};
-    if (!body.contains_at(at.sub.x, at.sub.y, at.grain)) return false;
+    const PixelRect body{c.x, c.y, c.width, c.height};
+    if (!body.contains_at(at.px.x, at.px.y, at.grain)) return false;
     // A waiting or retired picture owns its room, but cannot acquire a new gesture.
     if (!canvas_owner_current(kind) || !c.heard || pane->stamp.aimed <= 0) return true;
     const auto slot = static_cast<std::size_t>(b.button - 1);
     lose_canvas_hold(slot, mail);
     if (canvas_gestures_ == (std::numeric_limits<std::int64_t>::max)()) return true;
     PaneCanvasPointer event{row->pane, c.grant, pane->stamp.aimed, ++canvas_gestures_,
-        canvas_pointer::kPress, b.button, surface::sub_px(at.sub.x, c.x),
-        surface::sub_px(at.sub.y, c.y), b.modifiers, 0, 0, keys_went_here};
+        canvas_pointer::kPress, b.button, surface::sub_px(at.px.x, c.x),
+        surface::sub_px(at.px.y, c.y), b.modifiers, 0, 0, keys_went_here};
     const auto correlation = ++gesture_asks_;
-    const auto sent = mail.as_role(kWorkshopProvider).send(c.owner, event, correlation);
+    const auto sent = send_canvas_pointer(c.owner, event, c.legacy, mail, correlation);
     if (!sent.valid()) return true;
-    canvas_holds_[slot] = CanvasHold{true, kind, c.owner, c.x, c.y, event, sent};
+    canvas_holds_[slot] = CanvasHold{true, kind, c.owner, c.x, c.y, event, sent, c.legacy};
     // A primary press is the pane's to continue, as a prose press is: under its number the
     // provider may ask to carry a value out, and the press's release is where it lands.
     if (slot == 0) press_sent_ = GestureSent{kind, gestures_, correlation};
@@ -169,12 +217,12 @@ bool WorkshopWeave::canvas_release(const input::PointerButton& b, loom::Mail& ma
     auto event = held.event;
     const auto at = canvas_point_of(b.space, b.x, b.y);
     if (at.understood) {
-        event.x = surface::sub_px(at.sub.x, held.origin_x);
-        event.y = surface::sub_px(at.sub.y, held.origin_y);
+        event.x = surface::sub_px(at.px.x, held.origin_x);
+        event.y = surface::sub_px(at.px.y, held.origin_y);
     }
     event.phase = at.understood ? canvas_pointer::kRelease : canvas_pointer::kLost;
     event.modifiers = b.modifiers;
-    (void)mail.as_role(kWorkshopProvider).send(held.owner, event);
+    (void)send_canvas_pointer(held.owner, event, held.legacy, mail);
     if (slot > 0) secondary_cont_[slot - 1].released = true;
     held = CanvasHold{};
     return true;
@@ -190,10 +238,10 @@ bool WorkshopWeave::canvas_motion(const input::PointerMoved& m, loom::Mail& mail
         sent = true;
         if (!at.understood) { lose_canvas_hold(i, mail); continue; }
         held.event.phase = canvas_pointer::kMove;
-        held.event.x = surface::sub_px(at.sub.x, held.origin_x);
-        held.event.y = surface::sub_px(at.sub.y, held.origin_y);
+        held.event.x = surface::sub_px(at.px.x, held.origin_x);
+        held.event.y = surface::sub_px(at.px.y, held.origin_y);
         held.event.modifiers = m.modifiers;
-        (void)mail.as_role(kWorkshopProvider).send(held.owner, held.event);
+        (void)send_canvas_pointer(held.owner, held.event, held.legacy, mail);
         note_routed(held.kind);
     }
     return sent;
@@ -211,15 +259,18 @@ void WorkshopWeave::canvas_hover(const input::PointerMoved& m, loom::Mail& mail)
         const Occupancy here = occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
         const auto* row = here.occupied ? session_.panes.runtime.of_kind(here.kind) : nullptr;
         const auto* pane = here.occupied ? session_.panes.external_pane(here.kind) : nullptr;
+        const bool hears = host_->holder_accepts && row && pane &&
+            host_->holder_accepts(row->provider, pane->canvas.legacy
+                                                     ? *loom::schema_of<v1::PaneCanvasHover>()
+                                                     : *loom::schema_of<PaneCanvasHover>());
         if (row && pane && canvas_owner_current(here.kind) && pane->canvas.heard &&
-            pane->stamp.aimed > 0 && host_->holder_accepts &&
-            host_->holder_accepts(row->provider, *loom::schema_of<PaneCanvasHover>())) {
+            pane->stamp.aimed > 0 && hears) {
             const auto& c = pane->canvas;
-            if (FineRect{c.x, c.y, c.width, c.height}.contains_at(at.sub.x, at.sub.y, at.grain)) {
+            if (PixelRect{c.x, c.y, c.width, c.height}.contains_at(at.px.x, at.px.y, at.grain)) {
                 kind = here.kind;
                 owner = c.owner;
                 over = PaneCanvasHover{row->pane, c.grant, pane->stamp.aimed,
-                                       surface::sub_px(at.sub.x, c.x), surface::sub_px(at.sub.y, c.y),
+                                       surface::sub_px(at.px.x, c.x), surface::sub_px(at.px.y, c.y),
                                        true, !carried_.data.empty()};
             }
         }
@@ -230,8 +281,10 @@ void WorkshopWeave::canvas_hover(const input::PointerMoved& m, loom::Mail& mail)
     if (canvas_hover_.kind == kind && canvas_hover_.x == over.x && canvas_hover_.y == over.y &&
         canvas_hover_.carrying == over.carrying)
         return;
-    (void)mail.as_role(kWorkshopProvider).send(owner, over);
-    canvas_hover_ = CanvasHover{kind, over.grant, over.x, over.y, owner, over.pane, over.carrying};
+    const bool legacy = session_.panes.external_pane(kind)->canvas.legacy;
+    send_canvas_hover(owner, over, legacy, mail);
+    canvas_hover_ =
+        CanvasHover{kind, over.grant, over.x, over.y, owner, over.pane, over.carrying, legacy};
 }
 
 void WorkshopWeave::leave_canvas_hover(loom::Mail& mail) {
@@ -240,8 +293,9 @@ void WorkshopWeave::leave_canvas_hover(loom::Mail& mail) {
     const auto* pane = session_.panes.external_pane(was.kind);
     // A provider whose room was granted afresh has already put its hover down with that room.
     if (!pane || !canvas_owner_current(was.kind) || pane->canvas.grant != was.grant) return;
-    (void)mail.as_role(kWorkshopProvider).send(was.owner,
-        PaneCanvasHover{was.pane, was.grant, pane->stamp.aimed, was.x, was.y, false, false});
+    send_canvas_hover(was.owner,
+        PaneCanvasHover{was.pane, was.grant, pane->stamp.aimed, was.x, was.y, false, false},
+        was.legacy, mail);
 }
 
 bool WorkshopWeave::canvas_wheel(std::int64_t kind, const input::PointerWheel& w, loom::Mail& mail) {
@@ -251,13 +305,14 @@ bool WorkshopWeave::canvas_wheel(std::int64_t kind, const input::PointerWheel& w
     const auto at = canvas_point_of(w.space, w.x, w.y);
     const auto& c = pane->canvas;
     if (!canvas_owner_current(kind) || !c.heard || pane->stamp.aimed <= 0 || !at.understood ||
-        !FineRect{c.x, c.y, c.width, c.height}.contains_at(at.sub.x, at.sub.y, at.grain) ||
+        !PixelRect{c.x, c.y, c.width, c.height}.contains_at(at.px.x, at.px.y, at.grain) ||
         !std::isfinite(w.dx) || !std::isfinite(w.dy)) return true;
     if (canvas_gestures_ == (std::numeric_limits<std::int64_t>::max)()) return true;
-    (void)mail.as_role(kWorkshopProvider).send(c.owner,
+    (void)send_canvas_pointer(c.owner,
         PaneCanvasPointer{row->pane, c.grant, pane->stamp.aimed, ++canvas_gestures_,
-            canvas_pointer::kWheel, 0, surface::sub_px(at.sub.x, c.x),
-            surface::sub_px(at.sub.y, c.y), w.modifiers, w.dx, w.dy, typing_pane(session_) == kind});
+            canvas_pointer::kWheel, 0, surface::sub_px(at.px.x, c.x),
+            surface::sub_px(at.px.y, c.y), w.modifiers, w.dx, w.dy, typing_pane(session_) == kind},
+        c.legacy, mail);
     note_routed(kind);
     return true;
 }

@@ -257,46 +257,42 @@ between two planes     the complete earlier plane, then the complete later one o
   input. What order a consumer publishes its planes in is that consumer's law — Workshop's is in
   [`workshop/planes.md`](workshop/planes.md) (WL-FRONT-01).
 
-## The lattice is fine, and each medium floors at its own grain
+## The canvas is pixels, and each medium floors at its own grain
 
-`kCellSubs` (vocabulary.hpp) is the canvas lattice's resolution: 48 sub-units per cell, a
-fixed vocabulary constant that never moves with a medium. The geometry shapes carry their
-coordinates as whole cells plus a `sub_*` remainder in `[0, kCellSubs)` — the floor
-decomposition, one spelling per value — so every earlier publisher's zeros mean exactly what
-its silence always meant, and a publisher with a finer fact (pane arrangement is the one
-that earned it) says it on the same lattice everything else is drawn on.
+The canvas is laid out in canvas pixels, `kCanvasCellPx` (vocabulary.hpp) to the cell: every
+geometry shape says its coordinates and extents in them, with no remainder field and no second
+lattice. The shipped window draws a canvas pixel as a device pixel; a terminal floors the same
+picture to its cells. A publisher that thinks in whole cells multiplies once, and says exactly
+what it always said.
 
-- **ONE QUANTIZATION LAW.** A consumer whose device unit is `g` sub-units — a terminal cell
-  (`kCellGrainSubs` = <!-- value kCellGrainSubs -->48<!-- /value -->), the shipped skin's pixel (`kPixelGrainSubs` = <!-- value kPixelGrainSubs -->4<!-- /value -->) — presents a fine
-  span `[L, R)` on device units `[floor(L/g), floor(R/g))`. The SDL plan applies it per EDGE
-  through `px_of_subs` (quads, labels, and `fit_region`'s viewport — one arithmetic, so a
-  pane's backdrop, its prose and its hit answer are one picture); the cell projection and the
-  terminal rasterizer apply it at the cell grain (covered cells; a label's anchor floors).
-  Exact-cell geometry therefore lands on exactly the cells and pixels it always did.
-- **THE HIT LAW IS THE PAINT LAW READ BACKWARDS.** `sub_span_contains` floors BOTH sides by
+- **ONE QUANTIZATION LAW.** A consumer whose device unit is `g` canvas pixels — a terminal cell
+  (`kCellGrainPx` = <!-- value kCellGrainPx -->12<!-- /value -->), the shipped skin's pixel (`kPixelGrainPx` = <!-- value kPixelGrainPx -->1<!-- /value -->) — presents a
+  span `[L, R)` on device units `[floor(L/g), floor(R/g))`. The SDL plan draws every edge where
+  it is (quads, labels, and `fit_region`'s viewport — one arithmetic, so a pane's backdrop, its
+  prose and its hit answer are one picture); the cell projection and the terminal rasterizer
+  apply it at the cell grain (covered cells; a label's anchor floors). Whole-cell geometry
+  therefore lands on exactly the cells and pixels it always did.
+- **THE HIT LAW IS THE PAINT LAW READ BACKWARDS.** `px_span_contains` floors BOTH sides by
   the pointer's own grain before comparing, so the hand meets exactly the device units the
-  rectangle paints — comparing the raw sub-position instead is wrong by up to one device unit
-  at a fractional edge, which is a pane whose visible edge and interactive edge disagree.
-- **A GARBAGE REMAINDER READS AS ZERO** (`sub_rem`): a value outside `[0, kCellSubs)` is a
-  number nobody could mean, and the safe reading is the whole-cell picture — the same posture
-  an unknown ground takes, for the same reason.
-- **THE POINTER'S FINE TWIN rides beside its cell projection**: `subs_of_pixel` /
-  `canvas_subs_of_window_pixels` / `canvas_subs_of_terminal_cells` (pointing.hpp), with the
+  rectangle paints — comparing the raw pixel instead is wrong by up to one cell in a terminal,
+  at an edge inside a cell, which is a pane whose visible edge and interactive edge disagree.
+- **THE POINTER'S PIXEL TWIN rides beside its cell projection**:
+  `canvas_px_of_window_pixels` / `canvas_px_of_terminal_cells` (pointing.hpp), with the
   reporting medium's grain travelling beside the position — a terminal says a cell's corner
-  at grain 48, a window says a pixel at grain 4, and a consumer that spends cells and one
-  that spends subs are reading ONE measurement.
-- **What stayed coarse, deliberately**: the medium's ROOM is whole cells (`SurfaceExtent`'s
-  `width`/`height` — the honest coarse fact), the canvas's own `width`/`height`, and the
-  prose lattice (rows, columns, carets, selections — a region's interior is the metric's
-  business, not the lattice's).
-- **A MEDIUM SAYS HOW BIG ITS OWN CANVAS CELL IS, AND ONLY A MEDIUM MAY.**
-  `SurfaceExtent::cell_px` (v3) is that medium's device pixels per canvas cell; **ZERO means
+  at grain 12, a window says a pixel at grain 1, and a consumer that spends cells and one
+  that spends pixels are reading ONE measurement.
+- **THE ROOM IS PIXELS TOO.** `SurfaceExtent`'s `width`/`height` (v4) are the canvas the medium
+  can show, in canvas pixels: a window's drawable, a terminal's cells less its reserved rows,
+  times twelve. A terminal's room is derived from its cells and nothing else, so it never
+  measures or writes a geometry back. The prose lattice (rows, columns, carets, selections) is
+  still the metric's business, not the canvas's.
+- **A MEDIUM SAYS HOW BIG ITS OWN DEVICE UNIT IS, AND ONLY A MEDIUM MAY.**
+  `SurfaceExtent::cell_px` is that medium's device pixels per canvas cell; **ZERO means
   "my device unit IS the cell"**, a terminal's permanent answer and the value of a run no
-  medium has spoken to. `device_of_subs(subs, cell_px)` is `px_of_subs` with the layout
-  number taken from that report rather than from the shipped Skin's constant — the SAME
-  arithmetic, asserted equal at `kCanvasCellPx` — and `subs_exact_in_device` is the other
-  half: whether that medium can say the authored number at all, which is the only honest
-  way to tell what a weaver CHOSE from what a face can SHOW of it.
+  medium has spoken to. `device_of_px(px, cell_px)` reads a canvas pixel amount in that
+  medium's device units, and `px_exact_in_device` is the other half: whether that medium can
+  say the authored number at all, which is the only honest way to tell what a weaver CHOSE
+  from what a face can SHOW of it.
   - **It exists because nothing else could say it.** `surface/pointing.hpp` forbids an
     application to hold one Skin's layout number, and the only stamped moment was a
     pointer's `input::space` — so a consumer that wanted to spell a weaver's geometry in
@@ -311,17 +307,17 @@ that earned it) says it on the same lattice everything else is drawn on.
   - **It is a REPORT, never durable.** Nothing persists it (`session_persist` says why about
     the text metric, verbatim: it belongs to whichever medium opens the face and would be a
     stale claim about somebody else's monitor), and no authored geometry is expressed in it.
-    A device unit that entered the lattice would be the thing `kCellSubs`' own header refuses.
-  - **AND THE OTHER DIRECTION IS `subs_of_one_device(cell_px)`**: the smallest span
-    this medium can SHOW, said on the lattice — what a publisher drawing a BOUNDARY asks.
-    `kCellSubs` when the device unit is the cell, `kPixelGrainSubs` for the shipped window,
-    and a CEILING rather than a division so a cell size the lattice does not divide evenly
-    still answers a span `device_of_subs` reads back as one whole unit. Its one consumer is
+  - **AND THE OTHER DIRECTION IS `px_of_one_device(cell_px)`**: the smallest span
+    this medium can SHOW, said in canvas pixels — what a publisher drawing a BOUNDARY asks.
+    `kCanvasCellPx` when the device unit is the cell, one pixel for the shipped window,
+    and a CEILING rather than a division so a cell size the canvas pixel does not divide
+    evenly still answers a span `device_of_px` reads back as one whole unit. Its consumers are
     Workshop's pane chrome —
-    [`workshop/chrome.md`](workshop/chrome.md) (WL-CHROME-01) —
-    and the thing it is NOT is a licence to spell a boundary in cells on one face and pixels
-    on another *for the same drawing*: a consumer must still ask whether the presentation it
-    is about to get is the medium's own type or the cell projection (the next section).
+    [`workshop/chrome.md`](workshop/chrome.md) (WL-CHROME-01) — and the boundary its bands
+    are fitted inside, and the thing it is NOT is a licence to spell a boundary in cells on
+    one face and pixels on another *for the same drawing*: a consumer must still ask whether
+    the presentation it is about to get is the medium's own type or the cell projection (the
+    next section).
 
 ## A region too small for the face is a CELL region
 
@@ -464,12 +460,10 @@ and later runs, with an unrelated paint in between).
   canvas out at `kCanvasCellPx`. The last field is the honest question to ask
   about GEOMETRY, and it still does not answer "what kind of medium is this": it says what
   this medium's device unit IS, which is the only part a consumer ever needed.
-- A sub-cell remainder is device pixels — it is 1/`kCellSubs` of a CANVAS cell, a
-  medium-independent fraction; the shipped skin's pixel happens to be four of them (12
-  divides 48), which is an alignment worth having, not a contract a future medium must meet.
-- `fit_region`'s 6-argument form takes sub-units — it takes CELLS, exactly as it always has;
-  the sub-unit entry is `fit_region_subs`, and the shape overload routes through it so a
-  fine region fits at its fine place.
+- A canvas pixel is any medium's device pixel — it is the shipped window's, drawn 1:1; a
+  terminal's device unit is twelve of them, and a future medium reports its own `cell_px`.
+- `fit_region`'s 6-argument form takes cells — it takes canvas PIXELS, like every geometry
+  shape; the cells a region covers are its capacity where a face sets no type.
 - `kCanvasCellPx` is a standing fact Workshop may hold — `surface/pointing.hpp` forbids it; a
   pointer may spend it only because the event carries `input::space::kPixels`, a stamp on that
   moment. What a consumer may hold is the number the MEDIUM reported

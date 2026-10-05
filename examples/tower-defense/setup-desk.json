@@ -1,27 +1,27 @@
 {
  "zen": 1,
  "schema": "WorkshopSetup",
- "version": 3,
+ "version": 4,
  "fields": {
   "format": "zengine-workshop-setup",
-  "format_version": "3",
+  "format_version": "4",
   "name": "Tower defense desk",
   "panes": [
    {
     "provider": "zengine.editor",
     "pane": "editor",
     "place": {
-     "mode": "subcells",
-     "x": "48",
-     "y": "96"
+     "mode": "pixels",
+     "x": "12",
+     "y": "0"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "3552"
+     "mode": "pixels",
+     "amount": "888"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "1536"
+     "mode": "pixels",
+     "amount": "384"
     },
     "front": "0"
    },
@@ -29,17 +29,17 @@
     "provider": "zengine.files",
     "pane": "project-files",
     "place": {
-     "mode": "subcells",
-     "x": "48",
-     "y": "1680"
+     "mode": "pixels",
+     "x": "12",
+     "y": "396"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "3552"
+     "mode": "pixels",
+     "amount": "888"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "576"
+     "mode": "pixels",
+     "amount": "144"
     },
     "front": "1"
    },
@@ -47,17 +47,17 @@
     "provider": "zengine.builder-pane",
     "pane": "builder",
     "place": {
-     "mode": "subcells",
-     "x": "48",
-     "y": "2304"
+     "mode": "pixels",
+     "x": "12",
+     "y": "552"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "3552"
+     "mode": "pixels",
+     "amount": "888"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "960"
+     "mode": "pixels",
+     "amount": "240"
     },
     "front": "2"
    },
@@ -65,17 +65,17 @@
     "provider": "td.game",
     "pane": "td",
     "place": {
-     "mode": "subcells",
-     "x": "3648",
-     "y": "96"
+     "mode": "pixels",
+     "x": "912",
+     "y": "0"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "3504"
+     "mode": "pixels",
+     "amount": "876"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "1248"
+     "mode": "pixels",
+     "amount": "312"
     },
     "front": "3"
    },
@@ -83,17 +83,17 @@
     "provider": "zengine.inventory-pane",
     "pane": "inventory",
     "place": {
-     "mode": "subcells",
-     "x": "3648",
-     "y": "1392"
+     "mode": "pixels",
+     "x": "912",
+     "y": "324"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "3504"
+     "mode": "pixels",
+     "amount": "876"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "768"
+     "mode": "pixels",
+     "amount": "192"
     },
     "front": "4"
    },
@@ -101,17 +101,17 @@
     "provider": "zengine.demo",
     "pane": "controls",
     "place": {
-     "mode": "subcells",
-     "x": "6000",
-     "y": "2208"
+     "mode": "pixels",
+     "x": "1500",
+     "y": "528"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "1152"
+     "mode": "pixels",
+     "amount": "288"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "480"
+     "mode": "pixels",
+     "amount": "120"
     },
     "front": "5"
    },
