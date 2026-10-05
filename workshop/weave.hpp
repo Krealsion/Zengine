@@ -781,7 +781,10 @@ public:
     /// A picture in the earlier canvas door's sub-units, read at their floor and then admitted as
     /// any picture is.
     void on(const v2::PaneCanvasContent& content, loom::Mail& mail);
-    void admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail);
+    /// `said` is a problem the picture had under the doors it was drawn for, judged before it
+    /// was converted; empty for a picture in this door's own pixels.
+    void admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail,
+                              std::string_view said = {});
     /// One pointer moment to a canvas holder, in the version its room was granted in.
     loom::Ticket send_canvas_pointer(loom::WeaveId owner, const PaneCanvasPointer& event, bool legacy,
                                      loom::Mail& mail, std::uint64_t correlation = 0);

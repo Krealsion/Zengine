@@ -188,8 +188,15 @@ inline constexpr std::int64_t legacy_subs_of_px(std::int64_t px) noexcept {
            surface::mul_px(px < 0 ? -px : 0, kPaneCanvasLegacySubs);
 }
 
+/// An earlier picture, as its own doors said it: the same fields in sub-units, so it is judged by
+/// the rules it was drawn under before any edge is floored.
+inline PaneCanvasContent canvas_content_as_said(const v2::PaneCanvasContent& old) {
+    return PaneCanvasContent{old.pane, old.grant, old.picture, old.rects, old.labels, old.texts};
+}
+
 /// An earlier picture in canvas pixels: every edge floored, so a rect keeps the pixels it was
-/// painted on and an anchor the pixel its glyph started at.
+/// painted on and an anchor the pixel its glyph started at. A rect that floors to no pixel was
+/// painted as nothing, and is left out.
 inline PaneCanvasContent canvas_content_of_legacy(const v2::PaneCanvasContent& old) {
     PaneCanvasContent out;
     out.pane = old.pane;
@@ -203,6 +210,9 @@ inline PaneCanvasContent canvas_content_of_legacy(const v2::PaneCanvasContent& o
             r.w > 0 ? px_of_legacy_subs(surface::add_cells(r.x, r.w)) - x : r.w;
         const std::int64_t h =
             r.h > 0 ? px_of_legacy_subs(surface::add_cells(r.y, r.h)) - y : r.h;
+        if (r.w > 0 && r.h > 0 && (w <= 0 || h <= 0)) {
+            continue;
+        }
         out.rects.push_back(PaneCanvasRect{x, y, w, h, r.role});
     }
     out.labels.reserve(old.labels.size());

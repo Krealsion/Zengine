@@ -33,18 +33,20 @@ MEANS
 - resizing may show a marked, input-free preview only while owner and metrics agree.
 
 DOES NOT MEAN
-- that a holder of only the earlier doors is refused: it is answered in their sub-units.
+- that a holder of only the earlier doors is refused: it is answered, and judged, in its units.
 
 PROVEN BY — `workshop/weave.hpp` `HostContext::role_holder`;
 `workshop/weave_canvas.cpp` `canvas_owner_current`, `refresh_canvas_rooms`,
-`on(PaneCanvasContent)`; `workshop/pane_canvas_vocabulary.hpp` `kPaneCanvasLegacySubs`,
-`canvas_content_of_legacy`;
+`on(PaneCanvasContent)`, `on(v2::PaneCanvasContent)`; `workshop/pane_canvas_vocabulary.hpp`
+`kPaneCanvasLegacySubs`, `canvas_content_of_legacy`, `canvas_content_as_said`;
 `tests/test_workshop_panes_canvas.cpp` case
 "pane canvas grants turn over on reoffer and old content and capture cannot survive", case
 "pane canvas provider replacement cannot acquire its predecessor's held gesture", case
 "pane canvas text metric changes renew the grant even when its body stays fixed", case
 "pane canvas resize preview keeps only the same provider's picture and never its input", case
-"a canvas provider that speaks only the earlier doors is answered in them".
+"a canvas provider that speaks only the earlier doors is answered in them", case
+"an older canvas picture is judged by its own rules, and a rect that floors to nothing is
+dropped, not the picture".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-03 — A canvas gesture ends explicitly

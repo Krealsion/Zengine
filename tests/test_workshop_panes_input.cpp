@@ -156,6 +156,118 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
     }
 }
 
+namespace {
+/// WHO ASKS THE INSPECTION DOOR, and what it was answered: a pane's rows, or the door's refusal.
+struct ViewAskerState {
+    ZEN_SHAPE(ViewAskerState, 1);
+};
+class ViewAsker : public loom::WeaveBase<ViewAsker, ViewAskerState,
+                                         loom::Accept<SeatDo, PaneView, loom::Refused>,
+                                         loom::Emit<PaneViewRequested>> {
+public:
+    std::function<void(loom::Mail&)> next;
+    std::vector<PaneView> views;
+    std::vector<std::string> refusals;
+    void on(const SeatDo&, loom::Mail& m) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(m);
+    }
+    void on(const PaneView& v, loom::Mail&) { views.push_back(v); }
+    void on(const loom::Refused& r, loom::Mail&) { refusals.push_back(r.reason); }
+};
+} // namespace
+
+TEST_CASE("text a window sets in cells, in a body too short for a row of its face, is drawn, "
+          "pressed and aimed at from one origin") {
+    // A BODY SIX PIXELS PAST A GRID LINE -- a pane placed on whole cells under the window's band --
+    // holding no row of the face: its text is set in 12-pixel cells from the body's own pixel
+    // origin, so the press and the inspection door must count from there too.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.say(m, PaneContent{kHelloPane, {surface::SurfaceTextRow{"abcdefgh", surface::role::kFill}}});
+    });
+    r.extent_on_window(150, 60);
+    Session& live_session = const_cast<Session&>(r.session());
+    // THE PLACE AND SIZE THAT GIVE IT: found by asking the same resolution the painter asks, so the
+    // case does not restate the chrome's constants.
+    std::int64_t step = 0;
+    const auto author = [&](std::int64_t x, std::int64_t y, std::int64_t h) {
+        REQUIRE(author_pane_size(live_session.setup.active, hello_ref(),
+                                 PaneSize{pane_unit::kPixels, 30 * surface::kCanvasCellPx},
+                                 PaneSize{pane_unit::kPixels, h})
+                    .accepted);
+        REQUIRE(place_at_canvas(live_session, hello_ref(), x, y).accepted);
+        r.extent_on_window(150, 60 + (step++ % 2)); // reseat at the authored window
+        return external_body_of(r.session(), kind);
+    };
+    const std::int64_t x0 = 5 * surface::kCanvasCellPx, y0 = 10 * surface::kCanvasCellPx;
+    const auto past_line = [](std::int64_t at) {
+        return ((6 - at) % surface::kCanvasCellPx + surface::kCanvasCellPx) % surface::kCanvasCellPx;
+    };
+    const auto on_line_past = [](std::int64_t at) {
+        return surface::floor_div_px(at, surface::kCanvasCellPx) * surface::kCanvasCellPx + 6 == at;
+    };
+    bool found = false;
+    for (std::int64_t h = surface::kCanvasCellPx; h <= 3 * surface::kCanvasCellPx && !found; ++h) {
+        for (std::int64_t dy = 0; dy < surface::kCanvasCellPx && !found; ++dy) {
+            const ExternalBodyPlace probe = author(x0, y0 + dy, h);
+            if (!probe.present || probe.fit.graphical() || !on_line_past(probe.region_y)) {
+                continue;
+            }
+            const ExternalBodyPlace body = author(x0 + past_line(probe.region_x), y0 + dy, h);
+            found = body.present && !body.fit.graphical() && body.columns >= 8 &&
+                    body.region_h > surface::px_of_cells(body.header_rows) + 4 &&
+                    on_line_past(body.region_x) && on_line_past(body.region_y);
+        }
+    }
+    REQUIRE(found);
+    const ExternalBodyPlace body = external_body_of(r.session(), kind);
+    // ...and the provider answers the room it was granted there, so its picture is settled.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.say(m, PaneContent{kHelloPane, {surface::SurfaceTextRow{"abcdefgh", surface::role::kFill}}});
+    });
+
+    // THE INSPECTION DOOR READS IT, aiming at the drawn glyphs.
+    auto asker = std::make_unique<ViewAsker>();
+    ViewAsker* raw = asker.get();
+    loom::Grant grant;
+    grant.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version, kWorkshopProvider);
+    const loom::WeaveId asker_id = r.bus.register_weave(std::move(asker), std::move(grant));
+    raw->zen_set_self(asker_id);
+    raw->next = [](loom::Mail& m) {
+        (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{kHelloOffice, kHelloPane});
+    };
+    (void)r.bus.send(asker_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+    r.bus.drain_until_idle();
+    CHECK_MESSAGE(raw->refusals.empty(), (raw->refusals.empty() ? std::string() : raw->refusals[0]));
+    CHECK(raw->views.size() == 1);
+    if (raw->views.size() == 1) {
+        REQUIRE_FALSE(raw->views[0].rows.empty());
+        CHECK(raw->views[0].rows[0].text.rfind("abcdefgh", 0) == 0);
+    }
+
+    // A PRESS ON THE RIGHT HALF OF EACH GLYPH NAMES THAT GLYPH'S COLUMN, aimed into the glyph's
+    // part the body holds.
+    const std::int64_t glyph_y = body.region_y + surface::px_of_cells(body.header_rows) + 4;
+    for (std::int64_t column = 0; column < 8; ++column) {
+        CAPTURE(column);
+        seat->presses.clear();
+        const std::int64_t x = body.region_x + surface::px_of_cells(column) + 9;
+        r.press_pixel(x, glyph_y);
+        r.publish(loom::to_value(input::PointerButton{1, false, x, glyph_y, input::space::kPixels,
+                                                      input::mod::kNone}));
+        REQUIRE(seat->presses.size() == 1);
+        CHECK(seat->presses[0].row == 0);
+        CHECK(seat->presses[0].column == column);
+    }
+}
+
 TEST_CASE("every forwarded press is inside the room that pane was granted") {
     // THE BOUND STATED OVER THE WHOLE RECTANGLE rather than at its edges: no position
     // anywhere in or around the pane, in either medium, produces a coordinate outside

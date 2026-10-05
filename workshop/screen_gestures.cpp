@@ -173,18 +173,23 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
 
 // ---- Where a pointer is, in a region's prose -------------------------------------------
 
+// WL-GEO-01 -- agents/workshop/geometry.md
 ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
                  const surface::RegionFit& fit) noexcept {
+    // The press is read in the unit of the medium that said it: a window's pixel, a terminal's
+    // cell -- the unit text set in cells was drawn from.
     surface::CanvasPoint at;
+    std::int64_t grain = surface::kCanvasCellPx;
     if (space == input::space::kPixels) {
         at = surface::canvas_px_of_window_pixels(x, y);
+        grain = 1;
     } else if (space == input::space::kCells) {
         at = surface::canvas_px_of_terminal_cells(x, y);
     } else {
         return ProseAt{};
     }
-    return ProseAt{true, surface::prose_column_of_pixel(at.x, fit),
-                   surface::prose_row_of_pixel(at.y, fit)};
+    return ProseAt{true, surface::prose_column_of_pixel(at.x, fit, grain),
+                   surface::prose_row_of_pixel(at.y, fit, grain)};
 }
 
 // ---- A bounded list: what it shows, and what it must say it cannot ---------------------------

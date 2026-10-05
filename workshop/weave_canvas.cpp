@@ -136,10 +136,14 @@ void WorkshopWeave::on(const PaneCanvasContent& content, loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const v2::PaneCanvasContent& content, loom::Mail& mail) {
-    admit_canvas_content(canvas_content_of_legacy(content), mail);
+    // JUDGED BY ITS OWN RULES, in the sub-units it was drawn in: a sliver narrower than a pixel is
+    // a rect those rules allow, and only the conversion makes it nothing.
+    admit_canvas_content(canvas_content_of_legacy(content), mail,
+                         canvas_content_problem(canvas_content_as_said(content)));
 }
 
-void WorkshopWeave::admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail) {
+void WorkshopWeave::admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail,
+                                         std::string_view said) {
     const auto* row = session_.panes.runtime.find(mail.authored_role(), content.pane);
     if (!row || mail.authored_role().empty()) return;
     auto* pane = session_.panes.external_pane(row->kind);
@@ -150,6 +154,8 @@ void WorkshopWeave::admit_canvas_content(const PaneCanvasContent& content, loom:
         reason = "canvas room grant is no longer current";
     else if (content.picture <= pane->picture)
         reason = "canvas picture number must increase within its grant";
+    else if (!said.empty())
+        reason = said;
     else reason = canvas_content_problem(content);
     if (!reason.empty()) {
         (void)mail.as_role(kWorkshopProvider).send(mail.sender(),
