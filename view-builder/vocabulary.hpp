@@ -42,9 +42,9 @@ struct BuilderState {
               ZEN_FIELD(running));
 };
 
-/// THE VIEW BUILDER'S OWN PROJECT FILE, beside the views it saves: the view file it has open and
-/// whether the view host runs it for this office, in Zen's JSON text as Workshop's project files
-/// are. A launch reads it and runs that view again, its pane seated by the desk the weaver left; a
+/// THE VIEW BUILDER'S OWN PROJECT FILE, beside the views it saves: the view file it has open -- a
+/// file inside the project named relative to it -- and whether the view host runs it for this
+/// office, in Zen's JSON text as Workshop's project files are. A launch reads it and runs that view again, its pane seated by the desk the weaver left; a
 /// project with none runs the pane the Pane Creator saved there (`view::kCreatorPaneFileName`).
 inline constexpr const char* kRunFileName = "view-builder.json";
 inline constexpr const char* kRunFormat = "zengine-view-builder";
