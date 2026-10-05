@@ -1014,12 +1014,14 @@ directory they happened to be browsing when they quit is deliberately not rememb
   `{width, height}` in canvas pixels, its own shape rather than `surface::SurfaceExtent` — that is
   a message free to grow a field whenever a medium has something new to say, and the text metric
   in particular would be a stale claim about a font the moment it was written down.
-- **Cells, because cells are what Workshop knows.** The window belongs to whichever Skin holds
-  `zengine.skin`, behind a C ABI; the only thing it publishes about its room is `SurfaceExtent`,
-  and the only thing Workshop says back is how large a picture it would like to paint. So the
-  durable number is the one that crosses that seam, and the fidelity is a stated bound rather
-  than a hope: a restored window is the weaver's chosen size **floored to whole cells**, at most
-  `kCanvasCellPx - 1` pixels short on each axis.
+- **Pixels, because the room crosses the seam in pixels.** The window belongs to whichever Skin
+  holds `zengine.skin`, behind a C ABI; the only thing it publishes about its room is
+  `SurfaceExtent`, in canvas pixels, and the only thing Workshop says back is how large a picture
+  it would like to paint. So the durable number is the one that crosses that seam, and a restored
+  window is the weaver's chosen size, to the pixel; a terminal keeps its own. The restore's
+  notice says the room in the unit the medium names — pixels in a window, cells in a terminal —
+  and since a window names its unit only after its first picture, the notice is spelled again
+  then.
 - **Position and maximized state ARE persisted, opaquely, and the medium is the
   judge.** The Surface vocabulary's placement pair closed the old deliberate omission: the
   medium reports where its *normal* window sits (its own desktop units, maximized state

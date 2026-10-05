@@ -1980,6 +1980,45 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
     CHECK(back.notice().find("120x44") != std::string::npos);
 }
 
+TEST_CASE("the restore notice says the room in the unit the medium names: pixels in a window, cells in a terminal") {
+    // ⚔ MUTATION: the notice spelled once, at the restore, before any medium has named its unit --
+    // a window's launch says `120x75 cells`.
+    TempDir dir("restore-unit");
+    const std::string session = dir.file("session.json");
+    REQUIRE(session_persist::save_file(session, one_layout(setup_of("Default", {pane_kind::kLayouts})), 0,
+                                       cells_px(120), cells_px(75), session_persist::Placement{})
+                .accepted);
+    // A WINDOW names its device pixel after its first picture, and the notice standing then says
+    // the room in pixels.
+    {
+        Live w;
+        w.host.session_path = session;
+        w.publish(loom::to_value(surface::SurfaceReady{}));
+        w.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(75), 8, 18, surface::kCanvasCellPx}));
+        CHECK(w.notice() == "reopened your last desk \"Default\" -- 1440x900 px");
+    }
+    // A TERMINAL's unit is the cell.
+    {
+        Live t;
+        t.host.session_path = session;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(75), 0, 0, 0}));
+        CHECK(t.notice() == "reopened your last desk \"Default\" -- 120x75 cells");
+    }
+    // A NOTICE SAID SINCE STANDS: the restore's is not said again over it.
+    {
+        Live k;
+        k.host.session_path = session;
+        k.publish(loom::to_value(surface::SurfaceReady{}));
+        k.key(input::scan::kT);
+        k.text("t");
+        const std::string said = k.notice();
+        REQUIRE(said.rfind("pane titles hidden", 0) == 0);
+        k.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(75), 8, 18, surface::kCanvasCellPx}));
+        CHECK(k.notice() == said);
+    }
+}
+
 TEST_CASE("the FIRST picture of a run is the floor, and the room is the second") {
     // THE INVARIANT THE WINDOW'S MINIMUM RESTS ON, and why the restore does not seed the
     // extent before the first paint: a graphical medium told nothing sizes its minimum from

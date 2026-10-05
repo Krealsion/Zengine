@@ -401,35 +401,61 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     // yet, so every external reference is unresolved for a moment, and the setup line and the Pane
     // Manager name the genuinely gone ones live. It says how many layouts came back when more than
     // one did, counting from one, since it is prose about tabs.
-    std::string said =
-        "reopened your last desk " +
-        quoted_setup_name(session_.setup.active.name);
+    RestoreNotice notice;
+    notice.head = "reopened your last desk " + quoted_setup_name(session_.setup.active.name);
     if (last.layouts.size() > 1) {
-        said += " (" + std::to_string(last.active + 1) + " of " +
-                std::to_string(last.layouts.size()) + " layouts)";
+        notice.head += " (" + std::to_string(last.active + 1) + " of " +
+                       std::to_string(last.layouts.size()) + " layouts)";
     }
-    // The room in the face's own unit, marked where that face cannot say it exactly.
-    bool projected = false;
-    said += " -- " + geometry_amount_text(session_.screen_w, session_.cell_px, projected) + "x" +
-            geometry_amount_text(session_.screen_h, session_.cell_px, projected) + " " +
-            geometry_unit(session_.cell_px);
-    if (projected) {
-        said += kProjectedNote;
-    }
+    notice.w = session_.screen_w;
+    notice.h = session_.screen_h;
     if (!last.declined.empty()) {
         // AND IT NEVER CLAIMS THE SIZE CAME BACK WHEN IT DID NOT. The desk did; the
         // window did not; a weaver is told which, with the value that was declined.
-        said += "; " + last.declined;
+        notice.tail += "; " + last.declined;
     }
     // ...and once, if a pane in it changed hands (`workshop/pane_migration.hpp`): the count is the
     // whole run's.
     if (last.converted.total() > 0) {
-        said += "; " + pane_migration::converted_note(last.converted);
+        notice.tail += "; " + pane_migration::converted_note(last.converted);
     }
-    say(said, !last.declined.empty());
+    notice.bad = !last.declined.empty();
+    say(restore_notice_text(notice, session_.cell_px), notice.bad);
+    // A MEDIUM THAT HAS NAMED NO UNIT YET was spelled the cell; the first `SurfaceExtent` says
+    // which unit it is, and the sentence is spelled again then.
+    if (!medium_unit_known_) {
+        notice.said = notices_said_;
+        restore_notice_ = std::move(notice);
+    }
     // THE SECOND PICTURE OF THE RUN, and the one that asks for the room -- see
     // `on(SurfaceReady)` for why it cannot be the first.
     repaint(mail);
+}
+
+// WL-SESSION-14 -- agents/workshop/session-restore.md
+std::string WorkshopWeave::restore_notice_text(const RestoreNotice& n, std::int64_t cell_px) {
+    bool projected = false;
+    std::string said = n.head + " -- " + geometry_amount_text(n.w, cell_px, projected) + "x" +
+                       geometry_amount_text(n.h, cell_px, projected) + " " + geometry_unit(cell_px);
+    if (projected) {
+        said += kProjectedNote;
+    }
+    return said + n.tail;
+}
+
+// WL-SESSION-14 -- agents/workshop/session-restore.md
+bool WorkshopWeave::respell_restore_notice(std::int64_t cell_px) {
+    medium_unit_known_ = true;
+    if (!restore_notice_) {
+        return false;
+    }
+    const RestoreNotice held = std::move(*restore_notice_);
+    restore_notice_.reset();
+    if (held.said != notices_said_) {
+        return false; // something was said since, and it stands
+    }
+    say(restore_notice_text(held, cell_px), held.bad);
+    return true;
 }
 
 // WL-SESSION-13, WL-SESSION-15 -- agents/workshop/session.md; WL-SESSION-16 -- agents/workshop/session-restore.md
