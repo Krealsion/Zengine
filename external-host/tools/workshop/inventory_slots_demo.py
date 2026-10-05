@@ -4,7 +4,7 @@
 import json
 from hand import Hand
 from demo_setup import Measured, layout
-from workshop_steps import moment, picture, chord_moments, TOP
+from workshop_steps import moment, picture, chord_moments
 
 
 def run(ctx):
@@ -68,18 +68,18 @@ def run(ctx):
         panes[:] = [p for p in panes if p["provider"] in (inv[0], "zengine.info", "zengine.demo")]
         for p in panes:
             if p["provider"] == "zengine.info":
-                p["place"] = {"mode": "pixels", "x": "12", "y": str(25 * 12 + TOP)}
+                p["place"] = {"mode": "pixels", "x": "12", "y": str(23 * 12)}
                 p["width"]["amount"], p["height"]["amount"] = str(50 * 12), str(17 * 12)
         for key, x, y, width, height in ids:
             panes.append({"provider": inv[0], "pane": key,
-                          "place": {"mode": "pixels", "x": str(x * 12), "y": str(y * 12 + TOP)},
+                          "place": {"mode": "pixels", "x": str(x * 12), "y": str(y * 12)},
                           "width": {"mode": "pixels", "amount": str(width * 12)},
                           "height": {"mode": "pixels", "amount": str(height * 12)}, "front": str(len(panes))})
         for i, p in enumerate(panes):
             p["front"] = str(i)
         hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)
 
-    views = [(box, 54, 2, 12, 12)]
+    views = [(box, 54, 0, 12, 12)]  # cells of the room: a place is measured from its top-left
     arrange(views)
     menu(tile(box), 5)
     hand.text("zengine.inventory alt+1"); hand.key("enter")
@@ -97,9 +97,9 @@ def run(ctx):
             "operation": "context", "view": row, "text": "", "entry": {"owner": "", "entry": ""},
             "before": {"owner": "", "entry": ""}, "scancode": 0, "modifiers": 0, "enabled": False}, settle=True)
     ctx.on_cleanup(deactivate, "turn off this story's hotkey context")
-    views.append((row, 54, 17, 34, 12)); arrange(views)
+    views.append((row, 54, 15, 34, 12)); arrange(views)
     column = create(hand.view(*inv)["rows"][0], 2)
-    views.append((column, 92, 2, 12, 34)); arrange(views)
+    views.append((column, 92, 0, 12, 34)); arrange(views)
 
     ctx.step("move the slot, displace a filled box, and preserve its binding")
     hand.drag(tile(box), tile(row), 350)

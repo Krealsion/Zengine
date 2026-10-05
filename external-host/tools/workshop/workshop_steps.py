@@ -24,9 +24,6 @@ MODIFIERS = {"shift": 1, "ctrl": 2, "control": 2, "alt": 4}
 # zengine/input/vocabulary.hpp space::: the two terminal skins report cells, the SDL skin pixels.
 SPACE_CELLS = 1
 SPACE_PIXELS = 2
-# How much lower than two cells the window's room begins: its top band is fitted to the Layouts
-# pane's two rows of the shipped face, 42 pixels. A tool placing a pane in cells adds it.
-TOP = 18
 
 
 def chord(spelling):
