@@ -14,8 +14,8 @@ PROVEN BY — `workshop/screen_pane_state.cpp` `prose_place`, `prose_region`;
 `workshop/screen.hpp` `ProsePlace`; `workshop/screen_attention.cpp` `paint_context`;
 `tests/test_workshop_screen.cpp` case `"the popup opens at the press's own cell, and its extent is
 its content"`, case `"the contextual surface is its actions, and its width is theirs"`;
-`tests/test_workshop_host_creator.cpp` case `"a code-backed subject's interior is a
-read-only capture, and an unresolved one is nothing to inspect"`.
+`tests/test_workshop_host.cpp` case `"a code-backed subject's interior is a read-only
+capture, and an unresolved one is nothing to inspect"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`
 
 ## WL-RGN-02 — The Builder is a region composed by explicit priority

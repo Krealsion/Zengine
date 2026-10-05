@@ -193,12 +193,13 @@ class LegacyCanvasSeat : public loom::WeaveBase<LegacyCanvasSeat, SeatState,
 public:
     std::vector<v2::PaneCanvasRoom> rooms;
     std::vector<v1::PaneCanvasPointer> pointers;
+    std::vector<PaneCanvasRejected> rejected;
     std::function<void(LegacyCanvasSeat&, loom::Mail&)> next;
     void on(const PaneCatalogRequested&, loom::Mail&) {}
     void on(const PaneRoom&, loom::Mail&) {}
     void on(const v2::PaneCanvasRoom& r, loom::Mail&) { rooms.push_back(r); }
     void on(const v1::PaneCanvasPointer& e, loom::Mail&) { pointers.push_back(e); }
-    void on(const PaneCanvasRejected&, loom::Mail&) {}
+    void on(const PaneCanvasRejected& r, loom::Mail&) { rejected.push_back(r); }
     void on(const SeatDo&, loom::Mail& m) {
         auto run = std::move(next); next = {};
         if (run) run(*this, m);
@@ -270,6 +271,71 @@ TEST_CASE("a canvas provider that speaks only the earlier doors is answered in t
     const std::int64_t at_y = surface::px_of_cells(surface::cell_of_pixel(got.y) + 1) - got.y;
     CHECK(seat->pointers.back().x == kPaneCanvasLegacySubs * at_x);
     CHECK(seat->pointers.back().y == kPaneCanvasLegacySubs * at_y);
+}
+
+TEST_CASE("an older canvas picture is judged by its own rules, and a rect that floors to nothing "
+          "is dropped, not the picture") {
+    PaneRig r;
+    r.mount_workshop();
+    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.ready();
+    r.extent(150, 65);
+    auto w = std::make_unique<LegacyCanvasSeat>();
+    LegacyCanvasSeat* seat = w.get();
+    loom::Grant grant;
+    grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+    grant.allow_to_any(v2::PaneCanvasContent::zen_name, v2::PaneCanvasContent::zen_version);
+    const loom::WeaveId id = r.bus.register_weave(std::move(w), std::move(grant),
+                                                  std::string(canvas_office));
+    seat->zen_set_self(id);
+    const auto drive = [&](std::function<void(LegacyCanvasSeat&, loom::Mail&)> f) {
+        seat->next = std::move(f);
+        (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        r.bus.drain_until_idle();
+    };
+    drive([](LegacyCanvasSeat&, loom::Mail& m) {
+        (void)m.as_role(canvas_office).send_to_role(kWorkshopProvider,
+            PaneOffered{canvas_pane, "Diagram", "a local picture"});
+    });
+    r.pick(PaneRef{canvas_office, canvas_pane});
+    const auto* row = r.session().panes.runtime.find(canvas_office, canvas_pane);
+    REQUIRE(row);
+    const std::int64_t kind = row->kind;
+    REQUIRE(seat->rooms.size() == 1);
+    const auto send = [&](const v2::PaneCanvasContent& old) {
+        drive([old](LegacyCanvasSeat&, loom::Mail& m) {
+            (void)m.as_role(canvas_office).send_to_role(kWorkshopProvider, old);
+        });
+    };
+
+    // A SLIVER ONE SUB-UNIT WIDE is a rect its own doors allow, and the window painted no pixel of
+    // it: the picture is kept without it. The same sliver three sub-units over reaches pixel 1.
+    v2::PaneCanvasContent old;
+    old.pane = canvas_pane; old.grant = seat->rooms.back().grant; old.picture = 1;
+    old.rects.push_back(PaneCanvasRect{0, 0, 1, 48, surface::role::kAccent});
+    old.rects.push_back(PaneCanvasRect{3, 0, 1, 48, surface::role::kAccent});
+    old.rects.push_back(PaneCanvasRect{8, 8, 40, 40, surface::role::kFill});
+    send(old);
+    CHECK(seat->rejected.empty());
+    const auto& got = r.session().panes.external_pane(kind)->canvas;
+    REQUIRE(got.heard);
+    CHECK(got.content.picture == 1);
+    REQUIRE(got.content.rects.size() == 2);
+    CHECK(got.content.rects[0].x == 0); CHECK(got.content.rects[0].w == 1);
+    CHECK(got.content.rects[0].h == 12);
+    CHECK(got.content.rects[1].x == 2); CHECK(got.content.rects[1].y == 2);
+    CHECK(got.content.rects[1].w == 10); CHECK(got.content.rects[1].h == 10);
+
+    // ...AND A RECT ITS OWN RULES REFUSE refuses the picture, in those rules' words; the last good
+    // picture stays.
+    v2::PaneCanvasContent bad = old;
+    bad.picture = 2;
+    bad.rects.push_back(PaneCanvasRect{4, 4, 0, 8, surface::role::kFill});
+    send(bad);
+    REQUIRE(seat->rejected.size() == 1);
+    CHECK(seat->rejected.back().picture == 2);
+    CHECK(seat->rejected.back().reason == "canvas rectangles must have positive extents");
+    CHECK(r.session().panes.external_pane(kind)->canvas.content.picture == 1);
 }
 
 TEST_CASE("pane canvas grants fenced room and keeps a good picture after a refused update") {

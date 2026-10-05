@@ -23,9 +23,10 @@ pane took the keys (where the host's Escape line already sat). A pane stands in 
 application row by naming its id on its own row, the accepted `supersedes` mechanism unchanged.
 Launching is a request the host performs against the ONE inventory: a pane already on the desk
 is FOCUSED, never closed and never unloaded, and a pane whose office nobody holds now is refused.
-The room's floor is rows the desktop says and the host paints. The inventory is said when it
-changes and answered to a presenter that arrives. A plan row may declare itself optional, and a
-refused optional row is an unavailable tool rather than a refused project.
+What the desktop says about the room it says in its own panes; nothing is painted behind them.
+The inventory is said when it changes and answered to a presenter that arrives. A plan row may
+declare itself optional, and a refused optional row is an unavailable tool rather than a refused
+project.
 
 **Alternatives considered.**
 - *One precedence class* — rejected, and it is the decision's core. A single class either puts
@@ -56,7 +57,7 @@ refused optional row is an unavailable tool rather than a refused project.
   retained shapes (Loom GATE-04's rule, as `v2::PaneActions` took it).
 
 **Consequences.** A Workshop whose desktop did not load has no application defaults: `Ctrl+t`
-does nothing, Escape sheds no selection, and the floor is empty. That is the honest reading of a
+does nothing, Escape sheds no selection, no Pane Manager opens. That is the honest reading of a
 replaceable shell and it is diagnosable from three surfaces at once — the boot's own stdout, the
 standing conditions the Attention pane lists, and the launcher's `[gone]` rows. Every suite that
 asserts the deselect now supplies the declarer, which is stronger evidence than the line it
@@ -81,6 +82,6 @@ means only a cursor never given a pane (WL-DESK-10).
 [WL-DESK-10](../workshop/desktop-presenting.md), [WL-DESK-14](../workshop/desktop-presenting.md),
 [WL-DESK-11](../workshop/desktop-presenting.md), [WL-DESK-01](../workshop/desktop.md),
 [WL-DESK-02](../workshop/desktop.md), [WL-DESK-03](../workshop/desktop.md),
-[WL-DESK-04](../workshop/desktop.md), [WL-DESK-05](../workshop/desktop.md),
-[WL-DESK-07](../workshop/desktop.md), [WL-DESK-08](../workshop/desktop.md),
-[WL-DESK-12](../workshop/desktop.md), [WL-DESK-13](../workshop/desktop.md).
+[WL-DESK-04](../workshop/desktop.md), [WL-DESK-07](../workshop/desktop.md),
+[WL-DESK-08](../workshop/desktop.md), [WL-DESK-12](../workshop/desktop.md),
+[WL-DESK-13](../workshop/desktop.md).

@@ -57,7 +57,7 @@ std::string setup_link_text(const SetupState& setup, std::int64_t path_columns) 
     return line;
 }
 
-// WL-MAKER-04 -- agents/workshop/maker-pane.md; WL-TAB-03 -- agents/workshop/tab-run.md
+// WL-TAB-03 -- agents/workshop/tab-run.md
 std::string setup_rest_text(const SetupState& setup, const Panes& panes,
                             const Keymap& keymap) {
     std::string line;

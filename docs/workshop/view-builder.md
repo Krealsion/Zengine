@@ -8,8 +8,8 @@ it opens in a pane of its own. Flow composes what happens when the view speaks; 
 at message shapes, which you drag from one pane to the other. The contract beneath this page is
 the [view reference](../reference/view.md).
 
-Open the Pane Manager and choose **View Builder**. The shipped plans include the optional
-`zengine-view-builder` artifact in the `zengine.view.builder` office.
+Open the Pane Manager and press `n`, or choose **View Builder**. The shipped plans include the
+optional `zengine-view-builder` artifact in the `zengine.view.builder` office.
 
 ## The builder
 
@@ -153,12 +153,14 @@ graph, numbered and titled as Flow shows it. A field that holds no whole number 
 and nothing is published.
 
 Type a `.view` file into **File** and press **Save** (`Ctrl`+`s`), and save the Flow workspace
-beside it. Quit, start
-Workshop again, type the file into **File** and press **Open**, open the workspace in Flow, and
-**Run** both: the panel works as before and waits until told.
-Nothing that was running is in either file. **Stop** ends the panel: its pane first says it
-stopped, and once Workshop sees its participant gone it says it is waiting for the provider. No
-field or button is left that looks live.
+beside it. Quit and start Workshop again: the View Builder opens the file it had open and, since
+its view was running, runs it again, its pane where your layout left it. Open the workspace in
+Flow and **Run** it, and the panel works as before and waits until told. Nothing that was
+running is in either file: the View Builder keeps the file it saved or opened -- never a name
+typed into **File** and not saved -- and whether its view ran, in the project's
+`view-builder.json`; a write of it that fails is said, and made again at the next chance.
+**Stop** ends the panel: its pane first says it stopped, and once Workshop sees its participant
+gone it says it is waiting for the provider. No field or button is left that looks live.
 
 In a terminal Workshop the builder works as it does in a window, its picture floored to cells: a
 drag moves an element by whole cells, 12 pixels each, the middle button pans by whole cells, and
@@ -200,12 +202,6 @@ Three panes show something called a view, and they are different things:
   inspecting or editing; it belongs to Info and speaks for nothing.
 - **A [portable Inventory view](inventory-slots.md)** is a box, row or column of stored entries;
   it belongs to Inventory and holds entries, not a panel.
-
-## The View Builder or the Pane Creator
-
-Reach for the [Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data) for a pane of static
-text that Workshop paints and you place in Info. Reach for the View Builder when the pane must be
-told values, take typing, or say something when a control is used. The two stay side by side.
 
 ## Limits
 

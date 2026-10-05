@@ -13,12 +13,16 @@ MEANS
 - what a pane is painted at and what it occupies are one resolved truth, on both media.
 
 DOES NOT MEAN
-- that a press may not have its own inverse — it may, if the inverse reads the painter's place.
+- that a press may not have its own inverse — it may, read from the origin the painter drew at.
 
 PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_external`;
+`workshop/screen_gestures.cpp` `prose_at`; `surface/pointing.hpp` `prose_column_of_pixel`,
+`prose_row_of_pixel`, `floor_to_grain`; `workshop/weave_inspection.cpp` `cell_center`;
 `tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places the caret where
 the weaver aimed"`; `tests/test_workshop_screen.cpp` case
-`"what a pane is painted at and what it occupies are one resolved truth"`.
+`"what a pane is painted at and what it occupies are one resolved truth"`;
+`tests/test_workshop_panes_input.cpp` case `"text a window sets in cells, in a body too short for
+a row of its face, is drawn, pressed and aimed at from one origin"`.
 WHY — `agents/decisions/one-geometry-draws-and-hits.md`
 
 ## WL-GEO-02 — `screen_of` sizes no tool's rectangle

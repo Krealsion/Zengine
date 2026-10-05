@@ -88,23 +88,34 @@ inline constexpr bool px_span_contains(std::int64_t begin, std::int64_t extent,
            unit < floor_div_px(add_cells(begin, extent), grain);
 }
 
+/// A canvas pixel floored to a medium's device unit: the pixel itself in a window, the corner of
+/// its cell in a terminal. A unit that is not positive is the cell.
+inline constexpr std::int64_t floor_to_grain(std::int64_t px, std::int64_t grain) noexcept {
+    const std::int64_t unit = grain > 0 ? grain : kCanvasCellPx;
+    return mul_px(floor_div_px(px, unit), unit);
+}
+
 /// Which prose column of a bounded text region a canvas pixel is on: subtract where the
 /// region's text starts, floor by one character. It takes the region's `fit`, so the column is
-/// resolved with the metric its rows were drawn with. A projection, not a hit test: a negative
-/// column or one past `columns` means "not on this region's prose". Under a cell fit it is the
-/// cell answer: the pixel's cell less the cell the region's edge floors to.
-inline constexpr std::int64_t prose_column_of_pixel(std::int64_t px, const RegionFit& fit) noexcept {
+/// resolved with the metric its rows were drawn with, and the device unit (`grain`) of the medium
+/// the pixel came from. A projection, not a hit test: a negative column or one past `columns`
+/// means "not on this region's prose". Under a cell fit a character is a cell set from the
+/// region's edge as the medium drew it, floored to its unit: a window counts from the edge's own
+/// pixel, and a terminal from the cell the edge floors to.
+inline constexpr std::int64_t prose_column_of_pixel(std::int64_t px, const RegionFit& fit,
+                                                    std::int64_t grain = kCanvasCellPx) noexcept {
     if (!fit.graphical()) {
-        return sub_px(cell_of_pixel(px), cell_of_pixel(fit.view.x));
+        return floor_div_px(sub_px(px, floor_to_grain(fit.view.x, grain)), kCanvasCellPx);
     }
     return floor_div_px(sub_px(px, add_cells(fit.view.x, fit.origin_x)), fit.advance_px);
 }
 
 /// WHICH PROSE ROW OF A BOUNDED TEXT REGION A CANVAS PIXEL IS ON. The other axis
 /// of `prose_column_of_pixel`, same rules, same non-answers.
-inline constexpr std::int64_t prose_row_of_pixel(std::int64_t py, const RegionFit& fit) noexcept {
+inline constexpr std::int64_t prose_row_of_pixel(std::int64_t py, const RegionFit& fit,
+                                                 std::int64_t grain = kCanvasCellPx) noexcept {
     if (!fit.graphical()) {
-        return sub_px(cell_of_pixel(py), cell_of_pixel(fit.view.y));
+        return floor_div_px(sub_px(py, floor_to_grain(fit.view.y, grain)), kCanvasCellPx);
     }
     return floor_div_px(sub_px(py, add_cells(fit.view.y, fit.origin_y)), fit.line_px);
 }

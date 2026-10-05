@@ -15,11 +15,21 @@ namespace zengine::view {
 
 inline constexpr const char* kViewHostRole = "zengine.view.host";
 
-/// Register a view from its description's bytes, as its own participant.
+/// Register a view from its description's bytes, as its own participant; its pane asks to be
+/// shown.
 struct ViewRun {
     std::string session;
     loom::Bytes description;
     ZEN_SHAPE(ViewRun, 1, ZEN_FIELD(session), ZEN_FIELD(description));
+};
+
+/// Register a view as `ViewRun` does, its pane asking nothing: a desk that names the pane seats
+/// it where it stood, and one that does not leaves it off. What a relaunch asks for a view that
+/// ran.
+struct ViewResume {
+    std::string session;
+    loom::Bytes description;
+    ZEN_SHAPE(ViewResume, 1, ZEN_FIELD(session), ZEN_FIELD(description));
 };
 
 /// Change the running view: in place when its shapes are the same, else a fresh registration.

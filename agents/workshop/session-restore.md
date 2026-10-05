@@ -7,7 +7,7 @@ heading; cite by ID. The files and their domains are in [`session.md`](session.m
 
 ## WL-SESSION-05 — The session holds the run of layouts with their associations
 
-LAW — Version 6 holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
+LAW — Version <!-- value session_persist::kFormatVersion -->7<!-- /value --> holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
 
 MEANS
 - an empty path is the absence with exactly one spelling; `link_in` refuses the half-association;
@@ -118,15 +118,18 @@ LAW — The restore runs once per process, guarded by a flag, because the surfac
 
 MEANS
 - the flag is set before the file is opened, so a refusal is final too;
-- `load_file` asks `exists` first, so a first launch is not an error and stays silent.
+- `load_file` asks `exists` first, so a first launch is not an error and stays silent;
+- its sentence takes the unit the first `SurfaceExtent` names, unless another was said since.
 
-PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/weave.hpp`
+PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`, `restore_notice_text`,
+`respell_restore_notice`; `workshop/weave.hpp`
 `WorkshopWeave::restored_`; `workshop/session_persist.hpp` `LoadedSession::present`,
 `LoadedSession::outcome`, `LoadedSession`, `load_file`, `LoadedSession::honoured`,
 `LoadedSession::declined`; `surface/vocabulary.hpp` `SurfaceReady`;
 `tests/test_workshop_persistence.cpp` case `"the room is taken back only ONCE, however often a
 surface says hello"`, case `"a first launch is not an error, and needs no file to exist"`,
-case `"a malformed session costs the desk and nothing else"`.
+case `"a malformed session costs the desk and nothing else"`, case `"the restore notice says the
+room in the unit the medium names: pixels in a window, cells in a terminal"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-16 — Neither direction opens a setup file

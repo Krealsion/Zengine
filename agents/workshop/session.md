@@ -7,7 +7,7 @@ the roots. What a session holds and how it comes back is in
 
 ## WL-SESSION-01 — Workshop writes the desk, the room and the window, and reads them back
 
-LAW — The weaver-facing files live in three ownership domains: project (`--setup`, `--pane`), configuration (`--keymap`, `--prefs`), state (`--session`, `--marks`); plans ship beside the binary.
+LAW — The weaver-facing files live in three ownership domains: project (`--setup`), configuration (`--keymap`, `--prefs`), state (`--session`, `--marks`); plans ship beside the binary.
 
 MEANS
 - project files follow the launch directory; configuration follows the weaver; state, the machine;
@@ -18,8 +18,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/weave.hpp`
 `HostContext::retired_document`, `HostContext::setup_path`, `HostContext::session_path`,
-`HostContext::pane_path`, `HostContext::keymap_path`,
-`HostContext::prefs_path`; `workshop/workshop.cpp` `Arguments`;
+`HostContext::keymap_path`, `HostContext::prefs_path`; `workshop/workshop.cpp` `Arguments`;
 `tests/test_workshop_persistence.cpp` case `"the two Windows roots are the platform's own
 conventions"`, case `"the two XDG roots, and their home fallbacks"`, case `"the host
 resolves the weaver's files through the one precedence"`.
@@ -109,7 +108,7 @@ LAW — The per-user roots are created on the first write and never on a read, s
 
 MEANS
 - the session's close, the prefs toggle and the legacy import write through the making door;
-- `--document`, `--setup` and `--pane` paths do not: a missing directory there is a weaver's typo.
+- `--document` and `--setup` paths do not: a missing directory there is a weaver's typo.
 
 PROVEN BY — `workshop/persist.hpp` `write_file_making_room`;
 `tests/test_workshop_persistence.cpp` case `"a first launch is not an error, and needs no file to

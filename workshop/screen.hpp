@@ -636,7 +636,6 @@ struct InspectedPane {
     std::int64_t name = 0;     ///< what the picture carries and a commit returns; 0 is unnamed
     std::int64_t minted = 0;   ///< the last name handed out; names are never handed out twice
     std::uint64_t desk = 0;    ///< `SetupState::put_live` when `name` was given
-    std::int64_t region = 0;   ///< the weaver region the INTERIOR rows were built over; 0: none
 
     bool addressed() const { return !ref.provider.empty(); }
 };
@@ -726,9 +725,6 @@ struct Session {
     std::int64_t place_x = 0;
     std::int64_t place_y = 0;
     bool place_maximized = false;
-    /// What stands in the empty room: the rows the desktop said, painted behind every pane.
-    /// Replaced whole, never merged or persisted, and empty until the desktop speaks (WL-DESK-05).
-    std::vector<surface::SurfaceTextRow> backdrop;
     /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
     // WL-ATTN-01 -- agents/workshop/attention.md
     std::string notice;
@@ -1084,9 +1080,6 @@ inline constexpr const char* kPrefsWallKey = "workshop.prefs-refused";
 /// A session file this run could not read and so will not write over; the refusal is said once,
 /// and this stands all run.
 inline constexpr const char* kSessionWallKey = "workshop.session-refused";
-/// A pane-definition file this run could not read: while it stands, nothing this run makes is
-/// written over those bytes.
-inline constexpr const char* kPaneWallKey = "workshop.pane-refused";
 inline constexpr const char* kLegacyShadowedKeyPrefix = "workshop.legacy-shadowed.";
 std::string pane_content_key(const PaneRef& ref);
 std::string pane_window_key(const PaneRef& ref);
@@ -1095,11 +1088,6 @@ inline constexpr const char* kFrontierKey = "project.frontier-waiting";
 /// EVERY CONDITION THAT IS CURRENTLY TRUE AND WORTH AMBIENT ATTENTION, ranked.
 std::vector<Condition> attention_conditions(const Session& s,
                                                    const ProjectFrontier& frontier = {});
-
-/// The compact line, or empty when nothing deserves attention. It spends every current condition:
-/// which ones this weaver dismissed is the Attention pane's to know, and dismissing resolves
-/// nothing (WL-ATTN-08).
-std::string attention_compact(const std::vector<Condition>& shown);
 
 /// Every current condition as the sentence that crosses the pane seam: its four fields, and its
 /// action resolved into words against the effective keymap (empty when none answers).
@@ -1476,105 +1464,13 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRect& b,
                           const Screen& sc, std::int64_t chrome = kPaneChrome);
 
-// ---- A WEAVER-MADE PANE, PRESENTED: authored regions on an offered interior -----------------
-// WL-MAKER-05 -- agents/workshop/maker-pane.md
+// ---- A PANE'S INTERIOR, CAPTURED ----------------------------------------------------------
 
-/// The part of one pixel rectangle inside another. A region authored past its pane's interior is
-/// legal intent, clipped here at presentation; the authored value is untouched.
-inline constexpr PixelRect clip_to_px(const PixelRect& r, const PixelRect& within) noexcept {
-    const std::int64_t x0 = r.x > within.x ? r.x : within.x;
-    const std::int64_t y0 = r.y > within.y ? r.y : within.y;
-    const std::int64_t rx1 = surface::add_cells(r.x, r.w);
-    const std::int64_t ry1 = surface::add_cells(r.y, r.h);
-    const std::int64_t wx1 = surface::add_cells(within.x, within.w);
-    const std::int64_t wy1 = surface::add_cells(within.y, within.h);
-    const std::int64_t x1 = rx1 < wx1 ? rx1 : wx1;
-    const std::int64_t y1 = ry1 < wy1 ? ry1 : wy1;
-    if (x1 <= x0 || y1 <= y0) {
-        return PixelRect{};
-    }
-    return PixelRect{x0, y0, x1 - x0, y1 - y0};
-}
-
-/// WHAT ONE AUTHORED REGION RESOLVES TO INSIDE ONE OFFERED INTERIOR, on this screen.
-struct RegionPresentation {
-    bool present = false;     ///< some of the region lies inside the interior
-    PixelRect asked{};         ///< the authored rectangle on the canvas: interior origin + place
-    PixelRect shown{};         ///< the part inside the interior -- what is painted and read
-    bool clipped = false;     ///< the interior cut some of it away
-    surface::RegionFit fit{}; ///< `shown`, resolved with the active face's metric
-};
-
-/// THE ONE RESOLUTION OF A REGION: interior origin plus authored place, clipped to the
-/// interior, fitted with the face's metric. Pure, total, and the same call the painter,
-/// the region mark and a subject's RESOLVED rows spend -- one measurer.
-RegionPresentation present_region(const TextRegion& r, const PixelRect& interior,
-                                         const Screen& sc);
-
-/// A published region over a pixel rectangle, empty and ready for its rows.
-surface::SurfaceTextRegion region_over(const PixelRect& r);
-
-/// The region a reference and an id name in the OPEN definition, or nothing: nothing when
-/// no definition is open, when the reference is not the open definition's, or when the id
-/// is not one of its regions. Every reader of a region goes through here, so a subject
-/// whose definition closed underneath it reads `--` rather than a stale value.
-const TextRegion* weaver_region(const Session& s, const PaneRef& ref, std::int64_t id);
-
-/// THE WEAVER-MADE PANE'S INTERIOR RIGHT NOW, or an empty rectangle: the ordinary pane path's
-/// answer for its handle, less the chrome. One call, so the painter, the mark and the rows
-/// cannot resolve it three ways.
-PixelRect weaver_pane_interior(const Session& s, const Screen& sc);
-
-/// ONE AUTHORED AXIS OF A REGION AS A WEAVER READS IT -- the amount in the face's own unit
-/// (`geometry_amount_text`, the pane rows' own grammar), marked where this face cannot say
-/// the authored number exactly.
-std::string region_axis_text(const Session& s, const PaneRef& ref, std::int64_t id,
-                                    std::size_t axis);
-
-/// WRITE ONE AUTHORED AXIS OF A REGION FROM WHAT A WEAVER TYPED -- a whole number in the
-/// face's own unit, through the definition's own door (`author_region_axis`), which judges
-/// the value in its own words. A region has no `default` mode, so `-` is refused in
-/// words rather than read as a reset that does not exist.
-Written write_region_axis(Session& s, const PaneRef& ref, std::int64_t id,
-                                 std::size_t axis, const std::string& text);
-
-/// WRITE WHAT A TEXT REGION SAYS, through the definition's own door.
-Written write_region_text(Session& s, const PaneRef& ref, std::int64_t id,
-                                 std::string text);
-
-/// THE REGION AS THIS SCREEN RESOLVED IT, relative to the pane's interior and in the face's
-/// unit -- so it reads beside the authored X/Y/Width/Height and differs from them exactly
-/// where the interior clipped it. `-` when the pane is not presented.
-std::string region_resolved_text(const Session& s, const PaneRef& ref, std::int64_t id);
-
-/// WHAT THE FACE MADE OF THE REGION: rows and columns of type, the cell projection, or no
-/// room -- a readout of the medium's answer, never a claim about the definition.
-std::string region_shown_text(const Session& s, const PaneRef& ref, std::int64_t id);
-
-/// THE ONLY HONEST INTERIOR FOR A PANE THAT IS NOT MADE OF DATA: a read-only capture of the
-/// resolved body -- where it is, how much prose the face fits in it, in which presentation
-/// -- and the plain statement that no authored interior exists. A built-in's interior is
-/// its painter and a provider's is its own; neither is decomposed, inferred or promised.
+/// THE ONLY HONEST INTERIOR OF A PANE: a read-only capture of the resolved body -- where it is,
+/// how much prose the face fits in it, in which presentation -- and the plain statement that no
+/// authored interior exists. A built-in's interior is its painter and a provider's is its own;
+/// neither is decomposed, inferred or promised.
 std::string interior_capture_text(const Session& s, const PaneRef& ref);
-
-/// THE WEAVER-MADE PANE, PAINTED: the frame, one region owning the whole interior (so the
-/// material beneath the pane is cleared and the ring shows, `paint_pane_frame`'s own
-/// arithmetic), then one `kGroundOwn` region per authored region.
-void paint_weaver_pane(surface::SurfaceLayer& layer, const Session& s, const PixelRect& b,
-                             const Screen& sc, std::int64_t chrome = kPaneChrome);
-
-/// THE ROLE THE PANE CREATOR'S REGION MARK IS DRAWN IN: the one thing being pointed at, the
-/// word the document's selection ring and the selected pane's chrome already speak.
-inline constexpr std::int64_t kRegionMark = surface::role::kAccent;
-
-/// Which region the Pane Creator is working on right now, or nothing: the open definition's first
-/// region while an inspector names the weaver's pane. Derived at every ask, held nowhere.
-const TextRegion* creator_subject_region(const Session& s);
-
-/// THE REGION MARK: the exact rectangle the region resolved to, filled in the mark's role,
-/// with the region's own text written OVER it.
-void paint_creator_region_mark(surface::SurfaceLayer& layer, const Session& s,
-                                      const Screen& sc);
 
 // ---- A WORKSHOP PANE AS A SUBJECT, inspected and edited through its owners (Info's) ------
 
@@ -1603,11 +1499,6 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 /// own.
 // WL-INFO-14 -- agents/workshop/info-body.md
 std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref);
-
-/// WHICH WEAVER REGION THE INTERIOR ROWS OVER `ref` WOULD BE BUILT ON NOW -- its id, or 0 when the
-/// interior is a capture (any pane that is not an open definition with a region). The arm the
-/// rows were built with is part of what their name means.
-std::int64_t inspected_region(const Session& s, const PaneRef& ref);
 
 /// THE INSPECTOR'S SUBJECT AS THE SEAM CARRIES IT: the reference, the inventory's name for it,
 /// the name of the rows and every row read fresh. Pure over the session.

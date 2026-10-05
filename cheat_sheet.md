@@ -500,7 +500,6 @@ build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json   
 | argument | default | is |
 |---|---|---|
 | `--setup <path>` | `workshop-setup.json` | a pane arrangement you named and saved |
-| `--pane <path>` | `workshop-pane.json` | a pane you made: its name and its text regions |
 | `--session <path>` | `workshop-session.json`, per-user state folder | the last desk and window — written on close, read on start |
 | `--keymap <path>` | `workshop-keymap.json`, per-user config folder | your hotkey overrides and the legend preference — hand-edited, read on start |
 | `--prefs <path>` | `workshop-prefs.json`, per-user config folder | presentation preferences Workshop writes when you state one |
@@ -551,13 +550,9 @@ its tool keeps running and keeps what it holds, and `Enter` brings it back. A ro
 or `[gone]` (nothing offers it now, and the run is not bringing it).
 The Pane Manager is itself a pane: arrange it, close it, or replace the desktop that provides it.
 
-**Pane Creator** (in the Pane Manager) — `n` opens a name line: type (paste works), `Enter`
-makes the pane, `Esc` cancels; a refused name stays in the line with the reason under it. The
-new pane has one text region, which you write by inspecting the pane in **Info** — `INTERIOR`
-rows `Text` `X` `Y` `Width` `Height`, relative to the pane's inside, in the face's unit — and
-the region is marked on the pane while Info inspects it. `s` saves it to `--pane` (default
-`workshop-pane.json`); `Ctrl`+`d` discards unsaved edits. Unsaved pane truth refuses the quit.
-See [the Pane Creator](docs/workshop/panes.md#the-pane-creator--a-pane-made-of-data).
+**A pane of your own** (in the Pane Manager) — `n` shows the **View Builder**, where you lay out
+labels, number fields and buttons, save the view and run it in its own pane; it runs again when
+you relaunch. See [a pane of your own](docs/workshop/panes.md#a-pane-of-your-own--a-view).
 
 **Info** (press into it) — the panes, and the properties of the one you inspect. `↑` `↓`
 step; `Enter` on a pane inspects it; `Tab` moves between the list and the properties; `Enter`
@@ -590,10 +585,10 @@ round-trip exactly. See [the source editor](docs/workshop/editor.md).
 **What needs attention** (the **Attention** pane, opened from the Pane Manager) — `↑` `↓`
 choose, `d` hides one. It lists what is **currently true** and worth knowing — a settings file
 that could not be read, a pane of yours with no part of it on the screen, a tool that is not in
-this Workshop, a project waiting on an artifact — each in its owner's own words. One compact
-line advertises it wherever the medium can always show it: a box in the window's top-right
-corner, or the terminal's second reserved row. Hiding one is not fixing it: the condition stays
-true, and it reappears if it materially changes. A condition disappears when it stops being true
+this Workshop, a project waiting on an artifact — each in its owner's own words. Its first row
+is the glance: the most serious condition and how many more. Nothing outside the pane says it.
+Hiding one is not fixing it: the condition stays true, the glance still counts it, and it
+reappears if it materially changes. A condition disappears when it stops being true
 and at no other moment. The **notice row** in the bottom band is the other voice and keeps its
 own job: what just happened, replaced by whatever happens next. See
 [what needs your attention](docs/workshop/attention.md).
@@ -653,7 +648,7 @@ ordinary participant: the **desktop** (the **Pane Manager** and **Hotkeys** pane
 that work anywhere), **Info** (`↑` `↓` `Enter` `Tab`, once you have pressed into it), the
 **Editor**, the **Terminal**, the **Builder**, **Attention**, **Files**, **Loaded**,
 **Project**, **Powers** (from `zengine-introspection`), and the **Composer**. Made by you, from
-data: whatever the **Pane Creator** made and `--pane` holds. A pane the plan could not load is
+data: the views you run from the **View Builder**. A pane the plan could not load is
 listed `[gone]`, said at startup, and kept as a condition in Attention — Workshop runs without
 it.
 

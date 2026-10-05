@@ -26,11 +26,11 @@ ZEN_LAW_DNM_MAX                 tests/check_law_register.cmake            ZEN_LA
 # ---- file formats
 setup_persist::kFormatVersion   workshop/setup_persist.hpp                kFormatVersion
 claim   setup_persist::kFormatVersion  setup file is format version {}
+claim   setup_persist::kFormatVersion  Setup format is **version {}**
 session_persist::kFormatVersion workshop/session_persist.hpp              kFormatVersion
+claim   session_persist::kFormatVersion  session format is **version {}**
 keymap_persist::kFormatVersion  workshop/keymap_persist.hpp               kFormatVersion
 claim   keymap_persist::kFormatVersion  `zengine-workshop-keymap` version {}
-pane_definition_persist::kFormatVersion workshop/pane_definition_persist.hpp kFormatVersion
-claim   pane_definition_persist::kFormatVersion  `zengine-workshop-pane` version {}
 recipe_persist::kFormatVersion  workshop/recipe_persist.hpp               kFormatVersion
 marks_persist::kFormatVersion   files/marks_persist.hpp                   kFormatVersion
 claim   marks_persist::kFormatVersion  marks file is its own format, version {}
@@ -43,11 +43,6 @@ kCoarseStepCells                workshop/screen.hpp                       kCoars
 kStackRows                      workshop/screen.hpp                       kStackRows
 kStackW                         workshop/screen.hpp                       kStackW
 kScreenMinW                     workshop/screen.hpp                       kScreenMinW
-kNewRegionX                     workshop/pane_definition.hpp              kNewRegionX
-kNewRegionY                     workshop/pane_definition.hpp              kNewRegionY
-kNewRegionW                     workshop/pane_definition.hpp              kNewRegionW
-kNewRegionH                     workshop/pane_definition.hpp              kNewRegionH
-kMaxRegionTextLen               workshop/pane_definition.hpp              kMaxRegionTextLen
 kMaxPaneMenuLabelLen            workshop/pane_vocabulary.hpp              kMaxPaneMenuLabelLen
 kMaxMenuLineLen                 workshop/presenter_vocabulary.hpp         kMaxMenuLineLen
 kMaxHeldInput                   workshop/weave.hpp                        kMaxHeldInput

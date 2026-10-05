@@ -43,7 +43,6 @@ See [load plans](load-plans.md).
 | argument | default | is |
 |---|---|---|
 | `--setup <path>` | `workshop-setup.json`, in the directory you launched from | a pane arrangement you named and saved |
-| `--pane <path>` | `workshop-pane.json`, in the directory you launched from | a pane you made with the [Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data): its name and its regions |
 | `--session <path>` | `workshop-session.json`, in your **per-user state folder** | the desk, window size and window position you last used — written on close, read on start |
 | `--keymap <path>` | `workshop-keymap.json`, in your **per-user config folder** | your hand-edited binding overrides ([hotkeys](hotkeys.md)) |
 | `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | presentation preferences Workshop writes when you state one (pane titles, `t`) |
@@ -83,7 +82,6 @@ entitled to before you press anything:
 zengine-workshop - containment: in-process; trusted; no OS sandbox (out-of-process isolation is the isolation host's job)
 zengine-workshop - document: retired with the object canvas
 zengine-workshop - setup: workshop-setup.json
-zengine-workshop - pane: /home/you/my-thing/workshop-pane.json
 zengine-workshop - project: /home/you/my-thing
 zengine-workshop - last session: C:/Users/you/AppData/Local/zengine-workshop/workshop-session.json (restored at startup, written on quit)
 zengine-workshop - keymap: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-keymap.json
@@ -118,8 +116,8 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
  | Layouts: >Default< +                                    setup: none |
  +--------------------------------------------+------------------------+
  |                                            |                        |
- |   the room: the desktop's floor, and the   |   Info: the panes,     |
- |   panes you open, stacked here             |   and the one you      |
+ |   the room: the panes you open,            |   Info: the panes,     |
+ |   stacked here                             |   and the one you      |
  |                                            |   inspect              |
  |                                            |                        |
  +--------------------------------------------+------------------------+
@@ -129,11 +127,13 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
 ```
 
 The **room** is the whole screen. Panes are drawn **over** it — none of them sits beside it —
-and what shows through where no pane is, is the **desktop's floor**: a few lines saying where
-things are, including any tool that is not in this Workshop. Panes cover the room you are
-working in. That is uncomfortable on purpose: inventing a docking system before anybody had
-felt the discomfort would be answering a demand nobody had made. A wider terminal splits the
-surplus evenly between a pane and the room underneath it, so the room always keeps half.
+and nothing is drawn where no pane is: the window's own dark ground, or a terminal's. Where
+things are is the legend's to say — `Ctrl`+`p` shows the Pane Manager, which lists every pane,
+marks a tool that is not in this Workshop `[gone]` and says how to bring it back. Panes cover
+the room you are working in. That is uncomfortable on purpose: inventing a docking system before
+anybody had felt the discomfort would be answering a demand nobody had made. A wider terminal
+splits the surplus evenly between a pane and the room underneath it, so the room always keeps
+half.
 
 **Info** is a loadable weave that arrives with its own artifact, not something Workshop
 compiles in. Your desk names it, so it is there on a first run, in a fixed place at the right
@@ -152,10 +152,9 @@ It is a report about the gesture you made, and the next thing Workshop says repl
 
 Something that is **still true** when you read it — a settings file that could not be read, a
 pane of yours that is off the screen, a tool that could not load — does not go there. It goes
-to attention: one compact line where the medium can always show it (a box in the corner of the
-window, the second reserved row of a terminal), and the **Attention** pane lists them all —
-show it from the Pane Manager. Those disappear when they stop being true and at no other
-moment. See [what needs your attention](attention.md).
+to attention: the **Attention** pane leads with the most serious and how many more, and lists
+them all — show it from the Pane Manager. Those disappear when they stop being true and at no
+other moment. See [what needs your attention](attention.md).
 
 The **first row** is a pane — [the layout selector](setups.md#several-layouts-in-one-workshop),
 called **Layouts**: your layouts as tabs on the left with the one you are on between `>` and
@@ -174,7 +173,10 @@ source. See [hotkeys and the keymap](hotkeys.md).
 **A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, and the room.
 The Layouts row says `>Default< +` beside `setup: none` — the one layout you have, marked as the
 one you are on, related to no Setup file yet. `none` is not a warning: Workshop remembers that
-layout for you either way.
+layout for you either way. Nothing is painted behind the panes, and the band's first row says
+how to open one: `^t terminal | ^p panes | ^k hotkeys`.
+
+![A fresh Workshop at its smallest window: the Layouts row, Info at the right, nothing behind them, and the band leading with the keys that open a pane](images/desk-fresh.png)
 
 1. **`Ctrl`+`p`** — the **Pane Manager**: every pane there is, open or not. `↑` `↓` choose,
    `Enter` shows one and puts you in it — a pane that is already shown is simply where you land.
@@ -230,7 +232,7 @@ layout for you either way.
 | | |
 |---|---|
 | anywhere | `Ctrl`+`p` the Pane Manager · `Ctrl`+`t` the Terminal · `Ctrl`+`k` the Hotkeys pane — even inside a pane ([hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)) |
-| the Pane Manager | `↑` `↓` choose · `Enter` show or go to · `x` hide · `n` make a pane of your own, `s` save it, `Ctrl`+`d` discard its edits ([Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data)) |
+| the Pane Manager | `↑` `↓` choose · `Enter` show or go to · `x` hide · `n` make a pane of your own in the View Builder ([a view](panes.md#a-pane-of-your-own--a-view)) |
 | panes | `w` arrange desk · `t` pane titles · `Esc` put the selected pane down |
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | layouts | `s` save · `r` restore · `=` new · `.` `,` next / previous · `Ctrl`+`w` remove ([setups](setups.md)) — the **last** session needs neither |
@@ -252,7 +254,7 @@ privilege the [snake example](../reference/snake.md) does not.
 | labels | the terminal's own font | an embedded 6x6 bitmap face, printable ASCII only; any other byte draws a visible unknown box |
 | colour | an SGR *and a glyph* per role, so a monochrome terminal is not lied to | RGB per role |
 | the title | two reserved slot lines | the window title carries the slot lines |
-| what needs attention | the second reserved line | a compact box in the picture's top-right corner, and the title |
+| what needs attention | the Attention pane, where you put it | the Attention pane, where you put it |
 
 Neither is a degraded version of the other, and the same published intent produces both.
 
@@ -261,7 +263,7 @@ Neither is a degraded version of the other, and the same published intent produc
 - [Attention](attention.md) — what is true right now, the pane that lists it, and why hiding
   one is not fixing it.
 - [Panes](panes.md) — the Pane Manager, arranging, how to get a bigger one, Info as a pane's
-  inspector, and the Pane Creator that makes one of your own out of data.
+  inspector, and a pane of your own: a view, made in the View Builder.
 - [Setups](setups.md) — saving an arrangement, and what does not come back.
 - [Load plans](load-plans.md) — choosing what a run is made of.
 - [Builder](builder.md) — what it builds today.

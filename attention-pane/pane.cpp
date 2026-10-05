@@ -347,18 +347,19 @@ private:
             .send_to_role(kWorkshopRole, PaneContent{pane::kAttentionPane, std::move(out)});
     }
 
-    /// HOW MANY ROWS THE LIST MAY SPEND: the room, less this pane's own header, less the
-    /// notice row `say` puts in front of it.
+    /// HOW MANY ROWS THE LIST MAY SPEND: the room, less the glance, less the notice row `say`
+    /// puts in front of it.
     std::int64_t body_budget() const {
         return rows_ - 1 - (notice_.empty() ? 0 : 1);
     }
 
+    // WL-ATTN-06 -- agents/workshop/attention.md
     template <class Push>
     void say_view(Push&& push) {
-        // THE HEADER DOES NOT SPELL ITS OWN KEYS: a pane's declared rows are in the band's
-        // legend and in the hotkey view under this pane's own heading, resolved through the
-        // weaver's effective keymap. Saying them here would put this pane in the business of
-        // reading a keymap it cannot see.
+        // NO ROW SPELLS THE PANE'S OWN KEYS: a pane's declared rows are in the band's legend and
+        // in the hotkey view under this pane's own heading, resolved through the weaver's
+        // effective keymap. Saying them here would put this pane in the business of reading a
+        // keymap it cannot see.
         if (!heard_) {
             // THE HOST HAS NOT SAID ANYTHING YET, WHICH IS NOT THE SAME AS NOTHING BEING
             // WRONG. A pane opened before the first publication has no reading at all, and
@@ -366,29 +367,30 @@ private:
             push("ATTENTION (waiting)", surface::role::kMuted);
             return;
         }
+        if (known_.empty()) {
+            // NOTHING IS WRONG, SAID IN WORDS. A weaver who put this pane on their desk is
+            // owed an answer, and an empty box is not one.
+            push("nothing needs your attention right now", surface::role::kMuted);
+            return;
+        }
+        // THE GLANCE LEADS: the loudest condition the host says is true and how many more, in
+        // that condition's role -- every true one, hidden or not, since hiding is a choice about
+        // what this weaver reads and not about what is the case. A pane one row tall is this row.
+        push(ws::attention_glance(known_), known_.front().role);
         const std::vector<StandingCondition> shown = visible();
-        push("ATTENTION -- " + std::to_string(shown.size()) +
-                 (shown.size() == 1 ? " condition" : " conditions"),
-             surface::role::kAccent);
         const std::int64_t budget_rows = body_budget();
         if (budget_rows <= 0) {
             return;
         }
         const std::size_t budget = static_cast<std::size_t>(budget_rows);
-        if (shown.empty() && !known_.empty()) {
+        if (shown.empty()) {
             // EVERYTHING TRUE IS HIDDEN, WHICH IS NOT NOTHING BEING TRUE. Hiding is what this
-            // weaver chose to read; the host still holds each condition, the chip still counts it
-            // and the publication still carries it, so the list says it is hiding them rather
+            // weaver chose to read; the host still holds each condition, the glance still counts
+            // it and the publication still carries it, so the list says it is hiding them rather
             // than saying the all-clear.
             push("  all conditions hidden -- " + std::to_string(known_.size()) +
                      (known_.size() == 1 ? " is" : " are") + " still true",
                  surface::role::kMuted);
-            return;
-        }
-        if (shown.empty()) {
-            // NOTHING IS WRONG, SAID IN WORDS. A weaver who put this pane on their desk is
-            // owed an answer, and an empty box is not one.
-            push("  nothing needs your attention right now", surface::role::kMuted);
             return;
         }
         // The cursor's own block is composed and reserved before the list is windowed: a window

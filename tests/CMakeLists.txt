@@ -925,16 +925,11 @@ zengine_workshop_suite(files SOURCES test_workshop_files.cpp
 
 # This suite links `loom::history` and Workshop's logic does not: that the condition lifecycle
 # never reaches the Recorder or the Logger is measured only with both attached while a condition
-# is established, read, hidden and resolved. The Pane Creator is a second source (VM-POP-12);
-# its cases read two sources as text, since no running case can show that presentation data
-# reaches no door through which it could act (VM-WALL-11).
+# is established, read, hidden and resolved.
 zengine_workshop_suite(host
     SOURCES test_workshop_host.cpp
-            test_workshop_host_creator.cpp
     LINKS loom::history
-    DEFINITIONS "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\""
-                "WORKSHOP_PANE_DEFINITION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/pane_definition.hpp\""
-                "WORKSHOP_PANE_DEFINITION_PERSIST_HPP=\"${CMAKE_SOURCE_DIR}/workshop/pane_definition_persist.hpp\"")
+    DEFINITIONS "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\"")
 
 # ---- the panes suite's source tripwires -------------------------------------------------
 # The presentation's sources and the host say "this host was taught no pane", and the two

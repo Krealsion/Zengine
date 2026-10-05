@@ -289,25 +289,37 @@ def without_pane(desk, provider, pane):
 def seat_desk(ctx, hand, setup, state, link):
     """The whole desk. A pane Workshop cannot present is prepared when the setup says how; one the
     setup does not prepare (a described view nobody has run yet, say) is left off the desk and
-    named in state["unseated"], since the rest of the desk is usable without it."""
+    named in state["unseated"], since the rest of the desk is usable without it. The panes' order
+    changes nothing: a pane the setup builds leaves only the desk applied before the build, and a
+    pane nobody offers leaves that desk and the final one alike."""
     desk = setup.desk(seated_views(hand, setup, state))
     roles = [p["role"] for p in setup.providers()]
     state["unseated"] = []
+    trial, building, seated = desk, False, False
     for _ in range(len(desk["fields"]["panes"]) + 1):
         try:
-            apply(hand, desk)
-            return desk
+            apply(hand, trial)
+            seated = True
+            break
         except Exception as refused:
             said = str(refused)
             if CANNOT_PRESENT not in said:
                 raise
             provider, pane = (said.split(CANNOT_PRESENT, 1)[1].split() + [""])[:2]
+            if provider in roles and not building:
+                building = True
+                stage(state, "desk without " + ", ".join(roles))
+                trial = setup.without(trial, roles)
+                continue
             if provider in roles:
-                break
+                raise
             state["unseated"].append("%s %s" % (provider, pane))
+            trial = without_pane(trial, provider, pane)
             desk = without_pane(desk, provider, pane)
-    stage(state, "desk without " + ", ".join(roles))
-    apply(hand, setup.without(desk, [p["role"] for p in setup.providers()]))
+    if not seated:
+        apply(hand, trial)  # every pane was tried: this refusal is the one to read
+    if not building:
+        return desk
     for provider in setup.providers():
         stage(state, "build " + provider["role"])
         import builder

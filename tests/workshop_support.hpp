@@ -933,11 +933,14 @@ struct Live {
         return std::string();
     }
     std::string status_note() const { return note_on(surface::kSlotStatus); }
-    /// The compact attention line, as the medium was handed it. Empty is the honest answer
-    /// and the retraction both: nothing currently deserves a glance.
-    std::string attention_note() const { return note_on(surface::kSlotScore); }
+    /// THE GLANCE A PRESENTER OF WHAT IS TRUE LEADS WITH, from what this Workshop last said
+    /// (`attention_glance`). Empty is the honest answer: nothing is true.
+    std::string glance() const {
+        return said_conditions.empty() ? std::string()
+                                       : attention_glance(said_conditions.back().rows);
+    }
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the one projection the
-    /// screen, the compact indicator and the view all spend.
+    /// screen and the view both spend.
     std::vector<Condition> conditions() const {
         return attention_conditions(w->session(),
                                     host.frontier ? host.frontier() : ProjectFrontier{});
@@ -1849,18 +1852,14 @@ struct SeatState {
 class DoorHand
     : public loom::WeaveBase<DoorHand, SeatState,
                              loom::Accept<PaneLaunchAnswered, PaneCloseAnswered, PaneSubjectActed,
-                                          WeaverPaneAnswered, SeatDo>,
+                                          SeatDo>,
                              loom::Emit<PaneLaunchRequested, PaneCloseRequested,
-                                        InspectPaneRequested, PaneCommitRequested,
-                                        WeaverPaneRequested>> {
+                                        InspectPaneRequested, PaneCommitRequested>> {
 public:
     void on(const PaneLaunchAnswered& a, loom::Mail&) { launched.push_back(a); }
     void on(const PaneCloseAnswered& a, loom::Mail&) { closed.push_back(a); }
     /// ...AND, ASKED AS AN INSPECTOR (Info's path), what naming a subject or writing a row came to.
     void on(const PaneSubjectActed& a, loom::Mail&) { acted.push_back(a); }
-    /// ...AND, ASKED AS THE CREATOR'S PRESENTER (the desktop Pane Manager's path), what making,
-    /// saving or discarding the weaver's pane came to.
-    void on(const WeaverPaneAnswered& a, loom::Mail&) { made.push_back(a); }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(DoorHand&, loom::Mail&)> once;
@@ -1871,7 +1870,6 @@ public:
     std::vector<PaneLaunchAnswered> launched;
     std::vector<PaneCloseAnswered> closed;
     std::vector<PaneSubjectActed> acted;
-    std::vector<WeaverPaneAnswered> made;
     std::function<void(DoorHand&, loom::Mail&)> next;
     static constexpr const char* kOffice = "zengine.test.hand";
 };
@@ -1890,8 +1888,6 @@ inline DoorHand& door_hand(Rig& t) {
         grant.allow_to_role(InspectPaneRequested::zen_name, InspectPaneRequested::zen_version,
                             kWorkshopProvider);
         grant.allow_to_role(PaneCommitRequested::zen_name, PaneCommitRequested::zen_version,
-                            kWorkshopProvider);
-        grant.allow_to_role(WeaverPaneRequested::zen_name, WeaverPaneRequested::zen_version,
                             kWorkshopProvider);
         t.hand_id =
             t.bus.register_weave(std::move(seat), std::move(grant), std::string(DoorHand::kOffice));
@@ -2008,24 +2004,6 @@ inline PaneSubjectActed hand_commit(Rig& t, const std::string& label, const std:
     t.bus.drain_until_idle();
     REQUIRE_MESSAGE(h.acted.size() == before + 1, "the commit door did not answer");
     return h.acted.back();
-}
-
-/// ASK THE WEAVER DOOR -- make, save or discard the one open definition (WL-MAKER-11) -- as the
-/// desktop's Pane Manager asks it, and answer what the door said.
-template <class Rig>
-inline WeaverPaneAnswered hand_weaver(Rig& t, std::int64_t act,
-                                    const std::string& name = std::string()) {
-    DoorHand& h = door_hand(t);
-    const std::size_t before = h.made.size();
-    h.next = [act, name](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice)
-            .send_to_role(kWorkshopProvider, WeaverPaneRequested{act, name});
-    };
-    (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                              loom::WeaveId{}, 0));
-    t.bus.drain_until_idle();
-    REQUIRE_MESSAGE(h.made.size() == before + 1, "the weaver door did not answer");
-    return h.made.back();
 }
 
 /// ...OR QUEUE THE CLOSE WITHOUT DELIVERING ANYTHING -- office-authored as the hand, behind
@@ -3054,24 +3032,19 @@ struct PaneRig {
     Session& session() { return const_cast<Session&>(w->session()); }
     const surface::SurfaceCanvas& last_canvas() const { return canvases.back(); }
     /// THE NOTICE LINE, READ WHERE IT LIVES. `Session::notice` is painted onto the canvas, not
-    /// published as a `SurfaceText`: the published texts are the status slot, the document's line,
-    /// and the attention slot, which says what is CURRENTLY true.
+    /// published as a `SurfaceText`: the published text is the status slot.
     const std::string& last_notice() const { return w->session().notice; }
 
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the same projection the
-    /// screen and the compact indicator both spend -- never a second walk of the owners.
+    /// screen and the view both spend -- never a second walk of the owners.
     std::vector<Condition> conditions() const {
         return attention_conditions(w->session(),
                                     host.frontier ? host.frontier() : ProjectFrontier{});
     }
-    /// The compact attention line, as the medium was handed it.
-    std::string attention_note() const {
-        for (std::size_t i = notes.size(); i > 0; --i) {
-            if (notes[i - 1].slot == surface::kSlotScore) {
-                return notes[i - 1].text;
-            }
-        }
-        return std::string();
+    /// THE GLANCE A PRESENTER OF WHAT IS TRUE LEADS WITH, from what this Workshop last said.
+    std::string glance() const {
+        return said_conditions.empty() ? std::string()
+                                       : attention_glance(said_conditions.back().rows);
     }
 
     std::vector<loom::WeaveId> seat_ids;

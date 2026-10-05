@@ -14,6 +14,7 @@
 #include "view/host.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/kernel/kernel.hpp>
@@ -332,7 +333,8 @@ public:
     bool allow = true;
     loom::WeaveId self{};
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<ws::v2::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
+        return {loom::schema_of<ws::v2::PaneOffered>(), loom::schema_of<ws::v3::PaneOffered>(),
+                loom::schema_of<ws::PaneActions>(),
                 loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
                 loom::schema_of<ws::PaneRevealRequested>(), loom::schema_of<ws::PaneMenuRequested>(),
@@ -350,6 +352,28 @@ public:
     loom::Value snapshot() const override { return loom::Value(loom::make_schema("vbtest.Desk", 1, {})); }
     loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
     void revive(const loom::Value&) override {}
+};
+
+/// `zengine.project`'s one answer the builder asks for: where the project is.
+class ProjectStub final : public loom::Weave {
+public:
+    explicit ProjectStub(std::string dir) : dir_(std::move(dir)) {}
+    loom::WeaveId self{};
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
+        return {loom::schema_of<ws::ProjectRootRequested>()};
+    }
+    std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
+        return {loom::schema_of<ws::ProjectRoot>()};
+    }
+    void handle(const loom::Message&, loom::Bus& bus) override {
+        (void)bus.answer(loom::Message(loom::to_value(ws::ProjectRoot{dir_, ""}), self));
+    }
+    loom::Value snapshot() const override { return loom::Value(loom::make_schema("vbtest.Project", 1, {})); }
+    loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
+    void revive(const loom::Value&) override {}
+
+private:
+    std::string dir_;
 };
 
 class Menus final : public loom::Weave {
@@ -371,8 +395,11 @@ struct Rig {
     zengine::maker::Registered tally;
     std::uint64_t correlation = 0;
     std::int64_t grant = 1;
+    std::int64_t activation = 1;
 
-    Rig() {
+    /// A Workshop beside the builder; with `project`, `zengine.project` answers that directory, as
+    /// a launch from it does.
+    explicit Rig(const std::string& project = std::string()) {
         zengine::op::publish_primitives(catalog);
         views.mount();
         auto d = std::make_unique<Desk>();
@@ -380,6 +407,11 @@ struct Rig {
         workshop = bus.register_weave(std::move(d), loom::Grant{}.allow_any(), workshop_role);
         desk->self = workshop;
         menus = bus.register_weave(std::make_unique<Menus>(), loom::Grant{}.allow_any(), ws::kPresenterRole);
+        if (!project.empty()) {
+            auto stub = std::make_unique<ProjectStub>(project);
+            ProjectStub* raw = stub.get();
+            raw->self = bus.register_weave(std::move(stub), loom::Grant{}.allow_any(), ws::kProjectRole);
+        }
         tally = zengine::maker::register_definition(bus, catalog, hwfix::tally(catalog));
         REQUIRE(tally.ok);
         const auto loaded = kernel.load("view-builder", VIEW_BUILDER_ARTIFACT, vb::kRole, loom::Grant{}.allow_any());
@@ -387,9 +419,26 @@ struct Rig {
         REQUIRE(loaded.ok);
         pane = loaded.id;
         door = zengine::testing::mount_door(bus);
-        zengine::testing::order_activation(bus, door, pane, 1);
+        zengine::testing::order_activation(bus, door, pane, activation);
         pump();
         host(window_room(grant));
+    }
+    /// THE BUILDER'S IMAGE REPLACED IN PLACE, as a rebuilt weave is: its successor keeps what the
+    /// predecessor held, is activated, and is given its room again.
+    void reload() {
+        const auto reloaded = kernel.reload_from("view-builder", VIEW_BUILDER_ARTIFACT);
+        INFO(reloaded.error);
+        REQUIRE(reloaded.ok);
+        REQUIRE(reloaded.reloaded);
+        zengine::testing::order_activation(bus, door, pane, ++activation);
+        pump();
+        host(window_room(++grant));
+    }
+    /// What the builder keeps across a reload, read from its snapshot.
+    vb::BuilderState state() {
+        const auto admitted = loom::admit(loom::parse(bus.snapshot_bytes(pane)), loom::schema_of<vb::BuilderState>());
+        REQUIRE(admitted);
+        return loom::from_value<vb::BuilderState>(admitted.value());
     }
     void pump() {
         for (int n = 0; n < 64 && bus.pending() != 0; ++n) bus.pump_pending();
@@ -419,6 +468,11 @@ struct Rig {
         return nullptr;
     }
     std::string notice() const { return picture().texts.back().text; }
+    /// Whether any line of the latest picture holds `words`: a notice wraps over its rows.
+    bool says(const std::string& words) const {
+        return std::any_of(picture().texts.begin(), picture().texts.end(),
+                           [&](const ws::PaneCanvasText& t) { return has_words(t.text, words); });
+    }
     void press(const std::string& start, std::int64_t button = 1) {
         const auto* t = text(start);
         REQUIRE_MESSAGE(t != nullptr, start);
@@ -1586,6 +1640,167 @@ TEST_CASE("a press on what a button says asks under that press to drag its inten
     const auto value = loom::from_value<ws::PaneValueCarryRequested>(carried->payload);
     CHECK(value.drag);
     CHECK(value.label == "tally.panel.Count");
+}
+
+namespace {
+/// What a view's office said to Workshop: whether it offered its pane, and whether it asked to be
+/// shown.
+std::pair<bool, bool> offered_and_shown(const Desk& desk, const std::string& office) {
+    bool offered = false, shown = false;
+    for (const auto& m : desk.heard) {
+        if (m.provenance.authored_role() != office) continue;
+        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>());
+        shown |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+    }
+    return {offered, shown};
+}
+
+/// The builder's own project file, as it wrote it.
+vb::ViewBuilderRun run_file(const std::filesystem::path& project) {
+    std::ifstream in(project / vb::kRunFileName, std::ios::binary);
+    const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    const auto admitted = loom::admit(loom::compat::parse(bytes), loom::schema_of<vb::ViewBuilderRun>());
+    REQUIRE(admitted);
+    return loom::from_value<vb::ViewBuilderRun>(admitted.value());
+}
+} // namespace
+
+TEST_CASE("the View Builder runs again at a launch the view it ran, its pane seated by the desk") {
+    // ⚔ MUTATION: a launch that forgets the builder's project file -- the second launch runs
+    // nothing, and `notes` has no holder there.
+    TempDir project;
+    const auto dir = project.directory.generic_string();
+    const auto saved = (project.directory / "notes.view").generic_string();
+
+    // THE FIRST LAUNCH runs nothing: the weaver makes a view, saves it in the project and runs
+    // it, and the builder keeps which, by the name the project gives it.
+    {
+        Rig launch(dir);
+        CHECK_FALSE(launch.bus.role_holder("notes").valid());
+        REQUIRE(launch.edit("new", {"notes", "discard"}).ok);
+        REQUIRE(launch.edit("add", {"label"}).ok);
+        REQUIRE(launch.edit("save", {saved}).ok);
+        REQUIRE(launch.edit("run").ok);
+        REQUIRE(launch.bus.role_holder("notes").valid());
+        const auto kept = run_file(project.directory);
+        CHECK(kept.path == "notes.view"); // a file in the project, named from it
+        CHECK(kept.running);
+    }
+    // THE NEXT LAUNCH reads the builder's own file and runs the same view again, its pane offered
+    // and asking nothing -- the desk the weaver left seats it, or does not -- and leaves the file
+    // as it was.
+    {
+        Rig relaunch(dir);
+        REQUIRE(relaunch.bus.role_holder("notes").valid());
+        CHECK(offered_and_shown(*relaunch.desk, "notes") == std::make_pair(true, false));
+        CHECK(relaunch.text("notes / running") != nullptr);
+        CHECK(run_file(project.directory).path == "notes.view");
+        // STOPPED, it is remembered as stopped...
+        REQUIRE(relaunch.edit("stop").ok);
+        CHECK_FALSE(run_file(project.directory).running);
+    }
+    // ...SO THE LAUNCH AFTER OPENS IT AND RUNS NOTHING.
+    {
+        Rig stopped(dir);
+        CHECK_FALSE(stopped.bus.role_holder("notes").valid());
+        CHECK(stopped.now().name == "notes");
+    }
+    // A PROJECT MOVED WHOLE still names its view: its files moved to another directory, the
+    // builder opens the view from there, since nothing is left where it was.
+    TempDir moved;
+    for (const char* name : {"notes.view", vb::kRunFileName}) {
+        std::filesystem::copy_file(project.directory / name, moved.directory / name);
+        std::filesystem::remove(project.directory / name);
+    }
+    {
+        Rig elsewhere(moved.directory.generic_string());
+        CHECK(elsewhere.now().name == "notes");
+        REQUIRE(elsewhere.edit("run").ok);
+        REQUIRE(elsewhere.bus.role_holder("notes").valid());
+        CHECK(run_file(moved.directory).path == "notes.view");
+        REQUIRE(elsewhere.edit("stop").ok);
+    }
+    // A VIEW FILE GONE SINCE IS SAID FOR WHAT WAS ASKED OF IT: a stopped view's file could not be
+    // opened, and nothing was run.
+    std::filesystem::remove(moved.directory / "notes.view");
+    {
+        Rig gone(moved.directory.generic_string());
+        CHECK(gone.says("Could not open notes.view"));
+        CHECK_FALSE(gone.says("again"));
+        CHECK_FALSE(gone.bus.role_holder("notes").valid());
+    }
+    // A PROJECT WITH NEITHER FILE runs nothing and writes nothing.
+    TempDir empty;
+    {
+        Rig fresh(empty.directory.generic_string());
+        CHECK_FALSE(fresh.bus.role_holder("notes").valid());
+        CHECK_FALSE(std::filesystem::exists(empty.directory / vb::kRunFileName));
+    }
+}
+
+TEST_CASE("a reload keeps the file a view was saved to apart from a name typed into File and not saved, and the launch record names only the file") {
+    // ⚔ MUTATION: the restore taking the file from the File box -- the record names
+    // `other.view`, which was never saved, and the next launch opens nothing.
+    TempDir project;
+    const auto dir = project.directory.generic_string();
+    const auto saved = (project.directory / "notes.view").generic_string();
+    const auto typed = (project.directory / "other.view").generic_string();
+    {
+        Rig rig(dir);
+        REQUIRE(rig.edit("new", {"notes", "discard"}).ok);
+        REQUIRE(rig.edit("add", {"label"}).ok);
+        REQUIRE(rig.edit("save", {saved}).ok);
+        REQUIRE(rig.edit("run").ok);
+        // A NAME TYPED INTO FILE AND NOT SAVED is the box's alone...
+        REQUIRE(rig.edit("path", {typed}).ok);
+        CHECK(run_file(project.directory).path == "notes.view");
+        // ...AND A RELOAD IN PLACE KEEPS BOTH: the box still holds the name typed into it...
+        rig.reload();
+        CHECK(rig.state().path == typed);
+        CHECK(rig.bus.role_holder("notes").valid());
+        // ...WHILE A STOP IS REMEMBERED BY THE FILE THE VIEW WAS SAVED TO.
+        REQUIRE(rig.edit("stop").ok);
+        CHECK(run_file(project.directory).path == "notes.view");
+        CHECK_FALSE(run_file(project.directory).running);
+        CHECK_FALSE(std::filesystem::exists(typed));
+    }
+    // THE NEXT LAUNCH OPENS THE FILE THE VIEW WAS SAVED TO.
+    Rig relaunch(dir);
+    CHECK(relaunch.now().name == "notes");
+}
+
+TEST_CASE("a launch record that could not be written is written at the next chance, a reload among them") {
+    // ⚔ MUTATION: what the record holds counted before its write succeeded -- the next chance
+    // finds nothing to write, and the project keeps no record of the view.
+    TempDir project;
+    const auto dir = project.directory.generic_string();
+    const auto record = project.directory / vb::kRunFileName;
+    Rig rig(dir);
+    REQUIRE(rig.edit("new", {"notes", "discard"}).ok);
+    REQUIRE(rig.edit("add", {"label"}).ok);
+    // THE RECORD'S PLACE IS TAKEN, so its write fails, and the builder says so...
+    std::filesystem::create_directory(record);
+    const auto refused = rig.edit("save", {(project.directory / "notes.view").generic_string()});
+    REQUIRE(refused.ok);
+    CHECK(has_words(refused.reason, "not remembered for the next launch"));
+    // ...AND WITH THE PLACE FREE AGAIN, THE NEXT EDIT WRITES WHAT WAS NOT WRITTEN, though it changes
+    // neither the file nor the run.
+    std::filesystem::remove(record);
+    REQUIRE(rig.edit("select", {"0"}).ok);
+    REQUIRE(std::filesystem::is_regular_file(record));
+    CHECK(run_file(project.directory).path == "notes.view");
+    CHECK_FALSE(run_file(project.directory).running);
+    // A RELOAD IS A CHANCE TOO: a run whose record could not be written before it is written as
+    // soon as the successor knows the project, with no edit asked of the weaver.
+    std::filesystem::remove(record);
+    std::filesystem::create_directory(record);
+    REQUIRE(rig.edit("run").ok);
+    CHECK(rig.says("not remembered for the next launch"));
+    std::filesystem::remove(record);
+    rig.reload();
+    REQUIRE(std::filesystem::is_regular_file(record));
+    CHECK(run_file(project.directory).path == "notes.view");
+    CHECK(run_file(project.directory).running);
 }
 
 TEST_CASE("in a terminal the builder's picture and its drags are floored to cells") {

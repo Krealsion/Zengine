@@ -333,7 +333,7 @@ presenter:
 |---|---|---|
 | `zengine-attention-pane` | Attention | `attention-pane/pane.cpp` |
 | `zengine-builder-pane` | Builder | `builder-pane/pane.cpp` |
-| `zengine-desktop-pane` | the desktop: the Pane Manager, Hotkeys, the room's floor and the keys that work anywhere | `desktop-pane/pane.cpp` |
+| `zengine-desktop-pane` | the desktop: the Pane Manager, Hotkeys and the keys that work anywhere | `desktop-pane/pane.cpp` |
 | `zengine-connections-pane` | Connections: the other hosts connected to this Workshop ([driving it from another host](external-host.md)) | `connections-pane/pane.cpp` |
 | `zengine-editor-pane` | Editor | `editor-pane/pane.cpp` |
 | `zengine-neovim-editor` | Neovim (the Editor, when you switch to it) | `neovim-editor/pane.cpp` |
@@ -355,13 +355,12 @@ operators. Each pane carries across what its state declares — Attention what y
 its chosen recipe and the load-after-build switch, the Editor its document, the desktop the row
 its Pane Manager has chosen (a chosen row that left the list stays unchosen), Info its list's
 choice the same way — and what it keeps anywhere else, it asks for again or starts afresh: the
-desktop's half-typed pane name, its notices and the Hotkeys pane's scroll do not cross, and a
-Pane Creator act the old image was still waiting on is answered to nobody. A change to what a
-pane answers to is not a reload at all
-([a new runtime too](#when-a-panes-messages-change-a-new-runtime-too)). The Builder can rebuild
-and reload **itself**: the build and its output belong to the build tool rather than to the pane,
-so the answer to the build it asked for reaches the reloaded pane, and an open output reader
-simply closes.
+desktop's notices and the Hotkeys pane's scroll do not cross, and a keymap edit the old image
+was still waiting on is answered to nobody. A change to what a pane answers to is not a reload at
+all ([a new runtime too](#when-a-panes-messages-change-a-new-runtime-too)). The Builder can
+rebuild and reload **itself**: the build and its output belong to the build tool rather than to
+the pane, so the answer to the build it asked for reaches the reloaded pane, and an open output
+reader simply closes.
 
 **The entry is where reading starts, not the pane's files.** A pane is more than one source — its
 vocabulary header, the packages it links. Files goes anywhere, so walk to the checkout and open
