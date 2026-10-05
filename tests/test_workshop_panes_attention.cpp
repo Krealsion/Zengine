@@ -477,8 +477,8 @@ TEST_CASE("the pane never publishes more rows than the room it was granted") {
     }
     // EVERY EXTENT THIS COMPOSITION IS HONEST AT, and the cursor walked the whole way down
     // each of them -- the cursor's own reserved block is what the arithmetic turns on.
-    for (const std::int64_t height : {kScreenMinH, kScreenMinH + 7, kScreenMinH + 20}) {
-        f.r.extent(kScreenMinW, height);
+    for (const std::int64_t height : {kScreenMinRows, kScreenMinRows + 7, kScreenMinRows + 20}) {
+        f.r.extent(kScreenMinCols, height);
         const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
         REQUIRE(pane != nullptr);
         const std::int64_t room = pane->rows;

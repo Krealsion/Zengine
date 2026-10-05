@@ -186,10 +186,39 @@ inline std::string plain_cells(const surface::SurfaceCanvas& c) {
     return out;
 }
 
-/// A CELL COUNT ON THE FINE LATTICE -- the one multiply a case that thinks in whole cells performs
-/// to author or compare pane geometry, which is in sub-units. Short because it appears wherever a
+/// A CELL COUNT IN CANVAS PIXELS -- the one multiply a case that thinks in whole cells performs
+/// to author or compare pane geometry, which is in pixels. Short because it appears wherever a
 /// case says "40 cells".
-inline constexpr std::int64_t subs(std::int64_t cells) { return cells * surface::kCellSubs; }
+inline constexpr std::int64_t cells_px(std::int64_t cells) { return cells * surface::kCanvasCellPx; }
+
+/// WHERE THE ROOM STARTS, IN CELLS, ON A SCREEN WHERE TEXT IS A CELL: under the top band's rows.
+/// The cases that think in workspace cells stand on such a screen; a case on a face that sets type
+/// reads `Screen::room_y`.
+inline constexpr std::int64_t kRoomCellX = 0;
+inline constexpr std::int64_t kRoomCellY = kTopRows;
+static_assert(kMinScreen.room_y == cells_px(kRoomCellY),
+              "the cell-medium room starts where the screen says it does");
+
+/// THE SCREEN'S BOUNDS IN CELLS, for the cases that sweep screens a cell at a time.
+inline constexpr std::int64_t kScreenMinCols = kScreenMinW / surface::kCanvasCellPx;
+inline constexpr std::int64_t kScreenMinRows = kScreenMinH / surface::kCanvasCellPx;
+inline constexpr std::int64_t kScreenMaxCols = kScreenMaxW / surface::kCanvasCellPx;
+inline constexpr std::int64_t kScreenMaxRows = kScreenMaxH / surface::kCanvasCellPx;
+
+/// A SCREEN'S FURNITURE IN CELLS, each edge floored as a terminal shows it: what a case that
+/// thinks in cells compares its cell coordinates against. On a screen where text is a cell every
+/// one of these is exact.
+struct ScreenCells {
+    std::int64_t w = 0, h = 0, side_x = 0, room_y = 0, room_w = 0, room_h = 0, notice_y = 0;
+};
+inline ScreenCells cells_of(const Screen& sc) {
+    const auto c = [](std::int64_t px) { return surface::cell_of_pixel(px); };
+    return ScreenCells{c(sc.w),      c(sc.h),      c(sc.side_x), c(sc.room_y),
+                       c(sc.room_w), c(sc.room_y + sc.room_h) - c(sc.room_y), c(sc.notice_y)};
+}
+
+/// THE BOTTOM BAND'S FIRST LEGEND ROW, in cells: the row under the notice.
+inline std::int64_t help_row(const Screen& sc) { return surface::cell_of_pixel(sc.notice_y) + 1; }
 
 /// THE PLANE A CASE THAT BUILDS ITS OWN CANVAS BY HAND WORKS ON, created on first use.
 /// A case exercising ONE painter is asking about one presentation, which is one plane.
@@ -270,10 +299,10 @@ inline std::vector<surface::SurfaceLabel> cell_text_of(const surface::SurfaceCan
 }
 
 /// Find a label's text at a canvas cell, or "" -- how the screen tier asks what
-/// a weaver would see at a place.
+/// a weaver would see at a place: a label's pixel anchor lands on the cell a terminal floors it to.
 inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        if (l.x == x && l.y == y) {
+        if (surface::cell_of_pixel(l.x) == x && surface::cell_of_pixel(l.y) == y) {
             return l.text;
         }
     }
@@ -293,11 +322,10 @@ inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x
     return text;
 }
 
-/// THE SENTENCE THE TOOL IS SAYING, as a weaver reads it. The notice is a bounded region two cells
-/// tall -- the smallest room that holds one row of a real face -- read through the cell projection
-/// with the region's padding trimmed, as the Inspector's rows are.
+/// THE SENTENCE THE TOOL IS SAYING, as a weaver reads it: the bottom band's first row, read
+/// through the cell projection with the region's padding trimmed, as the Inspector's rows are.
 inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc) {
-    return inspector_row(c, 0, sc.notice_y);
+    return inspector_row(c, 0, surface::cell_of_pixel(sc.notice_y));
 }
 
 
@@ -309,7 +337,7 @@ inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc
 inline std::string topmost_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     std::string seen;
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        if (l.x == x && l.y == y) {
+        if (surface::cell_of_pixel(l.x) == x && surface::cell_of_pixel(l.y) == y) {
             seen = l.text;
         }
     }
@@ -398,10 +426,20 @@ inline void link_live_setup(SetupState& s, std::string path) {
     s.active_link = SetupLink{std::move(path), s.active};
 }
 
+/// THE CELLS A PUBLISHED RECTANGLE COVERS, as a terminal floors it -- what a case that thinks in
+/// cells compares a picture's rectangles by.
+inline ui::Rect covered_cells(const surface::SurfaceRect& r) {
+    return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
+}
+inline ui::Rect covered_cells(const surface::SurfaceTextRegion& r) {
+    return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
+}
+
+/// IS THERE A RECTANGLE OF THIS ROLE COVERING EXACTLY THESE CELLS?
 inline bool has_rect(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
                      std::int64_t h, std::int64_t role) {
     for (const surface::SurfaceRect& r : all_rects(c)) {
-        if (r.x == x && r.y == y && r.w == w && r.h == h && r.role == role) {
+        if (covered_cells(r) == ui::Rect{x, y, w, h} && r.role == role) {
             return true;
         }
     }
@@ -776,24 +814,23 @@ struct Live {
     }
     void text(const std::string& s) { publish(loom::to_value(input::TextEntered{s})); }
 
-    /// A pointer event AT A WORKSPACE CELL. The translation from workspace cell
-    /// to the terminal position a backend reports is the inverse of the weave's
-    /// own, done here so every case below reads in the coordinates a weaver
-    /// thinks in.
-    static std::int64_t term_x(std::int64_t wx) { return wx + kWorkspaceX; }
-    static std::int64_t term_y(std::int64_t wy) {
-        return wy + kWorkspaceY + surface::kTuiCanvasTopRow;
+    /// A pointer event AT A WORKSPACE CELL: `wx` cells from the room's left and `wy` cells below
+    /// its top, which is where this screen's top band ends. The translation to the terminal
+    /// position a backend reports is the inverse of the weave's own, done here so every case
+    /// below reads in the coordinates a weaver thinks in.
+    std::int64_t term_x(std::int64_t wx) const { return wx; }
+    std::int64_t term_y(std::int64_t wy) const {
+        return wy + surface::cell_of_pixel(screen_of(w->session()).room_y) +
+               surface::kTuiCanvasTopRow;
     }
 
     /// The same workspace cell, as the WINDOW would report it: the pixel at the
     /// cell's top-left corner. Deliberately the inverse of the graphical Skin's
     /// own layout and not of the terminal's -- the two media report different
     /// numbers for one place (docs/reference/pointer-spaces.md).
-    static std::int64_t px_x(std::int64_t wx) {
-        return (wx + kWorkspaceX) * surface::kCanvasCellPx;
-    }
-    static std::int64_t px_y(std::int64_t wy) {
-        return (wy + kWorkspaceY) * surface::kCanvasCellPx;
+    std::int64_t px_x(std::int64_t wx) const { return wx * surface::kCanvasCellPx; }
+    std::int64_t px_y(std::int64_t wy) const {
+        return screen_of(w->session()).room_y + wy * surface::kCanvasCellPx;
     }
 
     /// A PRESS AT AN EXACT POSITION IN THE MEDIUM'S OWN NUMBERS -- a window pixel or a terminal
@@ -1141,8 +1178,10 @@ inline std::string rect_text(const surface::SurfaceCanvas& c, const ui::Rect& b)
     std::vector<std::string> rows(rows_n);
     std::vector<bool> said(rows_n, false);
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        if (l.x == b.x && l.y >= b.y && l.y < b.y + b.h) {
-            const std::size_t at = static_cast<std::size_t>(l.y - b.y);
+        const std::int64_t lx = surface::cell_of_pixel(l.x);
+        const std::int64_t ly = surface::cell_of_pixel(l.y);
+        if (lx == b.x && ly >= b.y && ly < b.y + b.h) {
+            const std::size_t at = static_cast<std::size_t>(ly - b.y);
             rows[at] = l.text;
             said[at] = true;
         }
@@ -1162,14 +1201,14 @@ inline std::string rect_text(const surface::SurfaceCanvas& c, const ui::Rect& b)
 /// said it are one rectangle. A case about the pane's PLACE (occupancy, a press on its edge,
 /// coverage) wants the outer rectangle `bounds_of` answers. It asks the character medium's
 /// question, in canvas CELLS, subtracting the chrome a cell-projected interior leaves
-/// (`kChromeSubs`); a case about a FACE's own boundary takes the overload below with its screen.
-inline ui::Rect pane_body_cells(const FineRect& outer) {
-    return cells_covered(pane_interior(outer, kChromeSubs));
+/// (`kChromePx`); a case about a FACE's own boundary takes the overload below with its screen.
+inline ui::Rect pane_body_cells(const PixelRect& outer) {
+    return cells_covered(pane_interior(outer, kChromePx));
 }
 inline ui::Rect pane_body_cells(const ui::Rect& outer) {
-    return pane_body_cells(fine_of_cells(outer));
+    return pane_body_cells(pixels_of_cells(outer));
 }
-inline ui::Rect pane_body_cells(const FineRect& outer, const Screen& sc) {
+inline ui::Rect pane_body_cells(const PixelRect& outer, const Screen& sc) {
     return cells_covered(pane_interior(outer, sc));
 }
 
@@ -1220,7 +1259,7 @@ inline bool first_slot_shows_stock(Live& t) {
     const Screen sc = screen_of(t.session());
     const PaneBounds at = bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
     const ui::Rect cells = pane_body_cells(at.rect);
-    return at.open && at.rect == fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)) &&
+    return at.open && at.rect == placement_bounds(placement::kOverlayStack, 0, sc) &&
            label_at(t.canvases.back(), cells.x, cells.y).find(stock::kName) != std::string::npos;
 }
 
@@ -1269,7 +1308,7 @@ inline StackCapacity min_room() { return stack_capacity(kMinScreen); }
 
 /// A ROOM WITH TWO STACK SLOTS, for a case naming two overlay panes: the one built-in is the top
 /// band's, so two overlays are two stand-ins, and the case has to say which screen it is on.
-inline StackCapacity two_slot_room() { return stack_capacity(screen_of(120, 44)); }
+inline StackCapacity two_slot_room() { return stack_capacity(screen_of(cells_px(120), cells_px(44))); }
 
 /// A setup, spelled the way a case reads: a name and the kinds it means.
 inline Setup setup_of(const std::string& name, const std::vector<std::int64_t>& kinds) {
@@ -1292,6 +1331,48 @@ inline std::vector<std::int64_t> open_kinds(const Panes& panes) {
         out.push_back(p.kind);
     }
     return out;
+}
+
+/// A desk as a version-3 Workshop wrote it: every pixel amount in sub-units, four to a pixel,
+/// and a place measured from the canvas, whose room began `kCanvasRoomTopPx` down.
+inline setup_persist::v3::WorkshopSetup v3_desk(const Setup& s) {
+    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
+    setup_persist::v3::WorkshopSetup out;
+    out.format = now.format;
+    out.format_version = setup_persist::v3::kRetainedVersion;
+    out.name = now.name;
+    const auto word = [](const std::string& mode) {
+        return mode == setup_persist::kUnitPixels ? std::string(setup_persist::v3::kUnitSubcells)
+                                                  : mode;
+    };
+    const auto subs = [](const std::string& mode, std::int64_t v) {
+        return mode == setup_persist::kUnitPixels ? v * setup_persist::v3::kSubsPerPixel : v;
+    };
+    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
+        setup_persist::v3::WorkshopSetupPane row;
+        row.provider = p.provider;
+        row.pane = p.pane;
+        row.front = p.front;
+        const std::int64_t canvas_y = p.place.mode == setup_persist::kUnitPixels
+                                          ? p.place.y + setup_persist::kCanvasRoomTopPx
+                                          : p.place.y;
+        row.place = setup_persist::v3::WorkshopPanePlace{word(p.place.mode),
+                                                         subs(p.place.mode, p.place.x),
+                                                         subs(p.place.mode, canvas_y)};
+        row.width = setup_persist::v3::WorkshopPaneSize{word(p.width.mode),
+                                                        subs(p.width.mode, p.width.amount)};
+        row.height = setup_persist::v3::WorkshopPaneSize{word(p.height.mode),
+                                                         subs(p.height.mode, p.height.amount)};
+        out.panes.push_back(std::move(row));
+    }
+    return out;
+}
+
+/// A version-3 desk read as its own reader would: landed on pixels, then the setup law.
+inline Written v3_setup_in(const setup_persist::v3::WorkshopSetup& old, Setup& out) {
+    setup_persist::WorkshopSetup now;
+    const Written landed = setup_persist::v3::to_current(old, now);
+    return landed.accepted ? setup_persist::setup_in(now, out) : landed;
 }
 
 /// A setup file's text with one substring replaced -- how the refusal cases
@@ -1537,9 +1618,7 @@ inline const surface::SurfaceTextRegion* layouts_region_on(const surface::Surfac
     const ExternalBodyPlace place = layouts_body(s, sc);
     for (const surface::SurfaceLayer& layer : c.layers) {
         for (const surface::SurfaceTextRegion& r : layer.texts) {
-            if (r.x == place.region_x && r.y == place.region_y &&
-                r.sub_x == place.region_sub_x && r.sub_y == place.region_sub_y &&
-                r.h == place.region_h && r.sub_h == place.region_sub_h) {
+            if (r.x == place.region_x && r.y == place.region_y && r.h == place.region_h) {
                 return &r;
             }
         }
@@ -2667,11 +2746,19 @@ struct PaneRig {
     /// has panes.
     void ready() { publish(loom::to_value(surface::SurfaceReady{})); }
 
-    /// A MEDIUM REPORTS ITS ROOM, ITS FACE AND ITS CANVAS'S OWN DEVICE UNIT. `cell` defaults to
-    /// zero, which the vocabulary spells "my device unit IS the cell": a case that says nothing
+    /// A MEDIUM REPORTS ITS ROOM, ITS FACE AND ITS CANVAS'S OWN DEVICE UNIT. The room is given
+    /// in canvas cells, the unit these cases think in, and published in pixels. `cell` defaults
+    /// to zero, which the vocabulary spells "my device unit IS the cell": a case that says nothing
     /// about it describes a character medium.
     void extent(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
                 std::int64_t line = 0, std::int64_t cell = 0) {
+        extent_px(cells_px(width), cells_px(height), adv, line, cell);
+    }
+
+    /// ...and a room in pixels, for the cases about a window whose size is not a whole number
+    /// of cells.
+    void extent_px(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
+                   std::int64_t line = 0, std::int64_t cell = 0) {
         publish(loom::to_value(surface::SurfaceExtent{width, height, adv, line, cell}));
     }
 
@@ -3004,7 +3091,8 @@ inline std::vector<std::string> external_region_rows(const surface::SurfaceCanva
                                                      const ui::Rect& body) {
     std::vector<std::string> out;
     for (const surface::SurfaceTextRegion& r : all_texts(c)) {
-        if (r.x == body.x && r.y == body.y) {
+        const ui::Rect at = covered_cells(r);
+        if (at.x == body.x && at.y == body.y) {
             for (const surface::SurfaceTextRow& row : r.rows) {
                 out.push_back(row.text);
             }
@@ -3030,15 +3118,15 @@ inline PaneOffered good_offer() { return PaneOffered{"hello", "Hello", "a bounde
 
 inline std::string bytes(std::size_t n, char c) { return std::string(n, c); }
 
-/// The body bounds an open external pane resolves to -- read through the very
-/// functions the painter and the pointer use, so a case cannot measure a rectangle
+/// The body bounds an open external pane resolves to, in the cells they cover -- read through
+/// the very functions the painter and the pointer use, so a case cannot measure a rectangle
 /// nothing draws in.
 inline ui::Rect external_body_rect(const Session& s, std::int64_t kind) {
     const Screen sc = screen_of(s);
     const ExternalBodyPlace body =
         external_body_place(bounds_of(s.panes, s.setup.active, kind, sc).rect, sc,
                             external_title_rows(s.panes, kind, s.pane_titles));
-    return ui::Rect{body.region_x, body.region_y, body.region_w, body.region_h};
+    return cells_covered(PixelRect{body.region_x, body.region_y, body.region_w, body.region_h});
 }
 
 /// THE DURABLE REFERENCE THE INFO PANE IS OFFERED UNDER, as a case spells it: a weave's name
@@ -3061,6 +3149,12 @@ inline Setup two_overlays() {
 /// A `Live`'s session, mutably -- the same door `PaneRig::session` already opens, so a case
 /// that has to arrange a setup DIRECTLY (rather than through the keys it is measuring) can.
 inline Session& live(Live& t) { return const_cast<Session&>(t.session()); }
+
+/// AUTHOR A PLACE AT A CANVAS POSITION: what a case measured on the canvas, said in the room an
+/// authored place is measured from.
+inline Written place_at_canvas(Session& s, const PaneRef& ref, std::int64_t x, std::int64_t y) {
+    return author_pane_place(s.setup.active, ref, x, y - screen_of(s).room_y);
+}
 
 /// The kinds a setup AUTHORS, in the order the file holds them: the BASE, not what a weaver sees
 /// -- `painted_order` below is the effective one.
@@ -3120,14 +3214,14 @@ inline bool is_permutation(const Setup& s) {
 /// canvas row while the window shows the population from its top with no `earlier` marker, which
 /// every case using it arranges; the surface reserves no heading rows, so row `index` is the
 /// `index`'th row of the interior.
-inline FineRect menu_bounds(const Session& s) {
+inline PixelRect menu_bounds(const Session& s) {
     return s.presented.open ? presented_bounds(s, screen_of(s)) : context_bounds(s, screen_of(s));
 }
 inline std::int64_t context_cell_x(const Session& s) {
-    return surface::cell_of_subs(menu_bounds(s).x) + kChromeCells + 1;
+    return surface::cell_of_pixel(menu_bounds(s).x) + kChromeCells + 1;
 }
 inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
-    return surface::cell_of_subs(menu_bounds(s).y) + kChromeCells +
+    return surface::cell_of_pixel(menu_bounds(s).y) + kChromeCells +
            static_cast<std::int64_t>(index);
 }
 
@@ -3164,7 +3258,7 @@ inline bool menu_shown(const Session& s) {
 inline std::vector<std::string> context_rows_on(const surface::SurfaceCanvas& c,
                                                 const Session& s) {
     const Screen sc = screen_of(s);
-    const FineRect popup = menu_bounds(s);
+    const PixelRect popup = menu_bounds(s);
     const surface::SurfaceTextRegion want = prose_region(prose_place(popup, sc));
     for (std::size_t li = c.layers.size(); li > 0; --li) {
         const surface::SurfaceLayer& layer = c.layers[li - 1];
@@ -3283,12 +3377,12 @@ inline std::vector<intro::LoadedWeave> loaded_population(std::size_t n) {
     return out;
 }
 
-/// Every region on a canvas whose upper-left corner is this cell.
+/// Every region on a canvas whose upper-left corner is in this cell.
 inline std::vector<surface::SurfaceTextRegion> regions_at(const surface::SurfaceCanvas& c,
                                                           std::int64_t x, std::int64_t y) {
     std::vector<surface::SurfaceTextRegion> out;
     for (const surface::SurfaceTextRegion& r : all_texts(c)) {
-        if (r.x == x && r.y == y) {
+        if (surface::cell_of_pixel(r.x) == x && surface::cell_of_pixel(r.y) == y) {
             out.push_back(r);
         }
     }
@@ -3318,7 +3412,7 @@ inline std::int64_t cell_mid_px(std::int64_t cell) {
 
 /// THE PANE RECTANGLE AN EXTERNAL PANE OCCUPIES -- the painter's own, through the one
 /// `bounds_of` path, so a case never spells a placement of its own.
-inline FineRect external_pane_rect(const Session& s, std::int64_t kind) {
+inline PixelRect external_pane_rect(const Session& s, std::int64_t kind) {
     return bounds_of(s.panes, s.setup.active, kind, screen_of(s)).rect;
 }
 
@@ -3845,7 +3939,8 @@ inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
 inline std::vector<std::string> band_lines(PaneRig& r) {
     std::vector<std::string> out;
     const Screen sc = screen_of(r.session());
-    for (const std::int64_t y : {sc.help_y, sc.help_y + 1}) {
+    const std::int64_t help_y = surface::cell_of_pixel(sc.notice_y) + 1;
+    for (const std::int64_t y : {help_y, help_y + 1}) {
         const std::string row = inspector_row(r.last_canvas(), 0, y);
         if (!row.empty()) {
             out.push_back(row);
@@ -3896,7 +3991,7 @@ inline std::int64_t chrome_column(PaneRig& r, std::int64_t kind, const std::stri
 inline void make_taller(PaneRig& r, const char* pane, std::int64_t cells) {
     const Written wrote =
         author_pane_size(r.session().setup.active, PaneRef{kIntroOffice, pane}, PaneSize{},
-                         PaneSize{pane_unit::kSubcells, subs(cells)});
+                         PaneSize{pane_unit::kPixels, cells_px(cells)});
     REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
     // A REPAINT, WHICH IS A ROOM GRANT, WHICH IS THIS TOOL'S ONE BEAT.
     r.extent(200, 60);
@@ -3986,8 +4081,8 @@ void author_test_pane_room(Rig& r, std::int64_t kind, std::int64_t rows, std::in
     bool found = false;
     for (auto& row : r.session().setup.active.panes) {
         if (resolve_pane(row.ref, r.session().panes) != kind) continue;
-        row.width = {pane_unit::kSubcells, subs(columns + 2)};
-        row.height = {pane_unit::kSubcells, subs(rows + 3)};
+        row.width = {pane_unit::kPixels, cells_px(columns + 2)};
+        row.height = {pane_unit::kPixels, cells_px(rows + 3)};
         found = true;
     }
     REQUIRE(found);

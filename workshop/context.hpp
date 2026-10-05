@@ -50,7 +50,7 @@ struct ContextMenu {
     std::string group;
     std::size_t cursor = 0;
     bool anchored = false;   ///< a pointer opened this, at the cell below
-    std::int64_t anchor_x = 0; ///< the opening press's canvas cell
+    std::int64_t anchor_x = 0; ///< the opening press's canvas pixel
     std::int64_t anchor_y = 0;
 };
 
@@ -65,7 +65,7 @@ struct PresentedMenu {
     std::string pane;
     std::string subject;           ///< the ask's subject, for an answer the host gives itself
     std::uint64_t correlation = 0; ///< the ask's number, which every answer echoes
-    bool anchored = false;         ///< beside a place in the pane, at the cell below
+    bool anchored = false;         ///< beside a place in the pane, at the pixel it starts on
     std::int64_t anchor_x = 0;
     std::int64_t anchor_y = 0;
     std::int64_t room_rows = 0;    ///< the room granted with it

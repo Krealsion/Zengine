@@ -56,9 +56,9 @@ def run(ctx):
         slot = next(v for v in state["views"] if command["reference"] in v["entries"])
         setup = layout("values")
         setup["fields"]["panes"].append(dict(provider=office, pane=slot["id"],
-            place=dict(mode="subcells", x="48", y=str(37 * 48)),
-            width=dict(mode="subcells", amount=str(50 * 48)),
-            height=dict(mode="subcells", amount=str(11 * 48)), front="3"))
+            place=dict(mode="pixels", x="12", y=str(35 * 12)),
+            width=dict(mode="pixels", amount=str(50 * 12)),
+            height=dict(mode="pixels", amount=str(11 * 12)), front="3"))
         hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)
         count = sum(e["label"] == output_name for e in before)
         ctx.check(count == 1, "fixture should contain its original output, without an automatic replay")

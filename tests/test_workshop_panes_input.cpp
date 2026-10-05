@@ -115,7 +115,6 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
 
     SUBCASE("a graphical medium, whose line height is not its cell height") {
         r.extent(1000, 700, 8, 18);
-        const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
         const ExternalBodyPlace body = external_body_of(r.session(), kind);
         REQUIRE(body.present);
         // THE PRECONDITION THIS SUBCASE RESTS ON, ASSERTED RATHER THAN ASSUMED: a
@@ -129,10 +128,10 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
             seat->presses.clear();
             // THE PIXEL AT THE MIDDLE OF THE PROSE LINE -- inside the glyphs a weaver is
             // aiming at, resolved with the same `RegionFit` that positioned them.
-            const std::int64_t y = pane_rect.y * surface::kCanvasCellPx + body.fit.origin_y +
+            const std::int64_t y = body.fit.view.y + body.fit.origin_y +
                                    (row + kExternalHeaderRows) * body.fit.line_px +
                                    body.fit.line_px / 2;
-            const std::int64_t x = pane_rect.x * surface::kCanvasCellPx + body.fit.origin_x +
+            const std::int64_t x = body.fit.view.x + body.fit.origin_x +
                                    3 * body.fit.advance_px + body.fit.advance_px / 2;
             r.press_pixel(x, y);
             REQUIRE(seat->presses.size() == 1);
@@ -142,17 +141,17 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
 
         // THE TOP INSET IS THE HEADER'S FIRST PIXEL AND NAMES NO PROVIDER ROW.
         seat->presses.clear();
-        r.press_pixel(pane_rect.x * surface::kCanvasCellPx + 1, pane_rect.y * surface::kCanvasCellPx + 1);
+        r.press_pixel(body.fit.view.x + 1, body.fit.view.y + 1);
         CHECK(seat->presses.empty());
 
         // AND THE PIXEL REMAINDER UNDER THE LAST PROSE LINE IS NOT A ROW. `fit_region`
         // already decided how many WHOLE lines this rectangle holds; the strip left
         // over is inside the pane, is painted with nothing, and rounding it to the
         // nearest row would hand the provider a press at a place it never wrote to.
-        const std::int64_t past = pane_rect.y * surface::kCanvasCellPx + body.fit.origin_y +
+        const std::int64_t past = body.fit.view.y + body.fit.origin_y +
                                   (body.rows + kExternalHeaderRows) * body.fit.line_px + 1;
-        REQUIRE(past < (pane_rect.y + pane_rect.h) * surface::kCanvasCellPx); // genuinely inside the pane
-        r.press_pixel(pane_rect.x * surface::kCanvasCellPx + body.fit.origin_x + 1, past);
+        REQUIRE(past < body.fit.view.y + body.fit.view.h); // genuinely inside the pane
+        r.press_pixel(body.fit.view.x + body.fit.origin_x + 1, past);
         CHECK(seat->presses.empty());
     }
 }
@@ -1045,11 +1044,10 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
     const std::int64_t gkind = px.session().panes.runtime.entries[0].kind;
     px.extent(1000, 700, 8, 18);
     const ExternalBodyPlace gbody = external_body_of(px.session(), gkind);
-    const ui::Rect gpane_rect = pane_body_cells(external_pane_rect(px.session(), gkind));
     REQUIRE(gbody.fit.graphical());
-    px.press_pixel(gpane_rect.x * surface::kCanvasCellPx + gbody.fit.origin_x + gbody.fit.advance_px +
+    px.press_pixel(gbody.fit.view.x + gbody.fit.origin_x + gbody.fit.advance_px +
                        gbody.fit.advance_px / 2,
-                   gpane_rect.y * surface::kCanvasCellPx + gbody.fit.origin_y +
+                   gbody.fit.view.y + gbody.fit.origin_y +
                        (1 + kExternalHeaderRows) * gbody.fit.line_px + gbody.fit.line_px / 2);
     REQUIRE(by_pixel.heard.size() == 1);
 
@@ -1221,7 +1219,7 @@ TEST_CASE("a press anywhere else takes the keyboard away again") {
     press_body(r, kind);
     REQUIRE(r.session().panes.keyboard == kind);
     const Screen sc = screen_of(r.session());
-    r.press_cell(sc.side_x + kSideCols - 1, kSideY + 2);
+    r.press_cell(cells_of(sc).side_x + kSideCols - 1, kRoomCellY + 2);
     CHECK(r.session().panes.keyboard == kNoPaneKind);
 }
 
@@ -1455,11 +1453,10 @@ TEST_CASE("the same gesture in both media produces the same provider intent") {
         if (graphical) {
             r.extent(1000, 700, 8, 18);
             const ExternalBodyPlace body = external_body_of(r.session(), kind);
-            const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
             REQUIRE(body.fit.graphical());
-            r.press_pixel(pane_rect.x * surface::kCanvasCellPx + body.fit.origin_x +
+            r.press_pixel(body.fit.view.x + body.fit.origin_x +
                               body.fit.advance_px / 2,
-                          pane_rect.y * surface::kCanvasCellPx + body.fit.origin_y +
+                          body.fit.view.y + body.fit.origin_y +
                               kExternalHeaderRows * body.fit.line_px + body.fit.line_px / 2);
         } else {
             press_body(r, kind);
@@ -1540,7 +1537,7 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
     const auto band = [&]() {
         std::vector<std::string> out;
         const Screen sc = screen_of(r.session());
-        for (const std::int64_t y : {sc.help_y, sc.help_y + 1}) {
+        for (const std::int64_t y : {help_row(sc), help_row(sc) + 1}) {
             const std::string row = inspector_row(r.last_canvas(), 0, y);
             if (!row.empty()) {
                 out.push_back(row);
@@ -2049,8 +2046,8 @@ struct ComposeRig {
             REQUIRE(author_pane_size(
                         r.session().setup.active, composer_ref(),
                         PaneSize{pane_unit::kDefault, 0},
-                        PaneSize{pane_unit::kSubcells,
-                                 surface::subs_of_cells(kStackRows + 2 * kChromeCells)})
+                        PaneSize{pane_unit::kPixels,
+                                 surface::px_of_cells(kStackRows + 2 * kChromeCells)})
                         .accepted);
             r.extent(240, 81); // one more row, so the authored height is reconciled
         }
@@ -2178,8 +2175,8 @@ struct ComposeRig {
     /// occupancy walk the pointer asks, never spelled here.
     void press_room() {
         const Screen sc = screen_of(r.session());
-        for (std::int64_t y = sc.room_h - 1; y >= 0; --y) {
-            for (std::int64_t x = sc.room_w - 1; x >= 0; --x) {
+        for (std::int64_t y = cells_of(sc).room_h - 1; y >= 0; --y) {
+            for (std::int64_t x = cells_of(sc).room_w - 1; x >= 0; --x) {
                 if (!occupied_at(r.session().panes, r.session().setup.active, sc, x, y)
                          .occupied) {
                     r.press_cell(x, y);
@@ -2896,9 +2893,9 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
 
     // PUT `second` OVER `hello`, offset so a strip of `hello` stays uncovered.
     const ui::Rect hello = cells_covered(external_pane_rect(r.session(), hello_kind));
-    REQUIRE(author_pane_place(r.session().setup.active, second_ref,
-                              surface::subs_of_cells(hello.x + 4),
-                              surface::subs_of_cells(hello.y + 3))
+    REQUIRE(place_at_canvas(const_cast<Session&>(r.session()), second_ref,
+                              surface::px_of_cells(hello.x + 4),
+                              surface::px_of_cells(hello.y + 3))
                 .accepted);
     r.extent(160, 61); // reseat at the authored place
     const ui::Rect second = cells_covered(external_pane_rect(r.session(), second_kind));

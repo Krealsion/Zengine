@@ -132,7 +132,9 @@ struct InventoryStory {
         }
         const auto done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
-        r.ready(); r.extent(180, 60);
+        // Tall while the panes are picked, so each seats at the size it asks for; the story's
+        // own extent follows, once every pane has the place authored below.
+        r.ready(); r.extent(180, 120);
         r.pick({"zengine.inventory-pane", "inventory"});
         source = r.session().panes.runtime.find("zengine.inventory-pane", "inventory")->kind;
         info = r.session().panes.runtime.find("zengine.info", "info")->kind;
@@ -142,9 +144,9 @@ struct InventoryStory {
             powers = r.session().panes.runtime.find(intro::kIntrospectionRole, intro::kPowersPane)->kind;
             for (auto& pane : r.session().setup.active.panes) {
                 if (pane.ref.provider != intro::kIntrospectionRole) continue;
-                pane.place = {pane_unit::kSubcells, 85 * surface::kCellSubs, 30 * surface::kCellSubs};
-                pane.width = {pane_unit::kSubcells, 80 * surface::kCellSubs};
-                pane.height = {pane_unit::kSubcells, 24 * surface::kCellSubs};
+                pane.place = {pane_unit::kPixels, 85 * surface::kCanvasCellPx, 30 * surface::kCanvasCellPx};
+                pane.width = {pane_unit::kPixels, 80 * surface::kCanvasCellPx};
+                pane.height = {pane_unit::kPixels, 24 * surface::kCanvasCellPx};
             }
         }
         if (with_flow) {
@@ -153,9 +155,9 @@ struct InventoryStory {
             flow = r.session().panes.runtime.find("zengine.flow", "flow")->kind;
             for (auto& pane : r.session().setup.active.panes) {
                 if (pane.ref.provider != "zengine.flow") continue;
-                pane.place = {pane_unit::kSubcells, 85 * surface::kCellSubs, 30 * surface::kCellSubs};
-                pane.width = {pane_unit::kSubcells, 92 * surface::kCellSubs};
-                pane.height = {pane_unit::kSubcells, 28 * surface::kCellSubs};
+                pane.place = {pane_unit::kPixels, 85 * surface::kCanvasCellPx, 30 * surface::kCanvasCellPx};
+                pane.width = {pane_unit::kPixels, 92 * surface::kCanvasCellPx};
+                pane.height = {pane_unit::kPixels, 28 * surface::kCanvasCellPx};
             }
         }
         if (with_builder) {
@@ -164,17 +166,17 @@ struct InventoryStory {
             builder = r.session().panes.runtime.find("zengine.view.builder", "view-builder")->kind;
             for (auto& pane : r.session().setup.active.panes) {
                 if (pane.ref.provider != "zengine.view.builder") continue;
-                pane.place = {pane_unit::kSubcells, 2 * surface::kCellSubs, 30 * surface::kCellSubs};
-                pane.width = {pane_unit::kSubcells, 80 * surface::kCellSubs};
-                pane.height = {pane_unit::kSubcells, 28 * surface::kCellSubs};
+                pane.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 30 * surface::kCanvasCellPx};
+                pane.width = {pane_unit::kPixels, 80 * surface::kCanvasCellPx};
+                pane.height = {pane_unit::kPixels, 28 * surface::kCanvasCellPx};
             }
         }
         for (auto& pane : r.session().setup.active.panes) {
             if (pane.ref.provider != "zengine.info" && pane.ref.provider != "zengine.inventory-pane") continue;
-            pane.place = {pane_unit::kSubcells,
-                (pane.ref.provider == "zengine.info" ? 85 : 2) * surface::kCellSubs, 4 * surface::kCellSubs};
-            pane.width = {pane_unit::kSubcells, 80 * surface::kCellSubs};
-            pane.height = {pane_unit::kSubcells, 24 * surface::kCellSubs};
+            pane.place = {pane_unit::kPixels,
+                (pane.ref.provider == "zengine.info" ? 85 : 2) * surface::kCanvasCellPx, 4 * surface::kCanvasCellPx};
+            pane.width = {pane_unit::kPixels, 80 * surface::kCanvasCellPx};
+            pane.height = {pane_unit::kPixels, 24 * surface::kCanvasCellPx};
         }
         r.extent(180, 60);
         using Input = input::InputWeaveT<QuietReader>;

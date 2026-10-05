@@ -9,7 +9,7 @@
   ],
   "viewport": [
    120,
-   56
+   60
   ]
  },
  "authority": {
@@ -44,7 +44,7 @@
  "view_slots": [
   {
    "x": 1,
-   "y": 27,
+   "y": 25,
    "width": 44,
    "height": 11
   }

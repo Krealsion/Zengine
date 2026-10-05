@@ -56,11 +56,11 @@ def run(ctx):
     panes[:] = [p for p in panes if p['provider'] in (inv[0], info[0], comp[0], 'zengine.demo')]
     for p in panes:
         if p['provider'] == inv[0]:
-            p['place']['y'] = str(26 * 48); p['height']['amount'] = str(15 * 48)
+            p['place']['y'] = str(24 * 12); p['height']['amount'] = str(15 * 12)
     panes.append({'provider': term[0], 'pane': term[1],
-                  'place': {'mode': 'subcells', 'x': '48', 'y': str(2 * 48)},
-                  'width': {'mode': 'subcells', 'amount': str(50 * 48)},
-                  'height': {'mode': 'subcells', 'amount': str(22 * 48)}, 'front': str(len(panes))})
+                  'place': {'mode': 'pixels', 'x': '12', 'y': '0'},
+                  'width': {'mode': 'pixels', 'amount': str(50 * 12)},
+                  'height': {'mode': 'pixels', 'amount': str(22 * 12)}, 'front': str(len(panes))})
     for index, pane in enumerate(panes):
         pane['front'] = str(index)
     hand.ask('zengine.workshop', 'SetupApplyRequested', {'setup': json.dumps(setup)}, settle=True)

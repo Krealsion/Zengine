@@ -180,10 +180,10 @@ def make(tmp, name="made", **fields):
     """A small described setup in `tmp`, desk included."""
     root = Path(tmp) / name
     root.mkdir()
-    desk = {"zen": 1, "schema": "WorkshopSetup", "version": 3, "fields": {
-        "format": "zengine-workshop-setup", "format_version": "3", "name": name, "panes": [
-            {"provider": p, "pane": k, "place": {"mode": "subcells", "x": "48", "y": "96"},
-             "width": {"mode": "subcells", "amount": "480"}, "height": {"mode": "subcells", "amount": "480"},
+    desk = {"zen": 1, "schema": "WorkshopSetup", "version": 4, "fields": {
+        "format": "zengine-workshop-setup", "format_version": "4", "name": name, "panes": [
+            {"provider": p, "pane": k, "place": {"mode": "pixels", "x": "12", "y": "0"},
+             "width": {"mode": "pixels", "amount": "120"}, "height": {"mode": "pixels", "amount": "120"},
              "front": str(i)} for i, (p, k) in enumerate(fields.pop("panes", [
                  ("zengine.inventory-pane", "inventory"), ("zengine.demo", "controls")]))]}}
     (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")

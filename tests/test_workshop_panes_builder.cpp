@@ -166,8 +166,8 @@ struct BuilderRig {
         r.pick(builder_ref());
         kind = row()->kind;
         REQUIRE(author_pane_size(r.session().setup.active, builder_ref(),
-            {pane_unit::kSubcells, subs(placement_bounds(placement::kOverlayStack, 0,
-                screen_of(width, height)).w)}, PaneSize{}).accepted);
+            {pane_unit::kPixels, cells_px(placement_bounds(placement::kOverlayStack, 0,
+                screen_of(cells_px(width), cells_px(height))).w)}, PaneSize{}).accepted);
         focus();
     }
 
@@ -184,8 +184,8 @@ struct BuilderRig {
     /// whole control strip drawn, and the strip grows with the room.
     void author_height(std::int64_t cells, std::int64_t width, std::int64_t height) {
         const Written wrote = author_pane_size(r.session().setup.active, builder_ref(),
-            {pane_unit::kSubcells, subs(placement_bounds(placement::kOverlayStack, 0,
-                screen_of(width, height)).w)}, {pane_unit::kSubcells, subs(cells)});
+            {pane_unit::kPixels, cells_px(placement_bounds(placement::kOverlayStack, 0,
+                screen_of(cells_px(width), cells_px(height))).w)}, {pane_unit::kPixels, cells_px(cells)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         r.extent(width, height);
     }
@@ -2398,8 +2398,8 @@ TEST_CASE("the role line keeps typed text visible in a narrow room") {
     REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
 
     const Written narrow = author_pane_size(b.r.session().setup.active, builder_ref(),
-                                            PaneSize{pane_unit::kSubcells, subs(32)},
-                                            PaneSize{pane_unit::kSubcells, subs(9)});
+                                            PaneSize{pane_unit::kPixels, cells_px(32)},
+                                            PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(narrow.accepted, narrow.refusal);
     b.r.extent(160, 47);
     b.r.text("narrowvalue");
@@ -2409,8 +2409,8 @@ TEST_CASE("the role line keeps typed text visible in a narrow room") {
 
     // SEPARATE ACCEPTANCE FROM VISIBILITY: the same draft reveals its text once wider.
     const Written wide = author_pane_size(b.r.session().setup.active, builder_ref(),
-                                          PaneSize{pane_unit::kSubcells, subs(80)},
-                                          PaneSize{pane_unit::kSubcells, subs(9)});
+                                          PaneSize{pane_unit::kPixels, cells_px(80)},
+                                          PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(wide.accepted, wide.refusal);
     b.r.extent(160, 48);
     CHECK_MESSAGE(b.text().find("role for zengine-really-long-example> narrowvalue") !=
@@ -2551,8 +2551,8 @@ TEST_CASE("a reader waiting on its first page still offers its whole list in a n
     b.tool->next.op = 1;
     bp_settled(b, "one", "a", bld::outcome::kSucceeded);
     const Written sized = author_pane_size(b.r.session().setup.active, builder_ref(),
-                                           PaneSize{pane_unit::kSubcells, subs(30)},
-                                           PaneSize{pane_unit::kSubcells, subs(9)});
+                                           PaneSize{pane_unit::kPixels, cells_px(30)},
+                                           PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(sized.accepted, sized.refusal);
     b.r.extent(160, 47);
     b.r.key(input::scan::kL);

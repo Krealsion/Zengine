@@ -1,27 +1,27 @@
 {
  "zen": 1,
  "schema": "WorkshopSetup",
- "version": 3,
+ "version": 4,
  "fields": {
   "format": "zengine-workshop-setup",
-  "format_version": "3",
+  "format_version": "4",
   "name": "Organized workbench",
   "panes": [
    {
     "provider": "zengine.inventory-pane",
     "pane": "inventory",
     "place": {
-     "mode": "subcells",
-     "x": "48",
-     "y": "96"
+     "mode": "pixels",
+     "x": "12",
+     "y": "0"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "2112"
+     "mode": "pixels",
+     "amount": "528"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "1152"
+     "mode": "pixels",
+     "amount": "288"
     },
     "front": "0"
    },
@@ -29,17 +29,17 @@
     "provider": "zengine.demo",
     "pane": "controls",
     "place": {
-     "mode": "subcells",
-     "x": "48",
-     "y": "1872"
+     "mode": "pixels",
+     "x": "12",
+     "y": "444"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "2112"
+     "mode": "pixels",
+     "amount": "528"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "288"
+     "mode": "pixels",
+     "amount": "72"
     },
     "front": "1"
    },
@@ -47,17 +47,17 @@
     "provider": "zengine.info",
     "pane": "info",
     "place": {
-     "mode": "subcells",
-     "x": "2208",
-     "y": "96"
+     "mode": "pixels",
+     "x": "552",
+     "y": "0"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "3504"
+     "mode": "pixels",
+     "amount": "876"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "768"
+     "mode": "pixels",
+     "amount": "192"
     },
     "front": "2"
    },
@@ -65,17 +65,17 @@
     "provider": "zengine.info",
     "pane": "info.2",
     "place": {
-     "mode": "subcells",
-     "x": "2208",
-     "y": "912"
+     "mode": "pixels",
+     "x": "552",
+     "y": "204"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "3504"
+     "mode": "pixels",
+     "amount": "876"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "768"
+     "mode": "pixels",
+     "amount": "192"
     },
     "front": "3"
    },
@@ -83,17 +83,17 @@
     "provider": "zengine.info",
     "pane": "info.3",
     "place": {
-     "mode": "subcells",
-     "x": "2208",
-     "y": "1728"
+     "mode": "pixels",
+     "x": "552",
+     "y": "408"
     },
     "width": {
-     "mode": "subcells",
-     "amount": "3504"
+     "mode": "pixels",
+     "amount": "876"
     },
     "height": {
-     "mode": "subcells",
-     "amount": "768"
+     "mode": "pixels",
+     "amount": "192"
     },
     "front": "4"
    },

@@ -11,7 +11,7 @@ application owns the pairing between them — so it lives here rather than in an
 one of their sources.
 
 Sources: `input/vocabulary.hpp` (`space::`), `surface/pointing.hpp`,
-`surface/vocabulary.hpp` (`kCanvasCellPx`, `kCellSubs`). Package overviews:
+`surface/vocabulary.hpp` (`kCanvasCellPx`). Package overviews:
 [Input](input.md) ·
 [Surface](surface.md).
 
@@ -22,7 +22,8 @@ MEDIUM      what the backend reported, in its own numbers
             terminal: terminal cells, 0-based
             window:   window pixels, 0-based at the window's origin
 
-CANVAS      cells of the SurfaceCanvas the active Skin is painting
+CANVAS      pixels of the SurfaceCanvas the active Skin is painting, twelve
+            to a cell; a window shows each, a terminal floors them to cells
 
 APPLICATION whatever composition the publisher chose -- e.g. Workshop's
             workspace, which sits at an offset ON the canvas
@@ -53,15 +54,16 @@ outside the package can see. Both live in `surface/pointing.hpp`:
 | `canvas_of_terminal_cells(x, y)` | `y - kTuiCanvasTopRow`, saturating | the terminal Skins write `\x1b[3;1H`, because terminal rows 1–2 carry the `SurfaceText` slots |
 | `canvas_of_window_pixels(x, y)` | `cell_of_pixel` on each axis | the canvas starts at the window's ORIGIN — `plan_canvas` draws cell (0,0) at pixel (0,0), no margin and no scaling, one cell every `kCanvasCellPx` pixels |
 
-Each projection has a **fine twin one lattice down**
-(`canvas_subs_of_window_pixels`, `canvas_subs_of_terminal_cells`), answering in
-*sub-units* — 1/`kCellSubs` (<!-- value kCellSubs -->48<!-- /value -->) of a cell — with the reporting medium's **grain**
-travelling beside the position: a window pixel is `kPixelGrainSubs` (<!-- value kPixelGrainSubs -->4<!-- /value -->) sub-units,
-a terminal cell is `kCellGrainSubs` (<!-- value kCellGrainSubs -->48<!-- /value -->), and a consumer that spends cells and one
-that spends subs are reading one measurement (the cell is the sub's floor). The
-grain is what a hit test floors by (`sub_span_contains`), so the hand meets
-exactly the device units a fine rectangle paints — the pane-arrangement consumer
-this was built for is Workshop's, whose `PointedAt` carries all three.
+Each projection has a **pixel twin** (`canvas_px_of_window_pixels`,
+`canvas_px_of_terminal_cells`), answering in canvas pixels with the reporting
+medium's **grain** travelling beside the position: a window pixel is
+`kPixelGrainPx` (<!-- value kPixelGrainPx -->1<!-- /value -->) canvas pixel — the window draws the canvas 1:1 — and a terminal
+cell is `kCellGrainPx` (<!-- value kCellGrainPx -->12<!-- /value -->), its own corner, since a terminal cannot say anything
+finer. A consumer that spends cells and one that spends pixels are reading one
+measurement (the cell is the pixel's floor). The grain is what a hit test floors
+by (`px_span_contains`), so the hand meets exactly the device units a rectangle
+paints — the consumer this was built for is Workshop's pane arrangement and its
+canvas panes, whose `PointedAt` carries all three.
 
 The window is **not** exactly the canvas: it is user-resizable, so it
 can be a few pixels wider than a whole number of cells, and a publisher that

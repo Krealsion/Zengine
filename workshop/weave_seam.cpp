@@ -19,8 +19,13 @@ void WorkshopWeave::on(const v2::PaneOffered& offer, loom::Mail& mail) {
                       offer.rows, offer.columns);
 }
 
+void WorkshopWeave::on(const v3::PaneOffered& offer, loom::Mail& mail) {
+    accept_pane_offer(PaneOffered{offer.pane, offer.name, offer.summary}, mail, 0, 0,
+                      PaneBody{offer.width, offer.height, offer.text_rows});
+}
+
 void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail,
-                                      std::int64_t rows, std::int64_t columns) {
+                                      std::int64_t rows, std::int64_t columns, PaneBody body) {
     // Read as a view and kept as one: `admit_pane_offer` is the one place that judges these
     // bytes, so no owned copy precedes it.
     // The view borrows this delivery's stamp, valid for this handler only: never store it.
@@ -30,7 +35,8 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
         // consulted: a WeaveId would make a reloaded provider a different pane.
         return;
     }
-    const Admission admitted = admit_pane_offer(session_.panes.runtime, office, offer, rows, columns);
+    const Admission admitted =
+        admit_pane_offer(session_.panes.runtime, office, offer, rows, columns, body);
     if (!admitted.written.accepted) {
         // Workshop's sentence about its own law: `admit_pane_offer` names a `PaneRef` only after
         // both halves passed `check_pane_key`.

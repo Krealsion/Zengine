@@ -2039,7 +2039,7 @@
       "name": "place",
       "script": "place.py",
       "summary": "Author where panes sit and how big they are, typing the numbers into Info's X, Y, Width and Height rows as a weaver would, and read each value back.",
-      "description": "For each named pane: press into Info, choose the pane in Info's list, Return to make it the subject, Tab to its rows, and for each given field Return, clear, type, Return. Workshop writes the value through the desk's own door; the tool passes only when Info's AUTHORED row then shows it. Values use the face's unit: pixels in a window (\"120\" or \"120px\"), cells in a terminal. X and Y are one place, so X is written first. The placement lands in the current layout and comes back with the next launch; Layouts `s` writes a Setup file. A pane waiting for room can be placed before it opens.",
+      "description": "For each named pane: press into Info, choose the pane in Info's list, Return to make it the subject, Tab to its rows, and for each given field Return, clear, type, Return. Workshop writes the value through the desk's own door; the tool passes only when Info's AUTHORED row then shows it. Values use the face's unit: pixels in a window (\"120\" or \"120px\"), cells in a terminal. X and Y are one place, measured from the room's top-left (directly under the top band), so X is written first. The placement lands in the current layout and comes back with the next launch; Layouts `s` writes a Setup file. A pane waiting for room can be placed before it opens.",
       "inputs": [
         {
           "name": "link",

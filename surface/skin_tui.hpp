@@ -176,8 +176,10 @@ struct CanvasGrids {
 
 inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
     CanvasGrids grids;
-    const std::int64_t w = c.width > 0 ? c.width : 0;
-    const std::int64_t h = c.height > 0 ? c.height : 0;
+    // The picture is in canvas pixels; this medium's unit is the cell, and it shows the cells
+    // the extent covers whole.
+    const std::int64_t w = c.width > 0 ? zengine::surface::cell_of_pixel(c.width) : 0;
+    const std::int64_t h = c.height > 0 ? zengine::surface::cell_of_pixel(c.height) : 0;
     grids.w = w;
     grids.h = h;
     if (w == 0 || h == 0) {
@@ -223,9 +225,12 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
                                  std::int64_t ground = zengine::surface::role::kNone,
                                  std::int64_t sel_begin = 0, std::int64_t sel_end = 0,
                                  bool keep_ground = false) {
+        // The anchor is a canvas pixel: its cell is the floor, and each byte is one cell on.
+        const std::int64_t x0 = zengine::surface::cell_of_pixel(l.x);
+        const std::int64_t y0 = zengine::surface::cell_of_pixel(l.y);
         for (std::size_t i = 0; i < l.text.size(); ++i) {
             const std::int64_t col = static_cast<std::int64_t>(i);
-            put(add_cells(l.x, col), l.y, l.text[i], l.role, ground,
+            put(add_cells(x0, col), y0, l.text[i], l.role, ground,
                 col >= sel_begin && col < sel_end, keep_ground);
         }
     };
@@ -238,16 +243,16 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
         // 100,000,000-cell rect on a 4x2 canvas) and overflowed at the top of the number line.
         for (const zengine::surface::SurfaceRect& r : layer.rects) {
             const char g = glyph_for_role(static_cast<int>(r.role));
-            // A fine rect covers the cells its floored edges span: `r.x` is the left edge's
-            // floor, and the carry below is the right edge's. Zero remainders move no byte.
-            const std::int64_t carry_w =
-                (zengine::surface::sub_rem(r.sub_x) + zengine::surface::sub_rem(r.sub_w)) /
-                zengine::surface::kCellSubs;
-            const std::int64_t carry_h =
-                (zengine::surface::sub_rem(r.sub_y) + zengine::surface::sub_rem(r.sub_h)) /
-                zengine::surface::kCellSubs;
-            const CellSpan xs = clip_span(r.x, r.w >= 0 ? add_cells(r.w, carry_w) : r.w, w);
-            const CellSpan ys = clip_span(r.y, r.h >= 0 ? add_cells(r.h, carry_h) : r.h, h);
+            if (r.w <= 0 || r.h <= 0) {
+                continue; // nothing of it to cover
+            }
+            // A pixel rect covers the cells its floored edges span: [floor(L/12), floor(R/12)).
+            const std::int64_t x0 = zengine::surface::cell_of_pixel(r.x);
+            const std::int64_t y0 = zengine::surface::cell_of_pixel(r.y);
+            const CellSpan xs =
+                clip_span(x0, zengine::surface::cell_of_pixel(add_cells(r.x, r.w)) - x0, w);
+            const CellSpan ys =
+                clip_span(y0, zengine::surface::cell_of_pixel(add_cells(r.y, r.h)) - y0, h);
             for (std::int64_t y = ys.begin; y < ys.end; ++y) {
                 for (std::int64_t x = xs.begin; x < xs.end; ++x) {
                     put(x, y, g, r.role, r.role == zengine::surface::role::kGround
@@ -350,7 +355,8 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
 inline constexpr std::int64_t kTuiScrollGuardRows = 1; ///< where the last row's CRLF lands
 inline constexpr std::int64_t kTuiReservedRows = kTuiCanvasTopRow + kTuiScrollGuardRows;
 
-/// What a terminal of this size has room for, as a canvas extent; pure, so every lane pins it.
+/// What a terminal of this size has room for, as a canvas extent in canvas pixels (its cells
+/// times `kCanvasCellPx`); pure, so every lane pins it.
 /// A character is a cell here, so the text metric and `cell_px` are zero: "text is a cell" and
 /// "my device unit is the cell". An unmeasured terminal and one with no row to spare both
 /// answer `{}`, which `SkinT::report_extent` turns into silence; publishing zero would claim
@@ -359,7 +365,7 @@ inline constexpr SurfaceExtent tui_canvas_extent(const TerminalSize& t) noexcept
     if (!t.measured() || t.rows <= kTuiReservedRows) {
         return SurfaceExtent{};
     }
-    return SurfaceExtent{t.cols, t.rows - kTuiReservedRows, 0, 0, 0};
+    return SurfaceExtent{px_of_cells(t.cols), px_of_cells(t.rows - kTuiReservedRows), 0, 0, 0};
 }
 
 /// STANDARD BASE64, because OSC 52 speaks nothing else. Pure and total; no padding
@@ -429,7 +435,8 @@ public:
     /// from row 3 down, claimed on the first frame. Same layout convention, one
     /// different body.
     void canvas(const zengine::surface::SurfaceCanvas& c, bool first) {
-        const std::int64_t rows = c.height > 0 ? c.height : 0;
+        // The rows the picture covers, in this medium's cells.
+        const std::int64_t rows = c.height > 0 ? zengine::surface::cell_of_pixel(c.height) : 0;
         std::string out = "\x1b[3;1H";
         if (first) {
             out += "\x1b[0J";
@@ -456,8 +463,11 @@ public:
             return std::nullopt;
         }
         CapturedPicture p;
-        p.width = last_canvas_->width > 0 ? last_canvas_->width : 0;
-        p.height = last_canvas_->height > 0 ? last_canvas_->height : 0;
+        // In cells, as the bytes are: the picture's pixel extent floored to the cells it covers.
+        p.width = last_canvas_->width > 0 ? zengine::surface::cell_of_pixel(last_canvas_->width)
+                                          : 0;
+        p.height =
+            last_canvas_->height > 0 ? zengine::surface::cell_of_pixel(last_canvas_->height) : 0;
         p.cell_px = 0;
         p.format = "text/cells";
         p.bytes = canvas_cells(*last_canvas_);

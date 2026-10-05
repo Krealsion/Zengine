@@ -11,8 +11,8 @@ namespace zengine::workshop {
 // ---- PANE MANAGEMENT: what a weaver is ARRANGING, and how ------------------------------
 
 // WL-ARR-09 -- agents/workshop/arrangement.md
-FineRect pane_edge_cell(const FineRect& r, std::int64_t edge) noexcept {
-    const std::int64_t cell = surface::kCellSubs;
+PixelRect pane_edge_cell(const PixelRect& r, std::int64_t edge) noexcept {
+    const std::int64_t cell = surface::kCanvasCellPx;
     const std::int64_t x0 = r.x;
     const std::int64_t x1 = r.w > cell ? r.x + r.w - cell : r.x;
     const std::int64_t y0 = r.y;
@@ -20,32 +20,32 @@ FineRect pane_edge_cell(const FineRect& r, std::int64_t edge) noexcept {
     const std::int64_t xm = r.w > cell ? r.x + (r.w - cell) / 2 : r.x;
     const std::int64_t ym = r.h > cell ? r.y + (r.h - cell) / 2 : r.y;
     switch (edge) {
-    case pane_edge::kLeft: return FineRect{x0, ym, cell, cell};
-    case pane_edge::kRight: return FineRect{x1, ym, cell, cell};
-    case pane_edge::kTop: return FineRect{xm, y0, cell, cell};
-    case pane_edge::kBottom: return FineRect{xm, y1, cell, cell};
-    case pane_edge::kTopLeft: return FineRect{x0, y0, cell, cell};
-    case pane_edge::kTopRight: return FineRect{x1, y0, cell, cell};
-    case pane_edge::kBottomLeft: return FineRect{x0, y1, cell, cell};
-    case pane_edge::kBottomRight: return FineRect{x1, y1, cell, cell};
-    default: return FineRect{};
+    case pane_edge::kLeft: return PixelRect{x0, ym, cell, cell};
+    case pane_edge::kRight: return PixelRect{x1, ym, cell, cell};
+    case pane_edge::kTop: return PixelRect{xm, y0, cell, cell};
+    case pane_edge::kBottom: return PixelRect{xm, y1, cell, cell};
+    case pane_edge::kTopLeft: return PixelRect{x0, y0, cell, cell};
+    case pane_edge::kTopRight: return PixelRect{x1, y0, cell, cell};
+    case pane_edge::kBottomLeft: return PixelRect{x0, y1, cell, cell};
+    case pane_edge::kBottomRight: return PixelRect{x1, y1, cell, cell};
+    default: return PixelRect{};
     }
 }
 
 // WL-ARR-01 -- agents/workshop/arrangement.md; WL-GEO-07 -- agents/workshop/geometry.md
-std::int64_t pane_edge_at(const FineRect& r, std::int64_t sx, std::int64_t sy,
+std::int64_t pane_edge_at(const PixelRect& r, std::int64_t sx, std::int64_t sy,
                           std::int64_t grain) noexcept {
     if (!r.contains_at(sx, sy, grain)) {
         return kNoPaneEdge;
     }
-    const std::int64_t band_w = r.w < kPaneEdgeBandSubs ? r.w : kPaneEdgeBandSubs;
-    const std::int64_t band_h = r.h < kPaneEdgeBandSubs ? r.h : kPaneEdgeBandSubs;
-    const bool left = surface::sub_span_contains(r.x, band_w, sx, grain);
+    const std::int64_t band_w = r.w < kPaneEdgeBandPx ? r.w : kPaneEdgeBandPx;
+    const std::int64_t band_h = r.h < kPaneEdgeBandPx ? r.h : kPaneEdgeBandPx;
+    const bool left = surface::px_span_contains(r.x, band_w, sx, grain);
     const bool right =
-        surface::sub_span_contains(surface::add_cells(r.x, r.w - band_w), band_w, sx, grain);
-    const bool top = surface::sub_span_contains(r.y, band_h, sy, grain);
+        surface::px_span_contains(surface::add_cells(r.x, r.w - band_w), band_w, sx, grain);
+    const bool top = surface::px_span_contains(r.y, band_h, sy, grain);
     const bool bottom =
-        surface::sub_span_contains(surface::add_cells(r.y, r.h - band_h), band_h, sy, grain);
+        surface::px_span_contains(surface::add_cells(r.y, r.h - band_h), band_h, sy, grain);
     if (top && left) {
         return pane_edge::kTopLeft;
     }

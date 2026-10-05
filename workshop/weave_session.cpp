@@ -410,8 +410,14 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         said += " (" + std::to_string(last.active + 1) + " of " +
                 std::to_string(last.layouts.size()) + " layouts)";
     }
-    said += " -- " + std::to_string(session_.screen_w) + "x" +
-            std::to_string(session_.screen_h) + " cells";
+    // The room in the face's own unit, marked where that face cannot say it exactly.
+    bool projected = false;
+    said += " -- " + geometry_amount_text(session_.screen_w, session_.cell_px, projected) + "x" +
+            geometry_amount_text(session_.screen_h, session_.cell_px, projected) + " " +
+            geometry_unit(session_.cell_px);
+    if (projected) {
+        said += kProjectedNote;
+    }
     if (!last.declined.empty()) {
         // AND IT NEVER CLAIMS THE SIZE CAME BACK WHEN IT DID NOT. The desk did; the
         // window did not; a weaver is told which, with the value that was declined.

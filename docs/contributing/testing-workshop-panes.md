@@ -80,7 +80,7 @@ fixture setup technique, not an interaction a user should have to perform.
 
 Measure press and release before dispatching a press that may close its pane. If the story
 deliberately moves a target during a gesture, record that motion explicitly instead of having a
-coordinate helper silently retarget the release. Keep cells, subcells and device pixels distinct;
+coordinate helper silently retarget the release. Keep cells and pixels distinct;
 the pane's current room and shared hit geometry determine where the control is painted.
 
 ### Select the cases you think you selected

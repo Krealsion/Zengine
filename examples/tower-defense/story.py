@@ -826,22 +826,22 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
     Python session runtime and Zengine guest vocabulary (`programs`). Returns what a record keeps
     of the two, their custody included. A launch that fails ends what it started."""
     width, height = (int(v) for v in viewport.split("x"))
-    desk = {"format": "zengine-workshop-setup", "format_version": "3", "name": "Default",
+    desk = {"format": "zengine-workshop-setup", "format_version": "4", "name": "Default",
             "panes": [{"provider": "zengine.info", "pane": "info",
-                       "place": {"mode": "subcells", "x": str((width - 46) * 48), "y": str(2 * 48)},
-                       "width": {"mode": "subcells", "amount": str(44 * 48)},
-                       "height": {"mode": "subcells", "amount": str(16 * 48)}, "front": "0"},
+                       "place": {"mode": "pixels", "x": str((width - 46) * 12), "y": "0"},
+                       "width": {"mode": "pixels", "amount": str(44 * 12)},
+                       "height": {"mode": "pixels", "amount": str(16 * 12)}, "front": "0"},
                       {"provider": "zengine.workshop", "pane": "layouts",
                        "place": {"mode": "default", "x": "0", "y": "0"},
                        "width": {"mode": "default", "amount": "0"},
                        "height": {"mode": "default", "amount": "0"}, "front": "1"}]}
     # A guest cannot size the window: a session file's viewport does, beside Workshop's first desk.
-    save(wdir / "session.json", {"zen": 1, "schema": "WorkshopSession", "version": 6, "fields": {
-        "format": "zengine-workshop-session", "format_version": "6",
-        "viewport": {"width": str(width), "height": str(height)}, "active": "0",
+    save(wdir / "session.json", {"zen": 1, "schema": "WorkshopSession", "version": 7, "fields": {
+        "format": "zengine-workshop-session", "format_version": "7",
+        "viewport": {"width": str(width * 12), "height": str(height * 12)}, "active": "0",
         "placement": {"mode": "none", "x": "0", "y": "0", "window": "normal"},
         "layouts": [{"desk": desk, "link": {"path": "", "known": {"format": "zengine-workshop-setup",
-                                                                 "format_version": "3", "name": "",
+                                                                 "format_version": "4", "name": "",
                                                                  "panes": []}}}]}})
     credential = secrets.token_urlsafe(32)
     powers = ["input", "capture", "inspect", "inventory", "toolbox"]

@@ -126,7 +126,7 @@ intent defeats that continuation; a click without sufficient movement transfers 
 Release outside a receiver cancels a drag, while an unsupported keyboard placement stays held.
 The release's receiver and picture are retained; a departed receiver cannot be silently replaced.
 Acquiring bytes grants no authority to an operation requested by the receiver. On a canvas pane
-the place is the canvas's own (`PaneCanvasValueDrop`, WL-CANVAS-04): local subunits, room grant
+the place is the canvas's own (`PaneCanvasValueDrop`, WL-CANVAS-04): local pixels, room grant
 and aimed picture, for a provider that accepts it; Flow is the first. A canvas pane carries out
 as a prose pane does: its primary press's number approves the acquisition, a drag begins with the
 press, and the carry ends the press's canvas hold as lost (WL-CANVAS-05).
@@ -881,6 +881,10 @@ accepted offer fixes the preference for that runtime pane identity. A later offe
 the label/summary but keeps the preference; authored geometry wins per axis. Workshop owns
 metric conversion, title/chrome allowance, fitting and stack seating. This is a preference,
 not a minimum size or a rectangle the provider may enforce. Simple v1 examples remain supported.
+`workshop::v3::PaneOffered` is version 3 with `width`, `height` and `text_rows`: a canvas body in
+canvas pixels, each 1..`workshop::kMaxPaneBodyPx`, and rows of the medium's own text beneath it,
+or zero/zero. Workshop grants that body exactly, rounded up to the cells that hold it in a
+terminal; the view host, Flow and the View Builder offer it.
 
 `workshop/setup_control.hpp` carries `SetupApplyRequested` (serialized setup),
 `PaneResetRequested` (pane name) and `WorkshopQuitRequested` (the one quit, answered with its

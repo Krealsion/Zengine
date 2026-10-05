@@ -228,9 +228,9 @@ class Setup:
         rows = desk["fields"]["panes"]
         for slot, view in zip(self.data.get("view_slots", []), views):
             rows.append({"provider": "zengine.inventory-pane", "pane": view,
-                         "place": {"mode": "subcells", "x": str(slot["x"] * 48), "y": str(slot["y"] * 48)},
-                         "width": {"mode": "subcells", "amount": str(slot["width"] * 48)},
-                         "height": {"mode": "subcells", "amount": str(slot["height"] * 48)},
+                         "place": {"mode": "pixels", "x": str(slot["x"] * 12), "y": str(slot["y"] * 12)},
+                         "width": {"mode": "pixels", "amount": str(slot["width"] * 12)},
+                         "height": {"mode": "pixels", "amount": str(slot["height"] * 12)},
                          "front": str(len(rows))})
         return desk
 

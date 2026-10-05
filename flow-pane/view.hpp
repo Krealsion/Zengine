@@ -11,15 +11,17 @@
 namespace zengine::flow_pane {
 namespace ws = zengine::workshop;
 namespace ink = zengine::surface::role;
-inline constexpr std::int64_t unit = ws::kPaneCanvasUnit;
+/// Flow's authored grid: `unit` to one character of the medium's text, the unit its saved node
+/// places and its pan are in. Presentation scales it to the room's pixels (`GridProjection`).
+inline constexpr std::int64_t unit = 48;
 struct Hit {
   std::int64_t x = 0, y = 0, w = 0, h = 0;
   std::string action;
   std::vector<std::string> args;
   std::int64_t subject = 0;
   bool contains(std::int64_t px, std::int64_t py, std::int64_t grain) const {
-    return zengine::surface::sub_span_contains(x, w, px, grain) &&
-           zengine::surface::sub_span_contains(y, h, py, grain);
+    return zengine::surface::px_span_contains(x, w, px, grain) &&
+           zengine::surface::px_span_contains(y, h, py, grain);
   }
 };
 struct Picture {

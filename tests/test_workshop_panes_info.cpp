@@ -458,7 +458,7 @@ TEST_CASE("the shipped desk puts it at the right column, by name and not by numb
     CHECK(cells_covered(where.rect).w == 60); // 58 body columns plus borders
     CHECK(cells_covered(where.rect).h == 16); // 13 body rows, title and borders
     // AND IT REACHES THE ROOM'S RIGHT EDGE, which is the whole reason the place has a name.
-    CHECK(cells_covered(where.rect).x + cells_covered(where.rect).w == sc.room_w);
+    CHECK(where.rect.x + where.rect.w == sc.room_w);
 }
 
 TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {
@@ -784,8 +784,8 @@ TEST_CASE("a draft on a value the weaver owns is written to the desk") {
     CHECK(f.declared() == kResting);
     const SetupPane* row = pane_of(f.r.session().setup.active, layouts_ref());
     REQUIRE(row != nullptr);
-    CHECK(row->width.mode == pane_unit::kSubcells);
-    CHECK(row->width.amount == subs(12));
+    CHECK(row->width.mode == pane_unit::kPixels);
+    CHECK(row->width.amount == cells_px(12));
     CHECK(value_of(f.property_row("Width")) == "12 cells");
     // ...AND THE HOST SAYS WHAT IT WROTE, TO WHICH PANE.
     CHECK(f.r.last_notice().find("committed Width of Layouts = 12 cells") != std::string::npos);
@@ -863,8 +863,8 @@ TEST_CASE("Info may inspect itself, and an edit to its own place is written by t
     CHECK(f.declared() == kResting);
     const SetupPane* row = pane_of(f.r.session().setup.active, pane_info_ref());
     REQUIRE(row != nullptr);
-    CHECK(row->place.mode == pane_unit::kSubcells);
-    CHECK(row->place.x == subs(12));
+    CHECK(row->place.mode == pane_unit::kPixels);
+    CHECK(row->place.x == cells_px(12));
     // THE DESK RESEATED IT: its resolved window moved, and it still inspects itself.
     CHECK(f.picture().properties[f.property_index("Window")].value != window);
     CHECK(f.picture().subject == named);
@@ -1552,11 +1552,11 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         // (x = 1 is any place on the desk; the rig reads a pane's rows by the region at its body's
         // origin.)
         const auto widen = [](Setup& desk) {
-            const Written placed = author_pane_place(desk, pane_info_ref(), subs(1), subs(3));
+            const Written placed = author_pane_place(desk, pane_info_ref(), cells_px(1), cells_px(3));
             REQUIRE_MESSAGE(placed.accepted, placed.refusal);
             const Written sized = author_pane_size(desk, pane_info_ref(),
-                                                   PaneSize{pane_unit::kSubcells, subs(120)},
-                                                   PaneSize{pane_unit::kSubcells, subs(30)});
+                                                   PaneSize{pane_unit::kPixels, cells_px(120)},
+                                                   PaneSize{pane_unit::kPixels, cells_px(30)});
             REQUIRE_MESSAGE(sized.accepted, sized.refusal);
         };
         f.unfocus();
@@ -1593,7 +1593,7 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         }
         const SetupPane* first = pane_of(layout_at(f.r.session().setup, 0), layouts_ref());
         REQUIRE(first != nullptr);
-        CHECK(first->width.amount == subs(77)); // the write stands on the desk it was typed for
+        CHECK(first->width.amount == cells_px(77)); // the write stands on the desk it was typed for
     }
 }
 
@@ -1799,7 +1799,7 @@ TEST_CASE("an Info commit that reaches the owner before another desk is put live
     REQUIRE(layout_count(f.r.session().setup) == 2);
     const SetupPane* first = pane_of(layout_at(f.r.session().setup, 0), layouts_ref());
     REQUIRE(first != nullptr);
-    CHECK(first->width.amount == subs(77));
+    CHECK(first->width.amount == cells_px(77));
     CHECK(f.layouts_width() == "-"); // the new desk
     CHECK(f.declared() == kResting);
     for (const std::string& one : f.shown()) {
