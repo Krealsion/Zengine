@@ -534,6 +534,8 @@ keeps the file it has open and whether its view runs, and when you launch Worksh
 runs that view again, its pane where your layout left it — or still hidden, if you hid it. A
 Workshop without the View Builder says so when you press `n`, in the launch's own words.
 
+![n in the Pane Manager: the View Builder shown beneath it with the keys in it, ready to lay out a view](images/pane-manager-new-view-builder.png)
+
 **A pane the Pane Creator made.** The Pane Creator, which made panes of static text that
 Workshop held, retired into views. Its file, `workshop-pane.json`, opens as a view: in a project
 whose View Builder has run nothing yet, it runs at launch — a label for each region, with the
@@ -542,6 +544,8 @@ writes it as a view description. A layout that named its pane (`zengine.workshop
 names the view's pane now — `<name>/view`, each character a view's name cannot hold made `_` —
 in the same place, and the first launch says so once. `--pane <path>` is still accepted, and
 said once: open that file in the View Builder.
+
+![A desk saved with a Pane Creator pane, opened today: the view notes where the pane stood, showing its region's text, and the notice naming the conversion](images/pane-creator-file-as-view.png)
 
 ## Pane titles
 

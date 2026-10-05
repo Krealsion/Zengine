@@ -173,7 +173,10 @@ source. See [hotkeys and the keymap](hotkeys.md).
 **A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, and the room.
 The Layouts row says `>Default< +` beside `setup: none` — the one layout you have, marked as the
 one you are on, related to no Setup file yet. `none` is not a warning: Workshop remembers that
-layout for you either way.
+layout for you either way. Nothing is painted behind the panes, and the band's first row says how
+to open one: `^t terminal | ^p panes | ^k hotkeys`.
+
+![A fresh Workshop at its smallest window: the Layouts row, Info at the right, nothing behind them, and the band leading with the keys that open a pane](images/desk-fresh.png)
 
 1. **`Ctrl`+`p`** — the **Pane Manager**: every pane there is, open or not. `↑` `↓` choose,
    `Enter` shows one and puts you in it — a pane that is already shown is simply where you land.
