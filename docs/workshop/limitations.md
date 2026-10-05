@@ -247,7 +247,7 @@ honest bounds on that capability today:
 
 What text editing also exists is one single-line editor in this host — the layout-name line —
 and more in loaded panes over the same component: Info's property draft, the Terminal's command
-line, the Pane Manager's name line and Files' authoring line.
+line, the Hotkeys pane's spelling line and Files' authoring line.
 
 **A pane's line now shows you a caret, and still cannot be swept.** A pane may publish where
 its caret is and what it has selected beside the rows it sends, so the Terminal's command line
