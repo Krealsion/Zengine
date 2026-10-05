@@ -1637,7 +1637,7 @@ std::pair<bool, bool> offered_and_shown(const Desk& desk, const std::string& off
 vb::ViewBuilderRun run_file(const std::filesystem::path& project) {
     std::ifstream in(project / vb::kRunFileName, std::ios::binary);
     const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    const auto admitted = loom::admit(loom::parse(bytes), loom::schema_of<vb::ViewBuilderRun>());
+    const auto admitted = loom::admit(loom::compat::parse(bytes), loom::schema_of<vb::ViewBuilderRun>());
     REQUIRE(admitted);
     return loom::from_value<vb::ViewBuilderRun>(admitted.value());
 }

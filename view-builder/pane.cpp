@@ -879,7 +879,7 @@ private:
         if (project_dir_.empty() || remembered_ == std::make_pair(file_, model_.running)) return;
         remembered_ = {file_, model_.running};
         const vb::ViewBuilderRun record{vb::kRunFormat, vb::kRunFormatVersion, file_, model_.running};
-        const auto error = zengine::maker::write_file(in_project(vb::kRunFileName), loom::serialize(loom::to_value(record)));
+        const auto error = zengine::maker::write_file(in_project(vb::kRunFileName), loom::compat::serialize(loom::to_value(record)));
         if (!error.empty()) model_.notice += " (not remembered for the next launch: " + error + ")";
     }
     /// A LAUNCH: open the view file the project file names and, if its view ran, run it again with
@@ -897,7 +897,7 @@ private:
                 model_.notice = read.reason;
                 return;
             }
-            const loom::Unverified claim = loom::parse(read.bytes);
+            const loom::Unverified claim = loom::compat::parse(read.bytes);
             auto admitted = loom::admit(claim, loom::schema_of<vb::ViewBuilderRun>());
             if (!admitted) {
                 model_.notice = std::string(vb::kRunFileName) + ": " + admitted.first_error().message();
