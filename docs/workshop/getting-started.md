@@ -82,7 +82,6 @@ entitled to before you press anything:
 zengine-workshop - containment: in-process; trusted; no OS sandbox (out-of-process isolation is the isolation host's job)
 zengine-workshop - document: retired with the object canvas
 zengine-workshop - setup: workshop-setup.json
-zengine-workshop - pane: retired with the Pane Creator -- a pane of your own is a view the View Builder makes
 zengine-workshop - project: /home/you/my-thing
 zengine-workshop - last session: C:/Users/you/AppData/Local/zengine-workshop/workshop-session.json (restored at startup, written on quit)
 zengine-workshop - keymap: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-keymap.json

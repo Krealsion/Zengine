@@ -1009,7 +1009,6 @@ struct RenamedAction {
 inline constexpr RenamedAction kRenamedActions[] = {
     {"workshop.terminal", "desktop.terminal"},
     {"workshop.hotkeys", "desktop.hotkeys"},
-    {"pane-creator.new", "launcher.new"},
 };
 
 /// The id an authored row for `was` is read as now, or nullptr.
@@ -1038,8 +1037,6 @@ inline constexpr const char* kToPaneManagerAndInfo =
     "the desktop's Pane Manager (`desktop.panes`) shows and hides panes; Info inspects one";
 inline constexpr const char* kToArranging = "arranging a pane (`workshop.manage`) orders it";
 inline constexpr const char* kToInfoRows = "Info's own rows commit and cancel its edits";
-inline constexpr const char* kToViewBuilder =
-    "the View Builder makes and saves a pane of your own (`launcher.new` shows it)";
 
 inline constexpr RetiredAction kRetiredActions[] = {
     {"document.save", "the object document", ""},
@@ -1073,10 +1070,6 @@ inline constexpr RetiredAction kRetiredActions[] = {
     {"pane-editor.lower", "the host's Pane Manager", kToArranging},
     {"draft.commit", "the host's Pane Manager", kToInfoRows},
     {"draft.cancel", "the host's Pane Manager", kToInfoRows},
-    {"pane-creator.save", "the Pane Creator", kToViewBuilder},
-    {"pane-creator.discard", "the Pane Creator", kToViewBuilder},
-    {"pane-creator.name", "the Pane Creator", kToViewBuilder},
-    {"pane-creator.cancel", "the Pane Creator", kToViewBuilder},
 };
 
 /// What retired with `id`, or nullptr when it is not a retired Workshop action.
@@ -1392,12 +1385,11 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
     }
     // The weaver's own file, applied to the ids it names: several authored rows for one id repeat
     // the pane's row once per gesture, so dispatch answers to any and a legend spells the first.
-    // For an id that changed owners, the row written for its old id, when the new one is not.
     {
         std::vector<PaneRow> widened;
         widened.reserve(rows.size());
         for (const PaneRow& row : rows) {
-            const AuthoredGestures set = authored_gestures_for(k.authored, row.id, true);
+            const AuthoredGestures set = authored_gestures_for(k.authored, row.id, false);
             if (!set.outcome.accepted) {
                 return set.outcome;
             }

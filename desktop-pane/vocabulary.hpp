@@ -69,8 +69,7 @@ inline constexpr const char* kActionLaunch = "launcher.open"; ///< launch the ro
 /// TAKE THE ROW UNDER IT OFF THE DESK -- participation, never the provider (`PaneCloseRequested`).
 inline constexpr const char* kActionClose = "launcher.close";
 /// SHOW THE VIEW BUILDER, where a pane of the weaver's own is made and saved: the Pane Manager's
-/// way to make a pane, through the host's launch door like any tool. A keymap naming the Pane
-/// Creator's `pane-creator.new` is read as it.
+/// way to make a pane, through the host's launch door like any tool.
 inline constexpr const char* kActionNew = "launcher.new";
 
 inline constexpr const char* kActionKeysUp = "hotkeys.up";       ///< scroll the list up a row

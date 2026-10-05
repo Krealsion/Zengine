@@ -46,8 +46,8 @@ carry; an environment with no resolvable root is the same absence, said once. A 
 viewport is not a refusal, so that run keeps its session; a refused one stands as a condition
 with a weaver action. The document is still not read at launch.
 
-**Since.** `--document` and `--pane` retired with what they named, the object canvas and the
-Pane Creator: each is still read, so an old launch line starts, and said once.
+**Since.** `--document` retired with the object canvas and is still read, so an old launch line
+starts, and said once; `--pane` retired with the Pane Creator, and is an unknown argument.
 
 **Laws supported.** [WL-SESSION-14](../workshop/session-restore.md),
 [WL-SESSION-16](../workshop/session-restore.md), [WL-SESSION-17](../workshop/session-restore.md),

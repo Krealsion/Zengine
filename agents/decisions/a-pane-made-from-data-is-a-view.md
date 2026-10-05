@@ -11,28 +11,24 @@ Workshop held view behaviour of its own.
 
 **Decision.** The Pane Creator retires into described views. The Pane Manager's `n` shows the View
 Builder through the host's launch door. Workshop has no weaver kind, namespace or held
-definition, and Info edits no regions: every subject's interior is a capture. The Creator's file
-is read as a view by the one reader every view door uses -- a label per region, its text at the
-pixels Workshop painted -- under its pane's name made a view's by one rule
-(`view_name_of_creator_pane`). A desk naming its pane is converted at load to the view's pane,
-where the pane stood. The View Builder keeps the view it runs in a project file of its own and
-runs it again at a launch without asking to be shown, so the restored desk seats it; a project
-with no such file runs the Creator's file.
+definition, and Info edits no regions: every subject's interior is a capture. Nothing reads the
+Creator's file, its launch flag or its key ids. The View Builder keeps the view it runs in a
+project file of its own and runs it again at a launch without asking to be shown, so the
+restored desk seats it.
 
 **Alternatives considered.**
+- *Reading the Creator's files as views* -- rejected: a reader, a desk conversion, a launch flag
+  and key ids, each kept only for a retired tool's files.
 - *A project view file the builder always runs* (`--pane`'s model) -- rejected: one file name
   comes back, and a view the weaver stopped starts again.
 - *Workshop's session remembering the view* -- rejected: Workshop would hold view behaviour.
 - *The view host remembering* -- rejected: it owns no file policy.
 - *A resumed view asking to be shown* -- rejected: a pane the weaver hid would come back,
   depending on whether the reveal or the restore came first.
-- *A one-time converter for old files* -- rejected: a file stays old until it runs; read at every
-  door, it converts in memory and is written current only when saved.
-- *Cutting a long region line to a label's 64 bytes* -- rejected: the label bound rises to 256.
 
-**Consequences.** `--pane` is read so an old launch line starts, and said once. Four Creator key
-ids retire, and `pane-creator.new` is read as `launcher.new`. A desk's conversion moves no format
-version. The Pane Creator's own record moved to history.
+**Consequences.** A desk naming a Creator pane meets what any pane nothing offers meets, a keymap
+naming its ids what any id no pane declares meets, and `--pane` what any unknown argument meets.
+The Pane Creator's own record is in history.
 
 **Laws supported.** [WL-MAKER-11](../workshop/maker-pane.md),
-[WL-MAKER-12](../workshop/maker-pane.md), [WL-MAKER-15](../workshop/maker-pane.md).
+[WL-MAKER-12](../workshop/maker-pane.md).

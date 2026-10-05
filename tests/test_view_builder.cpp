@@ -11,7 +11,6 @@
 #include "view-builder/model.hpp"
 #include "view-builder/picture.hpp"
 #include "view-builder/vocabulary.hpp"
-#include "view/creator_pane.hpp"
 #include "view/host.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
@@ -1643,41 +1642,36 @@ vb::ViewBuilderRun run_file(const std::filesystem::path& project) {
 }
 } // namespace
 
-TEST_CASE("the View Builder runs again at a launch the view it ran, its pane seated by the desk, and in a project that remembers none, the pane the Pane Creator saved there") {
+TEST_CASE("the View Builder runs again at a launch the view it ran, its pane seated by the desk") {
     // ⚔ MUTATION: a launch that forgets the builder's project file -- the second launch runs
     // nothing, and `notes` has no holder there.
     TempDir project;
     const auto dir = project.directory.generic_string();
-    view::WorkshopPaneDefinition pane;
-    pane.format = view::kCreatorPaneFormat;
-    pane.format_version = view::kCreatorPaneFormatVersion;
-    pane.name = "notes";
-    pane.next_id = 2;
-    pane.regions = {{1, "text", 0, 0, 1152, 96, "Notes made by the Pane Creator"}};
-    {
-        std::ofstream out(project.directory / view::kCreatorPaneFileName, std::ios::binary);
-        out << loom::compat::serialize(loom::to_value(pane));
-    }
+    const auto saved = (project.directory / "notes.view").generic_string();
 
-    // THE FIRST LAUNCH: no file of the builder's, so the Pane Creator's pane runs, read as a view,
-    // its pane offered and asking nothing -- the desk the weaver left seats it, or does not.
+    // THE FIRST LAUNCH runs nothing: the weaver makes a view, saves it in the project and runs
+    // it, and the builder keeps which, by the name the project gives it.
     {
         Rig launch(dir);
+        CHECK_FALSE(launch.bus.role_holder("notes").valid());
+        REQUIRE(launch.edit("new", {"notes", "discard"}).ok);
+        REQUIRE(launch.edit("add", {"label"}).ok);
+        REQUIRE(launch.edit("save", {saved}).ok);
+        REQUIRE(launch.edit("run").ok);
         REQUIRE(launch.bus.role_holder("notes").valid());
-        CHECK(offered_and_shown(*launch.desk, "notes") == std::make_pair(true, false));
-        CHECK(launch.text("notes / running") != nullptr);
-        CHECK(launch.now().elements.size() == 1);
         const auto kept = run_file(project.directory);
-        CHECK(kept.path == view::kCreatorPaneFileName); // a file in the project, named from it
+        CHECK(kept.path == "notes.view"); // a file in the project, named from it
         CHECK(kept.running);
     }
-    // THE NEXT LAUNCH reads the builder's own file, runs the same view again, and leaves the
-    // file as it was.
+    // THE NEXT LAUNCH reads the builder's own file and runs the same view again, its pane offered
+    // and asking nothing -- the desk the weaver left seats it, or does not -- and leaves the file
+    // as it was.
     {
         Rig relaunch(dir);
         REQUIRE(relaunch.bus.role_holder("notes").valid());
         CHECK(offered_and_shown(*relaunch.desk, "notes") == std::make_pair(true, false));
-        CHECK(run_file(project.directory).path == view::kCreatorPaneFileName);
+        CHECK(relaunch.text("notes / running") != nullptr);
+        CHECK(run_file(project.directory).path == "notes.view");
         // STOPPED, it is remembered as stopped...
         REQUIRE(relaunch.edit("stop").ok);
         CHECK_FALSE(run_file(project.directory).running);
@@ -1691,7 +1685,7 @@ TEST_CASE("the View Builder runs again at a launch the view it ran, its pane sea
     // A PROJECT MOVED WHOLE still names its view: its files moved to another directory, the
     // builder opens the view from there, since nothing is left where it was.
     TempDir moved;
-    for (const char* name : {view::kCreatorPaneFileName, vb::kRunFileName}) {
+    for (const char* name : {"notes.view", vb::kRunFileName}) {
         std::filesystem::copy_file(project.directory / name, moved.directory / name);
         std::filesystem::remove(project.directory / name);
     }
@@ -1700,7 +1694,7 @@ TEST_CASE("the View Builder runs again at a launch the view it ran, its pane sea
         CHECK(elsewhere.now().name == "notes");
         REQUIRE(elsewhere.edit("run").ok);
         REQUIRE(elsewhere.bus.role_holder("notes").valid());
-        CHECK(run_file(moved.directory).path == view::kCreatorPaneFileName);
+        CHECK(run_file(moved.directory).path == "notes.view");
     }
     // A PROJECT WITH NEITHER FILE runs nothing and writes nothing.
     TempDir empty;

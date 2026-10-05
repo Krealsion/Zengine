@@ -202,13 +202,6 @@ Three panes show something called a view, and they are different things:
 - **A [portable Inventory view](inventory-slots.md)** is a box, row or column of stored entries;
   it belongs to Inventory and holds entries, not a panel.
 
-## A pane the Pane Creator made
-
-The Pane Creator retired into views. Its `workshop-pane.json` opens here as a view, a label for
-each region with the region's text where the region stood; in a project whose View Builder has
-run nothing yet, it runs at launch, and a layout that named its pane names the view's
-([a pane of your own](panes.md#a-pane-of-your-own--a-view)). **Save** writes it as a view.
-
 ## Limits
 
 Three element kinds: a label, a number field that holds a whole number, and a button, placed
