@@ -15,8 +15,9 @@ place).
 and replaced by the next thing said. A condition is true when it is read: held under a key in
 `HeldConditions` for the truths nothing live answers for, or derived from a live owner and never
 copied. `attention_conditions` is a pure projection and `attention_shown` the one population.
-Three pane states earn ambient attention. The compact channel is the `kSlotScore` slot and empty
-is the retraction. Ranking is `ranks_before`. Dismissal is scoped to the statement's stamp, not
+Three pane states earn ambient attention. The compact channel is the glance, the Attention
+pane's first row, which says in words when nothing is true (it was the `kSlotScore` slot, and
+empty was its retraction). Ranking is `ranks_before`. Dismissal is scoped to the statement's stamp, not
 the key. `kAttention` is a mode in the picker's place. A condition names an action and holds no
 power, and the condition path has no wire form.
 
@@ -37,7 +38,8 @@ power, and the condition path has no wire form.
 
 **Consequences.** `closed`, `unresolved`, `covered` and `open` earn nothing — the model may know
 more than the projection surfaces. The glance -- the loudest true condition and how many more --
-is the Attention pane's first row; no band row was taken and no slot outside the panes carries it. `workshop/attention.hpp` includes exactly `surface/vocabulary.hpp`, witnessed with
+is the Attention pane's first row; no band row was taken and no slot outside the panes carries
+it. `workshop/attention.hpp` includes exactly `surface/vocabulary.hpp`, witnessed with
 the Recorder and Logger attached to a live bus. `workshop.attention` is a no-text row on `^a`,
 the component owning that chord inside a text field.
 

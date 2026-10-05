@@ -230,9 +230,10 @@ and the Neovim-backed Editor's `Ctrl`+`o` is Neovim's own jump back —
 
 **A pane's own rows are judged later, too.** A pane declares its rows when it arrives and may
 declare them again while it runs — Files does whenever its chooser or recipe line opens, and the
-Pane Manager does while its name line is open. Each declaration meets your file under the same
-collision law, and one that collides is refused: Workshop names the pane and both actions on its
-band and keeps the rows it last accepted from that pane, so it goes on naming keys by those rows.
+Hotkeys pane does while it captures a key or takes a spelling. Each declaration meets your file
+under the same collision law, and one that collides is refused: Workshop names the pane and both
+actions on its band and keeps the rows it last accepted from that pane, so it goes on naming keys
+by those rows.
 Nothing is sent to the pane, which carries on in its new step, where those names may mean
 nothing. [Files](files.md#moving-around) says what that means for its chooser and recipe line
 today, and how to recover.
