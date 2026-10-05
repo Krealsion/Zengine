@@ -194,6 +194,14 @@ reach all eight edges and corners, each keeping its opposite edge anchored; the 
 resize always grows from the top-left corner, and a move plus a resize composes any
 rectangle the handles can make.
 
+**Edges snap under the hand.** While you drag a pane or one of its edges, an edge you move
+comes to another pane's edge, or the room's, when it is within <!-- value kPaneSnapReachPx -->8<!-- /value --> pixels of it — in a
+terminal, whenever the cell your hand reaches has such an edge inside it — and a line across
+the room marks the edge it met for as long as you hold the button, while the band adds
+`snapped to an edge`. Hold **`Alt`** to place it free of them. The arrow keys, `=`, `-` and a
+value typed in Info always place exactly. A snap leaves an ordinary place and size in whole
+pixels: nothing about it is saved, and nothing keeps two panes together or apart.
+
 `=` and `-` are the same resize, four cells at a time on both axes — one press is the
 difference between a pane that is technically open and a pane you can work in. They move no
 other pane, avoid no collisions and fit nothing to your content; they are the shifted arrows
@@ -426,8 +434,8 @@ per press when you want to land exactly — or type the size you want into the p
 and `Height` rows in [Info](#a-pane-as-a-subject--info). An authored size is accepted up to the
 setup's maximum.
 
-There is still no "fill the room", no auto-fit to a pane's contents, and no snapping — `=`
-resizes the pane you addressed and touches nothing else.
+There is still no "fill the room" and no auto-fit to a pane's contents — `=` resizes the
+pane you addressed and touches nothing else.
 
 Judged plainly, and repeated in [limitations](limitations.md):
 

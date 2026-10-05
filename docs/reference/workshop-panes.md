@@ -403,7 +403,10 @@ authored setup                 resolved presentation          session interactio
   independently**: a move or corner gesture blocked on one axis — dragged past the
   left wall, or pulled under the one-cell minimum — still applies the other axis's legal
   proposal, and the blocked coordinate keeps its own value rather than clamping to the wall.
-  Only a gesture refused on every axis it moved writes nothing. Edits commit immediately;
+  Only a gesture refused on every axis it moved writes nothing. **A hand's edge snaps**: one
+  within `kPaneSnapReachPx` of the room's edge or another pane's on the screen comes to it, the line
+  met marked across the room while held; Alt held sets it aside, keys and typed values never
+  snap, and nothing about a snap is saved. Edits commit immediately;
   `esc` is *back*, not *cancel*, and there is no undo.
 - **Graphical interaction is pixel-responsive; the TUI stays honestly cell-grained.** A window
   pointer's press and motion are spent at their own resolution — one pixel of hand is one

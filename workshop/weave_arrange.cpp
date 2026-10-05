@@ -94,6 +94,7 @@ void WorkshopWeave::close_arrange() {
 
 // WL-GEO-11, WL-GEO-12 -- agents/workshop/geometry.md
 // WL-ARR-09 -- agents/workshop/arrangement.md
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 std::string WorkshopWeave::arrange_status() const {
     const PaneArrange& a = session_.arrange;
     if (!a.addressed()) {
@@ -115,6 +116,11 @@ std::string WorkshopWeave::arrange_status() const {
         if (now.w > 0 && now.h > 0) {
             text += " -- now " + pixel_rect_text(now, session_.cell_px);
         }
+    }
+    // A HELD SNAP IS SAID AS WELL AS MARKED, so it is heard where it cannot be seen.
+    const PaneGesture& g = session_.pane_drag;
+    if (g.active && g.pane == a.pane && (g.met_x.has_value() || g.met_y.has_value())) {
+        text += " -- snapped to an edge";
     }
     return text;
 }
@@ -245,13 +251,19 @@ void WorkshopWeave::arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& 
 void WorkshopWeave::arrange_resize(std::int64_t edge, std::int64_t base_x, std::int64_t base_y,
                                    std::int64_t base_w, std::int64_t base_h, std::int64_t dx,
                                    std::int64_t dy, loom::Mail& mail) {
+    arrange_window(pane_window_proposal(edge, base_x, base_y, base_w, base_h, dx, dy), base_x,
+                   base_y, base_w, base_h, mail);
+}
+
+// WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
+void WorkshopWeave::arrange_window(const PaneWindowProposal& want, std::int64_t base_x,
+                                   std::int64_t base_y, std::int64_t base_w, std::int64_t base_h,
+                                   loom::Mail& mail) {
     const Written ready = arrange_geometry_ready(session_.arrange.pane);
     if (!ready.accepted) {
         say(ready.refusal, true);
         return;
     }
-    const PaneWindowProposal want =
-        pane_window_proposal(edge, base_x, base_y, base_w, base_h, dx, dy);
     PaneAxisProposal horizontal;
     horizontal.base = base_x;
     if (want.place_moved_x && want.x != base_x) {
@@ -520,7 +532,8 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
             row != nullptr && row->height.mode == pane_unit::kPixels
                 ? row->height.amount
                 : mine.resolved.h;
-        say(std::string("sizing ") + ref_text(ref) + " by its " + pane_edge_name(edge),
+        say(std::string("sizing ") + ref_text(ref) + " by its " + pane_edge_name(edge) +
+                " -- its edges snap to edges near them unless alt is held",
             false);
         return true;
     }
@@ -530,7 +543,9 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
         session_.pane_drag.pane = ref;
         session_.pane_drag.grab_dx = detail::minus(at.px.x, mine.rect.x);
         session_.pane_drag.grab_dy = detail::minus(at.px.y, mine.rect.y);
-        say("moving " + ref_text(ref) + " -- drag to place it", false);
+        say("moving " + ref_text(ref) +
+                " -- drag to place it; its edges snap to edges near them unless alt is held",
+            false);
         return true;
     }
     return false;
@@ -575,7 +590,9 @@ void WorkshopWeave::arrange_press(const PointedAt& at) {
 }
 
 // WL-ARR-01 -- agents/workshop/arrangement.md
-void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, loom::Mail& mail) {
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool snap,
+                                   loom::Mail& mail) {
     PaneGesture& g = session_.pane_drag;
     if (!g.active) {
         return;
@@ -591,16 +608,33 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, loom::M
     const PaneRef held = g.pane;
     const PaneRef was_addressed = session_.arrange.pane;
     session_.arrange.pane = held;
+    // EVERY MOTION SNAPS AFRESH FROM THE PRESS: the edges it moves come to the lines in reach --
+    // the room's and every other pane's on the screen -- unless Alt is held, and what it met is
+    // marked until the next motion or the release.
+    const Screen sc = screen_of(session_);
+    const std::optional<std::int64_t> kind = resolve_pane(held, session_.panes);
+    const PaneSnapLines lines = snap && kind.has_value()
+                                    ? pane_snap_lines(session_.panes, session_.setup.active, sc,
+                                                      *kind)
+                                    : PaneSnapLines{};
     if (g.sizing) {
-        arrange_resize(g.edge, g.base_x, g.base_y, g.base_w, g.base_h,
-                       detail::minus(px_x, g.from_x), detail::minus(px_y, g.from_y),
-                       mail);
+        const SnappedWindow got = snap_pane_window(
+            pane_window_proposal(g.edge, g.base_x, g.base_y, g.base_w, g.base_h,
+                                 detail::minus(px_x, g.from_x), detail::minus(px_y, g.from_y)),
+            g.edge, lines);
+        g.met_x = got.met_x;
+        g.met_y = got.met_y;
+        arrange_window(got.want, g.base_x, g.base_y, g.base_w, g.base_h, mail);
     } else {
-        // The hand is on the canvas and a place is in the room.
+        // The hand is on the canvas and a place is in the room; the pane keeps its size.
         const PixelRect at = room_of_canvas(
-            PixelRect{detail::minus(px_x, g.grab_dx), detail::minus(px_y, g.grab_dy), 0, 0},
-            screen_of(session_));
-        arrange_place(at.x, at.y, mail);
+            PixelRect{detail::minus(px_x, g.grab_dx), detail::minus(px_y, g.grab_dy), 0, 0}, sc);
+        const PixelRect size = managed_bounds().resolved;
+        const SnappedWindow got = snap_pane_window(
+            PaneWindowProposal{at.x, at.y, size.w, size.h, true, true}, kNoPaneEdge, lines);
+        g.met_x = got.met_x;
+        g.met_y = got.met_y;
+        arrange_place(got.want.x, got.want.y, mail);
     }
     if (!has_pane(session_.setup.active, held)) {
         session_.arrange.pane = was_addressed;

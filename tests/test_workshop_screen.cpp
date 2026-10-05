@@ -1881,10 +1881,222 @@ struct FineRig : Live {
     std::int64_t room_y() { return screen_of(session()).room_y; }
 };
 
+/// A MOTION WITH MODIFIERS HELD, as a backend reports Alt during a drag.
+void motion_with(Live& t, std::int64_t x, std::int64_t y, std::int64_t space, std::int64_t mods) {
+    t.publish(loom::to_value(input::PointerMoved{x, y, 0, 0, space, mods}));
+}
+
+/// The primary button let go at a raw position.
+void release_at(Live& t, std::int64_t x, std::int64_t y, std::int64_t space) {
+    t.publish(loom::to_value(input::PointerButton{1, false, x, y, space, input::mod::kNone}));
+}
+
+/// THE LINES A HELD SNAP MARKED ON THE LATEST PICTURE, in the room: accent rectangles one device
+/// unit across, running the room's whole height (a vertical edge met) or width (a horizontal
+/// one).
+struct SnapMarks {
+    std::vector<std::int64_t> xs;
+    std::vector<std::int64_t> ys;
+};
+SnapMarks snap_marks(Live& t) {
+    const Screen sc = screen_of(t.session());
+    const std::int64_t grain = chrome_grain(sc);
+    SnapMarks out;
+    REQUIRE_FALSE(t.canvases.empty());
+    for (const surface::SurfaceLayer& layer : t.canvases.back().layers) {
+        for (const surface::SurfaceRect& r : layer.rects) {
+            if (r.role != surface::role::kAccent) {
+                continue;
+            }
+            if (r.w == grain && r.y == sc.room_y && r.h == sc.room_h) {
+                out.xs.push_back(r.x);
+            }
+            if (r.h == grain && r.x == 0 && r.w == sc.room_w) {
+                out.ys.push_back(r.y - sc.room_y);
+            }
+        }
+    }
+    return out;
+}
+
+/// A FINE RIG WITH TWO PANES OF KNOWN SIZE, IN THE OPEN: the stand-in at 100,100, 300 by 120, and
+/// the second at 600,200, 200 wide -- so every edge but the room's own stands in open room.
+struct TwoPaneRig : FineRig {
+    TwoPaneRig() {
+        open_pane(*this, ref_of(second::kKind));
+        Setup& s = live(*this).setup.active;
+        REQUIRE(author_pane_place(s, ref_of(stock::kKind), 100, 100).accepted);
+        REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{pane_unit::kPixels, 300},
+                                 PaneSize{pane_unit::kPixels, 120})
+                    .accepted);
+        REQUIRE(author_pane_place(s, ref_of(second::kKind), 600, 200).accepted);
+        REQUIRE(author_pane_size(s, ref_of(second::kKind), PaneSize{pane_unit::kPixels, 200},
+                                 PaneSize{pane_unit::kDefault, 0})
+                    .accepted);
+        key(input::scan::kUnknown); // a delivery, so the picture is the desk as authored
+        select_pane(*this, ref_of(stock::kKind));
+    }
+};
+
 } // namespace
+
+TEST_CASE("a pane dragged near another pane's edge or the room's comes to it, and the edge met is marked across the room while held") {
+    // ⚔ MUTATION: no snap -- the place stays where the hand left it, a few pixels short of the
+    // edge, and nothing is marked.
+    TwoPaneRig t;
+    const PixelRect at = t.builder_rect();
+    REQUIRE(at.x == 100);
+    const std::int64_t press_x = at.x + 30;
+    const std::int64_t press_y = at.y + 20;
+    t.press_at(press_x, press_y, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.active);
+    REQUIRE_FALSE(t.session().pane_drag.sizing);
+
+    // FIVE PIXELS SHORT OF THE ROOM'S LEFT EDGE, and it comes to it.
+    t.motion_at(press_x - 95, press_y, input::space::kPixels);
+    CHECK(t.builder_row()->place.x == 0);
+    CHECK(t.builder_row()->place.y == 100);
+    CHECK(snap_marks(t).xs == std::vector<std::int64_t>{0});
+    CHECK(snap_marks(t).ys.empty());
+    // ITS RIGHT EDGE FOUR PIXELS SHORT OF THE SECOND PANE'S LEFT, and it comes to that.
+    t.motion_at(press_x + 196, press_y, input::space::kPixels); // the right edge at 596
+    CHECK(t.builder_row()->place.x == 300);
+    CHECK(snap_marks(t).xs == std::vector<std::int64_t>{600});
+    // ITS BOTTOM EDGE SIX PIXELS PAST THE SECOND PANE'S TOP, on the other axis at once.
+    t.motion_at(press_x + 196, press_y - 14, input::space::kPixels); // the bottom at 206
+    CHECK(t.builder_row()->place.x == 300);
+    CHECK(t.builder_row()->place.y == 80);
+    CHECK(snap_marks(t).ys == std::vector<std::int64_t>{200});
+    // IN THE OPEN, with no line within reach: where the hand left it, and nothing marked.
+    t.motion_at(press_x + 50, press_y, input::space::kPixels);
+    CHECK(t.builder_row()->place.x == 150);
+    CHECK(t.builder_row()->place.y == 100);
+    CHECK(snap_marks(t).xs.empty());
+    CHECK(snap_marks(t).ys.empty());
+    // LET GO SNAPPED: the mark goes with the hand, and the layout holds a place in whole pixels,
+    // the size untouched.
+    t.motion_at(press_x - 95, press_y, input::space::kPixels);
+    REQUIRE(snap_marks(t).xs == std::vector<std::int64_t>{0});
+    release_at(t, press_x - 95, press_y, input::space::kPixels);
+    CHECK_FALSE(t.session().pane_drag.active);
+    CHECK(snap_marks(t).xs.empty());
+    CHECK(t.builder_row()->place == (PanePlace{pane_unit::kPixels, 0, 100}));
+    CHECK(t.builder_row()->width == (PaneSize{pane_unit::kPixels, 300}));
+}
+
+TEST_CASE("Alt held while dragging sets every snap aside, and the hand places to the pixel") {
+    // ⚔ MUTATION: the modifier ignored -- the pane comes to the room's edge with Alt held.
+    TwoPaneRig t;
+    const PixelRect at = t.builder_rect();
+    const std::int64_t press_x = at.x + 30;
+    const std::int64_t press_y = at.y + 20;
+    t.press_at(press_x, press_y, input::space::kPixels);
+    motion_with(t, press_x - 95, press_y, input::space::kPixels, input::mod::kAlt);
+    CHECK(t.builder_row()->place.x == 5);
+    CHECK(snap_marks(t).xs.empty());
+    // ...AND THE SAME POSITION WITHOUT IT SNAPS: each motion asks afresh.
+    t.motion_at(press_x - 95, press_y, input::space::kPixels);
+    CHECK(t.builder_row()->place.x == 0);
+    motion_with(t, press_x - 94, press_y, input::space::kPixels, input::mod::kAlt);
+    CHECK(t.builder_row()->place.x == 6);
+    CHECK(snap_marks(t).xs.empty());
+    // ...AND A RIGHT EDGE PULLED NEAR THE SECOND PANE WITH ALT HELD STOPS WHERE THE HAND DOES.
+    release_at(t, press_x - 94, press_y, input::space::kPixels);
+    const PixelRect now = t.builder_rect();
+    const PixelRect mark = pane_edge_cell(now, pane_edge::kRight);
+    t.press_at(mark.x + 2, mark.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    motion_with(t, mark.x + 2 + (597 - (now.x + now.w)), mark.y + 2, input::space::kPixels,
+                input::mod::kAlt);
+    CHECK(t.builder_row()->width.amount == 597 - now.x);
+    CHECK(snap_marks(t).xs.empty());
+    release_at(t, 0, 0, input::space::kPixels);
+}
+
+TEST_CASE("an edge pulled near another pane's edge or the room's comes to it, its opposite edge held") {
+    // ⚔ MUTATION: no snap -- the width stops where the hand did, three pixels short.
+    TwoPaneRig t;
+    const PixelRect at = t.builder_rect();
+    // THE RIGHT EDGE, pulled to three pixels short of the second pane's left edge.
+    const PixelRect right = pane_edge_cell(at, pane_edge::kRight);
+    t.press_at(right.x + 2, right.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    t.motion_at(right.x + 2 + 197, right.y + 2, input::space::kPixels); // the right edge at 597
+    CHECK(t.builder_row()->place.x == 100);
+    CHECK(t.builder_row()->width.amount == 500);
+    CHECK(snap_marks(t).xs == std::vector<std::int64_t>{600});
+    release_at(t, 0, 0, input::space::kPixels);
+    CHECK(snap_marks(t).xs.empty());
+    // THE TOP EDGE, pulled to six pixels below the room's top: it comes to it, the bottom held.
+    const PixelRect now = t.builder_rect();
+    const PixelRect top = pane_edge_cell(now, pane_edge::kTop);
+    t.press_at(top.x + 2, top.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    t.motion_at(top.x + 2, top.y + 2 - 94, input::space::kPixels); // the top at 6
+    CHECK(t.builder_row()->place.y == 0);
+    CHECK(t.builder_row()->height.amount == 220);
+    CHECK(snap_marks(t).ys == std::vector<std::int64_t>{0});
+    release_at(t, 0, 0, input::space::kPixels);
+}
+
+TEST_CASE("the arrow keys and a typed value place exactly, near an edge or not") {
+    // ⚔ MUTATION: the keys or a typed value snapped -- eight would come to the room's edge at
+    // zero, five likewise.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 8, 18,
+                                                    surface::kCanvasCellPx}));
+    open_pane(t, ref_of(stock::kKind));
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 20, 100).accepted);
+    enter_arrange_desk(t);
+    select_pane(t, ref_of(stock::kKind));
+    t.key(input::scan::kLeft); // one cell: 20 - 12
+    CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->place.x == 8);
+    t.key(input::scan::kEscape);
+    REQUIRE(hand_inspect(t, ref_of(stock::kKind)).accepted);
+    REQUIRE(hand_commit(t, "X", "5").accepted);
+    CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->place.x == 5);
+}
+
+TEST_CASE("in a terminal a hand moving by cells meets an edge between them, and the mark is a cell across the room") {
+    // ⚔ MUTATION: no snap -- a pane 500 pixels wide moved by whole cells never meets the room's
+    // right edge, its own right edge four pixels short of it.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(40), 0, 0}));
+    open_pane(t, ref_of(stock::kKind));
+    Setup& s = live(t).setup.active;
+    REQUIRE(author_pane_place(s, ref_of(stock::kKind), cells_px(10), cells_px(10)).accepted);
+    REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{pane_unit::kPixels, 500},
+                             PaneSize{pane_unit::kDefault, 0})
+                .accepted);
+    enter_arrange_desk(t);
+    select_pane(t, ref_of(stock::kKind));
+    const Screen sc = screen_of(t.session());
+    REQUIRE(sc.room_w == cells_px(120));
+    // TWO CELLS INTO THE PANE ON EACH AXIS, as the terminal reports that cell.
+    const std::int64_t cell_x = t.term_x(12);
+    const std::int64_t cell_y = t.term_y(12);
+    t.press_at(cell_x, cell_y, input::space::kCells);
+    REQUIRE(t.session().pane_drag.active);
+    REQUIRE_FALSE(t.session().pane_drag.sizing);
+    // SIXTY-EIGHT CELLS RIGHT: by the lattice the place is 936 and the right edge 1436, four
+    // pixels short of the room's right edge at 1440, so it comes to it.
+    t.motion_at(cell_x + 68, cell_y, input::space::kCells);
+    CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->place.x == 940);
+    // THE MARK IS ONE CELL ACROSS AND STANDS INSIDE THE ROOM, on the edge's last cell.
+    CHECK(snap_marks(t).xs == std::vector<std::int64_t>{sc.room_w - surface::kCanvasCellPx});
+    // ...AND WITH ALT HELD, WHICH A TERMINAL REPORTS TOO, THE LATTICE STANDS.
+    motion_with(t, cell_x + 68, cell_y, input::space::kCells, input::mod::kAlt);
+    CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->place.x == 936);
+    CHECK(snap_marks(t).xs.empty());
+    release_at(t, cell_x + 68, cell_y, input::space::kCells);
+}
 
 TEST_CASE("a one-pixel drag moves a pane by exactly one pixel of lattice") {
     FineRig t;
+    // IN THE OPEN, away from every line a snap could meet, so the hand alone moves it.
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(6),
+                              cells_px(6))
+                .accepted);
     const PixelRect at = t.builder_rect();
     // PRESS THE BODY, midway in, in window pixels: the fine projection of that pixel is
     // exact (one pixel is four sub-units on this skin), so the grab offset is exact too.
@@ -2103,9 +2315,10 @@ TEST_CASE("a right or bottom resize leaves a default place reactive") {
     const std::int64_t ty = top_mark.y + 2;
     t.press_at(tx, ty, input::space::kPixels);
     REQUIRE(t.session().pane_drag.edge == pane_edge::kTop);
-    t.motion_at(tx, ty + 1, input::space::kPixels);
+    // TEN PIXELS DOWN, beyond the reach of the room's top edge, which would take it back.
+    t.motion_at(tx, ty + 10, input::space::kPixels);
     CHECK(t.builder_row()->place.mode == pane_unit::kPixels);
-    CHECK(t.builder_row()->place.y == grown.y - t.room_y() + surface::kPixelGrainPx);
+    CHECK(t.builder_row()->place.y == grown.y - t.room_y() + 10 * surface::kPixelGrainPx);
     t.release(0, 0);
 }
 
@@ -2126,8 +2339,9 @@ TEST_CASE("a move blocked at the left wall still follows the hand down") {
     REQUIRE(t.session().pane_drag.active);
     REQUIRE_FALSE(t.session().pane_drag.sizing);
 
-    // TEN PIXELS LEFT (past the wall) AND SEVEN DOWN: x' = 5 - 40 is refused, y' lands.
-    t.motion_at(press_x - 10, press_y + 7, input::space::kPixels);
+    // TWENTY PIXELS LEFT, past the wall and beyond the reach of its snap, AND SEVEN DOWN:
+    // x' = 5 - 20 is refused, y' lands.
+    t.motion_at(press_x - 20, press_y + 7, input::space::kPixels);
     const SetupPane* row = t.builder_row();
     REQUIRE(row != nullptr);
     REQUIRE(row->place.mode == pane_unit::kPixels);
@@ -2152,7 +2366,8 @@ TEST_CASE("a move blocked at the top wall still follows the hand sideways") {
     REQUIRE(t.session().pane_drag.active);
     REQUIRE_FALSE(t.session().pane_drag.sizing);
 
-    t.motion_at(press_x + 7, press_y - 10, input::space::kPixels);
+    // TWENTY UP, past the wall and beyond the reach of its snap: y' is refused, x' lands.
+    t.motion_at(press_x + 7, press_y - 20, input::space::kPixels);
     const SetupPane* row = t.builder_row();
     REQUIRE(row != nullptr);
     REQUIRE(row->place.mode == pane_unit::kPixels);
@@ -2174,7 +2389,7 @@ TEST_CASE("a move past two walls at once writes nothing") {
     const std::int64_t press_y = at.y + 20;
     t.press_at(press_x, press_y, input::space::kPixels);
     REQUIRE(t.session().pane_drag.active);
-    t.motion_at(press_x - 10, press_y - 10, input::space::kPixels);
+    t.motion_at(press_x - 20, press_y - 20, input::space::kPixels); // beyond both snaps' reach
     CHECK(*t.builder_row() == before);
     CHECK(t.session().notice_is_bad);
     t.release(0, 0);
@@ -2226,9 +2441,10 @@ TEST_CASE("a corner resize blocked on one axis still resizes the other") {
         const std::int64_t py = mark.y + 2;
         t.press_at(px, py, input::space::kPixels);
         REQUIRE(t.session().pane_drag.edge == pane_edge::kTopLeft);
-        // TEN LEFT: x' = 5 - 40 is illegal, so x + width HOLD TOGETHER. SEVEN DOWN: the
-        // top edge comes down legally, y + height settle together, bottom edge anchored.
-        t.motion_at(px - 10, py + 7, input::space::kPixels);
+        // TWENTY LEFT, beyond the wall's snap: x' = 5 - 20 is illegal, so x + width HOLD
+        // TOGETHER. SEVEN DOWN: the top edge comes down legally, y + height settle together,
+        // bottom edge anchored.
+        t.motion_at(px - 20, py + 7, input::space::kPixels);
         const SetupPane* row = t.builder_row();
         REQUIRE(row != nullptr);
         CHECK(row->place.x == 5);
@@ -2252,9 +2468,9 @@ TEST_CASE("a corner resize blocked on one axis still resizes the other") {
         const std::int64_t py = mark.y + 2;
         t.press_at(px, py, input::space::kPixels);
         REQUIRE(t.session().pane_drag.edge == pane_edge::kBottomLeft);
-        // TEN LEFT refused; SEVEN DOWN grows the height from the bottom, top edge anchored
-        // by not writing the place at all.
-        t.motion_at(px - 10, py + 7, input::space::kPixels);
+        // TWENTY LEFT refused, beyond the wall's snap; SEVEN DOWN grows the height from the
+        // bottom, top edge anchored by not writing the place at all.
+        t.motion_at(px - 20, py + 7, input::space::kPixels);
         const SetupPane* row = t.builder_row();
         REQUIRE(row != nullptr);
         CHECK(row->place.x == 5);

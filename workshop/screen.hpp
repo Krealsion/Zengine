@@ -590,6 +590,17 @@ inline constexpr const char* pane_edge_mark(std::int64_t edge) noexcept {
 // WL-ARR-01 -- agents/workshop/arrangement.md
 inline constexpr std::int64_t kPaneEdgeBandPx = surface::kCanvasCellPx;
 
+/// HOW NEAR A LINE AN EDGE THE HAND MOVES COMES TO MEET IT, in canvas pixels: under a cell, so a
+/// terminal hand a cell away is not pulled across it, and at least half a cell, so a terminal hand
+/// at the nearest cell meets a line that falls inside it.
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+inline constexpr std::int64_t kPaneSnapReachPx = 8;
+
+static_assert(kPaneSnapReachPx < surface::kCanvasCellPx &&
+                  2 * kPaneSnapReachPx >= surface::kCanvasCellPx,
+              "a snap reaches under a cell, so a terminal hand is never pulled a whole cell, and "
+              "at least half one, so every line falls within reach of a terminal hand's cell");
+
 /// THE ONE CELL-SIZED MARK AN AFFORDANCE IS DRAWN ON — at the pane's own
 /// edges.
 PixelRect pane_edge_cell(const PixelRect& r, std::int64_t edge) noexcept;
@@ -656,6 +667,11 @@ struct PaneGesture {
     std::int64_t base_y = 0;
     std::int64_t base_w = 0;  ///< ...and extent
     std::int64_t base_h = 0;
+    /// The lines the last motion's snap met, in the room, which the affordance plane marks while
+    /// the gesture is held; none on an axis that met none.
+    // WL-ARR-17 -- agents/workshop/arrangement-snap.md
+    std::optional<std::int64_t> met_x;
+    std::optional<std::int64_t> met_y;
 };
 
 /// WHICH EDITABLE LINE A TEXT-SELECTION DRAG IS SWEEPING.
@@ -887,6 +903,31 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
                                                std::int64_t base_y, std::int64_t base_w,
                                                std::int64_t base_h, std::int64_t dx,
                                                std::int64_t dy) noexcept;
+
+/// THE LINES AN EDGE THE HAND MOVES MAY MEET, in the room: the room's own edges and every edge
+/// of every other pane on the screen.
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+struct PaneSnapLines {
+    std::vector<std::int64_t> xs;
+    std::vector<std::int64_t> ys;
+};
+
+PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Screen& sc,
+                              std::int64_t held);
+
+/// A HAND'S PROPOSAL, SNAPPED, and the line each axis met.
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+struct SnappedWindow {
+    PaneWindowProposal want;
+    std::optional<std::int64_t> met_x;
+    std::optional<std::int64_t> met_y;
+};
+
+/// Each edge the hand moves -- both edges of both axes for a move (`kNoPaneEdge`), the pulled
+/// edges for a resize -- comes to the nearest line within `kPaneSnapReachPx`, the opposite edge
+/// held; a snap that would leave the place or the extent outside a pane's rules is not taken.
+SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge,
+                               const PaneSnapLines& lines) noexcept;
 
 // ---- Where a pointer is, in workspace cells --------------------------------------------
 

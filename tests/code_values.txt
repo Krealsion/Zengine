@@ -40,6 +40,7 @@ kDoubleClickMs                  workshop/screen.hpp                       kDoubl
 kTopRows                        workshop/screen.hpp                       kTopRows
 kBottomRows                     workshop/screen.hpp                       kBottomRows
 kCoarseStepCells                workshop/screen.hpp                       kCoarseStepCells
+kPaneSnapReachPx                workshop/screen.hpp                       kPaneSnapReachPx
 kStackRows                      workshop/screen.hpp                       kStackRows
 kStackW                         workshop/screen.hpp                       kStackW
 kScreenMinW                     workshop/screen.hpp                       kScreenMinW
