@@ -53,8 +53,9 @@ the doors'; arrangement does not add or offer"` now. The picker's own two
 laws, a mode rather than a pane and a cover over the whole first slot, are RETIRED entries; an
 unresolved row still carries `kNoPaneKind`, in the inventory the doors spend. And the side
 region's compile-time pin is zero kinds, not one, since Info became a weave: only a desk row
-puts a pane there.
+puts a pane there. No room rations the stack now: a spent column begins again at its top, so no
+pane waits and five states remain ([the stack begins again](the-stack-begins-again.md)).
 
-**Laws supported.** [WL-PANE-03](../workshop/panes-and-windows.md),
-[WL-PANE-09](../workshop/panes-and-windows.md), [WL-PANE-10](../workshop/panes-and-windows.md),
-[WL-PANE-12](../workshop/panes-and-windows.md), [WL-PANE-13](../workshop/panes-and-windows.md).
+**Laws supported.** [WL-PANE-09](../workshop/panes-and-windows.md),
+[WL-PANE-10](../workshop/panes-and-windows.md), [WL-PANE-12](../workshop/panes-and-windows.md),
+[WL-PANE-13](../workshop/panes-and-windows.md).

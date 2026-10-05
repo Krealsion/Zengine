@@ -47,7 +47,7 @@ std::vector<Condition> attention_conditions(const Session& s,
     // one classifier, and the remedy column that was already written beside it.
     for (const CatalogRow& row : inventory_rows(s.setup.active, s.panes)) {
         const std::int64_t state = pane_state_of(s.panes, s.setup.active, sc, row, false);
-        if (state != pane_state::kWaiting && state != pane_state::kOffRoom) {
+        if (state != pane_state::kOffRoom) {
             continue;
         }
         out.push_back(Condition{pane_window_key(row.ref),

@@ -450,8 +450,8 @@ inline constexpr PixelRect overlay_column(const Screen& sc) noexcept {
     return PixelRect{slot.x, slot.y, slot.w, sc.room_y + sc.room_h - slot.y};
 }
 
-/// How many overlay slots this screen has room for: the one answer to "may another pane be
-/// presented", asked before anything reaches `Panes::open`.
+/// How many overlay slots of the fallback height one pass down the column holds on this screen:
+/// a fact the desk's presentation claim carries, so a managed open sees the room move.
 // WL-PANE-03, WL-PANE-04 -- agents/workshop/panes-and-windows.md
 // WL-EDIT-13 -- agents/workshop/editor.md
 inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
@@ -467,8 +467,8 @@ inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
     return fit;
 }
 
-/// The same answer in the shape `reconcile` takes, so no call site spells the
-/// conversion itself.
+/// The column's room in the shape a pane is sized by (`preferred_extent`), so no call site
+/// spells the conversion itself.
 inline constexpr StackCapacity stack_capacity(const Screen& sc) noexcept {
     const bool graphical = sc.text_advance_px > 0 && sc.text_line_px > 0;
     const auto line = graphical ? std::min(sc.text_line_px, std::int64_t{8192})
@@ -487,7 +487,8 @@ static_assert(kMinScreen.room_y + kMinScreen.room_h == kMinScreen.notice_y,
               "the overlay floor is the workspace's bottom, which is the bottom band's own "
               "top row: a slot allowed past it would erase the row the tool speaks in");
 static_assert(stack_slots_that_fit(kMinScreen) == 1,
-              "the minimum composition has room for exactly one overlay pane");
+              "the minimum composition's column holds one pane of the fallback height, and the "
+              "next begins the column again at its top");
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-PRESS-04 -- agents/workshop/press-chain.md
@@ -953,7 +954,6 @@ surface::SurfaceTextRegion prose_region(const ProsePlace& place);
 namespace pane_state {
 inline constexpr std::int64_t kClosed = 0;
 inline constexpr std::int64_t kUnresolved = 1;
-inline constexpr std::int64_t kWaiting = 3;
 inline constexpr std::int64_t kOffRoom = 4;
 inline constexpr std::int64_t kCovered = 5;
 inline constexpr std::int64_t kOpen = 6;

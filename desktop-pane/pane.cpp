@@ -1130,7 +1130,7 @@ private:
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const InventoryPane& p = known_[i];
             const bool here = i == choice_.at;
-            // (!) FOUR STATES, NOT TWO, because the host answered four questions. A closed
+            // (!) FOUR STATES, NOT TWO, because the host answered three questions. A closed
             // tool can be opened; an unavailable one cannot, and saying "closed" of it would
             // send a weaver pressing Return at a pane that is never going to appear; one the run
             // is still loading is neither, and `[gone]` of it would be a verdict nobody reached.
@@ -1142,9 +1142,6 @@ private:
             } else if (!p.available) {
                 mark = "[gone]";
                 role = surface::role::kAlert;
-            } else if (p.waiting) {
-                mark = "[room]";
-                role = surface::role::kMuted;
             }
             // A MARKER THAT HOLDS NOTHING (its pane left the list) is `?`, not `>`.
             const char* marker = here ? (choice_.lost ? "? " : "> ") : "  ";

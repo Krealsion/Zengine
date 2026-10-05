@@ -166,12 +166,9 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
                            " is unresolved -- its place and size cannot be measured; "
                            "0 resets it and f/b/r/l still order it");
     }
+    // Every resolved row is seated, so a pane with no visible rectangle stands off this screen.
     const PaneBounds where =
         bounds_of(session_.panes, session_.setup.active, *kind, screen_of(session_));
-    if (!where.open) {
-        return Written::no(kind_name(session_.panes, *kind) +
-                           " has no room on this screen yet -- 0 resets it");
-    }
     if (where.rect.w <= 0 || where.rect.h <= 0) {
         return Written::no(kind_name(session_.panes, *kind) +
                            " is off this screen -- 0 then p resets its place");

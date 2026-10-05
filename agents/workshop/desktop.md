@@ -56,11 +56,11 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-03 — A launch opens or focuses; it never toggles and never loads
 
-LAW — A launch names a pane by its durable keys; the host resolves it in `inventory_rows`, refuses one nobody holds now, seats a closed one through the trial seat, focuses it either way, and answers.
+LAW — A launch names a pane by its durable keys; the host resolves it in `inventory_rows`, refuses one nobody holds now, seats a closed one in front, focuses it either way, and answers.
 
 MEANS
 - a pane already on the desk is selected and given the keys, and nothing is closed;
-- an unknown name, an unoffered pane, a departed provider and no room are four refusals;
+- an unknown name, an unoffered pane and a departed provider are three refusals; room is none;
 - a provider the run is still loading is refused as not here yet, never as something to build.
 
 DOES NOT MEAN
@@ -80,7 +80,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-04 — The inventory is said out loud, and it is not a second inventory
 
-LAW — The host publishes `inventory_rows`' answer whenever it changes, with authored participation, provider presence now, a provider still to come and room-to-seat as separate facts.
+LAW — The host publishes `inventory_rows`' answer whenever it changes, with authored participation, provider presence now and a provider still to come as separate facts.
 
 MEANS
 - a pane can be authored-open and unavailable, or still owed by the run: two states, one verdict;

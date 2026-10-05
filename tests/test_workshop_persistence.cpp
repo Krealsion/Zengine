@@ -456,8 +456,7 @@ TEST_CASE("reconciling opens what the setup names, in the setup's order") {
     REQUIRE(open_kinds(panes) == std::vector<std::int64_t>{pane_kind::kLayouts});
 
     const Reconciled done = reconcile(
-        panes, setup_of("Both", {stock::kKind, second::kKind, pane_kind::kLayouts}),
-        two_slot_room());
+        panes, setup_of("Both", {stock::kKind, second::kKind, pane_kind::kLayouts}));
     CHECK(done.opened == std::vector<std::int64_t>{stock::kKind, second::kKind});
     CHECK(done.closed.empty());
     CHECK(done.unresolved == 0);
@@ -469,7 +468,7 @@ TEST_CASE("reconciling opens what the setup names, in the setup's order") {
     Panes again;
     admit_stock(again); // the stand-in, first (stock)
     admit_second(again); // ...and the second
-    (void)reconcile(again, setup_of("Both", {second::kKind, stock::kKind}), two_slot_room());
+    (void)reconcile(again, setup_of("Both", {second::kKind, stock::kKind}));
     CHECK(open_kinds(again) == std::vector<std::int64_t>{second::kKind, stock::kKind});
 }
 
@@ -480,7 +479,7 @@ TEST_CASE("reconciling closes what the setup does not name, through the existing
     REQUIRE(open_kind(panes, stock::kKind));
 
     const Reconciled done = reconcile(
-        panes, setup_of("Panes and layouts", {second::kKind, pane_kind::kLayouts}), min_room());
+        panes, setup_of("Panes and layouts", {second::kKind, pane_kind::kLayouts}));
     CHECK(done.closed == std::vector<std::int64_t>{stock::kKind});
     CHECK(done.opened == std::vector<std::int64_t>{second::kKind});
     CHECK(open_kinds(panes) == std::vector<std::int64_t>{second::kKind, pane_kind::kLayouts});
@@ -503,15 +502,15 @@ TEST_CASE("a pane open on both sides of a reconcile keeps what it was showing") 
     // `Panes` has only the Layouts pane on it, and the second stand-in arrives with the
     // setup rather than with the boot.
     const Setup same = setup_of("Both", {second::kKind, stock::kKind, pane_kind::kLayouts});
-    (void)reconcile(panes, same, two_slot_room());
-    const Reconciled done = reconcile(panes, same, two_slot_room());
+    (void)reconcile(panes, same);
+    const Reconciled done = reconcile(panes, same);
     CHECK(done.opened.empty());
     CHECK(done.closed.empty());
     CHECK(open_kinds(panes) ==
           std::vector<std::int64_t>{second::kKind, stock::kKind, pane_kind::kLayouts});
 
     // ...and doing it a second time changes nothing at all.
-    const Reconciled twice = reconcile(panes, same, two_slot_room());
+    const Reconciled twice = reconcile(panes, same);
     CHECK(twice.opened.empty());
     CHECK(twice.closed.empty());
     CHECK(open_kinds(panes) ==
@@ -526,7 +525,7 @@ TEST_CASE("an unresolved reference is counted, and produces no pane of any kind"
     REQUIRE(add_pane(s, stranger()));
     REQUIRE(add_pane(s, PaneRef{"other.tools", "graph"}));
 
-    const Reconciled done = reconcile(panes, s, min_room());
+    const Reconciled done = reconcile(panes, s);
     CHECK(done.unresolved == 2);
     // NO PLACEHOLDER, NO SLOT, NO FALL-THROUGH TO THE BUILDER. The only kind
     // available to paint an unknown pane with is the Builder, which is exactly
@@ -547,7 +546,7 @@ TEST_CASE("an empty setup closes everything, and is a legal thing to be in") {
     Setup nothing;
     nothing.name = "Nothing";
 
-    const Reconciled done = reconcile(panes, nothing, min_room());
+    const Reconciled done = reconcile(panes, nothing);
     // TWO: the Layouts pane a fresh Workshop opens, and the Editor this case opened over it;
     // Info arrives with a weave and is not here. An empty setup is a legal thing to be in -- a
     // Workshop with no layout surface either -- and the desktop's Pane Manager
@@ -558,7 +557,7 @@ TEST_CASE("an empty setup closes everything, and is a legal thing to be in") {
 
     // And back again from empty, which is the case that proves `opened` names
     // every kind rather than only the ones that were never open.
-    const Reconciled back = reconcile(panes, setup_of("Both", {second::kKind, stock::kKind}), two_slot_room());
+    const Reconciled back = reconcile(panes, setup_of("Both", {second::kKind, stock::kKind}));
     CHECK(back.opened.size() == 2);
     CHECK(open_kinds(panes) == std::vector<std::int64_t>{second::kKind, stock::kKind});
 }
@@ -996,13 +995,11 @@ TEST_CASE("restoring a setup returns the intent that was saved") {
     t.host.setup_path = dir.file("setup.json");
     (void)mount_tool(t, "zengine-snake");
 
-    open_stock_pane(t);
-    pick(t, second::kKind); // Builder open, Info removed
+    open_stock_pane(t); // the stand-in open beside the Layouts pane
     name_setup(t, "Build only");
     REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
 
     // Wander away from it.
-    pick(t, second::kKind);
     pick(t, stock::kKind);
     REQUIRE_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
     REQUIRE(open_kinds(t.session().panes) ==
@@ -1257,8 +1254,8 @@ TEST_CASE("a weaver names a setup, leaves, and gets it back in a fresh Workshop"
 
     std::string bytes;
     {
-        // RUN A: a fresh Workshop opens with Info; the weaver opens Builder,
-        // removes Info, names the setup and saves.
+        // RUN A: a fresh Workshop opens with the Layouts pane; the weaver opens the stand-in,
+        // names the setup and saves.
         Live a;
         a.host.setup_path = path;
         (void)mount_tool(a, "zengine-snake");
@@ -1266,7 +1263,6 @@ TEST_CASE("a weaver names a setup, leaves, and gets it back in a fresh Workshop"
                 std::vector<std::int64_t>{pane_kind::kLayouts});
 
         open_stock_pane(a);
-        pick(a, second::kKind);
         name_setup(a, "Morning build");
 
         REQUIRE((live_status(a.session().setup) == setup_link::kCurrent));
@@ -2437,14 +2433,11 @@ TEST_CASE("a write that fails leaves the last good session where it was") {
               .accepted);
 }
 
-// ---- The ORDER: the room, and then the desk into it --------------------------
+// ---- The room, and the desk into it --------------------------
 
-TEST_CASE("the desk is seated against the RESTORED room, not the default one") {
-    // THE ORDERING WITNESS, and the canary for it. Seating spends overlay slots,
-    // and how many there are is a fact about the screen: the floor composition has
-    // exactly one, and a restored room has more. Reconcile first and resize after,
-    // and a weaver's second pane is left waiting for room that was in fact already
-    // theirs.
+TEST_CASE("a restored desk opens every pane it names, in the room it restored") {
+    // The floor composition's column holds one stacked pane and the restored room's holds two;
+    // either way every pane the desk names is seated, the stack being rationed by no room.
     TempDir dir("wux0-order");
     const std::string session = dir.file("session.json");
     Setup two = setup_of("Two", {stock::kKind});

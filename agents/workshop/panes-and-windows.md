@@ -27,21 +27,25 @@ bounds"`; `tests/test_workshop_screen.cpp` case `"authored geometry moves the La
 the tabs with it"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
-## WL-PANE-03 — A band-anchored or authored pane spends no reactive slot
+## WL-PANE-03 — No room rations the stack: a spent column begins again at its top
 
-LAW — A band-anchored pane takes no stack slot, and an authored place spends no reactive slot and cannot wait for one; `waiting` means that the reactive stack lacks height for the next pane.
+LAW — A band-anchored or authored pane takes no stack slot; a stacked pane the column has no height left for begins the column again at its top, so every resolved row is seated and no door refuses for room.
 
 MEANS
-- both `seat_panes` and `bounds_of` spend each preferred height (or the fallback) plus the gap;
-- an oversubscribed authored setup keeps the extra reference, waiting for room.
+- `bounds_of` spends each preferred height (or the fallback) plus the gap down the column;
+- a pane taller than the room stands at the column's top;
+- a launch, a reveal and a managed open seat their pane in front, the newest by rank.
 
-PROVEN BY — `workshop/setup.hpp` `seat_panes`, `Reconciled::waiting`, `StackCapacity`,
-`Seating`; `workshop/screen_chrome.cpp` `bounds_of`; `workshop/screen.hpp` `stack_slots_that_fit`;
-`workshop/panes.hpp` `Panes::waiting_for_room`; `tests/test_workshop_panes_window.cpp` case
-`"an authored place spends no reactive slot, and cannot wait for one"`;
-`tests/test_workshop_panes_seam.cpp` case `"an oversubscribed authored setup keeps the extra
-reference, waiting for room"`.
-WHY — `agents/decisions/three-places.md`
+PROVEN BY — `workshop/setup.hpp` `seat_panes`, `StackCapacity`, `Seating`;
+`workshop/screen_chrome.cpp` `bounds_of`; `workshop/screen.hpp` `stack_slots_that_fit`;
+`workshop/weave_desktop.cpp` `launch_pane`; `workshop/weave_seam.cpp` `on(PaneRevealRequested)`;
+`workshop/weave_managed.cpp` `trial_room`; `tests/test_workshop_panes_window.cpp` case `"an
+authored place spends no room in the stack's column, and a spent column begins again at its
+top"`; `tests/test_workshop_panes_seam.cpp` case `"an oversubscribed authored setup seats every
+reference, the column beginning again at its top"`, case `"a pane launched when the stack's
+column is spent lands at the column's top, in front"`; `tests/test_workshop_panes_canvas.cpp`
+case `"a view run when the stack's column is spent is shown at the column's top, in front"`.
+WHY — `agents/decisions/the-stack-begins-again.md`
 
 ## WL-PANE-04 — A wider room is shared by the pane and the weaver
 
@@ -137,18 +141,19 @@ off-room pane is clipped, and its intent is not rewritten"`, case `"a wholly off
 is off-room, recoverable, and painted by nobody"`.
 WHY — `agents/decisions/three-places.md`
 
-## WL-PANE-10 — Six states, one classifier, one precedence
+## WL-PANE-10 — Five states, one classifier, one precedence
 
-LAW — `closed`, `unresolved`, `waiting`, `off-room`, `covered`, `open`: a want of a resolution outranks a want of room, `covered` is coverage by the union of what is in front, one visible cell is `open`.
+LAW — `closed`, `unresolved`, `off-room`, `covered`, `open`: a want of a resolution outranks a want of a place in sight, `covered` is coverage by the union of what is in front, one visible cell is `open`.
 
 MEANS
 - every unit a row can be authored in is presented, so no state answers a unit;
+- every resolved row is seated, so one with no visible cell is `off-room`;
 - two panes that each cover half of a third leave nothing of it showing.
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `pane_state_of`, `pane_state_word`,
 `pane_state_remedy`, `pane_is_covered`; `workshop/screen.hpp` `pane_state`,
-`PaneProjection`; `workshop/weave_session.cpp` `unresolved_note`; `workshop/panes.hpp`
-`Panes::waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"every setup-named pane
+`PaneProjection`; `workshop/weave_session.cpp` `unresolved_note`;
+`tests/test_workshop_panes_window.cpp` case `"every setup-named pane
 has exactly one management row, in every state"`, case `"two panes that each cover HALF of a
 third leave nothing of it showing"`, case `"coverage is the UNION of what is in front,
 not containment by one pane"`.
@@ -185,8 +190,7 @@ PROVEN BY — `workshop/setup.hpp` `inventory_rows`, `CatalogRow`; `workshop/wea
 `launch_pane`, `close_pane`; `workshop/weave_arrange.cpp` `arrangeable`; `workshop/panes.hpp`
 `kNoPaneKind`; `tests/test_workshop_screen.cpp` case `"the close door can reach and remove an
 unresolved row"`; `tests/test_workshop_panes_window.cpp` case `"participation stays the
-doors'; arrangement does not add or offer"`; `tests/test_workshop_panes_seam.cpp` case
-`"closing a waiting row removes the intent, exactly as closing an open one does"`.
+doors'; arrangement does not add or offer"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-13 — An open pane is a kind and nothing else, and a kind has one instance
@@ -223,6 +227,8 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 - That `kinds_placed_in` has a runtime witness — its pins are compile-time only (WL-PANE-01).
 - That two panes cannot stand in one place — a desk may say so, and one covers the other
   (WL-PANE-01).
+- That a stacked pane waits for room — a spent column begins again at its top, so a launch
+  lands in front of what it covers (WL-PANE-03).
 
 ## WL-PANE-17 — Preferred body space is resolved by Workshop
 
@@ -231,15 +237,16 @@ LAW — A preferred size budgets body text, or a canvas body of whole pixels, pl
 MEANS
 - a pixel body is granted exactly: to the pixel in a window, rounded up to cells in a terminal;
 - a first accepted offer fixes the runtime preference; refresh cannot resize it;
-- seating and drawing spend the same default height; old providers keep their fallback.
+- the column spends the default height a pane is drawn at; old providers keep their fallback.
 
-PROVEN BY — `workshop/setup.hpp` `preferred_extent`, `seat_panes`, `admit_pane_offer`,
+PROVEN BY — `workshop/setup.hpp` `preferred_extent`, `admit_pane_offer`,
 `PaneBody`; `workshop/pane_vocabulary.hpp` `kMaxPaneBodyPx`; `workshop/screen.hpp`
 `stack_capacity`; `workshop/screen_chrome.cpp` `project_pane`, `bounds_of`; `view/view.hpp`
 `offered`; `tests/test_workshop_demo.cpp` case
 `"pane comfort budgets body text with chrome in both real medium metrics"`,
 case `"pane comfort survives offer refresh and rejects malformed preferences"`,
-case `"pane comfort seating and drawing spend the same vertical space"`;
+case `"pane comfort: the column spends each pane's preferred height, and begins again at its top
+when spent"`;
 `tests/test_workshop_panes_canvas.cpp` case `"a view asks for its size in pixels and its pane
 grants exactly that room: to the pixel in a window, to the cells that hold it in a terminal"`.
 WHY — `agents/decisions/preferred-pane-space.md`

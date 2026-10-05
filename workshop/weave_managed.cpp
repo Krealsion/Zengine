@@ -154,32 +154,19 @@ WorkshopWeave::TrialRoom WorkshopWeave::trial_room(const Setup& candidate, std::
                                                    const std::string& name) const {
     TrialRoom out;
     const Screen sc = screen_of(session_);
-    const StackCapacity capacity = stack_capacity(sc);
-    // THE LAUNCH DOOR'S OWN TRIAL, on the candidate setup: nothing moves.
-    const Seating trial = seat_panes(candidate, session_.panes, capacity);
-    for (const std::int64_t k : trial.waiting) {
-        if (k == kind) {
-            out.refusal = "no room for " + name +
-                          " on this screen -- make the window taller, then try again";
-            return out;
-        }
-    }
-    // THE ROOM THE PANE'S BODY WOULD HAVE, measured on a COPY of the panes seated the way
-    // the real application seats them, with the keys pointed at the pane as they will be
-    // (the keyboard-holding pane keeps its title row, which changes its body).
+    // THE ROOM THE PANE'S BODY WOULD HAVE, measured on a COPY of the panes seated the way the real
+    // application seats them -- every resolved row, the stack's column beginning again at its top
+    // -- with the keys pointed at the pane as they will be (the keyboard-holding pane keeps its
+    // title row, which changes its body). Nothing moves.
     Panes seated = session_.panes;
-    (void)reconcile(seated, candidate, capacity);
+    (void)reconcile(seated, candidate);
     if (!seated.has(kind)) {
-        out.refusal = "no room for " + name + " on this screen";
+        out.refusal = "defect: " + name + " would not be seated";
         return out;
     }
     seated.selected = kind;
     seated.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
     const PaneBounds where = bounds_of(seated, candidate, kind, sc);
-    if (!where.open) {
-        out.refusal = "no room for " + name + " on this screen";
-        return out;
-    }
     const ExternalBodyPlace body = external_body_place(
         where.rect, sc, external_title_rows(seated, kind, session_.pane_titles));
     if (!body.present) {

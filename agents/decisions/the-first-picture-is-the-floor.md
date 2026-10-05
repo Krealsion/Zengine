@@ -23,8 +23,9 @@ conversation, then re-maximizes, one beat after the picture that supplies the ro
 **Alternatives considered.**
 - *Seeding the remembered extent first* — measured against a real window (`fba0dc2`); pinned by
   case `"the FIRST picture of a run is the floor, and the room is the second"`.
-- *Applying the desk before the viewport* — measured red, one case, predicted and measured;
-  pinned by case `"the desk is seated against the RESTORED room, not the default one"`.
+- *Applying the desk before the viewport* — measured red while the room's height rationed the
+  stack (`fba0dc2`); since no room rations it
+  ([the stack begins again](the-stack-begins-again.md)), the order changes no seating.
 - *Clamping an out-of-band viewport* — rejected: clamping 100000 to 640 still opens a window
   nobody chose on a display Workshop cannot see.
 - *Persisting `SurfaceExtent`, or pixels* — rejected: cells are what cross the Skin seam; the
@@ -41,4 +42,4 @@ beside it, and a flag merely restored never gates a placement-less run's trackin
 
 **Laws supported.** [WL-SESSION-07](../workshop/session-restore.md),
 [WL-SESSION-08](../workshop/session-restore.md), [WL-SESSION-09](../workshop/session-restore.md),
-[WL-SESSION-11](../workshop/session-restore.md), [WL-SESSION-12](../workshop/session-restore.md).
+[WL-SESSION-11](../workshop/session-restore.md).

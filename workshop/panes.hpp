@@ -417,10 +417,6 @@ struct Panes {
     RuntimeCatalog runtime;
     /// Each open external pane's view: made by the open door, destroyed by the close door.
     std::vector<ExternalPane> external;
-    /// AUTHORED INTENT THIS SCREEN HAS NO ROOM FOR, as resolved kinds, in setup
-    /// order.
-    // WL-PANE-03, WL-PANE-10 -- agents/workshop/panes-and-windows.md
-    std::vector<std::int64_t> waiting_for_room;
     /// The keyboard's candidate: the pane a weaver last pointed the keys at, not the answer.
     // WL-FOCUS-01, WL-FOCUS-03, WL-FOCUS-05 -- agents/workshop/focus.md
     std::int64_t keyboard = kNoPaneKind;
@@ -434,15 +430,6 @@ struct Panes {
     bool has(std::int64_t kind) const {
         for (const OpenPane& p : open) {
             if (p.kind == kind) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool waiting(std::int64_t kind) const {
-        for (const std::int64_t k : waiting_for_room) {
-            if (k == kind) {
                 return true;
             }
         }

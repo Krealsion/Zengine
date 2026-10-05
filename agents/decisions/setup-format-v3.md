@@ -45,7 +45,7 @@ because a setup is a weaver's named artifact with no session to ride.
 Version 4 keeps every rule here and says its amounts in canvas pixels, word `pixels`
 ([the-whole-pixel](the-whole-pixel.md)); a version-3 file is read back to the pixel it painted.
 
-**Laws supported.** [WL-SETUP-01](../workshop/setup-file.md), [WL-SETUP-02](../workshop/setup-file.md),
-[WL-SETUP-03](../workshop/setup-file.md), [WL-SETUP-04](../workshop/setup-file.md),
-[WL-SETUP-05](../workshop/setup-file.md),
+**Laws supported.** [WL-SETUP-01](../workshop/setup-file.md),
+[WL-SETUP-02](../workshop/setup-file.md), [WL-SETUP-03](../workshop/setup-file.md),
+[WL-SETUP-04](../workshop/setup-file.md), [WL-SETUP-05](../workshop/setup-file.md),
 [WL-SETUP-08](../workshop/setup-file.md), [WL-SETUP-11](../workshop/setup-file.md).
