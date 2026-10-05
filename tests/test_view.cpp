@@ -383,6 +383,107 @@ TEST_CASE("a view has a size that holds its elements; one saved without a size r
     CHECK(view::read_description(again).description.width == view::kMaxPixels + 192);
 }
 
+/// A pane the Pane Creator saved: its JSON text, as it wrote it.
+std::string creator_pane_bytes(const std::string& name, std::vector<view::WorkshopPaneRegion> regions) {
+    view::WorkshopPaneDefinition file;
+    file.format = view::kCreatorPaneFormat;
+    file.format_version = view::kCreatorPaneFormatVersion;
+    file.name = name;
+    file.next_id = static_cast<std::int64_t>(regions.size()) + 1;
+    file.regions = std::move(regions);
+    return loom::compat::serialize(loom::to_value(file));
+}
+
+TEST_CASE("a pane the Pane Creator saved reads as a view of labels, one per region, under its name as a view's, and is written as the current version") {
+    // ⚔ MUTATION: an edge read as a sub-unit, not floored to the pixel the pane was painted on --
+    // `region2`'s place reads 5, and its check goes red.
+    const std::string long_line(200, 'w');
+    const auto bytes = creator_pane_bytes("my notes!", {{1, "text", 0, 0, 1152, 96, "Notes made by the Pane Creator"},
+                                                        {2, "text", 5, 3, 9, 50, long_line}});
+    const auto read = view::read_description(bytes);
+    REQUIRE_MESSAGE(read.ok, read.reason);
+    const view::Description& d = read.description;
+    CHECK(d.name == "my_notes_"); // the pane's name, as a view's name may be spelled
+    CHECK(d.name == view::view_name_of_creator_pane("my notes!"));
+    REQUIRE(d.elements.size() == 2);
+    CHECK(d.elements[0].id == "region1");
+    CHECK(d.elements[0].kind == view::Kind::label);
+    CHECK(d.elements[0].label == "Notes made by the Pane Creator");
+    CHECK((d.elements[0].x == 0 && d.elements[0].y == 0 && d.elements[0].w == 288 && d.elements[0].h == 24));
+    // EVERY EDGE FLOORED TO ITS PIXEL: sub-units 5..14 by 3..53 were painted on pixels 1..3 by 0..13.
+    CHECK((d.elements[1].x == 1 && d.elements[1].y == 0 && d.elements[1].w == 2 && d.elements[1].h == 13));
+    CHECK(d.elements[1].label == long_line); // a region's whole line
+    CHECK(d.shows.empty());
+    CHECK(d.intents.empty());
+    // ...SIZED AS A DESCRIPTION WITH NO SIZE IS.
+    CHECK(std::make_pair(d.width, d.height) == view::fitting_size(d));
+
+    // SAVED, IT IS THE CURRENT VERSION, and reads back the same.
+    const std::string saved = view::description_bytes(d);
+    CHECK(loom::parse(saved).claimed_version() == static_cast<std::uint32_t>(view::kFormatVersion));
+    const auto again = view::read_description(saved);
+    REQUIRE_MESSAGE(again.ok, again.reason);
+    CHECK(again.description.name == d.name);
+    CHECK(again.description.elements.size() == 2);
+    CHECK(again.description.elements[1].label == long_line);
+
+    // WHAT THE FILE CANNOT SAY IS REFUSED IN WORDS: another kind, another format word, another
+    // version by its number, and a place no view holds.
+    const auto kind = view::read_description(creator_pane_bytes("notes", {{1, "image", 0, 0, 48, 48, ""}}));
+    CHECK_FALSE(kind.ok);
+    CHECK(has(kind.reason, "region #1 is a `image`"));
+    view::WorkshopPaneDefinition forged;
+    forged.format = "zengine-workshop-setup";
+    forged.format_version = 1;
+    forged.name = "notes";
+    forged.next_id = 1;
+    const auto word = view::read_description(loom::compat::serialize(loom::to_value(forged)));
+    CHECK_FALSE(word.ok);
+    CHECK(has(word.reason, "not a Pane Creator pane"));
+    std::string later = creator_pane_bytes("notes", {});
+    const auto at = later.find("\"version\":1");
+    REQUIRE(at != std::string::npos);
+    later.replace(at, 11, "\"version\":2");
+    const auto version = view::read_description(later);
+    CHECK_FALSE(version.ok);
+    CHECK(has(version.reason, "of version 2; this build reads version 1"));
+    const auto distant = view::read_description(creator_pane_bytes("notes", {{1, "text", 4 * 9000, 0, 48, 48, "x"}}));
+    CHECK_FALSE(distant.ok);
+    CHECK(has(distant.reason, "`region1` sits at a place"));
+}
+
+TEST_CASE("a resumed view offers its pane and asks nothing of the desk; a run asks to be shown") {
+    // ⚔ MUTATION: `start` revealing whatever it is told -- the resumed view asks for a seat, and
+    // a pane a weaver hid comes back on the desk at every relaunch; the second check goes red.
+    Rig rig;
+    const auto resumed = rig.ask(view::ViewResume{"builder", bytes_of(panel())});
+    REQUIRE_MESSAGE(resumed.ok, resumed.reason);
+    CHECK(resumed.action == "resume");
+    CHECK(resumed.fresh);
+    CHECK(resumed.office == "tally.panel");
+    bool offered = false, seat = false;
+    for (const auto& m : rig.desk->heard) {
+        if (m.provenance.authored_role() != "tally.panel") continue;
+        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>());
+        seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+    }
+    CHECK(offered);
+    CHECK_FALSE(seat);
+    // IT IS AN ORDINARY RUNNING VIEW OF THIS SESSION: a second run or resume is refused, and a stop
+    // ends it.
+    CHECK(has(rig.ask(view::ViewResume{"builder", bytes_of(panel())}).reason, "already runs a view"));
+    CHECK(has(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).reason, "already runs a view"));
+    REQUIRE(rig.ask(view::ViewStop{"builder"}).ok);
+    // ...AND A RUN, ITS SIBLING, STILL ASKS TO BE SHOWN.
+    rig.desk->heard.clear();
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).ok);
+    seat = false;
+    for (const auto& m : rig.desk->heard)
+        if (m.provenance.authored_role() == "tally.panel")
+            seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+    CHECK(seat);
+}
+
 TEST_CASE("the view host registers a view as its own participant, granted only its intents and its pane conversation") {
     Rig rig;
     const auto run = rig.ask(view::ViewRun{"builder", bytes_of(panel())});

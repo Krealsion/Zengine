@@ -971,8 +971,8 @@ where such an offer would connect.
 A weaver can **close Workshop after arranging it and reopen it into the same desk, at the same
 size, in the same place on the desktop, with no gesture.** That is a third persisted thing and
 a third file — and the session's default home is the per-user **state** folder
-(machine-local: a viewport and a desktop position describe *this* machine), while the two
-project files keep following the project:
+(machine-local: a viewport and a desktop position describe *this* machine), while the project
+files keep following the project:
 
 ```text
 --document   workshop.json           an old object document, from     (launch directory)
@@ -980,8 +980,6 @@ project files keep following the project:
                                      once, never read
 --setup      workshop-setup.json     a desk you NAMED, with `s`,      (launch directory)
                                      and read back with `r`
---pane       workshop-pane.json      a PANE you made: its name and    (project directory)
-                                     its regions, never where it sits
 --session    workshop-session.json   the desk you were USING, the     (per-user state root)
                                      room it was in, and where the
                                      window sat

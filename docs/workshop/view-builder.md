@@ -8,8 +8,8 @@ it opens in a pane of its own. Flow composes what happens when the view speaks; 
 at message shapes, which you drag from one pane to the other. The contract beneath this page is
 the [view reference](../reference/view.md).
 
-Open the Pane Manager and choose **View Builder**. The shipped plans include the optional
-`zengine-view-builder` artifact in the `zengine.view.builder` office.
+Open the Pane Manager and press `n`, or choose **View Builder**. The shipped plans include the
+optional `zengine-view-builder` artifact in the `zengine.view.builder` office.
 
 ## The builder
 
@@ -153,10 +153,11 @@ graph, numbered and titled as Flow shows it. A field that holds no whole number 
 and nothing is published.
 
 Type a `.view` file into **File** and press **Save** (`Ctrl`+`s`), and save the Flow workspace
-beside it. Quit, start
-Workshop again, type the file into **File** and press **Open**, open the workspace in Flow, and
-**Run** both: the panel works as before and waits until told.
-Nothing that was running is in either file. **Stop** ends the panel: its pane first says it
+beside it. Quit and start Workshop again: the View Builder opens the file it had open and, since
+its view was running, runs it again, its pane where your layout left it. Open the workspace in
+Flow and **Run** it, and the panel works as before and waits until told. Nothing that was
+running is in either file: the View Builder keeps which file it had open, and whether its view
+ran, in the project's `view-builder.json`. **Stop** ends the panel: its pane first says it
 stopped, and once Workshop sees its participant gone it says it is waiting for the provider. No
 field or button is left that looks live.
 
@@ -201,11 +202,12 @@ Three panes show something called a view, and they are different things:
 - **A [portable Inventory view](inventory-slots.md)** is a box, row or column of stored entries;
   it belongs to Inventory and holds entries, not a panel.
 
-## The View Builder or the Pane Creator
+## A pane the Pane Creator made
 
-Reach for the [Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data) for a pane of static
-text that Workshop paints and you place in Info. Reach for the View Builder when the pane must be
-told values, take typing, or say something when a control is used. The two stay side by side.
+The Pane Creator retired into views. Its `workshop-pane.json` opens here as a view, a label for
+each region with the region's text where the region stood; in a project whose View Builder has
+run nothing yet, it runs at launch, and a layout that named its pane names the view's
+([a pane of your own](panes.md#a-pane-of-your-own--a-view)). **Save** writes it as a view.
 
 ## Limits
 

@@ -2960,3 +2960,39 @@ TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
     CHECK(t.session().panes.has(stock::kKind)); // still there, still that big
 }
 
+
+// ---- a pane's interior, as an inspector reads it --------------------------------------------
+
+TEST_CASE("a code-backed subject's interior is a read-only capture, and an unresolved one is "
+          "nothing to inspect") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
+    const std::vector<Row>& rows = t.session().inspected.rows;
+    std::size_t at = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        at = rows[i].section() && rows[i].label() == "INTERIOR" ? i : at;
+    }
+    REQUIRE(at + 2 == rows.size());
+    CHECK(rows[at + 1].label() == "Interior");
+    CHECK_FALSE(rows[at + 1].editable());
+    const std::string capture = subject_value(t.session(), "Interior", "INTERIOR");
+    CHECK(capture.find("code-backed -- body @") == 0);
+    CHECK(capture.find("as cells; no authored interior") != std::string::npos);
+    CHECK(subject_row(t.session(), "Text", "INTERIOR") == nullptr);
+    // THE CAPTURE IS THE RESOLVED BODY, from the same place the painter resolves.
+    const Screen sc = screen_of(t.session());
+    const ProsePlace place = prose_place(
+        bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc).rect, sc);
+    CHECK(capture.find(pixel_rect_text(room_of_canvas(place.inside, sc), 0)) != std::string::npos);
+    CHECK(capture.find(std::to_string(place.rows) + " rows x ") != std::string::npos);
+    // A CLOSED PANE: not presented, and said so -- and the one closed pane a fresh desk has
+    // is the runtime stand-in, whose interior is its provider's.
+    REQUIRE(hand_inspect(t, ref_of(stock::kKind)).accepted);
+    CHECK(subject_value(t.session(), "Interior", "INTERIOR") ==
+          "a provider's own -- not presented; no authored interior");
+    // AN UNRESOLVED STRANGER: nothing to inspect, and no pretence.
+    REQUIRE(add_pane(live(t).setup.active, stranger()));
+    REQUIRE(hand_inspect(t, stranger()).accepted);
+    CHECK(subject_value(t.session(), "Interior", "INTERIOR") == "unresolved -- nothing to inspect");
+}

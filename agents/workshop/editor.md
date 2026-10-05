@@ -193,7 +193,6 @@ LAW — `quit` publishes `PaneQuitRequested` and counts Loom's accepters: zero e
 
 MEANS
 - a pane answers about the instant; a paste still arriving, or an open being seated, refuses;
-- a weaver-made pane's dirty definition still refuses synchronously, before the ask;
 - a delivery Loom refused ends the quit as a refusal; the process stays open (WL-SESSION-19).
 
 DOES NOT MEAN

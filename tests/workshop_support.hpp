@@ -1852,18 +1852,14 @@ struct SeatState {
 class DoorHand
     : public loom::WeaveBase<DoorHand, SeatState,
                              loom::Accept<PaneLaunchAnswered, PaneCloseAnswered, PaneSubjectActed,
-                                          WeaverPaneAnswered, SeatDo>,
+                                          SeatDo>,
                              loom::Emit<PaneLaunchRequested, PaneCloseRequested,
-                                        InspectPaneRequested, PaneCommitRequested,
-                                        WeaverPaneRequested>> {
+                                        InspectPaneRequested, PaneCommitRequested>> {
 public:
     void on(const PaneLaunchAnswered& a, loom::Mail&) { launched.push_back(a); }
     void on(const PaneCloseAnswered& a, loom::Mail&) { closed.push_back(a); }
     /// ...AND, ASKED AS AN INSPECTOR (Info's path), what naming a subject or writing a row came to.
     void on(const PaneSubjectActed& a, loom::Mail&) { acted.push_back(a); }
-    /// ...AND, ASKED AS THE CREATOR'S PRESENTER (the desktop Pane Manager's path), what making,
-    /// saving or discarding the weaver's pane came to.
-    void on(const WeaverPaneAnswered& a, loom::Mail&) { made.push_back(a); }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(DoorHand&, loom::Mail&)> once;
@@ -1874,7 +1870,6 @@ public:
     std::vector<PaneLaunchAnswered> launched;
     std::vector<PaneCloseAnswered> closed;
     std::vector<PaneSubjectActed> acted;
-    std::vector<WeaverPaneAnswered> made;
     std::function<void(DoorHand&, loom::Mail&)> next;
     static constexpr const char* kOffice = "zengine.test.hand";
 };
@@ -1893,8 +1888,6 @@ inline DoorHand& door_hand(Rig& t) {
         grant.allow_to_role(InspectPaneRequested::zen_name, InspectPaneRequested::zen_version,
                             kWorkshopProvider);
         grant.allow_to_role(PaneCommitRequested::zen_name, PaneCommitRequested::zen_version,
-                            kWorkshopProvider);
-        grant.allow_to_role(WeaverPaneRequested::zen_name, WeaverPaneRequested::zen_version,
                             kWorkshopProvider);
         t.hand_id =
             t.bus.register_weave(std::move(seat), std::move(grant), std::string(DoorHand::kOffice));
@@ -2011,24 +2004,6 @@ inline PaneSubjectActed hand_commit(Rig& t, const std::string& label, const std:
     t.bus.drain_until_idle();
     REQUIRE_MESSAGE(h.acted.size() == before + 1, "the commit door did not answer");
     return h.acted.back();
-}
-
-/// ASK THE WEAVER DOOR -- make, save or discard the one open definition (WL-MAKER-11) -- as the
-/// desktop's Pane Manager asks it, and answer what the door said.
-template <class Rig>
-inline WeaverPaneAnswered hand_weaver(Rig& t, std::int64_t act,
-                                    const std::string& name = std::string()) {
-    DoorHand& h = door_hand(t);
-    const std::size_t before = h.made.size();
-    h.next = [act, name](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice)
-            .send_to_role(kWorkshopProvider, WeaverPaneRequested{act, name});
-    };
-    (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                              loom::WeaveId{}, 0));
-    t.bus.drain_until_idle();
-    REQUIRE_MESSAGE(h.made.size() == before + 1, "the weaver door did not answer");
-    return h.made.back();
 }
 
 /// ...OR QUEUE THE CLOSE WITHOUT DELIVERING ANYTHING -- office-authored as the hand, behind

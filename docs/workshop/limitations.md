@@ -497,20 +497,14 @@ anything cannot be removed. A folder is not a hotkey context and grants nothing.
 do not show where an entry is filed. Folders last as long as the collection, which survives a
 restart only through a [toolbox](toolboxes.md).
 
-### The Pane Creator makes one kind of pane, and it is text
+### A pane of your own is a view
 
-[The Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data) is the first pane whose
-inside is authored data, and it is exactly that small: one region kind (`text`), one line of
-plain ASCII per region, one region seeded per pane, and one open pane definition at a time.
-There is no control, no button, no input region, no wiring, no state, no anchors, fill or
-nesting, no second region kind, and no way to rename a pane once it is made — its name is its
-durable identity. The region is placed by typing numbers into Info's rows for that pane (the
-Pane Manager's `n` makes the pane; Info edits it); there is no dragging or resizing of a region
-on the pane itself. A code-backed pane's `INTERIOR` is
-a read-only capture of its body, never a decomposition of its painter, and a loaded pane's is
-its provider's own: the Pane Creator's representation is one way a pane can be built, not a
-form every pane must be converted into. And a definition file holds presentation only —
-nothing in it can be made to send, sample, bind or load.
+A pane you make from data is a [view](panes.md#a-pane-of-your-own--a-view), with the [View
+Builder's limits](view-builder.md#limits): labels, whole-number fields and buttons, side by
+side. A code-backed pane's `INTERIOR` is a read-only capture of its body, never a decomposition
+of its painter, and a loaded pane's is its provider's own; Info edits no pane's inside. A file
+the retired Pane Creator saved opens as a view of labels, one per region, and nothing more: its
+regions were text and nothing else.
 
 ### Cross-pane interaction is typed values and references, and no more
 

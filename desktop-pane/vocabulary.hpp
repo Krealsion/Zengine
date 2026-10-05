@@ -24,10 +24,10 @@ namespace zengine::desktop_pane {
 inline constexpr const char* kDesktopRole = "zengine.desktop";
 
 /// The Pane Manager: every pane this Workshop knows about, whether it is open, and whether
-/// anything offers it -- Return opens or focuses a row, `x` closes it, and `n` makes a pane of the
-/// weaver's own through the Pane Creator (`s` saves it, `ctrl+d` puts it back). A pane, holding the
-/// keys only while a weaver has pressed into it. Its durable key is `launcher`, the name the first
-/// desks wrote; a desk naming the host's old `pane-editor` is read as it.
+/// anything offers it -- Return opens or focuses a row, `x` closes it, and `n` shows the View
+/// Builder, where a weaver makes a pane of their own. A pane, holding the keys only while a weaver
+/// has pressed into it. Its durable key is `launcher`, the name the first desks wrote; a desk
+/// naming the host's old `pane-editor` is read as it.
 inline constexpr const char* kLauncherPane = "launcher";
 inline constexpr const char* kLauncherName = "Pane Manager";
 inline constexpr const char* kLauncherSummary = "show, focus or hide a pane, and make one";
@@ -68,6 +68,10 @@ inline constexpr const char* kActionDown = "launcher.down";   ///< ...and down
 inline constexpr const char* kActionLaunch = "launcher.open"; ///< launch the row under it
 /// TAKE THE ROW UNDER IT OFF THE DESK -- participation, never the provider (`PaneCloseRequested`).
 inline constexpr const char* kActionClose = "launcher.close";
+/// SHOW THE VIEW BUILDER, where a pane of the weaver's own is made and saved: the Pane Manager's
+/// way to make a pane, through the host's launch door like any tool. A keymap naming the Pane
+/// Creator's `pane-creator.new` is read as it.
+inline constexpr const char* kActionNew = "launcher.new";
 
 inline constexpr const char* kActionKeysUp = "hotkeys.up";       ///< scroll the list up a row
 inline constexpr const char* kActionKeysDown = "hotkeys.down";   ///< ...and down

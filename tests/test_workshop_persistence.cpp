@@ -10,6 +10,7 @@
 #include "workshop_support.hpp"
 
 #include "desktop-pane/vocabulary.hpp"
+#include "view/view.hpp"
 
 // The historical session shapes and their conversions -- the conversion artifact's
 // material, named here because this suite owns what a durable session file means.
@@ -5672,6 +5673,46 @@ TEST_CASE("a saved setup naming the host's Pane Manager opens as the desktop's")
     // agreed with a copy of it.
     CHECK(std::string(pane_migration::kManagerProvider) == zengine::desktop_pane::kDesktopRole);
     CHECK(std::string(pane_migration::kManagerPane) == zengine::desktop_pane::kLauncherPane);
+}
+
+TEST_CASE("WL-MAKER-15: a desk naming a pane the Pane Creator made names its view, where the "
+          "pane stood, and the load says so once") {
+    // A PANE CREATOR PANE IS A VIEW NOW: its file reads as one, named by the one rule, and a desk
+    // naming the pane names that view's pane, keeping the place, size and front the weaver left.
+    // ⚔ MUTATION: dropping the Creator rule from `convert_retired_panes`; the row comes back naming
+    // `zengine.workshop.maker/my!notes`, which nothing offers.
+    namespace view = zengine::view;
+    Setup old;
+    old.name = "Made";
+    const PaneRef was{view::kCreatorPaneProvider, "my!notes"};
+    REQUIRE(add_pane(old, was));
+    REQUIRE(author_pane_place(old, was, 0, 464).accepted);
+    REQUIRE(add_pane(old, ref_of(stock::kKind)));
+    const setup_persist::LoadedSetup read = setup_persist::from_text(setup_persist::to_text(old));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.converted.total() == 1);
+    REQUIRE(read.converted.creator.size() == 1);
+    CHECK(read.converted.creator[0] == "my!notes");
+    REQUIRE(read.setup.panes.size() == 2);
+    const PaneRef now{view::view_name_of_creator_pane("my!notes"), view::kPane};
+    CHECK(now.provider == "my_notes");
+    CHECK(read.setup.panes[0].ref == now);
+    CHECK(read.setup.panes[0].place == old.panes[0].place);
+    CHECK(read.setup.panes[0].width == old.panes[0].width);
+    CHECK(read.setup.panes[0].height == old.panes[0].height);
+    CHECK(read.setup.panes[0].front == old.panes[0].front);
+    CHECK(read.setup.panes[1] == old.panes[1]);
+    // ...THE MIGRATION'S SPELLING OF A VIEW'S PANE IS THE VIEW'S OWN...
+    CHECK(std::string(pane_migration::kViewPane) == view::kPane);
+    CHECK(pane_migration::view_of_creator_pane("my!notes") == now);
+    // ...AND THE WEAVER IS TOLD ONCE, however many desks of one file named the pane.
+    pane_migration::Converted twice = read.converted;
+    twice.add(read.converted);
+    CHECK(twice.total() == 2);
+    const std::string said = pane_migration::converted_note(twice);
+    const std::string moved = "zengine.workshop.maker/my!notes is now my_notes/view";
+    REQUIRE(said.find(moved) != std::string::npos);
+    CHECK(said.find(moved, said.find(moved) + 1) == std::string::npos);
 }
 
 TEST_CASE("a session with nothing to convert says nothing about it") {

@@ -43,7 +43,6 @@ See [load plans](load-plans.md).
 | argument | default | is |
 |---|---|---|
 | `--setup <path>` | `workshop-setup.json`, in the directory you launched from | a pane arrangement you named and saved |
-| `--pane <path>` | `workshop-pane.json`, in the directory you launched from | a pane you made with the [Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data): its name and its regions |
 | `--session <path>` | `workshop-session.json`, in your **per-user state folder** | the desk, window size and window position you last used — written on close, read on start |
 | `--keymap <path>` | `workshop-keymap.json`, in your **per-user config folder** | your hand-edited binding overrides ([hotkeys](hotkeys.md)) |
 | `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | presentation preferences Workshop writes when you state one (pane titles, `t`) |
@@ -83,7 +82,7 @@ entitled to before you press anything:
 zengine-workshop - containment: in-process; trusted; no OS sandbox (out-of-process isolation is the isolation host's job)
 zengine-workshop - document: retired with the object canvas
 zengine-workshop - setup: workshop-setup.json
-zengine-workshop - pane: /home/you/my-thing/workshop-pane.json
+zengine-workshop - pane: retired with the Pane Creator -- a pane of your own is a view the View Builder makes
 zengine-workshop - project: /home/you/my-thing
 zengine-workshop - last session: C:/Users/you/AppData/Local/zengine-workshop/workshop-session.json (restored at startup, written on quit)
 zengine-workshop - keymap: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-keymap.json
@@ -230,7 +229,7 @@ layout for you either way.
 | | |
 |---|---|
 | anywhere | `Ctrl`+`p` the Pane Manager · `Ctrl`+`t` the Terminal · `Ctrl`+`k` the Hotkeys pane — even inside a pane ([hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)) |
-| the Pane Manager | `↑` `↓` choose · `Enter` show or go to · `x` hide · `n` make a pane of your own, `s` save it, `Ctrl`+`d` discard its edits ([Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data)) |
+| the Pane Manager | `↑` `↓` choose · `Enter` show or go to · `x` hide · `n` make a pane of your own in the View Builder ([a view](panes.md#a-pane-of-your-own--a-view)) |
 | panes | `w` arrange desk · `t` pane titles · `Esc` put the selected pane down |
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | layouts | `s` save · `r` restore · `=` new · `.` `,` next / previous · `Ctrl`+`w` remove ([setups](setups.md)) — the **last** session needs neither |
@@ -261,7 +260,7 @@ Neither is a degraded version of the other, and the same published intent produc
 - [Attention](attention.md) — what is true right now, the pane that lists it, and why hiding
   one is not fixing it.
 - [Panes](panes.md) — the Pane Manager, arranging, how to get a bigger one, Info as a pane's
-  inspector, and the Pane Creator that makes one of your own out of data.
+  inspector, and a pane of your own: a view, made in the View Builder.
 - [Setups](setups.md) — saving an arrangement, and what does not come back.
 - [Load plans](load-plans.md) — choosing what a run is made of.
 - [Builder](builder.md) — what it builds today.

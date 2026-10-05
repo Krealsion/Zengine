@@ -47,7 +47,6 @@ void WorkshopWeave::on(const SetupApplyRequested& request, loom::Mail& mail) {
 
 // WL-LAYOUT-05, WL-LAYOUT-07 -- agents/workshop/layouts.md
 // WL-ARR-03 -- agents/workshop/arrangement.md
-// WL-MAKER-09 -- agents/workshop/maker-pane.md
 // WL-PED-05 -- agents/workshop/pane-manager.md
 // WL-SESSION-12 -- agents/workshop/session-restore.md
 void WorkshopWeave::apply_setup(loom::Mail& mail) {
@@ -325,7 +324,6 @@ std::string WorkshopWeave::unresolved_note(const Setup& s) const {
 // ---- THE LAST SESSION: the desk that comes back on its own ----------------
 
 // WL-SESSION-11, WL-SESSION-12, WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
-// WL-MAKER-09 -- agents/workshop/maker-pane.md
 // WL-MIG-10 -- agents/workshop/migration.md
 void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     if (restored_) {

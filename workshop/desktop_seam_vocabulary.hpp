@@ -166,41 +166,6 @@ struct KeymapEditAnswered {
               ZEN_FIELD(sentence));
 };
 
-// ---- The weaver's own pane, through the host's doors ------------------------------------------
-
-/// The Pane Creator's three acts on the one open definition (WL-MAKER-08).
-namespace weaver_pane_act {
-inline constexpr std::int64_t kCreate = 1;
-inline constexpr std::int64_t kSave = 2;
-inline constexpr std::int64_t kDiscard = 3;
-} // namespace weaver_pane_act
-
-/// The action ids a presenter of the Creator declares, spelled here because the host names their
-/// keys too; they are the ids a weaver's authored override already finds.
-inline constexpr const char* kCreatorNewId = "pane-creator.new";
-inline constexpr const char* kCreatorSaveId = "pane-creator.save";
-inline constexpr const char* kCreatorDiscardId = "pane-creator.discard";
-/// ...and the name line's two, declared while a name is being typed.
-inline constexpr const char* kCreatorNameId = "pane-creator.name";
-inline constexpr const char* kCreatorCancelId = "pane-creator.cancel";
-
-/// Ask the host for one of the Creator's acts (`name` read for `kCreate` only). The definition is
-/// the host's, and so is every refusal.
-struct WeaverPaneRequested {
-    std::int64_t act = 0;
-    std::string name;
-    ZEN_SHAPE(WeaverPaneRequested, 1, ZEN_FIELD(act), ZEN_FIELD(name));
-};
-
-/// What the act came to, answering one ask under that ask's number; a presenter reads it against
-/// the act it is waiting on, never its latest number (WL-MAKER-14).
-struct WeaverPaneAnswered {
-    std::int64_t act = 0;
-    bool accepted = false; ///< the host did what was asked (a discard with nothing to discard too)
-    std::string said;      ///< the host's own sentence: what was done, or why not
-    ZEN_SHAPE(WeaverPaneAnswered, 1, ZEN_FIELD(act), ZEN_FIELD(accepted), ZEN_FIELD(said));
-};
-
 /// Put down whatever the weaver has picked up: the host act the desktop's Escape row asks for. The
 /// selection is the host's; the desktop owns when. The ask echoes, in Loom's envelope, the number
 /// minted for the keystroke that requested the row, so a stale or zero echo acts on nothing.

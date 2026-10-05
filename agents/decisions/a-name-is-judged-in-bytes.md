@@ -1,8 +1,7 @@
 # A name is judged in bytes, whole, before it is kept
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws it
-supports are in [setup-file](../workshop/setup-file.md), [catalog](../workshop/catalog.md) and
-[weaver-pane](../workshop/maker-pane.md).
+supports are in [setup-file](../workshop/setup-file.md) and [catalog](../workshop/catalog.md).
 
 **Context.** Four names reach this application from parties it has never met: a setup's human
 name, typed in the one-line editor or carried by a file somebody else wrote; either half of a
@@ -46,6 +45,9 @@ lays out; a weaver-made pane's name is thirty-two. The bounds are input boundari
 capacities: none is a statement about how many panes Workshop can usefully show, and a refusal
 keeps nothing of what it refused.
 
+**Since.** The weaver-made pane retired into described views
+([a pane made from data is a view](a-pane-made-from-data-is-a-view.md)), and its name's law with
+it; a view's name is judged by the view's own rules.
+
 **Laws supported.** [WL-CAT-02](../workshop/catalog.md),
-[WL-MAKER-13](../workshop/maker-pane.md), [WL-SETUP-09](../workshop/setup-file.md),
-[WL-SETUP-10](../workshop/setup-file.md).
+[WL-SETUP-09](../workshop/setup-file.md), [WL-SETUP-10](../workshop/setup-file.md).

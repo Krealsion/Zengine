@@ -355,8 +355,8 @@ operators. Each pane carries across what its state declares — Attention what y
 its chosen recipe and the load-after-build switch, the Editor its document, the desktop the row
 its Pane Manager has chosen (a chosen row that left the list stays unchosen), Info its list's
 choice the same way — and what it keeps anywhere else, it asks for again or starts afresh: the
-desktop's half-typed pane name, its notices and the Hotkeys pane's scroll do not cross, and a
-Pane Creator act the old image was still waiting on is answered to nobody. A change to what a
+desktop's notices and the Hotkeys pane's scroll do not cross, and a keymap edit the old image
+was still waiting on is answered to nobody. A change to what a
 pane answers to is not a reload at all
 ([a new runtime too](#when-a-panes-messages-change-a-new-runtime-too)). The Builder can rebuild
 and reload **itself**: the build and its output belong to the build tool rather than to the pane,

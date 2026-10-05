@@ -17,7 +17,7 @@ what you are looking at are these:
 |---|---|---|
 | the **setup** | `--setup`, default `workshop-setup.json` | one desk you deliberately kept: which panes, where, how big, in what order |
 | the **last session** | `--session`, default `workshop-session.json` | the desk you were actually using when you left, plus how much room the surface had |
-| a **pane you made** | `--pane`, default `workshop-pane.json` | what is *inside* a pane the [Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data) made: its name and its regions — never where it sits, which is the desk's |
+| a **pane you made** | the view file you saved in the [View Builder](view-builder.md) | what is *inside* a pane you made: the view's elements — never where it sits, which is the desk's |
 
 They are separate because they answer different questions. The setup is a room you chose to keep
 and gave a name. The last session is the room you happened to be in — written when Workshop
