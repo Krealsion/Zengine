@@ -2136,37 +2136,6 @@ TEST_CASE("WL-MAKER-11: the shipped Pane Manager's `n` shows the View Builder th
     CHECK(has_pane(r.session().setup.active, kViewBuilderRef));
 }
 
-TEST_CASE("a keymap row written for the Pane Creator's `n` moves the Pane Manager's, and one for "
-          "its other acts is kept and said retired") {
-    // ⚔ MUTATION: the pane rows' join reading no renamed id -- `launcher.new` stays on `n`.
-    TempDir dir("desktop-creator-ids");
-    const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"pane-creator.new", "j"},
-                                                         {"pane-creator.save", "s"}}));
-    PaneRig r;
-    r.host.keymap_path = path;
-    r.mount_workshop();
-    r.ready();
-    r.extent(160, 48);
-    load_real_desktop(r);
-    const RuntimePane* row = r.session().panes.runtime.find(kDesktopRole, dp::kLauncherPane);
-    REQUIRE(row != nullptr);
-    const PaneRows* rows = r.session().keymap.pane_rows(row->kind);
-    REQUIRE(rows != nullptr);
-    const PaneRow* made = nullptr;
-    for (const PaneRow& declared : rows->rows) {
-        if (declared.id == dp::kActionNew) {
-            made = &declared;
-        }
-    }
-    REQUIRE(made != nullptr);
-    CHECK(made->gesture == Gesture{input::scan::kJ, input::mod::kNone});
-    const std::string& note = r.session().keymap.note;
-    INFO(note);
-    CHECK(note.find("`pane-creator.new` is read as `launcher.new`") != std::string::npos);
-    CHECK(note.find("`pane-creator.save` retired with the Pane Creator") != std::string::npos);
-}
-
 TEST_CASE("the shipped Pane Manager cuts a long pane name at its room and MARKS the cut") {
     // A NAME IS NEVER CUT IN SILENCE: padded into a ten-column column and cut, `Loaded Weaves`
     // read as `Loaded Wea`. The desktop's list writes the name last on its row and fits the row

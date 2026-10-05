@@ -490,7 +490,9 @@ inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out,
     // this it would be the wrong one.
     const pane_migration::Converted moved = pane_migration::convert_retired_panes(candidate);
     if (converted != nullptr) {
-        converted->add(moved);
+        for (std::size_t i = 0; i < pane_migration::kRetiredCount; ++i) {
+            converted->rows[i] += moved.rows[i];
+        }
     }
     const Written legal = check_setup(candidate);
     if (!legal.accepted) {
@@ -546,7 +548,9 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out,
     // converted candidate then meets the whole law, so a file naming both spellings is refused.
     const pane_migration::Converted moved = pane_migration::convert_retired_panes(candidate);
     if (converted != nullptr) {
-        converted->add(moved);
+        for (std::size_t i = 0; i < pane_migration::kRetiredCount; ++i) {
+            converted->rows[i] += moved.rows[i];
+        }
     }
     const Written legal = check_setup(candidate);
     if (!legal.accepted) {

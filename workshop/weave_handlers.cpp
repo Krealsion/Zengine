@@ -146,14 +146,7 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
             : "object document " + host_->retired_document +
                   " left as it is -- the object canvas retired, and nothing here reads or "
                   "writes it";
-    // ...AND A PANE CREATOR FILE, on the same terms: a view now, and the View Builder's to open.
-    const std::string retired_pane =
-        host_->retired_pane.empty()
-            ? std::string()
-            : "--pane " + host_->retired_pane +
-                  " left as it is -- the Pane Creator retired; the View Builder opens it as a view";
-    const std::string* parts[] = {&keymap_word_, &host_->transition_note, &retired,
-                                  &retired_pane};
+    const std::string* parts[] = {&keymap_word_, &host_->transition_note, &retired};
     for (const std::string* part : parts) {
         if (part->empty()) {
             continue;

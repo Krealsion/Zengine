@@ -29,8 +29,6 @@ claim   setup_persist::kFormatVersion  setup file is format version {}
 session_persist::kFormatVersion workshop/session_persist.hpp              kFormatVersion
 keymap_persist::kFormatVersion  workshop/keymap_persist.hpp               kFormatVersion
 claim   keymap_persist::kFormatVersion  `zengine-workshop-keymap` version {}
-view::kCreatorPaneFormatVersion view/creator_pane.hpp kCreatorPaneFormatVersion
-claim   view::kCreatorPaneFormatVersion  `zengine-workshop-pane` version {}
 recipe_persist::kFormatVersion  workshop/recipe_persist.hpp               kFormatVersion
 marks_persist::kFormatVersion   files/marks_persist.hpp                   kFormatVersion
 claim   marks_persist::kFormatVersion  marks file is its own format, version {}

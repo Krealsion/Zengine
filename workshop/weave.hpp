@@ -196,10 +196,6 @@ struct HostContext {
     // WL-DOC-22 -- agents/workshop/document-file.md
     std::string retired_document;
 
-    /// A Pane Creator file this run was pointed at (`--pane`), or empty: said once at startup and
-    /// never read here -- the View Builder opens it as a view.
-    std::string retired_pane;
-
     /// The one file this Workshop's SETUP saves to and restores from.
     // WL-LAYOUT-10 -- agents/workshop/layouts.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string setup_path;
@@ -1367,10 +1363,6 @@ private:
     /// What to say when there is no setup file to save to or restore from, said in one place.
     static constexpr const char* kNoSetupFile =
         "no setup file -- start Workshop with --setup <path>";
-
-    /// ...and for the pane-definition file, a third sentence for the third reason.
-    static constexpr const char* kNoPaneFile =
-        "no pane file -- start Workshop with --pane <path>";
 
 
     /// The versions a `Shape v<N>` can name. `parse_u64` answers in 64 bits and

@@ -1011,9 +1011,7 @@ zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
         # unit NAMES, and only reading the file can carry it -- the same defence in depth as
         # the operator suite's stranger and Source fences.
         "WORKSHOP_SESSION_PERSIST_HPP=\"${CMAKE_SOURCE_DIR}/workshop/session_persist.hpp\""
-    NEEDS zengine-workshop-session-history
-    # A view's pane key, which a desk naming a Pane Creator pane names now (`pane_migration`).
-    LINKS zengine-view)
+    NEEDS zengine-workshop-session-history)
 
 # The load suite asks which artifacts are in the room at all. It stages them into a real
 # directory of its own (so the suites can run at once), since "filesystem presence is not load

@@ -6,13 +6,9 @@
 // A view described as data: its size and its elements placed inside it in whole pixels, the
 // field each label shows, and the intent each control says. It holds no business value and no
 // resolved geometry, and its saved bytes are `zengine.view.Description`, refused by version
-// number before a field is read; a pane the Pane Creator saved reads as one too. Law:
-// agents/view.md. Reference: docs/reference/view.md.
-
-#include "view/creator_pane.hpp"
+// number before a field is read. Law: agents/view.md. Reference: docs/reference/view.md.
 
 #include "maker/files.hpp"
-#include "surface/region.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <zen/gate.hpp>
@@ -46,8 +42,7 @@ inline constexpr std::int64_t kFormatVersion = 2;
 inline constexpr std::size_t kMaxNameBytes = 32;
 inline constexpr std::size_t kMaxElements = 64;
 inline constexpr std::size_t kMaxIdBytes = 32;
-/// A label's words: a line of prose, as long as a Pane Creator region's line could be.
-inline constexpr std::size_t kMaxLabelBytes = 256;
+inline constexpr std::size_t kMaxLabelBytes = 64;
 /// The longest text a number field holds.
 inline constexpr std::size_t kMaxFieldTextBytes = 32;
 /// A place or a size in whole pixels, `surface::kCanvasCellPx` to a cell, at most this.
@@ -568,71 +563,13 @@ inline Admitted admit(const loom::Value& v) {
     }
 }
 
-/// ADMIT A PANE THE PANE CREATOR SAVED, as a view of labels, from a value that passed the gate at
-/// its file's shape: the format word and version, then one label per text region -- its text as
-/// the label, its place and size the pixels Workshop painted it on, each edge floored from the
-/// file's sub-units -- under the pane's name as a view's name (`view_name_of_creator_pane`), sized
-/// as a description with no size is (`fitting_size`), then `problem`.
-inline Admitted admit_creator_pane(const loom::Value& v) {
-    try {
-        const auto file = loom::from_value<WorkshopPaneDefinition>(v);
-        if (file.format != kCreatorPaneFormat)
-            return Admitted::no("not a Pane Creator pane: it says it is `" + file.format + "`");
-        if (file.format_version != kCreatorPaneFormatVersion)
-            return Admitted::no("a Pane Creator pane whose version field says " +
-                                std::to_string(file.format_version) +
-                                " inside an envelope of version " +
-                                std::to_string(kCreatorPaneFormatVersion) + " is a forgery");
-        Description d;
-        d.name = view_name_of_creator_pane(file.name);
-        const auto px = [](std::int64_t subs) { return surface::floor_div_px(subs, kCreatorSubsPerPixel); };
-        for (const auto& r : file.regions) {
-            if (r.kind != kCreatorRegionText)
-                return Admitted::no("region #" + std::to_string(r.id) + " is a `" + r.kind +
-                                    "`; a Pane Creator region is `" + kCreatorRegionText + "`");
-            Element e;
-            e.id = "region" + std::to_string(r.id);
-            e.kind = Kind::label;
-            e.label = r.text;
-            e.x = px(r.x);
-            e.y = px(r.y);
-            e.w = px(surface::add_cells(r.x, r.width)) - e.x;
-            e.h = px(surface::add_cells(r.y, r.height)) - e.y;
-            d.elements.push_back(std::move(e));
-        }
-        std::tie(d.width, d.height) = fitting_size(d);
-        if (auto why = problem(d); !why.empty()) return Admitted::no(why);
-        Admitted a;
-        a.ok = true;
-        a.description = std::move(d);
-        return a;
-    } catch (const std::exception& e) {
-        return Admitted::no(e.what());
-    }
-}
-
 /// READ A DESCRIPTION: the envelope's claim first -- another shape, or a version this build does
 /// not read, is refused by its number before a field is decoded -- then the gate at that
 /// version's shape, then `admit`. Version 1 reads with the size its elements fit, and is written
-/// again as the current version. A pane the Pane Creator saved, which is Zen's JSON text rather
-/// than its binary, reads the same way (`admit_creator_pane`), and is written as the current
-/// version too.
+/// again as the current version.
 inline Admitted read_description(std::string_view bytes) {
     const loom::Unverified claim = loom::parse(bytes);
-    if (!claim.well_formed()) {
-        const loom::Unverified text = loom::compat::parse(bytes);
-        if (text.well_formed() && text.claimed_name() == WorkshopPaneDefinition::zen_name) {
-            if (text.claimed_version() != WorkshopPaneDefinition::zen_version)
-                return Admitted::no("a Pane Creator pane of version " +
-                                    std::to_string(text.claimed_version()) +
-                                    "; this build reads version " +
-                                    std::to_string(WorkshopPaneDefinition::zen_version));
-            auto admitted = loom::admit(text, loom::schema_of<WorkshopPaneDefinition>());
-            if (!admitted) return Admitted::no(admitted.first_error().message());
-            return admit_creator_pane(admitted.value());
-        }
-        return Admitted::no("these bytes are not a Zen value");
-    }
+    if (!claim.well_formed()) return Admitted::no("these bytes are not a Zen value");
     if (claim.claimed_name() != description_schema()->name())
         return Admitted::no("not a view description: the bytes claim `" + claim.claimed_name() + "`");
     const bool first = claim.claimed_version() == 1;

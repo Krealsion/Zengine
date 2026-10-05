@@ -502,9 +502,7 @@ restart only through a [toolbox](toolboxes.md).
 A pane you make from data is a [view](panes.md#a-pane-of-your-own--a-view), with the [View
 Builder's limits](view-builder.md#limits): labels, whole-number fields and buttons, side by
 side. A code-backed pane's `INTERIOR` is a read-only capture of its body, never a decomposition
-of its painter, and a loaded pane's is its provider's own; Info edits no pane's inside. A file
-the retired Pane Creator saved opens as a view of labels, one per region, and nothing more: its
-regions were text and nothing else.
+of its painter, and a loaded pane's is its provider's own; Info edits no pane's inside.
 
 ### Cross-pane interaction is typed values and references, and no more
 

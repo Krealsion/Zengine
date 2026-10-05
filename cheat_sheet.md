@@ -552,8 +552,7 @@ The Pane Manager is itself a pane: arrange it, close it, or replace the desktop 
 
 **A pane of your own** (in the Pane Manager) — `n` shows the **View Builder**, where you lay out
 labels, number fields and buttons, save the view and run it in its own pane; it runs again when
-you relaunch. A file the retired Pane Creator saved (`workshop-pane.json`) opens there as a view.
-See [a pane of your own](docs/workshop/panes.md#a-pane-of-your-own--a-view).
+you relaunch. See [a pane of your own](docs/workshop/panes.md#a-pane-of-your-own--a-view).
 
 **Info** (press into it) — the panes, and the properties of the one you inspect. `↑` `↓`
 step; `Enter` on a pane inspects it; `Tab` moves between the list and the properties; `Enter`

@@ -133,9 +133,6 @@ struct Arguments {
     std::string document;
     /// The setup file: the arrangement a weaver saved, a PROJECT file resolved like the others.
     std::string setup = zengine::workshop::kDefaultSetupFileName;
-    /// A Pane Creator file a launch still names (`--pane`), or empty: read so an old launch line
-    /// starts, then said once and left alone -- the View Builder opens such a file as a view.
-    std::string pane;
     /// The last-session file, written by nobody's gesture.
     // WL-SESSION-02 -- agents/workshop/session.md
     std::string session;
@@ -179,7 +176,7 @@ Arguments parse_arguments(int argc, char** argv) {
             args.isolated = true;
             continue;
         }
-        if (arg == "--document" || arg == "--setup" || arg == "--pane" ||
+        if (arg == "--document" || arg == "--setup" ||
             arg == "--session" || arg == "--keymap" || arg == "--prefs" || arg == "--marks" ||
             arg == "--load-plan" || arg == "--recipes" || arg == "--log" ||
             arg == "--dump" || arg == "--guests" || arg == "--read-log") {
@@ -244,15 +241,6 @@ Arguments parse_arguments(int argc, char** argv) {
                 args.guests = value;
             } else if (arg == "--setup") {
                 args.setup = value;
-            } else if (arg == "--pane") {
-                // Retired with the Pane Creator, and read so it can be said; empty is still a
-                // complaint.
-                if (value.empty()) {
-                    args.ok = false;
-                    args.complaint = "--pane needs a path";
-                    return args;
-                }
-                args.pane = value;
             } else {
                 // `--document` is retired, and read so it can be said; empty is still a complaint.
                 if (value.empty()) {
@@ -343,8 +331,6 @@ int main(int argc, char** argv) {
         }
     }
     host.setup_path = args.setup;
-    // A Pane Creator file this launch names: said once at startup, and never read here.
-    host.retired_pane = args.pane;
 
     // ---- The weaver's own files, by the pinned precedence ---------------------------------------
     // Explicit path, then isolation, then the per-user default (`user_paths.hpp` owns the rule).
@@ -412,9 +398,6 @@ int main(int argc, char** argv) {
                 host.retired_document.empty() ? "" : " -- left as it is: ",
                 host.retired_document.c_str());
     std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
-    std::printf("zengine-workshop - pane: retired with the Pane Creator -- a pane of your own is a "
-                "view the View Builder makes%s%s\n",
-                host.retired_pane.empty() ? "" : "; it opens ", host.retired_pane.c_str());
     // The project, said once. Its absence has two causes and one sentence, true of both.
     std::printf("zengine-workshop - project: %s\n",
                 host.project_dir.empty()

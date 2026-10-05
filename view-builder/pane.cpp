@@ -5,7 +5,6 @@
 // docs/workshop/view-builder.md.
 #include "view-builder/picture.hpp"
 #include "view-builder/vocabulary.hpp"
-#include "view/creator_pane.hpp"
 #include "view/vocabulary.hpp"
 
 #include "activation/activation.hpp"
@@ -893,12 +892,10 @@ private:
         if (!error.empty()) model_.notice += " (not remembered for the next launch: " + error + ")";
     }
     /// A LAUNCH: open the view file the project file names and, if its view ran, run it again with
-    /// its pane asking nothing -- the desk the weaver left seats it. A project with no such file
-    /// runs the pane the Pane Creator saved there, read as a view.
+    /// its pane asking nothing -- the desk the weaver left seats it.
     void resume(loom::Mail& mail) {
         std::string path;
         bool run = false;
-        bool recorded = false;
         std::error_code ec;
         const auto record_path = in_project(vb::kRunFileName);
         if (std::filesystem::exists(record_path, ec)) {
@@ -920,17 +917,13 @@ private:
             }
             path = record.path;
             run = record.running;
-            recorded = true;
-        } else if (std::filesystem::exists(in_project(view::kCreatorPaneFileName), ec)) {
-            path = in_project(view::kCreatorPaneFileName);
-            run = true;
         }
         if (path.empty()) return;
         try {
             effect(model_.command("open", {in_project(path), "discard"}), mail);
             from_corner();
             file_ = model_.path;
-            remembered_ = recorded ? std::make_pair(path, run) : std::make_pair(std::string(), false);
+            remembered_ = {path, run};
             if (!run) {
                 remember();
                 return;

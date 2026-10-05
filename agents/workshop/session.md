@@ -15,12 +15,10 @@ MEANS
 
 DOES NOT MEAN
 - that an old object document is read: `--document` names one to be said and left (WL-DOC-22).
-- that Workshop reads a Pane Creator file: `--pane` names one to say once, for the View Builder.
 
 PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/weave.hpp`
 `HostContext::retired_document`, `HostContext::setup_path`, `HostContext::session_path`,
-`HostContext::retired_pane`, `HostContext::keymap_path`,
-`HostContext::prefs_path`; `workshop/workshop.cpp` `Arguments`;
+`HostContext::keymap_path`, `HostContext::prefs_path`; `workshop/workshop.cpp` `Arguments`;
 `tests/test_workshop_persistence.cpp` case `"the two Windows roots are the platform's own
 conventions"`, case `"the two XDG roots, and their home fallbacks"`, case `"the host
 resolves the weaver's files through the one precedence"`.
