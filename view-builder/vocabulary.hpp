@@ -32,14 +32,15 @@ struct ViewEdited {
     ZEN_SHAPE(ViewEdited, 1, ZEN_FIELD(ok), ZEN_FIELD(reason), ZEN_FIELD(description));
 };
 
-/// The draft, its file and whether it is saved; and whether the view host runs it for this
+/// The draft; the name in its File box, which a weaver may have typed and not saved, and the file
+/// it was saved to or opened from; whether it is saved; and whether the view host runs it for this
 /// office, which a reload in place cannot ask again. Never a dialog, a grant or a gesture.
 struct BuilderState {
     loom::Bytes description;
-    std::string path;
+    std::string path, file;
     bool dirty = false, running = false;
-    ZEN_SHAPE(BuilderState, 1, ZEN_FIELD(description), ZEN_FIELD(path), ZEN_FIELD(dirty),
-              ZEN_FIELD(running));
+    ZEN_SHAPE(BuilderState, 2, ZEN_FIELD(description), ZEN_FIELD(path), ZEN_FIELD(file),
+              ZEN_FIELD(dirty), ZEN_FIELD(running));
 };
 
 /// THE VIEW BUILDER'S OWN PROJECT FILE, beside the views it saves: the view file it has open -- a

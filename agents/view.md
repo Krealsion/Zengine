@@ -76,12 +76,16 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   the label it would land on.
 - A gesture, the pan, the grid, a box being typed into and a mark are the builder's
   presentation: never saved, kept across a reload or offered to the host; no pan, grid or snap is
-  in a description. A reload in place keeps the draft, file and whether
-  its view runs, and so does a relaunch: the builder writes the file it has open (a file inside
-  the project named relative to it, so a project moved whole still finds it) and whether its view
-  runs to the project's `view-builder.json` (`view_builder::ViewBuilderRun`) when either changes, and at its first activation asks `zengine.project` for the project, opens that file
-  and, if its view ran, runs it again by `view::ViewResume`: a run whose pane asks nothing of the
-  desk, so the restored desk seats it where it stood or leaves it hidden. An intent is made
+  in a description. A reload in place keeps the draft, the name in its File box and, apart from
+  it, the file the view was saved to or opened from (`view_builder::BuilderState::file`), and
+  whether its view runs. So does a relaunch: the builder writes that file (inside the project,
+  named relative to it, so a project moved whole still finds it) and whether its view runs to the
+  project's `view-builder.json` (`view_builder::ViewBuilderRun`) when either differs from what the
+  file holds, and counts it held only once the write succeeds, so a write that failed is made at
+  the next chance, a successor's first included. At its first activation the builder asks
+  `zengine.project` for the project and reads that file; at a launch it opens the view the file
+  names and, if its view ran, runs it again by `view::ViewResume`: a run whose pane asks nothing
+  of the desk, so the restored desk seats it where it stood or leaves it hidden. An intent is made
   through `flow/shape.hpp`. The builder carries an intent's
   shape out, with the shapes it nests (`flow::shape::carried`), by a press's drag or a menu
   choice, and takes a shape, a value or an Info field dropped on a label, on the canvas or its
@@ -95,7 +99,8 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   refusal, in-place and fresh apply, a replacement that cannot register, stop, and the terminal
   picture; `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
   the side handles, the pan, the size, nothing outside it, the grid, the boxes, the marks and the
-  terminal floor, and the run again at a launch; `tests/test_view.cpp` also the size, a version 1
+  terminal floor, the run again at a launch, and the launch record across a reload and a failed
+  write; `tests/test_view.cpp` also the size, a version 1
   description, a view asking for its size, and a resumed view; the
   panes suite the view and the builder through
   Workshop's real seat, pointer route, drag carry and canvas admission.
