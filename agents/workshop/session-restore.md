@@ -118,15 +118,18 @@ LAW — The restore runs once per process, guarded by a flag, because the surfac
 
 MEANS
 - the flag is set before the file is opened, so a refusal is final too;
-- `load_file` asks `exists` first, so a first launch is not an error and stays silent.
+- `load_file` asks `exists` first, so a first launch is not an error and stays silent;
+- its sentence takes the unit the first `SurfaceExtent` names, unless another was said since.
 
-PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/weave.hpp`
+PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`, `restore_notice_text`,
+`respell_restore_notice`; `workshop/weave.hpp`
 `WorkshopWeave::restored_`; `workshop/session_persist.hpp` `LoadedSession::present`,
 `LoadedSession::outcome`, `LoadedSession`, `load_file`, `LoadedSession::honoured`,
 `LoadedSession::declined`; `surface/vocabulary.hpp` `SurfaceReady`;
 `tests/test_workshop_persistence.cpp` case `"the room is taken back only ONCE, however often a
 surface says hello"`, case `"a first launch is not an error, and needs no file to exist"`,
-case `"a malformed session costs the desk and nothing else"`.
+case `"a malformed session costs the desk and nothing else"`, case `"the restore notice says the
+room in the unit the medium names: pixels in a window, cells in a terminal"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-16 — Neither direction opens a setup file

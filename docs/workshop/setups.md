@@ -236,29 +236,30 @@ What comes back:
 | which panes were open | yes — per layout |
 | where each was placed, and how big | yes — the authored values, exactly as saved |
 | which pane was in front | yes |
-| the size of the Workshop window | yes, **to the nearest whole cell** — see below |
+| the size of the Workshop window | yes, **to the pixel** — see below |
 | the window's screen position | **yes**, on a graphical run — validated against the monitors that exist now; see [limitations](limitations.md#the-window-comes-back-where-you-left-it-into-the-desktop-that-exists-now) |
 | whether it was maximized | **yes**, beside the *normal* size and place unmaximizing returns to |
 
-The status line says what happened, in the notice row:
+The status line says what happened, in the notice row, with the room in your medium's unit --
+pixels in a window:
 
 ```text
-reopened your last desk "Debugging" -- 120x44 cells
+reopened your last desk "Debugging" -- 1440x528 px
 ```
 
-...and when more than one layout came back, it says which one of how many you are standing on:
+...cells in a terminal (`120x44 cells`), and when more than one layout came back, which one of
+how many you are standing on:
 
 ```text
-reopened your last desk "Code" (2 of 3 layouts) -- 120x44 cells
+reopened your last desk "Code" (2 of 3 layouts) -- 1440x528 px
 ```
 
-### Why the window size is in cells
+### Why the window size is in pixels
 
 Workshop does not own its window. Whichever Skin holds `zengine.skin` does, and the only thing
-that Skin ever tells Workshop about the room is how many **canvas cells** it has. So that is
-what is written down, and a graphical medium turns cells back into pixels on the way out. The
-honest cost is a bound rather than a hope: **you get back the size you chose, floored to whole
-cells** — at most eleven pixels short on each axis.
+that Skin ever tells Workshop about the room is how many **canvas pixels** it has. So that is
+what is written down, and **you get back the size you chose, to the pixel**. A terminal keeps
+its own size: there the notice says the saved room in cells, and the terminal's size stands.
 
 ### When it cannot be honoured
 

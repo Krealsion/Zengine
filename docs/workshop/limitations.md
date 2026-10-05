@@ -109,8 +109,8 @@ geometry](panes.md#reading-a-panes-geometry--and-whose-number-it-is).
 
 ### The window comes back where you left it, into the desktop that exists now
 
-The last session restores the **size** of the Workshop window (in canvas cells, to the nearest
-whole cell), its **desktop position**, and whether it was **maximized** — a maximized close
+The last session restores the **size** of the Workshop window (in canvas pixels, to the
+pixel), its **desktop position**, and whether it was **maximized** — a maximized close
 comes back maximized, and unmaximizing lands on the size and place you had before maximizing.
 
 Two honest bounds. First, the remembered position is validated against the monitors that exist

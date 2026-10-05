@@ -1027,6 +1027,25 @@ private:
     /// WRITE DOWN THE DESK AND THE ROOM, ON THE WAY OUT.
     void save_last_session();
 
+    /// THE RESTORE'S SENTENCE, kept while it may stand in the wrong unit: the desk it reopened and
+    /// the layouts it counted, the room in canvas pixels, what was declined and what changed hands.
+    struct RestoreNotice {
+        std::string head;
+        std::int64_t w = 0;
+        std::int64_t h = 0;
+        std::string tail;
+        bool bad = false;
+        std::uint64_t said = 0; ///< `notices_said_` once it was said
+    };
+
+    /// THE SENTENCE IN ONE MEDIUM'S UNIT: the room spelled as `cell_px` names it, marked where that
+    /// unit cannot say it exactly.
+    static std::string restore_notice_text(const RestoreNotice& n, std::int64_t cell_px);
+
+    /// A MEDIUM NAMED ITS UNIT: the restore's sentence, said before any medium had named one, is
+    /// said again in this one while nothing has been said since. True when it was.
+    bool respell_restore_notice(std::int64_t cell_px);
+
     // ---- PANE MANAGEMENT: arrange the windows, and never lose one -------------
 
     /// THE ROWS A WEAVER MAY ARRANGE: the shared inventory, restricted to what the setup
@@ -1486,6 +1505,16 @@ private:
     /// WHETHER THE SESSION FILE THIS RUN FOUND COULD BE READ.
     // WL-SESSION-15 -- agents/workshop/session.md
     bool session_refused_ = false;
+
+    /// THE RESTORE'S SENTENCE while no medium has named its unit, and whether one has. A window
+    /// names its own only after its first picture, so a restore before it spells the room in the
+    /// cell, the vocabulary's word for a medium that has said nothing, and the first
+    /// `SurfaceExtent` spells it again.
+    std::optional<RestoreNotice> restore_notice_;
+    bool medium_unit_known_ = false;
+
+    /// How many notices this run has said, so a sentence can tell whether another came after it.
+    std::uint64_t notices_said_ = 0;
 
     /// Whether this run read its keymap; what reading it did waits in `keymap_word_` for the first
     /// surface. A file that could not be admitted is a standing wall (`kKeymapWallKey`).

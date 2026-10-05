@@ -189,8 +189,13 @@ void WorkshopWeave::on(const zengine::surface::SurfaceReady&, loom::Mail& mail) 
 
 // WL-GEO-08 -- agents/workshop/geometry.md
 void WorkshopWeave::on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) {
+    // The medium names its unit here, so the restore's sentence is spelled in it.
+    const bool respelled = respell_restore_notice(e.cell_px);
     if (!adopt_screen(session_, e.width, e.height, e.text_advance_px, e.text_line_px,
                       e.cell_px)) {
+        if (respelled) {
+            repaint(mail);
+        }
         return;
     }
     // The normal window's room follows the screen, except while this run's medium says the window

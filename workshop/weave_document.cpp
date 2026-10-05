@@ -20,6 +20,7 @@ void WorkshopWeave::refresh_setup_name() {
 void WorkshopWeave::say(std::string text, bool bad) {
     session_.notice = std::move(text);
     session_.notice_is_bad = bad;
+    ++notices_said_;
 }
 
 // WL-DOC-23 -- agents/workshop/document-file.md
