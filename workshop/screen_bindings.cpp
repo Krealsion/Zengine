@@ -31,6 +31,19 @@ std::string arrows_text(const Keymap& k, Act left, Act right, Act up, Act down) 
 // WL-KEY-09, WL-KEY-15 -- agents/workshop/keyboard.md
 std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_t pane) {
     std::vector<std::string> out;
+    // The application's rows above every mode, as they are in force (WL-DESK-07): a moved launch
+    // is taught where it moved, and a disabled one not at all. WHERE NO PANE HOLDS THE KEYS THEY
+    // LEAD: nothing is painted behind the panes, so the band is where a fresh Workshop says how
+    // to open a pane, and it says it before anything a narrow band could cut.
+    std::vector<std::string> launches;
+    for (const AppRow& row : k.app) {
+        if (row.precedence == app_precedence::kAboveModes && k.app_row_active(row, ctx, pane)) {
+            launches.push_back(gesture_text(row.gesture) + " " + row.label);
+        }
+    }
+    if (ctx != KeyContext::kPane) {
+        out = launches;
+    }
     // A FOCUSED PANE'S OWN ROWS COME FIRST, as a built-in context's own rows do: what the
     // pane declared, spelled through the same effective map dispatch reads, so an override
     // a weaver authored for a pane's id is what the band teaches. A row with no gesture
@@ -80,12 +93,9 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
     };
     take(true);
     take(false);
-    // ...and the application's rows above every mode, as they are in force (WL-DESK-07): a
-    // moved launch is taught where it moved, and a disabled one not at all.
-    for (const AppRow& row : k.app) {
-        if (row.precedence == app_precedence::kAboveModes && k.app_row_active(row, ctx, pane)) {
-            out.push_back(gesture_text(row.gesture) + " " + row.label);
-        }
+    // ...and where a pane holds the keys, its own rows led and the launches come last.
+    if (ctx == KeyContext::kPane) {
+        out.insert(out.end(), launches.begin(), launches.end());
     }
     return out;
 }

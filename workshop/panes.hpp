@@ -5,9 +5,8 @@
 #define ZENGINE_WORKSHOP_PANES_HPP
 
 // The pane catalog, the panes open this session, and each open pane's view.
-// Workshop law: agents/workshop/maker-pane.md (+10 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/panes-and-windows.md (+9 registers; agents/workshop.md routes)
 
-#include "pane_definition.hpp"
 #include "pane_vocabulary.hpp"
 #include "pane_canvas_vocabulary.hpp"
 #include <zen/switchboard/message.hpp>
@@ -57,12 +56,6 @@ inline constexpr std::int64_t kTopBand = 2;
 /// below carries, and the first half of a durable `PaneRef`.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 inline constexpr const char* kWorkshopProvider = "zengine.workshop";
-
-/// WHOSE PANES THE WEAVER-MADE ONES ARE -- the provider half of the durable `PaneRef` a pane
-/// created inside Workshop carries (`weaver_pane_ref`, setup.hpp), and a namespace this
-/// application OWNS.
-// WL-MAKER-03 -- agents/workshop/maker-pane.md
-inline constexpr const char* kMakerPaneProvider = "zengine.workshop.maker";
 
 /// The Info pane's office, spelled for `default_setup`'s desk and not a catalog row. A literal:
 /// this host does not link the weave, and a case checks the two spellings agree.
@@ -117,7 +110,6 @@ inline constexpr const BuiltinPane& builtin_pane(std::int64_t kind) noexcept {
 
 /// WHERE THE SESSION-LOCAL KINDS BEGIN, and the whole of how a runtime
 /// pane is told from a built-in one.
-// WL-MAKER-04 -- agents/workshop/maker-pane.md
 // WL-CAT-01 -- agents/workshop/catalog.md
 inline constexpr std::int64_t kFirstRuntimeKind = 1024;
 
@@ -127,36 +119,21 @@ inline constexpr bool is_runtime_kind(std::int64_t kind) noexcept {
     return kind >= kFirstRuntimeKind;
 }
 
-/// THE HANDLE A WEAVER-MADE PANE IS PRESENTED UNDER -- a third class of kind beside the
-/// compile-time built-ins and the session-minted runtime handles.
-// WL-MAKER-03, WL-MAKER-04 -- agents/workshop/maker-pane.md
-inline constexpr std::int64_t kWeaverPaneKind = 512;
-
-/// Is this the weaver-made pane's handle?
-inline constexpr bool is_weaver_kind(std::int64_t kind) noexcept { return kind == kWeaverPaneKind; }
-
-static_assert(kWeaverPaneKind < kFirstRuntimeKind,
-              "the weaver-made pane's handle sits below the runtime range, so no arithmetic can "
-              "confuse the two");
-
 /// WHERE THIS KIND IS PRESENTED — the question a painter asks instead of knowing
 /// a column.
-// WL-MAKER-04 -- agents/workshop/maker-pane.md; WL-PANE-01 -- agents/workshop/panes-and-windows.md
+// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t placement_of(std::int64_t kind) noexcept {
-    if (is_runtime_kind(kind) || is_weaver_kind(kind)) {
+    if (is_runtime_kind(kind)) {
         return placement::kOverlayStack;
     }
     return builtin_pane(kind).placed_in;
 }
 
 /// MAY A PRESS INTO THIS KIND POINT THE KEYBOARD AT IT?
-// WL-FOCUS-02 -- agents/workshop/focus.md; WL-MAKER-04 -- agents/workshop/maker-pane.md
+// WL-FOCUS-02 -- agents/workshop/focus.md
 inline constexpr bool kind_takes_keyboard(std::int64_t kind) noexcept {
     if (is_runtime_kind(kind)) {
         return true;
-    }
-    if (is_weaver_kind(kind)) {
-        return false;
     }
     return builtin_pane(kind).takes_keyboard;
 }
@@ -438,10 +415,6 @@ struct Panes {
     /// The panes offered to this run. Here rather than in `Session` because every question that
     /// needs a runtime pane's name or place is already handed a `Panes`.
     RuntimeCatalog runtime;
-    /// THE ONE WEAVER-MADE PANE THIS RUN HAS OPEN (`pane_definition.hpp`): its durable
-    /// name, its authored interior, the file it stands for and the last value that file held.
-    // WL-MAKER-01, WL-MAKER-08 -- agents/workshop/maker-pane.md
-    WeaverPane weaver;
     /// Each open external pane's view: made by the open door, destroyed by the close door.
     std::vector<ExternalPane> external;
     /// AUTHORED INTENT THIS SCREEN HAS NO ROOM FOR, as resolved kinds, in setup

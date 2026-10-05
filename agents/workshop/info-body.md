@@ -77,7 +77,7 @@ LAW — A `PaneRoom` grant keeps the draft; a picture whose rows the host named 
 
 MEANS
 - draft identity is the host’s row identity and the drafted property’s label;
-- a room, a moved value or a provider keeps the name; another pane, desk or row layout does not;
+- a room, a moved value or a provider keeps the name; another pane or desk does not;
 - abandonment says so; a sent commit remains sent.
 
 DOES NOT MEAN
@@ -217,7 +217,7 @@ WHY — `agents/decisions/an-undelivered-ask-is-released.md`
 LAW — Info names its pane-property subject; the host holds its rows. Selection, focus, Escape and switching views preserve it. Info may inspect itself.
 
 MEANS
-- row identity covers the pane, desk and row layout; changing any renames the rows;
+- row identity covers the pane and the desk; changing either renames the rows;
 - an absent pane is refused without movement; an arriving inspector is answered;
 - nothing is published about a subject until one is named.
 
@@ -226,7 +226,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `InspectPaneRequested`,
 `PaneSubjectRequested`, `PaneSubjectShown`; `workshop/screen.hpp` `InspectedPane`,
-`pane_subject_rows`, `pane_subject_shown`; `workshop/screen_pane_subject.cpp` `inspected_region`,
+`pane_subject_rows`, `pane_subject_shown`; `workshop/screen_pane_subject.cpp`
 `pane_subject_shown`, `pane_subject_rows`; `workshop/setup.hpp` `SetupState::put_live`;
 `workshop/weave_inspection.cpp` `refresh_inspected`, `on(InspectPaneRequested)`,
 `on(PaneSubjectRequested)`, `publish_pane_subject`; `tests/test_workshop_panes_info.cpp` case
@@ -239,7 +239,7 @@ WHY — `agents/decisions/an-inspector-names-its-subject.md`
 
 ## WL-INFO-15 — A property edit is the owner's write, through a door the desk already has
 
-LAW — A commit names the rows, the row and the text; the host judges the name first, writes through the row's own setter — the setup's gesture or reset door, a definition's region door — and reseats.
+LAW — A commit names the rows, the row and the text; the host judges the name first, writes through the row's own setter — the setup's gesture or reset door — and reseats.
 
 MEANS
 - a refusal is the owner's own sentence (a unit it does not read, a pane with no room);

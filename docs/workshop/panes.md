@@ -21,11 +21,9 @@ tell them apart to use them:
   pane is shown, hidden and made, and **Hotkeys**. `Info`, `Builder`, `Attention`, `Files`,
   `Editor`, `Terminal`, `Loaded`, `Project`, `Powers` and `Compose` arrive the same way. `Info`
   is the one your desk names for you, so it is on screen on a first run.
-- **a pane you made** — a pane whose inside is authored data rather than compiled code,
-  made in the Pane Manager by the [Pane Creator](#the-pane-creator--a-pane-made-of-data)
-  and kept in a project file of its own.
-- **a view you described** — a panel of number fields, buttons and labels made by hand in the
-  [View Builder](view-builder.md) and run as a participant of its own, in its own pane.
+- **a pane you made** — a view: a panel of number fields, buttons and labels made by hand in
+  the [View Builder](view-builder.md) (`n` in the Pane Manager shows it) and run as a
+  participant of its own, in its own pane — [a pane of your own](#a-pane-of-your-own--a-view).
 
 ## Showing, going to and hiding — the Pane Manager
 
@@ -51,8 +49,7 @@ PANES -- 8
 | `Enter` | show it and put you in it — or, if it is shown, just go to it |
 | `x` | hide it: take it off the layout |
 | `m` | the row's menu: show / focus / hide, `manage <pane> >`, `inspect in Info` |
-| `n` | make a pane of your own — the [Pane Creator](#the-pane-creator--a-pane-made-of-data) |
-| `s` / `Ctrl`+`d` | save the pane you made / discard its unsaved edits |
+| `n` | make a pane of your own — shows the [View Builder](#a-pane-of-your-own--a-view) |
 
 **By mouse.** Click the mark — `[    ]` or `[open]` — and the pane is shown or hidden; click the
 name and the marker moves there, opening nothing; click the marked name **again**, with the keys
@@ -495,13 +492,11 @@ Reading the resolved rows never writes anything. Resize the window, switch to th
 select other panes, look as long as you like: the authored values are byte-for-byte what they
 were.
 
-`INTERIOR` says what is **inside** the subject, honestly for each kind. A pane you made
-exposes its regions there, because regions are what it is made of — see [the Pane
-Creator](#the-pane-creator--a-pane-made-of-data). Every other pane is code, or a loaded
-weave's own, and the row is a read-only capture of its resolved body — where it is and how
-many rows of type it holds — and the plain statement that it has no authored interior. Info
-does not decompose a compiled painter, infer its controls, or pretend a provider's rows are a
-definition.
+`INTERIOR` says what is **inside** the subject, honestly: a pane is code, or a loaded weave's
+own — a view you made is its own participant's — and the row is a read-only capture of its
+resolved body — where it is and how many rows of type it holds — and the plain statement that
+it has no authored interior. Info edits no pane's inside: it does not decompose a compiled
+painter, infer its controls, or pretend a provider's rows are a definition.
 
 **Editing is a draft, written through the desk's own door.** `Tab` moves the keys between
 Info's list and the subject's rows; `↑` `↓` step; `Enter` on `X`, `Y`, `Width` or `Height`
@@ -529,78 +524,17 @@ Nothing here is a safe mode. If you author a rectangle you cannot reach, the rec
 it always was: the Pane Manager, `-` in a row or `0` in the arrangement, the default desk, and
 `--isolated`.
 
-## The Pane Creator — a pane made of data
+## A pane of your own — a view
 
-Every other pane exists because somebody compiled its painter into Workshop, or because a
-loaded weave offered one. The Pane Creator is the first way a pane exists because **you
-described one**: a pane whose inside is authored data — a name, and a list of regions — kept
-in a project file of its own.
+Press **`n`** in the Pane Manager and the [View Builder](view-builder.md) shows: lay out labels,
+number fields and buttons by hand, save the description to a project file, and **Run** it. The
+view is a participant of its own, in its own pane, which Workshop seats as it seats any other —
+move it, cover it, hide it, inspect it in Info. Workshop holds nothing of it. The View Builder
+keeps the file it has open and whether its view runs, and when you launch Workshop again it
+runs that view again, its pane where your layout left it — or still hidden, if you hid it. A
+Workshop without the View Builder says so when you press `n`, in the launch's own words.
 
-Open the **Pane Manager** (`Ctrl`+`p`) and press **`n`**. A name line opens under its heading
-(`new pane: `): type a name — plain ASCII, no spaces; it becomes the pane's durable identity —
-then `Enter` makes the pane, `Esc` cancels. Paste works; a name Workshop refuses stays in the
-line with the reason under it, for you to correct — and so does one that never reached Workshop
-(`make not delivered -- nothing changed (…)`), for the next `Enter`. The new pane appears on
-the current layout at an ordinary pane's default place (or `waiting` for room, if the stack is
-full on this screen). Inspect it in **Info**, and its one **text region**'s rows are under
-`INTERIOR`:
-
-```text
-INTERIOR
- Region   #1 text -- the Pane Creator made it
->Text
- X        0 cells
- Y        0 cells
- Width    24 cells
- Height   2 cells
- Resolved @0,0 24x2 cells
- Shown    2 rows x 24 columns, presented as cells
-```
-
-`Text` is what the region says (one line, plain ASCII). `X` `Y` `Width` `Height` are the
-region's place and extent **inside the pane** — relative to the pane's interior, never to the
-screen — in the unit your face reports: cells in a terminal, pixels in a window. Type `126`
-for `X` in a window and the region sits at pixel 126 of the pane's interior; open the same
-pane in a terminal and the same value reads `~10 cells (~ projected)`, marked because a
-terminal cannot say it exactly. Nothing about looking changes the stored value. `Resolved`
-and `Shown` are what this screen made of the region right now: where it landed (`clipped by
-the pane` if you authored it past the edge), and how many rows and columns of type it holds —
-or `presented as cells` where the face could not set a row of type in it, or `no room` where
-nothing of it is drawn.
-
-While Info's subject is your pane, the region you are editing is **marked on the pane
-itself**: its exact resolved rectangle is filled in the accent colour with its text
-written over it, so you can see which rectangle the rows describe. The mark is drawn from
-the same resolution that painted the region, and it writes nothing.
-
-| key (in the Pane Manager) | does |
-|---|---|
-| `n` | new pane — type a name, `Enter` makes it, `Esc` cancels |
-| `s` | save the open pane to its file |
-| `Ctrl`+`d` | discard unsaved pane edits — back to what the file holds; a pane never saved closes whole |
-
-**The pane is a project file of its own** — `--pane <path>`, default `workshop-pane.json`
-under the project directory — beside the setup, and it holds *what* the pane
-is: its name and its regions. *Where* it participates is the layout's, exactly as for every
-other pane, and comes back with the session. So save (`s`), quit, relaunch: the pane returns
-on the same layout by its durable reference `zengine.workshop.maker/<name>`, with the same
-text and the same authored numbers, on a window or a terminal alike. The file holds no pixel,
-no cell count, no font metric and no screen coordinate, and loading it can execute nothing:
-it has nowhere to name a callback, a role, a key, a path, an operator or a message.
-
-One pane definition is open at a time, the way one source document is. Unsaved pane edits
-are yours: quitting, making a second pane, or opening another definition over them is refused
-in words until you save or discard. A layout that names a pane whose file is absent keeps the
-row and reads it `unresolved` — the same retained intent an unresolved external pane has — and
-Info's `Provider` row says which file would resolve it.
-
-**What it is not.** A pane that must be told values, take typing or say something is a
-[described view](view-builder.md#the-view-builder-or-the-pane-creator), made in the View Builder.
-This is the first pane implementation whose inside is data, and it is deliberately small: one region kind (`text`), one line of static text, no controls, no
-wiring, no anchors or fill, no second region yet, and no renaming after the pane is made. It
-is one way a pane can be built, not what every pane must become: the built-in is still
-code, a loaded pane is still its provider's, and Info says so rather than pretending either
-is a definition.
+![n in the Pane Manager: the View Builder shown beneath it with the keys in it, ready to lay out a view](images/pane-manager-new-view-builder.png)
 
 ## Pane titles
 
@@ -618,8 +552,8 @@ title for exactly as long as the focus holds.
 
 ## Panes as an author
 
-If you want a pane that says a line of your own text, that is the [Pane
-Creator](#the-pane-creator--a-pane-made-of-data) above: no code, no weave, a project file.
+If you want a pane of labels, fields and buttons of your own, that is [a
+view](#a-pane-of-your-own--a-view) above: no code, no weave, a project file.
 If you want to *add* a pane that does something, that is [Making a Workshop
 tool](../guides/make-a-workshop-tool.md): start with a loaded, office-authored pane built against
 the installed package. It receives a bounded room, presses, keys, text, the wheel and declared

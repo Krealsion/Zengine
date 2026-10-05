@@ -1,148 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The screen's weaver-made pane, presented, and a pane as a subject: the rows an inspector reads it
-// by and the doors those rows write through.
+// A pane as a subject: the rows an inspector reads it by, the doors those rows write through, and
+// the read-only capture of its interior.
 // Workshop law: agents/workshop/pane-manager.md (+2 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
 
 namespace zengine::workshop {
 
-// ---- A WEAVER-MADE PANE, PRESENTED: authored regions on an offered interior -----------------
-
-RegionPresentation present_region(const TextRegion& r, const PixelRect& interior,
-                                  const Screen& sc) {
-    RegionPresentation p;
-    if (interior.empty()) {
-        return p;
-    }
-    p.asked = PixelRect{surface::add_cells(interior.x, r.x), surface::add_cells(interior.y, r.y),
-                       r.w, r.h};
-    p.shown = clip_to_px(p.asked, interior);
-    p.clipped = !(p.shown == p.asked);
-    if (p.shown.empty()) {
-        return p;
-    }
-    p.fit = surface::fit_region(p.shown.x, p.shown.y, p.shown.w, p.shown.h,
-                                     sc.text_advance_px, sc.text_line_px);
-    p.present = true;
-    return p;
-}
-
-surface::SurfaceTextRegion region_over(const PixelRect& r) {
-    surface::SurfaceTextRegion region;
-    const surface::SurfaceRect wire = wire_rect_of(r, surface::role::kFill);
-    region.x = wire.x;
-    region.y = wire.y;
-    region.w = wire.w;
-    region.h = wire.h;
-    return region;
-}
-
-const TextRegion* weaver_region(const Session& s, const PaneRef& ref, std::int64_t id) {
-    const WeaverPane& m = s.panes.weaver;
-    if (!m.open() || !(weaver_pane_ref(m.definition.name) == ref)) {
-        return nullptr;
-    }
-    return region_of(m.definition, id);
-}
-
-PixelRect weaver_pane_interior(const Session& s, const Screen& sc) {
-    const PaneBounds where = bounds_of(s.panes, s.setup.active, kWeaverPaneKind, sc);
-    if (!where.open || where.rect.empty()) {
-        return PixelRect{};
-    }
-    return pane_inside(where.rect, sc).rect;
-}
-
-std::string region_axis_text(const Session& s, const PaneRef& ref, std::int64_t id,
-                             std::size_t axis) {
-    const TextRegion* r = weaver_region(s, ref, id);
-    if (r == nullptr) {
-        return "--";
-    }
-    const std::int64_t v = axis == 0 ? r->x : axis == 1 ? r->y : axis == 2 ? r->w : r->h;
-    bool projected = false;
-    std::string out = geometry_amount_text(v, s.cell_px, projected) + " " +
-                      std::string(geometry_unit(s.cell_px));
-    if (projected) {
-        out += kProjectedNote;
-    }
-    return out;
-}
-
-Written write_region_axis(Session& s, const PaneRef& ref, std::int64_t id,
-                          std::size_t axis, const std::string& text) {
-    if (weaver_region(s, ref, id) == nullptr) {
-        return Written::no(ref_text(ref) + " is not the open pane definition -- nothing to author");
-    }
-    std::string_view body = text;
-    while (!body.empty() && body.front() == ' ') {
-        body.remove_prefix(1);
-    }
-    while (!body.empty() && body.back() == ' ') {
-        body.remove_suffix(1);
-    }
-    if (body == "-") {
-        return Written::no("a region has no default to reset to -- type a whole number of " +
-                           std::string(geometry_unit(s.cell_px)));
-    }
-    const FaceAmount typed = parse_face_amount(body, s.cell_px);
-    if (!typed.accepted) {
-        return Written::no(typed.refusal);
-    }
-    return author_region_axis(s.panes.weaver.definition, id, axis, typed.px);
-}
-
-Written write_region_text(Session& s, const PaneRef& ref, std::int64_t id,
-                          std::string text) {
-    if (weaver_region(s, ref, id) == nullptr) {
-        return Written::no(ref_text(ref) + " is not the open pane definition -- nothing to author");
-    }
-    return set_region_text(s.panes.weaver.definition, id, std::move(text));
-}
-
-std::string region_resolved_text(const Session& s, const PaneRef& ref, std::int64_t id) {
-    const TextRegion* r = weaver_region(s, ref, id);
-    if (r == nullptr) {
-        return "--";
-    }
-    const Screen sc = screen_of(s);
-    const PixelRect interior = weaver_pane_interior(s, sc);
-    const RegionPresentation p = present_region(*r, interior, sc);
-    if (!p.present) {
-        return "- (the pane is not presented, or the region lies outside it)";
-    }
-    const PixelRect local{p.shown.x - interior.x, p.shown.y - interior.y, p.shown.w, p.shown.h};
-    std::string out = pixel_rect_text(local, s.cell_px);
-    if (p.clipped) {
-        out += " (clipped by the pane)";
-    }
-    return out;
-}
-
-std::string region_shown_text(const Session& s, const PaneRef& ref, std::int64_t id) {
-    const TextRegion* r = weaver_region(s, ref, id);
-    if (r == nullptr) {
-        return "--";
-    }
-    const Screen sc = screen_of(s);
-    const RegionPresentation p = present_region(*r, weaver_pane_interior(s, sc), sc);
-    if (!p.present || p.fit.rows <= 0 || p.fit.columns <= 0) {
-        return "no room -- nothing of it is drawn on this face";
-    }
-    return std::to_string(p.fit.rows) + (p.fit.rows == 1 ? " row x " : " rows x ") +
-           std::to_string(p.fit.columns) + (p.fit.columns == 1 ? " column, " : " columns, ") +
-           (p.fit.graphical() ? "presented in type" : "presented as cells");
-}
-
+// WL-MAKER-12 -- agents/workshop/maker-pane.md
 std::string interior_capture_text(const Session& s, const PaneRef& ref) {
     const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);
     if (!kind.has_value()) {
-        if (ref.provider == kMakerPaneProvider) {
-            return "no open definition is named " + ref.pane + " -- nothing to show";
-        }
         return "unresolved -- nothing to inspect";
     }
     const Screen sc = screen_of(s);
@@ -160,70 +30,6 @@ std::string interior_capture_text(const Session& s, const PaneRef& ref) {
            std::to_string(place.rows) + (place.rows == 1 ? " row x " : " rows x ") +
            std::to_string(place.columns) + (place.columns == 1 ? " column " : " columns ") +
            (place.fit.graphical() ? "in type" : "as cells") + "; no authored interior";
-}
-
-// WL-MAKER-05 -- agents/workshop/maker-pane.md
-void paint_weaver_pane(surface::SurfaceLayer& layer, const Session& s, const PixelRect& b,
-                      const Screen& sc, std::int64_t chrome) {
-    paint_pane_frame(layer, b, chrome);
-    const PaneInside inside = pane_inside(b, sc);
-    if (inside.rect.empty()) {
-        return;
-    }
-    layer.texts.push_back(region_over(inside.rect));
-    const WeaverPane& m = s.panes.weaver;
-    if (!m.open()) {
-        return;
-    }
-    for (const TextRegion& r : m.definition.regions) {
-        const RegionPresentation p = present_region(r, inside.rect, sc);
-        if (!p.present || p.fit.rows <= 0 || p.fit.columns <= 0) {
-            continue;
-        }
-        surface::SurfaceTextRegion region = region_over(p.shown);
-        region.rows.push_back(
-            surface::SurfaceTextRow{detail::fit(r.text, p.fit.columns), surface::role::kFill});
-        layer.texts.push_back(std::move(region));
-    }
-}
-
-const TextRegion* creator_subject_region(const Session& s) {
-    const WeaverPane& m = s.panes.weaver;
-    if (!m.open() || m.definition.regions.empty()) {
-        return nullptr;
-    }
-    // The pane an inspector has named, and nothing else: the region is marked while the weaver's
-    // pane is the subject being read.
-    if (!s.inspected.addressed() || !(s.inspected.ref == weaver_pane_ref(m.definition.name))) {
-        return nullptr;
-    }
-    return &m.definition.regions.front();
-}
-
-// WL-MAKER-06 -- agents/workshop/maker-pane.md
-void paint_creator_region_mark(surface::SurfaceLayer& layer, const Session& s,
-                               const Screen& sc) {
-    const TextRegion* r = creator_subject_region(s);
-    if (r == nullptr) {
-        return;
-    }
-    const PaneBounds where = bounds_of(s.panes, s.setup.active, kWeaverPaneKind, sc);
-    if (!where.open || where.rect.empty() ||
-        pane_is_covered(s.panes, s.setup.active, sc, kWeaverPaneKind, where.rect)) {
-        return;
-    }
-    const RegionPresentation p = present_region(*r, pane_inside(where.rect, sc).rect, sc);
-    if (!p.present) {
-        return;
-    }
-    layer.rects.push_back(wire_rect_of(p.shown, kRegionMark));
-    if (p.fit.rows > 0 && p.fit.columns > 0) {
-        surface::SurfaceTextRegion over = region_over(p.shown);
-        over.ground = surface::kGroundBeneath;
-        over.rows.push_back(
-            surface::SurfaceTextRow{detail::fit(r->text, p.fit.columns), surface::role::kFill});
-        layer.texts.push_back(std::move(over));
-    }
 }
 
 // ---- A WORKSHOP PANE AS A SUBJECT, inspected and edited through its owners (Info's) ------
@@ -352,15 +158,6 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 }
 
 // WL-INFO-14 -- agents/workshop/info-body.md
-std::int64_t inspected_region(const Session& s, const PaneRef& ref) {
-    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);
-    if (!kind.has_value() || !is_weaver_kind(*kind) || s.panes.weaver.definition.regions.empty()) {
-        return 0;
-    }
-    return s.panes.weaver.definition.regions.front().id;
-}
-
-// WL-INFO-14 -- agents/workshop/info-body.md
 PaneSubjectShown pane_subject_shown(const Session& s) {
     PaneSubjectShown shown;
     const InspectedPane& in = s.inspected;
@@ -424,16 +221,6 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
     rows.push_back(Row::show("Identity", [ref] { return ref_text(ref); }));
     rows.push_back(Row::show("Provider", [found, ref] {
         const std::optional<CatalogRow> row = found();
-        if (ref.provider == kMakerPaneProvider) {
-            // A WEAVER-MADE PANE'S NAMESPACE, said as what it is: Workshop's own, with no
-            // office behind it to be loaded or missing. An unresolved one names the one
-            // thing that would resolve it -- a definition file with this name.
-            if (!row || row->kind == kNoPaneKind) {
-                return ref.provider + " (a pane a weaver made -- no open definition is named " +
-                       ref.pane + "; --pane <file> opens one)";
-            }
-            return ref.provider + " (made here -- Pane Creator)";
-        }
         if (!row || row->kind == kNoPaneKind) {
             return ref.provider + " (unresolved -- no office here offers it)";
         }
@@ -498,50 +285,9 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
         }
         return out;
     }));
-    // ---- INTERIOR: what is inside the subject, said honestly for each kind ---------------
-    // A weaver-made pane exposes its regions (the Pane Creator's rows: authored text and four
-    // fine-lattice numbers, beside the resolved facts); any other pane gets a read-only capture
-    // of its resolved body, never inferred controls. The arm is chosen at rebuild; rows read fresh.
+    // ---- INTERIOR: a read-only capture of the resolved body, never inferred controls --------
     rows.push_back(Row::section("INTERIOR"));
-    const std::optional<std::int64_t> resolved_now = resolve_pane(ref, s.panes);
-    if (resolved_now.has_value() && is_weaver_kind(*resolved_now) &&
-        !s.panes.weaver.definition.regions.empty()) {
-        const std::int64_t region_id = s.panes.weaver.definition.regions.front().id;
-        rows.push_back(Row::show("Region", [sp, ref, region_id] {
-            return weaver_region(*sp, ref, region_id) == nullptr
-                       ? std::string("--")
-                       : "#" + std::to_string(region_id) + " text -- the Pane Creator made it";
-        }));
-        rows.push_back(Row::edit(
-            "Text",
-            Property<std::string>(
-                [sp, ref, region_id] {
-                    const TextRegion* r = weaver_region(*sp, ref, region_id);
-                    return r == nullptr ? std::string("--") : r->text;
-                },
-                [sp, ref, region_id](std::string text) {
-                    return write_region_text(*sp, ref, region_id, std::move(text));
-                })));
-        for (std::size_t axis = 0; axis < 4; ++axis) {
-            rows.push_back(Row::edit(
-                kAxisLabels[axis],
-                Property<std::string>(
-                    [sp, ref, region_id, axis] {
-                        return region_axis_text(*sp, ref, region_id, axis);
-                    },
-                    [sp, ref, region_id, axis](std::string text) {
-                        return write_region_axis(*sp, ref, region_id, axis, text);
-                    })));
-        }
-        rows.push_back(Row::show("Resolved", [sp, ref, region_id] {
-            return region_resolved_text(*sp, ref, region_id);
-        }));
-        rows.push_back(Row::show("Shown", [sp, ref, region_id] {
-            return region_shown_text(*sp, ref, region_id);
-        }));
-    } else {
-        rows.push_back(Row::show("Interior", [sp, ref] { return interior_capture_text(*sp, ref); }));
-    }
+    rows.push_back(Row::show("Interior", [sp, ref] { return interior_capture_text(*sp, ref); }));
     return rows;
 }
 

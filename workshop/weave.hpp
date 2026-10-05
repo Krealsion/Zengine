@@ -23,7 +23,6 @@
 #include "editor_switch_vocabulary.hpp" // what a switch of the Editor is waiting on
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
-#include "pane_definition_persist.hpp" // the pane a weaver made, as its own project file
 #include "prefs_persist.hpp"
 #include "screen.hpp"
 #include "session_persist.hpp"
@@ -205,11 +204,6 @@ struct HostContext {
     // WL-SESSION-01, WL-SESSION-04, WL-SESSION-13 -- agents/workshop/session.md
     std::string session_path;
 
-    /// The one file this Workshop's open PANE DEFINITION is read from and written to.
-    // WL-MAKER-08 -- agents/workshop/maker-pane.md
-    // WL-SESSION-01 -- agents/workshop/session.md
-    std::string pane_path;
-
     /// The one file this Workshop's KEYMAP is read from.
     // WL-KEY-07 -- agents/workshop/keyboard.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string keymap_path;
@@ -326,9 +320,7 @@ class WorkshopWeave
                                           zengine::workshop::PaneCloseRequested,
                                           zengine::workshop::PaneToggleRequested,
                                           zengine::workshop::KeymapEditRequested,
-                                          zengine::workshop::WeaverPaneRequested,
                                           zengine::workshop::DeselectRequested,
-                                          zengine::workshop::DesktopFace,
                                           zengine::workshop::PaneInventoryRequested,
                                           zengine::workshop::KeymapRequested,
                                           zengine::workshop::TerminalValueRequested,
@@ -385,7 +377,6 @@ class WorkshopWeave
                                         zengine::workshop::PaneCloseAnswered,
                                         zengine::workshop::PaneToggleAnswered,
                                         zengine::workshop::KeymapEditAnswered,
-                                        zengine::workshop::WeaverPaneAnswered,
                                         zengine::workshop::PaneInventory,
                                         zengine::workshop::KeymapShown,
                                         zengine::workshop::PaneQuitRequested,
@@ -436,12 +427,6 @@ public:
     /// than an activation, which Loom sends no native mount. This makes discovery converge in
     /// either load order, and repeating it is harmless: a re-offer refreshes in place.
     void on(const zengine::surface::SurfaceReady&, loom::Mail& mail);
-
-    /// READ THE PROJECT'S PANE DEFINITION, OR STAND ON NONE.
-    void load_pane_definition(loom::Mail& mail);
-
-    /// THE HOST'S PANE PATH IN THE ONE SPELLING THE DOORS COMPARE.
-    std::string host_pane_path() const;
 
     /// THE SURFACE SAID HOW MUCH ROOM IT HAS. Take it, and lay the screen out again.
     void on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail);
@@ -650,14 +635,6 @@ public:
     /// written -- or refused with nothing changed. Answered on the delivery that asked.
     void on(const KeymapEditRequested& asked, loom::Mail& mail);
 
-    /// ONE OF THE PANE CREATOR'S THREE ACTS, asked by the office presenting them: make, save or
-    /// discard, through the doors below, answered with the sentence the band says.
-    void on(const WeaverPaneRequested& asked, loom::Mail& mail);
-
-    /// WHAT STANDS IN THE EMPTY ROOM. Retained whole and painted behind every pane; refused
-    /// whole when it exceeds `kMaxBackdropRows`, for `PaneContent`'s reason.
-    void on(const DesktopFace& face, loom::Mail& mail);
-
     /// THE DESKTOP'S ANSWER TO ONE OF ITS OWN REQUESTED ROWS: put the weaver's selection down.
     /// Judged against the particular ask it echoes and the gesture that raised it, exactly as
     /// a pane's unspent Escape is (WL-ARR-15) -- an answer to a keystroke that is over acts on
@@ -781,7 +758,10 @@ public:
     /// A picture in the earlier canvas door's sub-units, read at their floor and then admitted as
     /// any picture is.
     void on(const v2::PaneCanvasContent& content, loom::Mail& mail);
-    void admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail);
+    /// `said` is a problem the picture had under the doors it was drawn for, judged before it
+    /// was converted; empty for a picture in this door's own pixels.
+    void admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail,
+                              std::string_view said = {});
     /// One pointer moment to a canvas holder, in the version its room was granted in.
     loom::Ticket send_canvas_pointer(loom::WeaveId owner, const PaneCanvasPointer& event, bool legacy,
                                      loom::Mail& mail, std::uint64_t correlation = 0);
@@ -1047,6 +1027,25 @@ private:
     /// WRITE DOWN THE DESK AND THE ROOM, ON THE WAY OUT.
     void save_last_session();
 
+    /// THE RESTORE'S SENTENCE, kept while it may stand in the wrong unit: the desk it reopened and
+    /// the layouts it counted, the room in canvas pixels, what was declined and what changed hands.
+    struct RestoreNotice {
+        std::string head;
+        std::int64_t w = 0;
+        std::int64_t h = 0;
+        std::string tail;
+        bool bad = false;
+        std::uint64_t said = 0; ///< `notices_said_` once it was said
+    };
+
+    /// THE SENTENCE IN ONE MEDIUM'S UNIT: the room spelled as `cell_px` names it, marked where that
+    /// unit cannot say it exactly.
+    static std::string restore_notice_text(const RestoreNotice& n, std::int64_t cell_px);
+
+    /// A MEDIUM NAMED ITS UNIT: the restore's sentence, said before any medium had named one, is
+    /// said again in this one while nothing has been said since. True when it was.
+    bool respell_restore_notice(std::int64_t cell_px);
+
     // ---- PANE MANAGEMENT: arrange the windows, and never lose one -------------
 
     /// THE ROWS A WEAVER MAY ARRANGE: the shared inventory, restricted to what the setup
@@ -1131,32 +1130,6 @@ private:
     /// A PRESS INSIDE THE LAYOUTS PANE -- the tab run's own inverse, and the whole
     /// of what the top band's two global pointer arms became.
     bool layouts_press(const zengine::input::PointerButton& b, loom::Mail& mail);
-
-    // ---- THE PANE CREATOR: a pane made of authored data ---------------------------------------
-
-    /// THE GESTURE A DECLARED PANE ROW ANSWERS TO NOW, by its id, from the effective keymap's
-    /// joined pane rows -- empty when no pane has declared it, or it answers to no key -- and,
-    /// when asked, the name of the pane that declared it.
-    std::string pane_row_hotkey(const std::string& id, std::string* pane_name) const;
-
-    /// The sentence a dirty definition refuses with, naming the two ways out in the pane that
-    /// presents them. One spelling, spent by the open door, the make door and the quit guard.
-    std::string weaver_pane_dirty_sentence(const char* consequence) const;
-
-    /// THE ONE OPEN DOOR: a pane-definition file becomes the run's open definition, or
-    /// nothing moves.
-    void open_weaver_pane(const std::string& requested, loom::Mail& mail);
-
-    /// MAKE A PANE FROM A NAME -- the Pane Creator's own act. True when it was made.
-    bool new_weaver_pane(const std::string& name, loom::Mail& mail);
-
-    /// WRITE THE OPEN DEFINITION TO ITS FILE -- the one save door, through the family's
-    /// safe write. True when it was written.
-    bool save_weaver_pane();
-
-    /// THE ONE DELIBERATE DISCARD DOOR: put the definition back to what its file holds. True
-    /// unless there was no definition to put back.
-    bool discard_weaver_pane_edits(loom::Mail& mail);
 
     /// KEEP THE NAME EDITOR'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW.
     void refresh_setup_name();
@@ -1316,9 +1289,8 @@ private:
     /// fence is sent behind the canvas for all of them (none when no picture moved).
     void fence_pictures(loom::Mail& mail);
 
-    /// Leave, by asking the room first. A dirty weaver-made definition refuses synchronously; every
-    /// pane accepting `PaneQuitRequested` is asked, and the count Loom hands back is what this
-    /// host waits for. None owed means the exit proceeds now.
+    /// Leave, by asking the room first: every pane accepting `PaneQuitRequested` is asked, and the
+    /// count Loom hands back is what this host waits for. None owed means the exit proceeds now.
     void quit(loom::Mail& mail);
 
     /// THE EXIT ITSELF: write down the desk, then stop the bus. The one place both happen.
@@ -1410,11 +1382,6 @@ private:
     /// What to say when there is no setup file to save to or restore from, said in one place.
     static constexpr const char* kNoSetupFile =
         "no setup file -- start Workshop with --setup <path>";
-
-    /// ...and for the pane-definition file, a third sentence for the third reason.
-    static constexpr const char* kNoPaneFile =
-        "no pane file -- start Workshop with --pane <path>";
-
 
     /// The versions a `Shape v<N>` can name. `parse_u64` answers in 64 bits and
     /// a schema version is 32, so a wider number is REFUSED rather than
@@ -1538,14 +1505,19 @@ private:
     // WL-SESSION-15 -- agents/workshop/session.md
     bool session_refused_ = false;
 
+    /// THE RESTORE'S SENTENCE while no medium has named its unit, and whether one has. A window
+    /// names its own only after its first picture, so a restore before it spells the room in the
+    /// cell, the vocabulary's word for a medium that has said nothing, and the first
+    /// `SurfaceExtent` spells it again.
+    std::optional<RestoreNotice> restore_notice_;
+    bool medium_unit_known_ = false;
+
+    /// How many notices this run has said, so a sentence can tell whether another came after it.
+    std::uint64_t notices_said_ = 0;
+
     /// Whether this run read its keymap; what reading it did waits in `keymap_word_` for the first
     /// surface. A file that could not be admitted is a standing wall (`kKeymapWallKey`).
     bool keymap_loaded_ = false;
-    /// WHETHER THIS RUN HAS TRIED TO READ ITS PANE-DEFINITION FILE, and whether
-    /// that file was REFUSED.
-    // WL-MAKER-09 -- agents/workshop/maker-pane.md
-    bool pane_loaded_ = false;
-    bool pane_refused_ = false;
     std::string keymap_word_;
     /// The application rows the desktop last declared, retained so a keymap file read later applies
     /// the weaver's overrides to them too (WL-DESK-07); `app_declaration_` numbers them (0: none).

@@ -29,7 +29,6 @@ PaneInside pane_inside_at(const PixelRect& outer, const Screen& sc,
 } // namespace detail
 
 // WL-CHROME-01, WL-CHROME-03, WL-CHROME-04, WL-CHROME-07 -- agents/workshop/chrome.md
-// WL-MAKER-05 -- agents/workshop/maker-pane.md
 PaneInside pane_inside(const PixelRect& outer, const Screen& sc) {
     const std::int64_t fine = chrome_grain(sc);
     if (fine < kChromePx) {
@@ -86,7 +85,6 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
 }
 
 // WL-PANE-03, WL-PANE-07, WL-PANE-09 -- agents/workshop/panes-and-windows.md
-// WL-MAKER-05 -- agents/workshop/maker-pane.md
 PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
                       const Screen& sc) {
     std::size_t slot = 0;

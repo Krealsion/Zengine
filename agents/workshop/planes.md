@@ -5,18 +5,19 @@ One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-FRONT-01 — The plane sequence is the layout of the screen
 
-LAW — The canvas is published in one depth order: the workspace, one plane per pane in `effective_pane_order` ascending, the affordances, the overlays, the foot band.
+LAW — The canvas is published in one depth order: one plane per pane in `effective_pane_order` ascending, the affordances, the overlays, the foot band; nothing is painted beneath the panes.
 
 MEANS
 - an overlapping pane is painted where it is hit, in both front orders;
 - a provider's text cannot bury the contextual surface drawn over it;
-- nothing outranks a pane any more: the last plane after every pane was the Terminal's.
+- a room cell no pane covers carries no mark: each medium shows its own ground there.
 
 PROVEN BY — `workshop/screen_compose.cpp` `paint`, `paint_panes`, `band_region`;
 `workshop/screen_reveal.cpp` `paint_pane_affordances`; `workshop/screen.hpp` `on_own_layer`;
 `workshop/setup.hpp` `effective_pane_order`; `tests/test_workshop_screen.cpp` case `"an
 overlapping pane is painted where it is hit, in both front orders"`, case `"a visible pane
-occupies the pointer space it covers"`; `tests/test_workshop_panes_seam.cpp`
+occupies the pointer space it covers"`, case `"nothing is painted behind the panes: where no pane
+stands, the room is the medium's own ground"`; `tests/test_workshop_panes_seam.cpp`
 case `"an external pane's own text cannot bury the surface that recovers it"`.
 WHY — `agents/decisions/front-is-a-permutation.md`
 

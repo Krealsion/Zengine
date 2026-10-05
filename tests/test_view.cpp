@@ -383,6 +383,38 @@ TEST_CASE("a view has a size that holds its elements; one saved without a size r
     CHECK(view::read_description(again).description.width == view::kMaxPixels + 192);
 }
 
+TEST_CASE("a resumed view offers its pane and asks nothing of the desk; a run asks to be shown") {
+    // ⚔ MUTATION: `start` revealing whatever it is told -- the resumed view asks for a seat, and
+    // a pane a weaver hid comes back on the desk at every relaunch; the second check goes red.
+    Rig rig;
+    const auto resumed = rig.ask(view::ViewResume{"builder", bytes_of(panel())});
+    REQUIRE_MESSAGE(resumed.ok, resumed.reason);
+    CHECK(resumed.action == "resume");
+    CHECK(resumed.fresh);
+    CHECK(resumed.office == "tally.panel");
+    bool offered = false, seat = false;
+    for (const auto& m : rig.desk->heard) {
+        if (m.provenance.authored_role() != "tally.panel") continue;
+        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>());
+        seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+    }
+    CHECK(offered);
+    CHECK_FALSE(seat);
+    // IT IS AN ORDINARY RUNNING VIEW OF THIS SESSION: a second run or resume is refused, and a stop
+    // ends it.
+    CHECK(has(rig.ask(view::ViewResume{"builder", bytes_of(panel())}).reason, "already runs a view"));
+    CHECK(has(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).reason, "already runs a view"));
+    REQUIRE(rig.ask(view::ViewStop{"builder"}).ok);
+    // ...AND A RUN, ITS SIBLING, STILL ASKS TO BE SHOWN.
+    rig.desk->heard.clear();
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).ok);
+    seat = false;
+    for (const auto& m : rig.desk->heard)
+        if (m.provenance.authored_role() == "tally.panel")
+            seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+    CHECK(seat);
+}
+
 TEST_CASE("the view host registers a view as its own participant, granted only its intents and its pane conversation") {
     Rig rig;
     const auto run = rig.ask(view::ViewRun{"builder", bytes_of(panel())});

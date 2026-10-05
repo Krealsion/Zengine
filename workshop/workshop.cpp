@@ -133,8 +133,6 @@ struct Arguments {
     std::string document;
     /// The setup file: the arrangement a weaver saved, a PROJECT file resolved like the others.
     std::string setup = zengine::workshop::kDefaultSetupFileName;
-    /// The pane-definition file, a project file `main()` resolves against the project directory.
-    std::string pane = zengine::workshop::pane_definition_persist::kDefaultPaneFileName;
     /// The last-session file, written by nobody's gesture.
     // WL-SESSION-02 -- agents/workshop/session.md
     std::string session;
@@ -178,7 +176,7 @@ Arguments parse_arguments(int argc, char** argv) {
             args.isolated = true;
             continue;
         }
-        if (arg == "--document" || arg == "--setup" || arg == "--pane" ||
+        if (arg == "--document" || arg == "--setup" ||
             arg == "--session" || arg == "--keymap" || arg == "--prefs" || arg == "--marks" ||
             arg == "--load-plan" || arg == "--recipes" || arg == "--log" ||
             arg == "--dump" || arg == "--guests" || arg == "--read-log") {
@@ -243,8 +241,6 @@ Arguments parse_arguments(int argc, char** argv) {
                 args.guests = value;
             } else if (arg == "--setup") {
                 args.setup = value;
-            } else if (arg == "--pane") {
-                args.pane = value;
             } else {
                 // `--document` is retired, and read so it can be said; empty is still a complaint.
                 if (value.empty()) {
@@ -263,9 +259,6 @@ Arguments parse_arguments(int argc, char** argv) {
     if (args.setup.empty()) {
         args.ok = false;
         args.complaint = "--setup needs a path";
-    } else if (args.pane.empty()) {
-        args.ok = false;
-        args.complaint = "--pane needs a path";
     }
     return args;
 }
@@ -280,7 +273,7 @@ int main(int argc, char** argv) {
     const Arguments args = parse_arguments(argc, argv);
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
-                    "usage: zengine-workshop [--setup <path>] [--pane <path>]\n"
+                    "usage: zengine-workshop [--setup <path>]\n"
                     "                        [--session <path>] [--keymap <path>]\n"
                     "                        [--prefs <path>] [--marks <path>]\n"
                     "                        [--isolated]\n"
@@ -338,14 +331,6 @@ int main(int argc, char** argv) {
         }
     }
     host.setup_path = args.setup;
-    // The pane-definition file, resolved against the project once. A project this build cannot
-    // carry leaves a relative spelling nowhere to stand, and the pane file is off for the run.
-    {
-        const std::filesystem::path spelled(args.pane);
-        if (spelled.is_absolute() || !host.project_dir.empty()) {
-            host.pane_path = persist::resolved_against(host.project_dir, args.pane);
-        }
-    }
 
     // ---- The weaver's own files, by the pinned precedence ---------------------------------------
     // Explicit path, then isolation, then the per-user default (`user_paths.hpp` owns the rule).
@@ -413,12 +398,6 @@ int main(int argc, char** argv) {
                 host.retired_document.empty() ? "" : " -- left as it is: ",
                 host.retired_document.c_str());
     std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
-    // The pane file as resolved, or its absence and its cause.
-    std::printf("zengine-workshop - pane: %s\n",
-                host.pane_path.empty()
-                    ? "none (no project directory to resolve it under -- an absolute --pane "
-                      "<path> names one)"
-                    : host.pane_path.c_str());
     // The project, said once. Its absence has two causes and one sentence, true of both.
     std::printf("zengine-workshop - project: %s\n",
                 host.project_dir.empty()

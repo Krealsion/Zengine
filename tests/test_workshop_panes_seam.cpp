@@ -1288,7 +1288,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
                                    std::to_string(granted_rows)) != std::string::npos);
         CHECK(refused->role == surface::role::kAlert);
     }
-    CHECK(r.attention_note().find("zengine.test.workshop-hello/hello") != std::string::npos);
+    CHECK(r.glance().find("zengine.test.workshop-hello/hello") != std::string::npos);
     // THE STALE ROW IS GONE FROM THE PICTURE, replaced by Workshop's own sentence.
     std::vector<std::string> after = external_rows(r.last_canvas(), body);
     REQUIRE(after.size() == 1);
@@ -1305,7 +1305,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     // ...AND THE CONDITION IS GONE BECAUSE ITS TRUTH RESOLVED. Nobody retracted it
     // and nothing was said over it: it stopped being returned.
     CHECK(condition_by_key(r.conditions(), content_key) == nullptr);
-    CHECK(r.attention_note().find("zengine.test.workshop-hello/hello") == std::string::npos);
+    CHECK(r.glance().find("zengine.test.workshop-hello/hello") == std::string::npos);
 
     // ONE BYTE TOO WIDE, on the LAST row -- so the earlier rows would have been kept
     // by anything that copied as it validated.

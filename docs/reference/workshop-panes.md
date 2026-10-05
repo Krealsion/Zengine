@@ -335,10 +335,10 @@ pointer, reaching the same doors. Panes may overlap, and **every pane the setup 
 whether or not it can currently be seen.** Workshop's unit is the **whole canvas pixel**,
 twelve to a cell: a pane a weaver dragged by a single window pixel differs from its neighbour
 by exactly one, while a pane on a cell boundary is an exact multiple and the character medium's
-picture of it has not moved by a byte. Setup format is **version 4**, its amounts in pixels
+picture of it has not moved by a byte. Setup format is **version <!-- value setup_persist::kFormatVersion -->4<!-- /value -->**, its amounts in pixels
 under the word `pixels`. A **version-3** file (`subcells`, four to a pixel) is read back to the
 pixel each edge was painted at, and a **version-2** whole-cell file still loads, its cells
-mapped exactly (x 12); the next explicit save writes version 4. A version-1 file is refused by
+mapped exactly (x 12); the next explicit save writes version <!-- value setup_persist::kFormatVersion -->4<!-- /value -->. A version-1 file is refused by
 its number.
 
 ```text
@@ -971,8 +971,8 @@ where such an offer would connect.
 A weaver can **close Workshop after arranging it and reopen it into the same desk, at the same
 size, in the same place on the desktop, with no gesture.** That is a third persisted thing and
 a third file — and the session's default home is the per-user **state** folder
-(machine-local: a viewport and a desktop position describe *this* machine), while the two
-project files keep following the project:
+(machine-local: a viewport and a desktop position describe *this* machine), while the project
+files keep following the project:
 
 ```text
 --document   workshop.json           an old object document, from     (launch directory)
@@ -980,8 +980,6 @@ project files keep following the project:
                                      once, never read
 --setup      workshop-setup.json     a desk you NAMED, with `s`,      (launch directory)
                                      and read back with `r`
---pane       workshop-pane.json      a PANE you made: its name and    (project directory)
-                                     its regions, never where it sits
 --session    workshop-session.json   the desk you were USING, the     (per-user state root)
                                      room it was in, and where the
                                      window sat
@@ -998,26 +996,32 @@ directory they happened to be browsing when they quit is deliberately not rememb
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
   judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
   of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
-  The session format is **version 4**: the weaver's whole ordered run of layouts, each one an
-  ordinary saved setup, plus which position was live, the viewport and the desktop placement.
-  Older versions do **not** load through roads this reader carries — it admits one shape and
-  nothing else. What reads them is a *conversion*, contributed by an ordinary operator provider
-  the arrangement mounts (`zengine-workshop-session-history`); with it, a version-1, version-2
-  or version-3 session opens as exactly one layout holding exactly the desk it always held, and
-  without it that file is refused by its number, naming the conversion that is missing. The next
-  close writes version 4.
+  The session format is **version <!-- value session_persist::kFormatVersion -->7<!-- /value -->**: the room in canvas pixels, the weaver's whole ordered
+  run of layouts — each an ordinary saved setup, with the Setup file it is related to, if any —
+  which position was live, and the desktop placement. Older versions do **not** load through
+  roads this reader carries — it admits one shape and nothing else. What reads them is a
+  *conversion*, contributed by an ordinary operator provider the arrangement mounts
+  (`zengine-workshop-session-history`): one direct edge from each older version, which keeps the
+  meaning the file was written with. A version-1, -2 or -3 session opens as exactly one layout
+  holding the desk it always held; a session before version 5 relates every layout to no Setup
+  file; a desk before version 6 gains the Layouts pane its layout surface always was; and a room
+  and desks before version 7, kept in cells and sub-units, land on the pixels the window painted
+  them at. Without the provider such a file is refused by its number, naming the conversion that
+  is missing. The next close writes version <!-- value session_persist::kFormatVersion -->7<!-- /value -->.
 - **The viewport is one level above the desk**, and that is the whole reason the session is not
   simply a second setup: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is
-  `{width, height}` in canvas cells, its own shape rather than `surface::SurfaceExtent` — that is
+  `{width, height}` in canvas pixels, its own shape rather than `surface::SurfaceExtent` — that is
   a message free to grow a field whenever a medium has something new to say, and the text metric
   in particular would be a stale claim about a font the moment it was written down.
-- **Cells, because cells are what Workshop knows.** The window belongs to whichever Skin holds
-  `zengine.skin`, behind a C ABI; the only thing it publishes about its room is `SurfaceExtent`,
-  and the only thing Workshop says back is how large a picture it would like to paint. So the
-  durable number is the one that crosses that seam, and the fidelity is a stated bound rather
-  than a hope: a restored window is the weaver's chosen size **floored to whole cells**, at most
-  `kCanvasCellPx - 1` pixels short on each axis.
+- **Pixels, because the room crosses the seam in pixels.** The window belongs to whichever Skin
+  holds `zengine.skin`, behind a C ABI; the only thing it publishes about its room is
+  `SurfaceExtent`, in canvas pixels, and the only thing Workshop says back is how large a picture
+  it would like to paint. So the durable number is the one that crosses that seam, and a restored
+  window is the weaver's chosen size, to the pixel; a terminal keeps its own. The restore's
+  notice says the room in the unit the medium names — pixels in a window, cells in a terminal —
+  and since a window names its unit only after its first picture, the notice is spelled again
+  then.
 - **Position and maximized state ARE persisted, opaquely, and the medium is the
   judge.** The Surface vocabulary's placement pair closed the old deliberate omission: the
   medium reports where its *normal* window sits (its own desktop units, maximized state

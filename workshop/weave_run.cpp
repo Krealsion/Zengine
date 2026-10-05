@@ -35,19 +35,13 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // reading of the living realization owner — never a member, never a field of the
     // session, never yesterday's answer.
     const ProjectFrontier frontier = frontier_now();
-    // The slots first and the picture last: the SDL medium composes the attention slot into the
-    // picture it draws, so a slot published after the canvas would show a frame late.
+    // The status slot, then the picture. What is true and worth a glance is the Attention pane's
+    // to show, in its own room: no slot carries it.
     mail.publish(
         zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
-    // What is currently true and worth a glance, on the always-visible slot: derived at every
-    // repaint and held nowhere, so a resolved condition is gone because it stopped being
-    // returned. Empty is the retraction.
-    mail.publish(zengine::surface::SurfaceText{
-        zengine::surface::kSlotScore,
-        attention_compact(attention_conditions(session_, frontier))});
-    // ...AND THE SAME TRUTH IN FULL, TO WHOEVER IS PRESENTING IT. The chip is a glance and
-    // this is the reading behind it: one sentence per condition, in the host's own order,
-    // said only when it changed.
+    // WHAT IS TRUE, TO WHOEVER IS PRESENTING IT: one sentence per condition, in the host's own
+    // order, said only when it changed. Derived at every repaint and held nowhere, so a resolved
+    // condition is gone because it stopped being returned.
     say_conditions(frontier, mail);
     // ...AND THE ONE PANE INVENTORY, to whoever is listing it (WL-DESK-04). Same beat, same
     // rule, same silence when nothing changed: it is derived at every gesture, so the
@@ -95,19 +89,12 @@ void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& 
 }
 
 // WL-EDIT-03 -- agents/workshop/editor.md
-// WL-MAKER-08 -- agents/workshop/maker-pane.md
 // WL-SESSION-13 -- agents/workshop/session.md
 void WorkshopWeave::quit(loom::Mail& mail) {
     if (quitting_) {
         say("quitting -- waiting for " + std::to_string(quit_outstanding_) +
                 " pane(s) to answer",
             true);
-        return;
-    }
-    // A weaver-made pane holds the door synchronously: a definition that differs from its file is
-    // authored truth this host holds, and it leaves only by the weaver's save or discard.
-    if (session_.panes.weaver.dirty()) {
-        say(weaver_pane_dirty_sentence("Workshop stays open"), true);
         return;
     }
     // The unsaved-loss floor at the one exit, asked of the room: every pane holding a weaver's

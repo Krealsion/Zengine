@@ -179,10 +179,6 @@ void WorkshopWeave::on(const zengine::surface::SurfaceReady&, loom::Mail& mail) 
     // The prefs beside it, BEFORE the first paint: the first band and the
     // first pane headers a weaver reads are already wearing their own preference.
     load_prefs();
-    // ...and the weaver's own pane before the session is taken back: `apply_setup` seats a
-    // reference only if it resolves then, so the definition opens first and the session finds
-    // it as it finds a built-in.
-    load_pane_definition(mail);
     // ...and whatever the host already knew was standing, so the first picture
     // of the run already carries every condition this launch is going to have.
     take_host_conditions();
@@ -191,34 +187,15 @@ void WorkshopWeave::on(const zengine::surface::SurfaceReady&, loom::Mail& mail) 
     speak_startup_notes(mail);
 }
 
-// WL-MAKER-08, WL-MAKER-09 -- agents/workshop/maker-pane.md
-void WorkshopWeave::load_pane_definition(loom::Mail& mail) {
-    if (pane_loaded_) {
-        return;
-    }
-    pane_loaded_ = true;
-    const std::string path = host_pane_path();
-    if (path.empty()) {
-        return;
-    }
-    if (!std::filesystem::exists(path)) {
-        return;
-    }
-    open_weaver_pane(path, mail);
-}
-
-// WL-MAKER-08 -- agents/workshop/maker-pane.md
-std::string WorkshopWeave::host_pane_path() const {
-    if (host_->pane_path.empty()) {
-        return std::string();
-    }
-    return persist::resolved_against(host_->project_dir, host_->pane_path);
-}
-
 // WL-GEO-08 -- agents/workshop/geometry.md
 void WorkshopWeave::on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) {
+    // The medium names its unit here, so the restore's sentence is spelled in it.
+    const bool respelled = respell_restore_notice(e.cell_px);
     if (!adopt_screen(session_, e.width, e.height, e.text_advance_px, e.text_line_px,
                       e.cell_px)) {
+        if (respelled) {
+            repaint(mail);
+        }
         return;
     }
     // The normal window's room follows the screen, except while this run's medium says the window

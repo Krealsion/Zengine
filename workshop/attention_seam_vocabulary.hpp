@@ -5,10 +5,11 @@
 #define ZENGINE_WORKSHOP_ATTENTION_SEAM_VOCABULARY_HPP
 
 // What is true right now, said across the pane seam: the host derives every standing condition
-// and publishes them for the Attention pane (WL-ATTN). Said only when it changes: a pane answers a
-// publication with rows and the host repaints, so an unconditional one would never terminate. An
-// action crosses as a resolved sentence (`try: <gesture> <label>`), never an id the pane could
-// press. Unlike the in-host model (WL-ATTN-11), these shapes ride the ordinary bus.
+// and publishes them for the Attention pane (WL-ATTN), whose first row is their glance. Said only
+// when it changes: a pane answers a publication with rows and the host repaints, so an
+// unconditional one would never terminate. An action crosses as a resolved sentence (`try:
+// <gesture> <label>`), never an id the pane could press. Unlike the in-host model (WL-ATTN-11),
+// these shapes ride the ordinary bus.
 
 #include "surface/vocabulary.hpp"
 
@@ -43,6 +44,20 @@ struct StandingConditions {
     std::vector<StandingCondition> rows;
     ZEN_SHAPE(StandingConditions, 1, ZEN_FIELD(rows));
 };
+
+/// THE GLANCE: the loudest condition said and an honest count of the rest, `(+N more)` -- the one
+/// line a presenter of what is true leads with. Empty when nothing is true.
+// WL-ATTN-06 -- agents/workshop/attention.md
+inline std::string attention_glance(const std::vector<StandingCondition>& said) {
+    if (said.empty()) {
+        return std::string();
+    }
+    std::string line = said.front().compact;
+    if (said.size() > 1) {
+        line += " (+" + std::to_string(said.size() - 1) + " more)";
+    }
+    return line;
+}
 
 } // namespace zengine::workshop
 

@@ -14,6 +14,7 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -28,8 +29,11 @@
 #include <cmath>
 #include <cstdlib>
 #include <deque>
+#include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
+#include <utility>
 
 namespace {
 namespace vb = zengine::view_builder;
@@ -63,11 +67,13 @@ class ViewBuilderPane final
                        ws::PaneCanvasPointer, ws::PaneCanvasHover, ws::PaneCanvasRejected, ws::PaneKey,
                        ws::PaneTextInput, ws::PaneActionRequested, ws::ActionsJudged, ws::PaneQuitRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                       ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, loom::DispatchRefused>,
+                       ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, loom::DispatchRefused,
+                       ws::ProjectRoot>,
           loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::PaneCanvasContent, ws::PaneActions,
                      ws::PaneEscapeUnspent, ws::PanePassRequested, ws::PaneMenuRequested,
                      ws::PaneQuitAnswered, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
-                     vb::ViewEdited, view::ViewRun, view::ViewApply, view::ViewStop>> {
+                     vb::ViewEdited, view::ViewRun, view::ViewResume, view::ViewApply, view::ViewStop,
+                     ws::ProjectRootRequested>> {
 public:
     loom::Value snapshot() const override {
         vb::BuilderState saved;
@@ -77,6 +83,7 @@ public:
         } catch (const std::exception&) {
         }
         saved.path = model_.path;
+        saved.file = file_;
         saved.dirty = model_.dirty;
         saved.running = model_.running;
         return loom::to_value(saved);
@@ -86,6 +93,9 @@ public:
         if (!activation_.accept(mail, activated)) return;
         if (!restored_) {
             restored_ = true;
+            // A FIRST IMAGE IS A LAUNCH, and runs again what the builder ran: its project file says
+            // which, once the project answers. A successor keeps what its predecessor held.
+            launch_ = state_.description.empty();
             if (!state_.description.empty()) {
                 auto read = view::read_description(std::string_view(
                     reinterpret_cast<const char*>(state_.description.data()), state_.description.size()));
@@ -94,12 +104,38 @@ public:
                     model_.path = state_.path;
                     model_.dirty = state_.dirty;
                     model_.running = state_.running;
+                    file_ = state_.file;
                 } else {
                     model_.notice = "Could not restore the View Builder: " + read.reason;
                 }
             }
+            root_ask_ = ++correlation_;
+            (void)mail.as_role(vb::kRole).send_to_role(ws::kProjectRole, ws::ProjectRootRequested{}, root_ask_);
         }
         offer(mail);
+    }
+    /// WHERE THE PROJECT IS: where this builder's own file lives, what that file holds, read
+    /// rather than assumed, and, at a launch, what it runs. A successor writes there at once what
+    /// its predecessor could not.
+    void on(const ws::ProjectRoot& said, loom::Mail& mail) {
+        if (!mail.answers_ask() || mail.correlation() != root_ask_) return;
+        project_dir_ = said.project_dir;
+        const bool launch = std::exchange(launch_, false);
+        if (project_dir_.empty()) {
+            if (!launch) return;
+            model_.notice = "No project directory: the view this builder runs is not remembered across a launch";
+            show(mail);
+            return;
+        }
+        std::string why;
+        remembered_ = recorded(why);
+        if (launch) {
+            if (!remembered_) model_.notice = why;
+            resume(mail);
+        } else {
+            remember();
+        }
+        show(mail);
     }
     void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
         if (mail.authored_from_role(workshop_role)) offer(mail);
@@ -280,6 +316,7 @@ public:
             settle();
             effect(model_.command(edit.action, edit.arguments), mail);
             if (edit.action == "new" || edit.action == "open") from_corner();
+            edited(edit.action);
         } catch (const std::exception& e) {
             ok = false;
             model_.notice = e.what();
@@ -306,6 +343,7 @@ public:
         } else {
             model_.notice = answer.action + " refused: " + answer.reason;
         }
+        remember();
         show(mail);
     }
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
@@ -817,6 +855,7 @@ private:
                 if (action == "new") effect(model_.command("new", {"my.view", "discard"}), mail);
                 else effect(model_.command("open", {model_.path, "discard"}), mail);
                 from_corner();
+                edited(action);
                 return;
             }
             if (action == "intent" && args.size() == 1) {
@@ -826,12 +865,93 @@ private:
                 return;
             }
             effect(model_.command(action, args), mail);
+            edited(action);
             if (action != "select") {
                 shown_.hovered.reset();
                 shown_.landing.reset();
             }
         } catch (const std::exception& e) {
             model_.notice = e.what();
+        }
+    }
+    /// AN EDIT THAT WAS TAKEN: an open or a save names the file the draft is, a new names none.
+    void edited(const std::string& action) {
+        if (action == "open" || action == "save") file_ = model_.path;
+        else if (action == "new") file_.clear();
+        remember();
+    }
+    /// A path as this builder's project file and its Open mean it: relative to the project.
+    std::string in_project(const std::string& path) const {
+        const std::filesystem::path p(path);
+        return p.is_absolute() || project_dir_.empty() ? path : (std::filesystem::path(project_dir_) / p).generic_string();
+    }
+    /// ...AND A PATH AS THE PROJECT FILE KEEPS IT: a file inside the project relative to it, so a
+    /// project moved whole still names its view; any other path as it is.
+    std::string project_relative(const std::string& path) const {
+        const std::filesystem::path p(path);
+        if (project_dir_.empty() || !p.is_absolute()) return path;
+        const std::filesystem::path inside = p.lexically_relative(std::filesystem::path(project_dir_));
+        if (inside.empty() || *inside.begin() == "..") return path;
+        return inside.generic_string();
+    }
+    /// KEEP, IN THE PROJECT, THE FILE THE DRAFT IS AND WHETHER ITS VIEW RUNS, when either differs
+    /// from what the project file holds. What it holds is counted only once the write succeeds, so
+    /// a write that failed is made again at the next chance.
+    void remember() {
+        if (project_dir_.empty()) return;
+        const std::pair<std::string, bool> now{project_relative(file_), model_.running};
+        if (remembered_ == now) return;
+        const vb::ViewBuilderRun record{vb::kRunFormat, vb::kRunFormatVersion, now.first, now.second};
+        const auto error = zengine::maker::write_file(in_project(vb::kRunFileName), loom::compat::serialize(loom::to_value(record)));
+        if (!error.empty()) {
+            model_.notice += " (not remembered for the next launch: " + error + ")";
+            return;
+        }
+        remembered_ = now;
+    }
+    /// WHAT THE PROJECT FILE HOLDS: the view file it names and whether its view ran -- nothing named
+    /// when there is no file -- or none, `why` saying so, when this builder cannot read it.
+    std::optional<std::pair<std::string, bool>> recorded(std::string& why) const {
+        std::error_code ec;
+        const auto record_path = in_project(vb::kRunFileName);
+        if (!std::filesystem::exists(record_path, ec)) return std::make_pair(std::string(), false);
+        const auto read = zengine::maker::read_file(record_path);
+        if (!read) {
+            why = read.reason;
+            return std::nullopt;
+        }
+        const loom::Unverified claim = loom::compat::parse(read.bytes);
+        auto admitted = loom::admit(claim, loom::schema_of<vb::ViewBuilderRun>());
+        if (!admitted) {
+            why = std::string(vb::kRunFileName) + ": " + admitted.first_error().message();
+            return std::nullopt;
+        }
+        const auto record = loom::from_value<vb::ViewBuilderRun>(admitted.value());
+        if (record.format != vb::kRunFormat || record.format_version != vb::kRunFormatVersion) {
+            why = std::string(vb::kRunFileName) + " is not this builder's file";
+            return std::nullopt;
+        }
+        return std::make_pair(record.path, record.running);
+    }
+    /// A LAUNCH: open the view file the project file names and, if its view ran, run it again with
+    /// its pane asking nothing -- the desk the weaver left seats it.
+    void resume(loom::Mail& mail) {
+        if (!remembered_ || remembered_->first.empty()) return;
+        const auto [path, run] = *remembered_;
+        try {
+            effect(model_.command("open", {in_project(path), "discard"}), mail);
+            from_corner();
+            file_ = model_.path;
+            if (!run) {
+                remember();
+                return;
+            }
+            const auto bytes = view::description_bytes(model_.description);
+            request(view::ViewResume{"builder", loom::Bytes(bytes.begin(), bytes.end())}, "resume", mail);
+        } catch (const std::exception& e) {
+            // SAID FOR WHAT WAS ASKED: a stopped view's file was only to be opened.
+            model_.notice =
+                (run ? "Could not run " + path + " again: " : "Could not open " + path + ": ") + e.what();
         }
     }
     void show(loom::Mail& mail) {
@@ -854,6 +974,15 @@ private:
     std::optional<Held> held_;
     zengine::ActivationCursor activation_;
     bool restored_ = false;
+    /// WHERE THE PROJECT IS, as `zengine.project` answered the ask numbered `root_ask_`; whether
+    /// that answer is a launch's; the file the draft was saved to or opened from, never a name only
+    /// typed into File; and what the project file holds, as last read or written, none while that
+    /// is not known.
+    std::string project_dir_;
+    std::uint64_t root_ask_ = 0;
+    bool launch_ = false;
+    std::string file_;
+    std::optional<std::pair<std::string, bool>> remembered_;
     ws::PaneCanvasRoom room_;
     std::int64_t rows_ = 0, columns_ = 0, picture_number_ = 0;
     std::uint64_t correlation_ = 0;
