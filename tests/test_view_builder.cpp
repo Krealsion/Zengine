@@ -1658,7 +1658,6 @@ TEST_CASE("the View Builder runs again at a launch the view it ran, its pane sea
         std::ofstream out(project.directory / view::kCreatorPaneFileName, std::ios::binary);
         out << loom::compat::serialize(loom::to_value(pane));
     }
-    const auto creator_file = (project.directory / view::kCreatorPaneFileName).generic_string();
 
     // THE FIRST LAUNCH: no file of the builder's, so the Pane Creator's pane runs, read as a view,
     // its pane offered and asking nothing -- the desk the weaver left seats it, or does not.
@@ -1669,14 +1668,16 @@ TEST_CASE("the View Builder runs again at a launch the view it ran, its pane sea
         CHECK(launch.text("notes / running") != nullptr);
         CHECK(launch.now().elements.size() == 1);
         const auto kept = run_file(project.directory);
-        CHECK(kept.path == creator_file);
+        CHECK(kept.path == view::kCreatorPaneFileName); // a file in the project, named from it
         CHECK(kept.running);
     }
-    // THE NEXT LAUNCH reads the builder's own file, and runs the same view again.
+    // THE NEXT LAUNCH reads the builder's own file, runs the same view again, and leaves the
+    // file as it was.
     {
         Rig relaunch(dir);
         REQUIRE(relaunch.bus.role_holder("notes").valid());
         CHECK(offered_and_shown(*relaunch.desk, "notes") == std::make_pair(true, false));
+        CHECK(run_file(project.directory).path == view::kCreatorPaneFileName);
         // STOPPED, it is remembered as stopped...
         REQUIRE(relaunch.edit("stop").ok);
         CHECK_FALSE(run_file(project.directory).running);
@@ -1686,6 +1687,20 @@ TEST_CASE("the View Builder runs again at a launch the view it ran, its pane sea
         Rig stopped(dir);
         CHECK_FALSE(stopped.bus.role_holder("notes").valid());
         CHECK(stopped.now().name == "notes");
+    }
+    // A PROJECT MOVED WHOLE still names its view: its files moved to another directory, the
+    // builder opens the view from there, since nothing is left where it was.
+    TempDir moved;
+    for (const char* name : {view::kCreatorPaneFileName, vb::kRunFileName}) {
+        std::filesystem::copy_file(project.directory / name, moved.directory / name);
+        std::filesystem::remove(project.directory / name);
+    }
+    {
+        Rig elsewhere(moved.directory.generic_string());
+        CHECK(elsewhere.now().name == "notes");
+        REQUIRE(elsewhere.edit("run").ok);
+        REQUIRE(elsewhere.bus.role_holder("notes").valid());
+        CHECK(run_file(moved.directory).path == view::kCreatorPaneFileName);
     }
     // A PROJECT WITH NEITHER FILE runs nothing and writes nothing.
     TempDir empty;

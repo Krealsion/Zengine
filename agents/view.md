@@ -82,9 +82,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
 - A gesture, the pan, the grid, a box being typed into and a mark are the builder's
   presentation: never saved, kept across a reload or offered to the host; no pan, grid or snap is
   in a description. A reload in place keeps the draft, file and whether
-  its view runs, and so does a relaunch: the builder writes the file it has open and whether its
-  view runs to the project's `view-builder.json` (`view_builder::ViewBuilderRun`) when either
-  changes, and at its first activation asks `zengine.project` for the project, opens that file
+  its view runs, and so does a relaunch: the builder writes the file it has open (a file inside
+  the project named relative to it, so a project moved whole still finds it) and whether its view
+  runs to the project's `view-builder.json` (`view_builder::ViewBuilderRun`) when either changes, and at its first activation asks `zengine.project` for the project, opens that file
   and, if its view ran, runs it again by `view::ViewResume`: a run whose pane asks nothing of the
   desk, so the restored desk seats it where it stood or leaves it hidden. A project with no such
   file runs its Pane Creator file (`workshop-pane.json`). An intent is made through

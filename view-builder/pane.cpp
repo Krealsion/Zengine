@@ -874,11 +874,21 @@ private:
         const std::filesystem::path p(path);
         return p.is_absolute() || project_dir_.empty() ? path : (std::filesystem::path(project_dir_) / p).generic_string();
     }
+    /// ...AND A PATH AS THE PROJECT FILE KEEPS IT: a file inside the project relative to it, so a
+    /// project moved whole still names its view; any other path as it is.
+    std::string project_relative(const std::string& path) const {
+        const std::filesystem::path p(path);
+        if (project_dir_.empty() || !p.is_absolute()) return path;
+        const std::filesystem::path inside = p.lexically_relative(std::filesystem::path(project_dir_));
+        if (inside.empty() || *inside.begin() == "..") return path;
+        return inside.generic_string();
+    }
     /// KEEP, IN THE PROJECT, THE FILE THE DRAFT IS AND WHETHER ITS VIEW RUNS, when either changed.
     void remember() {
-        if (project_dir_.empty() || remembered_ == std::make_pair(file_, model_.running)) return;
-        remembered_ = {file_, model_.running};
-        const vb::ViewBuilderRun record{vb::kRunFormat, vb::kRunFormatVersion, file_, model_.running};
+        const std::string kept = project_relative(file_);
+        if (project_dir_.empty() || remembered_ == std::make_pair(kept, model_.running)) return;
+        remembered_ = {kept, model_.running};
+        const vb::ViewBuilderRun record{vb::kRunFormat, vb::kRunFormatVersion, kept, model_.running};
         const auto error = zengine::maker::write_file(in_project(vb::kRunFileName), loom::compat::serialize(loom::to_value(record)));
         if (!error.empty()) model_.notice += " (not remembered for the next launch: " + error + ")";
     }
