@@ -33,14 +33,16 @@ struct ViewEdited {
 };
 
 /// The draft; the name in its File box, which a weaver may have typed and not saved, and the file
-/// it was saved to or opened from; whether it is saved; and whether the view host runs it for this
-/// office, which a reload in place cannot ask again. Never a dialog, a grant or a gesture.
+/// it was saved to or opened from; whether it is saved; whether the view host runs it for this
+/// office, which a reload in place cannot ask again; and whether the project file is kept as a
+/// launch found it, naming a view file the builder could not open. Never a dialog, a grant or a
+/// gesture.
 struct BuilderState {
     loom::Bytes description;
     std::string path, file;
-    bool dirty = false, running = false;
-    ZEN_SHAPE(BuilderState, 2, ZEN_FIELD(description), ZEN_FIELD(path), ZEN_FIELD(file),
-              ZEN_FIELD(dirty), ZEN_FIELD(running));
+    bool dirty = false, running = false, kept = false;
+    ZEN_SHAPE(BuilderState, 3, ZEN_FIELD(description), ZEN_FIELD(path), ZEN_FIELD(file),
+              ZEN_FIELD(dirty), ZEN_FIELD(running), ZEN_FIELD(kept));
 };
 
 /// THE VIEW BUILDER'S OWN PROJECT FILE, beside the views it saves: the view file it has open -- a

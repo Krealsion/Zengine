@@ -158,7 +158,10 @@ its view was running, runs it again, its pane where your layout left it. Open th
 Flow and **Run** it, and the panel works as before and waits until told. Nothing that was
 running is in either file: the View Builder keeps the file it saved or opened -- never a name
 typed into **File** and not saved -- and whether its view ran, in the project's
-`view-builder.json`; a write of it that fails is said, and made again at the next chance.
+`view-builder.json`; a write of it that fails is said, and made again at the next chance. If
+that file is missing at a launch, the View Builder says so and leaves `view-builder.json` as it
+was until you open, save or start a view, so putting the file back brings its view back at the
+next launch.
 **Stop** ends the panel: its pane first says it stopped, and once Workshop sees its participant
 gone it says it is waiting for the provider. No field or button is left that looks live.
 
