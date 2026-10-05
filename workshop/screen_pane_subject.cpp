@@ -68,12 +68,8 @@ Written pane_geometry_typeable(const Session& s, const PaneRef& ref) {
                            "axis and the order keys still work");
     }
     // No refusal for the right column: the screen reserves nothing, so typed geometry reaches the
-    // pane standing there like any other.
-    const PaneBounds where = bounds_of(s.panes, s.setup.active, *kind, screen_of(s));
-    if (!where.open) {
-        return Written::no(kind_name(s.panes, *kind) +
-                           " has no room on this screen yet -- `-` resets an axis");
-    }
+    // pane standing there like any other, and none for a pane off the screen, which typed values
+    // bring back.
     return Written::ok();
 }
 

@@ -36,7 +36,7 @@ WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-03 — `forget_removed_selection()` clears on membership, never on presentation
 
-LAW — A pane that becomes waiting, refused, covered, off-room or unresolved stays addressed; a reference leaving the setup clears the address and its gesture, and closes the one-pane scope.
+LAW — A pane that becomes covered, off-room or unresolved stays addressed; a reference leaving the setup clears the address and its gesture, and closes the one-pane scope.
 
 MEANS
 - the desk stays open, its subject being the desk;

@@ -17,7 +17,7 @@ void WorkshopWeave::on(const SetupApplyRequested& request, loom::Mail& mail) {
     if (!loaded.outcome.accepted) {
         (void)mail.answer(loom::Refused{loaded.outcome.refusal}); return;
     }
-    const auto seating = seat_panes(loaded.setup, session_.panes, stack_capacity(screen_of(session_)));
+    const auto seating = seat_panes(loaded.setup, session_.panes);
     if (seating.unresolved) {
         // The first pane this Workshop cannot present, by name: a caller preparing its providers
         // learns which one is missing from the owner's own words.
@@ -28,9 +28,6 @@ void WorkshopWeave::on(const SetupApplyRequested& request, loom::Mail& mail) {
                 return;
             }
         }
-    }
-    if (!seating.waiting.empty()) {
-        (void)mail.answer(loom::Refused{"setup has panes waiting for room"}); return;
     }
     session_.setup.active = loaded.setup;
     session_.setup.active_link = {};
@@ -48,7 +45,6 @@ void WorkshopWeave::on(const SetupApplyRequested& request, loom::Mail& mail) {
 // WL-LAYOUT-05, WL-LAYOUT-07 -- agents/workshop/layouts.md
 // WL-ARR-03 -- agents/workshop/arrangement.md
 // WL-PED-05 -- agents/workshop/pane-manager.md
-// WL-SESSION-12 -- agents/workshop/session-restore.md
 void WorkshopWeave::apply_setup(loom::Mail& mail) {
     apply_setup_now();
     // A HOLD, A CONTINUATION OR A PRESENTED MENU ON A PANE THAT JUST LEFT THE DESK ends aloud:
@@ -61,8 +57,7 @@ void WorkshopWeave::apply_setup_now() {
     // Membership-dependent session state first: every membership change comes through this door,
     // so it is the one place that notices a selection whose pane is no longer named.
     forget_removed_selection();
-    const Reconciled done = reconcile(session_.panes, session_.setup.active,
-                                      stack_capacity(screen_of(session_)));
+    (void)reconcile(session_.panes, session_.setup.active);
 }
 
 // WL-CTX-07 -- agents/workshop/contextual.md
@@ -323,7 +318,7 @@ std::string WorkshopWeave::unresolved_note(const Setup& s) const {
 
 // ---- THE LAST SESSION: the desk that comes back on its own ----------------
 
-// WL-SESSION-11, WL-SESSION-12, WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
+// WL-SESSION-11, WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
 // WL-MIG-10 -- agents/workshop/migration.md
 void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     if (restored_) {
@@ -364,10 +359,9 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
                       surface::role::kAlert, std::string()});
         return;
     }
-    // ---- The viewport first, and the order is the whole of it ------------
-    // `apply_setup` seats panes against the screen's capacity, so resizing after reconciling would
-    // leave panes waiting for room that was there all along. The medium's own facts (the face
-    // metric, the device unit) are handed back unchanged: a restore replaces only the room.
+    // ---- The viewport, then the desk into it ------------
+    // The medium's own facts (the face metric, the device unit) are handed back unchanged: a
+    // restore replaces only the room.
     if (last.honoured && adopt_screen(session_, last.viewport_w, last.viewport_h,
                                       session_.text_advance_px, session_.text_line_px,
                                       session_.cell_px)) {

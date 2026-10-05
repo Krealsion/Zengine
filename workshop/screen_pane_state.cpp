@@ -50,7 +50,6 @@ surface::SurfaceTextRegion prose_region(const ProsePlace& place) {
 const char* pane_state_word(std::int64_t state) {
     switch (state) {
     case pane_state::kUnresolved: return "unresolved";
-    case pane_state::kWaiting: return "waiting";
     case pane_state::kOffRoom: return "off-room";
     case pane_state::kCovered: return "covered";
     case pane_state::kOpen: return "open";
@@ -63,7 +62,6 @@ const char* pane_state_remedy(std::int64_t state) {
     switch (state) {
     case pane_state::kClosed: return "show it from the Pane Manager";
     case pane_state::kUnresolved: return "check the spelling, or the provider is not loaded";
-    case pane_state::kWaiting: return "make the window taller, or place it yourself";
     case pane_state::kOffRoom: return "reset its place";
     case pane_state::kCovered: return "raise it";
     default: return "";
@@ -145,14 +143,10 @@ std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen&
     if (row.kind == kNoPaneKind || !resolvable(row.ref, panes)) {
         return pane_state::kUnresolved;
     }
+    // Every resolved row is seated (`reconcile`), so a row with no visible rectangle has no cell
+    // on this screen: its place is off the room.
     const PaneBounds where = bounds_of(panes, setup, row.kind, sc);
-    if (!where.open) {
-        // Named, resolved and not presented -- which is what `waiting` has
-        // always meant here. `seat_panes` is the only thing that produces it and it is
-        // medium-independent, which is why this branch does not consult one.
-        return pane_state::kWaiting;
-    }
-    if (where.rect.w <= 0 || where.rect.h <= 0) {
+    if (!where.open || where.rect.w <= 0 || where.rect.h <= 0) {
         return pane_state::kOffRoom;
     }
     if (judge_cover && pane_is_covered(panes, setup, sc, row.kind, where.rect)) {

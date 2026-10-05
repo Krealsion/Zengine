@@ -68,9 +68,9 @@ subject"`, case `"the project frontier is a condition while it waits and nothing
 replaces it, a new room included"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
-## WL-ATTN-05 — Three pane states earn ambient attention and four do not
+## WL-ATTN-05 — One pane state earns ambient attention and four do not
 
-LAW — `refused`, `waiting` and `off-room` are conditions; `closed` is the weaver's choice, `unresolved` is already counted on the Layouts row, `covered` has something visible, and `open` is nothing.
+LAW — `off-room` is a condition; `closed` is the weaver's choice, `unresolved` is already counted on the Layouts row, `covered` has something visible, and `open` is nothing.
 
 PROVEN BY — `workshop/screen_attention.cpp` `attention_conditions`;
 `workshop/screen_pane_state.cpp` `pane_state_of`; `tests/test_workshop_host.cpp` case `"not

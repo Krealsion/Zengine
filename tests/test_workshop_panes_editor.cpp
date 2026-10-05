@@ -1076,9 +1076,9 @@ TEST_CASE("the door refuses speech with no author, and answers nobody") {
 
 TEST_CASE("an opening that cannot be shown opens nothing, and the requester is told why") {
     // ONE TRANSACTION. The pane reads and judges the file, asks the desk to seat it, and installs
-    // on the desk's word that it did -- so a screen with no slot leaves the prior document, the
-    // authored setup and the file as they were, and the requester is answered with the launch
-    // door's own refusal instead of a success it would find hollow.
+    // on the desk's word that it did -- so an Editor whose place is off this screen leaves the
+    // prior document, the authored setup and the file as they were, and the requester is answered
+    // with the desk's own refusal instead of a success it would find hollow.
     EditorRig e("edit-noroom");
     e.open(160, cells_of(kMinScreen).h, /*pick_it=*/false);
     // A DOCUMENT ALREADY OPEN, so the refusal has something to preserve.
@@ -1087,28 +1087,25 @@ TEST_CASE("an opening that cannot be shown opens nothing, and the requester is t
     REQUIRE(e.r.session().panes.has(e.kind));
     e.press_doc(0, 2);
     const std::int64_t caret = e.seat()->caret_col;
-    // ...AND THEN THE ONE STACK SLOT THE MINIMUM SCREEN HAS, TAKEN BY SOMETHING ELSE.
-    e.r.pick(editor_ref()); // the close door: it takes the open Editor off the desk
-    const SecondPane other = second_pane(e);
-    e.r.pick(other.ref);
-    REQUIRE(e.r.session().panes.has(other.kind));
-    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
+    // ...AND THEN ITS PLACE, OFF THIS SCREEN: seated, with no row in sight.
+    REQUIRE(author_pane_place(e.r.session().setup.active, editor_ref(), 0, cells_px(200)).accepted);
+    e.r.key(input::scan::kUnknown); // a delivery, so the desk claims what it now is
+    const Setup before = e.r.session().setup.active;
     put_bytes(e.root / "a.cpp", "held\n");
     const SourceOpened said = e.ask_open(spelled(e.root / "a.cpp"));
     CHECK_FALSE(said.accepted);
-    CHECK(said.refusal == "no room for Editor on this screen -- make the window taller, "
-                          "then try again");
+    CHECK(said.refusal == "no room for a row of Editor on this screen");
     CHECK(e.r.session().notice == said.refusal);
-    CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref())); // nothing authored
-    // NOTHING MOVED IN THE PANE: the first document, its caret and its bytes stand.
-    e.r.extent(160, 48);
-    e.r.pick(editor_ref());
-    REQUIRE(e.r.session().panes.has(e.kind));
+    CHECK(e.r.session().setup.active == before); // nothing authored
+    // NOTHING MOVED IN THE PANE: with its place reset, the first document, its caret and its bytes
+    // stand.
+    REQUIRE(reset_pane_place(e.r.session().setup.active, editor_ref()));
+    e.r.key(input::scan::kUnknown);
     CHECK(e.doc_row(0) == "first");
     CHECK(e.status().find("first.cpp") != std::string::npos);
     CHECK(e.seat()->caret_col == caret);
     CHECK(e.read("path").find("first.cpp") != std::string::npos);
-    // ...AND WITH ROOM, THE SAME REQUEST TAKES.
+    // ...AND IN SIGHT, THE SAME REQUEST TAKES.
     const SourceOpened again = e.ask_open(spelled(e.root / "a.cpp"));
     CHECK_MESSAGE(again.accepted, again.refusal);
     CHECK(e.doc_row(0) == "held");
@@ -2690,16 +2687,22 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
 
 TEST_CASE("room lost before the commitment refuses the open, and nothing is authored or moved") {
     // A real `SurfaceExtent` lands between the manager's binding of the desk and the desk's
-    // trial, so the trial finds no seat and refuses with the launch door's words. The document
-    // that was open stands, the requester is told, nothing was offered or published, and the
-    // seat the Editor lost it lost to the weaver's own shrink.
+    // trial and takes the Editor's place off the screen, so the trial finds no row for it and
+    // refuses in words. The document that was open stands, the requester is told, nothing was
+    // offered or published, and the room the Editor lost it lost to the weaver's own shrink.
     EditorRig e("edit-shrink-before");
     e.open(160, 48, /*pick_it=*/false);
-    const SecondPane other = second_pane(e);
-    e.r.pick(other.ref); // the second pane takes the stack ahead of it
-    REQUIRE(e.r.session().panes.has(other.kind));
-    const std::string a_path = e.open_file("a.cpp", "one\n"); // seated behind the other
+    const std::string a_path = e.open_file("a.cpp", "one\n");
     REQUIRE(e.r.session().panes.has(e.kind));
+    // PLACED LOW IN THE ROOM: in sight on this screen, off the minimum one.
+    REQUIRE(author_pane_place(e.r.session().setup.active, editor_ref(), 0, cells_px(30)).accepted);
+    e.r.key(input::scan::kUnknown); // a delivery, so the desk claims what it now is
+    const auto in_sight = [&e] {
+        return !bounds_of(e.r.session().panes, e.r.session().setup.active, e.kind,
+                          screen_of(e.r.session()))
+                    .rect.empty();
+    };
+    REQUIRE(in_sight());
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
     const std::size_t before = e.asker->opens.size();
@@ -2712,41 +2715,38 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
         loom::to_value(surface::SurfaceExtent{cells_px(160), kMinScreen.h, 0, 0}), loom::WeaveId{},
         loom::WeaveId{}, 0));
     // MILESTONE 2: one turn delivers the request (the manager binds the Editor and the desk as
-    // they are, and asks the desk for a trial) and then the shrink (the Editor, authored
-    // behind the other pane, loses its seat). The trial is queued behind both, so this is the
-    // desk it will be judged on.
+    // they are, and asks the desk for a trial) and then the shrink (the Editor's place is off the
+    // room now). The trial is queued behind both, so this is the desk it will be judged on.
     (void)e.r.bus.pump_pending();
-    REQUIRE(e.r.session().panes.has(other.kind));
-    REQUIRE_FALSE(e.r.session().panes.has(e.kind));           // room lost...
+    CHECK(e.r.session().panes.has(e.kind));                    // still seated...
+    CHECK_FALSE(in_sight());                                   // ...with its place off the room
     CHECK(has_pane(e.r.session().setup.active, editor_ref())); // ...by the shrink; the row stands
     CHECK(e.asker->opens.size() == before);                    // ...with the open still in flight
     CHECK(e.opening().stage == "trial");
-    // MILESTONE 3: the trial finds no seat; the operation ends with nothing published.
+    // MILESTONE 3: the trial finds no row; the operation ends with nothing published.
     e.settle();
     CHECK(e.opening().stage == "idle");
     CHECK(e.opening().last_outcome == "refused");
     REQUIRE(e.asker->opens.size() == before + 1);
     const SourceOpened said = e.asker->opens.back();
     CHECK_FALSE(said.accepted);
-    CHECK(said.refusal == "no room for Editor on this screen -- make the window taller, then "
-                          "try again");
+    CHECK(said.refusal == "no room for a row of Editor on this screen");
     CHECK(e.r.session().notice == said.refusal);
     CHECK(e.read("path") == a_path);
     CHECK(e.read("text") == "one\n");
-    CHECK_FALSE(e.r.session().panes.has(e.kind));
-    CHECK(keyboard_pane(e.r.session().panes) != e.kind); // no keys resolve to a hidden pane
     // ...AND A WINDOW BIG ENOUGH SHOWS THE DOCUMENT THAT WAS THERE, not the one refused.
     e.r.extent(160, 48);
-    REQUIRE(e.r.session().panes.has(e.kind));
+    REQUIRE(in_sight());
     CHECK(e.doc_row(0) == "one");
 }
 
 TEST_CASE("a resize after the commitment is an ordinary presentation change") {
     // THE CONTROL: weaver actions after a commitment may change presentation. The commitment is
     // the bus's joint publication inside the manager's delivery of the desk's admission; each
-    // owner is shown its claim before it runs again. A `SurfaceExtent` after it unseats the
-    // Editor as a shrink unseats any pane, and the open still completes with B waiting for room.
-    // Two interleavings, one with the shrink between the two owners' showings.
+    // owner is shown its claim before it runs again. A `SurfaceExtent` after it moves the Editor
+    // as a shrink moves any stacked pane -- its column begins again at its top -- and the open
+    // still completes with B in sight. Two interleavings, one with the shrink between the two
+    // owners' showings.
     EditorRig e("edit-shrink-after");
     e.open(160, 48, /*pick_it=*/false);
     const SecondPane other = second_pane(e);
@@ -2754,6 +2754,13 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
     REQUIRE(e.r.session().panes.has(other.kind));
     const std::string a_path = e.open_file("a.cpp", "one\n");
     REQUIRE(e.r.session().panes.has(e.kind));
+    // STACKED BEHIND THE OTHER PANE on this screen; on the minimum one, at the column's top.
+    const auto top = [&e] {
+        return bounds_of(e.r.session().panes, e.r.session().setup.active, e.kind,
+                         screen_of(e.r.session()))
+                   .rect.y == screen_of(e.r.session()).room_y;
+    };
+    REQUIRE_FALSE(top());
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
     const std::size_t before = e.asker->opens.size();
@@ -2763,7 +2770,7 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
             loom::to_value(surface::SurfaceExtent{cells_px(160), kMinScreen.h, 0, 0}), loom::WeaveId{},
             loom::WeaveId{}, 0));
     };
-    const auto after = [&e, &before, &b_path, &a_path, &committed] {
+    const auto after = [&e, &before, &b_path, &a_path, &committed, &top] {
         REQUIRE(e.asker->opens.size() == before + 1);
         const SourceOpened said = e.asker->opens.back();
         CHECK_MESSAGE(said.accepted, said.refusal);
@@ -2772,11 +2779,12 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
         CHECK(e.read("path") == b_path);
         CHECK(e.read("text") == "two\n");
         CHECK(has_pane(e.r.session().setup.active, editor_ref()));
-        CHECK_FALSE(e.r.session().panes.has(e.kind));      // the shrink's doing, after the commitment
-        CHECK(keyboard_pane(e.r.session().panes) != e.kind); // no keys resolve to a hidden pane
-        // ...AND A WINDOW BIG ENOUGH SHOWS THE OPENED DOCUMENT, WITH NO SECOND REQUEST.
+        CHECK(e.r.session().panes.has(e.kind));
+        CHECK(top()); // the shrink's doing, after the commitment
+        CHECK(keyboard_pane(e.r.session().panes) == e.kind);
+        // ...AND A WINDOW BIG ENOUGH STACKS IT BEHIND THE OTHER AGAIN, WITH NO SECOND REQUEST.
         e.r.extent(160, 48);
-        REQUIRE(e.r.session().panes.has(e.kind));
+        CHECK_FALSE(top());
         CHECK(e.doc_row(0) == "two");
         CHECK(e.doc_row(0) != a_path);
     };
@@ -2791,14 +2799,15 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
         e.r.session().notice.clear();
         // ONE TURN: the manager commits (THE COMMITMENT), then the shrink reaches the desk --
         // which is shown its published presentation first (seat, selection, keys, rows) and
-        // then loses the seat to the weaver's shrink, as any pane would.
+        // then moves with the weaver's shrink, as any stacked pane would.
         (void)e.r.bus.pump_pending();
         CHECK(e.opening().stage == "apply"); // published; the owners' applications are owed
         CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state ==
               loom::JointState::Committed);
         CHECK(e.r.session().notice.find("showing Editor") != std::string::npos);
         CHECK(has_pane(e.r.session().setup.active, editor_ref()));
-        CHECK_FALSE(e.r.session().panes.has(e.kind));
+        CHECK(e.r.session().panes.has(e.kind));
+        CHECK(top());
         CHECK(e.asker->opens.size() == before); // the terminal answer follows the application
         e.settle();
         after();
@@ -3892,7 +3901,7 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         CHECK(e.opening().committed == 1);
         CHECK(e.opening().last_outcome == "committed");
     }
-    SUBCASE("no room refuses the open in the launch door's words, and nothing is authored or moved") {
+    SUBCASE("a spent column shows the Editor at its top, in front, and the open takes") {
         EditorRig e("edit-old-door-noroom");
         e.open(160, cells_of(kMinScreen).h, /*pick_it=*/false);
         put_bytes(e.root / "first.cpp", "first\n");
@@ -3905,14 +3914,17 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         REQUIRE_FALSE(e.r.session().panes.has(e.kind));
         put_bytes(e.root / "a.cpp", "held\n");
         const SourceOpened said = e.ask_open_direct(spelled(e.root / "a.cpp"));
-        CHECK_FALSE(said.accepted);
-        CHECK(said.refusal == "no room for Editor on this screen -- make the window taller, "
-                              "then try again");
+        CHECK_MESSAGE(said.accepted, said.refusal);
         CHECK(e.asker->opens_authentic.back());
-        CHECK(e.r.session().notice == said.refusal);
-        CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
-        CHECK(e.read("path").find("first.cpp") != std::string::npos);
-        CHECK(e.read("text") == "first\n");
+        CHECK(has_pane(e.r.session().setup.active, editor_ref()));
+        REQUIRE(e.r.session().panes.has(e.kind));
+        const Screen sc = screen_of(e.r.session());
+        CHECK(bounds_of(e.r.session().panes, e.r.session().setup.active, e.kind, sc).rect.y ==
+              sc.room_y);
+        CHECK(effective_pane_order(e.r.session().setup.active, e.r.session().panes).back() ==
+              e.kind);
+        CHECK(e.read("path").find("a.cpp") != std::string::npos);
+        CHECK(e.read("text") == "held\n");
     }
     SUBCASE("a dirty document refuses a different source, in the judge's words") {
         EditorRig e("edit-old-door-dirty");

@@ -205,10 +205,8 @@ void WorkshopWeave::on(const zengine::surface::SurfaceExtent& e, loom::Mail& mai
         session_.normal_w = session_.screen_w;
         session_.normal_h = session_.screen_h;
     }
-    // The composition is reconciled against the room it now has: growth may open a pane waiting
-    // for room, and a shrink closes a presentation through the ordinary door and leaves the
-    // authored reference. `apply_setup` is the one path either way.
-    apply_setup(mail);
+    // A new room opens and closes nothing: the stack is not rationed, so the repaint lays the
+    // same panes out in it, the column beginning again at its top where it no longer reaches.
     repaint(mail);
 }
 

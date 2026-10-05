@@ -1077,6 +1077,8 @@ TEST_CASE("not every true pane state deserves ambient attention") {
     Session s;
     admit_stock(s.panes); // the stand-in, first (stock)
     admit_second(s.panes); // ...and the second
+    s.screen_w = cells_px(120); // a column that holds both, so neither covers the other
+    s.screen_h = cells_px(40);
     s.setup.active = two_overlays();
     s.panes.open = {OpenPane{stock::kKind}, OpenPane{second::kKind}};
     const Screen sc = screen_of(s);

@@ -5785,10 +5785,10 @@ public:
     std::vector<workshop::PaneQuitAnswered> quits;
     int reveals = 0;
     /// WHAT THIS DESK DOES WITH A REVEAL. A real Workshop seats the pane in the delivery that
-    /// answers, or refuses for want of room; this stand-in answers whichever a case asked for,
-    /// because the ANSWER is what the pane's acquisition turns on.
+    /// answers; this stand-in answers whichever a case asked for, a refusal included, because the
+    /// ANSWER is what the pane's acquisition turns on.
     bool seats = true;
-    std::string no_room = "no room for Editor on this screen";
+    std::string refusal = "the desk did not seat Editor";
     /// ...OR HOLDS ITS ANSWER, so a case can put a real reload between the pane's ask and the
     /// word it is waiting for. The right to answer is Loom's deferred one, bound to the exact
     /// incarnation that asked (ANS-02/03).
@@ -5825,14 +5825,14 @@ public:
             return;
         }
         (void)mail.answer(workshop::PaneRevealAnswered{asked.pane, seats,
-                                                       seats ? std::string() : no_room});
+                                                       seats ? std::string() : refusal});
     }
     /// SPEND THE HELD ANSWER NOW, and hand back its ticket so a case can read its fate off
     /// the bus's own journal.
     loom::Ticket answer_held(loom::Mail& mail, bool seated) {
         return loom::answer_deferred(
             held, mail,
-            workshop::PaneRevealAnswered{held_pane, seated, seated ? std::string() : no_room});
+            workshop::PaneRevealAnswered{held_pane, seated, seated ? std::string() : refusal});
     }
     void on(const workshop::SourceOpened& s, loom::Mail&) { opens.push_back(s); }
     void on(const workshop::PaneQuitAnswered& a, loom::Mail&) { quits.push_back(a); }

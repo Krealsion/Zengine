@@ -89,6 +89,7 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
                       const Screen& sc) {
     std::size_t slot = 0;
     std::int64_t stack_y = sc.room_y;
+    const std::int64_t floor_y = sc.room_y + sc.room_h;
     const auto capacity = stack_capacity(sc);
     // Each desk row resolved once, so the walk below costs one pass over the desk, not one per
     // open pane: a desk of many panes is asked this for every pane on every repaint.
@@ -114,19 +115,29 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
         if (authored != nullptr && authored->place.mode == pane_unit::kRightColumn) {
             where = placement::kSideRegion;
         }
+        // A SLOT IS EARNED BY STANDING IN THE STACK AND SAYING NOTHING. A pane the desk placed
+        // elsewhere is not in the stack to begin with, and one that named its own coordinates
+        // does not queue for a rectangle it is not going to use.
+        const bool stacked = where == placement::kOverlayStack &&
+                             (authored == nullptr || authored->place.mode == pane_unit::kDefault);
+        std::int64_t height = 0;
+        if (stacked) {
+            const auto extent = preferred_extent(panes.runtime.of_kind(p.kind), capacity);
+            height = extent.height ? extent.height : capacity.fallback_height;
+            // THE COLUMN BEGINS AGAIN AT ITS TOP when this pane would pass its floor, so a stacked
+            // pane always stands in the room; one taller than the room stands at the top.
+            if (stack_y > sc.room_y && stack_y + height > floor_y) {
+                stack_y = sc.room_y;
+            }
+        }
         if (p.kind == kind) {
             const PaneProjection got = project_pane(where, slot, authored, sc,
                                                     panes.runtime.of_kind(kind), stack_y);
             return PaneBounds{true, where, got.visible, got.resolved};
         }
-        // A SLOT IS EARNED BY STANDING IN THE STACK AND SAYING NOTHING. A pane the desk placed
-        // elsewhere is not in the stack to begin with, and one that named its own coordinates
-        // does not queue for a rectangle it is not going to use.
-        if (where == placement::kOverlayStack &&
-            (authored == nullptr || authored->place.mode == pane_unit::kDefault)) {
+        if (stacked) {
             ++slot;
-            const auto extent = preferred_extent(panes.runtime.of_kind(p.kind), capacity);
-            stack_y += (extent.height ? extent.height : capacity.fallback_height) + capacity.gap;
+            stack_y += height + capacity.gap;
         }
     }
     return PaneBounds{false, placement_of(kind), PixelRect{}, PixelRect{}};

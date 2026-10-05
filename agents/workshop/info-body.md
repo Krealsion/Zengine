@@ -242,7 +242,7 @@ WHY — `agents/decisions/an-inspector-names-its-subject.md`
 LAW — A commit names the rows, the row and the text; the host judges the name first, writes through the row's own setter — the setup's gesture or reset door — and reseats.
 
 MEANS
-- a refusal is the owner's own sentence (a unit it does not read, a pane with no room);
+- a refusal is the owner's own sentence (a unit it does not read, a value out of range);
 - the band says what was written to which pane, read fresh from the row;
 - an answer reaches only the incarnation that asked: a replaced Info is told nothing of it.
 

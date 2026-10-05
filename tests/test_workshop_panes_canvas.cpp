@@ -895,6 +895,56 @@ TEST_CASE("a view asks for its size in pixels and its pane grants exactly that r
     }
 }
 
+TEST_CASE("a view run when the stack's column is spent is shown at the column's top, in front") {
+    // ⚔ MUTATION: the view's ask to be shown judged by a stack rationed to its column's height --
+    // refused for room, as a view run from the View Builder beside the Pane Manager was.
+    namespace view = zengine::view;
+    PaneRig r;
+    r.mount_workshop();
+    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.ready();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t hello = r.session().panes.runtime.entries[0].kind;
+    REQUIRE(r.session().panes.has(hello));
+    const Screen sc = screen_of(r.session());
+    REQUIRE(stack_slots_that_fit(sc) == 1);
+    const PixelRect first = bounds_of(r.session().panes, r.session().setup.active, hello, sc).rect;
+
+    view::Host views(r.bus);
+    views.mount();
+    auto asker = std::make_unique<ViewAsker>();
+    auto* client = asker.get();
+    loom::Grant asking;
+    view::allow_view_requests(asking);
+    const auto client_id = r.bus.register_weave(std::move(asker), std::move(asking));
+    client->zen_set_self(client_id);
+    view::Description d;
+    d.name = "greeting";
+    d.width = 192;
+    d.height = 48;
+    d.elements = {{"hello", view::Kind::label, "Hello", 0, 0, 192, 24, ""}};
+    const auto bytes = view::description_bytes(d);
+    (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
+        loom::Message(loom::to_value(view::ViewRun{"builder", loom::Bytes(bytes.begin(), bytes.end())}), client_id, {}, 1));
+    r.bus.drain_until_idle();
+    REQUIRE(client->answers.size() == 1);
+    REQUIRE_MESSAGE(client->answers[0].ok, client->answers[0].reason);
+    // SHOWN: the column begins again at its top, the view stands there in front of the pane it
+    // covers, and that pane did not move.
+    const auto* row = r.session().panes.runtime.find("greeting", view::kPane);
+    REQUIRE(row);
+    REQUIRE(r.session().panes.has(row->kind));
+    CHECK(has_pane(r.session().setup.active, PaneRef{"greeting", view::kPane}));
+    const PixelRect landed = bounds_of(r.session().panes, r.session().setup.active, row->kind, sc).rect;
+    CHECK(landed.x == first.x);
+    CHECK(landed.y == sc.room_y);
+    CHECK(effective_pane_order(r.session().setup.active, r.session().panes).back() == row->kind);
+    CHECK(bounds_of(r.session().panes, r.session().setup.active, hello, sc).rect == first);
+    CHECK(r.last_notice().find("showing greeting") != std::string::npos);
+}
+
 TEST_CASE("a described view offers its own pane through the view host, Workshop seats and draws it, a press reaches it, and a stop leaves a picture that says so") {
     namespace view = zengine::view;
     PaneRig r;

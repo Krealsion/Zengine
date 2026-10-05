@@ -185,11 +185,9 @@ struct InventoryPane {
     std::string summary; ///
     bool open = false;      ///< participating in the live desk
     bool available = false; ///< some holder of `office` currently offers this pane
-    bool waiting = false;   ///< authored open, but this screen has no room to seat it
     bool pending = false;   ///< not offered YET: the plan row loading `office` has not settled
-    ZEN_SHAPE(InventoryPane, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(name),
-              ZEN_FIELD(summary), ZEN_FIELD(open), ZEN_FIELD(available), ZEN_FIELD(waiting),
-              ZEN_FIELD(pending));
+    ZEN_SHAPE(InventoryPane, 2, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(name),
+              ZEN_FIELD(summary), ZEN_FIELD(open), ZEN_FIELD(available), ZEN_FIELD(pending));
 };
 
 /// The whole inventory, published whenever it changes and replaced whole, never merged: a reading

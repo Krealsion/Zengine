@@ -39,7 +39,6 @@ PANES -- 8
 > [    ] Builder          a hidden tool: Enter shows it and puts you in it
   [open] Terminal         already here: Enter takes you to it, and hides nothing
   [gone] Info             nothing is offering this pane in this Workshop
-  [room] Files            on the layout, and this screen has no room to seat it
   [load] Attention        this run has not finished loading its tool yet
 ```
 
@@ -67,6 +66,12 @@ was queued ahead of it — is refused with `the list moved -- press again` rathe
 whatever slid into that row; a repaint that moved no row does not refuse.
 
 ![The Pane Manager's menu for the hidden Powers row: show Powers, manage Powers, inspect in Info, then under a rule naming the Pane Manager, Workshop's own rows for the Pane Manager](images/pane-manager-row-menu.png)
+
+**A pane you show always lands in sight.** A pane with no place of its own stands in the column
+down the room's left, under the panes already there; when the column has no room left for it, the
+column begins again at its top, so the pane lands there, in front of whatever it covers. Nothing
+is refused for want of room, from the Pane Manager, a launch key or `n` alike; move it where you
+want it by [arranging](#moving-resizing-and-ordering--arrange).
 
 **Showing never toggles.** `Enter` on a shown pane — or `Ctrl`+`t` while the Terminal is up —
 selects it and gives it the keyboard. It does not hide it, does not take it off your layout,

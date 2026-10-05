@@ -2245,25 +2245,30 @@ TEST_CASE("a setup naming the retired reference opens the loaded pane") {
 
 TEST_CASE("an open the desk cannot show opens nothing, and Files says why") {
     // THE TRANSACTION'S FAILURE ATOMICITY, THROUGH THE REAL REQUESTER. Files asks the Editor's
-    // door; the Editor judges the file and asks the desk for a place; the desk has none, so
-    // nothing is installed, nothing is authored, and the refusal travels back to Files as the
-    // answer to its own request -- which Files says in its own first row.
+    // door; the Editor judges the file and asks the desk for a place; the Editor stands off this
+    // screen, so the desk has no row for it, nothing is installed, nothing is authored, and the
+    // refusal travels back to Files as the answer to its own request -- which Files says in its
+    // own first row.
     FilesRig f("files-noroom");
     put_file(f.root / "alpha.cpp", "the project\n");
     f.open(160, cells_of(kMinScreen).h, /*with_editor=*/true);
-    // THE ONE STACK SLOT THIS SCREEN HAS IS FILES' OWN.
     REQUIRE(f.r.session().panes.has(f.kind));
     REQUIRE_FALSE(f.r.session().panes.has(f.editor_kind()));
+    // THE EDITOR ON THE DESK, ITS PLACE OFF THIS SCREEN.
+    const PaneRef editor{"zengine.editor", "editor"};
+    f.r.pick(editor);
+    REQUIRE(f.r.session().panes.has(f.editor_kind()));
+    REQUIRE(author_pane_place(f.r.session().setup.active, editor, 0, cells_px(200)).accepted);
+    const Setup before = f.r.session().setup.active;
 
     f.point_at("alpha.cpp");
     f.r.key(input::scan::kReturn);
-    CHECK_FALSE(f.r.session().panes.has(f.editor_kind()));
-    CHECK_FALSE(has_pane(f.r.session().setup.active, PaneRef{"zengine.editor", "editor"}));
+    CHECK(f.r.session().setup.active == before); // nothing authored
     CHECK(f.r.session().panes.keyboard == f.kind); // the keys never left Files
     const std::vector<std::string> rows = pane_rows(f.r, f.kind);
     REQUIRE_FALSE(rows.empty());
-    CHECK(rows[0].find("no room for Editor") != std::string::npos);
-    CHECK(f.r.session().notice.find("no room for Editor") != std::string::npos);
+    CHECK(rows[0].find("no room for a row of Editor") != std::string::npos);
+    CHECK(f.r.session().notice.find("no room for a row of Editor") != std::string::npos);
 }
 
 // ============================================================================

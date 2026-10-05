@@ -5,6 +5,8 @@ layouts and their associations, the room and the window, the restore that runs o
 heading; cite by ID. The files and their domains are in [`session.md`](session.md). Router:
 [`../workshop.md`](../workshop.md).
 
+Retired: WL-SESSION-12.
+
 ## WL-SESSION-05 — The session holds the run of layouts with their associations
 
 LAW — Version <!-- value session_persist::kFormatVersion -->7<!-- /value --> holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
@@ -100,16 +102,6 @@ PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/wea
 `repaint`; `surface/skin_sdl.cpp` `SDL_SetWindowMinimumSize`;
 `tests/test_workshop_persistence.cpp` case `"the FIRST picture of a run is the floor, and the room
 is the second"`.
-WHY — `agents/decisions/the-first-picture-is-the-floor.md`
-
-## WL-SESSION-12 — The room, and then the desk into it
-
-LAW — The desk is seated against the restored room's capacity, so the room is taken back before the restored desk is installed; reversing the two leaves a pane waiting for room it already had.
-
-PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`, `apply_setup`;
-`workshop/weave_handlers.cpp` `adopt_screen`; `workshop/screen.hpp` `stack_capacity`;
-`tests/test_workshop_persistence.cpp` case `"the desk is seated against the RESTORED room, not
-the default one"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-14 — The restore runs once per process, and answers four things
