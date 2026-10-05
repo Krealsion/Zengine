@@ -73,6 +73,8 @@ column begins again at its top, so the pane lands there, in front of whatever it
 is refused for want of room, from the Pane Manager, a launch key or `n` alike; move it where you
 want it by [arranging](#moving-resizing-and-ordering--arrange).
 
+![The Pane Manager and Hotkeys fill the column of a 1200 by 600 window; Files, shown from the Pane Manager, stands at the column's top in front of them, with the keys](images/panes-launch-at-the-top.png)
+
 **Showing never toggles.** `Enter` on a shown pane — or `Ctrl`+`t` while the Terminal is up —
 selects it and gives it the keyboard. It does not hide it, does not take it off your layout,
 and never unloads the weave behind it. `Ctrl`+`p` is the one toggle, and it toggles only the
@@ -201,6 +203,8 @@ the room marks the edge it met for as long as you hold the button, while the ban
 `snapped to an edge`. Hold **`Alt`** to place it free of them. The arrow keys, `=`, `-` and a
 value typed in Info always place exactly. A snap leaves an ordinary place and size in whole
 pixels: nothing about it is saved, and nothing keeps two panes together or apart.
+
+![The Pane Manager dragged until its right edge met the left edge of Hotkeys: a line across the room marks the edge it met while the button is held, and the band says snapped to an edge](images/panes-snap.png)
 
 `=` and `-` are the same resize, four cells at a time on both axes — one press is the
 difference between a pane that is technically open and a pane you can work in. They move no

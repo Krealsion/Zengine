@@ -9,7 +9,11 @@ at message shapes, which you drag from one pane to the other. The contract benea
 the [view reference](../reference/view.md).
 
 Open the Pane Manager and press `n`, or choose **View Builder**. The shipped plans include the
-optional `zengine-view-builder` artifact in the `zengine.view.builder` office.
+optional `zengine-view-builder` artifact in the `zengine.view.builder` office. The builder takes
+its place in the column down the room's left like any pane you show, and a view you run opens in
+front, with the keys: where the column has no room left for it, at the column's top.
+
+![n in the Pane Manager showed the View Builder beneath it; the view greeting, run from it, opened at the column's top in front of both, with the keys](images/view-builder-run-in-front.png)
 
 ## The builder
 
