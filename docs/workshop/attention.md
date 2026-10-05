@@ -30,6 +30,8 @@ which one arrived last, so the row does not re-shuffle itself when something unr
 When nothing deserves attention it says so: `nothing needs your attention right now`. Make the
 pane one row tall and the glance is all it shows.
 
+![A refused keymap file: the Attention pane's first row is the glance, keymap refused -- default bindings stand, in the alert colour, over the list and the reason; nothing at the window's corner or in its title](images/attention-glance.png)
+
 Beneath the glance the pane lists every condition that is currently true, in the words of
 whatever owns it, with the cursor on one of them.
 
