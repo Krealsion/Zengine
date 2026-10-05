@@ -144,6 +144,27 @@ TEST_CASE("an old object document is left exactly as it is: a launch names it on
     CHECK_FALSE(session_persist::from_text(kRetiredObjectDocument).outcome.accepted);
 }
 
+TEST_CASE("a Pane Creator file a launch still names is said once and left as it is: the View Builder opens it") {
+    // `--pane <it>` IS STILL READ, so an old launch line starts, and the host says once that the
+    // file is a view now (`HostContext::retired_pane`); no door of this run reads or writes it.
+    // ⚔ MUTATION: dropping the sentence from `speak_startup_notes` -- the launch says nothing.
+    TempDir dir("retired-pane");
+    const std::string path = dir.file("workshop-pane.json");
+    const std::string bytes = "{\"zen\":1,\"schema\":\"WorkshopPaneDefinition\",\"version\":1}";
+    spillout(path, bytes);
+    Live t;
+    t.host.retired_pane = path;
+    t.host.setup_path = dir.file("setup.json");
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(t.notice().find("--pane " + path + " left as it is") != std::string::npos);
+    CHECK(t.notice().find("the View Builder opens it as a view") != std::string::npos);
+    // A SETUP SAVE BESIDE IT writes only its own file.
+    t.key(input::scan::kS);
+    t.text("s");
+    CHECK(std::filesystem::exists(t.host.setup_path));
+    CHECK(slurp(path) == bytes);
+}
+
 // ============================================================================
 // Tier 13 — the SETUP: a weaver names the arrangement they are working in
 // ============================================================================
