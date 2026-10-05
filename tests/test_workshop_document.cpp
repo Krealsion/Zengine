@@ -832,6 +832,51 @@ TEST_CASE("reusing one gesture across mutually exclusive contexts is legal") {
     CHECK(t.session().pane_titles != titles); // ...and toggled nothing
 }
 
+namespace {
+
+/// The keymap file the hotkeys guide shows under "The keymap file", as a weaver would copy it.
+std::string hotkeys_guide_example() {
+    std::ifstream guide(std::string(ZENGINE_SOURCE_DIR) + "/docs/workshop/hotkeys.md");
+    REQUIRE(guide);
+    std::string line, example;
+    bool section = false, inside = false;
+    while (std::getline(guide, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.rfind("## ", 0) == 0) section = line == "## The keymap file";
+        if (!section) continue;
+        if (inside && line == "```") return example;
+        if (inside) example += line + "\n";
+        if (line == "```json") inside = true;
+    }
+    FAIL("the hotkeys guide shows no keymap file under \"The keymap file\"");
+    return example;
+}
+
+} // namespace
+
+TEST_CASE("the hotkeys guide's keymap example is a file Workshop reads and applies") {
+    // ⚔ MUTATION: the example in another envelope (`"value"` for `"fields"`, its numbers quoted) --
+    // Workshop refuses it, and the defaults stand.
+    const std::string example = hotkeys_guide_example();
+    const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(example);
+    INFO(loaded.outcome.refusal);
+    REQUIRE(loaded.outcome.accepted);
+    REQUIRE(loaded.keymap.authored.size() == 4);
+    CHECK(loaded.keymap.authored[0].action == "desktop.terminal");
+    CHECK(loaded.keymap.authored[0].gesture == "ctrl+g");
+    CHECK(loaded.keymap.authored[3].action == "layout.next");
+    CHECK(loaded.keymap.authored[3].gesture == "ctrl+n");
+    // COPIED, IT IS APPLIED: the load says so with its count, and its keys answer.
+    TempDir dir("keymap-guide");
+    const std::string path = dir.file("workshop-keymap.json");
+    write_keymap_file(path, example);
+    Keyed t(path);
+    CHECK(t.notice().find("applied -- 4 overrides") != std::string::npos);
+    const std::size_t before = layout_count(t.session().setup);
+    t.key(input::scan::kN);
+    CHECK(layout_count(t.session().setup) == before + 1);
+}
+
 TEST_CASE("an override for an unknown action survives with its intent whole") {
     // The setup law's ACCEPTED clause, applied to the sixth file: a well-formed
     // row this build cannot resolve is not an error and must never become one.
