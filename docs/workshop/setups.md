@@ -247,6 +247,8 @@ pixels in a window:
 reopened your last desk "Debugging" -- 1440x528 px
 ```
 
+![A window reopened at 1440x900: the notice row says reopened your last desk "Default" -- 1440x900 px, above the band's keys](images/restore-notice-window.png)
+
 ...cells in a terminal (`120x44 cells`), and when more than one layout came back, which one of
 how many you are standing on:
 
