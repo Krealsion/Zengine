@@ -653,8 +653,8 @@ TEST_CASE("the stack has a second slot, and the minimum screen has no room for i
     const Screen tall = screen_of(kScreenMinW, cells_px(25));
     const ui::Rect on_tall = cells_covered(placement_bounds(placement::kOverlayStack, 1, tall));
     CHECK(on_tall.y + on_tall.h <= cells_of(tall).notice_y);
-    // Nothing here clamps, refuses or rearranges. The model SAYS where a second slot is;
-    // whether Workshop should ever put a pane there is a layout question left open.
+    // Nothing here clamps, refuses or rearranges. The model SAYS where a second slot is; a pane
+    // the column has no room left for begins it again at its top instead (`bounds_of`).
 }
 
 TEST_CASE("the right column keeps its width and the stack takes half the surplus") {
@@ -2568,20 +2568,20 @@ TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs fo
 TEST_CASE("a typed place reseats the stack through `apply_setup`") {
     // ⚔ MUTATION: a write that lands in the `SetupPane` without going through the
     // commit path's reseat. `bounds_of` reads the setup live, so a moved pane MOVES either
-    // way -- what a bypass leaves behind is a pane refused for want of room, still waiting
-    // after the room appeared. The minimum screen seats one stacked pane.
+    // way -- what a bypass leaves behind is a row this case authors past the doors, still
+    // unseated after the write.
     Live t;
     open_stock_pane(t);
     REQUIRE(t.session().panes.has(stock::kKind));
-    REQUIRE(add_pane(live(t).setup.active, second_ref()));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(80), cells_px(22), 0, 0})); // a reconcile
+    REQUIRE(add_pane(live(t).setup.active, second_ref())); // past the doors: nothing reconciles it
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(80), cells_px(22), 0, 0})); // nor does a new room
     REQUIRE(has_pane(t.session().setup.active, second_ref()));
-    REQUIRE_FALSE(t.session().panes.has(second::kKind)); // authored, and waiting
+    REQUIRE_FALSE(t.session().panes.has(second::kKind)); // authored, and not seated
     REQUIRE(hand_inspect(t, stock_ref()).accepted);
     CHECK(hand_commit(t, "X", "2").accepted);
     CHECK_FALSE(t.session().notice_is_bad);
-    // THE STAND-IN LEFT THE REACTIVE STACK, AND THE WAITING PANE WAS SEATED IN THE SLOT IT
-    // VACATED -- which only a reconcile does.
+    // THE STAND-IN LEFT THE STACK, AND THE COMMIT'S RECONCILE SEATED THE ROW AUTHORED PAST THE
+    // DOORS -- which only a reconcile does.
     CHECK(t.session().panes.has(second::kKind));
     CHECK(pane_of(t.session().setup.active, stock_ref())->place.mode == pane_unit::kPixels);
 }

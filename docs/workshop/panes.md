@@ -197,10 +197,10 @@ resize always grows from the top-left corner, and a move plus a resize composes 
 rectangle the handles can make.
 
 **Edges snap under the hand.** While you drag a pane or one of its edges, an edge you move
-comes to another pane's edge, or the room's, when it is within <!-- value kPaneSnapReachPx -->8<!-- /value --> pixels of it — in a
-terminal, whenever the cell your hand reaches has such an edge inside it — and a line across
-the room marks the edge it met for as long as you hold the button, while the band adds
-`snapped to an edge`. Hold **`Alt`** to place it free of them. The arrow keys, `=`, `-` and a
+comes to another pane's edge, or the room's, when it is within <!-- value kPaneSnapReachPx -->8<!-- /value --> pixels of it — so in a
+terminal, where your hand moves a cell at a time, an edge that falls inside a cell is still met
+— and while you hold the button a line across the room marks the edge it met, and the band
+adds `snapped to an edge`. Hold **`Alt`** to place it free of them. The arrow keys, `=`, `-` and a
 value typed in Info always place exactly. A snap leaves an ordinary place and size in whole
 pixels: nothing about it is saved, and nothing keeps two panes together or apart.
 

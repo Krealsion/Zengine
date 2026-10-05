@@ -17,8 +17,8 @@ in front, in sight. No free space is searched for and nothing is packed.
 **Alternatives considered.**
 - *Rationing by the column's height* — tried: a launch beside an empty part of the room was
   refused, in a window and in a terminal (`5901b39`).
-- *A second column beside the first* — argued: the stack is wider than half the room, so the
-  room's right edge cuts a second column; on the minimum screen it would show fifteen columns.
+- *A second column beside the first* — argued: the stack is wider than half the narrowest room,
+  so the room's right edge would cut a second column there, and a second column runs out too.
 - *A launch authoring a place* — argued: a launch would write a fact the weaver never authored,
   and the pane would leave the stack for good.
 - *Each pass offset so the pane beneath shows* — argued: a second rule, off the room's edge; the
