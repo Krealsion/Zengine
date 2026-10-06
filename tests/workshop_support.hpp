@@ -25,6 +25,7 @@
 #include "workshop/weave.hpp"
 #include "workshop/grant.hpp"
 #include "workshop/opening.hpp" // the opening manager the host mounts
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/vocabulary.hpp"
 // The process id a temporary root is named by, and on Windows the attribute the sweep reads.
 #if defined(_WIN32)
@@ -3408,13 +3409,52 @@ inline PixelRect external_pane_rect(const Session& s, std::int64_t kind) {
     return bounds_of(s.panes, s.setup.active, kind, screen_of(s)).rect;
 }
 
-/// THE PARTS A TEXT PANE NAMED in the rows Workshop holds for it now, by name.
+/// WHETHER A PANE SHOWS A PICTURE of its own rather than rows.
+inline bool shows_canvas(const ExternalPane& pane) {
+    return pane.canvas.grant > 0 && pane.canvas.heard;
+}
+
+/// The lattice a canvas pane's room sets text on, as the pane was granted it.
+inline CanvasRows held_canvas_rows(const ExternalPane& pane) {
+    const auto& c = pane.canvas;
+    return canvas_rows(PaneCanvasRoom{std::string(), c.grant, c.width, c.height, c.grain,
+                                      c.graphical, c.text_advance_px, c.text_line_px});
+}
+
+/// THE ROWS OF A CANVAS PANE'S ADMITTED PICTURE, each its unpadded run on the lattice -- its
+/// characters without the blanks after the last -- and "" where a row has none.
+inline std::vector<std::string> held_canvas_text(const ExternalPane& pane) {
+    std::vector<std::string> out;
+    const CanvasRows lattice = held_canvas_rows(pane);
+    if (lattice.empty()) return out;
+    for (const v2::PaneCanvasText& run : pane.canvas.content.texts) {
+        if (run.padded || run.y < lattice.y || (run.y - lattice.y) % lattice.line != 0) continue;
+        const auto row = static_cast<std::size_t>((run.y - lattice.y) / lattice.line);
+        if (out.size() <= row) out.resize(row + 1);
+        std::string text = run.text;
+        while (!text.empty() && text.back() == ' ') text.pop_back();
+        out[row] = text;
+    }
+    return out;
+}
+
+/// THE PARTS A PANE NAMED in what Workshop holds for it now, by name: a text pane's as it said
+/// them, a canvas pane's read back to the row and columns of its lattice they cover.
 inline std::map<std::string, PaneRowPart> held_parts(const Session& s, std::int64_t kind) {
     std::map<std::string, PaneRowPart> out;
-    if (const ExternalPane* pane = s.panes.external_pane(kind)) {
-        for (const PaneRowPart& part : pane->parts) {
-            out.emplace(part.name, part);
+    const ExternalPane* pane = s.panes.external_pane(kind);
+    if (pane == nullptr) return out;
+    if (shows_canvas(*pane)) {
+        const CanvasRows lattice = held_canvas_rows(*pane);
+        if (lattice.empty()) return out;
+        for (const PaneCanvasPart& part : pane->canvas.content.parts) {
+            const RowCell at = row_cell_at(lattice, part.x, part.y);
+            out.emplace(part.name, PaneRowPart{part.name, at.row, at.column, part.w / lattice.advance});
         }
+        return out;
+    }
+    for (const PaneRowPart& part : pane->parts) {
+        out.emplace(part.name, part);
     }
     return out;
 }
@@ -3422,10 +3462,16 @@ inline std::map<std::string, PaneRowPart> held_parts(const Session& s, std::int6
 /// ...and what the named part's columns of its row say, as the pane wrote them.
 inline std::string held_part_text(const Session& s, std::int64_t kind, const PaneRowPart& part) {
     const ExternalPane* pane = s.panes.external_pane(kind);
-    if (pane == nullptr || part.row < 0 || part.row >= static_cast<std::int64_t>(pane->shown.size())) {
-        return std::string();
+    if (pane == nullptr || part.row < 0) return std::string();
+    std::string row;
+    if (shows_canvas(*pane)) {
+        const std::vector<std::string> rows = held_canvas_text(*pane);
+        if (part.row >= static_cast<std::int64_t>(rows.size())) return std::string();
+        row = rows[static_cast<std::size_t>(part.row)];
+    } else {
+        if (part.row >= static_cast<std::int64_t>(pane->shown.size())) return std::string();
+        row = pane->shown[static_cast<std::size_t>(part.row)].text;
     }
-    const std::string& row = pane->shown[static_cast<std::size_t>(part.row)].text;
     const auto from = static_cast<std::size_t>(part.column);
     return from >= row.size() ? std::string() : row.substr(from, static_cast<std::size_t>(part.columns));
 }
@@ -3463,9 +3509,54 @@ private:
     Ears* ears_;
 };
 
+/// THE ROWS A CANVAS PANE SHOWS, read off the published canvas as `external_rows` reads a text
+/// pane's: each one-row region whose first character stands in the pane's picture's body, on the
+/// first plane that has one -- the pane's own, painted before anything that covers it -- placed
+/// on the room's lattice by where the medium draws it, each row its characters without the
+/// blanks after the last, "" where a row has none.
+inline std::vector<std::string> canvas_rows_shown(const Session& s, const surface::SurfaceCanvas& c,
+                                                  std::int64_t kind) {
+    std::vector<std::string> out;
+    const ExternalPane* pane = s.panes.external_pane(kind);
+    if (pane == nullptr || !shows_canvas(*pane)) return out;
+    const CanvasRows lattice = held_canvas_rows(*pane);
+    if (lattice.empty()) return out;
+    const auto& body = pane->canvas;
+    const Screen sc = screen_of(s);
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        bool found = false;
+        for (const surface::SurfaceTextRegion& r : layer.texts) {
+            if (r.rows.size() != 1) continue;
+            const surface::RegionFit fit = surface::fit_region(r.x, r.y, r.w, r.h, sc.text_advance_px,
+                                                               sc.text_line_px);
+            const std::int64_t gx = fit.graphical() ? r.x + fit.origin_x : r.x;
+            const std::int64_t gy = fit.graphical() ? r.y + fit.origin_y : r.y;
+            if (gx < body.x || gy < body.y || gx >= body.x + body.width || gy >= body.y + body.height) {
+                continue;
+            }
+            const RowCell at = row_cell_at(lattice, gx - body.x, gy - body.y);
+            if (at.row < 0 || at.column < 0) continue;
+            found = true;
+            const auto row = static_cast<std::size_t>(at.row);
+            if (out.size() <= row) out.resize(row + 1);
+            std::string& text = out[row];
+            const auto column = static_cast<std::size_t>(at.column);
+            if (text.size() < column) text.resize(column, ' ');
+            text.replace(column, (std::min)(text.size() - column, r.rows[0].text.size()), r.rows[0].text);
+            while (!text.empty() && text.back() == ' ') text.pop_back();
+        }
+        if (found) return out;
+    }
+    return out;
+}
+
 /// The prose rows the Loaded pane is currently showing, with Workshop's header dropped
-/// -- said once here so a case below reads as a gesture and an assertion.
+/// -- said once here so a case below reads as a gesture and an assertion. Off its picture when
+/// it draws one.
 inline std::vector<std::string> loaded_rows(PaneRig& r, std::int64_t kind) {
+    if (const ExternalPane* pane = r.session().panes.external_pane(kind); pane && shows_canvas(*pane)) {
+        return canvas_rows_shown(r.session(), r.last_canvas(), kind);
+    }
     return external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
 }
 
@@ -3946,6 +4037,9 @@ inline std::int64_t open_powers(PaneRig& r) {
 }
 
 inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
+    if (const ExternalPane* pane = r.session().panes.external_pane(kind); pane && shows_canvas(*pane)) {
+        return canvas_rows_shown(r.session(), r.last_canvas(), kind);
+    }
     return external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
 }
 

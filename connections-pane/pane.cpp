@@ -11,6 +11,8 @@
 #include "connections-pane/vocabulary.hpp"
 
 #include "workshop/guest_seam_vocabulary.hpp"
+#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_menu.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -52,8 +54,10 @@ using zengine::workshop::pane_text::omitted_text;
 class ConnectionsPaneWeave
     : public loom::WeaveBase<ConnectionsPaneWeave, pane::ConnectionsPaneState,
                              loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom,
-                                          GuestConnections>,
-                             loom::Emit<PaneOffered, PaneContent, GuestConnectionsRequested>> {
+                                          ws::PaneCanvasRoom, ws::PaneCanvasPointer,
+                                          ws::PaneCanvasRejected, GuestConnections>,
+                             loom::Emit<PaneOffered, PaneContent, ws::v5::PaneCanvasContent,
+                                        ws::PanePassRequested, GuestConnectionsRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -74,11 +78,38 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kConnectionsPane) {
             return;
         }
-        rows_ = room.rows;
-        columns_ = room.columns;
+        prose_rows_ = room.rows;
+        prose_columns_ = room.columns;
         granted_ = true;
+        fit_room();
         say(mail);
     }
+
+    /// THE PANE'S OWN CANVAS: while it holds a room there it draws its rows as its picture, and
+    /// says them as prose only to a host granting none.
+    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kConnectionsPane) {
+            return;
+        }
+        canvas_ = room;
+        granted_ = true;
+        fit_room();
+        say(mail);
+    }
+
+    /// A press means nothing here; a right press is handed back, so Workshop's own pane menu
+    /// opens where it was made.
+    void on(const ws::PaneCanvasPointer& press, loom::Mail& mail) {
+        if (mail.authored_from_role(kWorkshopRole) && press.pane == pane::kConnectionsPane &&
+            press.grant == canvas_.grant && press.phase == ws::canvas_pointer::kPress &&
+            press.button == 3) {
+            (void)ws::pane_menu::pass_back(mail, pane::kConnectionsPaneRole,
+                                           pane::kConnectionsPane);
+        }
+    }
+
+    /// A refused picture leaves the last good one showing, and the next reading draws again.
+    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
 
     /// THE INVENTORY, SAID BY THE DOOR. Replaced whole; an answer to this pane's own ask and
     /// the door's publication are the same reading and are treated the same.
@@ -103,6 +134,17 @@ private:
     void ask(loom::Mail& mail) {
         (void)mail.as_role(pane::kConnectionsPaneRole)
             .send_to_role(ws::kGuestsRole, GuestConnectionsRequested{});
+    }
+
+    bool on_canvas() const {
+        return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0;
+    }
+
+    /// The rows and columns the pane composes for: its canvas's lattice while it holds one.
+    void fit_room() {
+        const ws::CanvasRows lattice = ws::canvas_rows(canvas_);
+        rows_ = on_canvas() ? lattice.rows : prose_rows_;
+        columns_ = on_canvas() ? lattice.columns : prose_columns_;
     }
 
     void say(loom::Mail& mail) {
@@ -147,6 +189,12 @@ private:
             out.resize(static_cast<std::size_t>(rows_));
         }
         ++state_.said;
+        if (on_canvas()) {
+            (void)mail.as_role(pane::kConnectionsPaneRole)
+                .send_to_role(kWorkshopRole,
+                              ws::rows_picture(canvas_, pictures_.next(canvas_, 0), out));
+            return;
+        }
         (void)mail.as_role(pane::kConnectionsPaneRole)
             .send_to_role(kWorkshopRole, PaneContent{pane::kConnectionsPane, std::move(out)});
     }
@@ -190,8 +238,11 @@ private:
     zengine::ActivationCursor activation_;
     GuestConnections known_;
     bool heard_ = false;
-    std::int64_t rows_ = 0;
+    std::int64_t rows_ = 0; ///< the room composed for: the canvas lattice's, else the prose room's
     std::int64_t columns_ = 0;
+    std::int64_t prose_rows_ = 0, prose_columns_ = 0;
+    ws::PaneCanvasRoom canvas_;
+    ws::CanvasPictures pictures_;
     bool granted_ = false;
 };
 
