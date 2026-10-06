@@ -146,15 +146,17 @@ def act(ctx, hand, verb, step):
     if verb in ("into", "click"):
         # INTO gives a pane the keys by pressing one of its words (the first, or the one holding
         # the text); CLICK presses where the text itself is painted, in a text pane or a canvas
-        # pane alike. Both press only what Workshop says is painted now, located by Workshop.
+        # pane alike. Both press only what Workshop says is painted now, located by Workshop: a
+        # character by its point, and a blank row, which has no character to name, at the point
+        # its word gives.
         provider, pane = names(arg, verb, 2)[:2]
         text = arg[2] if len(arg) > 2 else ""
         ctx.check(verb == "into" or text, "click names the text to press on")
         view, words = wait_words(hand, provider, pane, text, float(step.get("seconds", 10)))
         ctx.check(words, "%s: %s/%s paints no word holding %r" % (verb, provider, pane, text))
         at = words[0]
-        where = hand.word_point(provider, pane, at["word"], max(0, at["text"].find(text)),
-                                view["picture"])
+        where = at if not at["text"] else hand.word_point(
+            provider, pane, at["word"], max(0, at["text"].find(text)), view["picture"])
         press_at(ctx, hand, where, step.get("button", "left"))
         return {"word": at["text"], "x": where["x"], "y": where["y"]}
     if verb == "rest":

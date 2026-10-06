@@ -98,15 +98,16 @@ class Context:
 
 class ActWorkshop(Context):
     """A run context whose Workshop is a script for `workshop/act`: Info's list with a cursor the
-    Down and Up keys move, a canvas pane's words, a point door that says which word and column it
-    was asked for, and a desk with a menu open. Every injected moment is kept, as `Context` keeps
-    them."""
+    Down and Up keys move, a canvas pane's words, any other pane's rows as `panes` names them, a
+    point door that says which word and column it was asked for and refuses a character no word
+    shows, and a desk with a menu open. Every injected moment is kept, as `Context` keeps them."""
 
-    def __init__(self, steps, act_steps, rows):
+    def __init__(self, steps, act_steps, rows, panes=None):
         Context.__init__(self, steps)
         self.inputs["steps"] = json.dumps(act_steps)  # the input shares the module's name
         self.base = list(rows)
         self.cursor = next((i for i, r in enumerate(rows) if r.startswith(">")), 0)
+        self.panes, self.said = dict(panes or {}), {}
         self.points, self.kept = [], {}
 
     def rows(self):
@@ -126,12 +127,18 @@ class ActWorkshop(Context):
                     self.cursor = max(0, min(len(self.base) - 1, self.cursor + step))
         if shape == "PaneViewRequested" and options.get("version") == 2:
             canvas = fields["pane"] == "view-builder"
-            texts = ["node one", "[Label]"] if canvas else self.rows()
+            texts = self.panes.get(fields["pane"]) or (["node one", "[Label]"] if canvas
+                                                        else self.rows())
+            self.said[fields["pane"]] = texts
             return {"provider": fields["provider"], "pane": fields["pane"], "picture": 1,
                     "canvas": canvas, "words": [
                         {"word": i, "text": t, "place": {"x": 0, "y": 12 * i, "w": 12 * len(t), "h": 12},
                          "x": 6, "y": 12 * i + 6, "space": 2} for i, t in enumerate(texts)]}
         if shape == "PanePointRequested" and options.get("version") == 2:
+            from loom_session.tool import Refused
+            said = self.said.get(fields["pane"], [])
+            if fields["word"] >= len(said) or fields["column"] >= len(said[fields["word"]]):
+                raise Refused("pane point unavailable: outside the pane's visible words")
             self.points.append((fields["word"], fields["column"]))
             return {"x": 100 + fields["word"], "y": fields["column"], "space": 2}
         if shape == "DeskViewRequested":
@@ -381,6 +388,18 @@ def run_checks(tools, runtime):
             with self.assertRaisesRegex(CheckFailed, "2 lines hold 'e'"):
                 self.act(ctx)
             self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+
+        def test_into_gives_a_pane_the_keys_whatever_its_first_row_holds(self):
+            # A blank first row has no character to name: it is pressed at the point its word gives.
+            for first, where in (("", (6, 6)), ("notes", (100, 0))):
+                with self.subTest(first=first):
+                    ctx = ActWorkshop(steps, [{"into": ["zengine.editor", "editor"]}], [],
+                                      panes={"editor": [first, "press [Save] here"]})
+                    self.act(ctx)
+                    presses = [e for e in ctx.events if e["kind"] == "PointerButton"]
+                    self.assertEqual([(e["x"], e["y"], e["pressed"]) for e in presses],
+                                     [where + (True,), where + (False,)])
+                    self.assertEqual(ctx.points, [] if not first else [(0, 0)])
 
         def test_click_and_control_press_a_canvas_word_by_what_it_says(self):
             for step, column in (({"click": ["zengine.view.builder", "view-builder", "Label"]}, 1),
