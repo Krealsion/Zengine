@@ -29,6 +29,7 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_escape.hpp"
+#include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
@@ -79,7 +80,6 @@ using zengine::workshop::PaneActionRequested;
 using zengine::workshop::PaneActionRow;
 using zengine::workshop::PaneActions;
 using zengine::workshop::PaneCatalogRequested;
-using zengine::workshop::PaneContent;
 using zengine::workshop::PaneKey;
 using zengine::workshop::v2::PaneOffered;
 using zengine::workshop::PanePressed;
@@ -122,7 +122,7 @@ class IntrospectionWeave
                        loom::Refused, ResolvedArrangement, zengine::workshop::v2::ResolvedArrangement,
                        PowersFound, PowerDescribed, SourceSampled,
                        surface::ClipboardCopy, surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, LoadedSelected, loom::ListLoaded,
+          loom::Emit<PaneOffered, PaneActions, zengine::workshop::v4::PaneContent, LoadedSelected, loom::ListLoaded,
                      ArrangementRequested, DescribePower, SampleRequested,
                      zengine::workshop::PaneOperationRequested,
                      zengine::workshop::PaneValueCarryRequested,
@@ -210,7 +210,7 @@ public:
         const std::string role = entry->role;
         if (moved) {
             zengine::introspection::mark_selected(view_, selected_, loaded_.columns);
-            say_rows(mail, kLoadedPane, view_.rows);
+            say_rows(mail, kLoadedPane, view_.rows, loaded_parts());
         }
         ++state_.selections;
         // Published, not addressed: who ought to care is not this pane's decision. As this
@@ -240,7 +240,7 @@ public:
             static_cast<std::size_t>(loaded_origin_));
         loaded_origin_ = std::min(loaded_origin_, loaded_total_ - static_cast<std::int64_t>(view_.shown.size()));
         zengine::introspection::mark_selected(view_, selected_, loaded_.columns);
-        say_rows(mail, kLoadedPane, view_.rows);
+        say_rows(mail, kLoadedPane, view_.rows, loaded_parts());
     }
 
     /// The host's answer about its arrangement. `answers_ask()` first -- provenance the bus
@@ -338,7 +338,7 @@ public:
         if (pane == kLoadedPane && !selected_.empty()) {
             selected_.clear();
             zengine::introspection::mark_selected(view_, selected_, loaded_.columns);
-            say_rows(mail, kLoadedPane, view_.rows);
+            say_rows(mail, kLoadedPane, view_.rows, loaded_parts());
             return true;
         }
         if (pane == kPowersPane && !powers_ui_.selected().empty()) {
@@ -575,11 +575,46 @@ private:
     /// Say what one pane shows, the one place content leaves: as this office, because Workshop
     /// drops personal speech from a weave that merely holds it (MSG-07).
     void say_rows(loom::Mail& mail, const char* pane,
-                  std::vector<surface::SurfaceTextRow> rows) {
-        PaneContent said;
+                  std::vector<surface::SurfaceTextRow> rows,
+                  std::vector<zengine::workshop::PaneRowPart> parts = {}) {
+        zengine::workshop::v4::PaneContent said;
         said.pane = pane;
         said.rows = std::move(rows);
+        said.parts = std::move(parts);
         (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, said);
+    }
+
+    /// WHAT LOADED CALLS ITS ROWS: a loaded weave's row by its name, `weave:<name>`.
+    std::vector<zengine::workshop::PaneRowPart> loaded_parts() const {
+        zengine::workshop::PartNames<zengine::workshop::PaneRowPart> named;
+        for (std::size_t row = 0; row < view_.rows.size(); ++row) {
+            if (const LoadedWeave* entry =
+                    zengine::introspection::entry_at_row(view_, static_cast<std::int64_t>(row))) {
+                (void)named.add(zengine::workshop::PaneRowPart{
+                    "weave:" + entry->name, static_cast<std::int64_t>(row), 0, loaded_.columns});
+            }
+        }
+        return named.take();
+    }
+
+    /// WHAT POWERS CALLS ITS PARTS: a power's row by its identity, `power:<identity>`, and its
+    /// controls `control:sources`, `control:operators`, `control:composite` and `control:sample`.
+    std::vector<zengine::workshop::PaneRowPart> powers_parts() const {
+        zengine::workshop::PartNames<zengine::workshop::PaneRowPart> named;
+        for (const intro::PowersSpan& span : powers_shown_.spans) {
+            std::string name;
+            switch (span.control) {
+            case intro::powers_control::kSources: name = "control:sources"; break;
+            case intro::powers_control::kOperators: name = "control:operators"; break;
+            case intro::powers_control::kComposite: name = "control:composite"; break;
+            case intro::powers_control::kSample: name = "control:sample"; break;
+            case intro::powers_control::kEntry: name = "power:" + span.identity; break;
+            default: break;
+            }
+            (void)named.add(zengine::workshop::PaneRowPart{std::move(name), span.row, span.first,
+                                                           span.last - span.first + 1});
+        }
+        return named.take();
     }
 
     // ---- the Powers pane's own interaction --------------------------------------------
@@ -605,7 +640,7 @@ private:
         }
         powers_ui_.query.keep_caret_visible(intro::query_capacity(powers_ui_, powers_.columns));
         powers_shown_ = intro::project_powers_ui(powers_ui_, powers_.rows, powers_.columns);
-        say_rows(mail, kPowersPane, powers_shown_.rows);
+        say_rows(mail, kPowersPane, powers_shown_.rows, powers_parts());
     }
 
     /// A press in Powers, resolved against what is on screen through the spans the projection

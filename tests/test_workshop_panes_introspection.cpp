@@ -1412,6 +1412,37 @@ TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
     CHECK_FALSE(r.kernel.is_loaded("zengine-operators-basic"));
 }
 
+TEST_CASE("WL-HAND-06: Loaded names each loaded weave's row, and Powers its controls and each power's row") {
+    PaneRig r;
+    const std::int64_t powers = open_intro_pane(r, intro::kPowersPane);
+    // THE OPERATORS VIEW, where this host's powers are (the overlay witness's arrangement).
+    make_taller(r, intro::kPowersPane, 16);
+    focus_pane(r, powers);
+    r.key(input::scan::kTab);
+    const auto parts = held_parts(r.session(), powers);
+    for (const char* control : {"control:sources", "control:operators", "control:composite"}) {
+        CAPTURE(control);
+        REQUIRE(parts.count(control) == 1);
+        const std::string face = held_part_text(r.session(), powers, parts.at(control));
+        CHECK_FALSE(face.empty());
+    }
+    std::size_t named = 0;
+    for (const auto& [name, part] : parts) named += name.rfind("power:", 0) == 0 ? 1u : 0u;
+    CHECK(named > 0);
+    REQUIRE(parts.count("power:math.max") == 1);
+    CHECK(pane_rows(r, powers)[static_cast<std::size_t>(parts.at("power:math.max").row)].find("math.max") !=
+          std::string::npos);
+    // LOADED, BESIDE IT: each weave the Kernel loaded under its name.
+    r.pick(intro_ref());
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::int64_t loaded = intro_row(r, kIntroPane)->kind;
+    const auto weaves = held_parts(r.session(), loaded);
+    const std::string self = std::string("weave:") + intro::kIntrospectionStem;
+    REQUIRE(weaves.count(self) == 1);
+    CHECK(pane_rows(r, loaded)[static_cast<std::size_t>(weaves.at(self).row)].find(intro::kIntrospectionStem) !=
+          std::string::npos);
+}
+
 TEST_CASE("THE OVERLAY WITNESS, through the pane a weaver actually reads") {
     PaneRig r;
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);

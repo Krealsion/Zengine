@@ -24,7 +24,7 @@ editor                            doctest           always  20
 # operator/source.hpp, operator/migration.hpp and tests/weavelib/operator_consumer_weave.cpp as
 # text (VM-WALL-11).
 operator                          doctest           always  142
-composer                          doctest           always  38
+composer                          doctest           always  39
 # Tripwires in this suite read files/CMakeLists.txt and workshop/CMakeLists.txt as text
 # (VM-WALL-11).
 files_weave                       doctest           always  20
@@ -52,7 +52,7 @@ workshop_host                   doctest           always  76
 # workshop/arrangement.hpp, workshop/powers_door.hpp, the Introspection, Builder, Info, Terminal
 # and Editor panes' sources and CMake files, and tests/weavelib/legacy_pane.cpp as text
 # (VM-WALL-11).
-workshop_panes                    doctest           always  890
+workshop_panes                    doctest           always  893
 # The shapes this tree publishes, and their census against tests/shapes.txt.
 workshop_shapes                   doctest           always  4
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text
