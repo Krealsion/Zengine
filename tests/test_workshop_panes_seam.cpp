@@ -863,8 +863,8 @@ TEST_CASE("a pane launched where its own place stands off this screen stays ther
     const PaneLaunchAnswered said = hand_launch(r, hello_ref());
     CHECK(said.refusal.empty());
     CHECK(r.session().panes.selected == hello);
-    CHECK(r.last_notice() == "Hello is off this screen -- Reset > place brings it back (the Pane "
-                             "Manager's manage Hello > reaches it), or hide it and show it again");
+    CHECK(r.last_notice() == "Hello is off this screen -- Pane Manager > manage it > Reset > place, "
+                             "or hide and show it");
     CHECK(r.session().notice_is_bad);
     // AND IT STAYS WHERE IT WAS PUT: a launch moves no authored place.
     CHECK(pane_of(r.session().setup.active, hello_ref())->place == authored);
@@ -1841,4 +1841,33 @@ TEST_CASE("a caret spoken personally, or about somebody else's pane, is nothing"
     // ...and the ordinary spelling still works, so the two negatives above are measurements.
     t.say_caret(PaneCaret{"hello", 0, 1});
     CHECK(t.pane()->caret_row == 0);
+}
+
+TEST_CASE("the off-screen sentence fits a hundred-column terminal whole, both ways back included") {
+    // ⚔ MUTATION: the sentence naming the pane twice and spelling each way back in full -- 133
+    // characters for `Hello`, and a hundred columns end it at the Pane Manager's route.
+    // A PANE OF THE SHIPPED NAMES' LENGTH AND ONE OF SIXTEEN CHARACTERS, the longest the sentence
+    // is written to hold beside both ways back.
+    for (const std::string& name : {std::string("Hello"), std::string("Sixteen chars ok")}) {
+        CAPTURE(name);
+        PaneRig r;
+        r.mount_workshop();
+        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        r.drive(seat, [&name](ProviderSeat& s, loom::Mail& m) {
+            s.offer(m, PaneOffered{kHelloPane, name, "a bounded external greeting"});
+        });
+        r.extent(100, 30);
+        r.pick(hello_ref());
+        REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), cells_px(300), 0).accepted);
+        r.key(input::scan::kUnknown); // a delivery, so the desk claims what it now is
+        (void)hand_launch(r, hello_ref());
+        const std::string& said = r.last_notice();
+        REQUIRE(said.rfind(name + " is off this screen", 0) == 0);
+        CHECK(said.find("Reset > place") != std::string::npos);
+        CHECK(said.find("hide and show") != std::string::npos);
+        // ...AND THE BAND A HUNDRED COLUMNS WIDE PAINTS IT WHOLE, no elision mark at its end.
+        const surface::SurfaceTextRegion band = band_region(r.session(), screen_of(r.session()));
+        REQUIRE_FALSE(band.rows.empty());
+        CHECK(band.rows[0].text == said);
+    }
 }
