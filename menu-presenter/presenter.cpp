@@ -10,16 +10,17 @@
 
 // An offer with no rows, too many, or an id or label out of bounds is refused in words, and so are
 // such standard rows. Lines: the requester's rows, a rule naming the pane, the standard rows;
-// "> label" at the cursor, "  label" otherwise, windowed with "... n earlier" / "... n more". Up and
-// down pass over the rule and stop at the ends, choose chooses, back dismisses; a press on a row
-// chooses it, one outside dismisses, a release means nothing. A standard row chosen is named to the
-// host, which spends it, and the requester is answered unchosen.
+// "> label" at the cursor, "  label" otherwise, windowed with "... n earlier" / "... n more", a
+// row's line named by its id. Up and down pass over the rule and stop at the ends, choose chooses,
+// back dismisses; a press on a row chooses it, one outside dismisses, a release means nothing. A
+// standard row chosen is named to the host, which spends it, and the requester is answered unchosen.
 
 // One menu at a time, answered exactly once: chosen, dismissed, withdrawn by the host or refused.
 // The open menu is reload-kept state (`HeldMenu`), so a reloaded presenter shows it again; a menu
 // it does not hold, it gives back. One source file on installed headers only, so a single-source
 // recipe builds it with zengine::pane, zengine::activation, zengine::component, loom::switchboard.
 
+#include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/presenter_vocabulary.hpp"
 
@@ -34,6 +35,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -101,7 +103,7 @@ class MenuPresenter
     : public loom::WeaveBase<MenuPresenter, ws::HeldMenu,
                              loom::Accept<loom::Activated, ws::MenuGranted, ws::MenuInput,
                                           ws::MenuWithdrawn>,
-                             loom::Emit<ws::MenuShown, ws::MenuClosed, ws::MenuReturned,
+                             loom::Emit<ws::v2::MenuShown, ws::MenuClosed, ws::MenuReturned,
                                         ws::PresenterReady, ws::PaneMenuAnswered>> {
 public:
     /// EVERY ACTIVATION SAYS WHAT THIS IMAGE CARRIES -- nothing on a first load; after a reload,
@@ -323,7 +325,8 @@ private:
         shown_earlier_ = earlier;
         shown_menu_ = state_.menu;
         const std::int64_t columns = state_.room_columns;
-        ws::MenuShown said;
+        ws::v2::MenuShown said;
+        std::set<std::string> named;
         said.menu = state_.menu;
         said.picture = picture_;
         if (earlier) {
@@ -351,6 +354,14 @@ private:
             said.lines.push_back(surface::SurfaceTextRow{
                 drawable(std::string(here ? "> " : "  ") + row->label, columns),
                 here ? surface::role::kAccent : surface::role::kFill});
+            // THE LINE IS NAMED BY ITS ROW'S ID, as the id the choice comes back as: a requester's
+            // row and a standard row alike, the first line to carry an id keeping it.
+            const auto width = static_cast<std::int64_t>(said.lines.back().text.size());
+            if (width > 0 && ws::pane_part_name_problem(row->id) == nullptr &&
+                named.insert(row->id).second) {
+                said.parts.push_back(ws::PaneRowPart{
+                    row->id, static_cast<std::int64_t>(said.lines.size()) - 1, 0, width});
+            }
         }
         if (more) {
             said.lines.push_back(surface::SurfaceTextRow{
