@@ -312,10 +312,11 @@ std::string WorkshopWeave::off_this_screen(std::int64_t kind, const std::string&
     if (seen.w > 0 && seen.h > 0) {
         return std::string();
     }
-    // THE TWO WAYS BACK: the pane's own menu resets its place -- the Pane Manager's row reaches
-    // that menu for a pane no pointer can -- or a hide and a show seat it in the stack again.
-    return name + " is off this screen -- Reset > place brings it back (the Pane Manager's manage " +
-           name + " > reaches it), or hide it and show it again";
+    // THE TWO WAYS BACK, in a hundred columns for a name of up to sixteen: the pane's own menu
+    // resets its place -- the Pane Manager's manage row reaches that menu for a pane no pointer
+    // can -- or a hide and a show seat it in the stack again.
+    return name +
+           " is off this screen -- Pane Manager > manage it > Reset > place, or hide and show it";
 }
 
 // WL-DESK-12 -- agents/workshop/desktop.md

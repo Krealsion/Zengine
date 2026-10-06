@@ -91,12 +91,13 @@ set(ZEN_LAW_AGENTS_DIR agents)
 set(ZEN_LAW_UNBUDGETED agents/operators.md agents/panes.md agents/realization.md agents/surface.md)
 
 # The budgets, in bytes, the stricter reading (an em dash is three). Line width is held in
-# registers and routers, not in decision records.
+# registers, routers and decision records, a table row excepted: a line past ZEN_LAW_LINE_BYTES
+# wraps, and short of it a line breaks where its writer judges (rule i).
 set(ZEN_LAW_REGISTER_BYTES 16384)
 set(ZEN_LAW_ROUTER_BYTES 8192)
 set(ZEN_LAW_CORE_BYTES 20480)
 set(ZEN_LAW_LAW_BYTES 210)
-set(ZEN_LAW_LINE_BYTES 98)
+set(ZEN_LAW_LINE_BYTES 196)
 set(ZEN_LAW_MEANS_MAX 3)
 set(ZEN_LAW_DNM_MAX 2)
 # A METHOD's budget is measured on the sentence after `METHOD -- `, which is the measure the
@@ -316,6 +317,30 @@ function(zen_law_supported_links rel tail out)
         endif()
     endforeach()
     set(${out} "${pairs}" PARENT_SCOPE)
+endfunction()
+
+# A record's header -- its first paragraph, up to `**Context.**` -- links the files its law is in.
+# Each link as the file it names, resolved from the record's own directory, an anchor dropped.
+function(zen_law_header_links rel content out)
+    get_filename_component(dir "${rel}" DIRECTORY)
+    string(FIND "${content}" "**Context.**" end)
+    if(end EQUAL -1)
+        set(${out} "" PARENT_SCOPE)
+        return()
+    endif()
+    string(SUBSTRING "${content}" 0 ${end} header)
+    string(REGEX MATCHALL "${ZEN_STX}[^${ZEN_ETX}]*${ZEN_ETX}\\([^)#]+(#[^)]*)?\\)" links "${header}")
+    set(paths "")
+    foreach(link IN LISTS links)
+        if(link MATCHES "\\(([^)#]+)(#[^)]*)?\\)$")
+            set(target "${dir}/${CMAKE_MATCH_1}")
+            while(target MATCHES "[^/.][^/]*/\\.\\./")
+                string(REGEX REPLACE "[^/.][^/]*/\\.\\./" "" target "${target}")
+            endwhile()
+            list(APPEND paths "${target}")
+        endif()
+    endforeach()
+    set(${out} "${paths}" PARENT_SCOPE)
 endfunction()
 
 # The family of an id is its prefix; the family of a register path is its directory's row in
@@ -924,6 +949,20 @@ if(NOT st_links STREQUAL "WL-ZZZ-01|agents/workshop/a.md;MW-ZZZ-02|agents/maker/
     message(FATAL_ERROR
         "law-register: SELF-TEST FAILED -- a record's links were read as '${st_links}', so a law "
         "linked to a file that does not declare it would pass.")
+endif()
+
+# A record's header, read as the files it links: a register file and a guide with an anchor, both
+# climbing out of the record's directory, and nothing linked after the header ends.
+set(sh_text "# A record\n\n**Decision record.** One decision -- the law it supports is in [layouts](../workshop/a.md)")
+string(APPEND sh_text " and [a guide](../../docs/b.md#c).\n\n**Context.** [Later](../workshop/later.md).\n")
+string(REPLACE ";" "${ZEN_SOH}" sh_text "${sh_text}")
+string(REPLACE "[" "${ZEN_STX}" sh_text "${sh_text}")
+string(REPLACE "]" "${ZEN_ETX}" sh_text "${sh_text}")
+zen_law_header_links("agents/decisions/x.md" "${sh_text}" sh_links)
+if(NOT sh_links STREQUAL "agents/workshop/a.md;docs/b.md")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- a record's header was read as linking '${sh_links}', so "
+        "a header naming a register file that declares none of its laws would pass.")
 endif()
 
 # THE FAMILY TABLE'S CANARIES, on a synthetic second family bound beside the real rows and
@@ -1715,9 +1754,10 @@ endfunction()
 
 # The law walker over synthetic registers, the synthetic second family bound again: under the
 # first family's directory its own entry raises nothing, a second-family entry is misfiled and an
-# unnamed family's heading is no entry, exactly two problems; the second-family entry under its
-# own directory raises nothing. The problems property is saved around the run, the synthetic ids
-# dropped and the table restored, so nothing reaches the real walk.
+# unnamed family's heading is no entry, exactly two problems; in its own directory the QQ entry
+# raises one, a line a byte past the line budget, and none for a 151-byte line its writer may keep.
+# The problems property is saved around the run, the synthetic ids dropped and the table restored,
+# so nothing reaches the real walk.
 get_property(law_saved_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "")
 list(APPEND ZEN_LAW_FAMILIES QQ)
@@ -1728,7 +1768,12 @@ set(law_misfiled "## WL-ZZZ-01 — A law in its own family's directory\n\nLAW �
 zen_law_walk_text("${ZEN_LAW_DIR_WL}/selftest-misfiled.md" "${law_misfiled}" 0)
 get_property(law_misfiled_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "")
-set(law_filed "## QQ-ZZZ-02 — A law of the second family in its own directory\n\nLAW — One line.\n\nPROVEN BY — witness: none\n")
+string(REPEAT "abcd " 29 law_long)
+set(law_long "- ${law_long}end.")
+math(EXPR law_over "${ZEN_LAW_LINE_BYTES} + 1")
+math(EXPR law_over_fill "${law_over} - 2")
+string(REPEAT "w" ${law_over_fill} law_wide)
+set(law_filed "## QQ-ZZZ-02 — A law of the second family in its own directory\n\nLAW — One line.\n\nMEANS\n${law_long}\n- ${law_wide}\n\nPROVEN BY — witness: none\n")
 zen_law_walk_text("agents/qq-selftest/selftest-filed.md" "${law_filed}" 0)
 get_property(law_filed_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "${law_saved_problems}")
@@ -1750,14 +1795,19 @@ unset(ZEN_LAW_DIR_QQ)
 unset(ZEN_LAW_ROUTER_QQ)
 zen_law_families_derive()
 zen_law_count_lines("${law_misfiled_problems}" law_misfiled_count)
-if(NOT law_filed_problems STREQUAL "" OR NOT law_misfiled_count EQUAL 2
+zen_law_count_lines("${law_filed_problems}" law_filed_count)
+if(NOT law_filed_count EQUAL 1
+   OR NOT law_filed_problems MATCHES "selftest-filed.md:7 is ${law_over} bytes"
+   OR NOT law_misfiled_count EQUAL 2
    OR NOT law_misfiled_problems MATCHES "selftest-misfiled.md:7 QQ-ZZZ-01 is a QQ entry filed under ${ZEN_LAW_DIR_WL}/, the WL family's directory"
    OR NOT law_misfiled_problems MATCHES "selftest-misfiled.md:13 heading is neither an entry of a family the table names")
     message(FATAL_ERROR
         "law-register: SELF-TEST FAILED -- the law walker raised '${law_filed_problems}' on a "
-        "second-family register in its own directory and ${law_misfiled_count} problem(s) on one "
-        "holding a WL entry, a misfiled QQ entry and an entry of a family the table does not name:\n"
-        "${law_misfiled_problems}\nA law filed under another family's directory would then sit green.")
+        "second-family register in its own directory, whose one line past the line budget is its "
+        "only problem, and ${law_misfiled_count} problem(s) on one holding a WL entry, a misfiled QQ "
+        "entry and an entry of a family the table does not name:\n${law_misfiled_problems}\nA law "
+        "filed under another family's directory would then sit green, or a line its writer may run "
+        "long be refused, or an excessively long one pass.")
 endif()
 
 # The retired form, walked: a preamble's `Retired:` line records its id; a heading marked RETIRED
@@ -2285,6 +2335,36 @@ foreach(rel IN LISTS record_files)
                 set(target "nothing")
             endif()
             zen_law_fail("${rel} lists ${id}, whose WHY names ${target}")
+        endif()
+    endforeach()
+    # A record wraps at the registers' line budget, a table row excepted (rule i).
+    string(REPLACE "\n" ";" record_lines "${content}")
+    set(n 0)
+    foreach(line IN LISTS record_lines)
+        math(EXPR n "${n} + 1")
+        string(LENGTH "${line}" len)
+        if(len GREATER ZEN_LAW_LINE_BYTES AND NOT line MATCHES "^ *\\|")
+            zen_law_fail("${rel}:${n} is ${len} bytes (a record wraps at ${ZEN_LAW_LINE_BYTES}; table rows excepted)")
+        endif()
+    endforeach()
+    # The header names where the law it supports is: a register file it links declares one of
+    # the laws the record lists. A guide or a router beside it is no register file.
+    zen_law_header_links("${rel}" "${content}" header_links)
+    foreach(linked IN LISTS header_links)
+        zen_law_family_of_path("${linked}" linked_family)
+        if(linked_family STREQUAL "")
+            continue()
+        endif()
+        set(declares_one FALSE)
+        foreach(id IN LISTS listed)
+            get_property(declared GLOBAL PROPERTY "zen_law_file_${id}")
+            if(declared STREQUAL "${linked}")
+                set(declares_one TRUE)
+                break()
+            endif()
+        endforeach()
+        if(NOT declares_one)
+            zen_law_fail("${rel}'s header links ${linked}, which declares none of the laws the record lists; link the register file that declares them")
         endif()
     endforeach()
     if(NOT at EQUAL -1)

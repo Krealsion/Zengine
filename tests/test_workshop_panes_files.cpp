@@ -199,8 +199,7 @@ struct FilesRig {
     /// Mount the two host doors, load the image, open the pane, and put the keyboard on it.
     /// `with_editor` loads the real Editor image, so a Return on a source row has a door to
     /// answer it; `with_manager` mounts the opening manager the pane's Return asks (WL-OPEN-01);
-    /// `with_presenter` puts the shipped presenter in the plan, as a plan row because a realized
-    /// plan has published the booter's `BootState` and `load_presenter` would be refused.
+    /// `with_presenter` puts the shipped presenter in the plan, as a plan row.
     void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false,
               bool with_manager = true, bool with_presenter = false) {
         r.host.managed_pane = PaneRef{"zengine.editor", "editor"};

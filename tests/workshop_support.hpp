@@ -2304,16 +2304,17 @@ public:
     std::function<void(PaneWatcher&, loom::Mail&)> next;
 };
 
-struct BootState {
+/// The rig's booter's state: a name of its own, so it loads beside a plan booter's `BootState`.
+struct RigBootState {
     std::int64_t n = 0;
-    ZEN_SHAPE(BootState, 1, ZEN_FIELD(n));
+    ZEN_SHAPE(RigBootState, 1, ZEN_FIELD(n));
 };
 
 /// The weave that commands the Weave Manager and HEARS ITS ANSWERS -- the host's own boot shape,
 /// because a load whose refusal is addressed to nobody looks exactly like a load that worked. It
 /// hears `zen.Ack` too: the control door answers an unload with an Ack rather than a Result, and
 /// an answer nobody accepts is that same silence.
-class Booter : public loom::WeaveBase<Booter, BootState,
+class Booter : public loom::WeaveBase<Booter, RigBootState,
                                       loom::Accept<loom::Result, loom::Ack, loom::Refused>,
                                       loom::Emit<loom::LoadWeave, loom::UnloadLibrary>> {
 public:
@@ -2397,10 +2398,13 @@ struct PaneRig {
     std::vector<std::string> loaded;
     std::vector<std::string> load_refusals;
 
+    /// The rig's painter, which hears every picture and sentence Workshop publishes.
+    loom::WeaveId painter_id{};
+
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
-        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_transcripts,
-                                   said_subjects);
+        painter_id = loom::mount<Painter>(bus, canvases, notes, said_conditions, said_transcripts,
+                                          said_subjects);
     }
 
 
@@ -2626,8 +2630,7 @@ struct PaneRig {
     /// the Weave Manager spends when a weaver's rebuilt product is offered: the Kernel snapshots
     /// the live weave, opens the new image and revives it at the same id. QUEUED, NOT DRAINED, so a
     /// reload lands at an exact interval of an operation in flight; the case pumps, and
-    /// `load_refusals` says whether it was refused. The seat is `ControlSeat`, not `Booter`: a
-    /// realized plan already published the booter's `BootState`, and a second is refused.
+    /// `load_refusals` says whether it was refused.
     void enqueue_reload(const char* name, const std::string& path) {
         const loom::WeaveId seat = loom::mount_granted<ControlSeat>(
             bus, loom::load_capability(control), loaded, load_refusals);
@@ -3912,12 +3915,21 @@ inline std::vector<std::string> band_lines(PaneRig& r) {
     return out;
 }
 
+/// THE CELL SHOWING COLUMN `column` OF BODY ROW `row`, counted from the body's first cell: past a
+/// caret a fit in cells draws as a glyph of its own, read through the painter's own rule.
+inline std::int64_t pane_cell_of(const Session& s, std::int64_t kind, std::int64_t row,
+                                 std::int64_t column) {
+    return drawn_column(column, external_caret_glyph(s.panes.external_pane(kind),
+                                                     external_body_of(s, kind).fit, row));
+}
+
 /// PRESS A PLACE IN AN EXTERNAL PANE'S OWN ROOM -- the provider's row and column,
 /// which is exactly the pair `PanePressed` carries. Cases speak the provider's lattice
 /// so the arithmetic that turns it into a canvas cell lives in one place.
 inline void press_pane(PaneRig& r, std::int64_t kind, std::int64_t row, std::int64_t column) {
     const ui::Rect body = external_body_rect(r.session(), kind);
-    r.press_cell(body.x + column, body.y + kExternalHeaderRows + row);
+    r.press_cell(body.x + pane_cell_of(r.session(), kind, row, column),
+                 body.y + kExternalHeaderRows + row);
 }
 
 /// POINT THE KEYBOARD AT A PANE WITHOUT ALSO AUTHORING A GESTURE. The keyboard goes to the pane a

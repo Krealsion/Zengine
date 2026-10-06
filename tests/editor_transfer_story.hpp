@@ -169,7 +169,7 @@ struct TransferStory {
         e.button = button;
         e.pressed = down;
         e.space = input::space::kCells;
-        e.x = rect.x + column;
+        e.x = rect.x + pane_cell_of(r.session(), kind, row, column);
         e.y = rect.y + row + surface::kTuiCanvasTopRow +
               external_title_rows(r.session().panes, kind, r.session().pane_titles);
         return e;

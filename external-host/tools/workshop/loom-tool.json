@@ -80,7 +80,7 @@
           "name": "click",
           "type": "text",
           "default": "",
-          "help": "point at a pane before the chord: 'x,y' in the SDL skin's pixels, or 'x,yc' in the terminal skins' cells -- empty presses the chord with no click first. With `chord` also empty, the click is the whole batch"
+          "help": "point at a pane before the chord: 'x,y' in the SDL skin's pixels, or 'x,y@console' / 'x,y@canvas' in the terminal skins' cells -- empty presses the chord with no click first. With `chord` also empty, the click is the whole batch"
         },
         {
           "name": "button",
@@ -439,12 +439,12 @@
         {
           "name": "start",
           "type": "text",
-          "help": "start as x,y pixels or x,yc cells"
+          "help": "start as x,y pixels, or x,y@console / x,y@canvas terminal cells"
         },
         {
           "name": "end",
           "type": "text",
-          "help": "release as x,y pixels or x,yc cells"
+          "help": "release as x,y pixels, or x,y@console / x,y@canvas terminal cells"
         },
         {
           "name": "duration_ms",
@@ -675,6 +675,12 @@
         "InventoryEntry v1",
         "PaneViewRequested v1",
         "PaneView v1",
+        "DeskViewRequested v1",
+        "DeskView v1",
+        "PaneViewRequested v2",
+        "PaneView v2",
+        "PanePointRequested v2",
+        "PanePoint v2",
         "InventoryList v2",
         "InventoryListed v2",
         "InventoryAdd v2",
@@ -1786,8 +1792,8 @@
     {
       "name": "act",
       "script": "act.py",
-      "summary": "Act on Workshop through short named steps -- chords, text, presses on painted rows and controls -- and check each by the rows a pane paints, without pictures.",
-      "description": "Runs a JSON list of steps in order through one input session. Gestures: press (a chord, optionally repeated), type (one TextEntered moment; newlines included), select (walk a list's cursor -- the row painted with a leading > -- with Down and Up until it names exactly the given row, then stop; bounded, and a name no row or several rows carry fails with the rows painted), into and click (press where Workshop paints a row holding some text, found by PaneView and located by PanePoint), rest (move the pointer to a window pixel or cell with no button held, so a canvas pane that asks is told where it rests), control (a visible [label]). Observations: expect and absent (wait until a pane paints, or stops painting, a row holding some text), rows (keep a pane's rows), picture (keep a capture), wait (a pause). A pane's rows are its presentation: expect proves Workshop painted something, not that the owner painted about finished; pair it with the owner's own evidence. The first step that cannot be done ends the run naming its index and verb; nothing after it is sent.",
+      "summary": "Act on Workshop through short named steps -- chords, text, presses on painted words, controls and menu lines -- and check each by what Workshop says it holds, without pictures.",
+      "description": "Runs a JSON list of steps in order through one input session. Gestures: press (a chord, optionally repeated), type (one TextEntered moment; newlines included), select (walk a list's cursor -- the row painted with a leading > -- with Down and Up until it names exactly the given row: the text after a one- or two-column marker, up to a gap of two blanks where a value stands beside the name; bounded, and a name no row or several rows carry fails with the rows painted), into and click (press where Workshop paints a word holding some text, in a text pane or a canvas pane, found by PaneView version 2 and located by its PanePoint; into with no text presses the first word, a blank row at the point its word gives), rest (move the pointer to a window pixel or a terminal cell that says which cells it means, with no button held), control (a visible [label], in a text or canvas pane), menu (press the line of the menu on the screen holding some text). Observations: desk (wait until Workshop's own numbers for a pane -- its state, rank, keys, place and size in canvas pixels -- or for the desk hold what the step names), expect and absent (wait until a pane paints, or stops painting, a word holding some text), rows (keep a pane's words), picture (keep a capture), wait (a pause). A pane's words are its presentation: expect proves Workshop painted something, not that the owner painted about finished; pair it with the owner's own evidence. The first step that cannot be done ends the run naming its index and verb; nothing after it is sent.",
       "inputs": [
         {
           "name": "link",
@@ -1799,7 +1805,7 @@
           "name": "steps",
           "type": "text",
           "default": "[]",
-          "help": "a JSON list; each item names exactly one verb. {\"press\": \"ctrl+p\", \"repeat\": 2}, {\"type\": \"text\"}, {\"open\": \"Files\"} (the pane the Pane Manager lists by that name), {\"select\": [provider, pane, name]} (the list row named exactly that, reached by Down/Up, whatever sorts before it), {\"into\": [provider, pane, text?]}, {\"click\": [provider, pane, text], \"button\": \"right\"}, {\"at\": [provider, pane, row, column]} (one painted cell, counted from 0), {\"rest\": \"x,y\"} (pixels, or \"x,yc\" cells; no button held), {\"control\": [provider, pane, label]}, {\"expect\": [provider, pane, text], \"seconds\": 10}, {\"absent\": [...]}, {\"rows\": [provider, pane], \"as\": name}, {\"picture\": name, \"png\": true, \"crop\": [x0, y0, x1, y1], \"save\": absolute .png path}, {\"wait\": seconds}"
+          "help": "a JSON list; each item names exactly one verb. {\"press\": \"ctrl+p\", \"repeat\": 2}, {\"type\": \"text\"}, {\"open\": \"Files\"} (the pane the Pane Manager lists by that name), {\"select\": [provider, pane, name]} (the list row named exactly that, reached by Down/Up, whatever sorts before it), {\"into\": [provider, pane, text?]}, {\"click\": [provider, pane, text], \"button\": \"right\"}, {\"at\": [provider, pane, row, column]} (one painted cell of a text pane, counted from 0), {\"rest\": \"x,y\"} (window pixels, or \"x,y@console\" / \"x,y@canvas\" terminal cells; no button held), {\"control\": [provider, pane, label]}, {\"menu\": text, \"seconds\": 10}, {\"desk\": [provider, pane], \"is\": {\"state\": \"open\", \"keys\": true, \"visible\": {\"w\": 480}}, \"seconds\": 10, \"as\": name} (or {\"desk\": [], \"is\": {\"arranging\": false, \"menu\": true}}), {\"expect\": [provider, pane, text], \"seconds\": 10}, {\"absent\": [...]}, {\"rows\": [provider, pane], \"as\": name}, {\"picture\": name, \"png\": true, \"crop\": [x0, y0, x1, y1], \"save\": absolute .png path}, {\"wait\": seconds}"
         },
         {
           "name": "pace_ms",
@@ -1815,7 +1821,7 @@
         },
         {
           "name": "<as>.json",
-          "help": "the rows a rows step kept, with the picture number they were read from"
+          "help": "the words a rows step kept, with the picture number they were read from; the desk a desk step kept"
         },
         {
           "name": "<name>.bmp",
@@ -1840,6 +1846,12 @@
         "PaneView v1",
         "PanePointRequested v1",
         "PanePoint v1",
+        "DeskViewRequested v1",
+        "DeskView v1",
+        "PaneViewRequested v2",
+        "PaneView v2",
+        "PanePointRequested v2",
+        "PanePoint v2",
         "SurfaceCaptureRequested v1",
         "SurfaceCaptured v1",
         "SurfaceCaptureChunkRequested v1",
@@ -2079,7 +2091,13 @@
         "PaneViewRequested v1",
         "PaneView v1",
         "PanePointRequested v1",
-        "PanePoint v1"
+        "PanePoint v1",
+        "DeskViewRequested v1",
+        "DeskView v1",
+        "PaneViewRequested v2",
+        "PaneView v2",
+        "PanePointRequested v2",
+        "PanePoint v2"
       ],
       "terms": [
         "place",

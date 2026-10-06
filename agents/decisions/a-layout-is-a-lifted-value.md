@@ -1,7 +1,8 @@
 # A layout is a lifted value
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [layouts](../workshop/layouts.md) and [session](../workshop/session.md).
+supports is in [layouts](../workshop/layouts.md) and
+[session restore](../workshop/session-restore.md).
 
 **Context.** A weaver could arrange one desk and name it; keeping a second meant a second file
 and a second launch (`102017a`, "Keep several desks in one Workshop, and let a tab run say which

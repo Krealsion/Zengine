@@ -44,8 +44,8 @@ the host's standard rows beneath its rows, and each row is spent by its owner.
 **Consequences.** `load_document()` drops a captured object subject, the one identity-aliasing
 door. `manage.remove` (`d`) completed the arranging vocabulary as the same owner arm the menu's
 remove row spends. `Order >` is not called `Arrange`, because an `arrange` row one level up would
-make that a lie. A live draft holds a contextual delete back. A stale catalog reference is a compile
-error.
+make that a lie. A live draft holds a contextual delete back. A stale catalog reference is a
+compile error.
 
 **Laws supported.** [WL-CTX-01](../workshop/contextual.md),
 [WL-CTX-02](../workshop/contextual.md), [WL-CTX-05](../workshop/contextual.md),

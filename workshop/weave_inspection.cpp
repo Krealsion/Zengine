@@ -6,6 +6,7 @@
 // Workshop law: agents/workshop/info-body.md (agents/workshop.md routes)
 
 #include "weave.hpp"
+#include "screen_canvas.hpp"
 
 namespace zengine::workshop {
 
@@ -13,6 +14,12 @@ namespace zengine::workshop {
 // the point query spend, so a point is never offered for a pane its reading would refuse.
 std::string WorkshopWeave::visible_text_body(const std::string& provider, const std::string& pane_key,
                                              VisibleBody& out) const {
+    return visible_body(provider, pane_key, out, false);
+}
+
+// ...AND THE SAME FOR EITHER BODY: a canvas pane's picture too, where `canvas_too` asks for it.
+std::string WorkshopWeave::visible_body(const std::string& provider, const std::string& pane_key,
+                                        VisibleBody& out, bool canvas_too) const {
     const auto* pane = session_.panes.runtime.find(provider, pane_key);
     const auto sc = screen_of(session_);
     if (!pane || !session_.panes.has(pane->kind) || session_.arrange.open ||
@@ -20,12 +27,14 @@ std::string WorkshopWeave::visible_text_body(const std::string& provider, const 
         return "pane view unavailable: closed, unknown or covered by an interaction";
     }
     const auto* content = session_.panes.external_pane(pane->kind);
-    if (content && content->canvas.heard) {
+    const bool canvas = content && content->canvas.heard;
+    if (canvas && !canvas_too) {
         return "pane view unavailable: the pane draws a picture, not text rows";
     }
-    if (!content || !content->heard || content->awaiting ||
+    if (!content || !content->heard || content->awaiting || content->canvas.preview ||
         content->picture != content->stamp.aimed) {
-        return "pane view unavailable: no settled text picture";
+        return canvas ? "pane view unavailable: no settled picture"
+                      : "pane view unavailable: no settled text picture";
     }
     const auto bounds = bounds_of(session_.panes, session_.setup.active, pane->kind, sc);
     if (!bounds.open || bounds.rect.y < sc.room_y ||
@@ -46,9 +55,19 @@ std::string WorkshopWeave::visible_text_body(const std::string& provider, const 
     }
     out.kind = pane->kind;
     out.content = content;
-    out.body = external_body_place(bounds.rect, sc,
-        external_title_rows(session_.panes, pane->kind, session_.pane_titles));
+    const std::int64_t titles = external_title_rows(session_.panes, pane->kind, session_.pane_titles);
+    out.body = external_body_place(bounds.rect, sc, titles);
     if (!out.body.present) return "pane has no visible body";
+    out.canvas = canvas;
+    if (canvas) {
+        // The body the painter draws the picture in, which the grant's room must still be.
+        out.canvas_body = canvas_body_place(bounds.rect, sc, titles);
+        const auto& c = content->canvas;
+        if (out.canvas_body.empty() || out.canvas_body.x != c.x || out.canvas_body.y != c.y ||
+            out.canvas_body.w != c.width || out.canvas_body.h != c.height) {
+            return "pane view unavailable: no settled picture";
+        }
+    }
     return {};
 }
 
@@ -59,18 +78,20 @@ bool WorkshopWeave::cell_center(const VisibleBody& visible, std::int64_t row, st
                                 bool exact_column) const {
     const auto sc = screen_of(session_);
     const auto& body = visible.body;
+    // The cell showing the character: past a caret a fit in cells draws as a glyph of its own.
+    const std::int64_t cell = drawn_column(column, external_caret_glyph(visible.content, body.fit, row));
     if (sc.text_advance_px > 0 && sc.text_line_px > 0) {
         space = input::space::kPixels;
         if (body.fit.graphical()) {
-            x = body.fit.view.x + body.fit.origin_x + column*body.fit.advance_px + body.fit.advance_px/2;
+            x = body.fit.view.x + body.fit.origin_x + cell*body.fit.advance_px + body.fit.advance_px/2;
             y = body.fit.view.y + body.fit.origin_y + (row+body.header_rows)*body.fit.line_px + body.fit.line_px/2;
         } else {
-            x = body.region_x + surface::px_of_cells(column) + surface::kCanvasCellPx/2;
+            x = body.region_x + surface::px_of_cells(cell) + surface::kCanvasCellPx/2;
             y = body.region_y + surface::px_of_cells(row+body.header_rows) + surface::kCanvasCellPx/2;
         }
     } else {
         space = input::space::kCells;
-        x = surface::cell_of_pixel(body.region_x)+column;
+        x = surface::cell_of_pixel(body.region_x)+cell;
         y = surface::cell_of_pixel(body.region_y)+row+body.header_rows+surface::kTuiCanvasTopRow;
     }
     const auto hit = external_press_at(session_.panes, session_.setup.active, sc, visible.kind,
@@ -114,6 +135,306 @@ void WorkshopWeave::on(const PanePointRequested& asked, loom::Mail& mail) {
     PanePoint reply{asked.provider, asked.pane, asked.picture, asked.row, asked.column, 0, 0, 0};
     if (!cell_center(visible, asked.row, asked.column, reply.x, reply.y, reply.space, true)) {
         (void)mail.answer(loom::Refused{"pane point unavailable: that cell is not addressable"}); return;
+    }
+    (void)mail.answer(reply);
+}
+
+// ---- THE DESK, AS WORKSHOP HOLDS IT -----------------------------------------------------------
+
+namespace {
+
+/// THE SPACE A POINT ON THIS SCREEN IS READ IN: a window's pixels where the medium sets type, a
+/// terminal's cells where text is a cell -- the space `cell_center` answers in.
+std::int64_t input_space_of(const Screen& sc) {
+    return sc.text_advance_px > 0 && sc.text_line_px > 0 ? input::space::kPixels
+                                                         : input::space::kCells;
+}
+
+DeskRect desk_rect(const PixelRect& r) {
+    return r.w > 0 && r.h > 0 ? DeskRect{r.x, r.y, r.w, r.h} : DeskRect{};
+}
+
+/// WHERE A FIT DRAWS ITS GLYPHS: the first glyph's corner, and one glyph's advance and line, in
+/// canvas pixels -- the face's where the fit sets type, one cell each where text is a cell.
+struct GlyphGrid {
+    std::int64_t x = 0, y = 0;
+    std::int64_t advance = surface::kCanvasCellPx, line = surface::kCanvasCellPx;
+};
+
+GlyphGrid glyph_grid(const surface::RegionFit& fit) {
+    if (fit.graphical()) {
+        return GlyphGrid{fit.view.x + fit.origin_x, fit.view.y + fit.origin_y, fit.advance_px,
+                         fit.line_px};
+    }
+    return GlyphGrid{fit.view.x, fit.view.y, surface::kCanvasCellPx, surface::kCanvasCellPx};
+}
+
+/// The centre of one glyph, in the input space: a window's pixel, or the terminal cell a medium
+/// whose unit is the cell draws it on (floored, as it draws) on the console row it reads.
+void glyph_point(const GlyphGrid& g, std::int64_t row, std::int64_t column, std::int64_t space,
+                 std::int64_t& x, std::int64_t& y) {
+    if (space == input::space::kPixels) {
+        x = g.x + column * g.advance + g.advance / 2;
+        y = g.y + row * g.line + g.line / 2;
+        return;
+    }
+    x = surface::cell_of_pixel(g.x + column * g.advance);
+    y = surface::cell_of_pixel(g.y + row * g.line) + surface::kTuiCanvasTopRow;
+}
+
+/// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row` over its bytes' cells of the
+/// grid and the caret glyph a terminal draws into it at `caret`, and its middle byte's centre as
+/// the place a press names it.
+PaneWord word_on(const GlyphGrid& g, std::int64_t row, std::int64_t column, std::string text,
+                 std::int64_t caret, std::int64_t space) {
+    PaneWord w;
+    const std::int64_t bytes = static_cast<std::int64_t>(text.size());
+    const std::int64_t n = (std::max<std::int64_t>)(1, bytes + (caret >= 0 ? 1 : 0));
+    w.place = DeskRect{g.x + column * g.advance, g.y + row * g.line, n * g.advance, g.line};
+    glyph_point(g, row, column + drawn_column(bytes > 0 ? (bytes - 1) / 2 : 0, caret), space, w.x,
+                w.y);
+    w.space = space;
+    w.text = std::move(text);
+    return w;
+}
+
+std::string without_trailing_blanks(std::string text) {
+    while (!text.empty() && text.back() == ' ') {
+        text.pop_back();
+    }
+    return text;
+}
+
+/// THE MENU ON THE SCREEN, read from the painter's own composition of it: Workshop's contextual
+/// menu, or a pane's as its presenter showed it. At most one is open.
+DeskMenu desk_menu(const Session& s, const Screen& sc) {
+    DeskMenu menu;
+    surface::SurfaceLayer layer;
+    PixelRect bounds;
+    if (s.presented.open) {
+        menu.office = s.presented.office;
+        menu.pane = s.presented.pane;
+        menu.picture = s.presented.picture;
+        bounds = presented_bounds(s, sc);
+        paint_presented(layer, s, sc);
+    } else if (s.context.open) {
+        menu.office = kWorkshopProvider;
+        bounds = context_bounds(s, sc);
+        paint_context(layer, s, sc);
+    } else {
+        return menu;
+    }
+    menu.open = true;
+    menu.place = desk_rect(bounds);
+    if (layer.texts.empty()) {
+        return menu; // granted and not shown yet: no line is drawn, so none is said
+    }
+    const GlyphGrid grid = glyph_grid(prose_place(bounds, sc).fit);
+    const surface::SurfaceTextRegion& region = layer.texts.back();
+    const std::int64_t space = input_space_of(sc);
+    for (std::size_t i = 0; i < region.rows.size(); ++i) {
+        std::string text = without_trailing_blanks(region.rows[i].text);
+        const std::int64_t row = static_cast<std::int64_t>(i);
+        PaneWord line = word_on(grid, row, 0, std::move(text), -1, space);
+        line.word = row;
+        menu.lines.push_back(std::move(line));
+    }
+    return menu;
+}
+
+} // namespace
+
+// THE DESK, BY ITS OWN NUMBERS: every pane the desk names, in its order, with what Workshop
+// resolves for it now; nothing is read off a picture.
+// WL-GEO-13 -- agents/workshop/geometry.md
+DeskView WorkshopWeave::desk_view() const {
+    const Screen sc = screen_of(session_);
+    const Setup& setup = session_.setup.active;
+    const Panes& panes = session_.panes;
+    DeskView out;
+    out.width = sc.w;
+    out.height = sc.h;
+    out.cell_px = sc.cell_px;
+    out.space = input_space_of(sc);
+    out.room = DeskRect{0, sc.room_y, sc.room_w, sc.room_h};
+    const std::vector<CatalogRow> rows = inventory_rows(setup, panes);
+    const std::vector<std::int64_t> order = effective_pane_order(setup, panes);
+    const std::int64_t selected = selected_pane(panes);
+    const std::int64_t keys = keyboard_pane();
+    for (const SetupPane& authored : setup.panes) {
+        CatalogRow row{kNoPaneKind, authored.ref, authored.ref.pane, std::string()};
+        for (const CatalogRow& known : rows) {
+            if (known.ref == authored.ref) {
+                row = known;
+                break;
+            }
+        }
+        DeskPane pane;
+        pane.provider = authored.ref.provider;
+        pane.pane = authored.ref.pane;
+        pane.name = row.name;
+        pane.state = pane_state_word(pane_state_of(panes, setup, sc, row));
+        if (row.kind != kNoPaneKind && panes.has(row.kind)) {
+            const PaneBounds where = bounds_of(panes, setup, row.kind, sc);
+            pane.resolved = desk_rect(where.resolved);
+            pane.visible = desk_rect(where.rect);
+            for (std::size_t i = 0; i < order.size(); ++i) {
+                if (order[i] == row.kind) {
+                    pane.front = static_cast<std::int64_t>(order.size() - 1 - i);
+                }
+            }
+            pane.selected = row.kind == selected;
+            pane.keys = row.kind == keys;
+        }
+        out.panes.push_back(std::move(pane));
+    }
+    out.arranging = session_.arrange.open;
+    out.menu = desk_menu(session_, sc);
+    return out;
+}
+
+void WorkshopWeave::on(const DeskViewRequested&, loom::Mail& mail) {
+    (void)mail.answer(desk_view());
+}
+
+// ---- A PANE'S WORDS, TEXT OR CANVAS ALIKE --------------------------------------------------------
+
+namespace {
+
+/// ONE CANVAS LABEL AS THE PAINTER DRAWS IT (`paint_pane_canvas`): the bytes left of the body
+/// dropped whole, the row cut at its right edge, a label outside its rows not drawn at all.
+bool drawn_label(const PaneCanvasLabel& label, const PixelRect& body, std::string& text,
+                 std::int64_t& x) {
+    if (label.y < 0 || label.y > body.h - kPaneCanvasUnit) return false;
+    std::size_t first = 0;
+    x = label.x;
+    while (first < label.text.size() && x < 0) {
+        x = surface::add_cells(x, kPaneCanvasUnit);
+        ++first;
+    }
+    if (x > body.w - kPaneCanvasUnit || first == label.text.size()) return false;
+    const auto room = static_cast<std::size_t>((body.w - x) / kPaneCanvasUnit);
+    const auto count = (std::min)(label.text.size() - first, room);
+    if (count == 0) return false;
+    text = label.text.substr(first, count);
+    return true;
+}
+
+} // namespace
+
+// WHAT A VISIBLE BODY SHOWS, word by word: a text pane's rows under its header, a canvas pane's
+// labels and then its text runs, each where the medium draws it. A word the body does not draw
+// is not said, so a word's number is its place in this list and nowhere else. `glyphs` takes
+// where each word's glyphs stand, which a point inside it is measured by.
+// WL-GEO-13 -- agents/workshop/geometry.md
+std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
+                                                   std::vector<WordGlyphs>* glyphs) const {
+    const Screen sc = screen_of(session_);
+    const std::int64_t space = input_space_of(sc);
+    std::vector<PaneWord> out;
+    const auto keep = [&](const GlyphGrid& grid, std::string text, std::int64_t row,
+                          std::int64_t caret) {
+        PaneWord w = word_on(grid, row, 0, std::move(text), caret, space);
+        w.word = static_cast<std::int64_t>(out.size());
+        out.push_back(std::move(w));
+        if (glyphs != nullptr) glyphs->push_back(WordGlyphs{grid.advance, caret});
+    };
+    const auto* content = visible.content;
+    if (!visible.canvas) {
+        const auto& body = visible.body;
+        const GlyphGrid grid = glyph_grid(body.fit);
+        for (std::int64_t row = 0;
+             row < body.rows && row < static_cast<std::int64_t>(content->shown.size()); ++row) {
+            // A terminal inserts the caret as a glyph of its own and then cuts the row to the
+            // body's columns, so a row with the caret shows one character fewer, and the text
+            // after the glyph stands a cell on.
+            const std::int64_t glyph = external_caret_glyph(content, body.fit, row);
+            const std::int64_t caret = glyph < body.columns ? glyph : -1;
+            const std::int64_t room = caret >= 0 ? body.columns - 1 : body.columns;
+            std::string text = without_trailing_blanks(
+                content->shown[static_cast<std::size_t>(row)].text.substr(
+                    0, static_cast<std::size_t>(room)));
+            const bool in_word = caret >= 0 && caret <= static_cast<std::int64_t>(text.size());
+            keep(grid, std::move(text), row + body.header_rows, in_word ? caret : -1);
+        }
+        return out;
+    }
+    const PixelRect& body = visible.canvas_body;
+    const auto& picture = content->canvas.content;
+    for (const PaneCanvasLabel& label : picture.labels) {
+        std::string text;
+        std::int64_t x = 0;
+        if (!drawn_label(label, body, text, x)) continue;
+        const GlyphGrid grid{surface::add_cells(body.x, x), surface::add_cells(body.y, label.y),
+                             kPaneCanvasUnit, kPaneCanvasUnit};
+        keep(grid, std::move(text), 0, -1);
+    }
+    const PaneCanvasRoom room{picture.pane, picture.grant, body.w, body.h, content->canvas.grain,
+                              content->canvas.graphical, content->canvas.text_advance_px,
+                              content->canvas.text_line_px};
+    for (const PaneCanvasText& run : picture.texts) {
+        const auto placed = clip_canvas_text(run, {0, 0, body.w, body.h}, room);
+        if (!placed.visible()) continue;
+        const surface::SurfaceTextRegion region = canvas_text_region(placed, body.x, body.y);
+        const surface::RegionFit fit = surface::fit_region(region.x, region.y, region.w, region.h,
+                                                           sc.text_advance_px, sc.text_line_px);
+        std::string text = placed.text.text;
+        const bool caret = !fit.graphical() && region.caret_row == 0 && region.caret_col >= 0 &&
+                           region.caret_col <= static_cast<std::int64_t>(text.size());
+        keep(glyph_grid(fit), std::move(text), 0, caret ? region.caret_col : -1);
+    }
+    return out;
+}
+
+void WorkshopWeave::on(const v2::PaneViewRequested& asked, loom::Mail& mail) {
+    VisibleBody visible;
+    if (const auto why = visible_body(asked.provider, asked.pane, visible, true); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
+        return;
+    }
+    (void)mail.answer(v2::PaneView{asked.provider, asked.pane, visible.content->stamp.aimed,
+                                   visible.canvas, visible_words(visible)});
+}
+
+// WHERE ONE CHARACTER OF ONE WORD IS NOW, measured as the word was and checked by resolving it: a
+// text row through the press measurer, a canvas word against the body its press lands in.
+void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
+    VisibleBody visible;
+    if (const auto why = visible_body(asked.provider, asked.pane, visible, true); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
+        return;
+    }
+    if (asked.picture != visible.content->stamp.aimed) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: the pane's picture moved; read it again"});
+        return;
+    }
+    std::vector<WordGlyphs> glyphs;
+    const std::vector<PaneWord> words = visible_words(visible, &glyphs);
+    if (asked.word < 0 || asked.word >= static_cast<std::int64_t>(words.size()) ||
+        asked.column < 0 ||
+        asked.column >= static_cast<std::int64_t>(words[static_cast<std::size_t>(asked.word)].text.size())) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: outside the pane's visible words"});
+        return;
+    }
+    v2::PanePoint reply{asked.provider, asked.pane, asked.picture, asked.word, asked.column, 0, 0, 0};
+    bool resolved = false;
+    if (!visible.canvas) {
+        resolved = cell_center(visible, asked.word, asked.column, reply.x, reply.y, reply.space, true);
+    } else {
+        const auto at_word = static_cast<std::size_t>(asked.word);
+        const DeskRect& place = words[at_word].place;
+        reply.space = input_space_of(screen_of(session_));
+        const WordGlyphs& drawn = glyphs[at_word];
+        glyph_point(GlyphGrid{place.x, place.y, drawn.advance, place.h}, 0,
+                    drawn_column(asked.column, drawn.caret), reply.space, reply.x, reply.y);
+        const PointedAt at = canvas_point_of(reply.space, reply.x, reply.y);
+        resolved = at.understood &&
+                   visible.canvas_body.contains_at(at.px.x, at.px.y, at.grain) &&
+                   PixelRect{place.x, place.y, place.w, place.h}.contains_at(at.px.x, at.px.y, at.grain);
+    }
+    if (!resolved) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: that character is not addressable"});
+        return;
     }
     (void)mail.answer(reply);
 }

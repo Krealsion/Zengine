@@ -119,6 +119,16 @@ function(zengine_weave target source)
     get_filename_component(zengine_weave_entry "${source}" ABSOLUTE
                            BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
     set_property(TARGET ${target} PROPERTY ZENGINE_WEAVE_SOURCE "${zengine_weave_entry}")
+    # ...AND A WEAVE OF THE TREE'S OWN SOURCE IS COUNTED, for the census of the shapes it publishes
+    # (tests/test_shapes_census.cpp); a test's own weave, or one built from a source the build
+    # writes -- under the build tree, wherever that tree stands -- publishes nothing of the tree's.
+    string(FIND "${zengine_weave_entry}" "${PROJECT_SOURCE_DIR}/" zengine_weave_in_tree)
+    string(FIND "${zengine_weave_entry}" "${PROJECT_SOURCE_DIR}/tests/" zengine_weave_in_tests)
+    string(FIND "${zengine_weave_entry}" "${PROJECT_BINARY_DIR}/" zengine_weave_in_build)
+    if(zengine_weave_in_tree EQUAL 0 AND NOT zengine_weave_in_tests EQUAL 0 AND
+       NOT zengine_weave_in_build EQUAL 0)
+        set_property(GLOBAL APPEND PROPERTY ZENGINE_PRODUCT_WEAVES ${target})
+    endif()
 endfunction()
 
 # ---- ...and an artifact that is a provider, not a weave --------------------------------

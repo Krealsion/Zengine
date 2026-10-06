@@ -18,10 +18,10 @@ builds it and the host, and builds start nothing.
 
 **One launch holds a runtime.** Before it looks at anything, the launch CLAIMS the runtime — a
 named mutex on Windows, an exclusive `flock` on a per-user lock file on POSIX, named by the
-runtime directory hashed — and holds the claim until the host it started has exited. Two Runs used
-to be able to pass each other: each asked whether a host from the runtime was running, each was
-told no, and both prepared the one directory and started a Workshop over its images, promotions
-and project. Asking a second time just before starting the host would narrow that window and close
+runtime directory hashed — and holds the claim until the host it started has exited. Without it
+two Runs pass each other: each asks whether a host from the runtime is running, each is told no,
+and both prepare the one directory and start a Workshop over its images, promotions and project.
+Asking a second time just before starting the host would narrow that window and close
 nothing. The claim is the system's to release, so a launch that crashes or is stopped leaves
 nothing held and nothing to clean up, and a launch that cannot have the claim prepares, starts and
 stops nothing.
@@ -51,9 +51,9 @@ Nothing here claims security from a Windows file lock or forbids editing host so
   mutex and a lock are let go by the system when their holder ends. Writing one into a runtime not
   made yet would also put a file where the runtime script must find an absent or empty directory,
   which is the check that keeps it from writing over somebody else's files.
-- *Claiming the launcher, or the build tree* — argued: two trees can point at one runtime and one
-  tree can launch two, so what must not be shared is the runtime; distinct runtimes are distinct
-  claims, and the same directory spelled another way is the same claim.
+- *Claiming the launcher, or the build tree* — argued: two trees can point at one runtime and
+  one tree can launch two, so what must not be shared is the runtime; distinct runtimes are
+  distinct claims, and the same directory spelled another way is the same claim.
 
 **Consequences.** The IDE's Debug action debugs the launcher; Workshop is attached to by process.
 The in-use check is the host image refusing to open for writing: Windows refuses a running image,

@@ -14,16 +14,17 @@ small package, `source-transfer/`: `SourceText`, `SourceLocation`, their observa
 byte laws, the Terminal line (proved by Loom's lexer), the reading of a dropped pair, and the C++
 generator. A copy leaves only from an established selection -- a drag begun on the painted
 highlight, a right-click Extract, or a key -- and an insertion is one undoable edit at the painted
-landing, replacing the highlight only when dropped onto it. Both Editors number their pictures, so a
-drop aimed at a screen that moved is refused. A command inserts its Terminal line; C++ is a
+landing, replacing the highlight only when dropped onto it. Both Editors number their pictures, so
+a drop aimed at a screen that moved is refused. A command inserts its Terminal line; C++ is a
 separate choice in C++ documents. A location reopens through the managed opening, approved for the
 dropping actor like any other operation, and the caret moves only where the saved line still reads
 as it did.
 
 **Alternatives considered.**
-- *Holding the selection on a press inside it* -- refused: the painted selection and the next key's
-  effect disagreed (a paste replaced what the weaver had clicked away from).
-- *`nvim_paste` or keys for Neovim* -- refused: mode-dependent, and a Terminal buffer would run it.
+- *Holding the selection on a press inside it* -- refused: the painted selection and the next
+  key's effect disagreed (a paste replaced what the weaver had clicked away from).
+- *`nvim_paste` or keys for Neovim* -- refused: mode-dependent, and a Terminal buffer would run
+  it.
 - *Opening a location's relative name under this root* -- refused: another worktree's same-named
   file is a different file; rebinding is an explicit edit of the path.
 - *Executing or sending a dropped command* -- refused: the drop is text to edit, never an act.

@@ -20,14 +20,14 @@ definition — mounted at registration as the conventional operator edge and spe
 coordinator on the incumbent's final bytes. Reload stays shape-only; a stale state file meeting a
 successor is refused by name, and the edge it could take is named as the seam.
 
-**Who may speak at the boundary.** Provenance, not shape — the Loom's own rule. Every maker weave
-accepts the ceremony shapes, so the shape of a `Quiesce`, a `Resume` or an `Adopt` says nothing
-about who sent it; the host arms the incumbent and the candidate for one coordinator and one token
-through the objects it holds when the edit begins, and the weave honours those three shapes only
-from that bus-stamped sender with that token — `Adopt` only while it is an unbound candidate,
-bound again by Loom's attested activation. A stranger's is refused by name and the weave keeps
-serving. The same rule namespaces a definition's emits under its own name, so a definition — pure
-data — cannot speak the ceremony shapes to its siblings; accepts stay free.
+**Who may speak at the boundary.** Provenance, not shape — the Loom's own rule. Every maker
+weave accepts the ceremony shapes, so the shape of a `Quiesce`, a `Resume` or an `Adopt` says
+nothing about who sent it; the host arms the incumbent and the candidate for one coordinator and
+one token through the objects it holds when the edit begins, and the weave honours those three
+shapes only from that bus-stamped sender with that token — `Adopt` only while it is an unbound
+candidate, bound again by Loom's attested activation. A stranger's is refused by name and the
+weave keeps serving. The same rule namespaces a definition's emits under its own name, so a
+definition — pure data — cannot speak the ceremony shapes to its siblings; accepts stay free.
 
 **Alternatives considered.**
 - *Converting in place under the same WeaveId* — tried against the substrate's own doors and
@@ -59,8 +59,8 @@ data — cannot speak the ceremony shapes to its siblings; accepts stay free.
   case `"a state file of another version is refused by name at load, and nothing converts it"`.
 
 **Consequences.** A schema edit costs a full prepared replacement — a coordinator, a seal, a
-budget, one ask, a commit the host pumps — and a message in flight is handled, refused by name or
-handled by the successor, never lost. The conversion's schema half is judged at admission where
+budget, one ask, a commit the host pumps — and a message in flight is handled, refused by name
+or handled by the successor, never lost. The conversion's schema half is judged at admission where
 the weaver can see it, and its value half at the edge where the live bytes are. Every definition
 edit is a new build identity; the grant is not re-floored here.
 

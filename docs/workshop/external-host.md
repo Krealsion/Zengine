@@ -104,7 +104,9 @@ input, capture, connection, and inventory doors. Read § 1 above, then jump stra
 
 For the inventory collection, `workshop/inventory-collect` captures a new named entry and
 returns its reference in `entry.json` plus the self-describing `pair.bin`. `workshop/drag`
-takes `start` and `end` points (`x,y` pixels or `x,yc` cells), injects one complete primary drag,
+takes `start` and `end` points (`x,y` window pixels, or a terminal cell that says which cells it
+means: `x,y@console`, the console's own, or `x,y@canvas`, a canvas cell), injects one complete
+primary drag,
 and saves before/after pictures. These are searchable tools in the same package. Their input
 path retains the guest's authority; dispatch settlement alone does not prove destination success.
 
@@ -139,11 +141,13 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   than the connections one above — to capture a named participant's own `zen.PokeStructure`,
   then verifies Get against that capture's own snapshot; [the inventory
   reference](../reference/inventory.md) owns the pair's own contract and encoding).
-- **Tools that work the way a weaver's hands do**, in the same package, judged by the rows each
-  pane paints (the pane view the `capture` power reads) rather than by comparing pictures:
-  `workshop/act` (steps through one input session: press, type, open a pane from the Pane
-  Manager, walk a list's cursor to the row of a given name, press into a pane or on one of its
-  rows, expect or rule out text, keep a pane's rows or a picture -- a cropped PNG if asked),
+- **Tools that work the way a weaver's hands do**, in the same package, judged by what Workshop
+  says it holds -- each pane's words and the desk's own numbers, which the `capture` power reads
+  -- rather than by comparing pictures: `workshop/act` (steps through one input session: press,
+  type, open a pane from the Pane Manager, walk a list's cursor to the row of a given name, press
+  into a pane or on one of its words, in a text or a canvas pane, or on a line of the menu on the
+  screen, check a pane's place, size, state or keys on the desk by number, expect or rule out
+  text, keep a pane's words or a picture -- a cropped PNG if asked),
   `workshop/nvim-edit` (edits to one file typed through Workshop's [Neovim pane](neovim.md) and
   saved by Neovim; before typing, Neovim itself is asked whether its buffer is exactly that file,
   unmodified and equal to the disk -- unsaved work, a draft never saved included, is refused
@@ -662,18 +666,42 @@ Everything a stranger needs is published: `zengine::input` and `zengine::surface
 shapes, `workshop/guest_seam_vocabulary.hpp` for the inventory, and Loom's
 `zen/bridge/link.hpp` for the envelope. Nothing in `workshop/` beyond those is reached.
 
-## Visible rows and timed drag stories
+## The desk, a pane's words, and timed drag stories
 
-The `capture` guest power also permits `PaneViewRequested{provider,pane}` at
-`zengine.workshop`. Its `PaneView` answer contains the current picture number and visible text
-rows with addressable pointer points and coordinate space. Geometry comes from the painter's
-resolved pane body. Closed, unsettled, canvas-backed, overlapping, modal-covered or off-workspace panes refuse.
-This reads presentation; it does not select, activate, grant authority or expose arbitrary state.
-A later gesture can still encounter a changed picture. Legacy unnumbered panes report picture
-zero; the query is not an interaction lease. Receivers must fence their own drops.
-`PanePointRequested{provider,pane,picture,row,column}` answers where one painted cell is now, for
-the picture the caller read, so a tool presses a control such as `[Save copy]` without knowing a
-font; `hand.control(provider, pane, label)` and `hand.field(...)` in `hand.py` use it.
+The `capture` guest power also permits three readings at `zengine.workshop`, each answered from
+what Workshop owns and none read off a picture:
+
+- **The desk.** `DeskViewRequested{}` is answered by `DeskView`: every pane on the desk, in the
+  desk's order, with its state (`open`, `covered`, `off-room`, `unresolved`), its rank from the
+  front (0 in front), the place its authored intent resolves to and the part of it the canvas
+  has, and whether it is selected or holds the keys; the room; whether arranging is open; and the
+  menu on the screen, if one is -- Workshop's own or a pane's -- with each line where it is drawn.
+- **A pane's words.** `PaneViewRequested` version 2, `{provider,pane}`, is answered by `PaneView`
+  version 2: a text pane's rows, or a canvas pane's labels and runs of measured text as it drew
+  them last, each a word with its place and the point a press names it by. Version 1 still
+  answers a text pane's rows.
+- **Where one character is.** `PanePointRequested` version 2,
+  `{provider,pane,picture,word,column}`, answers where one character of one word is now, for the
+  picture the caller read; version 1, `{provider,pane,picture,row,column}`, one painted cell of a
+  text pane. So a tool presses a control such as `[Save copy]`, or the View Builder's `[Label]`,
+  without knowing a font.
+
+![A 1440 by 900 window after a walk read by messages: the View Builder, at 96,102 and 840 by 240 as the desk says, made label1 when its [Label] was pressed by what it says; Info, holding the keys, has Height chosen by select and shows the 240 px written through it](images/desk-read-by-message.png)
+
+Every place is in canvas pixels: a window's pixel is one, a terminal's cell is `kCanvasCellPx`
+(<!-- value kCanvasCellPx -->12<!-- /value -->), and a terminal's console counts `kTuiCanvasTopRow`
+(<!-- value kTuiCanvasTopRow -->2<!-- /value -->) rows above the canvas. A point to press is in the space the medium
+reads input in, which the answer names. Closed, unsettled, overlapping, modal-covered or
+off-workspace panes' words are refused, and the desk still answers. This reads presentation; it
+does not select, activate, grant authority or expose arbitrary state. A later gesture can still
+encounter a changed picture. Legacy unnumbered panes report picture zero; the query is not an
+interaction lease. Receivers must fence their own drops. `hand.words`, `hand.word_point` and
+`hand.desk` in `hand.py` ask them, and `workshop/act` steps on them: `desk` checks a pane's
+place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
+480}}}`), `menu` presses the line of the menu on the screen holding some text, and `click`,
+`control`, `expect` and `select` read a canvas pane's words as a text pane's. `select` reads a
+list row's name after a one- or two-column marker, and a value a list sets beside it after two
+blanks, so Info's `>Height      300` is chosen as `Height`.
 
 `workshop/drag` uses the session's timed Input motion; `duration_ms` controls time, `bend`
 selects a linear path (zero) or cubic Bezier, and `button` is the one held through it (left,
@@ -681,7 +709,7 @@ middle or right; left unless named); `hold` names modifiers held through it (`al
 `ctrl+shift`), and then the drag moves in sixteen straight steps the tool injects, since Input's
 timed motion carries no modifier; `held.bmp` is Workshop at the end of the motion with the
 button still down, between `before.bmp` and `after.bmp`. `workshop/act`'s `rest` step moves the pointer to a
-window pixel or cell with no button held, so a canvas pane that asks for its hover is told where
+window pixel or a terminal cell (`x,y@console` or `x,y@canvas`) with no button held, so a canvas pane that asks for its hover is told where
 it rests. The [Inventory-to-Compose demo](inventory-compose.md)
 finds visible rows and verifies owner state without screen-coordinate constants. Its helpers
 live in `external-host/tools/workshop/hand.py`; interpolation and schema/authority decisions
