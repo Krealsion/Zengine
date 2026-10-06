@@ -91,6 +91,7 @@
 #include <iterator>
 #include <memory>
 #include <limits>
+#include <map>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -3386,6 +3387,28 @@ inline std::int64_t cell_mid_px(std::int64_t cell) {
 /// `bounds_of` path, so a case never spells a placement of its own.
 inline PixelRect external_pane_rect(const Session& s, std::int64_t kind) {
     return bounds_of(s.panes, s.setup.active, kind, screen_of(s)).rect;
+}
+
+/// THE PARTS A TEXT PANE NAMED in the rows Workshop holds for it now, by name.
+inline std::map<std::string, PaneRowPart> held_parts(const Session& s, std::int64_t kind) {
+    std::map<std::string, PaneRowPart> out;
+    if (const ExternalPane* pane = s.panes.external_pane(kind)) {
+        for (const PaneRowPart& part : pane->parts) {
+            out.emplace(part.name, part);
+        }
+    }
+    return out;
+}
+
+/// ...and what the named part's columns of its row say, as the pane wrote them.
+inline std::string held_part_text(const Session& s, std::int64_t kind, const PaneRowPart& part) {
+    const ExternalPane* pane = s.panes.external_pane(kind);
+    if (pane == nullptr || part.row < 0 || part.row >= static_cast<std::int64_t>(pane->shown.size())) {
+        return std::string();
+    }
+    const std::string& row = pane->shown[static_cast<std::size_t>(part.row)].text;
+    const auto from = static_cast<std::size_t>(part.column);
+    return from >= row.size() ? std::string() : row.substr(from, static_cast<std::size_t>(part.columns));
 }
 
 /// The room Workshop resolved for that pane's body -- the `PaneRoom` a provider was

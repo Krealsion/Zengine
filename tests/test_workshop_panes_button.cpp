@@ -781,7 +781,7 @@ TEST_CASE("WL-CTX-09: a pane's menu shows its own rows first and the host's stan
     CHECK(t.guard->answers[0].refusal == "dismissed");
 }
 
-TEST_CASE("WL-HAND-06: the shipped presenter names each line showing a row by the row's id, the pane's rows and the host's standard rows alike, and a press at the point the desk gives a name chooses that row") {
+TEST_CASE("WL-HAND-06: the shipped presenter names each row's line by its id, and a press at that name's point chooses it") {
     Rigged t;
     t.guard->menu_on_press = true;
     t.right_in_guard();
