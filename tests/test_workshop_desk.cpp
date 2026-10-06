@@ -329,7 +329,8 @@ constexpr const char* kCanvasPane = "sketch";
 class SketchSeat : public loom::WeaveBase<SketchSeat, SeatState,
     loom::Accept<PaneCatalogRequested, PaneRoom, PaneCanvasRoom, PaneCanvasPointer,
                  PaneCanvasHover, PaneCanvasRejected, SeatDo>,
-    loom::Emit<v3::PaneOffered, PaneCanvasContent, v4::PaneCanvasContent>> {
+    loom::Emit<v3::PaneOffered, PaneCanvasContent, v4::PaneCanvasContent,
+               v5::PaneCanvasContent>> {
 public:
     std::vector<PaneCanvasRoom> rooms;
     std::vector<PaneCanvasPointer> pointers;
@@ -354,6 +355,7 @@ loom::Grant sketch_grant() {
     grant.allow_to_any(v3::PaneOffered::zen_name, v3::PaneOffered::zen_version);
     grant.allow_to_any(PaneCanvasContent::zen_name, PaneCanvasContent::zen_version);
     grant.allow_to_any(v4::PaneCanvasContent::zen_name, v4::PaneCanvasContent::zen_version);
+    grant.allow_to_any(v5::PaneCanvasContent::zen_name, v5::PaneCanvasContent::zen_version);
     return grant;
 }
 
@@ -1803,7 +1805,7 @@ TEST_CASE("a picture's names are judged with it: a name twice or a part with no 
     d.draw_named({PaneCanvasPart{"node", 0, 0, 12, 12}, PaneCanvasPart{"", 6, 0, 12, 12},
                   PaneCanvasPart{"", 0, 6, 12, 12}});
     CHECK(d.sketch->rejected.empty());
-    CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.parts.size() == 3);
+    CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.content.parts.size() == 3);
 }
 
 TEST_CASE("the desk names the lines of Workshop's own menu by the action or group each shows, over the line it is drawn on") {
@@ -1928,6 +1930,65 @@ TEST_CASE("a pane's names survive the canvas: its next image draws a picture und
             CHECK(y >= after->place.y - (window ? 0 : u - 1));
             CHECK(y < after->place.y + after->place.h);
         }
+    }
+}
+
+TEST_CASE("a canvas pane's rows set on its room's lattice are words on its parts' rows, and a part's text is the characters drawn inside it") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        const PaneCanvasRoom room = d.sketch->rooms.back();
+        const CanvasTextMetrics m = canvas_text_metrics(room);
+        v5::PaneCanvasContent p;
+        p.pane = kCanvasPane;
+        p.grant = room.grant;
+        p.picture = ++d.number;
+        p.rects.push_back(PaneCanvasRect{0, 0, room.width, room.height, surface::role::kGround});
+        const std::vector<std::string> rows = {"> [open] Layouts", "  [    ] Loaded"};
+        for (std::size_t r = 0; r < rows.size(); ++r) {
+            v2::PaneCanvasText run{m.inset, static_cast<std::int64_t>(r) * m.line, rows[r],
+                                   surface::role::kFill};
+            run.padded = false;
+            p.texts.push_back(run);
+        }
+        p.parts.push_back(PaneCanvasPart{"pane:a", m.inset, 0, 20 * m.advance, m.line});
+        p.parts.push_back(PaneCanvasPart{"mark:a", m.inset + 2 * m.advance, 0, 6 * m.advance, m.line});
+        p.parts.push_back(PaneCanvasPart{"pane:b", m.inset, m.line, 20 * m.advance, m.line});
+        d.drive([p](SketchSeat&, loom::Mail& mail) {
+            (void)mail.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, p);
+        });
+        REQUIRE(d.sketch->rejected.empty());
+        v3::PaneView view;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
+        CHECK(view.canvas);
+        // ONE WORD A ROW, its text the row's, on the row its parts stand on.
+        REQUIRE(view.words.size() == 2);
+        const ExternalPane& pane = *d.r.session().panes.external_pane(d.sketch_kind);
+        for (std::size_t r = 0; r < rows.size(); ++r) {
+            CAPTURE(r);
+            CHECK(view.words[r].text == rows[r]);
+            CHECK(view.words[r].place.x == pane.canvas.x + m.inset);
+            CHECK(view.words[r].place.y == pane.canvas.y + static_cast<std::int64_t>(r) * m.line);
+            CHECK(view.words[r].place.h == m.line);
+        }
+        const PanePart* row_a = part_named(view.parts, "pane:a");
+        const PanePart* mark = part_named(view.parts, "mark:a");
+        const PanePart* row_b = part_named(view.parts, "pane:b");
+        REQUIRE(row_a != nullptr);
+        REQUIRE(mark != nullptr);
+        REQUIRE(row_b != nullptr);
+        CHECK(row_a->place.y == view.words[0].place.y);
+        CHECK(row_b->place.y == view.words[1].place.y);
+        // A PART A WORD CROSSES SAYS THE CHARACTERS ON ITS SIDE, as a row part says its columns'.
+        CHECK(row_a->text == rows[0]);
+        CHECK(mark->text == "[open]");
+        CHECK(row_b->text == rows[1]);
+        // ...and a press at the mark's point lands inside the mark, in the pane's own pixels.
+        d.sketch->pointers.clear();
+        d.click(mark->x, mark->y, mark->space);
+        REQUIRE_FALSE(d.sketch->pointers.empty());
+        CHECK(inside_locally(d.sketch->pointers.front(), mark->place, pane));
     }
 }
 

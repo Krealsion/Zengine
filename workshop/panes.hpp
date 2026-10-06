@@ -362,9 +362,8 @@ struct ExternalPane {
         /// The holder speaks only the earlier canvas doors, in sub-units: its room, pointer and
         /// hover cross times `kPaneCanvasLegacySubs`, and its picture is read at their floor.
         bool legacy = false;
-        PaneCanvasContent content;
-        /// The parts of that picture the pane names, admitted with it.
-        std::vector<PaneCanvasPart> parts;
+        /// The picture last admitted, in the current form, with the parts it names.
+        v5::PaneCanvasContent content;
     } canvas;
     /// A re-offer (a reloaded image numbers its pictures afresh) or a close: no earlier number
     /// may stamp a press.

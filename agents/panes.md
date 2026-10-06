@@ -151,7 +151,7 @@ through `visible_body` and `visible_words`, each with its place in canvas pixels
 press names it by; a canvas word's point is checked against the body its press lands in.
 `DeskViewRequested` answers the desk from Workshop's own numbers (WL-GEO-13). Workshop names
 nothing inside a pane: a word's number is its place in one answer. A pane names its parts
-(WL-HAND-06): `v4::PaneContent` and `v4::PaneCanvasContent` carry `parts` -- a run of a row's
+(WL-HAND-06): `v4::PaneContent` and `v4::PaneCanvasContent` (and `v5`) carry `parts` -- a run of a row's
 columns, a rectangle of the picture -- and `v2::MenuShown` a presenter's lines by the rows' ids,
 each judged with the picture it names and refused whole with it (`row_parts_problem`,
 `canvas_parts_problem`), listed in the order the pane reads a press, a place it names nothing
@@ -184,7 +184,13 @@ repaints newer ones. Lost is an end, never a successful drop.
 `workshop/pane_canvas_text.hpp` helpers for a one-row region and its hit bounds. The host
 projects it through existing `SurfaceTextRegion` type, caret and selection, with the ground
 beneath. Its complete padded region stays inside the clip; only whole glyphs and whole rows
-are omitted. Fixed cell labels keep their existing meaning. A metric change grants fresh room.
+are omitted. `v2::PaneCanvasText` (in `v5::PaneCanvasContent`) may say `padded` false: its x/y
+then name its first character's cell, so runs one line apart stack as prose rows do and a body
+holds as many of them as it holds rows; it is the padded run whose glyphs land there, its
+padding allowed past the clip above, below and to its left, never to its right, where a caret
+after its last character stands (`clip_canvas_run`); and a `background`, a ground under its
+characters as a prose row's is. Fixed cell labels keep their existing
+meaning. A metric change grants fresh room.
 
 The local canvas does not choose fonts, arbitrary scene nodes, or screen authority. A provider
 that accepts `PaneCanvasHover` is told where an idle pointer rests and when it leaves
