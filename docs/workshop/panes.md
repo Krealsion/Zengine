@@ -76,7 +76,7 @@ if that place is off this screen, showing it says so on the band, with the two w
 `Reset >` `place` in its menu, which the Pane Manager's `manage <pane> >` reaches, or hiding it
 and showing it again.
 
-![The Pane Manager and Hotkeys fill the column of a 1200 by 600 window; Files, shown from the Pane Manager, stands at the column's top in front of them, with the keys](images/panes-launch-at-the-top.png)
+![The Pane Manager and Hotkeys fill the column of a 1200 by 600 window; Powers, shown from the Pane Manager, stands at the column's top in front of them, with the keys](images/panes-launch-at-the-top.png)
 
 **Showing never toggles.** `Enter` on a shown pane — or `Ctrl`+`t` while the Terminal is up —
 selects it and gives it the keyboard. It does not hide it, does not take it off your layout,
