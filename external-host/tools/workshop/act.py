@@ -4,11 +4,11 @@
 Workshop says it holds instead of by comparing pictures. loom-tool.json lists the verbs and their
 arguments.
 
-A step is one weaver gesture (press, type, open, select, into, click, part, at, rest, control,
-menu) or one observation (desk, expect, absent, rows, picture, wait). Steps run in order through ONE
-input session; the first that cannot be done ends the run naming its index and verb, and nothing
-after it is sent. Every step is spelled before any Workshop contact, so a misspelled list costs
-nothing.
+A step is one weaver gesture (press, type, open, select, into, click, part, at, rest, wheel,
+control, menu) or one observation (desk, expect, absent, rows, picture, wait). Steps run in order
+through ONE input session; the first that cannot be done ends the run naming its index and verb,
+and nothing after it is sent. Every step is spelled before any Workshop contact, so a misspelled
+list costs nothing.
 
 WHAT A WORD PROVES. A pane's words (PaneView version 3) are Workshop's own account of what a pane
 painted -- a text pane's rows, a canvas pane's labels and runs -- each with the place the medium
@@ -22,25 +22,27 @@ checks a place, a size, a state or the keys by number, never by a picture.
 WHAT A NAME IS. Beside its words a pane names the parts a weaver acts on -- a row, a control, an
 element -- with names of its own that it keeps across its redraws, and a menu names its lines by
 the rows' ids. `part` presses a part by its pane and its name, wherever the pane last drew it;
-`open` presses the Pane Manager's row named for a pane (`pane:<office>/<pane>`); `select` and `menu`
-take a name before the text a row or line shows. A name is the pane's: Workshop carries it as said.
+`open` presses the Pane Manager's row named for a pane (`pane:<office>/<pane>`); `wheel` turns the
+wheel over a part by its name; `select` and `menu` take a name before the text a row or line shows.
+A name is the pane's: Workshop carries it as said.
 
 WHAT IT CLEANS UP. hand.py registers the input session's close with the run's cleanup, so a
 failed step, a bug or a cancellation still gives Workshop's input session back."""
 import json
+import math
 import re
 import time
 from pathlib import Path
 
 from loom_session.tool import Refused
 
-from hand import Hand
+from hand import Hand, on_row, rows_of
 from workshop_steps import chord_moments, moment, picture, png_of, point
 
-VERBS = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "control", "menu",
-         "desk", "expect", "absent", "rows", "picture", "wait")
-GESTURES = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "control",
-            "menu")
+VERBS = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
+         "control", "menu", "desk", "expect", "absent", "rows", "picture", "wait")
+GESTURES = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
+            "control", "menu")
 MANAGER = ("zengine.desktop", "launcher")
 BUTTONS = {"left": 1, "right": 3}
 
@@ -56,6 +58,8 @@ def run(ctx):
             point(step["rest"])  # a misspelled point is refused before any contact
         if named == ["open"]:
             pane_ref(step["open"])  # ...and a pane named by anything but its row's name
+        if named == ["wheel"]:
+            wheel_of(step)  # ...and a wheel that names no pane or turns no notch
     pace = max(0, int(ctx.inputs.get("pace_ms", 0))) / 1000.0
     hand = Hand(ctx, ctx.inputs["link"])
     done = []
@@ -111,10 +115,29 @@ def unreached(part):
     return part.get("space", 0) == 0
 
 
-def word_on_row_of(view, part):
-    """The word drawn on the row a part stands on -- a text pane's row -- or None."""
-    rows = [w for w in view["words"] if w["place"]["y"] == part["place"]["y"]] if view else []
-    return rows[0] if rows else None
+def lines(view):
+    """A pane's words as the lines they stand on, top to bottom: the words whose places overlap
+    from top to bottom, left to right, each line `{text, words}` -- its words' characters, joined
+    where one ends at the next and with a blank where a gap parts them. A text pane's lines are
+    its rows, one word each; a canvas pane drawing a row as several labels or runs reads as one."""
+    out = []
+    words = view["words"] if view else []
+    for w in sorted(words, key=lambda w: (w["place"]["y"], w["place"]["x"])):
+        line = out[-1] if out else None
+        if line is None or not any(on_row(w, other) for other in line["words"]):
+            out.append({"text": w["text"], "words": [w]})
+            continue
+        last = line["words"][-1]["place"]
+        gap = w["place"]["x"] > last["x"] + last["w"]
+        line["text"] += (" " if gap else "") + w["text"]
+        line["words"].append(w)
+    return out
+
+
+def line_of(view, part):
+    """The number, among `lines(view)`, of the line a part stands on, or None."""
+    found = [i for i, l in enumerate(lines(view)) if any(on_row(w, part) for w in l["words"])]
+    return found[0] if found else None
 
 
 def wait_part(hand, provider, pane, name, seconds):
@@ -147,21 +170,24 @@ def wait_words(hand, provider, pane, text, seconds, present=True):
 
 
 def painted(hand, provider, pane):
-    """A text pane's rows now (PaneView version 1), or None while Workshop refuses to describe it:
-    for the tools that read a text pane by its rows."""
+    """A pane's rows now, as its words say them (PaneView version 3, `hand.rows_of`): `{picture,
+    canvas, rows: [{row, text, x, y, space}]}`, or None while Workshop refuses to describe it. A
+    text pane's `row` is its row, which `hand.point` takes with the picture."""
     try:
-        return hand.view(provider, pane)
+        return rows_of(hand.words(provider, pane))
     except Refused:
         return None
 
 
 def wait_rows(hand, provider, pane, text, seconds, present=True):
-    """Read the pane until a row holds `text` (or, `present` false, until none does)."""
+    """Read the pane until a row holds `text` (or, `present` false, until none does). A pane
+    Workshop will not describe holds nothing either way: the wait goes on, and ends `(None,
+    None)`."""
     end = time.monotonic() + seconds
     while True:
         view = painted(hand, provider, pane)
         rows = [r for r in view["rows"] if text in r["text"]] if view else []
-        if bool(rows) == present:
+        if view is not None and bool(rows) == present:
             return view, rows
         if time.monotonic() >= end:
             return view, None
@@ -224,6 +250,8 @@ def act(ctx, hand, verb, step):
         x, y, space = point(arg)
         hand.inject([moment(ctx, "PointerMoved", x=x, y=y, space=space)])
         return {"x": x, "y": y}
+    if verb == "wheel":
+        return turn_wheel(ctx, hand, step)
     if verb == "at":
         # One painted cell by its row and column in a text pane's own lattice (its words are its
         # rows, counted from 0): for panes whose meaning is a grid rather than a labelled row.
@@ -277,6 +305,50 @@ def act(ctx, hand, verb, step):
         return kept
     time.sleep(float(arg))
     return {}
+
+
+def wheel_of(step):
+    """`(provider, pane, name, dx, dy)` of a wheel step -- `{"wheel": [provider, pane, name?],
+    "dy": n, "dx": n}`, the notches as the platform reports a wheel's (dy 1 away from the weaver,
+    -1 toward) -- or ValueError naming what is wrong, before any contact."""
+    arg = step["wheel"]
+    if not (isinstance(arg, list) and len(arg) in (2, 3) and all(isinstance(v, str) for v in arg)):
+        raise ValueError("wheel names [provider, pane, name?]")
+    turned = []
+    for axis in ("dx", "dy"):
+        value = step.get(axis, 0)
+        number = isinstance(value, (int, float)) and not isinstance(value, bool)
+        if not number or not math.isfinite(value):
+            raise ValueError("wheel's %s is a number of notches, not %r" % (axis, value))
+        turned.append(float(value))
+    if not any(turned):
+        raise ValueError("wheel turns no notch: it names dy (1 away from the weaver, -1 toward) "
+                         "or dx")
+    return arg[0], arg[1], arg[2] if len(arg) > 2 else "", turned[0], turned[1]
+
+
+def turn_wheel(ctx, hand, step):
+    """ONE WHEEL MOMENT over a pane, where Workshop says a part it names is -- or, naming none, its
+    first word -- once the pane draws it: a text pane hears it as its wheel, a canvas pane as a
+    canvas wheel. What the pane does with it is the pane's; a step after it says what changed."""
+    provider, pane, name, dx, dy = wheel_of(step)
+    seconds = float(step.get("seconds", 10))
+    if name:
+        view, at = wait_part(hand, provider, pane, name, seconds)
+        if at is None:
+            ctx.produce("failed-step-parts.json", json.dumps(
+                names(view) if view else "not described", indent=1).encode())
+            ctx.fail("wheel: %s/%s draws no part named %r within %gs"
+                     % (provider, pane, name, seconds))
+        ctx.check(not unreached(at), "wheel: no point reaches %r in %s/%s on its own: the parts "
+                  "over it take every place of it" % (name, provider, pane))
+    else:
+        view, words = wait_words(hand, provider, pane, "", seconds)
+        ctx.check(words, "wheel: %s/%s paints no word within %gs" % (provider, pane, seconds))
+        at = words[0]
+    hand.inject([moment(ctx, "PointerWheel", wheel_dx=dx, wheel_dy=dy, x=at["x"], y=at["y"],
+                        space=at["space"])])
+    return {"part": name, "x": at["x"], "y": at["y"], "dx": dx, "dy": dy}
 
 
 def press_control(ctx, hand, provider, pane, label):
@@ -401,12 +473,12 @@ def select_row(ctx, hand, provider, pane, name):
     def look():
         view = words_now(hand, provider, pane)
         ctx.check(view is not None, "select: Workshop does not describe %s/%s now" % (provider, pane))
-        rows = texts(view)
+        rows = [l["text"] for l in lines(view)]
         chosen = [i for i, r in enumerate(rows) if r.startswith(">")]
         part = part_of(view, name)
         if part is not None:
-            word = word_on_row_of(view, part)
-            named = [word["word"]] if word is not None else []
+            line = line_of(view, part)
+            named = [line] if line is not None else []
         else:
             named = [i for i, r in enumerate(rows) if r[:1] in (">", " ") and row_names(r, name)]
             if len(named) > 1:
@@ -455,8 +527,9 @@ def pane_ref(name):
 def marked(hand, view, part):
     """Whether the Pane Manager marks the row a part stands on and holds the keys: a press there
     opens its pane."""
-    row = word_on_row_of(view, part)
-    return row is not None and row["text"].startswith(">") and manager_holds_keys(hand)
+    line = line_of(view, part)
+    return (line is not None and lines(view)[line]["text"].startswith(">")
+            and manager_holds_keys(hand))
 
 
 def open_pane(ctx, hand, name, seconds):
@@ -481,9 +554,11 @@ def open_pane(ctx, hand, name, seconds):
         ctx.check(words, "the Pane Manager did not open")
     seen = set(names(view))
     if part_of(view, name) is None:
-        # THE ROW IS OUT OF THE LIST'S WINDOW: the keys to the Pane Manager by a press on its first
-        # word, then Down to the list's end and Up, until the window draws it. Bounded.
-        press_at(ctx, hand, hand.word_point(*MANAGER, view["words"][0]["word"], 0, view["picture"]))
+        # THE ROW IS OUT OF THE LIST'S WINDOW: the keys to the Pane Manager by a press on its top
+        # line's first word, then Down to the list's end and Up, until the window draws it. Bounded.
+        first = lines(view)[0]["words"][0]
+        press_at(ctx, hand, first if not first["text"] else
+                 hand.word_point(*MANAGER, first["word"], 0, view["picture"]))
         for key in ("down", "up"):
             previous = None
             for _ in range(64):

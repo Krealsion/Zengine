@@ -16,7 +16,6 @@ PANE = "zengine.inventory-pane"
 WORKSHOP = "zengine.workshop"
 NO_ENTRY = {"owner": "", "entry": ""}
 CANNOT_PRESENT = "setup names a pane this Workshop cannot present: "
-DRAWS_PICTURE = "the pane draws a picture"  # Workshop's refusal of a text view of a canvas pane
 READY_SECONDS = 15                           # how long a desk pane has to show its first picture
 
 
@@ -60,7 +59,10 @@ class Owners:
         return self.ctx.ask(role, shape, fields, via=self.link, **kwargs)
 
     def view(self, provider, pane):
-        return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane})
+        """A pane's words and parts as Workshop shows them (PaneView version 3): a text pane's
+        rows, or the picture a canvas pane drew."""
+        return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane},
+                        version=3)
 
     def edit(self, **fields):
         # Inventory's configuration door: every declared field is written.
@@ -396,17 +398,16 @@ def prepare(ctx, setup, state, link):
 
 
 def shown(hand, provider, pane):
-    """Wait, a bounded while, until Workshop shows the pane: text rows, or a picture it draws.
-    Nothing when it shows; Workshop's last word about it when it has not."""
+    """Wait, a bounded while, until Workshop shows the pane: words or parts it drew, as text rows or
+    as its own picture. Nothing when it shows; Workshop's last word about it when it has not."""
     deadline, why = time.monotonic() + READY_SECONDS, "no rows"
     while True:
         try:
-            if hand.view(provider, pane)["rows"]:
+            view = hand.view(provider, pane)
+            if view.get("canvas") or view["words"] or view.get("parts"):
                 return None
             why = "no rows"
         except Exception as refused:
-            if DRAWS_PICTURE in str(refused):
-                return None
             why = str(refused)
         if time.monotonic() >= deadline:
             return why

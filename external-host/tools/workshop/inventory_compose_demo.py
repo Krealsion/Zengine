@@ -17,7 +17,7 @@ def run(ctx):
     source = hand.ask("zengine.inventory", "InventoryCaptureAdd", {"target_role": "zengine.input", "label": label})
 
     ctx.step("compose a rename using an inventory reference")
-    hand.click(hand.row("zengine.introspection", "loaded", "zengine-inventory ", scroll=True))
+    hand.click(hand.part("zengine.introspection", "loaded", "weave:zengine-inventory", scroll=True))
     hand.click(hand.row(*comp, "InventoryRename v1", scroll=True))
     hand.click(hand.row(*inv, label, scroll=True))
     hand.key("ctrl+enter")

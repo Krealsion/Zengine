@@ -45,7 +45,9 @@ class Clock:
 
 class Scripted:
     """A run context whose Workshop is a script. `pane(provider, pane)` answers PaneView with rows
-    (a list of texts) or None (not described); every injected moment goes to `typed`."""
+    (a list of texts) or None (not described) -- version 3 as one word a row, the row's characters
+    without the blanks after the last, version 1 as the rows; every injected moment goes to
+    `typed`."""
 
     name = "verdict-check"
 
@@ -99,6 +101,12 @@ class Scripted:
             if rows is None:
                 from loom_session.tool import Refused
                 raise Refused("not described")
+            if options.get("version") == 3:
+                return {"provider": fields["provider"], "pane": fields["pane"], "picture": 1,
+                        "canvas": False, "parts": [], "words": [
+                            {"word": i, "text": t.rstrip(" "), "x": 1, "y": i, "space": 1,
+                             "place": {"x": 0, "y": 12 * i, "w": 12 * max(1, len(t)), "h": 12}}
+                            for i, t in enumerate(rows)]}
             return {"picture": 1, "rows": [{"row": i, "text": t, "x": 1, "y": i, "space": 1}
                                            for i, t in enumerate(rows)]}
         if shape == "PanePointRequested":

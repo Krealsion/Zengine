@@ -35,7 +35,7 @@ def run(ctx):
     source = hand.ask("zengine.inventory", "InventoryCaptureAdd", {"target_role": "zengine.input", "label": label})
     ctx.produce("captured-record.bin", source["pair"])
     ctx.step("compose and save a complete command")
-    hand.click(hand.row("zengine.introspection", "loaded", "zengine-inventory ", scroll=True))
+    hand.click(hand.part("zengine.introspection", "loaded", "weave:zengine-inventory", scroll=True))
     hand.click(hand.row(*comp, "InventoryRename v1", scroll=True))
     # A blank form is also saveable, without inventing any required values.
     blank = store("ctrl+b", label + " blank")

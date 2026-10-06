@@ -146,9 +146,9 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   -- rather than by comparing pictures: `workshop/act` (steps through one input session: press,
   type, open a pane by its Pane Manager row's name, walk a list's cursor to a named row, press a
   part a pane names by its name, press into a pane or on one of its words, in a text or a canvas
-  pane, or on a line of the menu on the screen, check a pane's place, size, state or keys on the
-  desk by number, expect or rule out text, keep a pane's words and named parts or a picture -- a
-  cropped PNG if asked),
+  pane, or on a line of the menu on the screen, turn the wheel over a part by its name or over a
+  pane's first word, check a pane's place, size, state or keys on the desk by number, expect or
+  rule out text, keep a pane's words and named parts or a picture -- a cropped PNG if asked),
   `workshop/nvim-edit` (edits to one file typed through Workshop's [Neovim pane](neovim.md) and
   saved by Neovim; before typing, Neovim itself is asked whether its buffer is exactly that file,
   unmodified and equal to the disk -- unsaved work, a draft never saved included, is refused
@@ -710,18 +710,54 @@ off-workspace panes' words are refused, and the desk still answers. This reads p
 does not select, activate, grant authority or expose arbitrary state. A later gesture can still
 encounter a changed picture. Legacy unnumbered panes report picture zero; the query is not an
 interaction lease. Receivers must fence their own drops. `hand.words`, `hand.word_point` and
-`hand.desk` in `hand.py` ask them, and `workshop/act` steps on them: `desk` checks a pane's
-place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
+`hand.desk` in `hand.py` ask them; `hand.row` finds a row by what it says and `hand.part` a part by
+its name through them, wheeling the pane toward each edge when asked to scroll, so a tool reads a
+pane that draws a picture as it reads a text pane. `workshop/act` steps on them: `desk` checks a
+pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
 "view-builder", "kind:label"]}`), and fails rather than press one with no point; `open` presses
 the Pane Manager's row named for a pane (`{"open": "pane:zengine.files/project-files"}`),
 choosing it first where it is not chosen; `menu` presses the line of the menu on the screen named
-so, or holding some text; and `click`, `control`, `expect` and `select` read a canvas pane's words
-as a text pane's. `select` walks a list to the row its pane names so (Info's `property:Height`),
-or, in a pane naming none, the row whose text after a one- or two-column marker is the name, a
-value the list sets beside it after two blanks. Info's sizes follow the medium: a window's are
-pixels (`240 px`), a terminal's cells (`20 cells`), and Info refuses an amount typed in the other
-unit.
+so, or holding some text; `wheel` turns the wheel once, by `dy` and `dx` notches (`dy` 1 away from
+the weaver, -1 toward), over a part by its name or over a pane's first word (`{"wheel":
+["zengine.introspection", "loaded"], "dy": -1}`), which a canvas pane hears as its own wheel; and
+`click`, `control`, `expect` and `select` read a canvas pane's words as a text pane's, and `open`
+and `select` read a row it draws as several runs as one line. `select` walks a list to the row its
+pane names so (Info's `property:Height`), or, in a pane naming none, the row whose text after a
+one- or two-column marker is the name, a value the list sets beside it after two blanks. Info's
+sizes follow the medium: a window's are pixels (`240 px`), a terminal's cells (`20 cells`), and
+Info refuses an amount typed in the other unit.
+
+**The names each shipped pane gives its parts.** A walk names a part as its pane does: a name says
+what the part means, never where it is drawn, and a pane keeps it wherever a redraw puts it, in a
+window and in a terminal alike. A place a pane names nothing is still pressed as the pane reads a
+press there, and is never said.
+
+| Pane | Office and pane | Its parts | It names nothing on |
+|---|---|---|---|
+| Pane Manager | `zengine.desktop` `launcher` | `pane:<office>/<pane>`, a pane's row, and `mark:<office>/<pane>`, the mark inside it (`[open]`, `[    ]`, `[load]`, `[gone]`) | the heading, the more-above and more-below markers, the notes |
+| Hotkeys | `zengine.desktop` `hotkeys` | `binding:<group>/<id>/<key>`, a binding's row (`binding:<group>/<id>` where it has no key), and `line`, the spelling line while one is open | the heading, a group's heading, the markers, the footer, a binding's key cell |
+| Loaded | `zengine.introspection` `loaded` | `weave:<library>`, a loaded weave's row | the heading, the omission marker, the caveat, the source line |
+| Project | `zengine.introspection` `arrangement` | none: nothing in it is acted on | everything |
+| Powers | `zengine.introspection` `powers` | `control:sources`, `control:operators`, `control:composite`, `control:sample`, and `power:<identity>`, a power's row | the `find:` field, the markers, the detail, a retained sample, the census |
+| Attention | `zengine.attention` `attention` | `condition:<key>`, a condition's row | the glance, the notice, a condition's explanation |
+| Connections | `zengine.connections` `connections` | none: nothing in it is acted on | everything |
+| Demo | `zengine.demo` `controls` | `control:reset`, the reset row, and `status`, the state beneath it | the setup's name |
+| Info | `zengine.info` `info` | `pane:<office>/<pane>`, a pane's row, and `property:<label>`, a property's row | the rows naming neither |
+| An Info view | `zengine.info` `info.2` to `info.4` | `control:<id>`, a control, and `field:<path>`, a field | |
+| Files | `zengine.files` `project-files` | `entry:<name>`, `candidate:<name>`, `field:<name>`, `control:<id>` | |
+| Builder | `zengine.builder-pane` `builder` | `recipe:<name>`, `control:<id>`, `line` | |
+| Inventory | `zengine.inventory-pane` `inventory` | `entry:<owner>:<entry>`, `folder:<owner>:<id>`, `crumb:<owner>:<id>`, `control:up`, `control:here` | |
+| Terminal | `zengine.terminal` `terminal` | `entry:<observation>`, `line`, `newest`, `candidate:<what it says>` | |
+| Composer | `zengine.composer` `compose` | `message:<name> v<version>`, `field:<name>`, `control:submit`, `control:back` | the rows naming nothing |
+| Editor | `zengine.editor` `editor` | `status`, and `line:<n>`, a document line | |
+| Neovim's Editor | `zengine.editor` `editor` | `status` | Neovim's own screen |
+| A running view | its own office, `view` | `element:<id>` | |
+| View Builder | `zengine.view.builder` `view-builder` | `control:<action>`, `kind:<kind>`, `box:<field>`, `box:<id>.<field>`, `list:<id>`, `canvas`, `element:<id>`, `size:<sx>,<sy>`, `handle:<id>.<sx>,<sy>`, `<action>:<id>` | a place whose name repeats or is refused |
+| Flow | `zengine.flow` `flow` | `node:<id>`, `port:<id>.<n>`, `control:<action>` | a place whose name repeats or is refused |
+| A pane's menu | its presenter's | each line by its row's id | |
+| Workshop's own menu | `zengine.workshop` | each line by the action or the group it shows (`workshop.manage`, `setup.restore`, `Order`) | |
+| Layouts | Workshop's own | none: the desk says it | |
 
 `workshop/drag` uses the session's timed Input motion; `duration_ms` controls time, `bend`
 selects a linear path (zero) or cubic Bezier, and `button` is the one held through it (left,

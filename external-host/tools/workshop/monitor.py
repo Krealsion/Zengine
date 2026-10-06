@@ -365,6 +365,6 @@ class _Asker(object):
     def __init__(self, m):
         self.m = m
 
-    def view(self, provider, pane):
+    def words(self, provider, pane):
         return self.m.ctx.ask("zengine.workshop", "PaneViewRequested",
-                              {"provider": provider, "pane": pane}, via=self.m.link)
+                              {"provider": provider, "pane": pane}, via=self.m.link, version=3)
