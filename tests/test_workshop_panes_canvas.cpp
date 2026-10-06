@@ -945,6 +945,51 @@ TEST_CASE("a view run when the stack's column is spent is shown at the column's 
     CHECK(r.last_notice().find("showing greeting") != std::string::npos);
 }
 
+TEST_CASE("a view shown where its own place stands off this screen stays there, and the band says so and how to bring it back") {
+    // ⚔ MUTATION: the reveal saying the view is shown and has the keys, of a pane no one can see.
+    namespace view = zengine::view;
+    PaneRig r;
+    r.mount_workshop();
+    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.ready();
+    // THE VIEW'S ROW ON THE DESK BEFORE IT RUNS, its own place past the room's right edge.
+    const PaneRef greeting{"greeting", view::kPane};
+    REQUIRE(add_pane(r.session().setup.active, greeting));
+    REQUIRE(author_pane_place(r.session().setup.active, greeting, cells_px(300), 0).accepted);
+    const PanePlace authored = pane_of(r.session().setup.active, greeting)->place;
+
+    view::Host views(r.bus);
+    views.mount();
+    auto asker = std::make_unique<ViewAsker>();
+    auto* client = asker.get();
+    loom::Grant asking;
+    view::allow_view_requests(asking);
+    const auto client_id = r.bus.register_weave(std::move(asker), std::move(asking));
+    client->zen_set_self(client_id);
+    view::Description d;
+    d.name = "greeting";
+    d.width = 192;
+    d.height = 48;
+    d.elements = {{"hello", view::Kind::label, "Hello", 0, 0, 192, 24, ""}};
+    const auto bytes = view::description_bytes(d);
+    (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
+        loom::Message(loom::to_value(view::ViewRun{"builder", loom::Bytes(bytes.begin(), bytes.end())}), client_id, {}, 1));
+    r.bus.drain_until_idle();
+    REQUIRE(client->answers.size() == 1);
+    REQUIRE_MESSAGE(client->answers[0].ok, client->answers[0].reason);
+    // SEATED WHERE IT WAS PUT, OFF THIS SCREEN, and said so: never "showing ... it has the keys".
+    const auto* row = r.session().panes.runtime.find("greeting", view::kPane);
+    REQUIRE(row);
+    REQUIRE(r.session().panes.has(row->kind));
+    CHECK(pane_of(r.session().setup.active, greeting)->place == authored);
+    CHECK(bounds_of(r.session().panes, r.session().setup.active, row->kind, screen_of(r.session()))
+              .rect.empty());
+    CHECK(r.last_notice() == "greeting is off this screen -- Reset > place brings it back (the "
+                             "Pane Manager's manage greeting > reaches it), or hide it and show it "
+                             "again");
+    CHECK(r.session().notice_is_bad);
+}
+
 TEST_CASE("a described view offers its own pane through the view host, Workshop seats and draws it, a press reaches it, and a stop leaves a picture that says so") {
     namespace view = zengine::view;
     PaneRig r;

@@ -270,14 +270,22 @@ void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
     if (office.empty()) {
         return; // an office, and only an office -- the seam's rule for changing the desk
     }
-    const PaneLaunchAnswered answer = launch_pane(PaneRef{asked.office, asked.pane}, mail);
+    const PaneRef ref{asked.office, asked.pane};
+    const PaneLaunchAnswered answer = launch_pane(ref, mail);
     // SAID ON THE BAND FOR THE WEAVER, AND ANSWERED TO THE ASKER. The two say the same thing
     // for the two readers, and both are said before the repaint, so the picture a weaver sees
-    // is the one the sentence is about.
+    // is the one the sentence is about. A pane whose own place stands off this screen keeps it,
+    // and the band says where it went.
+    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
+    const std::string off = answer.refusal.empty() && kind.has_value()
+                                ? off_this_screen(*kind, inventory_name(ref))
+                                : std::string();
     if (!answer.refusal.empty()) {
         say(answer.refusal, true);
+    } else if (!off.empty()) {
+        say(off, true);
     } else if (answer.opened) {
-        say("showed " + inventory_name(PaneRef{asked.office, asked.pane}), false);
+        say("showed " + inventory_name(ref), false);
     }
     (void)mail.answer(answer);
     repaint(mail);
@@ -292,6 +300,22 @@ std::string WorkshopWeave::inventory_name(const PaneRef& ref) const {
         }
     }
     return ref.pane;
+}
+
+// WL-PANE-09 -- agents/workshop/panes-and-windows.md
+std::string WorkshopWeave::off_this_screen(std::int64_t kind, const std::string& name) const {
+    if (!session_.panes.has(kind)) {
+        return std::string();
+    }
+    const PixelRect seen =
+        bounds_of(session_.panes, session_.setup.active, kind, screen_of(session_)).rect;
+    if (seen.w > 0 && seen.h > 0) {
+        return std::string();
+    }
+    // THE TWO WAYS BACK: the pane's own menu resets its place -- the Pane Manager's row reaches
+    // that menu for a pane no pointer can -- or a hide and a show seat it in the stack again.
+    return name + " is off this screen -- Reset > place brings it back (the Pane Manager's manage " +
+           name + " > reaches it), or hide it and show it again";
 }
 
 // WL-DESK-12 -- agents/workshop/desktop.md
