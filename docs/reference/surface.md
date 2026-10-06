@@ -138,6 +138,8 @@ band where it is selected. `kNoCaret` is **negative** on purpose, the same argum
 caret cannot collide with a row anybody might mean. It is not a focus fact (a canvas has no
 focus, and two regions may each carry one), and not blinking — there is no clock on this shape.
 
+![A terminal's caret three ways: in the Editor, on c in the middle of abcdefgh, the cell inverted and underlined; inside the selection cde, the caret's c is the one cell shown plain and still underlined; and in the View Builder's six-cell width box typed past its end, on the box's last cell, 7, which still shows it](../workshop/images/terminal-caret.png)
+
 **A region may have a selected range**, said in the same lattice: `sel_begin_row`/`sel_begin_col`
 and `sel_end_row`/`sel_end_col` are two caret-like positions — begin inclusive, end exclusive,
 in **reading order** — and the text between them is what a weaver's next gesture acts on. On the
