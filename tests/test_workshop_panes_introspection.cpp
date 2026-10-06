@@ -1746,7 +1746,7 @@ TEST_CASE("the graphical medium grants a different room and both panes spend it"
     // A REAL FACE'S METRIC over the same surface: a 10-pixel advance is more columns in
     // the same rectangle, and an 18-pixel line in a 12-pixel cell is fewer prose rows.
     author_test_pane_room(r, kind, cells->rows, cell_cols);
-    r.extent(1200, 500, 10, 18);
+    r.extent(1200, 500, 10, 18, surface::kCanvasCellPx); // a window reports its device scale
     const ExternalPane* graphical = r.session().panes.external_pane(kind);
     REQUIRE(graphical != nullptr);
     CHECK(graphical->columns != cell_cols);

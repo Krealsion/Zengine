@@ -2075,7 +2075,7 @@ class ProviderSeat
                                           PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
                              loom::Emit<PaneOffered, PaneContent, v4::PaneContent, PanePressed,
                                         PaneActions, v2::PaneActions, PaneCaret,
-                                        PaneEscapeUnspent>> {
+                                        PaneEscapeUnspent, PaneCanvasPointer>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
 
@@ -2210,6 +2210,10 @@ public:
     /// FORGE A PRESS AT SOMEBODY ELSE'S PANE -- deliberately authored, and deliberately by an
     /// office that is not `zengine.workshop`: the sentence a provider must refuse, a stranger
     /// telling it a weaver clicked one of its rows.
+    /// A canvas press from this seat's own office: what a stranger forging a hand would author.
+    void press_at(loom::Mail& mail, const char* office, const PaneCanvasPointer& p) {
+        (void)mail.as_role(office_).send_to_role(office, p);
+    }
     void press_at(loom::Mail& mail, const char* office, const PanePressed& p) {
         (void)mail.as_role(office_).send_to_role(office, p);
     }
@@ -2251,9 +2255,10 @@ private:
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
                              loom::Accept<PaneOffered, v2::PaneOffered, PaneContent, v3::PaneContent,
-                                          v4::PaneContent, SeatDo>,
+                                          v4::PaneContent, v5::PaneCanvasContent, SeatDo>,
                              loom::Emit<PaneCatalogRequested, PaneRoom, PaneWheel, PanePressed,
-                                        v2::PanePressed, v3::PanePressed>> {
+                                        v2::PanePressed, v3::PanePressed, PaneCanvasRoom,
+                                        PaneCanvasPointer>> {
 public:
     void on(const v2::PaneOffered& o, loom::Mail& mail) {
         on(PaneOffered{o.pane, o.name, o.summary}, mail);
@@ -2279,6 +2284,22 @@ public:
     void on(const v4::PaneContent& c, loom::Mail& mail) {
         on(v3::PaneContent{c.pane, c.rows, c.generation, c.picture}, mail);
     }
+    /// ...AND A PANE DRAWING ITS ROWS ON ITS CANVAS: its runs read back to rows of the lattice
+    /// of the room this watcher granted, so a case written against `content` reads it unchanged.
+    void on(const v5::PaneCanvasContent& c, loom::Mail& mail) {
+        PaneContent rows{c.pane, {}};
+        const CanvasRows lattice = canvas_rows(canvas_room);
+        for (const v2::PaneCanvasText& run : c.texts) {
+            if (lattice.empty() || run.padded || run.y < 0 || run.y % lattice.line != 0) continue;
+            const auto row = static_cast<std::size_t>(run.y / lattice.line);
+            if (rows.rows.size() <= row) rows.rows.resize(row + 1);
+            rows.rows[row] = surface::SurfaceTextRow{run.text, run.role, run.background};
+        }
+        content.push_back(std::move(rows));
+        pictures.push_back(c.picture);
+        canvas_pictures.push_back(c);
+        content_authors.push_back(std::string(mail.authored_role()));
+    }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(PaneWatcher&, loom::Mail&)> once;
@@ -2292,6 +2313,42 @@ public:
     }
     void grant_personally(loom::Mail& mail, const char* office, const PaneRoom& room) {
         (void)mail.send_to_role(office, room);
+    }
+    /// A CANVAS ROOM `rows` by `columns` cells, as a terminal grants one, under a grant of its own.
+    PaneCanvasRoom canvas_room_of(const char* pane, std::int64_t rows, std::int64_t columns) {
+        return PaneCanvasRoom{pane, ++canvas_grants, columns * kPaneCanvasUnit,
+                              rows * kPaneCanvasUnit, kPaneCanvasUnit, false, 0, 0};
+    }
+    void canvas_grant(loom::Mail& mail, const char* office, const char* pane, std::int64_t rows,
+                      std::int64_t columns) {
+        canvas_room = canvas_room_of(pane, rows, columns);
+        (void)mail.as_role(kWorkshopProvider).send_to_role(office, canvas_room);
+    }
+    void canvas_grant_personally(loom::Mail& mail, const char* office, const char* pane,
+                                 std::int64_t rows, std::int64_t columns) {
+        canvas_room = canvas_room_of(pane, rows, columns);
+        (void)mail.send_to_role(office, canvas_room);
+    }
+    /// A PRESS ON A CELL OF THE ROOM LAST GRANTED, on the picture last drawn, as Workshop sends it.
+    PaneCanvasPointer canvas_at(std::int64_t row, std::int64_t column, std::int64_t phase,
+                                std::int64_t button = 1, double dy = 0) {
+        return PaneCanvasPointer{canvas_room.pane, canvas_room.grant,
+                                 pictures.empty() ? 0 : pictures.back(), ++canvas_gestures, phase,
+                                 button, column * kPaneCanvasUnit, row * kPaneCanvasUnit,
+                                 input::mod::kNone, 0, dy};
+    }
+    void canvas_press(loom::Mail& mail, const char* office, std::int64_t row, std::int64_t column,
+                      std::int64_t button = 1) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(office, canvas_at(row, column, canvas_pointer::kPress, button), ++asks);
+    }
+    void canvas_press_personally(loom::Mail& mail, const char* office, std::int64_t row,
+                                 std::int64_t column) {
+        (void)mail.send_to_role(office, canvas_at(row, column, canvas_pointer::kPress));
+    }
+    void canvas_wheel(loom::Mail& mail, const char* office, double dy) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(office, canvas_at(0, 0, canvas_pointer::kWheel, 0, dy));
     }
     void ask(loom::Mail& mail) {
         (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
@@ -2327,6 +2384,11 @@ public:
     /// THE PICTURE NUMBER OF EACH CONTENT, parallel to `content`: 0 for a pane that numbers none.
     std::vector<std::int64_t> pictures;
     std::vector<std::string> content_authors;
+    /// THE PICTURES A CANVAS PANE DREW, whole, beside the rows `content` reads them as.
+    std::vector<v5::PaneCanvasContent> canvas_pictures;
+    PaneCanvasRoom canvas_room;
+    std::int64_t canvas_grants = 0, canvas_gestures = 0;
+    std::uint64_t asks = 0;
     std::function<void(PaneWatcher&, loom::Mail&)> next;
 };
 
@@ -2583,6 +2645,7 @@ struct PaneRig {
         // a press it did not get from Workshop, and a refusal the bus made unreachable proves
         // nothing.
         grant.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
+        grant.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(office));
         raw->zen_set_self(id);
@@ -2685,6 +2748,8 @@ struct PaneRig {
         grant.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
         grant.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
         grant.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
+        grant.allow_to_any(PaneCanvasRoom::zen_name, PaneCanvasRoom::zen_version);
+        grant.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(kWorkshopProvider));
         raw->zen_set_self(id);
@@ -3435,6 +3500,15 @@ inline std::vector<std::string> held_canvas_text(const ExternalPane& pane) {
         while (!text.empty() && text.back() == ' ') text.pop_back();
         out[row] = text;
     }
+    return out;
+}
+
+/// THE ROWS A PANE HOLDS NOW, each its text: a text pane's rows as Workshop admitted them, a
+/// canvas pane's runs read back to the rows of its lattice.
+inline std::vector<std::string> held_row_texts(const ExternalPane& pane) {
+    if (shows_canvas(pane)) return held_canvas_text(pane);
+    std::vector<std::string> out;
+    for (const surface::SurfaceTextRow& row : pane.shown) out.push_back(row.text);
     return out;
 }
 
