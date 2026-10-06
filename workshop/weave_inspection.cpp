@@ -244,6 +244,7 @@ DeskMenu desk_menu(const Session& s, const Screen& sc) {
 
 // THE DESK, BY ITS OWN NUMBERS: every pane the desk names, in its order, with what Workshop
 // resolves for it now; nothing is read off a picture.
+// WL-GEO-13 -- agents/workshop/geometry.md
 DeskView WorkshopWeave::desk_view() const {
     const Screen sc = screen_of(session_);
     const Setup& setup = session_.setup.active;
@@ -323,6 +324,7 @@ bool drawn_label(const PaneCanvasLabel& label, const PixelRect& body, std::strin
 // labels and then its text runs, each where the medium draws it. A word the body does not draw
 // is not said, so a word's number is its place in this list and nowhere else. `advances` takes
 // each word's glyph advance, which a point inside it is measured by.
+// WL-GEO-13 -- agents/workshop/geometry.md
 std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
                                                    std::vector<std::int64_t>* advances) const {
     const Screen sc = screen_of(session_);

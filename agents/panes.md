@@ -145,7 +145,12 @@ it holds on that pane -- for each pane it may observe from.
 
 `PanePointRequested` answers one painted cell's input-space point through `visible_text_body`
 and the press measurer (`cell_center`), refusing a moved picture exactly as `PaneViewRequested`
-refuses a covered pane. It reads presentation; pressing the point is ordinary input.
+refuses a covered pane. It reads presentation; pressing the point is ordinary input. Version 2
+of both answers a canvas pane too: its words are its labels and runs as the painter clips them,
+through `visible_body` and `visible_words`, each with its place in canvas pixels and the point a
+press names it by; a canvas word's point is checked against the body its press lands in.
+`DeskViewRequested` answers the desk from Workshop's own numbers (WL-GEO-13). Workshop names
+nothing inside a pane: a word's number is its place in one answer.
 
 ## A pane may draw locally, with an explicit room and gesture identity
 

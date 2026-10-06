@@ -43,7 +43,9 @@ loom-session run <session> workshop/inspect-capture --name open-manager --input 
 
 Read that run's `after.bmp` (graphical) or `after.cells.txt` (TUI). Select Files in Pane Manager
 with separate arrow runs and Enter, then focus the Files pane. Derive clicks from the current
-picture: pixels use `x,y`, cells use `x,yc`. Pane positions and menu coordinates are not universal.
+picture, or from the desk's own numbers (`workshop/act`'s `desk` step): pixels use `x,y`, a
+terminal's cells `x,y@console` or `x,y@canvas`. Pane positions and menu coordinates are not
+universal.
 Files opens at the column's top when the column has no room left below the panes already
 there. An open Files pane should show the fixture directory before you continue.
 

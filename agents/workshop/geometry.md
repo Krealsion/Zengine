@@ -1,7 +1,8 @@
 # Workshop law — geometry
 
-Register `WL-GEO`: the composition in canvas pixels, the right column, the whole pixel and the
-unit a face reports. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
+Register `WL-GEO`: the composition in canvas pixels, the right column, the whole pixel, the unit
+a face reports, and the desk and its words read in Workshop's numbers. One law per heading;
+cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-GEO-01 — One geometry draws a thing and hits it
 
@@ -210,6 +211,26 @@ PROVEN BY — `workshop/weave_arrange.cpp` `arrange_status`, `managed_bounds`;
 place actually is"`; `tests/test_workshop_screen.cpp` case `"which parts of a pane's
 window the weaver has not authored"`.
 WHY — `agents/decisions/the-face-reports-the-unit.md`
+
+## WL-GEO-13 — The desk and its words are Workshop's numbers, placed where they are drawn
+
+LAW — A desk and a pane's words are answered from what Workshop owns, in canvas pixels, each place where the medium draws it, and nothing is read off a picture.
+
+MEANS
+- a canvas pane's labels and runs are words as a text pane's rows are, and so are a menu's lines;
+- the point a word gives is resolved by the measurer a press is, so a press there lands on it;
+- reading grants nothing and moves nothing: a press is ordinary input.
+
+DOES NOT MEAN
+- that Workshop names anything inside a pane: a word's number is its place in one answer;
+- that a covered pane's words are said: a menu or arranging over it refuses them.
+
+PROVEN BY — `workshop/weave_inspection.cpp` `desk_view`, `visible_words`, `word_on`,
+`glyph_point`; `tests/test_workshop_desk.cpp` case `"every place the desk and the words give is
+where the medium draws it, in a window and in a terminal"`, case `"a canvas pane's words are its
+labels and text runs, each where it is drawn, and a press at a word's point lands inside it in
+the pane's own canvas"`.
+WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
 ## Do not assume
 

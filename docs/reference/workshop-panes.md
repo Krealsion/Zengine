@@ -1153,6 +1153,30 @@ refused when the pane's handed-out picture is not `picture`, the cell is outside
 or the pane is closed or covered, exactly as `PaneViewRequested` is. A point is not a gesture;
 pressing it is ordinary input. The guest `capture` power grants both queries.
 
+### The desk, and a pane's words
+
+The same header answers the desk and a pane's words from the numbers Workshop owns, none read
+off a picture. Every place is a `DeskRect{x, y, w, h}` in canvas pixels, where the medium draws
+it: a window's pixel is one, a terminal floors a place to the cells it covers, and a point to
+press is in the input space the answer names, as `PanePoint`'s is.
+
+| Message | Meaning |
+|---|---|
+| `DeskViewRequested{}` | Anyone granted it, to Workshop: the desk now |
+| `DeskView{width, height, cell_px, space, room, panes, arranging, menu}` | The canvas's extent, the medium's device pixels to a canvas cell (0 where the cell is its unit), the input space, the room panes stand in, every pane the desk names in its order, whether arranging is open, and the menu on the screen |
+| `DeskPane{provider, pane, name, state, front, resolved, visible, selected, keys}` | One pane: its state word (`open`, `covered`, `off-room`, `unresolved`), its rank from the front (0 in front; -1 when it is not presented), the place its authored intent resolves to and the part of it the canvas has, and whether it is selected or holds the keys |
+| `DeskMenu{open, office, pane, picture, place, lines}` | Workshop's own menu (`office` is Workshop's) or a pane's, shown by its presenter, with each line as a word |
+| `v2::PaneViewRequested{provider, pane}` | A pane's words, text or canvas alike |
+| `v2::PaneView{provider, pane, picture, canvas, words}` | A text pane's rows, or a canvas pane's labels and then its text runs as it drew them last, each clipped as the painter clips it; `canvas` says which |
+| `PaneWord{word, text, place, x, y, space}` | One run of words: its number in the answer, its text, the place covering its glyphs (a terminal's caret glyph included), and the centre of its middle character, where a press names it |
+| `v2::PanePointRequested{provider, pane, picture, word, column}` | Where one character of one word is now, for a caller that read the words at `picture` |
+| `v2::PanePoint{provider, pane, picture, word, column, x, y, space}` | Its centre: through the press measurer for a text row, checked against the body a press lands in for a canvas word |
+
+A pane's words are refused as its rows are: closed, unsettled, overlapping, covered by a menu or
+by arranging, or outside the visible workspace. The desk answers whatever is open. Workshop names
+nothing inside a pane: a word's number is its place in one answer. The guest `capture` power
+grants all three queries.
+
 ## Attributed value origins and delegated shortcuts
 
 `v2::PaneValueCarryRequested` adds an opaque source-owned token to the pure copy payload.
