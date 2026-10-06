@@ -1303,16 +1303,6 @@ inline const Panes& no_providers() {
     return empty;
 }
 
-/// The room the minimum composition actually has: one overlay slot, resolved
-/// through `placement_bounds` rather than written down here (screen.hpp says
-/// why it is one). Every case below reconciles at most one stacked pane, so
-/// this is the capacity they were all written under.
-inline StackCapacity min_room() { return stack_capacity(kMinScreen); }
-
-/// A ROOM WITH TWO STACK SLOTS, for a case naming two overlay panes: the one built-in is the top
-/// band's, so two overlays are two stand-ins, and the case has to say which screen it is on.
-inline StackCapacity two_slot_room() { return stack_capacity(screen_of(cells_px(120), cells_px(44))); }
-
 /// A setup, spelled the way a case reads: a name and the kinds it means.
 inline Setup setup_of(const std::string& name, const std::vector<std::int64_t>& kinds) {
     Setup s;

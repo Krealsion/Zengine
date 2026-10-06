@@ -222,15 +222,16 @@ void WorkshopWeave::on(const PaneCommitRequested& asked, loom::Mail& mail) {
     const Commit result = row.commit_text(asked.text);
     if (result != Commit::Accepted) {
         // THE OWNER'S OWN WORDS: an amount the face does not read, a pane that is not in this
-        // desk or has no room, a definition that is not open -- each worded by its setter.
+        // desk, a definition that is not open -- each worded by its setter.
         answer(false, row.label() + ": " + row.refusal());
         return;
     }
     // SAID WITH WHAT WAS WRITTEN, TO WHICH PANE, read before the reseat below touches anything.
     const std::string written = "committed " + row.label() + " of " +
                                 pane_subject_shown(session_).name + " = " + row.value();
-    // A PLACEMENT WRITE OWES A RESEAT -- `editing_key`'s reason: an authored place leaves the
-    // reactive stack, and `apply_setup` is the one path that reconciles the seating.
+    // A PLACEMENT WRITE IS RECONCILED as the hand's is (`arrange_place`): an authored place
+    // takes the pane out of the stack, and `apply_setup` is the one door that opens or closes a
+    // pane -- for a place, with no room rationing the stack, it opens and closes nothing.
     apply_setup(mail);
     say(written, false);
     answer(true, std::string());

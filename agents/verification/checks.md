@@ -76,8 +76,8 @@ SEEN — nowhere yet
 
 METHOD — A generated line is regenerated, never hand-edited: a record's Laws supported is filled from the registers' WHY lines by the tool under `tools/`, and the check asserts the two agree.
 BECAUSE — a hand-edited generated line is the drift the generator exists to end; the check
-asserts each record lists exactly the laws whose WHY names it, and the tool writes that list from
-the WHY lines.
+asserts each record lists exactly the laws whose WHY names it, each linked to the file declaring
+it, and the tool writes that list from the WHY lines.
 SEEN — `tools/fill_laws.sh`; `tests/check_law_register.cmake`.
 
 ## VM-CHECK-10 — A retired spelling may appear in exactly one file

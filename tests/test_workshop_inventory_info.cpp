@@ -1529,3 +1529,34 @@ TEST_CASE("views: every view Inventory makes is offered beside the other panes, 
         CHECK(s.r.session().panes.has(row->kind));
     }
 }
+
+TEST_CASE("views: making a view offers only that view, so a view already on the desk never stands blank") {
+    // ⚔ MUTATION: every view offered again at each change. Workshop takes a re-offer as a
+    // reloaded image arriving and starts that pane's picture over, so each view on the desk would
+    // stand blank until it drew again -- every view, at every change.
+    InventoryStory s;
+    const std::string first = s.create("single");
+    const RuntimePane* row = s.r.session().panes.runtime.find(slots::kRole, first);
+    REQUIRE(row != nullptr);
+    const std::int64_t kind = row->kind;
+    REQUIRE(s.r.session().panes.has(kind)); // launched as it was made
+    const std::vector<std::string> before = pane_rows(s.r, kind);
+    REQUIRE_FALSE(before.empty());
+    // A SECOND VIEW MADE: every picture published meanwhile shows the first view as it was.
+    const std::size_t from = s.r.canvases.size();
+    (void)s.create("row");
+    REQUIRE(s.r.canvases.size() > from);
+    const ui::Rect body = external_body_rect(s.r.session(), kind);
+    std::size_t blank = 0;
+    for (std::size_t i = from; i < s.r.canvases.size(); ++i) {
+        if (external_rows(s.r.canvases[i], body) != before) {
+            ++blank;
+        }
+    }
+    CHECK(blank == 0);
+    const auto views = s.layout().views;
+    REQUIRE(views.size() == 2);
+    const RuntimePane* second = s.r.session().panes.runtime.find(slots::kRole, views.back().id);
+    REQUIRE(second != nullptr);
+    CHECK(s.r.session().panes.has(second->kind));
+}

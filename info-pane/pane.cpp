@@ -231,15 +231,12 @@ std::string not_authored(const std::string& label) {
     return label + " is not authored -- it is what the screen makes of the authored value";
 }
 
-/// ONE PANE OF THE LIST, AS A WORD: the three facts the host keeps apart, said apart.
+/// ONE PANE OF THE LIST, AS A WORD: the facts the host keeps apart, said apart.
 std::string pane_state_word(const InventoryPane& p) {
     if (!p.available) {
         return "gone";
     }
-    if (p.open) {
-        return p.waiting ? "no room" : "open";
-    }
-    return "closed";
+    return p.open ? "open" : "closed";
 }
 
 // =============================================================================

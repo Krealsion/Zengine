@@ -783,9 +783,9 @@ struct PaneAxisProposal {
 };
 
 /// What authoring a window proposal did: `written` answers for the gesture as a
-/// whole, and `place_written` says whether the place moved — the caller owes a
-/// reseat (`apply_setup`) exactly then, because an authored place leaves the
-/// reactive stack.
+/// whole, and `place_written` says whether the place moved — the caller reconciles
+/// (`apply_setup`) exactly then, because an authored place takes the pane out of the
+/// stack; with no room rationing the stack, that reconcile opens and closes nothing.
 struct WindowWritten {
     Written written;
     bool place_written = false;
@@ -950,13 +950,11 @@ struct Reconciled {
     std::vector<std::int64_t> opened;
     std::vector<std::int64_t> closed;
     std::size_t unresolved = 0;
-    /// THE KINDS THIS SCREEN HAD NO ROOM FOR, in setup order.
-    // WL-PANE-03 -- agents/workshop/panes-and-windows.md
-    std::vector<std::int64_t> waiting;
 };
 
-/// HOW MANY OVERLAY SLOTS FIT ABOVE THE BOTTOM BAND -- Workshop's current spatial
-/// capacity, as one number.
+/// THE ROOM THE OVERLAY COLUMN HAS ON THIS SCREEN, and the measures a pane in it is sized by:
+/// how many panes of the fallback height one pass down the column holds, the room's extent, and
+/// the medium's text and chrome.
 // WL-PANE-03 -- agents/workshop/panes-and-windows.md
 struct StackCapacity {
     std::size_t slots = 0;
@@ -990,39 +988,23 @@ inline PreferredExtent preferred_extent(const RuntimePane* pane, const StackCapa
             std::min(room.height, (pane->preferred_rows + 1) * room.line + 2 * room.border)};
 }
 
-/// WHICH AUTHORED REFERENCES THIS BUILD WOULD PRESENT AT THIS CAPACITY, and which
-/// it would not -- resolution and seating, decided together and changing nothing.
+/// WHICH AUTHORED REFERENCES THIS BUILD PRESENTS, and how many it cannot -- resolution alone,
+/// changing nothing. Every resolved reference is seated: the stack is not rationed, since its
+/// column begins again at its top when a pane would pass its floor (`bounds_of`).
 // WL-PANE-03, WL-PANE-07 -- agents/workshop/panes-and-windows.md
 struct Seating {
-    std::vector<std::int64_t> wanted;  ///< resolved and seated, in setup order
-    std::vector<std::int64_t> waiting; ///< resolved and out of room, in setup order
+    std::vector<std::int64_t> wanted; ///< resolved, in setup order
     std::size_t unresolved = 0;
 };
 
-inline Seating seat_panes(const Setup& setup, const Panes& panes, StackCapacity room) {
+inline Seating seat_panes(const Setup& setup, const Panes& panes) {
     Seating out;
     out.wanted.reserve(setup.panes.size());
-    std::size_t stack_used = 0;
-    std::int64_t used_height = 0;
     for (const SetupPane& row : setup.panes) {
         const std::optional<std::int64_t> kind = resolve_pane(row.ref, panes);
         if (!kind.has_value()) {
             ++out.unresolved;
             continue;
-        }
-        // The slot this pane would take, counted as `bounds_of` counts it. A side-region pane takes
-        // none and always fits, and so does a pane the weaver placed: an authored place is not
-        // rationed by the reactive stack, so it never waits for room it never spent.
-        if (placement_of(*kind) == placement::kOverlayStack &&
-            row.place.mode == pane_unit::kDefault) {
-            const auto preferred = preferred_extent(panes.runtime.of_kind(*kind), room);
-            const auto height = preferred.height ? preferred.height : room.fallback_height;
-            if (room.height ? used_height + height > room.height : stack_used >= room.slots) {
-                out.waiting.push_back(*kind);
-                continue;
-            }
-            ++stack_used;
-            used_height += height + room.gap;
         }
         out.wanted.push_back(*kind);
     }
@@ -1096,15 +1078,13 @@ inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
 
 /// MAKE THE OPEN PANES BE WHAT THE SETUP SAYS -- the one path, and the only thing in this
 /// application that opens or closes a pane on a setup's behalf. Three cases, deliberately
-/// distinguished, and capacity spent in setup order; an unresolved reference is counted.
+/// distinguished, in setup order; an unresolved reference is counted.
 // WL-PANE-07 -- agents/workshop/panes-and-windows.md
-inline Reconciled reconcile(Panes& panes, const Setup& setup, StackCapacity room) {
+inline Reconciled reconcile(Panes& panes, const Setup& setup) {
     Reconciled done;
-    const Seating seating = seat_panes(setup, panes, room);
+    const Seating seating = seat_panes(setup, panes);
     const std::vector<std::int64_t>& wanted = seating.wanted;
     done.unresolved = seating.unresolved;
-    done.waiting = seating.waiting;
-    panes.waiting_for_room = done.waiting;
 
     const auto wants = [&wanted](std::int64_t kind) {
         for (const std::int64_t k : wanted) {

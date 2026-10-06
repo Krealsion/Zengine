@@ -9,12 +9,32 @@
 namespace zengine::workshop {
 
 // WL-ARR-09 -- agents/workshop/arrangement.md
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 // WL-FRONT-01 -- agents/workshop/planes.md
 void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
                             const Screen& sc) {
     if (!s.arrange.open) {
         return;
+    }
+    // THE LINES A HELD SNAP MET, across the room, one device unit wide and inside it: over every
+    // pane, beneath the rings, gone with the gesture.
+    if (s.pane_drag.active) {
+        const std::int64_t grain = chrome_grain(sc);
+        const auto inside = [grain](std::int64_t line, std::int64_t extent) {
+            return line < 0 ? std::int64_t{0} : (line > extent - grain ? extent - grain : line);
+        };
+        if (s.pane_drag.met_x.has_value()) {
+            layer.rects.push_back(wire_rect_of(
+                PixelRect{inside(*s.pane_drag.met_x, sc.room_w), sc.room_y, grain, sc.room_h},
+                surface::role::kAccent));
+        }
+        if (s.pane_drag.met_y.has_value()) {
+            layer.rects.push_back(wire_rect_of(
+                PixelRect{0, surface::add_cells(sc.room_y, inside(*s.pane_drag.met_y, sc.room_h)),
+                          sc.room_w, grain},
+                surface::role::kAccent));
+        }
     }
     const auto ring = [&](const PaneRef& ref, bool emphasized) {
         const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);

@@ -1339,9 +1339,9 @@ TEST_CASE("a press into a second external pane moves the keyboard to it") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    // TALL ENOUGH FOR TWO SLOTS. At the minimum composition the stack seats one pane
-    // and the second is `waiting_for_room` -- which has no rectangle, so a press
-    // could not reach it and the case would be measuring the wrong absence.
+    // TALL ENOUGH FOR TWO SLOTS. At the minimum composition the second pane begins the
+    // column again at its top, over the first, so a press could not reach the first's body
+    // and the case would be measuring the wrong absence.
     r.extent(120, 60);
     ProviderSeat* first = r.mount_provider(kHelloOffice);
     ProviderSeat* second = r.mount_provider("zengine.other");

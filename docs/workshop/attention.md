@@ -105,7 +105,7 @@ looking at it.
 | an older local keymap or session file is being shadowed by the one under your user directory | worth acting on, not urgent |
 | a pane sent Workshop an update it could not keep | an alert |
 | a tool your load plan marks optional could not be loaded this run — named by its artifact, `zengine-files is not in this Workshop`, with the loader's own reason and what to do: build it, then launch again | an alert |
-| a pane you authored is resolvable and **no part of it is on the screen** — refused, waiting for room, or off the canvas | worth acting on |
+| a pane you authored is resolvable and **no part of it is on the screen** — its place is off the canvas | worth acting on |
 | the project is stopped at an artifact waiting to be built | informative — waiting is not a failure |
 
 Some true things are deliberately **not** here. A pane you hid is your own choice and lives

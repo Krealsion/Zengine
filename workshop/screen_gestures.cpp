@@ -171,6 +171,157 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
     return out;
 }
 
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base) {
+    PaneWindowAxes out;
+    out.horizontal.base = base.x;
+    if (want.place_moved_x && want.x != base.x) {
+        out.horizontal.position = want.x;
+    }
+    if (want.w != base.w) {
+        out.horizontal.extent = PaneSize{pane_unit::kPixels, want.w};
+    }
+    out.vertical.base = base.y;
+    if (want.place_moved_y && want.y != base.y) {
+        out.vertical.position = want.y;
+    }
+    if (want.h != base.h) {
+        out.vertical.extent = PaneSize{pane_unit::kPixels, want.h};
+    }
+    return out;
+}
+
+// ---- A hand's proposal, snapped ---------------------------------------------------------
+
+namespace {
+
+/// Which edges of one axis the hand moves: both (a move), the low or the high one (a pull), or
+/// neither.
+enum class Moving { kNone, kLow, kHigh, kBoth };
+
+Moving moving_x(std::int64_t edge) noexcept {
+    switch (edge) {
+    case kNoPaneEdge: return Moving::kBoth;
+    case pane_edge::kLeft:
+    case pane_edge::kTopLeft:
+    case pane_edge::kBottomLeft: return Moving::kLow;
+    case pane_edge::kRight:
+    case pane_edge::kTopRight:
+    case pane_edge::kBottomRight: return Moving::kHigh;
+    default: return Moving::kNone;
+    }
+}
+
+Moving moving_y(std::int64_t edge) noexcept {
+    switch (edge) {
+    case kNoPaneEdge: return Moving::kBoth;
+    case pane_edge::kTop:
+    case pane_edge::kTopLeft:
+    case pane_edge::kTopRight: return Moving::kLow;
+    case pane_edge::kBottom:
+    case pane_edge::kBottomLeft:
+    case pane_edge::kBottomRight: return Moving::kHigh;
+    default: return Moving::kNone;
+    }
+}
+
+struct Axis {
+    std::int64_t at = 0;
+    std::int64_t size = 0;
+    std::optional<std::int64_t> met;
+};
+
+/// One axis: the edges `moving` names come to the nearest line within reach, and a travel that
+/// would author a place or an extent the gesture door refuses is not taken. What is not written
+/// is not judged: a high pull leaves the place as it stood.
+Axis snap_axis(std::int64_t at, std::int64_t size, Moving moving,
+               const std::vector<std::int64_t>& lines) noexcept {
+    if (moving == Moving::kNone) {
+        return Axis{at, size, std::nullopt};
+    }
+    const std::int64_t end = detail::step(at, size);
+    const auto travelled = [&](std::int64_t travel) -> std::optional<Axis> {
+        Axis s{at, size, std::nullopt};
+        if (moving != Moving::kHigh) {
+            s.at = detail::step(at, travel);
+            if (s.at < 0 || s.at > kMaxPanePixels) {
+                return std::nullopt;
+            }
+        }
+        if (moving == Moving::kLow) {
+            s.size = detail::minus(end, s.at);
+        } else if (moving == Moving::kHigh) {
+            s.size = detail::step(size, travel);
+        }
+        if (moving != Moving::kBoth && (s.size < kPanePxMin || s.size > kMaxPanePixels)) {
+            return std::nullopt;
+        }
+        return s;
+    };
+    std::optional<Axis> best;
+    std::int64_t nearest = kPaneSnapReachPx + 1;
+    const auto meet = [&](std::int64_t edge) {
+        for (const std::int64_t line : lines) {
+            const std::int64_t gap =
+                line > edge ? detail::minus(line, edge) : detail::minus(edge, line);
+            if (gap >= nearest) {
+                continue;
+            }
+            if (std::optional<Axis> s = travelled(detail::minus(line, edge))) {
+                nearest = gap;
+                s->met = line;
+                best = s;
+            }
+        }
+    };
+    if (moving != Moving::kHigh) {
+        meet(at);
+    }
+    if (moving != Moving::kLow) {
+        meet(end);
+    }
+    return best.has_value() ? *best : Axis{at, size, std::nullopt};
+}
+
+} // namespace
+
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Screen& sc,
+                              std::int64_t held) {
+    PaneSnapLines out;
+    out.xs = {0, sc.room_w};
+    out.ys = {0, sc.room_h};
+    for (const OpenPane& p : panes.open) {
+        if (p.kind == held) {
+            continue;
+        }
+        const PixelRect r = room_of_canvas(bounds_of(panes, setup, p.kind, sc).rect, sc);
+        if (r.empty()) {
+            continue;
+        }
+        out.xs.push_back(r.x);
+        out.xs.push_back(surface::add_cells(r.x, r.w));
+        out.ys.push_back(r.y);
+        out.ys.push_back(surface::add_cells(r.y, r.h));
+    }
+    return out;
+}
+
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge,
+                               const PaneSnapLines& lines) noexcept {
+    SnappedWindow out{want, std::nullopt, std::nullopt};
+    const Axis x = snap_axis(want.x, want.w, moving_x(edge), lines.xs);
+    const Axis y = snap_axis(want.y, want.h, moving_y(edge), lines.ys);
+    out.want.x = x.at;
+    out.want.w = x.size;
+    out.met_x = x.met;
+    out.want.y = y.at;
+    out.want.h = y.size;
+    out.met_y = y.met;
+    return out;
+}
+
 // ---- Where a pointer is, in a region's prose -------------------------------------------
 
 // WL-GEO-01 -- agents/workshop/geometry.md

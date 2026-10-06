@@ -39,7 +39,6 @@ PANES -- 8
 > [    ] Builder          a hidden tool: Enter shows it and puts you in it
   [open] Terminal         already here: Enter takes you to it, and hides nothing
   [gone] Info             nothing is offering this pane in this Workshop
-  [room] Files            on the layout, and this screen has no room to seat it
   [load] Attention        this run has not finished loading its tool yet
 ```
 
@@ -67,6 +66,17 @@ was queued ahead of it — is refused with `the list moved -- press again` rathe
 whatever slid into that row; a repaint that moved no row does not refuse.
 
 ![The Pane Manager's menu for the hidden Powers row: show Powers, manage Powers, inspect in Info, then under a rule naming the Pane Manager, Workshop's own rows for the Pane Manager](images/pane-manager-row-menu.png)
+
+**A pane you show lands in sight.** A pane with no place of its own stands in the column
+down the room's left, under the panes already there; when the column has no room left for it, the
+column begins again at its top, so the pane lands there, in front of whatever it covers. Nothing
+is refused for want of room, from the Pane Manager, a launch key or `n` alike; move it where you
+want it by [arranging](#moving-resizing-and-ordering--arrange). A pane keeps a place you gave it:
+if that place is off this screen, showing it says so on the band, with the two ways back --
+`Reset >` `place` in its menu, which the Pane Manager's `manage <pane> >` reaches, or hiding it
+and showing it again.
+
+![The Pane Manager and Hotkeys fill the column of a 1200 by 600 window; Powers, shown from the Pane Manager, stands at the column's top in front of them, with the keys](images/panes-launch-at-the-top.png)
 
 **Showing never toggles.** `Enter` on a shown pane — or `Ctrl`+`t` while the Terminal is up —
 selects it and gives it the keyboard. It does not hide it, does not take it off your layout,
@@ -188,6 +198,16 @@ the desk, which is the only place there is a next pane to step to. The pointer's
 reach all eight edges and corners, each keeping its opposite edge anchored; the keyboard's
 resize always grows from the top-left corner, and a move plus a resize composes any
 rectangle the handles can make.
+
+**Edges snap under the hand.** While you drag a pane or one of its edges, an edge you move
+comes to another pane's edge, or the room's, when it is within <!-- value kPaneSnapReachPx -->8<!-- /value --> pixels of it — so in a
+terminal, where your hand moves a cell at a time, an edge that falls inside a cell is still met
+— and while you hold the button a line across the room marks the edge it met, and the band
+adds `snapped to an edge`. Hold **`Alt`** to place it free of them. The arrow keys, `=`, `-` and a
+value typed in Info always place exactly. A snap leaves an ordinary place and size in whole
+pixels: nothing about it is saved, and nothing keeps two panes together or apart.
+
+![The Pane Manager dragged until its right edge met the left edge of Hotkeys: a line across the room marks the edge it met while the button is held, and the band says snapped to an edge](images/panes-snap.png)
 
 `=` and `-` are the same resize, four cells at a time on both axes — one press is the
 difference between a pane that is technically open and a pane you can work in. They move no
@@ -421,8 +441,8 @@ per press when you want to land exactly — or type the size you want into the p
 and `Height` rows in [Info](#a-pane-as-a-subject--info). An authored size is accepted up to the
 setup's maximum.
 
-There is still no "fill the room", no auto-fit to a pane's contents, and no snapping — `=`
-resizes the pane you addressed and touches nothing else.
+There is still no "fill the room" and no auto-fit to a pane's contents — `=` resizes the
+pane you addressed and touches nothing else.
 
 Judged plainly, and repeated in [limitations](limitations.md):
 

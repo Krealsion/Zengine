@@ -450,8 +450,8 @@ inline constexpr PixelRect overlay_column(const Screen& sc) noexcept {
     return PixelRect{slot.x, slot.y, slot.w, sc.room_y + sc.room_h - slot.y};
 }
 
-/// How many overlay slots this screen has room for: the one answer to "may another pane be
-/// presented", asked before anything reaches `Panes::open`.
+/// How many overlay slots of the fallback height one pass down the column holds on this screen:
+/// a fact the desk's presentation claim carries, so a managed open sees the room move.
 // WL-PANE-03, WL-PANE-04 -- agents/workshop/panes-and-windows.md
 // WL-EDIT-13 -- agents/workshop/editor.md
 inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
@@ -467,8 +467,8 @@ inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
     return fit;
 }
 
-/// The same answer in the shape `reconcile` takes, so no call site spells the
-/// conversion itself.
+/// The column's room in the shape a pane is sized by (`preferred_extent`), so no call site
+/// spells the conversion itself.
 inline constexpr StackCapacity stack_capacity(const Screen& sc) noexcept {
     const bool graphical = sc.text_advance_px > 0 && sc.text_line_px > 0;
     const auto line = graphical ? std::min(sc.text_line_px, std::int64_t{8192})
@@ -487,7 +487,8 @@ static_assert(kMinScreen.room_y + kMinScreen.room_h == kMinScreen.notice_y,
               "the overlay floor is the workspace's bottom, which is the bottom band's own "
               "top row: a slot allowed past it would erase the row the tool speaks in");
 static_assert(stack_slots_that_fit(kMinScreen) == 1,
-              "the minimum composition has room for exactly one overlay pane");
+              "the minimum composition's column holds one pane of the fallback height, and the "
+              "next begins the column again at its top");
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-PRESS-04 -- agents/workshop/press-chain.md
@@ -589,6 +590,17 @@ inline constexpr const char* pane_edge_mark(std::int64_t edge) noexcept {
 // WL-ARR-01 -- agents/workshop/arrangement.md
 inline constexpr std::int64_t kPaneEdgeBandPx = surface::kCanvasCellPx;
 
+/// HOW NEAR A LINE AN EDGE THE HAND MOVES COMES TO MEET IT, in canvas pixels: under a cell, so a
+/// terminal hand a cell away is not pulled across it, and at least half a cell, so a terminal hand
+/// at the nearest cell meets a line that falls inside it.
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+inline constexpr std::int64_t kPaneSnapReachPx = 8;
+
+static_assert(kPaneSnapReachPx < surface::kCanvasCellPx &&
+                  2 * kPaneSnapReachPx >= surface::kCanvasCellPx,
+              "a snap reaches under a cell, so a terminal hand is never pulled a whole cell, and "
+              "at least half one, so every line falls within reach of a terminal hand's cell");
+
 /// THE ONE CELL-SIZED MARK AN AFFORDANCE IS DRAWN ON — at the pane's own
 /// edges.
 PixelRect pane_edge_cell(const PixelRect& r, std::int64_t edge) noexcept;
@@ -655,6 +667,11 @@ struct PaneGesture {
     std::int64_t base_y = 0;
     std::int64_t base_w = 0;  ///< ...and extent
     std::int64_t base_h = 0;
+    /// The lines the last motion's snap met, in the room, which the affordance plane marks while
+    /// the gesture is held; none on an axis that met none.
+    // WL-ARR-17 -- agents/workshop/arrangement-snap.md
+    std::optional<std::int64_t> met_x;
+    std::optional<std::int64_t> met_y;
 };
 
 /// WHICH EDITABLE LINE A TEXT-SELECTION DRAG IS SWEEPING.
@@ -887,6 +904,41 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
                                                std::int64_t base_h, std::int64_t dx,
                                                std::int64_t dy) noexcept;
 
+/// WHAT A WINDOW PROPOSAL WRITES through the gesture door (`author_pane_window`), measured from the
+/// window it was proposed against: a place on an axis the proposal moved and changed, an extent on
+/// an axis it changed. The hand's write and the desk a snap measures are made from the same axes.
+struct PaneWindowAxes {
+    PaneAxisProposal horizontal;
+    PaneAxisProposal vertical;
+};
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base);
+
+/// THE LINES AN EDGE THE HAND MOVES MAY MEET, in the room: the room's own edges and every edge
+/// of every other pane on the screen.
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+struct PaneSnapLines {
+    std::vector<std::int64_t> xs;
+    std::vector<std::int64_t> ys;
+};
+
+PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Screen& sc,
+                              std::int64_t held);
+
+/// A HAND'S PROPOSAL, SNAPPED, and the line each axis met.
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+struct SnappedWindow {
+    PaneWindowProposal want;
+    std::optional<std::int64_t> met_x;
+    std::optional<std::int64_t> met_y;
+};
+
+/// Each edge the hand moves -- both edges of both axes for a move (`kNoPaneEdge`), the pulled
+/// edges for a resize -- comes to the nearest line within `kPaneSnapReachPx`, the opposite edge
+/// held; a snap that would leave the place or the extent outside a pane's rules is not taken.
+SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge,
+                               const PaneSnapLines& lines) noexcept;
+
 // ---- Where a pointer is, in workspace cells --------------------------------------------
 
 
@@ -953,7 +1005,6 @@ surface::SurfaceTextRegion prose_region(const ProsePlace& place);
 namespace pane_state {
 inline constexpr std::int64_t kClosed = 0;
 inline constexpr std::int64_t kUnresolved = 1;
-inline constexpr std::int64_t kWaiting = 3;
 inline constexpr std::int64_t kOffRoom = 4;
 inline constexpr std::int64_t kCovered = 5;
 inline constexpr std::int64_t kOpen = 6;

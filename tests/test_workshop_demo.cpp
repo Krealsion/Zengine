@@ -147,7 +147,7 @@ TEST_CASE("pane comfort budgets body text with chrome in both real medium metric
     }
 }
 
-TEST_CASE("pane comfort seating and drawing spend the same vertical space") {
+TEST_CASE("pane comfort: the column spends each pane's preferred height, and begins again at its top when spent") {
     Panes p; Setup setup; setup.panes.clear();
     for (const auto key : {"one", "two", "three"}) {
         const auto a = admit_pane_offer(p.runtime, "test.pane", {key, key, "list"}, 7, 54);
@@ -156,17 +156,24 @@ TEST_CASE("pane comfort seating and drawing spend the same vertical space") {
         setup.panes.push_back(row);
     }
     auto sc = screen_of(cells_px(120), cells_px(30));
-    const auto seats = seat_panes(setup, p, stack_capacity(sc));
-    CHECK(seats.wanted.size() == 2);
-    CHECK(seats.waiting.size() == 1);
-    reconcile(p, setup, stack_capacity(sc));
+    const auto seats = seat_panes(setup, p);
+    REQUIRE(seats.wanted.size() == 3); // every resolved pane is seated
+    reconcile(p, setup);
     const auto first = bounds_of(p, setup, seats.wanted[0], sc);
     const auto second = bounds_of(p, setup, seats.wanted[1], sc);
+    const auto third = bounds_of(p, setup, seats.wanted[2], sc);
+    CHECK(first.resolved.y == sc.room_y);
     CHECK(second.resolved.y == first.resolved.y + first.resolved.h + cells_px(kStackGap));
     CHECK(second.resolved.y + second.resolved.h <= sc.room_y + sc.room_h);
-    // An authored position is outside reactive capacity, even when the default stack is full.
+    // THE THIRD WOULD PASS THE FLOOR, so the column begins again at its top.
+    CHECK(second.resolved.y + second.resolved.h + cells_px(kStackGap) + third.resolved.h >
+          sc.room_y + sc.room_h);
+    CHECK(third.resolved.y == sc.room_y);
+    CHECK(third.resolved.x == first.resolved.x);
+    // An authored position stands outside the column, wherever the column has got to.
     setup.panes.back().place = {pane_unit::kPixels, cells_px(60), cells_px(2)};
-    CHECK(seat_panes(setup, p, stack_capacity(sc)).waiting.empty());
+    CHECK(bounds_of(p, setup, seats.wanted[2], sc).resolved.x == cells_px(60));
+    CHECK(bounds_of(p, setup, seats.wanted[2], sc).resolved.y == sc.room_y + cells_px(2));
     p.runtime.entries[0].preferred_rows = 512;
     const auto clipped = preferred_extent(&p.runtime.entries[0], stack_capacity(sc));
     CHECK(clipped.height == sc.room_h);

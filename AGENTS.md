@@ -107,7 +107,8 @@ cmake -P tests/documentation_lane.cmake
   for a documentation-only change; CI runs those checks on every change and skips the build and
   test jobs for a documentation-only one. A C/C++ file is the official lane's even when only its
   comments changed, because compiled tests read source as text (`tests/text_checks.cmake` says
-  which); so is a CMake file, CI and the lane itself.
+  which); so is a CMake file, CI, the lane itself, and a guide a compiled test reads, which that
+  list names.
 
 - **Quote `tests/verify.cmake`, never a bare `ctest`** — a bare run cannot say whether the
   population that ran is the population this repository meant to run.
@@ -190,3 +191,10 @@ headers install, which artifacts ride along) is owned by `cmake/ZengineInstall.c
 - A green build produced its artifact, a load made a weave live, a send was delivered — each
   is TWO facts wearing one word; the second half has its own owner and its own witness
   ([agents/realization.md](agents/realization.md)).
+- A shape's version is its own — a shape that encloses a changed shape is a new version too.
+  Loom folds a nested shape's content id into its parent's and refuses a second shape under a
+  name and version it already holds, so a component built before the change and one built after
+  could not load side by side. Nor may two shapes share a name: Loom claims a library's state
+  and vocabulary at load, so two components' shapes of one name meet at the next version either
+  takes. `tests/test_workshop_shapes.cpp` claims the shapes as they were published beside the
+  current ones, a change to a shape adding its own there, and reads every name the tree declares.

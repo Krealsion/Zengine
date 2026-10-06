@@ -240,31 +240,18 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
     }
     const bool already = session_.panes.has(kind);
     if (!already) {
-        // Judged through the trial seat (`seat_panes`), on a copy, before the setup moves, so a
-        // refusal never leaves the weaver an authored pane they never saw.
-        Setup candidate = session_.setup.active;
-        const bool added = add_pane(candidate, ref);
-        const Seating trial =
-            seat_panes(candidate, session_.panes, stack_capacity(screen_of(session_)));
-        for (const std::int64_t k : trial.waiting) {
-            if (k == kind) {
-                out.refusal = "no room for " + name +
-                              " on this screen -- make the window taller, then try again";
-                return out;
-            }
-        }
-        if (added) {
-            session_.setup.active = std::move(candidate);
-        }
+        // NO LAUNCH WAITS FOR ROOM: the stack is not rationed, and a pane its column has no height
+        // left for begins the column again at its top (`bounds_of`), in front as the newest row.
+        const bool added = add_pane(session_.setup.active, ref);
         apply_setup(mail);
         if (!session_.panes.has(kind)) {
-            // THE BELT UNDER THE TRIAL, and the same take-back: "opened" is the word the
-            // asker acts on and it may never be said of a pane the screen does not show.
+            // THE BELT UNDER THE SEAT, and its take-back: "opened" is the word the asker acts on
+            // and it may never be said of a pane the desk did not seat.
             if (added) {
                 (void)remove_pane(session_.setup.active, ref);
                 apply_setup(mail);
             }
-            out.refusal = "no room for " + name + " on this screen";
+            out.refusal = "defect: " + name + " was not seated";
             return out;
         }
         out.opened = true;
@@ -283,14 +270,22 @@ void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
     if (office.empty()) {
         return; // an office, and only an office -- the seam's rule for changing the desk
     }
-    const PaneLaunchAnswered answer = launch_pane(PaneRef{asked.office, asked.pane}, mail);
+    const PaneRef ref{asked.office, asked.pane};
+    const PaneLaunchAnswered answer = launch_pane(ref, mail);
     // SAID ON THE BAND FOR THE WEAVER, AND ANSWERED TO THE ASKER. The two say the same thing
     // for the two readers, and both are said before the repaint, so the picture a weaver sees
-    // is the one the sentence is about.
+    // is the one the sentence is about. A pane whose own place stands off this screen keeps it,
+    // and the band says where it went.
+    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
+    const std::string off = answer.refusal.empty() && kind.has_value()
+                                ? off_this_screen(*kind, inventory_name(ref))
+                                : std::string();
     if (!answer.refusal.empty()) {
         say(answer.refusal, true);
+    } else if (!off.empty()) {
+        say(off, true);
     } else if (answer.opened) {
-        say("showed " + inventory_name(PaneRef{asked.office, asked.pane}), false);
+        say("showed " + inventory_name(ref), false);
     }
     (void)mail.answer(answer);
     repaint(mail);
@@ -307,14 +302,30 @@ std::string WorkshopWeave::inventory_name(const PaneRef& ref) const {
     return ref.pane;
 }
 
+// WL-PANE-09 -- agents/workshop/panes-and-windows.md
+std::string WorkshopWeave::off_this_screen(std::int64_t kind, const std::string& name) const {
+    if (!session_.panes.has(kind)) {
+        return std::string();
+    }
+    const PixelRect seen =
+        bounds_of(session_.panes, session_.setup.active, kind, screen_of(session_)).rect;
+    if (seen.w > 0 && seen.h > 0) {
+        return std::string();
+    }
+    // THE TWO WAYS BACK: the pane's own menu resets its place -- the Pane Manager's row reaches
+    // that menu for a pane no pointer can -- or a hide and a show seat it in the stack again.
+    return name + " is off this screen -- Reset > place brings it back (the Pane Manager's manage " +
+           name + " > reaches it), or hide it and show it again";
+}
+
 // WL-DESK-12 -- agents/workshop/desktop.md
 PaneCloseAnswered WorkshopWeave::close_pane(const PaneRef& ref, loom::Mail& mail) {
     PaneCloseAnswered out;
     out.office = ref.provider;
     out.pane = ref.pane;
     // THE DESK IS WHAT IS ASKED, NOT THE CATALOG: a row the weaver authored is theirs to take off
-    // whether or not anything offers it -- an unavailable pane's row, or one waiting for room, is
-    // exactly the intent a weaver closes to stop asking for it.
+    // whether or not anything offers it -- an unavailable pane's row is exactly the intent a
+    // weaver closes to stop asking for it.
     if (!remove_pane(session_.setup.active, ref)) {
         out.refusal = inventory_name(ref) + " is not on this desk -- nothing to hide, and a "
                                             "hide shows nothing";
@@ -636,9 +647,9 @@ void WorkshopWeave::on(const PaneToggleRequested& asked, loom::Mail& mail) {
     PaneToggleAnswered answer;
     answer.office = asked.office;
     answer.pane = asked.pane;
-    // JUDGED AGAINST THE DESK NOW, not against whatever the asker last heard: on the desk --
-    // seated or waiting for room -- means hide; off it means show and focus. Through the two
-    // doors a launch and a close already go through, so a toggle can do nothing they cannot.
+    // JUDGED AGAINST THE DESK NOW, not against whatever the asker last heard: on the desk means
+    // hide; off it means show and focus. Through the two doors a launch and a close already go
+    // through, so a toggle can do nothing they cannot.
     if (has_pane(session_.setup.active, ref)) {
         const PaneCloseAnswered closed = close_pane(ref, mail);
         answer.closed = closed.closed;
@@ -681,19 +692,16 @@ bool WorkshopWeave::provider_present(std::int64_t kind, const PaneRef& ref) cons
 // WL-DESK-04 -- agents/workshop/desktop.md
 PaneInventory WorkshopWeave::inventory_reading() const {
     PaneInventory said;
-    const Seating seated =
-        seat_panes(session_.setup.active, session_.panes, stack_capacity(screen_of(session_)));
     for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
         InventoryPane p;
         p.office = row.ref.provider;
         p.pane = row.ref.pane;
         p.name = row.name;
         p.summary = row.summary;
-        // THE THREE FACTS ARE ASKED OF THREE OWNERS, and keeping them apart is the point of
-        // the shape. Authored participation is the SETUP's; whether anything offers the pane
-        // is the CATALOG's (a row with no kind resolves to no provider); whether this screen
-        // could seat it is the SEATING's. A presentation that collapsed them would have to
-        // guess which of "closed", "gone" and "no room" a missing pane is in.
+        // THE FACTS ARE ASKED OF THEIR OWNERS, and keeping them apart is the point of the shape.
+        // Authored participation is the SETUP's; whether anything offers the pane is the
+        // CATALOG's (a row with no kind resolves to no provider). A presentation that collapsed
+        // them would have to guess whether a missing pane is closed or gone.
         p.open = has_pane(session_.setup.active, row.ref);
         // AVAILABLE IS ASKED NOW, of the office's current holder -- not read off the catalog,
         // which remembers every pane ever offered this run and so cannot say who left.
@@ -701,12 +709,6 @@ PaneInventory WorkshopWeave::inventory_reading() const {
         // ...AND WHETHER THE RUN STILL OWES IT, asked of the realization owner now. Absent and
         // still to come is not absent and settled: only the second is something to build.
         p.pending = !p.available && host_->office_pending && host_->office_pending(p.office);
-        for (const std::int64_t k : seated.waiting) {
-            if (k == row.kind) {
-                p.waiting = true;
-                break;
-            }
-        }
         said.panes.push_back(std::move(p));
     }
     return said;
@@ -736,7 +738,7 @@ void WorkshopWeave::publish_inventory(loom::Mail& mail) {
             const InventoryPane& b = inventory_said_[i];
             if (a.office != b.office || a.pane != b.pane || a.name != b.name ||
                 a.summary != b.summary || a.open != b.open || a.available != b.available ||
-                a.waiting != b.waiting || a.pending != b.pending) {
+                a.pending != b.pending) {
                 same = false;
                 break;
             }
