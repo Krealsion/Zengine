@@ -78,18 +78,20 @@ bool WorkshopWeave::cell_center(const VisibleBody& visible, std::int64_t row, st
                                 bool exact_column) const {
     const auto sc = screen_of(session_);
     const auto& body = visible.body;
+    // The cell showing the character: past a caret a fit in cells draws as a glyph of its own.
+    const std::int64_t cell = drawn_column(column, external_caret_glyph(visible.content, body.fit, row));
     if (sc.text_advance_px > 0 && sc.text_line_px > 0) {
         space = input::space::kPixels;
         if (body.fit.graphical()) {
-            x = body.fit.view.x + body.fit.origin_x + column*body.fit.advance_px + body.fit.advance_px/2;
+            x = body.fit.view.x + body.fit.origin_x + cell*body.fit.advance_px + body.fit.advance_px/2;
             y = body.fit.view.y + body.fit.origin_y + (row+body.header_rows)*body.fit.line_px + body.fit.line_px/2;
         } else {
-            x = body.region_x + surface::px_of_cells(column) + surface::kCanvasCellPx/2;
+            x = body.region_x + surface::px_of_cells(cell) + surface::kCanvasCellPx/2;
             y = body.region_y + surface::px_of_cells(row+body.header_rows) + surface::kCanvasCellPx/2;
         }
     } else {
         space = input::space::kCells;
-        x = surface::cell_of_pixel(body.region_x)+column;
+        x = surface::cell_of_pixel(body.region_x)+cell;
         y = surface::cell_of_pixel(body.region_y)+row+body.header_rows+surface::kTuiCanvasTopRow;
     }
     const auto hit = external_press_at(session_.panes, session_.setup.active, sc, visible.kind,
@@ -178,12 +180,6 @@ void glyph_point(const GlyphGrid& g, std::int64_t row, std::int64_t column, std:
     }
     x = surface::cell_of_pixel(g.x + column * g.advance);
     y = surface::cell_of_pixel(g.y + row * g.line) + surface::kTuiCanvasTopRow;
-}
-
-/// The column a byte of a word is drawn at: one cell right from the caret glyph a terminal draws
-/// into the word at `caret`, where it draws one (`caret` -1 where it does not).
-std::int64_t drawn_column(std::int64_t byte, std::int64_t caret) {
-    return caret >= 0 && byte >= caret ? byte + 1 : byte;
 }
 
 /// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row` over its bytes' cells of the

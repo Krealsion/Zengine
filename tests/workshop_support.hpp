@@ -3915,12 +3915,21 @@ inline std::vector<std::string> band_lines(PaneRig& r) {
     return out;
 }
 
+/// THE CELL SHOWING COLUMN `column` OF BODY ROW `row`, counted from the body's first cell: past a
+/// caret a fit in cells draws as a glyph of its own, read through the painter's own rule.
+inline std::int64_t pane_cell_of(const Session& s, std::int64_t kind, std::int64_t row,
+                                 std::int64_t column) {
+    return drawn_column(column, external_caret_glyph(s.panes.external_pane(kind),
+                                                     external_body_of(s, kind).fit, row));
+}
+
 /// PRESS A PLACE IN AN EXTERNAL PANE'S OWN ROOM -- the provider's row and column,
 /// which is exactly the pair `PanePressed` carries. Cases speak the provider's lattice
 /// so the arithmetic that turns it into a canvas cell lives in one place.
 inline void press_pane(PaneRig& r, std::int64_t kind, std::int64_t row, std::int64_t column) {
     const ui::Rect body = external_body_rect(r.session(), kind);
-    r.press_cell(body.x + column, body.y + kExternalHeaderRows + row);
+    r.press_cell(body.x + pane_cell_of(r.session(), kind, row, column),
+                 body.y + kExternalHeaderRows + row);
 }
 
 /// POINT THE KEYBOARD AT A PANE WITHOUT ALSO AUTHORING A GESTURE. The keyboard goes to the pane a
