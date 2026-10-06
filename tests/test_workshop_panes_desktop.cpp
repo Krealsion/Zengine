@@ -193,6 +193,35 @@ TEST_CASE("WL-DESK-14: a press on a row's mark shows or hides that pane; a press
     CHECK_FALSE(d.open("beta"));
 }
 
+TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane's reference") {
+    Desk d;
+    for (const char* pane : {"alpha", "beta", "gamma"}) {
+        CAPTURE(pane);
+        const std::string ref = std::string("zengine.test.tools/") + pane;
+        const auto parts = held_parts(d.r.session(), d.launcher);
+        REQUIRE(parts.count("pane:" + ref) == 1);
+        REQUIRE(parts.count("mark:" + ref) == 1);
+        const PaneRowPart row = parts.at("pane:" + ref);
+        const PaneRowPart mark = parts.at("mark:" + ref);
+        CHECK(row.column == 0);
+        CHECK(mark.row == row.row);
+        CHECK(held_part_text(d.r.session(), d.launcher, mark) == "[    ]");
+        // THE MARK, PRESSED WHERE ITS NAME SAYS, SHOWS THE PANE; its row and mark keep their names.
+        d.press(mark.row, mark.column + 1);
+        CHECK(d.open(pane));
+        const auto after = held_parts(d.r.session(), d.launcher);
+        REQUIRE(after.count("mark:" + ref) == 1);
+        CHECK(held_part_text(d.r.session(), d.launcher, after.at("mark:" + ref)) == "[open]");
+        CHECK(after.at("pane:" + ref).row == row.row);
+    }
+    // A NAME CHOOSES BY ITS PLACE, wherever the marker stands.
+    const auto parts = held_parts(d.r.session(), d.launcher);
+    const PaneRowPart beta = parts.at("pane:zengine.test.tools/beta");
+    d.press(beta.row, kNameCol);
+    CHECK(marked(d.rows()).find("Beta") != std::string::npos);
+    CHECK(held_parts(d.r.session(), d.launcher).at("pane:zengine.test.tools/beta").row == beta.row);
+}
+
 TEST_CASE("WL-DESK-14: a deliberate second press on the marked name, with the keys already here, opens it -- or focuses and lifts it when it is open and covered") {
     Desk d;
     const std::int64_t beta = d.row_of("Beta");
@@ -713,6 +742,30 @@ TEST_CASE("WL-KEY-17: the table has coherent columns, a visible cursor the wheel
             CHECK(tiny[0].rfind("HOTKEYS", 0) == 0);
         }
     }
+}
+
+TEST_CASE("WL-HAND-06: Hotkeys names each binding's row by its identity") {
+    Keys k("hotkeys-names");
+    const std::int64_t terminal = k.row_of("desktop.terminal");
+    REQUIRE(terminal >= 0);
+    const auto parts = held_parts(k.r.session(), k.hotkeys);
+    const PaneRowPart* named = nullptr;
+    std::size_t bindings = 0;
+    for (const auto& [name, part] : parts) {
+        if (name.rfind("binding:", 0) != 0) continue;
+        ++bindings;
+        // A BINDING IS NAMED ON ITS WHOLE ROW, which says the key and the id the name carries.
+        CAPTURE(name);
+        CHECK(part.column == 0);
+        if (name.find("/desktop.terminal/") != std::string::npos) named = &part;
+    }
+    CHECK(bindings > 3);
+    REQUIRE(named != nullptr);
+    CHECK(named->row == terminal);
+    CHECK(named->column == 0);
+    // ...AND A PRESS ON THE NAMED ROW CHOOSES THAT BINDING.
+    k.r.press_cell(body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, named->row));
+    CHECK(marked(k.rows()).find("desktop.terminal") != std::string::npos);
 }
 
 // =============================================================================

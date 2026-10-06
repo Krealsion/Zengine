@@ -150,9 +150,15 @@ PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_pro
 `context_line_names`; `workshop/weave_seam.cpp` `admit_content`, `on(v4::PaneContent)`;
 `workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v4::PaneCanvasContent)`;
 `workshop/weave_external.cpp` `admit_menu_lines`; `menu-presenter/presenter.cpp` `show`;
-`tests/test_workshop_panes_button.cpp` case `"WL-HAND-06: the shipped presenter names each line
-showing a row by the row's id, the pane's rows and the host's standard rows alike, and a press at
-the point the desk gives a name chooses that row"`; `tests/test_workshop_desk.cpp` case `"a row
+`desktop-pane/pane.cpp` `launcher_part`, `keys_part`; `info-pane/pane.cpp` `named_rows`;
+`info-pane/value_view.hpp` `part_name`; `tests/test_workshop_panes_button.cpp` case `"WL-HAND-06:
+the shipped presenter names each row's line by its id, and a press at that name's point chooses
+it"`; `tests/test_workshop_panes_desktop.cpp` case `"WL-HAND-06: the Pane Manager names each row
+and its mark by the pane's reference"`, case `"WL-HAND-06: Hotkeys names each binding's row by its
+identity"`; `tests/test_workshop_panes_info.cpp` case `"WL-HAND-06: Info names its panes by
+reference and its properties by label"`; `tests/test_workshop_info_views.cpp` case `"WL-HAND-06:
+an Info view names its controls by action and its fields by path"`; `tests/test_workshop_desk.cpp`
+case `"a row
 map's parts are named by what each span means, and a name nothing, one the judge would refuse or
 one taken is left unnamed"`, case `"a text
 pane's named parts are said under the pane's own names over the cells that show them, and a press

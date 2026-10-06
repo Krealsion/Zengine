@@ -982,6 +982,38 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     CHECK(saved.get({"extra"}) == nullptr);
 }
 
+TEST_CASE("WL-HAND-06: an Info view names its controls by action and its fields by path") {
+    Views s(255);
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    auto parts = held_parts(s.r.session(), b);
+    // AN EMPTY VIEW'S CONTROLS, BY ACTION.
+    CHECK(parts.count("control:" + std::string(info::kActionViewNew)) == 1);
+    CHECK(parts.count("control:" + std::string(info::kActionViewMenu)) == 1);
+    for (const auto& [name, part] : parts) {
+        CAPTURE(name);
+        CHECK(name.rfind("control:", 0) == 0);
+        const std::string face = held_part_text(s.r.session(), b, part);
+        CHECK((face.front() == '[' || face.front() == '('));
+    }
+    // A VALUE'S FIELDS, BY PATH, on the rows that show them.
+    s.copy_into(a, "Source record");
+    parts = held_parts(s.r.session(), a);
+    REQUIRE(parts.count("field:name") == 1);
+    REQUIRE(parts.count("field:inner.a") == 1);
+    CHECK(parts.at("field:name").row == s.field_at(a, "name").first);
+    CHECK(parts.at("field:inner.a").row == s.field_at(a, "inner.a").first);
+    // ...AND A FIELD DRAGGED INTO ANOTHER VIEW CHANGES ITS VALUE THERE, NOT ITS NAME.
+    s.link_into(b, "Target record");
+    const auto before = held_parts(s.r.session(), b);
+    REQUIRE(before.count("field:inner") == 1);
+    s.drag_between(a, s.field_at(a, "inner"), b, s.field_at(b, "inner"));
+    REQUIRE_MESSAGE(s.shows(b, "*inner.a: 5"), s.shown(b));
+    const auto after = held_parts(s.r.session(), b);
+    REQUIRE(after.count("field:inner.a") == 1);
+    CHECK(after.at("field:inner.a").row == s.field_at(b, "inner.a").first);
+}
+
 TEST_CASE("info views: a whole value never replaces unsaved work, and metadata is never a drop target") {
     Views s(255);
     s.append(20, "Second");

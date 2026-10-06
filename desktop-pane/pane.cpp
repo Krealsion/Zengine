@@ -26,6 +26,7 @@
 #include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_escape.hpp"
+#include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -263,7 +264,7 @@ class DesktopWeave
                        ws::v3::PanePressed, PaneWheel, PaneButton, PaneMenuAnswered,
                        loom::DispatchRefused, surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
-                     ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v3::PaneContent, AppActions,
+                     ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v4::PaneContent, AppActions,
                      PaneLaunchRequested, PaneCloseRequested, PaneToggleRequested,
                      DeselectRequested, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
@@ -1166,11 +1167,26 @@ private:
     }
 
     void publish_launcher(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows) {
-        ws::v3::PaneContent said;
+        ws::v4::PaneContent said;
         said.pane = pane::kLauncherPane;
         said.rows = std::move(rows);
         said.picture = map_.settle();
+        said.parts = ws::row_parts(map_, columns_,
+                                   [this](const LauncherMeaning& m) { return launcher_part(m); });
         (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, said);
+    }
+
+    /// WHAT A PANE MANAGER PART IS CALLED: a row by the pane it lists, `pane:<office>/<pane>`, and
+    /// its mark `mark:<office>/<pane>` -- the reference a setup file and Info's Identity say.
+    std::string launcher_part(const LauncherMeaning& m) const {
+        if (m.index >= known_.size()) {
+            return std::string();
+        }
+        const std::string ref = known_[m.index].office + "/" + known_[m.index].pane;
+        if (m.kind == launcher_row::kName) {
+            return "pane:" + ref;
+        }
+        return m.kind == launcher_row::kMark ? "mark:" + ref : std::string();
     }
 
     // ---- The Hotkeys pane ---------------------------------------------------------------------
@@ -1593,11 +1609,26 @@ private:
     }
 
     void publish_keys(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows) {
-        ws::v3::PaneContent said;
+        ws::v4::PaneContent said;
         said.pane = pane::kHotkeysPane;
         said.rows = std::move(rows);
         said.picture = keys_map_.settle();
+        said.parts = ws::row_parts(keys_map_, keys_room_columns_,
+                                   [this](const KeysMeaning& m) { return keys_part(m); });
         (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, said);
+    }
+
+    /// WHAT A HOTKEYS PART IS CALLED: a binding's row by its identity,
+    /// `binding:<group>/<id>[/<key>]`, and the spelling line `line` while one is open.
+    std::string keys_part(const KeysMeaning& m) const {
+        if (m.kind == keys_row::kFooter && m.index == 0 && typing_.active) {
+            return "line";
+        }
+        if (m.kind != keys_row::kBinding || m.index >= lines_.size() || !lines_[m.index].binding) {
+            return std::string();
+        }
+        const ShownBinding& b = keymap_.rows[lines_[m.index].shown];
+        return "binding:" + b.group + "/" + b.id + (b.gesture.empty() ? "" : "/" + b.gesture);
     }
 
     // ---- State not in the shape ----------------------------------------------------------
