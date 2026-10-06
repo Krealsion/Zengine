@@ -150,7 +150,13 @@ of both answers a canvas pane too: its words are its labels and runs as the pain
 through `visible_body` and `visible_words`, each with its place in canvas pixels and the point a
 press names it by; a canvas word's point is checked against the body its press lands in.
 `DeskViewRequested` answers the desk from Workshop's own numbers (WL-GEO-13). Workshop names
-nothing inside a pane: a word's number is its place in one answer.
+nothing inside a pane: a word's number is its place in one answer. A pane names its parts
+(WL-HAND-06): `v4::PaneContent` and `v4::PaneCanvasContent` carry `parts` -- a run of a row's
+columns, a rectangle of the picture -- and `v2::MenuShown` a presenter's lines by the rows' ids,
+each judged with the picture it names and refused whole with it (`row_parts_problem`,
+`canvas_parts_problem`). `PaneView` version 3 says each beside the words with its place and its
+point, a place no part inside it covers, and `DeskView` version 2 a menu's named lines; a name is
+carried as the pane said it, and a press on a part is ordinary input at that point.
 
 ## A pane may draw locally, with an explicit room and gesture identity
 
@@ -315,16 +321,18 @@ beside the shapes before them, and each is an ordinary optional capability any p
 provider → Workshop as the office that offered the pane; `PaneMenuAnswered v1`
 `{pane, subject, chosen, id, refusal}`, the presenter (or, for an ask it refused or one no
 presenter can answer, Workshop) → provider; `v3::PaneContent` `{pane, rows, generation,
-picture}` and `v3::PanePressed` `{…, picture}`. Between Workshop and the participant holding
-`zengine.presenter`, `workshop/presenter_vocabulary.hpp`: `MenuGranted`, `MenuInput` and
-`MenuWithdrawn` Workshop → presenter, `MenuShown`, `MenuClosed` and `PresenterReady` presenter
-→ Workshop, and `HeldMenu`, the reload state the shipped presenters share. The pane shapes ADDED
+picture}`, `v4::PaneContent` `{…, parts}` and `v3::PanePressed` `{…, picture}`. Between Workshop
+and the participant holding `zengine.presenter`, `workshop/presenter_vocabulary.hpp`:
+`MenuGranted`, `MenuInput` and `MenuWithdrawn` Workshop → presenter, `MenuShown`, `MenuClosed`
+and `PresenterReady` presenter → Workshop, and `HeldMenu`, the reload state the shipped
+presenters share. The pane shapes ADDED
 to the protocol and revised nothing. `MenuGranted v2`, `MenuClosed v2` and `HeldMenu v2` carry
 the host's standard rows (`standard`, below) and the name of the pane they act on
 (`pane_name`); a holder that accepts only `MenuGranted v1` does
 not hold the office for this host, so a menu is refused where it would open, in words. Several
 NEST — `PaneMenuRequested` and `MenuGranted` carry
-`vector<PaneMenuRow>`, `v3::PaneContent` and `MenuShown` surface rows — and since Loom ABI v9 a
+`vector<PaneMenuRow>`, `v3::PaneContent` and `MenuShown` surface rows, `v4::PaneContent` and
+`v2::MenuShown` `PaneRowPart`s too — and since Loom ABI v9 a
 nested component is agreed at admission like any other declared shape; these admit because
 every party declares them from the one installed header, not because they are flat. The host's
 side is law in `workshop/press-chain.md` (WL-PRESS-06), `workshop/contextual.md` (WL-CTX-08),

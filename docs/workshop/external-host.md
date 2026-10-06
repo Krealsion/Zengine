@@ -144,15 +144,17 @@ ships what such a session needs to speak to Workshop, and nothing of the session
 - **Tools that work the way a weaver's hands do**, in the same package, judged by what Workshop
   says it holds -- each pane's words and the desk's own numbers, which the `capture` power reads
   -- rather than by comparing pictures: `workshop/act` (steps through one input session: press,
-  type, open a pane from the Pane Manager, walk a list's cursor to the row of a given name, press
-  into a pane or on one of its words, in a text or a canvas pane, or on a line of the menu on the
-  screen, check a pane's place, size, state or keys on the desk by number, expect or rule out
-  text, keep a pane's words or a picture -- a cropped PNG if asked),
+  type, open a pane by its Pane Manager row's name, walk a list's cursor to a named row, press a
+  part a pane names by its name, press into a pane or on one of its words, in a text or a canvas
+  pane, or on a line of the menu on the screen, check a pane's place, size, state or keys on the
+  desk by number, expect or rule out text, keep a pane's words and named parts or a picture -- a
+  cropped PNG if asked),
   `workshop/nvim-edit` (edits to one file typed through Workshop's [Neovim pane](neovim.md) and
   saved by Neovim; before typing, Neovim itself is asked whether its buffer is exactly that file,
   unmodified and equal to the disk -- unsaved work, a draft never saved included, is refused
   untouched -- and after `:w` whether it saved the planned text, which the file must equal too),
-  `workshop/place` (a pane's place and size written through Info, one field at a time),
+  `workshop/place` (a pane's place and size written through Info, one field at a time, each
+  row chosen by the name Info gives it),
   `workshop/builder` (the [Builder](builder.md)'s keys, each followed to its owner's answer: a
   build to its operation's ending on `last` and, when it asked for one, that operation's
   realization ending on `realize` -- two answers kept apart; the ask and operation are kept to
@@ -365,7 +367,8 @@ What a person meets on this route:
 - **Ctrl+P toggles the Pane Manager.** A press opens it with the keys; a second press closes it
   again, wherever the keys are ([panes](panes.md#showing-going-to-and-hiding--the-pane-manager)).
   Press Ctrl+P only when the Pane Manager is not already on the desk (`workshop/act`'s `open` step
-  checks first), then press what it answers to (`--input chord=down`).
+  checks first, then presses the row by its name), then press what it answers to
+  (`--input chord=down`).
 - **A lost link is an unknown outcome.** When Workshop goes away after a tool's request was
   submitted, the run fails saying the outcome is UNKNOWN and nothing was resent; Workshop's guest
   door closes a lost guest's input session, and the run never claims it closed it.
@@ -671,15 +674,21 @@ shapes, `workshop/guest_seam_vocabulary.hpp` for the inventory, and Loom's
 The `capture` guest power also permits three readings at `zengine.workshop`, each answered from
 what Workshop owns and none read off a picture:
 
-- **The desk.** `DeskViewRequested{}` is answered by `DeskView`: every pane on the desk, in the
-  desk's order, with its state (`open`, `covered`, `off-room`, `unresolved`), its rank from the
-  front (0 in front), the place its authored intent resolves to and the part of it the canvas
-  has, and whether it is selected or holds the keys; the room; whether arranging is open; and the
-  menu on the screen, if one is -- Workshop's own or a pane's -- with each line where it is drawn.
-- **A pane's words.** `PaneViewRequested` version 2, `{provider,pane}`, is answered by `PaneView`
-  version 2: a text pane's rows, or a canvas pane's labels and runs of measured text as it drew
-  them last, each a word with its place and the point a press names it by. Version 1 still
-  answers a text pane's rows.
+- **The desk.** `DeskViewRequested` version 2, `{}`, is answered by `DeskView` version 2: every
+  pane on the desk, in the desk's order, with its state (`open`, `covered`, `off-room`,
+  `unresolved`), its rank from the front (0 in front), the place its authored intent resolves to
+  and the part of it the canvas has, and whether it is selected or holds the keys; the room;
+  whether arranging is open; and the menu on the screen, if one is -- Workshop's own or a pane's
+  -- with each line where it is drawn, and the lines it names. Version 1 says the same without the
+  names.
+- **A pane's words and parts.** `PaneViewRequested` version 3, `{provider,pane}`, is answered by
+  `PaneView` version 3: a text pane's rows, or a canvas pane's labels and runs of measured text as
+  it drew them last, each a word with its place and the point a press names it by; and beside them
+  every part the pane names -- a row, a control, an element -- under the pane's own name, with the
+  characters it covers, its place and its point. A pane keeps a part's name across its redraws, so
+  a walk finds it wherever the last redraw put it ([the parts a pane
+  names](../reference/workshop-panes.md#a-pane-names-its-parts)). Version 2 answers the words
+  alone, and version 1 a text pane's rows, as text fitted to the body rather than as drawn.
 - **Where one character is.** `PanePointRequested` version 2,
   `{provider,pane,picture,word,column}`, answers where one character of one word is now, for the
   picture the caller read; version 1, `{provider,pane,picture,row,column}`, one painted cell of a
@@ -698,10 +707,15 @@ encounter a changed picture. Legacy unnumbered panes report picture zero; the qu
 interaction lease. Receivers must fence their own drops. `hand.words`, `hand.word_point` and
 `hand.desk` in `hand.py` ask them, and `workshop/act` steps on them: `desk` checks a pane's
 place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
-480}}}`), `menu` presses the line of the menu on the screen holding some text, and `click`,
-`control`, `expect` and `select` read a canvas pane's words as a text pane's. `select` reads a
-list row's name after a one- or two-column marker, and a value a list sets beside it after two
-blanks, so Info's `>Height      300` is chosen as `Height`.
+480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
+"view-builder", "kind:label"]}`); `open` presses the Pane Manager's row named for a pane
+(`{"open": "pane:zengine.files/project-files"}`), a press choosing it and one opening it; `menu`
+presses the line of the menu on the screen named so, or holding some text; and `click`,
+`control`, `expect` and `select` read a canvas pane's words as a text pane's. `select` walks a
+list to the row its pane names so (Info's `property:Height`), or, in a pane naming none, the row
+whose text after a one- or two-column marker is the name, a value the list sets beside it after
+two blanks. Info's sizes follow the medium: a window's are pixels (`240 px`), a terminal's cells
+(`20 cells`), and Info refuses an amount typed in the other unit.
 
 `workshop/drag` uses the session's timed Input motion; `duration_ms` controls time, `bend`
 selects a linear path (zero) or cubic Bezier, and `button` is the one held through it (left,
