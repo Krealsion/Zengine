@@ -966,6 +966,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_opening.cpp
             test_workshop_panes_code.cpp
             test_workshop_panes_output.cpp
+            test_workshop_shapes.cpp
     NEEDS zengine-composer zengine-inventory zengine-inventory-pane
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\"" "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""

@@ -192,10 +192,11 @@ struct InventoryPane {
 
 /// The whole inventory, published whenever it changes and replaced whole, never merged: a reading
 /// of `inventory_rows`, not a second inventory (WL-DESK-04). Published to any, because which
-/// weave presents it is the load plan's business.
+/// weave presents it is the load plan's business. Its version moves with `InventoryPane`'s, whose
+/// content id it carries.
 struct PaneInventory {
     std::vector<InventoryPane> panes;
-    ZEN_SHAPE(PaneInventory, 1, ZEN_FIELD(panes));
+    ZEN_SHAPE(PaneInventory, 2, ZEN_FIELD(panes));
 };
 
 /// Ask for the inventory as it is now, answered to the asking incarnation alone -- for a presenter
