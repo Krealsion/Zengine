@@ -753,8 +753,8 @@ press there, and is never said.
 | Editor | `zengine.editor` `editor` | `status`, and `line:<n>`, a document line | |
 | Neovim's Editor | `zengine.editor` `editor` | `status` | Neovim's own screen |
 | A running view | its own office, `view` | `element:<id>` | |
-| View Builder | `zengine.view.builder` `view-builder` | `control:<action>`, `kind:<kind>`, `box:<field>`, `box:<id>.<field>`, `list:<id>`, `canvas`, `element:<id>`, `size:<sx>,<sy>`, `handle:<id>.<sx>,<sy>`, `<action>:<id>` | a place whose name repeats or is refused |
-| Flow | `zengine.flow` `flow` | `node:<id>`, `port:<id>.<n>`, `control:<action>` | a place whose name repeats or is refused |
+| View Builder | `zengine.view.builder` `view-builder` | `control:<action>`, `kind:<kind>`, `box:<field>`, `box:<id>.<field>`, `list:<id>`, `canvas`, `element:<id>`, `size:<sx>,<sy>`, `handle:<id>.<sx>,<sy>`, `show:<id>.<field>`, `<action>:<id>` | a place whose name repeats or is refused |
+| Flow | `zengine.flow` `flow` | `node:<id>`, `port:<id>.<n>`, `control:<action>`, and every other place by its action and arguments, `<action>:<argument>:...` (`found:<kind>:<identity>`, `source-field:<name>`, `emitted-row:<n>`) | a place whose name repeats or is refused |
 | A pane's menu | its presenter's | each line by its row's id | |
 | Workshop's own menu | `zengine.workshop` | each line by the action or the group it shows (`workshop.manage`, `setup.restore`, `Order`) | |
 | Layouts | Workshop's own | none: the desk says it | |

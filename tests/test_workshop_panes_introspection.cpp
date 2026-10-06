@@ -1730,9 +1730,9 @@ TEST_CASE("all three panes may be open at once, each answering its own room") {
 }
 
 TEST_CASE("the graphical medium grants a different room and both panes spend it") {
-    // BOTH MEDIA, ONE PANE SEMANTIC. The provider is handed `rows` and `columns` and never a cell,
-    // a pixel, a font or the identity of the medium that answered -- so what differs between a
-    // terminal reading and a graphical one is a pair of integers `fit_region` resolved on
+    // BOTH MEDIA, ONE PANE SEMANTIC. The provider is handed a room and the advance and line its
+    // text stands at, never a font, and composes for the rows and columns of that lattice -- so
+    // what differs between a terminal reading and a graphical one is a few integers resolved on
     // Workshop's side, and nothing else. The metric arrives as a NUMBER, which is how a lane with
     // no font engine proves a medium-dependent claim.
     PaneRig r;

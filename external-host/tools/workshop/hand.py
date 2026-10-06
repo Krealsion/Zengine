@@ -123,8 +123,8 @@ class Hand:
         """The one visible row holding `contains` -- a text pane's row, or the one run of text a
         canvas pane draws on a row -- as `{row, text, x, y, space}`, pressed where Workshop says its
         third character is (its own point where it has fewer). With `scroll`, the pane is wheeled
-        toward each edge until the row shows. Two rows holding it, or none, raise ValueError and
-        keep `last-view.json`."""
+        toward each edge until the row shows. Two rows holding it fail the run's check (the row is
+        ambiguous); none raises ValueError and keeps `last-view.json`."""
         def find(view):
             found = [w for w in view["words"] if contains in w["text"]]
             self.ctx.check(len(found) <= 1, "ambiguous visible row: " + contains)
