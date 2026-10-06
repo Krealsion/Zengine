@@ -8,6 +8,7 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_escape.hpp"
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_parts.hpp"
 #include "workshop/setup_control.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "component/text_box.hpp"
@@ -39,7 +40,7 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         inv::v2::InventorySnapshot, inv::InventoryRestored,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
         loom::Ack, loom::Refused, loom::DispatchRefused>,
-    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v3::PaneContent, ws::PaneMenuRequested, ws::PaneEscapeUnspent,
+    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v4::PaneContent, ws::PaneMenuRequested, ws::PaneEscapeUnspent,
         ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested, ws::PaneCarryRequested,
         ws::PaneValueCarryRequested, ws::v2::PaneValueCarryRequested, ws::PaneShortcuts,
         ws::PaneLaunchRequested, slots::InventoryViews, inv::v2::InventoryList, inv::InventoryRead,
@@ -855,8 +856,18 @@ private:
             // Workshop repaints the desk for each, and every view is drawn after any change.
             if(const auto said=sent_.find(id); said!=sent_.end() && said->second.picture==picture && same_rows(said->second.rows,rows)) continue;
             sent_[id]=Sent{rows,picture};
-            m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v3::PaneContent{id,std::move(rows),0,picture});
+            m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v4::PaneContent{id,std::move(rows),0,picture,
+                ws::row_parts(v.map,v.columns,[](const std::string& meaning) { return part_name(meaning); })});
         }
+    }
+    /// WHAT INVENTORY CALLS ITS PARTS: an entry by its reference, `entry:<owner>:<entry>`; a folder,
+    /// `folder:<owner>:<id>`; a crumb of the path, `crumb:<owner>:<id>`; and `control:up`,
+    /// `control:here`.
+    static std::string part_name(const std::string& meaning) {
+        if (meaning.rfind("ctl:", 0) == 0) return "control:" + meaning.substr(4);
+        if (meaning.rfind("dir:", 0) == 0) return "folder:" + meaning.substr(4);
+        if (meaning.rfind("crumb:", 0) == 0) return meaning;
+        return meaning.empty() ? std::string() : "entry:" + meaning;
     }
     static bool same_rows(const std::vector<zengine::surface::SurfaceTextRow>& a,const std::vector<zengine::surface::SurfaceTextRow>& b) {
         if(a.size()!=b.size()) return false;

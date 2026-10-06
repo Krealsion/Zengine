@@ -151,13 +151,22 @@ PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_pro
 `workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v4::PaneCanvasContent)`;
 `workshop/weave_external.cpp` `admit_menu_lines`; `menu-presenter/presenter.cpp` `show`;
 `desktop-pane/pane.cpp` `launcher_part`, `keys_part`; `info-pane/pane.cpp` `named_rows`;
-`info-pane/value_view.hpp` `part_name`; `tests/test_workshop_panes_button.cpp` case `"WL-HAND-06:
+`info-pane/value_view.hpp` `part_name`; `files/files.cpp` `part_name`; `builder-pane/pane.cpp`
+`part_name`; `inventory-pane/pane.cpp` `part_name`; `terminal-pane/pane.cpp` `named_rows`;
+`tests/test_workshop_panes_button.cpp` case `"WL-HAND-06:
 the shipped presenter names each row's line by its id, and a press at that name's point chooses
 it"`; `tests/test_workshop_panes_desktop.cpp` case `"WL-HAND-06: the Pane Manager names each row
 and its mark by the pane's reference"`, case `"WL-HAND-06: Hotkeys names each binding's row by its
 identity"`; `tests/test_workshop_panes_info.cpp` case `"WL-HAND-06: Info names its panes by
 reference and its properties by label"`; `tests/test_workshop_info_views.cpp` case `"WL-HAND-06:
-an Info view names its controls by action and its fields by path"`; `tests/test_workshop_desk.cpp`
+an Info view names its controls by action and its fields by path"`;
+`tests/test_workshop_panes_files.cpp` case `"WL-HAND-06: Files names its entries by name and its
+controls by operation"`; `tests/test_workshop_panes_builder.cpp` case `"WL-HAND-06: the Builder
+names its controls by operation and a recipe's row by the recipe"`;
+`tests/test_workshop_inventory_folders.cpp` case `"WL-HAND-06: Inventory names its entries,
+folders, crumbs and controls by what each is"`; `tests/test_workshop_panes_terminal.cpp` case
+`"WL-HAND-06: the Terminal names the line being typed and each candidate by what it says"`;
+`tests/test_workshop_desk.cpp`
 case `"a row
 map's parts are named by what each span means, and a name nothing, one the judge would refuse or
 one taken is left unnamed"`, case `"a text

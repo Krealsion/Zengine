@@ -7,6 +7,9 @@
 #include "workshop_support.hpp"
 #include "inventory_story.hpp"
 #include "inventory-pane/toolbox_file.hpp"
+
+#include <optional>
+
 namespace slots = zengine::inventory_pane;
 
 namespace {
@@ -120,6 +123,40 @@ TEST_CASE("inventory folders: a weaver creates, opens, climbs, renames and jumps
     CHECK(s.shown(s.source).find("Already at Root") != std::string::npos);
     CHECK(s.folders().folders.size() == at_root.folders.size());
     (void)workbench;
+}
+
+TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls by what each is") {
+    InventoryStory s(kOrganizer);
+    s.click(s.source);
+    create_folder(s, "Workbench");
+    const auto workbench = s.folder_id("Workbench");
+    const auto named = [&](const std::string& prefix, const std::string& suffix) {
+        for (const auto& [name, part] : held_parts(s.r.session(), s.source)) {
+            if (name.rfind(prefix, 0) == 0 && name.size() >= suffix.size() &&
+                name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+                return std::optional<PaneRowPart>(part);
+            }
+        }
+        return std::optional<PaneRowPart>();
+    };
+    // THE FOLDER'S ROW BY ITS IDENTITY, and every entry's by its reference.
+    const auto folder = named("folder:", ":" + workbench);
+    REQUIRE(folder.has_value());
+    CHECK(s.row_of(s.source, "Workbench/") == folder->row);
+    std::size_t entries = 0;
+    for (const auto& [name, part] : held_parts(s.r.session(), s.source)) {
+        if (name.rfind("entry:", 0) == 0) ++entries;
+    }
+    CHECK(entries > 0);
+    // INSIDE IT: the way up and the crumb naming where the weaver stands.
+    s.key(input::scan::kReturn);
+    REQUIRE_MESSAGE(s.row_of(s.source, "[Up] Root > Workbench") == 1, s.shown(s.source));
+    const auto up = named("control:up", "control:up");
+    REQUIRE(up.has_value());
+    CHECK(held_part_text(s.r.session(), s.source, *up) == "[Up]");
+    const auto crumb = named("crumb:", ":" + workbench);
+    REQUIRE(crumb.has_value());
+    CHECK(held_part_text(s.r.session(), s.source, *crumb) == "Workbench");
 }
 
 TEST_CASE("inventory folders: names conflict only among siblings, and a refused name changes nothing") {

@@ -23,6 +23,7 @@
 #include "component/row_map.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_parts.hpp"
 #include <zen/weave/dispatch_refusal.hpp>
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -216,7 +217,7 @@ class TerminalPaneWeave
                        PaneTextInput, PaneWheel, PaneActionRequested, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, ws::v3::PaneContent, PaneCaret, PaneEscapeUnspent,
+          loom::Emit<PaneOffered, PaneActions, PaneContent, ws::v4::PaneContent, PaneCaret, PaneEscapeUnspent,
                      ws::TerminalValueRequested, ws::PaneValueCarryRequested, ws::PaneMenuRequested,
                      ws::PanePassRequested,
                      TerminalActRequested, TerminalCompletionRequested, surface::ClipboardCopy,
@@ -1101,7 +1102,7 @@ private:
         };
         if (rows_ <= 0 || columns_ <= 0) {
             (void)mail.as_role(pane::kTerminalPaneRole)
-                .send_to_role(kWorkshopRole, ws::v3::PaneContent{pane::kTerminalPane, std::move(out), 0, subjects_.settle()});
+                .send_to_role(kWorkshopRole, ws::v4::PaneContent{pane::kTerminalPane, std::move(out), 0, subjects_.settle()});
             say_caret(mail);
             return;
         }
@@ -1224,9 +1225,34 @@ private:
         if (input_row_ >= static_cast<std::int64_t>(out.size())) {
             input_row_ = -1; // cut away: there is no row to put a caret on
         }
+        const std::int64_t picture = subjects_.settle();
+        std::vector<ws::PaneRowPart> parts = named_rows(static_cast<std::int64_t>(out.size()));
         (void)mail.as_role(pane::kTerminalPaneRole)
-            .send_to_role(kWorkshopRole, ws::v3::PaneContent{pane::kTerminalPane, std::move(out), 0, subjects_.settle()});
+            .send_to_role(kWorkshopRole, ws::v4::PaneContent{pane::kTerminalPane, std::move(out), 0,
+                                                             picture, std::move(parts)});
         say_caret(mail);
+    }
+
+    /// WHAT THE TERMINAL CALLS ITS PARTS, of the `said` rows it sends: a transcript entry carrying
+    /// a value, `entry:<observation>`; the line being typed, `line`; the way back to the newest
+    /// output, `newest`; and a completion candidate, `candidate:<what it says>`.
+    std::vector<ws::PaneRowPart> named_rows(std::int64_t said) const {
+        ws::PartNames<ws::PaneRowPart> names;
+        const auto name = [&](std::string what, std::int64_t row) {
+            if (row >= 0 && row < said) (void)names.add(ws::PaneRowPart{std::move(what), row, 0, columns_});
+        };
+        for (const auto& span : subjects_.spans()) {
+            name("entry:" + std::to_string(span.meaning.second), span.row);
+        }
+        name("line", input_row_);
+        name("newest", bottom_marker_row_);
+        for (std::int64_t i = 1; i < list_row_count_; ++i) {
+            const std::size_t index = list_shown_first_ + static_cast<std::size_t>(i - 1);
+            if (list_first_row_ >= 0 && index < offered_.candidates.size()) {
+                name("candidate:" + offered_.candidates[index].display, list_first_row_ + i);
+            }
+        }
+        return names.take();
     }
 
     template <typename Push> void say_list(std::size_t room, const Push& push) {

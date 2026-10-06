@@ -1688,6 +1688,33 @@ TEST_CASE("the Builder's controls perform the operations its keys perform") {
     }
 }
 
+TEST_CASE("WL-HAND-06: the Builder names its controls by operation and a recipe's row by the recipe") {
+    BuilderRig b("bld-names");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.open();
+    auto parts = held_parts(b.r.session(), b.kind);
+    REQUIRE(parts.count("recipe:one") == 1);
+    std::size_t controls = 0;
+    for (const auto& [name, part] : parts) {
+        if (name.rfind("control:", 0) != 0) continue;
+        ++controls;
+        CAPTURE(name);
+        const std::string face = held_part_text(b.r.session(), b.kind, part);
+        REQUIRE_FALSE(face.empty());
+        CHECK((face.front() == '[' || face.front() == '('));
+    }
+    CHECK(controls > 0);
+    // THE LIST: each recipe's row by its recipe, the cursor's or not.
+    bp_press_face(b, "[choose a recipe...]");
+    parts = held_parts(b.r.session(), b.kind);
+    REQUIRE(parts.count("recipe:one") == 1);
+    REQUIRE(parts.count("recipe:two") == 1);
+    CHECK(parts.at("recipe:two").row == bp_row(b.shown(), "  two -> b"));
+    press_pane(b.r, b.kind, parts.at("recipe:two").row, 0);
+    REQUIRE(bp_row(b.shown(), "> two -> b") >= 0);
+    CHECK(held_parts(b.r.session(), b.kind).at("recipe:two").row == bp_row(b.shown(), "> two -> b"));
+}
+
 TEST_CASE("the recipe list chooses by hand, and looking is not choosing") {
     // THE INTELLIGIBLE VISIBLE ROUTE TO A CHOICE. A weaver sees the catalog on rows, moves inside
     // it, and takes one -- and the cursor of the list is NOT the choice until they do, so merely
