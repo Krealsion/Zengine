@@ -19,6 +19,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_problem`,
 `canvas_parts_problem`, `PartNames`, `row_parts`; `component/row_map.hpp` `RowMap::press_order`;
+`workshop/pane_canvas_rows.hpp` `rows_picture`;
 `workshop/weave_inspection.cpp` `visible_parts`, `row_owners`, `row_part_on`, `own_points`,
 `canvas_part_on`, `words_inside`, `no_point`, `desk_menu`;
 `workshop/screen_attention.cpp` `context_line_names`; `workshop/weave_seam.cpp` `admit_content`,
@@ -33,6 +34,8 @@ PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_pro
 `part_name`, `named`; `flow-pane/view.hpp` `part_name`, `named`;
 `tests/test_workshop_desk.cpp` case `"a canvas pane's rows set on its room's lattice are words on its
 parts' rows, and a part's text is the characters drawn inside it"`;
+`tests/test_workshop_panes_canvas.cpp` case `"a pane's rows drawn on its canvas stand where its
+prose rows would, name the same parts, and a place reads back to its row and column"`;
 `tests/test_workshop_panes_button.cpp` case `"WL-HAND-06:
 the shipped presenter names each row's line by its id, and a press at that name's point chooses
 it"`; `tests/test_workshop_panes_desktop.cpp` case `"WL-HAND-06: the Pane Manager names each row
