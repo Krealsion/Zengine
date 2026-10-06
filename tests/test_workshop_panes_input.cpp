@@ -1140,9 +1140,9 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
 TEST_CASE("the same gesture in a terminal names the same row of the same room") {
     // MEDIUM-INDEPENDENT BY CONSTRUCTION, and this is the witness. The TUI's mouse
     // reporting is already live (DECSET 1002+1006, claimed by the terminal Skin), the
-    // wire already carries a `space`, and `prose_at` branches on that rather than on a
-    // backend -- so a terminal press reaches the same provider row with no parity work
-    // and no new protocol.
+    // wire already carries a `space`, and Workshop reads it into the pane's own canvas place
+    // rather than branching on a backend -- so a terminal press reaches the same row of
+    // Loaded's lattice (`row_cell_at`) with no parity work and no new protocol.
     Ears by_cell;
     PaneRig cells;
     cells.mount_workshop();
@@ -1170,8 +1170,8 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
                        (1 + kExternalHeaderRows) * gbody.fit.line_px + gbody.fit.line_px / 2);
     REQUIRE(by_pixel.heard.size() == 1);
 
-    // ONE FACT, TWO MEDIA. The provider was handed two integers in both runs and cannot
-    // tell which medium answered.
+    // ONE FACT, TWO MEDIA. The provider was handed a room and the lattice its text stands on
+    // in both runs, and reads the same row back from either.
     CHECK(by_cell.heard[0].library == by_pixel.heard[0].library);
     CHECK(by_cell.heard[0].pane == by_pixel.heard[0].pane);
     CHECK(by_cell.heard[0].role == by_pixel.heard[0].role);
@@ -3362,6 +3362,49 @@ TEST_CASE("Loaded wheel browses without publishing a different selected target")
     wheel(1);
     CHECK(watch->content.back().rows[1].text.rfind("> a-hello", 0) == 0);
     CHECK(ears.heard.size() == 1);
+}
+
+TEST_CASE("a Loaded press naming the picture drawn before the wheel moved its rows selects nothing") {
+    // THE FENCE THE CANVAS HANDS A PANE: Workshop stamps a press with the picture the medium was
+    // showing, which for a moment after a redraw is the one before it. Loaded numbers its
+    // pictures by which weave each row names, so a press on the old picture is dropped rather
+    // than read against the weave the wheel moved into that row.
+    Ears ears;
+    PaneRig r;
+    auto watcher = std::make_unique<PaneWatcher>();
+    PaneWatcher* watch = watcher.get();
+    auto grant = loom::emit_default_grant(*watcher);
+    r.watcher_id = r.bus.register_weave(std::move(watcher), grant, kWorkshopProvider);
+    watch->zen_set_self(r.watcher_id);
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load("a-hello", WORKSHOP_SO_HELLO, "a.hello");
+    (void)r.load("b-hello", WORKSHOP_SO_HELLO, "b.hello");
+    r.drive_watcher(watch, [](PaneWatcher& w, loom::Mail& m) {
+        w.canvas_grant(m, kIntroOffice, kIntroPane, 4, 80);
+    });
+    REQUIRE(watch->content.back().rows[1].text.find("a-hello") != std::string::npos);
+    const PaneCanvasPointer on_a = watch->canvas_at(1, 0, canvas_pointer::kPress);
+    r.drive_watcher(watch, [](PaneWatcher& w, loom::Mail& m) { w.canvas_wheel(m, kIntroOffice, -1); });
+    REQUIRE(watch->content.back().rows[1].text.find("b-hello") != std::string::npos);
+    const auto press = [&](const PaneCanvasPointer& p) {
+        r.drive_watcher(watch, [p](PaneWatcher&, loom::Mail& m) {
+            (void)m.as_role(kWorkshopProvider).send_to_role(kIntroOffice, p);
+        });
+    };
+    // AIMED AT a-hello, ARRIVING AFTER b-hello TOOK ITS ROW: nothing is selected.
+    press(on_a);
+    CHECK(ears.heard.empty());
+    // A press on the picture showing b-hello selects it...
+    const PaneCanvasPointer on_b = watch->canvas_at(1, 0, canvas_pointer::kPress);
+    press(on_b);
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard.back().library == "b-hello");
+    // ...and a repaint that moves no row -- the selection's mark -- keeps the press current.
+    REQUIRE(watch->pictures.back() > on_b.picture);
+    press(on_b);
+    REQUIRE(ears.heard.size() == 2);
+    CHECK(ears.heard.back().library == "b-hello");
 }
 
 // ---- Escape's default: drop the selection, then the pane ----------------------------------
