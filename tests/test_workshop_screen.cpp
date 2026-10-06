@@ -2146,17 +2146,16 @@ TEST_CASE("a one-pixel drag moves a pane by exactly one pixel of lattice") {
                               cells_px(6))
                 .accepted);
     const PixelRect at = t.builder_rect();
-    // PRESS THE BODY, midway in, in window pixels: the fine projection of that pixel is
-    // exact (one pixel is four sub-units on this skin), so the grab offset is exact too.
+    // PRESS THE BODY, midway in, in window pixels: a place is said in those same pixels, so
+    // the grab offset is exact too.
     const std::int64_t press_x = at.x + 30;
     const std::int64_t press_y = at.y + 20;
     t.press_at(press_x, press_y, input::space::kPixels);
     REQUIRE(t.session().pane_drag.active);
     REQUIRE_FALSE(t.session().pane_drag.sizing);
 
-    // ONE PIXEL RIGHT: the place moves by exactly the pixel's worth of sub-units -- no
-    // whole-cell threshold anywhere on the path, which would take twelve pixels of hand before
-    // anything moved.
+    // ONE PIXEL RIGHT: the place moves by exactly one pixel -- no whole-cell threshold anywhere
+    // on the path, which would take twelve pixels of hand before anything moved.
     t.motion_at(press_x + 1, press_y, input::space::kPixels);
     const SetupPane* row = t.builder_row();
     REQUIRE(row != nullptr);
@@ -2374,7 +2373,7 @@ TEST_CASE("a move blocked at the left wall still follows the hand down") {
     // THE LIVE DEFECT THIS GUARDS: a drag whose proposal leaves the canvas on ONE axis refused
     // the WHOLE proposal, so a pane slid along the left wall froze on both axes. Independent
     // axes settle independently -- and the blocked coordinate KEEPS ITS OWN VALUE rather than
-    // clamping to the wall, which staging the pane five sub-units off the wall distinguishes
+    // clamping to the wall, which staging the pane five pixels off the wall distinguishes
     // (a clamp would write 0 here).
     FineRig t;
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 5, cells_px(20))

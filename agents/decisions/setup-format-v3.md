@@ -39,8 +39,8 @@ independent; where a place is measured from is [the-whole-pixel](the-whole-pixel
   place is measured from the room's top-left, not an offset from the default"`.
 
 **Consequences.** A fresh setup is sparse, an unresolved reference round-trips every authored
-field, and setup bytes carry no descriptor, room, handle or runtime fact. The setup keeps exactly one old reader
-because a setup is a weaver's named artifact with no session to ride.
+field, and setup bytes carry no descriptor, room, handle or runtime fact. The setup keeps exactly
+one old reader because a setup is a weaver's named artifact with no session to ride.
 
 Version 4 keeps every rule here and says its amounts in canvas pixels, word `pixels`
 ([the-whole-pixel](the-whole-pixel.md)); a version-3 file is read back to the pixel it painted.
