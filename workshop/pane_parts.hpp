@@ -46,7 +46,7 @@ namespace detail {
 template <class Part>
 std::string part_names_problem(const std::vector<Part>& parts) {
     if (parts.size() > kMaxPaneParts) {
-        return "names " + std::to_string(parts.size()) + " parts, more than " +
+        return "lists " + std::to_string(parts.size()) + " parts, more than " +
                std::to_string(kMaxPaneParts);
     }
     std::set<std::string_view> seen;
@@ -89,10 +89,10 @@ inline std::string canvas_parts_problem(const std::vector<PaneCanvasPart>& parts
 }
 
 /// THE PARTS OF ONE COMPOSITION, gathered in the order its pane reads a press: every place is
-/// kept, and one named "", one whose name the judge would refuse and one whose name an earlier
-/// part took stays a place unnamed, since a press there still reaches it. Past `kMaxPaneParts` the
-/// earliest go -- none takes a press from a part after it -- so a picture's parts gathered here
-/// are never what refuses it.
+/// kept, and a part named "", or whose name the judge would refuse or an earlier part took, stays
+/// a place unnamed, since a press there still reaches it. Past `kMaxPaneParts` the earliest go --
+/// none takes a press from a part after it -- so a picture's parts gathered here are never what
+/// refuses it.
 template <class Part>
 class PartNames {
 public:
