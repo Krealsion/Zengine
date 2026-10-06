@@ -935,7 +935,8 @@ zengine_workshop_suite(host
     DEFINITIONS "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\"")
 
 # THE DESK AND THE WORDS ON IT, READ BY MESSAGE: what Workshop answers about its panes and their
-# words, and that each place it gives is where the medium draws it.
+# words, and that each place it gives is where the medium draws it -- a part's point read back
+# through a running view's and the View Builder's own pictures, as each reads a press.
 # Three operations keep their conversations in tests/timelines/, and the heard ones are written
 # beside the build to diff.
 zengine_workshop_suite(desk SOURCES test_workshop_desk.cpp

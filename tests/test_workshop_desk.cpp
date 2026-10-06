@@ -1125,7 +1125,7 @@ TEST_CASE("a text pane's named parts are said under the pane's own names over th
     }
 }
 
-TEST_CASE("a part's point is a character of its own: a row with a control inside it is pressed beside the control, and the control on itself, in a window and in a terminal") {
+TEST_CASE("a part's point is a place of its own: a row with a control inside it is pressed beside the control, the control on itself, a row whose text is all a control's on a blank cell of its own, and a row with no place of its own has no point, in a window and in a terminal") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
@@ -1135,21 +1135,25 @@ TEST_CASE("a part's point is a character of its own: a row with a control inside
         const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
         REQUIRE(body.columns >= 20);
         // THE ROW'S MIDDLE CHARACTER IS THE MARK'S: of `> [open] Files`'s fourteen, the seventh
-        // stands inside `[open]`. The second row is two controls and nothing of its own.
+        // stands inside `[open]`. The second row is two controls and nothing of its own; the
+        // third's every character is `[Go]`'s, and the blank cells after it are the row's.
         d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
             s.say_named(m, v4::PaneContent{"alpha",
                                            {surface::SurfaceTextRow{"> [open] Files", surface::role::kFill},
-                                            surface::SurfaceTextRow{"[one][two]", surface::role::kFill}},
+                                            surface::SurfaceTextRow{"[one][two]", surface::role::kFill},
+                                            surface::SurfaceTextRow{"[Go]", surface::role::kFill}},
                                            0, 0,
                                            {PaneRowPart{"pane:files", 0, 0, body.columns},
                                             PaneRowPart{"mark:files", 0, 2, 6},
                                             PaneRowPart{"row:both", 1, 0, 10},
                                             PaneRowPart{"control:one", 1, 0, 5},
-                                            PaneRowPart{"control:two", 1, 5, 5}}});
+                                            PaneRowPart{"control:two", 1, 5, 5},
+                                            PaneRowPart{"row:go", 2, 0, body.columns},
+                                            PaneRowPart{"control:go", 2, 0, 4}}});
         });
         v3::PaneView view;
         REQUIRE(d.parts(kAlphaOffice, "alpha", view).empty());
-        REQUIRE(view.parts.size() == 5);
+        REQUIRE(view.parts.size() == 7);
         const PanePart* row = part_named(view.parts, "pane:files");
         REQUIRE(row != nullptr);
         CHECK(row->text == "> [open] Files");
@@ -1162,8 +1166,18 @@ TEST_CASE("a part's point is a character of its own: a row with a control inside
         press_lands(d, *part_named(view.parts, "mark:files"), NamedRun{"mark:files", 0, 2, 8});
         press_lands(d, *part_named(view.parts, "control:one"), NamedRun{"control:one", 1, 0, 5});
         press_lands(d, *part_named(view.parts, "control:two"), NamedRun{"control:two", 1, 5, 10});
-        // A PART WHOSE EVERY CHARACTER IS ANOTHER'S is pressed on its first cell.
-        press_lands(d, *part_named(view.parts, "row:both"), NamedRun{"row:both", 1, 0, 1});
+        press_lands(d, *part_named(view.parts, "control:go"), NamedRun{"control:go", 2, 0, 4});
+        // A PART WHOSE EVERY CHARACTER IS ANOTHER'S is pressed on a blank cell of its own...
+        press_lands(d, *part_named(view.parts, "row:go"), NamedRun{"row:go", 2, 4, body.columns});
+        // ...AND ONE WITH NO PLACE OF ITS OWN IS SAID WITH ITS WORDS AND PLACE AND NO POINT: no
+        // press reaches it, and none is given another part's.
+        const PanePart* both = part_named(view.parts, "row:both");
+        REQUIRE(both != nullptr);
+        CHECK(both->text == "[one][two]");
+        CHECK(both->place.w > 0);
+        CHECK(both->space == input::space::kUnknown);
+        CHECK(both->x == 0);
+        CHECK(both->y == 0);
     }
 }
 
@@ -1542,6 +1556,127 @@ TEST_CASE("the View Builder's two overlapping elements are each pressed where th
             CHECK(hit->action == "element");
             CHECK(hit->args == std::vector<std::string>{std::to_string(at)});
         }
+    }
+}
+
+TEST_CASE("a canvas part's point is sought over every unit of it the body shows: one whose centre, edges and middle lines are all another's is pressed where it is its own, and one with no place of its own has no point, never another's, in a window and in a terminal") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        const std::int64_t u = kPaneCanvasUnit;
+        const std::int64_t grain = window ? surface::kPixelGrainPx : surface::kCellGrainPx;
+        // `lined` has places it names nothing over its centre, top and bottom rows and its centre,
+        // left and right columns, and its own places between them; `covered` lies under two parts.
+        const std::vector<PaneCanvasPart> parts{PaneCanvasPart{"lined", 0, 0, 10 * u, 10 * u},
+                                                PaneCanvasPart{"", 0, 0, 10 * u, u},
+                                                PaneCanvasPart{"", 0, 9 * u, 10 * u, u},
+                                                PaneCanvasPart{"", 0, 4 * u, 10 * u, 2 * u},
+                                                PaneCanvasPart{"", 0, 0, u, 10 * u},
+                                                PaneCanvasPart{"", 9 * u, 0, u, 10 * u},
+                                                PaneCanvasPart{"", 4 * u, 0, 2 * u, 10 * u},
+                                                PaneCanvasPart{"covered", 12 * u, 0, 4 * u, 2 * u},
+                                                PaneCanvasPart{"cover:left", 12 * u, 0, 2 * u, 2 * u},
+                                                PaneCanvasPart{"cover:right", 14 * u, 0, 2 * u, 2 * u}};
+        d.draw_named(parts);
+        REQUIRE(d.sketch->rejected.empty());
+        v3::PaneView view;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
+        CHECK(names_of(view.parts) ==
+              std::vector<std::string>{"cover:left", "cover:right", "covered", "lined"});
+        const ExternalPane& pane = *d.r.session().panes.external_pane(d.sketch_kind);
+        for (const PanePart& part : view.parts) {
+            CAPTURE(part.name);
+            if (part.name == "covered") {
+                // SAID WITH ITS PLACE AND NO POINT: no press reaches it, and none is given another's.
+                CHECK(part.place.x == pane.canvas.x + 12 * u);
+                CHECK(part.place.w == 4 * u);
+                CHECK(part.space == input::space::kUnknown);
+                CHECK(part.x == 0);
+                CHECK(part.y == 0);
+                continue;
+            }
+            d.sketch->pointers.clear();
+            d.click(part.x, part.y, part.space);
+            REQUIRE_FALSE(d.sketch->pointers.empty());
+            const PaneCanvasPart* got = reached(parts, d.sketch->pointers.front(), grain);
+            REQUIRE(got != nullptr);
+            CHECK(got->name == part.name);
+        }
+    }
+}
+
+TEST_CASE("a picture of as many parts as a picture may name, nested and overlapping, gives each part a point a press there gives it, or none where every place of it is another's, in a window and in a terminal") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        const std::int64_t u = kPaneCanvasUnit;
+        const std::int64_t grain = window ? surface::kPixelGrainPx : surface::kCellGrainPx;
+        const PaneCanvasRoom room = d.sketch->rooms.back();
+        // SQUARES NESTED IN RUNS, EACH INSIDE THE LAST AND A LATER RUN OVER AN EARLIER, THEN STRIPS
+        // AND BOXES STREWN OVER THEM, some past the room's edge and some smaller than a cell,
+        // every one named.
+        std::vector<PaneCanvasPart> parts;
+        for (std::int64_t i = 0; parts.size() < kMaxPaneParts; ++i) {
+            const std::string name = "p" + std::to_string(i);
+            if (i < 680) {
+                const std::int64_t inset = i % 68;
+                parts.push_back(PaneCanvasPart{name, inset, inset, room.width - 2 * inset,
+                                               room.height - 2 * inset});
+            } else if (i % 2 == 0) {
+                parts.push_back(PaneCanvasPart{name, (i * 37) % room.width - u, (i * 11) % room.height,
+                                               (i * 13) % (3 * u) + 1, u / 4 + i % 5});
+            } else {
+                parts.push_back(PaneCanvasPart{name, (i * 53) % room.width, (i * 29) % room.height - u,
+                                               u / 2 + (i * 7) % (2 * u), (i * 3) % (2 * u) + 1});
+            }
+        }
+        d.draw_named(parts);
+        REQUIRE(d.sketch->rejected.empty());
+        v3::PaneView view;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
+        // WHICH PART EACH UNIT OF THE BODY GIVES A PRESS TO, as every shipped canvas pane reads one.
+        const std::int64_t across = room.width / grain, down = room.height / grain;
+        std::vector<std::size_t> owner(static_cast<std::size_t>(across * down), parts.size());
+        std::vector<char> owns(parts.size(), 0);
+        for (std::int64_t y = 0; y < down; ++y) {
+            for (std::int64_t x = 0; x < across; ++x) {
+                for (std::size_t i = parts.size(); i-- > 0;) {
+                    if (surface::px_span_contains(parts[i].x, parts[i].w, x * grain, grain) &&
+                        surface::px_span_contains(parts[i].y, parts[i].h, y * grain, grain)) {
+                        owner[static_cast<std::size_t>(y * across + x)] = i;
+                        owns[i] = 1;
+                        break;
+                    }
+                }
+            }
+        }
+        const ExternalPane& pane = *d.r.session().panes.external_pane(d.sketch_kind);
+        std::size_t pointed = 0, none = 0;
+        for (const PanePart& part : view.parts) {
+            CAPTURE(part.name);
+            const auto at = static_cast<std::size_t>(std::stoll(part.name.substr(1)));
+            if (part.space == input::space::kUnknown) {
+                CHECK_FALSE(owns[at]);
+                ++none;
+                continue;
+            }
+            CHECK(owns[at]);
+            ++pointed;
+            const PointedAt pressed = canvas_point_of(part.space, part.x, part.y);
+            REQUIRE(pressed.understood);
+            const std::int64_t x = surface::floor_div_px(pressed.px.x - pane.canvas.x, grain);
+            const std::int64_t y = surface::floor_div_px(pressed.px.y - pane.canvas.y, grain);
+            REQUIRE(x >= 0);
+            REQUIRE(x < across);
+            REQUIRE(y >= 0);
+            REQUIRE(y < down);
+            CHECK(owner[static_cast<std::size_t>(y * across + x)] == at);
+        }
+        CHECK(pointed > 0);
+        CHECK(none > 0);
+        MESSAGE("parts said " << view.parts.size() << ", with a point " << pointed << ", with none " << none);
     }
 }
 
