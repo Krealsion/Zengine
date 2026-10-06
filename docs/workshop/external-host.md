@@ -700,6 +700,8 @@ what Workshop owns and none read off a picture:
 
 ![A 1440 by 900 window after a walk by names: the View Builder, opened by its Pane Manager row's name, made button1 when kind:button was pressed, and selected it when element:button1 was pressed where the redraw had moved it; control:run ran the view my.view, in front, and element:button1 pressed in it says button1 says nothing yet](images/parts-pressed-by-name.png)
 
+![Two overlapping buttons pressed by name in a 1440 by 900 window, each where its pane gives it the press: above, button2 lies over button1's centre and the View Builder selects button1 when element:button1 is pressed, on the part of it button2 leaves; below, the running view my.view says button1 says nothing yet when its element:button1 is pressed](images/overlapping-parts-pressed-by-name.png)
+
 Every place is in canvas pixels: a window's pixel is one, a terminal's cell is `kCanvasCellPx`
 (<!-- value kCanvasCellPx -->12<!-- /value -->), and a terminal's console counts `kTuiCanvasTopRow`
 (<!-- value kTuiCanvasTopRow -->2<!-- /value -->) rows above the canvas. A point to press is in the space the medium
