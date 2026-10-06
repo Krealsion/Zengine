@@ -37,6 +37,23 @@ class Hand:
     def view(self, provider, pane):
         return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane})
 
+    def words(self, provider, pane):
+        """A pane's words as Workshop holds them (PaneView version 2): a text pane's rows or a
+        canvas pane's labels and runs, each with its place in canvas pixels and the point a press
+        names it by."""
+        return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane},
+                        version=2)
+
+    def word_point(self, provider, pane, word, column, picture):
+        """Where one character of one of those words is now; refused if the picture moved."""
+        return self.ask("zengine.workshop", "PanePointRequested", {"provider": provider, "pane": pane,
+                        "picture": picture, "word": word, "column": column}, version=2)
+
+    def desk(self):
+        """The desk by Workshop's own numbers (DeskView): every pane on it with its state, rank
+        from the front, place and size, selection and keys; the room; arranging; the menu."""
+        return self.ask("zengine.workshop", "DeskViewRequested", {})
+
     def row(self, provider, pane, contains, scroll=False):
         # Read the current view, then search toward each edge with ordinary wheel input.
         # A stable view is the edge, not a reason to retry it.
