@@ -297,6 +297,27 @@ function(zen_law_cite_verdict id declared retired out)
     endif()
 endfunction()
 
+# A record's Laws-supported line links each law to the register file declaring it. The links as
+# written, `<id>|<repository path>` each, resolved from the record's own directory: a law moved
+# to another file keeps its id, so only its link shows the list was not regenerated. The text is
+# as zen_law_read leaves it, a link's brackets swapped like every other.
+function(zen_law_supported_links rel tail out)
+    get_filename_component(dir "${rel}" DIRECTORY)
+    string(REGEX MATCHALL "${ZEN_STX}${ZEN_LAW_ID_RE}${ZEN_ETX}\\([^)]+\\)" links "${tail}")
+    set(pairs "")
+    foreach(link IN LISTS links)
+        if(link MATCHES "^${ZEN_STX}([^${ZEN_ETX}]+)${ZEN_ETX}\\(([^)]+)\\)$")
+            set(id "${CMAKE_MATCH_1}")
+            set(target "${dir}/${CMAKE_MATCH_2}")
+            while(target MATCHES "[^/.][^/]*/\\.\\./")
+                string(REGEX REPLACE "[^/.][^/]*/\\.\\./" "" target "${target}")
+            endwhile()
+            list(APPEND pairs "${id}|${target}")
+        endif()
+    endforeach()
+    set(${out} "${pairs}" PARENT_SCOPE)
+endfunction()
+
 # The family of an id is its prefix; the family of a register path is its directory's row in
 # the table, "" for a path under no register directory.
 function(zen_law_family_of_id id out)
@@ -888,6 +909,21 @@ if(NOT rt_ids STREQUAL "WL-ZZZ-03;WL-ZZZ-05" OR NOT rt_why STREQUAL ""
         "another family '${rt_fam_ids}' ('${rt_fam_why}'); citations of a declared, a retired and an "
         "undeclared id said '${cv_declared}', '${cv_retired}', '${cv_undeclared}'. A retired law "
         "could then be cited, or re-declared, unnoticed.")
+endif()
+
+# A record's links, read as the file each names: two families, links climbing out of the
+# record's directory by one step and by two, and prose around them that names no file -- the
+# text swapped as zen_law_read swaps a file's.
+set(st_line "**Laws supported.** [WL-ZZZ-01](../workshop/a.md), [MW-ZZZ-02](../../agents/maker/b.md)")
+string(APPEND st_line "; not WL-ZZZ-03.")
+string(REPLACE ";" "${ZEN_SOH}" st_line "${st_line}")
+string(REPLACE "[" "${ZEN_STX}" st_line "${st_line}")
+string(REPLACE "]" "${ZEN_ETX}" st_line "${st_line}")
+zen_law_supported_links("agents/decisions/x.md" "${st_line}" st_links)
+if(NOT st_links STREQUAL "WL-ZZZ-01|agents/workshop/a.md;MW-ZZZ-02|agents/maker/b.md")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- a record's links were read as '${st_links}', so a law "
+        "linked to a file that does not declare it would pass.")
 endif()
 
 # THE FAMILY TABLE'S CANARIES, on a synthetic second family bound beside the real rows and
@@ -2251,6 +2287,18 @@ foreach(rel IN LISTS record_files)
             zen_law_fail("${rel} lists ${id}, whose WHY names ${target}")
         endif()
     endforeach()
+    if(NOT at EQUAL -1)
+        zen_law_supported_links("${rel}" "${tail}" links)
+        foreach(pair IN LISTS links)
+            string(REPLACE "|" ";" pair "${pair}")
+            list(GET pair 0 id)
+            list(GET pair 1 linked)
+            get_property(declared GLOBAL PROPERTY "zen_law_file_${id}")
+            if(NOT declared STREQUAL "" AND NOT linked STREQUAL declared)
+                zen_law_fail("${rel} links ${id} to ${linked}, but ${declared} declares it; regenerate the list (tools/fill_laws.sh)")
+            endif()
+        endforeach()
+    endif()
     foreach(id IN LISTS all_ids)
         get_property(target GLOBAL PROPERTY "zen_law_why_${id}")
         if(target STREQUAL "${rel}" AND NOT id IN_LIST listed)
