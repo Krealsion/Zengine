@@ -140,6 +140,9 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::ProjectDoorState>(), // ProjectDoorState v2
         shape<::zengine::workshop::RecipesDoorState>(), // RecipesDoorState v1
         shape<::zengine::workshop::v2::PaneContent>(), // PaneContent v2
+        shape<::zengine::workshop::v4::PaneContent>(), // PaneContent v4
+        shape<::zengine::workshop::v4::PaneCanvasContent>(), // PaneCanvasContent v4
+        shape<::zengine::workshop::v2::MenuShown>(), // MenuShown v2
         shape<::zengine::workshop::PaneRevealAnswered>(), // PaneRevealAnswered v1
         shape<::zengine::workshop::PaneRevealRequested>(), // PaneRevealRequested v1
         shape<::zengine::workshop::PowersDoorState>(), // PowersDoorState v1

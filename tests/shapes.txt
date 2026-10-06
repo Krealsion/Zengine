@@ -52,10 +52,13 @@ DemoWorkRequested v1 0xdda662ea25242b69
 DescribePower v1 0x39d0d182398b5211
 DeselectRequested v1 0xc3955ef820077b5a
 DeskMenu v1 0xca33b476bd4bb305
+DeskMenu v2 0xcf7956e19a4cb9e9
 DeskPane v1 0xd1ef2884a4d4c1a7
 DeskRect v1 0xf1f559e7658c5f6d
 DeskView v1 0x4e83e42f40866b15
+DeskView v2 0xf275e7575d93098e
 DeskViewRequested v1 0xfe21c7047dbe8893
+DeskViewRequested v2 0x112785ac447f3fd0
 DesktopState v2 0x99a86d2ff5d2ed90
 Dismissal v1 0x2ef46c30c9e25ec4
 Drive v2 0x694b4e43253f0ad4
@@ -192,6 +195,7 @@ MenuGranted v2 0x660a54f1416bfb86
 MenuInput v1 0x72beb3bd58221b91
 MenuReturned v1 0x2ebe17f3ee281c8e
 MenuShown v1 0x8880f6fd5475e230
+MenuShown v2 0xfafad45e5093a833
 MenuWithdrawn v1 0x5d4547eeb3e57fbe
 NeovimEditorState v1 0x5de22f665f5bb6d1
 NeovimStartRequested v1 0x88b541cccf223cbc
@@ -210,9 +214,11 @@ PaneActions v2 0xade8c18a16534a96
 PaneButton v1 0x68bd7930cbd7aa05
 PaneCanvasContent v2 0xa8888ec781ad1ebb
 PaneCanvasContent v3 0x98174a74b33827a4
+PaneCanvasContent v4 0xe347f30fdf3bb793
 PaneCanvasHover v1 0x27195870bc8113b1
 PaneCanvasHover v2 0xaf32b3cd5382c686
 PaneCanvasLabel v1 0x4047703a53b5f02f
+PaneCanvasPart v1 0x26d1ff6aa7cda21a
 PaneCanvasPointer v1 0x221d04b3201dcf9a
 PaneCanvasPointer v2 0x64c3dac87b1d2f5b
 PaneCanvasRect v1 0x1eee99d759fe55b8
@@ -233,6 +239,7 @@ PaneCommitRequested v1 0xad6e448fc20560ff
 PaneContent v1 0x4065ed3dd66ee13c
 PaneContent v2 0xb92aa7a635dc8407
 PaneContent v3 0xb9e99c2022e10871
+PaneContent v4 0xc16deb8795ee9660
 PaneDragged v1 0xd5f4c66bd4c09364
 PaneDrop v1 0xa650744bd2dea469
 PaneEscapeUnspent v1 0xb9ee2d9589543191
@@ -255,6 +262,7 @@ PaneOffered v2 0xd3741acfc782c2da
 PaneOffered v3 0xa104d108a1619cac
 PaneOperationAnswered v1 0x445fdc32f738c767
 PaneOperationRequested v1 0x1d1e32577a3c4b28
+PanePart v1 0x6933389f16efa613
 PanePassRequested v1 0x09078704f67cc99e
 PanePoint v1 0xdc77c79cfc6ba9e0
 PanePoint v2 0xac1cbc9ddc1f52d0
@@ -270,6 +278,7 @@ PaneResetRequested v1 0x2c5ef4ef789630bb
 PaneRevealAnswered v1 0xc9433fec66580502
 PaneRevealRequested v1 0x6f6ea82ad0525e00
 PaneRoom v1 0xf59705a5786e0884
+PaneRowPart v1 0xc2090f5a6cc1cb72
 PaneShortcut v1 0x3bcd34b52ee938c7
 PaneShortcutInvoked v1 0x0f764f3d33ac413f
 PaneShortcuts v1 0xa46e946d9b7487b1
@@ -289,8 +298,10 @@ PaneValueDrop v1 0xe5fe30b5f244c7d5
 PaneValueDrop v2 0xb14e14fb667727e4
 PaneView v1 0xc0aba31acefff6f1
 PaneView v2 0x93ac25999ff7241c
+PaneView v3 0xab767a42f8d07360
 PaneViewRequested v1 0x62bcd16da2a5278b
 PaneViewRequested v2 0x01c57ef5bf599e3c
+PaneViewRequested v3 0x7a8da580eff88599
 PaneViewRow v1 0x173cf318433ad948
 PaneWheel v1 0xf6d1debe710aafeb
 PaneWord v1 0x821f0e413965418f

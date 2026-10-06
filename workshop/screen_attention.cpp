@@ -249,6 +249,34 @@ void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen&
     layer.texts.push_back(std::move(region));
 }
 
+// WL-HAND-06 -- agents/workshop/pane-controls.md
+std::vector<std::string> context_line_names(const Session& s, const Screen& sc) {
+    std::vector<std::string> names;
+    if (!s.context.open) {
+        return names;
+    }
+    // THE PAINTER'S OWN WINDOW over the same population, so line i is the line it painted.
+    const ProsePlace place = prose_place(context_bounds(s, sc), sc);
+    if (!place.present) {
+        return names;
+    }
+    const std::vector<ContextEntry> rows = context_population(s.context);
+    const std::size_t cursor = context_cursor_bound(s.context.cursor, rows.size());
+    const ListWindow win = list_window(rows.size(), cursor, static_cast<std::size_t>(place.rows));
+    if (win.before > 0) {
+        names.emplace_back();
+    }
+    for (std::size_t i = win.first; i < win.first + win.count; ++i) {
+        const ContextEntry& entry = rows[i];
+        names.emplace_back(entry.is_group ? entry.group
+                                          : (entry.row != nullptr ? entry.row->id : ""));
+    }
+    if (win.after > 0) {
+        names.emplace_back();
+    }
+    return names;
+}
+
 ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t space,
                                 std::int64_t x, std::int64_t y, const PointedAt& at) {
     ContextPressAt out;

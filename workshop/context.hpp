@@ -71,6 +71,7 @@ struct PresentedMenu {
     std::int64_t room_rows = 0;    ///< the room granted with it
     std::int64_t room_columns = 0;
     std::vector<surface::SurfaceTextRow> lines; ///< as the presenter last showed them
+    std::vector<PaneRowPart> parts;             ///< ...and the lines it named, by row id
     std::int64_t picture = 0;      ///< the presenter's number for those lines, as admitted
     PictureStamp stamp;            ///< ...and the one a press names (the host's fence)
     std::uint64_t first_input = 0; ///< the weaver's act count when it was granted

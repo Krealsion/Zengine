@@ -234,7 +234,7 @@ MEANS
 - reading grants nothing and moves nothing: a press is ordinary input.
 
 DOES NOT MEAN
-- that Workshop names anything inside a pane: a word's number is its place in one answer;
+- that a word is named: its number is its place in one answer, and a pane names its parts;
 - that a covered pane's words are said: a menu or arranging over it refuses them.
 
 PROVEN BY — `workshop/weave_inspection.cpp` `desk_view`, `visible_words`, `word_on`,
