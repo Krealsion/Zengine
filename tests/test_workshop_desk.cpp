@@ -6,6 +6,8 @@
 
 #include "doctest.h"
 #include "workshop_support.hpp"
+#include "surface/skin_sdl_plan.hpp"
+#include "surface/skin_tui.hpp"
 
 #include <functional>
 #include <memory>
@@ -508,4 +510,182 @@ TEST_CASE("a pane's words are refused while a menu covers it or arranging is ope
     CHECK(d.desk().arranging);
     // A PANE NOBODY OFFERED is no pane at all.
     CHECK(d.words("zengine.test.nobody", "none", view).find("unknown") != std::string::npos);
+}
+
+namespace {
+
+/// THE TERMINAL'S OWN PICTURE OF A PLACE: the glyphs on the cells a canvas place covers, as the
+/// terminal rasterizer draws the canvas (`rasterize_canvas`), less the caret glyph it draws into
+/// a run with the caret.
+std::string terminal_cells(const surface::CanvasGrids& g, const DeskRect& p, bool& one_row) {
+    one_row = p.h == surface::kCanvasCellPx;
+    const std::int64_t y = surface::cell_of_pixel(p.y);
+    const std::int64_t x0 = surface::cell_of_pixel(p.x);
+    const std::int64_t x1 = surface::cell_of_pixel(p.x + p.w);
+    std::string out;
+    for (std::int64_t x = x0; x < x1; ++x) {
+        if (x < 0 || y < 0 || x >= g.w || y >= g.h) return "(off the terminal)";
+        const char c = g.glyphs[static_cast<std::size_t>(y * g.w + x)];
+        if (c != surface::kCaretGlyph) out += c;
+    }
+    return out;
+}
+
+/// THE WINDOW'S OWN PLAN OF A PLACE (`plan_canvas`, which the SDL edge executes): a row of a
+/// region set in type whose glyphs start at the place's corner and spell the word, one advance a
+/// byte and one line tall -- or, for text the window draws as bitmap cells, a glyph stroke inside
+/// every non-blank character's cell.
+bool window_draws(const std::vector<surface::PlanLayer>& plan, const PaneWord& w,
+                  std::int64_t advance) {
+    for (const surface::PlanLayer& layer : plan) {
+        for (const surface::PlanTextRegion& region : layer.regions) {
+            const std::int64_t x0 = region.view.x + region.origin_x;
+            const std::int64_t y0 = region.view.y + region.origin_y;
+            if (w.place.h != region.line_px || (w.place.y - y0) % region.line_px != 0 ||
+                (w.place.x - x0) % advance != 0 ||
+                w.place.w != static_cast<std::int64_t>(w.text.size()) * advance) {
+                continue;
+            }
+            const std::int64_t row = (w.place.y - y0) / region.line_px;
+            const std::int64_t column = (w.place.x - x0) / advance;
+            if (row < 0 || row >= static_cast<std::int64_t>(region.rows.size()) || column < 0) continue;
+            const std::string& text = region.rows[static_cast<std::size_t>(row)].text;
+            if (text.compare(static_cast<std::size_t>(column), w.text.size(), w.text) == 0) return true;
+        }
+    }
+    if (w.place.h != surface::kCanvasCellPx ||
+        w.place.w < static_cast<std::int64_t>(w.text.size()) * surface::kCanvasCellPx) {
+        return false;
+    }
+    for (std::size_t i = 0; i < w.text.size(); ++i) {
+        if (w.text[i] == ' ') continue;
+        const std::int64_t cx = w.place.x + static_cast<std::int64_t>(i) * surface::kCanvasCellPx;
+        bool stroke = false;
+        for (const surface::PlanLayer& layer : plan) {
+            for (const surface::PlanRect& q : layer.quads) {
+                stroke = stroke || (q.w < surface::kCanvasCellPx && q.x >= cx &&
+                                    q.x + q.w <= cx + surface::kCanvasCellPx && q.y >= w.place.y &&
+                                    q.y + q.h <= w.place.y + surface::kCanvasCellPx);
+            }
+        }
+        if (!stroke) return false;
+    }
+    return true;
+}
+
+/// A pane's frame where the medium draws it: one rectangle of the canvas exactly the place, in
+/// the chrome's voice, which the window plans as one quad and the terminal rasterizes to the
+/// place's cells, floored.
+bool frame_drawn(const surface::SurfaceCanvas& c, const DeskRect& p, bool window,
+                 const std::vector<surface::PlanLayer>& plan) {
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        for (const surface::SurfaceRect& r : layer.rects) {
+            if (r.x != p.x || r.y != p.y || r.w != p.w || r.h != p.h ||
+                (r.role != kPaneChrome && r.role != kPaneChromeSelected)) {
+                continue;
+            }
+            if (window) {
+                for (const surface::PlanLayer& l : plan) {
+                    for (const surface::PlanRect& q : l.quads) {
+                        if (q.x == p.x && q.y == p.y && q.w == p.w && q.h == p.h) return true;
+                    }
+                }
+                return false;
+            }
+            // The terminal: the cells its rasterizer gives that rectangle, alone on the canvas
+            // (the pane's own text covers it in the whole picture), are the place's, floored.
+            surface::SurfaceCanvas alone{c.width, c.height, {}};
+            alone.layers.push_back(surface::SurfaceLayer{});
+            alone.layers.back().rects.push_back(r);
+            const surface::CanvasGrids cells = surface::rasterize_canvas(alone);
+            std::int64_t x0 = cells.w, y0 = cells.h, x1 = -1, y1 = -1;
+            for (std::int64_t y = 0; y < cells.h; ++y) {
+                for (std::int64_t x = 0; x < cells.w; ++x) {
+                    if (cells.roles[static_cast<std::size_t>(y * cells.w + x)] < 0) continue;
+                    x0 = (std::min)(x0, x); y0 = (std::min)(y0, y);
+                    x1 = (std::max)(x1, x); y1 = (std::max)(y1, y);
+                }
+            }
+            return x0 == surface::cell_of_pixel(p.x) && y0 == surface::cell_of_pixel(p.y) &&
+                   x1 + 1 == surface::cell_of_pixel(p.x + p.w) &&
+                   y1 + 1 == surface::cell_of_pixel(p.y + p.h);
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+TEST_CASE("every place the desk and the words give is where the medium draws it, in a window and in a terminal") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        say_rows(d);
+        const Session& s = d.r.session();
+        // EVERY ANSWER, read from the bus as an agent reads it.
+        std::vector<PaneWord> words;
+        for (const auto& [office, pane] : {std::pair{kAlphaOffice, "alpha"}, std::pair{kBetaOffice, "beta"},
+                                           std::pair{kCanvasOffice, kCanvasPane}}) {
+            v2::PaneView view;
+            REQUIRE(d.words(office, pane, view).empty());
+            REQUIRE_FALSE(view.words.empty());
+            words.insert(words.end(), view.words.begin(), view.words.end());
+        }
+        const DeskView desk = d.desk();
+
+        // THE PICTURE THE MEDIUM WAS HANDED, and each medium's own reading of it.
+        const surface::SurfaceCanvas& canvas = d.r.last_canvas();
+        const surface::SurfaceExtent metric{canvas.width, canvas.height, s.text_advance_px,
+                                            s.text_line_px, s.cell_px};
+        const std::vector<surface::PlanLayer> plan =
+            surface::plan_canvas(canvas, metric, surface::canvas_window_size(canvas));
+        const surface::CanvasGrids grid = surface::rasterize_canvas(canvas);
+
+        for (const PaneWord& w : words) {
+            CAPTURE(w.text);
+            if (window) {
+                CHECK(window_draws(plan, w, s.text_advance_px));
+            } else {
+                bool one_row = false;
+                CHECK(terminal_cells(grid, w.place, one_row) == w.text);
+                CHECK(one_row);
+                // ...and its point is one of those cells, on the console row the terminal reads.
+                CHECK(w.x >= surface::cell_of_pixel(w.place.x));
+                CHECK(w.x < surface::cell_of_pixel(w.place.x + w.place.w));
+                CHECK(w.y - surface::kTuiCanvasTopRow == surface::cell_of_pixel(w.place.y));
+            }
+        }
+        // EVERY OPEN PANE'S FRAME, at the place the desk gives.
+        std::size_t framed = 0;
+        for (const DeskPane& p : desk.panes) {
+            if (p.state != "open") continue;
+            CAPTURE(p.pane);
+            CHECK(frame_drawn(canvas, p.visible, window, plan));
+            ++framed;
+        }
+        CHECK(framed == 4);
+
+        // AND A MENU'S LINES, where its popup draws them.
+        d.r.key(input::scan::kA);
+        REQUIRE(s.context.open);
+        const DeskView with_menu = d.desk();
+        REQUIRE(with_menu.menu.open);
+        const surface::SurfaceCanvas& menu_canvas = d.r.last_canvas();
+        const std::vector<surface::PlanLayer> menu_plan =
+            surface::plan_canvas(menu_canvas, metric, surface::canvas_window_size(menu_canvas));
+        const surface::CanvasGrids menu_grid = surface::rasterize_canvas(menu_canvas);
+        REQUIRE_FALSE(with_menu.menu.lines.empty());
+        for (const PaneWord& line : with_menu.menu.lines) {
+            CAPTURE(line.text);
+            if (window) {
+                CHECK(window_draws(menu_plan, line, s.text_advance_px));
+            } else {
+                bool one_row = false;
+                CHECK(terminal_cells(menu_grid, line.place, one_row) == line.text);
+                CHECK(one_row);
+            }
+        }
+        d.r.key(input::scan::kEscape);
+    }
 }
