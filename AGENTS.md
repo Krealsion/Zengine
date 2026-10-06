@@ -65,8 +65,9 @@ members under their declaring file. **d** a residue claim is LAW when it is the 
 DOES NOT MEAN. **e** what a change left alone is a change note, not a law. **f** LAW text in a
 table escapes `|`. **g** no phase code in a case name or a current-facing document, no step
 label opening a case name; every case a document cites, and every law a comment or document names, exists.
-**h** a record's Alternatives split tried (evidence inline) from argued. **i** records wrap at <!-- value ZEN_LAW_LINE_BYTES -->98<!-- /value -->
-bytes, ~1.5 KB, over <!-- value ZEN_LAW_RECORD_FLAG_BYTES KiB -->4<!-- /value --> KB flagged. **j** a record may link another; its
+**h** a record's Alternatives split tried (evidence inline) from argued. **i** a line in a register, a
+router or a record wraps past <!-- value ZEN_LAW_LINE_BYTES -->196<!-- /value --> bytes, and short of that where its writer judges; a record
+runs ~1.5 KB, over <!-- value ZEN_LAW_RECORD_FLAG_BYTES KiB -->4<!-- /value --> KB flagged. **j** a record may link another; its
 header links a register file only where that file declares a law the record lists. **k** Laws
 supported is generated from WHY lines: edit the WHY; a record no law supports moves to `docs/history/`. **l** a
 record over ten laws is suspected of being two.
