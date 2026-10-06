@@ -64,10 +64,10 @@ DOES NOT MEAN
 - that an older picture's press acts, or a repaint moving no row renumbers; a subject swap does;
 - that display time or where a platform-buffered press came from is seen: both stay open.
 
-PROVEN BY — `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
+PROVEN BY — `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v4::PaneContent`, `v3::PanePressed`;
 `workshop/vocabulary.hpp` `PictureFence`; `workshop/panes.hpp` `ExternalPane::picture`,
 `ExternalPane::stamp`, `ExternalPane::forget_pictures`, `PictureStamp`;
-`workshop/weave_seam.cpp` `admit_content`, `on(v3::PaneContent)`, `fence_pictures`,
+`workshop/weave_seam.cpp` `admit_content`, `on(v3::PaneContent)`, `on(v4::PaneContent)`, `fence_pictures`,
 `on(PictureFence)`; `workshop/weave_external.cpp` `external_press`; `desktop-pane/pane.cpp`
 `launcher_press`, `keys_press`, `offer_launcher_row`, `offer_keys_row`, `launcher_chose`,
 `keys_chose`, `LauncherMeaning`, `LauncherMeaning::ref`, `KeysMeaning`, `KeysMeaning::ref`,

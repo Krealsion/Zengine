@@ -26,6 +26,7 @@
 #include "message-draft/transfer.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -631,10 +632,26 @@ public:
         return out;
     }
 
-    /// THE PICTURE: one composition of rows and their meanings. `can_create` says whether the
-    /// weave has a free slot, which only the weave knows.
-    workshop::v3::PaneContent draw(bool can_create) {
-        workshop::v3::PaneContent out;
+    /// THE PICTURE: one composition of rows and their meanings, and its parts named by what each
+    /// means. `can_create` says whether the weave has a free slot, which only the weave knows.
+    workshop::v4::PaneContent draw(bool can_create) {
+        workshop::v4::PaneContent out = compose(can_create);
+        out.parts = workshop::row_parts(map_, columns_, [](const Meaning& m) { return part_name(m); });
+        return out;
+    }
+
+    /// WHAT A VIEW CALLS ITS PARTS: a field by its path, `field:<path>` (`field:meta[<n>].<path>`
+    /// for a capture's metadata), and a control by its action, `control:<id>`.
+    static std::string part_name(const Meaning& m) {
+        if (m.kind == Meaning::kControl) return "control:" + m.control;
+        if (m.kind != Meaning::kField) return std::string();
+        const std::string meta =
+            m.field.metadata >= 0 ? "meta[" + std::to_string(m.field.metadata) + "]." : std::string();
+        return "field:" + meta + message_draft::path_label(m.field.path);
+    }
+
+    workshop::v4::PaneContent compose(bool can_create) {
+        workshop::v4::PaneContent out;
         out.pane = key_;
         map_.begin();
         const auto width = columns_;
@@ -1205,7 +1222,7 @@ private:
     }
     /// LAY OUT CONTROLS GREEDILY OVER `lines` ROWS, keeping `[...]` last so every act stays one
     /// press away. A control the width cannot hold whole is not drawn, so it is never a target.
-    void controls(const std::vector<ControlItem>& items, workshop::v3::PaneContent& out, std::int64_t lines) {
+    void controls(const std::vector<ControlItem>& items, workshop::v4::PaneContent& out, std::int64_t lines) {
         const bool menu = items.size() > 1;
         const std::int64_t reserve = menu ? 6 : 0; // room for " [...]" on whichever line is last
         std::size_t next = 0;

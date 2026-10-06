@@ -282,6 +282,17 @@ TEST_CASE("the Neovim editor holding the office with no Neovim says so on its pa
     CHECK(quit_by_key(s));
 }
 
+TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing of Neovim's screen") {
+    SwitchRig s("nvim-names");
+    NeovimEnvironment env(s.root, (s.root / "no-such-dir" / "nvim").string());
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    const auto parts = held_parts(s.r.session(), s.kind);
+    REQUIRE(parts.size() == 1);
+    REQUIRE(parts.count("status") == 1);
+    CHECK(parts.at("status").row == 0);
+    CHECK(held_part_text(s.r.session(), s.kind, parts.at("status")) == s.status());
+}
+
 TEST_CASE("the Neovim editor orders its beat in words the Timer reads, and a refused beat is said on its pane") {
     SwitchRig s("nvim-beat");
     NeovimEnvironment env(s.root, NEOVIM_FIXTURE, "ok");

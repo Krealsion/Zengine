@@ -136,6 +136,7 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
                                       workshop/pane_carry.hpp
                                       workshop/pane_shortcuts.hpp
                                       workshop/pane_vocabulary.hpp
+                                      workshop/pane_parts.hpp
                                       workshop/pane_canvas_vocabulary.hpp
                                       workshop/pane_canvas_text.hpp
                                       workshop/pane_menu.hpp

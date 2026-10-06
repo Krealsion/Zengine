@@ -15,6 +15,7 @@
 #include "surface/pointing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
+#include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/switchboard/bus.hpp>
@@ -251,6 +252,17 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     return out;
 }
 
+/// THE PICTURE AS IT IS SAID, each element named by its id, `element:<id>`, over the place a press
+/// on it lands: the name the weaver gave the element in the View Builder.
+inline ws::v4::PaneCanvasContent named(const Picture& p) {
+    ws::PartNames<ws::PaneCanvasPart> parts;
+    for (const Hit& hit : p.hits) {
+        (void)parts.add(ws::PaneCanvasPart{"element:" + hit.element, hit.x, hit.y, hit.w, hit.h});
+    }
+    const auto& c = p.content;
+    return ws::v4::PaneCanvasContent{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts, parts.take()};
+}
+
 /// The picture a stopped view leaves: no element, and the sentence that it stopped.
 inline ws::PaneCanvasContent stopped_picture(const Description& d, const ws::PaneCanvasRoom& room,
                                              std::int64_t number, const std::string& why) {
@@ -283,6 +295,7 @@ inline loom::Grant view_grant(const Description& d) {
     to_workshop(ws::v3::PaneOffered::zen_name, ws::v3::PaneOffered::zen_version);
     to_workshop(ws::PaneContent::zen_name, ws::PaneContent::zen_version);
     to_workshop(ws::PaneCanvasContent::zen_name, ws::PaneCanvasContent::zen_version);
+    to_workshop(ws::v4::PaneCanvasContent::zen_name, ws::v4::PaneCanvasContent::zen_version);
     to_workshop(ws::PaneEscapeUnspent::zen_name, ws::PaneEscapeUnspent::zen_version);
     to_workshop(ws::PanePassRequested::zen_name, ws::PanePassRequested::zen_version);
     to_workshop(ws::PaneRevealRequested::zen_name, ws::PaneRevealRequested::zen_version);
@@ -339,7 +352,8 @@ public:
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
         auto out = description_.says();
         for (auto s : {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::PaneContent>(),
-                       loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::PaneEscapeUnspent>(),
+                       loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::v4::PaneCanvasContent>(),
+                       loom::schema_of<ws::PaneEscapeUnspent>(),
                        loom::schema_of<ws::PanePassRequested>(), loom::schema_of<ws::PaneRevealRequested>()})
             out.push_back(std::move(s));
         return out;
@@ -459,7 +473,7 @@ private:
     void show(loom::Bus& bus) {
         if (room_.grant > 0 && room_.width > 0 && room_.height > 0) {
             auto current = picture(description_, told_, presentation_, room_, ++picture_number_);
-            say(bus, current.content);
+            say(bus, named(current));
             pictures_.push_back(std::move(current));
             while (pictures_.size() > 8) pictures_.pop_front();
         } else if (rows_ > 0 && columns_ > 0) {

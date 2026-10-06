@@ -65,6 +65,22 @@ struct MenuShown {
     ZEN_SHAPE(MenuShown, 1, ZEN_FIELD(menu), ZEN_FIELD(picture), ZEN_FIELD(lines));
 };
 
+namespace v2 {
+
+/// `MenuShown` naming its lines: a line that shows a row is named by the row's id, as a pane's
+/// row is named (`PaneRowPart`, its `row` the line), under v4 content's rule -- a name once, on a
+/// line it shows, inside the room granted. A marker or a rule is named nothing.
+struct MenuShown {
+    std::int64_t menu = 0;
+    std::int64_t picture = 0;
+    std::vector<surface::SurfaceTextRow> lines;
+    std::vector<PaneRowPart> parts;
+    ZEN_SHAPE(MenuShown, 2, ZEN_FIELD(menu), ZEN_FIELD(picture), ZEN_FIELD(lines),
+              ZEN_FIELD(parts));
+};
+
+} // namespace v2
+
 /// WHAT KIND OF ACT A `MenuInput` CARRIES.
 namespace menu_input {
 inline constexpr std::int64_t kKey = 1;     ///< a key went down: `verb`, `scancode`, `modifiers`

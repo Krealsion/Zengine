@@ -414,12 +414,14 @@ def catalog_by_name(rig):
                                                         "recipes": [recipe("tower-defense"), recipe("second")]}})
     # Files and the Builder placed as the story's desk has them, in the terminal's cells: Files far
     # narrower than its whole answer about a catalog this deep, and wide enough for its head.
-    for pane, place in (("Files", {"x": 0, "y": 2, "width": 100, "height": 20}),
-                        ("Builder", {"x": 0, "y": 24, "width": 100, "height": 14})):
-        st.act("open-" + pane.lower(), [{"open": pane}, {"wait": 0.5}])
-        st.run("workshop/place", "place-" + pane.lower(), {"panes": [dict(place, pane=pane)]})
-    st.run("workshop/place", "place-pane-manager", {"panes": [{"pane": "Pane Manager", "x": 134, "y": 20,
-                                                               "width": 44, "height": 40}]})
+    for label, pane, place in (("files", "pane:zengine.files/project-files",
+                                {"x": 0, "y": 2, "width": 100, "height": 20}),
+                               ("builder", "pane:zengine.builder-pane/builder",
+                                {"x": 0, "y": 24, "width": 100, "height": 14})):
+        st.act("open-" + label, [{"open": pane}, {"wait": 0.5}])
+        st.run("workshop/place", "place-" + label, {"panes": [dict(place, pane=pane)]})
+    st.run("workshop/place", "place-pane-manager", {"panes": [{"pane": "pane:zengine.desktop/launcher",
+                                                               "x": 134, "y": 20, "width": 44, "height": 40}]})
     try:
         rec, failed = story.use_recipes(st, "catalog"), ""
     except story.StepFailed as why:

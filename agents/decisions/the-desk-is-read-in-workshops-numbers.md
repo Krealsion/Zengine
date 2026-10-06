@@ -12,7 +12,7 @@ Builder's `[Label]`, a Flow node's name -- were refused as a picture, not text r
 **Decision.** Workshop answers the desk (`DeskViewRequested`, answered by `DeskView`) from the
 numbers it owns: `bounds_of`'s resolved and visible rectangles, `pane_state_of`'s word, the rank
 in the effective order, the selection and the keys, the arranging flag, and a menu's lines from
-the painter's own composition of it. A pane's words (`PaneView` version 2) are a text pane's rows
+the painter's own composition of it. A pane's words (`PaneView` version 2 on) are a text pane's rows
 or a canvas pane's labels and runs, each placed as the painter clips it, with the point a press
 names it by; `PanePoint` version 2 resolves one character of one word. Every place is the
 canvas's, in its pixels: a terminal draws it on the cells it floors to. The first versions are
@@ -34,6 +34,6 @@ served as they were.
 **Consequences.** A walk checks a size by its number and presses a canvas word or a menu line by
 what it says (`workshop/act`'s `desk`, `menu`, `click` and `control`). Workshop names nothing
 inside a pane: a word's number is its place in one answer, and a pane naming its own parts is
-the pane's.
+the pane's ([a pane names its parts](a-pane-names-its-parts.md)).
 
 **Laws supported.** [WL-GEO-13](../workshop/geometry.md).

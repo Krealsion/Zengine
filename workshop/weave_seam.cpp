@@ -50,6 +50,7 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
         // catalog position moves.
         if (ExternalPane* pane = session_.panes.external_pane(admitted.kind)) {
             pane->shown.clear();
+            pane->parts.clear();
             pane->heard = false;
             pane->awaiting = true;
             pane->granted = false;
@@ -209,6 +210,14 @@ void WorkshopWeave::on(const v3::PaneContent& content, loom::Mail& mail) {
                   content.picture, mail);
 }
 
+// Content naming its parts: v3's admission, and its names judged with its rows.
+void WorkshopWeave::on(const v4::PaneContent& content, loom::Mail& mail) {
+    admit_content(mail.authored_role(), content.pane, content.rows,
+                  content.generation > 0 ? std::optional<std::int64_t>(content.generation)
+                                         : std::nullopt,
+                  content.picture, mail, &content.parts);
+}
+
 // WL-DESK-14 -- agents/workshop/desktop-presenting.md
 void WorkshopWeave::fence_pictures(loom::Mail& mail) {
     // WHICH NUMBERED PICTURES THIS CANVAS HANDED OUT FOR THE FIRST TIME -- a pane's, and a
@@ -266,7 +275,8 @@ void WorkshopWeave::on(const v2::PaneContent& content, loom::Mail& mail) {
 void WorkshopWeave::admit_content(std::string_view office, const std::string& pane_key,
                                   const std::vector<surface::SurfaceTextRow>& rows,
                                   std::optional<std::int64_t> generation,
-                                  std::optional<std::int64_t> picture, loom::Mail& mail) {
+                                  std::optional<std::int64_t> picture, loom::Mail& mail,
+                                  const std::vector<PaneRowPart>* parts) {
     if (office.empty()) {
         return; // personal speech: no cache, no notice, no catalog change
     }
@@ -294,11 +304,21 @@ void WorkshopWeave::admit_content(std::string_view office, const std::string& pa
         return;
     }
     const PaneContent content{pane_key, rows};
-    const Written judged = judge_content(content, *pane);
+    Written judged = judge_content(content, *pane);
+    if (judged.accepted && parts != nullptr) {
+        // THE NAMES ARE JUDGED WITH THE ROWS THEY NAME, and refuse them whole: a part on a row
+        // the content lacks, or a name two parts carry, would answer an agent's question wrongly.
+        if (std::string wrong = row_parts_problem(*parts, static_cast<std::int64_t>(rows.size()),
+                                                  pane->columns);
+            !wrong.empty()) {
+            judged = Written::no(std::move(wrong));
+        }
+    }
     if (!judged.accepted) {
         // The old rows go with the refusal: leaving them would present a previous answer as the
         // current one.
         pane->shown.clear();
+        pane->parts.clear();
         pane->heard = false;
         pane->awaiting = true;
         pane->refusal = kExternalRefused;
@@ -311,6 +331,7 @@ void WorkshopWeave::admit_content(std::string_view office, const std::string& pa
         return;
     }
     pane->shown = content.rows; // only the validated rows, and only now
+    pane->parts = parts != nullptr ? *parts : std::vector<PaneRowPart>{};
     pane->heard = true;
     pane->awaiting = false;
     pane->clear_refusal();

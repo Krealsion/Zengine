@@ -37,7 +37,8 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/weave.hpp` `HostContext::role_holder`;
 `workshop/weave_canvas.cpp` `canvas_owner_current`, `refresh_canvas_rooms`,
-`on(PaneCanvasContent)`, `on(v2::PaneCanvasContent)`; `workshop/pane_canvas_vocabulary.hpp`
+`on(PaneCanvasContent)`, `on(v2::PaneCanvasContent)`, `on(v4::PaneCanvasContent)`;
+`workshop/pane_canvas_vocabulary.hpp`
 `kPaneCanvasLegacySubs`, `canvas_content_of_legacy`, `canvas_content_as_said`;
 `tests/test_workshop_panes_canvas.cpp` case
 "pane canvas grants turn over on reoffer and old content and capture cannot survive", case

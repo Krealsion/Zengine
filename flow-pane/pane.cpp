@@ -45,7 +45,7 @@ class FlowPane final
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered,
                        ws::PaneOperationAnswered, ws::PaneCarryAnswered,
                        loom::DispatchRefused>,
-          loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::PaneCanvasContent,
+          loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::v4::PaneCanvasContent,
                      ws::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested,
                      ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop,
@@ -1147,7 +1147,7 @@ private:
     if (room_.grant > 0 && room_.width > 0 && room_.height > 0) {
       auto current = pane::picture(model_, room_, ++picture_number_);
       const auto ticket = mail.as_role(pane::kRole)
-                              .send_to_role(workshop_role, current.content);
+                              .send_to_role(workshop_role, pane::named(current));
       if (ticket.valid()) {
         pictures_.push_back(std::move(current));
         while (pictures_.size() > 8)

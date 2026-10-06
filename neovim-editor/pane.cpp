@@ -345,7 +345,7 @@ using NeovimEditorBase = loom::WeaveBase<
                  nve::NeovimStartRequested, nve::NeovimStopRequested, nve::NeovimStatusRequested,
                  ws::PaneValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                  ws::PaneCarryAnswered>,
-    loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v3::PaneContent, ws::v2::PaneCaret,
+    loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v4::PaneContent, ws::v2::PaneCaret,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
                ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
@@ -2744,6 +2744,15 @@ private:
         return head + (path.empty() ? std::string("no file") : tail_of_path(path, columns - static_cast<std::int64_t>(head.size())));
     }
 
+    /// THE ONE PART THIS PANE NAMES, `status`: the row it draws above Neovim's screen, saying the
+    /// status or a notice in its place. The screen beneath is Neovim's own, and named nothing.
+    std::vector<ws::PaneRowPart> status_part(const std::vector<surface::SurfaceTextRow>& rows) const {
+        if (rows.empty()) {
+            return {};
+        }
+        return {ws::PaneRowPart{"status", 0, 0, columns_}};
+    }
+
     /// THE PANE, SAID: the status row (or a standing notice in its place), then Neovim's screen,
     /// cropped to the room; the caret and the one range beside the rows, in the same lattice.
     /// NUMBERED (WL-NVIM-11): a picture whose rows, caret, range or generation differ from the
@@ -2763,8 +2772,10 @@ private:
             ++picture_;
         }
         ++state_.screens;
+        std::vector<ws::PaneRowPart> parts = status_part(rows);
         (void)mail.as_role(nve::kEditorOffice)
-            .send_to_role(kWorkshopRole, ws::v3::PaneContent{nve::kEditorPane, std::move(rows), epoch_, picture_});
+            .send_to_role(kWorkshopRole, ws::v4::PaneContent{nve::kEditorPane, std::move(rows), epoch_, picture_,
+                                                             std::move(parts)});
         (void)mail.as_role(nve::kEditorOffice).send_to_role(kWorkshopRole, caret);
     }
 

@@ -675,10 +675,10 @@
         "InventoryEntry v1",
         "PaneViewRequested v1",
         "PaneView v1",
-        "DeskViewRequested v1",
-        "DeskView v1",
-        "PaneViewRequested v2",
-        "PaneView v2",
+        "DeskViewRequested v2",
+        "DeskView v2",
+        "PaneViewRequested v3",
+        "PaneView v3",
         "PanePointRequested v2",
         "PanePoint v2",
         "InventoryList v2",
@@ -1792,8 +1792,8 @@
     {
       "name": "act",
       "script": "act.py",
-      "summary": "Act on Workshop through short named steps -- chords, text, presses on painted words, controls and menu lines -- and check each by what Workshop says it holds, without pictures.",
-      "description": "Runs a JSON list of steps in order through one input session. Gestures: press (a chord, optionally repeated), type (one TextEntered moment; newlines included), select (walk a list's cursor -- the row painted with a leading > -- with Down and Up until it names exactly the given row: the text after a one- or two-column marker, up to a gap of two blanks where a value stands beside the name; bounded, and a name no row or several rows carry fails with the rows painted), into and click (press where Workshop paints a word holding some text, in a text pane or a canvas pane, found by PaneView version 2 and located by its PanePoint; into with no text presses the first word, a blank row at the point its word gives), rest (move the pointer to a window pixel or a terminal cell that says which cells it means, with no button held), control (a visible [label], in a text or canvas pane), menu (press the line of the menu on the screen holding some text). Observations: desk (wait until Workshop's own numbers for a pane -- its state, rank, keys, place and size in canvas pixels -- or for the desk hold what the step names), expect and absent (wait until a pane paints, or stops painting, a word holding some text), rows (keep a pane's words), picture (keep a capture), wait (a pause). A pane's words are its presentation: expect proves Workshop painted something, not that the owner painted about finished; pair it with the owner's own evidence. The first step that cannot be done ends the run naming its index and verb; nothing after it is sent.",
+      "summary": "Act on Workshop through short named steps -- chords, text, presses on painted words, on the parts a pane names, on controls and menu lines -- and check each by what Workshop says it holds, without pictures.",
+      "description": "Runs a JSON list of steps in order through one input session. Gestures: press (a chord, optionally repeated), type (one TextEntered moment; newlines included), open (the pane whose Pane Manager row is named pane:<office>/<pane>: the Pane Manager put on the desk when it is not, the row brought into its window with Down and Up, then pressed where Workshop says its name is -- once to choose it where it is not chosen, once to open it -- until the desk says the pane is selected; a name no row carries fails with the names the list said), select (walk a list's cursor -- the row painted with a leading > -- with Down and Up until it is the row a name names: the part the pane names so, as Info's property:Height, or, in a pane naming none, the row's text after a one- or two-column marker, up to a gap of two blanks where a value stands beside the name; bounded, and a name no row or several rows carry fails with the rows painted), part (press a part a pane names -- a row, a control, an element -- by its pane and its name, at the point Workshop gives it now, wherever the pane's last redraw put it; a name the pane does not draw fails with the names it does), into and click (press where Workshop paints a word holding some text, in a text pane or a canvas pane, found by PaneView version 3 and located by its PanePoint; into with no text presses the first word, a blank row at the point its word gives), rest (move the pointer to a window pixel or a terminal cell that says which cells it means, with no button held), control (a visible [label], in a text or canvas pane), menu (press the line of the menu on the screen named so -- a row's id, as its presenter names it, or the action Workshop's own menu shows -- or, where no line is, the one line holding some text). Observations: desk (wait until Workshop's own numbers for a pane -- its state, rank, keys, place and size in canvas pixels -- or for the desk hold what the step names), expect and absent (wait until a pane paints, or stops painting, a word holding some text), rows (keep a pane's words and the parts it names), picture (keep a capture), wait (a pause). A pane's words are its presentation: expect proves Workshop painted something, not that the owner painted about finished; pair it with the owner's own evidence. A name is the pane's: Workshop carries it as the pane said it. A part Workshop gives no point -- every place of it another part's, so no press reaches it on its own -- is never pressed: a step that would press one fails saying so. The first step that cannot be done ends the run naming its index and verb; nothing after it is sent.",
       "inputs": [
         {
           "name": "link",
@@ -1805,7 +1805,7 @@
           "name": "steps",
           "type": "text",
           "default": "[]",
-          "help": "a JSON list; each item names exactly one verb. {\"press\": \"ctrl+p\", \"repeat\": 2}, {\"type\": \"text\"}, {\"open\": \"Files\"} (the pane the Pane Manager lists by that name), {\"select\": [provider, pane, name]} (the list row named exactly that, reached by Down/Up, whatever sorts before it), {\"into\": [provider, pane, text?]}, {\"click\": [provider, pane, text], \"button\": \"right\"}, {\"at\": [provider, pane, row, column]} (one painted cell of a text pane, counted from 0), {\"rest\": \"x,y\"} (window pixels, or \"x,y@console\" / \"x,y@canvas\" terminal cells; no button held), {\"control\": [provider, pane, label]}, {\"menu\": text, \"seconds\": 10}, {\"desk\": [provider, pane], \"is\": {\"state\": \"open\", \"keys\": true, \"visible\": {\"w\": 480}}, \"seconds\": 10, \"as\": name} (or {\"desk\": [], \"is\": {\"arranging\": false, \"menu\": true}}), {\"expect\": [provider, pane, text], \"seconds\": 10}, {\"absent\": [...]}, {\"rows\": [provider, pane], \"as\": name}, {\"picture\": name, \"png\": true, \"crop\": [x0, y0, x1, y1], \"save\": absolute .png path}, {\"wait\": seconds}"
+          "help": "a JSON list; each item names exactly one verb. {\"press\": \"ctrl+p\", \"repeat\": 2}, {\"type\": \"text\"}, {\"open\": \"pane:zengine.files/project-files\"} (the Pane Manager's row by its name, the pane's reference), {\"select\": [provider, pane, name]} (the list row a part's name names, as property:Height, or whose text is the name, reached by Down/Up, whatever sorts before it), {\"part\": [provider, pane, name], \"button\": \"right\", \"seconds\": 10}, {\"into\": [provider, pane, text?]}, {\"click\": [provider, pane, text], \"button\": \"right\"}, {\"at\": [provider, pane, row, column]} (one painted cell of a text pane, counted from 0), {\"rest\": \"x,y\"} (window pixels, or \"x,y@console\" / \"x,y@canvas\" terminal cells; no button held), {\"control\": [provider, pane, label]}, {\"menu\": name or text, \"seconds\": 10}, {\"desk\": [provider, pane], \"is\": {\"state\": \"open\", \"keys\": true, \"visible\": {\"w\": 480}}, \"seconds\": 10, \"as\": name} (or {\"desk\": [], \"is\": {\"arranging\": false, \"menu\": true}}), {\"expect\": [provider, pane, text], \"seconds\": 10}, {\"absent\": [...]}, {\"rows\": [provider, pane], \"as\": name}, {\"picture\": name, \"png\": true, \"crop\": [x0, y0, x1, y1], \"save\": absolute .png path}, {\"wait\": seconds}"
         },
         {
           "name": "pace_ms",
@@ -1821,7 +1821,7 @@
         },
         {
           "name": "<as>.json",
-          "help": "the words a rows step kept, with the picture number they were read from; the desk a desk step kept"
+          "help": "the words and named parts a rows step kept, with the picture number they were read from; the desk a desk step kept"
         },
         {
           "name": "<name>.bmp",
@@ -1842,16 +1842,14 @@
         "InjectInput v1",
         "InputInjected v1",
         "InputSessionClosed v1",
-        "PaneViewRequested v1",
-        "PaneView v1",
+        "PaneViewRequested v3",
+        "PaneView v3",
         "PanePointRequested v1",
         "PanePoint v1",
-        "DeskViewRequested v1",
-        "DeskView v1",
-        "PaneViewRequested v2",
-        "PaneView v2",
         "PanePointRequested v2",
         "PanePoint v2",
+        "DeskViewRequested v2",
+        "DeskView v2",
         "SurfaceCaptureRequested v1",
         "SurfaceCaptured v1",
         "SurfaceCaptureChunkRequested v1",
@@ -1867,9 +1865,11 @@
         "wait",
         "pane",
         "editor",
-        "builder"
+        "builder",
+        "part",
+        "name"
       ],
-      "example": "loom-session run <dir> workshop/act --name open-files --input steps=[{\"press\":\"ctrl+p\"},{\"expect\":[\"zengine.desktop\",\"pane-manager\",\"Files\"]}]",
+      "example": "loom-session run <dir> workshop/act --name height --input steps=[{\"open\":\"pane:zengine.info/info\"},{\"select\":[\"zengine.info\",\"info\",\"property:Height\"]}]",
       "recovery": "Read steps.json: the last entry is the last step done, and the failure names the step that could not be. Gestures already sent are not undone. A refused input session means another run on this link holds it; wait for that run or cancel it (its cleanup closes the session)."
     },
     {
@@ -2051,7 +2051,7 @@
       "name": "place",
       "script": "place.py",
       "summary": "Author where panes sit and how big they are, typing the numbers into Info's X, Y, Width and Height rows as a weaver would, and read each value back.",
-      "description": "For each named pane: press into Info, choose the pane in Info's list, Return to make it the subject, Tab to its rows, and for each given field Return, clear, type, Return. Workshop writes the value through the desk's own door; the tool passes only when Info's AUTHORED row then shows it. Values use the face's unit: pixels in a window (\"120\" or \"120px\"), cells in a terminal. X and Y are one place, measured from the room's top-left (directly under the top band), so X is written first. The placement lands in the current layout and comes back with the next launch; Layouts `s` writes a Setup file.",
+      "description": "For each pane, named by Info's row for it (pane:<office>/<pane>): press into Info, choose that row by its name, Return to make it the subject, Tab to its rows, and for each given field choose its row by name (property:Width), Return, clear, type, Return. Workshop writes the value through the desk's own door; the tool passes only when Info's AUTHORED row then shows it. Values use the face's unit: pixels in a window (\"120\" or \"120px\"), cells in a terminal. X and Y are one place, measured from the room's top-left (directly under the top band), so X is written first. The placement lands in the current layout and comes back with the next launch; Layouts `s` writes a Setup file.",
       "inputs": [
         {
           "name": "link",
@@ -2063,7 +2063,7 @@
           "name": "panes",
           "type": "text",
           "default": "[]",
-          "help": "a JSON list of {\"pane\": the name Info lists, \"x\": .., \"y\": .., \"width\": .., \"height\": ..}; any field may be left out"
+          "help": "a JSON list of {\"pane\": Info's row for it, pane:<office>/<pane>, \"x\": .., \"y\": .., \"width\": .., \"height\": ..}; any field may be left out"
         }
       ],
       "outputs": [
@@ -2088,16 +2088,12 @@
         "InputSessionRequested v1",
         "InjectInput v1",
         "InputSessionClosed v1",
-        "PaneViewRequested v1",
-        "PaneView v1",
-        "PanePointRequested v1",
-        "PanePoint v1",
-        "DeskViewRequested v1",
-        "DeskView v1",
-        "PaneViewRequested v2",
-        "PaneView v2",
+        "PaneViewRequested v3",
+        "PaneView v3",
         "PanePointRequested v2",
-        "PanePoint v2"
+        "PanePoint v2",
+        "DeskViewRequested v2",
+        "DeskView v2"
       ],
       "terms": [
         "place",
@@ -2109,7 +2105,7 @@
         "info",
         "pane"
       ],
-      "example": "loom-session run <dir> workshop/place --name desk --input panes=[{\"pane\":\"Neovim\",\"x\":0,\"y\":24,\"width\":1236,\"height\":720}]",
+      "example": "loom-session run <dir> workshop/place --name desk --input panes=[{\"pane\":\"pane:zengine.editor/editor\",\"x\":0,\"y\":24,\"width\":1236,\"height\":720}]",
       "recovery": "Read place.json and failed-rows.json. Values already written stay written (Info's `-` returns an axis to Workshop's default). A pane placed off the screen reads off-room in Info; place it again."
     },
     {

@@ -275,6 +275,24 @@ inline RowMeaning meaning_at_row(const ComposerView& view, std::int64_t row) {
     return view.rows[static_cast<std::size_t>(row)].meaning;
 }
 
+/// WHAT THE COMPOSER CALLS A ROW, by what it means: an accepted message by its identity,
+/// `message:<name> v<version>`; a draft's field by its name, `field:<name>`; and its two
+/// controls, `control:submit` and `control:back`. "" for a row that means nothing.
+inline std::string part_name(const Composing& c, const RowMeaning& m) {
+    if (m.what == meaning::kMessage && m.which >= 0 &&
+        m.which < static_cast<std::int64_t>(c.snapshot.roots.size())) {
+        const auto& root = c.snapshot.roots[static_cast<std::size_t>(m.which)];
+        return "message:" + root->name() + " v" + std::to_string(root->version());
+    }
+    if (m.what == meaning::kField && c.draft.valid() && m.which >= 0 &&
+        m.which < static_cast<std::int64_t>(c.draft.size())) {
+        return "field:" + c.draft.field(static_cast<std::size_t>(m.which)).name;
+    }
+    if (m.what == meaning::kSubmit) return "control:submit";
+    if (m.what == meaning::kBack) return "control:back";
+    return std::string();
+}
+
 /// THE ROWS, for `PaneContent`. The meanings stay here.
 inline std::vector<surface::SurfaceTextRow> rows_of(const ComposerView& view) {
     std::vector<surface::SurfaceTextRow> out;

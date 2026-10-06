@@ -20,6 +20,7 @@
 #include <zen/terminal/composer.hpp>
 #include <zen/value.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -500,6 +501,28 @@ TEST_CASE("the form is generated from the Schema, and nothing else") {
     CHECK(any_row(v, "repeat:Bool"));
     CHECK(any_row(v, "[ Submit ]"));
     CHECK(any_row(v, "[ Back ]"));
+}
+
+TEST_CASE("WL-HAND-06: the Composer names a message by its identity, a field by its name and its two controls by what they do") {
+    cmp::Composing c;
+    c.stage = cmp::stage::kCatalog;
+    c.role = "zengine.example";
+    c.snapshot = snapshot_of({loom::SchemaBuilder("Ordinary", 1).build(),
+                              loom::SchemaBuilder("Ordinary", 2).build()});
+    std::vector<std::string> names;
+    const cmp::ComposerView catalog = cmp::project(c, 12, 46);
+    for (const auto& row : catalog.rows) names.push_back(cmp::part_name(c, row.meaning));
+    CHECK(std::count(names.begin(), names.end(), "message:Ordinary v1") == 1);
+    CHECK(std::count(names.begin(), names.end(), "message:Ordinary v2") == 1);
+    const cmp::Composing form = composing_form(three_scalars());
+    const cmp::ComposerView v = cmp::project(form, 20, 60);
+    names.clear();
+    for (const auto& row : v.rows) names.push_back(cmp::part_name(form, row.meaning));
+    for (const char* want : {"field:id", "field:delay_ms", "field:repeat", "control:submit",
+                             "control:back"}) {
+        CAPTURE(want);
+        CHECK(std::count(names.begin(), names.end(), std::string(want)) == 1);
+    }
 }
 
 TEST_CASE("a field row says PRESENCE and VALUE separately") {

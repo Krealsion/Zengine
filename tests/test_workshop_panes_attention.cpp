@@ -224,6 +224,24 @@ TEST_CASE("the pane shows every current condition in its owner's own words") {
     CHECK(f.r.session().conditions.holds("b.two"));
 }
 
+TEST_CASE("WL-HAND-06: Attention names each condition's row by its key") {
+    AttentionRig f;
+    f.open();
+    f.establish(thing("a.one", "the first thing", "a sentence its owner already had"));
+    f.establish(thing("b.two", "the second thing", "and one for the second"));
+    auto parts = held_parts(f.r.session(), f.kind);
+    REQUIRE(parts.count("condition:a.one") == 1);
+    REQUIRE(parts.count("condition:b.two") == 1);
+    CHECK(f.shown()[static_cast<std::size_t>(parts.at("condition:a.one").row)].find("the first thing") !=
+          std::string::npos);
+    // THE CURSOR MOVING OPENS ANOTHER CONDITION'S WORDS, and each name follows its row.
+    f.r.key(input::scan::kDown);
+    parts = held_parts(f.r.session(), f.kind);
+    REQUIRE(parts.count("condition:b.two") == 1);
+    CHECK(f.shown()[static_cast<std::size_t>(parts.at("condition:b.two").row)].find("the second thing") !=
+          std::string::npos);
+}
+
 TEST_CASE("a pane that arrives after the host has spoken is told again") {
     // A PANE LOADED AFTER THE HOST LAST SPOKE HEARS WHAT IS TRUE: `say_conditions` is quiet when
     // the reading has not changed -- or the seam would not terminate -- so an OFFER, the one moment

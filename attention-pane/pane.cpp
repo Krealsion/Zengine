@@ -14,6 +14,7 @@
 #include "attention-pane/vocabulary.hpp"
 
 #include "workshop/attention_seam_vocabulary.hpp"
+#include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -43,7 +44,6 @@ using ws::PaneActionRequested;
 using ws::PaneActionRow;
 using ws::PaneActions;
 using ws::PaneCatalogRequested;
-using ws::PaneContent;
 using ws::v2::PaneOffered;
 using ws::PaneRoom;
 using ws::StandingCondition;
@@ -132,7 +132,7 @@ class AttentionPaneWeave
           AttentionPaneWeave, pane::AttentionPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
                        StandingConditions>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent>> {
+          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -329,7 +329,12 @@ private:
         const auto push = [&out, this](const std::string& text, std::int64_t role) {
             out.push_back(surface::SurfaceTextRow{drawable(fit(text, columns_)), role});
         };
-        say_view(push);
+        // THE ROW EACH CONDITION IS SAID ON, recorded as it is pushed.
+        std::vector<std::pair<std::int64_t, std::string>> conditions;
+        const auto mark = [&out, &conditions](const std::string& key) {
+            conditions.emplace_back(static_cast<std::int64_t>(out.size()), key);
+        };
+        say_view(push, mark);
         // A notice, when there is one, leads: a pane has only its own room, so its first row
         // carries it, and it is cleared by the weaver's next act rather than by being said
         // (`agents/panes.md`).
@@ -339,12 +344,23 @@ private:
             }
             out.insert(out.begin(), surface::SurfaceTextRow{drawable(fit(notice_, columns_)),
                                                             surface::role::kAccent});
+            for (auto& [row, key] : conditions) {
+                ++row;
+            }
         }
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
         }
+        // A CONDITION IS NAMED BY ITS KEY, `condition:<key>`, on the row that says it.
+        ws::PartNames<ws::PaneRowPart> named;
+        for (const auto& [row, key] : conditions) {
+            if (row < static_cast<std::int64_t>(out.size())) {
+                (void)named.add(ws::PaneRowPart{"condition:" + key, row, 0, columns_});
+            }
+        }
         (void)mail.as_role(pane::kAttentionPaneRole)
-            .send_to_role(kWorkshopRole, PaneContent{pane::kAttentionPane, std::move(out)});
+            .send_to_role(kWorkshopRole,
+                          ws::v4::PaneContent{pane::kAttentionPane, std::move(out), 0, 0, named.take()});
     }
 
     /// HOW MANY ROWS THE LIST MAY SPEND: the room, less the glance, less the notice row `say`
@@ -354,8 +370,8 @@ private:
     }
 
     // WL-ATTN-06 -- agents/workshop/attention.md
-    template <class Push>
-    void say_view(Push&& push) {
+    template <class Push, class Mark>
+    void say_view(Push&& push, Mark&& mark) {
         // NO ROW SPELLS THE PANE'S OWN KEYS: a pane's declared rows are in the band's legend and
         // in the hotkey view under this pane's own heading, resolved through the weaver's
         // effective keymap. Saying them here would put this pane in the business of reading a
@@ -419,6 +435,7 @@ private:
         for (std::size_t i = win.first; i < win.first + win.count; ++i) {
             const StandingCondition& c = shown[i];
             const bool here = i == cursor;
+            mark(c.key);
             push(std::string(here ? "> " : "  ") + c.compact, c.role);
             if (!here || reserve == 0) {
                 continue;

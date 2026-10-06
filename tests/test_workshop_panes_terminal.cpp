@@ -665,6 +665,32 @@ TEST_CASE("the list is rows INSIDE the pane, above the line it belongs to") {
     CHECK(regions == 1);
 }
 
+TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidate by what it says") {
+    TerminalRig t;
+    t.open();
+    t.focus();
+    auto parts = held_parts(t.r.session(), t.kind);
+    REQUIRE(parts.count("line") == 1);
+    CHECK(parts.at("line").row == t.input_row());
+    // A LIST ASKED FOR: each candidate under what it says, on the row that shows it.
+    t.type("s");
+    parts = held_parts(t.r.session(), t.kind);
+    REQUIRE(parts.count("line") == 1);
+    CHECK(parts.at("line").row == t.input_row());
+    std::size_t candidates = 0;
+    for (const auto& [name, part] : parts) {
+        if (name.rfind("candidate:", 0) != 0) continue;
+        ++candidates;
+        CAPTURE(name);
+        CHECK(t.shown()[static_cast<std::size_t>(part.row)].find(name.substr(10)) != std::string::npos);
+    }
+    CHECK(candidates > 0);
+    REQUIRE(parts.count("candidate:send") == 1);
+    // A PRESS WHERE ONE IS NAMED CHOOSES IT.
+    t.press_row(parts.at("candidate:send").row, 3);
+    CHECK(t.shown()[static_cast<std::size_t>(parts.at("candidate:send").row)].rfind("> send", 0) == 0);
+}
+
 TEST_CASE("the selection survives a recomputation and not a change of question") {
     // THE SAME-QUESTION RULE: the answer arrives fresh every time, so a naive pane would reset
     // the cursor after every keystroke and the arrow keys would appear to do nothing. The

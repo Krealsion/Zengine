@@ -464,6 +464,52 @@ struct PanePressed {
 
 } // namespace v3
 
+// ---- The parts a pane names --------------------------------------------------------------
+//
+// A pane names the parts a weaver acts on -- a row, a control inside one, an element of its
+// picture -- with names of its own that it keeps across its redraws, so an agent finds a part by
+// what it is rather than by where it falls. A name is the pane's: Workshop judges its form and
+// carries it as the pane said it, and never interprets it. The names ride with the picture they
+// name, judged with it and admitted or refused whole with it. A picture lists its parts in the
+// order its pane reads a press: where parts hold one place, a press there reaches the later. A
+// part named "" is a place a press reaches that the pane names nothing, listed where it lies over
+// a part it names: Workshop says no such part, and gives no named part a point on it.
+
+/// The most parts one picture may list, and the longest a name may be.
+inline constexpr std::size_t kMaxPaneParts = 2048;
+inline constexpr std::size_t kMaxPanePartNameLen = 256;
+
+/// ONE PART OF A PANE'S ROWS: `columns` columns of row `row` from `column`, in `PaneRoom`'s
+/// lattice -- a row entire, or a control inside one -- and the pane's name for it. The same shape
+/// names a presented menu's lines (`v2::MenuShown`), a line being a row.
+struct PaneRowPart {
+    std::string name;
+    std::int64_t row = 0;
+    std::int64_t column = 0;
+    std::int64_t columns = 0;
+    ZEN_SHAPE(PaneRowPart, 1, ZEN_FIELD(name), ZEN_FIELD(row), ZEN_FIELD(column),
+              ZEN_FIELD(columns));
+};
+
+namespace v4 {
+
+/// CONTENT THAT NAMES ITS PARTS: v3's rows, generation and picture, and the parts of those rows
+/// the pane names, in the order it reads a press. A part must stand on a row the content says,
+/// inside the room granted, under a name no other part of it carries, or none; content that
+/// breaks that is refused whole, as content over its budget is. A pane naming nothing sends v3,
+/// or this with no parts.
+struct PaneContent {
+    std::string pane;
+    std::vector<surface::SurfaceTextRow> rows;
+    std::int64_t generation = 0;
+    std::int64_t picture = 0;
+    std::vector<PaneRowPart> parts = {};
+    ZEN_SHAPE(PaneContent, 4, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(generation),
+              ZEN_FIELD(picture), ZEN_FIELD(parts));
+};
+
+} // namespace v4
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
