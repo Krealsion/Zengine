@@ -5,9 +5,10 @@ supports is in [weaver-pane](../workshop/maker-pane.md) and [view](../view.md).
 
 **Context.** Two ways to make a pane from data stood side by side: the Pane Creator, whose
 regions Workshop held, painted and edited through Info
-([one way a pane can be implemented](../../docs/history/decisions/one-way-a-pane-can-be-implemented.md)),
-and described views, which the view host runs and the View Builder makes. For the first,
-Workshop held view behaviour of its own.
+([one way a pane can be
+implemented](../../docs/history/decisions/one-way-a-pane-can-be-implemented.md)), and described
+views, which the view host runs and the View Builder makes. For the first, Workshop held view
+behaviour of its own.
 
 **Decision.** The Pane Creator retires into described views. The Pane Manager's `n` shows the View
 Builder through the host's launch door. Workshop has no weaver kind, namespace or held

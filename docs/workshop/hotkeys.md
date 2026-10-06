@@ -101,7 +101,7 @@ small menu opens beside it:
 | row | does |
 |---|---|
 | `Modify (press a key)` | the next key you press becomes the action's only key |
-| `Modify (type a spelling)` | type the key as the file spells it (`ctrl+g`, `shift+h`, `[`), then `Enter` |
+| `Modify (type a spelling)` | type the key as the file spells it (`ctrl+f`, `shift+h`, `[`), then `Enter` |
 | `Add a key (press)` / `Add a key (type)` | the action keeps its keys and gains this one |
 | `` Remove `key` `` | this row's key stops requesting the action; removing the last one **disables** it, and the notice says so — nothing falls back to the default you just removed |
 | `Disable` | no key requests the action (the file says `none`) |

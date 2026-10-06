@@ -1,7 +1,7 @@
 # Workshop develops itself from a copy
 
-**Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws it
-supports are in [code](../workshop/code.md).
+**Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws
+it supports are in [code](../workshop/code.md).
 
 **Context.** A weaver editing one of Workshop's own panes needs a catalog that builds it, an
 entry that opens it, and a running Workshop the build cannot hurt. A Workshop run from its build
@@ -43,7 +43,7 @@ share a runtime unless a weaver points one at the other's directory, which the m
 What a reuse reads is worth being exact about: the recorded digests are compared against the files
 in the BUILD TREE, which says whether the tree has built any of them anew, and the runtime is
 looked at for the names it copied, which says whether every copy is still there. What is in the
-runtime's own copies is never read again — so a reuse says the runtime is current, not that it is
-unharmed, and a copy changed inside a runtime is reused as it stands.
+runtime's own copies is never read again — so a reuse says the runtime is current, not that it
+is unharmed, and a copy changed inside a runtime is reused as it stands.
 
 **Laws supported.** [WL-CODE-06](../workshop/code.md), [WL-CODE-07](../workshop/code.md).

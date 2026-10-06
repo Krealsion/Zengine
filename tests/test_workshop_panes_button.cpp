@@ -36,8 +36,8 @@ class ButtonSeat
                              loom::Accept<PaneCatalogRequested, PaneRoom, PaneButton,
                                           PaneRevealAnswered, PaneMenuAnswered, PaneKey,
                                           PaneTextInput, PaneActionRequested, SeatDo>,
-                             loom::Emit<PaneOffered, PaneActions, PaneContent, PanePassRequested,
-                                        PaneMenuRequested, PaneManageRequested,
+                             loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret,
+                                        PanePassRequested, PaneMenuRequested, PaneManageRequested,
                                         PaneKeyboardRequested, PaneRevealRequested>> {
 public:
     ButtonSeat(std::string office, std::string pane) : office_(std::move(office)), pane_(std::move(pane)) {}
@@ -179,6 +179,7 @@ loom::WeaveId mount_button_seat(PaneRig& r, ButtonSeat*& seat, const char* offic
     grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
     grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
     grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+    grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);
     grant.allow_to_any(PanePassRequested::zen_name, PanePassRequested::zen_version);
     grant.allow_to_any(PaneMenuRequested::zen_name, PaneMenuRequested::zen_version);
     grant.allow_to_any(PaneManageRequested::zen_name, PaneManageRequested::zen_version);
@@ -319,6 +320,39 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is d
     CHECK(t.r.session().context.subject == context_subject::kPane);
     CHECK(t.r.session().context.pane == PaneRef{kGuardOffice, kGuardPane});
     CHECK(t.guard->buttons.size() == 2); // the press and its release; nothing for the chrome
+}
+
+TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the column of the character each cell shows, past the caret's glyph") {
+    Rigged t;
+    drive_seat(t.r, t.guard_id, t.guard, [](ButtonSeat&, loom::Mail& m) {
+        (void)m.as_role(kGuardOffice).send_to_role(
+            kWorkshopProvider,
+            PaneContent{kGuardPane, {surface::SurfaceTextRow{"abcdef", surface::role::kFill}}});
+        (void)m.as_role(kGuardOffice).send_to_role(kWorkshopProvider, PaneCaret{kGuardPane, 0, 2});
+    });
+    const ExternalPane* pane = t.r.session().panes.external_pane(t.guard_kind);
+    REQUIRE(pane != nullptr);
+    REQUIRE(pane->caret_col == 2);
+    // THE TERMINAL'S OWN ROW (`ab_cdef`), where the caret's glyph takes a cell of its own.
+    const surface::CanvasGrids grid = surface::rasterize_canvas(t.r.last_canvas());
+    const std::int64_t y = body_y(t.r, t.guard_kind, 0);
+    const std::int64_t x0 = body_x(t.r, t.guard_kind, 0);
+    const auto cell_showing = [&](char glyph) {
+        for (std::int64_t x = x0; x < x0 + 7 && x < grid.w; ++x) {
+            if (grid.glyphs[static_cast<std::size_t>(y * grid.w + x)] == glyph) return x;
+        }
+        return std::int64_t{-1};
+    };
+    REQUIRE(cell_showing(surface::kCaretGlyph) == x0 + 2);
+    button_cell(t.r, 3, true, cell_showing('e'), y);
+    button_cell(t.r, 3, false, cell_showing('f'), y);
+    REQUIRE(t.guard->buttons.size() == 2);
+    CHECK(t.guard->buttons[0].pressed);
+    CHECK(t.guard->buttons[0].row == 0);
+    CHECK(t.guard->buttons[0].column == 4); // `e`
+    CHECK_FALSE(t.guard->buttons[1].pressed);
+    CHECK(t.guard->buttons[1].row == 0);
+    CHECK(t.guard->buttons[1].column == 5); // `f`
 }
 
 TEST_CASE("WL-PRESS-06: a right press in a doorless pane's body opens the host's pane menu at the press, sends the provider nothing and takes no keys; its chrome opens the same menu") {

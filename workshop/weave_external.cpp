@@ -150,8 +150,11 @@ void WorkshopWeave::external_drag(std::int64_t kind, const zengine::input::Point
     if (!at.understood) {
         return;
     }
+    const std::int64_t prow = at.row - body.header_rows;
     (void)mail.as_role(kWorkshopProvider)
-        .send_to_role(row->provider, PaneDragged{row->pane, at.row - body.header_rows, at.column});
+        .send_to_role(row->provider,
+                      PaneDragged{row->pane, prow,
+                                  shown_column(at.column, external_caret_glyph(pane, body.fit, prow))});
     note_routed(kind);
 }
 
@@ -330,7 +333,9 @@ bool WorkshopWeave::external_release(std::int64_t button, const zengine::input::
                     prose_at(b.space, b.x, b.y, body.fit);
                 if (at.understood) {
                     prow = at.row - body.header_rows;
-                    pcol = at.column;
+                    pcol = shown_column(at.column,
+                                        external_caret_glyph(session_.panes.external_pane(kind),
+                                                             body.fit, prow));
                 }
             }
         }

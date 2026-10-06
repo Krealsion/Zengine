@@ -13,9 +13,9 @@ carries the document.
 one Neovim per incarnation, and speaks every door the standard Editor speaks. Its screen crosses
 in the pane protocol's existing words -- ASCII rows under one status row, one caret, one range --
 and a weaver's keys and text cross back as Neovim input; `^s` and `^o` stand in for Workshop's own
-rows while its pane holds the keys. Questions to Neovim are bounded and asked beside its fast mode;
-the flow is never waited on. From a Loom with no Workshop the same weave starts Neovim listening,
-and Neovim's own interface attaches from a second terminal.
+rows while its pane holds the keys. Questions to Neovim are bounded and asked beside its fast
+mode; the flow is never waited on. From a Loom with no Workshop the same weave starts Neovim
+listening, and Neovim's own interface attaches from a second terminal.
 
 **Alternatives considered.**
 - *A terminal emulator pane running `nvim`* -- refused: the office's facts (the document, its

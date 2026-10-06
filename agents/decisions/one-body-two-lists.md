@@ -51,8 +51,8 @@ and no metric crosses the seam, and the press is never rounded because a press c
 pane's own row. One changed its reason: *an object row's press selects in command mode only*.
 A pane has no command mode, so it refuses that press itself while its draft is live, in the
 controls' words; dropping the refusal let an accepted select close a draft and lose its text. A
-picture that stops showing the draft's property — the object and its row's label — abandons the
-draft and says so. The desk row a weaver never authored is the other half of the migration,
+picture that stops showing the draft's property — the object and its row's label — abandons
+the draft and says so. The desk row a weaver never authored is the other half of the migration,
 which is why this record now supports one more law than it did.
 
 **Since.** The subject changed and the body did not: the OBJECTS list is the PANES list (the one

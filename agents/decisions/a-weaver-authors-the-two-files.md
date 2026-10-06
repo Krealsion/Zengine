@@ -12,18 +12,19 @@ paths back into it (WL-PROJ-02), the plan because a durable plan must never be r
 with a failed runtime. Both reasons still hold. Neither forbids a weaver's own act.
 
 **Decision.** Two gestures, two rows, one direction. In Files, `a` lists what the browsing
-location can at least try to build — a `.cpp`, or a directory holding a `CMakeCache.txt` — asks
-for the few things nothing can detect (a name, a stem, a package prefix and link targets for a
-source; a target for a tree, and a configuration too when that tree's own cache already says
+location can at least try to build — a `.cpp`, or a directory holding a `CMakeCache.txt` —
+asks for the few things nothing can detect (a name, a stem, a package prefix and link targets for
+a source; a target for a tree, and a configuration too when that tree's own cache already says
 several coexist there), and hands a DRAFT to the host. The host composes the row, checks it
 by the recipe law, appends it AS AUTHORED to the catalog's rows AS WRITTEN, saves atomically and
 installs the file through the one seam `u` already spends. When the catalog in force is the
 shipped default, the row goes into `<project>/build-recipes.json`, seeded from the shipped rows so
 nothing buildable disappears; the shipped file is never written. In the Builder, `o` asks a role
 for the chosen recipe's artifact and hands stem and role to the host, which appends the minimum
-row through a new executor door FIRST — so the running project refuses before any file changes —
-and then writes `<project>/workshop-plan.json`. One launch rule makes that file the plan in force
-when no `--load-plan` is given. Each act appends one row; nothing edits, reorders or removes one.
+row through a new executor door FIRST — so the running project refuses before any file changes
+— and then writes `<project>/workshop-plan.json`. One launch rule makes that file the plan in
+force when no `--load-plan` is given. Each act appends one row; nothing edits, reorders or removes
+one.
 
 **Alternatives considered.**
 - *Argued: a recipe editor in a pane* — refused: a second spelling of the recipe grammar, with a

@@ -9,9 +9,10 @@ one was not — the Compose pane's form no longer fit the default slot — repor
 repaired, because which of its rows should yield is that pane's own decision (`65cf9f1`). The
 pressure was closed at the desk instead (`35653ad`).
 
-**Decision.** `=` grows the addressed pane and `-` shrinks it, by `kCoarseStepCells` (<!-- value kCoarseStepCells -->4<!-- /value -->) on both
-axes, in both scopes, through `arrange_grow` — the same `pane_window_proposal` at `kBottomRight`
-into `author_pane_window` that a shifted arrow spends. Four is pinned by a `static_assert`:
+**Decision.** `=` grows the addressed pane and `-` shrinks it, by `kCoarseStepCells`
+(<!-- value kCoarseStepCells -->4<!-- /value -->) on both axes, in both scopes, through
+`arrange_grow` — the same `pane_window_proposal` at `kBottomRight` into `author_pane_window`
+that a shifted arrow spends. Four is pinned by a `static_assert`:
 `kStackRows + kCoarseStepCells - 2*kChromeCells - 1 >= 8`. `manage.grow` and `manage.shrink` are
 catalog rows declared in both scopes.
 

@@ -275,7 +275,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -346,7 +346,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::PaneView, v2::PanePoint, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::v1::PaneCanvasPointer,
@@ -441,16 +441,35 @@ public:
     void on(const input::AttributedInput& event, loom::Mail& mail);
     void on(const PaneViewRequested& asked, loom::Mail& mail);
     void on(const PanePointRequested& asked, loom::Mail& mail);
-    /// A pane's visible text body and what it shows, or why neither is available.
+    /// A pane's visible body and what it shows, or why neither is available; `canvas` when the
+    /// pane draws a picture, whose body is `canvas_body` and not `body`'s rows.
     struct VisibleBody {
         std::int64_t kind = 0;
         const ExternalPane* content = nullptr;
         ExternalBodyPlace body;
+        bool canvas = false;
+        PixelRect canvas_body;
     };
     std::string visible_text_body(const std::string& provider, const std::string& pane,
                                   VisibleBody& out) const;
+    std::string visible_body(const std::string& provider, const std::string& pane,
+                             VisibleBody& out, bool canvas_too) const;
+    /// Where a word's glyphs stand: one glyph's advance, and the column a terminal draws a caret
+    /// glyph into (-1 where it draws none), which each glyph from that column stands a cell right of.
+    struct WordGlyphs {
+        std::int64_t advance = 0;
+        std::int64_t caret = -1;
+    };
+    /// The words a visible body shows, each where the medium draws it, numbered as a point names.
+    std::vector<PaneWord> visible_words(const VisibleBody& visible,
+                                        std::vector<WordGlyphs>* glyphs = nullptr) const;
+    void on(const v2::PaneViewRequested& asked, loom::Mail& mail);
+    void on(const v2::PanePointRequested& asked, loom::Mail& mail);
     bool cell_center(const VisibleBody& visible, std::int64_t row, std::int64_t column,
                      std::int64_t& x, std::int64_t& y, std::int64_t& space, bool exact_column) const;
+    void on(const DeskViewRequested& asked, loom::Mail& mail);
+    /// The desk as Workshop holds it now: every pane on it, the room, arranging and the menu.
+    DeskView desk_view() const;
     void on(const PaneShortcutInvoked& asked, loom::Mail& mail);
     /// The current attributed gesture of `pane` approves one (shape, version, role), or why not.
     /// Spends the gesture; sets nothing else.

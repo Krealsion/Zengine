@@ -984,9 +984,8 @@ TEST_CASE("a view shown where its own place stands off this screen stays there, 
     CHECK(pane_of(r.session().setup.active, greeting)->place == authored);
     CHECK(bounds_of(r.session().panes, r.session().setup.active, row->kind, screen_of(r.session()))
               .rect.empty());
-    CHECK(r.last_notice() == "greeting is off this screen -- Reset > place brings it back (the "
-                             "Pane Manager's manage greeting > reaches it), or hide it and show it "
-                             "again");
+    CHECK(r.last_notice() == "greeting is off this screen -- Pane Manager > manage it > Reset > "
+                             "place, or hide and show it");
     CHECK(r.session().notice_is_bad);
 }
 

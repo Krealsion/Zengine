@@ -112,3 +112,12 @@ METHOD — A precedent transfers only as far as its reason: the neighbouring fix
 BECAUSE — build-time preparation of the fixture tree left a real hole in a lane that has no
 target to hang it from; configure time, once, has no build order that can defeat it.
 SEEN — `tests/CMakeLists.txt` `zengine-build-fixture`.
+
+## VM-PROBE-14 — A key operation keeps its conversation as a file review diffs
+
+METHOD — A key operation's messages are written in order, one readable line each, by an observer on the case's own bus, and compared with a kept file under `tests/timelines/`.
+BECAUSE — a sentence added or an answer reordered passes every case that asserts outcomes and
+shows nowhere a reviewer reads; a diff of the kept conversation shows it, and the observer is the
+rig's own, so no guest is given a tap on a host.
+SEEN — `tests/timeline.hpp`; `tests/test_workshop_desk.cpp` case `"the conversation of a press
+on a word is kept"`.
