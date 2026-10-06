@@ -2235,7 +2235,8 @@ private:
 /// spellings, one holder, opposite outcomes.
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
-                             loom::Accept<PaneOffered, v2::PaneOffered, PaneContent, v3::PaneContent, SeatDo>,
+                             loom::Accept<PaneOffered, v2::PaneOffered, PaneContent, v3::PaneContent,
+                                          v4::PaneContent, SeatDo>,
                              loom::Emit<PaneCatalogRequested, PaneRoom, PaneWheel, PanePressed,
                                         v2::PanePressed, v3::PanePressed>> {
 public:
@@ -2258,6 +2259,10 @@ public:
         content.push_back(PaneContent{c.pane, c.rows});
         pictures.push_back(c.picture);
         content_authors.push_back(std::string(mail.authored_role()));
+    }
+    /// ...AND A PANE THAT NAMES ITS PARTS, the same rows and number beside them.
+    void on(const v4::PaneContent& c, loom::Mail& mail) {
+        on(v3::PaneContent{c.pane, c.rows, c.generation, c.picture}, mail);
     }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {

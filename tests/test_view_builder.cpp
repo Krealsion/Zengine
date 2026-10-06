@@ -375,6 +375,7 @@ public:
         return {loom::schema_of<ws::v2::PaneOffered>(), loom::schema_of<ws::v3::PaneOffered>(),
                 loom::schema_of<ws::PaneActions>(),
                 loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
+                loom::schema_of<ws::v4::PaneCanvasContent>(),
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
                 loom::schema_of<ws::PaneRevealRequested>(), loom::schema_of<ws::PaneMenuRequested>(),
                 loom::schema_of<ws::PaneOperationRequested>(), loom::schema_of<ws::PaneValueCarryRequested>(),
@@ -386,6 +387,12 @@ public:
         if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneCanvasContent>()) &&
             in.provenance.authored_role() == vb::kRole)
             pictures.push_back(loom::from_value<ws::PaneCanvasContent>(in.payload));
+        // THE BUILDER'S PICTURE AS IT IS SAID NOW, with the parts it names: the same picture.
+        if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::v4::PaneCanvasContent>()) &&
+            in.provenance.authored_role() == vb::kRole) {
+            const auto c = loom::from_value<ws::v4::PaneCanvasContent>(in.payload);
+            pictures.push_back(ws::PaneCanvasContent{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts});
+        }
         heard.push_back(in);
     }
     loom::Value snapshot() const override { return loom::Value(loom::make_schema("vbtest.Desk", 1, {})); }
