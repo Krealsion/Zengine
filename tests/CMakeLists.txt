@@ -938,6 +938,23 @@ zengine_workshop_suite(host
 # words, and that each place it gives is where the medium draws it.
 zengine_workshop_suite(desk SOURCES test_workshop_desk.cpp)
 
+# THE SHAPES THIS TREE PUBLISHES: the copies of published shapes beside the current ones, every
+# name one component's, and the census -- every product weave's manifest and the headers' shapes,
+# pinned in tests/shapes.txt. The weaves are the ones `zengine_weave` counted, named in a file the
+# build writes; the census as it stands is written beside it.
+get_property(zengine_census_weaves GLOBAL PROPERTY ZENGINE_PRODUCT_WEAVES)
+set(zengine_census_lines "")
+foreach(weave IN LISTS zengine_census_weaves)
+    string(APPEND zengine_census_lines "$<TARGET_FILE:${weave}>\n")
+endforeach()
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt"
+     CONTENT "${zengine_census_lines}")
+zengine_workshop_suite(shapes SOURCES test_workshop_shapes.cpp test_shapes_census.cpp
+    DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
+                "ZENGINE_CENSUS_WEAVES=\"${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt\""
+                "ZENGINE_CENSUS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/shapes-now-$<CONFIG>.txt\""
+    NEEDS ${zengine_census_weaves})
+
 # ---- the panes suite's source tripwires -------------------------------------------------
 # The presentation's sources and the host say "this host was taught no pane", and the two
 # projections "no view branches on an identity": no rig proves either, since every rig would stay
@@ -970,11 +987,8 @@ zengine_workshop_suite(panes
             test_workshop_panes_opening.cpp
             test_workshop_panes_code.cpp
             test_workshop_panes_output.cpp
-            test_workshop_shapes.cpp
     NEEDS zengine-composer zengine-inventory zengine-inventory-pane
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
-                # The tree itself, for the case that reads every shape name its components declare.
-                "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\"" "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
                 "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
