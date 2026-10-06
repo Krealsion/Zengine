@@ -38,11 +38,11 @@ class Hand:
         return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane})
 
     def words(self, provider, pane):
-        """A pane's words as Workshop holds them (PaneView version 2): a text pane's rows or a
-        canvas pane's labels and runs, each with its place in canvas pixels and the point a press
-        names it by."""
+        """A pane's words and named parts as Workshop holds them (PaneView version 3): a text pane's
+        rows or a canvas pane's labels and runs, each with its place in canvas pixels and the point a
+        press names it by, and beside them every part the pane names, under the pane's own name."""
         return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane},
-                        version=2)
+                        version=3)
 
     def word_point(self, provider, pane, word, column, picture):
         """Where one character of one of those words is now; refused if the picture moved."""
@@ -50,9 +50,10 @@ class Hand:
                         "picture": picture, "word": word, "column": column}, version=2)
 
     def desk(self):
-        """The desk by Workshop's own numbers (DeskView): every pane on it with its state, rank
-        from the front, place and size, selection and keys; the room; arranging; the menu."""
-        return self.ask("zengine.workshop", "DeskViewRequested", {})
+        """The desk by Workshop's own numbers (DeskView version 2): every pane on it with its state,
+        rank from the front, place and size, selection and keys; the room; arranging; the menu, and
+        the lines it names."""
+        return self.ask("zengine.workshop", "DeskViewRequested", {}, version=2)
 
     def row(self, provider, pane, contains, scroll=False):
         # Read the current view, then search toward each edge with ordinary wheel input.
