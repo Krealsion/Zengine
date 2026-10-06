@@ -697,6 +697,8 @@ what Workshop owns and none read off a picture:
 
 ![A 1440 by 900 window after a walk read by messages: the View Builder, at 96,102 and 840 by 240 as the desk says, made label1 when its [Label] was pressed by what it says; Info, holding the keys, has Height chosen by select and shows the 240 px written through it](images/desk-read-by-message.png)
 
+![A 1440 by 900 window after a walk by names: the View Builder, opened by its Pane Manager row's name, made button1 when kind:button was pressed, and selected it when element:button1 was pressed where the redraw had moved it; control:run ran the view my.view, in front, and element:button1 pressed in it says button1 says nothing yet](images/parts-pressed-by-name.png)
+
 Every place is in canvas pixels: a window's pixel is one, a terminal's cell is `kCanvasCellPx`
 (<!-- value kCanvasCellPx -->12<!-- /value -->), and a terminal's console counts `kTuiCanvasTopRow`
 (<!-- value kTuiCanvasTopRow -->2<!-- /value -->) rows above the canvas. A point to press is in the space the medium
