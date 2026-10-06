@@ -77,7 +77,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
 - A gesture, the pan, the grid, a box being typed into and a mark are the builder's
   presentation: never saved, kept across a reload or offered to the host; no pan, grid or snap is
   in a description. A reload in place keeps the draft, the name in its File box and, apart from
-  it, the file the view was saved to or opened from (`view_builder::BuilderState::file`), and
+  it, the file the view was saved to or opened from (`view_builder::ViewBuilderState::file`), and
   whether its view runs. So does a relaunch: the builder writes that file (inside the project,
   named relative to it, so a project moved whole still finds it) and whether its view runs to the
   project's `view-builder.json` (`view_builder::ViewBuilderRun`) when either differs from what the
@@ -87,7 +87,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   names and, if its view ran, runs it again by `view::ViewResume`: a run whose pane asks nothing
   of the desk, so the restored desk seats it where it stood or leaves it hidden. A launch that
   cannot open that view file keeps the project file as it found it
-  (`view_builder::BuilderState::kept`, across a reload too) until the weaver opens, saves or
+  (`view_builder::ViewBuilderState::kept`, across a reload too) until the weaver opens, saves or
   starts a view, a name typed into File being none of these, so the file's return brings its
   view back at the next launch. An intent is made
   through `flow/shape.hpp`. The builder carries an intent's shape out, with the shapes it nests

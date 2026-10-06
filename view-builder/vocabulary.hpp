@@ -37,11 +37,11 @@ struct ViewEdited {
 /// office, which a reload in place cannot ask again; and whether the project file is kept as a
 /// launch found it, naming a view file the builder could not open. Never a dialog, a grant or a
 /// gesture.
-struct BuilderState {
+struct ViewBuilderState {
     loom::Bytes description;
     std::string path, file;
     bool dirty = false, running = false, kept = false;
-    ZEN_SHAPE(BuilderState, 3, ZEN_FIELD(description), ZEN_FIELD(path), ZEN_FIELD(file),
+    ZEN_SHAPE(ViewBuilderState, 3, ZEN_FIELD(description), ZEN_FIELD(path), ZEN_FIELD(file),
               ZEN_FIELD(dirty), ZEN_FIELD(running), ZEN_FIELD(kept));
 };
 

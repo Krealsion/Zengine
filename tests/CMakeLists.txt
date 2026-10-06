@@ -969,6 +969,8 @@ zengine_workshop_suite(panes
             test_workshop_shapes.cpp
     NEEDS zengine-composer zengine-inventory zengine-inventory-pane
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
+                # The tree itself, for the case that reads every shape name its components declare.
+                "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\"" "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
                 "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
