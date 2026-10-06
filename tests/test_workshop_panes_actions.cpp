@@ -2266,6 +2266,54 @@ TEST_CASE("the band and the Hotkeys pane teach the application's keys as they ar
     CHECK(hotkeys_pane_text(r).find("more below") != std::string::npos);
 }
 
+TEST_CASE("the Hotkeys pane's example row names a chord no pane on the desk declares") {
+    // ⚔ MUTATION: the example naming `ctrl+g`, which Flow declares for asking for native C++ --
+    // a weaver who copies it is told the two collide.
+    // THE DESKTOP, AND THE PANES BESIDE IT that declare keys of their own, by one plan.
+    PaneRig r;
+    r.mount_workshop();
+    load::LoadPlan plan;
+    for (const auto& [stem, office] : std::vector<std::pair<std::string, std::string>>{
+             {"zengine-desktop-pane", "zengine.desktop"},
+             {"zengine-flow-pane", "zengine.flow"},
+             {"zengine-info-pane", "zengine.info"}}) {
+        load::ArtifactIntent artifact;
+        artifact.stem = stem;
+        artifact.weave = load::WeaveIntent{office};
+        plan.artifacts.push_back(artifact);
+    }
+    const load::Executed loaded = r.run_plan(plan);
+    REQUIRE_MESSAGE(loaded.ok, loaded.refusal);
+    r.ready();
+    r.extent(200, 60);
+    // THE HOTKEYS PANE, MADE TALL, so its footer's example is on it.
+    r.key(input::scan::kK, input::mod::kCtrl);
+    REQUIRE(author_pane_size(r.session().setup.active, PaneRef{kDesktopRole, dp::kHotkeysPane},
+                             PaneSize{pane_unit::kPixels, cells_px(180)},
+                             PaneSize{pane_unit::kPixels, cells_px(40)})
+                .accepted);
+    r.extent(200, 60);
+    const std::string keys = hotkeys_pane_text(r);
+    const std::string lead = "\"gesture\": \"";
+    const std::size_t at = keys.find("or write {");
+    REQUIRE_MESSAGE(at != std::string::npos, keys);
+    const std::size_t from = keys.find(lead, at);
+    REQUIRE(from != std::string::npos);
+    const std::size_t chord_at = from + lead.size();
+    const std::string chord = keys.substr(chord_at, keys.find('"', chord_at) - chord_at);
+    REQUIRE_FALSE(chord.empty());
+    // EVERY ROW IN FORCE, the panes' own included: none answers to the example's chord.
+    const KeymapShown shown = keymap_shown(r.session(), std::string(), std::string());
+    std::size_t flow_rows = 0;
+    for (const ShownBinding& row : shown.rows) {
+        CAPTURE(row.id);
+        CAPTURE(row.group);
+        CHECK(row.gesture != chord);
+        flow_rows += row.id == "ask-generate" ? 1u : 0u;
+    }
+    REQUIRE(flow_rows == 1); // Flow's rows are in force, so the reading covers them
+}
+
 TEST_CASE("a keymap row written for an id whose owner changed is read as its successor, once, and "
           "the load says which rename to make") {
     // ⚔ MUTATION: dropping the renamed-id pass in `join_app_rows` -- `desktop.terminal` stays
