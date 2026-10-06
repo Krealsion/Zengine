@@ -35,7 +35,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 64; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 68; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -52,6 +52,8 @@ class GuestVocabulary final
                      zengine::demo::DemoReadyRequested,
                      zengine::workshop::PaneViewRequested, zengine::workshop::PaneView, zengine::workshop::PanePointRequested, zengine::workshop::PanePoint,
                      zengine::workshop::DeskViewRequested, zengine::workshop::DeskView,
+                     zengine::workshop::v2::PaneViewRequested, zengine::workshop::v2::PaneView,
+                     zengine::workshop::v2::PanePointRequested, zengine::workshop::v2::PanePoint,
                      zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,
                      zengine::input::PointerMotionRequested, zengine::input::InjectInput, zengine::input::InputInjected,
                      zengine::input::InputSessionClosed,

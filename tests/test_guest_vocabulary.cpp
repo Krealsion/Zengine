@@ -43,6 +43,8 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<ws::DeskViewRequested>(), loom::schema_of<ws::DeskView>(),
             loom::schema_of<ws::DeskPane>(), loom::schema_of<ws::DeskMenu>(),
             loom::schema_of<ws::PaneWord>(), loom::schema_of<ws::DeskRect>(),
+            loom::schema_of<ws::v2::PaneViewRequested>(), loom::schema_of<ws::v2::PaneView>(),
+            loom::schema_of<ws::v2::PanePointRequested>(), loom::schema_of<ws::v2::PanePoint>(),
             loom::schema_of<in::InjectInput>(),           loom::schema_of<in::InjectedEvent>(),
             loom::schema_of<in::InputInjected>(),         loom::schema_of<in::InputSessionClosed>(),
             loom::schema_of<su::SurfaceCaptureRequested>(), loom::schema_of<su::SurfaceCaptured>(),

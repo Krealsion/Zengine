@@ -105,5 +105,37 @@ struct DeskView {
               ZEN_FIELD(room), ZEN_FIELD(panes), ZEN_FIELD(arranging), ZEN_FIELD(menu));
 };
 
+namespace v2 {
+
+/// A pane's words, text or canvas alike: a text pane's rows, a canvas pane's labels and text runs
+/// as it drew them last, each with its place. `canvas` says which the pane draws.
+struct PaneViewRequested {
+    std::string provider, pane;
+    ZEN_SHAPE(PaneViewRequested, 2, ZEN_FIELD(provider), ZEN_FIELD(pane));
+};
+struct PaneView {
+    std::string provider, pane;
+    std::int64_t picture = 0;
+    bool canvas = false;
+    std::vector<PaneWord> words;
+    ZEN_SHAPE(PaneView, 2, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture),
+              ZEN_FIELD(canvas), ZEN_FIELD(words));
+};
+/// Where one character of one word is now, for a caller that read the words at `picture`.
+struct PanePointRequested {
+    std::string provider, pane;
+    std::int64_t picture = 0, word = 0, column = 0;
+    ZEN_SHAPE(PanePointRequested, 2, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture),
+              ZEN_FIELD(word), ZEN_FIELD(column));
+};
+struct PanePoint {
+    std::string provider, pane;
+    std::int64_t picture = 0, word = 0, column = 0, x = 0, y = 0, space = 0;
+    ZEN_SHAPE(PanePoint, 2, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture), ZEN_FIELD(word),
+              ZEN_FIELD(column), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(space));
+};
+
+} // namespace v2
+
 } // namespace zengine::workshop
 #endif
