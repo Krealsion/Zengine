@@ -1694,3 +1694,66 @@ TEST_CASE("the shipped catalog stays admissible with the new rows") {
     CHECK(moved.action_for(KeyContext::kArrangePane, input::scan::kX, input::mod::kNone) ==
           Act::kManageRemove);
 }
+
+namespace {
+
+/// The spellings the hotkeys guide gives a weaver to type into `Modify (type a spelling)`: the
+/// code spans of that row's second cell, as a weaver reads them.
+std::vector<std::string> hotkeys_guide_typed_spellings() {
+    std::ifstream guide(std::string(ZENGINE_SOURCE_DIR) + "/docs/workshop/hotkeys.md");
+    REQUIRE(guide);
+    std::string line;
+    while (std::getline(guide, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        const std::string row = "| `Modify (type a spelling)` |";
+        if (line.rfind(row, 0) != 0) continue;
+        std::vector<std::string> spelled;
+        std::size_t at = row.size();
+        while ((at = line.find('`', at)) != std::string::npos) {
+            const std::size_t end = line.find('`', at + 1);
+            REQUIRE(end != std::string::npos);
+            spelled.push_back(line.substr(at + 1, end - at - 1));
+            at = end + 1;
+        }
+        return spelled;
+    }
+    FAIL("the hotkeys guide has no `Modify (type a spelling)` row");
+    return {};
+}
+
+} // namespace
+
+TEST_CASE("the keys the hotkeys guide gives to type are keys no pane on the desk declares") {
+    // ⚔ MUTATION: the guide spelling `ctrl+g`, Flow's own chord for asking for native C++ -- a
+    // weaver who types it for another action is told the two collide.
+    PaneRig r;
+    r.mount_workshop();
+    load::LoadPlan plan;
+    for (const auto& [stem, office] : std::vector<std::pair<std::string, std::string>>{
+             {"zengine-desktop-pane", "zengine.desktop"},
+             {"zengine-flow-pane", "zengine.flow"},
+             {"zengine-info-pane", "zengine.info"}}) {
+        load::ArtifactIntent artifact;
+        artifact.stem = stem;
+        artifact.weave = load::WeaveIntent{office};
+        plan.artifacts.push_back(artifact);
+    }
+    const load::Executed loaded = r.run_plan(plan);
+    REQUIRE_MESSAGE(loaded.ok, loaded.refusal);
+    r.ready();
+    r.extent(200, 60);
+    const std::vector<std::string> spelled = hotkeys_guide_typed_spellings();
+    REQUIRE(spelled.size() >= 2);
+    // EVERY ROW IN FORCE, the panes' own included: none answers to a spelling the guide gives.
+    const KeymapShown shown = keymap_shown(r.session(), std::string(), std::string());
+    std::size_t flow_rows = 0;
+    for (const ShownBinding& row : shown.rows) {
+        CAPTURE(row.id);
+        for (const std::string& key : spelled) {
+            CAPTURE(key);
+            CHECK(row.gesture != key);
+        }
+        flow_rows += row.id == "ask-generate" ? 1u : 0u;
+    }
+    REQUIRE(flow_rows == 1); // Flow's rows are in force, so the reading covers them
+}
