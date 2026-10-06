@@ -692,7 +692,8 @@ arithmetic, and keeps its own meaning, names and hit testing:
   inset in from the left and keeps that inset free at the right, for a caret after a full row's
   last character.
 - `rows_picture(room, picture, rows, parts, caret)` draws `SurfaceTextRow`s there: the room's
-  ground (`kGround`) beneath, one unpadded run a row with its role and ground, a row's blanks after
+  ground (`kGround`) beneath, one unpadded run a row with its role and ground -- a row's ground
+  also laid across the room's whole width beneath it, as a prose row's is -- a row's blanks after
   its last character dropped unless a ground, the caret or the selection stands on them, a caret
   after the last character given the blank after it where the row has one, the caret and
   selection said as `v2::PaneCaret` says them (`RowsCaret`), and each `PaneRowPart` as the

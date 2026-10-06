@@ -888,10 +888,17 @@ TEST_CASE("a pane's rows drawn on its canvas stand where its prose rows would, n
         CHECK(p.texts[0].text == "HEADING");
         CHECK(p.texts[0].y == lattice.row_y(0));
         CHECK(p.texts[0].role == surface::role::kAccent);
-        // A ROW WITH A GROUND carries it blank to the row's end.
+        // A ROW WITH A GROUND carries it blank to the row's end, and lies on it across the room's
+        // whole width, where a window's lattice stops short of the edge.
         CHECK(p.texts[1].text.size() == static_cast<std::size_t>(lattice.columns));
         CHECK(p.texts[1].text.rfind("> chosen", 0) == 0);
         CHECK(p.texts[1].background == surface::role::kMuted);
+        REQUIRE(p.rects.size() == 2);
+        CHECK(p.rects[1].role == surface::role::kMuted);
+        CHECK(p.rects[1].x == 0);
+        CHECK(p.rects[1].y == lattice.row_y(1));
+        CHECK(p.rects[1].w == room.width);
+        CHECK(p.rects[1].h == lattice.line);
         CHECK(p.texts[2].text == "  other");
         CHECK(p.texts[2].background == surface::role::kNone);
         // THE CARET AND THE SELECTION stand in the run of their row.
