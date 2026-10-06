@@ -71,15 +71,13 @@ std::string WorkshopWeave::visible_body(const std::string& provider, const std::
     return {};
 }
 
-// THE CENTER OF ONE PROSE CELL, in the space input for this medium is read in -- the inverse the
-// press measurer resolves, checked by resolving it.
-bool WorkshopWeave::cell_center(const VisibleBody& visible, std::int64_t row, std::int64_t column,
-                                std::int64_t& x, std::int64_t& y, std::int64_t& space,
-                                bool exact_column) const {
+// THE CENTER OF ONE CELL OF A BODY ROW, in the space input for this medium is read in, and what
+// the press measurer resolves it to -- the inverse it measures.
+ExternalPressAt WorkshopWeave::cell_point(const VisibleBody& visible, std::int64_t row,
+                                          std::int64_t cell, std::int64_t& x, std::int64_t& y,
+                                          std::int64_t& space) const {
     const auto sc = screen_of(session_);
     const auto& body = visible.body;
-    // The cell showing the character: past a caret a fit in cells draws as a glyph of its own.
-    const std::int64_t cell = drawn_column(column, external_caret_glyph(visible.content, body.fit, row));
     if (sc.text_advance_px > 0 && sc.text_line_px > 0) {
         space = input::space::kPixels;
         if (body.fit.graphical()) {
@@ -94,9 +92,18 @@ bool WorkshopWeave::cell_center(const VisibleBody& visible, std::int64_t row, st
         x = surface::cell_of_pixel(body.region_x)+cell;
         y = surface::cell_of_pixel(body.region_y)+row+body.header_rows+surface::kTuiCanvasTopRow;
     }
-    const auto hit = external_press_at(session_.panes, session_.setup.active, sc, visible.kind,
-        session_.pane_titles, space, x, y);
-    return hit.named && hit.row == row && (!exact_column || hit.column == column);
+    return external_press_at(session_.panes, session_.setup.active, sc, visible.kind,
+                             session_.pane_titles, space, x, y);
+}
+
+// THE CENTER OF THE CELL SHOWING ONE CHARACTER -- past a caret a fit in cells draws as a glyph of
+// its own -- checked by resolving it to that row and column.
+bool WorkshopWeave::cell_center(const VisibleBody& visible, std::int64_t row, std::int64_t column,
+                                std::int64_t& x, std::int64_t& y, std::int64_t& space) const {
+    const std::int64_t cell =
+        drawn_column(column, external_caret_glyph(visible.content, visible.body.fit, row));
+    const auto hit = cell_point(visible, row, cell, x, y, space);
+    return hit.named && hit.row == row && hit.column == column;
 }
 
 void WorkshopWeave::on(const PaneViewRequested& asked, loom::Mail& mail) {
@@ -110,8 +117,11 @@ void WorkshopWeave::on(const PaneViewRequested& asked, loom::Mail& mail) {
     for (std::int64_t row = 0; row < body.rows && row < static_cast<std::int64_t>(content->shown.size()); ++row) {
         PaneViewRow out;
         out.row = row;
-        const auto column = std::min<std::int64_t>(2, body.columns-1);
-        if (!cell_center(visible, row, column, out.x, out.y, out.space, false)) {
+        // The row's third cell, or its last in a narrower body: a cell of the body whatever a
+        // caret's glyph stands before it.
+        const auto hit = cell_point(visible, row, std::min<std::int64_t>(2, body.columns - 1),
+                                    out.x, out.y, out.space);
+        if (!hit.named || hit.row != row) {
             (void)mail.answer(loom::Refused{"pane has no addressable row center"}); return;
         }
         out.text = detail::fit(content->shown[static_cast<std::size_t>(row)].text, body.columns);
@@ -133,7 +143,7 @@ void WorkshopWeave::on(const PanePointRequested& asked, loom::Mail& mail) {
         (void)mail.answer(loom::Refused{"pane point unavailable: outside the pane's visible text"}); return;
     }
     PanePoint reply{asked.provider, asked.pane, asked.picture, asked.row, asked.column, 0, 0, 0};
-    if (!cell_center(visible, asked.row, asked.column, reply.x, reply.y, reply.space, true)) {
+    if (!cell_center(visible, asked.row, asked.column, reply.x, reply.y, reply.space)) {
         (void)mail.answer(loom::Refused{"pane point unavailable: that cell is not addressable"}); return;
     }
     (void)mail.answer(reply);
@@ -184,15 +194,15 @@ void glyph_point(const GlyphGrid& g, std::int64_t row, std::int64_t column, std:
 
 /// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row` over its bytes' cells of the
 /// grid and the caret glyph a terminal draws into it at `caret`, and its middle byte's centre as
-/// the place a press names it.
+/// the place a press names it -- or, with no byte to name, its first cell, the caret's own.
 PaneWord word_on(const GlyphGrid& g, std::int64_t row, std::int64_t column, std::string text,
                  std::int64_t caret, std::int64_t space) {
     PaneWord w;
     const std::int64_t bytes = static_cast<std::int64_t>(text.size());
     const std::int64_t n = (std::max<std::int64_t>)(1, bytes + (caret >= 0 ? 1 : 0));
     w.place = DeskRect{g.x + column * g.advance, g.y + row * g.line, n * g.advance, g.line};
-    glyph_point(g, row, column + drawn_column(bytes > 0 ? (bytes - 1) / 2 : 0, caret), space, w.x,
-                w.y);
+    glyph_point(g, row, column + (bytes > 0 ? drawn_column((bytes - 1) / 2, caret) : 0), space,
+                w.x, w.y);
     w.space = space;
     w.text = std::move(text);
     return w;
@@ -419,7 +429,7 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
     v2::PanePoint reply{asked.provider, asked.pane, asked.picture, asked.word, asked.column, 0, 0, 0};
     bool resolved = false;
     if (!visible.canvas) {
-        resolved = cell_center(visible, asked.word, asked.column, reply.x, reply.y, reply.space, true);
+        resolved = cell_center(visible, asked.word, asked.column, reply.x, reply.y, reply.space);
     } else {
         const auto at_word = static_cast<std::size_t>(asked.word);
         const DeskRect& place = words[at_word].place;

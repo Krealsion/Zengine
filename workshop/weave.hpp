@@ -465,8 +465,10 @@ public:
                                         std::vector<WordGlyphs>* glyphs = nullptr) const;
     void on(const v2::PaneViewRequested& asked, loom::Mail& mail);
     void on(const v2::PanePointRequested& asked, loom::Mail& mail);
+    ExternalPressAt cell_point(const VisibleBody& visible, std::int64_t row, std::int64_t cell,
+                               std::int64_t& x, std::int64_t& y, std::int64_t& space) const;
     bool cell_center(const VisibleBody& visible, std::int64_t row, std::int64_t column,
-                     std::int64_t& x, std::int64_t& y, std::int64_t& space, bool exact_column) const;
+                     std::int64_t& x, std::int64_t& y, std::int64_t& space) const;
     void on(const DeskViewRequested& asked, loom::Mail& mail);
     /// The desk as Workshop holds it now: every pane on it, the room, arranging and the menu.
     DeskView desk_view() const;
