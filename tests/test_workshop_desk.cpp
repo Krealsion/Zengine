@@ -10,9 +10,13 @@
 #include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
 
+#include <algorithm>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 namespace {
