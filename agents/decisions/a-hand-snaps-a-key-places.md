@@ -11,9 +11,9 @@ and sets every snap aside while Alt is held.
 
 **Decision.** A hand's proposal snaps before the one gesture door (`snap_pane_window`): each
 edge it moves comes to the nearest line within `kPaneSnapReachPx` -- the room's edges and every
-other pane's -- that a pane's rules allow, the lines measured on the desk as the motion's write
-will leave it (`pane_window_axes`, the write's own axes on a copy), since a pane moved out of the
-stack lets the panes below it rise. The line met is kept in the gesture
+other pane's on the screen -- that a pane's rules allow, measured on the desk as the motion's
+write will leave it (`pane_window_axes`, the write's own axes on a copy), since a pane moved out
+of the stack lets the panes below it rise. The line met is kept in the gesture
 (`PaneGesture::met_x`, `met_y`), marked across the room on the affordance plane a device unit
 wide, and said in the status. Alt held sets it aside; the keys and a typed value place exactly.
 Every motion snaps afresh from the press, so a snap leaves an ordinary place and size in whole
