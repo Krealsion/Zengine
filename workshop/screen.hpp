@@ -904,6 +904,16 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
                                                std::int64_t base_h, std::int64_t dx,
                                                std::int64_t dy) noexcept;
 
+/// WHAT A WINDOW PROPOSAL WRITES through the gesture door (`author_pane_window`), measured from the
+/// window it was proposed against: a place on an axis the proposal moved and changed, an extent on
+/// an axis it changed. The hand's write and the desk a snap measures are made from the same axes.
+struct PaneWindowAxes {
+    PaneAxisProposal horizontal;
+    PaneAxisProposal vertical;
+};
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base);
+
 /// THE LINES AN EDGE THE HAND MOVES MAY MEET, in the room: the room's own edges and every edge
 /// of every other pane on the screen.
 // WL-ARR-17 -- agents/workshop/arrangement-snap.md

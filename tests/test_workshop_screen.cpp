@@ -2091,6 +2091,54 @@ TEST_CASE("in a terminal a hand moving by cells meets an edge between them, and 
     release_at(t, cell_x + 68, cell_y, input::space::kCells);
 }
 
+TEST_CASE("a pane dragged out of the stack meets the desk as its move leaves it, the pane below risen") {
+    // ⚔ MUTATION: the lines measured with the held pane where it stands. The move takes it out of
+    // the stack and the pane below rises into its slot, so a snap to that pane's edge as it stood
+    // meets a line nothing stands on once the write lands -- and one motion keeps that place.
+    const auto stacked = [](FineRig& t, PixelRect& first, PixelRect& below) {
+        open_pane(t, ref_of(second::kKind));
+        select_pane(t, ref_of(stock::kKind));
+        const Screen sc = screen_of(t.session());
+        first = t.builder_rect();
+        below = bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect;
+        REQUIRE(below.x == first.x);
+        REQUIRE(below.y > first.y + first.h); // the second stacked under the first
+    };
+    SUBCASE("an edge the pane below leaves is no line") {
+        FineRig t;
+        PixelRect first, below;
+        stacked(t, first, below);
+        const std::int64_t press_x = first.x + 30;
+        const std::int64_t press_y = first.y + 20;
+        t.press_at(press_x, press_y, input::space::kPixels);
+        // ONE MOTION, the top coming four pixels past where the second's top stood.
+        const std::int64_t dy = below.y + 4 - first.y;
+        t.motion_at(press_x, press_y + dy, input::space::kPixels);
+        // The second rose to the column's top, and the hand's place stands: nothing is there.
+        CHECK(bounds_of(t.session().panes, t.session().setup.active, second::kKind,
+                        screen_of(t.session()))
+                  .rect.y == first.y);
+        CHECK(t.builder_row()->place.y == below.y + 4 - t.room_y());
+        CHECK(snap_marks(t).ys.empty());
+        release_at(t, press_x, press_y + dy, input::space::kPixels);
+    }
+    SUBCASE("an edge the pane below rises to is a line") {
+        FineRig t;
+        PixelRect first, below;
+        stacked(t, first, below);
+        const std::int64_t press_x = first.x + 30;
+        const std::int64_t press_y = first.y + 20;
+        t.press_at(press_x, press_y, input::space::kPixels);
+        // ONE MOTION, the top coming four pixels under where the risen second's bottom will be.
+        const std::int64_t risen_bottom = first.y + below.h;
+        const std::int64_t dy = risen_bottom + 4 - first.y;
+        t.motion_at(press_x, press_y + dy, input::space::kPixels);
+        CHECK(t.builder_row()->place.y == risen_bottom - t.room_y());
+        CHECK(snap_marks(t).ys == std::vector<std::int64_t>{risen_bottom - t.room_y()});
+        release_at(t, press_x, press_y + dy, input::space::kPixels);
+    }
+}
+
 TEST_CASE("a one-pixel drag moves a pane by exactly one pixel of lattice") {
     FineRig t;
     // IN THE OPEN, away from every line a snap could meet, so the hand alone moves it.

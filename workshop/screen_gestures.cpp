@@ -171,6 +171,26 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
     return out;
 }
 
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base) {
+    PaneWindowAxes out;
+    out.horizontal.base = base.x;
+    if (want.place_moved_x && want.x != base.x) {
+        out.horizontal.position = want.x;
+    }
+    if (want.w != base.w) {
+        out.horizontal.extent = PaneSize{pane_unit::kPixels, want.w};
+    }
+    out.vertical.base = base.y;
+    if (want.place_moved_y && want.y != base.y) {
+        out.vertical.position = want.y;
+    }
+    if (want.h != base.h) {
+        out.vertical.extent = PaneSize{pane_unit::kPixels, want.h};
+    }
+    return out;
+}
+
 // ---- A hand's proposal, snapped ---------------------------------------------------------
 
 namespace {
