@@ -68,7 +68,7 @@ def prepare(ctx, hand, path):
     hand.ask("zengine.inventory", "InventoryCaptureAdd", {"target_role": "zengine.input", "label": LABELS["sample"]})
     hand.ask("zengine.inventory", "InventoryCaptureAdd", {"target_role": "zengine.input", "label": LABELS["note"]})
     ctx.step("store an incomplete capture preset and its complete command through Compose")
-    hand.click(hand.row(*LOADED, "zengine-inventory ", scroll=True))
+    hand.click(hand.part(*LOADED, "weave:zengine-inventory", scroll=True))
     hand.click(hand.row(*COMP, "InventoryCaptureAdd v1", scroll=True))
     hand.click(hand.row(*COMP, "label:")); hand.text(RESULT)
 
@@ -131,7 +131,7 @@ def story(ctx, hand, link, pictures, shots):
     expect(hand, PRESET, "target_role: zengine.input")
 
     ctx.step("use the finished preset explicitly through Compose")
-    hand.click(hand.row(*LOADED, "zengine-inventory ", scroll=True))
+    hand.click(hand.part(*LOADED, "weave:zengine-inventory", scroll=True))
     hand.drag(hand.row(*INV, LABELS["preset"], scroll=True), hand.view(*COMP)["rows"][0], 350)
     expect(hand, COMP, "Copied data into form")
     hand.key("ctrl+enter")

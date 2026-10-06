@@ -49,6 +49,8 @@ def run(ctx):
 
     ctx.check(not any(e['label'].startswith(label) for e in entries()), 'choose a fresh label')
     ctx.step('select the real skin as the receiving command target')
+    # The skin's weave is named for its medium (zengine-skin-<medium>), so its Loaded row is found
+    # by what it says: the one row naming a skin, as Workshop reads it in a text or a canvas pane.
     hand.click(hand.row('zengine.introspection', 'loaded', 'zengine-skin-', scroll=True))
     hand.click(hand.row(*comp, 'SurfaceText v1', scroll=True))
     setup = layout('presets')

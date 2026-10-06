@@ -10,7 +10,7 @@ def run(ctx):
     before = ctx.ask(ROLE, "DemoStatusRequested", {}, via=link)
     hand = Hand(ctx, link)
     try:
-        hand.click(hand.row(ROLE, "controls", "Reset demo"))
+        hand.click(hand.part(ROLE, "controls", "control:reset"))
     finally:
         hand.close()
     result = ctx.ask(ROLE, "DemoReadyRequested", {"generation": before["generation"] + 1}, via=link)

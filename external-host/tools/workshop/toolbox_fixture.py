@@ -34,7 +34,7 @@ def run(ctx):
         setup = layout("presets")
         hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)
         hand.ask("zengine.inventory", "InventoryCaptureAdd", {"target_role": "zengine.input", "label": output_name})
-        hand.click(hand.row("zengine.introspection", "loaded", "zengine-inventory ", scroll=True))
+        hand.click(hand.part("zengine.introspection", "loaded", "weave:zengine-inventory", scroll=True))
         hand.click(hand.row("zengine.composer", "compose", "InventoryCaptureAdd v1", scroll=True))
         hand.click(hand.row("zengine.composer", "compose", "target_role:")); hand.text("zengine.input")
         hand.click(hand.row("zengine.composer", "compose", "label:")); hand.text(output_name)
