@@ -675,6 +675,12 @@
         "InventoryEntry v1",
         "PaneViewRequested v1",
         "PaneView v1",
+        "DeskViewRequested v1",
+        "DeskView v1",
+        "PaneViewRequested v2",
+        "PaneView v2",
+        "PanePointRequested v2",
+        "PanePoint v2",
         "InventoryList v2",
         "InventoryListed v2",
         "InventoryAdd v2",
@@ -2085,7 +2091,13 @@
         "PaneViewRequested v1",
         "PaneView v1",
         "PanePointRequested v1",
-        "PanePoint v1"
+        "PanePoint v1",
+        "DeskViewRequested v1",
+        "DeskView v1",
+        "PaneViewRequested v2",
+        "PaneView v2",
+        "PanePointRequested v2",
+        "PanePoint v2"
       ],
       "terms": [
         "place",
