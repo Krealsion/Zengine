@@ -153,6 +153,7 @@ PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_pro
 `desktop-pane/pane.cpp` `launcher_part`, `keys_part`; `info-pane/pane.cpp` `named_rows`;
 `info-pane/value_view.hpp` `part_name`; `files/files.cpp` `part_name`; `builder-pane/pane.cpp`
 `part_name`; `inventory-pane/pane.cpp` `part_name`; `terminal-pane/pane.cpp` `named_rows`;
+`composer/view.hpp` `part_name`; `introspection/introspection.cpp` `loaded_parts`, `powers_parts`;
 `tests/test_workshop_panes_button.cpp` case `"WL-HAND-06:
 the shipped presenter names each row's line by its id, and a press at that name's point chooses
 it"`; `tests/test_workshop_panes_desktop.cpp` case `"WL-HAND-06: the Pane Manager names each row
@@ -166,6 +167,12 @@ names its controls by operation and a recipe's row by the recipe"`;
 `tests/test_workshop_inventory_folders.cpp` case `"WL-HAND-06: Inventory names its entries,
 folders, crumbs and controls by what each is"`; `tests/test_workshop_panes_terminal.cpp` case
 `"WL-HAND-06: the Terminal names the line being typed and each candidate by what it says"`;
+`tests/test_workshop_panes_attention.cpp` case `"WL-HAND-06: Attention names each condition's row
+by its key"`; `tests/test_workshop_demo.cpp` case `"WL-HAND-06: the demo controls name their reset
+row and the state beneath it"`; `tests/test_workshop_panes_introspection.cpp` case `"WL-HAND-06:
+Loaded names each loaded weave's row, and Powers its controls and each power's row"`;
+`tests/test_composer.cpp` case `"WL-HAND-06: the Composer names a message by its identity, a field
+by its name and its two controls by what they do"`;
 `tests/test_workshop_desk.cpp`
 case `"a row
 map's parts are named by what each span means, and a name nothing, one the judge would refuse or

@@ -14,7 +14,7 @@ class Control final : public loom::WeaveBase<Control, DemoStatus,
     loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PanePressed,
                  DemoServiceOpened, DemoServiceClosed, DemoWorkRequested, DemoWorkFinished,
                  DemoResetRequested, DemoStatusRequested, DemoReadyRequested>,
-    loom::Emit<ws::v2::PaneOffered, ws::PaneContent, DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
+    loom::Emit<ws::v2::PaneOffered, ws::v4::PaneContent, DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
 public:
     void on(const loom::Activated& a, loom::Mail& m) {
         if (!activation_.accept(m, a)) return;
@@ -122,7 +122,12 @@ private:
             if (static_cast<std::int64_t>(rows.size()) == rows_) break;
             rows.push_back({ws::pane_text::drawable(ws::pane_text::fit(text, columns_)), surface::role::kFill});
         }
-        m.as_role(kRole).send_to_role("zengine.workshop", ws::PaneContent{"controls", std::move(rows)});
+        // THE RESET ROW IS NAMED `control:reset`, and the state beneath it `status`.
+        std::vector<ws::PaneRowPart> parts;
+        if (rows.size() > 1) parts.push_back(ws::PaneRowPart{"control:reset", 1, 0, columns_});
+        if (rows.size() > 2) parts.push_back(ws::PaneRowPart{"status", 2, 0, columns_});
+        m.as_role(kRole).send_to_role("zengine.workshop",
+                                      ws::v4::PaneContent{"controls", std::move(rows), 0, 0, std::move(parts)});
     }
     zengine::ActivationCursor activation_;
     loom::WeaveId worker_{};
