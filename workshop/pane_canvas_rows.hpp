@@ -91,7 +91,8 @@ struct RowsCaret {
 
 /// A PANE'S ROWS AS ITS PICTURE in `room`, numbered `picture`: the room's ground beneath them, one
 /// unpadded run for each row the lattice holds, cut to its columns -- its role, its ground blank
-/// to the row's end where it names one, and the caret and the selection that stand in it -- and
+/// to the row's end where it names one, laid across the room's whole width beneath it as a prose
+/// row's is, and the caret and the selection that stand in it -- and
 /// each of `parts`, in their order, the rectangle its row and columns cover. A row's blanks after
 /// its last character go, unless a ground, the caret or the selection stands on them, and a caret
 /// after the last character is given the blank after it where the row has one; a row with
@@ -131,6 +132,10 @@ inline v5::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64
                         : keep,
                     ' ');
         if (text.empty() && !has_caret) continue;
+        if (row.background != surface::role::kNone) {
+            out.rects.push_back(
+                PaneCanvasRect{0, lattice.row_y(r), room.width, lattice.line, row.background});
+        }
         out.texts.push_back(v2::PaneCanvasText{
             lattice.x, lattice.row_y(r), std::move(text), row.role,
             has_caret ? caret.column : surface::kNoCaret,
