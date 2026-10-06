@@ -137,7 +137,7 @@ LAW — A pane names each row, control and element a weaver acts on from what it
 
 MEANS
 - the names ride with the picture they name and are judged with it: a name once, on what it says;
-- a text part covers the cells showing its columns, a caret's glyph among them; a canvas part, its rectangle as shown;
+- a text part covers the cells showing its columns, a caret's glyph among them, a canvas part its rectangle as shown; its point is one no part inside it covers;
 - a pane redrawn as a picture keeps the names its rows had, so a name an agent wrote still holds.
 
 DOES NOT MEAN
@@ -146,7 +146,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_problem`,
 `canvas_parts_problem`, `PartNames`, `row_parts`; `workshop/weave_inspection.cpp` `visible_parts`,
-`row_part_on`, `canvas_part_on`, `desk_menu`; `workshop/screen_attention.cpp`
+`row_part_on`, `canvas_part_on`, `inside_part`, `own_point`, `desk_menu`; `workshop/screen_attention.cpp`
 `context_line_names`; `workshop/weave_seam.cpp` `admit_content`, `on(v4::PaneContent)`;
 `workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v4::PaneCanvasContent)`;
 `workshop/weave_external.cpp` `admit_menu_lines`; `menu-presenter/presenter.cpp` `show`;
@@ -199,7 +199,10 @@ the last good one stays"`, case `"the desk names the lines of Workshop's own men
 group each shows, over the line it is drawn on"`, case `"a pane's names survive the canvas: its
 next image draws a picture under the names its rows had, and each is pressed where the picture
 draws it"`, case `"every place a named part gives is where the medium draws its words, in a
-window and in a terminal"`.
+window and in a terminal"`, case `"a part's point is a character of its own: a row with a control
+inside it is pressed beside the control, and the control on itself, in a window and in a
+terminal"`, case `"a canvas part's point is its own: a part with another over its centre is pressed
+where nothing inside it is, and a part a terminal paints on no cell is not said there"`.
 WHY — `agents/decisions/a-pane-names-its-parts.md`
 
 ## Do not assume

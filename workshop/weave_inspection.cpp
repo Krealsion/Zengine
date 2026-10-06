@@ -8,6 +8,10 @@
 #include "weave.hpp"
 #include "screen_canvas.hpp"
 
+#include <algorithm>
+#include <optional>
+#include <utility>
+
 namespace zengine::workshop {
 
 // A PANE'S VISIBLE TEXT BODY, OR WHY THERE IS NONE: the one validation both the row reading and
@@ -215,13 +219,26 @@ std::string without_trailing_blanks(std::string text) {
     return text;
 }
 
+/// Whether `inner` lies inside `outer` and is not all of it: a part a press inside it names first.
+bool inside_part(const PaneRowPart& inner, const PaneRowPart& outer) {
+    return inner.row == outer.row && inner.column >= outer.column && inner.columns < outer.columns &&
+           inner.column + inner.columns <= outer.column + outer.columns;
+}
+
+bool inside_part(const PaneCanvasPart& inner, const PaneCanvasPart& outer) {
+    return inner.x >= outer.x && inner.y >= outer.y &&
+           surface::add_cells(inner.x, inner.w) <= surface::add_cells(outer.x, outer.w) &&
+           surface::add_cells(inner.y, inner.h) <= surface::add_cells(outer.y, outer.h) &&
+           (inner.w < outer.w || inner.h < outer.h);
+}
+
 /// ONE NAMED RUN OF A ROW WHERE A FIT DRAWS IT: the cells of `cells` that show its columns of
 /// `shown` -- past a caret glyph at `caret`, whose own cell stands for the caret's column -- the
-/// characters there, and the point of its middle one, or of its first cell where it shows none.
-/// False where no cell of the row shows any of its columns.
+/// characters there, and the point of its middle own one -- a character no part of `parts` inside
+/// it holds -- or of its first cell where it has none. False where no cell shows any of its columns.
 bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
                  std::int64_t caret, std::int64_t cells, const PaneRowPart& part,
-                 std::int64_t space, PanePart& out) {
+                 const std::vector<PaneRowPart>& parts, std::int64_t space, PanePart& out) {
     const std::int64_t end = part.column + part.columns;
     const std::int64_t first = part.column + (caret >= 0 && part.column > caret ? 1 : 0);
     const std::int64_t last =
@@ -235,8 +252,20 @@ bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
     out.place = DeskRect{g.x + first * g.advance, g.y + row * g.line, (last - first + 1) * g.advance,
                          g.line};
     const auto bytes = static_cast<std::int64_t>(out.text.size());
-    glyph_point(g, row, bytes > 0 ? drawn_column(part.column + (bytes - 1) / 2, caret) : first,
-                space, out.x, out.y);
+    std::vector<char> held(static_cast<std::size_t>(bytes), 0);
+    for (const PaneRowPart& inner : parts) {
+        if (!inside_part(inner, part)) continue;
+        for (std::int64_t c = inner.column; c < inner.column + inner.columns && c < part.column + bytes;
+             ++c) {
+            held[static_cast<std::size_t>(c - part.column)] = 1;
+        }
+    }
+    std::vector<std::int64_t> own;
+    for (std::int64_t c = 0; c < bytes; ++c) {
+        if (!held[static_cast<std::size_t>(c)]) own.push_back(part.column + c);
+    }
+    const std::int64_t at = !own.empty() ? drawn_column(own[(own.size() - 1) / 2], caret) : first;
+    glyph_point(g, row, at, space, out.x, out.y);
     out.space = space;
     return true;
 }
@@ -254,30 +283,94 @@ std::string words_inside(const std::vector<PaneWord>& words, const DeskRect& pla
     return out;
 }
 
-/// ONE NAMED PART OF A PICTURE WHERE ITS BODY SHOWS IT: the part's rectangle cut to the body, the
-/// words inside it, and its centre as the point a press names it by -- the pixel in a window, the
-/// cell holding it in a terminal. False where the body shows none of it.
-bool canvas_part_on(const PixelRect& body, const PaneCanvasPart& part,
-                    const std::vector<PaneWord>& words, std::int64_t space, PanePart& out) {
+/// A canvas rectangle in a medium's own units -- pixels in a window, cells in a terminal -- as the
+/// medium shows [begin, end) on them: [floor(begin / unit), floor(end / unit)) on each axis.
+struct UnitBox {
+    std::int64_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+    bool empty() const { return x1 <= x0 || y1 <= y0; }
+};
+
+/// A part's local rectangle on the body, cut to it, in the medium's units.
+UnitBox units_of(const PixelRect& body, const PaneCanvasPart& part, std::int64_t unit) {
     const std::int64_t left = surface::add_cells(body.x, part.x);
     const std::int64_t top = surface::add_cells(body.y, part.y);
-    const std::int64_t x0 = (std::max)(body.x, left);
-    const std::int64_t y0 = (std::max)(body.y, top);
-    const std::int64_t x1 = (std::min)(body.x + body.w, surface::add_cells(left, part.w));
-    const std::int64_t y1 = (std::min)(body.y + body.h, surface::add_cells(top, part.h));
-    if (x1 <= x0 || y1 <= y0) return false;
-    out.name = part.name;
-    out.place = DeskRect{x0, y0, x1 - x0, y1 - y0};
-    out.text = words_inside(words, out.place);
-    const std::int64_t cx = x0 + (x1 - x0) / 2;
-    const std::int64_t cy = y0 + (y1 - y0) / 2;
-    if (space == input::space::kPixels) {
-        out.x = cx;
-        out.y = cy;
-    } else {
-        out.x = surface::cell_of_pixel(cx);
-        out.y = surface::cell_of_pixel(cy) + surface::kTuiCanvasTopRow;
+    return UnitBox{surface::floor_div_px((std::max)(body.x, left), unit),
+                   surface::floor_div_px((std::max)(body.y, top), unit),
+                   surface::floor_div_px((std::min)(body.x + body.w, surface::add_cells(left, part.w)), unit),
+                   surface::floor_div_px((std::min)(body.y + body.h, surface::add_cells(top, part.h)), unit)};
+}
+
+/// The middle of the widest stretch of [lo, hi) that no cut covers, or nothing where cuts cover all.
+std::optional<std::int64_t> middle_of_widest(std::int64_t lo, std::int64_t hi,
+                                             std::vector<std::pair<std::int64_t, std::int64_t>> cuts) {
+    std::sort(cuts.begin(), cuts.end());
+    std::optional<std::int64_t> best;
+    std::int64_t widest = 0;
+    std::int64_t at = lo;
+    const auto keep = [&](std::int64_t from, std::int64_t to) {
+        if (to - from > widest) {
+            widest = to - from;
+            best = from + (to - from - 1) / 2;
+        }
+    };
+    for (const auto& [from, to] : cuts) {
+        if (from > at) keep(at, (std::min)(from, hi));
+        at = (std::max)(at, to);
     }
+    if (at < hi) keep(at, hi);
+    return best;
+}
+
+/// WHERE A PRESS NAMES A PART AND NOTHING INSIDE IT: its centre unit, or, where a part inside it
+/// covers that, the middle of the widest uncovered stretch of the first line to have one -- its
+/// centre row, top row, bottom row, then centre, left and right columns. Else its centre.
+std::pair<std::int64_t, std::int64_t> own_point(const UnitBox& box, const std::vector<UnitBox>& held) {
+    const std::int64_t cx = box.x0 + (box.x1 - box.x0 - 1) / 2;
+    const std::int64_t cy = box.y0 + (box.y1 - box.y0 - 1) / 2;
+    if (std::none_of(held.begin(), held.end(), [cx, cy](const UnitBox& b) {
+            return cx >= b.x0 && cx < b.x1 && cy >= b.y0 && cy < b.y1;
+        })) {
+        return {cx, cy};
+    }
+    for (const std::int64_t y : {cy, box.y0, box.y1 - 1}) {
+        std::vector<std::pair<std::int64_t, std::int64_t>> cuts;
+        for (const UnitBox& b : held) {
+            if (y >= b.y0 && y < b.y1) cuts.emplace_back(b.x0, b.x1);
+        }
+        if (const auto x = middle_of_widest(box.x0, box.x1, std::move(cuts))) return {*x, y};
+    }
+    for (const std::int64_t x : {cx, box.x0, box.x1 - 1}) {
+        std::vector<std::pair<std::int64_t, std::int64_t>> cuts;
+        for (const UnitBox& b : held) {
+            if (x >= b.x0 && x < b.x1) cuts.emplace_back(b.y0, b.y1);
+        }
+        if (const auto y = middle_of_widest(box.y0, box.y1, std::move(cuts))) return {x, *y};
+    }
+    return {cx, cy};
+}
+
+/// ONE NAMED PART OF A PICTURE WHERE ITS BODY SHOWS IT: the part's rectangle cut to the body, the
+/// words inside it, and the point a press names it by and no part of `parts` inside it -- a pixel
+/// in a window, the cell the medium paints there in a terminal. False where the medium shows none.
+bool canvas_part_on(const PixelRect& body, const PaneCanvasPart& part,
+                    const std::vector<PaneCanvasPart>& parts, const std::vector<PaneWord>& words,
+                    std::int64_t space, PanePart& out) {
+    const std::int64_t unit = space == input::space::kPixels ? 1 : surface::kCanvasCellPx;
+    const UnitBox box = units_of(body, part, unit);
+    const UnitBox px = units_of(body, part, 1);
+    if (box.empty() || px.empty()) return false;
+    std::vector<UnitBox> held;
+    for (const PaneCanvasPart& inner : parts) {
+        if (!inside_part(inner, part)) continue;
+        const UnitBox b = units_of(body, inner, unit);
+        if (!b.empty()) held.push_back(b);
+    }
+    out.name = part.name;
+    out.place = DeskRect{px.x0, px.y0, px.x1 - px.x0, px.y1 - px.y0};
+    out.text = words_inside(words, out.place);
+    const auto [x, y] = own_point(box, held);
+    out.x = x;
+    out.y = space == input::space::kPixels ? y : y + surface::kTuiCanvasTopRow;
     out.space = space;
     return true;
 }
@@ -332,7 +425,7 @@ v2::DeskMenu desk_menu(const Session& s, const Screen& sc) {
         if (part.row < 0 || part.row >= static_cast<std::int64_t>(region.rows.size())) continue;
         PanePart drawn;
         if (row_part_on(grid, part.row, region.rows[static_cast<std::size_t>(part.row)].text, -1,
-                        place.columns, part, space, drawn)) {
+                        place.columns, part, named, space, drawn)) {
             menu.parts.push_back(std::move(drawn));
         }
     }
@@ -513,7 +606,7 @@ std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
     if (visible.canvas) {
         for (const PaneCanvasPart& part : content->canvas.parts) {
             PanePart drawn;
-            if (canvas_part_on(visible.canvas_body, part, words, space, drawn)) {
+            if (canvas_part_on(visible.canvas_body, part, content->canvas.parts, words, space, drawn)) {
                 out.push_back(std::move(drawn));
             }
         }
@@ -532,8 +625,8 @@ std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
         const std::string shown = content->shown[static_cast<std::size_t>(part.row)].text.substr(
             0, static_cast<std::size_t>(room));
         PanePart drawn;
-        if (row_part_on(grid, part.row + body.header_rows, shown, caret, body.columns, part, space,
-                        drawn)) {
+        if (row_part_on(grid, part.row + body.header_rows, shown, caret, body.columns, part,
+                        content->parts, space, drawn)) {
             out.push_back(std::move(drawn));
         }
     }

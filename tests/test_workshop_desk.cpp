@@ -1123,6 +1123,48 @@ TEST_CASE("a text pane's named parts are said under the pane's own names over th
     }
 }
 
+TEST_CASE("a part's point is a character of its own: a row with a control inside it is pressed beside the control, and the control on itself, in a window and in a terminal") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        DeskRig d;
+        if (window) {
+            d.r.extent_on_window(150, 60);
+        }
+        const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
+        REQUIRE(body.columns >= 20);
+        // THE ROW'S MIDDLE CHARACTER IS THE MARK'S: of `> [open] Files`'s fourteen, the seventh
+        // stands inside `[open]`. The second row is two controls and nothing of its own.
+        d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
+            s.say_named(m, v4::PaneContent{"alpha",
+                                           {surface::SurfaceTextRow{"> [open] Files", surface::role::kFill},
+                                            surface::SurfaceTextRow{"[one][two]", surface::role::kFill}},
+                                           0, 0,
+                                           {PaneRowPart{"pane:files", 0, 0, body.columns},
+                                            PaneRowPart{"mark:files", 0, 2, 6},
+                                            PaneRowPart{"row:both", 1, 0, 10},
+                                            PaneRowPart{"control:one", 1, 0, 5},
+                                            PaneRowPart{"control:two", 1, 5, 5}}});
+        });
+        v3::PaneView view;
+        REQUIRE(d.parts(kAlphaOffice, "alpha", view).empty());
+        REQUIRE(view.parts.size() == 5);
+        const PanePart* row = part_named(view.parts, "pane:files");
+        REQUIRE(row != nullptr);
+        CHECK(row->text == "> [open] Files");
+        d.alpha->presses.clear();
+        d.click(row->x, row->y, row->space);
+        REQUIRE(d.alpha->presses.size() == 1);
+        CHECK(d.alpha->presses[0].row == 0);
+        CHECK((d.alpha->presses[0].column < 2 || d.alpha->presses[0].column >= 8));
+        CHECK(d.alpha->presses[0].column < 14);
+        press_lands(d, *part_named(view.parts, "mark:files"), NamedRun{"mark:files", 0, 2, 8});
+        press_lands(d, *part_named(view.parts, "control:one"), NamedRun{"control:one", 1, 0, 5});
+        press_lands(d, *part_named(view.parts, "control:two"), NamedRun{"control:two", 1, 5, 10});
+        // A PART WHOSE EVERY CHARACTER IS ANOTHER'S is pressed on its first cell.
+        press_lands(d, *part_named(view.parts, "row:both"), NamedRun{"row:both", 1, 0, 1});
+    }
+}
+
 TEST_CASE("a row map's parts are named by what each span means, and a name nothing, one the judge would refuse or one taken is left unnamed") {
     component::RowMap<std::string> map;
     map.begin();
@@ -1289,6 +1331,52 @@ TEST_CASE("a canvas pane's named parts are said where its body shows them, with 
                 CHECK(x < p.place.x + p.place.w);
                 CHECK(y + u > p.place.y);
                 CHECK(y < p.place.y + p.place.h);
+            }
+        }
+    }
+}
+
+TEST_CASE("a canvas part's point is its own: a part with another over its centre is pressed where nothing inside it is, and a part a terminal paints on no cell is not said there") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        const std::int64_t u = kPaneCanvasUnit;
+        const std::vector<PaneCanvasPart> parts{PaneCanvasPart{"canvas", 0, 6 * u, 12 * u, 5 * u},
+                                                PaneCanvasPart{"element:a", 4 * u, 7 * u, 4 * u, 3 * u},
+                                                PaneCanvasPart{"handle:a", 7 * u, 9 * u, u, u},
+                                                PaneCanvasPart{"tiny", u / 4, 0, u / 2, u / 2}};
+        d.draw_named(parts);
+        REQUIRE(d.sketch->rejected.empty());
+        v3::PaneView view;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
+        // A PART SMALLER THAN A CELL AND INSIDE ONE paints on no cell of a terminal, so it is not
+        // said there; a window shows it.
+        CHECK(names_of(view.parts) == (window ? std::vector<std::string>{"canvas", "element:a", "handle:a", "tiny"}
+                                              : std::vector<std::string>{"canvas", "element:a", "handle:a"}));
+        const ExternalPane& pane = *d.r.session().panes.external_pane(d.sketch_kind);
+        const std::int64_t grain = window ? surface::kPixelGrainPx : surface::kCellGrainPx;
+        const auto lands = [&](const PaneCanvasPointer& e, const PaneCanvasPart& part) {
+            return surface::px_span_contains(pane.canvas.x + part.x, part.w, pane.canvas.x + e.x, grain) &&
+                   surface::px_span_contains(pane.canvas.y + part.y, part.h, pane.canvas.y + e.y, grain);
+        };
+        // EACH PART'S POINT IS A PRESS ON IT, by the paint rule read backwards, and on no part
+        // inside it: `canvas` beside `element:a`, `element:a` beside its handle.
+        for (const PaneCanvasPart& part : parts) {
+            const PanePart* said = part_named(view.parts, part.name);
+            if (said == nullptr) continue;
+            CAPTURE(part.name);
+            d.sketch->pointers.clear();
+            d.click(said->x, said->y, said->space);
+            REQUIRE_FALSE(d.sketch->pointers.empty());
+            const PaneCanvasPointer& e = d.sketch->pointers.front();
+            CHECK(lands(e, part));
+            for (const PaneCanvasPart& inner : parts) {
+                if (&inner != &part && inner.x >= part.x && inner.y >= part.y &&
+                    inner.x + inner.w <= part.x + part.w && inner.y + inner.h <= part.y + part.h) {
+                    CAPTURE(inner.name);
+                    CHECK_FALSE(lands(e, inner));
+                }
             }
         }
     }
