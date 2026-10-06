@@ -346,8 +346,11 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
             text.keep_caret_visible(width);
             shown = text.visible(width);
             caret = static_cast<std::int64_t>(text.caret_column());
-            // A caret after the value stands on a blank of its own where the box has one.
-            if (static_cast<std::size_t>(caret) >= shown.size()) shown += ' ';
+            // A caret after the value stands on a blank of its own where the box has one, and
+            // where a character is a cell: a window's caret is a bar and needs none.
+            if (!ws::canvas_text_metrics(room).graphical &&
+                static_cast<std::size_t>(caret) >= shown.size())
+                shown += ' ';
         }
         ws::PaneCanvasText run{at.x, at.y, clean(shown), typing ? ink::kAccent : ink::kFill, caret};
         auto placed = ws::clip_canvas_text(run, {at.x, at.y, at.w, at.h}, room);
