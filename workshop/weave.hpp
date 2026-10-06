@@ -657,6 +657,10 @@ public:
     /// names it -- for a sentence about it.
     std::string inventory_name(const PaneRef& ref) const;
 
+    /// A SHOWN PANE THAT STANDS OFF THIS SCREEN, said with the two ways back -- or nothing, when
+    /// any of it is in sight. Its own place stands, so the band says where it went.
+    std::string off_this_screen(std::int64_t kind, const std::string& name) const;
+
     /// SAY THE ONE INVENTORY OUT LOUD, if what it says has changed since the last time.
     /// Compared before it is published, for `StandingConditions`' reason: a presenter that is
     /// told the same thing twice repaints for nothing.

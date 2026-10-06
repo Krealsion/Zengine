@@ -67,11 +67,14 @@ whatever slid into that row; a repaint that moved no row does not refuse.
 
 ![The Pane Manager's menu for the hidden Powers row: show Powers, manage Powers, inspect in Info, then under a rule naming the Pane Manager, Workshop's own rows for the Pane Manager](images/pane-manager-row-menu.png)
 
-**A pane you show always lands in sight.** A pane with no place of its own stands in the column
+**A pane you show lands in sight.** A pane with no place of its own stands in the column
 down the room's left, under the panes already there; when the column has no room left for it, the
 column begins again at its top, so the pane lands there, in front of whatever it covers. Nothing
 is refused for want of room, from the Pane Manager, a launch key or `n` alike; move it where you
-want it by [arranging](#moving-resizing-and-ordering--arrange).
+want it by [arranging](#moving-resizing-and-ordering--arrange). A pane keeps a place you gave it:
+if that place is off this screen, showing it says so on the band, with the two ways back --
+`Reset >` `place` in its menu, which the Pane Manager's `manage <pane> >` reaches, or hiding it
+and showing it again.
 
 ![The Pane Manager and Hotkeys fill the column of a 1200 by 600 window; Files, shown from the Pane Manager, stands at the column's top in front of them, with the keys](images/panes-launch-at-the-top.png)
 

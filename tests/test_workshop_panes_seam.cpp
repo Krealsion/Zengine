@@ -844,6 +844,33 @@ cells_covered(bounds_of(r.session().panes, r.session().setup.active, p.kind, sc)
     }
 }
 
+TEST_CASE("a pane launched where its own place stands off this screen stays there, and the band says so and how to bring it back") {
+    // ⚔ MUTATION: a launch of a pane already on the desk that focuses it and says nothing -- the
+    // keys go to a pane no one can see, and nothing says where it went.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t hello = r.session().panes.runtime.entries[0].kind;
+    REQUIRE(r.session().panes.has(hello));
+    // ITS OWN PLACE, past the room's right edge.
+    REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), cells_px(300), 0).accepted);
+    r.key(input::scan::kUnknown); // a delivery, so the desk claims what it now is
+    const Screen sc = screen_of(r.session());
+    REQUIRE(bounds_of(r.session().panes, r.session().setup.active, hello, sc).rect.empty());
+    const PanePlace authored = pane_of(r.session().setup.active, hello_ref())->place;
+    const PaneLaunchAnswered said = hand_launch(r, hello_ref());
+    CHECK(said.refusal.empty());
+    CHECK(r.session().panes.selected == hello);
+    CHECK(r.last_notice() == "Hello is off this screen -- Reset > place brings it back (the Pane "
+                             "Manager's manage Hello > reaches it), or hide it and show it again");
+    CHECK(r.session().notice_is_bad);
+    // AND IT STAYS WHERE IT WAS PUT: a launch moves no authored place.
+    CHECK(pane_of(r.session().setup.active, hello_ref())->place == authored);
+    CHECK(bounds_of(r.session().panes, r.session().setup.active, hello, sc).rect.empty());
+}
+
 TEST_CASE("an oversubscribed authored setup seats every reference, the column beginning again at its top") {
     PaneRig r;
     r.mount_workshop();

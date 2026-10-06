@@ -133,12 +133,18 @@ LAW — `bounds_of` answers the visible rectangle — resolved, then intersected
 
 MEANS
 - every consumer that reads an empty rectangle as "nowhere" is correct for an off-room pane;
-- a wholly off-room pane is painted by nobody and its intent is not rewritten.
+- a wholly off-room pane is painted by nobody and its intent is not rewritten;
+- a launch or a reveal of one keeps its place and says so on the band, with the two ways back.
 
 PROVEN BY — `workshop/screen_chrome.cpp` `bounds_of`; `workshop/screen.hpp` `PaneBounds`,
-`PaneBounds::rect`, `PaneProjection`; `tests/test_workshop_panes_window.cpp` case `"a partly
-off-room pane is clipped, and its intent is not rewritten"`, case `"a wholly off-room pane
-is off-room, recoverable, and painted by nobody"`.
+`PaneBounds::rect`, `PaneProjection`; `workshop/weave.hpp` `off_this_screen`;
+`workshop/weave_desktop.cpp` `off_this_screen`, `on(PaneLaunchRequested)`;
+`workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `tests/test_workshop_panes_window.cpp` case
+`"a partly off-room pane is clipped, and its intent is not rewritten"`, case `"a wholly off-room
+pane is off-room, recoverable, and painted by nobody"`; `tests/test_workshop_panes_seam.cpp` case
+`"a pane launched where its own place stands off this screen stays there, and the band says so
+and how to bring it back"`; `tests/test_workshop_panes_canvas.cpp` case `"a view shown where its
+own place stands off this screen stays there, and the band says so and how to bring it back"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-10 — Five states, one classifier, one precedence

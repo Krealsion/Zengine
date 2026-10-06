@@ -448,8 +448,13 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     session_.panes.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
     // SAID, so the sentence on the notice line is about what just happened and names who
     // asked for it -- the pane's own rows say what it is showing. Said and written BEFORE the
-    // answer leaves, so what the asker hears is a fact about this desk and not a promise.
-    say("showing " + name + " -- it asked to be shown, and it has the keys", false);
+    // answer leaves, so what the asker hears is a fact about this desk and not a promise. A pane
+    // whose own place stands off this screen keeps it, and the band says where it went.
+    if (const std::string off = off_this_screen(kind, name); !off.empty()) {
+        say(off, true);
+    } else {
+        say("showing " + name + " -- it asked to be shown, and it has the keys", false);
+    }
     (void)mail.answer(PaneRevealAnswered{asked.pane, true, std::string()});
     repaint(mail);
 }
