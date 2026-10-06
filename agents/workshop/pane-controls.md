@@ -1,7 +1,7 @@
 # Workshop law — a pane's own controls
 
-Register `WL-HAND`: the labelled controls a pane draws for a hand, and what makes a press on one
-mean what the weaver aimed it at. One law per heading; cite by ID. Router:
+Register `WL-HAND`: the labelled controls a pane draws for a hand, what makes a press on one
+mean what the weaver aimed it at, and the names a pane gives the parts a hand acts on. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). The menu those controls open is
 [`pane-menu.md`](pane-menu.md); the panes that earned them are [`files.md`](files.md) and
 [`project.md`](project.md).
@@ -130,6 +130,42 @@ standing on, and leaves the choice alone"`;
 `tests/test_workshop_panes_output.cpp` case `"WL-OUT-04: in a room too small for its strip the
 reader's whole list is in its own menu, and every row of it acts"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
+
+## WL-HAND-06 — A pane names the parts a hand acts on, and Workshop says them where they are drawn
+
+LAW — A pane names each row, control and element a weaver acts on from what it means, kept across its redraws; Workshop says each name beside the part's words, place and point, naming nothing itself.
+
+MEANS
+- the names ride with the picture they name and are judged with it: a name once, on what it says;
+- a text part covers the cells showing its columns, a caret's glyph among them; a canvas part, its rectangle as shown;
+- a pane redrawn as a picture keeps the names its rows had, so a name an agent wrote still holds.
+
+DOES NOT MEAN
+- that Workshop reads a name: it judges a name's form and carries it as the pane said it;
+- that a part the body does not show is said, or that pressing one is anything but input.
+
+PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_problem`,
+`canvas_parts_problem`, `PartNames`, `row_parts`; `workshop/weave_inspection.cpp` `visible_parts`,
+`row_part_on`, `canvas_part_on`, `desk_menu`; `workshop/screen_attention.cpp`
+`context_line_names`; `workshop/weave_seam.cpp` `admit_content`, `on(v4::PaneContent)`;
+`workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v4::PaneCanvasContent)`;
+`workshop/weave_external.cpp` `admit_menu_lines`; `tests/test_workshop_desk.cpp` case `"a row
+map's parts are named by what each span means, and a name nothing, one the judge would refuse or
+one taken is left unnamed"`, case `"a text
+pane's named parts are said under the pane's own names over the cells that show them, and a press
+at a part's point lands on it, in a window and in a terminal"`, case `"a part keeps its name
+across its pane's redraws, and is said and pressed where the redraw put it"`, case `"a pane's
+names are judged with the rows they name: a name twice, one on a row not said or past the room,
+or one that is not a name refuses the rows whole, saying why"`, case `"a canvas pane's named parts
+are said where its body shows them, with the words inside them, and a press at a part's point
+lands inside it in the pane's own canvas, in a window and in a terminal"`, case `"a picture's
+names are judged with it: a name twice or a part with no extent rejects the picture whole, and
+the last good one stays"`, case `"the desk names the lines of Workshop's own menu by the action or
+group each shows, over the line it is drawn on"`, case `"a pane's names survive the canvas: its
+next image draws a picture under the names its rows had, and each is pressed where the picture
+draws it"`, case `"every place a named part gives is where the medium draws its words, in a
+window and in a terminal"`.
+WHY — `agents/decisions/a-pane-names-its-parts.md`
 
 ## Do not assume
 

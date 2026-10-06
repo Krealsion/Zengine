@@ -215,10 +215,77 @@ std::string without_trailing_blanks(std::string text) {
     return text;
 }
 
+/// ONE NAMED RUN OF A ROW WHERE A FIT DRAWS IT: the cells of `cells` that show its columns of
+/// `shown` -- past a caret glyph at `caret`, whose own cell stands for the caret's column -- the
+/// characters there, and the point of its middle one, or of its first cell where it shows none.
+/// False where no cell of the row shows any of its columns.
+bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
+                 std::int64_t caret, std::int64_t cells, const PaneRowPart& part,
+                 std::int64_t space, PanePart& out) {
+    const std::int64_t end = part.column + part.columns;
+    const std::int64_t first = part.column + (caret >= 0 && part.column > caret ? 1 : 0);
+    const std::int64_t last =
+        (std::min)(end - 1 + (caret >= 0 && end - 1 >= caret ? 1 : 0), cells - 1);
+    if (first > last) return false;
+    const auto size = static_cast<std::int64_t>(shown.size());
+    const auto from = static_cast<std::size_t>((std::min)(part.column, size));
+    const auto to = static_cast<std::size_t>((std::min)(end, size));
+    out.name = part.name;
+    out.text = without_trailing_blanks(shown.substr(from, to - from));
+    out.place = DeskRect{g.x + first * g.advance, g.y + row * g.line, (last - first + 1) * g.advance,
+                         g.line};
+    const auto bytes = static_cast<std::int64_t>(out.text.size());
+    glyph_point(g, row, bytes > 0 ? drawn_column(part.column + (bytes - 1) / 2, caret) : first,
+                space, out.x, out.y);
+    out.space = space;
+    return true;
+}
+
+/// The words lying wholly inside a place, said in their order and joined by a space.
+std::string words_inside(const std::vector<PaneWord>& words, const DeskRect& place) {
+    std::string out;
+    for (const PaneWord& w : words) {
+        if (w.text.empty() || w.place.x < place.x || w.place.y < place.y ||
+            w.place.x + w.place.w > place.x + place.w || w.place.y + w.place.h > place.y + place.h) {
+            continue;
+        }
+        out += out.empty() ? w.text : " " + w.text;
+    }
+    return out;
+}
+
+/// ONE NAMED PART OF A PICTURE WHERE ITS BODY SHOWS IT: the part's rectangle cut to the body, the
+/// words inside it, and its centre as the point a press names it by -- the pixel in a window, the
+/// cell holding it in a terminal. False where the body shows none of it.
+bool canvas_part_on(const PixelRect& body, const PaneCanvasPart& part,
+                    const std::vector<PaneWord>& words, std::int64_t space, PanePart& out) {
+    const std::int64_t left = surface::add_cells(body.x, part.x);
+    const std::int64_t top = surface::add_cells(body.y, part.y);
+    const std::int64_t x0 = (std::max)(body.x, left);
+    const std::int64_t y0 = (std::max)(body.y, top);
+    const std::int64_t x1 = (std::min)(body.x + body.w, surface::add_cells(left, part.w));
+    const std::int64_t y1 = (std::min)(body.y + body.h, surface::add_cells(top, part.h));
+    if (x1 <= x0 || y1 <= y0) return false;
+    out.name = part.name;
+    out.place = DeskRect{x0, y0, x1 - x0, y1 - y0};
+    out.text = words_inside(words, out.place);
+    const std::int64_t cx = x0 + (x1 - x0) / 2;
+    const std::int64_t cy = y0 + (y1 - y0) / 2;
+    if (space == input::space::kPixels) {
+        out.x = cx;
+        out.y = cy;
+    } else {
+        out.x = surface::cell_of_pixel(cx);
+        out.y = surface::cell_of_pixel(cy) + surface::kTuiCanvasTopRow;
+    }
+    out.space = space;
+    return true;
+}
+
 /// THE MENU ON THE SCREEN, read from the painter's own composition of it: Workshop's contextual
-/// menu, or a pane's as its presenter showed it. At most one is open.
-DeskMenu desk_menu(const Session& s, const Screen& sc) {
-    DeskMenu menu;
+/// menu, or a pane's as its presenter showed it, and the lines each names. At most one is open.
+v2::DeskMenu desk_menu(const Session& s, const Screen& sc) {
+    v2::DeskMenu menu;
     surface::SurfaceLayer layer;
     PixelRect bounds;
     if (s.presented.open) {
@@ -239,7 +306,8 @@ DeskMenu desk_menu(const Session& s, const Screen& sc) {
     if (layer.texts.empty()) {
         return menu; // granted and not shown yet: no line is drawn, so none is said
     }
-    const GlyphGrid grid = glyph_grid(prose_place(bounds, sc).fit);
+    const ProsePlace place = prose_place(bounds, sc);
+    const GlyphGrid grid = glyph_grid(place.fit);
     const surface::SurfaceTextRegion& region = layer.texts.back();
     const std::int64_t space = input_space_of(sc);
     for (std::size_t i = 0; i < region.rows.size(); ++i) {
@@ -249,6 +317,25 @@ DeskMenu desk_menu(const Session& s, const Screen& sc) {
         line.word = row;
         menu.lines.push_back(std::move(line));
     }
+    // THE LINES EACH MENU NAMES: a pane's, as its presenter named them; Workshop's own, by the
+    // action or group each line shows.
+    std::vector<PaneRowPart> named = s.presented.open ? s.presented.parts : std::vector<PaneRowPart>{};
+    if (!s.presented.open) {
+        const std::vector<std::string> names = context_line_names(s, sc);
+        for (std::size_t i = 0; i < names.size(); ++i) {
+            if (!names[i].empty()) {
+                named.push_back(PaneRowPart{names[i], static_cast<std::int64_t>(i), 0, place.columns});
+            }
+        }
+    }
+    for (const PaneRowPart& part : named) {
+        if (part.row < 0 || part.row >= static_cast<std::int64_t>(region.rows.size())) continue;
+        PanePart drawn;
+        if (row_part_on(grid, part.row, region.rows[static_cast<std::size_t>(part.row)].text, -1,
+                        place.columns, part, space, drawn)) {
+            menu.parts.push_back(std::move(drawn));
+        }
+    }
     return menu;
 }
 
@@ -257,11 +344,11 @@ DeskMenu desk_menu(const Session& s, const Screen& sc) {
 // THE DESK, BY ITS OWN NUMBERS: every pane the desk names, in its order, with what Workshop
 // resolves for it now; nothing is read off a picture.
 // WL-GEO-13 -- agents/workshop/geometry.md
-DeskView WorkshopWeave::desk_view() const {
+v2::DeskView WorkshopWeave::desk_view() const {
     const Screen sc = screen_of(session_);
     const Setup& setup = session_.setup.active;
     const Panes& panes = session_.panes;
-    DeskView out;
+    v2::DeskView out;
     out.width = sc.w;
     out.height = sc.h;
     out.cell_px = sc.cell_px;
@@ -303,7 +390,16 @@ DeskView WorkshopWeave::desk_view() const {
     return out;
 }
 
+// The first version says the same desk, its menu without the lines it names.
 void WorkshopWeave::on(const DeskViewRequested&, loom::Mail& mail) {
+    const v2::DeskView now = desk_view();
+    const v2::DeskMenu& m = now.menu;
+    (void)mail.answer(DeskView{now.width, now.height, now.cell_px, now.space, now.room, now.panes,
+                               now.arranging,
+                               DeskMenu{m.open, m.office, m.pane, m.picture, m.place, m.lines}});
+}
+
+void WorkshopWeave::on(const v2::DeskViewRequested&, loom::Mail& mail) {
     (void)mail.answer(desk_view());
 }
 
@@ -404,6 +500,56 @@ void WorkshopWeave::on(const v2::PaneViewRequested& asked, loom::Mail& mail) {
     }
     (void)mail.answer(v2::PaneView{asked.provider, asked.pane, visible.content->stamp.aimed,
                                    visible.canvas, visible_words(visible)});
+}
+
+// THE PARTS A VISIBLE BODY'S PANE NAMES, each where the medium draws it, as the pane named it: a
+// part the body does not show is not said.
+// WL-HAND-06 -- agents/workshop/pane-controls.md
+std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
+                                                   const std::vector<PaneWord>& words) const {
+    const std::int64_t space = input_space_of(screen_of(session_));
+    std::vector<PanePart> out;
+    const auto* content = visible.content;
+    if (visible.canvas) {
+        for (const PaneCanvasPart& part : content->canvas.parts) {
+            PanePart drawn;
+            if (canvas_part_on(visible.canvas_body, part, words, space, drawn)) {
+                out.push_back(std::move(drawn));
+            }
+        }
+        return out;
+    }
+    const auto& body = visible.body;
+    const GlyphGrid grid = glyph_grid(body.fit);
+    for (const PaneRowPart& part : content->parts) {
+        if (part.row >= body.rows || part.row >= static_cast<std::int64_t>(content->shown.size())) {
+            continue;
+        }
+        // The row as `visible_words` reads it: a caret's glyph inserted, then the row cut.
+        const std::int64_t glyph = external_caret_glyph(content, body.fit, part.row);
+        const std::int64_t caret = glyph < body.columns ? glyph : -1;
+        const std::int64_t room = caret >= 0 ? body.columns - 1 : body.columns;
+        const std::string shown = content->shown[static_cast<std::size_t>(part.row)].text.substr(
+            0, static_cast<std::size_t>(room));
+        PanePart drawn;
+        if (row_part_on(grid, part.row + body.header_rows, shown, caret, body.columns, part, space,
+                        drawn)) {
+            out.push_back(std::move(drawn));
+        }
+    }
+    return out;
+}
+
+void WorkshopWeave::on(const v3::PaneViewRequested& asked, loom::Mail& mail) {
+    VisibleBody visible;
+    if (const auto why = visible_body(asked.provider, asked.pane, visible, true); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
+        return;
+    }
+    std::vector<PaneWord> words = visible_words(visible);
+    std::vector<PanePart> parts = visible_parts(visible, words);
+    (void)mail.answer(v3::PaneView{asked.provider, asked.pane, visible.content->stamp.aimed,
+                                   visible.canvas, std::move(words), std::move(parts)});
 }
 
 // WHERE ONE CHARACTER OF ONE WORD IS NOW, measured as the word was and checked by resolving it: a

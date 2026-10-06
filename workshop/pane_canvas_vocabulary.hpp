@@ -79,6 +79,35 @@ struct PaneCanvasContent {
               ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
 };
 
+/// ONE PART OF A PANE'S PICTURE: a rectangle of it in local canvas pixels -- an element, a
+/// control, a row of its text -- and the pane's name for it (`PaneRowPart`'s rule: the pane's own
+/// name, kept across its redraws, which Workshop never interprets). Like any coordinate of a
+/// picture it may lie past the room; only what of it the room shows is answered.
+struct PaneCanvasPart {
+    std::string name;
+    std::int64_t x = 0, y = 0, w = 0, h = 0;
+    ZEN_SHAPE(PaneCanvasPart, 1, ZEN_FIELD(name), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w),
+              ZEN_FIELD(h));
+};
+
+namespace v4 {
+
+/// A PICTURE THAT NAMES ITS PARTS: v3's picture and the parts of it the pane names, judged with
+/// it -- each a positive rectangle under a name no other part carries -- and rejected whole with
+/// it. A pane naming nothing sends v3, or this with no parts.
+struct PaneCanvasContent {
+    std::string pane;
+    std::int64_t grant = 0, picture = 0;
+    std::vector<PaneCanvasRect> rects;
+    std::vector<PaneCanvasLabel> labels;
+    std::vector<PaneCanvasText> texts = {};
+    std::vector<PaneCanvasPart> parts = {};
+    ZEN_SHAPE(PaneCanvasContent, 4, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
+              ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts), ZEN_FIELD(parts));
+};
+
+} // namespace v4
+
 struct PaneCanvasRejected {
     std::string pane;
     std::int64_t grant = 0, picture = 0;

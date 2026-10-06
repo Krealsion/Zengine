@@ -2057,8 +2057,9 @@ class ProviderSeat
     : public loom::WeaveBase<ProviderSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                                           PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
-                             loom::Emit<PaneOffered, PaneContent, PanePressed, PaneActions,
-                                        v2::PaneActions, PaneCaret, PaneEscapeUnspent>> {
+                             loom::Emit<PaneOffered, PaneContent, v4::PaneContent, PanePressed,
+                                        PaneActions, v2::PaneActions, PaneCaret,
+                                        PaneEscapeUnspent>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
 
@@ -2133,6 +2134,10 @@ public:
         (void)mail.send_to_role(kWorkshopProvider, o);
     }
     void say(loom::Mail& mail, const PaneContent& c) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
+    }
+    /// ...and content naming its parts, the version that carries them.
+    void say_named(loom::Mail& mail, const v4::PaneContent& c) {
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
     }
     /// THE ESCAPE THIS SEAT WAS SENT WAS UNSPENT HERE -- said as the office, and personally for
@@ -2547,6 +2552,7 @@ struct PaneRig {
         loom::Grant grant;
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+        grant.allow_to_any(v4::PaneContent::zen_name, v4::PaneContent::zen_version);
         grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
         grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
         grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);

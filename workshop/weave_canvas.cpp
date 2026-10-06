@@ -102,12 +102,17 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
             c.text_advance_px == sc.text_advance_px && c.text_line_px == sc.text_line_px &&
             c.legacy == legacy;
         PaneCanvasContent previous;
-        if (preview) previous = std::move(c.content);
+        std::vector<PaneCanvasPart> previous_parts;
+        if (preview) {
+            previous = std::move(c.content);
+            previous_parts = std::move(c.parts);
+        }
         c = ExternalPane::Canvas{};
         pane.forget_pictures();
         pane.heard = false;
         pane.awaiting = true;
         pane.shown.clear();
+        pane.parts.clear();
         if (!capable || canvas_grants_ == (std::numeric_limits<std::int64_t>::max)()) continue;
         c.owner = owner;
         c.grant = ++canvas_grants_;
@@ -116,7 +121,10 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         c.text_advance_px = sc.text_advance_px; c.text_line_px = sc.text_line_px;
         c.preview = preview;
         c.legacy = legacy;
-        if (preview) c.content = std::move(previous);
+        if (preview) {
+            c.content = std::move(previous);
+            c.parts = std::move(previous_parts);
+        }
         if (legacy) {
             (void)mail.as_role(kWorkshopProvider).send(owner,
                 v2::PaneCanvasRoom{row->pane, c.grant, legacy_subs_of_px(c.width),
@@ -142,11 +150,20 @@ void WorkshopWeave::on(const v2::PaneCanvasContent& content, loom::Mail& mail) {
                          canvas_content_problem(canvas_content_as_said(content)));
 }
 
+// A picture naming its parts: its names judged beside it, after every rule a picture meets.
+void WorkshopWeave::on(const v4::PaneCanvasContent& content, loom::Mail& mail) {
+    admit_canvas_content(PaneCanvasContent{content.pane, content.grant, content.picture,
+                                           content.rects, content.labels, content.texts},
+                         mail, {}, &content.parts);
+}
+
 void WorkshopWeave::admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail,
-                                         std::string_view said) {
+                                         std::string_view said,
+                                         const std::vector<PaneCanvasPart>* parts) {
     const auto* row = session_.panes.runtime.find(mail.authored_role(), content.pane);
     if (!row || mail.authored_role().empty()) return;
     auto* pane = session_.panes.external_pane(row->kind);
+    const std::string named = parts != nullptr ? canvas_parts_problem(*parts) : std::string();
     std::string_view reason;
     if (!pane || !canvas_owner_current(row->kind) || pane->canvas.owner != mail.sender())
         reason = "canvas provider no longer holds this pane";
@@ -157,6 +174,7 @@ void WorkshopWeave::admit_canvas_content(const PaneCanvasContent& content, loom:
     else if (!said.empty())
         reason = said;
     else reason = canvas_content_problem(content);
+    if (reason.empty() && !named.empty()) reason = named;
     if (!reason.empty()) {
         (void)mail.as_role(kWorkshopProvider).send(mail.sender(),
             PaneCanvasRejected{content.pane, content.grant, content.picture, std::string(reason)},
@@ -164,6 +182,7 @@ void WorkshopWeave::admit_canvas_content(const PaneCanvasContent& content, loom:
         return;
     }
     pane->canvas.content = content;
+    pane->canvas.parts = parts != nullptr ? *parts : std::vector<PaneCanvasPart>{};
     pane->canvas.heard = true;
     pane->canvas.preview = false;
     pane->picture = content.picture;
