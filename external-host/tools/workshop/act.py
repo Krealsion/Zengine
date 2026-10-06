@@ -71,7 +71,7 @@ def names(value, verb, count):
     return value
 
 
-def painted(hand, provider, pane):
+def words_now(hand, provider, pane):
     """The pane's words now, or None while Workshop refuses to describe it."""
     try:
         return hand.words(provider, pane)
@@ -92,10 +92,32 @@ def wait_words(hand, provider, pane, text, seconds, present=True):
     """Read the pane until a word holds `text` (or, `present` false, until none does)."""
     end = time.monotonic() + seconds
     while True:
-        view = painted(hand, provider, pane)
+        view = words_now(hand, provider, pane)
         words = [w for w in view["words"] if text in w["text"]] if view else []
         if bool(words) == present:
             return view, words
+        if time.monotonic() >= end:
+            return view, None
+        time.sleep(0.2)
+
+
+def painted(hand, provider, pane):
+    """A text pane's rows now (PaneView version 1), or None while Workshop refuses to describe it:
+    for the tools that read a text pane by its rows."""
+    try:
+        return hand.view(provider, pane)
+    except Refused:
+        return None
+
+
+def wait_rows(hand, provider, pane, text, seconds, present=True):
+    """Read the pane until a row holds `text` (or, `present` false, until none does)."""
+    end = time.monotonic() + seconds
+    while True:
+        view = painted(hand, provider, pane)
+        rows = [r for r in view["rows"] if text in r["text"]] if view else []
+        if bool(rows) == present:
+            return view, rows
         if time.monotonic() >= end:
             return view, None
         time.sleep(0.2)
@@ -147,7 +169,7 @@ def act(ctx, hand, verb, step):
         ok = isinstance(arg, list) and len(arg) == 4 and all(isinstance(v, str) for v in arg[:2]) \
             and all(isinstance(v, int) for v in arg[2:])
         ctx.check(ok, "at names [provider, pane, row, column]")
-        view = painted(hand, arg[0], arg[1])
+        view = words_now(hand, arg[0], arg[1])
         ctx.check(view is not None, "at: Workshop does not describe %s/%s now" % (arg[0], arg[1]))
         where = hand.point(arg[0], arg[1], arg[2], arg[3], view["picture"])
         press_at(ctx, hand, where, step.get("button", "left"))
@@ -171,7 +193,7 @@ def act(ctx, hand, verb, step):
         return {"matched": [w["text"] for w in words]}
     if verb == "rows":
         provider, pane = names(arg, verb, 2)[:2]
-        view = painted(hand, provider, pane)
+        view = words_now(hand, provider, pane)
         ctx.check(view is not None, "rows: Workshop does not describe %s/%s now" % (provider, pane))
         kept = step.get("as", pane.replace(".", "-"))
         ctx.produce(kept + ".json", json.dumps({"picture": view["picture"], "rows": texts(view),
@@ -198,7 +220,7 @@ def act(ctx, hand, verb, step):
 def press_control(ctx, hand, provider, pane, label):
     """Press a visible `[label]` control, in a text pane's rows or a canvas pane's words: the
     column comes from the painted word, the screen position from Workshop."""
-    view = painted(hand, provider, pane)
+    view = words_now(hand, provider, pane)
     ctx.check(view is not None, "control: Workshop does not describe %s/%s now" % (provider, pane))
     word = "[" + label + "]"
     for w in view["words"]:
@@ -304,7 +326,7 @@ def select_row(ctx, hand, provider, pane, name):
     seen, presses = [], 0
 
     def look():
-        view = painted(hand, provider, pane)
+        view = words_now(hand, provider, pane)
         ctx.check(view is not None, "select: Workshop does not describe %s/%s now" % (provider, pane))
         rows = texts(view)
         chosen = [i for i, r in enumerate(rows) if r.startswith(">")]
@@ -342,7 +364,7 @@ def open_pane(ctx, hand, name, seconds):
     name, then Return. The Pane Manager has no search, so the walk is bounded; a name it does not
     list fails with the rows it did paint."""
     manager = ("zengine.desktop", "launcher")
-    view = painted(hand, *manager)
+    view = words_now(hand, *manager)
     if view is None or not view["words"]:
         # Ctrl+P toggles: it opens a closed Pane Manager and closes an open one -- including one
         # that is open but covered, which Workshop does not describe. So when the first press
@@ -361,7 +383,7 @@ def open_pane(ctx, hand, name, seconds):
     for key in ("down", "up"):
         previous = None
         for _ in range(64):
-            view = painted(hand, *manager)
+            view = words_now(hand, *manager)
             chosen = [t for t in texts(view) if t.startswith(">")]
             if chosen and chosen[0].rstrip().endswith(" " + name):
                 hand.inject(chord_moments(ctx, "enter"))
