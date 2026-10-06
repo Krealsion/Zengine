@@ -118,6 +118,163 @@ void WorkshopWeave::on(const PanePointRequested& asked, loom::Mail& mail) {
     (void)mail.answer(reply);
 }
 
+// ---- THE DESK, AS WORKSHOP HOLDS IT -----------------------------------------------------------
+
+namespace {
+
+/// THE SPACE A POINT ON THIS SCREEN IS READ IN: a window's pixels where the medium sets type, a
+/// terminal's cells where text is a cell -- the space `cell_center` answers in.
+std::int64_t input_space_of(const Screen& sc) {
+    return sc.text_advance_px > 0 && sc.text_line_px > 0 ? input::space::kPixels
+                                                         : input::space::kCells;
+}
+
+DeskRect desk_rect(const PixelRect& r) {
+    return r.w > 0 && r.h > 0 ? DeskRect{r.x, r.y, r.w, r.h} : DeskRect{};
+}
+
+/// WHERE A FIT DRAWS ITS GLYPHS: the first glyph's corner, and one glyph's advance and line, in
+/// canvas pixels -- the face's where the fit sets type, one cell each where text is a cell.
+struct GlyphGrid {
+    std::int64_t x = 0, y = 0;
+    std::int64_t advance = surface::kCanvasCellPx, line = surface::kCanvasCellPx;
+};
+
+GlyphGrid glyph_grid(const surface::RegionFit& fit) {
+    if (fit.graphical()) {
+        return GlyphGrid{fit.view.x + fit.origin_x, fit.view.y + fit.origin_y, fit.advance_px,
+                         fit.line_px};
+    }
+    return GlyphGrid{fit.view.x, fit.view.y, surface::kCanvasCellPx, surface::kCanvasCellPx};
+}
+
+/// The centre of one glyph, in the input space: a window's pixel, or the terminal cell a medium
+/// whose unit is the cell draws it on (floored, as it draws) on the console row it reads.
+void glyph_point(const GlyphGrid& g, std::int64_t row, std::int64_t column, std::int64_t space,
+                 std::int64_t& x, std::int64_t& y) {
+    if (space == input::space::kPixels) {
+        x = g.x + column * g.advance + g.advance / 2;
+        y = g.y + row * g.line + g.line / 2;
+        return;
+    }
+    x = surface::cell_of_pixel(g.x + column * g.advance);
+    y = surface::cell_of_pixel(g.y + row * g.line) + surface::kTuiCanvasTopRow;
+}
+
+/// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row`, over `glyphs` cells of the
+/// grid (more than its bytes where a terminal draws a caret into it), and its middle glyph's
+/// centre as the place a press names it.
+PaneWord word_on(const GlyphGrid& g, std::int64_t row, std::int64_t column, std::int64_t glyphs,
+                 std::string text, std::int64_t space) {
+    PaneWord w;
+    const std::int64_t n = glyphs > 0 ? glyphs : 1;
+    w.place = DeskRect{g.x + column * g.advance, g.y + row * g.line, n * g.advance, g.line};
+    const std::int64_t bytes = static_cast<std::int64_t>(text.size());
+    glyph_point(g, row, column + (bytes > 0 ? (bytes - 1) / 2 : 0), space, w.x, w.y);
+    w.space = space;
+    w.text = std::move(text);
+    return w;
+}
+
+std::string without_trailing_blanks(std::string text) {
+    while (!text.empty() && text.back() == ' ') {
+        text.pop_back();
+    }
+    return text;
+}
+
+/// THE MENU ON THE SCREEN, read from the painter's own composition of it: Workshop's contextual
+/// menu, or a pane's as its presenter showed it. At most one is open.
+DeskMenu desk_menu(const Session& s, const Screen& sc) {
+    DeskMenu menu;
+    surface::SurfaceLayer layer;
+    PixelRect bounds;
+    if (s.presented.open) {
+        menu.office = s.presented.office;
+        menu.pane = s.presented.pane;
+        menu.picture = s.presented.picture;
+        bounds = presented_bounds(s, sc);
+        paint_presented(layer, s, sc);
+    } else if (s.context.open) {
+        menu.office = kWorkshopProvider;
+        bounds = context_bounds(s, sc);
+        paint_context(layer, s, sc);
+    } else {
+        return menu;
+    }
+    menu.open = true;
+    menu.place = desk_rect(bounds);
+    if (layer.texts.empty()) {
+        return menu; // granted and not shown yet: no line is drawn, so none is said
+    }
+    const GlyphGrid grid = glyph_grid(prose_place(bounds, sc).fit);
+    const surface::SurfaceTextRegion& region = layer.texts.back();
+    const std::int64_t space = input_space_of(sc);
+    for (std::size_t i = 0; i < region.rows.size(); ++i) {
+        std::string text = without_trailing_blanks(region.rows[i].text);
+        const std::int64_t row = static_cast<std::int64_t>(i);
+        const std::int64_t glyphs = static_cast<std::int64_t>(text.size());
+        PaneWord line = word_on(grid, row, 0, glyphs, std::move(text), space);
+        line.word = row;
+        menu.lines.push_back(std::move(line));
+    }
+    return menu;
+}
+
+} // namespace
+
+// THE DESK, BY ITS OWN NUMBERS: every pane the desk names, in its order, with what Workshop
+// resolves for it now; nothing is read off a picture.
+DeskView WorkshopWeave::desk_view() const {
+    const Screen sc = screen_of(session_);
+    const Setup& setup = session_.setup.active;
+    const Panes& panes = session_.panes;
+    DeskView out;
+    out.width = sc.w;
+    out.height = sc.h;
+    out.cell_px = sc.cell_px;
+    out.space = input_space_of(sc);
+    out.room = DeskRect{0, sc.room_y, sc.room_w, sc.room_h};
+    const std::vector<CatalogRow> rows = inventory_rows(setup, panes);
+    const std::vector<std::int64_t> order = effective_pane_order(setup, panes);
+    const std::int64_t selected = selected_pane(panes);
+    const std::int64_t keys = keyboard_pane();
+    for (const SetupPane& authored : setup.panes) {
+        CatalogRow row{kNoPaneKind, authored.ref, authored.ref.pane, std::string()};
+        for (const CatalogRow& known : rows) {
+            if (known.ref == authored.ref) {
+                row = known;
+                break;
+            }
+        }
+        DeskPane pane;
+        pane.provider = authored.ref.provider;
+        pane.pane = authored.ref.pane;
+        pane.name = row.name;
+        pane.state = pane_state_word(pane_state_of(panes, setup, sc, row));
+        if (row.kind != kNoPaneKind && panes.has(row.kind)) {
+            const PaneBounds where = bounds_of(panes, setup, row.kind, sc);
+            pane.resolved = desk_rect(where.resolved);
+            pane.visible = desk_rect(where.rect);
+            for (std::size_t i = 0; i < order.size(); ++i) {
+                if (order[i] == row.kind) {
+                    pane.front = static_cast<std::int64_t>(order.size() - 1 - i);
+                }
+            }
+            pane.selected = row.kind == selected;
+            pane.keys = row.kind == keys;
+        }
+        out.panes.push_back(std::move(pane));
+    }
+    out.arranging = session_.arrange.open;
+    out.menu = desk_menu(session_, sc);
+    return out;
+}
+
+void WorkshopWeave::on(const DeskViewRequested&, loom::Mail& mail) {
+    (void)mail.answer(desk_view());
+}
+
 // ---- A PANE AS AN INSPECTOR'S SUBJECT (the Info pane's) -------------------------------------
 
 // WL-INFO-14 -- agents/workshop/info-body.md

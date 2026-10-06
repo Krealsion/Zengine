@@ -226,6 +226,7 @@ loom::Grant grant_for(const GuestRow& row) {
         } else if (power == kPowerCapture) {
             g.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version, "zengine.workshop");
             g.allow_to_role(PanePointRequested::zen_name, PanePointRequested::zen_version, "zengine.workshop");
+            g.allow_to_role(DeskViewRequested::zen_name, DeskViewRequested::zen_version, "zengine.workshop");
             g.allow_to_role(surface::SurfaceCaptureRequested::zen_name,
                             surface::SurfaceCaptureRequested::zen_version, surface::kSkinRole);
             g.allow_to_role(surface::SurfaceCaptureChunkRequested::zen_name,

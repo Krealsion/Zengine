@@ -172,6 +172,9 @@ void component_surface() {
     check(loom::schema_of<zengine::workshop::PanePointRequested>()->find("picture") != nullptr &&
           loom::schema_of<zengine::workshop::PanePoint>()->find("space") != nullptr,
           "installed point query names the picture it read and answers in the input space");
+    check(loom::schema_of<zengine::workshop::DeskView>()->find("panes") != nullptr &&
+          loom::schema_of<zengine::workshop::DeskPane>()->find("visible") != nullptr,
+          "installed desk answer names every pane and the part of it the canvas has");
     zengine::component::TextBox box;
     box.type("sourdough");
     check(box.text() == "sourdough", "a TextBox holds what was typed into it");
