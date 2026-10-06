@@ -817,6 +817,23 @@ TEST_CASE("WL-DESK-14: a same-length inventory swap changes the picture, so a pr
     CHECK_FALSE(d.open("gamma"));
 }
 
+TEST_CASE("WL-DESK-14: a pane offered under a name a canvas cannot draw keeps its row, the name made drawable") {
+    // THE LIST IS ONE PICTURE, refused whole for one byte it cannot draw, so a name another party
+    // chose is drawn as this pane draws every other party's words: one mark for each character
+    // a canvas cannot set. The list stays the list, and the row is pressed as any other.
+    Desk d;
+    d.r.drive(d.tools, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"cafe", "Caf\xC3\xA9", "a fixture"});
+    });
+    const auto row = d.walk_to("Caf?");
+    CAPTURE(joined(d.rows()));
+    REQUIRE(row >= 0);
+    CHECK(d.r.session().panes.external_pane(d.launcher)->canvas.heard);
+    d.press(row, kNameCol);
+    d.press(row, kNameCol);
+    CHECK(d.open("cafe"));
+}
+
 TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the row the hand aimed at -- the press is stamped with the picture the medium had, and refused as moved") {
     // THE PRODUCTION BOUNDARY, NOT AN IDEAL STAMP. The inventory swap reaches the real desktop,
     // which composes picture B and queues it; a RAW press is queued behind it, captured while the

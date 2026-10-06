@@ -1198,7 +1198,7 @@ private:
             // A MARKER THAT HOLDS NOTHING (its pane left the list) is `?`, not `>`.
             const char* marker = here ? (choice_.lost ? "? " : "> ") : "  ";
             const std::int64_t at = static_cast<std::int64_t>(out.size());
-            const std::string text = fit(std::string(marker) + mark + " " + p.name, columns_);
+            const std::string text = fit(std::string(marker) + mark + " " + drawable(p.name), columns_);
             const std::string ref = launcher_ref(i);
             push(text, role, LauncherMeaning{launcher_row::kName, i, ref});
             // THE MARK IS A CONTROL INSIDE THE ROW: recorded only where the cut left it whole.
