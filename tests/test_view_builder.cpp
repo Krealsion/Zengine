@@ -581,11 +581,14 @@ struct Rig {
         REQUIRE_MESSAGE(read, read.reason);
         return read.description;
     }
-    /// A line beside the design area that is exactly `words`: a value in its box.
+    /// A line beside the design area that reads exactly `words`: a value in its box, the blank a
+    /// caret after it stands on not read.
     const ws::PaneCanvasText* value(const std::string& words) const {
         const auto area = design();
         for (const auto& t : picture().texts)
-            if (t.text == words && (t.x < area.x || t.x >= area.x + area.w)) return &t;
+            if (t.text.substr(0, t.text.find_last_not_of(' ') + 1) == words &&
+                (t.x < area.x || t.x >= area.x + area.w))
+                return &t;
         return nullptr;
     }
     /// Is the element at `at` outlined in `role`, `thick` pixels deep: its bottom edge's rule.

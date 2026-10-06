@@ -172,10 +172,12 @@ struct Rig {
                                      named->labels, named->texts};
         return &kept;
     }
+    /// Every line of the latest picture, as a weaver reads it: its characters without the blanks
+    /// after the last (where a caret after a value stands), each closed by `|`.
     std::string words(const std::string& office) const {
         std::string out;
         if (const auto* p = latest(office))
-            for (const auto& t : p->texts) out += t.text + "|";
+            for (const auto& t : p->texts) out += t.text.substr(0, t.text.find_last_not_of(' ') + 1) + "|";
         return out;
     }
     /// Every line of the latest picture as one sentence, a wrapped notice whole again.
