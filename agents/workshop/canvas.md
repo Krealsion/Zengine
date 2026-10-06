@@ -9,18 +9,21 @@ LAW — A canvas provider draws in local canvas pixels inside the pane body; Wor
 
 MEANS
 - bounded rectangles, fixed cell labels and measured one-line text, below the title;
-- shared fit and hit bounds; whole glyph/row clipping keeps the padded region inside;
+- shared fit and hit bounds; whole glyph/row clipping keeps every glyph and caret inside, and a run's padding unless the run stands on the lattice;
 - provider-owned meaning and hit testing; malformed content is refused whole.
 
 PROVEN BY — `workshop/pane_canvas.hpp` `canvas_content_problem`;
 `workshop/screen_canvas.hpp` `canvas_body_place`, `canvas_clip_rect`, `paint_pane_canvas`;
-`workshop/pane_canvas_text.hpp` `canvas_text_metrics`, `clip_canvas_text`, `canvas_text_region`;
+`workshop/pane_canvas_text.hpp` `canvas_text_metrics`, `clip_canvas_text`, `clip_canvas_run`,
+`canvas_text_region`;
 `workshop/screen_external.cpp` `paint_external`; `tests/test_workshop_panes_canvas.cpp` case
 "pane canvas rejects malformed pictures whole and budgets data before rendering", case
 "pane canvas clips every primitive at its local boundary before translating", case
 "pane canvas grants fenced room and keeps a good picture after a refused update", case
 "pane canvas measured text shares its fit with existing surface type and preserves labels", case
-"pane canvas text clipping preserves surviving positions through both edges".
+"pane canvas text clipping preserves surviving positions through both edges", case
+"an unpadded run stands its first character at its own place, and runs a line apart hold as many
+rows as a prose body".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-02 — A room is bound to its provider

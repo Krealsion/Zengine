@@ -136,7 +136,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
             if (!region.rows.empty()) {
                 region.rows[0].text = detail::fit("(updating) " + region.rows[0].text, body.columns);
             } else {
-                PaneCanvasContent notice;
+                v5::PaneCanvasContent notice;
                 notice.texts.push_back({0, 0, "(updating)", surface::role::kAlert});
                 paint_pane_canvas(layer, canvas, notice, sc.text_advance_px,
                                   sc.text_line_px, chrome_grain(sc));

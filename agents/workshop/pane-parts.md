@@ -10,7 +10,7 @@ LAW — A pane names each row, control and element a weaver acts on from what it
 
 MEANS
 - the names ride with the picture they name, judged with it: a name once, in the order the pane reads a press, a place it names nothing unnamed;
-- a text part covers the cells showing its columns, a canvas part its rectangle as shown; its point is a place of its own, sought over all of it, or none;
+- a text part covers the cells showing its columns, a canvas part its rectangle as shown, each saying the characters drawn in it; its point is a place of its own, or none;
 - a pane redrawn as a picture keeps the names its rows had, so a name an agent wrote still holds.
 
 DOES NOT MEAN
@@ -20,9 +20,10 @@ DOES NOT MEAN
 PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_problem`,
 `canvas_parts_problem`, `PartNames`, `row_parts`; `component/row_map.hpp` `RowMap::press_order`;
 `workshop/weave_inspection.cpp` `visible_parts`, `row_owners`, `row_part_on`, `own_points`,
-`canvas_part_on`, `no_point`, `desk_menu`;
+`canvas_part_on`, `words_inside`, `no_point`, `desk_menu`;
 `workshop/screen_attention.cpp` `context_line_names`; `workshop/weave_seam.cpp` `admit_content`,
-`on(v4::PaneContent)`; `workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v4::PaneCanvasContent)`;
+`on(v4::PaneContent)`; `workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v4::PaneCanvasContent)`,
+`on(v5::PaneCanvasContent)`;
 `workshop/weave_external.cpp` `admit_menu_lines`; `menu-presenter/presenter.cpp` `show`;
 `desktop-pane/pane.cpp` `launcher_part`, `keys_part`; `info-pane/pane.cpp` `named_rows`;
 `info-pane/value_view.hpp` `part_name`; `files/files.cpp` `part_name`; `builder-pane/pane.cpp`
@@ -30,6 +31,8 @@ PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_pro
 `composer/view.hpp` `part_name`; `introspection/introspection.cpp` `loaded_parts`, `powers_parts`;
 `neovim-editor/pane.cpp` `status_part`; `view/view.hpp` `named`; `view-builder/picture.hpp`
 `part_name`, `named`; `flow-pane/view.hpp` `part_name`, `named`;
+`tests/test_workshop_desk.cpp` case `"a canvas pane's rows set on its room's lattice are words on its
+parts' rows, and a part's text is the characters drawn inside it"`;
 `tests/test_workshop_panes_button.cpp` case `"WL-HAND-06:
 the shipped presenter names each row's line by its id, and a press at that name's point chooses
 it"`; `tests/test_workshop_panes_desktop.cpp` case `"WL-HAND-06: the Pane Manager names each row

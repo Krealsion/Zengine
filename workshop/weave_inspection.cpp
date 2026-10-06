@@ -283,15 +283,27 @@ bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
     return true;
 }
 
-/// The words lying wholly inside a place, said in their order and joined by a space.
+/// The characters drawn wholly inside a place, word by word in their order, the run of each
+/// word's joined to the next word's by a space: a word wholly inside gives all of it, and a word
+/// the place's edge crosses gives the characters on the place's side, as a row part's text is the
+/// characters of its columns.
 std::string words_inside(const std::vector<PaneWord>& words, const DeskRect& place) {
     std::string out;
     for (const PaneWord& w : words) {
-        if (w.text.empty() || w.place.x < place.x || w.place.y < place.y ||
-            w.place.x + w.place.w > place.x + place.w || w.place.y + w.place.h > place.y + place.h) {
+        const auto bytes = static_cast<std::int64_t>(w.text.size());
+        if (bytes == 0 || w.place.y < place.y || w.place.y + w.place.h > place.y + place.h) {
             continue;
         }
-        out += out.empty() ? w.text : " " + w.text;
+        const std::int64_t advance = w.place.w / bytes;
+        if (advance <= 0) continue;
+        const std::int64_t first = (std::max<std::int64_t>)(
+            0, -surface::floor_div_px(w.place.x - place.x, advance));
+        const std::int64_t end = (std::min<std::int64_t>)(
+            bytes, surface::floor_div_px(place.x + place.w - w.place.x, advance));
+        if (end <= first) continue;
+        const std::string piece =
+            w.text.substr(static_cast<std::size_t>(first), static_cast<std::size_t>(end - first));
+        out += out.empty() ? piece : " " + piece;
     }
     return out;
 }
@@ -629,13 +641,17 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
     const PaneCanvasRoom room{picture.pane, picture.grant, body.w, body.h, content->canvas.grain,
                               content->canvas.graphical, content->canvas.text_advance_px,
                               content->canvas.text_line_px};
-    for (const PaneCanvasText& run : picture.texts) {
-        const auto placed = clip_canvas_text(run, {0, 0, body.w, body.h}, room);
+    for (const v2::PaneCanvasText& run : picture.texts) {
+        const auto placed = clip_canvas_run(run, {0, 0, body.w, body.h}, room);
         if (!placed.visible()) continue;
         const surface::SurfaceTextRegion region = canvas_text_region(placed, body.x, body.y);
         const surface::RegionFit fit = surface::fit_region(region.x, region.y, region.w, region.h,
                                                            sc.text_advance_px, sc.text_line_px);
-        keep(glyph_grid(fit), placed.text.text, 0);
+        // A run's word is its characters, without the blanks after the last, as a row's is: a
+        // run may be blank to the row's end to carry a ground there, as a row is padded.
+        std::string text = without_trailing_blanks(placed.text.text);
+        if (text.empty() && placed.text.caret_col < 0) continue;
+        keep(glyph_grid(fit), std::move(text), 0);
     }
     return out;
 }
@@ -659,7 +675,7 @@ std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
     std::vector<PanePart> out;
     const auto* content = visible.content;
     if (visible.canvas) {
-        const std::vector<PaneCanvasPart>& parts = content->canvas.parts;
+        const std::vector<PaneCanvasPart>& parts = content->canvas.content.parts;
         const std::int64_t unit = space == input::space::kPixels ? 1 : surface::kCanvasCellPx;
         std::vector<UnitBox> boxes;
         boxes.reserve(parts.size());

@@ -631,7 +631,9 @@ or held gestures in a provider's reload state. A fresh image waits for a fresh r
 
 `PaneCanvasContent` v3 carries `pane, grant, picture, rects, labels, texts` and replaces one
 whole picture; `v4::PaneCanvasContent` is the same with the parts it names
-([below](#a-pane-names-its-parts)). Rectangles
+([below](#a-pane-names-its-parts)), and `v5::PaneCanvasContent` the same again with its runs
+`v2::PaneCanvasText`, which may stand on the room's text lattice ([below](#rows-on-the-lattice)).
+Rectangles
 carry local `x,y,w,h,role`; labels carry `x,y,text,role`. Rectangles are painted in vector order,
 then labels and measured text above them, on the pane's own plane. Workshop clips before translating, so no
 primitive can escape its body. Offscreen positions are legal, allowing a provider to own pan
@@ -662,6 +664,22 @@ if (placed.visible()) {
 
 Clipping removes whole leading/trailing glyphs and whole rows; it does not reflow or shift
 surviving glyphs. The entire generated region, including its insets, remains inside the clip.
+
+#### Rows on the lattice
+
+A run's region carries the medium's inset on every side, so runs stacked one padded line apart
+(`line + 2*inset`) stand further apart than a pane's prose rows, which share one inset around
+them all, and a body fits fewer of them. `v2::PaneCanvasText` is v1's run, `padded` and
+`background`. `padded` is true, as every earlier run is, or false, where `x,y` name the run's
+first character's cell; `background` is a role the run's characters stand on, as a prose row's
+is (`role::kNone`, the default, shows what lies beneath), and a run blank to its row's end
+carries it there, its word still its characters without those blanks. Unpadded runs
+one `text_line_px` apart stack as prose rows do, and a body holds as many as it holds rows. The
+inset is still the medium's: Workshop judges and draws an unpadded run as the padded run whose
+glyphs land at its `x,y`, against the clip grown by the inset above, below and to the left --
+where only padding lies -- and never to the right, where a caret after the last character stands.
+In a terminal the inset is 0 and the two are one run. `clip_canvas_run` clips either kind of run
+as `clip_canvas_text` clips the first.
 Caret and selection columns follow the crop. Where text is a cell, a caret stands on a cell:
 after a run's last character it gets the next cell when the clip has one, and stands on the
 last character's when it has none. An empty line with a caret reserves one column. Keep measured sizes out of saved authoring data:
@@ -1255,7 +1273,7 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
 |---|---|
 | `v3::PaneViewRequested{provider, pane}` | A pane's words and the parts it names |
 | `v3::PaneView{provider, pane, picture, canvas, words, parts}` | `v2::PaneView`'s words, and every part the body shows |
-| `PanePart{name, text, place, x, y, space}` | One part: its name as the pane said it; the characters it covers, or for a canvas part the words wholly inside it, joined by a space; the place covering it where the medium draws it; and its point, or none |
+| `PanePart{name, text, place, x, y, space}` | One part: its name as the pane said it; the characters it covers -- for a canvas part, the characters drawn wholly inside it, each word's joined to the next word's by a space, so a part a word crosses says the characters on its side; the place covering it where the medium draws it; and its point, or none |
 | `v2::DeskViewRequested{}` | The desk now, its menu's lines named |
 | `v2::DeskView{width, height, cell_px, space, room, panes, arranging, menu}` | `DeskView`, its menu a `v2::DeskMenu{open, office, pane, picture, place, lines, parts}` |
 
