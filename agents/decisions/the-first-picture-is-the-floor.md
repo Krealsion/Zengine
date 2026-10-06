@@ -1,7 +1,7 @@
 # The first picture is the floor
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [session](../workshop/session.md).
+supports is in [session restore](../workshop/session-restore.md).
 
 **Context.** A medium that has been told nothing has only a run's first picture to size itself
 from, and the SDL medium makes that size the window's minimum, once, at creation

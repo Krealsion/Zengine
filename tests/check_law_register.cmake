@@ -318,6 +318,30 @@ function(zen_law_supported_links rel tail out)
     set(${out} "${pairs}" PARENT_SCOPE)
 endfunction()
 
+# A record's header -- its first paragraph, up to `**Context.**` -- links the files its law is in.
+# Each link as the file it names, resolved from the record's own directory, an anchor dropped.
+function(zen_law_header_links rel content out)
+    get_filename_component(dir "${rel}" DIRECTORY)
+    string(FIND "${content}" "**Context.**" end)
+    if(end EQUAL -1)
+        set(${out} "" PARENT_SCOPE)
+        return()
+    endif()
+    string(SUBSTRING "${content}" 0 ${end} header)
+    string(REGEX MATCHALL "${ZEN_STX}[^${ZEN_ETX}]*${ZEN_ETX}\\([^)#]+(#[^)]*)?\\)" links "${header}")
+    set(paths "")
+    foreach(link IN LISTS links)
+        if(link MATCHES "\\(([^)#]+)(#[^)]*)?\\)$")
+            set(target "${dir}/${CMAKE_MATCH_1}")
+            while(target MATCHES "[^/.][^/]*/\\.\\./")
+                string(REGEX REPLACE "[^/.][^/]*/\\.\\./" "" target "${target}")
+            endwhile()
+            list(APPEND paths "${target}")
+        endif()
+    endforeach()
+    set(${out} "${paths}" PARENT_SCOPE)
+endfunction()
+
 # The family of an id is its prefix; the family of a register path is its directory's row in
 # the table, "" for a path under no register directory.
 function(zen_law_family_of_id id out)
@@ -924,6 +948,20 @@ if(NOT st_links STREQUAL "WL-ZZZ-01|agents/workshop/a.md;MW-ZZZ-02|agents/maker/
     message(FATAL_ERROR
         "law-register: SELF-TEST FAILED -- a record's links were read as '${st_links}', so a law "
         "linked to a file that does not declare it would pass.")
+endif()
+
+# A record's header, read as the files it links: a register file and a guide with an anchor, both
+# climbing out of the record's directory, and nothing linked after the header ends.
+set(sh_text "# A record\n\n**Decision record.** One decision -- the law it supports is in [layouts](../workshop/a.md)")
+string(APPEND sh_text " and [a guide](../../docs/b.md#c).\n\n**Context.** [Later](../workshop/later.md).\n")
+string(REPLACE ";" "${ZEN_SOH}" sh_text "${sh_text}")
+string(REPLACE "[" "${ZEN_STX}" sh_text "${sh_text}")
+string(REPLACE "]" "${ZEN_ETX}" sh_text "${sh_text}")
+zen_law_header_links("agents/decisions/x.md" "${sh_text}" sh_links)
+if(NOT sh_links STREQUAL "agents/workshop/a.md;docs/b.md")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- a record's header was read as linking '${sh_links}', so "
+        "a header naming a register file that declares none of its laws would pass.")
 endif()
 
 # THE FAMILY TABLE'S CANARIES, on a synthetic second family bound beside the real rows and
@@ -2285,6 +2323,26 @@ foreach(rel IN LISTS record_files)
                 set(target "nothing")
             endif()
             zen_law_fail("${rel} lists ${id}, whose WHY names ${target}")
+        endif()
+    endforeach()
+    # The header names where the law it supports is: a register file it links declares one of
+    # the laws the record lists. A guide or a router beside it is no register file.
+    zen_law_header_links("${rel}" "${content}" header_links)
+    foreach(linked IN LISTS header_links)
+        zen_law_family_of_path("${linked}" linked_family)
+        if(linked_family STREQUAL "")
+            continue()
+        endif()
+        set(declares_one FALSE)
+        foreach(id IN LISTS listed)
+            get_property(declared GLOBAL PROPERTY "zen_law_file_${id}")
+            if(declared STREQUAL "${linked}")
+                set(declares_one TRUE)
+                break()
+            endif()
+        endforeach()
+        if(NOT declares_one)
+            zen_law_fail("${rel}'s header links ${linked}, which declares none of the laws the record lists; link the register file that declares them")
         endif()
     endforeach()
     if(NOT at EQUAL -1)
