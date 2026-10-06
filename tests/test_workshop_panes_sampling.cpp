@@ -489,6 +489,22 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     CHECK(pane_rows(r, kind)[0].find("find:rec") != std::string::npos);
     CHECK(any_row(pane_rows(r, kind), kProjectAnchorSource));
 
+    // THE QUERY'S CARET IS THE MEDIUM'S: the chrome row's run says the column it stands on, where
+    // the editing put it, and the row carries no character for it.
+    const auto caret_at = [&r, kind]() {
+        const ExternalPane* pane = r.session().panes.external_pane(kind);
+        REQUIRE(pane != nullptr);
+        REQUIRE_FALSE(pane->canvas.content.texts.empty());
+        return pane->canvas.content.texts.front().caret_col;
+    };
+    const auto query_at = static_cast<std::int64_t>(pane_rows(r, kind)[0].find("find:") + 5);
+    CHECK(pane_rows(r, kind)[0].find('_') == std::string::npos);
+    CHECK(caret_at() == query_at + 3);
+    r.key(input::scan::kLeft);
+    CHECK(caret_at() == query_at + 2);
+    r.key(input::scan::kRight);
+    CHECK(caret_at() == query_at + 3);
+
     // AND A NON-ADMISSIBLE CHUNK IS REFUSED WHOLE. The row contract is printable ASCII; a weaver
     // who typed `naive` with a diaeresis gets NONE of it rather than a mangled half, and the pane
     // keeps speaking rather than losing a whole update.

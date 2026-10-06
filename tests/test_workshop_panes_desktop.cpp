@@ -572,6 +572,18 @@ TEST_CASE("WL-KEY-17: a collision refuses the edit in the collision law's own wo
     k.right(row);
     k.choose("Modify (type a spelling)");
     k.r.text("w"); // `workshop.manage`'s key, in command mode
+    {
+        // THE SPELLING LINE'S CARET IS THE MEDIUM'S, after what is typed so far.
+        const ExternalPane* pane = k.r.session().panes.external_pane(k.hotkeys);
+        REQUIRE(pane != nullptr);
+        const std::string typed = "key for workshop.quit: w";
+        const auto& runs = pane->canvas.content.texts;
+        const auto line = std::find_if(runs.begin(), runs.end(), [&typed](const v2::PaneCanvasText& t) {
+            return t.text.rfind(typed, 0) == 0;
+        });
+        REQUIRE(line != runs.end());
+        CHECK(line->caret_col == static_cast<std::int64_t>(typed.size()));
+    }
     k.r.key(input::scan::kReturn);
     const std::string text = k.text();
     CAPTURE(text);
