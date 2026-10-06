@@ -12,6 +12,7 @@
 // letter and the v2 heir migrates it), 4 swaps to the SDL skin where deployed; r reloads the
 // world in place, n starts a new game through the poke-reset door, l lists, q quits.
 
+#include "play_state.hpp"
 #include "vocabulary.hpp"
 
 #include "input/vocabulary.hpp"
@@ -97,17 +98,13 @@ struct OperatorContext {
     std::string so(const char* stem) const;
 };
 
+using zengine::snake::OperatorState;
+
 /// The host's hand on the bus: it holds the reach (the manager, target-scoped -- the dangerous
 /// grant -- and the world's poke-reset door by role), issues every lifecycle command and hears
 /// every answer. It listens as snake does (command keys arrive as published `KeyPressed`) and
 /// speaks its status as `SurfaceText` on the "status" slot, re-published on a fresh Skin's
 /// `SurfaceReady`. Answers are matched against its own outstanding correlations; others are noise.
-struct OperatorState {
-    std::int64_t answers = 0;
-    ZEN_EXPOSE();
-    ZEN_SHAPE(OperatorState, 1, ZEN_FIELD(answers));
-};
-
 class OperatorWeave
     : public loom::WeaveBase<OperatorWeave, OperatorState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused,

@@ -197,5 +197,8 @@ headers install, which artifacts ride along) is owned by `cmake/ZengineInstall.c
   name and version it already holds, so a component built before the change and one built after
   could not load side by side. Nor may two shapes share a name: Loom claims a library's state
   and vocabulary at load, so two components' shapes of one name meet at the next version either
-  takes. `tests/test_workshop_shapes.cpp` claims the shapes as they were published beside the
-  current ones, a change to a shape adding its own there, and reads every name the tree declares.
+  takes. `tests/shapes.txt` pins every shape the tree publishes, nested ones included, by
+  content id under its name and version, and its census (`tests/test_shapes_census.cpp`) fails
+  a content id that moved without a new version, naming each enclosing shape; it writes the
+  census as it stands beside the build to diff. `tests/test_workshop_shapes.cpp` claims the
+  shapes as they were published beside the current ones and reads every name the tree declares.

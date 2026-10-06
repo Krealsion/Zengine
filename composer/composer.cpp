@@ -4,6 +4,7 @@
 // A schema-directed message form. Workshop supplies attributed gestures; copied values
 // remain data. Submission checks that gesture's actor against the exact destination shape.
 
+#include "command_context.hpp"
 #include "draft.hpp"
 #include "view.hpp"
 #include "vocabulary.hpp"
@@ -64,10 +65,7 @@ namespace meaning = zengine::composer::meaning;
 
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
-struct ComposerCommandContext {
-    std::string target_role;
-    ZEN_SHAPE(ComposerCommandContext, 1, ZEN_FIELD(target_role));
-};
+using zengine::composer::ComposerCommandContext;
 
 struct ComposerState {
     std::int64_t offers = 0;
