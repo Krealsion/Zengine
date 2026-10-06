@@ -26,10 +26,12 @@ component/list_window.hpp   ListWindow{first, count, before, after, markers}
                                           omitted (always conserved), and how many rows it
                                           reserved to say so; three anchorings, one accounting
 component/row_map.hpp       RowMap<Meaning>: row / span / at / at_row / row_of
-                            begin / settle / picture / current
+                            begin / settle / picture / current / press_order
                                           what each published row and control means, recorded
                                           by the pass that wrote it; the composition's number,
-                                          moved only when the map moves; solid_columns
+                                          moved only when the map moves; the spans in the order
+                                          a press reads them, the one `at` answers last;
+                                          solid_columns
 component/held_choice.hpp   HeldChoice<Key>: find / hold / step / actionable
                                           a choice kept by identity across a list that moves,
                                           and still a choice while its row is gone

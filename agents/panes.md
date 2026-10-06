@@ -154,9 +154,11 @@ nothing inside a pane: a word's number is its place in one answer. A pane names 
 (WL-HAND-06): `v4::PaneContent` and `v4::PaneCanvasContent` carry `parts` -- a run of a row's
 columns, a rectangle of the picture -- and `v2::MenuShown` a presenter's lines by the rows' ids,
 each judged with the picture it names and refused whole with it (`row_parts_problem`,
-`canvas_parts_problem`). `PaneView` version 3 says each beside the words with its place and its
-point, a place no part inside it covers, and `DeskView` version 2 a menu's named lines; a name is
-carried as the pane said it, and a press on a part is ordinary input at that point.
+`canvas_parts_problem`), listed in the order the pane reads a press, a place it names nothing
+unnamed. `PaneView` version 3 says each beside the words with its place and its point, a place of
+its own a press reaches -- none for a part with no such place -- and `DeskView` version 2 a
+menu's named lines; a name is carried as the pane said it, and a press on a part is ordinary
+input at that point.
 
 ## A pane may draw locally, with an explicit room and gesture identity
 

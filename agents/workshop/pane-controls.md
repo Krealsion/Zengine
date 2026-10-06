@@ -136,13 +136,13 @@ WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 LAW — A pane names each row, control and element a weaver acts on from what it means, kept across its redraws; Workshop says each name beside the part's words, place and point, naming nothing itself.
 
 MEANS
-- the names ride with the picture they name and are judged with it: a name once, on what it says;
-- a text part covers the cells showing its columns, a caret's glyph among them, a canvas part its rectangle as shown; its point is one no part inside it covers;
+- the names ride with the picture they name, judged with it: a name once, in the order the pane reads a press, a place it names nothing unnamed;
+- a text part covers the cells showing its columns, a caret's glyph among them, a canvas part its rectangle as shown; its point is a place of its own, sought over all of it, or none;
 - a pane redrawn as a picture keeps the names its rows had, so a name an agent wrote still holds.
 
 DOES NOT MEAN
-- that Workshop reads a name: it judges a name's form and carries it as the pane said it;
-- that a part the body does not show is said, or that pressing one is anything but input.
+- that Workshop reads a name: it judges a name's form and carries it as the pane said it, and says no unnamed place;
+- that a part the body does not show is said, that one with no place of its own is given another's, or that pressing one is anything but input.
 
 PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_problem`,
 `canvas_parts_problem`, `PartNames`, `row_parts`; `component/row_map.hpp` `RowMap::press_order`;
@@ -200,11 +200,15 @@ the last good one stays"`, case `"the desk names the lines of Workshop's own men
 group each shows, over the line it is drawn on"`, case `"a pane's names survive the canvas: its
 next image draws a picture under the names its rows had, and each is pressed where the picture
 draws it"`, case `"every place a named part gives is where the medium draws its words, in a
-window and in a terminal"`, case `"a part's point is a place of its own: a row with a control
-inside it is pressed beside the control, the control on itself, a row whose text is all a
-control's on a blank cell of its own, and a row with no place of its own has no point, in a window
-and in a terminal"`, case `"a canvas part's point is its own: a part with another over its centre is pressed
-where nothing inside it is, and a part a terminal paints on no cell is not said there"`.
+window and in a terminal"`, case `"a part's point is a place of its own: beside a control a row
+holds, on a row's blank cell where its text is a control's, and none for a row with no place of
+its own"`, case `"a canvas part's point is its own: a part with another over its centre is pressed
+where nothing inside it is, and a part a terminal paints on no cell is not said there"`, case `"two
+overlapping buttons in a running view are each pressed where the view gives that button the
+press"`, case `"a row part is pressed where its row map gives it the press, not on a narrower run
+over it nor an unnamed one"`, case `"a canvas part's own place is sought over all of it, and a part
+with none has no point, never another's"`, case `"a picture of as many parts as it may name gives
+each a point a press there gives it, or none"`.
 WHY — `agents/decisions/a-pane-names-its-parts.md`
 
 ## Do not assume

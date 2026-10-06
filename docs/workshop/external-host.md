@@ -685,9 +685,10 @@ what Workshop owns and none read off a picture:
   `PaneView` version 3: a text pane's rows, or a canvas pane's labels and runs of measured text as
   it drew them last, each a word with its place and the point a press names it by; and beside them
   every part the pane names -- a row, a control, an element -- under the pane's own name, with the
-  characters it covers, its place and its point. A pane keeps a part's name across its redraws, so
-  a walk finds it wherever the last redraw put it ([the parts a pane
-  names](../reference/workshop-panes.md#a-pane-names-its-parts)). Version 2 answers the words
+  characters it covers, its place and its point: a place of its own, where a press reaches it as
+  the pane reads a press, or none for a part every place of which another part takes. A pane keeps
+  a part's name across its redraws, so a walk finds it wherever the last redraw put it ([the parts
+  a pane names](../reference/workshop-panes.md#a-pane-names-its-parts)). Version 2 answers the words
   alone, and version 1 a text pane's rows, as text fitted to the body rather than as drawn.
 - **Where one character is.** `PanePointRequested` version 2,
   `{provider,pane,picture,word,column}`, answers where one character of one word is now, for the
@@ -710,7 +711,7 @@ interaction lease. Receivers must fence their own drops. `hand.words`, `hand.wor
 `hand.desk` in `hand.py` ask them, and `workshop/act` steps on them: `desk` checks a pane's
 place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
-"view-builder", "kind:label"]}`); `open` presses the Pane Manager's row named for a pane
+"view-builder", "kind:label"]}`), and fails rather than press one with no point; `open` presses the Pane Manager's row named for a pane
 (`{"open": "pane:zengine.files/project-files"}`), choosing it first where it is not chosen; `menu`
 presses the line of the menu on the screen named so, or holding some text; and `click`,
 `control`, `expect` and `select` read a canvas pane's words as a text pane's. `select` walks a

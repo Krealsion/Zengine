@@ -1228,19 +1228,25 @@ v2::MenuShown           presenter -> Workshop   MenuShown's lines + `parts`, eac
 
 - **A name is the pane's.** Workshop judges its form and carries it as the pane said it; it names
   nothing inside a pane. A name is 1 to `kMaxPanePartNameLen` (256) bytes of printable ASCII, not
-  all spaces, said once in its picture, and a picture names at most `kMaxPaneParts` (2048). A row
-  part is a run of at least one column of a row its content says, inside the room's columns; a
+  all spaces, said once in its picture, and a picture lists at most `kMaxPaneParts` (2048) parts. A
+  row part is a run of at least one column of a row its content says, inside the room's columns; a
   canvas part has a positive extent and may lie partly outside the room. Content naming a part
   wrongly is refused whole, saying why, as content breaking any other rule is: a pane's rows go
   with their refusal, and a rejected picture leaves the last good one.
-- **A part inside another is a part of its own**, and a press on it names it, not the part around
-  it: a control inside a row, a handle inside an element.
+- **A picture lists its parts in the order its pane reads a press.** Where parts hold one place, a
+  press there reaches the later: a control listed after the row it stands in, a handle after its
+  element, as each shipped canvas pane reads a press on the hits it drew. A place a press reaches
+  that the pane names nothing is listed with an empty name wherever it lies over a part the pane
+  names; it shares its name with nothing, and Workshop says no such place.
 - **The helpers are installed beside the protocol** (`workshop/pane_parts.hpp`).
   `row_parts(map, columns, name_of)` names what a `component::RowMap` recorded -- a whole row
-  across the room's columns, a run as itself -- from what each means, leaving unnamed a meaning
-  named "", a name the judge would refuse and a name already taken; `PartNames` gathers a pane's
-  own parts the same way; `pane_part_name_problem`, `row_parts_problem` and `canvas_parts_problem`
-  are the judge's words, for a pane to ask of its parts before it sends them.
+  across the room's columns, a run as itself -- from what each means, and lists the spans in
+  `RowMap::press_order`: on a row the widest first, so the span `at` answers is the last that holds
+  a place. A span whose meaning is named "", a name the judge would refuse or a name already taken
+  stays as a place unnamed. `PartNames` gathers a pane's own parts the same way, keeping every
+  place, and past `kMaxPaneParts` drops the earliest, which take no press from a part after them.
+  `pane_part_name_problem`, `row_parts_problem` and `canvas_parts_problem` are the judge's words,
+  for a pane to ask of its parts before it sends them.
 - **A pane moving its rows onto the canvas names the same parts in its picture.** A name says what
   a part means, not how it is drawn, so a walk written against the rows still holds.
 
@@ -1250,18 +1256,22 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
 |---|---|
 | `v3::PaneViewRequested{provider, pane}` | A pane's words and the parts it names |
 | `v3::PaneView{provider, pane, picture, canvas, words, parts}` | `v2::PaneView`'s words, and every part the body shows |
-| `PanePart{name, text, place, x, y, space}` | One part: its name as the pane said it; the characters it covers, or for a canvas part the words wholly inside it, joined by a space; the place covering it where the medium draws it; and its point |
+| `PanePart{name, text, place, x, y, space}` | One part: its name as the pane said it; the characters it covers, or for a canvas part the words wholly inside it, joined by a space; the place covering it where the medium draws it; and its point, or none |
 | `v2::DeskViewRequested{}` | The desk now, its menu's lines named |
 | `v2::DeskView{width, height, cell_px, space, room, panes, arranging, menu}` | `DeskView`, its menu a `v2::DeskMenu{open, office, pane, picture, place, lines, parts}` |
 
-- **A part's point is a place of its own.** A row part's point is its middle character that no part
-  inside it holds -- the Pane Manager's `pane:<office>/<pane>` lands on the pane's name, beside its
-  `[open]` mark -- or its first cell where every character is another's. A canvas part's point is
-  its centre, or, where a part inside it covers the centre, the middle of the widest uncovered
-  stretch of its centre, top or bottom row, then of its centre, left or right column. A point is in
-  the medium's own units: a window's pixel, or a terminal's cell. A terminal shows a span
-  `[begin, end)` on the cells from `floor(begin / kCanvasCellPx)` up to `floor(end /
-  kCanvasCellPx)`, that one left out, so a canvas part it paints on no cell is not said there.
+- **A part's point is a place of its own**, where a press reaches it: one no part listed after it
+  holds. A row part's point is its middle character of its own -- the Pane Manager's
+  `pane:<office>/<pane>` lands on the pane's name, beside its `[open]` mark -- else its middle blank
+  cell of its own. A canvas part's point is its centre, else the middle of its widest stretch of
+  its own on the row nearest its centre that has one -- the upper of two rows as near, the leftmost
+  of two stretches as wide -- sought over every unit of it the body shows. A part with no place of
+  its own is said with its words and place and no point: `x` and `y` are 0 and `space` is 0,
+  `input::space::kUnknown`, which no consumer reads and `InjectInput` refuses; `workshop/act` never
+  presses one. A point is in the medium's own units: a window's pixel, or a terminal's cell. A
+  terminal shows a span `[begin, end)` on the cells from `floor(begin / kCanvasCellPx)` up to
+  `floor(end / kCanvasCellPx)`, that one left out, so a canvas part it paints on no cell is not
+  said there.
 - **A part the body does not show is not said**, and one it cuts is said as far as it shows.
 - **Workshop names its own menu's lines** by the action or the group each shows; a pane's menu is
   named by its presenter, and the shipped presenter names each line by its row's id.
