@@ -45,11 +45,7 @@ std::vector<std::string> shown_rows(PaneRig& r, std::int64_t kind) {
     REQUIRE(shown != nullptr);
     CAPTURE(shown->refusal_why);
     CHECK(shown->refusal.empty());
-    std::vector<std::string> out;
-    for (const surface::SurfaceTextRow& line : shown->shown) {
-        out.push_back(line.text);
-    }
-    return out;
+    return held_row_texts(*shown);
 }
 
 std::string joined(const std::vector<std::string>& rows) {
@@ -427,6 +423,9 @@ struct Keys {
                                               PaneSize{pane_unit::kPixels, cells_px(120)},
                                               PaneSize{pane_unit::kPixels, cells_px(40)});
         REQUIRE_MESSAGE(tall.accepted, tall.refusal);
+        // An unchanged room repaints nothing, so the room moves and comes back: the size authored
+        // here is laid out now, not at a case's first gesture.
+        r.extent(200, 59);
         r.extent(200, 60);
         hotkeys = kind_of(r, kDesktopRole, dp::kHotkeysPane);
         REQUIRE(is_runtime_kind(hotkeys));
@@ -776,7 +775,10 @@ TEST_CASE("WL-DESK-14: a same-length inventory swap changes the picture, so a pr
     Desk d;
     const auto row = d.row_of("Alpha");
     REQUIRE(row >= 0);
-    const auto old_picture = d.r.session().panes.external_pane(d.launcher)->picture;
+    const auto& held = d.r.session().panes.external_pane(d.launcher)->canvas;
+    const auto old_picture = held.content.picture;
+    const auto grant = held.grant;
+    REQUIRE(old_picture > 0);
     PaneInventory inventory = d.r.w->inventory_reading();
     std::size_t alpha = inventory.panes.size();
     std::size_t gamma = inventory.panes.size();
@@ -794,8 +796,10 @@ TEST_CASE("WL-DESK-14: a same-length inventory swap changes the picture, so a pr
                                    d.r.workshop_id, 0));
     REQUIRE(updated.valid());
     const auto pressed = d.r.bus.office_send_to_role_as(d.r.workshop_id, kWorkshopProvider,
-        kDesktopRole, loom::Message(loom::to_value(ws::v3::PanePressed{dp::kLauncherPane, row,
-            kMarkCol, true, old_picture}), d.r.workshop_id, d.r.workshop_id, 0));
+        kDesktopRole, loom::Message(loom::to_value(PaneCanvasPointer{dp::kLauncherPane, grant,
+            old_picture, 1, canvas_pointer::kPress, 1, kMarkCol * kPaneCanvasUnit,
+            row * kPaneCanvasUnit, input::mod::kNone, 0, 0, true}), d.r.workshop_id,
+            d.r.workshop_id, 0));
     REQUIRE(pressed.valid());
     d.r.bus.drain_until_idle();
     CHECK_FALSE(d.open("gamma"));

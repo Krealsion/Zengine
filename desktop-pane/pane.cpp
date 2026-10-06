@@ -24,6 +24,7 @@
 
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_escape.hpp"
 #include "workshop/pane_parts.hpp"
@@ -75,7 +76,6 @@ using ws::KeymapShown;
 using ws::PaneActionRequested;
 using ws::PaneActionRow;
 using ws::PaneActions;
-using ws::PaneButton;
 using ws::PaneCatalogRequested;
 using ws::PaneCloseAnswered;
 using ws::PaneCloseRequested;
@@ -94,7 +94,6 @@ using ws::PaneRoom;
 using ws::PaneTextInput;
 using ws::PaneToggleAnswered;
 using ws::PaneToggleRequested;
-using ws::PaneWheel;
 using ws::ShownBinding;
 
 /// WHO THIS WEAVE IS TALKING TO -- the host's office, spelled as a literal exactly as every
@@ -251,9 +250,9 @@ std::string binding_key(const ShownBinding& b) {
 
 // (!) WHAT IT ACCEPTS IS ITS RELOAD CONTRACT. A reload replaces this weave only with an image
 // accepting exactly these shapes (Loom's accepted-contract match), so the doors added for the
-// mouse -- the press's third version, the wheel, the second button, the menu and toggle answers,
-// the edit answer -- make an image built without them a relaunch from a runtime made from one
-// build, never a reload (docs/workshop/develop-workshop.md). Images that both accept them reload.
+// mouse -- the canvas room and pointer, the menu and toggle answers, the edit answer -- make an
+// image built without them a relaunch from a runtime made from one build, never a reload
+// (docs/workshop/develop-workshop.md). Images that both accept them reload.
 class DesktopWeave
     : public loom::WeaveBase<
           DesktopWeave, pane::DesktopState,
@@ -261,10 +260,12 @@ class DesktopWeave
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
                        PaneCloseAnswered, PaneToggleAnswered, ActionsJudged,
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
-                       ws::v3::PanePressed, PaneWheel, PaneButton, PaneMenuAnswered,
-                       loom::DispatchRefused, surface::ClipboardCopy, surface::ClipboardText>,
+                       ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
+                       PaneMenuAnswered, loom::DispatchRefused, surface::ClipboardCopy,
+                       surface::ClipboardText>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
-                     ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v4::PaneContent, AppActions,
+                     ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v4::PaneContent,
+                     ws::v5::PaneCanvasContent, ws::PaneCaret, AppActions,
                      PaneLaunchRequested, PaneCloseRequested, PaneToggleRequested,
                      DeselectRequested, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
@@ -286,23 +287,48 @@ public:
         announce(mail);
     }
 
-    /// WORKSHOP GRANTS ONE OF THIS WEAVE'S TWO PANES ITS ROOM.
+    /// WORKSHOP GRANTS ONE OF THIS WEAVE'S TWO PANES ITS PROSE ROOM: kept for a host that grants
+    /// no canvas, and the room composed for only while the pane holds no canvas room.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             return;
         }
         if (room.pane == pane::kLauncherPane) {
-            rows_ = room.rows;
-            columns_ = room.columns;
+            launcher_canvas_.prose_rows = room.rows;
+            launcher_canvas_.prose_columns = room.columns;
             granted_ = true;
+            fit_rooms();
             say(mail);
         } else if (room.pane == pane::kHotkeysPane) {
-            keys_room_rows_ = room.rows;
-            keys_room_columns_ = room.columns;
+            keys_canvas_.prose_rows = room.rows;
+            keys_canvas_.prose_columns = room.columns;
             keys_granted_ = true;
+            fit_rooms();
             say_keys(mail);
         }
     }
+
+    /// ...AND ITS OWN CANVAS: while a pane holds a room there it draws its rows as its picture,
+    /// the lattice's rows and columns the room it composes for.
+    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            return;
+        }
+        if (room.pane == pane::kLauncherPane) {
+            launcher_canvas_.room = room;
+            granted_ = true;
+            fit_rooms();
+            say(mail);
+        } else if (room.pane == pane::kHotkeysPane) {
+            keys_canvas_.room = room;
+            keys_granted_ = true;
+            fit_rooms();
+            say_keys(mail);
+        }
+    }
+
+    /// A refused picture leaves the last good one showing; the next change draws again.
+    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
 
     pane::Shortcuts shortcuts_;
     void on(const ws::PaneShortcuts& request, loom::Mail& mail) {
@@ -554,33 +580,59 @@ public:
 
     // ---- The mouse: a press names a picture, a wheel walks the cursor, a right press offers --
 
-    /// A PRIMARY PRESS IN ONE OF THIS WEAVE'S PANES, naming the picture the medium held when the
-    /// press was read. A press about an older picture is refused in words -- never resolved
-    /// against whatever row has since moved into its place (WL-DESK-14).
-    void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
+    /// A HAND ON ONE OF THIS WEAVE'S PICTURES, read back to the row and column of its lattice and
+    /// fenced by the picture it names: a press about a picture drawn under another meaning is
+    /// refused in words -- never resolved against whatever row has since moved into its place
+    /// (WL-DESK-14). A primary press is the row's press, a right press its menu, the wheel walks
+    /// the cursor; a middle press, motion and every release mean nothing here.
+    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             return;
         }
-        if (press.pane == pane::kLauncherPane) {
-            launcher_press(press, mail);
-        } else if (press.pane == pane::kHotkeysPane) {
-            keys_press(press, mail);
+        PaneCanvas* canvas = event.pane == pane::kLauncherPane ? &launcher_canvas_
+                             : event.pane == pane::kHotkeysPane ? &keys_canvas_
+                                                                 : nullptr;
+        if (canvas == nullptr || !canvas->on() || event.grant != canvas->room.grant) {
+            return;
+        }
+        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas->room), event.x, event.y);
+        const PanePress press{event.pane, at.row, at.column, event.keys_went_here,
+                              canvas->pictures.current(event.grant, event.picture)};
+        if (event.phase == ws::canvas_pointer::kWheel) {
+            wheel(event.pane, event.dy, mail);
+        } else if (event.phase != ws::canvas_pointer::kPress) {
+            return;
+        } else if (event.button == 1 && at.shown) {
+            if (event.pane == pane::kLauncherPane) {
+                launcher_press(press, mail);
+            } else {
+                keys_press(press, mail);
+            }
+        } else if (event.button == 3) {
+            second_button(press, mail);
         }
     }
 
+private:
+    /// WHERE A PRESS LANDED in one of this weave's panes: the row and column of its lattice,
+    /// whether the keys were already here, and whether the picture it names was drawn under the
+    /// meaning the pane holds now.
+    struct PanePress {
+        std::string pane;
+        std::int64_t row = 0, column = 0;
+        bool keys_went_here = false, current = false;
+    };
+
     /// THE WHEEL WALKS THE CURSOR, one row per notch, fractions carried (Powers' convention).
-    void on(const PaneWheel& wheel, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            return;
-        }
-        if (wheel.pane == pane::kLauncherPane) {
-            const std::int64_t notches = take_notches(wheel_, wheel.dy);
+    void wheel(const std::string& pane_key, double dy, loom::Mail& mail) {
+        if (pane_key == pane::kLauncherPane) {
+            const std::int64_t notches = take_notches(wheel_, dy);
             if (notches != 0) {
                 step(-notches);
                 say(mail);
             }
-        } else if (wheel.pane == pane::kHotkeysPane) {
-            const std::int64_t notches = take_notches(keys_wheel_, wheel.dy);
+        } else if (pane_key == pane::kHotkeysPane) {
+            const std::int64_t notches = take_notches(keys_wheel_, dy);
             if (notches != 0) {
                 keys_step(-notches);
                 say_keys(mail);
@@ -591,13 +643,10 @@ public:
     /// THE SECOND BUTTON. A right press on a row of either list OFFERS that row's menu, beside
     /// the press, continuing it; a right press on anything that is not a row of this pane's own
     /// (a heading, a marker, a footer, the name line) is handed back to the host, whose own pane
-    /// menu answers. A middle press and every release mean nothing here and are consumed.
-    void on(const PaneButton& b, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || !b.pressed || b.button != 3) {
-            return;
-        }
+    /// menu answers.
+    void second_button(const PanePress& b, loom::Mail& mail) {
         if (b.pane == pane::kLauncherPane) {
-            if (!map_.current(b.picture)) {
+            if (!b.current) {
                 notice_ = kMovedSentence;
                 say(mail);
                 return;
@@ -615,7 +664,7 @@ public:
             return;
         }
         if (b.pane == pane::kHotkeysPane) {
-            if (!keys_map_.current(b.picture)) {
+            if (!b.current) {
                 keys_notice_ = kMovedSentence;
                 say_keys(mail);
                 return;
@@ -632,6 +681,8 @@ public:
             (void)pane_menu::pass_back(mail, pane::kDesktopRole, pane::kHotkeysPane);
         }
     }
+
+public:
 
     /// What a menu came to, if it answers one of this image's own asks (`Asked::take`: from the
     /// presenter's office, under an unanswered ask's number, about the pane and subject asked,
@@ -956,8 +1007,8 @@ private:
     /// DELIBERATE SECOND PRESS on the marked name, with the keys already here, is Return's meaning
     /// -- open, or focus and lift. The first press (the one that brings the keys, or one on an
     /// unmarked name) only moves the marker, so a press never means two things at once.
-    void launcher_press(const ws::v3::PanePressed& press, loom::Mail& mail) {
-        if (!map_.current(press.picture)) {
+    void launcher_press(const PanePress& press, loom::Mail& mail) {
+        if (!press.current) {
             notice_ = kMovedSentence;
             say(mail);
             return;
@@ -1166,13 +1217,26 @@ private:
         publish_launcher(mail, std::move(out));
     }
 
+    /// The launcher's rows, as its picture while it holds a canvas room -- numbered under the row
+    /// map's own number, which fences a press -- and as prose to a host granting none.
     void publish_launcher(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows) {
+        const std::int64_t meaning = map_.settle();
+        std::vector<ws::PaneRowPart> parts = ws::row_parts(
+            map_, columns_, [this](const LauncherMeaning& m) { return launcher_part(m); });
+        if (launcher_canvas_.on()) {
+            (void)mail.as_role(pane::kDesktopRole)
+                .send_to_role(kWorkshopRole,
+                              ws::rows_picture(launcher_canvas_.room,
+                                               launcher_canvas_.pictures.next(launcher_canvas_.room,
+                                                                              meaning),
+                                               rows, parts));
+            return;
+        }
         ws::v4::PaneContent said;
         said.pane = pane::kLauncherPane;
         said.rows = std::move(rows);
-        said.picture = map_.settle();
-        said.parts = ws::row_parts(map_, columns_,
-                                   [this](const LauncherMeaning& m) { return launcher_part(m); });
+        said.picture = meaning;
+        said.parts = std::move(parts);
         (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, said);
     }
 
@@ -1345,8 +1409,8 @@ private:
     }
 
     /// A PRESS ON A TABLE ROW CHOOSES IT -- visible selection, for the menu key to act on.
-    void keys_press(const ws::v3::PanePressed& press, loom::Mail& mail) {
-        if (!keys_map_.current(press.picture)) {
+    void keys_press(const PanePress& press, loom::Mail& mail) {
+        if (!press.current) {
             keys_notice_ = kMovedSentence;
             say_keys(mail);
             return;
@@ -1487,15 +1551,22 @@ private:
         push("HOTKEYS -- " + std::to_string(bindings) + " in force; * moved by your file; "
              "right-click or `m` on a row to change it",
              surface::role::kAccent, KeysMeaning{});
-        // THE SPELLING LINE, UNDER THE HEADING, while one is open.
+        // THE SPELLING LINE, UNDER THE HEADING, while one is open, its caret where it stands.
+        ws::RowsCaret caret;
         if (typing_.active) {
             const std::string prompt = "key for " + typing_.id + ": ";
             const std::int64_t room =
                 keys_room_columns_ - static_cast<std::int64_t>(prompt.size()) - 1;
             if (room > 0) {
                 typing_.line.keep_caret_visible(room);
+                const auto at = static_cast<std::int64_t>(out.size());
                 push(prompt + typing_.line.visible(room), surface::role::kAccent,
                      KeysMeaning{keys_row::kFooter, 0, {}});
+                if (static_cast<std::int64_t>(out.size()) > at) {
+                    caret.row = at;
+                    caret.column = static_cast<std::int64_t>(prompt.size() +
+                                                             typing_.line.caret_column());
+                }
             } else {
                 push(prompt, surface::role::kAccent, KeysMeaning{keys_row::kFooter, 0, {}});
             }
@@ -1594,7 +1665,7 @@ private:
             push(footer[static_cast<std::size_t>(i)], surface::role::kMuted,
                  KeysMeaning{keys_row::kFooter, static_cast<std::size_t>(i) + 1, {}});
         }
-        publish_keys(mail, std::move(out));
+        publish_keys(mail, std::move(out), caret);
     }
 
     static std::string marks_of(const ShownBinding& b) {
@@ -1608,14 +1679,49 @@ private:
         return marks;
     }
 
-    void publish_keys(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows) {
+    /// The table's rows, as the launcher's are, and the spelling line's caret beside them.
+    void publish_keys(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows,
+                      const ws::RowsCaret& caret = {}) {
+        const std::int64_t meaning = keys_map_.settle();
+        std::vector<ws::PaneRowPart> parts = ws::row_parts(
+            keys_map_, keys_room_columns_, [this](const KeysMeaning& m) { return keys_part(m); });
+        if (keys_canvas_.on()) {
+            (void)mail.as_role(pane::kDesktopRole)
+                .send_to_role(kWorkshopRole,
+                              ws::rows_picture(keys_canvas_.room,
+                                               keys_canvas_.pictures.next(keys_canvas_.room, meaning),
+                                               rows, parts, caret));
+            return;
+        }
         ws::v4::PaneContent said;
         said.pane = pane::kHotkeysPane;
         said.rows = std::move(rows);
-        said.picture = keys_map_.settle();
-        said.parts = ws::row_parts(keys_map_, keys_room_columns_,
-                                   [this](const KeysMeaning& m) { return keys_part(m); });
+        said.picture = meaning;
+        said.parts = std::move(parts);
         (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, said);
+        // Said every time, "none" included, so a caret the spelling line took with it is gone.
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, ws::PaneCaret{pane::kHotkeysPane, caret.row, caret.column});
+    }
+
+    /// ONE PANE'S OWN CANVAS: the room it holds there and the numbers its pictures take, and the
+    /// prose room a host granting no canvas gives it. Transient, as every room is.
+    struct PaneCanvas {
+        ws::PaneCanvasRoom room;
+        ws::CanvasPictures pictures;
+        std::int64_t prose_rows = 0, prose_columns = 0;
+        bool on() const { return room.grant > 0 && room.width > 0 && room.height > 0; }
+    };
+
+    /// The rows and columns each pane composes for: its canvas's lattice while it holds one, its
+    /// prose room otherwise.
+    void fit_rooms() {
+        const ws::CanvasRows launcher = ws::canvas_rows(launcher_canvas_.room);
+        rows_ = launcher_canvas_.on() ? launcher.rows : launcher_canvas_.prose_rows;
+        columns_ = launcher_canvas_.on() ? launcher.columns : launcher_canvas_.prose_columns;
+        const ws::CanvasRows keys = ws::canvas_rows(keys_canvas_.room);
+        keys_room_rows_ = keys_canvas_.on() ? keys.rows : keys_canvas_.prose_rows;
+        keys_room_columns_ = keys_canvas_.on() ? keys.columns : keys_canvas_.prose_columns;
     }
 
     /// WHAT A HOTKEYS PART IS CALLED: a binding's row by its identity,
@@ -1639,9 +1745,10 @@ private:
     std::vector<InventoryPane> known_;
     bool heard_ = false;
 
-    std::int64_t rows_ = 0;
+    std::int64_t rows_ = 0;    ///< the room composed for: the canvas lattice's, else the prose room's
     std::int64_t columns_ = 0;
     bool granted_ = false;
+    PaneCanvas launcher_canvas_;
     /// WHERE THE LIST'S WINDOW BEGAN LAST TIME, so it scrolls by the least it can.
     std::size_t first_ = 0;
     std::string notice_;
@@ -1670,6 +1777,7 @@ private:
     std::int64_t keys_room_rows_ = 0;
     std::int64_t keys_room_columns_ = 0;
     bool keys_granted_ = false;
+    PaneCanvas keys_canvas_;
     KeymapShown keymap_;
     bool keys_heard_ = false;
     std::vector<KeysLine> lines_;
