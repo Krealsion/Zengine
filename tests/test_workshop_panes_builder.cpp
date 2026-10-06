@@ -131,7 +131,7 @@ struct BuilderRig {
     /// `with_manager` mounts the opening manager (WL-OPEN-01) and `with_project_door` the
     /// read-only project office, each left out a door that reaches nobody -- the
     /// refusal-at-dispatch cases' subject. `with_presenter` puts the shipped presenter in the plan,
-    /// as a plan row because a realized plan has already published the booter's `BootState`.
+    /// as a plan row.
     void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false,
               bool with_manager = true, bool with_project_door = true,
               bool with_presenter = false) {

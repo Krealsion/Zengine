@@ -2304,16 +2304,17 @@ public:
     std::function<void(PaneWatcher&, loom::Mail&)> next;
 };
 
-struct BootState {
+/// The rig's booter's state: a name of its own, so it loads beside a plan booter's `BootState`.
+struct RigBootState {
     std::int64_t n = 0;
-    ZEN_SHAPE(BootState, 1, ZEN_FIELD(n));
+    ZEN_SHAPE(RigBootState, 1, ZEN_FIELD(n));
 };
 
 /// The weave that commands the Weave Manager and HEARS ITS ANSWERS -- the host's own boot shape,
 /// because a load whose refusal is addressed to nobody looks exactly like a load that worked. It
 /// hears `zen.Ack` too: the control door answers an unload with an Ack rather than a Result, and
 /// an answer nobody accepts is that same silence.
-class Booter : public loom::WeaveBase<Booter, BootState,
+class Booter : public loom::WeaveBase<Booter, RigBootState,
                                       loom::Accept<loom::Result, loom::Ack, loom::Refused>,
                                       loom::Emit<loom::LoadWeave, loom::UnloadLibrary>> {
 public:
@@ -2629,8 +2630,7 @@ struct PaneRig {
     /// the Weave Manager spends when a weaver's rebuilt product is offered: the Kernel snapshots
     /// the live weave, opens the new image and revives it at the same id. QUEUED, NOT DRAINED, so a
     /// reload lands at an exact interval of an operation in flight; the case pumps, and
-    /// `load_refusals` says whether it was refused. The seat is `ControlSeat`, not `Booter`: a
-    /// realized plan already published the booter's `BootState`, and a second is refused.
+    /// `load_refusals` says whether it was refused.
     void enqueue_reload(const char* name, const std::string& path) {
         const loom::WeaveId seat = loom::mount_granted<ControlSeat>(
             bus, loom::load_capability(control), loaded, load_refusals);
