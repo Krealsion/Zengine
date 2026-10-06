@@ -264,25 +264,10 @@ void WorkshopWeave::arrange_window(const PaneWindowProposal& want, std::int64_t 
         say(ready.refusal, true);
         return;
     }
-    PaneAxisProposal horizontal;
-    horizontal.base = base_x;
-    if (want.place_moved_x && want.x != base_x) {
-        horizontal.position = want.x;
-    }
-    if (want.w != base_w) {
-        horizontal.extent = PaneSize{pane_unit::kPixels, want.w};
-    }
-    PaneAxisProposal vertical;
-    vertical.base = base_y;
-    if (want.place_moved_y && want.y != base_y) {
-        vertical.position = want.y;
-    }
-    if (want.h != base_h) {
-        vertical.extent = PaneSize{pane_unit::kPixels, want.h};
-    }
+    const PaneWindowAxes axes = pane_window_axes(want, PixelRect{base_x, base_y, base_w, base_h});
     const WindowWritten done = author_pane_window(session_.setup.active,
-                                                  session_.arrange.pane, horizontal,
-                                                  vertical);
+                                                  session_.arrange.pane, axes.horizontal,
+                                                  axes.vertical);
     if (!done.written.accepted) {
         say(done.written.refusal, true);
         return;
@@ -609,29 +594,38 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool sn
     const PaneRef was_addressed = session_.arrange.pane;
     session_.arrange.pane = held;
     // EVERY MOTION SNAPS AFRESH FROM THE PRESS: the edges it moves come to the lines in reach --
-    // the room's and every other pane's on the screen -- unless Alt is held, and what it met is
-    // marked until the next motion or the release.
+    // the room's and every other pane's -- unless Alt is held, and what it met is marked until the
+    // next motion or the release. The lines are the desk's AS THIS MOTION'S WRITE WILL LEAVE IT,
+    // the held row written on a copy through the same door: a place that takes the pane out of
+    // the stack lets the panes below rise, and an edge they leave is no line.
     const Screen sc = screen_of(session_);
     const std::optional<std::int64_t> kind = resolve_pane(held, session_.panes);
-    const PaneSnapLines lines = snap && kind.has_value()
-                                    ? pane_snap_lines(session_.panes, session_.setup.active, sc,
-                                                      *kind)
-                                    : PaneSnapLines{};
+    const auto lines_after = [&](const PaneWindowProposal& want, const PixelRect& base) {
+        if (!snap || !kind.has_value()) {
+            return PaneSnapLines{};
+        }
+        Setup after = session_.setup.active;
+        const PaneWindowAxes axes = pane_window_axes(want, base);
+        (void)author_pane_window(after, held, axes.horizontal, axes.vertical);
+        return pane_snap_lines(session_.panes, after, sc, *kind);
+    };
     if (g.sizing) {
-        const SnappedWindow got = snap_pane_window(
+        const PaneWindowProposal want =
             pane_window_proposal(g.edge, g.base_x, g.base_y, g.base_w, g.base_h,
-                                 detail::minus(px_x, g.from_x), detail::minus(px_y, g.from_y)),
-            g.edge, lines);
+                                 detail::minus(px_x, g.from_x), detail::minus(px_y, g.from_y));
+        const SnappedWindow got = snap_pane_window(
+            want, g.edge, lines_after(want, PixelRect{g.base_x, g.base_y, g.base_w, g.base_h}));
         g.met_x = got.met_x;
         g.met_y = got.met_y;
         arrange_window(got.want, g.base_x, g.base_y, g.base_w, g.base_h, mail);
     } else {
-        // The hand is on the canvas and a place is in the room; the pane keeps its size.
+        // The hand is on the canvas and a place is in the room; the pane keeps its size, and the
+        // place is measured from the window `arrange_place` writes against.
         const PixelRect at = room_of_canvas(
             PixelRect{detail::minus(px_x, g.grab_dx), detail::minus(px_y, g.grab_dy), 0, 0}, sc);
-        const PixelRect size = managed_bounds().resolved;
-        const SnappedWindow got = snap_pane_window(
-            PaneWindowProposal{at.x, at.y, size.w, size.h, true, true}, kNoPaneEdge, lines);
+        const PixelRect base = managed_window_base();
+        const PaneWindowProposal want{at.x, at.y, base.w, base.h, true, true};
+        const SnappedWindow got = snap_pane_window(want, kNoPaneEdge, lines_after(want, base));
         g.met_x = got.met_x;
         g.met_y = got.met_y;
         arrange_place(got.want.x, got.want.y, mail);
