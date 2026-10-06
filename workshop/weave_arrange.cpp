@@ -594,10 +594,10 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool sn
     const PaneRef was_addressed = session_.arrange.pane;
     session_.arrange.pane = held;
     // EVERY MOTION SNAPS AFRESH FROM THE PRESS: the edges it moves come to the lines in reach --
-    // the room's and every other pane's -- unless Alt is held, and what it met is marked until the
-    // next motion or the release. The lines are the desk's AS THIS MOTION'S WRITE WILL LEAVE IT,
-    // the held row written on a copy through the same door: a place that takes the pane out of
-    // the stack lets the panes below rise, and an edge they leave is no line.
+    // the room's and every other pane's on the screen -- unless Alt is held, and what it met is
+    // marked until the next motion or the release. The lines are the desk's AS THIS MOTION'S
+    // WRITE WILL LEAVE IT, the held row written on a copy through the same door: a place that
+    // takes the pane out of the stack lets the panes below rise, and an edge they leave is no line.
     const Screen sc = screen_of(session_);
     const std::optional<std::int64_t> kind = resolve_pane(held, session_.panes);
     const auto lines_after = [&](const PaneWindowProposal& want, const PixelRect& base) {
