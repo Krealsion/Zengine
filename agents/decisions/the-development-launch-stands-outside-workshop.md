@@ -18,10 +18,10 @@ builds it and the host, and builds start nothing.
 
 **One launch holds a runtime.** Before it looks at anything, the launch CLAIMS the runtime — a
 named mutex on Windows, an exclusive `flock` on a per-user lock file on POSIX, named by the
-runtime directory hashed — and holds the claim until the host it started has exited. Two Runs used
-to be able to pass each other: each asked whether a host from the runtime was running, each was
-told no, and both prepared the one directory and started a Workshop over its images, promotions
-and project. Asking a second time just before starting the host would narrow that window and close
+runtime directory hashed — and holds the claim until the host it started has exited. Without it
+two Runs pass each other: each asks whether a host from the runtime is running, each is told no,
+and both prepare the one directory and start a Workshop over its images, promotions and project.
+Asking a second time just before starting the host would narrow that window and close
 nothing. The claim is the system's to release, so a launch that crashes or is stopped leaves
 nothing held and nothing to clean up, and a launch that cannot have the claim prepares, starts and
 stops nothing.
