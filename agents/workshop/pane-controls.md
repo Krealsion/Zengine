@@ -154,6 +154,7 @@ PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_pro
 `info-pane/value_view.hpp` `part_name`; `files/files.cpp` `part_name`; `builder-pane/pane.cpp`
 `part_name`; `inventory-pane/pane.cpp` `part_name`; `terminal-pane/pane.cpp` `named_rows`;
 `composer/view.hpp` `part_name`; `introspection/introspection.cpp` `loaded_parts`, `powers_parts`;
+`neovim-editor/pane.cpp` `status_part`;
 `tests/test_workshop_panes_button.cpp` case `"WL-HAND-06:
 the shipped presenter names each row's line by its id, and a press at that name's point chooses
 it"`; `tests/test_workshop_panes_desktop.cpp` case `"WL-HAND-06: the Pane Manager names each row
@@ -172,7 +173,10 @@ by its key"`; `tests/test_workshop_demo.cpp` case `"WL-HAND-06: the demo control
 row and the state beneath it"`; `tests/test_workshop_panes_introspection.cpp` case `"WL-HAND-06:
 Loaded names each loaded weave's row, and Powers its controls and each power's row"`;
 `tests/test_composer.cpp` case `"WL-HAND-06: the Composer names a message by its identity, a field
-by its name and its two controls by what they do"`;
+by its name and its two controls by what they do"`; `tests/test_workshop_panes_editor.cpp` case
+`"WL-HAND-06: the Editor names its status row and each document line by its number, wherever the
+window stands"`; `tests/test_workshop_neovim.cpp` case `"WL-HAND-06: the Neovim editor names its
+own status row, and nothing of Neovim's screen"`;
 `tests/test_workshop_desk.cpp`
 case `"a row
 map's parts are named by what each span means, and a name nothing, one the judge would refuse or
