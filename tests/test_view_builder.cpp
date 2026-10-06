@@ -234,6 +234,45 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
                       [](const auto& t) { return t.text == "  none yet: drag a kind in"; }));
 }
 
+TEST_CASE("WL-HAND-06: the View Builder names its controls, kinds, boxes, list rows, elements and handles, an element by its id") {
+    auto m = panel_model();
+    m.selected = 4;
+    for (const auto& room : {window_room(), terminal_room()}) {
+        INFO("graphical: " << room.graphical);
+        vb::Presentation none;
+        const auto pic = vb::picture(m, none, room, 1);
+        const auto said = vb::named(pic, m.description);
+        CHECK(ws::canvas_parts_problem(said.parts).empty());
+        const auto part = [&](const std::string& name) -> const ws::PaneCanvasPart* {
+            for (const auto& p : said.parts)
+                if (p.name == name) return &p;
+            return nullptr;
+        };
+        for (const char* name : {"control:new", "control:open", "control:save", "control:run",
+                                 "control:apply", "control:stop", "kind:label", "kind:number",
+                                 "kind:button", "box:name", "box:width", "box:height", "canvas"}) {
+            CAPTURE(name);
+            CHECK(part(name) != nullptr);
+        }
+        // EVERY ELEMENT BY ITS ID: its row in the list, and itself on the design canvas.
+        const auto& selected = m.description.elements[4];
+        for (const auto& e : m.description.elements) {
+            CAPTURE(e.id);
+            CHECK(part("list:" + e.id) != nullptr);
+            CHECK(part("element:" + e.id) != nullptr);
+        }
+        CHECK(part("box:" + selected.id + ".x") != nullptr);
+        CHECK(part("handle:" + selected.id + ".1,1") != nullptr);
+        // ...EACH OVER THE PLACE A PRESS ON IT MEANS THAT PLACE.
+        for (const auto& p : said.parts) {
+            CAPTURE(p.name);
+            const auto* hit = pic.hit(p.x + p.w / 2, p.y + p.h / 2);
+            REQUIRE(hit != nullptr);
+            CHECK(vb::part_name(*hit, m.description) == p.name);
+        }
+    }
+}
+
 TEST_CASE("a shape or a field carried onto a label is what it shows; a shape of several fields asks which") {
     auto m = panel_model();
     m.carried(4, total_shape(), std::nullopt);

@@ -5,6 +5,7 @@
 #include "flow-pane/find.hpp"
 #include "flow-pane/model.hpp"
 #include "workshop/pane_canvas_text.hpp"
+#include "workshop/pane_parts.hpp"
 #include "surface/pointing.hpp"
 #include <limits>
 
@@ -838,6 +839,36 @@ inline void reveal_selected(Model &model, const ws::PaneCanvasRoom &room) {
   model.workspace.pan_y =
       std::clamp(model.workspace.pan_y + dy, std::int64_t{-10000000}, std::int64_t{10000000});
   model.touched();
+}
+/// WHAT FLOW CALLS A PLACE IT ANSWERS A PRESS AT: a node by its place, `node:<id>`, and its
+/// argument `port:<id>.<n>` (`#<index>` where the node has no place yet); a control by what it
+/// does, `control:<action>`; any other row by what it does and what it stands for,
+/// `<action>:<args>`.
+inline std::string part_name(const Hit &hit) {
+  const auto node = [&]() {
+    return hit.subject != 0 ? std::to_string(hit.subject)
+                            : "#" + (hit.args.empty() ? std::string() : hit.args[0]);
+  };
+  if (hit.action == "node")
+    return "node:" + node();
+  if (hit.action == "port" && hit.args.size() == 2)
+    return "port:" + node() + "." + hit.args[1];
+  if (hit.args.empty())
+    return "control:" + hit.action;
+  std::string name = hit.action;
+  for (const auto &arg : hit.args)
+    name += ":" + arg;
+  return name;
+}
+
+/// FLOW'S PICTURE AS IT IS SAID, each place a press means something named (`part_name`).
+inline ws::v4::PaneCanvasContent named(const Picture &p) {
+  ws::PartNames<ws::PaneCanvasPart> parts;
+  for (const Hit &hit : p.hits)
+    (void)parts.add(ws::PaneCanvasPart{part_name(hit), hit.x, hit.y, hit.w, hit.h});
+  const auto &c = p.content;
+  return ws::v4::PaneCanvasContent{c.pane,   c.grant,  c.picture,   c.rects,
+                                   c.labels, c.texts, parts.take()};
 }
 } // namespace zengine::flow_pane
 #endif

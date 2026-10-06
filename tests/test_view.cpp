@@ -67,7 +67,8 @@ public:
     std::vector<loom::Message> heard;
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::PaneContent>(),
-                loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::PaneEscapeUnspent>(),
+                loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::v4::PaneCanvasContent>(),
+                loom::schema_of<ws::PaneEscapeUnspent>(),
                 loom::schema_of<ws::PanePassRequested>(), loom::schema_of<ws::PaneRevealRequested>()};
     }
     void handle(const loom::Message& in, loom::Bus&) override { heard.push_back(in); }
@@ -145,15 +146,31 @@ struct Rig {
                              terminal ? 0 : 8, terminal ? 0 : 16};
         tell(office, r);
     }
-    const ws::PaneCanvasContent* latest(const std::string& office) const {
-        for (auto it = desk->heard.rbegin(); it != desk->heard.rend(); ++it)
-            if (it->provenance.authored_role() == office &&
-                loom::same_identity(it->payload.schema(), *loom::schema_of<ws::PaneCanvasContent>())) {
-                static ws::PaneCanvasContent kept;
-                kept = loom::from_value<ws::PaneCanvasContent>(it->payload);
+    /// The latest picture a view said, as its parts name it (none for a picture naming nothing).
+    const ws::v4::PaneCanvasContent* latest_named(const std::string& office) const {
+        static ws::v4::PaneCanvasContent kept;
+        for (auto it = desk->heard.rbegin(); it != desk->heard.rend(); ++it) {
+            if (it->provenance.authored_role() != office) continue;
+            if (loom::same_identity(it->payload.schema(), *loom::schema_of<ws::v4::PaneCanvasContent>())) {
+                kept = loom::from_value<ws::v4::PaneCanvasContent>(it->payload);
                 return &kept;
             }
+            if (loom::same_identity(it->payload.schema(), *loom::schema_of<ws::PaneCanvasContent>())) {
+                const auto said = loom::from_value<ws::PaneCanvasContent>(it->payload);
+                kept = ws::v4::PaneCanvasContent{said.pane, said.grant, said.picture, said.rects,
+                                                 said.labels, said.texts, {}};
+                return &kept;
+            }
+        }
         return nullptr;
+    }
+    const ws::PaneCanvasContent* latest(const std::string& office) const {
+        static ws::PaneCanvasContent kept;
+        const auto* named = latest_named(office);
+        if (named == nullptr) return nullptr;
+        kept = ws::PaneCanvasContent{named->pane, named->grant, named->picture, named->rects,
+                                     named->labels, named->texts};
+        return &kept;
     }
     std::string words(const std::string& office) const {
         std::string out;
@@ -527,6 +544,34 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
     rig.tell("tally.panel", ws::PaneKey{view::kPane, zengine::input::scan::kReturn, 0});
     CHECK(rig.total() == 18);
     CHECK(has(rig.words("tally.panel"), "Total: 18|"));
+}
+
+TEST_CASE("WL-HAND-06: a running view names each element by its id over the place a press on it lands, and a press there uses it") {
+    Rig rig;
+    const auto d = panel();
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(d)}).ok);
+    rig.room("tally.panel");
+    const auto* p = rig.latest_named("tally.panel");
+    REQUIRE(p != nullptr);
+    REQUIRE(p->parts.size() == d.elements.size());
+    for (const auto& e : d.elements) {
+        CAPTURE(e.id);
+        const auto part = std::find_if(p->parts.begin(), p->parts.end(),
+                                       [&](const auto& q) { return q.name == "element:" + e.id; });
+        REQUIRE(part != p->parts.end());
+        CHECK(part->x == e.x);
+        CHECK(part->y == e.y);
+        CHECK(part->w == e.w);
+        CHECK(part->h == e.h);
+    }
+    // PRESSED AT THE MIDDLE OF THE PLACE ITS NAME GIVES, the button says its intent.
+    const auto count = std::find_if(p->parts.begin(), p->parts.end(),
+                                    [](const auto& q) { return q.name == "element:count"; });
+    REQUIRE(count != p->parts.end());
+    rig.tell("tally.panel", ws::PaneCanvasPointer{view::kPane, p->grant, p->picture, 1,
+                                                  ws::canvas_pointer::kPress, 1,
+                                                  count->x + count->w / 2, count->y + count->h / 2});
+    CHECK(rig.total() == 45);
 }
 
 TEST_CASE("a refusal answered to a view shows on its notice row, and what it was told stays") {
