@@ -14,6 +14,7 @@
 #include "files/files.hpp"
 #include "files/filesystem_roots.hpp"
 #include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
+#include "workshop/pane_parts.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 #include "files/marks_persist.hpp"
@@ -270,7 +271,7 @@ class FilesWeave
                        RecipeOutcome, SourceOpened, loom::DispatchRefused,
                        zengine::builder::BuildStatus, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, ws::v3::PaneContent, ProjectRootRequested,
+          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, ProjectRootRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
                      zengine::builder::StatusRequested, PaneMenuRequested, PanePassRequested,
                      ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
@@ -1745,12 +1746,27 @@ private:
             say_browser();
         }
         ++published_;
-        ws::v3::PaneContent said;
+        ws::v4::PaneContent said;
         said.pane = files::kProjectFilesPane;
         said.rows = std::move(composing_);
         composing_.clear();
         said.picture = map_.settle();
+        said.parts = ws::row_parts(map_, columns_, [](const FilesMeaning& m) { return part_name(m); });
         (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, said);
+    }
+
+    /// WHAT FILES CALLS ITS PARTS: a listing's entry by its name, `entry:<name>`; a buildable
+    /// candidate, `candidate:<name>`; an authoring field, line or not, `field:<name>`; and a
+    /// control by its operation, `control:<id>`.
+    static std::string part_name(const FilesMeaning& m) {
+        switch (m.kind) {
+        case files_row::kEntry: return "entry:" + m.subject;
+        case files_row::kCandidate: return "candidate:" + m.subject;
+        case files_row::kField:
+        case files_row::kLine: return "field:" + m.subject;
+        case files_row::kControl: return "control:" + m.id;
+        default: return std::string();
+        }
     }
 
     /// HOW MANY ROWS THE LISTING MAY SPEND: the room, less this pane's own header, less the

@@ -499,7 +499,7 @@ struct PaneContent {
     std::vector<surface::SurfaceTextRow> rows;
     std::int64_t generation = 0;
     std::int64_t picture = 0;
-    std::vector<PaneRowPart> parts;
+    std::vector<PaneRowPart> parts = {};
     ZEN_SHAPE(PaneContent, 4, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(generation),
               ZEN_FIELD(picture), ZEN_FIELD(parts));
 };

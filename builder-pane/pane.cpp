@@ -13,6 +13,7 @@
 
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
+#include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 
@@ -194,7 +195,7 @@ class BuilderPaneWeave
                        SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
                        PaneWheel, ws::v3::PanePressed, PaneButton, PaneMenuAnswered>,
-          loom::Emit<PaneOffered, PaneActions, ws::v3::PaneContent, builder::StatusRequested,
+          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
                      RecipeSourceRequested, OpenSourceRequested, PaneMenuRequested,
@@ -1878,12 +1879,24 @@ private:
             say_builder();
         }
         ++published_;
-        ws::v3::PaneContent said;
+        ws::v4::PaneContent said;
         said.pane = pane::kBuilderPane;
         said.rows = std::move(composing_);
         composing_.clear();
         said.picture = map_.settle();
+        said.parts = ws::row_parts(map_, columns_, [](const BuilderMeaning& m) { return part_name(m); });
         (void)mail.as_role(pane::kBuilderPaneRole).send_to_role(kWorkshopRole, said);
+    }
+
+    /// WHAT THE BUILDER CALLS ITS PARTS: a recipe's row by the recipe, `recipe:<name>`; a control
+    /// by its operation, `control:<id>`; and the role line, `line`.
+    static std::string part_name(const BuilderMeaning& m) {
+        switch (m.kind) {
+        case builder_row::kRecipe: return "recipe:" + m.subject;
+        case builder_row::kControl: return "control:" + m.id;
+        case builder_row::kLine: return "line";
+        default: return std::string();
+        }
     }
 
     // ---- The controls a weaver can press ---------------------------------------------

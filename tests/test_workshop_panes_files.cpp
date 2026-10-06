@@ -723,6 +723,34 @@ TEST_CASE("a press selects, and a second press on the same row activates") {
     CHECK(tap.keys_went_here == std::vector<int>{0, 1});
 }
 
+TEST_CASE("WL-HAND-06: Files names its entries by name and its controls by operation") {
+    FilesRig f("files-names");
+    std::filesystem::create_directory(f.root / "src");
+    put_file(f.root / "zulu.cpp", "int z;\n");
+    f.open();
+    auto parts = held_parts(f.r.session(), f.kind);
+    REQUIRE(parts.count("entry:zulu.cpp") == 1);
+    CHECK(parts.count("entry:src") + parts.count("entry:src/") == 1);
+    const PaneRowPart zulu = parts.at("entry:zulu.cpp");
+    CHECK(f.shown()[static_cast<std::size_t>(zulu.row)].find("zulu.cpp") != std::string::npos);
+    std::size_t controls = 0;
+    for (const auto& [name, part] : parts) {
+        if (name.rfind("control:", 0) != 0) continue;
+        ++controls;
+        CAPTURE(name);
+        const std::string face = held_part_text(f.r.session(), f.kind, part);
+        REQUIRE_FALSE(face.empty());
+        CHECK((face.front() == '[' || face.front() == '('));
+    }
+    CHECK(controls > 0);
+    // A PRESS WHERE AN ENTRY IS NAMED SELECTS IT, and the cursor moving leaves every name in place.
+    press_pane(f.r, f.kind, zulu.row, 2);
+    CHECK(f.at_cursor().find("zulu.cpp") != std::string::npos);
+    parts = held_parts(f.r.session(), f.kind);
+    REQUIRE(parts.count("entry:zulu.cpp") == 1);
+    CHECK(parts.at("entry:zulu.cpp").row == zulu.row);
+}
+
 TEST_CASE("the wheel moves the cursor, and a header press names no entry") {
     FilesRig f("files-wheel");
     for (int i = 0; i < 12; ++i) {
