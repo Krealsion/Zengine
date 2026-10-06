@@ -48,6 +48,7 @@
 #include "ui/vocabulary.hpp"
 
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/pane_parts.hpp"
 #include "workshop/setup_control.hpp"
 
 #include <cstdio>
@@ -175,6 +176,10 @@ void component_surface() {
     check(loom::schema_of<zengine::workshop::DeskView>()->find("panes") != nullptr &&
           loom::schema_of<zengine::workshop::DeskPane>()->find("visible") != nullptr,
           "installed desk answer names every pane and the part of it the canvas has");
+    check(loom::schema_of<zengine::workshop::v3::PaneView>()->find("parts") != nullptr &&
+          loom::schema_of<zengine::workshop::PanePart>()->find("name") != nullptr &&
+          loom::schema_of<zengine::workshop::v2::DeskMenu>()->find("parts") != nullptr,
+          "installed answers carry each named part beside a pane's words and a menu's lines");
     zengine::component::TextBox box;
     box.type("sourdough");
     check(box.text() == "sourdough", "a TextBox holds what was typed into it");
@@ -227,6 +232,33 @@ void pane_surface() {
     said.pane = offer.pane;
     said.rows.push_back(zengine::surface::SurfaceTextRow{"Tally: 3"});
     check(said.rows.size() == 1, "a pane's content is surface rows, reused rather than mirrored");
+
+    // A pane names the parts of its rows it keeps across redraws; the installed judge says
+    // whether Workshop will admit them, before they are sent.
+    zengine::component::RowMap<std::string> map;
+    map.begin();
+    map.row(0, "count");
+    (void)map.settle();
+    const std::vector<ws::PaneRowPart> parts =
+        ws::row_parts(map, 20, [](const std::string& m) { return "row:" + m; });
+    check(parts.size() == 1 && parts[0].name == "row:count" && parts[0].columns == 20,
+          "a row map's parts are named by what they mean");
+    check(ws::row_parts_problem(parts, 1, 20).empty() &&
+              !ws::row_parts_problem({parts[0], parts[0]}, 1, 20).empty(),
+          "and judged as Workshop judges them: a name once");
+    // ...listed as a press reads them: a control recorded before its row comes after it, the last
+    // of the parts that hold its place, as it is what the map answers there.
+    map.begin();
+    (void)map.span(0, 2, 4, 20, "save");
+    map.row(0, "count");
+    (void)map.settle();
+    const std::vector<ws::PaneRowPart> pressed =
+        ws::row_parts(map, 20, [](const std::string& m) { return "row:" + m; });
+    check(map.press_order() == std::vector<std::size_t>{1, 0} && pressed.size() == 2 &&
+              pressed[1].name == "row:save" && *map.at(0, 3) == "save",
+          "a row map's parts are listed in the order its press reads them");
+    const ws::v4::PaneContent named{offer.pane, said.rows, 0, 0, parts};
+    check(named.parts.size() == 1, "content names its parts beside its rows");
 
     ws::PaneActions actions;
     actions.pane = offer.pane;

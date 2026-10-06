@@ -136,7 +136,7 @@ class EditorPaneWeave
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                        ws::PaneValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered>,
-          loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v3::PaneContent, ws::v2::PaneCaret,
+          loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v4::PaneContent, ws::v2::PaneCaret,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                      PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
                      ProjectRootRequested, surface::ClipboardCopy,
@@ -299,7 +299,7 @@ public:
                      EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                      ws::PaneValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                      ws::PaneCarryAnswered>,
-        loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v3::PaneContent, ws::v2::PaneCaret,
+        loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v4::PaneContent, ws::v2::PaneCaret,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                    PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
                    ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
@@ -2394,7 +2394,9 @@ private:
     /// THE PANE, SAID: the live document composed for the granted room, its viewport moved
     /// as the composition moved it, and the rows and the caret published beside each other,
     /// each naming the document's generation so a projection of a document that is gone can
-    /// never repaint the one that replaced it, numbered by the picture it is (`v3::PaneContent`).
+    /// never repaint the one that replaced it, numbered by the picture it is, its first row named
+    /// `status` -- the status, or a notice in its place -- and each document line by its number,
+    /// `line:<n>` (`v4::PaneContent`).
     // WL-EDIT-18 -- agents/workshop/editor-transfers.md
     void say(loom::Mail& mail) {
         if (!granted_) {
@@ -2425,10 +2427,19 @@ private:
             picture_key_ = key;
             ++picture_;
         }
+        std::vector<ws::PaneRowPart> parts;
+        if (c.chrome_rows > 0) {
+            parts.push_back(ws::PaneRowPart{"status", 0, 0, columns_});
+        }
+        for (std::int64_t row = c.chrome_rows; row < static_cast<std::int64_t>(c.rows.size()); ++row) {
+            const std::size_t line = c.view.first_row + static_cast<std::size_t>(row - c.chrome_rows);
+            parts.push_back(ws::PaneRowPart{"line:" + std::to_string(line + 1), row, 0, columns_});
+        }
         (void)mail.as_role(pane::kEditorPaneRole)
             .send_to_role(kWorkshopRole,
-                          ws::v3::PaneContent{pane::kEditorPane, std::move(c.rows),
-                                              static_cast<std::int64_t>(e_.doc_epoch), picture_});
+                          ws::v4::PaneContent{pane::kEditorPane, std::move(c.rows),
+                                              static_cast<std::int64_t>(e_.doc_epoch), picture_,
+                                              std::move(parts)});
         (void)mail.as_role(pane::kEditorPaneRole).send_to_role(kWorkshopRole, c.caret);
     }
 

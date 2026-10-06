@@ -40,6 +40,7 @@ void WorkshopWeave::refresh_external_rooms(loom::Mail& mail) {
         pane->columns = body.columns;
         pane->granted = true;
         pane->shown.clear();
+        pane->parts.clear();
         pane->heard = false;
         pane->awaiting = true;
         // The refusal is not cleared: a room goes out whenever the surface resizes, and only
@@ -846,6 +847,16 @@ bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Ma
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const MenuShown& shown, loom::Mail& mail) {
+    admit_menu_lines(v2::MenuShown{shown.menu, shown.picture, shown.lines, {}}, mail);
+}
+
+// WL-CTX-09 -- agents/workshop/pane-menu.md
+void WorkshopWeave::on(const v2::MenuShown& shown, loom::Mail& mail) {
+    admit_menu_lines(shown, mail);
+}
+
+// WL-CTX-09 -- agents/workshop/pane-menu.md
+void WorkshopWeave::admit_menu_lines(const v2::MenuShown& shown, loom::Mail& mail) {
     if (!about_open_menu(shown.menu, mail)) {
         return; // not the presenter, or not the menu that is open: nothing moves
     }
@@ -875,12 +886,21 @@ void WorkshopWeave::on(const MenuShown& shown, loom::Mail& mail) {
             }
         }
     }
+    if (refused.empty()) {
+        // ...AND THE LINES IT NAMES, as a pane's named rows are judged.
+        refused = row_parts_problem(shown.parts, static_cast<std::int64_t>(shown.lines.size()),
+                                    menu.room_columns);
+        if (!refused.empty()) {
+            refused = "the presenter " + refused;
+        }
+    }
     if (!refused.empty()) {
         withdraw_menu(refused, mail);
         repaint(mail);
         return;
     }
     menu.lines = shown.lines;
+    menu.parts = shown.parts;
     menu.picture = shown.picture;
     repaint(mail);
 }

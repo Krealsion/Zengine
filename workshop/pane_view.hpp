@@ -138,5 +138,73 @@ struct PanePoint {
 
 } // namespace v2
 
+// ---- THE PARTS A PANE NAMES, where they are drawn ----------------------------------------------
+// A pane names the parts a weaver acts on (`PaneRowPart`, `PaneCanvasPart`); Workshop carries each
+// name as the pane said it, beside the words drawn inside the part and its place, and names
+// nothing itself. A pane that names nothing still reads as words.
+
+/// One named part where the medium draws it: its name, the words drawn inside it (a text part's
+/// characters; a canvas part's words that lie inside it, joined by a space), `place` the part as
+/// the body shows it, and `x`, `y` the point a press reaches it at, a place of its own that no part
+/// listed after it holds -- a text part's middle character of its own, else its middle blank cell
+/// of its own; a canvas part's centre, else the middle of its widest stretch of its own on the row
+/// nearest its centre. A part with no place of its own has no point: `x` and `y` are 0, and
+/// `space` is `input::space::kUnknown`, a space no consumer reads.
+struct PanePart {
+    std::string name, text;
+    DeskRect place;
+    std::int64_t x = 0, y = 0, space = 0;
+    ZEN_SHAPE(PanePart, 1, ZEN_FIELD(name), ZEN_FIELD(text), ZEN_FIELD(place), ZEN_FIELD(x),
+              ZEN_FIELD(y), ZEN_FIELD(space));
+};
+
+namespace v3 {
+
+/// A pane's words and its named parts, from one reading of its picture.
+struct PaneViewRequested {
+    std::string provider, pane;
+    ZEN_SHAPE(PaneViewRequested, 3, ZEN_FIELD(provider), ZEN_FIELD(pane));
+};
+struct PaneView {
+    std::string provider, pane;
+    std::int64_t picture = 0;
+    bool canvas = false;
+    std::vector<PaneWord> words;
+    std::vector<PanePart> parts;
+    ZEN_SHAPE(PaneView, 3, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture),
+              ZEN_FIELD(canvas), ZEN_FIELD(words), ZEN_FIELD(parts));
+};
+
+} // namespace v3
+
+namespace v2 {
+
+/// The desk with the menu's named lines beside its lines: a pane's menu names a line by its row's
+/// id, as its presenter said it; Workshop's own names each line by the action or group it shows.
+struct DeskViewRequested {
+    ZEN_SHAPE(DeskViewRequested, 2);
+};
+struct DeskMenu {
+    bool open = false;
+    std::string office, pane;
+    std::int64_t picture = 0;
+    DeskRect place;
+    std::vector<PaneWord> lines;
+    std::vector<PanePart> parts;
+    ZEN_SHAPE(DeskMenu, 2, ZEN_FIELD(open), ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(picture),
+              ZEN_FIELD(place), ZEN_FIELD(lines), ZEN_FIELD(parts));
+};
+struct DeskView {
+    std::int64_t width = 0, height = 0, cell_px = 0, space = 0;
+    DeskRect room;
+    std::vector<DeskPane> panes;
+    bool arranging = false;
+    DeskMenu menu;
+    ZEN_SHAPE(DeskView, 2, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(cell_px), ZEN_FIELD(space),
+              ZEN_FIELD(room), ZEN_FIELD(panes), ZEN_FIELD(arranging), ZEN_FIELD(menu));
+};
+
+} // namespace v2
+
 } // namespace zengine::workshop
 #endif

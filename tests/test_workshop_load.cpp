@@ -5716,8 +5716,9 @@ class HostSeat
                        // The Editor says its rows and caret with their generation (pane
                        // protocol v2); this seat records either spelling the same way.
                        workshop::v2::PaneContent, workshop::v2::PaneCaret,
-                       // ...and numbers its picture (v3), its rows being a drop target.
-                       workshop::v3::PaneContent,
+                       // ...and numbers its picture (v3), its rows being a drop target, and
+                       // names its parts beside them (v4).
+                       workshop::v3::PaneContent, workshop::v4::PaneContent,
                        // ...AND THE PRESENTATION OWNER'S HALF OF A MANAGED OPENING: the source
                        // door relays to the opening manager, which asks the desk for a trial
                        // and an admission -- so this stand-in desk answers both, offers its
@@ -5811,6 +5812,9 @@ public:
         contents.push_back(workshop::PaneContent{c.pane, c.rows});
     }
     void on(const workshop::v3::PaneContent& c, loom::Mail&) {
+        contents.push_back(workshop::PaneContent{c.pane, c.rows});
+    }
+    void on(const workshop::v4::PaneContent& c, loom::Mail&) {
         contents.push_back(workshop::PaneContent{c.pane, c.rows});
     }
     void on(const workshop::v2::PaneCaret& c, loom::Mail&) {

@@ -14,6 +14,7 @@
 #include "input/vocabulary.hpp"
 #include "introspection/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_escape.hpp"
@@ -103,7 +104,7 @@ public:
     /// What this weave says to Workshop. A submitted command is whatever shape the weaver
     /// filled, so it is not listed.
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
-        return {loom::schema_of<PaneOffered>(), loom::schema_of<ws::v3::PaneContent>(),
+        return {loom::schema_of<PaneOffered>(), loom::schema_of<ws::v4::PaneContent>(),
                 loom::schema_of<ws::PaneActions>(), loom::schema_of<ws::PaneOperationRequested>(),
                 loom::schema_of<ws::PaneEscapeUnspent>()};
     }
@@ -768,10 +769,20 @@ private:
             }
         }
         shown_ = zengine::composer::project(composing_, rows_, columns_);
-        ws::v3::PaneContent said;
+        ws::v4::PaneContent said;
         said.picture = ++picture_;
         said.pane = kComposePane;
         said.rows = zengine::composer::rows_of(shown_);
+        // A row that means nothing is not listed: a row entire lies over no other part.
+        ws::PartNames<ws::PaneRowPart> named;
+        for (std::size_t row = 0; row < shown_.rows.size(); ++row) {
+            std::string name = zengine::composer::part_name(composing_, shown_.rows[row].meaning);
+            if (!name.empty()) {
+                (void)named.add(ws::PaneRowPart{std::move(name), static_cast<std::int64_t>(row), 0,
+                                                columns_});
+            }
+        }
+        said.parts = named.take();
         (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, said);
         (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, ws::PaneActions{kComposePane, {
             {"compose.enter", "choose", input::scan::kReturn, input::mod::kNone},

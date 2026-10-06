@@ -69,7 +69,7 @@ class ViewBuilderPane final
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, loom::DispatchRefused,
                        ws::ProjectRoot>,
-          loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::PaneCanvasContent, ws::PaneActions,
+          loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneActions,
                      ws::PaneEscapeUnspent, ws::PanePassRequested, ws::PaneMenuRequested,
                      ws::PaneQuitAnswered, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
                      vb::ViewEdited, view::ViewRun, view::ViewResume, view::ViewApply, view::ViewStop,
@@ -968,7 +968,8 @@ private:
     void show(loom::Mail& mail) {
         if (room_.grant > 0 && room_.width > 0 && room_.height > 0) {
             auto current = vb::picture(model_, shown_, room_, ++picture_number_);
-            const auto ticket = mail.as_role(vb::kRole).send_to_role(workshop_role, current.content);
+            const auto ticket =
+                mail.as_role(vb::kRole).send_to_role(workshop_role, vb::named(current, model_.description));
             if (ticket.valid()) {
                 pictures_.push_back(std::move(current));
                 while (pictures_.size() > 8) pictures_.pop_front();

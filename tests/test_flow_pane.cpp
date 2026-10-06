@@ -21,6 +21,7 @@
 #include <chrono>
 #include <filesystem>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -41,9 +42,11 @@ class Presenter final : public loom::Weave {
 public:
     std::vector<loom::Message> messages;
     std::vector<ws::PaneCanvasContent> pictures;
+    std::vector<ws::v4::PaneCanvasContent> named; ///< ...as said, with the parts each names
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
             loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
+            loom::schema_of<ws::v4::PaneCanvasContent>(),
             loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PaneQuitAnswered>(),
             loom::schema_of<ws::PanePassRequested>(), loom::schema_of<fp::FlowEdited>(),
             loom::schema_of<ws::PaneMenuRequested>(), loom::schema_of<ws::PaneOperationRequested>(),
@@ -57,6 +60,12 @@ public:
         if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PaneCanvasContent>())) {
             REQUIRE(message.provenance.authored_from_role(fp::kRole));
             pictures.push_back(loom::from_value<ws::PaneCanvasContent>(message.payload));
+        }
+        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::v4::PaneCanvasContent>())) {
+            REQUIRE(message.provenance.authored_from_role(fp::kRole));
+            named.push_back(loom::from_value<ws::v4::PaneCanvasContent>(message.payload));
+            const auto& c = named.back();
+            pictures.push_back(ws::PaneCanvasContent{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts});
         }
         messages.push_back(message);
     }
@@ -114,6 +123,7 @@ struct Rig {
         ws::allow_finding_powers(pane_grant);
         for (const auto& schema : {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
                 loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
+                loom::schema_of<ws::v4::PaneCanvasContent>(),
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
                 loom::schema_of<ws::PaneMenuRequested>(), loom::schema_of<ws::PaneOperationRequested>(),
                 loom::schema_of<ws::PaneValueCarryRequested>()})
@@ -370,6 +380,67 @@ TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project w
     rig.edit_ok("preset-open", {"seven"});
     rig.edit_ok("send");
     CHECK(rig.live_value() == 10);
+}
+
+TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their place, and every place a press means something") {
+    Rig rig;
+    REQUIRE_FALSE(rig.presenter->named.empty());
+    auto said = rig.presenter->named.back();
+    CHECK(ws::canvas_parts_problem(said.parts).empty());
+    const auto named = [&](const std::string& name) {
+        return std::any_of(said.parts.begin(), said.parts.end(), [&](const auto& p) { return p.name == name; });
+    };
+    CHECK(named("control:ask-save"));
+    CHECK(named("control:page-graph"));
+    // A GRAPH WITH A NODE: the node and its arguments named by its place, whatever index it has.
+    rig.click("[New]");
+    rig.replace_text("meter");
+    rig.key(in::scan::kReturn);
+    rig.click("[State]");
+    rig.click("[Add state field]");
+    rig.key(in::scan::kReturn);
+    rig.click("[Messages]");
+    rig.click("[New message]");
+    rig.key(in::scan::kReturn);
+    rig.click("[Add field]");
+    rig.key(in::scan::kReturn);
+    rig.click("[Graph]");
+    rig.click("[Add trigger]");
+    rig.key(in::scan::kReturn);
+    rig.click("  math.max");
+    rig.click("[Add]");
+    said = rig.presenter->named.back();
+    std::size_t nodes = 0, ports = 0;
+    for (const auto& p : said.parts) {
+        nodes += p.name.rfind("node:", 0) == 0 ? 1u : 0u;
+        ports += p.name.rfind("port:", 0) == 0 ? 1u : 0u;
+    }
+    CHECK(nodes == 1);
+    CHECK(ports == 2);
+    // EVERY NAMED PLACE IS WHERE A LABEL OR RUN SAYS SOMETHING, OR A BOX IS DRAWN.
+    for (const auto& p : said.parts) {
+        CAPTURE(p.name);
+        CHECK(p.w > 0);
+        CHECK(p.h > 0);
+    }
+    // EVERY PLACE A PRESS MEANS SOMETHING, LISTED AS THE PICTURE READS A PRESS: its hits in their
+    // order, each under its name, or unnamed where an earlier one took it.
+    const ws::PaneCanvasRoom room{"flow", 1, 1200, 720, 1, true, 8, 16};
+    const fp::Picture drawn = fp::picture(fp::Model{}, room, 1);
+    const auto listed = fp::named(drawn);
+    REQUIRE_FALSE(drawn.hits.empty());
+    REQUIRE(listed.parts.size() == drawn.hits.size());
+    std::set<std::string> taken;
+    for (std::size_t i = 0; i < drawn.hits.size(); ++i) {
+        CAPTURE(i);
+        const fp::Hit& hit = drawn.hits[i];
+        CHECK(listed.parts[i].x == hit.x);
+        CHECK(listed.parts[i].y == hit.y);
+        CHECK(listed.parts[i].w == hit.w);
+        CHECK(listed.parts[i].h == hit.h);
+        const std::string name = fp::part_name(hit);
+        CHECK(listed.parts[i].name == (taken.insert(name).second ? name : std::string()));
+    }
 }
 
 TEST_CASE("loaded Flow pane reload retains unfinished forms layout and its live office session") {

@@ -91,6 +91,7 @@
 #include <iterator>
 #include <memory>
 #include <limits>
+#include <map>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -2057,8 +2058,9 @@ class ProviderSeat
     : public loom::WeaveBase<ProviderSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                                           PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
-                             loom::Emit<PaneOffered, PaneContent, PanePressed, PaneActions,
-                                        v2::PaneActions, PaneCaret, PaneEscapeUnspent>> {
+                             loom::Emit<PaneOffered, PaneContent, v4::PaneContent, PanePressed,
+                                        PaneActions, v2::PaneActions, PaneCaret,
+                                        PaneEscapeUnspent>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
 
@@ -2133,6 +2135,10 @@ public:
         (void)mail.send_to_role(kWorkshopProvider, o);
     }
     void say(loom::Mail& mail, const PaneContent& c) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
+    }
+    /// ...and content naming its parts, the version that carries them.
+    void say_named(loom::Mail& mail, const v4::PaneContent& c) {
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
     }
     /// THE ESCAPE THIS SEAT WAS SENT WAS UNSPENT HERE -- said as the office, and personally for
@@ -2229,7 +2235,8 @@ private:
 /// spellings, one holder, opposite outcomes.
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
-                             loom::Accept<PaneOffered, v2::PaneOffered, PaneContent, v3::PaneContent, SeatDo>,
+                             loom::Accept<PaneOffered, v2::PaneOffered, PaneContent, v3::PaneContent,
+                                          v4::PaneContent, SeatDo>,
                              loom::Emit<PaneCatalogRequested, PaneRoom, PaneWheel, PanePressed,
                                         v2::PanePressed, v3::PanePressed>> {
 public:
@@ -2252,6 +2259,10 @@ public:
         content.push_back(PaneContent{c.pane, c.rows});
         pictures.push_back(c.picture);
         content_authors.push_back(std::string(mail.authored_role()));
+    }
+    /// ...AND A PANE THAT NAMES ITS PARTS, the same rows and number beside them.
+    void on(const v4::PaneContent& c, loom::Mail& mail) {
+        on(v3::PaneContent{c.pane, c.rows, c.generation, c.picture}, mail);
     }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -2547,6 +2558,7 @@ struct PaneRig {
         loom::Grant grant;
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+        grant.allow_to_any(v4::PaneContent::zen_name, v4::PaneContent::zen_version);
         grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
         grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
         grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);
@@ -3380,6 +3392,28 @@ inline std::int64_t cell_mid_px(std::int64_t cell) {
 /// `bounds_of` path, so a case never spells a placement of its own.
 inline PixelRect external_pane_rect(const Session& s, std::int64_t kind) {
     return bounds_of(s.panes, s.setup.active, kind, screen_of(s)).rect;
+}
+
+/// THE PARTS A TEXT PANE NAMED in the rows Workshop holds for it now, by name.
+inline std::map<std::string, PaneRowPart> held_parts(const Session& s, std::int64_t kind) {
+    std::map<std::string, PaneRowPart> out;
+    if (const ExternalPane* pane = s.panes.external_pane(kind)) {
+        for (const PaneRowPart& part : pane->parts) {
+            out.emplace(part.name, part);
+        }
+    }
+    return out;
+}
+
+/// ...and what the named part's columns of its row say, as the pane wrote them.
+inline std::string held_part_text(const Session& s, std::int64_t kind, const PaneRowPart& part) {
+    const ExternalPane* pane = s.panes.external_pane(kind);
+    if (pane == nullptr || part.row < 0 || part.row >= static_cast<std::int64_t>(pane->shown.size())) {
+        return std::string();
+    }
+    const std::string& row = pane->shown[static_cast<std::size_t>(part.row)].text;
+    const auto from = static_cast<std::size_t>(part.column);
+    return from >= row.size() ? std::string() : row.substr(from, static_cast<std::size_t>(part.columns));
 }
 
 /// The room Workshop resolved for that pane's body -- the `PaneRoom` a provider was

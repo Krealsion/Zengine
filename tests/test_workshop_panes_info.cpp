@@ -642,6 +642,46 @@ TEST_CASE("a press on a pane row inspects it, through the host's own door") {
     CHECK(f.row_of(">*Info -- ") >= 0);
 }
 
+TEST_CASE("WL-HAND-06: Info names its panes by reference and its properties by label") {
+    InfoRig f;
+    f.open();
+    f.inspect("Layouts");
+    const std::string layouts = "pane:" + ref_text(layouts_ref());
+    const std::string info = "pane:" + ref_text(pane_info_ref());
+    auto parts = held_parts(f.r.session(), f.kind);
+    REQUIRE(parts.count(layouts) == 1);
+    REQUIRE(parts.count(info) == 1);
+    CHECK(parts.at(layouts).row == f.pane_row("Layouts"));
+    CHECK(parts.at(info).row == f.pane_row("Info"));
+    // EVERY PROPERTY THE SUBJECT SAYS, BY ITS LABEL, on the row that shows it; a section is no part.
+    for (const ShownProperty& p : f.picture().properties) {
+        CAPTURE(p.label);
+        if (p.section) {
+            CHECK(parts.count("property:" + p.label) == 0);
+            continue;
+        }
+        if (f.property_at(p.label) < 0) continue; // a row the window left out is not drawn
+        REQUIRE(parts.count("property:" + p.label) == 1);
+        CHECK(parts.at("property:" + p.label).row == f.property_at(p.label));
+        CHECK(parts.at("property:" + p.label).columns == external_body_of(f.r.session(), f.kind).columns);
+    }
+    // A PRESS WHERE `Width` IS NAMED PUTS THE CURSOR THERE, and the name stays on its row.
+    REQUIRE(parts.count("property:Width") == 1);
+    const PaneRowPart width = parts.at("property:Width");
+    press_pane(f.r, f.kind, width.row, width.column + 3);
+    CHECK(f.property_row("Width").rfind(">", 0) == 0);
+    parts = held_parts(f.r.session(), f.kind);
+    REQUIRE(parts.count("property:Width") == 1);
+    CHECK(parts.at("property:Width").row == f.property_at("Width"));
+    // ...AND A NEW VALUE LEAVES THE NAME WHERE IT WAS.
+    f.draft_holding("Width", "300");
+    f.r.key(input::scan::kReturn);
+    parts = held_parts(f.r.session(), f.kind);
+    REQUIRE(parts.count("property:Width") == 1);
+    CHECK(parts.at("property:Width").row == f.property_at("Width"));
+    CHECK(f.property_row("Width").find("300") != std::string::npos);
+}
+
 TEST_CASE("Info's lost list choice survives its own reload: Return inspects nothing until a row "
           "is chosen") {
     // ⚔ MUTATION: `find_list_cursor` clearing the keys of a lost choice -- the reloaded Info holds
@@ -2011,12 +2051,12 @@ inline RefusedAtDispatch refuse_next_commit(InfoRig& f, int heard) {
 /// resolves) and refused at dispatch as NotAccepted, and Loom's own notice names the attempt.
 class DoorlessOffice
     : public loom::WeaveBase<DoorlessOffice, SeatState,
-                             loom::Accept<PaneOffered, PaneActions, PaneContent, SeatDo>,
+                             loom::Accept<PaneOffered, PaneActions, v4::PaneContent, SeatDo>,
                              loom::Emit<PaneActionRequested>> {
 public:
     void on(const PaneOffered&, loom::Mail&) {}
     void on(const PaneActions&, loom::Mail&) {}
-    void on(const PaneContent& said, loom::Mail& mail) {
+    void on(const v4::PaneContent& said, loom::Mail& mail) {
         if (!mail.authored_from_role(pane::kInfoPaneRole)) {
             return;
         }

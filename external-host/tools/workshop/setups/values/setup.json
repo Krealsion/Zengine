@@ -84,7 +84,7 @@
      "select": [
       "zengine.desktop",
       "launcher",
-      "[open] Layouts"
+      "pane:zengine.workshop/layouts"
      ]
     },
     {
@@ -124,7 +124,7 @@
      "select": [
       "zengine.desktop",
       "launcher",
-      "[    ] Layouts"
+      "pane:zengine.workshop/layouts"
      ]
     },
     {

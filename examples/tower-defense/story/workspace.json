@@ -3,7 +3,7 @@
  "build": [
   {
    "place": {
-    "pane": "Info",
+    "pane": "pane:zengine.info/info",
     "x": 624,
     "y": 684,
     "width": 612,
@@ -12,7 +12,7 @@
   },
   {
    "place": {
-    "pane": "Terminal",
+    "pane": "pane:zengine.terminal/terminal",
     "x": 0,
     "y": 684,
     "width": 612,
@@ -20,11 +20,11 @@
    }
   },
   {
-   "open": "Neovim"
+   "open": "pane:zengine.editor/editor"
   },
   {
    "place": {
-    "pane": "Pane Manager",
+    "pane": "pane:zengine.desktop/launcher",
     "x": 1248,
     "y": 684,
     "width": 900,
@@ -33,7 +33,7 @@
   },
   {
    "place": {
-    "pane": "Neovim",
+    "pane": "pane:zengine.editor/editor",
     "x": 0,
     "y": 24,
     "width": 1236,
@@ -41,11 +41,11 @@
    }
   },
   {
-   "open": "Files"
+   "open": "pane:zengine.files/project-files"
   },
   {
    "place": {
-    "pane": "Files",
+    "pane": "pane:zengine.files/project-files",
     "x": 1248,
     "y": 504,
     "width": 900,
@@ -53,11 +53,11 @@
    }
   },
   {
-   "open": "Builder"
+   "open": "pane:zengine.builder-pane/builder"
   },
   {
    "place": {
-    "pane": "Builder",
+    "pane": "pane:zengine.builder-pane/builder",
     "x": 1248,
     "y": 300,
     "width": 900,
@@ -66,7 +66,7 @@
   }
  ],
  "game": {
-  "pane": "Tower Defense",
+  "pane": "pane:td.game/td",
   "x": 1248,
   "y": 24,
   "width": 900,
@@ -75,7 +75,7 @@
  "toolbox": [
   {
    "place": {
-    "pane": "Info",
+    "pane": "pane:zengine.info/info",
     "x": 672,
     "y": 588,
     "width": 780,
@@ -83,11 +83,11 @@
    }
   },
   {
-   "open": "Inventory"
+   "open": "pane:zengine.inventory-pane/inventory"
   },
   {
    "place": {
-    "pane": "Pane Manager",
+    "pane": "pane:zengine.desktop/launcher",
     "x": 1464,
     "y": 588,
     "width": 684,
@@ -96,7 +96,7 @@
   },
   {
    "place": {
-    "pane": "Inventory",
+    "pane": "pane:zengine.inventory-pane/inventory",
     "x": 0,
     "y": 24,
     "width": 660,
@@ -104,11 +104,11 @@
    }
   },
   {
-   "open": "Loaded"
+   "open": "pane:zengine.introspection/loaded"
   },
   {
    "place": {
-    "pane": "Loaded",
+    "pane": "pane:zengine.introspection/loaded",
     "x": 0,
     "y": 588,
     "width": 660,
@@ -116,11 +116,11 @@
    }
   },
   {
-   "open": "Compose"
+   "open": "pane:zengine.composer/compose"
   },
   {
    "place": {
-    "pane": "Compose",
+    "pane": "pane:zengine.composer/compose",
     "x": 672,
     "y": 24,
     "width": 780,
@@ -128,11 +128,11 @@
    }
   },
   {
-   "open": "Tower Defense"
+   "open": "pane:td.game/td"
   },
   {
    "place": {
-    "pane": "Tower Defense",
+    "pane": "pane:td.game/td",
     "x": 1464,
     "y": 24,
     "width": 684,
@@ -141,7 +141,7 @@
   }
  ],
  "row": {
-  "pane": "Inventory row 1",
+  "pane": "pane:zengine.inventory-pane/inventory.1",
   "x": 1464,
   "y": 300,
   "width": 684,

@@ -18,6 +18,7 @@
 
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
+#include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -59,7 +60,6 @@ using ws::PaneActionRow;
 using ws::PaneActions;
 using ws::PaneCatalogRequested;
 using ws::PaneCommitRequested;
-using ws::PaneContent;
 using ws::PaneInventory;
 using ws::PaneInventoryRequested;
 using ws::PaneKey;
@@ -254,9 +254,9 @@ class InfoPaneWeave
                        ws::PaneMenuAnswered, ws::PaneObservationAnswered, zengine::inventory::InventoryChanged,
                        loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered, ws::PaneWheel>,
           loom::Emit<ws::PaneValueCarryRequested, PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
-                     zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneContent, PaneInventoryRequested,
+                     zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneCommitRequested,
-                     surface::ClipboardCopy, surface::ClipboardTextRequested, ws::v3::PaneContent,
+                     surface::ClipboardCopy, surface::ClipboardTextRequested, ws::v4::PaneContent,
                      ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
                      ws::PaneEscapeUnspent,
                      ws::PaneObservationEnded, loom::PokeDescribe, ws::PaneLaunchRequested,
@@ -1478,8 +1478,33 @@ private:
             out.resize(static_cast<std::size_t>(rows_));
         }
         ++published_;
+        const auto said = static_cast<std::int64_t>(out.size());
         (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(kWorkshopRole, PaneContent{pane::kInfoPane, std::move(out)});
+            .send_to_role(kWorkshopRole,
+                          ws::v4::PaneContent{pane::kInfoPane, std::move(out), 0, 0, named_rows(said)});
+    }
+
+    /// WHAT INFO CALLS ITS ROWS, of the `said` it sends: a pane it lists by the pane's reference,
+    /// `pane:<office>/<pane>`, and a property by its label, `property:<label>`. A row it names
+    /// nothing is not listed: a row entire lies over no other part.
+    std::vector<ws::PaneRowPart> named_rows(std::int64_t said) const {
+        ws::PartNames<ws::PaneRowPart> names;
+        for (const Row& r : composed_) {
+            if (r.row >= said) {
+                continue;
+            }
+            std::string name;
+            if (r.what == Placed::kPane && r.index < panes_.size()) {
+                name = "pane:" + panes_[r.index].office + "/" + panes_[r.index].pane;
+            } else if (r.what == Placed::kProperty && r.index < known_.properties.size()) {
+                name = "property:" + known_.properties[r.index].label;
+            }
+            if (name.empty()) {
+                continue;
+            }
+            (void)names.add(ws::PaneRowPart{std::move(name), r.row, 0, columns_});
+        }
+        return names.take();
     }
 
     // ---- State not in the shape ------------------------------------------------------------

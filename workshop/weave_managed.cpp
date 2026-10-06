@@ -342,6 +342,7 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
         pane->columns = trial_.room_columns;
         pane->granted = true;
         pane->shown = trial_.rows;
+        pane->parts.clear();
         pane->heard = true;
         pane->awaiting = false;
         pane->clear_refusal();

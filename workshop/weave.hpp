@@ -33,6 +33,7 @@
 #include "pane_shortcuts.hpp"
 #include "pane_carry.hpp"
 #include "pane_view.hpp"
+#include "pane_parts.hpp" // the form a pane's names are admitted in
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "surface/vocabulary.hpp"
 
@@ -275,7 +276,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -297,6 +298,7 @@ class WorkshopWeave
                                           zengine::workshop::v2::PaneContent,
                                           zengine::workshop::v2::PaneCaret,
                                           zengine::workshop::v3::PaneContent,
+                                          zengine::workshop::v4::PaneContent,
                                           zengine::workshop::PaneRevealRequested,
                                           zengine::workshop::PaneEscapeUnspent,
                                           // the second button's continuations: a press
@@ -339,6 +341,7 @@ class WorkshopWeave
                                           // the presenter participant's half of a pane's menu:
                                           // what it shows, when it ends it, and that it arrived
                                           zengine::workshop::MenuShown,
+                                          zengine::workshop::v2::MenuShown,
                                           zengine::workshop::MenuClosed,
                                           zengine::workshop::MenuReturned,
                                           zengine::workshop::PresenterReady,
@@ -346,7 +349,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::PaneView, v2::PanePoint, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::v1::PaneCanvasPointer,
@@ -465,11 +468,19 @@ public:
                                         std::vector<WordGlyphs>* glyphs = nullptr) const;
     void on(const v2::PaneViewRequested& asked, loom::Mail& mail);
     void on(const v2::PanePointRequested& asked, loom::Mail& mail);
+    /// The parts a visible body's pane names, each where the medium draws it: a text part over the
+    /// cells that show its columns, a canvas part as the body shows it with the `words` inside it.
+    std::vector<PanePart> visible_parts(const VisibleBody& visible,
+                                        const std::vector<PaneWord>& words) const;
+    void on(const v3::PaneViewRequested& asked, loom::Mail& mail);
+    ExternalPressAt cell_point(const VisibleBody& visible, std::int64_t row, std::int64_t cell,
+                               std::int64_t& x, std::int64_t& y, std::int64_t& space) const;
     bool cell_center(const VisibleBody& visible, std::int64_t row, std::int64_t column,
-                     std::int64_t& x, std::int64_t& y, std::int64_t& space, bool exact_column) const;
+                     std::int64_t& x, std::int64_t& y, std::int64_t& space) const;
     void on(const DeskViewRequested& asked, loom::Mail& mail);
+    void on(const v2::DeskViewRequested& asked, loom::Mail& mail);
     /// The desk as Workshop holds it now: every pane on it, the room, arranging and the menu.
-    DeskView desk_view() const;
+    v2::DeskView desk_view() const;
     void on(const PaneShortcutInvoked& asked, loom::Mail& mail);
     /// The current attributed gesture of `pane` approves one (shape, version, role), or why not.
     /// Spends the gesture; sets nothing else.
@@ -781,10 +792,14 @@ public:
     /// A picture in the earlier canvas door's sub-units, read at their floor and then admitted as
     /// any picture is.
     void on(const v2::PaneCanvasContent& content, loom::Mail& mail);
+    /// A picture naming its parts: admitted as any picture is, with its names judged beside it.
+    void on(const v4::PaneCanvasContent& content, loom::Mail& mail);
     /// `said` is a problem the picture had under the doors it was drawn for, judged before it
-    /// was converted; empty for a picture in this door's own pixels.
+    /// was converted; empty for a picture in this door's own pixels. `parts` are the names it
+    /// carries, none for a door that names nothing.
     void admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail,
-                              std::string_view said = {});
+                              std::string_view said = {},
+                              const std::vector<PaneCanvasPart>* parts = nullptr);
     /// One pointer moment to a canvas holder, in the version its room was granted in.
     loom::Ticket send_canvas_pointer(loom::WeaveId owner, const PaneCanvasPointer& event, bool legacy,
                                      loom::Mail& mail, std::uint64_t correlation = 0);
@@ -817,12 +832,17 @@ public:
     /// Content numbering its picture: admitted under v2's rule, the number recorded on the
     /// pane's view; a press is stamped with it once the medium has been handed it (`PictureFence`).
     void on(const v3::PaneContent& content, loom::Mail& mail);
+    /// Content naming its parts: admitted under v3's rule, its names judged with its rows.
+    void on(const v4::PaneContent& content, loom::Mail& mail);
     /// THE HOST'S OWN FENCE, COMING ROUND: the first hop sends it round once more, the second
     /// makes every picture handed out before it the one a press is stamped with.
     void on(const PictureFence& fence, loom::Mail& mail);
     /// THE PRESENTER SHOWS THE OPEN MENU'S LINES -- drawn when they fit the room granted, the menu
     /// withdrawn in words when they cannot be drawn.
     void on(const MenuShown& shown, loom::Mail& mail);
+    /// ...and naming the lines that show rows, judged with them.
+    void on(const v2::MenuShown& shown, loom::Mail& mail);
+    void admit_menu_lines(const v2::MenuShown& shown, loom::Mail& mail);
     /// THE PRESENTER ENDED THE OPEN MENU AND ANSWERED ITS REQUESTER; a choice is recorded as the
     /// continuation of the act the presenter names, if that act was one this host forwarded to
     /// it. One about a menu already withdrawn says nothing more is owed, and its record goes.
@@ -909,7 +929,8 @@ private:
     void admit_content(std::string_view office, const std::string& pane_key,
                        const std::vector<surface::SurfaceTextRow>& rows,
                        std::optional<std::int64_t> generation,
-                       std::optional<std::int64_t> picture, loom::Mail& mail);
+                       std::optional<std::int64_t> picture, loom::Mail& mail,
+                       const std::vector<PaneRowPart>* parts = nullptr);
     void admit_caret(std::string_view office, const PaneCaret& caret,
                      std::optional<std::int64_t> generation, loom::Mail& mail);
 

@@ -1202,6 +1202,10 @@ inline constexpr std::size_t context_cursor_bound(std::size_t cursor,
 
 void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
 
+/// THE NAME OF EACH LINE `paint_context` PAINTS, in its order: the id of the action a line shows,
+/// or the name of the group it opens, and "" for a marker.
+std::vector<std::string> context_line_names(const Session& s, const Screen& sc);
+
 /// WHERE A PRESS LANDED ON THE OPEN CONTEXTUAL SURFACE -- the painter's inverse, over the
 /// same composition (`info_body_at`'s family: it answers WHERE and nothing about what
 /// that means; the weave decides what a hit does).

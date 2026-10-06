@@ -332,6 +332,8 @@ struct ExternalPane {
     // WL-ATTN-04 -- agents/workshop/attention.md
     std::string refusal_why;
     std::vector<surface::SurfaceTextRow> shown;
+    /// The parts of those rows the pane names, admitted with them and gone with them.
+    std::vector<PaneRowPart> parts;
 
     /// Where the pane said its caret is, in the body lattice it was granted, and its selection.
     /// Workshop adds its header offset when it merges these; nothing here is a cell or a pixel.
@@ -361,6 +363,8 @@ struct ExternalPane {
         /// hover cross times `kPaneCanvasLegacySubs`, and its picture is read at their floor.
         bool legacy = false;
         PaneCanvasContent content;
+        /// The parts of that picture the pane names, admitted with it.
+        std::vector<PaneCanvasPart> parts;
     } canvas;
     /// A re-offer (a reloaded image numbers its pictures afresh) or a close: no earlier number
     /// may stamp a press.

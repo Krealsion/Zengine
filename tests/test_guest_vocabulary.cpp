@@ -45,6 +45,10 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<ws::PaneWord>(), loom::schema_of<ws::DeskRect>(),
             loom::schema_of<ws::v2::PaneViewRequested>(), loom::schema_of<ws::v2::PaneView>(),
             loom::schema_of<ws::v2::PanePointRequested>(), loom::schema_of<ws::v2::PanePoint>(),
+            // A pane's named parts beside its words, and the desk with its menu's named lines.
+            loom::schema_of<ws::v3::PaneViewRequested>(), loom::schema_of<ws::v3::PaneView>(),
+            loom::schema_of<ws::PanePart>(), loom::schema_of<ws::v2::DeskViewRequested>(),
+            loom::schema_of<ws::v2::DeskView>(), loom::schema_of<ws::v2::DeskMenu>(),
             loom::schema_of<in::InjectInput>(),           loom::schema_of<in::InjectedEvent>(),
             loom::schema_of<in::InputInjected>(),         loom::schema_of<in::InputSessionClosed>(),
             loom::schema_of<su::SurfaceCaptureRequested>(), loom::schema_of<su::SurfaceCaptured>(),

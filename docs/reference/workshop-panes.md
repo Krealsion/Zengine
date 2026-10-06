@@ -579,6 +579,32 @@ no Senses and no service registry; no package identity, signature, marketplace o
 author claim; no out-of-process provider support; no provider scan directory, autoload list or
 plugin SDK. **No Loom change of any kind.**
 
+### A caret and a selection
+
+A pane with an insertion point says where it is in a second sentence beside its rows; a pane
+without one says nothing (`workshop/pane_vocabulary.hpp`):
+
+```text
+PaneCaret       provider -> Workshop   the caret's row and the column it sits before, and the
+                                       range selected, in PanePressed's lattice
+v2::PaneCaret   provider -> Workshop   the same, naming the generation of the rows it is about
+```
+
+- **It is judged against the rows last accepted, and refused whole.** A caret on a row those rows
+  do not say leaves the pane with no caret, not its previous one; one past a row's last byte is an
+  insertion point at the line's end. `row == surface::kNoCaret` (-1) says there is none, and
+  shorter rows drop a caret they outgrew. A selection runs from `sel_begin` to `sel_end` in
+  reading order, the end exclusive; `sel_begin_row == surface::kNoSelection` (-1) says none.
+- **It asks for nothing.** No blink, shape, colour, scroll or claim on the keyboard: a pane says
+  where, inside rows it already sent, the insertion point of text it already wrote is. A caret
+  spoken personally, or about a pane the office never offered, is nothing.
+- **Each medium draws it its own way.** A window, which sets type, draws a bar between two
+  characters and moves none. A terminal draws a glyph into the row at the caret's column, standing
+  every character from there a cell to the right, and a character it pushes past the body's edge is
+  not drawn. A press on that row reaches the pane as the column of the character the pressed cell
+  shows: a cell past the glyph is the column before it, and the glyph's own cell is the caret's
+  column, the insertion point it stands for.
+
 ## Optional pane-local canvas
 
 `workshop/pane_canvas_vocabulary.hpp` defines a bounded drawing capability beside prose.
@@ -605,7 +631,8 @@ positive grant when room geometry, text metric or provider changes and on re-off
 or held gestures in a provider's reload state. A fresh image waits for a fresh room.
 
 `PaneCanvasContent` v3 carries `pane, grant, picture, rects, labels, texts` and replaces one
-whole picture. Rectangles
+whole picture; `v4::PaneCanvasContent` is the same with the parts it names
+([below](#a-pane-names-its-parts)). Rectangles
 carry local `x,y,w,h,role`; labels carry `x,y,text,role`. Rectangles are painted in vector order,
 then labels and measured text above them, on the pane's own plane. Workshop clips before translating, so no
 primitive can escape its body. Offscreen positions are legal, allowing a provider to own pan
@@ -811,6 +838,7 @@ PaneMenuAnswered    presenter -> provider  chosen + id, or not chosen + why; onc
 PaneManageRequested provider -> Workshop   open the host's pane menu on (office, target);
                                            continues a menu answer, once
 v3::PaneContent     provider -> Workshop   rows + a `picture` number for this row-to-meaning map
+v4::PaneContent     provider -> Workshop   v3's rows and picture + the parts it names (below)
 v3::PanePressed     Workshop -> provider   v2's press + the picture the press was aimed at
 ```
 
@@ -909,6 +937,7 @@ MenuGranted     Workshop -> presenter   present this offer as menu n, for office
                                         beneath it and the pane's name; under the request's
                                         correlation
 MenuShown       presenter -> Workshop   menu n shows these lines now, numbered as picture p
+v2::MenuShown   presenter -> Workshop   the same, naming each line by the id of the row it shows
 MenuInput       Workshop -> presenter   the weaver did this to menu n: a key (with the verb the
                                         weaver's contextual rows name), or a press / release on a
                                         line, or a press outside; act number g, picture p
@@ -1146,7 +1175,12 @@ own; an arriving image sends `PaneObservationEnded{pane, 0}` for each pane it ma
 
 ### Where a painted cell is
 
-`workshop/pane_view.hpp` also answers `PanePointRequested{provider, pane, picture, row, column}`
+`workshop/pane_view.hpp` answers `PaneViewRequested{provider, pane}` with
+`PaneView{provider, pane, picture, rows}`: each row the pane said, as `PaneViewRow{row, text, x, y,
+space}`. A row's text is the pane's own characters fitted to the body's columns, not the picture: a
+terminal's caret glyph is not among them, and a character the glyph pushes past the body's edge
+still is. Its point is its third cell's, or its last cell's in a body narrower than three, where a
+press names the row. The header also answers `PanePointRequested{provider, pane, picture, row, column}`
 with `PanePoint{provider, pane, picture, row, column, x, y, space}`: the center of that prose cell
 in the input space the medium reads, measured and then resolved by the same press measurer. It is
 refused when the pane's handed-out picture is not `picture`, the cell is outside the visible text,
@@ -1165,8 +1199,8 @@ press is in the input space the answer names, as `PanePoint`'s is.
 | `DeskViewRequested{}` | Anyone granted it, to Workshop: the desk now |
 | `DeskView{width, height, cell_px, space, room, panes, arranging, menu}` | The canvas's extent, the medium's device pixels to a canvas cell (0 where the cell is its unit), the input space, the room panes stand in, every pane the desk names in its order, whether arranging is open, and the menu on the screen |
 | `DeskPane{provider, pane, name, state, front, resolved, visible, selected, keys}` | One pane: its state word (`open`, `covered`, `off-room`, `unresolved`), its rank from the front (0 in front; -1 when it is not presented), the place its authored intent resolves to and the part of it the canvas has, and whether it is selected or the keyboard points at it (an open menu or arranging takes the keys before it) |
-| `DeskMenu{open, office, pane, picture, place, lines}` | Workshop's own menu (`office` is Workshop's) or a pane's, shown by its presenter, with each line as a word |
-| `v2::PaneViewRequested{provider, pane}` | A pane's words, text or canvas alike |
+| `DeskMenu{open, office, pane, picture, place, lines}` | Workshop's own menu (`office` is Workshop's) or a pane's, shown by its presenter, with each line as a word; `v2::DeskView`'s menu names its lines too ([below](#a-pane-names-its-parts)) |
+| `v2::PaneViewRequested{provider, pane}` | A pane's words, text or canvas alike; version 3 adds the parts the pane names ([below](#a-pane-names-its-parts)) |
 | `v2::PaneView{provider, pane, picture, canvas, words}` | A text pane's rows, or a canvas pane's labels and then its text runs as it drew them last, each clipped as the painter clips it; `canvas` says which |
 | `PaneWord{word, text, place, x, y, space}` | One run of words: its number in the answer, its text, the place covering its glyphs (a terminal's caret glyph included), and the centre of its middle character, where a press names it |
 | `v2::PanePointRequested{provider, pane, picture, word, column}` | Where one character of one word is now, for a caller that read the words at `picture` |
@@ -1174,8 +1208,76 @@ press is in the input space the answer names, as `PanePoint`'s is.
 
 A pane's words are refused as its rows are: closed, unsettled, overlapping, covered by a menu or
 by arranging, or outside the visible workspace. The desk answers whatever is open. Workshop names
-nothing inside a pane: a word's number is its place in one answer. The guest `capture` power
-grants all three queries.
+nothing inside a pane: a word's number is its place in one answer, and a pane names its own parts.
+The guest `capture` power grants all three queries.
+
+### A pane names its parts
+
+A pane names the parts a weaver acts on -- a row, a control inside one, an element of its picture
+-- from what each means, keeping each name across its redraws. The names ride inside the content
+they name:
+
+```text
+v4::PaneContent         provider  -> Workshop   v3's rows and picture + `parts`, each
+                                                PaneRowPart{name, row, column, columns}
+v4::PaneCanvasContent   provider  -> Workshop   v3's picture + `parts`, each
+                                                PaneCanvasPart{name, x, y, w, h}
+v2::MenuShown           presenter -> Workshop   MenuShown's lines + `parts`, each line by the id
+                                                of the row it shows
+```
+
+- **A name is the pane's.** Workshop judges its form and carries it as the pane said it; it names
+  nothing inside a pane. A name is 1 to `kMaxPanePartNameLen` (256) bytes of printable ASCII, not
+  all spaces, said once in its picture, and a picture lists at most `kMaxPaneParts` (2048) parts. A
+  row part is a run of at least one column of a row its content says, inside the room's columns; a
+  canvas part has a positive extent and may lie partly outside the room. Content naming a part
+  wrongly is refused whole, saying why, as content breaking any other rule is: a pane's rows go
+  with their refusal, and a rejected picture leaves the last good one.
+- **A picture lists its parts in the order its pane reads a press.** Where parts hold one place, a
+  press there reaches the later: a control listed after the row it stands in, a handle after its
+  element, as each shipped canvas pane reads a press on the hits it drew. A place a press reaches
+  that the pane names nothing is listed with an empty name wherever it lies over a part the pane
+  names; it shares its name with nothing, and Workshop says no such place.
+- **The helpers are installed beside the protocol** (`workshop/pane_parts.hpp`).
+  `row_parts(map, columns, name_of)` names what a `component::RowMap` recorded -- a whole row
+  across the room's columns, a run as itself -- from what each means, and lists the spans in
+  `RowMap::press_order`: on a row the widest first, so the span `at` answers is the last that holds
+  a place. A span whose meaning is named "", a name the judge would refuse or a name already taken
+  stays as a place unnamed. `PartNames` gathers a pane's own parts the same way, keeping every
+  place, and past `kMaxPaneParts` drops the earliest, which take no press from a part after them.
+  `pane_part_name_problem`, `row_parts_problem` and `canvas_parts_problem` are the judge's words,
+  for a pane to ask of its parts before it sends them.
+- **A pane moving its rows onto the canvas names the same parts in its picture.** A name says what
+  a part means, not how it is drawn, so a walk written against the rows still holds.
+
+Workshop answers each part beside the pane's words, and a menu's named lines beside its lines:
+
+| Message | Meaning |
+|---|---|
+| `v3::PaneViewRequested{provider, pane}` | A pane's words and the parts it names |
+| `v3::PaneView{provider, pane, picture, canvas, words, parts}` | `v2::PaneView`'s words, and every part the body shows |
+| `PanePart{name, text, place, x, y, space}` | One part: its name as the pane said it; the characters it covers, or for a canvas part the words wholly inside it, joined by a space; the place covering it where the medium draws it; and its point, or none |
+| `v2::DeskViewRequested{}` | The desk now, its menu's lines named |
+| `v2::DeskView{width, height, cell_px, space, room, panes, arranging, menu}` | `DeskView`, its menu a `v2::DeskMenu{open, office, pane, picture, place, lines, parts}` |
+
+- **A part's point is a place of its own**, where a press reaches it: one no part listed after it
+  holds. A row part's point is its middle character of its own -- the Pane Manager's
+  `pane:<office>/<pane>` lands on the pane's name, beside its `[open]` mark -- else its middle blank
+  cell of its own. A canvas part's point is its centre, else the middle of its widest stretch of
+  its own on the row nearest its centre that has one -- the upper of two rows as near, the leftmost
+  of two stretches as wide -- sought over every unit of it the body shows. A part with no place of
+  its own is said with its words and place and no point: `x` and `y` are 0 and `space` is 0,
+  `input::space::kUnknown`, which no consumer reads and `InjectInput` refuses; `workshop/act` never
+  presses one. A point is in the medium's own units: a window's pixel, or a terminal's cell. A
+  terminal shows a span `[begin, end)` on the cells from `floor(begin / kCanvasCellPx)` up to
+  `floor(end / kCanvasCellPx)`, that one left out, so a canvas part it paints on no cell is not
+  said there.
+- **A part the body does not show is not said**, and one it cuts is said as far as it shows.
+- **Workshop names its own menu's lines** by the action or the group each shows; a pane's menu is
+  named by its presenter, and the shipped presenter names each line by its row's id.
+- **A pane naming nothing still reads as words**, and `v2::PaneView` and `DeskView` are still
+  answered, without parts. A press on a part is ordinary input at its point: no message presses
+  one. The guest `capture` power grants these queries too.
 
 ## Attributed value origins and delegated shortcuts
 

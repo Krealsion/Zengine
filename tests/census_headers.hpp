@@ -132,6 +132,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PresentationTrialRequested>(), // PresentationTrialRequested v1
         shape<::zengine::workshop::OpeningState>(), // OpeningState v1
         shape<::zengine::workshop::v2::PaneCanvasContent>(), // PaneCanvasContent v2
+        shape<::zengine::workshop::PaneCanvasContent>(), // PaneCanvasContent v3
         shape<::zengine::workshop::v1::PaneCanvasHover>(), // PaneCanvasHover v1
         shape<::zengine::workshop::v1::PaneCanvasPointer>(), // PaneCanvasPointer v1
         shape<::zengine::workshop::v2::PaneCanvasRoom>(), // PaneCanvasRoom v2
@@ -140,6 +141,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::ProjectDoorState>(), // ProjectDoorState v2
         shape<::zengine::workshop::RecipesDoorState>(), // RecipesDoorState v1
         shape<::zengine::workshop::v2::PaneContent>(), // PaneContent v2
+        shape<::zengine::workshop::v3::PaneContent>(), // PaneContent v3
         shape<::zengine::workshop::PaneRevealAnswered>(), // PaneRevealAnswered v1
         shape<::zengine::workshop::PaneRevealRequested>(), // PaneRevealRequested v1
         shape<::zengine::workshop::PowersDoorState>(), // PowersDoorState v1
