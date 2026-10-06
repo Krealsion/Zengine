@@ -105,6 +105,12 @@ def part_of(view, name):
     return parts[0] if parts else None
 
 
+def unreached(part):
+    """Whether no press reaches a part on its own: Workshop gives it no point -- a point in no
+    space, 0 -- where the parts over it take every place of it."""
+    return part.get("space", 0) == 0
+
+
 def word_on_row_of(view, part):
     """The word drawn on the row a part stands on -- a text pane's row -- or None."""
     rows = [w for w in view["words"] if w["place"]["y"] == part["place"]["y"]] if view else []
@@ -208,6 +214,8 @@ def act(ctx, hand, verb, step):
             ctx.produce("failed-step-parts.json", json.dumps(
                 names(view) if view else "not described", indent=1).encode())
             ctx.fail("part: %s/%s draws no part named %r within %gs" % (provider, pane, name, seconds))
+        ctx.check(not unreached(part), "part: no press reaches %r in %s/%s on its own: the parts "
+                  "over it take every place of it" % (name, provider, pane))
         press_at(ctx, hand, part, step.get("button", "left"))
         return {"part": name, "text": part["text"], "x": part["x"], "y": part["y"]}
     if verb == "rest":
@@ -297,6 +305,8 @@ def choose(ctx, hand, text, seconds, button):
         menu = hand.desk()["menu"]
         named = [p for p in menu.get("parts", []) if p["name"] == text] if menu["open"] else []
         if named:
+            ctx.check(not unreached(named[0]), "menu: no press reaches the line named %r on its "
+                      "own: the parts over it take every place of it" % text)
             press_at(ctx, hand, named[0], button)
             return {"line": named[0]["text"], "name": text, "office": menu["office"],
                     "pane": menu["pane"]}
@@ -489,6 +499,8 @@ def open_pane(ctx, hand, name, seconds):
     if part is None:
         ctx.produce("failed-step-parts.json", json.dumps(sorted(seen), indent=1).encode())
         ctx.fail("open: the Pane Manager names no row %r" % name)
+    ctx.check(not unreached(part), "open: no press reaches the Pane Manager's row %r on its own: "
+              "the parts over it take every place of it" % name)
     presses = 1
     if not marked(hand, view, part):
         # THE FIRST PRESS CHOOSES THE ROW and brings the keys; the second, once the Pane Manager
@@ -500,6 +512,8 @@ def open_pane(ctx, hand, name, seconds):
             view = words_now(hand, *MANAGER)
             part = part_of(view, name)
             ctx.check(part is not None, "open: the Pane Manager stopped naming %r" % name)
+            ctx.check(not unreached(part), "open: no press reaches the Pane Manager's row %r on "
+                      "its own: the parts over it take every place of it" % name)
             if marked(hand, view, part):
                 break
             if time.monotonic() >= end:

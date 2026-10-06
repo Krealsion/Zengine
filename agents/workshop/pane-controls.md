@@ -146,8 +146,8 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_problem`,
 `canvas_parts_problem`, `PartNames`, `row_parts`; `component/row_map.hpp` `RowMap::press_order`;
-`workshop/weave_inspection.cpp` `visible_parts`, `row_part_on`, `canvas_part_on`, `own_point`,
-`desk_menu`;
+`workshop/weave_inspection.cpp` `visible_parts`, `row_owners`, `row_part_on`, `own_points`,
+`canvas_part_on`, `no_point`, `desk_menu`;
 `workshop/screen_attention.cpp` `context_line_names`; `workshop/weave_seam.cpp` `admit_content`,
 `on(v4::PaneContent)`; `workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v4::PaneCanvasContent)`;
 `workshop/weave_external.cpp` `admit_menu_lines`; `menu-presenter/presenter.cpp` `show`;
@@ -200,9 +200,10 @@ the last good one stays"`, case `"the desk names the lines of Workshop's own men
 group each shows, over the line it is drawn on"`, case `"a pane's names survive the canvas: its
 next image draws a picture under the names its rows had, and each is pressed where the picture
 draws it"`, case `"every place a named part gives is where the medium draws its words, in a
-window and in a terminal"`, case `"a part's point is a character of its own: a row with a control
-inside it is pressed beside the control, and the control on itself, in a window and in a
-terminal"`, case `"a canvas part's point is its own: a part with another over its centre is pressed
+window and in a terminal"`, case `"a part's point is a place of its own: a row with a control
+inside it is pressed beside the control, the control on itself, a row whose text is all a
+control's on a blank cell of its own, and a row with no place of its own has no point, in a window
+and in a terminal"`, case `"a canvas part's point is its own: a part with another over its centre is pressed
 where nothing inside it is, and a part a terminal paints on no cell is not said there"`.
 WHY — `agents/decisions/a-pane-names-its-parts.md`
 

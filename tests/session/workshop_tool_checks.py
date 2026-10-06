@@ -138,15 +138,16 @@ class ActWorkshop(Context):
     Down and Up keys move, a canvas pane's words, any other pane's rows as `panes` names them and
     the names `named` gives their rows, a point door that says which word and column it was asked
     for and refuses a character no word shows, a Pane Manager when `manager` is one, and a desk with
-    a menu open whose lines are named. Every injected moment is kept, as `Context` keeps them."""
+    a menu open whose lines are named. A part or a line `unreached` names has no point, as Workshop
+    says one no press reaches on its own. Every injected moment is kept, as `Context` keeps them."""
 
-    def __init__(self, steps, act_steps, rows, panes=None, named=None, manager=None):
+    def __init__(self, steps, act_steps, rows, panes=None, named=None, manager=None, unreached=()):
         Context.__init__(self, steps)
         self.inputs["steps"] = json.dumps(act_steps)  # the input shares the module's name
         self.base = list(rows)
         self.cursor = next((i for i, r in enumerate(rows) if r.startswith(">")), 0)
         self.panes, self.named, self.said = dict(panes or {}), dict(named or {}), {}
-        self.manager = manager
+        self.manager, self.unreached = manager, set(unreached)
         self.points, self.kept = [], {}
 
     def rows(self):
@@ -157,6 +158,13 @@ class ActWorkshop(Context):
 
     def done(self):
         return json.loads(self.kept["steps.json"])
+
+    def pointed(self, part):
+        """A named part as Workshop says it: with no point -- 0, 0 in no space -- where `unreached`
+        names it."""
+        if part["name"] in self.unreached:
+            part.update(x=0, y=0, space=0)
+        return part
 
     def moved(self, e):
         """What one injected moment does to the script: Ctrl+P shows or hides the Pane Manager,
@@ -199,9 +207,9 @@ class ActWorkshop(Context):
                     "canvas": fields["pane"] == "view-builder", "words": [
                         {"word": i, "text": t, "place": {"x": left, "y": 12 * i, "w": 12 * len(t), "h": 12},
                          "x": left + 6, "y": 12 * i + 6, "space": 2} for i, t in enumerate(texts)],
-                    "parts": [
+                    "parts": [self.pointed(
                         {"name": n, "text": texts[i], "place": {"x": left, "y": 12 * i, "w": 480, "h": 12},
-                         "x": left + 50, "y": 12 * i + 6, "space": 2}
+                         "x": left + 50, "y": 12 * i + 6, "space": 2})
                         for i, n in enumerate(names) if n and i < len(texts)]}
         if shape == "PanePointRequested" and options.get("version") == 2:
             said = self.said.get(fields["pane"], [])
@@ -235,10 +243,12 @@ class ActWorkshop(Context):
                              "place": {"x": 20, "y": 30, "w": 100, "h": 40},
                              "lines": [{"word": 0, "text": "> Rename", "x": 30, "y": 41, "space": 2},
                                        {"word": 1, "text": "  Delete", "x": 30, "y": 59, "space": 2}],
-                             "parts": [{"name": "file.rename", "text": "> Rename", "x": 31, "y": 41,
-                                        "space": 2, "place": {"x": 20, "y": 35, "w": 100, "h": 12}},
-                                       {"name": "file.delete", "text": "  Delete", "x": 31, "y": 59,
-                                        "space": 2, "place": {"x": 20, "y": 53, "w": 100, "h": 12}}]}}
+                             "parts": [self.pointed(
+                                           {"name": "file.rename", "text": "> Rename", "x": 31, "y": 41,
+                                            "space": 2, "place": {"x": 20, "y": 35, "w": 100, "h": 12}}),
+                                       self.pointed(
+                                           {"name": "file.delete", "text": "  Delete", "x": 31, "y": 59,
+                                            "space": 2, "place": {"x": 20, "y": 53, "w": 100, "h": 12}})]}}
         return Context.ask(self, office, shape, fields, **options)
 
 
@@ -520,6 +530,26 @@ def run_checks(tools, runtime):
                 self.act(ctx)
             self.assertEqual(json.loads(ctx.kept["failed-step-parts.json"]), self.INFO_NAMES["info"])
             self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+
+        def test_a_part_workshop_gives_no_point_is_never_pressed_and_the_step_says_why(self):
+            ctx = ActWorkshop(steps, [{"part": ["zengine.info", "info", "property:Height"]}],
+                              self.INFO_ROWS, named=self.INFO_NAMES, unreached={"property:Height"})
+            with self.assertRaisesRegex(CheckFailed, "no press reaches 'property:Height' in "
+                                        "zengine.info/info on its own"):
+                self.act(ctx)
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+            ctx = ActWorkshop(steps, [{"menu": "file.delete"}], [], unreached={"file.delete"})
+            with self.assertRaisesRegex(CheckFailed, "no press reaches the line named 'file.delete'"):
+                self.act(ctx)
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+            manager = Manager(self.LISTED, shown=True)
+            ctx = ActWorkshop(steps, [{"open": "pane:zengine.terminal/terminal"}], [], manager=manager,
+                              unreached={"pane:zengine.terminal/terminal"})
+            with self.assertRaisesRegex(CheckFailed, "no press reaches the Pane Manager's row "
+                                        "'pane:zengine.terminal/terminal'"):
+                self.act(ctx)
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+            self.assertEqual(manager.open, set())
 
         def test_select_chooses_a_row_by_its_name_before_its_text(self):
             for name, presses, at in (("property:Placement", 2, 2), ("property:Width", 0, 0)):
