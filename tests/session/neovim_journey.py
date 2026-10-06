@@ -62,16 +62,16 @@ def prepare(rig, name):
     st = story.Story(root)
     st.index = 1
     story.s_editor(st)
-    st.run("workshop/place", "place-terminal", {"panes": [{"pane": "Terminal", "x": 0, "y": 62,
-                                                           "width": 120, "height": 14}]})
-    st.act("open-neovim", [{"open": "Neovim"}, {"wait": 0.5}])
+    st.run("workshop/place", "place-terminal", {"panes": [{"pane": "pane:zengine.terminal/terminal",
+                                                           "x": 0, "y": 62, "width": 120, "height": 14}]})
+    st.act("open-neovim", [{"open": "pane:zengine.editor/editor"}, {"wait": 0.5}])
     # The Pane Manager stays on the desk after it opens a pane: out of the way, as the story's desk
     # puts it, so nothing covers Neovim (a covered pane is not described).
-    st.run("workshop/place", "place-pane-manager", {"panes": [{"pane": "Pane Manager", "x": 134, "y": 20,
-                                                               "width": 44, "height": 40}]})
+    st.run("workshop/place", "place-pane-manager", {"panes": [{"pane": "pane:zengine.desktop/launcher",
+                                                               "x": 134, "y": 20, "width": 44, "height": 40}]})
     # Row 2, not row 1: in the terminal medium a pane whose frame starts on row 1 is not
     # addressable, and Workshop describes no pane it cannot point into.
-    st.run("workshop/place", "place-neovim", {"panes": [{"pane": "Neovim", "x": 0, "y": 2,
+    st.run("workshop/place", "place-neovim", {"panes": [{"pane": "pane:zengine.editor/editor", "x": 0, "y": 2,
                                                          "width": 128, "height": 56}]})
     return root, st
 

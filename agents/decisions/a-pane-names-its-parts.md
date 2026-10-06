@@ -23,8 +23,8 @@ part's point is a place no part inside it covers, so a row is pressed beside the
   drawn as a box, a label and a run would need one of them chosen to carry its name.
 - *Workshop naming what a pane draws* — argued: only the pane knows what a row means.
 
-**Consequences.** An agent finds a part by its pane and its name, wherever a redraw put it. A
-pane moving its rows onto the canvas names the same parts in its picture, and a name an agent
-wrote still holds.
+**Consequences.** An agent finds a part by its pane and its name, wherever a redraw put it:
+`workshop/act` presses one by name and opens a pane by its Pane Manager row's. A pane moving its
+rows onto the canvas names the same parts in its picture, and a name an agent wrote still holds.
 
 **Laws supported.** [WL-HAND-06](../workshop/pane-controls.md).

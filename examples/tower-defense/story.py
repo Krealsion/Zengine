@@ -663,7 +663,7 @@ def s_first_build(st):
 
 def s_game_pane(st):
     """Open the game's pane and give it its place on the desk."""
-    st.act("game-open", [{"open": "Tower Defense"}, {"wait": 0.5}])
+    st.act("game-open", [{"open": "pane:td.game/td"}, {"wait": 0.5}])
     st.run("workshop/place", "game-place", {"panes": [load(STORY / "workspace.json")["game"]]})
     return st.act("game-look", [{"press": "ctrl+p"},
                                 {"expect": ["td.game", "td", "TOWER DEFENSE"], "seconds": 5},
@@ -750,7 +750,7 @@ def s_toolbox(st):
     st.run("workshop/inventory-controls", "toolbox-controls", {
         "folder": tb["folder"], "target": tb["target"], "kind": "row",
         "controls": [{"label": c["label"], "key": c["key"]} for c in tb["commands"]]})
-    st.act("toolbox-row", [{"open": "Inventory row 1"}, {"wait": 0.5}])
+    st.act("toolbox-row", [{"open": "pane:zengine.inventory-pane/inventory.1"}, {"wait": 0.5}])
     st.run("workshop/place", "toolbox-row-place", {"panes": [load(STORY / "workspace.json")["row"]]})
     # THE BOUNDARY, SHOWN: a guest's gesture runs a stored command only with the guest's own grant.
     st.act("toolbox-refusal", [
@@ -1453,8 +1453,8 @@ def again(args):
         st.run("workshop/connections", "connect", {})
         if args.tui:
             st.index = 2
-            st.act("builder", [{"open": "Builder"}, {"expect": ["zengine.builder-pane", "builder", "BUILDER"],
-                                                     "seconds": 10}])
+            st.act("builder", [{"open": "pane:zengine.builder-pane/builder"},
+                               {"expect": ["zengine.builder-pane", "builder", "BUILDER"], "seconds": 10}])
             # THE PLAN ROW IS THE BUILDER'S ANSWER; THE LOAD'S END IS THE GAME'S. A row can be resolved
             # now, loaded by a build now (realized), or still loading -- a load conversation the
             # Builder does not paint the end of. The game pane answering below is that end.
@@ -1464,7 +1464,7 @@ def again(args):
                 raise StepFailed("the kept game was not loaded: %s (%s)" % (outcome, said.get("confirmation")))
         st.index = 3
         # The cursor of a new game starts on 3,3, beside the road; two cells right is 5,3.
-        st.act("kept-game", [{"open": "Tower Defense"}, {"expect": td + ["TOWER DEFENSE"], "seconds": 10},
+        st.act("kept-game", [{"open": "pane:td.game/td"}, {"expect": td + ["TOWER DEFENSE"], "seconds": 10},
                              {"press": "r"}, {"expect": td + ["Place towers beside the road"], "seconds": 5},
                              {"press": "c"}, {"expect": td + ["rules check: 12/12 passed"], "seconds": 10},
                              {"press": "t"}, {"expect": td + ["Tower built at 3,3."], "seconds": 5},
@@ -1478,7 +1478,8 @@ def again(args):
         st.run("workshop/toolbox", "toolbox", {"operation": "restore", "replace": True,
                                                "path": (HERE / "tower-defense.toolbox").as_posix()})
         inv = ["zengine.inventory-pane", "inventory"]
-        st.act("toolbox-look", [{"open": "Inventory"}, {"expect": inv + ["Tower Defense/"], "seconds": 10},
+        st.act("toolbox-look", [{"open": "pane:zengine.inventory-pane/inventory"},
+                                {"expect": inv + ["Tower Defense/"], "seconds": 10},
                                 {"expect": inv + ["hotkeys OFF"], "seconds": 5}, {"rows": inv, "as": "inventory"}])
         if args.hold:
             # A WEAVER'S OWN HAND, which this command cannot be: the checked Workshop stays up, in
@@ -1496,7 +1497,7 @@ def again(args):
                                           {"rows": td, "as": "game"}])
             # The row where the story's toolbox layout puts it, clear of the game and Inventory (a
             # window's pixels; in the terminal it stays where the Pane Manager opens it).
-            st.act("row-open", [{"open": "Inventory row 1"}, {"wait": 0.5}])
+            st.act("row-open", [{"open": "pane:zengine.inventory-pane/inventory.1"}, {"wait": 0.5}])
             if not args.tui:
                 st.run("workshop/place", "row-place", {"panes": [load(STORY / "workspace.json")["row"]]})
             row_ready = st.act("row-ready", [{"expect": row + ["OFF row 5"], "seconds": 10},

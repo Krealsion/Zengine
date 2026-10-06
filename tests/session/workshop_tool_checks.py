@@ -96,18 +96,57 @@ class Context:
         raise AssertionError(shape)
 
 
+class Manager:
+    """The Pane Manager as a script: its list through a window of `window` rows that follows the
+    marker, the keys, and a press that chooses a row -- or, on the marked row with the keys already
+    here, opens its pane. Its words stand at x 400 and its parts' points at x 450."""
+
+    def __init__(self, panes, window=3, shown=False, cursor=0, keys=False):
+        self.panes, self.window, self.shown = list(panes), window, shown
+        self.cursor, self.first, self.keys, self.open = cursor, 0, keys, set()
+        self.selected = None
+
+    def listed(self):
+        self.first = min(self.first, self.cursor)
+        self.first = max(self.first, self.cursor - self.window + 1)
+        return range(self.first, min(len(self.panes), self.first + self.window))
+
+    def rows(self):
+        """The rows drawn now, each with the name the pane gives it."""
+        out = [("PANES -- %d" % len(self.panes), None)]
+        for i in self.listed():
+            office, pane, label = self.panes[i]
+            mark = "[open]" if (office, pane) in self.open else "[    ]"
+            out.append(("%s%s %s" % ("> " if i == self.cursor else "  ", mark, label),
+                        "pane:%s/%s" % (office, pane)))
+        return out
+
+    def press(self, y):
+        row = (y - 6) // 12
+        listed = list(self.listed())
+        if 1 <= row <= len(listed):
+            at = listed[row - 1]
+            if at == self.cursor and self.keys:
+                self.open.add(self.panes[at][:2])
+                self.selected = self.panes[at][:2]
+            self.cursor = at
+        self.keys = True
+
+
 class ActWorkshop(Context):
     """A run context whose Workshop is a script for `workshop/act`: Info's list with a cursor the
-    Down and Up keys move, a canvas pane's words, any other pane's rows as `panes` names them, a
-    point door that says which word and column it was asked for and refuses a character no word
-    shows, and a desk with a menu open. Every injected moment is kept, as `Context` keeps them."""
+    Down and Up keys move, a canvas pane's words, any other pane's rows as `panes` names them and
+    the names `named` gives their rows, a point door that says which word and column it was asked
+    for and refuses a character no word shows, a Pane Manager when `manager` is one, and a desk with
+    a menu open whose lines are named. Every injected moment is kept, as `Context` keeps them."""
 
-    def __init__(self, steps, act_steps, rows, panes=None):
+    def __init__(self, steps, act_steps, rows, panes=None, named=None, manager=None):
         Context.__init__(self, steps)
         self.inputs["steps"] = json.dumps(act_steps)  # the input shares the module's name
         self.base = list(rows)
         self.cursor = next((i for i, r in enumerate(rows) if r.startswith(">")), 0)
-        self.panes, self.said = dict(panes or {}), {}
+        self.panes, self.named, self.said = dict(panes or {}), dict(named or {}), {}
+        self.manager = manager
         self.points, self.kept = [], {}
 
     def rows(self):
@@ -119,39 +158,87 @@ class ActWorkshop(Context):
     def done(self):
         return json.loads(self.kept["steps.json"])
 
+    def moved(self, e):
+        """What one injected moment does to the script: Ctrl+P shows or hides the Pane Manager,
+        Down and Up walk the cursor of whichever list holds the keys, a press on the Pane Manager's
+        words is its."""
+        m = self.manager
+        if e["kind"] == "KeyPressed" and e["scancode"] == 19 and e["modifiers"] and m:
+            m.shown = not m.shown
+            m.keys = m.shown
+        elif e["kind"] == "KeyPressed" and e["scancode"] in (81, 82):
+            step = 1 if e["scancode"] == 81 else -1
+            if m and m.shown and m.keys:
+                m.cursor = max(0, min(len(m.panes) - 1, m.cursor + step))
+            else:
+                self.cursor = max(0, min(len(self.base) - 1, self.cursor + step))
+        elif e["kind"] == "PointerButton" and e["pressed"] and m and m.shown:
+            if 400 <= e["x"] < 500:
+                m.press(e["y"])
+            else:
+                m.keys = False
+
     def ask(self, office, shape, fields, **options):
+        from loom_session.tool import Refused
         if shape == "InjectInput":
             for e in fields["events"]:
-                if e["kind"] == "KeyPressed" and e["scancode"] in (81, 82):
-                    step = 1 if e["scancode"] == 81 else -1
-                    self.cursor = max(0, min(len(self.base) - 1, self.cursor + step))
-        if shape == "PaneViewRequested" and options.get("version") == 2:
-            canvas = fields["pane"] == "view-builder"
-            texts = self.panes.get(fields["pane"]) or (["node one", "[Label]"] if canvas
-                                                        else self.rows())
+                self.moved(e)
+        if shape == "PaneViewRequested" and options.get("version") == 3:
+            if fields["pane"] == "launcher":
+                if not (self.manager and self.manager.shown):
+                    raise Refused("pane view unavailable: closed, unknown or covered by an interaction")
+                drawn = self.manager.rows()
+                texts, names, left = [t for t, _ in drawn], [n for _, n in drawn], 400
+            else:
+                canvas = fields["pane"] == "view-builder"
+                texts = self.panes.get(fields["pane"]) or (["node one", "[Label]"] if canvas
+                                                            else self.rows())
+                names, left = self.named.get(fields["pane"], []), 0
             self.said[fields["pane"]] = texts
             return {"provider": fields["provider"], "pane": fields["pane"], "picture": 1,
-                    "canvas": canvas, "words": [
-                        {"word": i, "text": t, "place": {"x": 0, "y": 12 * i, "w": 12 * len(t), "h": 12},
-                         "x": 6, "y": 12 * i + 6, "space": 2} for i, t in enumerate(texts)]}
+                    "canvas": fields["pane"] == "view-builder", "words": [
+                        {"word": i, "text": t, "place": {"x": left, "y": 12 * i, "w": 12 * len(t), "h": 12},
+                         "x": left + 6, "y": 12 * i + 6, "space": 2} for i, t in enumerate(texts)],
+                    "parts": [
+                        {"name": n, "text": texts[i], "place": {"x": left, "y": 12 * i, "w": 480, "h": 12},
+                         "x": left + 50, "y": 12 * i + 6, "space": 2}
+                        for i, n in enumerate(names) if n and i < len(texts)]}
         if shape == "PanePointRequested" and options.get("version") == 2:
-            from loom_session.tool import Refused
             said = self.said.get(fields["pane"], [])
             if fields["word"] >= len(said) or fields["column"] >= len(said[fields["word"]]):
                 raise Refused("pane point unavailable: outside the pane's visible words")
             self.points.append((fields["word"], fields["column"]))
+            if fields["pane"] == "launcher":
+                return {"x": 400 + fields["column"], "y": 12 * fields["word"] + 6, "space": 2}
             return {"x": 100 + fields["word"], "y": fields["column"], "space": 2}
-        if shape == "DeskViewRequested":
+        if shape == "DeskViewRequested" and options.get("version") == 2:
             place = {"x": 0, "y": 24, "w": 480, "h": 300}
+            panes = [{"provider": "zengine.info", "pane": "info", "name": "Info",
+                      "state": "open", "front": 0, "selected": True, "keys": True,
+                      "visible": place, "resolved": place}]
+            m = self.manager
+            if m:
+                panes[0]["keys"] = False
+                panes.append({"provider": "zengine.desktop", "pane": "launcher", "name": "Pane Manager",
+                              "state": "open" if m.shown else "closed", "front": 1, "selected": m.keys,
+                              "keys": m.keys, "visible": place, "resolved": place})
+                for office, pane, label in m.panes:
+                    if (office, pane) != ("zengine.info", "info"):
+                        panes.append({"provider": office, "pane": pane, "name": label,
+                                      "state": "covered" if (office, pane) in m.open else "closed",
+                                      "front": -1, "selected": (office, pane) == m.selected,
+                                      "keys": False, "visible": {}, "resolved": {}})
             return {"width": 1440, "height": 900, "cell_px": 12, "space": 2,
                     "room": {"x": 0, "y": 24, "w": 1440, "h": 800}, "arranging": False,
-                    "panes": [{"provider": "zengine.info", "pane": "info", "name": "Info",
-                               "state": "open", "front": 0, "selected": True, "keys": True,
-                               "visible": place, "resolved": place}],
+                    "panes": panes,
                     "menu": {"open": True, "office": "zengine.files", "pane": "files", "picture": 3,
                              "place": {"x": 20, "y": 30, "w": 100, "h": 40},
                              "lines": [{"word": 0, "text": "> Rename", "x": 30, "y": 41, "space": 2},
-                                       {"word": 1, "text": "  Delete", "x": 30, "y": 59, "space": 2}]}}
+                                       {"word": 1, "text": "  Delete", "x": 30, "y": 59, "space": 2}],
+                             "parts": [{"name": "file.rename", "text": "> Rename", "x": 31, "y": 41,
+                                        "space": 2, "place": {"x": 20, "y": 35, "w": 100, "h": 12}},
+                                       {"name": "file.delete", "text": "  Delete", "x": 31, "y": 59,
+                                        "space": 2, "place": {"x": 20, "y": 53, "w": 100, "h": 12}}]}}
         return Context.ask(self, office, shape, fields, **options)
 
 
@@ -412,6 +499,88 @@ def run_checks(tools, runtime):
                     self.assertEqual(ctx.points, [(word, column)])
                     presses = [e for e in ctx.events if e["kind"] == "PointerButton"]
                     self.assertEqual([(e["x"], e["y"]) for e in presses], [(100 + word, column)] * 2)
+
+        INFO_NAMES = {"info": ["property:Width", "property:Height", "property:Placement"]}
+        INFO_ROWS = [">Width       480", " Height      300", " Placement"]
+        LISTED = [("zengine.info", "info", "Info"), ("zengine.desktop", "hotkeys", "Hotkeys"),
+                  ("zengine.terminal", "terminal", "Terminal"), ("zengine.editor", "editor", "Editor"),
+                  ("zengine.files", "project-files", "Files"), ("zengine.builder-pane", "builder", "Builder")]
+
+        def test_part_presses_a_named_part_at_its_point_and_fails_with_the_names_drawn(self):
+            ctx = ActWorkshop(steps, [{"part": ["zengine.info", "info", "property:Height"]}],
+                              self.INFO_ROWS, named=self.INFO_NAMES)
+            self.act(ctx)
+            presses = [e for e in ctx.events if e["kind"] == "PointerButton"]
+            self.assertEqual([(e["x"], e["y"], e["pressed"]) for e in presses],
+                             [(50, 18, True), (50, 18, False)])
+            self.assertEqual(ctx.done()[0]["text"], " Height      300")
+            ctx = ActWorkshop(steps, [{"part": ["zengine.info", "info", "property:Depth"], "seconds": 0}],
+                              self.INFO_ROWS, named=self.INFO_NAMES)
+            with self.assertRaisesRegex(CheckFailed, "draws no part named 'property:Depth'"):
+                self.act(ctx)
+            self.assertEqual(json.loads(ctx.kept["failed-step-parts.json"]), self.INFO_NAMES["info"])
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+
+        def test_select_chooses_a_row_by_its_name_before_its_text(self):
+            for name, presses, at in (("property:Placement", 2, 2), ("property:Width", 0, 0)):
+                with self.subTest(name=name):
+                    ctx = ActWorkshop(steps, [{"select": ["zengine.info", "info", name]}],
+                                      self.INFO_ROWS, named=self.INFO_NAMES)
+                    self.act(ctx)
+                    self.assertEqual(ctx.done()[0]["presses"], presses)
+                    self.assertEqual(ctx.cursor, at)
+
+        def test_menu_presses_a_line_by_its_name_at_the_point_workshop_gave(self):
+            ctx = ActWorkshop(steps, [{"menu": "file.delete"}], [])
+            self.act(ctx)
+            presses = [e for e in ctx.events if e["kind"] == "PointerButton"]
+            self.assertEqual([(e["x"], e["y"]) for e in presses], [(31, 59)] * 2)
+            self.assertEqual(ctx.done()[0]["name"], "file.delete")
+
+        def test_open_presses_the_pane_managers_row_by_its_name_until_the_desk_says_it_is_open(self):
+            # HIDDEN, AND THE ROW OUT OF THE WINDOW: Ctrl+P, a press on the heading for the keys,
+            # Down until the window draws the row -- marked, since the window follows the marker --
+            # and one press opening it.
+            manager = Manager(self.LISTED)
+            ctx = ActWorkshop(steps, [{"open": "pane:zengine.files/project-files"}], [], manager=manager)
+            self.act(ctx)
+            record = ctx.done()[0]
+            self.assertEqual((record["opened"], record["presses"], record["state"]),
+                             ("pane:zengine.files/project-files", 1, "covered"))
+            self.assertEqual(manager.open, {("zengine.files", "project-files")})
+            presses = [(e["x"], e["y"]) for e in ctx.events if e["kind"] == "PointerButton" and e["pressed"]]
+            self.assertEqual(presses, [(400, 6), (450, 42)])
+            self.assertEqual([e["scancode"] for e in ctx.events if e["kind"] == "KeyPressed"],
+                             [19, 81, 81, 81, 81])
+            # DRAWN AND NOT MARKED: a press choosing it, then, once it shows marked, one opening it.
+            manager = Manager(self.LISTED, shown=True)
+            ctx = ActWorkshop(steps, [{"open": "pane:zengine.terminal/terminal"}], [], manager=manager)
+            self.act(ctx)
+            self.assertEqual(ctx.done()[0]["presses"], 2)
+            presses = [(e["x"], e["y"]) for e in ctx.events if e["kind"] == "PointerButton" and e["pressed"]]
+            self.assertEqual(presses, [(450, 42)] * 2)
+            self.assertEqual(manager.open, {("zengine.terminal", "terminal")})
+            # ALREADY MARKED, WITH THE KEYS THERE: one press opens it.
+            manager = Manager(self.LISTED, shown=True, cursor=1, keys=True)
+            ctx = ActWorkshop(steps, [{"open": "pane:zengine.desktop/hotkeys"}], [], manager=manager)
+            self.act(ctx)
+            self.assertEqual(ctx.done()[0]["presses"], 1)
+            self.assertEqual(manager.open, {("zengine.desktop", "hotkeys")})
+
+        def test_open_fails_with_the_names_listed_and_refuses_a_name_that_is_not_a_rows(self):
+            manager = Manager(self.LISTED, shown=True)
+            ctx = ActWorkshop(steps, [{"open": "pane:zengine.flow/flow"}], [], manager=manager)
+            with self.assertRaisesRegex(CheckFailed, "names no row 'pane:zengine.flow/flow'"):
+                self.act(ctx)
+            self.assertEqual(json.loads(ctx.kept["failed-step-parts.json"]),
+                             sorted("pane:%s/%s" % (o, p) for o, p, _ in self.LISTED))
+            self.assertEqual(manager.open, set())
+            for name in ("Files", "pane:zengine.files", "pane:/files", 7):
+                with self.subTest(name=name):
+                    ctx = ActWorkshop(steps, [{"open": name}], [], manager=Manager(self.LISTED))
+                    with self.assertRaisesRegex(ValueError, "pane:<office>/<pane>"):
+                        self.act(ctx)
+                    self.assertEqual(ctx.contacts, [])
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
     return unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful()
