@@ -871,6 +871,109 @@ TEST_CASE("a row as wide as its pane with a terminal's caret in it says only the
     }
 }
 
+TEST_CASE("a word that is only a caret is pressed on the caret's own cell, inside its place, in a text row and in a canvas field at the body's right edge") {
+    // A TEXT ROW WITH NOTHING ON IT BUT THE CARET: a terminal draws the glyph in the row's first
+    // cell, and that cell is the word.
+    {
+        DeskRig d;
+        d.r.drive(d.alpha, [](ProviderSeat& s, loom::Mail& m) {
+            s.say(m, PaneContent{"alpha", {surface::SurfaceTextRow{"", surface::role::kFill},
+                                           surface::SurfaceTextRow{"below", surface::role::kFill}}});
+            s.caret(m, PaneCaret{"alpha", 0, 0});
+        });
+        v2::PaneView view;
+        REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
+        REQUIRE(view.words.size() == 2);
+        const PaneWord& w = view.words[0];
+        CHECK(w.text.empty());
+        CHECK(w.place.w == surface::kCanvasCellPx);
+        CHECK(w.x == surface::cell_of_pixel(w.place.x));
+        CHECK(w.y - surface::kTuiCanvasTopRow == surface::cell_of_pixel(w.place.y));
+        const surface::CanvasGrids grid = surface::rasterize_canvas(d.r.last_canvas());
+        CHECK(terminal_glyph_at(grid, w.x, w.y) == surface::kCaretGlyph);
+        d.alpha->presses.clear();
+        d.click(w.x, w.y, w.space);
+        REQUIRE(d.alpha->presses.size() == 1);
+        CHECK(d.alpha->presses[0].row == 0);
+        CHECK(d.alpha->presses[0].column == 0);
+    }
+    // AN EMPTY FIELD IN A CANVAS PANE'S LAST CELL: the press must reach the provider, inside it.
+    {
+        SketchRig d;
+        const PaneCanvasRoom room = d.sketch->rooms.back();
+        PaneCanvasContent p;
+        p.pane = kCanvasPane;
+        p.grant = room.grant;
+        p.picture = ++d.number;
+        PaneCanvasText field{room.width - kPaneCanvasUnit, 2 * kPaneCanvasUnit, "", surface::role::kFill};
+        field.caret_col = 0;
+        p.texts.push_back(field);
+        d.drive([p](SketchSeat&, loom::Mail& m) {
+            (void)m.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, p);
+        });
+        v2::PaneView view;
+        REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+        REQUIRE(view.words.size() == 1);
+        const PaneWord& w = view.words[0];
+        CHECK(w.text.empty());
+        CHECK(w.place.w == surface::kCanvasCellPx);
+        CHECK(w.x == surface::cell_of_pixel(w.place.x));
+        const ExternalPane& pane = *d.r.session().panes.external_pane(d.sketch_kind);
+        d.sketch->pointers.clear();
+        d.click(w.x, w.y, w.space);
+        REQUIRE_FALSE(d.sketch->pointers.empty());
+        CHECK(inside_locally(d.sketch->pointers.front(), w.place, pane));
+    }
+}
+
+TEST_CASE("the first version's rows are read in a body one to three columns wide with a terminal's caret in it, each row's point inside the body") {
+    std::size_t seen = 0;
+    for (std::int64_t cells = 3; cells <= 12; ++cells) {
+        CAPTURE(cells);
+        DeskRig d;
+        REQUIRE(author_pane_size(d.r.session().setup.active, PaneRef{kAlphaOffice, "alpha"},
+                                 PaneSize{pane_unit::kPixels, cells * surface::kCanvasCellPx},
+                                 PaneSize{pane_unit::kPixels, 8 * surface::kCanvasCellPx})
+                    .accepted);
+        // A new extent lays the desk out again, granting the pane the room its size gives.
+        d.r.extent(151, 60);
+        const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
+        if (!body.present || body.columns < 1 || body.columns > 3) continue;
+        ++seen;
+        CAPTURE(body.columns);
+        // Rows as wide as the body, so the content fits the room it was granted.
+        const auto width = static_cast<std::size_t>(body.columns);
+        d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
+            s.say(m, PaneContent{"alpha", {surface::SurfaceTextRow{std::string("abc").substr(0, width),
+                                                                   surface::role::kFill},
+                                           surface::SurfaceTextRow{std::string("def").substr(0, width),
+                                                                   surface::role::kFill}}});
+            s.caret(m, PaneCaret{"alpha", 0, 0});
+        });
+        const ExternalPane& held = *d.r.session().panes.external_pane(d.alpha_kind);
+        REQUIRE(held.columns == body.columns);
+        REQUIRE(held.heard);
+        REQUIRE(held.caret_row == 0);
+        d.asker->refusals.clear();
+        d.ask([](loom::Mail& m) {
+            (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{kAlphaOffice, "alpha"});
+        });
+        const std::string refused = d.asker->refusals.empty() ? std::string() : d.asker->refusals.back();
+        REQUIRE_MESSAGE(refused.empty(), refused);
+        REQUIRE_FALSE(d.asker->first_views.empty());
+        const PaneView& rows = d.asker->first_views.back();
+        REQUIRE(rows.rows.size() == 2);
+        for (const PaneViewRow& row : rows.rows) {
+            CAPTURE(row.row);
+            d.alpha->presses.clear();
+            d.click(row.x, row.y, row.space);
+            REQUIRE(d.alpha->presses.size() == 1);
+            CHECK(d.alpha->presses[0].row == row.row);
+        }
+    }
+    CHECK(seen > 0);
+}
+
 namespace {
 
 /// A KEPT CONVERSATION: the timeline heard, against tests/timelines/<name>.txt.

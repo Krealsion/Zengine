@@ -21,16 +21,18 @@ PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_exter
 `external_caret_glyph`, `external_press_at`; `workshop/screen.hpp` `drawn_column`, `shown_column`;
 `workshop/weave_external.cpp` `external_drag`, `external_release`;
 `workshop/screen_gestures.cpp` `prose_at`; `surface/pointing.hpp` `prose_column_of_pixel`,
-`prose_row_of_pixel`, `floor_to_grain`; `workshop/weave_inspection.cpp` `cell_center`;
-`tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places the caret where
-the weaver aimed"`; `tests/test_workshop_screen.cpp` case
+`prose_row_of_pixel`, `floor_to_grain`; `workshop/weave_inspection.cpp` `cell_point`,
+`cell_center`; `tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places
+the caret where the weaver aimed"`; `tests/test_workshop_screen.cpp` case
 `"what a pane is painted at and what it occupies are one resolved truth"`;
 `tests/test_workshop_panes_input.cpp` case `"text a window sets in cells, in a body too short for
 a row of its face, is drawn, pressed and aimed at from one origin"`;
 `tests/test_workshop_desk.cpp` case `"a character's point is the cell showing it, past a
 terminal's caret glyph, and a press on a cell reaches the pane as the column of the character it
-shows"`; `tests/test_workshop_panes_button.cpp` case `"WL-GEO-01: in a terminal, a right press and
-its release name the column of the character each cell shows, past the caret's glyph"`;
+shows"`, case `"the first version's rows are read in a body one to three columns wide with a
+terminal's caret in it, each row's point inside the body"`;
+`tests/test_workshop_panes_button.cpp` case `"WL-GEO-01: in a terminal, a right press and its
+release name the column of the character each cell shows, past the caret's glyph"`;
 `tests/test_workshop_panes_editor.cpp` case `"in a terminal, a press on a character past the
 caret puts the caret before that character, and a sweep ends before the character under the
 hand"`.
@@ -242,7 +244,8 @@ labels and text runs, each where it is drawn, and a press at a word's point land
 the pane's own canvas"`, case `"a character's point is the cell showing it, past a terminal's
 caret glyph, and a press on a cell reaches the pane as the column of the character it shows"`,
 case `"a row as wide as its pane with a terminal's caret in it says only the characters shown, at
-a place inside the pane"`.
+a place inside the pane"`, case `"a word that is only a caret is pressed on the caret's own cell,
+inside its place, in a text row and in a canvas field at the body's right edge"`.
 WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
 ## Do not assume
