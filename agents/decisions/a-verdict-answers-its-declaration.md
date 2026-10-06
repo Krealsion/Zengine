@@ -36,8 +36,8 @@ mandated or retried.
 - *Keeping a displaced declaration to re-join later* — tried until this change: a later re-join
   could bring it back into force without its declarer being told, after it had been told the
   rows were gone. It is withdrawn now, and the provider may declare again.
-- *Reading acceptance from silence* — refused: an answer can be refused at the gate, dropped with
-  the incarnation that asked, or never sent to a provider built before the shape.
+- *Reading acceptance from silence* — refused: an answer can be refused at the gate, dropped
+  with the incarnation that asked, or never sent to a provider built before the shape.
 
 **Consequences.** A provider built against the protocol before these two shapes declares and
 dispatches exactly as before and is told nothing. One that accepts them knows which of its

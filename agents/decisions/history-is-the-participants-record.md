@@ -28,9 +28,9 @@ is taken only by the intent that asked for it.
   the bytes match".
 - *History across launches* -- not chosen: the participant and its record belong to the run.
 
-**Consequences.** History is as long as the record keeps, `loom::kTranscriptCapacity` entries of every kind. A reload
-while a line is recalled keeps the draft from before the recall. A key the line does not take
-ends no recall.
+**Consequences.** History is as long as the record keeps, `loom::kTranscriptCapacity` entries of
+every kind. A reload while a line is recalled keeps the draft from before the recall. A key the
+line does not take ends no recall.
 
 **Laws supported.** [WL-TERM-12](../workshop/terminal-pane.md),
 [WL-TERM-13](../workshop/terminal-pane.md).

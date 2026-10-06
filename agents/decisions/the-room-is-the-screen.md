@@ -2,8 +2,9 @@
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [geometry](../workshop/geometry.md). It reverses the reservation half of
-[the reserved column is nobody's to spend](../../docs/history/decisions/the-reserved-column.md), and keeps that record's other
-half: overlaps inside one owner's room, and a composition settled in cells before any metric.
+[the reserved column is nobody's to spend](../../docs/history/decisions/the-reserved-column.md),
+and keeps that record's other half: overlaps inside one owner's room, and a composition settled in
+cells before any metric.
 
 **Context.** `screen_of` subtracted 28 columns and a two-cell gap from every screen's width before
 anything asked for them, and called what was left the room. That subtraction was the whole of what
@@ -47,15 +48,16 @@ where it has always been and the strip beneath it is ordinary room.
 
 **Consequences.** The workspace is thirty columns wider at every extent, so every %-wide object
 resolves against the bigger number — 60% of a 160-column surface is 96 cells where it was 78.
-That is the move [the reserved column](../../docs/history/decisions/the-reserved-column.md) refused when Info became
-removable, and the reason it refused it does not apply here: it refused a room that changed with
-which panes were open, so that hiding a list of names would resize a weaver's material. This room
-does not change with anything; it is the surface, at every moment, whatever stands on it. The
-terminal overlay is eight cells wider at the minimum screen — it asked for 56 columns and was
-given 48 because thirty of the surface's were spoken for. A stacked pane is wider too, and
-gained the reachable columns to its right that the minimum screen never had: 48 of 48 left the
-weaver nothing, and 63 of 78 leaves fifteen. A pane now meets the right column at the smallest
-screens, which is what an overlay is, and it is legible because a pane wears a boundary.
+That is the move [the reserved column](../../docs/history/decisions/the-reserved-column.md)
+refused when Info became removable, and the reason it refused it does not apply here: it refused a
+room that changed with which panes were open, so that hiding a list of names would resize a
+weaver's material. This room does not change with anything; it is the surface, at every moment,
+whatever stands on it. The terminal overlay is eight cells wider at the minimum screen — it
+asked for 56 columns and was given 48 because thirty of the surface's were spoken for. A stacked
+pane is wider too, and gained the reachable columns to its right that the minimum screen never
+had: 48 of 48 left the weaver nothing, and 63 of 78 leaves fifteen. A pane now meets the right
+column at the smallest screens, which is what an overlay is, and it is legible because a pane
+wears a boundary.
 
 **One cost this record did not pay for, and how it was paid.** The terminal pane reached the
 screen's right edge, so with the shipped desk an open terminal covered the pane standing there —

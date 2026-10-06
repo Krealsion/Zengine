@@ -39,9 +39,9 @@ project.
 - *A launch-only registry beside `PaneActions`* — rejected: it would leave the same ownership
   problem in the existing action path, and a provider's refusal would then be owed twice. One
   refusal shape answers both declaration surfaces.
-- *Letting the desktop clear the selection itself* — rejected: the selection is `Panes::selected`
-  and belongs to the party that owns the room. The desktop owns WHEN, the host owns the act, and
-  the answer echoes the number the ask went out under or acts on nothing.
+- *Letting the desktop clear the selection itself* — rejected: the selection is
+  `Panes::selected` and belongs to the party that owns the room. The desktop owns WHEN, the host
+  owns the act, and the answer echoes the number the ask went out under or acts on nothing.
 - *Keeping Escape-to-deselect hard-wired behind the declared row* — refused, on the founder's
   word: "let makers replace or disable application defaults, proving this for Escape-to-deselect
   as well". A default with a compiled-in copy behind it is not replaceable. The recovery route
@@ -73,8 +73,8 @@ pane presents the effective keymap (WL-DESK-11).
 
 **And the absence of a choice is state.** The launcher's cursor held a pane's identity, but a
 choice whose row left the list was kept only by the image that saw it leave: the keys were
-cleared, a successor read them as never chosen, and gave the marker — Return and `x` with it — to
-the pane in that place (the review's probe at `cce15b9`). The keys now stay, in `DesktopState`
+cleared, a successor read them as never chosen, and gave the marker — Return and `x` with it —
+to the pane in that place (the review's probe at `cce15b9`). The keys now stay, in `DesktopState`
 version 2 with its shape unchanged, so a same-shape reload is still accepted; both keys empty
 means only a cursor never given a pane (WL-DESK-10).
 

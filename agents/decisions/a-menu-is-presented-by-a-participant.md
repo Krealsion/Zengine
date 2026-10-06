@@ -63,16 +63,17 @@ subject that moved is judged by the requester when the choice arrives.
   outcome signs it; the host answers only what no presenter can.
 - *Argued: the host's own chrome, room and tab menus through the presenter* — deferred. They are
   the management route that must work with no presenter, a broken one, or none loaded.
-- *Argued: the pending ask in `DesktopState`* — refused for the desktop: a successor would act on
-  a menu about rows its predecessor was showing. A pane that wants transfer carries it on purpose.
+- *Argued: the pending ask in `DesktopState`* — refused for the desktop: a successor would act
+  on a menu about rows its predecessor was showing. A pane that wants transfer carries it on
+  purpose.
 
 **Consequences.** A Workshop without a presenter refuses a pane's menu in words and keeps every
 host route. An interaction a holder cannot carry ends somewhere: the seam has a word for it, and
 the two shipped images say it alike. It adds no completion guarantee — a delivered withdrawal an
-image simply never answers is still that presenter's silence. A presenter's lines are judged like a pane's rows and a presenter that overflows its
-room loses the menu. The seam is installed, so a stranger can build a presenter as well as a
-requester, and the numbered example replaces the shipped one both from a plan row and by a live
-reload that keeps the open menu. A press on a presented menu names the picture the medium held,
-through the same fence a pane's press does.
+image simply never answers is still that presenter's silence. A presenter's lines are judged like
+a pane's rows and a presenter that overflows its room loses the menu. The seam is installed, so a
+stranger can build a presenter as well as a requester, and the numbered example replaces the
+shipped one both from a plan row and by a live reload that keeps the open menu. A press on a
+presented menu names the picture the medium held, through the same fence a pane's press does.
 
 **Laws supported.** [WL-CTX-10](../workshop/pane-menu.md).

@@ -16,8 +16,8 @@ and is the press back to the newest. Ctrl+Up and Ctrl+Down page, Ctrl+Home and C
 ends, the wheel reads three rows a notch, and a submit follows the newest again.
 
 **Alternatives considered.**
-- *Fitting the newest entries whole* -- replaced: a long entry could be clipped for good; pinned by
-  case "a long entry is read whole by scrolling and no row of it is clipped for good".
+- *Fitting the newest entries whole* -- replaced: a long entry could be clipped for good; pinned
+  by case "a long entry is read whole by scrolling and no row of it is clipped for good".
 - *Anchoring the view by row number* -- refused: new output, eviction and a re-wrap renumber rows;
   pinned by case "a resize re-wraps under the entry being read and the line and its caret stay
   usable".
