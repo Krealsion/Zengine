@@ -1390,7 +1390,7 @@ TEST_CASE("the opened pane names what this Loom actually loaded, itself included
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
     const std::int64_t kind = intro_row(r, kIntroPane)->kind;
     const std::vector<std::string> shown =
-        external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+        loaded_rows(r, kind);
 
     // ONE LOADED WEAVE IN THIS RIG, AND IT IS THIS ONE. Self-introspection through the
     // same observation path used for everyone else -- there is no registration mirror
@@ -1412,14 +1412,14 @@ TEST_CASE("the count is the kernel's and moves when the kernel's map does") {
     r.pick(intro_ref());
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
     const std::int64_t kind = intro_row(r, kIntroPane)->kind;
-    REQUIRE(external_rows(r.last_canvas(), external_body_rect(r.session(), kind))[0] ==
+    REQUIRE(loaded_rows(r, kind)[0] ==
             "loaded weaves -- 1");
 
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     // The Hello provider's own offer arrives too; that is the catalog's business and
     // not this pane's, and the pane's rows are unmoved until it is re-granted room.
     REQUIRE(r.session().panes.runtime.entries.size() == kIntroPaneCount + 1);
-    CHECK(external_rows(r.last_canvas(), external_body_rect(r.session(), kind))[0] ==
+    CHECK(loaded_rows(r, kind)[0] ==
           "loaded weaves -- 1");
 
     // A WIDER SURFACE MOVES THE PROSE BUDGET, WHICH IS A ROOM GRANT, WHICH IS THIS
@@ -1428,16 +1428,16 @@ TEST_CASE("the count is the kernel's and moves when the kernel's map does") {
                           r.session().panes.external_pane(kind)->columns + 1);
     r.extent(140, 40);
     const std::vector<std::string> after =
-        external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+        loaded_rows(r, kind);
     REQUIRE_FALSE(after.empty());
     CHECK(after[0] == "loaded weaves -- 2");
     CHECK(any_row(after, "zengine-workshop-hello @" + std::string(kHelloOffice)));
 }
 
 TEST_CASE("the graphical medium grants a different budget and the view spends it") {
-    // BOTH PROJECTIONS OF ONE PANE, and the provider cannot tell them apart: it is handed
-    // `rows` and `columns`, never a cell, pixel, font or medium, so what differs between the
-    // readings is a pair of integers `fit_region` resolved on Workshop's side. The metric
+    // BOTH PROJECTIONS OF ONE PANE, and the provider composes for neither medium: it is handed
+    // a room and the advance and line its text stands at, never a font, so what differs between
+    // the readings is a few integers `fit_region` resolved on Workshop's side. The metric
     // arrives as a NUMBER, which is how every medium-dependent claim here is proved on a lane
     // with no font engine.
     PaneRig r;
@@ -1452,12 +1452,12 @@ TEST_CASE("the graphical medium grants a different budget and the view spends it
     const std::int64_t cell_cols = cells->columns;
     REQUIRE(cell_rows > 0);
     const std::vector<std::string> in_cells =
-        external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+        loaded_rows(r, kind);
 
     // A REAL FACE'S METRIC over the same surface: an 18-pixel line in a 12-pixel cell
     // is fewer prose rows in the same rectangle, and a 10-pixel advance is more columns.
     author_test_pane_room(r, kind, cell_rows, cell_cols);
-    r.extent(1200, 500, 10, 18);
+    r.extent(1200, 500, 10, 18, surface::kCanvasCellPx); // a window reports its device scale
     const ExternalPane* graphical = r.session().panes.external_pane(kind);
     REQUIRE(graphical != nullptr);
     CHECK(graphical->rows != cell_rows);
@@ -1467,7 +1467,7 @@ TEST_CASE("the graphical medium grants a different budget and the view spends it
     // cache before every grant, so a projection that had not moved would be showing as
     // `waiting` here instead.
     const std::vector<std::string> in_pixels =
-        external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+        loaded_rows(r, kind);
     REQUIRE_FALSE(in_pixels.empty());
     CHECK(in_pixels[0] == "loaded weaves -- 1");
     CHECK(any_row(in_pixels, intro::kIntrospectionStem));
@@ -1487,7 +1487,7 @@ TEST_CASE("an in-process weave is absent from the list and the pane says why") {
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const std::vector<std::string> shown =
-        external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+        loaded_rows(r, kind);
 
     CHECK_FALSE(any_row(shown, kWorkshopProvider)); // and it is not silently implied either
     CHECK(any_row(shown, intro::kNotInProcess));
@@ -1574,8 +1574,8 @@ TEST_CASE("adding this tool widens nothing -- it says three shapes and no more")
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
     // FOUR: the Powers pane's declared actions ride beside its offer (WL-KEY-15), a
-    // declaration of what a pane DOES, not a reach into anything.
-    const std::vector<std::string> allowed{"PaneActions", "PaneContent", "PaneOffered",
+    // declaration of what a pane DOES, not a reach into anything; its rows are its picture.
+    const std::vector<std::string> allowed{"PaneActions", "PaneCanvasContent", "PaneOffered",
                                            "zen.ListLoaded"};
     CHECK(distinct == allowed);
     // NAMED NEGATIVELY TOO, because the interesting half of an authority audit is the
@@ -1595,7 +1595,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
     r.pick(intro_ref());
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
     const std::int64_t kind = intro_row(r, kIntroPane)->kind;
-    REQUIRE(any_row(external_rows(r.last_canvas(), external_body_rect(r.session(), kind)),
+    REQUIRE(any_row(loaded_rows(r, kind),
                     intro::kIntrospectionStem));
 
     // THE PROVIDER LEAVES. Workshop is told NOTHING -- Loom gives a participant no
@@ -1604,7 +1604,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
     // not liveness.
     REQUIRE(r.unload(intro::kIntrospectionStem));
     REQUIRE(r.session().panes.runtime.entries.size() == kIntroPaneCount);
-    CHECK(any_row(external_rows(r.last_canvas(), external_body_rect(r.session(), kind)),
+    CHECK(any_row(loaded_rows(r, kind),
                   intro::kIntrospectionStem));
 
     // ...and the next room grant is the moment the silence becomes visible. Workshop
@@ -1614,7 +1614,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
                           r.session().panes.external_pane(kind)->columns + 1);
     r.extent(140, 40);
     const std::vector<std::string> gone =
-        external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+        loaded_rows(r, kind);
     REQUIRE(gone.size() == 1);
     CHECK(gone[0] == std::string(kExternalWaiting));
 
@@ -1625,7 +1625,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
     // identity de-duplicated all three
     CHECK(r.session().panes.runtime.entries.size() == kIntroPaneCount);
     const std::vector<std::string> back =
-        external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+        loaded_rows(r, kind);
     REQUIRE_FALSE(back.empty());
     CHECK(back[0] == "loaded weaves -- 1");
     CHECK(any_row(back, intro::kIntrospectionStem));
