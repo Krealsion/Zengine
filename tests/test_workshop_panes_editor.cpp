@@ -393,14 +393,16 @@ struct EditorRig {
         return Aim{body.x, body.y + kExternalHeaderRows + surface::kTuiCanvasTopRow, chrome()};
     }
     void enqueue_press_doc(const Aim& at, std::int64_t row, std::int64_t col) {
+        const std::int64_t x = at.x + pane_cell_of(r.session(), kind, at.above + row, col);
         (void)r.bus.publish(loom::Message(
-            loom::to_value(input::PointerButton{1, true, at.x + col, at.y + at.above + row,
+            loom::to_value(input::PointerButton{1, true, x, at.y + at.above + row,
                                                 input::space::kCells, input::mod::kNone}),
             loom::WeaveId{}, loom::WeaveId{}, 0));
     }
     void enqueue_motion_doc(const Aim& at, std::int64_t row, std::int64_t col) {
+        const std::int64_t x = at.x + pane_cell_of(r.session(), kind, at.above + row, col);
         (void)r.bus.publish(loom::Message(
-            loom::to_value(input::PointerMoved{at.x + col, at.y + at.above + row, 0, 0,
+            loom::to_value(input::PointerMoved{x, at.y + at.above + row, 0, 0,
                                                input::space::kCells, input::mod::kNone}),
             loom::WeaveId{}, loom::WeaveId{}, 0));
     }
@@ -736,12 +738,14 @@ struct EditorRig {
     /// against the picture standing NOW, which is the one the weaver would be looking at.
     void press_doc(std::int64_t row, std::int64_t col) { press_pane(r, kind, chrome() + row, col); }
     void motion_doc(std::int64_t row, std::int64_t col) {
+        const std::int64_t at = chrome() + row;
         const ui::Rect body = external_body_rect(r.session(), kind);
-        r.motion_cell(body.x + col, body.y + kExternalHeaderRows + chrome() + row);
+        r.motion_cell(body.x + pane_cell_of(r.session(), kind, at, col), body.y + kExternalHeaderRows + at);
     }
     void release_doc(std::int64_t row, std::int64_t col) {
+        const std::int64_t at = chrome() + row;
         const ui::Rect body = external_body_rect(r.session(), kind);
-        r.release_cell(body.x + col, body.y + kExternalHeaderRows + chrome() + row);
+        r.release_cell(body.x + pane_cell_of(r.session(), kind, at, col), body.y + kExternalHeaderRows + at);
     }
     void wheel(double dy) {
         const ui::Rect body = external_body_rect(r.session(), kind);
@@ -1764,6 +1768,45 @@ TEST_CASE("a drag sweeps a multiline selection, and the selection survives relea
     // ...AND A MOTION WITH THE BUTTON UP SWEEPS NOTHING.
     e.motion_doc(1, 3);
     CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
+}
+
+TEST_CASE("in a terminal, a press on a character past the caret puts the caret before that character, and a sweep ends before the character under the hand") {
+    EditorRig e("edit-press-glyph");
+    e.open();
+    e.open_file("a.cpp", "abcdefgh\n");
+    // THE TERMINAL'S OWN ROW, read where it is drawn now: the caret's glyph takes a cell of its own.
+    const auto cell_showing = [&e](char glyph) {
+        const ui::Rect body = external_body_rect(e.r.session(), e.kind);
+        const std::int64_t y = body.y + kExternalHeaderRows + e.chrome();
+        const surface::CanvasGrids grid = surface::rasterize_canvas(e.r.last_canvas());
+        std::int64_t found = -1;
+        for (std::int64_t x = body.x; x < body.x + body.w && x < grid.w; ++x) {
+            if (grid.glyphs[static_cast<std::size_t>(y * grid.w + x)] != glyph) continue;
+            REQUIRE(found < 0); // the glyph is on the row once
+            found = x;
+        }
+        REQUIRE(found >= 0);
+        return std::pair<std::int64_t, std::int64_t>{found, y};
+    };
+    // A SWEEP FROM `b` TO `e`: once the press has put the caret before `b`, its glyph stands there.
+    const auto [bx, by] = cell_showing('b');
+    e.r.press_cell(bx, by);
+    REQUIRE(e.seat() != nullptr);
+    CHECK(e.seat()->caret_col == 1);
+    const auto [ex, ey] = cell_showing('e');
+    e.r.motion_cell(ex, ey);
+    e.r.release_cell(ex, ey);
+    CHECK(e.seat()->sel_begin_col == 1);
+    CHECK(e.seat()->sel_end_col == 4); // before `e`: `bcd` is swept
+    e.type("Z");
+    CHECK(e.doc_row(0) == "aZefgh");
+    // A PRESS PAST THE CARET, on `g`, which the glyph after `Z` stands a cell to the right.
+    CHECK(e.seat()->caret_col == 2);
+    const auto [gx, gy] = cell_showing('g');
+    e.r.press_cell(gx, gy);
+    CHECK(e.seat()->caret_col == 4);
+    e.type("X");
+    CHECK(e.doc_row(0) == "aZefXgh");
 }
 
 TEST_CASE("a drag past the body's bottom edge steps the window, one row per motion") {

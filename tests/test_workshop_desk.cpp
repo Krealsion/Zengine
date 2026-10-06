@@ -32,15 +32,17 @@ struct DeskAskerState {
 class DeskAsker
     : public loom::WeaveBase<DeskAsker, DeskAskerState,
                              loom::Accept<SeatDo, DeskView, v2::PaneView, v2::PanePoint, PaneView,
-                                          loom::Refused>,
+                                          PanePoint, loom::Refused>,
                              loom::Emit<DeskViewRequested, v2::PaneViewRequested,
-                                        v2::PanePointRequested, PaneViewRequested>> {
+                                        v2::PanePointRequested, PaneViewRequested,
+                                        PanePointRequested>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::vector<DeskView> desks;
     std::vector<v2::PaneView> views;
     std::vector<v2::PanePoint> points;
     std::vector<PaneView> first_views;
+    std::vector<PanePoint> first_points;
     std::vector<std::string> refusals;
     void on(const SeatDo&, loom::Mail& m) {
         auto run = std::move(next);
@@ -51,6 +53,7 @@ public:
     void on(const v2::PaneView& v, loom::Mail&) { views.push_back(v); }
     void on(const v2::PanePoint& p, loom::Mail&) { points.push_back(p); }
     void on(const PaneView& v, loom::Mail&) { first_views.push_back(v); }
+    void on(const PanePoint& p, loom::Mail&) { first_points.push_back(p); }
     void on(const loom::Refused& r, loom::Mail&) { refusals.push_back(r.reason); }
 };
 
@@ -80,7 +83,8 @@ struct DeskRig {
         for (const auto& shape : {loom::schema_of<DeskViewRequested>(),
                                   loom::schema_of<v2::PaneViewRequested>(),
                                   loom::schema_of<v2::PanePointRequested>(),
-                                  loom::schema_of<PaneViewRequested>()}) {
+                                  loom::schema_of<PaneViewRequested>(),
+                                  loom::schema_of<PanePointRequested>()}) {
             grant.allow_to_role(shape->name(), shape->version(), kWorkshopProvider);
         }
         asker_id = r.bus.register_weave(std::move(made), std::move(grant));
@@ -124,6 +128,17 @@ struct DeskRig {
         if (!asker->refusals.empty()) return asker->refusals.back();
         REQUIRE(asker->points.size() == before + 1);
         out = asker->points.back();
+        return std::string();
+    }
+
+    /// ...and the first version's point for a row and a column, or the refusal's reason.
+    std::string first_point(const PanePointRequested& asked, PanePoint& out) {
+        asker->refusals.clear();
+        const std::size_t before = asker->first_points.size();
+        ask([&](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, asked); });
+        if (!asker->refusals.empty()) return asker->refusals.back();
+        REQUIRE(asker->first_points.size() == before + 1);
+        out = asker->first_points.back();
         return std::string();
     }
 
@@ -702,6 +717,94 @@ TEST_CASE("every place the desk and the words give is where the medium draws it,
             }
         }
         d.r.key(input::scan::kEscape);
+    }
+}
+
+namespace {
+
+/// THE CELL A TERMINAL SHOWS A GLYPH IN on one canvas cell row, from `x0` up to `x1`, read from
+/// the terminal's own picture (`rasterize_canvas`): -1 where the glyph is not there exactly once.
+std::int64_t terminal_cell_of(const surface::CanvasGrids& g, std::int64_t row, std::int64_t x0,
+                              std::int64_t x1, char glyph) {
+    std::int64_t found = -1;
+    for (std::int64_t x = (std::max)(std::int64_t{0}, x0); x < x1 && x < g.w; ++x) {
+        if (row < 0 || row >= g.h || g.glyphs[static_cast<std::size_t>(row * g.w + x)] != glyph) {
+            continue;
+        }
+        if (found >= 0) return -1;
+        found = x;
+    }
+    return found;
+}
+
+/// The glyph a terminal shows at a point a word or a character gives, in its own picture.
+char terminal_glyph_at(const surface::CanvasGrids& g, std::int64_t x, std::int64_t console_y) {
+    const std::int64_t y = console_y - surface::kTuiCanvasTopRow;
+    if (x < 0 || y < 0 || x >= g.w || y >= g.h) return '\0';
+    return g.glyphs[static_cast<std::size_t>(y * g.w + x)];
+}
+
+} // namespace
+
+TEST_CASE("a character's point is the cell showing it, past a terminal's caret glyph, and a press on a cell reaches the pane as the column of the character it shows") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        DeskRig d;
+        if (window) {
+            d.r.extent_on_window(150, 60);
+        }
+        const std::string text = "abcdef";
+        d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
+            s.say(m, PaneContent{"alpha", {surface::SurfaceTextRow{text, surface::role::kFill}}});
+            s.caret(m, PaneCaret{"alpha", 0, 2}); // before the `c`
+        });
+        for (std::int64_t column = 0; column < static_cast<std::int64_t>(text.size()); ++column) {
+            CAPTURE(column);
+            v2::PaneView view;
+            REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
+            REQUIRE(view.words.size() == 1);
+            REQUIRE(view.words[0].text == text);
+            v2::PanePoint at;
+            REQUIRE(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, column}, at)
+                        .empty());
+            if (window) {
+                // A window draws the caret as a bar between two characters, which moves none.
+                const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
+                CHECK(at.x >= view.words[0].place.x + column * body.fit.advance_px);
+                CHECK(at.x < view.words[0].place.x + (column + 1) * body.fit.advance_px);
+            } else {
+                // THE TERMINAL'S OWN PICTURE: the cell the point names shows that character.
+                const surface::CanvasGrids grid = surface::rasterize_canvas(d.r.last_canvas());
+                CHECK(terminal_glyph_at(grid, at.x, at.y) == text[static_cast<std::size_t>(column)]);
+            }
+            // ...the first version names the same cell for that row and column...
+            PanePoint first;
+            REQUIRE(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, column},
+                                  first)
+                        .empty());
+            CHECK(first.x == at.x);
+            CHECK(first.y == at.y);
+            // ...and a press there reaches the pane as that column.
+            d.alpha->presses.clear();
+            d.click(at.x, at.y, at.space);
+            REQUIRE(d.alpha->presses.size() == 1);
+            CHECK(d.alpha->presses[0].row == 0);
+            CHECK(d.alpha->presses[0].column == column);
+        }
+        if (!window) {
+            // THE CARET'S OWN CELL shows no character of the row: a press there is the caret's column.
+            v2::PaneView view;
+            REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
+            const surface::CanvasGrids grid = surface::rasterize_canvas(d.r.last_canvas());
+            const std::int64_t row = surface::cell_of_pixel(view.words[0].place.y);
+            const std::int64_t x0 = surface::cell_of_pixel(view.words[0].place.x);
+            const std::int64_t caret = terminal_cell_of(grid, row, x0, x0 + 7, surface::kCaretGlyph);
+            REQUIRE(caret == x0 + 2);
+            d.alpha->presses.clear();
+            d.click(caret, row + surface::kTuiCanvasTopRow, input::space::kCells);
+            REQUIRE(d.alpha->presses.size() == 1);
+            CHECK(d.alpha->presses[0].column == 2);
+        }
     }
 }
 

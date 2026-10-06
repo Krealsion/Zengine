@@ -15,15 +15,25 @@ MEANS
 
 DOES NOT MEAN
 - that a press may not have its own inverse — it may, read from the origin the painter drew at.
+- that a press names a bare cell: it names the character the cell shows, past a caret's glyph.
 
-PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_external`;
+PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_external`,
+`external_caret_glyph`, `external_press_at`; `workshop/screen.hpp` `drawn_column`, `shown_column`;
+`workshop/weave_external.cpp` `external_drag`, `external_release`;
 `workshop/screen_gestures.cpp` `prose_at`; `surface/pointing.hpp` `prose_column_of_pixel`,
 `prose_row_of_pixel`, `floor_to_grain`; `workshop/weave_inspection.cpp` `cell_center`;
 `tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places the caret where
 the weaver aimed"`; `tests/test_workshop_screen.cpp` case
 `"what a pane is painted at and what it occupies are one resolved truth"`;
 `tests/test_workshop_panes_input.cpp` case `"text a window sets in cells, in a body too short for
-a row of its face, is drawn, pressed and aimed at from one origin"`.
+a row of its face, is drawn, pressed and aimed at from one origin"`;
+`tests/test_workshop_desk.cpp` case `"a character's point is the cell showing it, past a
+terminal's caret glyph, and a press on a cell reaches the pane as the column of the character it
+shows"`; `tests/test_workshop_panes_button.cpp` case `"WL-GEO-01: in a terminal, a right press and
+its release name the column of the character each cell shows, past the caret's glyph"`;
+`tests/test_workshop_panes_editor.cpp` case `"in a terminal, a press on a character past the
+caret puts the caret before that character, and a sweep ends before the character under the
+hand"`.
 WHY — `agents/decisions/one-geometry-draws-and-hits.md`
 
 ## WL-GEO-02 — `screen_of` sizes no tool's rectangle
@@ -229,7 +239,8 @@ PROVEN BY — `workshop/weave_inspection.cpp` `desk_view`, `visible_words`, `wor
 `glyph_point`; `tests/test_workshop_desk.cpp` case `"every place the desk and the words give is
 where the medium draws it, in a window and in a terminal"`, case `"a canvas pane's words are its
 labels and text runs, each where it is drawn, and a press at a word's point lands inside it in
-the pane's own canvas"`.
+the pane's own canvas"`, case `"a character's point is the cell showing it, past a terminal's
+caret glyph, and a press on a cell reaches the pane as the column of the character it shows"`.
 WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
 ## Do not assume
