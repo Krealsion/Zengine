@@ -240,7 +240,9 @@ PROVEN BY — `workshop/weave_inspection.cpp` `desk_view`, `visible_words`, `wor
 where the medium draws it, in a window and in a terminal"`, case `"a canvas pane's words are its
 labels and text runs, each where it is drawn, and a press at a word's point lands inside it in
 the pane's own canvas"`, case `"a character's point is the cell showing it, past a terminal's
-caret glyph, and a press on a cell reaches the pane as the column of the character it shows"`.
+caret glyph, and a press on a cell reaches the pane as the column of the character it shows"`,
+case `"a row as wide as its pane with a terminal's caret in it says only the characters shown, at
+a place inside the pane"`.
 WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
 ## Do not assume

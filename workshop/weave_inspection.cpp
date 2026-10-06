@@ -345,14 +345,17 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
         const GlyphGrid grid = glyph_grid(body.fit);
         for (std::int64_t row = 0;
              row < body.rows && row < static_cast<std::int64_t>(content->shown.size()); ++row) {
+            // A terminal inserts the caret as a glyph of its own and then cuts the row to the
+            // body's columns, so a row with the caret shows one character fewer, and the text
+            // after the glyph stands a cell on.
+            const std::int64_t glyph = external_caret_glyph(content, body.fit, row);
+            const std::int64_t caret = glyph < body.columns ? glyph : -1;
+            const std::int64_t room = caret >= 0 ? body.columns - 1 : body.columns;
             std::string text = without_trailing_blanks(
                 content->shown[static_cast<std::size_t>(row)].text.substr(
-                    0, static_cast<std::size_t>(body.columns)));
-            // A terminal draws the caret as a glyph of its own, so the text after it stands a cell on.
-            const bool caret = !body.fit.graphical() && content->caret_row == row &&
-                               content->caret_col >= 0 &&
-                               content->caret_col <= static_cast<std::int64_t>(text.size());
-            keep(grid, std::move(text), row + body.header_rows, caret ? content->caret_col : -1);
+                    0, static_cast<std::size_t>(room)));
+            const bool in_word = caret >= 0 && caret <= static_cast<std::int64_t>(text.size());
+            keep(grid, std::move(text), row + body.header_rows, in_word ? caret : -1);
         }
         return out;
     }

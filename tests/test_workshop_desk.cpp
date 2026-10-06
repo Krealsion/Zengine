@@ -744,6 +744,13 @@ char terminal_glyph_at(const surface::CanvasGrids& g, std::int64_t x, std::int64
     return g.glyphs[static_cast<std::size_t>(y * g.w + x)];
 }
 
+/// Where a body's row of glyphs ends, in canvas pixels: its columns from the first glyph's corner.
+std::int64_t row_right_edge(const ExternalBodyPlace& body) {
+    const surface::RegionFit& fit = body.fit;
+    return fit.graphical() ? fit.view.x + fit.origin_x + body.columns * fit.advance_px
+                           : fit.view.x + body.columns * surface::kCanvasCellPx;
+}
+
 } // namespace
 
 TEST_CASE("a character's point is the cell showing it, past a terminal's caret glyph, and a press on a cell reaches the pane as the column of the character it shows") {
@@ -804,6 +811,62 @@ TEST_CASE("a character's point is the cell showing it, past a terminal's caret g
             d.click(caret, row + surface::kTuiCanvasTopRow, input::space::kCells);
             REQUIRE(d.alpha->presses.size() == 1);
             CHECK(d.alpha->presses[0].column == 2);
+        }
+    }
+}
+
+TEST_CASE("a row as wide as its pane with a terminal's caret in it says only the characters shown, at a place inside the pane") {
+    for (const auto& medium : {std::pair{false, false}, std::pair{false, true}, std::pair{true, false},
+                               std::pair{true, true}}) {
+        const bool window = medium.first;
+        const bool at_end = medium.second; // the caret past the row's last character
+        CAPTURE(window);
+        CAPTURE(at_end);
+        DeskRig d;
+        if (window) {
+            d.r.extent_on_window(150, 60);
+        }
+        const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
+        REQUIRE(body.present);
+        std::string full;
+        for (std::int64_t i = 0; i < body.columns; ++i) {
+            full += static_cast<char>('a' + i % 26);
+        }
+        d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
+            s.say(m, PaneContent{"alpha", {surface::SurfaceTextRow{full, surface::role::kFill}}});
+            s.caret(m, PaneCaret{"alpha", 0, at_end ? body.columns : 3});
+        });
+        v2::PaneView view;
+        REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
+        REQUIRE(view.words.size() == 1);
+        const PaneWord& w = view.words[0];
+        // A terminal inserts the caret's glyph and then cuts the row, so one character fewer shows,
+        // unless the glyph stands past the last column, where the cut takes the glyph alone; a
+        // window draws a bar, which takes no character's place.
+        const std::int64_t shown = window || at_end ? body.columns : body.columns - 1;
+        CHECK(w.text == full.substr(0, static_cast<std::size_t>(shown)));
+        CHECK(w.place.x + w.place.w <= row_right_edge(body));
+        if (!window) {
+            const surface::CanvasGrids grid = surface::rasterize_canvas(d.r.last_canvas());
+            bool one_row = false;
+            CHECK(terminal_cells(grid, w.place, one_row) == w.text);
+            CHECK(one_row);
+        }
+        // THE LAST CHARACTER SHOWN HAS A POINT, AND A PRESS THERE IS ITS COLUMN...
+        v2::PanePoint at;
+        REQUIRE(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown - 1}, at)
+                    .empty());
+        d.alpha->presses.clear();
+        d.click(at.x, at.y, at.space);
+        REQUIRE(d.alpha->presses.size() == 1);
+        CHECK(d.alpha->presses[0].column == shown - 1);
+        if (!window && !at_end) {
+            // ...AND THE ONE THE CUT TOOK HAS NONE, in either version.
+            CHECK(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown}, at)
+                      .find("outside") != std::string::npos);
+            PanePoint first;
+            CHECK(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown}, first)
+                      .find("not addressable") != std::string::npos);
         }
     }
 }
