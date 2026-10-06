@@ -1323,7 +1323,7 @@ TEST_CASE("a canvas pane's named parts are said where its body shows them, with 
             if (window) {
                 CHECK(inside_locally(d.sketch->pointers.front(), p.place, pane));
             } else {
-                // A terminal names the cell holding the part's centre, by that cell's corner.
+                // A terminal names a cell it paints the part on, by that cell's corner.
                 const auto& e = d.sketch->pointers.front();
                 const std::int64_t x = e.x + pane.canvas.x;
                 const std::int64_t y = e.y + pane.canvas.y;
