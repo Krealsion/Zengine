@@ -226,8 +226,10 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
             const auto box = field_box(p, e);
             const auto caption = e.label.empty() ? std::string() : e.label + ": ";
             const auto caret = static_cast<std::int64_t>(caption.size() + box.caret());
-            // A caret after the value stands on a blank of its own where the element has one.
-            const bool after = focused && box.caret() >= box.text().size();
+            // A caret after the value stands on a blank of its own where the element has one, and
+            // where a character is a cell: a window's caret is a bar and needs none.
+            const bool after = focused && !ws::canvas_text_metrics(granted).graphical &&
+                               box.caret() >= box.text().size();
             text(x + inset, middle, caption + box.text() + (after ? " " : ""),
                  focused ? ink::kAccent : ink::kFill, clip, focused ? caret : surface::kNoCaret);
         } else if (e.kind == Kind::button) {
