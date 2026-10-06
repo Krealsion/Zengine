@@ -2397,10 +2397,13 @@ struct PaneRig {
     std::vector<std::string> loaded;
     std::vector<std::string> load_refusals;
 
+    /// The rig's painter, which hears every picture and sentence Workshop publishes.
+    loom::WeaveId painter_id{};
+
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
-        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_transcripts,
-                                   said_subjects);
+        painter_id = loom::mount<Painter>(bus, canvases, notes, said_conditions, said_transcripts,
+                                          said_subjects);
     }
 
 
