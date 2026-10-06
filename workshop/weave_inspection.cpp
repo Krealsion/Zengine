@@ -652,7 +652,7 @@ void WorkshopWeave::on(const v2::PaneViewRequested& asked, loom::Mail& mail) {
 
 // THE PARTS A VISIBLE BODY'S PANE NAMES, each where the medium draws it, as the pane named it: a
 // part the body does not show is not said, and neither is a place the pane names nothing.
-// WL-HAND-06 -- agents/workshop/pane-controls.md
+// WL-HAND-06 -- agents/workshop/pane-parts.md
 std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
                                                    const std::vector<PaneWord>& words) const {
     const std::int64_t space = input_space_of(screen_of(session_));
