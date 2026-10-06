@@ -781,6 +781,58 @@ TEST_CASE("WL-CTX-09: a pane's menu shows its own rows first and the host's stan
     CHECK(t.guard->answers[0].refusal == "dismissed");
 }
 
+TEST_CASE("WL-HAND-06: the shipped presenter names each line showing a row by the row's id, the pane's rows and the host's standard rows alike, and a press at the point the desk gives a name chooses that row") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const Session& s = t.r.session();
+    // THE IDS THE LINES SHOW: the pane's rows, then -- past the rule, which is named nothing --
+    // the host's standard rows, as the grant handed them over.
+    std::vector<std::string> want = {"seat.first", "seat.second"};
+    for (const ContextEntry& entry : context_population(context_subject::kPane, "")) {
+        if (!entry.is_group && entry.row == nullptr) continue;
+        want.emplace_back(entry.is_group ? entry.group : entry.row->id);
+    }
+    std::vector<std::string> named;
+    for (const PaneRowPart& part : s.presented.parts) {
+        named.push_back(part.name);
+        REQUIRE(part.row < static_cast<std::int64_t>(s.presented.lines.size()));
+        CHECK(part.column == 0);
+        CHECK(part.columns == static_cast<std::int64_t>(
+                                  s.presented.lines[static_cast<std::size_t>(part.row)].text.size()));
+    }
+    CHECK(named == want);
+    CHECK(s.presented.lines[static_cast<std::size_t>(s.presented.parts[1].row)].text == "  Second row");
+    // THE DESK SAYS EACH OVER THE LINE THAT SHOWS IT, where the popup's own press measurer reads it.
+    const v2::DeskView desk = t.r.w->desk_view();
+    REQUIRE(desk.menu.open);
+    REQUIRE(desk.menu.parts.size() == want.size());
+    const PanePart* second = nullptr;
+    for (const PanePart& part : desk.menu.parts) {
+        CAPTURE(part.name);
+        const PointedAt at = canvas_point_of(part.space, part.x, part.y);
+        const PresentedPressAt hit = presented_press_at(s, screen_of(s), part.space, part.x, part.y, at);
+        REQUIRE(hit.inside);
+        bool same = false;
+        for (const PaneRowPart& line : s.presented.parts) {
+            same = same || (line.row == hit.line && line.name == part.name);
+        }
+        CHECK(same);
+        if (part.name == "seat.second") second = &part;
+    }
+    // ...AND A PRESS THERE CHOOSES THE ROW THAT NAME IS, whatever line it fell on.
+    REQUIRE(second != nullptr);
+    for (const bool down : {true, false}) {
+        t.r.publish(loom::to_value(input::PointerButton{1, down, second->x, second->y, second->space,
+                                                        input::mod::kNone}));
+    }
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK(t.guard->answers[0].chosen);
+    CHECK(t.guard->answers[0].id == "seat.second");
+}
+
 TEST_CASE("WL-CTX-09: a standard row chosen on a pane's menu is spent by the host on that pane, and the pane is answered unchosen and performs nothing") {
     Rigged t;
     t.guard->menu_on_press = true;
