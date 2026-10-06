@@ -112,6 +112,10 @@ std::vector<Shape> manifest_shapes(const std::string& path, std::string& why) {
         return {};
     }
     void* instance = abi->create();
+    if (instance == nullptr) {
+        why = "creates no weave to describe";
+        return {};
+    }
     std::string bytes;
     const ZenStatus status = abi->describe(instance, ZenByteSink{&bytes, &sink_write});
     abi->destroy(instance);
