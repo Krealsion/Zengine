@@ -10,6 +10,8 @@
 #include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
 #include "workshop/pane_canvas_text.hpp"
+#include "view-builder/picture.hpp"
+#include "view/view.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -1168,8 +1170,8 @@ TEST_CASE("a part's point is a character of its own: a row with a control inside
 TEST_CASE("a row map's parts are named by what each span means, and a name nothing, one the judge would refuse or one taken is left unnamed") {
     component::RowMap<std::string> map;
     map.begin();
-    map.row(0, "first");
     REQUIRE(map.span(0, 2, 4, 20, "control"));
+    map.row(0, "first");
     map.row(1, "");
     map.row(2, "first");
     map.row(3, std::string(kMaxPanePartNameLen + 1, 'x'));
@@ -1177,7 +1179,9 @@ TEST_CASE("a row map's parts are named by what each span means, and a name nothi
     (void)map.settle();
     const std::vector<PaneRowPart> parts =
         row_parts(map, 20, [](const std::string& meaning) { return meaning; });
-    REQUIRE(parts.size() == 2);
+    // EVERY SPAN IS A PLACE, listed as a press reads them: on a row the row entire first and its
+    // runs after it, so the one `at` answers is the last that holds a place.
+    REQUIRE(parts.size() == 6);
     CHECK(parts[0].name == "first");
     CHECK(parts[0].row == 0);
     CHECK(parts[0].column == 0);
@@ -1186,20 +1190,32 @@ TEST_CASE("a row map's parts are named by what each span means, and a name nothi
     CHECK(parts[1].row == 0);
     CHECK(parts[1].column == 2);
     CHECK(parts[1].columns == 4);
+    for (std::size_t i = 2; i < parts.size(); ++i) {
+        CAPTURE(i);
+        CHECK(parts[i].name.empty());
+        CHECK(parts[i].row == static_cast<std::int64_t>(i) - 1);
+        CHECK(parts[i].columns == 20);
+    }
     CHECK(row_parts_problem(parts, 5, 20).empty());
-    // ...AND A LIST GATHERED BY HAND IS HELD TO THE SAME RULE, up to its bound.
+    // ...AND A LIST GATHERED BY HAND IS HELD TO THE SAME RULE: every place kept, and past the
+    // bound the earliest go, the ones every later place is over.
     PartNames<PaneCanvasPart> picture;
     CHECK(picture.add(PaneCanvasPart{"node", 0, 0, 12, 12}));
     CHECK_FALSE(picture.add(PaneCanvasPart{"node", 12, 0, 12, 12}));
-    CHECK_FALSE(picture.add(PaneCanvasPart{"", 0, 0, 12, 12}));
-    std::size_t kept = 1;
-    for (std::size_t i = 1; i < kMaxPaneParts; ++i) {
-        kept += picture.add(PaneCanvasPart{"n" + std::to_string(i), 0, 0, 1, 1}) ? 1u : 0u;
+    CHECK_FALSE(picture.add(PaneCanvasPart{"", 24, 0, 12, 12}));
+    std::size_t named = 0;
+    for (std::size_t i = 3; i <= kMaxPaneParts; ++i) {
+        named += picture.add(PaneCanvasPart{"n" + std::to_string(i), 0, 0, 1, 1}) ? 1u : 0u;
     }
-    CHECK(kept == kMaxPaneParts);
-    CHECK_FALSE(picture.add(PaneCanvasPart{"one more", 0, 0, 1, 1}));
-    CHECK(picture.parts().size() == kMaxPaneParts);
-    CHECK(canvas_parts_problem(picture.take()).empty());
+    CHECK(named == kMaxPaneParts - 2);
+    const std::vector<PaneCanvasPart> kept = picture.take();
+    REQUIRE(kept.size() == kMaxPaneParts);
+    CHECK(kept[0].name.empty());
+    CHECK(kept[0].x == 12);
+    CHECK(kept[1].name.empty());
+    CHECK(kept[1].x == 24);
+    CHECK(kept.back().name == "n" + std::to_string(kMaxPaneParts));
+    CHECK(canvas_parts_problem(kept).empty());
 }
 
 TEST_CASE("a part keeps its name across its pane's redraws, and is said and pressed where the redraw put it") {
@@ -1254,7 +1270,7 @@ TEST_CASE("a pane's names are judged with the rows they name: a name twice, one 
         {{PaneRowPart{"row", 0, body.columns - 2, 3}}, "outside the room granted"},
         {{PaneRowPart{"row", 0, 0, 0}}, "outside the room granted"},
         {{PaneRowPart{"row", 0, -1, 2}}, "outside the room granted"},
-        {{PaneRowPart{"", 0, 0, 3}}, "cannot be empty"},
+        {{PaneRowPart{"", 0, 0, 0}}, "outside the room granted"},
         {{PaneRowPart{"   ", 0, 0, 3}}, "more than spaces"},
         {{PaneRowPart{"tab\there", 0, 0, 3}}, "printable ASCII"},
         {{PaneRowPart{std::string(kMaxPanePartNameLen + 1, 'n'), 0, 0, 3}}, "too long"},
@@ -1273,6 +1289,13 @@ TEST_CASE("a pane's names are judged with the rows they name: a name twice, one 
         CHECK(pane->parts.size() == 1);
         CHECK(pane->refusal_why.empty());
     }
+    // A PLACE THE PANE NAMES NOTHING is admitted with the rows, a place and not a name: two of
+    // them share their name with nothing.
+    const ExternalPane* pane =
+        said({PaneRowPart{"row", 0, 0, 3}, PaneRowPart{"", 0, 1, 1}, PaneRowPart{"", 1, 0, 2}});
+    CHECK(pane->heard);
+    CHECK(pane->refusal_why.empty());
+    CHECK(pane->parts.size() == 3);
 }
 
 TEST_CASE("a canvas pane's named parts are said where its body shows them, with the words inside them, and a press at a part's point lands inside it in the pane's own canvas, in a window and in a terminal") {
@@ -1382,6 +1405,189 @@ TEST_CASE("a canvas part's point is its own: a part with another over its centre
     }
 }
 
+namespace {
+
+/// THE PART A PRESS REACHES AS A PANE READS ITS PARTS: the last listed that holds the place, by
+/// the paint rule read backwards -- every shipped canvas pane's `hit` -- or nullptr.
+const PaneCanvasPart* reached(const std::vector<PaneCanvasPart>& parts, const PaneCanvasPointer& e,
+                              std::int64_t grain) {
+    for (auto at = parts.rbegin(); at != parts.rend(); ++at) {
+        if (surface::px_span_contains(at->x, at->w, e.x, grain) &&
+            surface::px_span_contains(at->y, at->h, e.y, grain)) {
+            return &*at;
+        }
+    }
+    return nullptr;
+}
+
+/// A picture a shipped canvas pane drew, sent as the sketch pane's, for the room last granted.
+void draw_as_sketch(SketchRig& d, v4::PaneCanvasContent named) {
+    named.pane = kCanvasPane;
+    d.drive([named](SketchSeat&, loom::Mail& m) {
+        (void)m.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, named);
+    });
+}
+
+} // namespace
+
+TEST_CASE("a part under another is pressed where a press reaches it as its pane reads a press: the later of two parts takes the place they share, and so does a place the pane names nothing, in a window and in a terminal") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        const std::int64_t u = kPaneCanvasUnit;
+        const std::int64_t grain = window ? surface::kPixelGrainPx : surface::kCellGrainPx;
+        const auto every_point_reaches = [&](const std::vector<PaneCanvasPart>& parts,
+                                             const std::vector<std::string>& said) {
+            d.sketch->rejected.clear();
+            d.draw_named(parts);
+            CHECK(d.sketch->rejected.empty());
+            if (!d.sketch->rejected.empty()) {
+                CAPTURE(d.sketch->rejected.front().reason);
+                return;
+            }
+            v3::PaneView view;
+            REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
+            CHECK(names_of(view.parts) == said);
+            for (const PanePart& part : view.parts) {
+                CAPTURE(part.name);
+                d.sketch->pointers.clear();
+                d.click(part.x, part.y, part.space);
+                REQUIRE_FALSE(d.sketch->pointers.empty());
+                const PaneCanvasPart* got = reached(parts, d.sketch->pointers.front(), grain);
+                REQUIRE(got != nullptr);
+                CHECK(got->name == part.name);
+            }
+        };
+        // `second` IS LISTED AFTER `first` AND LIES OVER ITS CENTRE: a press there is `second`'s.
+        every_point_reaches({PaneCanvasPart{"first", 2 * u, 2 * u, 8 * u, 2 * u},
+                             PaneCanvasPart{"second", 5 * u, 2 * u, 8 * u, 2 * u}},
+                            {"first", "second"});
+        // A PLACE THE PANE NAMES NOTHING lies over `third`'s centre, is said nowhere, and is still
+        // the place a press there reaches.
+        every_point_reaches({PaneCanvasPart{"third", 2 * u, 6 * u, 10 * u, 2 * u},
+                             PaneCanvasPart{"", 5 * u, 6 * u, 2 * u, 2 * u}},
+                            {"third"});
+    }
+}
+
+TEST_CASE("a running view's two overlapping buttons are each pressed where the view gives that button the press, in a window and in a terminal") {
+    namespace view = zengine::view;
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        // `second` is drawn after `first` and over its centre, in pixels and in the cells a
+        // terminal floors them to.
+        view::Description v;
+        v.name = "two.buttons";
+        v.width = 240;
+        v.height = 48;
+        v.elements = {{"first", view::Kind::button, "First", 12, 12, 96, 24, ""},
+                      {"second", view::Kind::button, "Second", 48, 12, 96, 24, ""}};
+        REQUIRE(view::problem(v).empty());
+        const view::Picture drawn =
+            view::picture(v, {}, view::Presentation{}, d.sketch->rooms.back(), ++d.number);
+        draw_as_sketch(d, view::named(drawn));
+        REQUIRE(d.sketch->rejected.empty());
+        v3::PaneView said;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, said).empty());
+        for (const std::string id : {"first", "second"}) {
+            CAPTURE(id);
+            const PanePart* part = part_named(said.parts, "element:" + id);
+            REQUIRE(part != nullptr);
+            d.sketch->pointers.clear();
+            d.click(part->x, part->y, part->space);
+            REQUIRE_FALSE(d.sketch->pointers.empty());
+            const view::Hit* hit = drawn.hit(d.sketch->pointers.front().x, d.sketch->pointers.front().y);
+            REQUIRE(hit != nullptr);
+            CHECK(hit->element == id);
+        }
+    }
+}
+
+TEST_CASE("the View Builder's two overlapping elements are each pressed where the builder gives that element the press, in a window and in a terminal") {
+    namespace vb = zengine::view_builder;
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        // `second` is placed after `first`, over its centre and reaching below it: where the
+        // design area cuts both at its edge, it still lies over `first` and not inside it.
+        vb::Model m;
+        for (const std::vector<std::string>& edit :
+             std::vector<std::vector<std::string>>{
+                 {"new", "two.buttons", "discard"},
+                 {"add", "button"}, {"element", "0", "first", "First", "12", "12", "96", "24"},
+                 {"add", "button"}, {"element", "1", "second", "Second", "48", "12", "96", "36"}}) {
+            m.command(edit.front(), std::vector<std::string>(edit.begin() + 1, edit.end()));
+        }
+        REQUIRE(m.description.elements.size() == 2);
+        vb::Presentation shown;
+        const vb::Picture drawn = vb::picture(m, shown, d.sketch->rooms.back(), ++d.number);
+        draw_as_sketch(d, vb::named(drawn, m.description));
+        REQUIRE(d.sketch->rejected.empty());
+        v3::PaneView said;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, said).empty());
+        for (const std::size_t at : {std::size_t{0}, std::size_t{1}}) {
+            const std::string& id = m.description.elements[at].id;
+            CAPTURE(id);
+            const PanePart* part = part_named(said.parts, "element:" + id);
+            REQUIRE(part != nullptr);
+            d.sketch->pointers.clear();
+            d.click(part->x, part->y, part->space);
+            REQUIRE_FALSE(d.sketch->pointers.empty());
+            const vb::Hit* hit = drawn.hit(d.sketch->pointers.front().x, d.sketch->pointers.front().y);
+            REQUIRE(hit != nullptr);
+            CHECK(hit->action == "element");
+            CHECK(hit->args == std::vector<std::string>{std::to_string(at)});
+        }
+    }
+}
+
+TEST_CASE("a row's part is pressed where its row map gives it the press: not on a narrower run lying over part of it, nor on a run the pane names nothing, in a window and in a terminal") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        DeskRig d;
+        if (window) {
+            d.r.extent_on_window(150, 60);
+        }
+        const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
+        REQUIRE(body.columns >= 20);
+        // `field:narrow` is narrower than `field:wide` and lies over its middle without lying
+        // inside it; the run in `one two three`'s middle means nothing the pane names.
+        component::RowMap<std::string> map;
+        map.begin();
+        map.row(0, "row:runs");
+        REQUIRE(map.span(0, 0, 12, 16, "field:wide"));
+        REQUIRE(map.span(0, 4, 10, 16, "field:narrow"));
+        map.row(1, "row:one");
+        REQUIRE(map.span(1, 4, 3, 13, ""));
+        (void)map.settle();
+        const std::vector<PaneRowPart> parts =
+            row_parts(map, body.columns, [](const std::string& meaning) { return meaning; });
+        d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
+            s.say_named(m, v4::PaneContent{"alpha",
+                                           {surface::SurfaceTextRow{"0123456789abcdef", surface::role::kFill},
+                                            surface::SurfaceTextRow{"one two three", surface::role::kFill}},
+                                           0, 0, parts});
+        });
+        v3::PaneView view;
+        REQUIRE(d.parts(kAlphaOffice, "alpha", view).empty());
+        CHECK(names_of(view.parts) ==
+              std::vector<std::string>{"field:narrow", "field:wide", "row:one", "row:runs"});
+        for (const PanePart& part : view.parts) {
+            CAPTURE(part.name);
+            d.alpha->presses.clear();
+            d.click(part.x, part.y, part.space);
+            REQUIRE(d.alpha->presses.size() == 1);
+            const std::string* meaning = map.at(d.alpha->presses[0].row, d.alpha->presses[0].column);
+            REQUIRE(meaning != nullptr);
+            CHECK(*meaning == part.name);
+        }
+    }
+}
+
 TEST_CASE("a picture's names are judged with it: a name twice or a part with no extent rejects the picture whole, and the last good one stays") {
     SketchRig d;
     const std::int64_t before = d.r.session().panes.external_pane(d.sketch_kind)->picture;
@@ -1390,7 +1596,7 @@ TEST_CASE("a picture's names are judged with it: a name twice or a part with no 
              {{PaneCanvasPart{"node", 0, 0, 12, 12}, PaneCanvasPart{"node", 12, 0, 12, 12}},
               "names two parts `node`"},
              {{PaneCanvasPart{"node", 0, 0, 0, 12}}, "with no extent"},
-             {{PaneCanvasPart{"", 0, 0, 12, 12}}, "cannot be empty"}}) {
+             {{PaneCanvasPart{"", 0, 0, 12, 0}}, "with no extent"}}) {
         CAPTURE(why);
         d.sketch->rejected.clear();
         d.draw_named(parts);
@@ -1398,6 +1604,12 @@ TEST_CASE("a picture's names are judged with it: a name twice or a part with no 
         CHECK(d.sketch->rejected[0].reason.find(why) != std::string::npos);
         CHECK(d.r.session().panes.external_pane(d.sketch_kind)->picture == before);
     }
+    // A PLACE THE PANE NAMES NOTHING is admitted with the picture, two of them beside a name.
+    d.sketch->rejected.clear();
+    d.draw_named({PaneCanvasPart{"node", 0, 0, 12, 12}, PaneCanvasPart{"", 6, 0, 12, 12},
+                  PaneCanvasPart{"", 0, 6, 12, 12}});
+    CHECK(d.sketch->rejected.empty());
+    CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.parts.size() == 3);
 }
 
 TEST_CASE("the desk names the lines of Workshop's own menu by the action or group each shows, over the line it is drawn on") {

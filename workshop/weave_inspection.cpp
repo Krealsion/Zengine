@@ -219,26 +219,15 @@ std::string without_trailing_blanks(std::string text) {
     return text;
 }
 
-/// Whether `inner` lies inside `outer` and is not all of it: a part a press inside it names first.
-bool inside_part(const PaneRowPart& inner, const PaneRowPart& outer) {
-    return inner.row == outer.row && inner.column >= outer.column && inner.columns < outer.columns &&
-           inner.column + inner.columns <= outer.column + outer.columns;
-}
-
-bool inside_part(const PaneCanvasPart& inner, const PaneCanvasPart& outer) {
-    return inner.x >= outer.x && inner.y >= outer.y &&
-           surface::add_cells(inner.x, inner.w) <= surface::add_cells(outer.x, outer.w) &&
-           surface::add_cells(inner.y, inner.h) <= surface::add_cells(outer.y, outer.h) &&
-           (inner.w < outer.w || inner.h < outer.h);
-}
-
-/// ONE NAMED RUN OF A ROW WHERE A FIT DRAWS IT: the cells of `cells` that show its columns of
-/// `shown` -- past a caret glyph at `caret`, whose own cell stands for the caret's column -- the
-/// characters there, and the point of its middle own one -- a character no part of `parts` inside
-/// it holds -- or of its first cell where it has none. False where no cell shows any of its columns.
+/// ONE NAMED RUN OF A ROW WHERE A FIT DRAWS IT: the cells of `cells` that show the columns of
+/// `parts[self]` in `shown` -- past a caret glyph at `caret`, whose own cell stands for the
+/// caret's column -- the characters there, and the point of its middle own one -- a character no
+/// part listed after it on the row holds, since a press there reaches that part -- or of its
+/// first cell where it has none. False where no cell shows any of its columns.
 bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
-                 std::int64_t caret, std::int64_t cells, const PaneRowPart& part,
-                 const std::vector<PaneRowPart>& parts, std::int64_t space, PanePart& out) {
+                 std::int64_t caret, std::int64_t cells, const std::vector<PaneRowPart>& parts,
+                 std::size_t self, std::int64_t space, PanePart& out) {
+    const PaneRowPart& part = parts[self];
     const std::int64_t end = part.column + part.columns;
     const std::int64_t first = part.column + (caret >= 0 && part.column > caret ? 1 : 0);
     const std::int64_t last =
@@ -253,10 +242,11 @@ bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
                          g.line};
     const auto bytes = static_cast<std::int64_t>(out.text.size());
     std::vector<char> held(static_cast<std::size_t>(bytes), 0);
-    for (const PaneRowPart& inner : parts) {
-        if (!inside_part(inner, part)) continue;
-        for (std::int64_t c = inner.column; c < inner.column + inner.columns && c < part.column + bytes;
-             ++c) {
+    for (std::size_t over = self + 1; over < parts.size(); ++over) {
+        const PaneRowPart& other = parts[over];
+        if (other.row != part.row) continue;
+        for (std::int64_t c = (std::max)(other.column, part.column);
+             c < other.column + other.columns && c < part.column + bytes; ++c) {
             held[static_cast<std::size_t>(c - part.column)] = 1;
         }
     }
@@ -321,7 +311,7 @@ std::optional<std::int64_t> middle_of_widest(std::int64_t lo, std::int64_t hi,
     return best;
 }
 
-/// WHERE A PRESS NAMES A PART AND NOTHING INSIDE IT: its centre unit, or, where a part inside it
+/// WHERE A PRESS REACHES A PART AND NOTHING OVER IT: its centre unit, or, where a part over it
 /// covers that, the middle of the widest uncovered stretch of the first line to have one -- its
 /// centre row, top row, bottom row, then centre, left and right columns. Else its centre.
 std::pair<std::int64_t, std::int64_t> own_point(const UnitBox& box, const std::vector<UnitBox>& held) {
@@ -349,21 +339,24 @@ std::pair<std::int64_t, std::int64_t> own_point(const UnitBox& box, const std::v
     return {cx, cy};
 }
 
-/// ONE NAMED PART OF A PICTURE WHERE ITS BODY SHOWS IT: the part's rectangle cut to the body, the
-/// words inside it, and the point a press names it by and no part of `parts` inside it -- a pixel
-/// in a window, the cell the medium paints there in a terminal. False where the medium shows none.
-bool canvas_part_on(const PixelRect& body, const PaneCanvasPart& part,
-                    const std::vector<PaneCanvasPart>& parts, const std::vector<PaneWord>& words,
-                    std::int64_t space, PanePart& out) {
+/// ONE NAMED PART OF A PICTURE WHERE ITS BODY SHOWS IT: the rectangle of `parts[self]` cut to
+/// the body, the words inside it, and the point a press reaches it by -- a pixel in a window, the
+/// cell the medium paints there in a terminal -- on no part listed after it, since a press there
+/// reaches that part. False where the medium shows none.
+bool canvas_part_on(const PixelRect& body, const std::vector<PaneCanvasPart>& parts,
+                    std::size_t self, const std::vector<PaneWord>& words, std::int64_t space,
+                    PanePart& out) {
+    const PaneCanvasPart& part = parts[self];
     const std::int64_t unit = space == input::space::kPixels ? 1 : surface::kCanvasCellPx;
     const UnitBox box = units_of(body, part, unit);
     const UnitBox px = units_of(body, part, 1);
     if (box.empty() || px.empty()) return false;
     std::vector<UnitBox> held;
-    for (const PaneCanvasPart& inner : parts) {
-        if (!inside_part(inner, part)) continue;
-        const UnitBox b = units_of(body, inner, unit);
-        if (!b.empty()) held.push_back(b);
+    for (std::size_t over = self + 1; over < parts.size(); ++over) {
+        const UnitBox b = units_of(body, parts[over], unit);
+        if (!b.empty() && b.x0 < box.x1 && b.x1 > box.x0 && b.y0 < box.y1 && b.y1 > box.y0) {
+            held.push_back(b);
+        }
     }
     out.name = part.name;
     out.place = DeskRect{px.x0, px.y0, px.x1 - px.x0, px.y1 - px.y0};
@@ -421,11 +414,15 @@ v2::DeskMenu desk_menu(const Session& s, const Screen& sc) {
             }
         }
     }
-    for (const PaneRowPart& part : named) {
-        if (part.row < 0 || part.row >= static_cast<std::int64_t>(region.rows.size())) continue;
+    for (std::size_t i = 0; i < named.size(); ++i) {
+        const PaneRowPart& part = named[i];
+        if (part.name.empty() || part.row < 0 ||
+            part.row >= static_cast<std::int64_t>(region.rows.size())) {
+            continue;
+        }
         PanePart drawn;
         if (row_part_on(grid, part.row, region.rows[static_cast<std::size_t>(part.row)].text, -1,
-                        place.columns, part, named, space, drawn)) {
+                        place.columns, named, i, space, drawn)) {
             menu.parts.push_back(std::move(drawn));
         }
     }
@@ -596,7 +593,7 @@ void WorkshopWeave::on(const v2::PaneViewRequested& asked, loom::Mail& mail) {
 }
 
 // THE PARTS A VISIBLE BODY'S PANE NAMES, each where the medium draws it, as the pane named it: a
-// part the body does not show is not said.
+// part the body does not show is not said, and neither is a place the pane names nothing.
 // WL-HAND-06 -- agents/workshop/pane-controls.md
 std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
                                                    const std::vector<PaneWord>& words) const {
@@ -604,9 +601,11 @@ std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
     std::vector<PanePart> out;
     const auto* content = visible.content;
     if (visible.canvas) {
-        for (const PaneCanvasPart& part : content->canvas.parts) {
+        const std::vector<PaneCanvasPart>& parts = content->canvas.parts;
+        for (std::size_t i = 0; i < parts.size(); ++i) {
             PanePart drawn;
-            if (canvas_part_on(visible.canvas_body, part, content->canvas.parts, words, space, drawn)) {
+            if (!parts[i].name.empty() &&
+                canvas_part_on(visible.canvas_body, parts, i, words, space, drawn)) {
                 out.push_back(std::move(drawn));
             }
         }
@@ -614,8 +613,10 @@ std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
     }
     const auto& body = visible.body;
     const GlyphGrid grid = glyph_grid(body.fit);
-    for (const PaneRowPart& part : content->parts) {
-        if (part.row >= body.rows || part.row >= static_cast<std::int64_t>(content->shown.size())) {
+    for (std::size_t i = 0; i < content->parts.size(); ++i) {
+        const PaneRowPart& part = content->parts[i];
+        if (part.name.empty() || part.row >= body.rows ||
+            part.row >= static_cast<std::int64_t>(content->shown.size())) {
             continue;
         }
         // The row as `visible_words` reads it: a caret's glyph inserted, then the row cut.
@@ -625,8 +626,8 @@ std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
         const std::string shown = content->shown[static_cast<std::size_t>(part.row)].text.substr(
             0, static_cast<std::size_t>(room));
         PanePart drawn;
-        if (row_part_on(grid, part.row + body.header_rows, shown, caret, body.columns, part,
-                        content->parts, space, drawn)) {
+        if (row_part_on(grid, part.row + body.header_rows, shown, caret, body.columns,
+                        content->parts, i, space, drawn)) {
             out.push_back(std::move(drawn));
         }
     }

@@ -21,6 +21,7 @@
 #include <chrono>
 #include <filesystem>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -421,6 +422,24 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CAPTURE(p.name);
         CHECK(p.w > 0);
         CHECK(p.h > 0);
+    }
+    // EVERY PLACE A PRESS MEANS SOMETHING, LISTED AS THE PICTURE READS A PRESS: its hits in their
+    // order, each under its name, or unnamed where an earlier one took it.
+    const ws::PaneCanvasRoom room{"flow", 1, 1200, 720, 1, true, 8, 16};
+    const fp::Picture drawn = fp::picture(fp::Model{}, room, 1);
+    const auto listed = fp::named(drawn);
+    REQUIRE_FALSE(drawn.hits.empty());
+    REQUIRE(listed.parts.size() == drawn.hits.size());
+    std::set<std::string> taken;
+    for (std::size_t i = 0; i < drawn.hits.size(); ++i) {
+        CAPTURE(i);
+        const fp::Hit& hit = drawn.hits[i];
+        CHECK(listed.parts[i].x == hit.x);
+        CHECK(listed.parts[i].y == hit.y);
+        CHECK(listed.parts[i].w == hit.w);
+        CHECK(listed.parts[i].h == hit.h);
+        const std::string name = fp::part_name(hit);
+        CHECK(listed.parts[i].name == (taken.insert(name).second ? name : std::string()));
     }
 }
 

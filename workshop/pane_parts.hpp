@@ -5,7 +5,7 @@
 
 // The parts a pane names, judged by their form: the rules Workshop admits a picture's names by,
 // which a pane may ask of its own before it sends them, and the parts of a composition a row map
-// records, named by the pane's own rule.
+// records, named by the pane's own rule and listed in the order its press reads them.
 // Reference: docs/reference/workshop-panes.md#a-pane-names-its-parts.
 
 #include "workshop/pane_canvas_vocabulary.hpp"
@@ -15,6 +15,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <deque>
+#include <iterator>
 #include <set>
 #include <string>
 #include <string_view>
@@ -39,7 +41,8 @@ inline const char* pane_part_name_problem(std::string_view name) noexcept {
 
 namespace detail {
 
-/// The names of a list of parts, judged: how many, each one's form, and none twice.
+/// The names of a list of parts, judged: how many, each name's form, and none twice. A part
+/// named "" is a place its pane names nothing, and shares its name with nothing.
 template <class Part>
 std::string part_names_problem(const std::vector<Part>& parts) {
     if (parts.size() > kMaxPaneParts) {
@@ -48,6 +51,7 @@ std::string part_names_problem(const std::vector<Part>& parts) {
     }
     std::set<std::string_view> seen;
     for (const Part& part : parts) {
+        if (part.name.empty()) continue;
         if (const char* wrong = pane_part_name_problem(part.name)) return wrong;
         if (!seen.insert(part.name).second) return "names two parts `" + part.name + "`";
     }
@@ -84,40 +88,51 @@ inline std::string canvas_parts_problem(const std::vector<PaneCanvasPart>& parts
     return std::string();
 }
 
-/// THE PARTS OF ONE COMPOSITION, gathered as it is composed: a part named "", one whose name the
-/// judge would refuse, one whose name an earlier part took, and any past `kMaxPaneParts` are left
-/// unnamed, so a picture's names gathered here are never what refuses it.
+/// THE PARTS OF ONE COMPOSITION, gathered in the order its pane reads a press: every place is
+/// kept, and one named "", one whose name the judge would refuse and one whose name an earlier
+/// part took stays a place unnamed, since a press there still reaches it. Past `kMaxPaneParts` the
+/// earliest go -- none takes a press from a part after it -- so a picture's parts gathered here
+/// are never what refuses it.
 template <class Part>
 class PartNames {
 public:
-    /// Keeps `part` under its name, or says false and keeps nothing.
+    /// Keeps `part` under its name, or unnamed, saying which.
     bool add(Part part) {
-        if (part.name.empty() || pane_part_name_problem(part.name) != nullptr ||
-            parts_.size() >= kMaxPaneParts || !names_.insert(part.name).second) {
-            return false;
+        const bool named =
+            pane_part_name_problem(part.name) == nullptr && names_.insert(part.name).second;
+        if (!named) {
+            part.name.clear();
         }
         parts_.push_back(std::move(part));
-        return true;
+        if (parts_.size() > kMaxPaneParts) {
+            parts_.pop_front();
+        }
+        return named;
     }
-    const std::vector<Part>& parts() const noexcept { return parts_; }
     std::vector<Part> take() {
         names_.clear();
-        return std::move(parts_);
+        std::vector<Part> out(std::make_move_iterator(parts_.begin()),
+                              std::make_move_iterator(parts_.end()));
+        parts_.clear();
+        return out;
     }
 
 private:
-    std::vector<Part> parts_;
+    std::deque<Part> parts_;
     std::set<std::string> names_;
 };
 
 /// THE PARTS A ROW MAP RECORDED, named by `name_of(meaning)` -- a row entire as the room's
-/// `columns`, a run of columns as itself -- and gathered as `PartNames` gathers them. A pane
-/// naming its parts from what each one means keeps their names wherever the composition puts them.
+/// `columns`, a run of columns as itself -- listed as its press reads them
+/// (`component::RowMap::press_order`) and gathered as `PartNames` gathers them. A pane naming its
+/// parts from what each one means keeps their names wherever the composition puts them.
 template <class Meaning, class NameOf>
 std::vector<PaneRowPart> row_parts(const component::RowMap<Meaning>& map, std::int64_t columns,
                                    NameOf&& name_of) {
     PartNames<PaneRowPart> out;
-    for (const auto& span : map.spans()) {
+    const auto& spans = map.spans();
+    for (const std::size_t at : map.press_order()) {
+        const auto& span = spans[at];
         const bool whole = span.last == component::RowMap<Meaning>::kWholeRow;
         (void)out.add(PaneRowPart{name_of(span.meaning), span.row, whole ? 0 : span.first,
                                   whole ? columns : span.last - span.first + 1});

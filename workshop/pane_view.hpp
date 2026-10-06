@@ -145,9 +145,9 @@ struct PanePoint {
 
 /// One named part where the medium draws it: its name, the words drawn inside it (a text part's
 /// characters; a canvas part's words that lie inside it, joined by a space), `place` the part as
-/// the body shows it, and `x`, `y` the point a press names it by and no part inside it -- a text
-/// part's middle character of its own, a canvas part's centre or, where a part inside covers it, a
-/// place beside that part.
+/// the body shows it, and `x`, `y` the point a press reaches it at, where no part listed after it
+/// lies -- a text part's middle character of its own, a canvas part's centre or, where a part over
+/// it covers that, a place beside that part.
 struct PanePart {
     std::string name, text;
     DeskRect place;

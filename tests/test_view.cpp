@@ -564,6 +564,12 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         CHECK(part->w == e.w);
         CHECK(part->h == e.h);
     }
+    // ...LISTED AS THE VIEW DRAWS THEM, which is how it reads a press: where two lie over one
+    // place, the later is listed after and takes the press.
+    for (std::size_t i = 0; i < d.elements.size(); ++i) {
+        CAPTURE(i);
+        CHECK(p->parts[i].name == "element:" + d.elements[i].id);
+    }
     // PRESSED AT THE MIDDLE OF THE PLACE ITS NAME GIVES, the button says its intent.
     const auto count = std::find_if(p->parts.begin(), p->parts.end(),
                                     [](const auto& q) { return q.name == "element:count"; });

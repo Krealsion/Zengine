@@ -470,7 +470,10 @@ struct PanePressed {
 // picture -- with names of its own that it keeps across its redraws, so an agent finds a part by
 // what it is rather than by where it falls. A name is the pane's: Workshop judges its form and
 // carries it as the pane said it, and never interprets it. The names ride with the picture they
-// name, judged with it and admitted or refused whole with it.
+// name, judged with it and admitted or refused whole with it. A picture lists its parts in the
+// order its pane reads a press: where parts hold one place, a press there reaches the later. A
+// part named "" is a place a press reaches that the pane names nothing, listed where it lies over
+// a part it names: Workshop says no such part, and gives no named part a point on it.
 
 /// The most parts one picture may name, and the longest a name may be.
 inline constexpr std::size_t kMaxPaneParts = 2048;
@@ -491,9 +494,10 @@ struct PaneRowPart {
 namespace v4 {
 
 /// CONTENT THAT NAMES ITS PARTS: v3's rows, generation and picture, and the parts of those rows
-/// the pane names. A part must stand on a row the content says, inside the room granted, under a
-/// name no other part of it carries; content that breaks that is refused whole, as content over
-/// its budget is. A pane naming nothing sends v3, or this with no parts.
+/// the pane names, in the order it reads a press. A part must stand on a row the content says,
+/// inside the room granted, under a name no other part of it carries, or none; content that
+/// breaks that is refused whole, as content over its budget is. A pane naming nothing sends v3,
+/// or this with no parts.
 struct PaneContent {
     std::string pane;
     std::vector<surface::SurfaceTextRow> rows;

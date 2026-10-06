@@ -263,8 +263,24 @@ TEST_CASE("WL-HAND-06: the View Builder names its controls, kinds, boxes, list r
         }
         CHECK(part("box:" + selected.id + ".x") != nullptr);
         CHECK(part("handle:" + selected.id + ".1,1") != nullptr);
-        // ...EACH OVER THE PLACE A PRESS ON IT MEANS THAT PLACE.
+        // EVERY PLACE A PRESS MEANS SOMETHING, LISTED AS THE PICTURE READS A PRESS: its hits in
+        // their order, each under its name, or unnamed where it has none or an earlier one took it.
+        REQUIRE(said.parts.size() == pic.hits.size());
+        std::set<std::string> taken;
+        for (std::size_t i = 0; i < pic.hits.size(); ++i) {
+            CAPTURE(i);
+            const auto& hit = pic.hits[i];
+            const auto& listed = said.parts[i];
+            CHECK(listed.x == hit.at.x);
+            CHECK(listed.y == hit.at.y);
+            CHECK(listed.w == hit.at.w);
+            CHECK(listed.h == hit.at.h);
+            const std::string name = vb::part_name(hit, m.description);
+            CHECK(listed.name == (!name.empty() && taken.insert(name).second ? name : std::string()));
+        }
+        // ...EACH NAMED ONE OVER THE PLACE A PRESS ON IT MEANS THAT PLACE.
         for (const auto& p : said.parts) {
+            if (p.name.empty()) continue;
             CAPTURE(p.name);
             const auto* hit = pic.hit(p.x + p.w / 2, p.y + p.h / 2);
             REQUIRE(hit != nullptr);
