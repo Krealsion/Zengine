@@ -7,6 +7,7 @@
 #include "doctest.h"
 #include "workshop_support.hpp"
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/screen_canvas.hpp"
 #include "view/host.hpp"
 #include <limits>
@@ -804,6 +805,127 @@ TEST_CASE("an unpadded run stands its first character at its own place, and runs
     REQUIRE(rows.size() == 1);
     CHECK(rows[0].label.text == "ab  ");      // the blanks carry the ground to the run's end
     CHECK(rows[0].background == surface::role::kMuted);
+}
+
+TEST_CASE("a pane's rows drawn on its canvas stand where its prose rows would, name the same parts, and a place reads back to its row and column") {
+    // A WINDOW'S FACE and A TERMINAL'S CELLS: the lattice holds the rows and columns a prose body
+    // of the room's size holds, and each row stands one line below the last.
+    constexpr std::int64_t advance = 8, line = 18, inset = surface::kTextInsetPx;
+    const PaneCanvasRoom window{canvas_pane, 4, 30 * advance + 2 * inset + 5, 6 * line + 7, 1, true,
+                                advance, line};
+    const CanvasRows face = canvas_rows(window);
+    CHECK(face.x == inset);
+    CHECK(face.y == 0);
+    CHECK(face.columns == 30);
+    CHECK(face.rows == 6);
+    const PaneCanvasRoom terminal{canvas_pane, 5, 30 * kPaneCanvasUnit, 6 * kPaneCanvasUnit,
+                                  kPaneCanvasUnit, false, 0, 0};
+    const CanvasRows cells = canvas_rows(terminal);
+    CHECK(cells.x == 0);
+    CHECK(cells.advance == kPaneCanvasUnit);
+    CHECK(cells.columns == 30);
+    CHECK(cells.rows == 6);
+    CHECK(canvas_rows(PaneCanvasRoom{canvas_pane, 6, 0, 0, 1, true, advance, line}).empty());
+
+    const std::vector<surface::SurfaceTextRow> rows = {
+        {"HEADING", surface::role::kAccent},
+        {"> chosen   ", surface::role::kAccent, surface::role::kMuted},
+        {"  other    ", surface::role::kFill},
+        {"", surface::role::kFill},
+        {"typed", surface::role::kFill}};
+    const std::vector<PaneRowPart> parts = {{"row:chosen", 1, 0, 30},
+                                            {"mark:chosen", 1, 0, 2},
+                                            {"", 2, 0, 30},
+                                            {"row:gone", 9, 0, 30}};
+    RowsCaret caret;
+    caret.row = 4;
+    caret.column = 5;
+    caret.sel_begin_row = 4;
+    caret.sel_begin_col = 1;
+    caret.sel_end_row = 4;
+    caret.sel_end_col = 3;
+    for (const PaneCanvasRoom& room : {window, terminal}) {
+        CAPTURE(room.graphical);
+        const CanvasRows lattice = canvas_rows(room);
+        const v5::PaneCanvasContent p = rows_picture(room, 3, rows, parts, caret);
+        CHECK(p.pane == room.pane);
+        CHECK(p.grant == room.grant);
+        CHECK(p.picture == 3);
+        CHECK(canvas_content_problem(p).empty());
+        CHECK(canvas_parts_problem(p.parts).empty());
+        // THE ROOM'S GROUND beneath everything, as a prose body's is cleared.
+        REQUIRE_FALSE(p.rects.empty());
+        CHECK(p.rects[0].role == surface::role::kGround);
+        CHECK(p.rects[0].w == room.width);
+        CHECK(p.rects[0].h == room.height);
+        // ONE UNPADDED RUN A ROW, a row's own blanks dropped, an empty row drawn as nothing.
+        REQUIRE(p.texts.size() == 4);
+        for (const v2::PaneCanvasText& t : p.texts) {
+            CHECK_FALSE(t.padded);
+            CHECK(t.x == lattice.x);
+        }
+        CHECK(p.texts[0].text == "HEADING");
+        CHECK(p.texts[0].y == lattice.row_y(0));
+        CHECK(p.texts[0].role == surface::role::kAccent);
+        // A ROW WITH A GROUND carries it blank to the row's end.
+        CHECK(p.texts[1].text.size() == static_cast<std::size_t>(lattice.columns));
+        CHECK(p.texts[1].text.rfind("> chosen", 0) == 0);
+        CHECK(p.texts[1].background == surface::role::kMuted);
+        CHECK(p.texts[2].text == "  other");
+        CHECK(p.texts[2].background == surface::role::kNone);
+        // THE CARET AND THE SELECTION stand in the run of their row.
+        CHECK(p.texts[3].text == "typed");
+        CHECK(p.texts[3].y == lattice.row_y(4));
+        CHECK(p.texts[3].caret_col == 5);
+        CHECK(p.texts[3].sel_begin_col == 1);
+        CHECK(p.texts[3].sel_end_col == 3);
+        CHECK(p.texts[0].caret_col == surface::kNoCaret);
+        // EACH PART IS THE RECTANGLE ITS ROW AND COLUMNS COVER, in its order, unnamed kept; a part
+        // on a row the room does not hold is left out.
+        REQUIRE(p.parts.size() == 3);
+        CHECK(p.parts[0].name == "row:chosen");
+        CHECK(p.parts[0].x == lattice.x);
+        CHECK(p.parts[0].y == lattice.row_y(1));
+        CHECK(p.parts[0].w == 30 * lattice.advance);
+        CHECK(p.parts[0].h == lattice.line);
+        CHECK(p.parts[1].name == "mark:chosen");
+        CHECK(p.parts[1].w == 2 * lattice.advance);
+        CHECK(p.parts[2].name.empty());
+        // A PLACE READS BACK TO ITS ROW AND COLUMN, and one off the lattice is not shown.
+        const RowCell on = row_cell_at(lattice, lattice.column_x(7) + 1, lattice.row_y(2) + 1);
+        CHECK(on.shown);
+        CHECK(on.row == 2);
+        CHECK(on.column == 7);
+        CHECK_FALSE(row_cell_at(lattice, lattice.column_x(30), lattice.row_y(0)).shown);
+        const RowCell above = row_cell_at(lattice, lattice.column_x(0), -1);
+        CHECK_FALSE(above.shown);
+        CHECK(above.row == -1);
+    }
+}
+
+TEST_CASE("a pane's canvas pictures fence a press by the meaning each was drawn under") {
+    const PaneCanvasRoom room{canvas_pane, 4, 10 * kPaneCanvasUnit, 2 * kPaneCanvasUnit,
+                              kPaneCanvasUnit, false, 0, 0};
+    CanvasPictures pictures;
+    CHECK_FALSE(pictures.current(4, 1)); // nothing drawn yet
+    const std::int64_t first = pictures.next(room, 7);
+    const std::int64_t again = pictures.next(room, 7); // the same meaning, repainted
+    CHECK(first == 1);
+    CHECK(again == 2);
+    CHECK(pictures.current(4, first)); // a press aimed at the first is still current
+    CHECK(pictures.current(4, again));
+    CHECK_FALSE(pictures.current(4, 3)); // a picture never sent
+    CHECK_FALSE(pictures.current(3, first)); // another grant's
+    const std::int64_t moved = pictures.next(room, 8); // what the rows mean moved
+    CHECK_FALSE(pictures.current(4, first));
+    CHECK_FALSE(pictures.current(4, again));
+    CHECK(pictures.current(4, moved));
+    // A NEW ROOM numbers afresh, and nothing of the old grant is current.
+    const PaneCanvasRoom next{canvas_pane, 5, 10 * kPaneCanvasUnit, 2 * kPaneCanvasUnit,
+                              kPaneCanvasUnit, false, 0, 0};
+    CHECK(pictures.next(next, 8) == 1);
+    CHECK_FALSE(pictures.current(4, moved));
+    CHECK(pictures.current(5, 1));
 }
 
 TEST_CASE("pane canvas text metric changes renew the grant even when its body stays fixed") {

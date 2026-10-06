@@ -680,6 +680,26 @@ glyphs land at its `x,y`, against the clip grown by the inset above, below and t
 where only padding lies -- and never to the right, where a caret after the last character stands.
 In a terminal the inset is 0 and the two are one run. `clip_canvas_run` clips either kind of run
 as `clip_canvas_text` clips the first.
+
+A pane whose picture is rows of text has the installed `workshop/pane_canvas_rows.hpp` for the
+arithmetic, and keeps its own meaning, names and hit testing:
+
+- `canvas_rows(room)` is the lattice: where row 0, column 0 stands, one advance and one line, and
+  the columns and rows the room holds, as many as a prose body its size holds. In a terminal it
+  is the room's cells; where type is set it starts the medium's inset in from the left and keeps
+  that inset free at the right, for a caret after a full row's last character.
+- `rows_picture(room, picture, rows, parts, caret)` draws `SurfaceTextRow`s there: the room's
+  ground (`kGround`) beneath, one unpadded run a row with its role and ground, a row's blanks after
+  its last character dropped unless a ground, the caret or the selection stands on them, the caret
+  and selection said as `v2::PaneCaret` says them (`RowsCaret`), and each `PaneRowPart` as the
+  rectangle its row and columns cover, in its order.
+- `row_cell_at(lattice, x, y)` reads a pointer's local place back to a row and a column, unclamped,
+  and says whether the room shows them.
+- `CanvasPictures` numbers the pictures and fences a press: Workshop wants a new number for every
+  picture within a grant, while a pane numbering its composition by what its rows mean
+  (`component::RowMap`) keeps one number while that stands still. `next(room, meaning)` numbers
+  the next picture; `current(grant, picture)` says whether a press's picture was drawn under the
+  meaning the pane holds now.
 Caret and selection columns follow the crop. Where text is a cell, a caret stands on a cell:
 after a run's last character it gets the next cell when the clip has one, and stands on the
 last character's when it has none. An empty line with a caret reserves one column. Keep measured sizes out of saved authoring data:

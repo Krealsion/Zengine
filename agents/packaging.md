@@ -22,7 +22,8 @@ house and a guest spell them identically: `activation`, `timer`, `surface`, `inp
 `columns`, the control strip, and pure `motion::Path` sampling: every header
 `zengine_public_headers_component` lists), `operator`, `operator-consumer`, `pane` (the protocol
 header `workshop/pane_vocabulary.hpp`, `workshop/pane_canvas_vocabulary.hpp`, and the optional
-helpers beside them, `workshop/pane_menu.hpp` and `workshop/pane_canvas_text.hpp`,
+helpers beside them, `workshop/pane_menu.hpp`, `workshop/pane_canvas_text.hpp` and
+`workshop/pane_canvas_rows.hpp`,
 plus `workshop/pane_operation.hpp`, `workshop/pane_carry.hpp`, `workshop/pane_view.hpp`,
 `workshop/pane_shortcuts.hpp` and `workshop/setup_control.hpp`,
 installed under `include/zengine/workshop/`), `neovim` (the one
