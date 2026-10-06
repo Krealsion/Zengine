@@ -1125,7 +1125,7 @@ TEST_CASE("a text pane's named parts are said under the pane's own names over th
     }
 }
 
-TEST_CASE("a part's point is a place of its own: a row with a control inside it is pressed beside the control, the control on itself, a row whose text is all a control's on a blank cell of its own, and a row with no place of its own has no point, in a window and in a terminal") {
+TEST_CASE("a part's point is a place of its own: beside a control a row holds, on a row's blank cell where its text is a control's, and none for a row with no place of its own") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
@@ -1485,7 +1485,7 @@ TEST_CASE("a part under another is pressed where a press reaches it as its pane 
     }
 }
 
-TEST_CASE("a running view's two overlapping buttons are each pressed where the view gives that button the press, in a window and in a terminal") {
+TEST_CASE("two overlapping buttons in a running view are each pressed where the view gives that button the press") {
     namespace view = zengine::view;
     for (const bool window : {false, true}) {
         CAPTURE(window);
@@ -1559,7 +1559,7 @@ TEST_CASE("the View Builder's two overlapping elements are each pressed where th
     }
 }
 
-TEST_CASE("a canvas part's point is sought over every unit of it the body shows: one whose centre, edges and middle lines are all another's is pressed where it is its own, and one with no place of its own has no point, never another's, in a window and in a terminal") {
+TEST_CASE("a canvas part's own place is sought over all of it, and a part with none has no point, never another's") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         SketchRig d;
@@ -1606,7 +1606,7 @@ TEST_CASE("a canvas part's point is sought over every unit of it the body shows:
     }
 }
 
-TEST_CASE("a picture of as many parts as a picture may name, nested and overlapping, gives each part a point a press there gives it, or none where every place of it is another's, in a window and in a terminal") {
+TEST_CASE("a picture of as many parts as it may name gives each a point a press there gives it, or none") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         SketchRig d;
@@ -1680,7 +1680,7 @@ TEST_CASE("a picture of as many parts as a picture may name, nested and overlapp
     }
 }
 
-TEST_CASE("a row's part is pressed where its row map gives it the press: not on a narrower run lying over part of it, nor on a run the pane names nothing, in a window and in a terminal") {
+TEST_CASE("a row part is pressed where its row map gives it the press, not on a narrower run over it nor an unnamed one") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
