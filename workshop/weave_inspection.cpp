@@ -180,16 +180,23 @@ void glyph_point(const GlyphGrid& g, std::int64_t row, std::int64_t column, std:
     y = surface::cell_of_pixel(g.y + row * g.line) + surface::kTuiCanvasTopRow;
 }
 
-/// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row`, over `glyphs` cells of the
-/// grid (more than its bytes where a terminal draws a caret into it), and its middle glyph's
-/// centre as the place a press names it.
-PaneWord word_on(const GlyphGrid& g, std::int64_t row, std::int64_t column, std::int64_t glyphs,
-                 std::string text, std::int64_t space) {
+/// The column a byte of a word is drawn at: one cell right from the caret glyph a terminal draws
+/// into the word at `caret`, where it draws one (`caret` -1 where it does not).
+std::int64_t drawn_column(std::int64_t byte, std::int64_t caret) {
+    return caret >= 0 && byte >= caret ? byte + 1 : byte;
+}
+
+/// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row` over its bytes' cells of the
+/// grid and the caret glyph a terminal draws into it at `caret`, and its middle byte's centre as
+/// the place a press names it.
+PaneWord word_on(const GlyphGrid& g, std::int64_t row, std::int64_t column, std::string text,
+                 std::int64_t caret, std::int64_t space) {
     PaneWord w;
-    const std::int64_t n = glyphs > 0 ? glyphs : 1;
-    w.place = DeskRect{g.x + column * g.advance, g.y + row * g.line, n * g.advance, g.line};
     const std::int64_t bytes = static_cast<std::int64_t>(text.size());
-    glyph_point(g, row, column + (bytes > 0 ? (bytes - 1) / 2 : 0), space, w.x, w.y);
+    const std::int64_t n = (std::max<std::int64_t>)(1, bytes + (caret >= 0 ? 1 : 0));
+    w.place = DeskRect{g.x + column * g.advance, g.y + row * g.line, n * g.advance, g.line};
+    glyph_point(g, row, column + drawn_column(bytes > 0 ? (bytes - 1) / 2 : 0, caret), space, w.x,
+                w.y);
     w.space = space;
     w.text = std::move(text);
     return w;
@@ -232,8 +239,7 @@ DeskMenu desk_menu(const Session& s, const Screen& sc) {
     for (std::size_t i = 0; i < region.rows.size(); ++i) {
         std::string text = without_trailing_blanks(region.rows[i].text);
         const std::int64_t row = static_cast<std::int64_t>(i);
-        const std::int64_t glyphs = static_cast<std::int64_t>(text.size());
-        PaneWord line = word_on(grid, row, 0, glyphs, std::move(text), space);
+        PaneWord line = word_on(grid, row, 0, std::move(text), -1, space);
         line.word = row;
         menu.lines.push_back(std::move(line));
     }
@@ -322,18 +328,20 @@ bool drawn_label(const PaneCanvasLabel& label, const PixelRect& body, std::strin
 
 // WHAT A VISIBLE BODY SHOWS, word by word: a text pane's rows under its header, a canvas pane's
 // labels and then its text runs, each where the medium draws it. A word the body does not draw
-// is not said, so a word's number is its place in this list and nowhere else. `advances` takes
-// each word's glyph advance, which a point inside it is measured by.
+// is not said, so a word's number is its place in this list and nowhere else. `glyphs` takes
+// where each word's glyphs stand, which a point inside it is measured by.
 // WL-GEO-13 -- agents/workshop/geometry.md
 std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
-                                                   std::vector<std::int64_t>* advances) const {
+                                                   std::vector<WordGlyphs>* glyphs) const {
     const Screen sc = screen_of(session_);
     const std::int64_t space = input_space_of(sc);
     std::vector<PaneWord> out;
-    const auto keep = [&out, advances](PaneWord w, const GlyphGrid& grid) {
+    const auto keep = [&](const GlyphGrid& grid, std::string text, std::int64_t row,
+                          std::int64_t caret) {
+        PaneWord w = word_on(grid, row, 0, std::move(text), caret, space);
         w.word = static_cast<std::int64_t>(out.size());
         out.push_back(std::move(w));
-        if (advances != nullptr) advances->push_back(grid.advance);
+        if (glyphs != nullptr) glyphs->push_back(WordGlyphs{grid.advance, caret});
     };
     const auto* content = visible.content;
     if (!visible.canvas) {
@@ -344,13 +352,11 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
             std::string text = without_trailing_blanks(
                 content->shown[static_cast<std::size_t>(row)].text.substr(
                     0, static_cast<std::size_t>(body.columns)));
-            std::int64_t glyphs = static_cast<std::int64_t>(text.size());
             // A terminal draws the caret as a glyph of its own, so the text after it stands a cell on.
-            if (!body.fit.graphical() && content->caret_row == row && content->caret_col >= 0 &&
-                content->caret_col <= glyphs) {
-                ++glyphs;
-            }
-            keep(word_on(grid, row + body.header_rows, 0, glyphs, std::move(text), space), grid);
+            const bool caret = !body.fit.graphical() && content->caret_row == row &&
+                               content->caret_col >= 0 &&
+                               content->caret_col <= static_cast<std::int64_t>(text.size());
+            keep(grid, std::move(text), row + body.header_rows, caret ? content->caret_col : -1);
         }
         return out;
     }
@@ -362,8 +368,7 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
         if (!drawn_label(label, body, text, x)) continue;
         const GlyphGrid grid{surface::add_cells(body.x, x), surface::add_cells(body.y, label.y),
                              kPaneCanvasUnit, kPaneCanvasUnit};
-        const auto glyphs = static_cast<std::int64_t>(text.size());
-        keep(word_on(grid, 0, 0, glyphs, std::move(text), space), grid);
+        keep(grid, std::move(text), 0, -1);
     }
     const PaneCanvasRoom room{picture.pane, picture.grant, body.w, body.h, content->canvas.grain,
                               content->canvas.graphical, content->canvas.text_advance_px,
@@ -375,13 +380,9 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
         const surface::RegionFit fit = surface::fit_region(region.x, region.y, region.w, region.h,
                                                            sc.text_advance_px, sc.text_line_px);
         std::string text = placed.text.text;
-        auto glyphs = static_cast<std::int64_t>(text.size());
-        if (!fit.graphical() && region.caret_row == 0 && region.caret_col >= 0 &&
-            region.caret_col <= glyphs) {
-            ++glyphs;
-        }
-        const GlyphGrid grid = glyph_grid(fit);
-        keep(word_on(grid, 0, 0, glyphs, std::move(text), space), grid);
+        const bool caret = !fit.graphical() && region.caret_row == 0 && region.caret_col >= 0 &&
+                           region.caret_col <= static_cast<std::int64_t>(text.size());
+        keep(glyph_grid(fit), std::move(text), 0, caret ? region.caret_col : -1);
     }
     return out;
 }
@@ -408,8 +409,8 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
         (void)mail.answer(loom::Refused{"pane point unavailable: the pane's picture moved; read it again"});
         return;
     }
-    std::vector<std::int64_t> advances;
-    const std::vector<PaneWord> words = visible_words(visible, &advances);
+    std::vector<WordGlyphs> glyphs;
+    const std::vector<PaneWord> words = visible_words(visible, &glyphs);
     if (asked.word < 0 || asked.word >= static_cast<std::int64_t>(words.size()) ||
         asked.column < 0 ||
         asked.column >= static_cast<std::int64_t>(words[static_cast<std::size_t>(asked.word)].text.size())) {
@@ -424,8 +425,9 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
         const auto at_word = static_cast<std::size_t>(asked.word);
         const DeskRect& place = words[at_word].place;
         reply.space = input_space_of(screen_of(session_));
-        glyph_point(GlyphGrid{place.x, place.y, advances[at_word], place.h}, 0, asked.column,
-                    reply.space, reply.x, reply.y);
+        const WordGlyphs& drawn = glyphs[at_word];
+        glyph_point(GlyphGrid{place.x, place.y, drawn.advance, place.h}, 0,
+                    drawn_column(asked.column, drawn.caret), reply.space, reply.x, reply.y);
         const PointedAt at = canvas_point_of(reply.space, reply.x, reply.y);
         resolved = at.understood &&
                    visible.canvas_body.contains_at(at.px.x, at.px.y, at.grain) &&

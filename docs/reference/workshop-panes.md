@@ -1164,7 +1164,7 @@ press is in the input space the answer names, as `PanePoint`'s is.
 |---|---|
 | `DeskViewRequested{}` | Anyone granted it, to Workshop: the desk now |
 | `DeskView{width, height, cell_px, space, room, panes, arranging, menu}` | The canvas's extent, the medium's device pixels to a canvas cell (0 where the cell is its unit), the input space, the room panes stand in, every pane the desk names in its order, whether arranging is open, and the menu on the screen |
-| `DeskPane{provider, pane, name, state, front, resolved, visible, selected, keys}` | One pane: its state word (`open`, `covered`, `off-room`, `unresolved`), its rank from the front (0 in front; -1 when it is not presented), the place its authored intent resolves to and the part of it the canvas has, and whether it is selected or holds the keys |
+| `DeskPane{provider, pane, name, state, front, resolved, visible, selected, keys}` | One pane: its state word (`open`, `covered`, `off-room`, `unresolved`), its rank from the front (0 in front; -1 when it is not presented), the place its authored intent resolves to and the part of it the canvas has, and whether it is selected or the keyboard points at it (an open menu or arranging takes the keys before it) |
 | `DeskMenu{open, office, pane, picture, place, lines}` | Workshop's own menu (`office` is Workshop's) or a pane's, shown by its presenter, with each line as a word |
 | `v2::PaneViewRequested{provider, pane}` | A pane's words, text or canvas alike |
 | `v2::PaneView{provider, pane, picture, canvas, words}` | A text pane's rows, or a canvas pane's labels and then its text runs as it drew them last, each clipped as the painter clips it; `canvas` says which |
