@@ -191,3 +191,8 @@ headers install, which artifacts ride along) is owned by `cmake/ZengineInstall.c
 - A green build produced its artifact, a load made a weave live, a send was delivered — each
   is TWO facts wearing one word; the second half has its own owner and its own witness
   ([agents/realization.md](agents/realization.md)).
+- A shape's version is its own — a shape that encloses a changed shape is a new version too.
+  Loom folds a nested shape's content id into its parent's and refuses a second shape under a
+  name and version it already holds, so a component built before the change and one built after
+  could not load side by side. `tests/test_workshop_shapes.cpp` claims the shapes as they were
+  published beside the current ones; a change to a shape adds its own there.
