@@ -93,8 +93,9 @@ external_press_at(panes, setup, screen, kind,     } Panes::selected and Panes::k
   restarted Workshop.
 - **A provider interprets the press against what it is CURRENTLY SHOWING.** `project_loaded`
   returns the row-to-entry map beside the rows it built (the one-measurer rule reaching
-  interaction), the provider retains that value and drops it on every room grant, and a press
-  costs one lookup and no observation. **A provider that re-queried its source to interpret a
+  interaction), the provider retains that value and drops it on every room grant, and a press --
+  on Loaded's own canvas, read back to its row (`row_cell_at`) -- costs one lookup and no
+  observation. **A provider that re-queried its source to interpret a
   press would let a weaver select something they were never shown** — silently, and only
   sometimes.
 - **The fact a pane publishes carries DATA and no authority.**
@@ -188,8 +189,9 @@ are omitted. `v2::PaneCanvasText` (in `v5::PaneCanvasContent`) may say `padded` 
 then name its first character's cell, so runs one line apart stack as prose rows do and a body
 holds as many of them as it holds rows; it is the padded run whose glyphs land there, its
 padding allowed past the clip above, below and to its left, never to its right, where a caret
-after its last character stands (`clip_canvas_run`); and a `background`, a ground under its
-characters as a prose row's is. Fixed cell labels keep their existing
+after its last character stands, nor to its left when it names a ground (`clip_canvas_run`); and a
+`background`, a ground under its characters as a prose row's is. A clip adds no cell for a
+caret: a run gives a caret after its last character a blank to stand on. Fixed cell labels keep their existing
 meaning. A metric change grants fresh room.
 
 The local canvas does not choose fonts, arbitrary scene nodes, or screen authority. A provider
@@ -251,7 +253,9 @@ shape is byte-identical.
   keeps the gesture for its own cells (`external_wheel`, declared in weave.hpp, its body in
   weave_external.cpp). It is sent only while the
   pointer names a prose row of the granted body (`external_press_at`: the header and the
-  remainder under the last row send nothing) and only to a pane holding a room.
+  remainder under the last row send nothing) and only to a pane holding a room. A pane holding
+  a canvas room is sent the same notches as its canvas pointer's `kWheel` instead, at the
+  pointer's local place (`canvas_wheel`), as Loaded, Powers and the desktop's two panes are.
 - **No place, no rows-per-notch, no accumulator on Workshop's side.** A wheel means "advance
   through what you are showing"; a row on it would be Workshop prescribing one list under the
   pointer. How many rows a notch is worth is the provider's grammar — the shipped Powers and
@@ -448,11 +452,14 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   heard the press, and a presenter killed and revived (Loom's crash-revival door) around the
   older withdrawal: a requester that asks when its press arrives asks behind every such refusal.
 - **A press names its picture, or is refused.** `v3::PaneContent.picture` is the pane's own
-  number for its row-to-meaning map (the desktop's `RowMap` moves it exactly when the map moves);
+  number for its row-to-meaning map (a `RowMap` moves it exactly when the map moves);
   the host records it at admission (`ExternalPane::picture`) but stamps a press with the picture
   the MEDIUM held when the press was read (`ExternalPane::stamp`), echoed on
-  `v3::PanePressed` and `PaneButton`. The consumer acts only on its current map's number, else
-  says `the list moved -- press again`. `v2::PaneContent.generation` keeps its meaning. Three
+  `v3::PanePressed` and `PaneButton`, and on `PaneCanvasPointer` to a pane drawing its own
+  picture. The consumer acts only on its current map's number, else says
+  `the list moved -- press again`; the desktop, whose rows are its canvas picture, numbers every
+  picture afresh and acts only on a press whose picture was drawn under its map's current number
+  (`CanvasPictures`). `v2::PaneContent.generation` keeps its meaning. Three
   pictures are distinguished: ADMITTED (the host accepted the content), HANDED OUT (a canvas
   showing it was published) and HANDLED (the medium's delivery of that canvas has run) -- the
   last this host can know; what a display showed, and when, it never sees. The host sends its
@@ -471,7 +478,7 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   carry its own time against the frame's -- a medium acknowledgement, not this host's. A
   re-offered pane starts over (`forget_pictures`): a reloaded image numbers from one again. The
   subject side is closed as well: a slot's meaning carries its subject (`LauncherMeaning::ref`,
-  `KeysMeaning::ref`), so a same-length swap renumbers the picture and a stale press is refused,
+  `KeysMeaning::ref`), so a same-length swap moves the map's number and a stale press is refused,
   not resolved against the row that moved in.
 - **Not in this contract:** a secondary drag (`PaneDragged` carries no button, so the Editor's
   middle-button scroll and Neovim's right drag do not cross), modifier state on a window's
@@ -676,8 +683,9 @@ stem         zengine-introspection                  a line in the HOST'S boot li
   proves nothing on its own and is not quoted as though it did.
 - **Room grants and wheel gestures refresh the snapshot.** Loom gives a participant no arrival or departure
   event, so there is nothing to subscribe to and nothing here polls or times out. It re-reads
-  when the pane opens, when a valid re-offer refreshes it, and when the resolved prose capacity
-  moves, and when the weaver scrolls. A separate list origin moves the viewport without
+  when the pane opens, when a valid re-offer refreshes it, at every room granted it again -- on
+  its canvas whenever its body moves or changes size, as prose when the resolved prose capacity
+  moves -- and when the weaver scrolls. A separate list origin moves the viewport without
   changing selection or publishing LoadedSelected. The last row of the pane says `snapshot`, because between readings that is
   what it is.
 - **A COUNT WITH AN UNSTATED POPULATION IS THE DEFECT THIS VIEW IS SHAPED AROUND.**
@@ -790,7 +798,7 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   and every one of them is a decision about PRESENTATION except `[ Sample ]`,
   which runs one Source and changes nothing. Knowledge of a power is still not authority to
   replace it.
-- **⚠ THE DEFAULT PANE IS EIGHT PROSE ROWS ON THE TERMINAL AND FOUR ON THE SHIPPED
+- **⚠ THE DEFAULT PANE IS EIGHT ROWS ON THE TERMINAL AND FOUR ON THE SHIPPED
   GRAPHICAL FACE, AND `kStackRows` IS FIXED**, so a bigger TERMINAL
   buys columns and no rows. A block-per-entry projection and an eight-row default are in
   tension: the shipped six-artifact `Project` pane shows ONE artifact and `... 5 more` until a
@@ -835,11 +843,11 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   is a fact about the build graph rather than a discipline. A tripwire reads the two sources for
   `#include "operator/` and the CMake for an operator link edge — never for bare identifiers,
   because both files EXPLAIN at length what they refuse to reach.
-- **THE WHEEL WALKS THE CURSOR** — `on(PaneWheel)` spends `intro::move_cursor`, the
-  step Up and Down take, one row per notch with fractions carried, and re-says the pane only
+- **THE WHEEL WALKS THE CURSOR** — the canvas pointer's `kWheel` spends `intro::move_cursor`,
+  the step Up and Down take, one row per notch with fractions carried, and re-says the pane only
   when the selection actually moved. The window follows because it is derived from the cursor
-  (`powers_window`); no second scroll position was added. A wheel over Loaded or the
-  arrangement pane is received and spends nothing (see the wheel section above).
+  (`powers_window`); no second scroll position was added. A wheel over Loaded scrolls its
+  viewport (see the wheel section above); over the arrangement pane it spends nothing.
 - **ONE PLACE MEANS ONE THING, and the map is COLUMNS as well as rows.** The chrome row carries
   three controls side by side, so `project_powers_ui` returns spans (`row`, `first..last`,
   meaning) beside the rows it built — the one-geometry rule again. A row SELECTS and
@@ -856,19 +864,21 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
 - **THE PANE RETAINS ITS LAST ANSWER, and that member is the one to read carefully.** It is
   what the cursor operates over BETWEEN asks; it is replaced whole, never diffed, and dropped at
   every grant, so between a grant and its answer there are no rows and no map and Workshop's own
-  `(waiting for the provider)` says so. What survives an answer is everything the WEAVER
-  authored — view, query, filter, both selections, the retained sample — because none of those
-  is a fact about the host.
+  `(waiting for the provider)` says so -- or, where the room only moved or changed size, the last
+  picture marked `(updating)`, which takes no press. What survives an answer is everything the
+  WEAVER authored — view, query, filter, both selections, the retained sample — because none of
+  those is a fact about the host.
 - **TYPED AND PASTED TEXT IS GATED TO PRINTABLE ASCII AT THIS PANE'S DOOR, AND REFUSED WHOLE.**
-  `TextBox::type` admits any UTF-8 and `judge_content` refuses a whole update for one byte a
-  canvas cannot draw, so a chunk with any inadmissible byte is declined entirely — the Editor
-  pane's own paste posture. Every road into the query passes that one door: typing, a mirrored
-  `ClipboardCopy`, and the answer to a paste ask. ⚠ **The shipped Composer has the same latent
+  `TextBox::type` admits any UTF-8, and `canvas_content_problem` (a picture) and `judge_content`
+  (prose) refuse a whole update for one byte a canvas cannot draw, so a chunk with any
+  inadmissible byte is declined entirely — the Editor pane's own paste posture. Every road into
+  the query passes that one door: typing, a mirrored `ClipboardCopy`, and the answer to a paste
+  ask. ⚠ **The shipped Composer has the same latent
   exposure** and was deliberately not repaired here; it is a different owner and a bounded QR
   candidate.
-- **THE QUERY'S SELECTION IS FUNCTIONAL AND INVISIBLE.** A provider row carries role and ground
-  and no spans, so cut and copy work and the highlight cannot be drawn. Named residual; not a
-  reason to widen the seam.
+- **THE QUERY'S SELECTION IS FUNCTIONAL AND INVISIBLE.** The pane says where the query's caret
+  stands and draws no selection for it, so cut and copy work and no highlight shows. Named
+  residual.
 - **A KEY IS GUARDED BY PANE BEFORE ANY STATE MOVES.** This office offers three panes and
   Workshop points the keyboard at the last one pressed, so every arm is behind one
   `key.pane != kPowersPane` test. A case drives it through the real seam with two panes from

@@ -46,7 +46,7 @@ WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-03 — A press is answered from the picture it was aimed at, or refused in words
 
-LAW — A pane numbering its composition (`component::RowMap`) acts on a press only while the number the host echoed is its current one; an older one is refused in words, never re-resolved.
+LAW — A pane numbering its composition (`component::RowMap`) acts on a press only while the picture the host echoed was drawn under its current number; an older one is refused in words, never re-resolved.
 
 MEANS
 - the number moves exactly when the row-to-meaning map does: a repaint moving no row keeps it;
@@ -55,8 +55,10 @@ MEANS
 
 PROVEN BY — `component/row_map.hpp` `RowMap::begin`, `RowMap::settle`, `RowMap::picture`,
 `RowMap::current`; `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
-`files/files.cpp` `kMovedSentence`, `pressed`, `say_entries`; `builder-pane/pane.cpp`
-`kMovedSentence`; `tests/test_workshop_panes_files.cpp` case `"two queued presses on the row
+`workshop/pane_canvas_rows.hpp` `CanvasPictures`; `files/files.cpp` `kMovedSentence`, `pressed`,
+`say_entries`; `builder-pane/pane.cpp` `kMovedSentence`; `tests/test_workshop_panes_canvas.cpp`
+case `"a pane's canvas pictures fence a press by the meaning each was drawn under"`;
+`tests/test_workshop_panes_files.cpp` case `"two queued presses on the row
 painted as one entry open THAT entry"`, case `"a press that names a picture Files has
 replaced is refused in words and spends nothing"`; `tests/test_workshop_panes_builder.cpp` case
 `"a press that names a picture the Builder has replaced is refused in words"`.

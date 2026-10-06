@@ -53,7 +53,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-14 — Both panes are usable by mouse, and a press names the picture it was aimed at
 
-LAW — A composition is numbered by what its rows mean; a press names the picture the medium held when read, acting only on the current one; the wheel walks the cursor; a right press or `m` offers a menu.
+LAW — A composition is numbered by what its rows mean; a press names the picture the medium held when read, acting only on the current meaning; the wheel walks the cursor; a right press or `m` offers a menu.
 
 MEANS
 - the Manager: the mark shows or hides, the name chooses, a second marked-name press is Return;
@@ -61,18 +61,22 @@ MEANS
 - the Hotkeys pane: a press chooses a binding and its menu edits it (WL-KEY-17); others hand back.
 
 DOES NOT MEAN
-- that an older picture's press acts, or a repaint moving no row renumbers; a subject swap does;
+- that a press on a picture of an older meaning acts, or a repaint moving no row renumbers; a subject swap does;
 - that display time or where a platform-buffered press came from is seen: both stay open.
 
-PROVEN BY — `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v4::PaneContent`, `v3::PanePressed`;
+PROVEN BY — `workshop/pane_canvas_vocabulary.hpp` `v5::PaneCanvasContent`, `PaneCanvasPointer`;
+`workshop/pane_canvas_rows.hpp` `CanvasPictures`, `rows_picture`, `row_cell_at`;
 `workshop/vocabulary.hpp` `PictureFence`; `workshop/panes.hpp` `ExternalPane::picture`,
 `ExternalPane::stamp`, `ExternalPane::forget_pictures`, `PictureStamp`;
-`workshop/weave_seam.cpp` `admit_content`, `on(v3::PaneContent)`, `on(v4::PaneContent)`, `fence_pictures`,
-`on(PictureFence)`; `workshop/weave_external.cpp` `external_press`; `desktop-pane/pane.cpp`
-`launcher_press`, `keys_press`, `offer_launcher_row`, `offer_keys_row`, `launcher_chose`,
-`keys_chose`, `LauncherMeaning`, `LauncherMeaning::ref`, `KeysMeaning`, `KeysMeaning::ref`,
-`launcher_ref`, `keys_line_ref`, `kMovedSentence`, `take_notches`; `component/row_map.hpp`
-`RowMap`, `solid_columns`; `component/columns.hpp` `layout_columns`, `table_line`;
+`workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v5::PaneCanvasContent)`, `canvas_press`,
+`canvas_wheel`; `workshop/weave_seam.cpp` `fence_pictures`, `on(PictureFence)`;
+`desktop-pane/pane.cpp` `PanePress`, `launcher_press`, `keys_press`, `second_button`, `wheel`,
+`publish_launcher`, `publish_keys`, `fit_rooms`, `offer_launcher_row`, `offer_keys_row`,
+`launcher_chose`, `keys_chose`, `LauncherMeaning`, `LauncherMeaning::ref`, `KeysMeaning`,
+`KeysMeaning::ref`, `launcher_ref`, `keys_line_ref`, `kMovedSentence`, `take_notches`;
+`component/row_map.hpp` `RowMap`, `RowMap::settle`, `solid_columns`; `component/columns.hpp`
+`layout_columns`, `table_line`; `tests/test_workshop_panes_canvas.cpp` case `"a pane's canvas
+pictures fence a press by the meaning each was drawn under"`;
 `tests/test_workshop_panes_desktop.cpp` case `"WL-DESK-14: content queued ahead of a raw press
 cannot retarget the row the hand aimed at -- the press is stamped with the picture the medium
 had, and refused as moved"`, case `"WL-DESK-14: a same-length inventory swap changes the

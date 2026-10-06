@@ -176,11 +176,14 @@ Three changes of that kind are on this branch:
   loads, but every inventory sent to it is refused at its door, and its list reads
   `PANES (waiting)` for good. That the message kept its name and version promises nothing, and
   neither does a load that went ahead.
-- **The desktop is usable by mouse**, and that is six more doors on its accept set — the press
-  that names a picture, the wheel, the second button, a menu's answer, the toggle's answer and an
-  edit's answer — so a desktop built from this source is refused as a reload of one built before
-  it, and the Neovim editor's new right-button door does the same for it. A host from before this
-  change never sends the desktop's new sentences; a desktop from before it never hears them.
+- **The desktop is usable by mouse, on its own canvas**, and that is six more doors on its accept
+  set — the canvas's room and pointer (a press, the wheel and the second button arrive there), a
+  refused picture, a menu's answer, the toggle's answer and an edit's answer — so a desktop built
+  from this source is refused as a reload of one built before it, and the Neovim editor's new
+  right-button door does the same for it. Attention, Connections, the demo controls and the
+  introspection panes (`Loaded`, `Project`, `Powers`) draw their rows on their canvas through the
+  same doors, and each is refused the same way. A host from before this change never sends the
+  desktop's new sentences; a desktop from before it never hears them.
 
 For either, rebuild the whole tree — CLion's build, or a `cmake --build` of it — so that the host
 and every pane come from the same source. Then rename or move `workshop-runtime` (its promotions
