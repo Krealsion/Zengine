@@ -1,7 +1,7 @@
 # A hand snaps, a key places
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [arrangement](../workshop/arrangement.md).
+supports is in [arrangement-snap](../workshop/arrangement-snap.md).
 
 **Context.** Arranging moved a pane by whole pixels under the hand, by a cell under the arrows
 and four under the coarse keys, and to a value typed in Info, and nothing snapped: lining two
@@ -35,4 +35,4 @@ pixels: no anchor, no lock, nothing in a setup or a session.
 so the cases pinning a wall's refusal move the hand beyond the reach; a pane standing on a line
 stays on it until the hand passes the reach. No file, protocol or vocabulary changed.
 
-**Laws supported.** [WL-ARR-17](../workshop/arrangement.md).
+**Laws supported.** [WL-ARR-17](../workshop/arrangement-snap.md).
