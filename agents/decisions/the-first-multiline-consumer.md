@@ -38,7 +38,8 @@ orderly quit refuses over unsaved source naming two ways out; process death stil
 and no crash recovery is claimed. Every list's wheel moved its cursor by `kListWheelRows`
 (three) while the host held lists, because a list derives its window from it; the picker and the
 host's Pane Manager were the last, and every list is a pane's now, spending its own step.
-`... N more` is reachable by wheel everywhere but the Loaded pane, which holds no cursor. The Composer's fields were not touched.
+`... N more` is reachable by wheel everywhere but the Loaded pane, which holds no cursor. The
+Composer's fields were not touched.
 
 **Laws supported.** [WL-EDIT-02](../workshop/editor.md), [WL-EDIT-07](../workshop/editor.md),
 [WL-EDIT-08](../workshop/editor.md), [WL-EDIT-09](../workshop/editor.md),

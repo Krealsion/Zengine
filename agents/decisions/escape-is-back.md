@@ -41,12 +41,12 @@ the draft, but the first Escape's delayed answer matches the new record and puts
 In ordinary separated input, the first Escape correctly deselects immediately. Missing identity
 causes the defect; the queued ordering exposes it. **Matching current state does not identify
 the event being answered.** The repair gives each bare Escape a correlation, minted by this host
-and carried in Loom's envelope on whichever message delivers it. The answer must echo that one -- the same
-pair a relay settles on (WHICH conversation, and WHO is speaking, bus-stamped). No published shape
-gained a field, and the single delivery per action or key is unchanged. Zero answers nothing, an
-older number answers nothing, and a spent number is spent. Pinned by case `"a second Escape does
-not lend its identity to the first Escape's answer"` and case `"an answer to an Escape that is over
-cannot borrow the next Escape's identity"`.
+and carried in Loom's envelope on whichever message delivers it. The answer must echo that one --
+the same pair a relay settles on (WHICH conversation, and WHO is speaking, bus-stamped). No
+published shape gained a field, and the single delivery per action or key is unchanged. Zero
+answers nothing, an older number answers nothing, and a spent number is spent. Pinned by case `"a
+second Escape does not lend its identity to the first Escape's answer"` and case `"an answer to an
+Escape that is over cannot borrow the next Escape's identity"`.
 
 **A default, and where it lives.** Silence keeping Escape meant every pane written without a
 thought for Escape kept the weaver there. Escape now deselects by default: a pane that holds the
@@ -60,9 +60,10 @@ case `"a pane that never mentions Escape is put down by it, and is sent nothing"
 **Consequences.** `unselect_pane` is the press-on-nothing line spent from the keyboard, the
 fourth writer of `Panes::selected`. The Terminal sheds its list, then its line, then itself, and
 the two editors keep every Escape, so the way out of them is the way in -- press a pane that takes
-no text (every desk has Layouts) or the workspace. A pane whose holder takes no keys at all is put down by Escape where it used to
-swallow it at Loom's gate. Presence changes only through the two doors the Pane Manager spends
-(WL-DESK-03, WL-DESK-12); the picker was that door when this was decided.
+no text (every desk has Layouts) or the workspace. A pane whose holder takes no keys at all is put
+down by Escape where it used to swallow it at Loom's gate. Presence changes only through the two
+doors the Pane Manager spends (WL-DESK-03, WL-DESK-12); the picker was that door when this was
+decided.
 
 **Laws supported.** [WL-ARR-13](../workshop/arrangement.md),
 [WL-ARR-14](../workshop/arrangement.md), [WL-ARR-15](../workshop/arrangement.md),

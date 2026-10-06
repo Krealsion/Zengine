@@ -15,12 +15,13 @@ selector belongs"). Finally the top band painted in front of every pane while an
 on the tabs alone: a pane dragged under it was visually erased, still met the hand, and still
 classified `open` (`3bfc2fd`).
 
-**Decision.** Three regions tile the screen exactly: `kTopRows` (<!-- value kTopRows -->2<!-- /value -->) reserved, with the Layouts
-pane standing on them by default; the body; the last `kBottomRows` (<!-- value kBottomRows -->4<!-- /value -->) as the foot band.
-`kTopRows + kBottomRows == 6` is asserted and `room_h` is byte-identical to what it was. The
+**Decision.** Three regions tile the screen exactly: `kTopRows`
+(<!-- value kTopRows -->2<!-- /value -->) reserved, with the Layouts pane standing on them by
+default; the body; the last `kBottomRows` (<!-- value kBottomRows -->4<!-- /value -->) as the foot
+band. `kTopRows + kBottomRows == 6` is asserted and `room_h` is byte-identical to what it was. The
 foot band owns its whole rectangle (`kGroundOwn`), is in front of the panes, and occupies no
-pointer space; `band_region` composes the notice first and `budget - 1` legend rows after. The
-top rows belong to a pane.
+pointer space; `band_region` composes the notice first and `budget - 1` legend rows after. The top
+rows belong to a pane.
 
 **Alternatives considered.**
 - *A sixth reserved row* — refused: it would resize the workspace every share resolves against.

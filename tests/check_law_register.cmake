@@ -91,7 +91,7 @@ set(ZEN_LAW_AGENTS_DIR agents)
 set(ZEN_LAW_UNBUDGETED agents/operators.md agents/panes.md agents/realization.md agents/surface.md)
 
 # The budgets, in bytes, the stricter reading (an em dash is three). Line width is held in
-# registers and routers, not in decision records.
+# registers, routers and decision records, a table row excepted.
 set(ZEN_LAW_REGISTER_BYTES 16384)
 set(ZEN_LAW_ROUTER_BYTES 8192)
 set(ZEN_LAW_CORE_BYTES 20480)
@@ -2323,6 +2323,16 @@ foreach(rel IN LISTS record_files)
                 set(target "nothing")
             endif()
             zen_law_fail("${rel} lists ${id}, whose WHY names ${target}")
+        endif()
+    endforeach()
+    # A record wraps at the registers' line budget, a table row excepted (rule i).
+    string(REPLACE "\n" ";" record_lines "${content}")
+    set(n 0)
+    foreach(line IN LISTS record_lines)
+        math(EXPR n "${n} + 1")
+        string(LENGTH "${line}" len)
+        if(len GREATER ZEN_LAW_LINE_BYTES AND NOT line MATCHES "^ *\\|")
+            zen_law_fail("${rel}:${n} is ${len} bytes (a record wraps at ${ZEN_LAW_LINE_BYTES}; table rows excepted)")
         endif()
     endforeach()
     # The header names where the law it supports is: a register file it links declares one of

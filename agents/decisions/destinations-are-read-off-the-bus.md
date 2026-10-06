@@ -16,8 +16,8 @@ completer a value for one answer. The list is `*`, the offices held now by name,
 registered now by id, each saying what it is. Nothing keeps the reading.
 
 **Alternatives considered.**
-- *The Loaded pane's `zen.ListLoaded`* -- refused: it names kernel libraries only, so Workshop, the
-  participant and every in-process weave would be missing.
+- *The Loaded pane's `zen.ListLoaded`* -- refused: it names kernel libraries only, so Workshop,
+  the participant and every in-process weave would be missing.
 - *A directory kept current by watching the bus* -- refused: a second registry and a tap; a weave
   replaced between two asks would be listed by a copy.
 - *Handing the participant or the pane the bus* -- refused: the pane may not reach a participant
@@ -25,8 +25,9 @@ registered now by id, each saying what it is. Nothing keeps the reading.
 - *Marking which destinations the line may reach* -- not possible at the address: a grant is per
   shape, and the shape is the next word.
 
-**Consequences.** A removed id comes back as Loom's `NoSuchTarget` on the participant's own record;
-an office reaches whoever holds it at delivery; a host that lists nothing still offers the forms.
-A Loom door answering the same question for a loaded asker is the seam an inspection tool would use.
+**Consequences.** A removed id comes back as Loom's `NoSuchTarget` on the participant's own
+record; an office reaches whoever holds it at delivery; a host that lists nothing still offers the
+forms. A Loom door answering the same question for a loaded asker is the seam an inspection tool
+would use.
 
 **Laws supported.** [WL-TERM-16](../workshop/terminal.md).

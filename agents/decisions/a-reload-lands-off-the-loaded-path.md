@@ -24,16 +24,16 @@ after build is one action in two states, a toggle read by `b` and a button that 
 finished build's own ask.
 
 **Alternatives considered.**
-- *Tried: relinking the loaded file in place* — the lane measured a refused link on Windows and a
-  silently divergent image on Linux; pinned by the rebuild-of-a-live-stem section of
+- *Tried: relinking the loaded file in place* — the lane measured a refused link on Windows and
+  a silently divergent image on Linux; pinned by the rebuild-of-a-live-stem section of
   `tests/build/run.cmake`.
 - *Argued: copying the last image into place at an orderly quit* — refused by the founder: a
   killed Workshop would restart on an image nobody chose; promote is the weaver's own act.
 - *Argued: a pointer file every load path reads* — refused: a second spelling of which file a
   stem means, in a file no reader owned.
-- *Argued: a `RealizeLast` shape for the button* — refused: the finished build's own ask, re-sent,
-  is the same sentence and adds no grant; pinned by case `"after a plain build that worked, `B` is
-  the button"`.
+- *Argued: a `RealizeLast` shape for the button* — refused: the finished build's own ask,
+  re-sent, is the same sentence and adds no grant; pinned by case
+  `"after a plain build that worked, `B` is the button"`.
 - *Argued: reloading a provider+weave artifact's weave half* — refused: the catalog would keep
   the old image; pinned by case `"a provider+weave row is refused in words: reloading its weave
   would leave the catalog on the old image"`.

@@ -39,7 +39,8 @@ nothing. A press in the pane is the pane's.
 - *Shift+Space as the toggle* — retired: a POSIX terminal reports no modifier for Space at all
   (`7b64b73`).
 - *Fitting lines rather than entries* — rejected then, and superseded: the pane now reads the
-  record through a view of wrapped rows ([the record is read through a view](the-record-is-read-through-a-view.md)).
+  record through a view of wrapped rows ([the record is read through a
+  view](the-record-is-read-through-a-view.md)).
 - *Clearing the presentation context on a fresh skin's hello* — measured, not blessed.
 - *Trusting the correlation alone for a completion answer* — replaced: it identifies the
   question and says nothing about whether it still stands, and three paths ended one without

@@ -5,13 +5,13 @@ supports is in [editor](../workshop/editor.md).
 
 **Context.** The Editor was the last built-in the pane-weave arc set out to move, and it was
 unlike the five before it: Files left the project root with the host, the Builder left the tool,
-Attention left the conditions, Info left the object document, the Terminal left the participant —
-each presented a subject somebody else held. The Editor's subject was the buffer a weaver types
-into, and it was `Session::editor`: the exit read its dirty flag, the paste pinned its epoch, the
-Files and Builder asks landed at the host's own office, and four `Act` values, a `KeyContext`, a
-`PasteOwner`, a drag place, a painter and three handler bodies were compiled into the host for
-it. A pane that only presented a buffer the host kept would have crossed the seam twice per
-keystroke and made a second mutable copy of the same bytes.
+Attention left the conditions, Info left the object document, the Terminal left the participant
+— each presented a subject somebody else held. The Editor's subject was the buffer a weaver
+types into, and it was `Session::editor`: the exit read its dirty flag, the paste pinned its
+epoch, the Files and Builder asks landed at the host's own office, and four `Act` values, a
+`KeyContext`, a `PasteOwner`, a drag place, a painter and three handler bodies were compiled into
+the host for it. A pane that only presented a buffer the host kept would have crossed the seam
+twice per keystroke and made a second mutable copy of the same bytes.
 
 **Decision.** The Editor weave holds the one open document — path, bytes, saved copy, line
 convention, epoch, caret, anchor, history, viewport — and `editor.hpp` moved with it whole. The
@@ -21,12 +21,12 @@ document by asking or by being told. Five ordinary protocol shapes carry that: `
 to be seated when its act needs nothing more, holding its own gestures until the answer; the
 desk seats, selects and focuses it in the delivery that answers, or refuses with nothing moved),
 `PaneQuitRequested` / `PaneQuitAnswered` (the host publishes, counts Loom's accepters, holds
-every gesture until the last answer, and replays them on a refusal). `OpenSourceRequested` is answered at `zengine.editor`; the recipe-name half moved
-to the read-only project door as `RecipeSourceSaid`, so the Builder walks two doors and no host
-relays a source toward the Editor's office. A same-shape reload carries the document as
-`EditorPaneState`, which the pane keeps current so Loom's own `snapshot` and `zen.PokeRead` read
-one truth. `document.save` is `kUnlessOwned`, and the Editor's `editor.save` row DECLARES that
-it stands in for it.
+every gesture until the last answer, and replays them on a refusal). `OpenSourceRequested` is
+answered at `zengine.editor`; the recipe-name half moved to the read-only project door as
+`RecipeSourceSaid`, so the Builder walks two doors and no host relays a source toward the Editor's
+office. A same-shape reload carries the document as `EditorPaneState`, which the pane keeps
+current so Loom's own `snapshot` and `zen.PokeRead` read one truth. `document.save` is
+`kUnlessOwned`, and the Editor's `editor.save` row DECLARES that it stands in for it.
 
 **Alternatives considered.**
 - *The host keeps the document and the pane presents it* — refused: every keystroke would cross
@@ -40,8 +40,9 @@ it stands in for it.
   `"a forged quit answer moves nothing -- only Loom's answer to the host's ask decides"` and `"an
   edit racing the exit check is judged at the answer, and a refused quit
   costs no keystroke"`.
-- *A `PaneReleased` shape* — refused: a pane resolves a sweep from the positions it was given and
-  needs no sentence saying the hand let go; a pane that lost its seat ends the record host-side.
+- *A `PaneReleased` shape* — refused: a pane resolves a sweep from the positions it was given
+  and needs no sentence saying the hand let go; a pane that lost its seat ends the record
+  host-side.
 - *Clamping the drag into the body host-side* — refused: a row past the edge is exactly the
   fact the Editor steps its window on, and the pane's own coordinate system was the granted one.
 - *Carrying the document as a list of lines* — refused: Loom's decode budget counts cells, and a
@@ -80,8 +81,8 @@ it stands in for it.
 - *Keying that mirror on the buffer's revision* — TRIED, and rejected: that revision moves when
   the CARET moves, because a pending paste must notice its position went stale, so a
   four-megabyte mirror was replaced whole by an arrow key, a press and every motion of a drag.
-  The buffer now answers two questions — `revision` for movement, `content_revision` for bytes —
-  and the mirror asks the second. What an edit still pays is one materialization of the WHOLE
+  The buffer now answers two questions — `revision` for movement, `content_revision` for bytes
+  — and the mirror asks the second. What an edit still pays is one materialization of the WHOLE
   document per typed byte -- measured at the bound: the join is the larger part of a keystroke,
   and the history's snapshot is per typing GROUP rather than per byte, so the two are not of
   one order as an earlier writing said; `EditorPaneState::text_builds` counts the

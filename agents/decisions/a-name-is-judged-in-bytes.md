@@ -1,7 +1,7 @@
 # A name is judged in bytes, whole, before it is kept
 
-**Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws it
-supports are in [setup-file](../workshop/setup-file.md) and [catalog](../workshop/catalog.md).
+**Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws
+it supports are in [setup-file](../workshop/setup-file.md) and [catalog](../workshop/catalog.md).
 
 **Context.** Four names reach this application from parties it has never met: a setup's human
 name, typed in the one-line editor or carried by a file somebody else wrote; either half of a
@@ -33,9 +33,9 @@ a grapheme or a cell.
 - *Argued: rendering a control character safe* — refused in the checker's own words: refusing
   names the field and leaves the live setup untouched, which is strictly more useful than a
   substitution a weaver would have to discover.
-- *Argued: a second checker for a runtime descriptor's keys* — never written; a key a saved setup
-  could not spell would be an identity a weaver could never keep, pinned by case `"a descriptor's
-  two keys are judged by the setup file's own law"`.
+- *Argued: a second checker for a runtime descriptor's keys* — never written; a key a saved
+  setup could not spell would be an identity a weaver could never keep, pinned by case `"a
+  descriptor's two keys are judged by the setup file's own law"`.
 
 **Consequences.** `kMaxSetupNameLen` is thirty-two because the setup line at the minimum
 composition must fit the name whole beside the file and the saved marker (measured at 78 cells);

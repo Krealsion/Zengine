@@ -51,9 +51,9 @@ Nothing here claims security from a Windows file lock or forbids editing host so
   mutex and a lock are let go by the system when their holder ends. Writing one into a runtime not
   made yet would also put a file where the runtime script must find an absent or empty directory,
   which is the check that keeps it from writing over somebody else's files.
-- *Claiming the launcher, or the build tree* — argued: two trees can point at one runtime and one
-  tree can launch two, so what must not be shared is the runtime; distinct runtimes are distinct
-  claims, and the same directory spelled another way is the same claim.
+- *Claiming the launcher, or the build tree* — argued: two trees can point at one runtime and
+  one tree can launch two, so what must not be shared is the runtime; distinct runtimes are
+  distinct claims, and the same directory spelled another way is the same claim.
 
 **Consequences.** The IDE's Debug action debugs the launcher; Workshop is attached to by process.
 The in-use check is the host image refusing to open for writing: Windows refuses a running image,

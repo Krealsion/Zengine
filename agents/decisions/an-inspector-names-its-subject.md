@@ -6,8 +6,8 @@ supports is in [info-body](../workshop/info-body.md).
 **Context.** Info inspected the prototype object document, which is retiring with its canvas.
 What a weaver needs to read and adjust is a pane: its identity, where the desk places it, what the
 screen made of that. The host already had exactly those rows — the Pane Manager's
-(`pane_editor_rows`), every setter an existing door (WL-PED-05) — but they were painted by a host
-pane, over a subject that pane alone could choose.
+(`pane_editor_rows`), every setter an existing door (WL-PED-05) — but they were painted by a
+host pane, over a subject that pane alone could choose.
 
 **Decision.** Info names a pane with one ask (`InspectPaneRequested`) and the host records it
 (`Session::inspected`), because the rows are closures over the live session and cannot cross.

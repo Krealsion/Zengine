@@ -1,7 +1,7 @@
 # A build keeps its own words
 
-**Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws it
-supports are in [build-output](../workshop/build-output.md).
+**Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws
+it supports are in [build-output](../workshop/build-output.md).
 
 **Context.** A weaver whose build failed could not read the compiler's reason inside Workshop.
 The runner joined each look's lines with ` | ` and kept its last 2,048 characters; the tool's

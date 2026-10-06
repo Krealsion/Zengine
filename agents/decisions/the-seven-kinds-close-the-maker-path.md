@@ -20,10 +20,10 @@ absent in the default state.
   range in every older reader, so an appended kind is a format break for every file already
   written; the research measured that as the append-only cost and found no weaver need that a
   list of entries does not meet.
-- *Optional as a default on the maker path* — rejected: the walk refuses an absent input at spend
-  as `no input named`, so an optional field a trigger binds would be a refusal a weaver meets
-  late; admission refuses it early instead, pinned by case `"an optional state field bound by a
-  trigger is refused at admission; an unbound optional field is admitted and absent in
+- *Optional as a default on the maker path* — rejected: the walk refuses an absent input at
+  spend as `no input named`, so an optional field a trigger binds would be a refusal a weaver
+  meets late; admission refuses it early instead, pinned by case `"an optional state field bound
+  by a trigger is refused at admission; an unbound optional field is admitted and absent in
   the default state"`.
 - *Flattening nested shapes into the state* — rejected: the manifest's `referenced` section
   already carries a nested closure for compiled weaves, and one codec is the whole point; pinned

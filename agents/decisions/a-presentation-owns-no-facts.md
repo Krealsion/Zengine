@@ -1,7 +1,7 @@
 # A presentation owns no facts
 
-**Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws it
-supports are in [project](../workshop/project.md) and
+**Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws
+it supports are in [project](../workshop/project.md) and
 [panes-and-windows](../workshop/panes-and-windows.md).
 
 **Context.** The Builder pane presents a tool this application does not own, and the first live
@@ -26,9 +26,9 @@ with a room and no answer says waiting, a fact about this pane, and never unavai
 
 **Alternatives considered.**
 - *Tried: announcing every arriving status* — the first live run's lie, corrected.
-- *Tried: reading `chosen`'s default of 0 as a choice, or spending the first producing row* — the
-  sharp case plants the matching row first and goes red on either spelling; case `"several recipes
-  produce it, and none is chosen for the weaver"`.
+- *Tried: reading `chosen`'s default of 0 as a choice, or spending the first producing row* —
+  the sharp case plants the matching row first and goes red on either spelling; case `"several
+  recipes produce it, and none is chosen for the weaver"`.
 - *Argued: keeping the tool's status against a pane opened later* — refused: that is how a
   presentation quietly becomes a second owner of somebody else's facts; pinned by case
   `"closing the pane forgets its copy; the TOOL keeps its own count"`.
