@@ -13,7 +13,8 @@ columns (`PaneRowPart`, on `v4::PaneContent`, and a presented menu's lines on `v
 a rectangle of its picture (`PaneCanvasPart`, on `v4::PaneCanvasContent`). The names travel with
 the picture they name, judged with it -- a name once, on what the picture says -- and refused
 whole with it. Workshop answers each beside its words, place and point (`PanePart`, on
-`v3::PaneView` and `v2::DeskView`'s menu) and names its own menu's lines by their actions.
+`v3::PaneView` and `v2::DeskView`'s menu) and names its own menu's lines by their actions. A
+part's point is a place no part inside it covers, so a row is pressed beside the control it holds.
 
 **Alternatives considered.**
 - *A sentence of names beside the content* — argued: two messages could disagree about which
