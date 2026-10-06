@@ -7,6 +7,7 @@
 // built before the change and one built after cannot load side by side.
 
 #include "doctest.h"
+#include "workshop_support.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "view-builder/vocabulary.hpp"
@@ -166,4 +167,15 @@ TEST_CASE("no two components of this tree declare a shape of one name") {
         const std::string said = shape + " is declared by " + where;
         CHECK_MESSAGE(components.size() == 1, said);
     }
+}
+
+TEST_CASE("the test rig's booter loads a library after a plan has run, its state no shape of Workshop's") {
+    // ⚔ MUTATION: the rig's booter state named as the plan booter's -- `BootState` v1 of another
+    // shape -- and the load after a realized plan is refused by Loom's registry.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    (void)r.run_plan(load::LoadPlan{});
+    CHECK_NOTHROW(r.load_presenter());
+    CHECK(r.load_refusals.empty());
 }
