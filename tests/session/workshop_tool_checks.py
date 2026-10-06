@@ -3,7 +3,8 @@
 """Entry-point checks for the Workshop Python tools, with a recording transport.
 
 Run by workshop_journey before starting its real processes. These checks pin emitted events,
-pre-contact refusal and cleanup; they do not claim that a real pane consumed those events.
+pre-contact refusal and cleanup, and what `workshop/act` reads from a scripted Workshop; they do
+not claim that a real pane consumed those events.
 Standalone: python workshop_tool_checks.py --tools <package> --runtime <loom runtime>
 """
 
@@ -95,6 +96,58 @@ class Context:
         raise AssertionError(shape)
 
 
+class ActWorkshop(Context):
+    """A run context whose Workshop is a script for `workshop/act`: Info's list with a cursor the
+    Down and Up keys move, a canvas pane's words, a point door that says which word and column it
+    was asked for, and a desk with a menu open. Every injected moment is kept, as `Context` keeps
+    them."""
+
+    def __init__(self, steps, act_steps, rows):
+        Context.__init__(self, steps)
+        self.inputs["steps"] = json.dumps(act_steps)  # the input shares the module's name
+        self.base = list(rows)
+        self.cursor = next((i for i, r in enumerate(rows) if r.startswith(">")), 0)
+        self.points, self.kept = [], {}
+
+    def rows(self):
+        return [(">" if i == self.cursor else " ") + r[1:] for i, r in enumerate(self.base)]
+
+    def produce(self, name, data):
+        self.kept[name] = data
+
+    def done(self):
+        return json.loads(self.kept["steps.json"])
+
+    def ask(self, office, shape, fields, **options):
+        if shape == "InjectInput":
+            for e in fields["events"]:
+                if e["kind"] == "KeyPressed" and e["scancode"] in (81, 82):
+                    step = 1 if e["scancode"] == 81 else -1
+                    self.cursor = max(0, min(len(self.base) - 1, self.cursor + step))
+        if shape == "PaneViewRequested" and options.get("version") == 2:
+            canvas = fields["pane"] == "view-builder"
+            texts = ["node one", "[Label]"] if canvas else self.rows()
+            return {"provider": fields["provider"], "pane": fields["pane"], "picture": 1,
+                    "canvas": canvas, "words": [
+                        {"word": i, "text": t, "place": {"x": 0, "y": 12 * i, "w": 12 * len(t), "h": 12},
+                         "x": 6, "y": 12 * i + 6, "space": 2} for i, t in enumerate(texts)]}
+        if shape == "PanePointRequested" and options.get("version") == 2:
+            self.points.append((fields["word"], fields["column"]))
+            return {"x": 100 + fields["word"], "y": fields["column"], "space": 2}
+        if shape == "DeskViewRequested":
+            place = {"x": 0, "y": 24, "w": 480, "h": 300}
+            return {"width": 1440, "height": 900, "cell_px": 12, "space": 2,
+                    "room": {"x": 0, "y": 24, "w": 1440, "h": 800}, "arranging": False,
+                    "panes": [{"provider": "zengine.info", "pane": "info", "name": "Info",
+                               "state": "open", "front": 0, "selected": True, "keys": True,
+                               "visible": place, "resolved": place}],
+                    "menu": {"open": True, "office": "zengine.files", "pane": "files", "picture": 3,
+                             "place": {"x": 20, "y": 30, "w": 100, "h": 40},
+                             "lines": [{"word": 0, "text": "> Rename", "x": 30, "y": 41, "space": 2},
+                                       {"word": 1, "text": "  Delete", "x": 30, "y": 59, "space": 2}]}}
+        return Context.ask(self, office, shape, fields, **options)
+
+
 def link_status(ctx, link):
     ctx.contacts.append("link status")
     return {"session": 2, "established_name": "test"}
@@ -119,11 +172,12 @@ def run_checks(tools, runtime):
     capture_inventory = importlib.import_module("inventory_capture")
     collect = importlib.import_module("inventory_collect")
     drag = importlib.import_module("drag")
+    act = importlib.import_module("act")
 
     class ToolChecks(unittest.TestCase):
         def test_drag_delegates_timed_motion_and_cleans_up_after_picture_failure(self):
             for fail in (False, True):
-                ctx = Context(steps, start="2,3c", end="20,10c")
+                ctx = Context(steps, start="2,3@console", end="20,10@console")
                 def capture_picture(context, link, name):
                     if fail and name == "after":
                         raise RuntimeError("picture failed")
@@ -144,7 +198,7 @@ def run_checks(tools, runtime):
                 self.assertEqual(ctx.owner.closes, 1)
 
         def test_drag_rejects_mixed_coordinate_spaces_before_contact(self):
-            ctx = Context(steps, start="2,3c", end="20,10")
+            ctx = Context(steps, start="2,3@console", end="20,10")
             with self.assertRaisesRegex(ValueError, "same coordinate space"):
                 drag.run(ctx)
             self.assertEqual(ctx.contacts, [])
@@ -163,6 +217,13 @@ def run_checks(tools, runtime):
                         collect.run(ctx)
                 self.assertEqual(produced["pair.bin"], b"capture")
                 self.assertEqual(json.loads(produced["entry.json"])["reference"], entry["reference"])
+
+        def act(self, ctx):
+            try:
+                return act.run(ctx)
+            finally:
+                for callback in reversed(ctx.cleanups):
+                    callback()
 
         def execute(self, ctx):
             with patch.multiple(capture, link_session=link_status, own_row=inventory,
@@ -191,7 +252,7 @@ def run_checks(tools, runtime):
                 self.assertEqual(produced, {"pair.bin": b"own capture"})
 
         def test_click_is_only_pointer_press_and_release(self):
-            ctx = Context(steps, click="2,21c", chord="", button="right")
+            ctx = Context(steps, click="2,21@console", chord="", button="right")
             self.execute(ctx)
             self.assertEqual([(e["kind"], e["pressed"], e["button"])
                               for e in ctx.events],
@@ -215,7 +276,7 @@ def run_checks(tools, runtime):
 
         def test_boundary_is_checked_before_contact_or_event_construction(self):
             for inputs in (dict(chord="down", repeat=32),
-                           dict(chord="down", repeat=31, click="2,21c")):
+                           dict(chord="down", repeat=31, click="2,21@console")):
                 with self.subTest(inputs=inputs):
                     ctx = Context(steps, **inputs)
                     self.execute(ctx)
@@ -266,6 +327,72 @@ def run_checks(tools, runtime):
                             else:
                                 with self.assertRaisesRegex(CheckFailed, "does not match"):
                                     recipe.run(ctx)
+
+        # ---- workshop/act's readings, against a scripted Workshop -------------------------------
+        def test_a_cell_point_says_which_cells_and_a_bare_one_is_refused(self):
+            self.assertEqual(steps.point("126,42"), (126, 42, steps.SPACE_PIXELS))
+            self.assertEqual(steps.point("2,3@console"), (2, 3, steps.SPACE_CELLS))
+            self.assertEqual(steps.point("2,3@canvas"), (2, 3 + steps.CANVAS_TOP_ROW, steps.SPACE_CELLS))
+            for bad in ("2,3c", "2,3@screen", "2,3@", "2@canvas"):
+                with self.subTest(bad=bad):
+                    with self.assertRaisesRegex(ValueError, "@console"):
+                        steps.point(bad)
+
+        def test_select_reads_a_one_column_marker_as_it_reads_a_two_column_one(self):
+            for rows, name, presses in (
+                    ([">Width       480", " Height      300", " Placement"], "Height", 1),
+                    (["> Layouts", "  Hello", "  Files"], "Files", 2),
+                    ([" Width       480", " Height      300", ">Placement"], "Width", 2),
+                    (["> [open] Layouts", "  [    ] Layouts"], "[    ] Layouts", 1)):
+                with self.subTest(name=name):
+                    ctx = ActWorkshop(steps, [{"select": ["zengine.info", "info", name]}], rows)
+                    self.act(ctx)
+                    self.assertEqual(ctx.done()[0]["presses"], presses)
+                    self.assertTrue(ctx.rows()[ctx.cursor].startswith(">"))
+                    self.assertTrue(act.row_names(ctx.rows()[ctx.cursor], name))
+            ctx = ActWorkshop(steps, [{"select": ["zengine.info", "info", "Depth"]}],
+                              [">Width       480", " Height      300"])
+            with self.assertRaisesRegex(CheckFailed, "marks no row named 'Depth'"):
+                self.act(ctx)
+
+        def test_desk_checks_a_place_by_its_number_and_fails_with_what_it_said(self):
+            ctx = ActWorkshop(steps, [{"desk": ["zengine.info", "info"],
+                                       "is": {"state": "open", "keys": True,
+                                              "visible": {"w": 480, "h": 300}}}], [])
+            self.act(ctx)
+            self.assertEqual(ctx.done()[0]["said"]["visible"]["w"], 480)
+            ctx = ActWorkshop(steps, [{"desk": ["zengine.info", "info"], "is": {"visible": {"w": 481}},
+                                       "seconds": 0}], [])
+            with self.assertRaisesRegex(CheckFailed, r'never held \{"visible": \{"w": 481\}\}'):
+                self.act(ctx)
+            self.assertIn("failed-step-desk.json", ctx.kept)
+            ctx = ActWorkshop(steps, [{"desk": [], "is": {"arranging": False, "menu": True}}], [])
+            self.act(ctx)
+            ctx = ActWorkshop(steps, [{"desk": ["zengine.info", "info"], "is": {"wide": 1}}], [])
+            with self.assertRaisesRegex(CheckFailed, "wide is not one of"):
+                self.act(ctx)
+
+        def test_menu_presses_the_line_holding_its_text_at_the_point_workshop_gave(self):
+            ctx = ActWorkshop(steps, [{"menu": "Rename"}], [])
+            self.act(ctx)
+            presses = [e for e in ctx.events if e["kind"] == "PointerButton"]
+            self.assertEqual([(e["x"], e["y"], e["space"]) for e in presses], [(30, 41, 2)] * 2)
+            ctx = ActWorkshop(steps, [{"menu": "e", "seconds": 0}], [])
+            with self.assertRaisesRegex(CheckFailed, "2 lines hold 'e'"):
+                self.act(ctx)
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+
+        def test_click_and_control_press_a_canvas_word_by_what_it_says(self):
+            for step, column in (({"click": ["zengine.view.builder", "view-builder", "Label"]}, 1),
+                                 ({"control": ["zengine.view.builder", "view-builder", "Label"]}, 1),
+                                 ({"click": ["zengine.view.builder", "view-builder", "node"]}, 0)):
+                with self.subTest(step=step):
+                    ctx = ActWorkshop(steps, [step], [])
+                    self.act(ctx)
+                    word = 1 if column == 1 else 0
+                    self.assertEqual(ctx.points, [(word, column)])
+                    presses = [e for e in ctx.events if e["kind"] == "PointerButton"]
+                    self.assertEqual([(e["x"], e["y"]) for e in presses], [(100 + word, column)] * 2)
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
     return unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful()

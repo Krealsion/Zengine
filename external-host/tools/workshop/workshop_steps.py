@@ -121,22 +121,39 @@ def clear_moments(ctx):
             moment(ctx, "KeyReleased", scancode=erase_code, modifiers=erase_mods)]
 
 
+# The console rows a terminal skin spends above its canvas (surface/pointing.hpp kTuiCanvasTopRow):
+# a canvas cell's row is that many console rows higher.
+CANVAS_TOP_ROW = 2
+CELLS = {"console": 0, "canvas": CANVAS_TOP_ROW}
+
+
 def point(spelling):
-    """``(x, y, space)`` for a point spelled ``"126,42"`` (pixels -- the SDL skin's own unit) or
-    ``"10,3c"`` (cells -- the two terminal skins'). Empty means an empty point, for callers that
-    make one optional."""
+    """``(x, y, space)`` for a point spelled ``"126,42"`` (a window's pixels, the SDL skin's own
+    unit) or a terminal cell that says which cells it means: ``"10,3@console"`` (the terminal's own
+    cell, counted as its console counts rows) or ``"10,3@canvas"`` (a canvas cell, as a pane's
+    place and the desk count it -- the same column, ``CANVAS_TOP_ROW`` console rows lower). A bare
+    ``"10,3c"`` names neither and is refused. Empty means an empty point, for callers that make
+    one optional."""
     if not spelling:
         raise ValueError("an empty point")
-    cells = spelling.endswith(("c", "C"))
-    body = spelling[:-1] if cells else spelling
+    body, at, cells = spelling.partition("@")
+    if at and cells not in CELLS:
+        raise ValueError("'%s' names cells '%s'; a cell point is 'x,y@console' or 'x,y@canvas'"
+                         % (spelling, cells))
+    if not at and body.rstrip().endswith(("c", "C")):
+        raise ValueError("'%s' does not say which cells: 'x,y@console' (the terminal's own rows) or "
+                         "'x,y@canvas' (a canvas cell, %d console rows lower)" % (spelling, CANVAS_TOP_ROW))
     parts = body.split(",")
+    spelled = "'%s' is not a point ('x,y' pixels, or 'x,y@console' / 'x,y@canvas' cells)" % spelling
     if len(parts) != 2:
-        raise ValueError("'%s' is not a point ('x,y' pixels, or 'x,yc' cells)" % spelling)
+        raise ValueError(spelled)
     try:
         x, y = int(parts[0].strip()), int(parts[1].strip())
     except ValueError:
-        raise ValueError("'%s' is not a point ('x,y' pixels, or 'x,yc' cells)" % spelling)
-    return x, y, (SPACE_CELLS if cells else SPACE_PIXELS)
+        raise ValueError(spelled)
+    if at:
+        return x, y + CELLS[cells], SPACE_CELLS
+    return x, y, SPACE_PIXELS
 
 
 BUTTONS = {"left": 1, "middle": 2, "right": 3, "1": 1, "2": 2, "3": 3}
