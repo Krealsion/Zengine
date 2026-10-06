@@ -16,8 +16,10 @@
 #include "surface/pointing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
+#include "workshop/pane_parts.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -671,6 +673,52 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
     // Rectangles a room cannot hold are dropped: a picture is admitted whole or not at all.
     std::erase_if(out.content.rects, [](const auto& r) { return r.w <= 0 || r.h <= 0; });
     return out;
+}
+
+/// WHAT THE BUILDER CALLS A PLACE IT ANSWERS A PRESS AT: the bar's controls by what they do,
+/// `control:<action>`; a kind to make, `kind:<kind>`; the view's own values, `box:<field>`, and an
+/// element's, `box:<id>.<field>`; an element's row in the list, `list:<id>`, and the element on the
+/// design canvas, `element:<id>`, with its handles `handle:<id>.<sx>,<sy>`; the view's size handles
+/// `size:<sx>,<sy>` and the canvas `canvas`; and the selected element's controls by what they do
+/// and which element, `<action>:<id>`. An element is named by its id, the weaver's name for it.
+inline std::string part_name(const Hit& hit, const view::Description& d) {
+    const auto element = [&](std::size_t at) -> std::string {
+        if (at >= hit.args.size()) return {};
+        std::size_t i = 0;
+        const auto& arg = hit.args[at];
+        const auto end = arg.data() + arg.size();
+        if (arg.empty() || std::from_chars(arg.data(), end, i).ptr != end || i >= d.elements.size()) return {};
+        return d.elements[i].id;
+    };
+    const std::string& a = hit.action;
+    if (a == "new" || a == "open" || a == "save" || a == "run" || a == "apply" || a == "stop")
+        return "control:" + a;
+    if (a == "choices") return "control:more";
+    if (a == "canvas") return "canvas";
+    if (a == "kind" && !hit.args.empty()) return "kind:" + hit.args[0];
+    if (a == "size" && hit.args.size() == 2) return "size:" + hit.args[0] + "," + hit.args[1];
+    if (a == "box" && hit.args.size() == 2) {
+        if (hit.args[1].empty()) return "box:" + hit.args[0];
+        const auto id = element(1);
+        return id.empty() ? std::string() : "box:" + id + "." + hit.args[0];
+    }
+    const auto id = element(0);
+    if (id.empty()) return {};
+    if (a == "select") return "list:" + id;
+    if (a == "element") return "element:" + id;
+    if (a == "handle" && hit.args.size() == 3) return "handle:" + id + "." + hit.args[1] + "," + hit.args[2];
+    if (a == "show" && hit.args.size() == 2) return "show:" + id + "." + hit.args[1];
+    return a + ":" + id;
+}
+
+/// THE BUILDER'S PICTURE AS IT IS SAID, each place a press means something named (`part_name`).
+inline ws::v4::PaneCanvasContent named(const Picture& p, const view::Description& d) {
+    ws::PartNames<ws::PaneCanvasPart> parts;
+    for (const Hit& hit : p.hits) {
+        (void)parts.add(ws::PaneCanvasPart{part_name(hit, d), hit.at.x, hit.at.y, hit.at.w, hit.at.h});
+    }
+    const auto& c = p.content;
+    return ws::v4::PaneCanvasContent{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts, parts.take()};
 }
 
 } // namespace zengine::view_builder
