@@ -2,8 +2,9 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The shapes a header publishes that no weave library's manifest declares -- a file's format, a
-// value carried inside another, a sentence a host speaks -- for the census of shapes
-// (test_shapes_census.cpp). A shape the census finds in neither place is named there.
+// value carried inside another, a sentence a host speaks -- or that only a library some builds
+// leave out declares, for the census of shapes (test_shapes_census.cpp). A shape the census finds
+// in neither place is named there.
 
 #ifndef ZENGINE_TESTS_CENSUS_HEADERS_HPP
 #define ZENGINE_TESTS_CENSUS_HEADERS_HPP
@@ -20,6 +21,7 @@
 #include "inventory/vocabulary.hpp"
 #include "snake/play_state.hpp"
 #include "source-transfer/vocabulary.hpp"
+#include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 #include "ui/vocabulary.hpp"
 #include "view-builder/vocabulary.hpp"
@@ -183,6 +185,8 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::WorkshopState>(), // WorkshopState v1
         shape<::zengine::composer::ComposerCommandContext>(), // ComposerCommandContext v1
         shape<::zengine::snake::OperatorState>(), // OperatorState v1
+        // Declared by the SDL skin alone, which a build without SDL has no manifest of.
+        shape<::zengine::surface::SurfaceCloseRequested>(), // SurfaceCloseRequested v1
     };
 }
 
