@@ -1230,8 +1230,9 @@ v2::MenuShown           presenter -> Workshop   MenuShown's lines + `parts`, eac
   nothing inside a pane. A name is 1 to `kMaxPanePartNameLen` (256) bytes of printable ASCII, not
   all spaces, said once in its picture, and a picture names at most `kMaxPaneParts` (2048). A row
   part is a run of at least one column of a row its content says, inside the room's columns; a
-  canvas part has a positive extent and may lie partly outside the room. A picture naming a part
-  wrongly is refused whole with it, saying why, and the last good one stays.
+  canvas part has a positive extent and may lie partly outside the room. Content naming a part
+  wrongly is refused whole, saying why, as content breaking any other rule is: a pane's rows go
+  with their refusal, and a rejected picture leaves the last good one.
 - **A part inside another is a part of its own**, and a press on it names it, not the part around
   it: a control inside a row, a handle inside an element.
 - **The helpers are installed beside the protocol** (`workshop/pane_parts.hpp`).

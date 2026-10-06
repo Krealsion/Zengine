@@ -709,7 +709,7 @@ interaction lease. Receivers must fence their own drops. `hand.words`, `hand.wor
 place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
 "view-builder", "kind:label"]}`); `open` presses the Pane Manager's row named for a pane
-(`{"open": "pane:zengine.files/project-files"}`), a press choosing it and one opening it; `menu`
+(`{"open": "pane:zengine.files/project-files"}`), choosing it first where it is not chosen; `menu`
 presses the line of the menu on the screen named so, or holding some text; and `click`,
 `control`, `expect` and `select` read a canvas pane's words as a text pane's. `select` walks a
 list to the row its pane names so (Info's `property:Height`), or, in a pane naming none, the row
