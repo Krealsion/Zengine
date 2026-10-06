@@ -1556,6 +1556,35 @@ TEST_CASE("printable text edits the source, and command letters stop being comma
     CHECK_FALSE(e.r.session().context.open);
 }
 
+TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by its number, wherever the window stands") {
+    EditorRig e("edit-names");
+    e.open();
+    std::string text;
+    for (int n = 1; n <= 80; ++n) text += "line " + std::to_string(n) + "\n";
+    e.open_file("a.cpp", text);
+    auto parts = held_parts(e.r.session(), e.kind);
+    REQUIRE(parts.count("status") == 1);
+    CHECK(parts.at("status").row == 0);
+    REQUIRE(parts.count("line:1") == 1);
+    CHECK(parts.at("line:1").row == e.chrome());
+    CHECK(e.doc_row(0) == "line 1");
+    // A PRESS WHERE A LINE IS NAMED PUTS THE CARET ON IT.
+    REQUIRE(parts.count("line:3") == 1);
+    press_pane(e.r, e.kind, parts.at("line:3").row, 2);
+    // THE WINDOW MOVES: each line keeps its number, on whichever row now shows it.
+    e.wheel(-3.0);
+    parts = held_parts(e.r.session(), e.kind);
+    CHECK(parts.count("line:1") == 0);
+    std::size_t lines = 0;
+    for (const auto& [name, part] : parts) {
+        if (name.rfind("line:", 0) != 0) continue;
+        ++lines;
+        CAPTURE(name);
+        CHECK(e.shown()[static_cast<std::size_t>(part.row)] == "line " + name.substr(5));
+    }
+    CHECK(lines > 3);
+}
+
 TEST_CASE("^c copies, does not quit, and the copy reaches the platform clipboard") {
     EditorRig e("edit-copy");
     e.open();
