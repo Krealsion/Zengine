@@ -26,9 +26,11 @@ namespace zengine::workshop {
 
 /// WHERE A ROOM'S TEXT STANDS, in local canvas pixels: the first row's first character's cell,
 /// one character's advance and one row's line, and how many columns and rows the room holds --
-/// as many as a prose body of its size holds. A cell each from the room's corner in a medium
-/// whose character is a cell; where type is set, the medium's inset in from the left, rows from
-/// the top, and the inset kept free at the right for a caret after a full row's last character.
+/// the columns a prose body of its size holds, and the rows of one under the pane's title, whose
+/// insets the title shares (with no title, a row more where the room has it). A cell each from
+/// the room's corner in a medium whose character is a cell; where type is set, the medium's inset
+/// in from the left, rows from the top, and the inset kept free at the right for a caret after a
+/// full row's last character.
 struct CanvasRows {
     std::int64_t x = 0, y = 0;
     std::int64_t advance = kPaneCanvasUnit, line = kPaneCanvasUnit;
@@ -91,7 +93,8 @@ struct RowsCaret {
 /// unpadded run for each row the lattice holds, cut to its columns -- its role, its ground blank
 /// to the row's end where it names one, and the caret and the selection that stand in it -- and
 /// each of `parts`, in their order, the rectangle its row and columns cover. A row's blanks after
-/// its last character go, unless a ground, the caret or the selection stands on them; a row with
+/// its last character go, unless a ground, the caret or the selection stands on them, and a caret
+/// after the last character is given the blank after it where the row has one; a row with
 /// nothing left is drawn as nothing. A part on a row the room does not hold is left out. The
 /// picture stands for this room, and the pane sends it as itself.
 inline v5::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64_t picture,
@@ -121,7 +124,8 @@ inline v5::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64
         std::size_t keep = text.find_last_not_of(' ');
         keep = keep == std::string::npos ? 0 : keep + 1;
         if (span.present()) keep = (std::max)(keep, static_cast<std::size_t>(span.end));
-        if (has_caret) keep = (std::max)(keep, static_cast<std::size_t>(caret.column));
+        if (has_caret) keep = (std::max)(keep, static_cast<std::size_t>(caret.column) + 1);
+        keep = (std::min)(keep, static_cast<std::size_t>(lattice.columns));
         text.resize(row.background != surface::role::kNone
                         ? static_cast<std::size_t>(lattice.columns)
                         : keep,

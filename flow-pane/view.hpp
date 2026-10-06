@@ -271,7 +271,10 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
           std::int64_t{1},
           room.width / unit - static_cast<std::int64_t>(prefix.size()) - 1);
       text.keep_caret_visible(columns);
-      label(0, y, prefix + text.visible(columns));
+      // A selected entry's caret after its text stands on a blank of its own.
+      const bool after = i == dialog.selected &&
+          text.caret_column() >= text.visible(columns).size();
+      label(0, y, prefix + text.visible(columns) + (after ? " " : ""));
       if (i == dialog.selected) {
         auto &run = view.content.texts.back();
         const auto prefix_columns = static_cast<std::int64_t>(prefix.size());
@@ -356,7 +359,9 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       const auto columns = std::max(std::int64_t{1},
                                     21 - static_cast<std::int64_t>(prefix.size()));
       text.keep_caret_visible(columns);
-      label(0, y, prefix + text.visible(columns));
+      // A caret after the query stands on a blank of its own.
+      const bool after = text.caret_column() >= text.visible(columns).size();
+      label(0, y, prefix + text.visible(columns) + (after ? " " : ""));
       auto &run = view.content.texts.back();
       const auto prefix_columns = static_cast<std::int64_t>(prefix.size());
       run.caret_col = prefix_columns + static_cast<std::int64_t>(text.caret_column());

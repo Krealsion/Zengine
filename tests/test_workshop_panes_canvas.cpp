@@ -707,8 +707,8 @@ TEST_CASE("pane canvas cell text cropping moves no glyph for a caret, which stan
     REQUIRE(rows.size() == 1);
     CHECK(rows[0].label.text == "BCD");
     CHECK(rows[0].caret == 0);
-    // A caret after the last character gets the cell after it where the clip has one...
-    const auto room_after = clip_canvas_text({0, 0, "AB", 0, 2, -1, -1},
+    // A caret after the last character stands on a blank the run gives it there...
+    const auto room_after = clip_canvas_text({0, 0, "AB ", 0, 2, -1, -1},
                                              {0, 0, room.width, room.height}, room);
     REQUIRE(room_after.visible());
     CHECK(room_after.bounds.w == 3 * kPaneCanvasUnit);
@@ -717,7 +717,17 @@ TEST_CASE("pane canvas cell text cropping moves no glyph for a caret, which stan
     REQUIRE(rows.size() == 1);
     CHECK(rows[0].label.text == "AB ");
     CHECK(rows[0].caret == 2);
-    // ...and stands on the last character's where it has none, which still shows.
+    // ...and the clip adds no cell of its own, so clipping again moves nothing: a run with no
+    // blank there stands its caret on its last character's cell, which still shows.
+    const auto bare = clip_canvas_text({0, 0, "AB", 0, 2, -1, -1},
+                                       {0, 0, room.width, room.height}, room);
+    REQUIRE(bare.visible());
+    CHECK(bare.bounds.w == 2 * kPaneCanvasUnit);
+    layer.texts[0] = canvas_text_region(bare);
+    rows = surface::project_text_regions(layer);
+    REQUIRE(rows.size() == 1);
+    CHECK(rows[0].label.text == "AB");
+    CHECK(rows[0].caret == 1);
     const auto full = clip_canvas_text({0, 0, "ABC", 0, 3, -1, -1},
                                        {0, 0, room.width, room.height}, room);
     REQUIRE(full.visible());
@@ -768,6 +778,17 @@ TEST_CASE("an unpadded run stands its first character at its own place, and runs
     REQUIRE(cut.visible());
     CHECK(cut.text.text == "abc");
     CHECK(cut.bounds.x + cut.bounds.w == room.width);
+    // ...and a run naming a ground keeps its region inside the clip at its left too, since the
+    // ground spans the region: its padding may not reach past the body there.
+    const auto bare_left = clip_canvas_run(v2::PaneCanvasText{0, 0, "abc", 0, -1, -1, -1, false},
+                                           {0, 0, room.width, room.height}, room);
+    REQUIRE(bare_left.visible());
+    CHECK(bare_left.bounds.x == -inset);
+    const auto on_ground = clip_canvas_run(v2::PaneCanvasText{0, 0, "abc", 0, -1, -1, -1, false,
+                                                              surface::role::kMuted},
+                                           {0, 0, room.width, room.height}, room);
+    REQUIRE(on_ground.visible());
+    CHECK(on_ground.bounds.x >= 0);
     // A TERMINAL HAS NO INSET, so there an unpadded run is the padded run it would have been.
     const PaneCanvasRoom cells{canvas_pane, 1, 10 * kPaneCanvasUnit, 3 * kPaneCanvasUnit,
                                kPaneCanvasUnit, false, 0, 0};
@@ -874,7 +895,7 @@ TEST_CASE("a pane's rows drawn on its canvas stand where its prose rows would, n
         CHECK(p.texts[2].text == "  other");
         CHECK(p.texts[2].background == surface::role::kNone);
         // THE CARET AND THE SELECTION stand in the run of their row.
-        CHECK(p.texts[3].text == "typed");
+        CHECK(p.texts[3].text == "typed "); // the caret after the last character has its blank
         CHECK(p.texts[3].y == lattice.row_y(4));
         CHECK(p.texts[3].caret_col == 5);
         CHECK(p.texts[3].sel_begin_col == 1);

@@ -46,16 +46,17 @@ struct CanvasTextLayout {
 
 // The complete padded region remains inside the clip. Clipping its authored bounds instead
 // would change the text's origin/capacity. Here only whole glyphs and whole rows go. A caret
-// moves no glyph; where a character is a cell, one at the run's end stands on the cell after its
-// last character when the clip has that cell, else on the last character's.
+// moves no glyph, and adds no cell: where a character is a cell, one after the run's last
+// character stands on that character's cell, so a run gives it the cell after with a blank there.
 namespace detail {
 
 // The one clip, for a run whose padded region may reach `slack` canvas pixels past the clip and
-// the room above, below and to its left: 0 for a padded run, the medium's inset for an unpadded
-// one moved back to its region's origin. Never to its right, where a caret after the run's last
-// character stands, so a caret stays inside the clip as every glyph does.
+// the room above and below, and `slack_left` to its left: 0 for a padded run, the medium's inset
+// for an unpadded one moved back to its region's origin. Never to its right, where a caret after
+// the run's last character stands, so a caret stays inside the clip as every glyph does.
 inline CanvasTextLayout clip_canvas_text_by(const PaneCanvasText& text, const CanvasTextBox& clip,
-                                            const PaneCanvasRoom& room, std::int64_t slack) {
+                                            const PaneCanvasRoom& room, std::int64_t slack,
+                                            std::int64_t slack_left) {
     CanvasTextLayout out;
     if (clip.empty() || room.width <= 0 || room.height <= 0) return out;
     const auto m = canvas_text_metrics(room);
@@ -68,7 +69,7 @@ inline CanvasTextLayout clip_canvas_text_by(const PaneCanvasText& text, const Ca
         const auto low = floor_at(v);
         return low == v ? low : surface::add_cells(low, m.grain);
     };
-    const auto left = ceil_at(surface::sub_px((std::max)(std::int64_t{0}, clip.x), slack));
+    const auto left = ceil_at(surface::sub_px((std::max)(std::int64_t{0}, clip.x), slack_left));
     const auto top = ceil_at(surface::sub_px((std::max)(std::int64_t{0}, clip.y), slack));
     const auto right = floor_at((std::min)(room.width, surface::add_cells(clip.x, clip.w)));
     const auto bottom = floor_at(surface::add_cells(
@@ -106,10 +107,7 @@ inline CanvasTextLayout clip_canvas_text_by(const PaneCanvasText& text, const Ca
             out.text.sel_end_col = finish - static_cast<std::int64_t>(first);
         }
     }
-    const bool caret_cell = visible_caret && !m.graphical && caret == end &&
-        take < static_cast<std::size_t>(capacity);
-    const auto columns =
-        static_cast<std::int64_t>((std::max)(std::size_t{1}, take + (caret_cell ? 1u : 0u)));
+    const auto columns = static_cast<std::int64_t>((std::max)(std::size_t{1}, take));
     const auto width = surface::add_cells(surface::mul_px(columns, m.advance), pad);
     out.bounds = {x, y, width, height};
     out.first_column = first;
@@ -122,13 +120,13 @@ inline CanvasTextLayout clip_canvas_text_by(const PaneCanvasText& text, const Ca
 
 inline CanvasTextLayout clip_canvas_text(const PaneCanvasText& text, const CanvasTextBox& clip,
                                          const PaneCanvasRoom& room) {
-    return detail::clip_canvas_text_by(text, clip, room, 0);
+    return detail::clip_canvas_text_by(text, clip, room, 0, 0);
 }
 
 // A run of either kind, as `clip_canvas_text` clips the first: a padded run is that run, and an
 // unpadded run is the padded run whose glyphs land at its x/y -- its region starts the medium's
-// inset up and left of them, and may reach that inset past the clip above, below and to its left,
-// where only its padding is.
+// inset up and left of them, and may reach that inset past the clip above and below, where only
+// its padding is, and to its left unless it names a ground, which spans its region.
 inline CanvasTextLayout clip_canvas_run(const v2::PaneCanvasText& text, const CanvasTextBox& clip,
                                         const PaneCanvasRoom& room) {
     PaneCanvasText run{text.x, text.y, text.text, text.role, text.caret_col, text.sel_begin_col,
@@ -136,7 +134,8 @@ inline CanvasTextLayout clip_canvas_run(const v2::PaneCanvasText& text, const Ca
     const auto inset = text.padded ? std::int64_t{0} : canvas_text_metrics(room).inset;
     run.x = surface::sub_px(run.x, inset);
     run.y = surface::sub_px(run.y, inset);
-    CanvasTextLayout out = detail::clip_canvas_text_by(run, clip, room, inset);
+    const auto left = text.background == surface::role::kNone ? inset : std::int64_t{0};
+    CanvasTextLayout out = detail::clip_canvas_text_by(run, clip, room, inset, left);
     if (out.visible()) out.background = text.background;
     return out;
 }
