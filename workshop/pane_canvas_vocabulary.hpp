@@ -92,9 +92,10 @@ struct PaneCanvasPart {
 
 namespace v4 {
 
-/// A PICTURE THAT NAMES ITS PARTS: v3's picture and the parts of it the pane names, judged with
-/// it -- each a positive rectangle under a name no other part carries -- and rejected whole with
-/// it. A pane naming nothing sends v3, or this with no parts.
+/// A PICTURE THAT NAMES ITS PARTS: v3's picture and the parts of it the pane names, in the order
+/// it reads a press, judged with it -- each a positive rectangle under a name no other part
+/// carries, or none -- and rejected whole with it. A pane naming nothing sends v3, or this with
+/// no parts.
 struct PaneCanvasContent {
     std::string pane;
     std::int64_t grant = 0, picture = 0;

@@ -145,8 +145,9 @@ DOES NOT MEAN
 - that a part the body does not show is said, or that pressing one is anything but input.
 
 PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_problem`,
-`canvas_parts_problem`, `PartNames`, `row_parts`; `workshop/weave_inspection.cpp` `visible_parts`,
-`row_part_on`, `canvas_part_on`, `inside_part`, `own_point`, `desk_menu`;
+`canvas_parts_problem`, `PartNames`, `row_parts`; `component/row_map.hpp` `RowMap::press_order`;
+`workshop/weave_inspection.cpp` `visible_parts`, `row_part_on`, `canvas_part_on`, `own_point`,
+`desk_menu`;
 `workshop/screen_attention.cpp` `context_line_names`; `workshop/weave_seam.cpp` `admit_content`,
 `on(v4::PaneContent)`; `workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v4::PaneCanvasContent)`;
 `workshop/weave_external.cpp` `admit_menu_lines`; `menu-presenter/presenter.cpp` `show`;

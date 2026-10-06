@@ -11,6 +11,7 @@
 // text, role, medium or wire shape: `Meaning` is whatever the consumer's press handler reads.
 // Reference: docs/reference/component.md.
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -115,6 +116,30 @@ public:
             }
         }
         return best == nullptr ? nullptr : &best->meaning;
+    }
+
+    /// THE SPANS AS A PRESS READS THEM, as indices into `spans()`: row by row, and on a row the
+    /// widest first -- the row entire before any run, and of two as wide the later recorded
+    /// first -- so where several hold one place, the last of them is the one `at` answers.
+    std::vector<std::size_t> press_order() const {
+        std::vector<std::size_t> order(spans_.size());
+        for (std::size_t i = 0; i < order.size(); ++i) {
+            order[i] = i;
+        }
+        const auto width = [this](std::size_t i) {
+            const Span& s = spans_[i];
+            return s.last == kWholeRow ? kWholeRowWidth : s.last - s.first + 1;
+        };
+        std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) {
+            if (spans_[a].row != spans_[b].row) {
+                return spans_[a].row < spans_[b].row;
+            }
+            if (width(a) != width(b)) {
+                return width(a) > width(b);
+            }
+            return a > b;
+        });
+        return order;
     }
 
     /// THE ROW'S OWN MEANING, ignoring controls inside it, or nullptr.

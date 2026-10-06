@@ -773,11 +773,14 @@ private:
         said.picture = ++picture_;
         said.pane = kComposePane;
         said.rows = zengine::composer::rows_of(shown_);
+        // A row that means nothing is not listed: a row entire lies over no other part.
         ws::PartNames<ws::PaneRowPart> named;
         for (std::size_t row = 0; row < shown_.rows.size(); ++row) {
-            (void)named.add(ws::PaneRowPart{
-                zengine::composer::part_name(composing_, shown_.rows[row].meaning),
-                static_cast<std::int64_t>(row), 0, columns_});
+            std::string name = zengine::composer::part_name(composing_, shown_.rows[row].meaning);
+            if (!name.empty()) {
+                (void)named.add(ws::PaneRowPart{std::move(name), static_cast<std::int64_t>(row), 0,
+                                                columns_});
+            }
         }
         said.parts = named.take();
         (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, said);

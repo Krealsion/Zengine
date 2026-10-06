@@ -1485,7 +1485,8 @@ private:
     }
 
     /// WHAT INFO CALLS ITS ROWS, of the `said` it sends: a pane it lists by the pane's reference,
-    /// `pane:<office>/<pane>`, and a property by its label, `property:<label>`.
+    /// `pane:<office>/<pane>`, and a property by its label, `property:<label>`. A row it names
+    /// nothing is not listed: a row entire lies over no other part.
     std::vector<ws::PaneRowPart> named_rows(std::int64_t said) const {
         ws::PartNames<ws::PaneRowPart> names;
         for (const Row& r : composed_) {
@@ -1497,6 +1498,9 @@ private:
                 name = "pane:" + panes_[r.index].office + "/" + panes_[r.index].pane;
             } else if (r.what == Placed::kProperty && r.index < known_.properties.size()) {
                 name = "property:" + known_.properties[r.index].label;
+            }
+            if (name.empty()) {
+                continue;
             }
             (void)names.add(ws::PaneRowPart{std::move(name), r.row, 0, columns_});
         }

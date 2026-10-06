@@ -18,6 +18,7 @@
 #include "component/row_map.hpp"
 #include "component/text_box.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -1614,6 +1615,46 @@ TEST_CASE("RowMap: a control inside a row answers before the row, a cut control 
     CHECK(zengine::component::solid_columns("abcdef", 6) == 6);
     CHECK(zengine::component::solid_columns("abc...", 10) == 3);
     CHECK(zengine::component::solid_columns("..", 10) == 0);
+}
+
+TEST_CASE("RowMap: its spans in press order put last, wherever several hold one place, the one a press there answers") {
+    using Map = zengine::component::RowMap<int>;
+    Map map;
+    map.begin();
+    CHECK(map.span(0, 4, 3, 40, 1)); // a control recorded before its row
+    map.row(0, 2);
+    CHECK(map.span(0, 0, 10, 40, 3)); // a run over the control and more
+    CHECK(map.span(0, 8, 10, 40, 4)); // as wide, over part of the last
+    CHECK(map.span(0, 0, 40, 40, 5)); // a run as wide as the row's text
+    map.row(1, 6);
+    map.row(1, 7); // two rows entire on one row
+    CHECK(map.span(2, 2, 2, 40, 8)); // a run on a row no row entire holds
+    (void)map.settle();
+    const std::vector<std::size_t> order = map.press_order();
+    REQUIRE(order.size() == map.size());
+    std::vector<std::size_t> every = order;
+    std::sort(every.begin(), every.end());
+    for (std::size_t i = 0; i < every.size(); ++i) {
+        CHECK(every[i] == i);
+    }
+    for (std::size_t i = 1; i < order.size(); ++i) {
+        CHECK(map.spans()[order[i - 1]].row <= map.spans()[order[i]].row);
+    }
+    for (std::int64_t row = 0; row < 4; ++row) {
+        for (std::int64_t column = 0; column < 48; ++column) {
+            CAPTURE(row);
+            CAPTURE(column);
+            const int* last = nullptr;
+            for (const std::size_t i : order) {
+                const Map::Span& s = map.spans()[i];
+                if (s.row == row &&
+                    (s.last == Map::kWholeRow || (column >= s.first && column <= s.last))) {
+                    last = &s.meaning;
+                }
+            }
+            CHECK(last == map.at(row, column));
+        }
+    }
 }
 
 TEST_CASE("HeldChoice: a choice is kept by identity across a list that moves, a lost row is still a choice, and a cursor never given a member takes its row") {

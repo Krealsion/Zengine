@@ -939,6 +939,7 @@ zengine_workshop_suite(host
 # Three operations keep their conversations in tests/timelines/, and the heard ones are written
 # beside the build to diff.
 zengine_workshop_suite(desk SOURCES test_workshop_desk.cpp
+    LINKS zengine-view zengine-flow
     DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "ZENGINE_TIMELINES_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/timelines-now-$<CONFIG>\"")
 
