@@ -66,6 +66,14 @@ struct AttentionRig {
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
 
+    /// The runs of the picture Workshop last admitted from the pane, one a row it drew.
+    const std::vector<v2::PaneCanvasText>& held_runs() {
+        const ExternalPane* seat = r.session().panes.external_pane(kind);
+        REQUIRE(seat != nullptr);
+        REQUIRE(shows_canvas(*seat));
+        return seat->canvas.content.texts;
+    }
+
     /// IS THIS CONDITION A ROW OF THE LIST -- what this weaver has not hidden, the cursor's row
     /// or another -- as opposed to the glance, which counts what is true?
     bool listed(const std::string& compact) {
@@ -287,19 +295,15 @@ TEST_CASE("the Attention pane leads with the glance: the loudest condition that 
     f.focus();
 
     // THE LOUDEST, WHATEVER ITS ARRIVAL, AND THE COUNT OF THE REST, IN THE LOUDEST'S ROLE.
-    const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
-    REQUIRE(seat != nullptr);
-    REQUIRE_FALSE(seat->shown.empty());
-    CHECK(seat->shown[0].text == "a loud thing (+1 more)");
-    CHECK(seat->shown[0].role == surface::role::kAlert);
+    REQUIRE_FALSE(f.held_runs().empty());
+    CHECK(f.held_runs()[0].text == "a loud thing (+1 more)");
+    CHECK(f.held_runs()[0].role == surface::role::kAlert);
 
     // A PANE ONE ROW TALL IS THE GLANCE, alone.
     author_test_pane_room(f.r, f.kind, 1, 60);
     f.r.extent(150, 44);
-    seat = f.r.session().panes.external_pane(f.kind);
-    REQUIRE(seat != nullptr);
-    REQUIRE(seat->shown.size() == 1);
-    CHECK(seat->shown[0].text == "a loud thing (+1 more)");
+    REQUIRE(f.held_runs().size() == 1);
+    CHECK(f.held_runs()[0].text == "a loud thing (+1 more)");
 
     // HIDING THE LOUDEST CHANGES WHAT IS LISTED, NOT THE GLANCE: it still counts what is true.
     author_test_pane_room(f.r, f.kind, 12, 60);
@@ -512,9 +516,8 @@ TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
     // A CONDITION'S WORDS ARE ITS OWNER'S, and nothing requires them to be printable ASCII, while
     // the seam refuses a row carrying a byte a canvas cannot draw (`judge_content`) -- so the
     // pane gates its rows at its own door, as `files.cpp` does for typed and pasted text. ⚔
-    // MUTATION: drop `drawable` from `push` and the case does not terminate (SIGTERM at 120 s):
-    // the refusal raises a condition, which is news, which this pane publishes and has refused
-    // again. This pane's own refusal is an input to it, so its rows must be admissible by design.
+    // MUTATION: drop `drawable` from `push` and every picture is refused whole, so none of the
+    // words below is shown.
     AttentionRig f;
     f.open();
     f.establish(Condition{"test.wall", "a wall",
@@ -522,10 +525,11 @@ TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
                               "\t" + "and back",
                           surface::role::kAlert, std::string()});
 
-    // THE PANE'S CONTENT WAS ACCEPTED, which is the whole claim: no refusal, no cleared
+    // THE PANE'S PICTURE WAS ACCEPTED, which is the whole claim: no refusal, no cleared
     // rows, and no condition about a condition.
     const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
     REQUIRE(seat != nullptr);
+    CHECK(shows_canvas(*seat));
     CHECK(seat->refusal.empty());
     CHECK_FALSE(seat->awaiting);
     CHECK(f.text().find("a wall") != std::string::npos);
@@ -559,12 +563,13 @@ TEST_CASE("the pane never publishes more rows than the room it was granted") {
         f.r.extent(kScreenMinCols, height);
         const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
         REQUIRE(pane != nullptr);
-        const std::int64_t room = pane->rows;
+        const std::int64_t room = held_canvas_rows(*pane).rows;
+        REQUIRE(room == pane->rows); // the picture's lattice holds the rows the prose room did
         for (int at = 0; at < 12; ++at) {
             f.r.key(input::scan::kDown);
             CAPTURE(height);
             CAPTURE(at);
-            CHECK(static_cast<std::int64_t>(pane->shown.size()) <= room);
+            CHECK(static_cast<std::int64_t>(held_canvas_text(*pane).size()) <= room);
             CHECK_FALSE(pane->awaiting); // ...and every one of them was ACCEPTED
         }
     }

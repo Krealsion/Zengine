@@ -12,16 +12,19 @@ namespace demo = zengine::demo;
 struct DemoTestPump { ZEN_SHAPE(DemoTestPump, 1); };
 class DemoHand final : public loom::WeaveBase<DemoHand, DemoTestPump,
     loom::Accept<DemoTestPump, loom::Ack, loom::Refused, demo::DemoWork, demo::DemoStatus,
-                 v4::PaneContent>,
+                 v4::PaneContent, v5::PaneCanvasContent, PanePassRequested>,
     loom::Emit<demo::DemoServiceOpened, demo::DemoServiceClosed, demo::DemoWorkRequested,
                demo::DemoWorkFinished, demo::DemoResetRequested, demo::DemoReadyRequested,
-               PanePressed, PaneRoom, SetupApplyRequested, v2::PaneOffered>> {
+               PanePressed, PaneRoom, PaneCanvasRoom, PaneCanvasPointer, SetupApplyRequested,
+               v2::PaneOffered>> {
 public:
     std::function<void(loom::Mail&)> action;
     std::vector<demo::DemoWork> work;
     std::vector<demo::DemoStatus> status;
     std::vector<v4::PaneContent> painted;
+    std::vector<v5::PaneCanvasContent> pictures;
     std::vector<std::string> refused;
+    int passed = 0;
     int acks = 0;
     void on(const DemoTestPump&, loom::Mail& m) { action(m); }
     void on(const loom::Ack&, loom::Mail& m) { CHECK(m.answers_ask()); ++acks; }
@@ -29,6 +32,8 @@ public:
     void on(const demo::DemoWork& w, loom::Mail& m) { CHECK(m.answers_ask()); work.push_back(w); }
     void on(const demo::DemoStatus& s, loom::Mail& m) { CHECK(m.answers_ask()); status.push_back(s); }
     void on(const v4::PaneContent& c, loom::Mail&) { painted.push_back(c); }
+    void on(const v5::PaneCanvasContent& c, loom::Mail&) { pictures.push_back(c); }
+    void on(const PanePassRequested&, loom::Mail&) { ++passed; }
 };
 struct DemoActor {
     loom::Switchboard& bus;
@@ -92,12 +97,26 @@ TEST_CASE("demo reset queues across the gap before the service asks again") {
     CHECK(r.visitor.hand->refused.back() == "Info: operation pending");
 }
 
+/// A press on the controls' canvas, at a cell of a row of the room `demo_room` grants.
+PaneCanvasPointer demo_press(std::int64_t row, std::int64_t button = 1) {
+    return PaneCanvasPointer{"controls", 9, 1, 1, canvas_pointer::kPress, button,
+                             3 * kPaneCanvasUnit, row * kPaneCanvasUnit};
+}
+const PaneCanvasRoom demo_room{"controls", 9, 56 * kPaneCanvasUnit, 4 * kPaneCanvasUnit,
+                               kPaneCanvasUnit, false, 0, 0};
+
 TEST_CASE("demo button trusts Workshop and service close settles outstanding waits") {
     DemoRig r; r.ready();
-    r.visitor.say(demo::kRole, PanePressed{"controls", 1, 0});
+    r.desk.say(demo::kRole, demo_room, "zengine.workshop");
+    r.visitor.say(demo::kRole, demo_press(1));
     r.worker.say(demo::kRole, demo::DemoWorkRequested{});
     CHECK(r.worker.hand->work.size() == 1);
-    r.desk.say(demo::kRole, PanePressed{"controls", 1, 0}, "zengine.workshop");
+    r.desk.say(demo::kRole, demo_press(0), "zengine.workshop"); // the setup's name: no button
+    CHECK(r.worker.hand->work.size() == 1);
+    r.desk.say(demo::kRole, demo_press(1, 3), "zengine.workshop"); // handed back, not a reset
+    CHECK(r.desk.hand->passed == 1);
+    CHECK(r.worker.hand->work.size() == 1);
+    r.desk.say(demo::kRole, demo_press(1), "zengine.workshop");
     REQUIRE(r.worker.hand->work.size() == 2);
     r.visitor.say(demo::kRole, demo::DemoReadyRequested{2});
     CHECK(r.visitor.hand->status.empty());
@@ -109,14 +128,31 @@ TEST_CASE("demo button trusts Workshop and service close settles outstanding wai
 
 TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state beneath it") {
     DemoRig r; r.ready();
-    r.desk.say(demo::kRole, PaneRoom{"controls", 4, 56}, "zengine.workshop");
-    REQUIRE_FALSE(r.desk.hand->painted.empty());
-    const v4::PaneContent& said = r.desk.hand->painted.back();
+    // ON ITS CANVAS, the picture Workshop shows: each name over the row it names.
+    r.desk.say(demo::kRole, demo_room, "zengine.workshop");
+    REQUIRE_FALSE(r.desk.hand->pictures.empty());
+    const v5::PaneCanvasContent& drawn = r.desk.hand->pictures.back();
+    CHECK(canvas_parts_problem(drawn.parts).empty());
+    REQUIRE(drawn.parts.size() == 2);
+    const auto run_at = [&drawn](const PaneCanvasPart& part) {
+        for (const v2::PaneCanvasText& t : drawn.texts) {
+            if (t.y == part.y) return t.text;
+        }
+        return std::string();
+    };
+    CHECK(drawn.parts[0].name == "control:reset");
+    CHECK(run_at(drawn.parts[0]).find("Reset demo") != std::string::npos);
+    CHECK(drawn.parts[1].name == "status");
+    CHECK(run_at(drawn.parts[1]).rfind("ready", 0) == 0);
+    // ...AND AS PROSE to a host that grants no canvas, under the same names.
+    DemoRig prose; prose.ready();
+    prose.desk.say(demo::kRole, PaneRoom{"controls", 4, 56}, "zengine.workshop");
+    REQUIRE_FALSE(prose.desk.hand->painted.empty());
+    const v4::PaneContent& said = prose.desk.hand->painted.back();
     REQUIRE(said.parts.size() == 2);
     CHECK(said.parts[0].name == "control:reset");
     CHECK(said.rows[static_cast<std::size_t>(said.parts[0].row)].text.find("Reset demo") != std::string::npos);
     CHECK(said.parts[1].name == "status");
-    CHECK(said.rows[static_cast<std::size_t>(said.parts[1].row)].text.rfind("ready", 0) == 0);
     CHECK(row_parts_problem(said.parts, static_cast<std::int64_t>(said.rows.size()), 56).empty());
 }
 
