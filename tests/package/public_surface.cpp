@@ -246,6 +246,17 @@ void pane_surface() {
     check(ws::row_parts_problem(parts, 1, 20).empty() &&
               !ws::row_parts_problem({parts[0], parts[0]}, 1, 20).empty(),
           "and judged as Workshop judges them: a name once");
+    // ...listed as a press reads them: a control recorded before its row comes after it, the last
+    // of the parts that hold its place, as it is what the map answers there.
+    map.begin();
+    (void)map.span(0, 2, 4, 20, "save");
+    map.row(0, "count");
+    (void)map.settle();
+    const std::vector<ws::PaneRowPart> pressed =
+        ws::row_parts(map, 20, [](const std::string& m) { return "row:" + m; });
+    check(map.press_order() == std::vector<std::size_t>{1, 0} && pressed.size() == 2 &&
+              pressed[1].name == "row:save" && *map.at(0, 3) == "save",
+          "a row map's parts are listed in the order its press reads them");
     const ws::v4::PaneContent named{offer.pane, said.rows, 0, 0, parts};
     check(named.parts.size() == 1, "content names its parts beside its rows");
 

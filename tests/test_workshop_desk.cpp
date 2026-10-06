@@ -1161,14 +1161,15 @@ TEST_CASE("a part's point is a place of its own: beside a control a row holds, o
         d.click(row->x, row->y, row->space);
         REQUIRE(d.alpha->presses.size() == 1);
         CHECK(d.alpha->presses[0].row == 0);
-        CHECK((d.alpha->presses[0].column < 2 || d.alpha->presses[0].column >= 8));
-        CHECK(d.alpha->presses[0].column < 14);
+        // ON `F`: of the eight characters beside the mark, the middle one.
+        CHECK(d.alpha->presses[0].column == 9);
         press_lands(d, *part_named(view.parts, "mark:files"), NamedRun{"mark:files", 0, 2, 8});
         press_lands(d, *part_named(view.parts, "control:one"), NamedRun{"control:one", 1, 0, 5});
         press_lands(d, *part_named(view.parts, "control:two"), NamedRun{"control:two", 1, 5, 10});
         press_lands(d, *part_named(view.parts, "control:go"), NamedRun{"control:go", 2, 0, 4});
         // A PART WHOSE EVERY CHARACTER IS ANOTHER'S is pressed on a blank cell of its own...
         press_lands(d, *part_named(view.parts, "row:go"), NamedRun{"row:go", 2, 4, body.columns});
+        CHECK(d.alpha->presses[0].column == 4 + (body.columns - 5) / 2);
         // ...AND ONE WITH NO PLACE OF ITS OWN IS SAID WITH ITS WORDS AND PLACE AND NO POINT: no
         // press reaches it, and none is given another part's.
         const PanePart* both = part_named(view.parts, "row:both");
@@ -1567,7 +1568,8 @@ TEST_CASE("a canvas part's own place is sought over all of it, and a part with n
         const std::int64_t u = kPaneCanvasUnit;
         const std::int64_t grain = window ? surface::kPixelGrainPx : surface::kCellGrainPx;
         // `lined` has places it names nothing over its centre, top and bottom rows and its centre,
-        // left and right columns, and its own places between them; `covered` lies under two parts.
+        // left and right columns, and its own places between them; `covered` lies under two parts;
+        // `centred` has one over its left end, beside its centre.
         const std::vector<PaneCanvasPart> parts{PaneCanvasPart{"lined", 0, 0, 10 * u, 10 * u},
                                                 PaneCanvasPart{"", 0, 0, 10 * u, u},
                                                 PaneCanvasPart{"", 0, 9 * u, 10 * u, u},
@@ -1577,16 +1579,33 @@ TEST_CASE("a canvas part's own place is sought over all of it, and a part with n
                                                 PaneCanvasPart{"", 4 * u, 0, 2 * u, 10 * u},
                                                 PaneCanvasPart{"covered", 12 * u, 0, 4 * u, 2 * u},
                                                 PaneCanvasPart{"cover:left", 12 * u, 0, 2 * u, 2 * u},
-                                                PaneCanvasPart{"cover:right", 14 * u, 0, 2 * u, 2 * u}};
+                                                PaneCanvasPart{"cover:right", 14 * u, 0, 2 * u, 2 * u},
+                                                PaneCanvasPart{"centred", 18 * u, 0, 6 * u, 2 * u},
+                                                PaneCanvasPart{"", 18 * u, 0, u, 2 * u}};
         d.draw_named(parts);
         REQUIRE(d.sketch->rejected.empty());
         v3::PaneView view;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
         CHECK(names_of(view.parts) ==
-              std::vector<std::string>{"cover:left", "cover:right", "covered", "lined"});
+              std::vector<std::string>{"centred", "cover:left", "cover:right", "covered", "lined"});
         const ExternalPane& pane = *d.r.session().panes.external_pane(d.sketch_kind);
+        // A UNIT OF THE BODY, as the medium's own numbers say it.
+        const auto unit_at = [&](std::int64_t px, std::int64_t py) {
+            return window ? std::pair{pane.canvas.x + px, pane.canvas.y + py}
+                          : std::pair{surface::cell_of_pixel(pane.canvas.x) + px / u,
+                                      surface::cell_of_pixel(pane.canvas.y) + py / u + surface::kTuiCanvasTopRow};
+        };
         for (const PanePart& part : view.parts) {
             CAPTURE(part.name);
+            if (part.name == "lined") {
+                // THE MIDDLE OF ITS WIDEST STRETCH ON THE ROW NEAREST ITS CENTRE: the row above the
+                // centre's strip, and the left of two stretches as wide.
+                CHECK(std::pair{part.x, part.y} == (window ? unit_at(29, 47) : unit_at(2 * u, 3 * u)));
+            }
+            if (part.name == "centred") {
+                // ITS CENTRE, ITS OWN, and not the middle of the stretch the place over its end leaves.
+                CHECK(std::pair{part.x, part.y} == (window ? unit_at(251, 11) : unit_at(20 * u, 0)));
+            }
             if (part.name == "covered") {
                 // SAID WITH ITS PLACE AND NO POINT: no press reaches it, and none is given another's.
                 CHECK(part.place.x == pane.canvas.x + 12 * u);
