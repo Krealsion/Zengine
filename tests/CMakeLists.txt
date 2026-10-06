@@ -934,6 +934,10 @@ zengine_workshop_suite(host
     LINKS loom::history
     DEFINITIONS "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\"")
 
+# THE DESK AND THE WORDS ON IT, READ BY MESSAGE: what Workshop answers about its panes and their
+# words, and that each place it gives is where the medium draws it.
+zengine_workshop_suite(desk SOURCES test_workshop_desk.cpp)
+
 # ---- the panes suite's source tripwires -------------------------------------------------
 # The presentation's sources and the host say "this host was taught no pane", and the two
 # projections "no view branches on an identity": no rig proves either, since every rig would stay
