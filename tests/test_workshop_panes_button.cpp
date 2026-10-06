@@ -322,7 +322,7 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is d
     CHECK(t.guard->buttons.size() == 2); // the press and its release; nothing for the chrome
 }
 
-TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the column of the character each cell shows, past the caret's glyph") {
+TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the column of the character each cell shows, a caret moving none") {
     Rigged t;
     drive_seat(t.r, t.guard_id, t.guard, [](ButtonSeat&, loom::Mail& m) {
         (void)m.as_role(kGuardOffice).send_to_role(
@@ -333,17 +333,18 @@ TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the colu
     const ExternalPane* pane = t.r.session().panes.external_pane(t.guard_kind);
     REQUIRE(pane != nullptr);
     REQUIRE(pane->caret_col == 2);
-    // THE TERMINAL'S OWN ROW (`ab_cdef`), where the caret's glyph takes a cell of its own.
+    // THE TERMINAL'S OWN ROW (`abcdef`), the caret standing on `c` and moving no character.
     const surface::CanvasGrids grid = surface::rasterize_canvas(t.r.last_canvas());
     const std::int64_t y = body_y(t.r, t.guard_kind, 0);
     const std::int64_t x0 = body_x(t.r, t.guard_kind, 0);
     const auto cell_showing = [&](char glyph) {
-        for (std::int64_t x = x0; x < x0 + 7 && x < grid.w; ++x) {
+        for (std::int64_t x = x0; x < x0 + 6 && x < grid.w; ++x) {
             if (grid.glyphs[static_cast<std::size_t>(y * grid.w + x)] == glyph) return x;
         }
         return std::int64_t{-1};
     };
-    REQUIRE(cell_showing(surface::kCaretGlyph) == x0 + 2);
+    REQUIRE(cell_showing('c') == x0 + 2);
+    REQUIRE(grid.carets[static_cast<std::size_t>(y * grid.w + x0 + 2)] != 0);
     button_cell(t.r, 3, true, cell_showing('e'), y);
     button_cell(t.r, 3, false, cell_showing('f'), y);
     REQUIRE(t.guard->buttons.size() == 2);

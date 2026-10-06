@@ -310,11 +310,25 @@ inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std
     return {};
 }
 
+/// The byte of the row at a canvas cell that a region's caret stands on, or -1: the cell a medium
+/// whose character is a cell shows inverted, read through the real cell projection as `label_at`
+/// reads the row's text.
+inline std::int64_t caret_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
+    for (const surface::SurfaceLayer& l : c.layers) {
+        for (const surface::ProjectedRow& p : surface::project_text_regions(l)) {
+            if (surface::cell_of_pixel(p.label.x) == x && surface::cell_of_pixel(p.label.y) == y) {
+                return p.caret;
+            }
+        }
+    }
+    return -1;
+}
+
 /// ONE PROSE ROW OF THE INSPECTOR'S PROPERTY BODY, as a weaver reads it. The body is a bounded
 /// region, which owns what is inside its bounds, so its cell projection pads every row to the
 /// region's full width; that padding erases what was underneath and is noise in an assertion
 /// about what a row SAYS, so this trims it. Through `label_at` and the real cell projection, so a
-/// caret is still inserted at its own column and a row cut at the body's width is still cut.
+/// row cut at the body's width is still cut.
 inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     std::string text = label_at(c, x, y);
     while (!text.empty() && text.back() == ' ') {
@@ -3949,12 +3963,10 @@ inline std::vector<std::string> band_lines(PaneRig& r) {
     return out;
 }
 
-/// THE CELL SHOWING COLUMN `column` OF BODY ROW `row`, counted from the body's first cell: past a
-/// caret a fit in cells draws as a glyph of its own, read through the painter's own rule.
-inline std::int64_t pane_cell_of(const Session& s, std::int64_t kind, std::int64_t row,
-                                 std::int64_t column) {
-    return drawn_column(column, external_caret_glyph(s.panes.external_pane(kind),
-                                                     external_body_of(s, kind).fit, row));
+/// THE CELL SHOWING COLUMN `column` OF BODY ROW `row`, counted from the body's first cell: the
+/// column's own, since a caret moves no character from its cell.
+inline std::int64_t pane_cell_of(const Session&, std::int64_t, std::int64_t, std::int64_t column) {
+    return column;
 }
 
 /// PRESS A PLACE IN AN EXTERNAL PANE'S OWN ROOM -- the provider's row and column,

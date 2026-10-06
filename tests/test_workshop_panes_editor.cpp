@@ -1803,7 +1803,7 @@ TEST_CASE("in a terminal, a press on a character past the caret puts the caret b
     EditorRig e("edit-press-glyph");
     e.open();
     e.open_file("a.cpp", "abcdefgh\n");
-    // THE TERMINAL'S OWN ROW, read where it is drawn now: the caret's glyph takes a cell of its own.
+    // THE TERMINAL'S OWN ROW, read where it is drawn now: a caret moves no character from its cell.
     const auto cell_showing = [&e](char glyph) {
         const ui::Rect body = external_body_rect(e.r.session(), e.kind);
         const std::int64_t y = body.y + kExternalHeaderRows + e.chrome();
@@ -1811,13 +1811,13 @@ TEST_CASE("in a terminal, a press on a character past the caret puts the caret b
         std::int64_t found = -1;
         for (std::int64_t x = body.x; x < body.x + body.w && x < grid.w; ++x) {
             if (grid.glyphs[static_cast<std::size_t>(y * grid.w + x)] != glyph) continue;
-            REQUIRE(found < 0); // the glyph is on the row once
+            REQUIRE(found < 0); // the character is on the row once
             found = x;
         }
         REQUIRE(found >= 0);
         return std::pair<std::int64_t, std::int64_t>{found, y};
     };
-    // A SWEEP FROM `b` TO `e`: once the press has put the caret before `b`, its glyph stands there.
+    // A SWEEP FROM `b` TO `e`: the press puts the caret before `b`, standing on its cell.
     const auto [bx, by] = cell_showing('b');
     e.r.press_cell(bx, by);
     REQUIRE(e.seat() != nullptr);
@@ -1829,7 +1829,7 @@ TEST_CASE("in a terminal, a press on a character past the caret puts the caret b
     CHECK(e.seat()->sel_end_col == 4); // before `e`: `bcd` is swept
     e.type("Z");
     CHECK(e.doc_row(0) == "aZefgh");
-    // A PRESS PAST THE CARET, on `g`, which the glyph after `Z` stands a cell to the right.
+    // A PRESS PAST THE CARET, on `g`, in the cell it had before the caret came near it.
     CHECK(e.seat()->caret_col == 2);
     const auto [gx, gy] = cell_showing('g');
     e.r.press_cell(gx, gy);

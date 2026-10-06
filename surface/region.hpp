@@ -27,9 +27,11 @@ namespace zengine::surface {
 inline constexpr std::int64_t kTextInsetPx = 2;
 
 /// How wide a caret bar is, in device pixels, in a medium that sets real type: part of where a
-/// caret is, so a hit test, a plan and a renderer share it. A bar, never a block, because the
-/// caret is an insertion point between two characters; at an 8-pixel advance one pixel reads as
-/// a stem and four as a block cursor.
+/// caret is, so a hit test, a plan and a renderer share it. A bar, never a block, where type is
+/// set, because the caret is an insertion point between two characters; at an 8-pixel advance one
+/// pixel reads as a stem and four as a block cursor. A medium whose character is a cell has no
+/// place between two characters, and shows the cell the caret stands on inverted instead
+/// (`ProjectedRow::caret`).
 inline constexpr std::int64_t kCaretWidthPx = 2;
 
 /// The largest cell coordinate that survives being multiplied into pixels. Not a
@@ -353,18 +355,22 @@ struct ProjectedRow {
     /// ...and the region's own answer: a medium resolves the row's ground if it named one, else
     /// the canvas ground if the region took its rectangle, else nothing.
     std::int64_t ground = kGroundOwn;
-    /// The selected columns, in the label's own bytes (caret glyph included, cut applied): a
-    /// consumer highlights `text[i]` for `sel_begin <= i < sel_end`. Empty is the absence.
+    /// The selected columns, in the label's own bytes (cut applied): a consumer highlights
+    /// `text[i]` for `sel_begin <= i < sel_end`. Empty is the absence.
     std::int64_t sel_begin = 0;
     std::int64_t sel_end = 0;
+    /// The byte of `label.text` the region's caret stands on, which a medium shows inverted;
+    /// -1 is none. It inserts nothing, so no character moves for a caret.
+    std::int64_t caret = -1;
 };
 
 /// A region's rows as canvas labels, the cell projection every cell medium shares: row `i` one
-/// cell below row 0, cut at the covered cells' width, dropped past their height. Every cell row gets a label padded to the
-/// full width, because a region is an overlay and an unwritten row shows its emptiness. A caret
-/// is a character inserted at its column before the cut (this projection does not scroll).
-/// Under `kGroundBeneath` a row is cut but not padded, unless it named its own ground, and an
-/// empty row is not produced. A selection maps through the caret insertion, then meets the cut.
+/// cell below row 0, cut at the covered cells' width, dropped past their height. Every cell row
+/// gets a label padded to the full width, because a region is an overlay and an unwritten row shows
+/// its emptiness. Under `kGroundBeneath` a row is cut but not padded, unless it named its own
+/// ground, and an empty row is not produced unless a caret stands on it. A caret stands on the
+/// cell of the character it sits before, and past a full row's end on the row's last cell (this
+/// projection does not scroll); a caret at a beneath row's end gets one blank cell to stand on.
 inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<ProjectedRow>& out) {
     if (r.w <= 0 || r.h <= 0) {
         return; // a region with no bounds shows nothing, and says nothing about it
@@ -386,17 +392,17 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
         const std::int64_t role = said ? r.rows[at].role : role::kFill;
         const std::int64_t back = said ? r.rows[at].background : role::kNone;
         RowSpan span = selection_span_of_row(r, i, static_cast<std::int64_t>(text.size()));
-        if (r.caret_row == i && r.caret_col >= 0 &&
-            r.caret_col <= static_cast<std::int64_t>(text.size())) {
-            text.insert(static_cast<std::size_t>(r.caret_col), 1, kCaretGlyph);
-            if (span.present()) {
-                span.begin += r.caret_col <= span.begin ? 1 : 0;
-                span.end += r.caret_col < span.end ? 1 : 0;
-            }
-        }
+        // A caret further right than just past the last cell shown stands nowhere shown.
+        const bool has_caret = r.caret_row == i && r.caret_col >= 0 &&
+            r.caret_col <= static_cast<std::int64_t>(text.size()) &&
+            r.caret_col <= static_cast<std::int64_t>(width) && width > 0;
         // `!= kGroundBeneath`, never `== kGroundOwn`: an unknown ground reads as OWNING its
         // room, so a number nobody chose cannot stop a region padding. See vocabulary.hpp.
         const bool takes_the_cells = r.ground != kGroundBeneath || back != role::kNone;
+        if (has_caret && static_cast<std::size_t>(r.caret_col) == text.size() &&
+            text.size() < width) {
+            text += ' '; // a cell to stand on, past the last character
+        }
         if (text.size() > width) {
             text.resize(width); // cut on a byte boundary: one cell per byte, as ever
         } else if (takes_the_cells) {
@@ -404,6 +410,8 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
         } else if (text.empty()) {
             continue; // nothing to write and no cells to claim: not a row at all
         }
+        const std::int64_t last = static_cast<std::int64_t>(text.size()) - 1;
+        const std::int64_t caret = has_caret ? (r.caret_col < last ? r.caret_col : last) : -1;
         if (span.begin > static_cast<std::int64_t>(text.size())) {
             span.begin = static_cast<std::int64_t>(text.size());
         }
@@ -414,7 +422,7 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
         // and the bitmap face draws it where it is.
         out.push_back(ProjectedRow{SurfaceLabel{r.x, add_cells(r.y, px_of_cells(i)),
                                                 std::move(text), role},
-                                   back, r.ground, span.begin, span.end});
+                                   back, r.ground, span.begin, span.end, caret});
     }
 }
 

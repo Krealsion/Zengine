@@ -457,11 +457,9 @@ public:
                                   VisibleBody& out) const;
     std::string visible_body(const std::string& provider, const std::string& pane,
                              VisibleBody& out, bool canvas_too) const;
-    /// Where a word's glyphs stand: one glyph's advance, and the column a terminal draws a caret
-    /// glyph into (-1 where it draws none), which each glyph from that column stands a cell right of.
+    /// Where a word's glyphs stand: one glyph's advance.
     struct WordGlyphs {
         std::int64_t advance = 0;
-        std::int64_t caret = -1;
     };
     /// The words a visible body shows, each where the medium draws it, numbered as a point names.
     std::vector<PaneWord> visible_words(const VisibleBody& visible,

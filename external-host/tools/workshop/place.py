@@ -64,7 +64,7 @@ def choose(ctx, hand, name):
 
 def field(hand, label):
     """The property row named for `label`, without its cursor mark, or None while it is not drawn:
-    the row's own characters, a terminal's caret glyph not among them."""
+    the row's own characters."""
     part = part_of(words_now(hand, *INFO), "property:" + label)
     return part["text"][1:] if part is not None else None
 

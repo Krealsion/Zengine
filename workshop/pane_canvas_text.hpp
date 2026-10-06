@@ -43,8 +43,9 @@ struct CanvasTextLayout {
 };
 
 // The complete padded region remains inside the clip. Clipping its authored bounds instead
-// would change the text's origin/capacity. Here only whole display glyphs and whole rows go.
-// The fallback's inserted caret is one display glyph, so cropping it cannot shift its suffix.
+// would change the text's origin/capacity. Here only whole glyphs and whole rows go. A caret
+// moves no glyph; where a character is a cell, one at the run's end stands on the cell after its
+// last character when the clip has that cell, else on the last character's.
 inline CanvasTextLayout clip_canvas_text(const PaneCanvasText& text, const CanvasTextBox& clip,
                                          const PaneCanvasRoom& room) {
     CanvasTextLayout out;
@@ -71,26 +72,19 @@ inline CanvasTextLayout clip_canvas_text(const PaneCanvasText& text, const Canva
     const auto length = (std::min)(text.text.size(), kPaneCanvasMaxTextRunBytes);
     const bool has_caret = text.caret_col >= 0 &&
         text.caret_col <= static_cast<std::int64_t>(length);
-    const bool inserted_caret = has_caret && !m.graphical;
     const auto caret = has_caret ? static_cast<std::size_t>(text.caret_col) : std::size_t{0};
-    const auto display_length = length + (inserted_caret ? 1u : 0u);
-    std::size_t first_display = 0;
+    std::size_t first = 0;
     auto x = floor_at(text.x);
-    while (x < left && first_display < display_length) {
+    while (x < left && first < length) {
         x = surface::add_cells(x, m.advance);
-        ++first_display;
+        ++first;
     }
     if (x < left || x >= right || pad >= right - x) return out;
     const auto capacity = (right - x - pad) / m.advance;
     if (capacity <= 0) return out;
-    const auto take = (std::min)(display_length - first_display,
-                                static_cast<std::size_t>(capacity));
-    const auto end_display = first_display + take;
-    const auto first = first_display - (inserted_caret && caret < first_display ? 1u : 0u);
-    const auto end = end_display - (inserted_caret && caret < end_display ? 1u : 0u);
-    const bool visible_caret = has_caret && (inserted_caret
-        ? caret >= first_display && caret < end_display
-        : caret >= first && caret <= end);
+    const auto take = (std::min)(length - first, static_cast<std::size_t>(capacity));
+    const auto end = first + take;
+    const bool visible_caret = has_caret && caret >= first && caret <= end;
     if (take == 0 && !visible_caret) return out;
     out.text = PaneCanvasText{x, y, text.text.substr(first, end - first), text.role};
     out.text.caret_col = visible_caret ? static_cast<std::int64_t>(caret - first) : surface::kNoCaret;
@@ -103,7 +97,10 @@ inline CanvasTextLayout clip_canvas_text(const PaneCanvasText& text, const Canva
             out.text.sel_end_col = finish - static_cast<std::int64_t>(first);
         }
     }
-    const auto columns = static_cast<std::int64_t>((std::max)(std::size_t{1}, take));
+    const bool caret_cell = visible_caret && !m.graphical && caret == end &&
+        take < static_cast<std::size_t>(capacity);
+    const auto columns =
+        static_cast<std::int64_t>((std::max)(std::size_t{1}, take + (caret_cell ? 1u : 0u)));
     const auto width = surface::add_cells(surface::mul_px(columns, m.advance), pad);
     out.bounds = {x, y, width, height};
     out.first_column = first;

@@ -677,32 +677,56 @@ TEST_CASE("pane canvas text clipping preserves surviving positions through both 
     CHECK(canvas_text_metrics(room).grain == kPaneCanvasUnit);
 }
 
-TEST_CASE("pane canvas cell text cropping accounts for the inserted caret and preserves its suffix") {
+TEST_CASE("pane canvas cell text cropping moves no glyph for a caret, which stands on a cell") {
     const PaneCanvasRoom room{canvas_pane, 1, 3 * kPaneCanvasUnit, 2 * kPaneCanvasUnit,
                               kPaneCanvasUnit, false, 0, 0};
     const auto placed = clip_canvas_text({-2 * kPaneCanvasUnit, 0, "ABCD", 0, 1, 1, 4},
                                          {0, 0, room.width, room.height}, room);
     REQUIRE(placed.visible());
-    CHECK(placed.first_column == 1);
-    CHECK(placed.text.text == "BCD");
+    CHECK(placed.first_column == 2);
+    CHECK(placed.text.text == "CD");
     CHECK(placed.text.caret_col == surface::kNoCaret);
     CHECK(placed.text.sel_begin_col == 0);
-    CHECK(placed.text.sel_end_col == 3);
+    CHECK(placed.text.sel_end_col == 2);
     CHECK(placed.bounds.x == 0);
     surface::SurfaceLayer layer;
     layer.texts.push_back(canvas_text_region(placed));
     auto rows = surface::project_text_regions(layer);
     REQUIRE(rows.size() == 1);
-    CHECK(rows[0].label.text == "BCD");
+    CHECK(rows[0].label.text == "CD");
+    CHECK(rows[0].caret == -1);
+    // A caret inside the crop stands on its character's cell, and every glyph keeps its own.
     const auto at_start = clip_canvas_text({-kPaneCanvasUnit, 0, "ABCD", 0, 1, 1, 4},
                                            {0, 0, room.width, room.height}, room);
     REQUIRE(at_start.visible());
-    CHECK(at_start.text.text == "BC");
+    CHECK(at_start.text.text == "BCD");
     CHECK(at_start.text.caret_col == 0);
     layer.texts[0] = canvas_text_region(at_start);
     rows = surface::project_text_regions(layer);
     REQUIRE(rows.size() == 1);
-    CHECK(rows[0].label.text == "_BC");
+    CHECK(rows[0].label.text == "BCD");
+    CHECK(rows[0].caret == 0);
+    // A caret after the last character gets the cell after it where the clip has one...
+    const auto room_after = clip_canvas_text({0, 0, "AB", 0, 2, -1, -1},
+                                             {0, 0, room.width, room.height}, room);
+    REQUIRE(room_after.visible());
+    CHECK(room_after.bounds.w == 3 * kPaneCanvasUnit);
+    layer.texts[0] = canvas_text_region(room_after);
+    rows = surface::project_text_regions(layer);
+    REQUIRE(rows.size() == 1);
+    CHECK(rows[0].label.text == "AB ");
+    CHECK(rows[0].caret == 2);
+    // ...and stands on the last character's where it has none, which still shows.
+    const auto full = clip_canvas_text({0, 0, "ABC", 0, 3, -1, -1},
+                                       {0, 0, room.width, room.height}, room);
+    REQUIRE(full.visible());
+    CHECK(full.text.text == "ABC");
+    CHECK(full.text.caret_col == 3);
+    layer.texts[0] = canvas_text_region(full);
+    rows = surface::project_text_regions(layer);
+    REQUIRE(rows.size() == 1);
+    CHECK(rows[0].label.text == "ABC");
+    CHECK(rows[0].caret == 2);
 }
 
 TEST_CASE("pane canvas text metric changes renew the grant even when its body stays fixed") {

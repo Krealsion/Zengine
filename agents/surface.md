@@ -37,13 +37,17 @@ ground is invisible, and nothing refuses it.
 region carries, never a pixel and never a canvas cell. That is what lets each medium answer
 with the metric it already resolved: `plan_caret` (`surface/skin_sdl_plan.hpp`) turns them
 into a `kCaretWidthPx` bar off the same `RegionFit` the rows were positioned with, and
-`project_text_regions` *inserts* `kCaretGlyph` at the same column, which for a caret at the
-end of a line is byte-for-byte the row the Terminal used to append for itself. `kNoCaret` is
-**negative** for `role::kNone`'s reason — a row index is non-negative by construction, so an
-absence cannot collide with a row anybody meant.
+`project_text_regions` says on `ProjectedRow::caret` which cell of the same row the caret stands
+on, inserting nothing. `kNoCaret` is **negative** for `role::kNone`'s reason — a row index is
+non-negative by construction, so an absence cannot collide with a row anybody meant.
 
-**A caret is an insertion point, so it is a bar and never a block**, and it is not a focus
-fact and not a clock. Two regions on one canvas may each carry one.
+**Where type is set, a caret is an insertion point, so it is a bar and never a block.** A
+medium whose character is a cell has no place between two characters, so there **a caret is
+the cell it stands on, inverted** — the cell of the character it sits before, the blank after a
+row's last character, and past a full row's end the row's last cell. One convention for every
+cell medium (a terminal, the bitmap face) and every caret in one: no character moves for a
+caret, so no column is mapped through one. A caret is not a focus fact and not a clock. Two
+regions on one canvas may each carry one.
 
 ## A region may have a selected range, and each medium answers in its own voice
 
@@ -60,17 +64,20 @@ covers different characters in different media.
   fourth grid in `canvas_body` beside glyph/role/ground, emitted as `\x1b[7m`/`\x1b[27m`
   runs. It composes with any ink and any ground, `\x1b[0m` resets it (so it is re-stated
   after a reset exactly as a ground is), and a canvas with no selection emits not one byte of
-  it — the goldens are the proof.
+  it — the goldens are the proof. A caret's cell is a fifth grid: reversed when it is not
+  selected and plain when it is (so a caret inside a selection is its one plain cell), and
+  underlined either way (`\x1b[4m`/`\x1b[24m`), so a caret just past a selection does not read
+  as the selection one cell longer.
 - **The graphical medium answers with a BAND under the glyphs** — `kSelectionBand`
   (`skin_sdl_plan.hpp`), one `PlanSelectionBand` per touched row, resolved from the SAME
   `RegionFit` that placed the rows and drawn after the row grounds, before the text, so
   glyphs keep their ink and sit on it. The bitmap face paints a selected cell's clear in the
   band's ink, `kGroundBeneath` rows included — a selection must not vanish because the
-  material under it is somebody else's.
+  material under it is somebody else's. Its caret's cell is filled with the row's ink and its
+  glyph drawn in what the cell would have been cleared to, the band where it is selected.
 - **The cell projection carries the span on `ProjectedRow` (`sel_begin`/`sel_end`)**, in the
-  projected label's own bytes: the inserted caret glyph shifts a span at or after it, sits
-  INSIDE the highlight when the caret is strictly inside the range, and the region-width cut
-  cuts highlights exactly as it cuts text.
+  projected label's own bytes, which a caret moves none of, and the region-width cut cuts
+  highlights exactly as it cuts text.
 - **Which end the caret is at is not restated** — the caret fields already say it — and the
   pair is NOT per-span styling: one range, meaning selection. The role vocabulary is still
   closed.
@@ -208,7 +215,7 @@ SurfaceLabel            it is not a rectangle at all: this CELL is the meaning. 
 - **The character medium's cell ground has always been "whatever the terminal is wearing"**, so
   the whole of the difference there is that the projection stops PADDING. The run of cells a
   `kGroundBeneath` region produces is byte-for-byte the run a `SurfaceLabel` at the same origin
-  produced.
+  produced, and one blank longer where a caret stands after its last character.
 - **A row of such a region with nothing to draw is not a row.** No bytes, no caret and no ground
   of its own means no cell is written, so no `ProjectedRow` is produced — which is also what
   keeps a name over a four-cell-tall object ONE projected row rather than four.
@@ -440,7 +447,7 @@ terminal backend drops their CSI sequences and the Win32 console backend maps th
 A capture is the Medium's (`capture()`, required of every Medium like the clipboard pair): the
 SDL medium re-draws the last canvas, reads the renderer before presenting it again, and hands a
 24-bit BMP; the terminal medium hands the cell projection (`canvas_cells`, the same grids
-`canvas_body` paints, less the ink). The shell (`skin.hpp`) numbers and retains ONE picture,
+`canvas_body` paints, less the ink, so less a selection and a caret). The shell (`skin.hpp`) numbers and retains ONE picture,
 answers chunks of it, and defers a request whose `after_frame` is not yet passed to the paint
 that passes it — spending the deferred answer inside `capture_if_due`, once. A picture is
 presentation at one frame and proves nothing about queued work; `surface/vocabulary.hpp` says

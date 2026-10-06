@@ -1469,7 +1469,8 @@ TEST_CASE("region: the two projections partition every region on a canvas, exact
     const std::vector<ProjectedRow> as_cells = project_text_regions(plane(c), face);
     CHECK(as_cells.size() == 1); // the thin region's single row, and nothing of the pane
     CHECK(as_cells[0].label.y == cells_px(30));
-    CHECK(as_cells[0].label.text == "a v_alue          "); // the caret, INSERTED at column 3
+    CHECK(as_cells[0].label.text == "a value           "); // nothing inserted for the caret
+    CHECK(as_cells[0].caret == 3);                          // which stands on the 'a' of value
     CHECK(as_cells[0].label.role == role::kAlert);
     const std::vector<PlanTextRegion> as_type = plan_layer_regions(plane(c), face, PlanSize{960, 480});
     CHECK(as_type.size() == 1); // the pane, and nothing of the thin row
@@ -1846,10 +1847,10 @@ TEST_CASE("pointing: a pixel inside a region lands on a prose column and row") {
     CHECK(prose_row_of_pixel(kMax, cells) > 0);
 }
 
-TEST_CASE("region: a caret is a character in the cell projection, at its own column") {
-    // A cell medium has no sub-cell position, so the honest lower-fidelity answer to "the next
-    // keystroke lands between these two characters" is a mark BETWEEN them -- a projection, not
-    // a stub.
+TEST_CASE("region: a caret stands on a cell of the cell projection and moves no character") {
+    // A cell medium has no place between two characters, so a caret stands on the cell of the
+    // character it sits before, which the medium shows inverted: nothing is inserted, so no
+    // character moves for it.
     SurfaceCanvas c;
     c.width = cells_px(40);
     c.height = cells_px(8);
@@ -1866,29 +1867,34 @@ TEST_CASE("region: a caret is a character in the cell projection, at its own col
 
     std::vector<ProjectedRow> rows = project_text_regions(plane(c));
     REQUIRE(rows.size() == 2);
-    CHECK(rows[0].label.text == "> abc_    "); // at the end, padded to the region's width
+    CHECK(rows[0].label.text == "> abc     "); // at the end: the blank after the last character
+    CHECK(rows[0].caret == 5);
     CHECK(rows[1].label.text == "other     "); // the other row is untouched
+    CHECK(rows[1].caret == -1);
 
-    // IN THE MIDDLE, the rest of the row moves right by one. That is what an inserted mark
-    // does, and it is the whole cost of a character medium having no space between cells.
+    // IN THE MIDDLE, on the character it sits before, and the row is as it was.
     plane(c).texts[0].caret_col = 3;
     rows = project_text_regions(plane(c));
-    CHECK(rows[0].label.text == "> a_bc    ");
+    CHECK(rows[0].label.text == "> abc     ");
+    CHECK(rows[0].caret == 3);
 
-    // AT COLUMN 0, before everything.
+    // AT COLUMN 0, on the first character.
     plane(c).texts[0].caret_col = 0;
     rows = project_text_regions(plane(c));
-    CHECK(rows[0].label.text == "_> abc    ");
+    CHECK(rows[0].label.text == "> abc     ");
+    CHECK(rows[0].caret == 0);
 
     // NO CARET IS THE DEFAULT AND DRAWS NOTHING -- kNoCaret, and any other row.
     plane(c).texts[0].caret_row = kNoCaret;
     rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "> abc     ");
+    CHECK(rows[0].caret == -1);
     plane(c).texts[0].caret_row = 1;
     plane(c).texts[0].caret_col = 2;
     rows = project_text_regions(plane(c));
-    CHECK(rows[0].label.text == "> abc     ");
-    CHECK(rows[1].label.text == "ot_her    ");
+    CHECK(rows[0].caret == -1);
+    CHECK(rows[1].label.text == "other     ");
+    CHECK(rows[1].caret == 2);
 
     // A CARET THIS ROW CANNOT HOLD IS NOT DRAWN, and never throws: `caret_col` is a number
     // off the wire, so past-the-text and negative are both answers rather than errors.
@@ -1896,24 +1902,54 @@ TEST_CASE("region: a caret is a character in the cell projection, at its own col
     plane(c).texts[0].caret_col = 99;
     rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "> abc     ");
+    CHECK(rows[0].caret == -1);
     plane(c).texts[0].caret_col = -4;
     rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "> abc     ");
+    CHECK(rows[0].caret == -1);
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
     plane(c).texts[0].caret_row = kMax;
     plane(c).texts[0].caret_col = kMin;
     rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "> abc     ");
+    CHECK(rows[0].caret == -1);
 
-    // INSERTED BEFORE THE CUT, so a caret past the region's width falls off the row like
-    // any other character. This projection does not scroll, and rescuing the caret here
-    // would be inventing a scroll for every consumer at once.
+    // A FULL ROW KEEPS EVERY CHARACTER, and a caret past its end stands on its last cell: this
+    // projection does not scroll, and the caret after the last character still shows.
     plane(c).texts[0].caret_row = 0;
     plane(c).texts[0].caret_col = 2;
     plane(c).texts[0].rows[0].text = "0123456789";
     rows = project_text_regions(plane(c));
-    CHECK(rows[0].label.text == "01_2345678"); // ten wide; the '9' went
+    CHECK(rows[0].label.text == "0123456789"); // ten wide; the '9' stays
+    CHECK(rows[0].caret == 2);
+    plane(c).texts[0].caret_col = 10;
+    rows = project_text_regions(plane(c));
+    CHECK(rows[0].label.text == "0123456789");
+    CHECK(rows[0].caret == 9);
+
+    // A caret further right than the row shows stands nowhere: the text it sits in is cut.
+    plane(c).texts[0].rows[0].text = "0123456789ab";
+    plane(c).texts[0].caret_col = 11;
+    rows = project_text_regions(plane(c));
+    CHECK(rows[0].label.text == "0123456789");
+    CHECK(rows[0].caret == -1);
+
+    // UNDER kGroundBeneath a row is not padded, so a caret at its end gets one blank to stand
+    // on, and an empty row a caret stands on is a row.
+    plane(c).texts[0].ground = kGroundBeneath;
+    plane(c).texts[0].rows[0].text = "abc";
+    plane(c).texts[0].caret_col = 3;
+    rows = project_text_regions(plane(c));
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].label.text == "abc ");
+    CHECK(rows[0].caret == 3);
+    plane(c).texts[0].rows[0].text.clear();
+    plane(c).texts[0].caret_col = 0;
+    rows = project_text_regions(plane(c));
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].label.text == " ");
+    CHECK(rows[0].caret == 0);
 }
 
 TEST_CASE("region plan: a caret resolves to a bar, positioned by the fit that drew the rows") {
@@ -3823,7 +3859,7 @@ TEST_CASE("selection_span_of_row is one rule, total over garbage") {
     CHECK(selection_span_of_row(wide, 0, 6).end == 2);
 }
 
-TEST_CASE("the cell projection carries the span, shifted around the inserted caret") {
+TEST_CASE("the cell projection carries the span, which a caret moves no cell of") {
     SurfaceTextRegion r;
     r.w = cells_px(10);
     r.h = cells_px(1);
@@ -3843,30 +3879,18 @@ TEST_CASE("the cell projection carries the span, shifted around the inserted car
                                    static_cast<std::size_t>(out[0].sel_end - out[0].sel_begin)) ==
           "cd");
 
-    // A caret AT OR BEFORE the span shifts it whole; the glyph sits outside the highlight.
+    // A caret AT, INSIDE OR AFTER the span stands on a cell and moves none: the span is the
+    // text's own columns wherever the caret is.
     r.caret_row = 0;
-    r.caret_col = 2;
-    out.clear();
-    project_one_text_region(r, out);
-    CHECK(out[0].label.text == "ab_cdef   ");
-    CHECK(out[0].sel_begin == 3);
-    CHECK(out[0].sel_end == 5);
-
-    // A caret STRICTLY INSIDE widens the span around the glyph -- the honest picture of an
-    // insertion point in the middle of what is selected.
-    r.caret_col = 3;
-    out.clear();
-    project_one_text_region(r, out);
-    CHECK(out[0].label.text == "abc_def   ");
-    CHECK(out[0].sel_begin == 2);
-    CHECK(out[0].sel_end == 5);
-
-    // A caret AT THE END of the span sits after it, unshifted.
-    r.caret_col = 4;
-    out.clear();
-    project_one_text_region(r, out);
-    CHECK(out[0].sel_begin == 2);
-    CHECK(out[0].sel_end == 4);
+    for (const std::int64_t at : {std::int64_t{2}, std::int64_t{3}, std::int64_t{4}}) {
+        r.caret_col = at;
+        out.clear();
+        project_one_text_region(r, out);
+        CHECK(out[0].label.text == "abcdef    ");
+        CHECK(out[0].caret == at);
+        CHECK(out[0].sel_begin == 2);
+        CHECK(out[0].sel_end == 4);
+    }
 
     // AND THE CUT CUTS HIGHLIGHTS TOO: a span past the region's width covers exactly as far
     // as the text is drawn.
@@ -3934,6 +3958,56 @@ TEST_CASE("the character medium says a selection in reverse video, exactly") {
     CHECK(canvas_body(garbage) == canvas_body(plainc));
 }
 
+TEST_CASE("the character medium shows a caret as its cell reversed and underlined, exactly") {
+    // The cell a caret stands on is reversed, as a selected cell is, and underlined: inside a
+    // selection it is the one cell shown plain, and just past one it does not read as the
+    // selection a cell longer. Nothing is inserted, so every character keeps its cell.
+    const auto row = [](const char* text, std::int64_t width, std::int64_t caret,
+                        std::int64_t sel_begin, std::int64_t sel_end) {
+        SurfaceCanvas c;
+        c.width = cells_px(width);
+        c.height = cells_px(1);
+        SurfaceTextRegion r;
+        r.w = cells_px(width);
+        r.h = cells_px(1);
+        r.rows.push_back(SurfaceTextRow{text, role::kFill});
+        r.caret_row = 0;
+        r.caret_col = caret;
+        if (sel_end > sel_begin) {
+            r.sel_begin_row = r.sel_end_row = 0;
+            r.sel_begin_col = sel_begin;
+            r.sel_end_col = sel_end;
+        }
+        plane(c).texts.push_back(r);
+        return canvas_body(c);
+    };
+    // MID-ROW, on the character it sits before.
+    CHECK(row("abcde", 6, 2, 0, 0) ==
+          "\x1b[2K\x1b[37mab\x1b[7m\x1b[4mc\x1b[27m\x1b[24mde \x1b[0m\r\n");
+    // AT A FULL ROW'S END, on its last cell, and the last character is still there.
+    CHECK(row("abcde", 5, 5, 0, 0) == "\x1b[2K\x1b[37mabcd\x1b[7m\x1b[4me\x1b[0m\r\n");
+    // INSIDE A SELECTION, the one plain cell of it.
+    CHECK(row("abcde", 6, 2, 1, 4) ==
+          "\x1b[2K\x1b[37ma\x1b[7mb\x1b[27m\x1b[4mc\x1b[7m\x1b[24md\x1b[27me \x1b[0m\r\n");
+    // JUST PAST A SELECTION, reversed like it and underlined unlike it.
+    CHECK(row("abcde", 6, 3, 1, 3) ==
+          "\x1b[2K\x1b[37ma\x1b[7mbc\x1b[4md\x1b[27m\x1b[24me \x1b[0m\r\n");
+    // AND A CANVAS WITH NO CARET EMITS NOT ONE BYTE OF ONE.
+    CHECK(row("abcde", 6, kNoCaret, 0, 0) == "\x1b[2K\x1b[37mabcde \x1b[0m\r\n");
+    // The capture is the glyphs less the ink: a caret is ink, so it is not in the capture.
+    SurfaceCanvas c;
+    c.width = cells_px(6);
+    c.height = cells_px(1);
+    SurfaceTextRegion r;
+    r.w = cells_px(6);
+    r.h = cells_px(1);
+    r.rows.push_back(SurfaceTextRow{"abcde", role::kFill});
+    r.caret_row = 0;
+    r.caret_col = 2;
+    plane(c).texts.push_back(r);
+    CHECK(canvas_cells(c) == "abcde \n");
+}
+
 TEST_CASE("the bitmap face grounds a selected cell in the selection band") {
     // The cell path (no metric): each label cell is cleared before its glyph, and a selected
     // cell's clear IS the band -- same precedence as the terminal's reverse video, in this
@@ -3964,6 +4038,60 @@ TEST_CASE("the bitmap face grounds a selected cell in the selection band") {
     }
     CHECK(band_quads == 1);
     CHECK(background_quads == 3); // the other three cells keep the ordinary clear
+}
+
+TEST_CASE("the bitmap face shows a caret's cell inverted, inside a selection too") {
+    // The cell path (no metric): the cell a caret stands on is filled with its row's ink and
+    // its glyph drawn in what the cell would have been cleared to -- the selection band where
+    // the cell is selected, so the caret still shows inside a selection.
+    const auto quads_of = [](std::int64_t caret, std::int64_t sel_end) {
+        SurfaceLayer layer;
+        SurfaceTextRegion r;
+        r.w = cells_px(4);
+        r.h = cells_px(1);
+        r.rows.push_back(SurfaceTextRow{"abc", role::kFill});
+        r.caret_row = 0;
+        r.caret_col = caret;
+        if (sel_end > 0) {
+            r.sel_begin_row = r.sel_end_row = 0;
+            r.sel_begin_col = 0;
+            r.sel_end_col = sel_end;
+        }
+        layer.texts.push_back(r);
+        return plan_layer_quads(layer, cells_px(4), cells_px(1));
+    };
+    const PlanInk ink = ink_for_role(role::kFill);
+    const auto cell_fill = [](const std::vector<PlanRect>& quads, std::int64_t cell) {
+        for (const PlanRect& q : quads) {
+            if (q.w == kCanvasCellPx && q.h == kCanvasCellPx && q.x == cell * kCanvasCellPx)
+                return PlanInk{q.r, q.g, q.b};
+        }
+        return PlanInk{};
+    };
+    const auto glyph_inks = [](const std::vector<PlanRect>& quads, std::int64_t cell) {
+        std::vector<PlanInk> inks;
+        for (const PlanRect& q : quads) {
+            const bool whole = q.w == kCanvasCellPx && q.h == kCanvasCellPx;
+            if (!whole && q.x >= cell * kCanvasCellPx && q.x < (cell + 1) * kCanvasCellPx)
+                inks.push_back(PlanInk{q.r, q.g, q.b});
+        }
+        return inks;
+    };
+    // ON A CHARACTER: the cell is ink, the glyph is the ground.
+    std::vector<PlanRect> quads = quads_of(1, 0);
+    CHECK(cell_fill(quads, 1) == ink);
+    REQUIRE_FALSE(glyph_inks(quads, 1).empty());
+    for (const PlanInk& g : glyph_inks(quads, 1)) CHECK(g == kCanvasBackground);
+    CHECK(cell_fill(quads, 0) == kCanvasBackground); // its neighbours keep the ordinary clear
+    for (const PlanInk& g : glyph_inks(quads, 0)) CHECK(g == ink);
+    // INSIDE A SELECTION: the cell is ink and the glyph the band, unlike every selected cell.
+    quads = quads_of(1, 3);
+    CHECK(cell_fill(quads, 0) == kSelectionBand);
+    CHECK(cell_fill(quads, 1) == ink);
+    for (const PlanInk& g : glyph_inks(quads, 1)) CHECK(g == kSelectionBand);
+    // AFTER THE LAST CHARACTER: the blank cell after it, inverted.
+    quads = quads_of(3, 0);
+    CHECK(cell_fill(quads, 3) == ink);
 }
 
 TEST_CASE("the real face resolves selection bands from the fit that placed the rows") {

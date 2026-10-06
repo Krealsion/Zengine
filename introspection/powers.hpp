@@ -326,6 +326,8 @@ inline constexpr const char* kOperatorsWord = "Operators";
 inline constexpr const char* kCompositeWord = "Composite";
 inline constexpr const char* kCompositeBadge = " (composite)";
 inline constexpr const char* kFindLabel = "find:";
+/// The query's caret, a character this pane writes into its own chrome row.
+inline constexpr char kQueryCaret = '_';
 inline constexpr const char* kSampleControl = "[ Sample ]";
 
 /// What a power its contributor offers to no one else's composition says, beside its identity
@@ -626,7 +628,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
             const std::int64_t room = shape.query_room - 1;
             std::string shown = ui.query.visible(room > 0 ? room : 0);
             const std::size_t at = ui.query.caret_column();
-            shown.insert(at <= shown.size() ? at : shown.size(), 1, surface::kCaretGlyph);
+            shown.insert(at <= shown.size() ? at : shown.size(), 1, kQueryCaret);
             text += std::string("  ") + kFindLabel + shown;
         }
         const std::string drawn = fit(text, columns);
