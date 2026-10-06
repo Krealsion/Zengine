@@ -6,6 +6,7 @@
 
 #include "doctest.h"
 #include "workshop_support.hpp"
+#include "timeline.hpp"
 #include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
 
@@ -688,4 +689,57 @@ TEST_CASE("every place the desk and the words give is where the medium draws it,
         }
         d.r.key(input::scan::kEscape);
     }
+}
+
+namespace {
+
+/// A KEPT CONVERSATION: the timeline heard, against tests/timelines/<name>.txt.
+std::string kept_conversation(const zengine::tests::Timeline& heard, const std::string& name) {
+    return heard.compare(std::filesystem::path(ZENGINE_SOURCE_DIR) / "tests" / "timelines" / (name + ".txt"),
+                         std::filesystem::path(ZENGINE_TIMELINES_NOW) / (name + ".txt"));
+}
+
+} // namespace
+
+TEST_CASE("the conversation of reading the desk, a pane's words and a character's point is kept") {
+    DeskRig d;
+    say_rows(d);
+    zengine::tests::Timeline heard(d.r.bus);
+    heard.name(d.asker_id, "asker");
+    heard.name(d.r.painter_id, "painter");
+    (void)d.desk();
+    v2::PaneView view;
+    REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
+    v2::PanePoint at;
+    REQUIRE(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 1, 7}, at).empty());
+    heard.stop();
+    const std::string differs = kept_conversation(heard, "desk-words-point");
+    CHECK_MESSAGE(differs.empty(), differs);
+}
+
+TEST_CASE("the conversation of a press on a word is kept") {
+    DeskRig d;
+    say_rows(d);
+    v2::PaneView view;
+    REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
+    zengine::tests::Timeline heard(d.r.bus);
+    heard.name(d.asker_id, "asker");
+    heard.name(d.r.painter_id, "painter");
+    d.click(view.words[1].x, view.words[1].y, view.words[1].space);
+    heard.stop();
+    REQUIRE(d.alpha->presses.size() == 1);
+    const std::string differs = kept_conversation(heard, "press-a-word");
+    CHECK_MESSAGE(differs.empty(), differs);
+}
+
+TEST_CASE("the conversation of opening a pane is kept") {
+    DeskRig d;
+    ProviderSeat* gamma = d.r.mount_provider("zengine.test.desk-gamma");
+    zengine::tests::Timeline heard(d.r.bus);
+    heard.name(d.asker_id, "asker");
+    heard.name(d.r.painter_id, "painter");
+    REQUIRE(seat_pane_open(d.r, gamma, "zengine.test.desk-gamma", "gamma") != kNoPaneKind);
+    heard.stop();
+    const std::string differs = kept_conversation(heard, "open-a-pane");
+    CHECK_MESSAGE(differs.empty(), differs);
 }

@@ -1,0 +1,9 @@
+host -> asker  SeatDo v1  {}
+asker -> zengine.workshop  DeskViewRequested v1  {}
+zengine.workshop -> asker  DeskView v1  {width: 1800, height: 720, cell_px: 0, space: 1, room: {x: 0, y: 24, w: 1800, h: 648}, panes: [4], arranging: false, menu: {open: false, office: "", pane: "", picture: 0, place: {x: 0, y: 0, w: 0, h: 0}, lines: [0]}}
+host -> asker  SeatDo v1  {}
+asker -> zengine.workshop  PaneViewRequested v2  {provider: "zengine.test.desk-alpha", pane: "alpha"}
+zengine.workshop -> asker  PaneView v2  {provider: "zengine.test.desk-alpha", pane: "alpha", picture: 0, canvas: false, words: [2]}
+host -> asker  SeatDo v1  {}
+asker -> zengine.workshop  PanePointRequested v2  {provider: "zengine.test.desk-alpha", pane: "alpha", picture: 0, word: 1, column: 7}
+zengine.workshop -> asker  PanePoint v2  {provider: "zengine.test.desk-alpha", pane: "alpha", picture: 0, word: 1, column: 7, x: 8, y: 7, space: 1}

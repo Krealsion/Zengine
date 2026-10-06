@@ -936,7 +936,11 @@ zengine_workshop_suite(host
 
 # THE DESK AND THE WORDS ON IT, READ BY MESSAGE: what Workshop answers about its panes and their
 # words, and that each place it gives is where the medium draws it.
-zengine_workshop_suite(desk SOURCES test_workshop_desk.cpp)
+# Three operations keep their conversations in tests/timelines/, and the heard ones are written
+# beside the build to diff.
+zengine_workshop_suite(desk SOURCES test_workshop_desk.cpp
+    DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
+                "ZENGINE_TIMELINES_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/timelines-now-$<CONFIG>\"")
 
 # THE SHAPES THIS TREE PUBLISHES: the copies of published shapes beside the current ones, every
 # name one component's, and the census -- every product weave's manifest and the headers' shapes,

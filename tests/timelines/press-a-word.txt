@@ -1,0 +1,7 @@
+host -> zengine.workshop  PointerButton v1  {button: 1, pressed: true, x: 9, y: 7, space: 1, modifiers: 0}
+zengine.workshop -> zengine.test.desk-alpha as zengine.workshop  PanePressed v1  {pane: "alpha", row: 1, column: 8}
+zengine.workshop -> painter  SurfaceText v1  {slot: "status", text: "[workshop] layout "Default" | 4 panes"}
+zengine.workshop -> painter  SurfaceCanvas v9  {width: 1800, height: 720, layers: [4]}
+host -> zengine.workshop  PointerButton v1  {button: 1, pressed: false, x: 9, y: 7, space: 1, modifiers: 0}
+zengine.workshop -> painter  SurfaceText v1  {slot: "status", text: "[workshop] layout "Default" | 4 panes"}
+zengine.workshop -> painter  SurfaceCanvas v9  {width: 1800, height: 720, layers: [4]}
