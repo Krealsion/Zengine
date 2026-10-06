@@ -196,7 +196,9 @@ public:
     /// A HAND ON A PANE'S PICTURE, read back to the row and column of its lattice: a primary
     /// press is the press a row was, its motion a drag, the wheel the wheel; a right press is
     /// handed back, so Workshop's own pane menu opens where it was made. Only for the room the
-    /// pane holds: a pointer naming another grant is from a room since replaced.
+    /// pane holds: a pointer naming another grant is from a room since replaced, and a primary
+    /// press naming a picture drawn under another press map is dropped -- never read against
+    /// whatever row has since moved into its place.
     void on(const zengine::workshop::PaneCanvasPointer& event, loom::Mail& mail) {
         namespace cp = zengine::workshop::canvas_pointer;
         if (!mail.authored_from_role(kWorkshopRole)) {
@@ -228,7 +230,8 @@ public:
             (void)zengine::workshop::pane_menu::pass_back(mail, kIntrospectionRole, event.pane);
             return;
         }
-        if (event.button != 1 || !at.shown) {
+        if (event.button != 1 || !at.shown ||
+            !canvas->pictures.current(event.grant, event.picture)) {
             return;
         }
         if (event.pane == kPowersPane) {
@@ -649,6 +652,10 @@ private:
     struct Canvas {
         zengine::workshop::PaneCanvasRoom room;
         zengine::workshop::CanvasPictures pictures;
+        /// What a press on the pane's picture means, spelled whole, and its number, which moves
+        /// exactly when the spelling does.
+        std::string press_map;
+        std::int64_t meaning = 0;
         std::int64_t prose_rows = 0, prose_columns = 0;
         bool on() const { return room.grant > 0 && room.width > 0 && room.height > 0; }
     };
@@ -670,9 +677,10 @@ private:
         if (Canvas* canvas = canvas_of(pane); canvas != nullptr && canvas->on()) {
             (void)mail.as_role(kIntrospectionRole)
                 .send_to_role(kWorkshopRole,
-                              zengine::workshop::rows_picture(canvas->room,
-                                                              canvas->pictures.next(canvas->room, 0),
-                                                              rows, parts, caret));
+                              zengine::workshop::rows_picture(
+                                  canvas->room,
+                                  canvas->pictures.next(canvas->room, meaning_of(*canvas, pane)),
+                                  rows, parts, caret));
             return;
         }
         zengine::workshop::v4::PaneContent said;
@@ -686,6 +694,31 @@ private:
                 .send_to_role(kWorkshopRole,
                               zengine::workshop::PaneCaret{pane, caret.row, caret.column});
         }
+    }
+
+    /// THE NUMBER OF WHAT A PRESS ON `pane` MEANS NOW: Loaded's rows by the weave each names,
+    /// Powers' places by the control or power each is; Project's presses mean nothing. A repaint
+    /// that moves no meaning -- a mark, a caret, a query typed -- keeps the number.
+    std::int64_t meaning_of(Canvas& canvas, std::string_view pane) {
+        std::string spelled;
+        if (pane == kLoadedPane) {
+            for (std::size_t row = 0; row < view_.rows.size(); ++row) {
+                const LoadedWeave* entry =
+                    zengine::introspection::entry_at_row(view_, static_cast<std::int64_t>(row));
+                spelled += (entry != nullptr ? entry->name : std::string()) + '\n';
+            }
+        } else if (pane == kPowersPane) {
+            for (const intro::PowersSpan& s : powers_shown_.spans) {
+                spelled += std::to_string(s.row) + ' ' + std::to_string(s.first) + ' ' +
+                           std::to_string(s.last) + ' ' + std::to_string(s.control) + ' ' +
+                           s.identity + '\n';
+            }
+        }
+        if (canvas.meaning == 0 || spelled != canvas.press_map) {
+            canvas.press_map = std::move(spelled);
+            ++canvas.meaning;
+        }
+        return canvas.meaning;
     }
 
     /// WHAT LOADED CALLS ITS ROWS: a loaded weave's row by its name, `weave:<name>`.
