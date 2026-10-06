@@ -686,6 +686,8 @@ what Workshop owns and none read off a picture:
   text pane. So a tool presses a control such as `[Save copy]`, or the View Builder's `[Label]`,
   without knowing a font.
 
+![A 1440 by 900 window after a walk read by messages: the View Builder, at 96,102 and 840 by 240 as the desk says, made label1 when its [Label] was pressed by what it says; Info, holding the keys, has Height chosen by select and shows the 240 px written through it](images/desk-read-by-message.png)
+
 Every place is in canvas pixels: a window's pixel is one, a terminal's cell is `kCanvasCellPx`
 (<!-- value kCanvasCellPx -->12<!-- /value -->), and a terminal's console counts `kTuiCanvasTopRow`
 (<!-- value kTuiCanvasTopRow -->2<!-- /value -->) rows above the canvas. A point to press is in the space the medium
