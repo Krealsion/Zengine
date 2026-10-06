@@ -69,7 +69,8 @@ struct DeskViewRequested {
 
 /// One pane on the desk: its state word (`open`, `covered`, `off-room`, `unresolved`), its rank
 /// from the front (0 in front; -1 when it is not presented), the place its authored intent
-/// resolves to and the part of that the canvas has, and whether it is selected or holds the keys.
+/// resolves to and the part of that the canvas has, and whether it is selected or the keyboard
+/// points at it (a menu or arranging, while open, takes the keys before it).
 struct DeskPane {
     std::string provider, pane, name, state;
     std::int64_t front = -1;

@@ -485,6 +485,16 @@ TEST_CASE("a canvas pane's words are its labels and text runs, each where it is 
         const DeskRect l = view.words[1].place;
         CHECK(inside_locally(d.sketch->pointers.front(),
                              DeskRect{l.x + kPaneCanvasUnit, l.y, kPaneCanvasUnit, l.h}, pane));
+        // ...AND ONE AFTER THE CARET, where a terminal draws a caret glyph before it: `d`, the
+        // run's fifth byte, stands in its sixth cell there, and in its fifth advance in a window.
+        REQUIRE(d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture, 3, 4}, at).empty());
+        const DeskRect typed = view.words[3].place;
+        if (window) {
+            const auto advance = d.r.session().text_advance_px;
+            CHECK(at.x == typed.x + 4 * advance + advance / 2);
+        } else {
+            CHECK(at.x == surface::cell_of_pixel(typed.x) + 5);
+        }
         // THE FIRST VERSION STILL ANSWERS IN ROWS, AND STILL SAYS A PICTURE IS NOT ROWS.
         d.asker->refusals.clear();
         d.ask([](loom::Mail& m) {

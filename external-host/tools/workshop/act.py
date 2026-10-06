@@ -83,7 +83,7 @@ def texts(view):
     return [w["text"] for w in view["words"]] if view else []
 
 
-def kept(answer):
+def fields_of(answer):
     """An answer's fields, as JSON can keep them."""
     return getattr(answer, "fields", answer)
 
@@ -269,12 +269,12 @@ def check_desk(ctx, hand, arg, step):
             said["menu"] = desk["menu"]["open"]
         if said is not None and holds(said, wanted):
             if step.get("as"):
-                ctx.produce(step["as"] + ".json", json.dumps(kept(desk), indent=1).encode())
+                ctx.produce(step["as"] + ".json", json.dumps(fields_of(desk), indent=1).encode())
             return {"said": said}
         if time.monotonic() >= end:
             break
         time.sleep(0.2)
-    ctx.produce("failed-step-desk.json", json.dumps(kept(desk), indent=1).encode())
+    ctx.produce("failed-step-desk.json", json.dumps(fields_of(desk), indent=1).encode())
     ctx.fail("desk: %s %s within %gs (it said %s)" % (
         "/".join(arg) if arg else "the desk", "is not on the desk" if said is None
         else "never held %s" % json.dumps(wanted), seconds,
