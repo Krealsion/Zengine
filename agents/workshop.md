@@ -6,8 +6,8 @@ Workshop's law lives in the registers under [`workshop/`](workshop/): one law pe
 `WL-<AREA>-<NN>` id that is permanent, a `LAW` of one line, `MEANS`, `DOES NOT MEAN`, a
 `PROVEN BY` naming the owner identifiers and the exact witness cases, and a `WHY` naming one
 decision record under `decisions/`. Disagreements follow
-[intent, evidence, and architectural fit](../AGENTS.md#intent-evidence-and-architectural-fit):
-passing tests do not automatically overrule intended contracts. The whole law is
+[intent, evidence, and architectural fit](../AGENTS.md#intent-evidence-and-architectural-fit)
+(rule 5 below). The whole law is
 `grep -h '^LAW' agents/workshop/*.md`.
 
 What crosses the pane seam is the protocol's law, in [`panes.md`](panes.md); the Surface
@@ -23,7 +23,7 @@ consumer-specific behavior of its extracted panes.
 | the pane catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
-| a pane's labelled controls, its picture number, a mode a hand can leave, the names it gives its parts | [pane-controls](workshop/pane-controls.md) `WL-HAND` |
+| a pane's labelled controls, its picture number, a mode a hand can leave, its parts' names | [pane-controls](workshop/pane-controls.md) · [pane-parts](workshop/pane-parts.md) `WL-HAND` |
 | a hotkey, the keymap, an edit | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
 | the Info pane's body, its subject, its grounds, the desk row that names it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |

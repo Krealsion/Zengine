@@ -249,7 +249,7 @@ void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen&
     layer.texts.push_back(std::move(region));
 }
 
-// WL-HAND-06 -- agents/workshop/pane-controls.md
+// WL-HAND-06 -- agents/workshop/pane-parts.md
 std::vector<std::string> context_line_names(const Session& s, const Screen& sc) {
     std::vector<std::string> names;
     if (!s.context.open) {
