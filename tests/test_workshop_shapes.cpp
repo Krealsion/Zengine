@@ -16,7 +16,14 @@
 #include <zen/weave/shape.hpp>
 
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <map>
 #include <memory>
+#include <regex>
+#include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -60,6 +67,52 @@ struct BuilderState {
 
 } // namespace published
 
+/// The shape names a source declares: each `ZEN_SHAPE(<name>, ...)`, in order.
+std::vector<std::string> shape_names_in(const std::string& text) {
+    static const std::regex shape(R"(\bZEN_SHAPE\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,)");
+    std::vector<std::string> out;
+    for (auto it = std::sregex_iterator(text.begin(), text.end(), shape);
+         it != std::sregex_iterator(); ++it) {
+        out.push_back((*it)[1].str());
+    }
+    return out;
+}
+
+/// EVERY SHAPE NAME THE TREE'S COMPONENTS DECLARE, with the top-level directories declaring it.
+/// The tests keep copies of published shapes on purpose, and build trees and vendored code are not
+/// this tree's own, so none of them is read.
+std::map<std::string, std::set<std::string>> declared_shape_names(const std::filesystem::path& root,
+                                                                  std::size_t& declarations) {
+    namespace fs = std::filesystem;
+    std::map<std::string, std::set<std::string>> out;
+    for (auto it = fs::recursive_directory_iterator(root); it != fs::recursive_directory_iterator();
+         ++it) {
+        const std::string name = it->path().filename().string();
+        if (it->is_directory()) {
+            const bool top = it.depth() == 0;
+            if (name == ".git" || name == "third_party" ||
+                (top && (name == "tests" || name == "docs" || name == "reference" ||
+                         name == "build" || name.rfind("build-", 0) == 0 ||
+                         name.rfind("cmake-build", 0) == 0 || name == "_install"))) {
+                it.disable_recursion_pending();
+            }
+            continue;
+        }
+        const std::string ext = it->path().extension().string();
+        if (ext != ".hpp" && ext != ".cpp" && ext != ".h" && ext != ".ipp" && ext != ".inl") {
+            continue;
+        }
+        std::ifstream in(it->path(), std::ios::binary);
+        const std::string text{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+        const std::string component = fs::relative(it->path(), root).begin()->string();
+        for (const std::string& shape : shape_names_in(text)) {
+            out[shape].insert(component);
+            ++declarations;
+        }
+    }
+    return out;
+}
+
 } // namespace
 
 TEST_CASE("a shape that encloses a changed shape is a new version, so the shapes published before claim beside the current ones in one registry") {
@@ -76,7 +129,7 @@ TEST_CASE("a shape that encloses a changed shape is a new version, so the shapes
     const std::vector<std::shared_ptr<const loom::Schema>> shapes = {
         loom::schema_of<published::InventoryPane>(), loom::schema_of<published::PaneInventory>(),
         loom::schema_of<published::BuilderState>(),  loom::schema_of<ws::InventoryPane>(),
-        loom::schema_of<ws::PaneInventory>(),        loom::schema_of<vb::BuilderState>(),
+        loom::schema_of<ws::PaneInventory>(),        loom::schema_of<vb::ViewBuilderState>(),
         loom::schema_of<zengine::builder::BuilderState>(),
     };
     loom::Registry registry;
@@ -88,4 +141,29 @@ TEST_CASE("a shape that encloses a changed shape is a new version, so the shapes
         conflict = refused.what();
     }
     CHECK_MESSAGE(conflict.empty(), conflict);
+}
+
+TEST_CASE("no two components of this tree declare a shape of one name") {
+    // ⚔ MUTATION: a component naming its state as another's is named -- Loom claims a library's
+    // state shape and vocabulary at load, so the next version either of the two took would meet
+    // the other's under one name and version, and one of the two libraries would be refused.
+    //
+    // THE READER, MADE TO SAY YES AND NO before it is believed.
+    CHECK(shape_names_in("ZEN_SHAPE(Alpha, 1, ZEN_FIELD(x));\nZEN_SHAPE( Beta ,2);") ==
+          std::vector<std::string>{"Alpha", "Beta"});
+    CHECK(shape_names_in("NOT_ZEN_SHAPE(Gamma, 1); ZEN_SHAPES(Delta, 1); ZEN_SHAPE(1x, 1);").empty());
+    std::size_t declarations = 0;
+    const auto names = declared_shape_names(ZENGINE_SOURCE_DIR, declarations);
+    MESSAGE("read " << declarations << " shape declarations, " << names.size() << " names, under "
+                    << ZENGINE_SOURCE_DIR);
+    // A scan that found nothing would pass for want of anything to find.
+    REQUIRE(declarations > 100);
+    for (const auto& [shape, components] : names) {
+        std::string where;
+        for (const std::string& component : components) {
+            where += (where.empty() ? "" : ", ") + component;
+        }
+        const std::string said = shape + " is declared by " + where;
+        CHECK_MESSAGE(components.size() == 1, said);
+    }
 }

@@ -435,10 +435,10 @@ struct Rig {
         host(window_room(++grant));
     }
     /// What the builder keeps across a reload, read from its snapshot.
-    vb::BuilderState state() {
-        const auto admitted = loom::admit(loom::parse(bus.snapshot_bytes(pane)), loom::schema_of<vb::BuilderState>());
+    vb::ViewBuilderState state() {
+        const auto admitted = loom::admit(loom::parse(bus.snapshot_bytes(pane)), loom::schema_of<vb::ViewBuilderState>());
         REQUIRE(admitted);
-        return loom::from_value<vb::BuilderState>(admitted.value());
+        return loom::from_value<vb::ViewBuilderState>(admitted.value());
     }
     void pump() {
         for (int n = 0; n < 64 && bus.pending() != 0; ++n) bus.pump_pending();
@@ -511,9 +511,9 @@ struct Rig {
     }
     /// The description the builder holds now, read from what it keeps across a reload.
     view::Description now() {
-        const auto admitted = loom::admit(loom::parse(bus.snapshot_bytes(pane)), loom::schema_of<vb::BuilderState>());
+        const auto admitted = loom::admit(loom::parse(bus.snapshot_bytes(pane)), loom::schema_of<vb::ViewBuilderState>());
         REQUIRE(admitted);
-        const auto state = loom::from_value<vb::BuilderState>(admitted.value());
+        const auto state = loom::from_value<vb::ViewBuilderState>(admitted.value());
         auto read = view::read_description(std::string_view(
             reinterpret_cast<const char*>(state.description.data()), state.description.size()));
         REQUIRE_MESSAGE(read, read.reason);

@@ -62,7 +62,7 @@ std::pair<std::shared_ptr<const loom::Schema>, std::optional<std::string>> label
 
 class ViewBuilderPane final
     : public loom::WeaveBase<
-          ViewBuilderPane, vb::BuilderState,
+          ViewBuilderPane, vb::ViewBuilderState,
           loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
                        ws::PaneCanvasPointer, ws::PaneCanvasHover, ws::PaneCanvasRejected, ws::PaneKey,
                        ws::PaneTextInput, ws::PaneActionRequested, ws::ActionsJudged, ws::PaneQuitRequested,
@@ -76,7 +76,7 @@ class ViewBuilderPane final
                      ws::ProjectRootRequested>> {
 public:
     loom::Value snapshot() const override {
-        vb::BuilderState saved;
+        vb::ViewBuilderState saved;
         try {
             const auto bytes = view::description_bytes(model_.description);
             saved.description.assign(bytes.begin(), bytes.end());
