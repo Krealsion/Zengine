@@ -102,13 +102,10 @@ ExternalPressAt WorkshopWeave::cell_point(const VisibleBody& visible, std::int64
                              session_.pane_titles, space, x, y);
 }
 
-// THE CENTER OF THE CELL SHOWING ONE CHARACTER -- past a caret a fit in cells draws as a glyph of
-// its own -- checked by resolving it to that row and column.
+// THE CENTER OF THE CELL SHOWING ONE CHARACTER, checked by resolving it to that row and column.
 bool WorkshopWeave::cell_center(const VisibleBody& visible, std::int64_t row, std::int64_t column,
                                 std::int64_t& x, std::int64_t& y, std::int64_t& space) const {
-    const std::int64_t cell =
-        drawn_column(column, external_caret_glyph(visible.content, visible.body.fit, row));
-    const auto hit = cell_point(visible, row, cell, x, y, space);
+    const auto hit = cell_point(visible, row, column, x, y, space);
     return hit.named && hit.row == row && hit.column == column;
 }
 
@@ -123,8 +120,7 @@ void WorkshopWeave::on(const PaneViewRequested& asked, loom::Mail& mail) {
     for (std::int64_t row = 0; row < body.rows && row < static_cast<std::int64_t>(content->shown.size()); ++row) {
         PaneViewRow out;
         out.row = row;
-        // The row's third cell, or its last in a narrower body: a cell of the body whatever a
-        // caret's glyph stands before it.
+        // The row's third cell, or its last in a narrower body.
         const auto hit = cell_point(visible, row, std::min<std::int64_t>(2, body.columns - 1),
                                     out.x, out.y, out.space);
         if (!hit.named || hit.row != row) {
@@ -199,16 +195,15 @@ void glyph_point(const GlyphGrid& g, std::int64_t row, std::int64_t column, std:
 }
 
 /// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row` over its bytes' cells of the
-/// grid and the caret glyph a terminal draws into it at `caret`, and its middle byte's centre as
-/// the place a press names it -- or, with no byte to name, its first cell, the caret's own.
+/// grid, and its middle byte's centre as the place a press names it -- or, with no byte to name,
+/// its first cell, where a caret on an empty line stands.
 PaneWord word_on(const GlyphGrid& g, std::int64_t row, std::int64_t column, std::string text,
-                 std::int64_t caret, std::int64_t space) {
+                 std::int64_t space) {
     PaneWord w;
     const std::int64_t bytes = static_cast<std::int64_t>(text.size());
-    const std::int64_t n = (std::max<std::int64_t>)(1, bytes + (caret >= 0 ? 1 : 0));
+    const std::int64_t n = (std::max<std::int64_t>)(1, bytes);
     w.place = DeskRect{g.x + column * g.advance, g.y + row * g.line, n * g.advance, g.line};
-    glyph_point(g, row, column + (bytes > 0 ? drawn_column((bytes - 1) / 2, caret) : 0), space,
-                w.x, w.y);
+    glyph_point(g, row, column + (bytes > 0 ? (bytes - 1) / 2 : 0), space, w.x, w.y);
     w.space = space;
     w.text = std::move(text);
     return w;
@@ -253,19 +248,17 @@ std::map<std::int64_t, std::vector<std::size_t>> row_owners(const std::vector<Pa
 }
 
 /// ONE NAMED RUN OF A ROW WHERE A FIT DRAWS IT: the cells of `cells` that show the columns of
-/// `parts[self]` in `shown` -- past a caret glyph at `caret`, whose own cell stands for the
-/// caret's column -- the characters there, and its point: the middle of its own characters, the
-/// ones `owner` gives it, else the middle of its own blank cells the body shows, else none. False
-/// where no cell shows any of its columns.
+/// `parts[self]` in `shown`, the characters there, and its point: the middle of its own
+/// characters, the ones `owner` gives it, else the middle of its own blank cells the body shows,
+/// else none. False where no cell shows any of its columns.
 bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
-                 std::int64_t caret, std::int64_t cells, const std::vector<PaneRowPart>& parts,
+                 std::int64_t cells, const std::vector<PaneRowPart>& parts,
                  const std::vector<std::size_t>& owner, std::size_t self, std::int64_t space,
                  PanePart& out) {
     const PaneRowPart& part = parts[self];
     const std::int64_t end = part.column + part.columns;
-    const std::int64_t first = part.column + (caret >= 0 && part.column > caret ? 1 : 0);
-    const std::int64_t last =
-        (std::min)(end - 1 + (caret >= 0 && end - 1 >= caret ? 1 : 0), cells - 1);
+    const std::int64_t first = part.column;
+    const std::int64_t last = (std::min)(end - 1, cells - 1);
     if (first > last) return false;
     const auto size = static_cast<std::int64_t>(shown.size());
     const auto from = static_cast<std::size_t>((std::min)(part.column, size));
@@ -276,7 +269,7 @@ bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
                          g.line};
     const std::int64_t characters_end = part.column + static_cast<std::int64_t>(out.text.size());
     std::vector<std::int64_t> characters, blanks;
-    for (std::int64_t c = part.column; c < end && drawn_column(c, caret) <= last; ++c) {
+    for (std::int64_t c = part.column; c <= last; ++c) {
         if (owner[static_cast<std::size_t>(c)] != self) continue;
         (c < characters_end ? characters : blanks).push_back(c);
     }
@@ -285,7 +278,7 @@ bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
         no_point(out);
         return true;
     }
-    glyph_point(g, row, drawn_column(own[(own.size() - 1) / 2], caret), space, out.x, out.y);
+    glyph_point(g, row, own[(own.size() - 1) / 2], space, out.x, out.y);
     out.space = space;
     return true;
 }
@@ -474,7 +467,7 @@ v2::DeskMenu desk_menu(const Session& s, const Screen& sc) {
     for (std::size_t i = 0; i < region.rows.size(); ++i) {
         std::string text = without_trailing_blanks(region.rows[i].text);
         const std::int64_t row = static_cast<std::int64_t>(i);
-        PaneWord line = word_on(grid, row, 0, std::move(text), -1, space);
+        PaneWord line = word_on(grid, row, 0, std::move(text), space);
         line.word = row;
         menu.lines.push_back(std::move(line));
     }
@@ -497,7 +490,7 @@ v2::DeskMenu desk_menu(const Session& s, const Screen& sc) {
             continue;
         }
         PanePart drawn;
-        if (row_part_on(grid, part.row, region.rows[static_cast<std::size_t>(part.row)].text, -1,
+        if (row_part_on(grid, part.row, region.rows[static_cast<std::size_t>(part.row)].text,
                         place.columns, named, owners.at(part.row), i, space, drawn)) {
             menu.parts.push_back(std::move(drawn));
         }
@@ -604,12 +597,11 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
     const Screen sc = screen_of(session_);
     const std::int64_t space = input_space_of(sc);
     std::vector<PaneWord> out;
-    const auto keep = [&](const GlyphGrid& grid, std::string text, std::int64_t row,
-                          std::int64_t caret) {
-        PaneWord w = word_on(grid, row, 0, std::move(text), caret, space);
+    const auto keep = [&](const GlyphGrid& grid, std::string text, std::int64_t row) {
+        PaneWord w = word_on(grid, row, 0, std::move(text), space);
         w.word = static_cast<std::int64_t>(out.size());
         out.push_back(std::move(w));
-        if (glyphs != nullptr) glyphs->push_back(WordGlyphs{grid.advance, caret});
+        if (glyphs != nullptr) glyphs->push_back(WordGlyphs{grid.advance});
     };
     const auto* content = visible.content;
     if (!visible.canvas) {
@@ -617,17 +609,10 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
         const GlyphGrid grid = glyph_grid(body.fit);
         for (std::int64_t row = 0;
              row < body.rows && row < static_cast<std::int64_t>(content->shown.size()); ++row) {
-            // A terminal inserts the caret as a glyph of its own and then cuts the row to the
-            // body's columns, so a row with the caret shows one character fewer, and the text
-            // after the glyph stands a cell on.
-            const std::int64_t glyph = external_caret_glyph(content, body.fit, row);
-            const std::int64_t caret = glyph < body.columns ? glyph : -1;
-            const std::int64_t room = caret >= 0 ? body.columns - 1 : body.columns;
             std::string text = without_trailing_blanks(
                 content->shown[static_cast<std::size_t>(row)].text.substr(
-                    0, static_cast<std::size_t>(room)));
-            const bool in_word = caret >= 0 && caret <= static_cast<std::int64_t>(text.size());
-            keep(grid, std::move(text), row + body.header_rows, in_word ? caret : -1);
+                    0, static_cast<std::size_t>(body.columns)));
+            keep(grid, std::move(text), row + body.header_rows);
         }
         return out;
     }
@@ -639,7 +624,7 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
         if (!drawn_label(label, body, text, x)) continue;
         const GlyphGrid grid{surface::add_cells(body.x, x), surface::add_cells(body.y, label.y),
                              kPaneCanvasUnit, kPaneCanvasUnit};
-        keep(grid, std::move(text), 0, -1);
+        keep(grid, std::move(text), 0);
     }
     const PaneCanvasRoom room{picture.pane, picture.grant, body.w, body.h, content->canvas.grain,
                               content->canvas.graphical, content->canvas.text_advance_px,
@@ -650,10 +635,7 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
         const surface::SurfaceTextRegion region = canvas_text_region(placed, body.x, body.y);
         const surface::RegionFit fit = surface::fit_region(region.x, region.y, region.w, region.h,
                                                            sc.text_advance_px, sc.text_line_px);
-        std::string text = placed.text.text;
-        const bool caret = !fit.graphical() && region.caret_row == 0 && region.caret_col >= 0 &&
-                           region.caret_col <= static_cast<std::int64_t>(text.size());
-        keep(glyph_grid(fit), std::move(text), 0, caret ? region.caret_col : -1);
+        keep(glyph_grid(fit), placed.text.text, 0);
     }
     return out;
 }
@@ -703,14 +685,11 @@ std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
             part.row >= static_cast<std::int64_t>(content->shown.size())) {
             continue;
         }
-        // The row as `visible_words` reads it: a caret's glyph inserted, then the row cut.
-        const std::int64_t glyph = external_caret_glyph(content, body.fit, part.row);
-        const std::int64_t caret = glyph < body.columns ? glyph : -1;
-        const std::int64_t room = caret >= 0 ? body.columns - 1 : body.columns;
+        // The row as `visible_words` reads it: cut to the body's columns.
         const std::string shown = content->shown[static_cast<std::size_t>(part.row)].text.substr(
-            0, static_cast<std::size_t>(room));
+            0, static_cast<std::size_t>(body.columns));
         PanePart drawn;
-        if (row_part_on(grid, part.row + body.header_rows, shown, caret, body.columns,
+        if (row_part_on(grid, part.row + body.header_rows, shown, body.columns,
                         content->parts, owners.at(part.row), i, space, drawn)) {
             out.push_back(std::move(drawn));
         }
@@ -759,8 +738,8 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
         const DeskRect& place = words[at_word].place;
         reply.space = input_space_of(screen_of(session_));
         const WordGlyphs& drawn = glyphs[at_word];
-        glyph_point(GlyphGrid{place.x, place.y, drawn.advance, place.h}, 0,
-                    drawn_column(asked.column, drawn.caret), reply.space, reply.x, reply.y);
+        glyph_point(GlyphGrid{place.x, place.y, drawn.advance, place.h}, 0, asked.column,
+                    reply.space, reply.x, reply.y);
         const PointedAt at = canvas_point_of(reply.space, reply.x, reply.y);
         resolved = at.understood &&
                    visible.canvas_body.contains_at(at.px.x, at.px.y, at.grain) &&

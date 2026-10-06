@@ -563,8 +563,7 @@ TEST_CASE("the pane publishes a caret, and Workshop draws it into the region") {
                                                     t.r.session().panes, t.kind,
                                                     t.r.session().pane_titles));
     CHECK(region.caret_col == seat->caret_col);
-    // ...and a cell projection inserts it as a character, so a character medium reads as it
-    // always did.
+    // ...and a cell projection stands it on a cell, moving no character of the row.
     const std::vector<std::string> rows = t.shown();
     CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> abc", 0) == 0);
 }

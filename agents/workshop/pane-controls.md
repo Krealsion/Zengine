@@ -137,7 +137,7 @@ LAW — A pane names each row, control and element a weaver acts on from what it
 
 MEANS
 - the names ride with the picture they name, judged with it: a name once, in the order the pane reads a press, a place it names nothing unnamed;
-- a text part covers the cells showing its columns, a caret's glyph among them, a canvas part its rectangle as shown; its point is a place of its own, sought over all of it, or none;
+- a text part covers the cells showing its columns, a canvas part its rectangle as shown; its point is a place of its own, sought over all of it, or none;
 - a pane redrawn as a picture keeps the names its rows had, so a name an agent wrote still holds.
 
 DOES NOT MEAN

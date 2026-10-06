@@ -598,12 +598,11 @@ v2::PaneCaret   provider -> Workshop   the same, naming the generation of the ro
 - **It asks for nothing.** No blink, shape, colour, scroll or claim on the keyboard: a pane says
   where, inside rows it already sent, the insertion point of text it already wrote is. A caret
   spoken personally, or about a pane the office never offered, is nothing.
-- **Each medium draws it its own way.** A window, which sets type, draws a bar between two
-  characters and moves none. A terminal draws a glyph into the row at the caret's column, standing
-  every character from there a cell to the right, and a character it pushes past the body's edge is
-  not drawn. A press on that row reaches the pane as the column of the character the pressed cell
-  shows: a cell past the glyph is the column before it, and the glyph's own cell is the caret's
-  column, the insertion point it stands for.
+- **Each medium draws it its own way, and neither moves a character.** A window, which sets
+  type, draws a bar between two characters. A terminal shows the cell the caret stands on
+  inverted: the cell of the character it sits before, the blank after the row's last character,
+  or, past a full row's end, the row's last cell. A press on that row reaches the pane as the
+  column of the character the pressed cell shows, the caret's own cell included.
 
 ## Optional pane-local canvas
 
@@ -663,8 +662,9 @@ if (placed.visible()) {
 
 Clipping removes whole leading/trailing glyphs and whole rows; it does not reflow or shift
 surviving glyphs. The entire generated region, including its insets, remains inside the clip.
-Caret and selection columns follow the crop, including the cell projection's inserted caret.
-An empty line with a caret reserves one column. Keep measured sizes out of saved authoring data:
+Caret and selection columns follow the crop. Where text is a cell, a caret stands on a cell:
+after a run's last character it gets the next cell when the clip has one, and stands on the
+last character's when it has none. An empty line with a caret reserves one column. Keep measured sizes out of saved authoring data:
 they describe the current room, not a document or graph's durable coordinates.
 
 The v3 room and content identities must be used together, with `PaneCanvasPointer` v2,
@@ -1177,9 +1177,8 @@ own; an arriving image sends `PaneObservationEnded{pane, 0}` for each pane it ma
 
 `workshop/pane_view.hpp` answers `PaneViewRequested{provider, pane}` with
 `PaneView{provider, pane, picture, rows}`: each row the pane said, as `PaneViewRow{row, text, x, y,
-space}`. A row's text is the pane's own characters fitted to the body's columns, not the picture: a
-terminal's caret glyph is not among them, and a character the glyph pushes past the body's edge
-still is. Its point is its third cell's, or its last cell's in a body narrower than three, where a
+space}`. A row's text is the pane's own characters fitted to the body's columns, not the picture.
+Its point is its third cell's, or its last cell's in a body narrower than three, where a
 press names the row. The header also answers `PanePointRequested{provider, pane, picture, row, column}`
 with `PanePoint{provider, pane, picture, row, column, x, y, space}`: the center of that prose cell
 in the input space the medium reads, measured and then resolved by the same press measurer. It is
@@ -1202,7 +1201,7 @@ press is in the input space the answer names, as `PanePoint`'s is.
 | `DeskMenu{open, office, pane, picture, place, lines}` | Workshop's own menu (`office` is Workshop's) or a pane's, shown by its presenter, with each line as a word; `v2::DeskView`'s menu names its lines too ([below](#a-pane-names-its-parts)) |
 | `v2::PaneViewRequested{provider, pane}` | A pane's words, text or canvas alike; version 3 adds the parts the pane names ([below](#a-pane-names-its-parts)) |
 | `v2::PaneView{provider, pane, picture, canvas, words}` | A text pane's rows, or a canvas pane's labels and then its text runs as it drew them last, each clipped as the painter clips it; `canvas` says which |
-| `PaneWord{word, text, place, x, y, space}` | One run of words: its number in the answer, its text, the place covering its glyphs (a terminal's caret glyph included), and the centre of its middle character, where a press names it |
+| `PaneWord{word, text, place, x, y, space}` | One run of words: its number in the answer, its text, the place covering its glyphs, and the centre of its middle character, where a press names it |
 | `v2::PanePointRequested{provider, pane, picture, word, column}` | Where one character of one word is now, for a caller that read the words at `picture` |
 | `v2::PanePoint{provider, pane, picture, word, column, x, y, space}` | Its centre: through the press measurer for a text row, checked against the body a press lands in for a canvas word |
 

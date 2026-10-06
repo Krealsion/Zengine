@@ -15,7 +15,7 @@ input                             doctest           always  50
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 input                             doctest           sdl     3
-surface                           doctest           always  106
+surface                           doctest           always  108
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  45
@@ -45,7 +45,7 @@ neovim_journey                    program           session-neovim
 # A case in this suite reads the keymap example in docs/workshop/hotkeys.md, as a weaver copies it.
 workshop_document                 doctest           always  47
 workshop_screen                   doctest           always  137
-workshop_desk                     doctest           always  31
+workshop_desk                     doctest           always  32
 # Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  76
 # Tripwires in this suite read Workshop's presentation sources, workshop/workshop.cpp,
