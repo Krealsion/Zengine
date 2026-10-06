@@ -572,7 +572,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         // Interpret every motion, including refusals and loss of the held pane. Repeating
         // an accepted proposal can write the same values, so compare the resulting row
         // rather than treating a write attempt as a new picture.
-        arrange_motion(here.px.x, here.px.y, mail);
+        arrange_motion(here.px.x, here.px.y, (m.modifiers & input::mod::kAlt) == 0, mail);
         const SetupPane* after_row = pane_of(session_.setup.active, held);
         const bool changed_row = before.has_value()
                                      ? after_row == nullptr || *after_row != *before

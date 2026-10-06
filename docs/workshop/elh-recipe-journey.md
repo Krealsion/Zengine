@@ -44,9 +44,8 @@ loom-session run <session> workshop/inspect-capture --name open-manager --input 
 Read that run's `after.bmp` (graphical) or `after.cells.txt` (TUI). Select Files in Pane Manager
 with separate arrow runs and Enter, then focus the Files pane. Derive clicks from the current
 picture: pixels use `x,y`, cells use `x,yc`. Pane positions and menu coordinates are not universal.
-If Pane Manager reports no room, enlarge the task window and retry opening Files. Input
-settlement does not turn that application refusal into success. An open Files pane should show
-the fixture directory before you continue.
+Files opens at the column's top when the column has no room left below the panes already
+there. An open Files pane should show the fixture directory before you continue.
 
 Files must be browsing `<project>`, the **parent** of `build`. Use its parent-directory action
 if needed. Press `a`, select `build/ (configured tree)` in the chooser, then Enter, each as a

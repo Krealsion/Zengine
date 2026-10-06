@@ -9,7 +9,11 @@ at message shapes, which you drag from one pane to the other. The contract benea
 the [view reference](../reference/view.md).
 
 Open the Pane Manager and press `n`, or choose **View Builder**. The shipped plans include the
-optional `zengine-view-builder` artifact in the `zengine.view.builder` office.
+optional `zengine-view-builder` artifact in the `zengine.view.builder` office. The builder takes
+its place in the column down the room's left like any pane you show, and a view you run opens in
+front, with the keys: where the column has no room left for it, at the column's top.
+
+![n in the Pane Manager showed the View Builder beneath it; the view greeting, run from it, opened at the column's top in front of both, with the keys](images/view-builder-run-in-front.png)
 
 ## The builder
 
@@ -158,7 +162,10 @@ its view was running, runs it again, its pane where your layout left it. Open th
 Flow and **Run** it, and the panel works as before and waits until told. Nothing that was
 running is in either file: the View Builder keeps the file it saved or opened -- never a name
 typed into **File** and not saved -- and whether its view ran, in the project's
-`view-builder.json`; a write of it that fails is said, and made again at the next chance.
+`view-builder.json`; a write of it that fails is said, and made again at the next chance. If
+that file is missing at a launch, the View Builder says so and leaves `view-builder.json` as it
+was until you open, save or start a view, so putting the file back brings its view back at the
+next launch.
 **Stop** ends the panel: its pane first says it stopped, and once Workshop sees its participant
 gone it says it is waiting for the provider. No field or button is left that looks live.
 

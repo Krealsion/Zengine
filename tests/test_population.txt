@@ -42,15 +42,16 @@ workshop_journey                  program           session
 story_journey                     program           session
 neovim_journey                    program           session-neovim
 
-workshop_document                 doctest           always  45
-workshop_screen                   doctest           always  131
+# A case in this suite reads the keymap example in docs/workshop/hotkeys.md, as a weaver copies it.
+workshop_document                 doctest           always  46
+workshop_screen                   doctest           always  137
 # Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  76
 # Tripwires in this suite read Workshop's presentation sources, workshop/workshop.cpp,
 # workshop/arrangement.hpp, workshop/powers_door.hpp, the Introspection, Builder, Info, Terminal
 # and Editor panes' sources and CMake files, and tests/weavelib/legacy_pane.cpp as text
 # (VM-WALL-11).
-workshop_panes                    doctest           always  874
+workshop_panes                    doctest           always  880
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text
 # (VM-WALL-11).
 workshop_persistence              doctest           always  158
@@ -85,4 +86,4 @@ source_transfer_cpp               program           always
 inventory                         doctest           always  39
 flow_pane                         doctest           always  25
 view                              doctest           always  15
-view_builder                      doctest           always  29
+view_builder                      doctest           always  30

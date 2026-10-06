@@ -81,7 +81,7 @@ PaneCloseRequested{office, pane}   ->  take its row off the live desk       (unl
 
 Only an office may ask either, and each is answered to the asker. The shipped desktop's Pane
 Manager spends them on `Enter` and `x`, over the one inventory Workshop publishes
-(`PaneInventory`), with each row's state beside its name — `[open]`, closed, `[room]`, `[load]`
+(`PaneInventory`), with each row's state beside its name — `[open]`, closed, `[load]`
 (still to come: the run has not settled the plan row that loads it), `[gone]` —
 because a door whose current state is invisible is a gesture a weaver has to guess at. (The `p`
 picker owned presence with ONE door in both directions — select a closed kind to open it, an open
@@ -130,8 +130,8 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   one path to an open pane's bounds — a closed one answers with an empty rectangle rather than
   with the place it would have had. When each painter carried its own column instead, the
   two places existed only as agreement between them; what a third kind costs now is a catalog
-  row and a painter, neither of which is geometry. Docking, tabs, saved layouts, dragging,
-  resizing and focus are all still absent, and what using two unalike panes felt like is the
+  row and a painter, neither of which is geometry. Docking and tabs are still absent (a pane is
+  dragged and sized by arranging, below), and what using two unalike panes felt like is the
   evidence for whichever of them gets built.
 - **A visible pane occupies pointer space, not only pixels**. Bounds resolved in one
   path made the question sayable and the measured answer was that nobody asked it: a press on a
@@ -403,7 +403,10 @@ authored setup                 resolved presentation          session interactio
   independently**: a move or corner gesture blocked on one axis — dragged past the
   left wall, or pulled under the one-cell minimum — still applies the other axis's legal
   proposal, and the blocked coordinate keeps its own value rather than clamping to the wall.
-  Only a gesture refused on every axis it moved writes nothing. Edits commit immediately;
+  Only a gesture refused on every axis it moved writes nothing. **A hand's edge snaps**: one
+  within `kPaneSnapReachPx` of the room's edge or another pane's on the screen comes to it, the line
+  met marked across the room while held; Alt held sets it aside, keys and typed values never
+  snap, and nothing about a snap is saved. Edits commit immediately;
   `esc` is *back*, not *cancel*, and there is no undo.
 - **Graphical interaction is pixel-responsive; the TUI stays honestly cell-grained.** A window
   pointer's press and motion are spent at their own resolution — one pixel of hand is one
@@ -478,13 +481,12 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   `third.party/hello` loads, stays exactly as authored, resolves the moment that office offers the
   pane — *without the file being touched* — and is unresolved again in a fresh process where the
   provider is absent.
-- **Workshop chooses the placement and refuses what will not fit.** Every external pane goes in the
-  overlay stack, and a presentation may only enter `Panes::open` if its rectangle ends at or above
-  `kWorkspaceY + room_h`, which *is* `notice_y - 1` — the row the setup line occupies. At the
-  78×22 minimum only one overlay slot fits. A resolved reference that does not fit is **waiting**,
-  a third state that is neither `open` nor `closed`: the authored intent is retained and
-  named, growth opens it with no gesture, and a shrink closes the presentation through the ordinary
-  close door and destroys its cache.
+- **Workshop chooses the placement, and no room rations it.** Every external pane with no place
+  of its own goes in the overlay stack, down one column from the room's top; a pane that would pass
+  the room's floor, the bottom band's top, begins the column again at its top. At the 78×22
+  minimum one pane of the fallback height fills the column, so a second stands over the first,
+  in front by its rank. Every resolved reference is seated: a launch, a reveal and an open are
+  never refused for room, growth and a shrink lay the same panes out again, and none closes.
 - **A list windows the combined population rather than truncating it** — the picker did, through
   `list_window` and its own `omitted_text` wording, and the desktop's Pane Manager does in its own
   image (keeping its cursor's row in view, and counting what is above and below it). The markers
@@ -1038,10 +1040,8 @@ directory they happened to be browsing when they quit is deliberately not rememb
   graphical one makes that size the smallest the window may ever be dragged to. So
   `on(SurfaceReady)` paints once at the minimum extent and *then* takes the session back — asking
   for the remembered room first would leave a weaver unable to shrink their own window.
-- **The room, and then the desk into it.** `apply_setup` seats panes against
-  `stack_capacity(screen_of(...))`, so how much of a desk can be presented is a fact about the
-  screen. The viewport is adopted before the desk is applied; reversing the two leaves a pane
-  waiting for room it already had.
+- **The room, and then the desk into it.** The viewport is adopted before the desk is applied.
+  The order changes no seating: every resolved pane is seated, whatever the room.
 - **Written on an orderly close, by the one door.** `q`, `Ctrl`+`c` and `SurfaceCloseRequested`
   all reach `quit()`, which writes the session before it stops the bus. No autosave, no dirty
   tracking, no background writer — and no crash durability, which is not claimed here or in

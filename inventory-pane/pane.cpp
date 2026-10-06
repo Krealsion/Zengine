@@ -105,7 +105,7 @@ public:
     void on(const ws::PaneCatalogRequested&, loom::Mail& m) { if (host(m)) announce(m); }
     void on(const ws::PaneRoom& room, loom::Mail& m) {
         if (!host(m) || !known(room.pane)) return;
-        auto& v=views_[room.pane]; v.rows=room.rows; v.columns=room.columns; v.map.clear(); refresh(m); draw(m);
+        auto& v=views_[room.pane]; v.rows=room.rows; v.columns=room.columns; v.map.clear(); sent_.erase(room.pane); refresh(m); draw(m);
     }
     void on(const inv::InventoryChanged&, loom::Mail& m) { if (m.authored_from_role(inv::kInventoryRole)) refresh(m); }
     void on(const inv::v2::InventoryListed& a, loom::Mail& m) {
@@ -773,13 +773,23 @@ private:
         launch_ask_=++asks_; m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneLaunchRequested{office,id},launch_ask_);
     }
     void announce(loom::Mail& m) {
-        announce_views(m); declare_all(m); refresh(m);
+        announce_views(m,true); declare_all(m); refresh(m);
         if(!registration_ && !toolbox_.busy()) propose(state_.layout,m,{}, {},true);
     }
-    void announce_views(loom::Mail& m) {
-        m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v2::PaneOffered{pane,"Inventory","Owned entries and portable toolboxes",7,54});
-        for(const auto& v:state_.layout.views) m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
-            ws::v2::PaneOffered{v.id,"Inventory "+v.kind+" "+v.id.substr(10),"Drag to move; right-click to name, copy or configure",v.kind=="column"?15:7,v.kind=="row"?41:slots::kSlotColumns});
+    /// EACH PANE OFFERED WHEN WORKSHOP HAS NOT HEARD IT, OR HEARD IT OTHERWISE: every one on an
+    /// activation or a catalog request, and after a change only a view it made or altered.
+    /// Workshop takes a re-offer as a reloaded image arriving and starts that pane's picture over,
+    /// so offering an unchanged view again would blank and redraw every view on the desk.
+    void announce_views(loom::Mail& m,bool all=false) {
+        const auto offer=[&](const ws::v2::PaneOffered& o) {
+            const std::string said=o.name+"\n"+o.summary+"\n"+std::to_string(o.rows)+"x"+std::to_string(o.columns);
+            auto& heard=offered_[o.pane];
+            if(!all && heard==said) return;
+            heard=said; m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,o);
+        };
+        offer(ws::v2::PaneOffered{pane,"Inventory","Owned entries and portable toolboxes",7,54});
+        for(const auto& v:state_.layout.views) offer(ws::v2::PaneOffered{v.id,"Inventory "+v.kind+" "+v.id.substr(10),
+            "Drag to move; right-click to name, copy or configure",v.kind=="column"?15:7,v.kind=="row"?41:slots::kSlotColumns});
     }
     void declare_all(loom::Mail& m,const slots::InventoryViews* candidate=nullptr) {
         declare(pane,m,candidate); for(const auto& v:state_.layout.views) declare(v.id,m,candidate);
@@ -840,8 +850,18 @@ private:
                 edit_text.insert(std::min(line_.caret_column(),edit_text.size()),"|");
             }
             auto rows=slots::render(state_.layout,id,v,entries,notice_,label,edit_text,id==pane?browse():slots::Browse{});
-            m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v3::PaneContent{id,std::move(rows),0,v.map.settle()});
+            const std::int64_t picture=v.map.settle();
+            // A PICTURE IS SENT WHEN IT DIFFERS from the last one sent since the room was granted:
+            // Workshop repaints the desk for each, and every view is drawn after any change.
+            if(const auto said=sent_.find(id); said!=sent_.end() && said->second.picture==picture && same_rows(said->second.rows,rows)) continue;
+            sent_[id]=Sent{rows,picture};
+            m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v3::PaneContent{id,std::move(rows),0,picture});
         }
+    }
+    static bool same_rows(const std::vector<zengine::surface::SurfaceTextRow>& a,const std::vector<zengine::surface::SurfaceTextRow>& b) {
+        if(a.size()!=b.size()) return false;
+        for(std::size_t i=0;i<a.size();++i) if(a[i].text!=b[i].text || a[i].role!=b[i].role || a[i].background!=b[i].background) return false;
+        return true;
     }
     static std::string nonce() { std::random_device rng; std::ostringstream s; s<<std::hex<<rng()<<rng()<<rng()<<rng(); return s.str(); }
     zengine::ActivationCursor activation_;
@@ -850,6 +870,9 @@ private:
     slots::Command command_;
     slots::Toolbox toolbox_;
     std::map<std::string,slots::View> views_;
+    std::map<std::string,std::string> offered_; // each pane's offer as this image last sent it
+    struct Sent { std::vector<zengine::surface::SurfaceTextRow> rows; std::int64_t picture=0; };
+    std::map<std::string,Sent> sent_; // each view's picture as sent since its room was granted
     std::map<std::string,Transfer> transfers_;
     component::TextBox line_;
     component::Clipboard clipboard_;

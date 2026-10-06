@@ -94,6 +94,7 @@ void WorkshopWeave::close_arrange() {
 
 // WL-GEO-11, WL-GEO-12 -- agents/workshop/geometry.md
 // WL-ARR-09 -- agents/workshop/arrangement.md
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 std::string WorkshopWeave::arrange_status() const {
     const PaneArrange& a = session_.arrange;
     if (!a.addressed()) {
@@ -115,6 +116,11 @@ std::string WorkshopWeave::arrange_status() const {
         if (now.w > 0 && now.h > 0) {
             text += " -- now " + pixel_rect_text(now, session_.cell_px);
         }
+    }
+    // A HELD SNAP IS SAID AS WELL AS MARKED, so it is heard where it cannot be seen.
+    const PaneGesture& g = session_.pane_drag;
+    if (g.active && g.pane == a.pane && (g.met_x.has_value() || g.met_y.has_value())) {
+        text += " -- snapped to an edge";
     }
     return text;
 }
@@ -166,12 +172,9 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
                            " is unresolved -- its place and size cannot be measured; "
                            "0 resets it and f/b/r/l still order it");
     }
+    // Every resolved row is seated, so a pane with no visible rectangle stands off this screen.
     const PaneBounds where =
         bounds_of(session_.panes, session_.setup.active, *kind, screen_of(session_));
-    if (!where.open) {
-        return Written::no(kind_name(session_.panes, *kind) +
-                           " has no room on this screen yet -- 0 resets it");
-    }
     if (where.rect.w <= 0 || where.rect.h <= 0) {
         return Written::no(kind_name(session_.panes, *kind) +
                            " is off this screen -- 0 then p resets its place");
@@ -221,10 +224,10 @@ void WorkshopWeave::arrange_place(std::int64_t x, std::int64_t y, loom::Mail& ma
         say(done.written.refusal, true);
         return;
     }
-    // AND THE SEATING IS RECONCILED, because authoring a place takes the pane OUT of the
-    // reactive stack -- it stops spending a tile, and whatever was waiting for one may
-    // now have it. Resetting the place puts it back. This is the one door that opens or
-    // closes a pane, so a geometry edit cannot produce a screen the setup disagrees with.
+    // AND THE DESK IS RECONCILED, because authoring a place takes the pane OUT of the
+    // stack and resetting it puts it back. `apply_setup` is the one door that opens or
+    // closes a pane, so a geometry edit cannot produce a screen the setup disagrees with;
+    // no room rations the stack, so for a place it opens and closes nothing.
     if (done.place_written) {
         apply_setup(mail);
     }
@@ -248,32 +251,23 @@ void WorkshopWeave::arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& 
 void WorkshopWeave::arrange_resize(std::int64_t edge, std::int64_t base_x, std::int64_t base_y,
                                    std::int64_t base_w, std::int64_t base_h, std::int64_t dx,
                                    std::int64_t dy, loom::Mail& mail) {
+    arrange_window(pane_window_proposal(edge, base_x, base_y, base_w, base_h, dx, dy), base_x,
+                   base_y, base_w, base_h, mail);
+}
+
+// WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
+void WorkshopWeave::arrange_window(const PaneWindowProposal& want, std::int64_t base_x,
+                                   std::int64_t base_y, std::int64_t base_w, std::int64_t base_h,
+                                   loom::Mail& mail) {
     const Written ready = arrange_geometry_ready(session_.arrange.pane);
     if (!ready.accepted) {
         say(ready.refusal, true);
         return;
     }
-    const PaneWindowProposal want =
-        pane_window_proposal(edge, base_x, base_y, base_w, base_h, dx, dy);
-    PaneAxisProposal horizontal;
-    horizontal.base = base_x;
-    if (want.place_moved_x && want.x != base_x) {
-        horizontal.position = want.x;
-    }
-    if (want.w != base_w) {
-        horizontal.extent = PaneSize{pane_unit::kPixels, want.w};
-    }
-    PaneAxisProposal vertical;
-    vertical.base = base_y;
-    if (want.place_moved_y && want.y != base_y) {
-        vertical.position = want.y;
-    }
-    if (want.h != base_h) {
-        vertical.extent = PaneSize{pane_unit::kPixels, want.h};
-    }
+    const PaneWindowAxes axes = pane_window_axes(want, PixelRect{base_x, base_y, base_w, base_h});
     const WindowWritten done = author_pane_window(session_.setup.active,
-                                                  session_.arrange.pane, horizontal,
-                                                  vertical);
+                                                  session_.arrange.pane, axes.horizontal,
+                                                  axes.vertical);
     if (!done.written.accepted) {
         say(done.written.refusal, true);
         return;
@@ -283,9 +277,9 @@ void WorkshopWeave::arrange_resize(std::int64_t edge, std::int64_t base_x, std::
         // own reconciliation, owed here the moment an anchored resize writes one.
         apply_setup(mail);
     } else {
-        // A SIZE-ONLY CHANGE CANNOT MOVE A PANE BETWEEN SEATED AND WAITING -- only a
-        // PLACE does that -- but the room an external pane was granted may have moved,
-        // and `repaint` owns that (`refresh_external_rooms`). Nothing is reconciled here.
+        // A SIZE-ONLY CHANGE TAKES NO PANE IN OR OUT OF THE STACK -- only a PLACE does
+        // that -- but the room an external pane was granted may have moved, and `repaint`
+        // owns that (`refresh_external_rooms`). Nothing is reconciled here.
         (void)mail;
     }
     say(arrange_status(), false);
@@ -364,8 +358,8 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
             say(ref_text(ref) + " already takes the developer's " + what, true);
             return;
         }
-        // A PLACE RESET PUTS THE PANE BACK IN THE REACTIVE STACK, so the seating has
-        // to be reconciled for the same reason authoring one does.
+        // A PLACE RESET PUTS THE PANE BACK IN THE STACK, so the desk is reconciled for
+        // the same reason authoring one is.
         apply_setup(mail);
         say(ref_text(ref) + " " + what + " reset -- " +
                 pane_window_text(pane_of(s, ref), session_.cell_px),
@@ -375,8 +369,8 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     // REMOVE THIS PANE. The close door's own semantics through the setup's own
     // door: the intent leaves the setup, `apply_setup` is what closes the
     // presentation, and what the pane was presenting is untouched -- a pane on the desk is a
-    // presentation, and removing one removes a presentation. A removal works on a
-    // waiting or unresolved row exactly as on an open one (rule).
+    // presentation, and removing one removes a presentation. A removal works on an
+    // unresolved row exactly as on an open one (rule).
     case Act::kManageRemove: {
         const std::string name = ref_text(ref);
         if (!remove_pane(s, ref)) {
@@ -523,7 +517,8 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
             row != nullptr && row->height.mode == pane_unit::kPixels
                 ? row->height.amount
                 : mine.resolved.h;
-        say(std::string("sizing ") + ref_text(ref) + " by its " + pane_edge_name(edge),
+        say(std::string("sizing ") + ref_text(ref) + " by its " + pane_edge_name(edge) +
+                " -- its edges snap to edges near them unless alt is held",
             false);
         return true;
     }
@@ -533,7 +528,9 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
         session_.pane_drag.pane = ref;
         session_.pane_drag.grab_dx = detail::minus(at.px.x, mine.rect.x);
         session_.pane_drag.grab_dy = detail::minus(at.px.y, mine.rect.y);
-        say("moving " + ref_text(ref) + " -- drag to place it", false);
+        say("moving " + ref_text(ref) +
+                " -- drag to place it; its edges snap to edges near them unless alt is held",
+            false);
         return true;
     }
     return false;
@@ -578,7 +575,9 @@ void WorkshopWeave::arrange_press(const PointedAt& at) {
 }
 
 // WL-ARR-01 -- agents/workshop/arrangement.md
-void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, loom::Mail& mail) {
+// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool snap,
+                                   loom::Mail& mail) {
     PaneGesture& g = session_.pane_drag;
     if (!g.active) {
         return;
@@ -594,16 +593,42 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, loom::M
     const PaneRef held = g.pane;
     const PaneRef was_addressed = session_.arrange.pane;
     session_.arrange.pane = held;
+    // EVERY MOTION SNAPS AFRESH FROM THE PRESS: the edges it moves come to the lines in reach --
+    // the room's and every other pane's on the screen -- unless Alt is held, and what it met is
+    // marked until the next motion or the release. The lines are the desk's AS THIS MOTION'S
+    // WRITE WILL LEAVE IT, the held row written on a copy through the same door: a place that
+    // takes the pane out of the stack lets the panes below rise, and an edge they leave is no line.
+    const Screen sc = screen_of(session_);
+    const std::optional<std::int64_t> kind = resolve_pane(held, session_.panes);
+    const auto lines_after = [&](const PaneWindowProposal& want, const PixelRect& base) {
+        if (!snap || !kind.has_value()) {
+            return PaneSnapLines{};
+        }
+        Setup after = session_.setup.active;
+        const PaneWindowAxes axes = pane_window_axes(want, base);
+        (void)author_pane_window(after, held, axes.horizontal, axes.vertical);
+        return pane_snap_lines(session_.panes, after, sc, *kind);
+    };
     if (g.sizing) {
-        arrange_resize(g.edge, g.base_x, g.base_y, g.base_w, g.base_h,
-                       detail::minus(px_x, g.from_x), detail::minus(px_y, g.from_y),
-                       mail);
+        const PaneWindowProposal want =
+            pane_window_proposal(g.edge, g.base_x, g.base_y, g.base_w, g.base_h,
+                                 detail::minus(px_x, g.from_x), detail::minus(px_y, g.from_y));
+        const SnappedWindow got = snap_pane_window(
+            want, g.edge, lines_after(want, PixelRect{g.base_x, g.base_y, g.base_w, g.base_h}));
+        g.met_x = got.met_x;
+        g.met_y = got.met_y;
+        arrange_window(got.want, g.base_x, g.base_y, g.base_w, g.base_h, mail);
     } else {
-        // The hand is on the canvas and a place is in the room.
+        // The hand is on the canvas and a place is in the room; the pane keeps its size, and the
+        // place is measured from the window `arrange_place` writes against.
         const PixelRect at = room_of_canvas(
-            PixelRect{detail::minus(px_x, g.grab_dx), detail::minus(px_y, g.grab_dy), 0, 0},
-            screen_of(session_));
-        arrange_place(at.x, at.y, mail);
+            PixelRect{detail::minus(px_x, g.grab_dx), detail::minus(px_y, g.grab_dy), 0, 0}, sc);
+        const PixelRect base = managed_window_base();
+        const PaneWindowProposal want{at.x, at.y, base.w, base.h, true, true};
+        const SnappedWindow got = snap_pane_window(want, kNoPaneEdge, lines_after(want, base));
+        g.met_x = got.met_x;
+        g.met_y = got.met_y;
+        arrange_place(got.want.x, got.want.y, mail);
     }
     if (!has_pane(session_.setup.active, held)) {
         session_.arrange.pane = was_addressed;

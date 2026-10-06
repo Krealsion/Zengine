@@ -882,8 +882,11 @@ zengine_workshop_suite(neovim SOURCES test_workshop_neovim.cpp test_workshop_neo
     NEEDS zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture zengine-inventory
           zengine-inventory-pane)
 
+# Also the hotkeys guide's keymap example, read from the guide as a weaver copies it
+# (tests/text_checks.cmake names the guide, so a change to it runs this lane).
 zengine_workshop_suite(document SOURCES test_workshop_document.cpp
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
+                "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
     NEEDS zengine-composer)
 
 zengine_workshop_suite(screen SOURCES test_workshop_screen.cpp)
@@ -963,8 +966,11 @@ zengine_workshop_suite(panes
             test_workshop_panes_opening.cpp
             test_workshop_panes_code.cpp
             test_workshop_panes_output.cpp
+            test_workshop_shapes.cpp
     NEEDS zengine-composer zengine-inventory zengine-inventory-pane
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
+                # The tree itself, for the case that reads every shape name its components declare.
+                "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\"" "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
                 "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""

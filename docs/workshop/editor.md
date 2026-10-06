@@ -48,13 +48,13 @@ the Editor's and the pane is seated, selected, with your keys in it. Until that 
 document you already had is the one you are looking at and typing into — nothing you type or
 paste is held back or moved somewhere else — and if you edit it, move its caret or change your
 desk while the open is on its way, the open is **refused** rather than allowed to replace what
-you just did; your work is where you put it, and you simply ask again. On a screen with no
-room for another pane **nothing opens**: the document you already had, its caret and its
-history stand exactly as they were, your desk is untouched, and the refusal you get says so
-(`no room for Editor on this screen -- make the window taller, then try again`). Make the window
-taller and ask again. A window you shrink *after* the open has taken
-hides the pane the way it hides any other, with the new file in it; grow it back and the file
-is there.
+you just did; your work is where you put it, and you simply ask again. The Editor always has a
+seat: when the column down the room's left has no room left for it, it stands at the column's
+top, in front of what it covers. Only an Editor you placed off the screen has no row to show the
+file in, and then **nothing opens**: the document you already had, its caret and its history
+stand exactly as they were, your desk is untouched, and the refusal says so (`no room for a row
+of Editor on this screen`); reset its place and ask again. A window you shrink *after* the open
+has taken moves the pane the way it moves any other, with the new file in it.
 
 The same is true of a refusal for any other reason — a file that is not there, bytes the Editor
 cannot carry, unsaved edits in the document you have open, a paste of yours still on its way.

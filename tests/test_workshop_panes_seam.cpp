@@ -788,7 +788,9 @@ TEST_CASE("the overlay floor is the workspace's own bottom, which is the band's 
     CHECK(stack_slots_that_fit(screen_of(cells_px(78), cells_px(42))) >= 2);
 }
 
-TEST_CASE("a second overlay at the minimum screen is refused before it reaches Panes::open") {
+TEST_CASE("a pane launched when the stack's column is spent lands at the column's top, in front") {
+    // ⚔ MUTATION: the launch judged by a stack rationed to its column's height -- "no room for
+    // Other", and the second pane is never seen.
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -796,25 +798,43 @@ TEST_CASE("a second overlay at the minimum screen is refused before it reaches P
     r.pick(hello_ref());
     const std::int64_t hello = r.session().panes.runtime.entries[0].kind;
     REQUIRE(r.session().panes.has(hello));
-    // A SECOND PROVIDER OFFERING A SECOND STACK PANE.
+    const Screen sc = screen_of(r.session());
+    REQUIRE(stack_slots_that_fit(sc) == 1); // the minimum composition's column holds one
+    const PixelRect first = bounds_of(r.session().panes, r.session().setup.active, hello, sc).rect;
+    REQUIRE(first.y == sc.room_y);
+    // A SECOND PROVIDER OFFERING A SECOND STACK PANE, launched as the Pane Manager, a launch key
+    // or `n` launches one: through the launch door.
     ProviderSeat* other = r.mount_provider(kOtherOffice);
     r.drive(other, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
     });
     const PaneRef other_ref{kOtherOffice, "other"};
-    const Setup before = r.session().setup.active;
-
-    // The second pane is placed in the same stack, and there is room for one slot.
-    r.pick(other_ref);
-    CHECK_FALSE(has_pane(r.session().setup.active, other_ref));
-    // THE REFUSAL IS VISIBLE...
-    CHECK(r.last_notice().find("no room for Other") != std::string::npos);
-    // ...AND IT DID NOT MUTATE THE AUTHORED SETUP. A launch that added first and read
-    // `waiting` afterwards would have authored a pane the weaver never saw.
-    CHECK(r.session().setup.active == before);
-    CHECK_FALSE(has_pane(r.session().setup.active, ref_of(stock::kKind)));
+    const PaneLaunchAnswered said = hand_launch(r, other_ref);
+    CHECK(said.refusal.empty());
+    CHECK(said.opened);
+    CHECK(r.last_notice() == "showed Other");
+    REQUIRE(has_pane(r.session().setup.active, other_ref));
+    const std::int64_t second = r.session().panes.runtime.entries[1].kind;
+    REQUIRE(r.session().panes.has(second));
+    // THE COLUMN BEGINS AGAIN AT ITS TOP, so the second pane stands where the first does, in
+    // front of it and wholly in sight; the first did not move.
+    const PixelRect landed = bounds_of(r.session().panes, r.session().setup.active, second, sc).rect;
+    CHECK(landed.x == first.x);
+    CHECK(landed.y == sc.room_y);
+    CHECK(landed.h > 0);
+    CHECK(effective_pane_order(r.session().setup.active, r.session().panes).back() == second);
+    CHECK(bounds_of(r.session().panes, r.session().setup.active, hello, sc).rect == first);
+    const auto state_of = [&r, &sc](const PaneRef& ref) {
+        for (const CatalogRow& row : inventory_rows(r.session().setup.active, r.session().panes)) {
+            if (row.ref == ref) {
+                return std::string(
+                    pane_state_word(pane_state_of(r.session().panes, r.session().setup.active, sc, row)));
+            }
+        }
+        return std::string("absent");
+    };
+    CHECK(state_of(other_ref) == "open");
     // NO PANE INTERSECTS THE SETUP ROW OR THE BOTTOM BAND.
-    const Screen sc = screen_of(r.session());
     for (const OpenPane& p : r.session().panes.open) {
         const ui::Rect b =
 cells_covered(bounds_of(r.session().panes, r.session().setup.active, p.kind, sc).rect);
@@ -824,15 +844,41 @@ cells_covered(bounds_of(r.session().panes, r.session().setup.active, p.kind, sc)
     }
 }
 
-TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting for room") {
+TEST_CASE("a pane launched where its own place stands off this screen stays there, and the band says so and how to bring it back") {
+    // ⚔ MUTATION: a launch of a pane already on the desk that focuses it and says nothing -- the
+    // keys go to a pane no one can see, and nothing says where it went.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t hello = r.session().panes.runtime.entries[0].kind;
+    REQUIRE(r.session().panes.has(hello));
+    // ITS OWN PLACE, past the room's right edge.
+    REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), cells_px(300), 0).accepted);
+    r.key(input::scan::kUnknown); // a delivery, so the desk claims what it now is
+    const Screen sc = screen_of(r.session());
+    REQUIRE(bounds_of(r.session().panes, r.session().setup.active, hello, sc).rect.empty());
+    const PanePlace authored = pane_of(r.session().setup.active, hello_ref())->place;
+    const PaneLaunchAnswered said = hand_launch(r, hello_ref());
+    CHECK(said.refusal.empty());
+    CHECK(r.session().panes.selected == hello);
+    CHECK(r.last_notice() == "Hello is off this screen -- Reset > place brings it back (the Pane "
+                             "Manager's manage Hello > reaches it), or hide it and show it again");
+    CHECK(r.session().notice_is_bad);
+    // AND IT STAYS WHERE IT WAS PUT: a launch moves no authored place.
+    CHECK(pane_of(r.session().setup.active, hello_ref())->place == authored);
+    CHECK(bounds_of(r.session().panes, r.session().setup.active, hello, sc).rect.empty());
+}
+
+TEST_CASE("an oversubscribed authored setup seats every reference, the column beginning again at its top") {
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
 
-    // AUTHORED FIRST, THEN OFFERED -- the order a restored file meets a provider that
-    // loads afterwards, and the one a launch cannot produce (it refuses to author a
-    // pane it could not seat). The offer's own admission runs the ONE reconciliation
-    // path, so nothing here reaches past a message boundary to open anything.
+    // AUTHORED FIRST, THEN OFFERED -- the order a restored file meets a provider that loads
+    // afterwards. The offer's own admission runs the ONE reconciliation path, so nothing here
+    // reaches past a message boundary to open anything.
     const PaneRef other_ref{kOtherOffice, "other"};
     Setup both = r.session().setup.active;
     (void)add_pane(both, other_ref); // a second stack pane, authored first
@@ -847,23 +893,20 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
 
     const std::int64_t other = r.session().panes.runtime.entries[0].kind;
     const std::int64_t hello = r.session().panes.runtime.entries[1].kind;
-    CHECK(r.session().panes.has(other)); // first come, first served
-    CHECK_FALSE(r.session().panes.has(hello));
-    CHECK(r.session().panes.waiting(hello));
-    // NOT UNRESOLVED: this build knows exactly what it would draw. (The shipped desk's Info
-    // row is unresolved in this rig and is a different fact, so the count is asked of the
-    // reference this case is about rather than of the desk.)
-    for (const PaneRef& ref : unresolved_panes(r.session().setup.active, r.session().panes)) {
-        CHECK(ref != hello_ref());
-    }
-    // AND THE AUTHORED REFERENCE IS UNTOUCHED -- authored validity does not depend on
-    // extent, so a setup legal on a tall screen is legal on a short one.
-    CHECK(has_pane(r.session().setup.active, hello_ref()));
+    // BOTH SEATED on a screen whose column holds one: the stack is not rationed.
+    REQUIRE(stack_slots_that_fit(screen_of(r.session())) == 1);
+    CHECK(r.session().panes.has(other));
+    CHECK(r.session().panes.has(hello));
+    // AND THE AUTHORED REFERENCES ARE UNTOUCHED -- authored validity does not depend on extent,
+    // so a setup legal on a tall screen is legal on a short one.
     CHECK(check_setup(r.session().setup.active).accepted);
     CHECK((live_status(r.session().setup) == setup_link::kCurrent));
 
-    // THE STATE SAYS `waiting`, WHICH IS NEITHER `open` NOR `closed` -- the reading the Pane
-    // Manager's `[room]` mark is made from.
+    // THE SECOND BEGINS THE COLUMN AGAIN AT ITS TOP, in front of the first by its rank.
+    const auto top_of = [&r](std::int64_t kind) {
+        return bounds_of(r.session().panes, r.session().setup.active, kind, screen_of(r.session()))
+            .rect.y;
+    };
     const auto state_of = [&r](const PaneRef& ref) {
         for (const CatalogRow& row :
              inventory_rows(r.session().setup.active, r.session().panes)) {
@@ -874,50 +917,25 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
         }
         return std::string("absent");
     };
-    CHECK(state_of(other_ref) == "open");
-    CHECK(state_of(hello_ref()) == "waiting");
+    CHECK(top_of(other) == screen_of(r.session()).room_y);
+    CHECK(top_of(hello) == screen_of(r.session()).room_y);
+    CHECK(state_of(hello_ref()) == "open");
 
-    // GROWTH OPENS IT, with no gesture at all.
-    r.extent(78, 42);
-    CHECK(r.session().panes.has(hello));
-    CHECK_FALSE(r.session().panes.waiting(hello));
-
-    // ...AND A SHRINK CLOSES THE PRESENTATION, DESTROYS ITS CACHE AND RETAINS THE REF.
+    // GROWTH LAYS THE SAME PANES OUT DOWN ONE COLUMN, with no gesture at all...
     PaneContent said;
     said.pane = kHelloPane;
     said.rows.push_back(surface::SurfaceTextRow{"present", surface::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-    REQUIRE(r.session().panes.external_pane(hello) != nullptr);
+    r.extent(78, 42);
+    CHECK(top_of(hello) > top_of(other));
+    CHECK(state_of(other_ref) == "open");
+    CHECK(state_of(hello_ref()) == "open");
+    // ...AND A SHRINK BEGINS THE COLUMN AGAIN, closing nothing: the pane keeps what it showed.
     r.extent(78, 22);
-    CHECK_FALSE(r.session().panes.has(hello));
-    CHECK(r.session().panes.external_pane(hello) == nullptr); // the copy is gone
-    CHECK(has_pane(r.session().setup.active, hello_ref()));    // the intent is not
-    CHECK(r.session().panes.runtime.of_kind(hello) != nullptr); // nor is the catalog row
-}
-
-TEST_CASE("closing a waiting row removes the intent, exactly as closing an open one does") {
-    PaneRig r;
-    r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    ProviderSeat* seat2 = r.mount_provider(kOtherOffice);
-    const PaneRef other_ref{kOtherOffice, "other"};
-    Setup both = r.session().setup.active;
-    (void)add_pane(both, other_ref);
-    (void)add_pane(both, hello_ref());
-    r.session().setup.active = both;
-    r.drive(seat2, [](ProviderSeat& s, loom::Mail& m) {
-        s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
-    });
-    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
-    const std::int64_t hello = r.session().panes.runtime.entries[1].kind;
-    REQUIRE(r.session().panes.waiting(hello));
-
-    r.pick(hello_ref()); // the close door: the desk names it, waiting
-    // THE WEAVER AUTHORED IT; WHETHER THIS SCREEN CAN SEAT IT IS WORKSHOP'S PROBLEM AND
-    // NOT A REASON TO MAKE THE INTENT UNREMOVABLE.
-    CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
-    CHECK_FALSE(r.session().panes.waiting(hello));
-    CHECK(r.last_notice().rfind("hid Hello", 0) == 0);
+    CHECK(r.session().panes.has(hello));
+    CHECK(top_of(hello) == screen_of(r.session()).room_y);
+    REQUIRE(r.session().panes.external_pane(hello) != nullptr);
+    CHECK_FALSE(r.session().panes.external_pane(hello)->shown.empty());
 }
 
 // ---- The room contract ------------------------------------------------------------

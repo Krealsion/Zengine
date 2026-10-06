@@ -657,6 +657,10 @@ public:
     /// names it -- for a sentence about it.
     std::string inventory_name(const PaneRef& ref) const;
 
+    /// A SHOWN PANE THAT STANDS OFF THIS SCREEN, said with the two ways back -- or nothing, when
+    /// any of it is in sight. Its own place stands, so the band says where it went.
+    std::string off_this_screen(std::int64_t kind, const std::string& name) const;
+
     /// SAY THE ONE INVENTORY OUT LOUD, if what it says has changed since the last time.
     /// Compared before it is published, for `StandingConditions`' reason: a presenter that is
     /// told the same thing twice repaints for nothing.
@@ -1096,6 +1100,11 @@ private:
                         std::int64_t base_w, std::int64_t base_h, std::int64_t dx,
                         std::int64_t dy, loom::Mail& mail);
 
+    /// ...AND THE WINDOW SUCH A GESTURE PROPOSES, authored per axis against the window it began
+    /// from: what a key's resize and a hand's, snapped or not, both end at.
+    void arrange_window(const PaneWindowProposal& want, std::int64_t base_x, std::int64_t base_y,
+                        std::int64_t base_w, std::int64_t base_h, loom::Mail& mail);
+
     /// The size a one-cell key press proposes: the authored window if there is one, else the
     /// resolved one -- the same "author the current resolved value, then apply the delta"
     /// rule the pointer follows, so the two gestures cannot disagree about where they start.
@@ -1124,8 +1133,9 @@ private:
     void arrange_press(const PointedAt& at);
 
     /// A MOTION WHILE A PANE GESTURE IS HELD. It targets the pane that CLAIMED THE PRESS,
-    /// looked up by its reference, so nothing under the pointer can take the gesture over.
-    void arrange_motion(std::int64_t px_x, std::int64_t px_y, loom::Mail& mail);
+    /// looked up by its reference, so nothing under the pointer can take the gesture over; its
+    /// proposal snaps unless `snap` is false (Alt held).
+    void arrange_motion(std::int64_t px_x, std::int64_t px_y, bool snap, loom::Mail& mail);
 
     /// A PRESS INSIDE THE LAYOUTS PANE -- the tab run's own inverse, and the whole
     /// of what the top band's two global pointer arms became.

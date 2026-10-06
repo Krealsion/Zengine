@@ -177,16 +177,19 @@ The defaults live in the program; the file carries only your differences, writte
 Hotkeys pane's edits or by your hand:
 
 ```json
-{"zen":"1","schema":"WorkshopKeymap","version":"2","value":{
+{"zen":1,"schema":"WorkshopKeymap","version":2,"fields":{
   "format":"zengine-workshop-keymap","format_version":"2",
   "legend":"default",
   "overrides":[
-    {"action":"desktop.terminal","gesture":"ctrl+g"},
+    {"action":"desktop.terminal","gesture":"ctrl+f"},
     {"action":"layout.new","gesture":"n"},
     {"action":"layout.next","gesture":"."},
     {"action":"layout.next","gesture":"ctrl+n"}
   ]}}
 ```
+
+It is Zen's JSON text, as Workshop writes it: the envelope's `zen` and `version` are numbers, and
+inside `fields` a whole number such as `format_version` is written as a string.
 
 **One action, several keys.** An action written on several rows answers to every one of them;
 the legend spells the first, and the Hotkeys pane lists them all. The same key twice for one

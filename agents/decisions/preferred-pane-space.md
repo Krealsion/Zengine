@@ -24,4 +24,8 @@ Neither needs to know the other's screen coordinates. Saved layouts remain weave
 system. Reset-to-default returns to this preference. Large defaults can wait for reactive room;
 an authored place remains independent of stack capacity.
 
+**Since.** No room rations the stack: the column spends the preferred height and begins again
+at its top when spent, so a large default never waits
+([the stack begins again](the-stack-begins-again.md)).
+
 **Laws supported.** [WL-PANE-17](../workshop/panes-and-windows.md).

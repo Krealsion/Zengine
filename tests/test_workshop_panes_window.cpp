@@ -585,12 +585,8 @@ TEST_CASE("a wholly off-room pane is off-room, recoverable, and painted by nobod
           placement_bounds(placement::kOverlayStack, 0, sc));
 }
 
-TEST_CASE("an authored place spends no reactive slot, and cannot wait for one") {
-    // THE MINIMUM COMPOSITION HAS ROOM FOR EXACTLY ONE OVERLAY SLOT, which is where the
-    // rationing is tightest and therefore where this law has to hold.
-    REQUIRE(stack_slots_that_fit(kMinScreen) == 1);
-
-    // TWO OVERLAY PANES ARE NEEDED TO SEE A TILE BE SPENT AT ALL, and this build has one
+TEST_CASE("an authored place spends no room in the stack's column, and a spent column begins again at its top") {
+    // TWO OVERLAY PANES ARE NEEDED TO SEE THE COLUMN BE SPENT AT ALL, and this build has one
     // overlay built-in -- so the second comes through the ordinary admission door, with no
     // weave, no bus and no library: `admit_pane_offer` is a pure function over a catalog.
     Panes panes;
@@ -606,45 +602,34 @@ TEST_CASE("an authored place spends no reactive slot, and cannot wait for one") 
     s.name = "Two overlays";
     REQUIRE(add_pane(s, ref_of(stock::kKind)));
     REQUIRE(add_pane(s, extern_ref));
+    // BOTH SEATED, whatever the screen: the stack is not rationed.
+    REQUIRE(seat_panes(s, panes).wanted == std::vector<std::int64_t>{stock::kKind, got.kind});
+    const auto at = [&panes](const Setup& setup, std::int64_t kind, const Screen& sc) {
+        Panes seated = panes;
+        (void)reconcile(seated, setup);
+        return bounds_of(seated, setup, kind, sc).rect;
+    };
 
-    // BOTH REACTIVE: the second one waits, because there is one tile. The CONTROL.
-    const Seating reactive = seat_panes(s, panes, stack_capacity(kMinScreen));
-    REQUIRE(reactive.wanted.size() == 1);
-    CHECK(reactive.wanted[0] == stock::kKind);
-    REQUIRE(reactive.waiting.size() == 1);
-    CHECK(reactive.waiting[0] == got.kind);
+    // ON A SCREEN WHOSE COLUMN HOLDS TWO, the second stands in the second slot. The CONTROL.
+    const Screen tall = screen_of(cells_px(120), cells_px(44));
+    REQUIRE(stack_slots_that_fit(tall) >= 2);
+    CHECK(at(s, got.kind, tall) == placement_bounds(placement::kOverlayStack, 1, tall));
+    // ...AND ON THE MINIMUM COMPOSITION, WHICH HOLDS ONE, it begins the column again at its top.
+    REQUIRE(stack_slots_that_fit(kMinScreen) == 1);
+    CHECK(at(s, got.kind, kMinScreen) == placement_bounds(placement::kOverlayStack, 0, kMinScreen));
 
-    // NOW PLACE THE FIRST ONE. It stops spending the tile -- a pane the weaver put somewhere
-    // is not in the tiling -- so the reactive one behind it gets the slot, and the placed one
-    // is not waiting either, because it never asked the stack for anything.
+    // NOW PLACE THE FIRST ONE. It stops spending the column -- a pane the weaver put somewhere is
+    // not in the stack -- so the reactive one behind it takes slot ZERO on the tall screen too.
     Setup placed = s;
     REQUIRE(author_pane_place(placed, ref_of(stock::kKind), cells_px(2), cells_px(2)).accepted);
-    const Seating after = seat_panes(placed, panes, stack_capacity(kMinScreen));
-    CHECK(after.waiting.empty());
-    REQUIRE(after.wanted.size() == 2);
-    CHECK(after.wanted[0] == stock::kKind);
-    CHECK(after.wanted[1] == got.kind);
+    CHECK(at(placed, stock::kKind, tall).x == cells_px(2));
+    CHECK(at(placed, stock::kKind, tall).y == tall.room_y + cells_px(2));
+    CHECK(at(placed, got.kind, tall) == placement_bounds(placement::kOverlayStack, 0, tall));
 
-    // AND THE SLOT COUNTER AGREES WITH THE SEATING, because it is the same rule said where
-    // the rectangle is resolved: the reactive pane behind a placed one takes slot ZERO.
-    Session sess;
-    admit_stock(sess.panes); // the stand-in, first (stock)
-    sess.setup.active = placed;
-    sess.panes = panes;
-    sess.panes.open = {OpenPane{stock::kKind}, OpenPane{got.kind}};
-    const Screen sc = screen_of(sess);
-    CHECK(bounds_of(sess.panes, sess.setup.active, stock::kKind, sc).rect.x == cells_px(2));
-    CHECK(bounds_of(sess.panes, sess.setup.active, stock::kKind, sc).rect.y ==
-          sc.room_y + cells_px(2));
-    CHECK(bounds_of(sess.panes, sess.setup.active, got.kind, sc).rect ==
-          placement_bounds(placement::kOverlayStack, 0, sc));
-
-    // ...AND RESETTING THE PLACE PUTS IT BACK IN THE TILING, which is what makes the reset a
-    // real recovery rather than a different arrangement.
+    // ...AND RESETTING THE PLACE PUTS IT BACK IN THE STACK, which is what makes the reset a real
+    // recovery rather than a different arrangement.
     REQUIRE(reset_pane_place(placed, ref_of(stock::kKind)));
-    const Seating back = seat_panes(placed, panes, stack_capacity(kMinScreen));
-    CHECK(back.waiting.size() == 1);
-    CHECK(back.waiting[0] == got.kind);
+    CHECK(at(placed, got.kind, tall) == placement_bounds(placement::kOverlayStack, 1, tall));
 }
 TEST_CASE("an axis in pixels is presented at exactly its pixels, on every medium") {
     Setup s = two_overlays();
@@ -659,6 +644,8 @@ TEST_CASE("an axis in pixels is presented at exactly its pixels, on every medium
     Session sess;
     admit_stock(sess.panes); // the stand-in, first (stock)
     admit_second(sess.panes); // ...and the second
+    sess.screen_w = cells_px(120); // a column that holds both, so neither covers the other
+    sess.screen_h = cells_px(40);
     sess.setup.active = s;
     sess.panes.open = {OpenPane{stock::kKind}, OpenPane{second::kKind}};
     for (const std::int64_t adv : {std::int64_t{0}, std::int64_t{8}}) {
@@ -827,8 +814,8 @@ TEST_CASE("ordering changes paint order and NOTHING else") {
     for (std::size_t i = 0; i < s.setup.active.panes.size(); ++i) {
         CHECK(s.setup.active.panes[i].ref == geometry_before.panes[i].ref);
     }
-    CHECK(seat_panes(s.setup.active, s.panes, stack_capacity(sc)).wanted ==
-          seat_panes(geometry_before, s.panes, stack_capacity(sc)).wanted);
+    CHECK(seat_panes(s.setup.active, s.panes).wanted ==
+          seat_panes(geometry_before, s.panes).wanted);
 }
 
 TEST_CASE("hit order is the exact reverse of paint order") {
@@ -932,9 +919,9 @@ TEST_CASE("every setup-named pane has exactly one management row, in every state
     CHECK(builder_closed);
 
     // AND EVERY STATE HAS ITS OWN WORD, none of them empty and none of them equal.
-    const std::vector<std::int64_t> all = {pane_state::kClosed,  pane_state::kUnresolved,
-                                           pane_state::kWaiting, pane_state::kOffRoom,
-                                           pane_state::kCovered, pane_state::kOpen};
+    const std::vector<std::int64_t> all = {pane_state::kClosed, pane_state::kUnresolved,
+                                           pane_state::kOffRoom, pane_state::kCovered,
+                                           pane_state::kOpen};
     for (std::size_t i = 0; i < all.size(); ++i) {
         CHECK(std::string(pane_state_word(all[i])).size() > 0);
         for (std::size_t j = 0; j < i; ++j) {

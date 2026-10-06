@@ -421,38 +421,20 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     const std::int64_t kind = row->kind;
     const std::string name = row->name;
     const PaneRef ref{row->provider, row->pane};
-    // This delivery is the commitment point: judged first through the launch door's trial seat,
-    // on a copy of the setup, and written only if the seat is real.
-    Setup candidate = session_.setup.active;
-    const bool added = add_pane(candidate, ref);
-    const Seating trial =
-        seat_panes(candidate, session_.panes, stack_capacity(screen_of(session_)));
-    for (const std::int64_t k : trial.waiting) {
-        if (k == kind) {
-            // The launch door's own words and outcome: nothing is authored behind a refusal. A
-            // screen the weaver shrank before this arrived is exactly this case.
-            const std::string refusal = "no room for " + name +
-                                        " on this screen -- make the window taller, then try "
-                                        "again";
-            say(refusal, true);
-            (void)mail.answer(PaneRevealAnswered{asked.pane, false, refusal});
-            repaint(mail);
-            return;
-        }
-    }
-    if (added) {
-        session_.setup.active = std::move(candidate);
-    }
+    // This delivery is the commitment point, and it waits for no room: the stack is not rationed,
+    // and a pane its column has no height left for begins the column again at its top
+    // (`bounds_of`), in front as the newest row.
+    const bool added = add_pane(session_.setup.active, ref);
     apply_setup(mail);
     if (!session_.panes.has(kind)) {
-        // The belt under the trial: `apply_setup` seats through the same `seat_panes`, so a
-        // mismatch is a defect. Answered as a refusal, with the row taken back: "seated" is the
-        // word the asker acts on.
+        // The belt under the seat: `apply_setup` seats every resolved row, so a pane it did not
+        // seat is a defect. Answered as a refusal, with the row taken back: "seated" is the word
+        // the asker acts on.
         if (added) {
             (void)remove_pane(session_.setup.active, ref);
             apply_setup(mail);
         }
-        const std::string refusal = "no room for " + name + " on this screen";
+        const std::string refusal = "defect: " + name + " was not seated";
         say(refusal, true);
         (void)mail.answer(PaneRevealAnswered{asked.pane, false, refusal});
         repaint(mail);
@@ -466,8 +448,13 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     session_.panes.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
     // SAID, so the sentence on the notice line is about what just happened and names who
     // asked for it -- the pane's own rows say what it is showing. Said and written BEFORE the
-    // answer leaves, so what the asker hears is a fact about this desk and not a promise.
-    say("showing " + name + " -- it asked to be shown, and it has the keys", false);
+    // answer leaves, so what the asker hears is a fact about this desk and not a promise. A pane
+    // whose own place stands off this screen keeps it, and the band says where it went.
+    if (const std::string off = off_this_screen(kind, name); !off.empty()) {
+        say(off, true);
+    } else {
+        say("showing " + name + " -- it asked to be shown, and it has the keys", false);
+    }
     (void)mail.answer(PaneRevealAnswered{asked.pane, true, std::string()});
     repaint(mail);
 }

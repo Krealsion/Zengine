@@ -30,7 +30,8 @@ for the next launch until you promote.
   Workshop does not.
 - **A terminal** to launch Workshop from.
 - **Room for four panes**: a terminal of about 200 by 56 cells shows Files, the Builder, Tally and
-  the Editor together. On a smaller one, Workshop says which pane is waiting for room.
+  the Editor together. On a smaller one, a pane the column has no room left for stands at its
+  top, over the others; arrange them as you like.
 
 ## Once: make Tally a pane of your project
 

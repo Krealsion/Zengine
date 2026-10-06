@@ -1,11 +1,12 @@
 # Workshop law — arrangement
 
 Register `WL-ARR`: gestures, the resize law, the two arranging scopes, the coarse step, and
-Escape. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
+Escape; the snap is its second file, [`arrangement-snap.md`](arrangement-snap.md). One law per
+heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-ARR-01 — One press claims one gesture until release
 
-LAW — `PaneGesture` holds an identity, an edge and the size at the press — no rectangle, no live position — so every motion proposes `base + (pointer - press)` and nothing crossed moves it.
+LAW — `PaneGesture` holds an identity, an edge, the press's size and its snap's lines — no rectangle, no live position — so every motion proposes `base + (pointer - press)` and nothing crossed moves it.
 
 MEANS
 - crossing another pane, the Terminal or a reorder changes nothing about who is being moved;
@@ -36,7 +37,7 @@ WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-03 — `forget_removed_selection()` clears on membership, never on presentation
 
-LAW — A pane that becomes waiting, refused, covered, off-room or unresolved stays addressed; a reference leaving the setup clears the address and its gesture, and closes the one-pane scope.
+LAW — A pane that becomes covered, off-room or unresolved stays addressed; a reference leaving the setup clears the address and its gesture, and closes the one-pane scope.
 
 MEANS
 - the desk stays open, its subject being the desk;
@@ -69,7 +70,8 @@ LAW — The pulled edge follows the hand and the opposite edge holds still; a co
 
 PROVEN BY — `workshop/screen_gestures.cpp` `pane_window_proposal`; `workshop/screen.hpp`
 `pane_edge::kBottomRight`, `PaneWindowProposal`; `workshop/setup.hpp` `author_pane_window`;
-`workshop/weave_arrange.cpp` `arrange_resize`; `tests/test_workshop_screen.cpp` case `"every edge
+`workshop/weave_arrange.cpp` `arrange_resize`, `arrange_window`; `tests/test_workshop_screen.cpp`
+case `"every edge
 resizes pixel-fine and preserves its opposite anchor"`, case `"the reported top-edge
 defect is dead -- the bottom edge holds still"`, case `"a right or bottom resize leaves a
 default place reactive"`.
@@ -88,7 +90,8 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/setup.hpp` `author_pane_window`, `check_pane_place_coord`,
 `PaneAxisProposal`; `workshop/screen_gestures.cpp` `pane_window_proposal`; `workshop/screen.hpp`
-`PaneWindowProposal`; `workshop/weave_arrange.cpp` `arrange_place`, `arrange_resize`;
+`PaneWindowProposal`; `workshop/weave_arrange.cpp` `arrange_place`, `arrange_resize`,
+`arrange_window`;
 `tests/test_workshop_screen.cpp` case `"a refused anchored resize writes neither the place nor the
 size"`, case `"a move blocked at the left wall still follows the hand down"`, case
 `"a move past two walls at once writes nothing"`, case `"a refused nudge does not author a
