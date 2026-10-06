@@ -61,7 +61,7 @@ workshop_persistence              doctest           always  158
 workshop_load                     doctest           always  161
 workshop_editor_switch            doctest           always  11
 workshop_neovim                   doctest           always  9
-workshop_neovim                   doctest           neovim  27
+workshop_neovim                   doctest           neovim  26
 # Tripwires in this suite read workshop/workshop.cpp, workshop/recipes.hpp and every pane entry's
 # bytes (VM-WALL-11).
 workshop_files                    doctest           always  60
