@@ -475,7 +475,7 @@ struct PanePressed {
 // part named "" is a place a press reaches that the pane names nothing, listed where it lies over
 // a part it names: Workshop says no such part, and gives no named part a point on it.
 
-/// The most parts one picture may name, and the longest a name may be.
+/// The most parts one picture may list, and the longest a name may be.
 inline constexpr std::size_t kMaxPaneParts = 2048;
 inline constexpr std::size_t kMaxPanePartNameLen = 256;
 

@@ -711,14 +711,15 @@ interaction lease. Receivers must fence their own drops. `hand.words`, `hand.wor
 `hand.desk` in `hand.py` ask them, and `workshop/act` steps on them: `desk` checks a pane's
 place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
-"view-builder", "kind:label"]}`), and fails rather than press one with no point; `open` presses the Pane Manager's row named for a pane
-(`{"open": "pane:zengine.files/project-files"}`), choosing it first where it is not chosen; `menu`
-presses the line of the menu on the screen named so, or holding some text; and `click`,
-`control`, `expect` and `select` read a canvas pane's words as a text pane's. `select` walks a
-list to the row its pane names so (Info's `property:Height`), or, in a pane naming none, the row
-whose text after a one- or two-column marker is the name, a value the list sets beside it after
-two blanks. Info's sizes follow the medium: a window's are pixels (`240 px`), a terminal's cells
-(`20 cells`), and Info refuses an amount typed in the other unit.
+"view-builder", "kind:label"]}`), and fails rather than press one with no point; `open` presses
+the Pane Manager's row named for a pane (`{"open": "pane:zengine.files/project-files"}`),
+choosing it first where it is not chosen; `menu` presses the line of the menu on the screen named
+so, or holding some text; and `click`, `control`, `expect` and `select` read a canvas pane's words
+as a text pane's. `select` walks a list to the row its pane names so (Info's `property:Height`),
+or, in a pane naming none, the row whose text after a one- or two-column marker is the name, a
+value the list sets beside it after two blanks. Info's sizes follow the medium: a window's are
+pixels (`240 px`), a terminal's cells (`20 cells`), and Info refuses an amount typed in the other
+unit.
 
 `workshop/drag` uses the session's timed Input motion; `duration_ms` controls time, `bend`
 selects a linear path (zero) or cubic Bezier, and `button` is the one held through it (left,
