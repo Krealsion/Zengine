@@ -111,3 +111,12 @@ BECAUSE — a suffix match let a wrong `Struct::name` sit green unnoticed; run w
 tracking against the main branch's tip, the rule caught six: four a parser gap (a template
 specialization's opener) and two wrong spellings.
 SEEN — `tests/check_law_register.cmake` `zen_law_pointer_names`, `zen_law_scope_step`.
+
+## VM-CHECK-15 — Every published shape is pinned, and a moved id names its enclosing shapes
+
+METHOD — Every shape the tree publishes is pinned by content id under its name and version, read from every weave's manifest and every header no manifest reaches; a moved id without a new version is red.
+BECAUSE — the shapes one change touched, held by hand, leave the next change to add its own;
+Loom folds a nested shape's id into its parent's, so a pin a shape names every enclosing shape a
+change reached, and the census written beside the build is the diff.
+SEEN — `tests/test_shapes_census.cpp` case `"every shape this tree publishes is pinned by
+content id under its name and version"`; `tests/shapes.txt`.
