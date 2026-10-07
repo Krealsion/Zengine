@@ -162,7 +162,7 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-11 — Pane titles are a presentation preference with a key
 
-LAW — Pane titles are a preference with a key that flips the session's flag and saves it; one resolution answers a pane's header rows, and the keyboard's pane wears its title, a held press's once it ends.
+LAW — Pane titles are a preference a key flips and saves; one resolution answers a pane's header rows, and the keyboard's pane wears its title, a held canvas press's once it ends.
 
 MEANS
 - painter, press path and room grant spend the answer through `ExternalBodyPlace::header_rows`;
@@ -190,7 +190,9 @@ a later press opens gamma"`; `tests/test_workshop_desk.cpp` case `"a canvas pane
 the keys, its title waiting with pane titles hidden, is read where its picture is painted, and a
 point there lands in the room the press kept"`, case `"a held press keeps a canvas pane's room
 only from its title row: a pane moved while the press is held is granted its new room at once,
-and the press is lost"`, case `"a pane moved one title row's height while a press is held, its
+and the press is lost"`, case `"a canvas pane whose title waits for a held press, moved while it
+waits, is granted its new room at once and the press is lost"`, case `"a pane moved one title
+row's height while a press is held, its
 title unchanged, is granted its new room at once and the press is lost, in a window and in a
 terminal, titled or not"`, case `"a held press on the canvas pane that has the keys keeps its room
 while launches take its title row away and give it back, and its title is drawn again once it has

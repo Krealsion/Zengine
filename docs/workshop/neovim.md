@@ -157,7 +157,8 @@ file -- and it shows a notice when there is one; everything under it is Neovim's
 | `Ctrl`+`r` | in Visual or Select mode, carries a copy of the selection ([below](#carrying-text-commands-and-file-places)); in every other mode Neovim's own (redo, Insert's register) |
 | `Ctrl`+`k` | still Workshop's hotkey view |
 | a press elsewhere | gives your keys back to Workshop |
- A press in Neovim's screen places Neovim's cursor, a drag selects, the wheel scrolls, and a right
+
+A press in Neovim's screen places Neovim's cursor, a drag selects, the wheel scrolls, and a right
 press and its release reach Neovim as its own right button — Workshop's menu does not open over
 Neovim's screen (its title row, and a press beside its rows, still open it), with two exceptions: a
 right press **on the Visual highlight** offers **Extract selection to Inventory** and **Neovim's own
