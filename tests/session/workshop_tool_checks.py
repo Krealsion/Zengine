@@ -181,15 +181,17 @@ class CanvasPane:
 
     def view(self, provider, pane, pointed=lambda part: part):
         rows = self.drawn()
-        runs = [(r, i, c, t.rstrip(" ")) for r, row in enumerate(rows)
-                for i, (c, t) in enumerate(row["runs"]) if t.rstrip(" ")]
+        # A run is (column, text), or (column, text, True) where the caret stands in it: a blank run
+        # holding the caret is said as an empty word, as Workshop says it.
+        runs = [(r, i, run[0], run[1].rstrip(" ")) for r, row in enumerate(rows)
+                for i, run in enumerate(row["runs"]) if run[1].rstrip(" ") or run[2:] == (True,)]
         if self.by_column:
             runs.sort(key=lambda run: (run[1], run[0]))
         self.said = [(r, c, t) for r, _, c, t in runs]
         words = [{"word": n, "text": t,
                   "place": {"x": self.column_x(c), "y": self.row_y(r) + self.drop,
-                            "w": len(t) * self.advance, "h": self.line - self.drop},
-                  "x": self.column_x(c + (len(t) - 1) // 2) + self.advance // 2,
+                            "w": max(1, len(t)) * self.advance, "h": self.line - self.drop},
+                  "x": self.column_x(c + max(0, len(t) - 1) // 2) + self.advance // 2,
                   "y": self.row_y(r) + self.line // 2, "space": 2}
                  for n, (r, c, t) in enumerate(self.said)]
         listed = [(r, name, c, n) for r, row in enumerate(rows) for name, c, n in row["parts"]]
@@ -200,7 +202,8 @@ class CanvasPane:
         parts = []
         for i, (r, name, c, n) in enumerate(listed):
             line = "".ljust(self.columns())
-            for column, text in rows[r]["runs"]:
+            for run in rows[r]["runs"]:
+                column, text = run[0], run[1]
                 line = line[:column] + text + line[column + len(text):]
             own = [column for column in range(c, c + n) if owner[(r, column)] == i]
             stretches = []
@@ -667,16 +670,18 @@ class CanvasInventoryView(CanvasPane):
 class CanvasEditor(CanvasPane):
     """An Editor drawing its rows on its canvas: its status row first, named `status` and never
     blank, then the document's lines from its first, each named `line:<n>` -- a blank one drawn as
-    no word, a line's blanks before its first character drawn in its run. A press and a release
-    are each kept as the row and the column they land on."""
+    no word, or as an empty word on the row `caret_row` names, where the caret stands; a line's
+    blanks before its first character drawn in its run. A press and a release are each kept as the
+    row and the column they land on."""
 
-    def __init__(self, status, lines, **kw):
+    def __init__(self, status, lines, caret_row=None, **kw):
         CanvasPane.__init__(self, **kw)
         self.status, self.lines, self.presses, self.drops = status, list(lines), [], []
+        self.caret_row = caret_row
 
     def drawn(self):
         return ([{"runs": [(0, self.status)], "parts": [("status", 0, self.columns())]}] +
-                [{"runs": [(0, text)] if text else [],
+                [{"runs": [(0, text)] if text else [(0, "", True)] if n == self.caret_row else [],
                   "parts": [("line:%d" % n, 0, self.columns())]}
                  for n, text in enumerate(self.lines, 1)])
 
@@ -1872,7 +1877,9 @@ def run_checks(tools, runtime):
                                 body=(600, 100, 420, 280))
 
         def test_the_materials_walk_reads_a_canvas_editors_lines_where_they_stand(self):
-            editor = self.beat_editor()
+            # The caret on the blank line: Workshop says that row as an empty word.
+            editor = CanvasEditor("beat.cpp  saved  line 1", materials.BEAT.split("\n")[:-1],
+                                  caret_row=2, body=(600, 100, 420, 280))
             ctx = CanvasWorkshop(steps, {self.EDITOR: editor})
             held = hand.Hand(ctx, "workshop")
             try:
@@ -1892,7 +1899,8 @@ def run_checks(tools, runtime):
             finally:
                 held.close()
             self.assertEqual(rows, ["beat.cpp  saved  line 1"] + materials.BEAT.split("\n")[:-1])
-            self.assertEqual(rows[2], "")  # the blank line keeps its row, though it is no word
+            self.assertEqual(rows[2], "")  # the blank line keeps its row, an empty word
+            self.assertIn((2, 0, ""), editor.said)
             self.assertEqual(said, (True, False))
             # The sweep runs from the line's first character, on the lattice's row 5 past the blank
             # row 2, to the cell just after its last character, which no word's character is.
@@ -1945,7 +1953,7 @@ def run_checks(tools, runtime):
             with self.assertRaisesRegex(Refused, "outside the pane's text lattice"):
                 self.act(ctx)
             self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
-            # A text pane's painted cell, by its row and column, as before.
+            # A text pane's painted cell, by its row and column.
             ctx = ActWorkshop(steps, [{"at": ["zengine.info", "info", 1, 3]}], self.INFO_ROWS)
             self.act(ctx)
             self.assertEqual(ctx.cells, [(1, 3)])

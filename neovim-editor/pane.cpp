@@ -590,13 +590,12 @@ public:
     }
 
     /// THE PROSE ROOM: the rows and columns this pane and Neovim's screen are sized to where its
-    /// host grants it no canvas. Once a canvas room is granted the canvas decides, and this is kept.
+    /// host grants it no canvas. Once a canvas room is granted the canvas decides, and this is not
+    /// spent.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != nve::kEditorPane) {
             return;
         }
-        prose_rows_ = room.rows;
-        prose_columns_ = room.columns;
         if (canvas_.grant > 0) {
             return; // the canvas room, granted first, already sized Neovim
         }
@@ -629,7 +628,7 @@ public:
         take_room(lattice.rows, lattice.columns, mail);
     }
 
-    /// A refused picture leaves the last good one showing, and the next beat draws again.
+    /// A refused picture leaves the last good one showing; the next change draws again.
     void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
 
     /// THE ROOM TAKEN: the rows and columns composed for, and Neovim sized to them -- or started in
@@ -781,7 +780,7 @@ public:
         }
         const bool current = fresh(grant, picture);
         if (!running() || row < kChromeRows) {
-            if (row == 0 && current && host_->ready() && !doc_path().empty()) {
+            if (row == 0 && current && running() && host_->ready() && !doc_path().empty()) {
                 grab_ = Grab{true, false, Take::Location, row, column, mail.correlation(), Snapshot{}};
             }
             return;
@@ -1376,20 +1375,23 @@ public:
                 convention_ = candidate_.convention;
                 shown_tick_ = candidate_.doc.tick;
                 // ITS PREVIEW STANDS UNTIL NEOVIM HAS DRAWN IT: Neovim answered the showing, and its
-                // next flush is the first screen of the buffer now in front.
-                preview_ = Preview{true, candidate_.path, candidate_.lines, host_->grid().flushes()};
+                // first flush after that answer is the first screen of the buffer now in front.
+                preview_ = Preview{true, candidate_.lines, host_->flushes_at_answer()};
             }
             epoch_ = published.doc_epoch;
             opened_by_ = candidate_.op;
             granted_ = true;
             // A CANDIDATE COMPOSED AS A PICTURE brings the canvas room it was drawn for, whose
             // pictures this pane numbers afresh; one composed as rows for a pane on a canvas leaves
-            // its room as it is, and the desk grants it another.
+            // its room as it is, and the desk grants it another. Either way nothing aimed at the
+            // document it replaced counts.
             if (candidate_.room.grant > 0) {
                 canvas_ = candidate_.room;
                 pictures_ = ws::CanvasPictures{};
-                pressed_ = 0;
+            } else {
+                pictures_.retire();
             }
+            pressed_ = 0;
             if (candidate_.room.grant > 0 || canvas_.grant <= 0) {
                 rows_ = candidate_.rows;
                 columns_ = candidate_.columns;
@@ -1774,6 +1776,7 @@ private:
             choice_.profile = judged.resolved; // said in full wherever the profile is said
         }
         host_ = std::make_unique<nv::Host>();
+        preview_ = Preview{}; // a preview counts one Neovim's flushes, and this is another
         doc_ = nv::DocFacts{};
         nv::Host::Options o;
         const std::string cwd = project_known_ && !project_dir_.empty() ? project_dir_ : std::string();
@@ -3181,19 +3184,16 @@ private:
     bool granted_ = false;
 
     /// THE CANVAS THIS PANE DRAWS ON: the room Workshop granted it there, its pictures numbered in
-    /// that room by what Neovim's screen shows, the prose room kept for a host granting none, and
-    /// the left press whose motion is Neovim's drag. Not reload state.
+    /// that room by what Neovim's screen shows, and the left press whose motion is Neovim's drag.
+    /// Not reload state.
     ws::PaneCanvasRoom canvas_;
     ws::CanvasPictures pictures_;
-    std::int64_t prose_rows_ = 0;
-    std::int64_t prose_columns_ = 0;
     std::int64_t pressed_ = 0;
     bool on_canvas() const { return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0; }
-    /// THE FILE A SHOWING PUT IN FRONT, BEFORE NEOVIM HAS DRAWN IT: its path and first lines, and
-    /// how many flushes Neovim had made when it was shown -- its preview stands until the next.
+    /// THE FILE A SHOWING PUT IN FRONT, BEFORE NEOVIM HAS DRAWN IT: its first lines, and how many
+    /// flushes this Neovim had made when it answered the showing -- its preview stands until the next.
     struct Preview {
         bool active = false;
-        std::string path;
         std::vector<std::string> lines;
         std::uint64_t flushes = 0;
     };

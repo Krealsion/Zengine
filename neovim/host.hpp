@@ -232,6 +232,7 @@ public:
         // gone.
         struct Waiting {
             std::optional<rpc::Response> got;
+            std::uint64_t flushes = 0; ///< the screen's flushes when the answer arrived
             bool mode_answered = false;
             bool blocking = false;
             bool left = false;
@@ -239,9 +240,10 @@ public:
         };
         auto state = std::make_shared<Waiting>();
         state->late = std::move(late);
-        if (!call(method, params, [state](const rpc::Response& r) {
+        if (!call(method, params, [this, state](const rpc::Response& r) {
                 if (!state->left) {
                     state->got = r;
+                    state->flushes = grid_.flushes();
                 } else if (state->late) {
                     state->late(r);
                 }
@@ -260,6 +262,7 @@ public:
             carried_.merge(pump_io());
             if (state->got.has_value()) {
                 got = std::move(state->got);
+                answered_flushes_ = state->flushes;
                 return Asked::Answered;
             }
             if (!alive()) {
@@ -350,6 +353,9 @@ public:
     bool wait(int ms) { return alive() ? child_.wait(ms) : true; }
 
     const Grid& grid() const noexcept { return grid_; }
+    /// The screen's flushes when the last answer `ask` returned arrived: what Neovim drew before it
+    /// answered, and nothing it drew after, though one read brought both.
+    std::uint64_t flushes_at_answer() const noexcept { return answered_flushes_; }
     /// The first character of the mode Neovim last reported (`v`, `V`, Ctrl-V, `s`, ...), or 0.
     char visual_kind() const noexcept { return mode_.empty() ? '\0' : mode_[0]; }
     const std::string& mode() const noexcept { return mode_; }
@@ -668,6 +674,7 @@ private:
     std::string inbound_;
     std::map<std::uint32_t, Callback> callbacks_;
     Grid grid_;
+    std::uint64_t answered_flushes_ = 0;
     Phase phase_ = Phase::Idle;
     std::string failure_;
     Version version_;

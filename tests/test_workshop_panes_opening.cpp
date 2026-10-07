@@ -13,6 +13,7 @@
 #include "workshop/host_pump.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/opening.hpp"
+#include "workshop/pane_view.hpp"
 
 #include <memory>
 #include <stdexcept>
@@ -941,6 +942,30 @@ TEST_CASE("a native owner's failed showing is told in the words its own boundary
 
 namespace {
 
+struct PointAskerState {
+    ZEN_SHAPE(PointAskerState, 1);
+};
+
+/// AN ORDINARY WEAVE GRANTED WORKSHOP'S READING DOORS: a pane's words, and one cell's point.
+class PointAsker
+    : public loom::WeaveBase<PointAsker, PointAskerState,
+                             loom::Accept<SeatDo, v3::PaneView, PanePoint, loom::Refused>,
+                             loom::Emit<v3::PaneViewRequested, v3::PanePointRequested>> {
+public:
+    std::function<void(loom::Mail&)> next;
+    std::vector<v3::PaneView> views;
+    std::vector<PanePoint> points;
+    std::vector<std::string> refusals;
+    void on(const SeatDo&, loom::Mail& m) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(m);
+    }
+    void on(const v3::PaneView& v, loom::Mail&) { views.push_back(v); }
+    void on(const PanePoint& p, loom::Mail&) { points.push_back(p); }
+    void on(const loom::Refused& r, loom::Mail&) { refusals.push_back(r.reason); }
+};
+
 /// THE CANVAS STAND-IN SEATED AS THE MANAGED EDITOR AND SHOWING A, and an asker that opens B
 /// through the managed door: what the opening-as-a-picture cases share. `window` seats it on the
 /// shipped graphical face's report instead of a terminal's.
@@ -1008,6 +1033,38 @@ struct PictureOpen {
             (void)serve_until_idle(r.bus, r.host.showings, [](const std::string&) {});
         }
     }
+    /// THE EDITOR PANE'S WORDS, AND THE POINT OF ONE CELL OF ITS LATTICE at the picture they were
+    /// read at, asked as any participant asks: the picture, and the point's refusal or "".
+    std::string point(std::int64_t row, std::int64_t column, std::int64_t& picture) {
+        if (reader == nullptr) {
+            auto made = std::make_unique<PointAsker>();
+            reader = made.get();
+            loom::Grant grant;
+            grant.allow_to_role(v3::PaneViewRequested::zen_name, v3::PaneViewRequested::zen_version,
+                                kWorkshopProvider);
+            grant.allow_to_role(v3::PanePointRequested::zen_name, v3::PanePointRequested::zen_version,
+                                kWorkshopProvider);
+            reader_id = r.bus.register_weave(std::move(made), std::move(grant));
+            reader->zen_set_self(reader_id);
+        }
+        const auto ask = [this](std::function<void(loom::Mail&)> what) {
+            reader->next = std::move(what);
+            (void)r.bus.send(reader_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+            r.bus.drain_until_idle();
+        };
+        reader->refusals.clear();
+        ask([](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, v3::PaneViewRequested{kEditorRole, "editor"}); });
+        REQUIRE(reader->refusals.empty());
+        REQUIRE_FALSE(reader->views.empty());
+        picture = reader->views.back().picture;
+        const std::int64_t seen = picture;
+        ask([seen, row, column](loom::Mail& m) {
+            (void)m.send_to_role(kWorkshopProvider, v3::PanePointRequested{kEditorRole, "editor", seen, row, column});
+        });
+        return reader->refusals.empty() ? std::string() : reader->refusals.back();
+    }
+    PointAsker* reader = nullptr;
+    loom::WeaveId reader_id{};
 };
 
 } // namespace
@@ -1019,6 +1076,7 @@ TEST_CASE("an open through the managed door shows the opened document's picture 
     const ExternalPane* pane = o.pane();
     REQUIRE(pane != nullptr);
     REQUIRE(shows_canvas(*pane));
+    REQUIRE_FALSE(held_row_texts(*pane).empty());
     REQUIRE(held_row_texts(*pane).front() == "the document A");
     const std::int64_t a_grant = pane->canvas.grant;
     // AN OPEN OF B, with a picture of A still to come: the stand-in sends A's again, in A's room,
@@ -1048,8 +1106,8 @@ TEST_CASE("an open through the managed door shows the opened document's picture 
               .value.has_value());
 }
 
-TEST_CASE("a holder that draws nothing after the commitment still shows the picture it prepared, as the "
-          "seat's first") {
+TEST_CASE("a holder that draws nothing after the commitment still shows the picture it prepared, numbered "
+          "none, its words read at once and a cell's point read again until it draws its own") {
     PictureOpen o("open-picture-quiet");
     o.editor->quiet = true; // what stands after the open is what the desk installed
     o.ask_b();
@@ -1064,6 +1122,15 @@ TEST_CASE("a holder that draws nothing after the commitment still shows the pict
     CHECK(pane->picture == 0);
     REQUIRE_FALSE(o.editor->rooms.empty());
     CHECK(o.editor->rooms.back().grant == pane->canvas.grant);
+    // ITS WORDS ARE READ AT ONCE, AND A CELL'S POINT IS READ AGAIN: the shown picture takes no
+    // press until the holder draws its own there, which then does.
+    std::int64_t picture = -1;
+    const std::string refused = o.point(0, 1, picture);
+    CHECK(picture == 0);
+    CHECK_MESSAGE(refused.find("picture moved; read it again") != std::string::npos, refused);
+    o.drive([](CanvasEditor& e, loom::Mail& m) { e.draw(m); });
+    CHECK(o.point(0, 1, picture).empty());
+    CHECK(picture > 0);
 }
 
 TEST_CASE("a picture prepared for a room the trial did not reserve is refused at its admission, and the "
@@ -1079,6 +1146,7 @@ TEST_CASE("a picture prepared for a room the trial did not reserve is refused at
     const ExternalPane* pane = o.pane();
     REQUIRE(pane != nullptr);
     REQUIRE(shows_canvas(*pane));
+    REQUIRE_FALSE(held_row_texts(*pane).empty());
     CHECK(held_row_texts(*pane).front() == "the document A");
 }
 

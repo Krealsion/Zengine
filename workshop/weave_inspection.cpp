@@ -579,6 +579,12 @@ void WorkshopWeave::on(const v2::DeskViewRequested&, loom::Mail& mail) {
 
 namespace {
 
+/// A CANVAS PICTURE NUMBERED NONE -- the one a managed opening showed -- takes no press: a press is
+/// taken from its pane's own first picture in that room (WL-OPEN-10), so a point is read again.
+constexpr std::string_view kUnnumberedPicture =
+    "pane point unavailable: the pane's picture moved; read it again -- the one shown takes no press "
+    "until its pane draws its own";
+
 /// ONE CANVAS LABEL AS THE PAINTER DRAWS IT (`paint_pane_canvas`): the bytes left of the body
 /// dropped whole, the row cut at its right edge, a label outside its rows not drawn at all.
 bool drawn_label(const PaneCanvasLabel& label, const PixelRect& body, std::string& text,
@@ -738,6 +744,10 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
         (void)mail.answer(loom::Refused{"pane point unavailable: the pane's picture moved; read it again"});
         return;
     }
+    if (visible.canvas && visible.content->stamp.aimed <= 0) {
+        (void)mail.answer(loom::Refused{std::string(kUnnumberedPicture)});
+        return;
+    }
     std::vector<WordGlyphs> glyphs;
     const std::vector<PaneWord> words = visible_words(visible, &glyphs);
     if (asked.word < 0 || asked.word >= static_cast<std::int64_t>(words.size()) ||
@@ -780,6 +790,10 @@ void WorkshopWeave::on(const v3::PanePointRequested& asked, loom::Mail& mail) {
     }
     if (asked.picture != visible.content->stamp.aimed) {
         (void)mail.answer(loom::Refused{"pane point unavailable: the pane's picture moved; read it again"});
+        return;
+    }
+    if (visible.canvas && visible.content->stamp.aimed <= 0) {
+        (void)mail.answer(loom::Refused{std::string(kUnnumberedPicture)});
         return;
     }
     PanePoint reply{asked.provider, asked.pane, asked.picture, asked.row, asked.column, 0, 0, 0};

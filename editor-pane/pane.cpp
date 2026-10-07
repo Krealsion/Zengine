@@ -354,13 +354,11 @@ public:
     }
 
     /// THE PROSE ROOM: the rows and columns this pane composes for where its host grants it no
-    /// canvas. Once a canvas room is granted the canvas decides, and this room is only kept.
+    /// canvas. Once a canvas room is granted the canvas decides, and this room is not spent.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kEditorPane) {
             return;
         }
-        prose_rows_ = room.rows;
-        prose_columns_ = room.columns;
         if (canvas_.grant > 0) {
             return; // the canvas room, granted first, already drew
         }
@@ -2115,18 +2113,19 @@ private:
             installed_epoch_ = e_.doc_epoch;
             installed_revision_ = e_.buffer.revision();
         }
-        // THE ROOM IS THE TRIAL'S, NOW: the desk seated this pane in the same step it
-        // published, with the rows composed for exactly this room, so a gesture that arrives
-        // before the desk's own room grant is judged against the picture that is showing. A
-        // candidate composed as a picture brings the canvas room it was drawn for, whose
-        // pictures this pane numbers afresh; one composed as rows for a pane drawing on a canvas
-        // leaves its room as it is, and the desk grants it another.
+        // THE ROOM IS THE TRIAL'S, NOW: the desk seated this pane as it published, so a gesture
+        // before the desk's own room grant is judged against the picture showing. A candidate
+        // composed as a picture brings the canvas room it was drawn for, numbered afresh; one
+        // composed as rows for a pane drawing on a canvas leaves its room, and the desk grants it
+        // another. Either way nothing aimed at the document it replaced counts.
         granted_ = true;
         if (candidate_.room.grant > 0) {
             canvas_ = candidate_.room;
             pictures_ = ws::CanvasPictures{};
-            held_ = 0;
+        } else {
+            pictures_.retire();
         }
+        held_ = 0;
         if (candidate_.room.grant > 0 || canvas_.grant <= 0) {
             rows_ = candidate_.rows;
             columns_ = candidate_.columns;
@@ -2715,12 +2714,10 @@ private:
     bool granted_ = false;
 
     /// THE CANVAS THIS PANE DRAWS ON: the room Workshop granted it there, its pictures numbered in
-    /// that room by what their rows mean, the prose room kept for a host granting none, and the
-    /// primary press whose motion sweeps. Not reload state: a reloaded image waits for its room.
+    /// that room by what their rows mean, and the primary press whose motion sweeps. Not reload
+    /// state: a reloaded image waits for its room.
     ws::PaneCanvasRoom canvas_;
     ws::CanvasPictures pictures_;
-    std::int64_t prose_rows_ = 0;
-    std::int64_t prose_columns_ = 0;
     std::int64_t held_ = 0;
     bool on_canvas() const { return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0; }
 

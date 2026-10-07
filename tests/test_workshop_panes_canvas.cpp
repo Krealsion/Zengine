@@ -968,6 +968,12 @@ TEST_CASE("a pane's canvas pictures fence a press by the meaning each was drawn 
     CHECK(pictures.next(next, 8) == 1);
     CHECK_FALSE(pictures.current(4, moved));
     CHECK(pictures.current(5, 1));
+    // RETIRED: nothing drawn so far is current, whatever it meant, and the room numbers on.
+    pictures.retire();
+    CHECK_FALSE(pictures.current(5, 1));
+    CHECK(pictures.next(next, 8) == 2);
+    CHECK_FALSE(pictures.current(5, 1));
+    CHECK(pictures.current(5, 2));
 }
 
 TEST_CASE("pane canvas text metric changes renew the grant even when its body stays fixed") {

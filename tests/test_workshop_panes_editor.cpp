@@ -794,8 +794,8 @@ struct EditorRig {
     const ExternalPane* seat() { return r.session().panes.external_pane(kind); }
 
     /// WHERE THE CARET AND THE SELECTION STAND in the picture Workshop holds, on the lattice the
-    /// pane's rows stand on: the run carrying the caret, and the first and last runs a selection
-    /// touches, each where its span ends.
+    /// pane's rows stand on: the run carrying the caret, the first run a selection touches where its
+    /// span begins, and the last where its span ends.
     PaneCaret caret() {
         const ExternalPane* seated = seat();
         REQUIRE(seated != nullptr);
@@ -2109,19 +2109,28 @@ TEST_CASE("long and tabbed lines are windowed by displayed columns, exactly") {
     CHECK(e.caret().column >= 0);
 }
 
-TEST_CASE("a sweep in a pane that lost its seat ends, and sends nothing") {
+TEST_CASE("a sweep in a pane that lost its seat is lost with it, and a motion after the close moves "
+          "nothing it selected") {
     EditorRig e("edit-drag-gone");
     e.open();
-    e.open_file("a.cpp", "one\ntwo\n");
+    e.open_file("a.cpp", "one\ntwo\nthree\n");
+    // A SWEEP UNDER WAY: the press held, and a motion to the next line selecting.
     e.press_doc(0, 1);
+    e.motion_doc(1, 2);
+    REQUIRE(e.caret().sel_begin_row == e.chrome());
+    REQUIRE(e.caret().sel_end_row == e.chrome() + 1);
+    REQUIRE(e.caret().sel_end_col == 2);
     e.r.session().panes.keyboard = kNoPaneKind; // the keys put down with no gesture
     e.r.pick(editor_ref()); // the pane is closed mid-sweep, through the close door
     REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     const ui::Rect body = external_body_rect(e.r.session(), e.kind);
     e.r.motion_cell(body.x + 2, body.y + 3);
-    // Back, and nothing was selected by a motion the pane never saw.
+    // Back, and the selection is the sweep's: a motion the pane never saw moved none of it.
     e.r.pick(editor_ref());
-    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+    CHECK(e.caret().sel_begin_row == e.chrome());
+    CHECK(e.caret().sel_begin_col == 1);
+    CHECK(e.caret().sel_end_row == e.chrome() + 1);
+    CHECK(e.caret().sel_end_col == 2);
 }
 
 TEST_CASE("a press begins a sweep only where it named a row of the body") {
