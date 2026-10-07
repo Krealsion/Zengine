@@ -750,7 +750,7 @@ press there, and is never said.
 | Info | `zengine.info` `info` | `pane:<office>/<pane>`, a pane's row, and `property:<label>`, a property's row | the rows naming neither |
 | An Info view | `zengine.info` `info.2` to `info.4` | `control:<id>`, a control, and `field:<path>`, a field | |
 | Files | `zengine.files` `project-files` | `entry:<name>`, `candidate:<name>`, `field:<name>`, `control:<id>` | the headers, a notice, the markers and the `more fields` row, an empty listing or its refusal, a strip's gaps and `+N in menu` |
-| Builder | `zengine.builder-pane` `builder` | `recipe:<name>`, `control:<id>`, `line` | the header, a notice, the facts it reports, the list's heading and markers, the `loads` row, the reader's header and every output line, a strip's gaps and `+N in menu` |
+| Builder | `zengine.builder-pane` `builder` | `recipe:<name>`, `control:<id>`, `line` | the header, a notice, the facts it reports but the recipe row, the list's heading and markers, the `loads` row, the reader's header and every output line, a strip's gaps and `+N in menu` |
 | Inventory | `zengine.inventory-pane` `inventory` | `entry:<owner>:<entry>`, `folder:<owner>:<id>`, `crumb:<owner>:<id>`, `control:up`, `control:here` | |
 | Terminal | `zengine.terminal` `terminal` | `entry:<observation>`, `line`, `newest`, `candidate:<what it says>` | a notice, the heading, the legend, the marker above the view, an entry carrying no value, the list's heading, the history row |
 | Composer | `zengine.composer` `compose` | `message:<name> v<version>`, `field:<name>`, `control:submit`, `control:back` | the rows naming nothing |

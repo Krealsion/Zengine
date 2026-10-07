@@ -56,17 +56,18 @@ LAW — A pane activates a row on a press only when Workshop reports its keys we
 
 MEANS
 - the pane decides from `keys_went_here`; a mode having the keys is "not here";
-- a v1 press states no fact, so a pane at most selects on it; a canvas pointer always states it;
+- a canvas pointer always states it, and a v1 press none;
 - a press crosses once, as v2 exactly when the office's current holder accepts it.
 
 DOES NOT MEAN
 - that a version chosen arrives: a new holder lacking its door refuses, one with it may take it;
-- that anything is retried, kept between presses, or said when the keys leave a pane.
+- that anything is retried, kept or said when the keys leave a pane, or that Compose keeps it: it acts on the press that brings it the keys.
 
 PROVEN BY — `workshop/screen_arrange.cpp` `typing_pane`; `workshop/weave_pointer.cpp`
 `on(PointerButton)`; `workshop/weave_external.cpp` `external_press`, `holder_accepts_on`;
 `workshop/weave.hpp` `HostContext::holder_accepts`; `workshop/pane_vocabulary.hpp` `PanePressed`,
-`keys_went_here`; `workshop/pane_canvas_vocabulary.hpp` `PaneCanvasPointer`; `files/files.cpp`
+`keys_went_here`; `workshop/pane_canvas_vocabulary.hpp` `PaneCanvasPointer`;
+`workshop/weave_canvas.cpp` `WorkshopWeave::canvas_press`; `files/files.cpp`
 `pressed`, `open`; `tests/test_workshop_panes_files.cpp` case
 `"a press on Files' selected row after its open moved the keys to the Editor selects that row and
 takes the keys back, and opens nothing"`, case `"the keys leave Files by a press into the Editor

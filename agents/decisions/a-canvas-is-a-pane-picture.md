@@ -32,4 +32,5 @@ or metric change. The fence orders dispatch; it does not prove physical presenta
 
 **Laws supported.** [WL-CANVAS-01](../workshop/canvas.md), [WL-CANVAS-02](../workshop/canvas.md),
 [WL-CANVAS-03](../workshop/canvas.md), [WL-CANVAS-04](../workshop/canvas.md),
-[WL-CANVAS-05](../workshop/canvas.md), [WL-CANVAS-06](../workshop/canvas.md).
+[WL-CANVAS-05](../workshop/canvas.md), [WL-CANVAS-06](../workshop/canvas.md),
+[WL-CANVAS-07](../workshop/canvas.md).
