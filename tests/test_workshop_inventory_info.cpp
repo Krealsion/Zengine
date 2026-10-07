@@ -722,9 +722,9 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
     }
 }
 
-TEST_CASE("a live reference carried from Inventory lands in the Compose field its place names on Compose's canvas") {
-    InventoryStory s(63, true);
-    s.append(7, "source");
+/// Compose on its canvas at the desk's right, its target Inventory: the pane a carried reference
+/// is dropped on, by the place of a field of Inventory's own messages.
+static std::int64_t compose_on_canvas_for_inventory(InventoryStory& s) {
     auto& r = s.r;
     REQUIRE(r.load_refusals.empty());
     r.pick({"zengine.info", "info"}); // give Compose the right-hand area
@@ -745,12 +745,70 @@ TEST_CASE("a live reference carried from Inventory lands in the Compose field it
     r.bus.send(selector_id, loom::Message(loom::to_value(InventoryHandDo{})));
     r.bus.drain_until_idle();
     REQUIRE(shows_canvas(*r.session().panes.external_pane(compose_kind)));
-    const auto row_saying = [&](const std::string& text) {
-        const auto rows = pane_rows(r, compose_kind);
-        for (std::size_t i = 0; i < rows.size(); ++i)
-            if (rows[i].find(text) != std::string::npos) return static_cast<std::int64_t>(i);
-        return std::int64_t{-1};
+    return compose_kind;
+}
+
+/// The row of a pane's picture whose text holds `text`; -1 where none does.
+static std::int64_t row_saying(InventoryStory& s, std::int64_t kind, const std::string& text) {
+    const auto rows = pane_rows(s.r, kind);
+    for (std::size_t i = 0; i < rows.size(); ++i)
+        if (rows[i].find(text) != std::string::npos) return static_cast<std::int64_t>(i);
+    return -1;
+}
+
+TEST_CASE("an item released on a canvas whose pane leaves before the drop is delivered is said not "
+          "delivered, a reference and a value alike") {
+    // The drop is queued and said sent; the pane leaves before the bus dispatches it.
+    const auto leave_once_sent = [](InventoryStory& s, const std::string& said, const std::string& role,
+                                    bool& removed) {
+        return s.r.bus.add_observer([&s, said, role, &removed](const loom::BusEvent& e) {
+            if (!removed && e.kind == loom::EventKind::Delivered && e.target == s.r.workshop_id &&
+                s.r.last_notice().rfind(said, 0) == 0)
+                removed = s.r.kernel.unload_role(role);
+        });
     };
+    SUBCASE("a reference on Compose's canvas") {
+        InventoryStory s(63, true);
+        s.append(7, "source");
+        const auto compose_kind = compose_on_canvas_for_inventory(s);
+        const std::int64_t rename = row_saying(s, compose_kind, "InventoryRename v1");
+        REQUIRE(rename >= 0);
+        s.click(compose_kind, rename);
+        const std::int64_t field = row_saying(s, compose_kind, "reference:");
+        REQUIRE_MESSAGE(field >= 0, s.shown(compose_kind));
+        s.acquire();
+        bool removed = false;
+        RemoveObserver watch{s.r.bus, leave_once_sent(s, "Reference sent to", kComposerOffice, removed)};
+        s.click(compose_kind, field);
+        REQUIRE(removed);
+        CHECK_MESSAGE(s.r.last_notice().find(std::string("Reference not delivered to ") +
+                                             kComposerOffice) != std::string::npos,
+                      s.r.last_notice());
+    }
+    SUBCASE("a value on Flow's canvas") {
+        InventoryStory s(191, true, false, true);
+        s.append(1, "A");
+        REQUIRE(s.flow != 0);
+        bool removed = false;
+        RemoveObserver watch{s.r.bus, leave_once_sent(s, "Value sent to", "zengine.flow", removed)};
+        auto press = s.button_at(s.source, 2, true);
+        auto release = s.button_at(s.flow, 8, false);
+        release.x += 40; // over the graph, right of Flow's rail
+        auto move = release;
+        move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+        s.batch({press, move, release});
+        REQUIRE_MESSAGE(removed, s.r.last_notice());
+        CHECK_MESSAGE(s.r.last_notice().find("Value not delivered to zengine.flow") != std::string::npos,
+                      s.r.last_notice());
+    }
+}
+
+TEST_CASE("a live reference carried from Inventory lands in the Compose field its place names on Compose's canvas") {
+    InventoryStory s(63, true);
+    s.append(7, "source");
+    auto& r = s.r;
+    const auto compose_kind = compose_on_canvas_for_inventory(s);
+    const auto row_saying = [&](const std::string& text) { return ::row_saying(s, compose_kind, text); };
     // The form the reference is for, opened by its row on the canvas...
     const std::int64_t rename = row_saying("InventoryRename v1");
     REQUIRE(rename >= 0);
