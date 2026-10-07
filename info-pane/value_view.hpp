@@ -546,10 +546,12 @@ public:
         return after_client(c);
     }
 
+    /// A CARRY WORKSHOP TOOK IS WORKSHOP'S TO SAY, for as long as the copy is in hand: an accepted
+    /// pickup leaves no sentence here to outlive it.
     bool hear(const workshop::PaneCarryAnswered& answer, loom::Mail& mail) {
         if (pickup_ != Pickup::carry || !mail.answers_ask() || mail.correlation() != pickup_gesture_) return false;
-        finish_pickup(!answer.carried ? "Field pickup refused: " + answer.reason
-                      : pickup_drag_ ? std::string() : "Carrying field copy; click a receiving field, or Escape");
+        finish_pickup(answer.carried ? std::string() : "Field pickup refused: " + answer.reason);
+        if (answer.carried && !pickup_drag_) notice_.clear();
         return true;
     }
 
