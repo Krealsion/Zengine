@@ -25,7 +25,7 @@ LAW — Each Builder fact carries a distinct priority: the budget keeps the most
 MEANS
 - header, recipe, the `project` frontier while one waits, last, exit, ran, realize, `said…`;
 - the realize row has three faces and no second row: armed, the button, or the outcome;
-- the pane is a WEAVE and composes into rows it is granted, not a region it resolved itself.
+- the pane is a WEAVE and composes into the rows of the room it is granted, not a region it resolved.
 
 PROVEN BY — `builder-pane/pane.cpp` `say_builder`, `publish`, `labelled_block`;
 `tests/test_workshop_panes_builder.cpp` case

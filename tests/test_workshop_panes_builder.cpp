@@ -1574,6 +1574,16 @@ void bp_button(PaneRig& r, std::int64_t kind, std::int64_t button, bool pressed,
         input::mod::kNone}));
 }
 
+/// THE PICTURE THE BUILDER'S CANVAS HOLDS NOW, by its room and number -- what a case aims at
+/// when it wants a press to name a picture drawn before a later one.
+struct BpAim {
+    std::int64_t grant = 0, picture = 0;
+};
+BpAim bp_aim(BuilderRig& b);
+/// A PRIMARY PRESS AIMED AT THAT PICTURE, on a row and column of the canvas's lattice, said as
+/// Workshop says one, with the keys already the pane's.
+void bp_press_aimed(BuilderRig& b, const BpAim& aim, std::int64_t row, std::int64_t column);
+
 struct BpFaceAt {
     std::int64_t row = -1;
     std::int64_t column = -1;
@@ -1886,7 +1896,7 @@ TEST_CASE("a press that names a picture the Builder has replaced is refused in w
     REQUIRE(r.load(pane::kBuilderPaneStem, WORKSHOP_SO_BUILDER_PANE, pane::kBuilderPaneRole)
                 .valid());
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, pane::kBuilderPaneRole, PaneRoom{pane::kBuilderPane, 10, 70});
+        wv.canvas_grant(m, pane::kBuilderPaneRole, pane::kBuilderPane, 10, 70);
     });
     REQUIRE_FALSE(watch->content.empty());
     const std::int64_t now = watch->pictures.back();
@@ -1905,8 +1915,10 @@ TEST_CASE("a press that names a picture the Builder has replaced is refused in w
     const std::size_t said = watch->content.size();
 
     r.drive_watcher(watch, [control, column, now](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, pane::kBuilderPaneRole,
-                 v3::PanePressed{pane::kBuilderPane, control, column, true, now + 7});
+        PaneCanvasPointer p = wv.canvas_at(control, column, canvas_pointer::kPress);
+        p.picture = now + 7;
+        p.keys_went_here = true;
+        wv.point(m, pane::kBuilderPaneRole, p);
     });
     REQUIRE(watch->content.size() > said);
     CHECK(watch->content.back().rows[0].text.find("the rows moved -- press again") !=
@@ -1947,6 +1959,27 @@ void bp_choose_row(BuilderRig& b, const std::string& row) {
 }
 
 /// WHAT THE TOOL WAS LAST ASKED TO BUILD, for a message that reads.
+BpAim bp_aim(BuilderRig& b) {
+    const ExternalPane* held = b.r.session().panes.external_pane(b.kind);
+    REQUIRE(held != nullptr);
+    REQUIRE(shows_canvas(*held));
+    return BpAim{held->canvas.grant, held->canvas.content.picture};
+}
+
+void bp_press_aimed(BuilderRig& b, const BpAim& aim, std::int64_t row, std::int64_t column) {
+    const ExternalPane* held = b.r.session().panes.external_pane(b.kind);
+    REQUIRE(held != nullptr);
+    const CanvasRows lattice = held_canvas_rows(*held);
+    PaneCanvasPointer press{pane::kBuilderPane, aim.grant, aim.picture, 1, canvas_pointer::kPress, 1,
+                            lattice.column_x(column), lattice.row_y(row)};
+    press.keys_went_here = true;
+    const auto sent = b.r.bus.office_send_to_role_as(
+        b.r.workshop_id, kWorkshopProvider, pane::kBuilderPaneRole,
+        loom::Message(loom::to_value(press), b.r.workshop_id, b.r.workshop_id, 0));
+    REQUIRE(sent.valid());
+    b.r.bus.drain_until_idle();
+}
+
 std::string bp_last_asked(BuilderRig& b) {
     return b.tool->asked.empty() ? std::string("nothing") : b.tool->asked.back();
 }
@@ -1994,35 +2027,16 @@ TEST_CASE("a numbered control naming an artifact is refused once that artifact i
     BuilderRig b("bld-control-artifact");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open();
-    std::int64_t picture_id = 0;
-    const auto pane_id = b.r.bus.role_holder(pane::kBuilderPaneRole);
-    const auto obs = b.r.bus.add_observer([&](const loom::BusEvent& ev) {
-        if (ev.kind == loom::EventKind::Delivered && ev.sender == pane_id && ev.payload &&
-            ev.schema_name == v3::PaneContent::zen_name) {
-            picture_id = loom::from_value<v3::PaneContent>(*ev.payload).picture;
-        }
-    });
     bp_settled(b, "one", "a", bld::outcome::kSucceeded);
     const BpFaceAt aimed = bp_face_at(b.shown(), "[load built a]");
     REQUIRE(aimed.row >= 0);
-    const auto old_picture = picture_id;
-    REQUIRE(old_picture > 0);
+    const BpAim old_picture = bp_aim(b);
     bp_settled(b, "two", "b", bld::outcome::kSucceeded);
-    const auto changed_picture = picture_id;
-    // THE PROMISE MOVED, SO THE PICTURE MOVED: equal-width faces are not equal spans.
-    CHECK_MESSAGE(changed_picture != old_picture,
-                  "the control's advertised subject changed and the picture did not");
+    // THE PROMISE MOVED, SO WHAT THE PICTURE MEANS MOVED: equal-width faces are not equal spans,
+    // and a press aimed at the older picture is refused.
     const std::string before_press = b.text();
-    INFO("old picture ", old_picture, ", picture after status change ", changed_picture,
-         "\nbefore old press\n", before_press);
-    const auto sent = b.r.bus.office_send_to_role_as(
-        b.r.workshop_id, kWorkshopProvider, pane::kBuilderPaneRole,
-        loom::Message(loom::to_value(v3::PanePressed{pane::kBuilderPane, aimed.row,
-                                                     aimed.column + 1, true, old_picture}),
-                      b.r.workshop_id, b.r.workshop_id, 0));
-    REQUIRE(sent.valid());
-    b.r.bus.drain_until_idle();
-    b.r.bus.remove_observer(obs);
+    INFO("before old press\n", before_press);
+    bp_press_aimed(b, old_picture, aimed.row, aimed.column + 1);
     CHECK_MESSAGE((b.tool->asked.empty() || b.tool->asked.back() == "one"),
                   "Old load-a control instead requested ", bp_last_asked(b));
     CHECK(b.tool->asked.empty());
@@ -2090,38 +2104,19 @@ TEST_CASE("a numbered load control preserves the build behind a shared artifact 
     BuilderRig b("bld-control-shared-stem");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
     b.open();
-    std::int64_t picture_id = 0;
-    const auto pane_id = b.r.bus.role_holder(pane::kBuilderPaneRole);
-    const auto obs = b.r.bus.add_observer([&](const loom::BusEvent& ev) {
-        if (ev.kind == loom::EventKind::Delivered && ev.sender == pane_id && ev.payload &&
-            ev.schema_name == v3::PaneContent::zen_name) {
-            picture_id = loom::from_value<v3::PaneContent>(*ev.payload).picture;
-        }
-    });
     b.tool->next.op = 11;
     bp_settled(b, "one", "a", bld::outcome::kSucceeded);
     const BpFaceAt aimed = bp_face_at(b.shown(), "[load built a]");
     REQUIRE(aimed.row >= 0);
-    const auto old_picture = picture_id;
-    REQUIRE(old_picture > 0);
+    const BpAim old_picture = bp_aim(b);
     b.tool->next.op = 12;
     bp_settled(b, "two", "a", bld::outcome::kSucceeded);
-    const auto changed_picture = picture_id;
-    // THE FACE DID NOT MOVE -- same row, same column, same text -- and the picture still did,
-    // because the operation behind the unmoved face changed.
+    // THE FACE DID NOT MOVE -- same row, same column, same text -- and what the picture means still
+    // did, because the operation behind the unmoved face changed.
     const BpFaceAt still_there = bp_face_at(b.shown(), "[load built a]");
     REQUIRE_MESSAGE(still_there.row == aimed.row, b.text());
     REQUIRE_MESSAGE(still_there.column == aimed.column, b.text());
-    CHECK_MESSAGE(changed_picture != old_picture,
-                  "two builds sharing an artifact stem kept one picture number");
-    const auto sent = b.r.bus.office_send_to_role_as(
-        b.r.workshop_id, kWorkshopProvider, pane::kBuilderPaneRole,
-        loom::Message(loom::to_value(v3::PanePressed{pane::kBuilderPane, aimed.row,
-                                                     aimed.column + 1, true, old_picture}),
-                      b.r.workshop_id, b.r.workshop_id, 0));
-    REQUIRE(sent.valid());
-    b.r.bus.drain_until_idle();
-    b.r.bus.remove_observer(obs);
+    bp_press_aimed(b, old_picture, aimed.row, aimed.column + 1);
     CHECK_MESSAGE((b.tool->asked.empty() || b.tool->asked.back() == "one"),
                   "An old numbered load control must refuse or preserve recipe one; observed ",
                   bp_last_asked(b));
@@ -2219,14 +2214,6 @@ TEST_CASE("the promote and revert controls refuse a stale press across a shared 
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
     b.open();
     b.author_height(30, 200, 60); // a room the whole strip fits in, `[promote a]` included
-    std::int64_t picture_id = 0;
-    const auto pane_id = b.r.bus.role_holder(pane::kBuilderPaneRole);
-    const auto obs = b.r.bus.add_observer([&](const loom::BusEvent& ev) {
-        if (ev.kind == loom::EventKind::Delivered && ev.sender == pane_id && ev.payload &&
-            ev.schema_name == v3::PaneContent::zen_name) {
-            picture_id = loom::from_value<v3::PaneContent>(*ev.payload).picture;
-        }
-    });
     b.tool->next.op = 41;
     b.tool->next.recipe = "one";
     b.tool->next.artifact = "a";
@@ -2237,8 +2224,7 @@ TEST_CASE("the promote and revert controls refuse a stale press across a shared 
     const BpFaceAt revert_aimed = bp_face_at(b.shown(), "[revert a]");
     REQUIRE_MESSAGE(promote_aimed.row >= 0, b.text());
     REQUIRE_MESSAGE(revert_aimed.row >= 0, b.text());
-    const auto old_picture = picture_id;
-    REQUIRE(old_picture > 0);
+    const BpAim old_picture = bp_aim(b);
 
     // A DIFFERENT RECIPE REALIZES THE SAME ARTIFACT NAME: the faces read exactly as they did.
     b.tool->next.op = 42;
@@ -2247,25 +2233,16 @@ TEST_CASE("the promote and revert controls refuse a stale press across a shared 
     b.tool->next.outcome = bld::outcome::kSucceeded;
     b.tool->next.realization = bld::realization::kRealized;
     b.tool_says();
-    const auto changed_picture = picture_id;
     const BpFaceAt promote_still = bp_face_at(b.shown(), "[promote a]");
     const BpFaceAt revert_still = bp_face_at(b.shown(), "[revert a]");
     REQUIRE_MESSAGE(promote_still.row == promote_aimed.row, b.text());
     REQUIRE_MESSAGE(promote_still.column == promote_aimed.column, b.text());
     REQUIRE_MESSAGE(revert_still.row == revert_aimed.row, b.text());
     REQUIRE_MESSAGE(revert_still.column == revert_aimed.column, b.text());
-    CHECK_MESSAGE(changed_picture != old_picture,
-                  "two realizations sharing an artifact stem kept one picture number");
 
     const std::size_t promoted = b.tool->promotes.size();
     const auto press_at = [&](const BpFaceAt& at) {
-        const auto sent = b.r.bus.office_send_to_role_as(
-            b.r.workshop_id, kWorkshopProvider, pane::kBuilderPaneRole,
-            loom::Message(loom::to_value(v3::PanePressed{pane::kBuilderPane, at.row,
-                                                         at.column + 1, true, old_picture}),
-                          b.r.workshop_id, b.r.workshop_id, 0));
-        REQUIRE(sent.valid());
-        b.r.bus.drain_until_idle();
+        bp_press_aimed(b, old_picture, at.row, at.column + 1);
     };
     press_at(promote_aimed);
     CHECK_MESSAGE(b.tool->promotes.size() == promoted,
@@ -2275,7 +2252,6 @@ TEST_CASE("the promote and revert controls refuse a stale press across a shared 
     press_at(revert_aimed);
     CHECK_MESSAGE(b.tool->reverts.size() == reverted,
                   "a stale revert press across a shared stem reverted anyway");
-    b.r.bus.remove_observer(obs);
 }
 
 TEST_CASE("a held promote or revert menu row cannot switch images sharing an artifact stem") {
@@ -2537,30 +2513,19 @@ TEST_CASE("the list's own double-click still takes the row it was aimed at") {
     BuilderRig b("bld-list-double-click");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}, {"three", "c"}});
     b.open();
-    std::int64_t picture_id = 0;
-    const auto pane_id = b.r.bus.role_holder(pane::kBuilderPaneRole);
-    const auto obs = b.r.bus.add_observer([&](const loom::BusEvent& ev) {
-        if (ev.kind == loom::EventKind::Delivered && ev.sender == pane_id && ev.payload &&
-            ev.schema_name == v3::PaneContent::zen_name) {
-            picture_id = loom::from_value<v3::PaneContent>(*ev.payload).picture;
-        }
-    });
     bp_press_face(b, "[choose a recipe...]");
     // THE LIST'S OWN OPENING SENTENCE IS SPENT FIRST, because spending a notice moves every row
     // under it -- which is a different fact from the one this case is about.
     press_pane(b.r, b.kind, bp_row(b.shown(), "  two -> b"), 0);
     const std::int64_t row = bp_row(b.shown(), "  three -> c");
     REQUIRE_MESSAGE(row >= 0, b.text());
-    const std::int64_t before = picture_id;
-    REQUIRE(before > 0);
+    const BpAim before = bp_aim(b);
     press_pane(b.r, b.kind, row, 0); // the first names the row
     REQUIRE_MESSAGE(bp_row(b.shown(), "> three -> c") == row, b.text());
-    // THE PICTURE DID NOT MOVE UNDER THE HAND. The list's faces name no recipe, so moving the
-    // cursor changes no span, so the second press of the double-click is still about the picture
-    // it was aimed at.
-    CHECK_MESSAGE(picture_id == before, "the list's picture moved when its cursor did");
-    press_pane(b.r, b.kind, row, 0); // ...and the second takes it, from the same picture
-    b.r.bus.remove_observer(obs);
+    // THE PICTURE'S MEANING DID NOT MOVE UNDER THE HAND. The list's faces name no recipe, so
+    // moving the cursor changes no span, so the second press of the double-click, aimed at the
+    // picture before the cursor moved, is still about what it was aimed at...
+    bp_press_aimed(b, before, row, 0); // ...and takes it
     CHECK_MESSAGE(b.text().find("build recipe: three -> c") != std::string::npos, b.text());
     CHECK_MESSAGE(b.text().find("three -> c  (3/3)") != std::string::npos, b.text());
 }
@@ -2594,4 +2559,48 @@ TEST_CASE("a reader waiting on its first page still offers its whole list in a n
     // ...AND THE WAY OUT WORKS FROM HERE, which is the whole point of the fallback.
     bp_choose_row(b, "close this build's output");
     CHECK_MESSAGE(b.text().find("output #1") == std::string::npos, b.text());
+}
+
+TEST_CASE("the wheel walks the Builder's recipe list, three rows a notch, and means nothing on its facts") {
+    BuilderRig b("bld-wheel");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}, {"three", "c"}, {"four", "d"}});
+    b.open();
+    const ui::Rect body = external_body_rect(b.r.session(), b.kind);
+    // ON THE FACTS a notch walks nothing: there is no list there.
+    const std::string facts = b.text();
+    b.r.wheel_cell(-1.0, body.x + 2, body.y + 2);
+    CHECK(b.text() == facts);
+    // IN THE LIST a notch toward the weaver walks its cursor three rows down, and one away walks
+    // it back.
+    bp_press_face(b, "[choose a recipe...]");
+    REQUIRE_MESSAGE(bp_row(b.shown(), "> one -> a") >= 0, b.text());
+    b.r.wheel_cell(-1.0, body.x + 2, body.y + 2);
+    CHECK_MESSAGE(bp_row(b.shown(), "> four -> d") >= 0, b.text());
+    b.r.wheel_cell(1.0, body.x + 2, body.y + 2);
+    CHECK_MESSAGE(bp_row(b.shown(), "> one -> a") >= 0, b.text());
+}
+
+TEST_CASE("the Builder's role line shows the medium's caret where the line's is, its column counted in what the row draws") {
+    BuilderRig b("bld-role-caret");
+    b.tool->catalog = catalog_of({{"one", "a"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    const ExternalPane* pane = b.r.session().panes.external_pane(b.kind);
+    REQUIRE(pane != nullptr);
+    CHECK(held_caret(*pane).row == surface::kNoCaret); // no line, no caret
+    b.r.key(input::scan::kO);
+    REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
+    b.r.text("main");
+    const std::int64_t line = bp_row(b.shown(), "role for a> main");
+    REQUIRE_MESSAGE(line >= 0, b.text());
+    const std::int64_t prompt = static_cast<std::int64_t>(std::string("role for a> ").size());
+    CHECK(held_caret(*pane).row == line);
+    CHECK(held_caret(*pane).column == prompt + 4);
+    // A CHARACTER THE ROW SPELLS IN ONE CELL counts one column, whatever its bytes: typed after
+    // a two-byte character, the caret stands one cell past it.
+    b.r.text("\xC3\xA9");
+    CHECK(any_row(b.shown(), "role for a> main?"));
+    CHECK(held_caret(*pane).column == prompt + 5);
+    b.r.key(input::scan::kLeft);
+    CHECK(held_caret(*pane).column == prompt + 4);
 }
