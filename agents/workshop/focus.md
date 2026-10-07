@@ -167,17 +167,22 @@ LAW — Pane titles are a preference with a key: the toggle flips the session's 
 MEANS
 - painter, press path and room grant spend the answer through `ExternalBodyPlace::header_rows`;
 - the press path spends the answer the pressed picture had, before the keys moved (WL-FOCUS-03);
-- a hidden title returns its row to the provider through the ordinary grant-on-change door.
+- a title's row goes or returns through the grant-on-change door, a held canvas press's once it ends.
 
 PROVEN BY — `workshop/keymap.hpp` `workshop.pane-titles`; `workshop/screen.hpp`
 `Session::pane_titles`, `ExternalBodyPlace::header_rows`, `kExternalHeaderRows`;
-`workshop/screen_external.cpp` `external_title_rows`; `workshop/prefs_persist.hpp`
+`workshop/screen_external.cpp` `external_title_rows`, `paint_external`;
+`workshop/weave_canvas.cpp` `refresh_canvas_rooms`; `workshop/prefs_persist.hpp`
 `kTitlesDefaultValue`, `kTitlesDefault`; `workshop/weave.hpp` `HostContext::prefs_path`,
 `WorkshopWeave::prefs_loaded_`, `WorkshopWeave::prefs_bad_`; `workshop/weave_handlers.cpp`
 `load_prefs`; `tests/test_workshop_document.cpp` case `"pane titles are one action, one binding
 truth, one dispatch"`, case `"hiding titles returns the row; the keyboard's pane keeps
 its own"`; `tests/test_workshop_persistence.cpp` case `"a toggle writes the
-preference, and a reopened Workshop wears it"`.
+preference, and a reopened Workshop wears it"`; `tests/test_workshop_info_views.cpp` case
+`"info views: with pane titles hidden, a field dragged out of a view that did not hold the keys
+fills a field of another"`; `tests/test_workshop_panes_files.cpp` case `"with pane titles hidden, a
+first press on the row painted gamma selects gamma once every delivery it caused has settled, and
+a later press opens gamma"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## Do not assume

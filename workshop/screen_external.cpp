@@ -129,7 +129,17 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         return;
     }
     if (canvas_shown(*pane)) {
-        const PixelRect canvas = canvas_body_place(b, sc, body.header_rows);
+        PixelRect canvas = canvas_body_place(b, sc, body.header_rows);
+        // ...except while a held press keeps the room its own title would take (WL-FOCUS-11): the
+        // picture stays where it was drawn, the same width ending where it did, over the row the
+        // title waits for.
+        const auto& c = pane->canvas;
+        const bool title_waits = c.y != canvas.y && c.x == canvas.x && c.width == canvas.w &&
+            c.y + c.height == canvas.y + canvas.h;
+        if (title_waits) {
+            canvas = PixelRect{c.x, c.y, c.width, c.height};
+            region.rows.clear();
+        }
         paint_pane_canvas(layer, canvas, pane->canvas.content, sc.text_advance_px,
                           sc.text_line_px, chrome_grain(sc));
         if (pane->canvas.preview) {

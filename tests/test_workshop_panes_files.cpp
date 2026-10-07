@@ -1120,8 +1120,8 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
     // THE PRESS THAT TAKES THE KEYS ALSO BRINGS BACK THE PANE'S TITLE (WL-FOCUS-11): the keyboard's
     // pane keeps its title whatever the preference says. So the picture the weaver pressed has no
     // title row and the picture after the press has one. The press is read against the first;
-    // the room the title takes is granted after it, and that re-grant must not move the
-    // selection the press made.
+    // the room the title takes is granted once the press ends, and that re-grant must not move
+    // the selection the press made.
     FilesRig f("files-hidden-titles");
     put_file(f.root / "alpha.cpp", "the alpha source\n");
     put_file(f.root / "beta.cpp", "the beta source\n");
@@ -1144,13 +1144,15 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
 
     SeamTap tap(f.r.bus, f.files_id());
     f.r.press_cell(body.x, body.y + aimed);
+    f.r.publish(loom::to_value(input::PointerButton{1, false, body.x, body.y + aimed + surface::kTuiCanvasTopRow,
+                                                    input::space::kCells, input::mod::kNone}));
     const std::vector<std::string> after = f.shown();
     const std::string now = picture(after);
     INFO("after the press settled, the pane showed:\n", now);
     REQUIRE(tap.pressed.size() == 1);
     CHECK(tap.pressed[0] == aimed); // the row painted where the press landed
     CHECK(tap.keys_went_here[0] == 0);
-    // ...AND THE ROOM THE TITLE TOOK WAS GRANTED AFTER THE PRESS, and settled.
+    // ...AND THE ROOM THE TITLE TOOK WAS GRANTED AFTER THE PRESS, once it ended, and settled.
     const auto at_press =
         std::find(tap.heard.begin(), tap.heard.end(), std::string(PaneCanvasPointer::zen_name));
     REQUIRE(at_press != tap.heard.end());
