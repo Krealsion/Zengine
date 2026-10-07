@@ -843,6 +843,49 @@ TEST_CASE("canvas: an unknown role paints as kFill rather than vanishing") {
           "\x1b[2K\x1b[37m####\x1b[0m\r\n");
 }
 
+TEST_CASE("canvas: the medium's own ground covers material and wears the terminal's own ground") {
+    // OPAQUE, AS kGround IS: it covers what an earlier plane drew...
+    SurfaceCanvas c;
+    c.width = cells_px(4);
+    c.height = cells_px(2);
+    plane(c).rects.push_back(cell_rect(0, 0, 4, 2, role::kGround));
+    c.layers.emplace_back();
+    c.layers.back().rects.push_back(cell_rect(1, 0, 2, 2, role::kMediumGround));
+    CHECK(canvas_cells(c) == "    \n    \n");
+    // ...but its ground is no colour of the palette: the terminal's own, light or dark, said by
+    // ending the black rather than by naming a colour.
+    CHECK(canvas_body(c) ==
+          "\x1b[2K\x1b[30m\x1b[40m \x1b[37m\x1b[49m  \x1b[30m\x1b[40m \x1b[0m\r\n"
+          "\x1b[2K\x1b[30m\x1b[40m \x1b[37m\x1b[49m  \x1b[30m\x1b[40m \x1b[0m\r\n");
+
+    // A PICTURE ON IT ALONE EMITS NOT ONE BACKGROUND BYTE, and text named in it is no ink: it
+    // paints as kFill's.
+    SurfaceCanvas own;
+    own.width = cells_px(4);
+    own.height = cells_px(1);
+    plane(own).rects.push_back(cell_rect(0, 0, 4, 1, role::kMediumGround));
+    plane(own).labels.push_back(cell_label(1, 0, "x", role::kAccent));
+    plane(own).labels.push_back(cell_label(2, 0, "y", role::kMediumGround));
+    CHECK(canvas_body(own) == "\x1b[2K\x1b[37m \x1b[36mx\x1b[37my \x1b[0m\r\n");
+
+    // A ROW NAMING IT AS ITS GROUND, written on black, wears the terminal's own ground for the
+    // whole row, where a row naming none keeps the black beneath.
+    SurfaceCanvas rows;
+    rows.width = cells_px(4);
+    rows.height = cells_px(2);
+    plane(rows).rects.push_back(cell_rect(0, 0, 4, 2, role::kGround));
+    SurfaceTextRegion r;
+    r.w = cells_px(4);
+    r.h = cells_px(2);
+    r.ground = kGroundBeneath;
+    r.rows.push_back(SurfaceTextRow{"ab", role::kAccent, role::kMediumGround});
+    r.rows.push_back(SurfaceTextRow{"cd", role::kAccent, role::kNone});
+    plane(rows).texts.push_back(r);
+    CHECK(canvas_body(rows) ==
+          "\x1b[2K\x1b[36mab  \x1b[0m\r\n"
+          "\x1b[2K\x1b[36m\x1b[40mcd\x1b[30m  \x1b[0m\r\n");
+}
+
 // ============================================================================
 // Tier 2b — the SDL plan as pure math (every lane, SDL built or not)
 // ============================================================================
@@ -1119,6 +1162,42 @@ TEST_CASE("canvas plan: role decides the ink, and an unknown role is still drawn
     CHECK(black_pixels > 0);
     CHECK(r.at(5 * kCanvasCellPx, 0) == PlanInk{0, 0, 0});
     CHECK(r.at(6 * kCanvasCellPx - 1, kCanvasCellPx - 1) == PlanInk{0, 0, 0});
+}
+
+TEST_CASE("canvas plan: the medium's own ground is the window's own background, and no ink") {
+    // A rectangle in it covers black with what the window shows where nothing is published...
+    SurfaceCanvas c = canvas_of(3, 1);
+    plane(c).rects.push_back(cell_rect(0, 0, 3, 1, role::kGround));
+    c.layers.emplace_back();
+    c.layers.back().rects.push_back(cell_rect(1, 0, 1, 1, role::kMediumGround));
+    c.layers.back().labels.push_back(cell_label(2, 0, "A", role::kMediumGround));
+    const Raster r(c);
+    CHECK(ink_for_role(role::kMediumGround) == kCanvasBackground);
+    CHECK(r.at(0, 0) == PlanInk{0, 0, 0});
+    CHECK(r.at(kCanvasCellPx, 0) == kCanvasBackground);
+    CHECK(r.at(2 * kCanvasCellPx - 1, kCanvasCellPx - 1) == kCanvasBackground);
+    // ...and text named in it is drawn, in kFill's ink.
+    CHECK(text_ink_for_role(role::kMediumGround) == ink_for_role(role::kFill));
+    CHECK(r.ink_colour(2, 0) == ink_for_role(role::kFill));
+
+    // A row naming it on a region that takes no rectangle is a strip of its own, though its
+    // colour is the region's: what lies beneath is not the region's ground.
+    SurfaceCanvas rows = canvas_of(20, 4);
+    plane(rows).rects.push_back(cell_rect(0, 0, 20, 4, role::kGround));
+    SurfaceTextRegion region;
+    region.w = cells_px(20);
+    region.h = cells_px(4);
+    region.ground = kGroundBeneath;
+    region.rows.push_back(SurfaceTextRow{"named", role::kFill, role::kMediumGround});
+    region.rows.push_back(SurfaceTextRow{"none", role::kFill, role::kNone});
+    plane(rows).texts.push_back(region);
+    const std::vector<PlanTextRegion> plan =
+        plan_layer_regions(plane(rows), SurfaceExtent{20, 4, 8, 18}, PlanSize{240, 48});
+    REQUIRE(plan.size() == 1);
+    REQUIRE(plan[0].rows.size() == 2);
+    CHECK(plan[0].rows[0].grounded);
+    CHECK(plan[0].rows[0].background == kCanvasBackground);
+    CHECK_FALSE(plan[0].rows[1].grounded);
 }
 
 TEST_CASE("canvas plan: clipping is per cell, against the canvas and nothing else") {
