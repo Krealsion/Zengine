@@ -994,6 +994,18 @@ TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas
     CHECK(marked_row(s, s.source) == first + 1);
     wheel(0.5); // ...and the other half does
     CHECK(marked_row(s, s.source) == first);
+    // A wheel from the room the view stood in before a new one was granted turns nothing.
+    const ExternalPane old = *s.r.session().panes.external_pane(s.source);
+    for (auto& p : s.r.session().setup.active.panes)
+        if (p.ref.provider == slots::kRole && p.ref.pane == "inventory")
+            p.width = {pane_unit::kPixels, 78 * surface::kCanvasCellPx};
+    s.r.extent(179, 60); s.r.extent(180, 60); // a room of another width: a new grant
+    REQUIRE(s.r.session().panes.external_pane(s.source)->canvas.grant != old.canvas.grant);
+    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
+        loom::Message(loom::to_value(PaneCanvasPointer{"inventory", old.canvas.grant, old.canvas.content.picture, 0,
+            canvas_pointer::kWheel, 0, 4, 4, 0, 0, -1})));
+    s.r.bus.drain_until_idle();
+    CHECK(marked_row(s, s.source) == first);
 }
 
 TEST_CASE("a right press on Inventory's rows offers its menu, and one beside them, where a prose press "

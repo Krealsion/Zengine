@@ -1579,9 +1579,6 @@ private:
         }
         ++published_;
         const auto said = static_cast<std::int64_t>(out.size());
-        if (caret_.row >= said) {
-            caret_ = {}; // the draft's row was cut away, and its caret with it
-        }
         // The lists number no meaning of their own: a value view's picture is never theirs.
         send(views_.front(),
              ws::v4::PaneContent{pane::kInfoPane, std::move(out), 0, 0, named_rows(said)}, 0, caret_,
