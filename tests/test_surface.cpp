@@ -852,6 +852,9 @@ TEST_CASE("canvas: the medium's own ground covers material and wears the termina
     c.layers.emplace_back();
     c.layers.back().rects.push_back(cell_rect(1, 0, 2, 2, role::kMediumGround));
     CHECK(canvas_cells(c) == "    \n    \n");
+    const auto grids = rasterize_canvas(c);
+    CHECK(grids.grounds[0] == role::kGround); // the grid holds each as its cells' ground
+    CHECK(grids.grounds[1] == role::kMediumGround);
     // ...but its ground is no colour of the palette: the terminal's own, light or dark, said by
     // ending the black rather than by naming a colour.
     CHECK(canvas_body(c) ==
