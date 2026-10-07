@@ -20,7 +20,7 @@ import json
 import time
 
 from act import act as step, pane_ref, part_of, select_row, texts, words_now
-from hand import Hand
+from hand import Hand, on_row
 from workshop_steps import chord_moments, clear_moments, moment
 
 INFO = ("zengine.info", "info")
@@ -41,11 +41,14 @@ def listed_name(ctx, hand, name):
 
 
 def list_marked(view):
-    """Whether Info marks a row of its pane list -- the keys are on the list, not on the subject."""
+    """Whether Info marks a row of its pane list -- the keys are on the list, not on the subject: a
+    word starting with `>` stands on a row named `pane:`, as a text pane's row and its word share
+    one place and a canvas pane's run stands inside its row's rectangle."""
     if not view:
         return False
-    listed = set(p["place"]["y"] for p in view.get("parts", []) if p["name"].startswith("pane:"))
-    return any(w["text"].startswith(">") and w["place"]["y"] in listed for w in view["words"])
+    listed = [p for p in view.get("parts", []) if p["name"].startswith("pane:")]
+    return any(w["text"].startswith(">") and any(on_row(w, p) for p in listed)
+               for w in view["words"])
 
 
 def choose(ctx, hand, name):

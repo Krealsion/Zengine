@@ -714,9 +714,13 @@ interaction lease. Receivers must fence their own drops. `hand.words`, `hand.wor
 `hand.desk` in `hand.py` ask them; `hand.row` finds a row by what it says and `hand.part` a part by
 its name through them, wheeling the pane toward each edge when asked to scroll, `hand.last_part`
 the lowest part of a kind saying a text (a Terminal's newest value), `hand.first` a pane's first
-word and `hand.control` a `[label]` by its word, so a tool reads a pane that draws a picture as it
-reads a text pane; `act.rows_by_place` numbers a pane's lines by where they stand, a blank row a
-canvas draws as no word among them. `workshop/act` steps on them: `desk` checks a
+word, `hand.control` a `[label]` by its word, `hand.spot` a text by the word holding it (an
+Inventory crumb, or `[Up]`), `hand.row_starting` the topmost row starting with a text, pressed at
+its third character as `hand.row` presses (inside an Inventory view's first box), and `hand.field`
+an Info view's field by its part `field:<label>`, wheeling the view's selection until it shows, so
+a tool reads a pane that draws a picture as it reads a text pane; `act.rows_by_place` numbers a
+pane's lines by where they stand, a blank row a canvas draws as no word among them.
+`workshop/act` steps on them: `desk` checks a
 pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
 "view-builder", "kind:label"]}`), and fails rather than press one with no point; `open` presses
