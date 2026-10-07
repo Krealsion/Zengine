@@ -321,6 +321,70 @@ TEST_CASE("a drop aimed at a picture the text has since left is refused and chan
     CHECK(s.doc().text == lines);
 }
 
+TEST_CASE("a press aimed at a picture where the text it lands on was not yet selected begins no carry; the drag sweeps") {
+    EditorStory s("xfer-stale-press");
+    REQUIRE(s.open(s.write("a.txt", "abcdef\nghijkl\nmnopqr\n")).accepted);
+    s.make_folder("Snippets");
+    const std::int64_t target = s.row_of(s.inventory, "Snippets");
+    s.click_doc(0, 0);
+    s.key(input::scan::kEnd, input::mod::kShift);
+    REQUIRE(s.doc().caret_byte == 6);
+    // ONE POLL: Shift+Down grows the selection over the second line, and the press on that line
+    // was read with it -- aimed at the picture where the line was not yet highlighted.
+    input::InjectedEvent grow;
+    grow.kind = "KeyPressed";
+    grow.scancode = input::scan::kDown;
+    grow.modifiers = input::mod::kShift;
+    input::InjectedEvent grown = grow;
+    grown.kind = "KeyReleased";
+    auto press = s.at(s.editor, s.chrome() + 1, 2, "PointerButton", true);
+    auto release = s.at(s.inventory, target, 2, "PointerButton", false);
+    auto move = release;
+    move.kind = "PointerMoved";
+    move.dx = release.x - press.x;
+    move.dy = release.y - press.y;
+    s.batch({grow, grown, press, move, release});
+    CHECK(s.stored().empty());
+    const auto d = s.doc();
+    CHECK(d.anchor_row == 1);
+    CHECK(d.anchor_byte == 2);
+    CHECK(d.text == "abcdef\nghijkl\nmnopqr\n");
+}
+
+TEST_CASE("in a window, a value placed on the Editor's inset beside its rows is refused and changes nothing") {
+    EditorStory s("xfer-inset");
+    const std::string text = "alpha\nbeta\n";
+    REQUIRE(s.open(s.write("a.txt", text)).accepted);
+    s.add(text_pair("DROPPED"), "word");
+    s.click(s.inventory, s.row_of(s.inventory, "word"), 2);
+    s.key(input::scan::kReturn); // pick up a copy
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.r.extent_on_window(180, 60);
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    const ExternalPane* seat = s.r.session().panes.external_pane(s.editor);
+    REQUIRE(seat != nullptr);
+    REQUIRE(shows_canvas(*seat));
+    // THE FIRST WINDOW PIXEL OF THE ROOM, on the first document row: inside the room, and left of
+    // the lattice's first column, in the inset a window keeps beside the rows.
+    const CanvasRows lattice = held_canvas_rows(*seat);
+    const std::int64_t grain = surface::kPixelGrainPx;
+    const std::int64_t px = (seat->canvas.x + grain - 1) / grain;
+    REQUIRE(px * grain - seat->canvas.x < lattice.x);
+    input::InjectedEvent press;
+    press.kind = "PointerButton";
+    press.button = 1;
+    press.pressed = true;
+    press.space = input::space::kPixels;
+    press.x = px;
+    press.y = (seat->canvas.y + lattice.row_y(s.chrome()) + lattice.line / 2) / grain;
+    input::InjectedEvent release = press;
+    release.pressed = false;
+    s.batch({press, release});
+    INFO(s.notice() << " / " << s.r.last_notice());
+    CHECK(s.notice().find("drop onto the document's text") != std::string::npos);
+    CHECK(s.doc().text == text);
+}
+
 TEST_CASE("a saved location reopens its file through the managed opening at its line, and never over unsaved work") {
     EditorStory s("xfer-locate");
     const std::string a = s.write("a.txt", "first\nsecond\nthird line\nfourth\n");
