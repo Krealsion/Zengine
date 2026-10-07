@@ -141,6 +141,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::v1::PaneCanvasValueDrop>(), // PaneCanvasValueDrop v1
         shape<::zengine::workshop::PaneCanvasDrop>(), // PaneCanvasDrop v1
         shape<::zengine::workshop::PaneDrop>(), // PaneDrop v1
+        shape<::zengine::workshop::v2::PaneValueDrop>(), // PaneValueDrop v2
         shape<::zengine::workshop::v2::PanePressed>(), // PanePressed v2
         shape<::zengine::workshop::PlanDoorState>(), // PlanDoorState v1
         shape<::zengine::workshop::ProjectDoorState>(), // ProjectDoorState v2

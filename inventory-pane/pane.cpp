@@ -5,6 +5,7 @@
 #include "presentation.hpp"
 #include "command.hpp"
 #include "toolbox.hpp"
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_escape.hpp"
 #include "workshop/pane_menu.hpp"
@@ -30,9 +31,9 @@ struct InventoryPaneState {
     ZEN_SHAPE(InventoryPaneState, 2, ZEN_FIELD(layout));
 };
 class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
-    loom::Accept<ws::PaneResetRequested, loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneButton,
-        ws::v3::PanePressed, ws::PaneDragged, ws::PaneWheel, ws::PaneKey, ws::PaneTextInput,
-        ws::PaneValueDrop, ws::v2::PaneValueDrop, ws::PaneActionRequested, ws::PaneMenuAnswered,
+    loom::Accept<ws::PaneResetRequested, loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
+        ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneKey, ws::PaneTextInput,
+        ws::PaneCanvasValueDrop, ws::PaneActionRequested, ws::PaneMenuAnswered,
         ws::PaneOperationAnswered, ws::PaneCarryAnswered, ws::PaneShortcutsAnswered,
         ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn, ws::PaneLaunchAnswered,
         slots::InventoryViewEdit, slots::InventoryViewsRequested, inv::InventoryEntry,
@@ -40,7 +41,8 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         inv::v2::InventorySnapshot, inv::InventoryRestored,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
         loom::Ack, loom::Refused, loom::DispatchRefused>,
-    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v4::PaneContent, ws::PaneMenuRequested, ws::PaneEscapeUnspent,
+    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent, ws::PaneCaret,
+        ws::PaneMenuRequested, ws::PaneEscapeUnspent,
         ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested, ws::PaneCarryRequested,
         ws::PaneValueCarryRequested, ws::v2::PaneValueCarryRequested, ws::PaneShortcuts,
         ws::PaneLaunchRequested, slots::InventoryViews, inv::v2::InventoryList, inv::InventoryRead,
@@ -106,8 +108,18 @@ public:
     void on(const ws::PaneCatalogRequested&, loom::Mail& m) { if (host(m)) announce(m); }
     void on(const ws::PaneRoom& room, loom::Mail& m) {
         if (!host(m) || !known(room.pane)) return;
-        auto& v=views_[room.pane]; v.rows=room.rows; v.columns=room.columns; v.map.clear(); sent_.erase(room.pane); refresh(m); draw(m);
+        auto& c=canvases_[room.pane]; c.prose_rows=room.rows; c.prose_columns=room.columns;
+        if(c.on()) return; // the canvas room, granted first, already drew
+        fit(room.pane); refresh(m); draw(m);
     }
+    /// A VIEW'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
+    /// lattice's rows and columns its room, and says them as prose only to a host granting none.
+    void on(const ws::PaneCanvasRoom& room, loom::Mail& m) {
+        if (!host(m) || !known(room.pane)) return;
+        canvases_[room.pane].room=room; fit(room.pane); refresh(m); draw(m);
+    }
+    /// A refused picture leaves the last good one showing, and the next draw sends that view again.
+    void on(const ws::PaneCanvasRejected& r, loom::Mail& m) { if(host(m)) sent_.erase(r.pane); }
     void on(const inv::InventoryChanged&, loom::Mail& m) { if (m.authored_from_role(inv::kInventoryRole)) refresh(m); }
     void on(const inv::v2::InventoryListed& a, loom::Mail& m) {
         if (!list_.valid() || !m.answers_ask() || m.correlation()!=list_ask_) return;
@@ -126,13 +138,29 @@ public:
         if (busy() || editing_ != Editing::none) { (void)m.answer(loom::Refused{"Finish the current inventory operation or editor first"}); return; }
         apply(edit,m,m.defer_answer());
     }
-    void on(const ws::v3::PanePressed& p, loom::Mail& m) {
-        if (!host(m) || !known(p.pane) || editing_!=Editing::none) return;
+    /// A PRESS, THE WHEEL AND A RIGHT PRESS ON A VIEW'S CANVAS: a place reads back to the row and
+    /// column a prose press named, and means something only on the picture the view still shows.
+    /// Motion, a release and a loss mean nothing: a drag's carry begins at its press.
+    void on(const ws::PaneCanvasPointer& p, loom::Mail& m) {
+        if (!host(m) || !known(p.pane)) return;
+        const auto found=canvases_.find(p.pane);
+        if(found==canvases_.end() || !found->second.on()) return;
+        const auto& c=found->second;
+        const auto at=ws::row_cell_at(ws::canvas_rows(c.room),p.x,p.y);
+        if(p.phase==ws::canvas_pointer::kWheel) { if(p.grant==c.room.grant) wheel(p.pane,p.dy,m); return; }
+        if(p.phase!=ws::canvas_pointer::kPress) return;
+        const bool current=c.pictures.current(p.grant,p.picture);
+        if(p.button==3) right_press(p.pane,at,current,m);
+        else if(p.button==1 && at.shown) press(p.pane,at.row,at.column,current,p.keys_went_here,m);
+    }
+private:
+    void press(const std::string& view,std::int64_t row,std::int64_t column,bool current,bool keys_went_here,loom::Mail& m) {
+        if (editing_!=Editing::none) return;
         remove_armed_=false;
         const auto pressed=std::exchange(pressed_folder_,std::string{});
         // Navigation is local view state: it works while an operation waits, and never touches
         // the pending operation's target, mode or view.
-        if(const auto* meaning=hit(p.pane,p.row,p.column,p.picture); meaning && p.pane==pane) {
+        if(const auto* meaning=hit(view,row,column,current); meaning && view==pane) {
             if(*meaning==slots::kUpControl) { go_up(); draw(m); return; }
             if(*meaning==slots::kMoveHereControl) { move_here(m); draw(m); return; }
             if(const auto f=slots::folder_meant(*meaning,listing_.owner)) {
@@ -140,7 +168,7 @@ public:
                 // any other way (keys, or remembered on climbing back) is only selected by one
                 // press, so pointing at a folder to rename or move it never opens it.
                 if(meaning->starts_with("crumb:")) go_to(*f);
-                else if(pressed==*meaning && p.keys_went_here) open_folder(*f);
+                else if(pressed==*meaning && keys_went_here) open_folder(*f);
                 else {
                     views_[pane].selected=pressed_folder_=*meaning;
                     notice_="Folder '"+listing_.name(*f)+"': press it again or Enter to open";
@@ -149,23 +177,23 @@ public:
             }
         }
         if(busy()) { notice_=waiting(); draw(m); return; }
-        const auto* e=pointed(p.pane,p.row,p.column,p.picture);
+        const auto* e=pointed(view,row,column,current);
         if (!e) { notice_="Drag a current entry; right-click the heading for view actions"; draw(m); return; }
-        select(*e,p.pane); acquire(Mode::drag,m);
+        select(*e,view); acquire(Mode::drag,m);
     }
-    void on(const ws::PaneDragged&, loom::Mail&) {}
-    void on(const ws::PaneButton& p, loom::Mail& m) {
-        if (!host(m) || !known(p.pane) || !p.pressed || p.button!=3 || p.lost) return;
+    /// A RIGHT PRESS on the view's rows offers its menu; one beside them, where a prose press named
+    /// no row, is handed back, as is one while an edit or an ask is in flight.
+    void right_press(const std::string& view,const ws::RowCell& at,bool current,loom::Mail& m) {
         // AN EDIT OR AN ASK IN FLIGHT OFFERS NOTHING NOW: the press is handed back, not dropped.
-        if (editing_!=Editing::none || busy()) { (void)ws::pane_menu::pass_back(m, office, p.pane); return; }
-        remove_armed_=false; current_=p.pane; menu_folder_.reset(); pressed_folder_.clear();
-        if (!views_[p.pane].map.current(p.picture)) { notice_="That picture moved; try again"; draw(m); return; }
-        const auto* e=pointed(p.pane,p.row,p.column,p.picture); target_={}; if(e) select(*e,p.pane);
-        if(const auto* meaning=hit(p.pane,p.row,p.column,p.picture); meaning && p.pane==pane && meaning->starts_with("dir:"))
+        if (!at.shown || editing_!=Editing::none || busy()) { (void)ws::pane_menu::pass_back(m, office, view); return; }
+        remove_armed_=false; current_=view; menu_folder_.reset(); pressed_folder_.clear();
+        if (!current) { notice_="That picture moved; try again"; draw(m); return; }
+        const auto* e=pointed(view,at.row,at.column,current); target_={}; if(e) select(*e,view);
+        if(const auto* meaning=hit(view,at.row,at.column,current); meaning && view==pane && meaning->starts_with("dir:"))
             if(const auto f=slots::folder_meant(*meaning,listing_.owner)) if(const auto* state=listing_.folder(*f)) {
                 menu_folder_=*state; views_[pane].selected=*meaning;
             }
-        auto menu=ws::pane_menu::Offer(p.pane,e?e->label:menu_folder_?menu_folder_->name+"/":"Inventory view").at(p.row,p.column);
+        auto menu=ws::pane_menu::Offer(view,e?e->label:menu_folder_?menu_folder_->name+"/":"Inventory view").at(at.row,at.column);
         if(menu_folder_) {
             menu.row("folder-open","Open folder").row("folder-rename","Rename folder...")
                 .row("pick","Move to another folder...").row("folder-remove","Remove empty folder");
@@ -176,20 +204,28 @@ public:
                 .row("duplicate-name","Duplicate and name...").row("bind","Configure command hotkey...")
                 .row("enable",binding_enabled(e->reference)?"Disable item hotkey":"Enable item hotkey")
                 .row("run","Run configured command now");
-            if(p.pane!=pane) menu.row("return","Return item to main Inventory");
+            if(view!=pane) menu.row("return","Return item to main Inventory");
             menu.row("remove","Remove entry...");
         }
         menu.row("single","Pop out single box").row("row","Pop out row").row("column","Pop out column")
-            .row("context",context_active(p.pane)?"Turn this view's hotkeys OFF":"Turn this view's hotkeys ON")
+            .row("context",context_active(view)?"Turn this view's hotkeys OFF":"Turn this view's hotkeys ON")
             .row("toolbox-save","Save toolbox...").row("toolbox-restore","Restore toolbox...");
         // Folder acts follow the older rows, so their positions stay where weavers and tools learnt them.
         if(e) menu.row("pick","Move to another folder...");
-        if(p.pane==pane) {
+        if(view==pane) {
             menu.row("folder-new","New folder here...");
             if(pick_) menu.row("here","Move '"+pick_->label+"' here");
         }
         menu_=menu.send(m,office); draw(m);
     }
+    void wheel(const std::string& view,double dy,loom::Mail& m) {
+        if(editing_!=Editing::none) return;
+        pressed_folder_.clear();
+        auto& v=views_[view]; v.wheel+=dy;
+        while(v.wheel>=1) { step(view,-1); v.wheel-=1; }
+        while(v.wheel<=-1) { step(view,1); v.wheel+=1; } remove_armed_=false; draw(m);
+    }
+public:
     void on(const ws::PaneMenuAnswered& a, loom::Mail& m) {
         const auto choice=menu_.take(m,a); if(choice.empty()) return;
         // Open is navigation and waits for no key, so the keys stay where the weaver put them.
@@ -287,13 +323,6 @@ public:
         if(a.id!="inventory.remove") remove_armed_=false;
         declare_all(m); draw(m);
     }
-    void on(const ws::PaneWheel& w, loom::Mail& m) {
-        if(!host(m) || !known(w.pane) || editing_!=Editing::none) return;
-        pressed_folder_.clear();
-        auto& v=views_[w.pane]; v.wheel+=w.dy;
-        while(v.wheel>=1) { step(w.pane,-1); v.wheel-=1; }
-        while(v.wheel<=-1) { step(w.pane,1); v.wheel+=1; } remove_armed_=false; draw(m);
-    }
     void on(const ws::PaneKey& k, loom::Mail& m) {
         // Escape's default: a view's marker rests on a row as a cursor does, not a selection, so
         // Escape goes back to Workshop.
@@ -305,25 +334,31 @@ public:
         if(std::all_of(t.text.begin(),t.text.end(),[](unsigned char c){return c>=32 && c<=126;})) line_.type(t.text);
         draw(m);
     }
-    void on(const ws::PaneValueDrop& v, loom::Mail& m) { copy_drop(v,m); }
-    void on(const ws::v2::PaneValueDrop& v, loom::Mail& m) {
+    /// A VALUE PLACED ON A VIEW'S CANVAS: its place reads back to the row and column it fell on,
+    /// meaning something only on the picture the view still shows. A drag begun in an Inventory view
+    /// moves that entry by its own transfer token; any other value is stored as a copy.
+    void on(const ws::PaneCanvasValueDrop& v, loom::Mail& m) {
         if(!host(m) || !known(v.pane) || editing_!=Editing::none) return;
+        const auto found=canvases_.find(v.pane);
+        if(found==canvases_.end() || !found->second.on()) return;
+        const auto at=ws::row_cell_at(ws::canvas_rows(found->second.room),v.x,v.y);
+        const bool current=found->second.pictures.current(v.grant,v.picture);
         if(busy()) { notice_=waiting(); draw(m); return; }
-        if(v.source_office!=office || v.token.empty()) { copy_drop({v.pane,v.data,v.row,v.column,v.picture},m); return; }
+        if(v.source_office!=office || v.token.empty()) { copy_drop(v.pane,at.row,at.column,current,v.data,m); return; }
         const auto it=transfers_.find(v.token);
         if(it==transfers_.end() || it->second.from!=v.source_pane || it->second.layout!=layout_revision_ ||
-            !views_[v.pane].map.current(v.picture)) { notice_="That slot transfer expired; drag its current picture"; draw(m); return; }
+            !current) { notice_="That slot transfer expired; drag its current picture"; draw(m); return; }
         const auto transfer=it->second; transfers_.erase(it);
         const auto* now=summary(transfer.target.reference);
         if(!now || now->revision!=transfer.target.revision) { notice_="The source entry changed during this drag"; draw(m); return; }
         current_=v.pane;
         // A folder row, a crumb or [Up] files the entry there: membership, one owner, one approval.
         // Anywhere else moves its placement, as before. One gesture never changes both.
-        if(const auto into=drop_folder(v.pane,v.row,v.column,v.picture)) {
+        if(const auto into=drop_folder(v.pane,at.row,at.column,current)) {
             file(*now,transfer.folder,*into,m); draw(m); return;
         }
         slots::InventoryViewEdit op; op.operation="move"; op.view=v.pane; op.entry=now->reference;
-        if(const auto* before=pointed(v.pane,v.row,v.column,v.picture)) op.before=before->reference;
+        if(const auto* before=pointed(v.pane,at.row,at.column,current)) op.before=before->reference;
         authorize(op,m);
     }
     void on(const ws::PaneOperationAnswered& a, loom::Mail& m) {
@@ -502,19 +537,19 @@ private:
         const auto* folder=listing_.folder(*id);
         return folder && folder->parent==browser_.folder ? folder : nullptr;
     }
-    /// What a row or column of the current picture means; nullptr for an earlier picture.
-    const std::string* hit(const std::string& view,std::int64_t row,std::int64_t col,std::int64_t picture) const {
-        const auto it=views_.find(view); if(it==views_.end() || !it->second.map.current(picture)) return nullptr;
+    /// What a row or column of the picture still shown means; nullptr for an earlier picture.
+    const std::string* hit(const std::string& view,std::int64_t row,std::int64_t col,bool current) const {
+        const auto it=views_.find(view); if(it==views_.end() || !current) return nullptr;
         return it->second.map.at(row,col);
     }
-    const inv::InventorySummary* pointed(const std::string& view,std::int64_t row,std::int64_t col,std::int64_t picture) const {
-        const auto* id=hit(view,row,col,picture);
+    const inv::InventorySummary* pointed(const std::string& view,std::int64_t row,std::int64_t col,bool current) const {
+        const auto* id=hit(view,row,col,current);
         if(id) for(const auto& e:listing_.entries) if(slots::key(e.reference)==*id) return &e;
         return nullptr;
     }
     /// The folder a drop in main Inventory names: a folder row, a crumb, or [Up] (the parent).
-    std::optional<inv::InventoryFolderReference> drop_folder(const std::string& view,std::int64_t row,std::int64_t col,std::int64_t picture) const {
-        const auto* meaning=view==pane?hit(view,row,col,picture):nullptr;
+    std::optional<inv::InventoryFolderReference> drop_folder(const std::string& view,std::int64_t row,std::int64_t col,bool current) const {
+        const auto* meaning=view==pane?hit(view,row,col,current):nullptr;
         if(!meaning) return std::nullopt;
         if(*meaning==slots::kUpControl) {
             const auto* here=listing_.folder(browser_.folder);
@@ -709,14 +744,12 @@ private:
     }
     /// A new copy lands where it was dropped: a folder row or crumb, else the displayed folder
     /// in main Inventory, else the root. The destination is fixed now, not when the owner answers.
-    void copy_drop(const ws::PaneValueDrop& value,loom::Mail& m) {
-        if(!host(m) || !known(value.pane) || editing_!=Editing::none) return;
-        if(busy()) { notice_=waiting(); draw(m); return; }
-        if(!views_[value.pane].map.current(value.picture)) {notice_="Drop picture changed; try again"; draw(m); return;}
-        current_=value.pane;
-        auto folder=drop_folder(value.pane,value.row,value.column,value.picture)
-            .value_or(inv::InventoryFolderReference{listing_.owner,value.pane==pane?browser_.folder:std::string{}});
-        if(client_.begin(inv::v2::InventoryAdd{value.data,{},folder},current_,office,m,asks_)) {mode_=Mode::store; drop_into_=current_;}
+    void copy_drop(const std::string& view,std::int64_t row,std::int64_t column,bool current,const loom::Bytes& data,loom::Mail& m) {
+        if(!current) {notice_="Drop picture changed; try again"; draw(m); return;}
+        current_=view;
+        auto folder=drop_folder(view,row,column,current)
+            .value_or(inv::InventoryFolderReference{listing_.owner,view==pane?browser_.folder:std::string{}});
+        if(client_.begin(inv::v2::InventoryAdd{data,{},folder},current_,office,m,asks_)) {mode_=Mode::store; drop_into_=current_;}
         notice_=client_.notice;
         draw(m);
     }
@@ -845,20 +878,45 @@ private:
             const auto entries=ordered(id);
             if(v.selected.empty()) if(const auto keys=row_keys(id); !keys.empty()) v.selected=keys.front();
             std::string edit_text;
+            const auto room=std::max<std::int64_t>(0,v.columns-1); // the last column is a caret's blank
             if(*label) {
-                line_.keep_caret_visible(std::max<std::int64_t>(0,v.columns-1));
-                edit_text=line_.visible(std::max<std::int64_t>(0,v.columns-1));
-                edit_text.insert(std::min(line_.caret_column(),edit_text.size()),"|");
+                line_.keep_caret_visible(room);
+                edit_text=line_.visible(room);
             }
             auto rows=slots::render(state_.layout,id,v,entries,notice_,label,edit_text,id==pane?browse():slots::Browse{});
+            // THE CARET STANDS IN THE LINE, on its character or the blank after the last, and
+            // writes nothing into it; a selection is drawn over its characters.
+            ws::RowsCaret caret;
+            if(*label && v.line_row>=0) {
+                caret.row=v.line_row; caret.column=static_cast<std::int64_t>(std::min(line_.caret_column(),edit_text.size()));
+                if(const auto span=line_.visible_selection(room); span.present()) {
+                    caret.sel_begin_row=caret.sel_end_row=v.line_row; caret.sel_begin_col=span.begin; caret.sel_end_col=span.end;
+                }
+            }
             const std::int64_t picture=v.map.settle();
-            // A PICTURE IS SENT WHEN IT DIFFERS from the last one sent since the room was granted:
-            // Workshop repaints the desk for each, and every view is drawn after any change.
-            if(const auto said=sent_.find(id); said!=sent_.end() && said->second.picture==picture && same_rows(said->second.rows,rows)) continue;
-            sent_[id]=Sent{rows,picture};
-            m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v4::PaneContent{id,std::move(rows),0,picture,
-                ws::row_parts(v.map,v.columns,[](const std::string& meaning) { return part_name(meaning); })});
+            // A PICTURE IS SENT WHEN IT DIFFERS from the last one sent since the room was granted,
+            // its caret included: Workshop repaints the desk for each, and every view is drawn after
+            // any change.
+            if(const auto said=sent_.find(id); said!=sent_.end() && said->second.picture==picture &&
+                same_rows(said->second.rows,rows) && same_caret(said->second.caret,caret)) continue;
+            sent_[id]=Sent{rows,picture,caret};
+            auto parts=ws::row_parts(v.map,v.columns,[](const std::string& meaning) { return part_name(meaning); });
+            if(auto& c=canvases_[id]; c.on()) {
+                m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
+                    ws::rows_picture(c.room,c.pictures.next(c.room,picture),rows,parts,caret));
+                continue;
+            }
+            m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v4::PaneContent{id,std::move(rows),0,picture,std::move(parts)});
+            m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneCaret{id,caret.row,caret.column,
+                caret.sel_begin_row,caret.sel_begin_col,caret.sel_end_row,caret.sel_end_col});
         }
+    }
+    /// The rows and columns a view composes for: its canvas's lattice while it holds one, else the
+    /// prose room's. A new room starts the view's picture over.
+    void fit(const std::string& id) {
+        auto& v=views_[id]; const auto& c=canvases_[id]; const auto lattice=ws::canvas_rows(c.room);
+        v.rows=c.on()?lattice.rows:c.prose_rows; v.columns=c.on()?lattice.columns:c.prose_columns;
+        v.map.clear(); sent_.erase(id);
     }
     /// WHAT INVENTORY CALLS ITS PARTS: an entry by its reference, `entry:<owner>:<entry>`; a folder,
     /// `folder:<owner>:<id>`; a crumb of the path, `crumb:<owner>:<id>`; and `control:up`,
@@ -882,7 +940,18 @@ private:
     slots::Toolbox toolbox_;
     std::map<std::string,slots::View> views_;
     std::map<std::string,std::string> offered_; // each pane's offer as this image last sent it
-    struct Sent { std::vector<zengine::surface::SurfaceTextRow> rows; std::int64_t picture=0; };
+    struct Sent { std::vector<zengine::surface::SurfaceTextRow> rows; std::int64_t picture=0; ws::RowsCaret caret; };
+    static bool same_caret(const ws::RowsCaret& a,const ws::RowsCaret& b) {
+        return a.row==b.row && a.column==b.column && a.sel_begin_row==b.sel_begin_row && a.sel_begin_col==b.sel_begin_col &&
+            a.sel_end_row==b.sel_end_row && a.sel_end_col==b.sel_end_col;
+    }
+    /// ONE VIEW'S CANVAS: the room Workshop granted it there, the pictures numbered in that room,
+    /// and the prose room kept for a host granting none.
+    struct Canvas {
+        ws::PaneCanvasRoom room; ws::CanvasPictures pictures; std::int64_t prose_rows=0,prose_columns=0;
+        bool on() const { return room.grant>0 && room.width>0 && room.height>0; }
+    };
+    std::map<std::string,Canvas> canvases_; // each view's, image-local: a reload waits for fresh rooms
     std::map<std::string,Sent> sent_; // each view's picture as sent since its room was granted
     std::map<std::string,Transfer> transfers_;
     component::TextBox line_;

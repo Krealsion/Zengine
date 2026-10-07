@@ -1335,8 +1335,8 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
 ## Attributed value origins and delegated shortcuts
 
 `v2::PaneValueCarryRequested` adds an opaque source-owned token to the pure copy payload.
-Workshop stamps the actual source office/pane into `v2::PaneValueDrop`; receivers supporting only
-v1 still receive the unchanged copy payload. An empty token remains a copy. The host must explicitly grant the v2 drop alongside v1; adding
+Workshop stamps the actual source office/pane into `v2::PaneValueDrop`, and into every
+`PaneCanvasValueDrop`; receivers supporting only v1 still receive the unchanged copy payload. An empty token remains a copy. The host must explicitly grant the v2 drop alongside v1; adding
 an Emit declaration does not widen a host-authored grant. A receiver must not
 infer a move from user data or metadata. Inventory's image-local tokens bind the exact reference,
 revision and arrangement generation; expired or forged tokens do not move anything.
