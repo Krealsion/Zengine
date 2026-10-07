@@ -15,6 +15,7 @@
 #include "workshop/opening.hpp"
 #include "workshop/pane_view.hpp"
 
+#include <filesystem>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -219,8 +220,7 @@ public:
         said.generation = offered.doc_epoch;
         PaneCanvasRoom drawn_for = asked.room;
         if (other_room) ++drawn_for.grant;
-        said.picture = rows_picture(drawn_for, 1,
-                                    {surface::SurfaceTextRow{"stand-in: " + asked.path, surface::role::kFill}});
+        said.picture = rows_picture(drawn_for, 1, {surface::SurfaceTextRow{named(asked.path), surface::role::kFill}});
         if (hold_prepare) {
             held_ = mail.defer_answer();
             held_said_ = said;
@@ -241,9 +241,14 @@ public:
         replaced_ = row;
         state_.path = published.path;
         state_.doc_epoch = published.doc_epoch;
-        row = "stand-in: " + published.path;
+        row = named(published.path);
         ++state_.applied;
         return loom::Weave::PublishedClaim::Applied;
+    }
+    /// ITS ONE ROW FOR A DOCUMENT: the file's name alone, so the row fits any room whatever
+    /// directory the case runs in.
+    static std::string named(const std::string& path) {
+        return "stand-in: " + std::filesystem::path(path).filename().generic_string();
     }
 
 private:
@@ -1092,7 +1097,7 @@ TEST_CASE("an open through the managed door shows the opened document's picture 
     CHECK(pane->canvas.grant != a_grant);
     const std::vector<std::string> shown = held_row_texts(*pane);
     REQUIRE_FALSE(shown.empty());
-    CHECK(shown.front() == "stand-in: " + o.b_path);
+    CHECK(shown.front() == "stand-in: b.cpp");
     // ...A'S PICTURE, SENT AFTER THE COMMITMENT IN THE ROOM IT WAS DRAWN IN, WAS REFUSED...
     REQUIRE_FALSE(o.editor->rejected.empty());
     CHECK(o.editor->rejected.front().grant == a_grant);
@@ -1118,7 +1123,7 @@ TEST_CASE("a holder that draws nothing after the commitment still shows the pict
     REQUIRE(shows_canvas(*pane));
     const std::vector<std::string> shown = held_row_texts(*pane);
     REQUIRE_FALSE(shown.empty());
-    CHECK(shown.front() == "stand-in: " + o.b_path);
+    CHECK(shown.front() == "stand-in: b.cpp");
     CHECK(pane->picture == 0);
     REQUIRE_FALSE(o.editor->rooms.empty());
     CHECK(o.editor->rooms.back().grant == pane->canvas.grant);
