@@ -1195,11 +1195,22 @@ TEST_CASE("info views: the wheel walks a view's fields a notch at a time on its 
             canvas_pointer::kWheel, 0, 4, 4, 0, 0, -1})));
     s.r.bus.drain_until_idle();
     CHECK(selected_field(s, a) == first);
+    // A wheel turned as far as a number goes walks to the list's end at once, and no further.
+    wheel(-1e300);
+    const std::string last = selected_field(s, a);
+    CHECK(last != first);
+    wheel(-1);
+    CHECK(selected_field(s, a) == last);
+    wheel(1e300);
+    CHECK(selected_field(s, a) == first);
     s.key(input::scan::kReturn); // edit the selected field: the wheel walks nothing now
     REQUIRE_MESSAGE(s.shows(a, "Edit name"), s.shown(a));
     const auto editing = pane_rows(s.r, a);
     wheel(-1);
     CHECK(pane_rows(s.r, a) == editing);
+    s.key(input::scan::kEscape); // the edit ends, and the selection is where the edit began
+    REQUIRE_MESSAGE(!s.shows(a, "Edit name"), s.shown(a));
+    CHECK(selected_field(s, a) == first);
 }
 
 TEST_CASE("info views: a view's line being typed shows its caret on its canvas, moving no character") {
@@ -1221,7 +1232,24 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     s.key(input::scan::kLeft);
     CHECK(caret().column == 4);
     CHECK(pane_rows(s.r, a)[static_cast<std::size_t>(line().first)] == "> src");
+    // A selection over `r`, counted as the caret is, past the prompt.
+    s.key(input::scan::kLeft, input::mod::kShift);
+    CHECK(caret().column == 3);
+    CHECK(caret().sel_begin_row == line().first);
+    CHECK(caret().sel_end_row == line().first);
+    CHECK(caret().sel_begin_col == 3);
+    CHECK(caret().sel_end_col == 4);
     s.key(input::scan::kEscape); // the edit ends, and its caret with it
+    CHECK(caret().row == surface::kNoCaret);
+    CHECK(caret().sel_begin_row == surface::kNoSelection);
+    // THE VIEW'S TITLE BEING RENAMED shows its caret after the title, the same way.
+    s.key(input::scan::kM, input::mod::kCtrl);
+    REQUIRE_MESSAGE(s.shows(a, "View title"), s.shown(a));
+    const std::string title = pane_rows(s.r, a)[static_cast<std::size_t>(line().first)];
+    REQUIRE(title.rfind("> ", 0) == 0);
+    CHECK(caret().row == line().first);
+    CHECK(caret().column == static_cast<std::int64_t>(title.size()));
+    s.key(input::scan::kEscape);
     CHECK(caret().row == surface::kNoCaret);
 }
 
@@ -1315,6 +1343,36 @@ TEST_CASE("info views: with pane titles hidden, a field dragged out of a view th
     // places it.
     s.drag_between(a, s.field_at(a, "name"), b, s.field_at(b, "name"));
     CHECK_MESSAGE(s.shows(b, "name: src"), s.shown(b));
+}
+
+TEST_CASE("info views: a press on Info's pane-property lists arms no field pickup, so its motion asks "
+          "nothing once the value it held is shown again") {
+    Views s(255); // the field pickup is the actor's to make
+    add_records(s);
+    s.copy_into(s.info, "Target record"); // the default view holds a value
+    REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
+    const auto name = s.field_at(s.info, "name");
+    s.press_at(s.info, name.first, name.second); // a field press, released where it was: armed
+    s.key(input::scan::kI, input::mod::kCtrl);   // the lists again, by key: no press disarms it
+    REQUIRE_MESSAGE(s.shows(s.info, "PANES"), s.shown(s.info));
+    const ExternalPane held = *s.r.session().panes.external_pane(s.info);
+    REQUIRE(shows_canvas(held));
+    const CanvasRows lattice = held_canvas_rows(held);
+    const auto send = [&](std::int64_t phase, std::int64_t x, std::int64_t y) {
+        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
+            info::kInfoPaneRole, loom::Message(loom::to_value(PaneCanvasPointer{"info", held.canvas.grant,
+                held.canvas.content.picture, 88, phase, 1, x, y})));
+        s.r.bus.drain_until_idle();
+    };
+    // A press held on a row of the lists; the value shown again by key while it is held; then
+    // that press's motion across the rows: the earlier field press's pickup stays unasked.
+    send(canvas_pointer::kPress, lattice.column_x(3), lattice.row_y(2));
+    s.key(input::scan::kI, input::mod::kCtrl);
+    REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
+    s.watch();
+    send(canvas_pointer::kMove, lattice.column_x(5), lattice.row_y(name.first + 1));
+    CHECK(s.sends(PaneOperationRequested::zen_name) == 0);
+    CHECK_FALSE(s.shows(s.info, "Field pickup"));
 }
 
 TEST_CASE("info views: a toolbox restore makes a linked view's link stale and keeps its draft") {
