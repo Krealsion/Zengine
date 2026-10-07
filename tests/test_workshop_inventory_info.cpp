@@ -1024,7 +1024,8 @@ TEST_CASE("a right press and a drop on Inventory's canvas aimed at a picture dra
     CHECK(s.saved_entries().size() == entries);
 }
 
-TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas, fractions carried") {
+TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas, fractions carried, "
+          "and only in the room the view holds") {
     InventoryStory s;
     s.append(10, "Alpha");
     s.append(20, "Bravo");
@@ -1068,6 +1069,40 @@ TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas
             canvas_pointer::kWheel, 0, 4, 4, 0, 0, -1})));
     s.r.bus.drain_until_idle();
     CHECK(marked_row(s, s.source) == first);
+}
+
+TEST_CASE("Inventory sends a view's picture again after Workshop refuses one drawn in the room it holds, "
+          "and not after a refusal of one from a room before it") {
+    InventoryStory s;
+    s.append(10, "Alpha");
+    const ExternalPane old = *s.r.session().panes.external_pane(s.source);
+    REQUIRE(shows_canvas(old));
+    for (auto& p : s.r.session().setup.active.panes)
+        if (p.ref.provider == slots::kRole && p.ref.pane == "inventory")
+            p.width = {pane_unit::kPixels, 78 * surface::kCanvasCellPx};
+    s.r.extent(179, 60); s.r.extent(180, 60); // a room of another width: a new grant, drawn in
+    const ExternalPane now = *s.r.session().panes.external_pane(s.source);
+    REQUIRE(now.canvas.grant != old.canvas.grant);
+    const auto as_workshop = [&s](const loom::Value& said) {
+        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
+                                       loom::Message(said));
+        s.r.bus.drain_until_idle();
+    };
+    // A draw that changes nothing, as a still wheel's is: sent only when the picture differs.
+    const auto draw = [&] {
+        as_workshop(loom::to_value(PaneCanvasPointer{"inventory", now.canvas.grant, now.canvas.content.picture, 0,
+                                                     canvas_pointer::kWheel, 0, 4, 4, 0, 0, 0}));
+        return s.r.session().panes.external_pane(s.source)->canvas.content.picture;
+    };
+    const std::int64_t shown = draw();
+    REQUIRE(shown == now.canvas.content.picture);
+    // A refusal of the picture drawn in the room before: the one shown stands, and is not sent again.
+    as_workshop(loom::to_value(PaneCanvasRejected{"inventory", old.canvas.grant, old.canvas.content.picture,
+                                                  "canvas room grant is no longer current"}));
+    CHECK(draw() == shown);
+    // A refusal of one drawn in the room it holds: the next draw sends the view again.
+    as_workshop(loom::to_value(PaneCanvasRejected{"inventory", now.canvas.grant, shown, "refused"}));
+    CHECK(draw() > shown);
 }
 
 TEST_CASE("a right press on Inventory's rows offers its menu, and one beside them, where a prose press "

@@ -119,8 +119,13 @@ public:
         if (!host(m) || !known(room.pane)) return;
         canvases_[room.pane].room=room; fit(room.pane); refresh(m); draw(m);
     }
-    /// A refused picture leaves the last good one showing, and the next draw sends that view again.
-    void on(const ws::PaneCanvasRejected& r, loom::Mail& m) { if(host(m)) sent_.erase(r.pane); }
+    /// A refused picture leaves the last good one showing, and the next draw sends that view again:
+    /// a picture refused in the room the view holds, not one from a room before it.
+    void on(const ws::PaneCanvasRejected& r, loom::Mail& m) {
+        if(!host(m)) return;
+        const auto c=canvases_.find(r.pane);
+        if(c!=canvases_.end() && r.grant==c->second.room.grant) sent_.erase(r.pane);
+    }
     void on(const inv::InventoryChanged&, loom::Mail& m) { if (m.authored_from_role(inv::kInventoryRole)) refresh(m); }
     void on(const inv::v2::InventoryListed& a, loom::Mail& m) {
         if (!list_.valid() || !m.answers_ask() || m.correlation()!=list_ask_) return;
