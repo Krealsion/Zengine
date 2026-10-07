@@ -198,11 +198,9 @@ how to open one: `^t terminal | ^p panes | ^k hotkeys`.
      the pane does not move.
    - **The subject stays until you choose another.** Pressing another pane, `Esc`, a press on
      the room — none of them moves what Info is inspecting. Info may inspect itself.
-   - **You will not see a caret while you type a value.** A pane sends finished rows and a
-     caret is not a row, so the value scrolls to where you are typing and the insertion point
-     itself does not cross. It is a real cost of Info being a loaded pane, and it is the
-     contract the Editor's own migration fixed: the Editor pane publishes its caret and its
-     selection beside its rows, and Workshop draws them into the pane.
+   - **You see where you are typing.** The draft shows its caret and what you have selected —
+     a bar between characters in a window, an inverted, underlined cell in a terminal — and a
+     long value scrolls to keep the caret in view.
    - **One write at a time.** `Enter` sends the value; `Enter` again before Workshop answers
      sends nothing (`commit not sent`), and your text waits for the next `Enter`. If the layout
      underneath changed before the write arrived, it is refused rather than landing on the

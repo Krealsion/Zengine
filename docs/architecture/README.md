@@ -89,14 +89,19 @@ The protocol — every shape listed in
 [A weave may offer a pane](../reference/workshop-panes.md#a-weave-may-offer-a-pane) — is
 deliberately thin: Workshop grants a pane a lattice of prose rows and columns, or a canvas room in pixels it draws its own picture on, tells it *a weaver pressed here in your room*, tells it
 *a key went down and you have the keyboard* (or, for an action the pane declared, *a weaver asked
-for this action of yours*), and tells it the wheel turned over its body. **A gesture is never
-answered** — there is no disposition and no "I consumed it". On a canvas a press is held for its
-provider: its motion and its release are told to it under the press's room, picture and number
-until the press ends, and Workshop ends it as lost when a mode, a menu, a new room or a carry
-takes it (the [pane-local canvas](../reference/workshop-panes.md#optional-pane-local-canvas)).
-A pane may make a press the source of a carry: under the press's number it asks Workshop to carry
-a value or a reference ([`workshop/pane_carry.hpp`](../../workshop/pane_carry.hpp)), and Workshop
-places it where the hand lets go, on a pane accepting a drop of that kind, as a place in that
+for this action of yours*), and tells it the wheel turned over its body. **A pane never says it
+consumed a gesture**: it may hand a press back (`PanePassRequested`, *that press was not mine*)
+or say an Escape was unspent (`PaneEscapeUnspent`), each under that gesture's own correlation, and
+Workshop's own meaning then runs; a pane that says neither keeps the gesture. On a canvas a press
+is held for its provider: its motion and its release are told to it under the press's room,
+picture and number until the press ends, and Workshop ends it as lost when a mode, a menu, a new
+room or a carry takes it (the
+[pane-local canvas](../reference/workshop-panes.md#optional-pane-local-canvas)).
+A pane may ask Workshop to carry a value or a reference
+([`workshop/pane_carry.hpp`](../../workshop/pane_carry.hpp)) under the gesture that approved it —
+a press, an action, a shortcut or a menu choice. A value dragged out under a primary press lands
+where the hand lets go; any other carry Workshop holds until the actor clicks a receiving pane,
+and Escape gives it up. It lands on a pane accepting a drop of that kind, as a place in that
 pane's rows or pixels; what it means there is the receiving pane's. There is no target
 negotiation: a pane with no door for what is carried is sent nothing. The other questions the
 protocol carries are scoped conversations with explicit answers: a pane asking to be seated,
@@ -126,7 +131,7 @@ beside them, one file per subject the header's section banners name
 | keyboard focus | **Workshop's weave**, per mode (`keyboard_context`: the arrangement scopes, the contextual surface, a layout's name line, then a pane holding the keys, else command). A loaded pane's own cursor is the pane's. A canvas has no focus and never did | [`workshop/weave.hpp`](../../workshop/weave.hpp), [`workshop/screen.hpp`](../../workshop/screen.hpp) |
 | keyboard possession across the pane seam | **Workshop**, as a spend: granted to a pane, revoked by a press anywhere else | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
 | the subject an inspector reads | **Workshop's session**, named per inspection and *published as a fact* — a named subject, not a pointer, which selecting or focusing another pane does not move. (Selection of an authored object held this row until the object canvas retired.) | [`workshop/inspection_seam_vocabulary.hpp`](../../workshop/inspection_seam_vocabulary.hpp) |
-| the external pane protocol | **`workshop/pane_vocabulary.hpp`** — the shapes it lists, prose one way, a bounded budget, input as places, keys and resolved ids with no reply to a gesture, and explicit answers only where it asks a question (the reveal, the quit) | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
+| the external pane protocol | **`workshop/pane_vocabulary.hpp`** — the shapes it lists, prose one way, a bounded budget, input as places, keys and resolved ids, answered only by a press or an Escape handed back, and explicit answers only where it asks a question (the reveal, the quit) | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
 | what a pane may draw | **its own picture on the canvas room it is granted**, bounded and admitted whole, or rows Workshop composes into the canvas | [`workshop/screen.hpp`](../../workshop/screen.hpp) |
 
 ### Where a cross-pane drag crosses a boundary
@@ -135,11 +140,13 @@ Reading the map, a semantic drag from one pane to another crosses four places, a
 is a rendering change; three have an owner today:
 
 1. **A shape for "a gesture is in progress and it carries this object."** The carry requests and
-   their answer ([`workshop/pane_carry.hpp`](../../workshop/pane_carry.hpp)): Workshop holds the
-   carried item, bound to the press that began it, until it is placed, put down or given up.
-2. **A disposition on the pane protocol** — still absent. Workshop tells a pane about a press and
-   asks nothing, and a drop target cannot say *yes, I will take that* before the drop: it is sent
-   the drop and answers in its own words. A target that can answer is a target that can refuse,
+   their answer ([`workshop/pane_carry.hpp`](../../workshop/pane_carry.hpp)): Workshop takes a
+   carry only under the gesture that approved it, and holds the item until it is placed, put down
+   or given up.
+2. **A disposition on the pane protocol** — absent. Workshop tells a pane about a press and asks
+   nothing; the pane may hand a press back or say an Escape was unspent, never that it consumed
+   one, and a drop target cannot say *yes, I will take that* before the drop: it is sent the drop
+   and answers in its own words. A target that can answer is a target that can refuse,
    which is a protocol change rather than an addition.
 3. **A capture concept.** A canvas press's hold, told to its provider through motion and release
    while Workshop keeps the power to end it; a drag's carry takes its motion and release once it
@@ -150,8 +157,8 @@ is a rendering change; three have an owner today:
 
 Two things worth stating so they are not mistaken for a plan: **a second weave publishing input
 is not a second UI region** — published input has no arbitration, so two publishers do not
-divide a screen between them — and **a pane is a presentation, not a participant** in Workshop's
-input conversation today.
+divide a screen between them — and **a pane takes no part in deciding where input goes**: the
+routing and the arbitration are Workshop's.
 
 ## Large source units
 
