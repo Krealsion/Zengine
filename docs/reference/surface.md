@@ -43,7 +43,9 @@ choose contrasting roles. It does not change the surface's default background.
 shows where nothing is published — the window's own dark ground in the SDL skin, and in the
 terminal skin whatever the terminal wears, light or dark, since it writes no ground colour there.
 A rectangle or a row's background may name it; it is not an ink, and text named in it is drawn
-as `kFill`.
+as `kFill`. Plain text -- `kFill`'s ink -- is the terminal's own text colour in the terminal skin,
+as its ground is the terminal's own, so it reads on whatever the terminal wears, and reverse
+video, a caret's or a selection's, swaps the two; the window keeps its own colours.
 
 **Which of the two kinds of text a publisher chooses is one question, and it is not about
 importance**: *is the rectangle mine?* A `SurfaceTextRegion` is the
