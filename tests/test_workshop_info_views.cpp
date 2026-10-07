@@ -1238,6 +1238,30 @@ TEST_CASE("info views: a right press aimed at a picture drawn before the view's 
     CHECK(s.sends(PaneMenuRequested::zen_name) == 0);
 }
 
+TEST_CASE("info views: a field copy placed on Info's pane-property lists fills no field of the value its "
+          "default view still holds") {
+    Views s(255); // the field pickup is the actor's to make
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.copy_into(a, "Source record");    // the field's source
+    s.copy_into(s.info, "Target record"); // the default view holds a value...
+    REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
+    const auto name = s.field_at(s.info, "name");
+    s.button(s.info, "Panes"); // ...and shows the pane-property lists again
+    REQUIRE_MESSAGE(s.shows(s.info, "PANES"), s.shown(s.info));
+    // A field copy picked up in another view, placed where the default view drew its `name` row.
+    const auto source = s.field_at(a, "name");
+    s.press_at(a, source.first, source.second);
+    s.key(input::scan::kG, input::mod::kCtrl);
+    REQUIRE_MESSAGE(s.r.last_notice().rfind("Carrying ", 0) == 0, s.r.last_notice());
+    s.click_at(s.info, name.first, name.second);
+    // The lists number no meaning of their own: the place is not a field of the value held.
+    s.key(input::scan::kI, input::mod::kCtrl); // back to the value
+    CHECK_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
+    CHECK_FALSE(s.shows(s.info, "name: src"));
+}
+
 TEST_CASE("info views: only the motion of the press that armed a field pickup begins it") {
     Views s;
     add_records(s);
