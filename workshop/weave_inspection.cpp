@@ -66,8 +66,8 @@ std::string WorkshopWeave::visible_body(const std::string& provider, const std::
     if (!out.body.present) return "pane has no visible body";
     out.canvas = canvas;
     if (canvas) {
-        // The body the painter draws the picture in, which the grant's room must still be.
-        out.canvas_body = canvas_body_place(bounds.rect, sc, titles);
+        // Where the painter draws the picture, which the grant's room must still be.
+        out.canvas_body = shown_canvas_place(content->canvas, bounds.rect, sc, titles);
         const auto& c = content->canvas;
         if (out.canvas_body.empty() || out.canvas_body.x != c.x || out.canvas_body.y != c.y ||
             out.canvas_body.w != c.width || out.canvas_body.h != c.height) {
