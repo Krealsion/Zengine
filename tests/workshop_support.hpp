@@ -25,6 +25,7 @@
 #include "workshop/weave.hpp"
 #include "workshop/grant.hpp"
 #include "workshop/opening.hpp" // the opening manager the host mounts
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/vocabulary.hpp"
 // The process id a temporary root is named by, and on Windows the attribute the sweep reads.
 #if defined(_WIN32)
@@ -310,11 +311,25 @@ inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std
     return {};
 }
 
+/// The byte of the row at a canvas cell that a region's caret stands on, or -1: the cell a medium
+/// whose character is a cell shows inverted, read through the real cell projection as `label_at`
+/// reads the row's text.
+inline std::int64_t caret_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
+    for (const surface::SurfaceLayer& l : c.layers) {
+        for (const surface::ProjectedRow& p : surface::project_text_regions(l)) {
+            if (surface::cell_of_pixel(p.label.x) == x && surface::cell_of_pixel(p.label.y) == y) {
+                return p.caret;
+            }
+        }
+    }
+    return -1;
+}
+
 /// ONE PROSE ROW OF THE INSPECTOR'S PROPERTY BODY, as a weaver reads it. The body is a bounded
 /// region, which owns what is inside its bounds, so its cell projection pads every row to the
 /// region's full width; that padding erases what was underneath and is noise in an assertion
 /// about what a row SAYS, so this trims it. Through `label_at` and the real cell projection, so a
-/// caret is still inserted at its own column and a row cut at the body's width is still cut.
+/// row cut at the body's width is still cut.
 inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     std::string text = label_at(c, x, y);
     while (!text.empty() && text.back() == ' ') {
@@ -2060,7 +2075,7 @@ class ProviderSeat
                                           PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
                              loom::Emit<PaneOffered, PaneContent, v4::PaneContent, PanePressed,
                                         PaneActions, v2::PaneActions, PaneCaret,
-                                        PaneEscapeUnspent>> {
+                                        PaneEscapeUnspent, PaneCanvasPointer>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
 
@@ -2195,6 +2210,10 @@ public:
     /// FORGE A PRESS AT SOMEBODY ELSE'S PANE -- deliberately authored, and deliberately by an
     /// office that is not `zengine.workshop`: the sentence a provider must refuse, a stranger
     /// telling it a weaver clicked one of its rows.
+    /// A canvas press from this seat's own office: what a stranger forging a hand would author.
+    void press_at(loom::Mail& mail, const char* office, const PaneCanvasPointer& p) {
+        (void)mail.as_role(office_).send_to_role(office, p);
+    }
     void press_at(loom::Mail& mail, const char* office, const PanePressed& p) {
         (void)mail.as_role(office_).send_to_role(office, p);
     }
@@ -2236,9 +2255,10 @@ private:
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
                              loom::Accept<PaneOffered, v2::PaneOffered, PaneContent, v3::PaneContent,
-                                          v4::PaneContent, SeatDo>,
+                                          v4::PaneContent, v5::PaneCanvasContent, SeatDo>,
                              loom::Emit<PaneCatalogRequested, PaneRoom, PaneWheel, PanePressed,
-                                        v2::PanePressed, v3::PanePressed>> {
+                                        v2::PanePressed, v3::PanePressed, PaneCanvasRoom,
+                                        PaneCanvasPointer>> {
 public:
     void on(const v2::PaneOffered& o, loom::Mail& mail) {
         on(PaneOffered{o.pane, o.name, o.summary}, mail);
@@ -2264,6 +2284,22 @@ public:
     void on(const v4::PaneContent& c, loom::Mail& mail) {
         on(v3::PaneContent{c.pane, c.rows, c.generation, c.picture}, mail);
     }
+    /// ...AND A PANE DRAWING ITS ROWS ON ITS CANVAS: its runs read back to rows of the lattice
+    /// of the room this watcher granted, so a case written against `content` reads it unchanged.
+    void on(const v5::PaneCanvasContent& c, loom::Mail& mail) {
+        PaneContent rows{c.pane, {}};
+        const CanvasRows lattice = canvas_rows(canvas_room);
+        for (const v2::PaneCanvasText& run : c.texts) {
+            if (lattice.empty() || run.padded || run.y < 0 || run.y % lattice.line != 0) continue;
+            const auto row = static_cast<std::size_t>(run.y / lattice.line);
+            if (rows.rows.size() <= row) rows.rows.resize(row + 1);
+            rows.rows[row] = surface::SurfaceTextRow{run.text, run.role, run.background};
+        }
+        content.push_back(std::move(rows));
+        pictures.push_back(c.picture);
+        canvas_pictures.push_back(c);
+        content_authors.push_back(std::string(mail.authored_role()));
+    }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(PaneWatcher&, loom::Mail&)> once;
@@ -2277,6 +2313,42 @@ public:
     }
     void grant_personally(loom::Mail& mail, const char* office, const PaneRoom& room) {
         (void)mail.send_to_role(office, room);
+    }
+    /// A CANVAS ROOM `rows` by `columns` cells, as a terminal grants one, under a grant of its own.
+    PaneCanvasRoom canvas_room_of(const char* pane, std::int64_t rows, std::int64_t columns) {
+        return PaneCanvasRoom{pane, ++canvas_grants, columns * kPaneCanvasUnit,
+                              rows * kPaneCanvasUnit, kPaneCanvasUnit, false, 0, 0};
+    }
+    void canvas_grant(loom::Mail& mail, const char* office, const char* pane, std::int64_t rows,
+                      std::int64_t columns) {
+        canvas_room = canvas_room_of(pane, rows, columns);
+        (void)mail.as_role(kWorkshopProvider).send_to_role(office, canvas_room);
+    }
+    void canvas_grant_personally(loom::Mail& mail, const char* office, const char* pane,
+                                 std::int64_t rows, std::int64_t columns) {
+        canvas_room = canvas_room_of(pane, rows, columns);
+        (void)mail.send_to_role(office, canvas_room);
+    }
+    /// A PRESS ON A CELL OF THE ROOM LAST GRANTED, on the picture last drawn, as Workshop sends it.
+    PaneCanvasPointer canvas_at(std::int64_t row, std::int64_t column, std::int64_t phase,
+                                std::int64_t button = 1, double dy = 0) {
+        return PaneCanvasPointer{canvas_room.pane, canvas_room.grant,
+                                 pictures.empty() ? 0 : pictures.back(), ++canvas_gestures, phase,
+                                 button, column * kPaneCanvasUnit, row * kPaneCanvasUnit,
+                                 input::mod::kNone, 0, dy};
+    }
+    void canvas_press(loom::Mail& mail, const char* office, std::int64_t row, std::int64_t column,
+                      std::int64_t button = 1) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(office, canvas_at(row, column, canvas_pointer::kPress, button), ++asks);
+    }
+    void canvas_press_personally(loom::Mail& mail, const char* office, std::int64_t row,
+                                 std::int64_t column) {
+        (void)mail.send_to_role(office, canvas_at(row, column, canvas_pointer::kPress));
+    }
+    void canvas_wheel(loom::Mail& mail, const char* office, double dy) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(office, canvas_at(0, 0, canvas_pointer::kWheel, 0, dy));
     }
     void ask(loom::Mail& mail) {
         (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
@@ -2312,6 +2384,11 @@ public:
     /// THE PICTURE NUMBER OF EACH CONTENT, parallel to `content`: 0 for a pane that numbers none.
     std::vector<std::int64_t> pictures;
     std::vector<std::string> content_authors;
+    /// THE PICTURES A CANVAS PANE DREW, whole, beside the rows `content` reads them as.
+    std::vector<v5::PaneCanvasContent> canvas_pictures;
+    PaneCanvasRoom canvas_room;
+    std::int64_t canvas_grants = 0, canvas_gestures = 0;
+    std::uint64_t asks = 0;
     std::function<void(PaneWatcher&, loom::Mail&)> next;
 };
 
@@ -2568,6 +2645,7 @@ struct PaneRig {
         // a press it did not get from Workshop, and a refusal the bus made unreachable proves
         // nothing.
         grant.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
+        grant.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(office));
         raw->zen_set_self(id);
@@ -2670,6 +2748,8 @@ struct PaneRig {
         grant.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
         grant.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
         grant.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
+        grant.allow_to_any(PaneCanvasRoom::zen_name, PaneCanvasRoom::zen_version);
+        grant.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(kWorkshopProvider));
         raw->zen_set_self(id);
@@ -3394,13 +3474,61 @@ inline PixelRect external_pane_rect(const Session& s, std::int64_t kind) {
     return bounds_of(s.panes, s.setup.active, kind, screen_of(s)).rect;
 }
 
-/// THE PARTS A TEXT PANE NAMED in the rows Workshop holds for it now, by name.
+/// WHETHER A PANE SHOWS A PICTURE of its own rather than rows.
+inline bool shows_canvas(const ExternalPane& pane) {
+    return pane.canvas.grant > 0 && pane.canvas.heard;
+}
+
+/// The lattice a canvas pane's room sets text on, as the pane was granted it.
+inline CanvasRows held_canvas_rows(const ExternalPane& pane) {
+    const auto& c = pane.canvas;
+    return canvas_rows(PaneCanvasRoom{std::string(), c.grant, c.width, c.height, c.grain,
+                                      c.graphical, c.text_advance_px, c.text_line_px});
+}
+
+/// THE ROWS OF A CANVAS PANE'S ADMITTED PICTURE, each its unpadded run on the lattice -- its
+/// characters without the blanks after the last -- and "" where a row has none.
+inline std::vector<std::string> held_canvas_text(const ExternalPane& pane) {
+    std::vector<std::string> out;
+    const CanvasRows lattice = held_canvas_rows(pane);
+    if (lattice.empty()) return out;
+    for (const v2::PaneCanvasText& run : pane.canvas.content.texts) {
+        if (run.padded || run.y < lattice.y || (run.y - lattice.y) % lattice.line != 0) continue;
+        const auto row = static_cast<std::size_t>((run.y - lattice.y) / lattice.line);
+        if (out.size() <= row) out.resize(row + 1);
+        std::string text = run.text;
+        while (!text.empty() && text.back() == ' ') text.pop_back();
+        out[row] = text;
+    }
+    return out;
+}
+
+/// THE ROWS A PANE HOLDS NOW, each its text: a text pane's rows as Workshop admitted them, a
+/// canvas pane's runs read back to the rows of its lattice.
+inline std::vector<std::string> held_row_texts(const ExternalPane& pane) {
+    if (shows_canvas(pane)) return held_canvas_text(pane);
+    std::vector<std::string> out;
+    for (const surface::SurfaceTextRow& row : pane.shown) out.push_back(row.text);
+    return out;
+}
+
+/// THE PARTS A PANE NAMED in what Workshop holds for it now, by name: a text pane's as it said
+/// them, a canvas pane's read back to the row and columns of its lattice they cover.
 inline std::map<std::string, PaneRowPart> held_parts(const Session& s, std::int64_t kind) {
     std::map<std::string, PaneRowPart> out;
-    if (const ExternalPane* pane = s.panes.external_pane(kind)) {
-        for (const PaneRowPart& part : pane->parts) {
-            out.emplace(part.name, part);
+    const ExternalPane* pane = s.panes.external_pane(kind);
+    if (pane == nullptr) return out;
+    if (shows_canvas(*pane)) {
+        const CanvasRows lattice = held_canvas_rows(*pane);
+        if (lattice.empty()) return out;
+        for (const PaneCanvasPart& part : pane->canvas.content.parts) {
+            const RowCell at = row_cell_at(lattice, part.x, part.y);
+            out.emplace(part.name, PaneRowPart{part.name, at.row, at.column, part.w / lattice.advance});
         }
+        return out;
+    }
+    for (const PaneRowPart& part : pane->parts) {
+        out.emplace(part.name, part);
     }
     return out;
 }
@@ -3408,10 +3536,16 @@ inline std::map<std::string, PaneRowPart> held_parts(const Session& s, std::int6
 /// ...and what the named part's columns of its row say, as the pane wrote them.
 inline std::string held_part_text(const Session& s, std::int64_t kind, const PaneRowPart& part) {
     const ExternalPane* pane = s.panes.external_pane(kind);
-    if (pane == nullptr || part.row < 0 || part.row >= static_cast<std::int64_t>(pane->shown.size())) {
-        return std::string();
+    if (pane == nullptr || part.row < 0) return std::string();
+    std::string row;
+    if (shows_canvas(*pane)) {
+        const std::vector<std::string> rows = held_canvas_text(*pane);
+        if (part.row >= static_cast<std::int64_t>(rows.size())) return std::string();
+        row = rows[static_cast<std::size_t>(part.row)];
+    } else {
+        if (part.row >= static_cast<std::int64_t>(pane->shown.size())) return std::string();
+        row = pane->shown[static_cast<std::size_t>(part.row)].text;
     }
-    const std::string& row = pane->shown[static_cast<std::size_t>(part.row)].text;
     const auto from = static_cast<std::size_t>(part.column);
     return from >= row.size() ? std::string() : row.substr(from, static_cast<std::size_t>(part.columns));
 }
@@ -3449,9 +3583,54 @@ private:
     Ears* ears_;
 };
 
+/// THE ROWS A CANVAS PANE SHOWS, read off the published canvas as `external_rows` reads a text
+/// pane's: each one-row region whose first character stands in the pane's picture's body, on the
+/// first plane that has one -- the pane's own, painted before anything that covers it -- placed
+/// on the room's lattice by where the medium draws it, each row its characters without the
+/// blanks after the last, "" where a row has none.
+inline std::vector<std::string> canvas_rows_shown(const Session& s, const surface::SurfaceCanvas& c,
+                                                  std::int64_t kind) {
+    std::vector<std::string> out;
+    const ExternalPane* pane = s.panes.external_pane(kind);
+    if (pane == nullptr || !shows_canvas(*pane)) return out;
+    const CanvasRows lattice = held_canvas_rows(*pane);
+    if (lattice.empty()) return out;
+    const auto& body = pane->canvas;
+    const Screen sc = screen_of(s);
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        bool found = false;
+        for (const surface::SurfaceTextRegion& r : layer.texts) {
+            if (r.rows.size() != 1) continue;
+            const surface::RegionFit fit = surface::fit_region(r.x, r.y, r.w, r.h, sc.text_advance_px,
+                                                               sc.text_line_px);
+            const std::int64_t gx = fit.graphical() ? r.x + fit.origin_x : r.x;
+            const std::int64_t gy = fit.graphical() ? r.y + fit.origin_y : r.y;
+            if (gx < body.x || gy < body.y || gx >= body.x + body.width || gy >= body.y + body.height) {
+                continue;
+            }
+            const RowCell at = row_cell_at(lattice, gx - body.x, gy - body.y);
+            if (at.row < 0 || at.column < 0) continue;
+            found = true;
+            const auto row = static_cast<std::size_t>(at.row);
+            if (out.size() <= row) out.resize(row + 1);
+            std::string& text = out[row];
+            const auto column = static_cast<std::size_t>(at.column);
+            if (text.size() < column) text.resize(column, ' ');
+            text.replace(column, (std::min)(text.size() - column, r.rows[0].text.size()), r.rows[0].text);
+            while (!text.empty() && text.back() == ' ') text.pop_back();
+        }
+        if (found) return out;
+    }
+    return out;
+}
+
 /// The prose rows the Loaded pane is currently showing, with Workshop's header dropped
-/// -- said once here so a case below reads as a gesture and an assertion.
+/// -- said once here so a case below reads as a gesture and an assertion. Off its picture when
+/// it draws one.
 inline std::vector<std::string> loaded_rows(PaneRig& r, std::int64_t kind) {
+    if (const ExternalPane* pane = r.session().panes.external_pane(kind); pane && shows_canvas(*pane)) {
+        return canvas_rows_shown(r.session(), r.last_canvas(), kind);
+    }
     return external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
 }
 
@@ -3932,6 +4111,9 @@ inline std::int64_t open_powers(PaneRig& r) {
 }
 
 inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
+    if (const ExternalPane* pane = r.session().panes.external_pane(kind); pane && shows_canvas(*pane)) {
+        return canvas_rows_shown(r.session(), r.last_canvas(), kind);
+    }
     return external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
 }
 
@@ -3949,12 +4131,10 @@ inline std::vector<std::string> band_lines(PaneRig& r) {
     return out;
 }
 
-/// THE CELL SHOWING COLUMN `column` OF BODY ROW `row`, counted from the body's first cell: past a
-/// caret a fit in cells draws as a glyph of its own, read through the painter's own rule.
-inline std::int64_t pane_cell_of(const Session& s, std::int64_t kind, std::int64_t row,
-                                 std::int64_t column) {
-    return drawn_column(column, external_caret_glyph(s.panes.external_pane(kind),
-                                                     external_body_of(s, kind).fit, row));
+/// THE CELL SHOWING COLUMN `column` OF BODY ROW `row`, counted from the body's first cell: the
+/// column's own, since a caret moves no character from its cell.
+inline std::int64_t pane_cell_of(const Session&, std::int64_t, std::int64_t, std::int64_t column) {
+    return column;
 }
 
 /// PRESS A PLACE IN AN EXTERNAL PANE'S OWN ROOM -- the provider's row and column,

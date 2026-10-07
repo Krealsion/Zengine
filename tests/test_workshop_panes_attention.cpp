@@ -13,7 +13,9 @@
 #include "workshop_support.hpp"
 
 #include "attention-pane/vocabulary.hpp"
+#include "connections-pane/vocabulary.hpp"
 #include "workshop/attention_seam_vocabulary.hpp"
+#include "workshop/guest_seam_vocabulary.hpp"
 
 namespace {
 
@@ -65,6 +67,14 @@ struct AttentionRig {
     }
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
+
+    /// The runs of the picture Workshop last admitted from the pane, one a row it drew.
+    const std::vector<v2::PaneCanvasText>& held_runs() {
+        const ExternalPane* seat = r.session().panes.external_pane(kind);
+        REQUIRE(seat != nullptr);
+        REQUIRE(shows_canvas(*seat));
+        return seat->canvas.content.texts;
+    }
 
     /// IS THIS CONDITION A ROW OF THE LIST -- what this weaver has not hidden, the cursor's row
     /// or another -- as opposed to the glance, which counts what is true?
@@ -287,19 +297,15 @@ TEST_CASE("the Attention pane leads with the glance: the loudest condition that 
     f.focus();
 
     // THE LOUDEST, WHATEVER ITS ARRIVAL, AND THE COUNT OF THE REST, IN THE LOUDEST'S ROLE.
-    const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
-    REQUIRE(seat != nullptr);
-    REQUIRE_FALSE(seat->shown.empty());
-    CHECK(seat->shown[0].text == "a loud thing (+1 more)");
-    CHECK(seat->shown[0].role == surface::role::kAlert);
+    REQUIRE_FALSE(f.held_runs().empty());
+    CHECK(f.held_runs()[0].text == "a loud thing (+1 more)");
+    CHECK(f.held_runs()[0].role == surface::role::kAlert);
 
     // A PANE ONE ROW TALL IS THE GLANCE, alone.
     author_test_pane_room(f.r, f.kind, 1, 60);
     f.r.extent(150, 44);
-    seat = f.r.session().panes.external_pane(f.kind);
-    REQUIRE(seat != nullptr);
-    REQUIRE(seat->shown.size() == 1);
-    CHECK(seat->shown[0].text == "a loud thing (+1 more)");
+    REQUIRE(f.held_runs().size() == 1);
+    CHECK(f.held_runs()[0].text == "a loud thing (+1 more)");
 
     // HIDING THE LOUDEST CHANGES WHAT IS LISTED, NOT THE GLANCE: it still counts what is true.
     author_test_pane_room(f.r, f.kind, 12, 60);
@@ -512,9 +518,8 @@ TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
     // A CONDITION'S WORDS ARE ITS OWNER'S, and nothing requires them to be printable ASCII, while
     // the seam refuses a row carrying a byte a canvas cannot draw (`judge_content`) -- so the
     // pane gates its rows at its own door, as `files.cpp` does for typed and pasted text. ⚔
-    // MUTATION: drop `drawable` from `push` and the case does not terminate (SIGTERM at 120 s):
-    // the refusal raises a condition, which is news, which this pane publishes and has refused
-    // again. This pane's own refusal is an input to it, so its rows must be admissible by design.
+    // MUTATION: drop `drawable` from `push` and every picture is refused whole, so none of the
+    // words below is shown.
     AttentionRig f;
     f.open();
     f.establish(Condition{"test.wall", "a wall",
@@ -522,10 +527,11 @@ TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
                               "\t" + "and back",
                           surface::role::kAlert, std::string()});
 
-    // THE PANE'S CONTENT WAS ACCEPTED, which is the whole claim: no refusal, no cleared
+    // THE PANE'S PICTURE WAS ACCEPTED, which is the whole claim: no refusal, no cleared
     // rows, and no condition about a condition.
     const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
     REQUIRE(seat != nullptr);
+    CHECK(shows_canvas(*seat));
     CHECK(seat->refusal.empty());
     CHECK_FALSE(seat->awaiting);
     CHECK(f.text().find("a wall") != std::string::npos);
@@ -559,12 +565,13 @@ TEST_CASE("the pane never publishes more rows than the room it was granted") {
         f.r.extent(kScreenMinCols, height);
         const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
         REQUIRE(pane != nullptr);
-        const std::int64_t room = pane->rows;
+        const std::int64_t room = held_canvas_rows(*pane).rows;
+        REQUIRE(room == pane->rows); // the picture's lattice holds the rows the prose room did
         for (int at = 0; at < 12; ++at) {
             f.r.key(input::scan::kDown);
             CAPTURE(height);
             CAPTURE(at);
-            CHECK(static_cast<std::int64_t>(pane->shown.size()) <= room);
+            CHECK(static_cast<std::int64_t>(held_canvas_text(*pane).size()) <= room);
             CHECK_FALSE(pane->awaiting); // ...and every one of them was ACCEPTED
         }
     }
@@ -597,4 +604,96 @@ TEST_CASE("a pane whose holder has no door for a key is put down by Escape, and 
     CHECK(a.r.session().setup.active == desk);
     CHECK(a.r.session().panes.has(a.kind));
     CHECK(a.shown() == shown);
+}
+
+// =============================================================================
+// The Connections pane: the guest door's reading, drawn as its own picture
+// =============================================================================
+
+namespace {
+
+struct GuestDoorSeatState {
+    std::int64_t asked = 0;
+    ZEN_SHAPE(GuestDoorSeatState, 1, ZEN_FIELD(asked));
+};
+
+/// THE GUEST DOOR, AS FAR AS THE CONNECTIONS PANE MEETS IT: the pane's one ask, answered with
+/// the inventory a case sets.
+class GuestDoorSeat
+    : public loom::WeaveBase<GuestDoorSeat, GuestDoorSeatState,
+                             loom::Accept<GuestConnectionsRequested>, loom::Emit<GuestConnections>> {
+public:
+    explicit GuestDoorSeat(GuestConnections said) : said_(std::move(said)) {}
+    void on(const GuestConnectionsRequested&, loom::Mail& mail) {
+        ++state_.asked;
+        (void)mail.answer(said_);
+    }
+
+private:
+    GuestConnections said_;
+};
+
+} // namespace
+
+TEST_CASE("the Connections pane draws the guest door's reading as its own picture, names no part, and hands a right press to the host's pane menu") {
+    namespace cp = zengine::connections_pane;
+    PaneRig r;
+    r.mount_workshop();
+    GuestConnections said;
+    said.listen = "127.0.0.1:4242";
+    said.rows.push_back(GuestConnection{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7, ""});
+    said.rows.push_back(GuestConnection{2, "awaiting-decision", "stranger", "", "", 0, ""});
+    {
+        auto door = std::make_unique<GuestDoorSeat>(said);
+        GuestDoorSeat* raw = door.get();
+        const loom::WeaveId id = r.bus.register_weave(std::move(door), loom::emit_default_grant(*raw),
+                                                      std::string(kGuestsRole));
+        raw->zen_set_self(id);
+    }
+    load::LoadPlan plan;
+    load::ArtifactIntent seat;
+    seat.stem = cp::kConnectionsPaneStem;
+    seat.weave = load::WeaveIntent{cp::kConnectionsPaneRole};
+    plan.artifacts.push_back(seat);
+    const load::Executed done = r.run_plan(plan);
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.ready();
+    r.extent(160, 48);
+    const PaneRef ref{cp::kConnectionsPaneRole, cp::kConnectionsPane};
+    r.pick(ref);
+    const RuntimePane* row = r.session().panes.runtime.find(ref.provider, ref.pane);
+    REQUIRE(row != nullptr);
+    const std::int64_t kind = row->kind;
+    const ExternalPane* pane = r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+
+    // ITS ROWS ARE ITS OWN PICTURE, set on its room's lattice: every row the door's reading, in
+    // the role its state is drawn in.
+    REQUIRE(shows_canvas(*pane));
+    CHECK(pane->refusal.empty());
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    REQUIRE(shown.size() >= 3);
+    CHECK(shown[0] == "CONNECTIONS -- 2 connections at 127.0.0.1:4242");
+    CHECK(shown[1] == "  #1 tool  admitted  weave 7  from 127.0.0.1:5000");
+    CHECK(shown[2] == "  #2 'stranger' (unverified)  awaiting-decision");
+    const auto& runs = pane->canvas.content.texts;
+    REQUIRE(runs.size() >= 3);
+    CHECK(runs[0].role == surface::role::kAccent);
+    CHECK(runs[1].role == surface::role::kFill);
+    CHECK(runs[2].role == surface::role::kAlert);
+    // NOTHING IN IT IS ACTED ON, so it names no part.
+    CHECK(pane->canvas.content.parts.empty());
+
+    // A PRIMARY PRESS ON A ROW MEANS NOTHING: the rows stand and no menu opens...
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    r.press_cell(body.x + 4, body.y + 1);
+    r.release_cell(body.x + 4, body.y + 1);
+    CHECK(pane_rows(r, kind) == shown);
+    CHECK_FALSE(r.session().context.open);
+    // ...AND A RIGHT PRESS IS HANDED BACK: the host's own pane menu opens, about this pane.
+    const ui::Rect now = external_body_rect(r.session(), kind);
+    r.right_press_cell(now.x + 4, now.y + 1);
+    REQUIRE(r.session().context.open);
+    CHECK(r.session().context.subject == context_subject::kPane);
+    CHECK(r.session().context.pane == ref);
 }

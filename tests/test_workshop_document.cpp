@@ -362,8 +362,7 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     CHECK(editor.sel_begin_col == prompt);
     CHECK(editor.sel_end_row == 0);
     CHECK(editor.sel_end_col == prompt + 7);
-    // ...and the cell projection still inserts the caret as a character, so a character
-    // medium's row reads exactly as it always did.
+    // ...and the cell projection stands the caret on a cell, moving no character of the row.
     CHECK(label_at(t.canvases.back(), 0, 0).find("layout name> Default") == 0);
 
     // Paste replaces the selection: the name a weaver copied in a PANE arrives here.

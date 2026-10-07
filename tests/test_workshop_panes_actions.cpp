@@ -1436,8 +1436,8 @@ std::string launcher_text(PaneRig& r) {
     REQUIRE(shown != nullptr);
     CHECK(shown->refusal.empty()); // every publication fit the room it was granted
     std::string text;
-    for (const surface::SurfaceTextRow& line : shown->shown) {
-        text += line.text + "\n";
+    for (const std::string& line : held_row_texts(*shown)) {
+        text += line + "\n";
     }
     return text;
 }
@@ -2189,8 +2189,8 @@ std::string hotkeys_pane_text(PaneRig& r) {
     REQUIRE(shown != nullptr);
     CHECK(shown->refusal.empty());
     std::string text;
-    for (const surface::SurfaceTextRow& line : shown->shown) {
-        text += line.text + "\n";
+    for (const std::string& line : held_row_texts(*shown)) {
+        text += line + "\n";
     }
     return text;
 }

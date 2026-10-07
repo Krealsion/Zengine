@@ -173,7 +173,7 @@ provider is a row here and absent from `Loaded`.
 > ```
 
 ```text
-[Sources] Operators  2/3  [ ] Composite  find:_
+[Sources] Operators  2/3  [ ] Composite  find:
   prov.source.spends
 > zengine.project.anchor
   zengine.recipes.catalog
@@ -266,8 +266,8 @@ on either word in the chrome row.
   answer that nothing supplies it here — or that it now belongs to the other view — clears it.
 - **Text you type or paste must be printable ASCII**, because a provider's rows are (one canvas cell
   per byte). A chunk carrying anything else is refused **whole** rather than filtered — you get none
-  of it rather than a mangled half. The query's own selection works for cut and copy but cannot be
-  drawn: the pane protocol carries rows and no spans, and it was not widened to fix that.
+  of it rather than a mangled half. The query's own selection works for cut and copy but is not
+  drawn: the pane shows where the query's caret stands, and draws no selection for it.
 - **A press has one meaning each.** A row selects and does not sample; `[ Sample ]` samples and does
   not select. The first press into a cold pane is the press that also points the keyboard at it, so
   nothing here may mean two things at once.
@@ -537,8 +537,10 @@ is nothing to subscribe to, and a consumer that polled for one would be a consum
 
 Introspection re-reads when **Workshop grants a pane its room**, and Loaded also re-reads
 when scrolling moves its viewport. That happens
-when the pane opens, when a valid re-offer refreshes it, and when the resolved prose capacity
-changes. `Powers` also asks again whenever the weaver changes the question: a new query, view or
+when the pane opens, when a valid re-offer refreshes it, and when the pane moves or changes size:
+each pane draws its rows on its own canvas, whose room is granted afresh then (a host that grants
+no canvas grants a prose room again only when the resolved prose capacity changes). `Powers` also
+asks again whenever the weaver changes the question: a new query, view or
 `Composite` filter asks the door the new search, and moving the selection asks it about the power
 now selected. Between readings the rows are a snapshot, not a feed, and the last line of the pane
 says which. **Each of the three panes keeps its own room and its own outstanding questions**, so a
@@ -551,15 +553,16 @@ answer, with nobody having been told.
 
 There is no refresh button. A press is a gesture *about a place in the pane* and this tool does not
 read one as "go and look again" — selection must refer to the displayed snapshot. Closing
-and reopening the pane, or resizing it enough to move its prose capacity, re-reads; in `Powers`, so
-does changing the search.
+and reopening the pane, or moving or resizing it, re-reads; in `Powers`, so does changing the
+search.
 
 **`Powers` keeps its last answer between asks, and that is what its cursor works over.** It is
 still a snapshot: it is replaced *whole* by the next answer, never compared against the one before
 it, and dropped at every grant — so between the grant and the answer the pane shows
-`(waiting for the provider)` and holds no map a press could be read against. An answer to a search
-the weaver has since changed is dropped by its correlation, so a late answer never replaces a newer
-one. What survives a fresh answer is everything the *weaver* authored — the view, the query, the
+`(waiting for the provider)` — or, when it only moved or changed size, its last picture marked
+`(updating)`, which takes no press — and holds no map a press could be read against. An answer to
+a search the weaver has since changed is dropped by its correlation, so a late answer never
+replaces a newer one. What survives a fresh answer is everything the *weaver* authored — the view, the query, the
 filter, both selected identities and any retained sample — because none of those is a fact about
 the host.
 
@@ -641,7 +644,8 @@ CAN
   ask the arrangement door one question       ArrangementRequested, as its own office
   ask the discovery door two questions        FindPowers, DescribePower, as its own office
   offer Workshop its three panes              PaneOffered, as its own office
-  publish rows inside the grants it was given PaneContent, as its own office
+  draw its rows inside the rooms it was given PaneCanvasContent, as its own office
+                                              (PaneContent to a host granting no canvas)
   state which row a weaver selected            LoadedSelected, as its own office
   ask the host to sample ONE Source           SampleRequested, as its own office --
                                               an identity, and nothing else
@@ -660,7 +664,7 @@ CANNOT (never sent, and not in its declared Emit set)
   invoke a parameterized Operator             sampling supplies no arguments, and there
                                               is no gesture, control or shape for one
   reach the kernel's control door directly
-  publish a canvas, a text slot or any screen
+  publish a Surface canvas, a text slot or any screen
   read or write the document, the setup, or any file
   start a process, open a socket, hold a timer, read a Sense
   grant itself anything
@@ -690,14 +694,14 @@ the reader and the Timer the same host boots.
 
 ## Density
 
-A pane's default room is **8 prose rows** (`kStackRows` is nine, one of which is Workshop's header)
+A pane's default room is **8 rows** (`kStackRows` is nine, one of which is Workshop's header)
 and 61 columns on the default terminal composition. Every pane is **windowed, never truncated**:
 material is shown until the budget runs out and the remainder is counted on its own row
 (`... 17 more`), so nothing is ever hidden without being counted. Text too long for the granted
 columns is cut with `...`.
 
 The **graphical** default is smaller still: at the shipped 18-pixel face an overlay slot resolves
-to **4 prose rows by 71 columns**, against the terminal's 8 by 48. Both are the budgets `Powers`
+to **4 rows by 71 columns**, against the terminal's 8 by 48. Both are the budgets `Powers`
 was composed against, and both are asserted rather than assumed.
 
 `Powers` is one line per power, so it navigates at either default: the chrome row says which view,

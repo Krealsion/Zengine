@@ -903,6 +903,20 @@ TEST_CASE("loaded Flow pane keeps an unfinished dialog bound to its original for
     CHECK(rig.live_value() == 99);
 }
 
+TEST_CASE("a query typed to the search line's end is drawn whole in a window, its caret a bar after it") {
+    // A WINDOW'S CARET IS A BAR between characters, so the line gives it no blank of its own: a
+    // query filling the field is drawn to its last character, never cut and marked.
+    Rig rig;
+    rig.graph_semantically();
+    auto window = ws::PaneCanvasRoom{fp::kPane, ++rig.grant, 170 * 9, 65 * 22, 1, true};
+    window.text_advance_px = 9;
+    window.text_line_px = 18;
+    rig.host(window);
+    rig.text("abcdefghijklmno"); // the field's fifteen columns, the caret after them
+    const ws::PaneCanvasText line = rig.label("find: abcdefghijklmno"); // exactly: not cut
+    CHECK(line.caret_col == 21);
+}
+
 TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan save and reload") {
     TempFiles files;
     Rig rig;

@@ -7,6 +7,7 @@
 #include "doctest.h"
 #include "workshop_support.hpp"
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/screen_canvas.hpp"
 #include "view/host.hpp"
 #include <limits>
@@ -677,32 +678,282 @@ TEST_CASE("pane canvas text clipping preserves surviving positions through both 
     CHECK(canvas_text_metrics(room).grain == kPaneCanvasUnit);
 }
 
-TEST_CASE("pane canvas cell text cropping accounts for the inserted caret and preserves its suffix") {
+TEST_CASE("pane canvas cell text cropping moves no glyph for a caret, which stands on a cell") {
     const PaneCanvasRoom room{canvas_pane, 1, 3 * kPaneCanvasUnit, 2 * kPaneCanvasUnit,
                               kPaneCanvasUnit, false, 0, 0};
     const auto placed = clip_canvas_text({-2 * kPaneCanvasUnit, 0, "ABCD", 0, 1, 1, 4},
                                          {0, 0, room.width, room.height}, room);
     REQUIRE(placed.visible());
-    CHECK(placed.first_column == 1);
-    CHECK(placed.text.text == "BCD");
+    CHECK(placed.first_column == 2);
+    CHECK(placed.text.text == "CD");
     CHECK(placed.text.caret_col == surface::kNoCaret);
     CHECK(placed.text.sel_begin_col == 0);
-    CHECK(placed.text.sel_end_col == 3);
+    CHECK(placed.text.sel_end_col == 2);
     CHECK(placed.bounds.x == 0);
     surface::SurfaceLayer layer;
     layer.texts.push_back(canvas_text_region(placed));
     auto rows = surface::project_text_regions(layer);
     REQUIRE(rows.size() == 1);
-    CHECK(rows[0].label.text == "BCD");
+    CHECK(rows[0].label.text == "CD");
+    CHECK(rows[0].caret == -1);
+    // A caret inside the crop stands on its character's cell, and every glyph keeps its own.
     const auto at_start = clip_canvas_text({-kPaneCanvasUnit, 0, "ABCD", 0, 1, 1, 4},
                                            {0, 0, room.width, room.height}, room);
     REQUIRE(at_start.visible());
-    CHECK(at_start.text.text == "BC");
+    CHECK(at_start.text.text == "BCD");
     CHECK(at_start.text.caret_col == 0);
     layer.texts[0] = canvas_text_region(at_start);
     rows = surface::project_text_regions(layer);
     REQUIRE(rows.size() == 1);
-    CHECK(rows[0].label.text == "_BC");
+    CHECK(rows[0].label.text == "BCD");
+    CHECK(rows[0].caret == 0);
+    // A caret after the last character stands on a blank the run gives it there...
+    const auto room_after = clip_canvas_text({0, 0, "AB ", 0, 2, -1, -1},
+                                             {0, 0, room.width, room.height}, room);
+    REQUIRE(room_after.visible());
+    CHECK(room_after.bounds.w == 3 * kPaneCanvasUnit);
+    layer.texts[0] = canvas_text_region(room_after);
+    rows = surface::project_text_regions(layer);
+    REQUIRE(rows.size() == 1);
+    CHECK(rows[0].label.text == "AB ");
+    CHECK(rows[0].caret == 2);
+    // ...and the clip adds no cell of its own, so clipping again moves nothing: a run with no
+    // blank there stands its caret on its last character's cell, which still shows.
+    const auto bare = clip_canvas_text({0, 0, "AB", 0, 2, -1, -1},
+                                       {0, 0, room.width, room.height}, room);
+    REQUIRE(bare.visible());
+    CHECK(bare.bounds.w == 2 * kPaneCanvasUnit);
+    layer.texts[0] = canvas_text_region(bare);
+    rows = surface::project_text_regions(layer);
+    REQUIRE(rows.size() == 1);
+    CHECK(rows[0].label.text == "AB");
+    CHECK(rows[0].caret == 1);
+    const auto full = clip_canvas_text({0, 0, "ABC", 0, 3, -1, -1},
+                                       {0, 0, room.width, room.height}, room);
+    REQUIRE(full.visible());
+    CHECK(full.text.text == "ABC");
+    CHECK(full.text.caret_col == 3);
+    layer.texts[0] = canvas_text_region(full);
+    rows = surface::project_text_regions(layer);
+    REQUIRE(rows.size() == 1);
+    CHECK(rows[0].label.text == "ABC");
+    CHECK(rows[0].caret == 2);
+}
+
+TEST_CASE("an unpadded run stands its first character at its own place, and runs a line apart hold as many rows as a prose body") {
+    // A WINDOW'S FACE: an 8-pixel advance, an 18-pixel line, and a two-pixel inset around a
+    // region. A body as tall as five lines holds five unpadded runs a line apart, each glyph row
+    // exactly where it says; padded runs at that pitch hold four, each region needing its inset.
+    constexpr std::int64_t advance = 8, line = 18, inset = surface::kTextInsetPx;
+    const PaneCanvasRoom room{canvas_pane, 1, 40 * advance + 2 * inset, 5 * line, 1, true,
+                              advance, line};
+    std::size_t unpadded = 0, padded = 0;
+    for (std::int64_t r = 0; r < 5; ++r) {
+        CAPTURE(r);
+        const v2::PaneCanvasText run{inset, r * line, "row", 0, -1, -1, -1, false};
+        const auto placed = clip_canvas_run(run, {0, 0, room.width, room.height}, room);
+        if (placed.visible()) {
+            ++unpadded;
+            CHECK(placed.bounds.x == 0);
+            CHECK(placed.bounds.y == r * line - inset);
+            CHECK(placed.fit.view.x + placed.fit.origin_x == inset);
+            CHECK(placed.fit.view.y + placed.fit.origin_y == r * line);
+            CHECK(placed.fit.rows == 1);
+        }
+        v2::PaneCanvasText boxed = run;
+        boxed.padded = true;
+        boxed.x = 0;
+        if (clip_canvas_run(boxed, {0, 0, room.width, room.height}, room).visible()) ++padded;
+    }
+    CHECK(unpadded == 5);
+    CHECK(padded == 4);
+    // A GLYPH ROW PAST THE CLIP IS OMITTED WHOLE, as a padded run is, and a glyph past its right
+    // inset goes whole too: the right inset is where a caret after the last character stands.
+    CHECK_FALSE(clip_canvas_run(v2::PaneCanvasText{inset, 5 * line - 1, "row", 0, -1, -1, -1, false},
+                                 {0, 0, room.width, room.height}, room)
+                    .visible());
+    const auto cut = clip_canvas_run(v2::PaneCanvasText{room.width - inset - 3 * advance, 0, "abcd",
+                                                         0, 4, -1, -1, false},
+                                      {0, 0, room.width, room.height}, room);
+    REQUIRE(cut.visible());
+    CHECK(cut.text.text == "abc");
+    CHECK(cut.bounds.x + cut.bounds.w == room.width);
+    // ...and a run naming a ground keeps its region inside the clip at its left too, since the
+    // ground spans the region: its padding may not reach past the body there.
+    const auto bare_left = clip_canvas_run(v2::PaneCanvasText{0, 0, "abc", 0, -1, -1, -1, false},
+                                           {0, 0, room.width, room.height}, room);
+    REQUIRE(bare_left.visible());
+    CHECK(bare_left.bounds.x == -inset);
+    const auto on_ground = clip_canvas_run(v2::PaneCanvasText{0, 0, "abc", 0, -1, -1, -1, false,
+                                                              surface::role::kMuted},
+                                           {0, 0, room.width, room.height}, room);
+    REQUIRE(on_ground.visible());
+    CHECK(on_ground.bounds.x >= 0);
+    // A TERMINAL HAS NO INSET, so there an unpadded run is the padded run it would have been.
+    const PaneCanvasRoom cells{canvas_pane, 1, 10 * kPaneCanvasUnit, 3 * kPaneCanvasUnit,
+                               kPaneCanvasUnit, false, 0, 0};
+    const auto a = clip_canvas_run(v2::PaneCanvasText{0, kPaneCanvasUnit, "row", 0, 1, -1, -1, false},
+                                    {0, 0, cells.width, cells.height}, cells);
+    const auto b = clip_canvas_text(PaneCanvasText{0, kPaneCanvasUnit, "row", 0, 1},
+                                    {0, 0, cells.width, cells.height}, cells);
+    REQUIRE(a.visible());
+    CHECK(a.bounds.x == b.bounds.x);
+    CHECK(a.bounds.y == b.bounds.y);
+    CHECK(a.bounds.w == b.bounds.w);
+    CHECK(a.text.caret_col == b.text.caret_col);
+    // ...and every version's run is judged by one set of rules.
+    v5::PaneCanvasContent judged{canvas_pane, 1, 1, {}, {}, {v2::PaneCanvasText{0, 0, "a\x01"}}, {}};
+    CHECK_FALSE(canvas_content_problem(judged).empty());
+    judged.texts[0].text = "ab";
+    judged.texts[0].caret_col = 3;
+    CHECK_FALSE(canvas_content_problem(judged).empty());
+    judged.texts[0].caret_col = 2;
+    judged.texts[0].padded = false;
+    CHECK(canvas_content_problem(judged).empty());
+    // A RUN MAY NAME A GROUND UNDER ITS CHARACTERS, as a prose row does, and the region carries it.
+    judged.texts[0].background = surface::role::kMuted;
+    CHECK(canvas_content_problem(judged).empty());
+    judged.texts[0].background = 99;
+    CHECK(canvas_content_problem(judged).find("ground") != std::string_view::npos);
+    v2::PaneCanvasText grounded{0, 0, "ab  ", surface::role::kAccent, -1, -1, -1, false,
+                                surface::role::kMuted};
+    const auto placed_ground = clip_canvas_run(grounded, {0, 0, cells.width, cells.height}, cells);
+    REQUIRE(placed_ground.visible());
+    CHECK(placed_ground.background == surface::role::kMuted);
+    surface::SurfaceLayer layer;
+    layer.texts.push_back(canvas_text_region(placed_ground));
+    const auto rows = surface::project_text_regions(layer);
+    REQUIRE(rows.size() == 1);
+    CHECK(rows[0].label.text == "ab  ");      // the blanks carry the ground to the run's end
+    CHECK(rows[0].background == surface::role::kMuted);
+}
+
+TEST_CASE("a pane's rows drawn on its canvas stand where its prose rows would, name the same parts, and a place reads back to its row and column") {
+    // A WINDOW'S FACE and A TERMINAL'S CELLS: the lattice holds the rows and columns a prose body
+    // of the room's size holds, and each row stands one line below the last.
+    constexpr std::int64_t advance = 8, line = 18, inset = surface::kTextInsetPx;
+    const PaneCanvasRoom window{canvas_pane, 4, 30 * advance + 2 * inset + 5, 6 * line + 7, 1, true,
+                                advance, line};
+    const CanvasRows face = canvas_rows(window);
+    CHECK(face.x == inset);
+    CHECK(face.y == 0);
+    CHECK(face.columns == 30);
+    CHECK(face.rows == 6);
+    const PaneCanvasRoom terminal{canvas_pane, 5, 30 * kPaneCanvasUnit, 6 * kPaneCanvasUnit,
+                                  kPaneCanvasUnit, false, 0, 0};
+    const CanvasRows cells = canvas_rows(terminal);
+    CHECK(cells.x == 0);
+    CHECK(cells.advance == kPaneCanvasUnit);
+    CHECK(cells.columns == 30);
+    CHECK(cells.rows == 6);
+    CHECK(canvas_rows(PaneCanvasRoom{canvas_pane, 6, 0, 0, 1, true, advance, line}).empty());
+
+    const std::vector<surface::SurfaceTextRow> rows = {
+        {"HEADING", surface::role::kAccent},
+        {"> chosen   ", surface::role::kAccent, surface::role::kMuted},
+        {"  other    ", surface::role::kFill},
+        {"", surface::role::kFill},
+        {"typed", surface::role::kFill}};
+    const std::vector<PaneRowPart> parts = {{"row:chosen", 1, 0, 30},
+                                            {"mark:chosen", 1, 0, 2},
+                                            {"", 2, 0, 30},
+                                            {"row:gone", 9, 0, 30}};
+    RowsCaret caret;
+    caret.row = 4;
+    caret.column = 5;
+    caret.sel_begin_row = 4;
+    caret.sel_begin_col = 1;
+    caret.sel_end_row = 4;
+    caret.sel_end_col = 3;
+    for (const PaneCanvasRoom& room : {window, terminal}) {
+        CAPTURE(room.graphical);
+        const CanvasRows lattice = canvas_rows(room);
+        const v5::PaneCanvasContent p = rows_picture(room, 3, rows, parts, caret);
+        CHECK(p.pane == room.pane);
+        CHECK(p.grant == room.grant);
+        CHECK(p.picture == 3);
+        CHECK(canvas_content_problem(p).empty());
+        CHECK(canvas_parts_problem(p.parts).empty());
+        // THE ROOM'S GROUND beneath everything, as a prose body's is cleared.
+        REQUIRE_FALSE(p.rects.empty());
+        CHECK(p.rects[0].role == surface::role::kGround);
+        CHECK(p.rects[0].w == room.width);
+        CHECK(p.rects[0].h == room.height);
+        // ONE UNPADDED RUN A ROW, a row's own blanks dropped, an empty row drawn as nothing.
+        REQUIRE(p.texts.size() == 4);
+        for (const v2::PaneCanvasText& t : p.texts) {
+            CHECK_FALSE(t.padded);
+            CHECK(t.x == lattice.x);
+        }
+        CHECK(p.texts[0].text == "HEADING");
+        CHECK(p.texts[0].y == lattice.row_y(0));
+        CHECK(p.texts[0].role == surface::role::kAccent);
+        // A ROW WITH A GROUND carries it blank to the row's end, and lies on it across the room's
+        // whole width, where a window's lattice stops short of the edge.
+        CHECK(p.texts[1].text.size() == static_cast<std::size_t>(lattice.columns));
+        CHECK(p.texts[1].text.rfind("> chosen", 0) == 0);
+        CHECK(p.texts[1].background == surface::role::kMuted);
+        REQUIRE(p.rects.size() == 2);
+        CHECK(p.rects[1].role == surface::role::kMuted);
+        CHECK(p.rects[1].x == 0);
+        CHECK(p.rects[1].y == lattice.row_y(1));
+        CHECK(p.rects[1].w == room.width);
+        CHECK(p.rects[1].h == lattice.line);
+        CHECK(p.texts[2].text == "  other");
+        CHECK(p.texts[2].background == surface::role::kNone);
+        // THE CARET AND THE SELECTION stand in the run of their row.
+        CHECK(p.texts[3].text == "typed "); // the caret after the last character has its blank
+        CHECK(p.texts[3].y == lattice.row_y(4));
+        CHECK(p.texts[3].caret_col == 5);
+        CHECK(p.texts[3].sel_begin_col == 1);
+        CHECK(p.texts[3].sel_end_col == 3);
+        CHECK(p.texts[0].caret_col == surface::kNoCaret);
+        // EACH PART IS THE RECTANGLE ITS ROW AND COLUMNS COVER, in its order, unnamed kept; a part
+        // on a row the room does not hold is left out.
+        REQUIRE(p.parts.size() == 3);
+        CHECK(p.parts[0].name == "row:chosen");
+        CHECK(p.parts[0].x == lattice.x);
+        CHECK(p.parts[0].y == lattice.row_y(1));
+        CHECK(p.parts[0].w == 30 * lattice.advance);
+        CHECK(p.parts[0].h == lattice.line);
+        CHECK(p.parts[1].name == "mark:chosen");
+        CHECK(p.parts[1].w == 2 * lattice.advance);
+        CHECK(p.parts[2].name.empty());
+        // A PLACE READS BACK TO ITS ROW AND COLUMN, and one off the lattice is not shown.
+        const RowCell on = row_cell_at(lattice, lattice.column_x(7) + 1, lattice.row_y(2) + 1);
+        CHECK(on.shown);
+        CHECK(on.row == 2);
+        CHECK(on.column == 7);
+        CHECK_FALSE(row_cell_at(lattice, lattice.column_x(30), lattice.row_y(0)).shown);
+        const RowCell above = row_cell_at(lattice, lattice.column_x(0), -1);
+        CHECK_FALSE(above.shown);
+        CHECK(above.row == -1);
+    }
+}
+
+TEST_CASE("a pane's canvas pictures fence a press by the meaning each was drawn under") {
+    const PaneCanvasRoom room{canvas_pane, 4, 10 * kPaneCanvasUnit, 2 * kPaneCanvasUnit,
+                              kPaneCanvasUnit, false, 0, 0};
+    CanvasPictures pictures;
+    CHECK_FALSE(pictures.current(4, 1)); // nothing drawn yet
+    const std::int64_t first = pictures.next(room, 7);
+    const std::int64_t again = pictures.next(room, 7); // the same meaning, repainted
+    CHECK(first == 1);
+    CHECK(again == 2);
+    CHECK(pictures.current(4, first)); // a press aimed at the first is still current
+    CHECK(pictures.current(4, again));
+    CHECK_FALSE(pictures.current(4, 3)); // a picture never sent
+    CHECK_FALSE(pictures.current(3, first)); // another grant's
+    const std::int64_t moved = pictures.next(room, 8); // what the rows mean moved
+    CHECK_FALSE(pictures.current(4, first));
+    CHECK_FALSE(pictures.current(4, again));
+    CHECK(pictures.current(4, moved));
+    // A NEW ROOM numbers afresh, and nothing of the old grant is current.
+    const PaneCanvasRoom next{canvas_pane, 5, 10 * kPaneCanvasUnit, 2 * kPaneCanvasUnit,
+                              kPaneCanvasUnit, false, 0, 0};
+    CHECK(pictures.next(next, 8) == 1);
+    CHECK_FALSE(pictures.current(4, moved));
+    CHECK(pictures.current(5, 1));
 }
 
 TEST_CASE("pane canvas text metric changes renew the grant even when its body stays fixed") {

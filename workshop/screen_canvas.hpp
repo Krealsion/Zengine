@@ -37,7 +37,7 @@ inline PixelRect canvas_clip_rect(const PaneCanvasRect& r, std::int64_t width,
 }
 
 inline void paint_pane_canvas(surface::SurfaceLayer& layer, const PixelRect& body,
-                              const PaneCanvasContent& content,
+                              const v5::PaneCanvasContent& content,
                               std::int64_t text_advance_px = 0, std::int64_t text_line_px = 0,
                               std::int64_t grain = kPaneCanvasUnit) {
     if (body.empty()) return;
@@ -68,9 +68,17 @@ inline void paint_pane_canvas(surface::SurfaceLayer& layer, const PixelRect& bod
     const PaneCanvasRoom room{content.pane, content.grant, body.w, body.h, grain,
                              grain < kPaneCanvasUnit, text_advance_px, text_line_px};
     for (const auto& text : content.texts) {
-        const auto placed = clip_canvas_text(text, {0, 0, body.w, body.h}, room);
+        const auto placed = clip_canvas_run(text, {0, 0, body.w, body.h}, room);
         if (placed.visible()) layer.texts.push_back(canvas_text_region(placed, body.x, body.y));
     }
+}
+
+/// An earlier picture, painted as the current form says it.
+inline void paint_pane_canvas(surface::SurfaceLayer& layer, const PixelRect& body,
+                              const PaneCanvasContent& content,
+                              std::int64_t text_advance_px = 0, std::int64_t text_line_px = 0,
+                              std::int64_t grain = kPaneCanvasUnit) {
+    paint_pane_canvas(layer, body, canvas_content_of(content), text_advance_px, text_line_px, grain);
 }
 } // namespace zengine::workshop
 #endif

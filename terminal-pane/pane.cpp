@@ -80,8 +80,8 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 constexpr std::int64_t kPromptCols = 2;
 
 /// ONE COLUMN OF THE INPUT ROW THE TEXT MAY NOT USE -- the caret's own. A caret at the end
-/// of a full row would otherwise sit one past the room, and in a cell projection the mark is
-/// a character that needs a cell of its own.
+/// of a full row would otherwise sit one past the room, and in a cell projection it stands on
+/// the blank cell after the last character.
 constexpr std::int64_t kCaretCols = 1;
 
 /// The chrome a pane spends on being this pane, whatever is in it: the header, the standing

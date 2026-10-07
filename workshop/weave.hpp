@@ -276,7 +276,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -457,11 +457,9 @@ public:
                                   VisibleBody& out) const;
     std::string visible_body(const std::string& provider, const std::string& pane,
                              VisibleBody& out, bool canvas_too) const;
-    /// Where a word's glyphs stand: one glyph's advance, and the column a terminal draws a caret
-    /// glyph into (-1 where it draws none), which each glyph from that column stands a cell right of.
+    /// Where a word's glyphs stand: one glyph's advance.
     struct WordGlyphs {
         std::int64_t advance = 0;
-        std::int64_t caret = -1;
     };
     /// The words a visible body shows, each where the medium draws it, numbered as a point names.
     std::vector<PaneWord> visible_words(const VisibleBody& visible,
@@ -794,12 +792,14 @@ public:
     void on(const v2::PaneCanvasContent& content, loom::Mail& mail);
     /// A picture naming its parts: admitted as any picture is, with its names judged beside it.
     void on(const v4::PaneCanvasContent& content, loom::Mail& mail);
-    /// `said` is a problem the picture had under the doors it was drawn for, judged before it
-    /// was converted; empty for a picture in this door's own pixels. `parts` are the names it
-    /// carries, none for a door that names nothing.
-    void admit_canvas_content(const PaneCanvasContent& content, loom::Mail& mail,
-                              std::string_view said = {},
-                              const std::vector<PaneCanvasPart>* parts = nullptr);
+    /// A picture whose runs may stand on the room's text lattice: admitted as v4's is.
+    void on(const v5::PaneCanvasContent& content, loom::Mail& mail);
+    /// Every version is admitted in the current form, its names judged beside it (an earlier
+    /// door that names nothing names none). `said` is a problem the picture had under the doors
+    /// it was drawn for, judged before it was converted; empty for a picture in this door's own
+    /// pixels.
+    void admit_canvas_content(const v5::PaneCanvasContent& content, loom::Mail& mail,
+                              std::string_view said = {});
     /// One pointer moment to a canvas holder, in the version its room was granted in.
     loom::Ticket send_canvas_pointer(loom::WeaveId owner, const PaneCanvasPointer& event, bool legacy,
                                      loom::Mail& mail, std::uint64_t correlation = 0);

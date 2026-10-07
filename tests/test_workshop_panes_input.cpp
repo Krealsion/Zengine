@@ -769,7 +769,7 @@ TEST_CASE("an omission marker on a live pane selects nothing") {
     // heading, one on the caveat and one on the marker: at a budget too small to show and to
     // say, it says.
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 3, 46});
+        wv.canvas_grant(m, kIntroOffice, kIntroPane, 3, 46);
     });
     REQUIRE_FALSE(watch->content.empty());
     const std::vector<surface::SurfaceTextRow>& rows = watch->content.back().rows;
@@ -784,7 +784,7 @@ TEST_CASE("an omission marker on a live pane selects nothing") {
 
     const std::size_t content_before = watch->content.size();
     r.drive_watcher(watch, [marker](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, kIntroOffice, PanePressed{kIntroPane, static_cast<std::int64_t>(marker), 0});
+        wv.canvas_press(m, kIntroOffice, static_cast<std::int64_t>(marker), 0);
     });
     CHECK(ears.heard.empty());
     CHECK(watch->content.size() == content_before); // nothing re-drawn either
@@ -872,18 +872,19 @@ TEST_CASE("interpreting a press asks the Weave Manager nothing") {
     r.bus.remove_observer(tap);
     CHECK(std::count(said.begin(), said.end(), std::string("zen.ListLoaded")) == asks_before);
 
-    // AND THE WHOLE OUTBOUND VOCABULARY IS FIVE SHAPES: the three introspection sentences, the
-    // selection, and the Powers pane's declared actions, spoken beside its offer (WL-KEY-15).
+    // AND THE WHOLE OUTBOUND VOCABULARY IS FIVE SHAPES: the three introspection sentences -- its
+    // offer, its question and its picture, drawn in the room Workshop granted -- the selection,
+    // and the Powers pane's declared actions, spoken beside its offer (WL-KEY-15).
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
-    const std::vector<std::string> allowed{"LoadedSelected", "PaneActions", "PaneContent",
+    const std::vector<std::string> allowed{"LoadedSelected", "PaneActions", "PaneCanvasContent",
                                            "PaneOffered", "zen.ListLoaded"};
     CHECK(distinct == allowed);
     // NAMED NEGATIVELY, because the interesting half of an authority audit is what is
     // ABSENT. Being able to say which weave a weaver pointed at is not being able to
     // reach it: no lifecycle command, no message addressed to the selected library, and
-    // no canvas of its own was ever spoken.
+    // no Surface canvas of its own was ever spoken.
     for (const char* forbidden : {"zen.LoadWeave", "zen.SwapWeave", "zen.ReloadWeave",
                                   "zen.UnloadLibrary", "zen.UnloadRole", "zen.QueryRole",
                                   "SurfaceCanvas", "PaneRoom", "PanePressed"}) {
@@ -904,22 +905,23 @@ TEST_CASE("a forged press selects nothing and publishes nothing") {
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     REQUIRE(watch->offers.size() == kIntroPaneCount);
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 6, 46});
+        wv.canvas_grant(m, kIntroOffice, kIntroPane, 6, 46);
     });
     REQUIRE(watch->content.size() == 1);
     REQUIRE_FALSE(watch->content[0].rows.empty());
     const std::size_t content_before = watch->content.size();
 
     // A STRANGER'S PRESS AT ROW 1 -- the row a real press would have selected.
-    r.drive(stranger, [](ProviderSeat& s, loom::Mail& m) {
-        s.press_at(m, kIntroOffice, PanePressed{kIntroPane, 1, 0});
+    const PaneCanvasPointer row_one = watch->canvas_at(1, 0, canvas_pointer::kPress);
+    r.drive(stranger, [row_one](ProviderSeat& s, loom::Mail& m) {
+        s.press_at(m, kIntroOffice, row_one);
     });
     CHECK(ears.heard.empty());
     CHECK(watch->content.size() == content_before);
 
     // THE OFFICE HOLDER, SPEAKING PERSONALLY.
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.press_personally(m, kIntroOffice, PanePressed{kIntroPane, 1, 0});
+        wv.canvas_press_personally(m, kIntroOffice, 1, 0);
     });
     CHECK(ears.heard.empty());
     CHECK(watch->content.size() == content_before);
@@ -927,15 +929,21 @@ TEST_CASE("a forged press selects nothing and publishes nothing") {
     // ...AND THE CORRECTLY AUTHORED ONE IS STILL ANSWERED, so the two refusals above are
     // about AUTHORSHIP and not about the tool having stopped listening.
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, kIntroOffice, PanePressed{kIntroPane, 1, 0});
+        wv.canvas_press(m, kIntroOffice, 1, 0);
     });
     REQUIRE(ears.heard.size() == 1);
     CHECK(ears.heard[0].library == std::string(intro::kIntrospectionStem));
     CHECK(watch->content.size() == content_before + 1);
 
-    // A PRESS FOR A PANE THIS PROVIDER DOES NOT HAVE IS NOT ONE OF ITS ROWS EITHER.
-    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, kIntroOffice, PanePressed{"schemas", 1, 0});
+    // A PRESS FOR A PANE THIS PROVIDER DOES NOT HAVE IS NOT ONE OF ITS ROWS EITHER, nor one
+    // naming a room this pane does not hold.
+    PaneCanvasPointer elsewhere = watch->canvas_at(1, 0, canvas_pointer::kPress);
+    elsewhere.pane = "schemas";
+    PaneCanvasPointer stale = watch->canvas_at(1, 0, canvas_pointer::kPress);
+    stale.grant = watch->canvas_room.grant + 1;
+    r.drive_watcher(watch, [elsewhere, stale](PaneWatcher&, loom::Mail& m) {
+        (void)m.as_role(kWorkshopProvider).send_to_role(kIntroOffice, elsewhere);
+        (void)m.as_role(kWorkshopProvider).send_to_role(kIntroOffice, stale);
     });
     CHECK(ears.heard.size() == 1);
 }
@@ -954,7 +962,7 @@ TEST_CASE("a press between a room grant and its answer names nothing") {
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 8, 46});
+        wv.canvas_grant(m, kIntroOffice, kIntroPane, 8, 46);
     });
     REQUIRE_FALSE(watch->content.empty());
     // ROW 1 IS AN ENTRY IN THE READING NOW ON SCREEN -- the control for what follows.
@@ -963,8 +971,8 @@ TEST_CASE("a press between a room grant and its answer names nothing") {
     const std::size_t content_before = watch->content.size();
 
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 6, 46});
-        wv.press(m, kIntroOffice, PanePressed{kIntroPane, 1, 0});
+        wv.canvas_grant(m, kIntroOffice, kIntroPane, 6, 46);
+        wv.canvas_press(m, kIntroOffice, 1, 0);
     });
     // NOTHING WAS SELECTED, because at the moment the press arrived this pane was
     // showing nothing. The new reading then lands normally, so the pane is not broken --
@@ -986,20 +994,19 @@ TEST_CASE("a row of the previous room names nothing in the room now in force") {
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 8, 46});
+        wv.canvas_grant(m, kIntroOffice, kIntroPane, 8, 46);
     });
     REQUIRE_FALSE(watch->content.empty());
     const std::size_t tall = watch->content.back().rows.size();
     REQUIRE(tall >= 3);
 
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 2, 46});
+        wv.canvas_grant(m, kIntroOffice, kIntroPane, 2, 46);
     });
     REQUIRE(watch->content.back().rows.size() < tall);
     const std::size_t content_before = watch->content.size();
     r.drive_watcher(watch, [tall](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, kIntroOffice,
-                 PanePressed{kIntroPane, static_cast<std::int64_t>(tall) - 1, 0});
+        wv.canvas_press(m, kIntroOffice, static_cast<std::int64_t>(tall) - 1, 0);
     });
     CHECK(ears.heard.empty());
     CHECK(watch->content.size() == content_before);
@@ -1133,9 +1140,9 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
 TEST_CASE("the same gesture in a terminal names the same row of the same room") {
     // MEDIUM-INDEPENDENT BY CONSTRUCTION, and this is the witness. The TUI's mouse
     // reporting is already live (DECSET 1002+1006, claimed by the terminal Skin), the
-    // wire already carries a `space`, and `prose_at` branches on that rather than on a
-    // backend -- so a terminal press reaches the same provider row with no parity work
-    // and no new protocol.
+    // wire already carries a `space`, and Workshop reads it into the pane's own canvas place
+    // rather than branching on a backend -- so a terminal press reaches the same row of
+    // Loaded's lattice (`row_cell_at`) with no parity work and no new protocol.
     Ears by_cell;
     PaneRig cells;
     cells.mount_workshop();
@@ -1154,7 +1161,7 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
     (void)px.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     px.pick(intro_ref());
     const std::int64_t gkind = px.session().panes.runtime.entries[0].kind;
-    px.extent(1000, 700, 8, 18);
+    px.extent(1000, 700, 8, 18, surface::kCanvasCellPx); // a window reports its device scale
     const ExternalBodyPlace gbody = external_body_of(px.session(), gkind);
     REQUIRE(gbody.fit.graphical());
     px.press_pixel(gbody.fit.view.x + gbody.fit.origin_x + gbody.fit.advance_px +
@@ -1163,8 +1170,8 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
                        (1 + kExternalHeaderRows) * gbody.fit.line_px + gbody.fit.line_px / 2);
     REQUIRE(by_pixel.heard.size() == 1);
 
-    // ONE FACT, TWO MEDIA. The provider was handed two integers in both runs and cannot
-    // tell which medium answered.
+    // ONE FACT, TWO MEDIA. The provider was handed a room and the lattice its text stands on
+    // in both runs, and reads the same row back from either.
     CHECK(by_cell.heard[0].library == by_pixel.heard[0].library);
     CHECK(by_cell.heard[0].pane == by_pixel.heard[0].pane);
     CHECK(by_cell.heard[0].role == by_pixel.heard[0].role);
@@ -3335,16 +3342,16 @@ TEST_CASE("Loaded wheel browses without publishing a different selected target")
     (void)r.load("a-hello", WORKSHOP_SO_HELLO, "a.hello");
     (void)r.load("b-hello", WORKSHOP_SO_HELLO, "b.hello");
     r.drive_watcher(watch, [](PaneWatcher& w, loom::Mail& m) {
-        w.grant(m, kIntroOffice, PaneRoom{kIntroPane, 4, 80});
+        w.canvas_grant(m, kIntroOffice, kIntroPane, 4, 80);
     });
     REQUIRE(watch->content.back().rows[1].text.find("a-hello") != std::string::npos);
     r.drive_watcher(watch, [](PaneWatcher& w, loom::Mail& m) {
-        w.press(m, kIntroOffice, PanePressed{kIntroPane, 1, 0});
+        w.canvas_press(m, kIntroOffice, 1, 0);
     });
     REQUIRE(ears.heard.size() == 1);
     auto wheel = [&](double dy) {
-        r.drive_watcher(watch, [dy](PaneWatcher&, loom::Mail& m) {
-            m.as_role(kWorkshopProvider).send_to_role(kIntroOffice, PaneWheel{kIntroPane, 0, dy});
+        r.drive_watcher(watch, [dy](PaneWatcher& w, loom::Mail& m) {
+            w.canvas_wheel(m, kIntroOffice, dy);
         });
     };
     wheel(-0.5);
@@ -3355,6 +3362,49 @@ TEST_CASE("Loaded wheel browses without publishing a different selected target")
     wheel(1);
     CHECK(watch->content.back().rows[1].text.rfind("> a-hello", 0) == 0);
     CHECK(ears.heard.size() == 1);
+}
+
+TEST_CASE("a Loaded press naming the picture drawn before the wheel moved its rows selects nothing") {
+    // THE FENCE THE CANVAS HANDS A PANE: Workshop stamps a press with the picture the medium was
+    // showing, which for a moment after a redraw is the one before it. Loaded numbers its
+    // pictures by which weave each row names, so a press on the old picture is dropped rather
+    // than read against the weave the wheel moved into that row.
+    Ears ears;
+    PaneRig r;
+    auto watcher = std::make_unique<PaneWatcher>();
+    PaneWatcher* watch = watcher.get();
+    auto grant = loom::emit_default_grant(*watcher);
+    r.watcher_id = r.bus.register_weave(std::move(watcher), grant, kWorkshopProvider);
+    watch->zen_set_self(r.watcher_id);
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load("a-hello", WORKSHOP_SO_HELLO, "a.hello");
+    (void)r.load("b-hello", WORKSHOP_SO_HELLO, "b.hello");
+    r.drive_watcher(watch, [](PaneWatcher& w, loom::Mail& m) {
+        w.canvas_grant(m, kIntroOffice, kIntroPane, 4, 80);
+    });
+    REQUIRE(watch->content.back().rows[1].text.find("a-hello") != std::string::npos);
+    const PaneCanvasPointer on_a = watch->canvas_at(1, 0, canvas_pointer::kPress);
+    r.drive_watcher(watch, [](PaneWatcher& w, loom::Mail& m) { w.canvas_wheel(m, kIntroOffice, -1); });
+    REQUIRE(watch->content.back().rows[1].text.find("b-hello") != std::string::npos);
+    const auto press = [&](const PaneCanvasPointer& p) {
+        r.drive_watcher(watch, [p](PaneWatcher&, loom::Mail& m) {
+            (void)m.as_role(kWorkshopProvider).send_to_role(kIntroOffice, p);
+        });
+    };
+    // AIMED AT a-hello, ARRIVING AFTER b-hello TOOK ITS ROW: nothing is selected.
+    press(on_a);
+    CHECK(ears.heard.empty());
+    // A press on the picture showing b-hello selects it...
+    const PaneCanvasPointer on_b = watch->canvas_at(1, 0, canvas_pointer::kPress);
+    press(on_b);
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard.back().library == "b-hello");
+    // ...and a repaint that moves no row -- the selection's mark -- keeps the press current.
+    REQUIRE(watch->pictures.back() > on_b.picture);
+    press(on_b);
+    REQUIRE(ears.heard.size() == 2);
+    CHECK(ears.heard.back().library == "b-hello");
 }
 
 // ---- Escape's default: drop the selection, then the pane ----------------------------------

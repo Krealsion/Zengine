@@ -26,7 +26,9 @@
 #include "inventory/codec.hpp"
 #include "operator/reference.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_escape.hpp"
 #include "workshop/pane_parts.hpp"
@@ -82,10 +84,8 @@ using zengine::workshop::PaneActions;
 using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneKey;
 using zengine::workshop::v2::PaneOffered;
-using zengine::workshop::PanePressed;
 using zengine::workshop::PaneRoom;
 using zengine::workshop::PaneTextInput;
-using zengine::workshop::PaneWheel;
 using zengine::workshop::PowerDescribed;
 using zengine::workshop::PowersFound;
 using zengine::workshop::ResolvedArrangement;
@@ -115,14 +115,17 @@ struct IntrospectionState {
 class IntrospectionWeave
     : public loom::WeaveBase<
           IntrospectionWeave, IntrospectionState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
-                       PaneTextInput, PaneWheel, PaneActionRequested, loom::Result,
-                       zengine::workshop::PaneDragged, zengine::workshop::PaneOperationAnswered,
+          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom,
+                       zengine::workshop::PaneCanvasRoom, zengine::workshop::PaneCanvasPointer,
+                       zengine::workshop::PaneCanvasRejected, PaneKey, PaneTextInput,
+                       PaneActionRequested, loom::Result, zengine::workshop::PaneOperationAnswered,
                        zengine::workshop::PaneCarryAnswered,
                        loom::Refused, ResolvedArrangement, zengine::workshop::v2::ResolvedArrangement,
                        PowersFound, PowerDescribed, SourceSampled,
                        surface::ClipboardCopy, surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, zengine::workshop::v4::PaneContent, LoadedSelected, loom::ListLoaded,
+          loom::Emit<PaneOffered, PaneActions, zengine::workshop::v4::PaneContent,
+                     zengine::workshop::v5::PaneCanvasContent, zengine::workshop::PaneCaret,
+                     zengine::workshop::PanePassRequested, LoadedSelected, loom::ListLoaded,
                      ArrangementRequested, DescribePower, SampleRequested,
                      zengine::workshop::PaneOperationRequested,
                      zengine::workshop::PaneValueCarryRequested,
@@ -148,17 +151,105 @@ public:
         announce(mail);
     }
 
-    /// Workshop granting one pane its prose budget. Each pane keeps its own room and outstanding
-    /// question (`Asked`), or the last grant would decide how the others are drawn. The room is
-    /// kept and the owner asked; content goes when the owner answers, never from a previous
-    /// reading -- Workshop clears its cache before every grant, and its `(waiting for the
-    /// provider)` is the honest gap. The row map goes with the old projection, so no press is
-    /// read against rows no longer shown; the selected identity stays.
+    /// Workshop granting one pane its prose budget: kept for a host that grants no canvas, and
+    /// spent only while the pane holds no canvas room, whose lattice is the budget then.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
             return; // a forged room grants nothing and produces no content
         }
+        Canvas* canvas = canvas_of(room.pane);
+        if (canvas == nullptr) {
+            return; // a room for a pane this provider does not have: neither counted nor answered
+        }
+        canvas->prose_rows = room.rows;
+        canvas->prose_columns = room.columns;
+        if (!canvas->on()) {
+            grant(mail, room);
+        }
+    }
+
+    /// THE PANE'S OWN CANVAS: while it holds a room there it draws its rows as its picture, and
+    /// the lattice's rows and columns are its budget. A room of no extent leaves the pane to its
+    /// prose room. Every grant is a room grant (`grant`), the picture's numbers its own.
+    void on(const zengine::workshop::PaneCanvasRoom& room, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            ++state_.refused;
+            return;
+        }
+        Canvas* canvas = canvas_of(room.pane);
+        if (canvas == nullptr) {
+            return;
+        }
+        canvas->room = room;
+        const zengine::workshop::CanvasRows lattice = zengine::workshop::canvas_rows(room);
+        if (canvas->on()) {
+            grant(mail, PaneRoom{room.pane, lattice.rows, lattice.columns});
+        } else if (canvas->prose_rows > 0 && canvas->prose_columns > 0) {
+            grant(mail, PaneRoom{room.pane, canvas->prose_rows, canvas->prose_columns});
+        }
+    }
+
+    /// A refused picture leaves the last good one showing; the next reading draws again.
+    void on(const zengine::workshop::PaneCanvasRejected&, loom::Mail&) {}
+
+    /// A HAND ON A PANE'S PICTURE, read back to the row and column of its lattice: a primary
+    /// press is the press a row was, its motion a drag, the wheel the wheel; a right press is
+    /// handed back, so Workshop's own pane menu opens where it was made. Only for the room the
+    /// pane holds: a pointer naming another grant is from a room since replaced, and a primary
+    /// press naming a picture drawn under another press map is dropped -- never read against
+    /// whatever row has since moved into its place.
+    void on(const zengine::workshop::PaneCanvasPointer& event, loom::Mail& mail) {
+        namespace cp = zengine::workshop::canvas_pointer;
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            ++state_.refused;
+            return;
+        }
+        Canvas* canvas = canvas_of(event.pane);
+        if (canvas == nullptr || !canvas->on() || event.grant != canvas->room.grant) {
+            return;
+        }
+        const zengine::workshop::RowCell at = zengine::workshop::row_cell_at(
+            zengine::workshop::canvas_rows(canvas->room), event.x, event.y);
+        if (event.phase == cp::kWheel) {
+            wheel(event.pane, event.dy, mail);
+            return;
+        }
+        if (event.phase == cp::kMove) {
+            if (event.pane == kPowersPane) powers_drag(at.row, at.column, mail);
+            return;
+        }
+        if (event.phase == cp::kRelease || event.phase == cp::kLost) {
+            if (event.pane == kPowersPane && !carry_.started) carry_ = Carry{};
+            return;
+        }
+        if (event.phase != cp::kPress) {
+            return;
+        }
+        if (event.button == 3) {
+            (void)zengine::workshop::pane_menu::pass_back(mail, kIntrospectionRole, event.pane);
+            return;
+        }
+        if (event.button != 1 || !at.shown ||
+            !canvas->pictures.current(event.grant, event.picture)) {
+            return;
+        }
+        if (event.pane == kPowersPane) {
+            on_powers_press(at.row, at.column, mail);
+        } else if (event.pane == kLoadedPane) {
+            loaded_press(at.row, mail);
+        }
+        // `arrangement` is read-only: a press there gives it the keys and says nothing.
+    }
+
+private:
+    /// Workshop granting one pane its budget, from either room. Each pane keeps its own room and
+    /// outstanding question (`Asked`), or the last grant would decide how the others are drawn.
+    /// The room is kept and the owner asked; content goes when the owner answers, never from a
+    /// previous reading -- Workshop clears its cache before every grant, and its `(waiting for
+    /// the provider)` is the honest gap. The row map goes with the old projection, so no press
+    /// is read against rows no longer shown; the selected identity stays.
+    void grant(loom::Mail& mail, const PaneRoom& room) {
         if (room.pane == kLoadedPane) {
             ++state_.rooms;
             view_ = LoadedView{};
@@ -180,28 +271,14 @@ public:
             ask_powers(mail);
             ask_described(mail);
         }
-        // A room for a pane this provider does not have is neither counted nor answered:
-        // Workshop grants rooms only for offers it admitted.
     }
 
-    /// A weaver pressed a row: a gesture becomes a fact, read against the projection on screen
-    /// with nothing re-asked -- re-reading the Manager here could select something the weaver was
-    /// never shown. A row naming no entry selects nothing and clears nothing. The same row pressed
-    /// twice publishes twice (a selection is an occurrence) and re-sends no picture.
-    void on(const PanePressed& press, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            ++state_.refused;
-            return; // a forged press selects nothing and publishes nothing
-        }
-        if (press.pane == kPowersPane) {
-            on_powers_press(press, mail);
-            return;
-        }
-        if (press.pane != kLoadedPane) {
-            // `arrangement` is read-only: a press there is consumed by Workshop and says nothing.
-            return;
-        }
-        const LoadedWeave* entry = zengine::introspection::entry_at_row(view_, press.row);
+    /// A weaver pressed a row of Loaded: a gesture becomes a fact, read against the projection on
+    /// screen with nothing re-asked -- re-reading the Manager here could select something the
+    /// weaver was never shown. A row naming no entry selects nothing and clears nothing. The same
+    /// row pressed twice publishes twice (a selection is an occurrence) and re-sends no picture.
+    void loaded_press(std::int64_t pressed_row, loom::Mail& mail) {
+        const LoadedWeave* entry = zengine::introspection::entry_at_row(view_, pressed_row);
         if (entry == nullptr) {
             return; // a heading, a note, an omission marker, a blank, or no projection at all
         }
@@ -218,6 +295,8 @@ public:
         (void)mail.as_role(kIntrospectionRole)
             .publish(LoadedSelected{kLoadedPane, selected_, role});
     }
+
+public:
 
     /// The Manager's answer, matched on the correlation this weave minted and an open question --
     /// all an asker can check, since the Manager relays personally: no authored role, no expected
@@ -384,14 +463,10 @@ public:
 
     // Scrolling Loaded changes its viewport, never its selected identity. Re-read
     // the owner instead of retaining an independently authoritative population.
-    void on(const PaneWheel& wheel, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            ++state_.refused;
-            return;
-        }
-        if (wheel.pane == kLoadedPane) {
-            if (loaded_.awaiting || !std::isfinite(wheel.dy)) return;
-            loaded_wheel_ += std::clamp(wheel.dy, -1000.0, 1000.0);
+    void wheel(const std::string& pane, double dy, loom::Mail& mail) {
+        if (pane == kLoadedPane) {
+            if (loaded_.awaiting || !std::isfinite(dy)) return;
+            loaded_wheel_ += std::clamp(dy, -1000.0, 1000.0);
             const auto steps = static_cast<std::int64_t>(loaded_wheel_);
             loaded_wheel_ -= static_cast<double>(steps);
             const auto next = std::clamp(loaded_origin_ - steps, std::int64_t{0},
@@ -402,10 +477,10 @@ public:
                 loom::kManagerRole, loom::ListLoaded{});
             return;
         }
-        if (wheel.pane != kPowersPane) {
+        if (pane != kPowersPane) {
             return;
         }
-        powers_wheel_ += wheel.dy;
+        powers_wheel_ += dy;
         const std::int64_t rows = static_cast<std::int64_t>(powers_wheel_);
         if (rows == 0) {
             return;
@@ -572,16 +647,78 @@ private:
         return true;
     }
 
-    /// Say what one pane shows, the one place content leaves: as this office, because Workshop
-    /// drops personal speech from a weave that merely holds it (MSG-07).
+    /// ONE PANE'S OWN CANVAS: the room it holds there and the numbers its pictures take, and the
+    /// prose room a host granting no canvas gives it. Transient, as every room is.
+    struct Canvas {
+        zengine::workshop::PaneCanvasRoom room;
+        zengine::workshop::CanvasPictures pictures;
+        /// What a press on the pane's picture means, spelled whole, and its number, which moves
+        /// exactly when the spelling does.
+        std::string press_map;
+        std::int64_t meaning = 0;
+        std::int64_t prose_rows = 0, prose_columns = 0;
+        bool on() const { return room.grant > 0 && room.width > 0 && room.height > 0; }
+    };
+
+    Canvas* canvas_of(std::string_view pane) {
+        if (pane == kLoadedPane) return &loaded_canvas_;
+        if (pane == kArrangementPane) return &arrangement_canvas_;
+        if (pane == kPowersPane) return &powers_canvas_;
+        return nullptr;
+    }
+
+    /// Say what one pane shows, the one place content leaves: its picture while it holds a canvas
+    /// room, its rows and caret as prose to a host granting none -- as this office, because
+    /// Workshop drops personal speech from a weave that merely holds it (MSG-07).
     void say_rows(loom::Mail& mail, const char* pane,
                   std::vector<surface::SurfaceTextRow> rows,
-                  std::vector<zengine::workshop::PaneRowPart> parts = {}) {
+                  std::vector<zengine::workshop::PaneRowPart> parts = {},
+                  const zengine::workshop::RowsCaret& caret = {}) {
+        if (Canvas* canvas = canvas_of(pane); canvas != nullptr && canvas->on()) {
+            (void)mail.as_role(kIntrospectionRole)
+                .send_to_role(kWorkshopRole,
+                              zengine::workshop::rows_picture(
+                                  canvas->room,
+                                  canvas->pictures.next(canvas->room, meaning_of(*canvas, pane)),
+                                  rows, parts, caret));
+            return;
+        }
         zengine::workshop::v4::PaneContent said;
         said.pane = pane;
         said.rows = std::move(rows);
         said.parts = std::move(parts);
         (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, said);
+        // Powers says its caret every time, "none" included, so a caret the rows lost is gone.
+        if (caret.row != surface::kNoCaret || std::string_view{pane} == kPowersPane) {
+            (void)mail.as_role(kIntrospectionRole)
+                .send_to_role(kWorkshopRole,
+                              zengine::workshop::PaneCaret{pane, caret.row, caret.column});
+        }
+    }
+
+    /// THE NUMBER OF WHAT A PRESS ON `pane` MEANS NOW: Loaded's rows by the weave each names,
+    /// Powers' places by the control or power each is; Project's presses mean nothing. A repaint
+    /// that moves no meaning -- a mark, a caret, a query typed -- keeps the number.
+    std::int64_t meaning_of(Canvas& canvas, std::string_view pane) {
+        std::string spelled;
+        if (pane == kLoadedPane) {
+            for (std::size_t row = 0; row < view_.rows.size(); ++row) {
+                const LoadedWeave* entry =
+                    zengine::introspection::entry_at_row(view_, static_cast<std::int64_t>(row));
+                spelled += (entry != nullptr ? entry->name : std::string()) + '\n';
+            }
+        } else if (pane == kPowersPane) {
+            for (const intro::PowersSpan& s : powers_shown_.spans) {
+                spelled += std::to_string(s.row) + ' ' + std::to_string(s.first) + ' ' +
+                           std::to_string(s.last) + ' ' + std::to_string(s.control) + ' ' +
+                           s.identity + '\n';
+            }
+        }
+        if (canvas.meaning == 0 || spelled != canvas.press_map) {
+            canvas.press_map = std::move(spelled);
+            ++canvas.meaning;
+        }
+        return canvas.meaning;
     }
 
     /// WHAT LOADED CALLS ITS ROWS: a loaded weave's row by its name, `weave:<name>`.
@@ -640,15 +777,18 @@ private:
         }
         powers_ui_.query.keep_caret_visible(intro::query_capacity(powers_ui_, powers_.columns));
         powers_shown_ = intro::project_powers_ui(powers_ui_, powers_.rows, powers_.columns);
-        say_rows(mail, kPowersPane, powers_shown_.rows, powers_parts());
+        zengine::workshop::RowsCaret caret;
+        caret.row = powers_shown_.caret_row;
+        caret.column = powers_shown_.caret_col;
+        say_rows(mail, kPowersPane, powers_shown_.rows, powers_parts(), caret);
     }
 
     /// A press in Powers, resolved against what is on screen through the spans the projection
     /// returned. A row selects and never samples, so a cold pane's first press is one act; a
     /// press that changes nothing republishes nothing.
-    void on_powers_press(const PanePressed& press, loom::Mail& mail) {
+    void on_powers_press(std::int64_t pressed_row, std::int64_t pressed_column, loom::Mail& mail) {
         const intro::PowersTarget hit =
-            intro::target_at(powers_shown_, press.row, press.column);
+            intro::target_at(powers_shown_, pressed_row, pressed_column);
         switch (hit.control) {
         case intro::powers_control::kSources:
         case intro::powers_control::kOperators: {
@@ -672,8 +812,8 @@ private:
             // moves, so a click that never moved asks nothing.
             carry_ = Carry{};
             carry_.armed = true;
-            carry_.row = press.row;
-            carry_.column = press.column;
+            carry_.row = pressed_row;
+            carry_.column = pressed_column;
             carry_.gesture = mail.correlation();
             carry_.identity = hit.identity;
             if (powers_ui_.selected() == hit.identity) {
@@ -692,14 +832,13 @@ private:
         say_powers(mail);
     }
 
-public:
-    /// THE HAND MOVED WITH THE BUTTON DOWN after a press on a power: its reference -- the identity
-    /// and the two content ids the door's row carried -- is acquired under that press as a typed
-    /// value, `zengine.OperatorRef`, for Workshop to carry. A form is no operator and carries none.
-    void on(const zengine::workshop::PaneDragged& drag, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || drag.pane != kPowersPane ||
-            !carry_.armed || carry_.started ||
-            (drag.row == carry_.row && drag.column == carry_.column)) {
+    /// THE HAND MOVED WITH THE BUTTON DOWN after a press on a power, onto another cell: its
+    /// reference -- the identity and the two content ids the door's row carried -- is acquired
+    /// under that press as a typed value, `zengine.OperatorRef`, for Workshop to carry. A form is
+    /// no operator and carries none.
+    void powers_drag(std::int64_t dragged_row, std::int64_t dragged_column, loom::Mail& mail) {
+        if (!carry_.armed || carry_.started ||
+            (dragged_row == carry_.row && dragged_column == carry_.column)) {
             return;
         }
         carry_.started = true;
@@ -728,6 +867,7 @@ public:
                           carry_.ask);
     }
 
+public:
     /// Workshop's answer to that acquisition: allowed, the reference is handed over to carry under
     /// the press's own number; refused, nothing is carried.
     void on(const zengine::workshop::PaneOperationAnswered& answer, loom::Mail& mail) {
@@ -816,6 +956,7 @@ private:
     double loaded_wheel_ = 0;
     Asked arrangement_;
     Asked powers_;
+    Canvas loaded_canvas_, arrangement_canvas_, powers_canvas_;
     /// What Loaded is showing, and its rows' map back to entries: the presentation, bounded by
     /// the room and emptied at every grant, never an inventory of what is loaded.
     LoadedView view_;

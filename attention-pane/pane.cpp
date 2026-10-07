@@ -14,6 +14,8 @@
 #include "attention-pane/vocabulary.hpp"
 
 #include "workshop/attention_seam_vocabulary.hpp"
+#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_menu.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -130,9 +132,11 @@ std::string stamp_of(const StandingCondition& c) {
 class AttentionPaneWeave
     : public loom::WeaveBase<
           AttentionPaneWeave, pane::AttentionPaneState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
+          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
+                       ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneActionRequested,
                        StandingConditions>,
-          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent>> {
+          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
+                     ws::PanePassRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -155,11 +159,37 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kAttentionPane) {
             return;
         }
-        rows_ = room.rows;
-        columns_ = room.columns;
+        prose_rows_ = room.rows;
+        prose_columns_ = room.columns;
         granted_ = true;
+        fit_room();
         say(mail);
     }
+
+    /// THE PANE'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
+    /// lattice's rows and columns its room, and says them as prose only to a host granting none.
+    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kAttentionPane) {
+            return;
+        }
+        canvas_ = room;
+        granted_ = true;
+        fit_room();
+        say(mail);
+    }
+
+    /// A press means nothing here but the keys Workshop gives the pane; a right press is handed
+    /// back, so Workshop's own pane menu opens where it was made.
+    void on(const ws::PaneCanvasPointer& press, loom::Mail& mail) {
+        if (mail.authored_from_role(kWorkshopRole) && press.pane == pane::kAttentionPane &&
+            press.grant == canvas_.grant && press.phase == ws::canvas_pointer::kPress &&
+            press.button == 3) {
+            (void)ws::pane_menu::pass_back(mail, pane::kAttentionPaneRole, pane::kAttentionPane);
+        }
+    }
+
+    /// A refused picture leaves the last good one showing, and the next reading draws again.
+    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
 
     /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15). Workshop resolved
     /// the keystroke against the effective keymap -- the weaver's override where one is
@@ -321,6 +351,17 @@ private:
 
     // ---- Saying what the pane shows ------------------------------------------------------
 
+    bool on_canvas() const {
+        return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0;
+    }
+
+    /// The rows and columns the pane composes for: its canvas's lattice while it holds one.
+    void fit_room() {
+        const ws::CanvasRows lattice = ws::canvas_rows(canvas_);
+        rows_ = on_canvas() ? lattice.rows : prose_rows_;
+        columns_ = on_canvas() ? lattice.columns : prose_columns_;
+    }
+
     void say(loom::Mail& mail) {
         if (!granted_ || rows_ <= 0 || columns_ <= 0) {
             return;
@@ -357,6 +398,12 @@ private:
             if (row < static_cast<std::int64_t>(out.size())) {
                 (void)named.add(ws::PaneRowPart{"condition:" + key, row, 0, columns_});
             }
+        }
+        if (on_canvas()) {
+            (void)mail.as_role(pane::kAttentionPaneRole)
+                .send_to_role(kWorkshopRole, ws::rows_picture(canvas_, pictures_.next(canvas_, 0),
+                                                              out, named.take()));
+            return;
         }
         (void)mail.as_role(pane::kAttentionPaneRole)
             .send_to_role(kWorkshopRole,
@@ -464,8 +511,11 @@ private:
     bool heard_ = false;
 
     std::size_t cursor_ = 0;
-    std::int64_t rows_ = 0;
+    std::int64_t rows_ = 0;    ///< the room composed for: the canvas lattice's, else the prose room's
     std::int64_t columns_ = 0;
+    std::int64_t prose_rows_ = 0, prose_columns_ = 0;
+    ws::PaneCanvasRoom canvas_;
+    ws::CanvasPictures pictures_;
     bool granted_ = false;
     std::string notice_;
 };

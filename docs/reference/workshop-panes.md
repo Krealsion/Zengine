@@ -598,12 +598,11 @@ v2::PaneCaret   provider -> Workshop   the same, naming the generation of the ro
 - **It asks for nothing.** No blink, shape, colour, scroll or claim on the keyboard: a pane says
   where, inside rows it already sent, the insertion point of text it already wrote is. A caret
   spoken personally, or about a pane the office never offered, is nothing.
-- **Each medium draws it its own way.** A window, which sets type, draws a bar between two
-  characters and moves none. A terminal draws a glyph into the row at the caret's column, standing
-  every character from there a cell to the right, and a character it pushes past the body's edge is
-  not drawn. A press on that row reaches the pane as the column of the character the pressed cell
-  shows: a cell past the glyph is the column before it, and the glyph's own cell is the caret's
-  column, the insertion point it stands for.
+- **Each medium draws it its own way, and neither moves a character.** A window, which sets
+  type, draws a bar between two characters. A terminal shows the cell the caret stands on
+  inverted: the cell of the character it sits before, the blank after the row's last character,
+  or, past a full row's end, the row's last cell. A press on that row reaches the pane as the
+  column of the character the pressed cell shows, the caret's own cell included.
 
 ## Optional pane-local canvas
 
@@ -632,7 +631,9 @@ or held gestures in a provider's reload state. A fresh image waits for a fresh r
 
 `PaneCanvasContent` v3 carries `pane, grant, picture, rects, labels, texts` and replaces one
 whole picture; `v4::PaneCanvasContent` is the same with the parts it names
-([below](#a-pane-names-its-parts)). Rectangles
+([below](#a-pane-names-its-parts)), and `v5::PaneCanvasContent` the same again with its runs
+`v2::PaneCanvasText`, which may stand on the room's text lattice ([below](#rows-on-the-lattice)).
+Rectangles
 carry local `x,y,w,h,role`; labels carry `x,y,text,role`. Rectangles are painted in vector order,
 then labels and measured text above them, on the pane's own plane. Workshop clips before translating, so no
 primitive can escape its body. Offscreen positions are legal, allowing a provider to own pan
@@ -663,8 +664,51 @@ if (placed.visible()) {
 
 Clipping removes whole leading/trailing glyphs and whole rows; it does not reflow or shift
 surviving glyphs. The entire generated region, including its insets, remains inside the clip.
-Caret and selection columns follow the crop, including the cell projection's inserted caret.
-An empty line with a caret reserves one column. Keep measured sizes out of saved authoring data:
+
+#### Rows on the lattice
+
+A run's region carries the medium's inset on every side, so runs stacked one padded line apart
+(`line + 2*inset`) stand further apart than a pane's prose rows, which share one inset around
+them all, and a body fits fewer of them. `v2::PaneCanvasText` is v1's run, `padded` and
+`background`. `padded` is true, as every earlier run is, or false, where `x,y` name the run's
+first character's cell; `background` is a role the run's characters stand on, as a prose row's
+is (`role::kNone`, the default, shows what lies beneath), and a run blank to its row's end
+carries it there, its word still its characters without those blanks. Unpadded runs
+one `text_line_px` apart stack as prose rows do, and a body holds as many as it holds rows. The
+inset is still the medium's: Workshop judges and draws an unpadded run as the padded run whose
+glyphs land at its `x,y`, against the clip grown by the inset above, below and to the left --
+where only padding lies -- and never to the right, where a caret after the last character stands,
+nor to the left for a run naming a ground, which spans its region.
+In a terminal the inset is 0 and the two are one run. `clip_canvas_run` clips either kind of run
+as `clip_canvas_text` clips the first.
+
+A pane whose picture is rows of text has the installed `workshop/pane_canvas_rows.hpp` for the
+arithmetic, and keeps its own meaning, names and hit testing:
+
+- `canvas_rows(room)` is the lattice: where row 0, column 0 stands, one advance and one line, and
+  the columns and rows the room holds -- the columns a prose body its size holds, and the rows of
+  one under the pane's title, whose insets the title shares; with no title, a row more where the
+  room has it. In a terminal it is the room's cells; where type is set it starts the medium's
+  inset in from the left and keeps that inset free at the right, for a caret after a full row's
+  last character.
+- `rows_picture(room, picture, rows, parts, caret)` draws `SurfaceTextRow`s there: the room's
+  ground (`kGround`) beneath, one unpadded run a row with its role and ground -- a row's ground
+  also laid across the room's whole width beneath it, as a prose row's is -- a row's blanks after
+  its last character dropped unless a ground, the caret or the selection stands on them, a caret
+  after the last character given the blank after it where the row has one, the caret and
+  selection said as `v2::PaneCaret` says them (`RowsCaret`), and each `PaneRowPart` as the
+  rectangle its row and columns cover, in its order.
+- `row_cell_at(lattice, x, y)` reads a pointer's local place back to a row and a column, unclamped,
+  and says whether the room shows them.
+- `CanvasPictures` numbers the pictures and fences a press: Workshop wants a new number for every
+  picture within a grant, while a pane numbering its composition by what its rows mean
+  (`component::RowMap`) keeps one number while that stands still. `next(room, meaning)` numbers
+  the next picture; `current(grant, picture)` says whether a press's picture was drawn under the
+  meaning the pane holds now.
+Caret and selection columns follow the crop. Where text is a cell, a caret stands on a cell and
+adds none: after a run's last character it stands on that character's cell, so a run that wants
+the cell after it gives it a blank there, and clipping a run again moves no caret. An empty line
+with a caret reserves one column. Keep measured sizes out of saved authoring data:
 they describe the current room, not a document or graph's durable coordinates.
 
 The v3 room and content identities must be used together, with `PaneCanvasPointer` v2,
@@ -730,14 +774,19 @@ pan, or zoom semantics.
 A weaver can press a row of the `Loaded` pane. The row is marked, and the pane publishes an ordinary
 Loom message saying which entry that was. **The pane does not know who listens**: Compose is one
 listener, and takes that entry as the target it composes for
-([Inventory to Compose](../workshop/inventory-compose.md)).
+([Inventory to Compose](../workshop/inventory-compose.md)). `Loaded` draws its rows on its own
+canvas, so its press arrives as a canvas pointer it reads back to a row and a column
+([rows on the lattice](#rows-on-the-lattice)); a pane that sends Workshop rows is sent the row
+and the column themselves:
 
 ```text
 weaver presses a visible row
     -> Workshop resolves WHICH pane by geometry it already holds, and WHERE
        in the room it granted that pane
-    -> PanePressed { pane, row, column }        the fifth shape
-       (or v2::PanePressed { pane, row, column, keys_went_here }, below)
+    -> PanePressed { pane, row, column }        the fifth shape, to a pane of rows
+       (or v2::PanePressed { pane, row, column, keys_went_here }, below);
+       PaneCanvasPointer { pane, grant, picture, ..., x, y } to a pane drawing
+       its own picture, read back to its row and column (row_cell_at)
     -> the provider maps the row against the projection it is CURRENTLY showing
     -> LoadedSelected { pane, library, role }   published; nobody answers
 ```
@@ -767,9 +816,9 @@ weaver presses a visible row
   one press, records the refusal against Workshop's send, and nothing is sent again. A pane that
   adds the second door changes what it accepts, which Loom will not reload in place: restart
   Workshop to load it.
-- **The coordinate is the `PaneRoom` lattice and nothing else.** Row 0 is the first row of the
-  provider's body, under Workshop's header row, which the provider was never granted and is never
-  told about. Every forwarded press is inside `[0, rows) × [0, columns)` — swept over the whole
+- **`PanePressed`'s coordinate is the `PaneRoom` lattice and nothing else.** Row 0 is the first
+  row of the provider's body, under Workshop's header row, which the provider was never granted
+  and is never told about. Every forwarded press is inside `[0, rows) × [0, columns)` — swept over the whole
   rectangle in both media. No pixel, no cell, no canvas coordinate, no window origin and no medium
   identity crosses the seam, so the same gesture in a terminal and in a window arrives as the same
   two numbers. **A press that names no row is not sent**: the header row and the pixel remainder
@@ -1177,9 +1226,8 @@ own; an arriving image sends `PaneObservationEnded{pane, 0}` for each pane it ma
 
 `workshop/pane_view.hpp` answers `PaneViewRequested{provider, pane}` with
 `PaneView{provider, pane, picture, rows}`: each row the pane said, as `PaneViewRow{row, text, x, y,
-space}`. A row's text is the pane's own characters fitted to the body's columns, not the picture: a
-terminal's caret glyph is not among them, and a character the glyph pushes past the body's edge
-still is. Its point is its third cell's, or its last cell's in a body narrower than three, where a
+space}`. A row's text is the pane's own characters fitted to the body's columns, not the picture.
+Its point is its third cell's, or its last cell's in a body narrower than three, where a
 press names the row. The header also answers `PanePointRequested{provider, pane, picture, row, column}`
 with `PanePoint{provider, pane, picture, row, column, x, y, space}`: the center of that prose cell
 in the input space the medium reads, measured and then resolved by the same press measurer. It is
@@ -1202,7 +1250,7 @@ press is in the input space the answer names, as `PanePoint`'s is.
 | `DeskMenu{open, office, pane, picture, place, lines}` | Workshop's own menu (`office` is Workshop's) or a pane's, shown by its presenter, with each line as a word; `v2::DeskView`'s menu names its lines too ([below](#a-pane-names-its-parts)) |
 | `v2::PaneViewRequested{provider, pane}` | A pane's words, text or canvas alike; version 3 adds the parts the pane names ([below](#a-pane-names-its-parts)) |
 | `v2::PaneView{provider, pane, picture, canvas, words}` | A text pane's rows, or a canvas pane's labels and then its text runs as it drew them last, each clipped as the painter clips it; `canvas` says which |
-| `PaneWord{word, text, place, x, y, space}` | One run of words: its number in the answer, its text, the place covering its glyphs (a terminal's caret glyph included), and the centre of its middle character, where a press names it |
+| `PaneWord{word, text, place, x, y, space}` | One run of words: its number in the answer, its text, the place covering its glyphs, and the centre of its middle character, where a press names it |
 | `v2::PanePointRequested{provider, pane, picture, word, column}` | Where one character of one word is now, for a caller that read the words at `picture` |
 | `v2::PanePoint{provider, pane, picture, word, column, x, y, space}` | Its centre: through the press measurer for a text row, checked against the body a press lands in for a canvas word |
 
@@ -1256,13 +1304,13 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
 |---|---|
 | `v3::PaneViewRequested{provider, pane}` | A pane's words and the parts it names |
 | `v3::PaneView{provider, pane, picture, canvas, words, parts}` | `v2::PaneView`'s words, and every part the body shows |
-| `PanePart{name, text, place, x, y, space}` | One part: its name as the pane said it; the characters it covers, or for a canvas part the words wholly inside it, joined by a space; the place covering it where the medium draws it; and its point, or none |
+| `PanePart{name, text, place, x, y, space}` | One part: its name as the pane said it; the characters it covers -- for a canvas part, the characters drawn wholly inside it, each word's joined to the next word's by a space, so a part a word crosses says the characters on its side; the place covering it where the medium draws it; and its point, or none |
 | `v2::DeskViewRequested{}` | The desk now, its menu's lines named |
 | `v2::DeskView{width, height, cell_px, space, room, panes, arranging, menu}` | `DeskView`, its menu a `v2::DeskMenu{open, office, pane, picture, place, lines, parts}` |
 
 - **A part's point is a place of its own**, where a press reaches it: one no part listed after it
-  holds. A row part's point is its middle character of its own -- the Pane Manager's
-  `pane:<office>/<pane>` lands on the pane's name, beside its `[open]` mark -- else its middle blank
+  holds. A row part's point is its middle character of its own -- a row `> [open] Files` whose
+  `[open]` mark is a part of its own lands on the name, beside the mark -- else its middle blank
   cell of its own. A canvas part's point is its centre, else the middle of its widest stretch of
   its own on the row nearest its centre that has one -- the upper of two rows as near, the leftmost
   of two stretches as wide -- sought over every unit of it the body shows. A part with no place of

@@ -52,6 +52,8 @@ class Owner:
         self.refuse_enable = None
         self.desk = None
         self.pictures, self.unsettled = set(), set()  # providers whose panes draw, or never show
+        self.blank = set()        # providers whose text panes show no row
+        self.versions = []        # the PaneView version each reading asked
 
     def check(self, ok, why):
         if not ok:
@@ -72,11 +74,24 @@ class Owner:
         if self.fail == shape:
             raise ValueError(role + ": deliberately refused " + shape)
         if shape == "PaneViewRequested":
-            if fields["provider"] in self.pictures:
-                raise ValueError("pane view unavailable: the pane draws a picture, not text rows")
+            # Workshop's PaneView version 3: a text pane's rows as words, or the words and parts a
+            # canvas pane drew -- here none, only that it drew. Version 1 reads rows by number, and
+            # a pane drawing a picture refuses it.
+            self.versions.append(kwargs.get("version", 1))
             if fields["provider"] == "zengine.workshop" or fields["provider"] in self.unsettled:
                 raise ValueError("pane view unavailable: no settled text picture")
-            return {"rows": ["ready"]}
+            if kwargs.get("version", 1) != 3:
+                if fields["provider"] in self.pictures:
+                    raise ValueError("pane view unavailable: the pane draws a picture, not text rows")
+                return {"picture": 1, "rows": [{"row": 0, "text": "ready", "x": 0, "y": 0, "space": 2}]}
+            if fields["provider"] in self.pictures:
+                return {"provider": fields["provider"], "pane": fields["pane"], "picture": 2,
+                        "canvas": True, "words": [], "parts": []}
+            words = [] if fields["provider"] in self.blank else [
+                {"word": 0, "text": "ready", "place": {"x": 0, "y": 0, "w": 60, "h": 12},
+                 "x": 30, "y": 6, "space": 2}]
+            return {"provider": fields["provider"], "pane": fields["pane"], "picture": 1,
+                    "canvas": False, "words": words, "parts": []}
         if shape == "InventoryList":
             return {"owner": "inventory", "entries": deepcopy(self.entries), "folders": []}
         if shape in ("InventoryCaptureAdd", "InventoryAdd"):
@@ -311,6 +326,8 @@ class Recipes(unittest.TestCase):
         asked = [f["provider"] for f in owner.shapes("PaneViewRequested")]
         self.assertNotIn("zengine.workshop", asked)
         self.assertEqual(sorted(asked), ["zengine.demo", "zengine.info", "zengine.inventory-pane"])
+        # Readiness reads a pane's words (version 3), which a pane drawing a picture answers too.
+        self.assertEqual(set(owner.versions), {3})
 
     # ---- descriptions ---------------------------------------------------------------------------
     def test_every_shipped_setup_is_usable_and_says_how_to_use_it(self):
@@ -778,6 +795,12 @@ class Recipes(unittest.TestCase):
         owner.pictures = {"zengine.view.builder"}
         prepare(owner, described.Setup(root), state, "workshop")
         self.assertEqual((state["reached"], state["not_showing"]), ("ready", []))
+        self.assertEqual(set(owner.versions), {3})
+        # A text pane that shows no row has not shown.
+        owner, state = Owner(), {"fixtures": []}
+        owner.blank = {"zengine.view.builder"}
+        prepare(owner, described.Setup(root), state, "workshop")
+        self.assertEqual(state["not_showing"], ["zengine.view.builder view-builder (no rows)"])
         # A pane that never shows does not make a usable desk a failure: it is named.
         owner, state = Owner(), {"fixtures": []}
         owner.unsettled = {"zengine.view.builder"}

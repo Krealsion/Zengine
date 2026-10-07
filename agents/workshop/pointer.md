@@ -35,15 +35,17 @@ WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 LAW — `on(PointerWheel)` routes every wheel: modes keep their ownership, the topmost occupancy decides by front order, and a pane in front is sent the notches; nothing under another pane scrolls.
 
 MEANS
-- an external pane's body: the notches cross as `PaneWheel`; the Editor scrolls, caret still;
+- an external pane's body: the notches cross as `PaneWheel` to a text pane, as a canvas wheel to a canvas pane; the Editor scrolls, caret still;
 - the picker's and the host Pane Manager's lists scrolled here, and retired with them.
 
 DOES NOT MEAN
 - that there is a scroll framework, a scrollbar, a global offset map or a persisted position.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerWheel)`; `workshop/weave_external.cpp`
-`external_wheel`; `editor-pane/pane.cpp` `on(PaneWheel)`; `tests/test_workshop_panes_editor.cpp`
-case `"the wheel scrolls the body, moves no caret, and elsewhere reaches nothing"`.
+`external_wheel`; `workshop/weave_canvas.cpp` `canvas_wheel`; `editor-pane/pane.cpp`
+`on(PaneWheel)`; `tests/test_workshop_panes_editor.cpp` case `"the wheel scrolls the body, moves
+no caret, and elsewhere reaches nothing"`; `tests/test_workshop_panes_canvas.cpp` case `"pane
+canvas resize loses capture and wheel names a local point in the latest picture"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## Do not assume

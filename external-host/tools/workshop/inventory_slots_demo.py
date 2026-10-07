@@ -36,7 +36,7 @@ def run(ctx):
     ctx.check(len(state()["views"]) <= 9, "this story creates three views; use a fresh demo host after three runs")
     ctx.step("store a complete command through Compose")
     target = hand.ask("zengine.inventory", "InventoryCaptureAdd", {"target_role": "zengine.input", "label": label})
-    hand.click(hand.row("zengine.introspection", "loaded", "zengine-inventory ", scroll=True))
+    hand.click(hand.part("zengine.introspection", "loaded", "weave:zengine-inventory", scroll=True))
     hand.click(hand.row(*comp, "InventoryRename v1", scroll=True))
     hand.click(hand.row(*inv, label + " : ", scroll=True)); hand.key("ctrl+enter")
     hand.click(hand.row(*comp, "reference:"))

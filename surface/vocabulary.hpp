@@ -90,9 +90,6 @@ inline constexpr std::int64_t kNoCaret = -1;
 inline constexpr std::int64_t kGroundOwn = 0;
 inline constexpr std::int64_t kGroundBeneath = 1;
 
-/// The caret in a medium whose character is a cell: this glyph, inserted at the caret's column.
-inline constexpr char kCaretGlyph = '_';
-
 /// A region with no selection; negative for `kNoCaret`'s reason.
 inline constexpr std::int64_t kNoSelection = -1;
 

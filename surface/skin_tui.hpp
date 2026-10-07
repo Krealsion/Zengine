@@ -161,9 +161,9 @@ inline char glyph_for_role(int role) noexcept {
     }
 }
 
-/// The four grids a canvas rasterizes to, at the cell grain: glyph, role, ground, selection.
-/// Built once and read by `canvas_body` and `canvas_cells`, so a capture cannot disagree with
-/// the picture by a byte.
+/// The five grids a canvas rasterizes to, at the cell grain: glyph, role, ground, selection and
+/// caret. Built once and read by `canvas_body` and `canvas_cells`, so a capture cannot disagree
+/// with the picture by a byte.
 struct CanvasGrids {
     std::int64_t w = 0;
     std::int64_t h = 0;
@@ -172,6 +172,7 @@ struct CanvasGrids {
     std::vector<signed char> roles;
     std::vector<signed char> grounds;
     std::vector<signed char> selected;
+    std::vector<signed char> carets;
 };
 
 inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
@@ -206,10 +207,15 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
     // reverse video composes with every ink and ground. No selection, no byte of it.
     std::vector<signed char>& selected = grids.selected;
     selected.assign(cells, static_cast<signed char>(0));
+    // The fifth, written only on the cell a region's caret stands on, by the same overwriting:
+    // whatever later material covers that cell covers the caret with it.
+    std::vector<signed char>& carets = grids.carets;
+    carets.assign(cells, static_cast<signed char>(0));
 
     const auto put = [&](std::int64_t x, std::int64_t y, char g, std::int64_t role,
                          std::int64_t ground = zengine::surface::role::kNone,
-                         bool in_selection = false, bool keep_ground = false) {
+                         bool in_selection = false, bool keep_ground = false,
+                         bool caret = false) {
         if (x < 0 || y < 0 || x >= w || y >= h) {
             return;
         }
@@ -219,19 +225,20 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
         if (!keep_ground || ground != zengine::surface::role::kNone)
             grounds[i] = static_cast<signed char>(ground);
         selected[i] = static_cast<signed char>(in_selection ? 1 : 0);
+        carets[i] = static_cast<signed char>(caret ? 1 : 0);
     };
 
     const auto write_label = [&](const zengine::surface::SurfaceLabel& l,
                                  std::int64_t ground = zengine::surface::role::kNone,
                                  std::int64_t sel_begin = 0, std::int64_t sel_end = 0,
-                                 bool keep_ground = false) {
+                                 bool keep_ground = false, std::int64_t caret = -1) {
         // The anchor is a canvas pixel: its cell is the floor, and each byte is one cell on.
         const std::int64_t x0 = zengine::surface::cell_of_pixel(l.x);
         const std::int64_t y0 = zengine::surface::cell_of_pixel(l.y);
         for (std::size_t i = 0; i < l.text.size(); ++i) {
             const std::int64_t col = static_cast<std::int64_t>(i);
             put(add_cells(x0, col), y0, l.text[i], l.role, ground,
-                col >= sel_begin && col < sel_end, keep_ground);
+                col >= sel_begin && col < sel_end, keep_ground, col == caret);
         }
     };
 
@@ -268,7 +275,7 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
         // layer: a terminal owns no face to set a finer interior in.
         for (const ProjectedRow& p : project_text_regions(layer)) {
             write_label(p.label, p.background, p.sel_begin, p.sel_end,
-                        p.ground == zengine::surface::kGroundBeneath);
+                        p.ground == zengine::surface::kGroundBeneath, p.caret);
         }
     }
 
@@ -305,6 +312,7 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     const std::vector<signed char>& roles = g.roles;
     const std::vector<signed char>& grounds = g.grounds;
     const std::vector<signed char>& selected = g.selected;
+    const std::vector<signed char>& carets = g.carets;
     std::string out;
     out.reserve(cells * 3);
     for (std::int64_t y = 0; y < h; ++y) {
@@ -315,18 +323,24 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         // The ground in effect, tracked apart but reset together: `\x1b[0m` also clears a
         // ground still meant to show, so a reset re-states it. With no ground, no byte of this.
         int open_bg = zengine::surface::role::kNone;
-        // ...and whether reverse video is in effect, for the ground's reason.
+        // ...and whether reverse video is in effect, for the ground's reason. A selected cell is
+        // reversed and so is the cell a caret stands on: a caret inside a selection is the one
+        // cell of it shown plain, and every caret is underlined besides, so a caret just past a
+        // selection does not read as the selection one cell longer.
         bool open_sel = false;
+        bool open_caret = false;
         for (std::int64_t x = 0; x < w; ++x) {
             const std::size_t i = static_cast<std::size_t>(y * w + x);
             const int role = static_cast<int>(roles[i]);
             const int ground = static_cast<int>(grounds[i]);
-            const bool in_selection = selected[i] != 0;
+            const bool caret = carets[i] != 0;
+            const bool reversed = (selected[i] != 0) != caret;
             if (role != open) {
                 out += role < 0 ? "\x1b[0m" : sgr_for_role(role);
                 if (role < 0) {
                     open_bg = zengine::surface::role::kNone; // the reset took the ground too
                     open_sel = false;                        // ...and the selection with it
+                    open_caret = false;                      // ...and a caret's underline
                 }
                 open = role;
             }
@@ -334,13 +348,17 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
                 out += ground < 0 ? "\x1b[49m" : sgr_bg_for_role(ground);
                 open_bg = ground;
             }
-            if (in_selection != open_sel) {
-                out += in_selection ? "\x1b[7m" : "\x1b[27m";
-                open_sel = in_selection;
+            if (reversed != open_sel) {
+                out += reversed ? "\x1b[7m" : "\x1b[27m";
+                open_sel = reversed;
+            }
+            if (caret != open_caret) {
+                out += caret ? "\x1b[4m" : "\x1b[24m";
+                open_caret = caret;
             }
             out += glyphs[i];
         }
-        if (open >= 0 || open_bg >= 0 || open_sel) {
+        if (open >= 0 || open_bg >= 0 || open_sel || open_caret) {
             out += "\x1b[0m";
         }
         out += "\r\n";

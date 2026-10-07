@@ -15,7 +15,7 @@ input                             doctest           always  50
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 input                             doctest           sdl     3
-surface                           doctest           always  106
+surface                           doctest           always  108
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  45
@@ -45,14 +45,14 @@ neovim_journey                    program           session-neovim
 # A case in this suite reads the keymap example in docs/workshop/hotkeys.md, as a weaver copies it.
 workshop_document                 doctest           always  47
 workshop_screen                   doctest           always  137
-workshop_desk                     doctest           always  31
+workshop_desk                     doctest           always  33
 # Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  76
 # Tripwires in this suite read Workshop's presentation sources, workshop/workshop.cpp,
 # workshop/arrangement.hpp, workshop/powers_door.hpp, the Introspection, Builder, Info, Terminal
 # and Editor panes' sources and CMake files, and tests/weavelib/legacy_pane.cpp as text
 # (VM-WALL-11).
-workshop_panes                    doctest           always  894
+workshop_panes                    doctest           always  900
 # The shapes this tree publishes, and their census against tests/shapes.txt.
 workshop_shapes                   doctest           always  4
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text
@@ -87,6 +87,6 @@ message_draft                     doctest           always  11
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 inventory                         doctest           always  39
-flow_pane                         doctest           always  26
+flow_pane                         doctest           always  27
 view                              doctest           always  16
 view_builder                      doctest           always  31

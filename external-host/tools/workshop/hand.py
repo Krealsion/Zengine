@@ -1,10 +1,43 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""Small orchestration helpers. Zengine owns geometry, motion, drops and permissions."""
+"""Small orchestration helpers. Zengine owns geometry, motion, drops and permissions.
+
+A pane is read by its words (PaneView version 3) wherever a reader finds a row by what it says or
+a part by its name -- `row`, `part`, `rows_of` -- so a text pane and a pane that draws a canvas
+picture read alike: a text pane's word is its row, a canvas pane's each text run or label it drew,
+and a row it leaves blank is no word. `view`, `point`, `control`, `spot` and `field` read a text
+pane's rows by number (version 1), which a canvas pane does not answer."""
 import json
 import time
 from collections import Counter
+
+from loom_session.tool import Refused
+
 from workshop_steps import moment, chord_moments, clear_moments
+
+
+def on_row(word, part):
+    """Whether a word stands on the row a part stands on: their places overlap from top to bottom.
+    A text pane's row part and its row's word share one place; a canvas pane's text run stands on
+    its lattice's row, which the part's rectangle covers."""
+    w, p = word["place"], part["place"]
+    return w["y"] < p["y"] + p["h"] and p["y"] < w["y"] + w["h"]
+
+
+def word_on_row(view, part):
+    """The leftmost word standing on the row a part stands on, or None."""
+    rows = [w for w in view["words"] if on_row(w, part)] if view else []
+    return min(rows, key=lambda w: w["place"]["x"]) if rows else None
+
+
+def rows_of(view):
+    """A pane's words in the shape a reader of rows takes: `{picture, canvas, rows}`, each row
+    `{row, text, x, y, space}` -- `row` the word's number, which is a text pane's row; `text` its
+    characters without the blanks after the last; `x, y, space` the point a press names it by."""
+    return {"provider": view["provider"], "pane": view["pane"], "picture": view["picture"],
+            "canvas": view.get("canvas", False),
+            "rows": [{"row": w["word"], "text": w["text"], "x": w["x"], "y": w["y"],
+                      "space": w["space"]} for w in view["words"]]}
 
 
 class Hand:
@@ -35,6 +68,8 @@ class Hand:
         return answer
 
     def view(self, provider, pane):
+        """A text pane's rows by number (PaneView version 1), for the readers that address a cell
+        by its row and column (`point`); a canvas pane is refused."""
         return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane})
 
     def words(self, provider, pane):
@@ -55,27 +90,81 @@ class Hand:
         the lines it names."""
         return self.ask("zengine.workshop", "DeskViewRequested", {}, version=2)
 
-    def row(self, provider, pane, contains, scroll=False):
-        # Read the current view, then search toward each edge with ordinary wheel input.
-        # A stable view is the edge, not a reason to retry it.
+    def seek(self, provider, pane, find, scroll):
+        """Read the pane's words until `find(view)` names something, searching toward each edge
+        with ordinary wheel input when `scroll`: one notch at a time at the first word's point,
+        until the words stop changing -- a stable view is the edge, not a reason to retry it.
+        Returns `(view, found)`, `found` None when no view named anything."""
+        view = None
         for direction in ((1, -1) if scroll else (0,)):
             previous = None
             for _ in range(256):
-                view = self.view(provider, pane)
-                rows = [r for r in view["rows"] if contains in r["text"]]
-                if len(rows) == 1:
-                    return rows[0]
-                self.ctx.check(not rows, "ambiguous visible row: " + contains)
-                visible = [(r["row"], r["text"]) for r in view["rows"]]
+                view = self.words(provider, pane)
+                found = find(view)
+                if found is not None:
+                    return view, found
+                visible = [(w["word"], w["text"]) for w in view["words"]]
                 if not direction or not visible or visible == previous:
                     break
                 previous = visible
-                at = view["rows"][0]
+                at = view["words"][0]
                 self.actions["wheel"] += 1
                 self.inject([moment(self.ctx, "PointerWheel", wheel_dy=direction,
                                     x=at["x"], y=at["y"], space=at["space"])])
-        self.ctx.produce("last-view.json", json.dumps({"picture": view["picture"], "rows": view["rows"]}, indent=2).encode())
-        raise ValueError("visible row not found: " + contains)
+        return view, None
+
+    def last_view(self, view):
+        """Keep what the pane last said, for a reader of a failed search."""
+        if view is not None:
+            self.ctx.produce("last-view.json", json.dumps(dict(rows_of(view), parts=[
+                p["name"] for p in view.get("parts", [])]), indent=2).encode())
+
+    def row(self, provider, pane, contains, scroll=False):
+        """The one visible row holding `contains` -- a text pane's row, or the one run of text a
+        canvas pane draws on a row -- as `{row, text, x, y, space}`, pressed where Workshop says its
+        third character is (its own point where it has fewer). With `scroll`, the pane is wheeled
+        toward each edge until the row shows. Two rows holding it fail the run's check (the row is
+        ambiguous); none raises ValueError and keeps `last-view.json`."""
+        def find(view):
+            found = [w for w in view["words"] if contains in w["text"]]
+            self.ctx.check(len(found) <= 1, "ambiguous visible row: " + contains)
+            return found[0] if found else None
+        for _ in range(3):
+            view, w = self.seek(provider, pane, find, scroll)
+            if w is None:
+                self.last_view(view)
+                raise ValueError("visible row not found: " + contains)
+            try:
+                at = w if len(w["text"]) < 3 else self.word_point(provider, pane, w["word"], 2,
+                                                                    view["picture"])
+            except Refused as refused:
+                if "picture moved" not in str(refused):
+                    raise
+                continue  # the pane redrew between the reading and the point: read it again
+            return {"row": w["word"], "text": w["text"], "x": at["x"], "y": at["y"],
+                    "space": at["space"]}
+        raise ValueError("visible row %r kept moving while it was read" % contains)
+
+    def part(self, provider, pane, name, scroll=False):
+        """The part a pane names `name`, wherever its last redraw put it, as `{name, row, text, x,
+        y, space}` -- the point Workshop gives it, `row` the number of the word on its row (None
+        where its row draws none). With `scroll`, the pane is wheeled toward each edge until it
+        draws the part. A part no press reaches on its own, or none by that name, raises
+        ValueError and keeps `last-view.json`."""
+        def find(view):
+            parts = [p for p in view.get("parts", []) if p["name"] == name]
+            return parts[0] if parts else None
+        view, p = self.seek(provider, pane, find, scroll)
+        if p is None:
+            self.last_view(view)
+            raise ValueError("no visible part %s in %s/%s" % (name, provider, pane))
+        if p.get("space", 0) == 0:
+            self.last_view(view)
+            raise ValueError("no press reaches %s in %s/%s on its own: the parts over it take "
+                             "every place of it" % (name, provider, pane))
+        word = word_on_row(view, p)
+        return {"name": name, "row": word["word"] if word is not None else None, "text": p["text"],
+                "x": p["x"], "y": p["y"], "space": p["space"]}
 
     def point(self, provider, pane, row, column, picture):
         """Where Workshop's own measurer puts one prose cell of a pane now; refused if it moved."""

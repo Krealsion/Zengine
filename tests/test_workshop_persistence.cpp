@@ -1382,10 +1382,11 @@ TEST_CASE("the setup line becomes the name editor while a weaver is typing") {
     const std::string row = setup_row(t.canvases.back(), sc);
     INFO(row);
     CHECK(row.find("layout name> Default") == 0);
-    // THE CARET IS IN THE TEXT, at the end where `s` left it. A one-cell-tall bounded region
-    // would hold zero rows of a real face, so this editor says its caret the way the cell
-    // projection says a region's.
-    CHECK(row.find(std::string("Default") + surface::kCaretGlyph) != std::string::npos);
+    // THE CARET STANDS AFTER THE NAME, where `s` left it, on the blank past its last letter. A
+    // one-cell-tall bounded region would hold zero rows of a real face, so this editor shows its
+    // caret the way the cell projection shows a region's, moving no character.
+    CHECK(caret_at(t.canvases.back(), 0, 0) ==
+          static_cast<std::int64_t>(row.find("Default") + std::string("Default").size()));
     CHECK(row.find("enter renames") != std::string::npos);
     CHECK(row.find("esc cancels") != std::string::npos);
     CHECK(static_cast<std::int64_t>(row.size()) <= cells_of(sc).w);
@@ -1395,8 +1396,9 @@ TEST_CASE("the setup line becomes the name editor while a weaver is typing") {
     t.key(input::scan::kLeft);
     t.text("X");
     CHECK(t.session().setup.naming.line.text() == "DefauXlt");
-    CHECK(setup_row(t.canvases.back(), sc).find(std::string("DefauX") + surface::kCaretGlyph) !=
-          std::string::npos);
+    const std::string typed = setup_row(t.canvases.back(), sc);
+    CHECK(caret_at(t.canvases.back(), 0, 0) ==
+          static_cast<std::int64_t>(typed.find("DefauXlt") + std::string("DefauX").size()));
 }
 
 TEST_CASE("the name editor takes the keys, and the contextual surface keeps its own") {
@@ -1709,7 +1711,9 @@ TEST_CASE("the name editor edits the authored bytes, never the escaped spelling"
     INFO(row);
     // The editing row is not a quoted sentence, so it is not an escaped one either: the
     // prompt, the raw name, the caret where the weaver's hand left it, and the hint.
-    CHECK(row.find(std::string("layout name> ") + authored + surface::kCaretGlyph) == 0);
+    CHECK(row.find(std::string("layout name> ") + authored) == 0);
+    CHECK(caret_at(t.canvases.back(), 0, 0) ==
+          static_cast<std::int64_t>(std::string("layout name> ").size() + authored.size()));
     CHECK(row.find(quoted_setup_name(authored)) == std::string::npos);
 
     // ESCAPE CHANGES NOTHING, and the name is still the authored one.
