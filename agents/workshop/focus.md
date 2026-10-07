@@ -189,7 +189,9 @@ a later press opens gamma"`; `tests/test_workshop_desk.cpp` case `"a canvas pane
 the keys, its title waiting with pane titles hidden, is read where its picture is painted, and a
 point there lands in the room the press kept"`, case `"a held press keeps a canvas pane's room
 only from its title row: a pane moved while the press is held is granted its new room at once,
-and the press is lost"`.
+and the press is lost"`, case `"a held press on the canvas pane that has the keys keeps its room
+while launches take its title row away and give it back, and its title is drawn again once it has
+the keys again"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## Do not assume
