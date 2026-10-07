@@ -167,7 +167,7 @@ goes on running the image it had ([a build that worked and a load that was refus
 The launch cannot see this kind of change — a rebuilt pane never makes a runtime stale — so
 Running the same runtime again runs the copy it took of the old pane.
 
-Three changes of that kind are on this branch:
+Four changes of that kind are on this branch:
 
 - **The desktop hears Loom's word that one of its asks never arrived** (`zen.DispatchRefused`),
   so a desktop built from this source is refused as a reload of one built before it.
@@ -181,9 +181,13 @@ Three changes of that kind are on this branch:
   refused picture, a menu's answer, the toggle's answer and an edit's answer — so a desktop built
   from this source is refused as a reload of one built before it, and the Neovim editor's new
   right-button door does the same for it. Attention, Connections, the demo controls, the
-  introspection panes (`Loaded`, `Project`, `Powers`) and Compose draw their rows on their canvas
-  through the same doors, and each is refused the same way. A host from before this change never
+  introspection panes (`Loaded`, `Project`, `Powers`), Files, the Builder, the Terminal and
+  Compose draw their rows on their canvas through the same doors, and each is refused the same
+  way. A host from before this change never
   sends the desktop's new sentences; a desktop from before it never hears them.
+- **A pane drawing its rows on its canvas lays the medium's own ground** (`kMediumGround`), a
+  role a host built before it does not know: that host refuses every picture such a pane sends,
+  so a pane rebuilt from this source and loaded into it shows nothing new.
 
 For either, rebuild the whole tree — CLion's build, or a `cmake --build` of it — so that the host
 and every pane come from the same source. Then rename or move `workshop-runtime` (its promotions
@@ -215,9 +219,9 @@ Every refusal copies nothing, starts nothing, and leaves the runtime as it was.
 ## The loop: point, change, build, reload
 
 The example is **Attention**, which keeps one thing: the conditions you hid. If it says
-`0 conditions`, there is nothing to hide and a reload only shows new text; any condition — a
-preferences file Workshop could not read, say — gives you one. Press into Attention and `d` hides
-it.
+`nothing needs your attention right now`, there is nothing to hide and a reload only shows new
+text; any condition — a preferences file Workshop could not read, say — gives you one. Press into
+Attention and `d` hides it.
 
 **1. Right-click Attention, and choose `edit code`.** The Editor opens `attention-pane/pane.cpp`
 from your checkout, and the Builder chooses the recipe for you:
@@ -228,11 +232,12 @@ build recipe: zengine-attention-pane -> zengine-attention-pane -- the source of 
 
 Nothing is built, and Attention keeps running with what it had.
 
-**2. Change it, and save.** The heading Attention draws, `"ATTENTION -- "`, is written in
-`say_view`, near the end of the file. The Editor has no search and no go-to-line: `Ctrl`+`End`
-goes to the end, and the wheel rolls the view back a few lines a notch, leaving the caret where it
-was. Press on the line to put the caret there, type — `"ATTENTION (mine) -- "`, say — and press
-`Ctrl`+`s`. The build reads the saved file, never the Editor's buffer.
+**2. Change it, and save.** The line Attention draws once every condition is hidden,
+`"  all conditions hidden -- "`, is written in `say_view`, near the end of the file. The Editor has
+no search and no go-to-line: `Ctrl`+`End` goes to the end, and the wheel rolls the view back a few
+lines a notch, leaving the caret where it was. Press on the line to put the caret there, type —
+`"  all conditions hidden (mine) -- "`, say — and press `Ctrl`+`s`. The build reads the saved
+file, never the Editor's buffer.
 
 **3. Build, and reload.** Press into the Builder. The first time after launch, press
 **`Shift`+`b`** — the notice says `load after build: on` — then **`b`**. A pane target builds in a
@@ -242,7 +247,7 @@ few seconds, and the realize row says:
 realized -- op #1, NOT DEFAULT (promote / revert) -- reloaded in place -- weave #21 keeps its id and its state
 ```
 
-Attention shows the new heading, and the condition you hid is still hidden: the same weave, new
+Attention shows the new line, and the condition you hid is still hidden: the same weave, new
 code, its state carried. The build wrote only the build tree. The image now running is a copy in
 `workshop-runtime/zengine-attention-pane.reloads/`, and `workshop-runtime/zengine-attention-pane.so`
 (`.dll` on Windows) — the file the next launch loads — is untouched. That is what `NOT DEFAULT`
