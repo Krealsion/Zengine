@@ -125,14 +125,16 @@ private:
     }
 };
 
-/// This medium's ink for each canvas role; an unknown role paints as `kFill`.
+/// This medium's ink for each canvas role; an unknown role paints as `kFill`. Plain ink is the
+/// terminal's own text colour, as its own ground is no ground byte, so plain text reads on
+/// whatever the terminal wears, light or dark, and reverse video swaps the two.
 inline const char* sgr_for_role(int role) noexcept {
     switch (role) {
     case 1: return "\x1b[36m";    // kAccent — cyan: the thing being pointed at
     case 2: return "\x1b[90m";    // kMuted  — bright black: present, quiet
     case 3: return "\x1b[31;1m";  // kAlert  — bold red: must be seen
     case 4: return "\x1b[30m";    // kGround — black: opaque empty material
-    default: return "\x1b[37m";   // kFill, kMediumGround (no ink) and anything unknown — plain ink
+    default: return "\x1b[39m";   // kFill, kMediumGround (no ink) and anything unknown — plain ink
     }
 }
 

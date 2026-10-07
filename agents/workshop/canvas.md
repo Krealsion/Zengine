@@ -133,7 +133,7 @@ LAW — A pane drawing its rows on its canvas lays them on the medium's own grou
 MEANS
 - the ground is a window's own background and a terminal's default, dark or light: no colour of the palette;
 - what a pane says as prose is what it draws, its caret beside the rows; only its keys act there;
-- text drawn in the ground is no ink: it paints as the palette's plain ink.
+- text drawn in the ground is no ink: it paints as plain text, in a terminal its own text colour.
 
 DOES NOT MEAN — that Workshop grants such a pane no canvas: it always grants one, and the
 prose is for a host that cannot.
@@ -142,8 +142,9 @@ PROVEN BY — `surface/vocabulary.hpp` `kMediumGround`; `workshop/pane_canvas_ro
 `rows_picture`; `workshop/pane_canvas.hpp` `canvas_content_problem`; `surface/skin_tui.hpp`
 `canvas_body`; `surface/skin_sdl_plan.hpp` `ink_for_role`, `text_ink_for_role`;
 `tests/test_surface.cpp` cases "canvas: the medium's own ground covers material and wears the
-terminal's own ground" and "canvas plan: the medium's own ground is the window's own background,
-and no ink"; `tests/test_workshop_panes_attention.cpp` case "a pane that draws its rows on its
+terminal's own ground", "canvas: a terminal's plain text is the terminal's own text colour, so it
+reads on a light ground or a dark one, a caret in it and a selection over it too" and "canvas plan:
+the medium's own ground is the window's own background, and no ink"; `tests/test_workshop_panes_attention.cpp` case "a pane that draws its rows on its
 canvas wears the medium's own ground beneath them, as a prose body does, in a window and in a
 terminal"; `tests/test_workshop_panes_files.cpp` case "a host that grants Files no canvas is shown
 its rows as prose, its presses reach nothing there, and Return still opens";
