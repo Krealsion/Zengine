@@ -176,7 +176,9 @@ Workshop owns local-to-screen translation, clipping, picture fencing and pointer
 picture, hit testing and every semantic action. No node, wire or pan behavior belongs in the
 host. The one current-holder callback reads Loom's role table, never a second provider registry.
 
-A provider accepts both room and pointer doors to opt in. Its picture echoes a fresh room's
+A provider accepts both room and pointer doors to opt in, and every pane Zengine ships does:
+each draws on its canvas and keeps prose only for a host that grants none, while the examples
+(`examples/guard-pane`, `tally-pane`, `tower-defense`) speak prose whole. Its picture echoes a fresh room's
 grant and numbers compositions increasingly within it. A new room clears its prior picture.
 Invalid or stale authenticated content is answered as `PaneCanvasRejected`, preserving the
 last good picture. A same-provider geometry change may retain a display-only preview marked
@@ -286,14 +288,15 @@ beside the shapes before them, and each is an ordinary optional capability any p
   deliberately NOT clamped — a row above the body is negative, one below it is past the granted
   count, and what either means is the pane's. There is no release shape: the host ends its own
   record on release, or when the pane loses its seat or its room, and sends nothing; a pane
-  resolves a sweep from the positions it was given. The Editor steps its window on it; a pane
-  drawing its rows on its canvas hears its pointer's motion instead, and the Terminal's means
-  nothing.
+  resolves a sweep from the positions it was given. No pane Zengine ships spends it: each draws
+  its rows on its canvas and hears its own press's motion there (WL-CANVAS-03), the Editors
+  sweeping on it (WL-EDIT-16); a text pane is sent it, as a recording text pane witnesses
+  (WL-TEXT-14).
   **Workshop arms its record from geometry alone** — a press that named ANY body row takes hold
   of the pane, because the host does not read a provider's rows to learn what they mean. So a
   drag EXTENDS a gesture the pane's own `PanePressed` began, and a pane that consumed the press
   as focus alone ignores the motions behind it. That is the pane's half of one gesture, and the
-  Editor pins it.
+  Editors keep it on their canvas.
 - **The reveal is one ask and one answer**: **`PaneRevealRequested v1` `{pane}`**
   (provider → Workshop, as the office that offered the pane: seat me now, my act needs nothing
   more) and **`PaneRevealAnswered v1` `{pane, seated, refusal}`** (Workshop's answer, on the
@@ -486,8 +489,8 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   subject side is closed as well: a slot's meaning carries its subject (`LauncherMeaning::ref`,
   `KeysMeaning::ref`), so a same-length swap moves the map's number and a stale press is refused,
   not resolved against the row that moved in.
-- **Not in this contract:** a secondary drag (`PaneDragged` carries no button, so the Editor's
-  middle-button scroll and Neovim's right drag do not cross), modifier state on a window's
+- **Not in this contract:** a secondary drag to a text pane (`PaneDragged` carries no button; a
+  canvas hold carries its button, and neither Editor spends a secondary motion), modifier state on a window's
   button events (`mod::kNone` always), a host-performed pane operation from a menu row, the
   host's OWN menus (chrome, room, tab, pass-back, a doorless body, a `manage` row) presented by
   the presenter — they stay the host's, the management route that must work with no presenter at
@@ -511,9 +514,12 @@ joint-publication reference page, never restated here. What crosses, all in
 OpenSourceRequested v1 {path}   requester -> zengine.opening   (pane_seam_vocabulary.hpp; also
                                                                  zengine.editor, which RELAYS)
 SourceOpened v1 {accepted, refusal}   the answer: published AND applied by both owners, or why not
-PresentationTrialRequested v1 / PresentationTrial v1      manager -> desk: would it seat, what room
-PrepareSourceRequested v1 / SourcePrepared v1             manager -> Editor: prepare B for that room
-PresentationAdmitRequested v1 / PresentationAdmitted v1   manager -> desk: admit B's rows, offer
+PresentationTrialRequested v1 / PresentationTrial v1, v2  manager -> desk: would it seat, what room,
+                                                           and (v2) the canvas room reserved for it
+PrepareSourceRequested v1, v2 / SourcePrepared v1, v2     manager -> Editor: prepare B for that room,
+                                                           as rows (v1) or as its picture (v2)
+PresentationAdmitRequested v1, v2 / PresentationAdmitted v1   manager -> desk: admit B's rows or
+                                                           picture, offer
 ManagedOpenProgress v1                                    manager -> desk (and both owners at
                                                            `apply`): what is awaited, or retracted
 ManagedOpenSettled v1                                     manager -> both owners, afterwards
@@ -535,6 +541,15 @@ v2::PaneContent v2, v2::PaneCaret v2                      (pane_vocabulary.hpp) 
   document that has since been replaced, dropped rather than painted over the admitted rows. A
   v1 content carries none and is admitted as it always was; every pane that never commits
   jointly is unchanged and unrebuilt, and the separately built legacy provider still speaks v1.
+  The Editors say them only to a host granting no canvas.
+- **A pane that draws on its canvas is opened as its picture** (WL-OPEN-10). Where its holder
+  takes the canvas doors and `v2::PrepareSourceRequested`, the trial reserves the canvas room the
+  seat will have, its grant minted then and used by nothing before the commitment; the Editor
+  composes B as its own picture there, and the desk installs it under that grant at the showing,
+  the desk's until the Editor draws again, and says the room to the Editor afterwards. A picture
+  carries no generation: every picture of A names A's room and is refused. Neovim's editor shows
+  B's prepared preview until Neovim has drawn B. Rows shown for a pane that held a canvas drop its
+  picture, and the next repaint grants it a room afresh.
 - **Every managed sentence is judged under the office stamp.** The trial, the admission and
   the settlement are taken only from `zengine.opening`; a preparation only from the manager;
   a forged settlement, preparation or admission reaches its party and is dropped by it. The
