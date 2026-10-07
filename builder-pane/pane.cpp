@@ -13,6 +13,7 @@
 
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
@@ -56,7 +57,6 @@ namespace pane_menu = zengine::workshop::pane_menu;
 using ws::PaneActionRequested;
 using ws::PaneActionRow;
 using ws::PaneActions;
-using ws::PaneButton;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::PaneKey;
@@ -66,7 +66,6 @@ using ws::v2::PaneOffered;
 using ws::PanePassRequested;
 using ws::PaneRoom;
 using ws::PaneTextInput;
-using ws::PaneWheel;
 using ws::PlanNames;
 using ws::PlanNamesRequested;
 using ws::PlanRowRequested;
@@ -194,8 +193,10 @@ class BuilderPaneWeave
                        ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
                        SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
-                       PaneWheel, ws::v3::PanePressed, PaneButton, PaneMenuAnswered>,
-          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, builder::StatusRequested,
+                       ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
+                       PaneMenuAnswered>,
+          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
+                     ws::PaneCaret, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
                      RecipeSourceRequested, OpenSourceRequested, PaneMenuRequested,
@@ -226,12 +227,40 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kBuilderPane) {
             return;
         }
-        rows_ = room.rows;
-        columns_ = room.columns;
+        prose_rows_ = room.rows;
+        prose_columns_ = room.columns;
+        if (on_canvas()) {
+            return; // the canvas room, granted first, was this beat
+        }
+        granted(mail);
+    }
+
+    /// THE PANE'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
+    /// lattice's rows and columns its room, and says them as prose only to a host granting none.
+    /// A canvas room is the beat a prose room is.
+    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kBuilderPane) {
+            return;
+        }
+        canvas_ = room;
+        granted(mail);
+    }
+
+    /// A refused picture leaves the last good one showing, and the next beat draws again.
+    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
+
+    void granted(loom::Mail& mail) {
+        const ws::CanvasRows lattice = ws::canvas_rows(canvas_);
+        rows_ = on_canvas() ? lattice.rows : prose_rows_;
+        columns_ = on_canvas() ? lattice.columns : prose_columns_;
         granted_ = true;
         ask_status(mail);
         ask_frontier(mail, Why::kPaint);
         say(mail);
+    }
+
+    bool on_canvas() const {
+        return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0;
     }
 
     /// ONLY THE ROLE LINE READS RAW KEYS. Everything else this pane does arrives as a
@@ -495,14 +524,11 @@ public:
 
     /// THE WHEEL SCROLLS THE READER, three lines a notch, the Editor's measure. Outside the
     /// reader it means nothing here.
-    void on(const PaneWheel& wheel, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != pane::kBuilderPane) {
-            return;
-        }
+    void wheel(double dy, loom::Mail& mail) {
         if (!output_.open && !choosing_.open) {
             return; // the fact view is not a list: there is nothing for a notch to walk
         }
-        wheel_ += wheel.dy * 3.0;
+        wheel_ += dy * 3.0;
         const std::int64_t notches = static_cast<std::int64_t>(wheel_);
         wheel_ -= static_cast<double>(notches);
         if (notches == 0) {
@@ -729,19 +755,39 @@ public:
 
     // ---- The mouse: a press names a picture, a right press offers the pane's own rows ----
 
-    /// A primary press in this pane, naming the picture the medium held when it was read. A press
-    /// about an older picture is refused in words, never resolved against whatever row has since
-    /// moved into its place (WL-DESK-14, one pane over).
-    void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kBuilderPane) {
+    /// A PRESS, THE WHEEL AND THE SECOND BUTTON ON THE CANVAS. A place reads back to the row and
+    /// column a prose press named; a press about a picture the row map has replaced since, or
+    /// another room's, is refused in words, never resolved against whatever row has since moved
+    /// into its place (WL-DESK-14, one pane over). Motion, release and loss mean nothing here.
+    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || event.pane != pane::kBuilderPane ||
+            !on_canvas()) {
             return;
         }
-        if (!map_.current(press.picture)) {
+        if (event.phase == ws::canvas_pointer::kWheel) {
+            if (event.grant == canvas_.grant) wheel(event.dy, mail);
+            return;
+        }
+        if (event.phase != ws::canvas_pointer::kPress) {
+            return;
+        }
+        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), event.x, event.y);
+        const bool current = pictures_.current(event.grant, event.picture);
+        if (event.button == 1 && at.shown) {
+            press(at.row, at.column, event.keys_went_here, current, mail);
+        } else if (event.button == 3) {
+            right_press(at, current, mail);
+        }
+    }
+
+    void press(std::int64_t row, std::int64_t column, bool keys_went_here, bool current,
+               loom::Mail& mail) {
+        if (!current) {
             notice_ = kMovedSentence;
             say(mail);
             return;
         }
-        const BuilderMeaning* m = map_.at(press.row, press.column);
+        const BuilderMeaning* m = map_.at(row, column);
         if (m == nullptr || m->kind == builder_row::kNone) {
             return; // a fact row, a heading, a build's own words: pointing, and nothing more
         }
@@ -755,20 +801,20 @@ public:
             // weaver's pick and closes the list -- Files' rule, so no press means two things.
             // And only where the keys already were (WL-FOCUS-04): the press that brings them
             // here points at the pane, and pointing is not choosing.
-            if (press.keys_went_here && m->subject == choosing_.name) {
+            if (keys_went_here && m->subject == choosing_.name) {
                 take_choice(mail);
             } else {
                 choosing_.name = m->subject;
                 say(mail);
             }
-        } else if (m->kind == builder_row::kRecipe && press.keys_went_here) {
+        } else if (m->kind == builder_row::kRecipe && keys_went_here) {
             // THE ROW THAT NAMES THE CHOICE IS A WAY INTO THE LIST -- for a weaver whose keys
             // are already here. A press that merely brings them points at the pane and opens
             // no mode, which is what keeps clicking a pane to focus it from doing anything.
             open_recipes(mail);
         } else if (m->kind == builder_row::kLine && role_.open) {
             const std::int64_t prompt = static_cast<std::int64_t>(active_role_prompt().size());
-            role_.line.place(role_.line.position_at_column(press.column - prompt));
+            role_.line.place(role_.line.position_at_column(column - prompt));
             say(mail);
         }
         if (spent && published_ == published) {
@@ -778,21 +824,15 @@ public:
 
     /// THE SECOND BUTTON. A right press on a row this pane owns OFFERS that row's menu, beside
     /// the press, continuing it; a right press on anything else is handed back to the host,
-    /// whose own pane menu answers (WL-CTX-08). A middle press and every release mean nothing
-    /// here and are consumed.
-    void on(const PaneButton& b, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || b.pane != pane::kBuilderPane) {
-            return;
-        }
-        if (!b.pressed || b.button != 3) {
-            return;
-        }
-        if (!map_.current(b.picture)) {
+    /// whose own pane menu answers (WL-CTX-08). A middle press means nothing here and is
+    /// consumed.
+    void right_press(const ws::RowCell& at, bool current, loom::Mail& mail) {
+        if (!current) {
             notice_ = kMovedSentence;
             say(mail);
             return;
         }
-        const BuilderMeaning* m = map_.at(b.row, b.column);
+        const BuilderMeaning* m = at.shown ? map_.at(at.row, at.column) : nullptr;
         if (m == nullptr || m->kind == builder_row::kNone) {
             (void)pane_menu::pass_back(mail, pane::kBuilderPaneRole, pane::kBuilderPane);
             return;
@@ -801,7 +841,7 @@ public:
         if (m->kind == builder_row::kRecipe && choosing_.open) {
             choosing_.name = m->subject;
         }
-        offer_menu(b.row, b.column, mail.correlation(), mail);
+        offer_menu(at.row, at.column, mail.correlation(), mail);
         say(mail);
     }
 
@@ -1862,6 +1902,8 @@ private:
     void say(loom::Mail& mail) {
         map_.begin();
         composing_.clear();
+        caret_row_ = surface::kNoCaret;
+        caret_col_ = 0;
         if (!granted_ || rows_ <= 0 || columns_ <= 0) {
             map_.settle();
             return;
@@ -1879,13 +1921,30 @@ private:
             say_builder();
         }
         ++published_;
+        const std::int64_t picture = map_.settle();
+        std::vector<ws::PaneRowPart> parts =
+            ws::row_parts(map_, columns_, [](const BuilderMeaning& m) { return part_name(m); });
+        if (on_canvas()) {
+            ws::RowsCaret caret;
+            caret.row = caret_row_;
+            caret.column = caret_col_;
+            (void)mail.as_role(pane::kBuilderPaneRole)
+                .send_to_role(kWorkshopRole, ws::rows_picture(canvas_, pictures_.next(canvas_, picture),
+                                                              composing_, parts, caret));
+            composing_.clear();
+            return;
+        }
         ws::v4::PaneContent said;
         said.pane = pane::kBuilderPane;
         said.rows = std::move(composing_);
         composing_.clear();
-        said.picture = map_.settle();
-        said.parts = ws::row_parts(map_, columns_, [](const BuilderMeaning& m) { return part_name(m); });
+        said.picture = picture;
+        said.parts = std::move(parts);
         (void)mail.as_role(pane::kBuilderPaneRole).send_to_role(kWorkshopRole, said);
+        // The role line's caret beside the rows, said every time, so a caret that went goes.
+        (void)mail.as_role(pane::kBuilderPaneRole)
+            .send_to_role(kWorkshopRole,
+                          ws::PaneCaret{std::string(pane::kBuilderPane), caret_row_, caret_col_});
     }
 
     /// WHAT THE BUILDER CALLS ITS PARTS: a recipe's row by the recipe, `recipe:<name>`; a control
@@ -2095,7 +2154,15 @@ private:
                 ? columns_ - static_cast<std::int64_t>(prompt.size()) - 1
                 : 1;
         role_.line.keep_caret_visible(cols);
-        push_row(prompt + role_.line.visible(cols), surface::role::kAccent,
+        const std::string shown = role_.line.visible(cols);
+        if (static_cast<std::int64_t>(composing_.size()) < rows_) {
+            // THE CARET STANDS AFTER WHAT IS DRAWN BEFORE IT: the row is spelled in what a canvas
+            // draws, so its column is counted in the spelled characters, not the typed bytes.
+            caret_row_ = static_cast<std::int64_t>(composing_.size());
+            caret_col_ = static_cast<std::int64_t>(
+                ascii_spelling(prompt + shown.substr(0, role_.line.caret_column())).size());
+        }
+        push_row(prompt + shown, surface::role::kAccent,
                  BuilderMeaning{builder_row::kLine, 0, {}, role_.stem});
         push_row(labelled_row("loads", role_.stem + " (built by `" + role_.recipe + "`)"),
                  surface::role::kMuted);
@@ -2373,8 +2440,15 @@ private:
     // ---- What this pane is ------------------------------------------------------------
 
     zengine::ActivationCursor activation_;
-    std::int64_t rows_ = 0;
+    std::int64_t rows_ = 0; ///< the room composed for: the canvas lattice's, else the prose room's
     std::int64_t columns_ = 0;
+    std::int64_t prose_rows_ = 0, prose_columns_ = 0;
+    ws::PaneCanvasRoom canvas_;
+    /// Numbers every picture within its grant, and says which were drawn under the row map's
+    /// number now.
+    ws::CanvasPictures pictures_;
+    /// Where the role line's caret stands in the rows being said; none outside the role line.
+    std::int64_t caret_row_ = surface::kNoCaret, caret_col_ = 0;
     bool granted_ = false;
 
     /// THE TOOL'S PICTURE, HELD ONLY WHILE THIS PANE IS SHOWING IT (WL-PROJ-11, WL-PROJ-12).

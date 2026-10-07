@@ -53,7 +53,7 @@ WHY — `agents/decisions/a-build-keeps-its-own-words.md`
 LAW — `ascii_spelling` gives compilers' UTF-8 punctuation its ASCII twin, any other undrawable character `?` and an escape sequence nothing, counting each; the Builder pane spells every row it says.
 
 MEANS
-- a picture carrying a compiler's quotes is one Workshop takes, not one `judge_content` refuses;
+- a picture carrying a compiler's quotes is one Workshop takes, not one it refuses for a byte;
 - printable ASCII passes untouched, so a path, a line and column and a caret line read as written;
 - what the tool keeps is never spelled: only a row a pane shows is.
 
