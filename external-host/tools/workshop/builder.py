@@ -60,6 +60,7 @@ import time
 
 from act import painted, rows_by_place, words_now
 from hand import Hand
+from loom_session.tool import Refused
 from workshop_steps import chord_moments, moment
 
 BUILDER = ("zengine.builder-pane", "builder")
@@ -158,8 +159,13 @@ def calm(ctx, hand):
         if rows[0].startswith("BUILDER") or (len(rows) > 1 and rows[1].startswith("BUILDER")):
             return rows
         first = view["rows"][0]
-        at = first if not first["text"] else hand.word_point(*BUILDER, first["row"], 0,
-                                                             view["picture"])
+        try:
+            at = first if not first["text"] else hand.word_point(*BUILDER, first["row"], 0,
+                                                                 view["picture"])
+        except Refused as refused:
+            if "picture moved" not in str(refused):
+                raise
+            continue  # the pane redrew between the reading and the point: read it again
         hand.inject([moment(ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
                             space=at["space"]) for p in (True, False)])
         press(ctx, hand, "escape")
@@ -168,10 +174,18 @@ def calm(ctx, hand):
 
 def keys_into(ctx, hand):
     """The keys to the Builder: a press on its header's first character, which means nothing
-    more."""
-    view = painted(hand, *BUILDER)
-    row = [r for r in view["rows"] if r["text"].startswith("BUILDER")][0]
-    at = hand.word_point(*BUILDER, row["row"], 0, view["picture"])
+    more. A pane that redrew between the reading and the point is read again."""
+    for _ in range(3):
+        view = painted(hand, *BUILDER)
+        row = [r for r in view["rows"] if r["text"].startswith("BUILDER")][0]
+        try:
+            at = hand.word_point(*BUILDER, row["row"], 0, view["picture"])
+            break
+        except Refused as refused:
+            if "picture moved" not in str(refused):
+                raise
+    else:
+        ctx.fail("the Builder kept redrawing while its header was read")
     hand.inject([moment(ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
                         space=at["space"]) for p in (True, False)])
 
