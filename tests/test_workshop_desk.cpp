@@ -40,7 +40,7 @@ class DeskAsker
                              loom::Emit<DeskViewRequested, v2::DeskViewRequested,
                                         v2::PaneViewRequested, v3::PaneViewRequested,
                                         v2::PanePointRequested, PaneViewRequested,
-                                        PanePointRequested>> {
+                                        PanePointRequested, v3::PanePointRequested>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::vector<DeskView> desks;
@@ -95,7 +95,8 @@ struct DeskRig {
                                   loom::schema_of<v3::PaneViewRequested>(),
                                   loom::schema_of<v2::PanePointRequested>(),
                                   loom::schema_of<PaneViewRequested>(),
-                                  loom::schema_of<PanePointRequested>()}) {
+                                  loom::schema_of<PanePointRequested>(),
+                                  loom::schema_of<v3::PanePointRequested>()}) {
             grant.allow_to_role(shape->name(), shape->version(), kWorkshopProvider);
         }
         asker_id = r.bus.register_weave(std::move(made), std::move(grant));
@@ -167,6 +168,17 @@ struct DeskRig {
 
     /// ...and the first version's point for a row and a column, or the refusal's reason.
     std::string first_point(const PanePointRequested& asked, PanePoint& out) {
+        asker->refusals.clear();
+        const std::size_t before = asker->first_points.size();
+        ask([&](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, asked); });
+        if (!asker->refusals.empty()) return asker->refusals.back();
+        REQUIRE(asker->first_points.size() == before + 1);
+        out = asker->first_points.back();
+        return std::string();
+    }
+
+    /// ...and the third version's point for a cell of a pane's text lattice, or the refusal's reason.
+    std::string lattice_point(const v3::PanePointRequested& asked, PanePoint& out) {
         asker->refusals.clear();
         const std::size_t before = asker->first_points.size();
         ask([&](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, asked); });
@@ -1218,6 +1230,80 @@ TEST_CASE("a row as wide as its pane with a caret in it says every character, at
         PanePoint first;
         CHECK(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown}, first)
                   .find("outside") != std::string::npos);
+    }
+}
+
+TEST_CASE("every cell of a canvas pane's text lattice has a point, a blank one and the one after a row's last character too, and a press there reaches the pane at that cell; a text pane's cell is the first version's") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        if (window) d.medium(true);
+        // THE PANE'S ROWS ON ITS LATTICE: a row, a blank one, and a longer row.
+        REQUIRE_FALSE(d.sketch->rooms.empty());
+        const PaneCanvasRoom room = d.sketch->rooms.back();
+        const CanvasRows lattice = canvas_rows(room);
+        REQUIRE(lattice.rows > 3);
+        const std::vector<surface::SurfaceTextRow> rows{{"abc", surface::role::kFill},
+                                                        {"", surface::role::kFill},
+                                                        {"defg", surface::role::kFill}};
+        const v5::PaneCanvasContent drawn = rows_picture(room, ++d.number, rows);
+        d.drive([drawn](SketchSeat&, loom::Mail& m) {
+            (void)m.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, drawn);
+        });
+        v2::PaneView view;
+        REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+        REQUIRE(view.picture == d.number);
+        // ...THE CELL AFTER A ROW'S LAST CHARACTER, A BLANK ROW'S CELL AND A ROW'S LAST CELL: each a
+        // point a press reaches the pane at, as that cell of its lattice.
+        for (const auto& [row, column] : {std::pair<std::int64_t, std::int64_t>{0, 3}, {1, 0}, {2, 1},
+                                          {0, lattice.columns - 1}}) {
+            CAPTURE(row);
+            CAPTURE(column);
+            PanePoint at;
+            REQUIRE(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture, row,
+                                                           column},
+                                    at)
+                        .empty());
+            CHECK(at.row == row);
+            CHECK(at.column == column);
+            d.sketch->pointers.clear();
+            d.click(at.x, at.y, at.space);
+            REQUIRE_FALSE(d.sketch->pointers.empty());
+            const PaneCanvasPointer& pressed = d.sketch->pointers.front();
+            REQUIRE(pressed.phase == canvas_pointer::kPress);
+            const RowCell cell = row_cell_at(lattice, pressed.x, pressed.y);
+            CHECK(cell.shown);
+            CHECK(cell.row == row);
+            CHECK(cell.column == column);
+        }
+        // ...AND NONE PAST THE LATTICE, OR FOR A PICTURE SINCE MOVED.
+        PanePoint none;
+        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture,
+                                                     lattice.rows, 0},
+                              none)
+                  .find("outside the pane's text lattice") != std::string::npos);
+        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture, 0,
+                                                     lattice.columns},
+                              none)
+                  .find("outside the pane's text lattice") != std::string::npos);
+        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture + 1, 0, 0},
+                              none)
+                  .find("picture moved") != std::string::npos);
+        // A TEXT PANE'S CELL IS THE ONE THE FIRST VERSION NAMES.
+        say_rows(d);
+        REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
+        for (std::int64_t column = 0; column < 4; ++column) {
+            CAPTURE(column);
+            PanePoint first, third;
+            REQUIRE(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 1, column}, first)
+                        .empty());
+            REQUIRE(d.lattice_point(v3::PanePointRequested{kAlphaOffice, "alpha", view.picture, 1, column},
+                                    third)
+                        .empty());
+            CHECK(third.x == first.x);
+            CHECK(third.y == first.y);
+            CHECK(third.space == first.space);
+        }
     }
 }
 

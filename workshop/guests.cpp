@@ -230,6 +230,7 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_role(v2::PaneViewRequested::zen_name, v2::PaneViewRequested::zen_version, "zengine.workshop");
             g.allow_to_role(v2::PanePointRequested::zen_name, v2::PanePointRequested::zen_version, "zengine.workshop");
             g.allow_to_role(v3::PaneViewRequested::zen_name, v3::PaneViewRequested::zen_version, "zengine.workshop");
+            g.allow_to_role(v3::PanePointRequested::zen_name, v3::PanePointRequested::zen_version, "zengine.workshop");
             g.allow_to_role(v2::DeskViewRequested::zen_name, v2::DeskViewRequested::zen_version, "zengine.workshop");
             g.allow_to_role(surface::SurfaceCaptureRequested::zen_name,
                             surface::SurfaceCaptureRequested::zen_version, surface::kSkinRole);

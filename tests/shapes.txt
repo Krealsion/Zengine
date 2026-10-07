@@ -271,6 +271,7 @@ PanePoint v1 0xdc77c79cfc6ba9e0
 PanePoint v2 0xac1cbc9ddc1f52d0
 PanePointRequested v1 0xda79c7baf5ba298d
 PanePointRequested v2 0x91d81e7bd73ef7b1
+PanePointRequested v3 0xaf8c31c797778d47
 PanePresentation v1 0x6ba016f3c6ef98b8
 PanePressed v1 0xc035accbd21d3704
 PanePressed v2 0x286d8d05fca36b60

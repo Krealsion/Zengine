@@ -7,6 +7,7 @@
 
 #include "weave.hpp"
 #include "screen_canvas.hpp"
+#include "pane_canvas_rows.hpp"
 
 #include <algorithm>
 #include <map>
@@ -763,6 +764,58 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
     }
     if (!resolved) {
         (void)mail.answer(loom::Refused{"pane point unavailable: that character is not addressable"});
+        return;
+    }
+    (void)mail.answer(reply);
+}
+
+// WHERE ONE CELL OF A PANE'S TEXT LATTICE IS NOW: a text pane's painted cell, as the first version
+// answers, or a canvas pane's cell of the lattice its room's text stands on, wherever the picture
+// draws or leaves it blank -- checked by reading the point back to that cell of the room it lands in.
+void WorkshopWeave::on(const v3::PanePointRequested& asked, loom::Mail& mail) {
+    VisibleBody visible;
+    if (const auto why = visible_body(asked.provider, asked.pane, visible, true); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
+        return;
+    }
+    if (asked.picture != visible.content->stamp.aimed) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: the pane's picture moved; read it again"});
+        return;
+    }
+    PanePoint reply{asked.provider, asked.pane, asked.picture, asked.row, asked.column, 0, 0, 0};
+    if (!visible.canvas) {
+        if (asked.row < 0 || asked.column < 0 || asked.row >= visible.body.rows ||
+            asked.column >= visible.body.columns ||
+            asked.row >= static_cast<std::int64_t>(visible.content->shown.size())) {
+            (void)mail.answer(loom::Refused{"pane point unavailable: outside the pane's visible text"});
+            return;
+        }
+        if (!cell_center(visible, asked.row, asked.column, reply.x, reply.y, reply.space)) {
+            (void)mail.answer(loom::Refused{"pane point unavailable: that cell is not addressable"});
+            return;
+        }
+        (void)mail.answer(reply);
+        return;
+    }
+    const PixelRect& body = visible.canvas_body;
+    const ExternalPane::Canvas& c = visible.content->canvas;
+    const CanvasRows lattice = canvas_rows(PaneCanvasRoom{asked.pane, c.grant, body.w, body.h, c.grain,
+                                                          c.graphical, c.text_advance_px,
+                                                          c.text_line_px});
+    if (asked.row < 0 || asked.column < 0 || asked.row >= lattice.rows ||
+        asked.column >= lattice.columns) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: outside the pane's text lattice"});
+        return;
+    }
+    reply.space = input_space_of(screen_of(session_));
+    glyph_point(GlyphGrid{surface::add_cells(body.x, lattice.x), surface::add_cells(body.y, lattice.y),
+                          lattice.advance, lattice.line},
+                asked.row, asked.column, reply.space, reply.x, reply.y);
+    const PointedAt at = canvas_point_of(reply.space, reply.x, reply.y);
+    const RowCell cell = row_cell_at(lattice, surface::sub_px(at.px.x, body.x), surface::sub_px(at.px.y, body.y));
+    if (!at.understood || !body.contains_at(at.px.x, at.px.y, at.grain) || !cell.shown ||
+        cell.row != asked.row || cell.column != asked.column) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: that cell is not addressable"});
         return;
     }
     (void)mail.answer(reply);

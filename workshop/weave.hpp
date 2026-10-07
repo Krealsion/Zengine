@@ -276,7 +276,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -466,6 +466,7 @@ public:
                                         std::vector<WordGlyphs>* glyphs = nullptr) const;
     void on(const v2::PaneViewRequested& asked, loom::Mail& mail);
     void on(const v2::PanePointRequested& asked, loom::Mail& mail);
+    void on(const v3::PanePointRequested& asked, loom::Mail& mail);
     /// The parts a visible body's pane names, each where the medium draws it: a text part over the
     /// cells that show its columns, a canvas part as the body shows it with the `words` inside it.
     std::vector<PanePart> visible_parts(const VisibleBody& visible,

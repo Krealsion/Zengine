@@ -151,7 +151,10 @@ and the press measurer (`cell_center`), refusing a moved picture exactly as `Pan
 refuses a covered pane. It reads presentation; pressing the point is ordinary input. Version 2
 of both answers a canvas pane too: its words are its labels and runs as the painter clips them,
 through `visible_body` and `visible_words`, each with its place in canvas pixels and the point a
-press names it by; a canvas word's point is checked against the body its press lands in.
+press names it by; a canvas word's point is checked against the body its press lands in. Version
+3 of the point names a cell of a pane's text lattice -- a text pane's painted cell, as version 1
+answers, or a canvas pane's cell of the lattice its room's text stands on (`canvas_rows`), blank
+or past a row's last character -- read back to that cell of the room its press lands in.
 `DeskViewRequested` answers the desk from Workshop's own numbers (WL-GEO-13). Workshop names
 nothing inside a pane: a word's number is its place in one answer. A pane names its parts
 (WL-HAND-06): `v4::PaneContent` and `v4::PaneCanvasContent` (and `v5`) carry `parts` -- a run of a row's
