@@ -12,6 +12,7 @@ from demo_setup import Measured, layout
 from hand import Hand
 from workshop_steps import picture
 import workbench_folders as folders
+from workbench_folders import shows
 
 PACKAGED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "toolboxes", "inspection-workbench.toolbox")
 ORGANIZED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "toolboxes", "inspection-workbench-organized.toolbox")
@@ -39,11 +40,6 @@ def named(hand, label):
     found = [e for e in entries(hand) if e["label"] == label]
     hand.ctx.check(len(found) == 1, "expected exactly one entry named " + label)
     return found[0]
-
-
-def shows(hand, view, text):
-    """Whether a pane paints a word holding `text`: a text pane's row or a canvas pane's run."""
-    return any(text in w["text"] for w in hand.words(*view)["words"])
 
 
 def still_open(hand, view):
@@ -104,7 +100,7 @@ def story(ctx, hand, link, pictures, shots):
     results_before = sum(e["label"] == RESULT for e in entries(hand))
 
     ctx.step("keep the sample in one view and name the three views")
-    hand.drag(hand.row(*INV, LABELS["sample"], scroll=True), hand.view(*SAMPLE)["rows"][0], 350)
+    hand.drag(hand.row(*INV, LABELS["sample"], scroll=True), hand.first(*SAMPLE), 350)
     expect(hand, SAMPLE, "COPY zen.PokeStructure")
     for view, title in ((SAMPLE, "Sample"), (PRESET, "Preset"), (WATCH, "Watch")):
         hand.control(*view, "Rename"); hand.key("ctrl+a"); hand.text(title); hand.key("enter")
@@ -112,7 +108,7 @@ def story(ctx, hand, link, pictures, shots):
 
     ctx.step("link the incomplete preset and finish it from the sample, field to field")
     hand.click(hand.row(*INV, LABELS["preset"], scroll=True)); hand.key("ctrl+enter")
-    hand.click(hand.view(*PRESET)["rows"][3])
+    hand.click(hand.first(*PRESET))
     expect(hand, PRESET, "PRESET LINKED")
     hand.field(*PRESET, "target_role")
     hand.drag(hand.field(*SAMPLE, "meta[0].requested_role"), hand.field(*PRESET, "target_role"), 500)
@@ -128,7 +124,7 @@ def story(ctx, hand, link, pictures, shots):
     expect(hand, PRESET, "Info 2 | empty")  # the same slot, a new incarnation: nothing carried over
     hand.control(*PRESET, "Rename"); hand.key("ctrl+a"); hand.text("Preset"); hand.key("enter")
     hand.click(hand.row(*INV, LABELS["preset"], scroll=True)); hand.key("ctrl+enter")
-    hand.click(hand.view(*PRESET)["rows"][3])
+    hand.click(hand.first(*PRESET))
     expect(hand, PRESET, "target_role: zengine.input")
 
     ctx.step("use the finished preset explicitly through Compose")
@@ -142,11 +138,11 @@ def story(ctx, hand, link, pictures, shots):
 
     ctx.step("watch a linked note while another view changes it")
     hand.click(hand.row(*INV, LABELS["note"], scroll=True)); hand.key("ctrl+enter")
-    hand.click(hand.view(*WATCH)["rows"][3])
+    hand.click(hand.first(*WATCH))
     hand.control(*WATCH, "Watch")
     expect(hand, WATCH, "watch ON")
     hand.click(hand.row(*INV, LABELS["note"], scroll=True)); hand.key("ctrl+enter")
-    hand.click(hand.view(*PRESET)["rows"][3])
+    hand.click(hand.first(*PRESET))
     edited = hand.field(*PRESET, "state_version")
     hand.click(edited); hand.key("enter"); hand.key("ctrl+a"); hand.text("7"); hand.key("enter")
     hand.control(*PRESET, "Save")
@@ -173,7 +169,7 @@ def story(ctx, hand, link, pictures, shots):
     expect(hand, WATCH, "Read rev")
     hand.control(*WATCH, "Watch")
     expect(hand, WATCH, "watch ON")
-    hand.drag(hand.row(*INV, LABELS["sample"], scroll=True), hand.view(*WATCH)["rows"][0], 350)
+    hand.drag(hand.row(*INV, LABELS["sample"], scroll=True), hand.first(*WATCH), 350)
     expect(hand, WATCH, "Watch ended: this view now holds an independent copy")
     pictures.append(picture(shots, link, "custody")[0])
 

@@ -48,7 +48,7 @@ def run(ctx):
     hand.key("escape")
 
     ctx.step("make a preset copy, unset a required value, save and reopen it")
-    hand.drag(hand.row(*inv, label + " command", scroll=True), hand.view(*info)["rows"][0], 350)
+    hand.drag(hand.row(*inv, label + " command", scroll=True), hand.first(*info), 350)
     hand.key("ctrl+b")
     hand.click(hand.row(*info, "label:")); hand.key("ctrl+u")
     hand.row(*info, "label: absent (required)")
@@ -64,7 +64,7 @@ def run(ctx):
 
     ctx.step("pick up a typed field from the saved capture and fill the missing argument")
     # Inventory Capture stores the owner's typed PokeStructure answer, not its displayed text.
-    hand.drag(hand.row(*inv, label + " : ", scroll=True), hand.view(*info)["rows"][0], 350)
+    hand.drag(hand.row(*inv, label + " : ", scroll=True), hand.first(*info), 350)
     selected = hand.row(*info, "fields[0].name:")
     hand.click(selected); hand.key("ctrl+g")
     # Workshop holds the copy and says it is carried; Info says nothing of a carry it no longer holds.
