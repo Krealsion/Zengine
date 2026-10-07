@@ -566,6 +566,29 @@ TEST_CASE("a host that grants the Neovim editor no canvas is shown its rows and 
     CHECK(held_caret(*s.seat()).sel_begin_row >= 0); // the block cursor beside the rows, as prose
 }
 
+TEST_CASE("Neovim's cursor on an empty line, and after blanks it typed, is drawn as every caret is") {
+    SwitchRig s("nvim-cursor-cells");
+    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
+    REQUIRE(open_through_office(s, "cells.txt", "one\n\nthree\n").accepted);
+    REQUIRE(beat_until(s, [&] { return s.shows("three"); }));
+    focus(s);
+    // THE BLOCK CURSOR ON THE EMPTY SECOND LINE: its one cell is the range, drawn on that row.
+    s.type("j");
+    REQUIRE(beat_until(s, [&] {
+        const PaneCaret at = held_caret(*s.seat());
+        return at.sel_begin_row == 2 && at.sel_begin_col == 0 && at.sel_end_row == 2 && at.sel_end_col == 1;
+    }));
+    // ...AND A BAR AFTER TWO BLANKS TYPED THERE: the caret stands after them, on the row.
+    s.type("A  ");
+    REQUIRE(beat_until(s, [&] {
+        const PaneCaret at = held_caret(*s.seat());
+        return at.row == 2 && at.column == 2;
+    }));
+    s.r.key(input::scan::kEscape);
+}
+
 TEST_CASE("after a switch to Neovim, an open through the office shows another file in Neovim, beside the unsaved one") {
     SwitchRig s("nvim-open-after-switch");
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
