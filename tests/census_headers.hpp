@@ -145,6 +145,12 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PaneDrop>(), // PaneDrop v1
         shape<::zengine::workshop::v2::PaneValueDrop>(), // PaneValueDrop v2
         shape<::zengine::workshop::v2::PanePressed>(), // PanePressed v2
+        // The prose pointer every shipped pane once took; the Editors draw on their canvas now.
+        shape<::zengine::workshop::PanePressed>(), // PanePressed v1
+        shape<::zengine::workshop::v3::PanePressed>(), // PanePressed v3
+        shape<::zengine::workshop::PaneDragged>(), // PaneDragged v1
+        shape<::zengine::workshop::PaneWheel>(), // PaneWheel v1
+        shape<::zengine::workshop::PaneValueDrop>(), // PaneValueDrop v1
         shape<::zengine::workshop::PlanDoorState>(), // PlanDoorState v1
         shape<::zengine::workshop::ProjectDoorState>(), // ProjectDoorState v2
         shape<::zengine::workshop::RecipesDoorState>(), // RecipesDoorState v1
