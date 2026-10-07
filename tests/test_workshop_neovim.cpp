@@ -497,6 +497,75 @@ TEST_CASE("an open through the office shows the file in Neovim, and the save cho
     CHECK(file_text(s.root / "open.txt") == "new first line\n");
 }
 
+TEST_CASE("an open in Neovim shows the opened file's picture at the commitment, and no screen of the file it "
+          "replaced after it") {
+    SwitchRig s("nvim-open-picture");
+    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
+    REQUIRE(open_through_office(s, "alpha.txt", "alpha one\nalpha two\n").accepted);
+    REQUIRE(beat_until(s, [&] { return s.shows("alpha one"); }));
+    // EVERY PICTURE THE DESK HEARS FROM THE EDITOR ONCE THE OPEN HAS COMMITTED, by the room it names.
+    bool committed = false;
+    std::vector<std::pair<std::int64_t, std::string>> after;
+    struct Watch {
+        loom::Switchboard& bus;
+        loom::ObserverId id;
+        ~Watch() { bus.remove_observer(id); }
+    } watch{s.r.bus, s.r.bus.add_observer([&s, &committed, &after](const loom::BusEvent& e) {
+        if (e.kind != loom::EventKind::Delivered || e.target != s.r.workshop_id || e.payload == nullptr) return;
+        if (e.schema_name == ManagedOpenProgress::zen_name) {
+            committed = committed || loom::from_value<ManagedOpenProgress>(*e.payload).stage == "apply";
+        } else if (committed && e.schema_name == v5::PaneCanvasContent::zen_name) {
+            const v5::PaneCanvasContent drawn = loom::from_value<v5::PaneCanvasContent>(*e.payload);
+            std::string text;
+            for (const v2::PaneCanvasText& run : drawn.texts) text += run.text + "\n";
+            after.emplace_back(drawn.grant, text);
+        }
+    })};
+    const SourceOpened opened = open_through_office(s, "bravo.txt", "bravo one\nbravo two\n");
+    REQUIRE_MESSAGE(opened.accepted, opened.refusal);
+    // AT THE COMMITMENT THE DESK SHOWS THE OPENED FILE'S PICTURE, as Neovim prepared it.
+    REQUIRE(s.seat() != nullptr);
+    REQUIRE(shows_canvas(*s.seat()));
+    const std::int64_t room = s.seat()->canvas.grant;
+    std::string shown;
+    for (const std::string& row : held_row_texts(*s.seat())) shown += row + "\n";
+    CHECK(shown.find("bravo one") != std::string::npos);
+    CHECK(shown.find("alpha") == std::string::npos);
+    // ...AND NOTHING THE EDITOR DREW IN THAT ROOM AFTER IT SHOWS THE FILE IT REPLACED, until Neovim
+    // has drawn the opened one.
+    REQUIRE(beat_until(s, [&] { return s.shows("bravo two"); }));
+    bool drawn = false;
+    for (const auto& [grant, text] : after) {
+        if (grant != room) continue;
+        CHECK_MESSAGE(text.find("alpha") == std::string::npos, text);
+        drawn = drawn || text.find("bravo one") != std::string::npos;
+    }
+    CHECK(drawn);
+}
+
+TEST_CASE("a host that grants the Neovim editor no canvas is shown its rows and caret as prose, its presses "
+          "reach nothing there, and its keys still reach Neovim") {
+    SwitchRig s("nvim-no-canvas");
+    s.no_canvas = true;
+    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
+    REQUIRE(open_through_office(s, "prose.txt", "first line\nsecond line\n").accepted);
+    REQUIRE(beat_until(s, [&] { return s.shows("second line"); }));
+    REQUIRE(s.seat() != nullptr);
+    CHECK_FALSE(shows_canvas(*s.seat()));
+    // A PRESS REACHES NOTHING THERE: the keys come here, and Neovim's cursor stays on the first line.
+    press_pane(s.r, s.kind, 2, 3);
+    CHECK(s.r.session().panes.keyboard == s.kind);
+    // ...AND ITS KEYS STILL REACH NEOVIM: it edits the line its cursor was on.
+    s.type("Ifrom keys ");
+    s.r.key(input::scan::kEscape);
+    REQUIRE(beat_until(s, [&] { return s.shows("from keys first line"); }));
+    CHECK(held_caret(*s.seat()).sel_begin_row >= 0); // the block cursor beside the rows, as prose
+}
+
 TEST_CASE("after a switch to Neovim, an open through the office shows another file in Neovim, beside the unsaved one") {
     SwitchRig s("nvim-open-after-switch");
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);

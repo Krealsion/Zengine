@@ -17,8 +17,9 @@ MEANS
 
 DOES NOT MEAN — that the copy is Neovim's register: no register, mark or mode is moved.
 
-PROVEN BY — `neovim-editor/pane.cpp` `press_at`, `carry_snapshot`, `snapshot_now`,
-`carries_selection`, `declare`; `neovim/lua.hpp` `kSelection`;
+PROVEN BY — `neovim-editor/pane.cpp` `on(PaneCanvasPointer)`, `press_at`, `dragged`,
+`right_press`, `carry_snapshot`, `snapshot_now`, `carries_selection`, `declare`; `neovim/lua.hpp`
+`kSelection`;
 `tests/test_workshop_neovim_transfers.cpp` case `"a Visual selection dragged from its highlight
 lands in a named Inventory folder as exactly what Neovim's yank takes, unsaved edits included,
 and Neovim keeps its selection and its buffer"`, case `"ctrl+r carries a linewise selection as
@@ -36,7 +37,7 @@ WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 LAW — A drop is inserted by `nvim_buf_set_text` as one undo block at the aimed cell of the picture it names, in the buffer and changedtick it saw, in Normal or Insert mode or onto the highlight.
 
 MEANS
-- the picture fingerprints the rows, caret, range and generation said; a moved screen refuses;
+- the picture fingerprints the rows, caret, range and generation drawn in its room; a moved screen refuses;
 - any UTF-8 but NUL is data: Escape, key notation and a bare CR stay characters;
 - a block, another mode, a read-only buffer or a pending command refuses in Neovim's words.
 

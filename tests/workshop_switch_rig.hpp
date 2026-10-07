@@ -109,6 +109,10 @@ struct SwitchRig {
     /// WHAT A CASE MOUNTS BEFORE THE PLAN RUNS -- a seat an office's first activation must find.
     std::function<void()> before_plan;
 
+    /// A host that knows no canvas door, answering that no office accepts a canvas room -- the one
+    /// an Editor says its rows to as prose.
+    bool no_canvas = false;
+
     explicit SwitchRig(const char* tag) : dir(tag) {
         root = dir.path();
         r.host.project_dir = root.generic_string();
@@ -120,6 +124,12 @@ struct SwitchRig {
               const char* start = pane::kEditorPaneStem) {
         r.host.managed_pane = editor_ref();
         r.mount_workshop();
+        if (no_canvas) {
+            r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
+                                                                      const loom::Schema& shape) {
+                return shape.name() != PaneCanvasRoom::zen_name && accepts(role, shape);
+            };
+        }
         r.mount_opening();
         mount_project_door();
         skin = r.mount_skin_seat();
