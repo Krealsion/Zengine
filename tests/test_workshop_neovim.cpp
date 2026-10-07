@@ -580,7 +580,8 @@ TEST_CASE("a host that grants the Neovim editor no canvas is shown its rows and 
     s.type("Ifrom keys ");
     s.r.key(input::scan::kEscape);
     REQUIRE(beat_until(s, [&] { return s.shows("from keys first line"); }));
-    CHECK(held_caret(*s.seat()).sel_begin_row >= 0); // the block cursor beside the rows, as prose
+    // ...and, once Neovim has drawn its Escape, the block cursor beside the rows, as prose.
+    CHECK(beat_until(s, [&] { return held_caret(*s.seat()).sel_begin_row >= 0; }));
 }
 
 TEST_CASE("Neovim's cursor on an empty line, and after blanks it typed, is drawn as every caret is") {
