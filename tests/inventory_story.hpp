@@ -26,6 +26,7 @@ struct InventoryHandState { ZEN_SHAPE(InventoryHandState, 1); };
 struct InventoryHandDo { ZEN_SHAPE(InventoryHandDo, 1); };
 class InventoryHand : public loom::WeaveBase<InventoryHand, InventoryHandState,
     loom::Accept<InventoryHandDo, input::InputSessionOpened, input::InputInjected, PaneView, PanePoint,
+        v2::PaneView, v2::PanePoint,
         inv::InventoryListed, inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryEntry,
         slots::InventoryToolboxFinished, loom::Refused>,
     loom::Emit<intro::LoadedSelected, input::InputSessionRequested, input::InjectInput>> {
@@ -44,6 +45,10 @@ public:
     void on(const PaneView& v, loom::Mail&) { views.push_back(v); }
     std::vector<PanePoint> points;
     void on(const PanePoint& p, loom::Mail&) { points.push_back(p); }
+    std::vector<v2::PaneView> words;
+    void on(const v2::PaneView& v, loom::Mail&) { words.push_back(v); }
+    std::vector<v2::PanePoint> word_points;
+    void on(const v2::PanePoint& p, loom::Mail&) { word_points.push_back(p); }
     std::vector<inv::InventoryEntry> entries;
     std::vector<slots::InventoryToolboxFinished> toolboxes;
     void on(const slots::InventoryToolboxFinished& v, loom::Mail& mail) { CHECK(mail.answers_ask()); toolboxes.push_back(v); }
@@ -192,6 +197,7 @@ struct InventoryStory {
         actor_grant.allow_to_role(inv::InventoryList::zen_name, 1, inv::kInventoryRole);
         actor_grant.allow_to_role(inv::v2::InventoryList::zen_name, 2, inv::kInventoryRole);
         actor_grant.allow_to_role(PaneViewRequested::zen_name, 1, "zengine.workshop");
+        actor_grant.allow_to_role(v2::PaneViewRequested::zen_name, 2, "zengine.workshop");
         if (permissions & 256) actor_grant.allow_to_role(TerminalValueRequested::zen_name, 1, "zengine.workshop");
         if (permissions & 1) actor_grant.allow_to_role(inv::InventoryLocate::zen_name, 1, inv::kInventoryRole);
         if (permissions & 2) actor_grant.allow_to_role(inv::InventoryRead::zen_name, 1, inv::kInventoryRole);
@@ -210,7 +216,10 @@ struct InventoryStory {
         if (permissions & 64) actor_grant.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");
         if (permissions & 128) actor_grant.allow_to_role(zengine::inventory_pane::InventoryViewEdit::zen_name, 1, "zengine.inventory-pane");
         if (permissions & 1024) actor_grant.allow_to_any(loom::PokeDescribe::zen_name, loom::PokeDescribe::zen_version);
-        if (permissions & 2048) actor_grant.allow_to_role(PanePointRequested::zen_name, 1, "zengine.workshop");
+        if (permissions & 2048) {
+            actor_grant.allow_to_role(PanePointRequested::zen_name, 1, "zengine.workshop");
+            actor_grant.allow_to_role(v2::PanePointRequested::zen_name, 2, "zengine.workshop");
+        }
         actor_grant.allow_to_role(inv::InventoryCaptureAdd::zen_name, 1, inv::kInventoryRole);
         if (permissions & 512) {
             actor_grant.allow_to_role(slots::InventoryToolboxSave::zen_name, 1, slots::kRole);

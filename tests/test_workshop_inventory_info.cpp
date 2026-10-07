@@ -848,9 +848,9 @@ TEST_CASE("a reference placed on a canvas whose pane has no door for one is sent
     CHECK(drops == 0);
     CHECK_MESSAGE(s.r.last_notice().find("does not accept the carried item") != std::string::npos,
                   s.r.last_notice());
-    // ...and the reference is still in hand: a pane that takes one is given it.
+    // ...and the reference is still in hand: Info, which takes one on its canvas, is given it.
     s.place();
-    CHECK(drops == 0);
+    CHECK(drops == 1);
 }
 
 TEST_CASE("a live reference carried from Inventory lands in the Compose field its place names on Compose's canvas") {

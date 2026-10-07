@@ -109,9 +109,9 @@ verification follows [verification](verification.md).
   conversion refuse unchanged. Link replaces entry, revision, metadata, label, selection and the old
   watch together; a refusal keeps every one. Stop forgets records locally and claims no failure.
 - Controls, keys and menu rows call one act; availability and refusals share one reason. A
-  primary drag acquires a field only on the first motion; a FieldValue drop fills the pictured
-  field row after `require_type`, whole-value drops keep open-subject meaning and never replace a
-  dirty draft, and stale pictures or metadata targets refuse unchanged.
+  primary drag acquires a field only on its own press's first motion; a FieldValue drop fills the
+  pictured field row after `require_type`, whole-value drops keep open-subject meaning and never
+  replace a dirty draft, and stale pictures or metadata targets refuse unchanged.
 - Watch spends Workshop's observation lease (`agents/panes.md`): invalidation-driven, one cycle
   per view, a trigger during a cycle remembered once. Clean drafts adopt and mark changes; dirty
   drafts keep text and base revision and hold only the newest entry. Pause, close, hide, reset,
