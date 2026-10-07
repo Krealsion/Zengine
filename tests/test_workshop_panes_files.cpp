@@ -113,11 +113,12 @@ inline std::int64_t cursor_said(const std::vector<std::string>& rows) {
     return std::stoll(header.substr(6, slash - 6)) - 1;
 }
 
-/// WHAT CROSSED THE SEAM, READ OFF THE BUS'S OWN TAP: each `PanePressed`'s row, version and
-/// routing fact, the opens the weave attempted (delivered or refused at dispatch) with each
-/// delivered path, every action id, and every authored row's recipe id. A case states what it
-/// aimed at, where the keys were and what was asked for, rather than inferring any of it from
-/// the pane's answer. A press is read by field name, so one tap reads either version.
+/// WHAT CROSSED THE SEAM, READ OFF THE BUS'S OWN TAP: each primary press's row, version and
+/// routing fact -- a canvas press's row the cell row its place stands on, the lattice of a cell
+/// medium -- the opens the weave attempted (delivered or refused at dispatch) with each delivered
+/// path, every action id, and every authored row's recipe id. A case states what it aimed at,
+/// where the keys were and what was asked for, rather than inferring any of it from the pane's
+/// answer. A press is read by field name, so one tap reads either door.
 struct SeamTap {
     loom::Switchboard& bus;
     loom::WeaveId browser;
@@ -127,6 +128,7 @@ struct SeamTap {
     std::vector<int> keys_went_here;      ///< per delivered press: 1, 0, or -1 for a v1 (no fact)
     std::vector<std::string> heard;       ///< every shape delivered to the weave, in order
     std::size_t refused = 0;              ///< deliveries to the weave Loom refused
+    std::size_t lost = 0;                 ///< canvas holds the weave was told ended
     std::size_t keys = 0;                 ///< raw keys the weave was sent (`PaneKey`)
     std::size_t actions = 0;              ///< resolved ids (`PaneActionRequested`)
     std::size_t rooms = 0;
@@ -156,6 +158,20 @@ struct SeamTap {
                 keys_went_here.push_back(fact != nullptr && fact->is(loom::Kind::Bool)
                                              ? (fact->as_bool() ? 1 : 0)
                                              : -1);
+            }
+            if (ev.kind == loom::EventKind::Delivered && ev.target == browser &&
+                ev.schema_name == PaneCanvasPointer::zen_name && ev.payload != nullptr) {
+                const loom::Cell* phase = ev.payload->get("phase");
+                const loom::Cell* button = ev.payload->get("button");
+                const loom::Cell* y = ev.payload->get("y");
+                const loom::Cell* fact = ev.payload->get("keys_went_here");
+                const std::int64_t at = phase != nullptr ? phase->as_int() : -1;
+                lost += at == canvas_pointer::kLost ? std::size_t{1} : std::size_t{0};
+                if (at == canvas_pointer::kPress && button != nullptr && button->as_int() == 1) {
+                    pressed.push_back(y != nullptr ? y->as_int() / kPaneCanvasUnit : -1);
+                    versions.push_back(ev.schema_version);
+                    keys_went_here.push_back(fact != nullptr && fact->as_bool() ? 1 : 0);
+                }
             }
             if (ev.sender == browser && ev.schema_name == OpenSourceRequested::zen_name &&
                 (ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused)) {
@@ -189,6 +205,8 @@ struct FilesRig {
     CurrentRecipes recipes;
     PaneRig r;
     std::int64_t kind = 0;
+    /// A host that knows no canvas door: it answers that no office accepts a canvas room.
+    bool no_canvas = false;
 
     explicit FilesRig(const char* tag) : dir(tag) {
         root = dir.path();
@@ -204,6 +222,12 @@ struct FilesRig {
               bool with_manager = true, bool with_presenter = false) {
         r.host.managed_pane = PaneRef{"zengine.editor", "editor"};
         r.mount_workshop();
+        if (no_canvas) {
+            r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
+                                                                      const loom::Schema& shape) {
+                return shape.name() != PaneCanvasRoom::zen_name && accepts(role, shape);
+            };
+        }
         if (with_manager) {
             r.mount_opening();
         }
@@ -953,7 +977,7 @@ TEST_CASE("a press on Files' selected row after its open moved the keys to the E
     const std::size_t presses = tap.pressed.size();
     press_pane(f.r, f.kind, selected, 0);
     REQUIRE(tap.pressed.size() == presses + 1);
-    CHECK(tap.versions.back() == 3u); // the browser reads a picture now, so it hears v3
+    CHECK(tap.versions.back() == PaneCanvasPointer::zen_version); // it draws its own picture
     CHECK(tap.keys_went_here.back() == 0);
     CHECK(tap.requested == std::vector<std::string>{beta});
     CHECK(tap.attempts == 1);
@@ -990,7 +1014,8 @@ TEST_CASE("the keys leave Files by a press into the Editor and Files is told not
     SeamTap editor_tap(f.r.bus, f.r.kernel.weave_id("zengine-editor-pane"));
     press_pane(f.r, editor, 1, 0); // the Editor's first document row
     CHECK(keyboard_pane(f.r.session().panes) == editor);
-    CHECK(tap.heard.empty()); // nothing at all reached Files as the keys left it
+    // NOTHING REACHED FILES AS THE KEYS LEFT IT but the end of its own last press's hold.
+    CHECK(tap.heard.size() == tap.lost);
     // THE EDITOR HEARD EXACTLY ONE PRESS IN IT, in the newest version it accepts: it numbers its
     // picture (its rows are a drop target), so it hears v3 as the browser does.
     REQUIRE(editor_tap.pressed.size() == 1);
@@ -1107,9 +1132,9 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
     REQUIRE_FALSE(f.r.session().pane_titles);
     REQUIRE(external_title_rows(f.r.session().panes, f.kind, f.r.session().pane_titles) == 0);
 
-    // THE COORDINATES ARE THE PICTURE'S: the region's rows as painted, with no title row in them.
+    // THE COORDINATES ARE THE PICTURE'S: its rows as painted, with no title row above them.
     const ui::Rect body = external_body_rect(f.r.session(), f.kind);
-    const std::vector<std::string> painted = external_region_rows(f.r.last_canvas(), body);
+    const std::vector<std::string> painted = f.shown();
     const std::string seen = picture(painted);
     INFO("painted with titles hidden and the keys elsewhere:\n", seen);
     const std::int64_t aimed = row_beginning(painted, "  gamma.cpp");
@@ -1125,9 +1150,10 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
     CHECK(tap.pressed[0] == aimed); // the row painted where the press landed
     CHECK(tap.keys_went_here[0] == 0);
     // ...AND THE ROOM THE TITLE TOOK WAS GRANTED AFTER THE PRESS, and settled.
-    const auto at_press = std::find(tap.heard.begin(), tap.heard.end(), std::string(PanePressed::zen_name));
+    const auto at_press =
+        std::find(tap.heard.begin(), tap.heard.end(), std::string(PaneCanvasPointer::zen_name));
     REQUIRE(at_press != tap.heard.end());
-    CHECK(std::find(at_press, tap.heard.end(), std::string(PaneRoom::zen_name)) != tap.heard.end());
+    CHECK(std::find(at_press, tap.heard.end(), std::string(PaneCanvasRoom::zen_name)) != tap.heard.end());
     REQUIRE(keyboard_pane(f.r.session().panes) == f.kind);
     REQUIRE(external_title_rows(f.r.session().panes, f.kind, f.r.session().pane_titles) == 1);
     CHECK(f.at_cursor().rfind("gamma.cpp", 0) == 0);
@@ -1205,35 +1231,39 @@ TEST_CASE("a press into Files while the layout name line has the keys never open
     CHECK(tap.requested == std::vector<std::string>{path});
 }
 
-TEST_CASE("a press from a host that states no routing fact only selects in Files, even on the selected row with the keys Files', and Return still opens it") {
-    // AN OLDER HOST AND A NEWER FILES. A host that answers nothing about which version an office
-    // accepts sends every press as v1, and v1 says nothing about where the keys were -- so Files
-    // does not guess that they were its own. The key a weaver already opens with still opens.
+TEST_CASE("a host that grants Files no canvas is shown its rows as prose, its presses reach nothing there, and Return still opens") {
+    // AN OLDER HOST AND A NEWER FILES. A host that knows no canvas door grants none, so Files
+    // says its rows as prose; it takes no prose press, so a press there is refused at its door
+    // and selects nothing. The keys a press gives a pane
+    // still reach it, and the key a weaver already opens with still opens.
     FilesRig f("files-older-host");
     put_file(f.root / "alpha.cpp", "the alpha source\n");
     put_file(f.root / "beta.cpp", "the beta source\n");
+    f.no_canvas = true;
     f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
-    f.r.host.holder_accepts = nullptr;
+    const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
+    REQUIRE(pane != nullptr);
+    REQUIRE_FALSE(shows_canvas(*pane));
+    REQUIRE(f.at_cursor().rfind("alpha.cpp", 0) == 0);
     const std::string beta = (f.root / "beta.cpp").lexically_normal().generic_string();
     SeamTap tap(f.r.bus, f.files_id());
     press_pane(f.r, f.kind, row_beginning(f.shown(), "  beta.cpp"), 0);
-    REQUIRE(typing_pane(f.r.session()) == f.kind);
-    press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
-    REQUIRE(tap.pressed.size() == 2);
-    CHECK(tap.versions == std::vector<std::uint32_t>{1u, 1u});
-    CHECK(tap.attempts == 0);
-    CHECK(f.at_cursor().rfind("beta.cpp", 0) == 0);
-    CHECK(keyboard_pane(f.r.session().panes) == f.kind);
+    CHECK(tap.refused == 1);
+    CHECK(tap.pressed.empty());
+    CHECK(f.at_cursor().rfind("alpha.cpp", 0) == 0);
+    REQUIRE(keyboard_pane(f.r.session().panes) == f.kind);
+    f.r.key(input::scan::kDown);
+    REQUIRE(f.at_cursor().rfind("beta.cpp", 0) == 0);
     f.r.key(input::scan::kReturn);
     CHECK(tap.requested == std::vector<std::string>{beta});
 }
 
-TEST_CASE("Files takes a press of either version only from Workshop's office and about its own pane, and opens only on a second-version press that says the keys were already there") {
+TEST_CASE("Files takes a canvas press only from Workshop's office and about its own pane, and opens only on one that says the keys were already there") {
     // THE PROVIDER'S OWN CHECKS, MEASURED FROM THE ONLY SIDE THEY SHOW ON: a weave holding
-    // `zengine.workshop` in Workshop's place grants the room and says every press itself, each
+    // `zengine.workshop` in Workshop's place grants the canvas and says every press itself, each
     // aimed at the row the cursor is on. Speech that holds the office without speaking as it,
-    // and a press about some other pane, act on nothing; a first-version press selects; a
-    // second-version press opens exactly when it says the keys were already this pane's.
+    // and a press about some other pane, act on nothing; a press selects, and opens exactly when
+    // it says the keys were already this pane's.
     FilesRig f("files-press-authors");
     put_file(f.root / "alpha.cpp", "the alpha source\n");
     put_file(f.root / "beta.cpp", "the beta source\n");
@@ -1241,48 +1271,46 @@ TEST_CASE("Files takes a press of either version only from Workshop's office and
     f.mount_project_door();
     REQUIRE(f.r.load(files::kFilesStem, WORKSHOP_SO_FILES, files::kFilesRole).valid());
     f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, files::kFilesRole, PaneRoom{files::kProjectFilesPane, 8, 60});
+        wv.canvas_grant(m, files::kFilesRole, files::kProjectFilesPane, 8, 60);
     });
     REQUIRE_FALSE(watch->content.empty());
     REQUIRE(watch->content.back().rows.size() >= 3);
     REQUIRE(watch->content.back().rows[1].text.rfind("> alpha.cpp", 0) == 0);
     SeamTap tap(f.r.bus, f.files_id());
     std::size_t said = watch->content.size();
+    const auto on_alpha = [watch](bool keys_went_here) {
+        PaneCanvasPointer p = watch->canvas_at(1, 0, canvas_pointer::kPress);
+        p.keys_went_here = keys_went_here;
+        return p;
+    };
 
-    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.press_personally(m, files::kFilesRole,
-                            v2::PanePressed{files::kProjectFilesPane, 1, 0, true});
+    f.r.drive_watcher(watch, [&](PaneWatcher& wv, loom::Mail& m) {
+        wv.point_personally(m, files::kFilesRole, on_alpha(true));
     });
     REQUIRE(tap.pressed.size() == 1); // delivered...
     CHECK(tap.attempts == 0);         // ...and not acted on
     CHECK(watch->content.size() == said);
 
-    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, files::kFilesRole, v2::PanePressed{"somebody-else", 1, 0, true});
+    f.r.drive_watcher(watch, [&](PaneWatcher& wv, loom::Mail& m) {
+        PaneCanvasPointer other = on_alpha(true);
+        other.pane = "somebody-else";
+        wv.point(m, files::kFilesRole, other);
     });
     REQUIRE(tap.pressed.size() == 2);
     CHECK(tap.attempts == 0);
     CHECK(watch->content.size() == said);
 
-    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, files::kFilesRole, PanePressed{files::kProjectFilesPane, 1, 0});
+    f.r.drive_watcher(watch, [&](PaneWatcher& wv, loom::Mail& m) {
+        wv.point(m, files::kFilesRole, on_alpha(false));
     });
     REQUIRE(tap.pressed.size() == 3);
     CHECK(tap.attempts == 0);
     CHECK(watch->content.size() == said + 1); // it selected, and said so
-    said = watch->content.size();
 
-    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, files::kFilesRole, v2::PanePressed{files::kProjectFilesPane, 1, 0, false});
+    f.r.drive_watcher(watch, [&](PaneWatcher& wv, loom::Mail& m) {
+        wv.point(m, files::kFilesRole, on_alpha(true));
     });
     REQUIRE(tap.pressed.size() == 4);
-    CHECK(tap.attempts == 0);
-    CHECK(watch->content.size() == said + 1);
-
-    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, files::kFilesRole, v2::PanePressed{files::kProjectFilesPane, 1, 0, true});
-    });
-    REQUIRE(tap.pressed.size() == 5);
     CHECK(tap.attempts == 1);
 }
 
@@ -1780,6 +1808,37 @@ TEST_CASE("a tree with several configurations asks a fifth field, and keeps it")
     CHECK(said.find("multi") != std::string::npos);
 }
 
+TEST_CASE("the authoring line's caret is the medium's, where the line's is, and a press on the line places it") {
+    FilesRig f("files-authoring-caret");
+    put_file(f.root / "oven.cpp", "// a weaver's weave\n");
+    f.open();
+    f.letter(input::scan::kA, "a");
+    f.r.key(input::scan::kReturn); // choose the one candidate
+    for (int i = 0; i < 64; ++i) {
+        f.r.key(input::scan::kBackspace);
+    }
+    f.r.text("oven");
+    const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
+    REQUIRE(pane != nullptr);
+    const std::int64_t line = row_beginning(f.shown(), "recipe name> oven");
+    REQUIRE(line >= 0);
+    // AT THE LINE'S END, after the last character typed: the caret stands in the line's own run.
+    const std::int64_t prompt = static_cast<std::int64_t>(std::string("recipe name> ").size());
+    CHECK(held_caret(*pane).row == line);
+    CHECK(held_caret(*pane).column == prompt + 4);
+    // ...BETWEEN TWO CHARACTERS AFTER A LEFT ARROW, and no character moved for it.
+    f.r.key(input::scan::kLeft);
+    CHECK(held_caret(*pane).column == prompt + 3);
+    CHECK(any_row(f.shown(), "recipe name> oven"));
+    // ...AND WHERE A PRESS ON THE LINE PUTS IT.
+    press_pane(f.r, f.kind, line, prompt + 1);
+    CHECK(held_caret(*pane).row == line);
+    CHECK(held_caret(*pane).column == prompt + 1);
+    // OUTSIDE THE LINE THERE IS NONE.
+    f.r.key(input::scan::kEscape);
+    CHECK(held_caret(*pane).row == surface::kNoCaret);
+}
+
 TEST_CASE("the authoring line takes raw keys, and Escape abandons it whole") {
     // THE ONE PLACE THIS PANE READS A SCANCODE, and it is a component's editing gestures
     // rather than a command. Everything else the pane does arrives as a resolved id.
@@ -2183,7 +2242,7 @@ TEST_CASE("deliberate keys in Files still choose, refuse a blank field, write on
     clear_line();
     f.r.key(input::scan::kReturn);
     CHECK(f.first().rfind("recipe name is required -- nothing was written", 0) == 0);
-    CHECK(any_row(f.shown(), "recipe name> "));
+    CHECK(any_row(f.shown(), "recipe name>"));
     CHECK(tap.authored.empty());
 
     // EDIT AND PROGRESS: the next field suggests the name, and each Return commits one field.
@@ -2319,18 +2378,19 @@ TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
 
         const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
         REQUIRE(pane != nullptr);
-        REQUIRE_MESSAGE(pane->columns > 178, "granted only ", pane->columns,
+        REQUIRE(shows_canvas(*pane));
+        REQUIRE_MESSAGE(held_canvas_rows(*pane).columns > 178, "granted only ",
+                        held_canvas_rows(*pane).columns,
                         " columns -- too narrow for this case to mean anything");
         // ADMITTED, NOT REFUSED. ⚔ MUTATION: `ascii_spelling` dropped from `push_row` turns this
-        // red -- `refusal_why` reads the seam's own "a byte a canvas cannot draw", and `shown`
-        // is empty (weave_seam.cpp clears it on refusal).
-        CHECK(pane->refusal.empty());
-        CHECK(pane->refusal_why.empty());
-        REQUIRE(any_row(pane->shown, "MalformedBytes"));
+        // red -- the canvas refuses the whole picture over the byte it cannot draw, and the
+        // picture Workshop holds is the one before the answer, which says nothing of it.
+        const std::vector<std::string> held = held_row_texts(*pane);
+        REQUIRE(any_row(held, "MalformedBytes"));
         // THE EM DASH SURVIVED AS ITS ASCII TWIN -- spelled, not dropped, not left as raw UTF-8.
-        CHECK(any_row(pane->shown, "MalformedBytes - not valid JSON: invalid literal"));
-        for (const surface::SurfaceTextRow& row : pane->shown) {
-            for (const char c : row.text) {
+        CHECK(any_row(held, "MalformedBytes - not valid JSON: invalid literal"));
+        for (const std::string& row : held) {
+            for (const char c : row) {
                 const unsigned char byte = static_cast<unsigned char>(c);
                 CHECK(byte >= 0x20u);
                 CHECK(byte < 0x7Fu);
@@ -2356,15 +2416,15 @@ TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
         f.point_at("not-a-catalog.txt");
         const ExternalPane* granted = f.r.session().panes.external_pane(f.kind);
         REQUIRE(granted != nullptr);
-        REQUIRE_MESSAGE(granted->columns < 121, "granted ", granted->columns,
+        REQUIRE(shows_canvas(*granted));
+        REQUIRE_MESSAGE(held_canvas_rows(*granted).columns < 121, "granted ",
+                        held_canvas_rows(*granted).columns,
                         " columns -- wide enough to reach the em dash, so not a narrow control");
         f.letter(input::scan::kU, "u");
 
         const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
         REQUIRE(pane != nullptr);
-        CHECK(pane->refusal.empty());
-        CHECK(pane->refusal_why.empty());
-        CHECK(any_row(pane->shown, "not a recipe catalog"));
+        CHECK(any_row(held_row_texts(*pane), "not a recipe catalog"));
     }
 }
 
@@ -2609,7 +2669,7 @@ TEST_CASE("a press that names a picture Files has replaced is refused in words a
     f.mount_project_door();
     REQUIRE(f.r.load(files::kFilesStem, WORKSHOP_SO_FILES, files::kFilesRole).valid());
     f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, files::kFilesRole, PaneRoom{files::kProjectFilesPane, 8, 60});
+        wv.canvas_grant(m, files::kFilesRole, files::kProjectFilesPane, 8, 60);
     });
     REQUIRE_FALSE(watch->content.empty());
     const std::int64_t now = watch->pictures.back();
@@ -2620,8 +2680,10 @@ TEST_CASE("a press that names a picture Files has replaced is refused in words a
 
     // A PRESS ABOUT A PICTURE NOBODY PAINTED: refused, said, and no selection moved.
     f.r.drive_watcher(watch, [beta, now](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, files::kFilesRole,
-                 v3::PanePressed{files::kProjectFilesPane, beta, 0, true, now + 7});
+        PaneCanvasPointer p = wv.canvas_at(beta, 0, canvas_pointer::kPress);
+        p.picture = now + 7;
+        p.keys_went_here = true;
+        wv.point(m, files::kFilesRole, p);
     });
     REQUIRE_FALSE(watch->content.empty());
     CHECK(rows_of(watch->content.back())[0].find("the rows moved") != std::string::npos);
@@ -2629,12 +2691,12 @@ TEST_CASE("a press that names a picture Files has replaced is refused in words a
     CHECK(tap.attempts == 0);
 
     // ...AND ONE ABOUT THE PICTURE THAT IS PAINTED ACTS: this row, and this row only.
-    const std::int64_t fresh = watch->pictures.back();
     const std::int64_t row = row_beginning(rows_of(watch->content.back()), "  beta.cpp");
     REQUIRE(row >= 0);
-    f.r.drive_watcher(watch, [row, fresh](PaneWatcher& wv, loom::Mail& m) {
-        wv.press(m, files::kFilesRole,
-                 v3::PanePressed{files::kProjectFilesPane, row, 0, true, fresh});
+    f.r.drive_watcher(watch, [row](PaneWatcher& wv, loom::Mail& m) {
+        PaneCanvasPointer p = wv.canvas_at(row, 0, canvas_pointer::kPress);
+        p.keys_went_here = true;
+        wv.point(m, files::kFilesRole, p);
     });
     CHECK(row_beginning(rows_of(watch->content.back()), "> beta.cpp") >= 0);
 }
@@ -3015,7 +3077,7 @@ TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column auth
     open_authoring(f);
     press_face(f, "[next field]");
     press_face(f, "[next field]");
-    REQUIRE(any_row(f.shown(), "package prefix (comma-separated)> "));
+    REQUIRE(any_row(f.shown(), "package prefix (comma-separated)>"));
 
     // Thirty content columns, plus the ordinary terminal border on both sides. Height stays
     // ample so this measures WIDTH, independently of the short-pane repair above.
@@ -3232,7 +3294,7 @@ TEST_CASE("a multi-config tree's fifth field has a menu row short enough to offe
     CHECK(any_row(offered, "type the configuration"));
     CHECK_FALSE(any_row(offered, "type the configuration (this tree builds several"));
     choose_row(f, "type the cmake target");
-    REQUIRE(any_row(f.shown(), "cmake target> "));
+    REQUIRE(any_row(f.shown(), "cmake target>"));
     f.r.text("all");
 
     press_face(f, "[next field]"); // cmake target -> artifact stem
@@ -3249,7 +3311,7 @@ TEST_CASE("a multi-config tree's fifth field has a menu row short enough to offe
     INFO("field 2's menu\n", picture(offered));
     CHECK(any_row(offered, "type the configuration"));
     choose_row(f, "type the artifact directory (optional)");
-    REQUIRE(any_row(f.shown(), "artifact directory (optional)> "));
+    REQUIRE(any_row(f.shown(), "artifact directory (optional)>"));
     // Left blank: this field is optional, and the fixture above answers to none.
 
     // FIELD 3's MENU, THE SECOND CALL SITE: `offer_field` composes `"type the " +
@@ -3265,7 +3327,7 @@ TEST_CASE("a multi-config tree's fifth field has a menu row short enough to offe
     // `[next field]` that the four-field candidate walks.
     choose_row(f, "keep this field and type the configuration");
     REQUIRE(any_row(f.shown(),
-                    "configuration (this tree builds several; cmake --build needs one)> "));
+                    "configuration (this tree builds several; cmake --build needs one)>"));
     f.r.text("Release");
 
     // THE FINAL-FIELD MENU: the strip's own `(next field)` is unavailable here, and its menu

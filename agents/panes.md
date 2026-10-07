@@ -80,7 +80,7 @@ external_press_at(panes, setup, screen, kind,     } Panes::selected and Panes::k
   door — the host's `holder_accepts_on`, over the bus's role table and accept-sets, native and
   loaded holders alike — and v1 otherwise, so every older pane is unchanged. It is a fact, not
   an instruction: what it means for a row is the pane's, and a v1 press states NO fact, so a
-  pane must not read it as "the keys were here" (Files selects on it; Return still opens).
+  pane must not read it as "the keys were here". A canvas pointer always states it.
 - **Choosing the version is an inspection, not a delivery.** The office is resolved again at
   dispatch; a holder that changed in between and has no v2 door refuses the press
   `NotAccepted`, and that refusal is the press's outcome. Nothing is retried and no v1 follows

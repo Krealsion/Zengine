@@ -68,9 +68,9 @@ from. A pane showing a stale path would be worse than one showing none.
 ## What it costs
 
 The image carries the document/UI closure that `persist.hpp` drags in behind the marks file,
-which is more than the browser needs. The pane protocol carries no caret, so the authoring
-line shows its text and no caret — the same documented loss the Powers query keeps, and the
-contract the Editor's own migration would have to move. Hover reveal did not come across
+which is more than the browser needs. The authoring line's caret is the medium's, drawn in the
+pane's own picture as the Powers query's is; its selection works and is not drawn. Hover reveal
+did not come across
 (WL-PTR-09): a pane's rows are values, and reveal reads a region the host laid out.
 
 ## What it buys

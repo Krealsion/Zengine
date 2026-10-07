@@ -2350,6 +2350,14 @@ public:
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(office, canvas_at(0, 0, canvas_pointer::kWheel, 0, dy));
     }
+    /// ANY POINTER, from the office this watcher holds and in its own name, for a provider's
+    /// checks on what it reads off one.
+    void point(loom::Mail& mail, const char* office, const PaneCanvasPointer& p) {
+        (void)mail.as_role(kWorkshopProvider).send_to_role(office, p, ++asks);
+    }
+    void point_personally(loom::Mail& mail, const char* office, const PaneCanvasPointer& p) {
+        (void)mail.send_to_role(office, p);
+    }
     void ask(loom::Mail& mail) {
         (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
     }
