@@ -191,7 +191,8 @@ point there lands in the room the press kept"`, case `"a held press keeps a canv
 only from its title row: a pane moved while the press is held is granted its new room at once,
 and the press is lost"`, case `"a held press on the canvas pane that has the keys keeps its room
 while launches take its title row away and give it back, and its title is drawn again once it has
-the keys again"`.
+the keys again"`, case `"a held press a menu takes ends its canvas pane's wait in that same
+repaint: the room under the title and its rows are granted at once"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## Do not assume
