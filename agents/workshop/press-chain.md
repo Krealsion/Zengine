@@ -88,7 +88,7 @@ LAW — A secondary press in a pane's body reaches a `PaneButton` holder, consum
 MEANS
 - the release is the hold's pane's wherever the pointer is; loss and arbitration end it `lost`;
 - a continuation is eligible while newest, unspent, its pane on the desk; a release is no new act;
-- arrangement leaves on one, consumed whole; the Terminal still means nothing by it.
+- arrangement leaves on one, consumed whole; on a canvas the press reaches the pane as its pointer (WL-CANVAS-03).
 
 DOES NOT MEAN
 - that a refused press holds: the tap attributes it; the host drops it; the release is silent;
