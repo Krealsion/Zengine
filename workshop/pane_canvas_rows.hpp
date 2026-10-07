@@ -90,14 +90,14 @@ struct RowsCaret {
 };
 
 /// A PANE'S ROWS AS ITS PICTURE in `room`, numbered `picture`: the medium's own ground beneath
-/// them, as a prose body's, one unpadded run for each row the lattice holds, cut to its columns -- its role, its ground blank
-/// to the row's end where it names one, laid across the room's whole width beneath it as a prose
-/// row's is, and the caret and the selection that stand in it -- and
-/// each of `parts`, in their order, the rectangle its row and columns cover. A row's blanks after
-/// its last character go, unless a ground, the caret or the selection stands on them, and a caret
-/// after the last character is given the blank after it where the row has one; a row with
-/// nothing left is drawn as nothing. A part on a row the room does not hold is left out. The
-/// picture stands for this room, and the pane sends it as itself.
+/// them, as a prose body's, one unpadded run for each row the lattice holds, cut to its columns
+/// -- its role, its ground blank to the row's end where it names one, laid across the room's
+/// whole width beneath it as a prose row's is, and the caret and the selection that stand in it
+/// -- and each of `parts`, in their order, the rectangle its row and columns cover. A row's
+/// blanks after its last character go, unless a ground, the caret or the selection stands on
+/// them, and a caret after the last character is given the blank after it where the row has
+/// one; a row with nothing left is drawn as nothing. A part on a row the room does not hold is
+/// left out. The picture stands for this room, and the pane sends it as itself.
 inline v5::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64_t picture,
                                           const std::vector<surface::SurfaceTextRow>& rows,
                                           const std::vector<PaneRowPart>& parts = {},

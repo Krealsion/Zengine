@@ -3494,6 +3494,15 @@ inline CanvasRows held_canvas_rows(const ExternalPane& pane) {
                                       c.graphical, c.text_advance_px, c.text_line_px});
 }
 
+/// WHETHER A PANE'S PICTURE LIES ON THE MEDIUM'S OWN GROUND: its first rectangle is that ground,
+/// over the whole room it was granted, as `rows_picture` lays it beneath a pane's rows.
+inline bool wears_medium_ground(const ExternalPane& pane) {
+    const auto& rects = pane.canvas.content.rects;
+    return shows_canvas(pane) && !rects.empty() && rects.front().role == surface::role::kMediumGround &&
+           rects.front().x == 0 && rects.front().y == 0 && rects.front().w == pane.canvas.width &&
+           rects.front().h == pane.canvas.height;
+}
+
 /// WHERE A PANE'S CARET AND SELECTION STAND, as `PaneCaret` says them in its rows' lattice: off
 /// the runs of the picture Workshop holds while the pane draws one -- the run carrying a caret
 /// names its row and column, the runs a selection touches its first and last -- and off the caret
