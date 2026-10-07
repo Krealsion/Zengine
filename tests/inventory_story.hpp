@@ -86,9 +86,18 @@ struct InventoryStory {
     std::shared_ptr<std::vector<QuietReader::Event>> physical =
         std::make_shared<std::vector<QuietReader::Event>>();
 
+    /// `no_canvas`: a host that knows no canvas door, answering that no office accepts a canvas
+    /// room -- the one every pane says its rows to as prose.
     explicit InventoryStory(int permissions = 191, bool composer = false, bool desktop_first = false,
-                            bool with_flow = false, bool with_powers = false, bool with_builder = false) {
+                            bool with_flow = false, bool with_powers = false, bool with_builder = false,
+                            bool no_canvas = false) {
         r.mount_workshop();
+        if (no_canvas) {
+            r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
+                                                                      const loom::Schema& shape) {
+                return shape.name() != PaneCanvasRoom::zen_name && accepts(role, shape);
+            };
+        }
         if (with_powers) {
             // The primitives, the discovery door over them, and the Powers pane to browse it.
             REQUIRE(r.catalog.mount("story.basic", zengine::op::primitive_definitions()));

@@ -247,14 +247,14 @@ honest bounds on that capability today:
 
 What text editing also exists is one single-line editor in this host — the layout-name line —
 and more in loaded panes over the same component: Info's property draft and its views' edit and
-rename line, the Terminal's command line, the Hotkeys pane's spelling line, Files' authoring line,
-the Builder's role line, Powers' search and the Composer's fields.
+rename line, Inventory's name line, the Terminal's command line, the Hotkeys pane's spelling line,
+Files' authoring line, the Builder's role line, Powers' search and the Composer's fields.
 
 **A pane's line shows you a caret, and still cannot be swept.** A pane says where its caret is
 and what it has selected, beside the rows it sends or in the picture it draws, so every one of
 those lines has an insertion point — a bar between glyphs in a window, an inverted cell in a
-terminal. Only the Terminal, Info's lines and the layout-name line draw their selection; in the
-others a range selected by keyboard works and is not shown. What no pane's LINE has is a pointer
+terminal. Only the Terminal, Info's and Inventory's lines and the layout-name line draw their
+selection; in the others a range selected by keyboard works and is not shown. What no pane's LINE has is a pointer
 sweep: the two editors accept one while the button is held (`PaneDragged`) and no single-line
 pane does, so in a line a range is selected by `Shift` and the arrow keys.
 

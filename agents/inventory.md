@@ -131,9 +131,16 @@ verification follows [verification](verification.md).
 - A pane is offered when Workshop has not heard it or its offer changed -- each one on an
   activation or a catalog request -- since Workshop takes a re-offer as a reloaded image and
   starts that pane's picture over; and a view's picture is sent only when it differs from the last
-  one sent since its room was granted, since Workshop repaints the desk for each. So making a view
-  offers and draws that view alone (`tests/test_workshop_inventory_info.cpp` case `"views: making
-  a view offers only that view, so a view already on the desk never stands blank"`).
+  one sent since its room was granted, its caret included, since Workshop repaints the desk for
+  each. So making a view offers and draws that view alone (`tests/test_workshop_inventory_info.cpp`
+  case `"views: making a view offers only that view, so a view already on the desk never stands
+  blank"`).
+- Each view draws its rows on its own canvas; a press, the wheel, a right press and a drop are
+  read back to its row map, current only on the picture it still shows. The line being typed
+  writes no caret into itself: the caret and selection stand in it, said beside the rows to a host
+  granting no canvas (`tests/test_workshop_inventory_info.cpp` case `"Inventory draws its rows on
+  its canvas on the medium's own ground, and a name line's caret and selection stand in the line,
+  writing nothing into it, each move of them drawn"`).
 - Desktop admits active globals atomically through PaneShortcuts. Invocation traverses Workshop's
   current attributed action and checks actor permission for the stored message's actual target
   and version. Configuration grants and metadata do not authorize execution. Complete messages

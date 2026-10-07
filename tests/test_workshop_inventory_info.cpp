@@ -353,16 +353,19 @@ TEST_CASE("portable slots: one batched drag moves into a row and a forged transf
         p.place={pane_unit::kPixels,2*surface::kCanvasCellPx,34*surface::kCanvasCellPx};
         p.width={pane_unit::kPixels,72*surface::kCanvasCellPx}; p.height={pane_unit::kPixels,10*surface::kCanvasCellPx};
     }
-    s.r.extent(180,60);
+    s.r.extent(179,60); s.r.extent(180,60); // a same-size extent reseats nothing: the view is placed now
     auto press=s.button_at(s.source,2,true),release=s.button_at(kind,1,false),move=release;
     move.kind="PointerMoved"; move.dx=release.x-press.x; move.dy=release.y-press.y;
     s.batch({press,move,release});
     CHECK_MESSAGE(slots::placed(s.layout(),a)==row,(s.shown(s.source)+s.shown(kind)));
     CHECK(s.saved_entries().size()==1);
     const auto before=s.layout();
-    const auto picture=s.r.session().panes.external_pane(s.source)->picture;
+    const ExternalPane& held=*s.r.session().panes.external_pane(s.source);
+    REQUIRE(shows_canvas(held));
+    const CanvasRows lattice=held_canvas_rows(held);
     s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider),kWorkshopProvider,slots::kRole,
-        loom::Message(loom::to_value(v2::PaneValueDrop{"inventory",s.pair(88),0,0,picture,slots::kRole,row,"made up"})));
+        loom::Message(loom::to_value(PaneCanvasValueDrop{"inventory",held.canvas.grant,held.canvas.content.picture,
+            lattice.column_x(0),lattice.row_y(0),s.pair(88),slots::kRole,row,"made up"})));
     s.r.bus.drain_until_idle(); CHECK(slots::placed(s.layout(),a)==slots::placed(before,a));
     CHECK_MESSAGE(s.shown(s.source).find("expired")!=std::string::npos,s.shown(s.source));
 }
@@ -757,7 +760,7 @@ static std::int64_t row_saying(InventoryStory& s, std::int64_t kind, const std::
 }
 
 TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered: a reference or a "
-          "value, on a canvas or on rows") {
+          "value, on a canvas") {
     // The drop is queued and said sent; the pane leaves before the bus dispatches it.
     const auto leave_once_sent = [](InventoryStory& s, const std::string& said, const std::string& role,
                                     bool& removed) {
@@ -801,7 +804,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
         CHECK_MESSAGE(s.r.last_notice().find("Value not delivered to zengine.flow") != std::string::npos,
                       s.r.last_notice());
     }
-    SUBCASE("a Terminal value on Inventory's rows, the drop that names its source") {
+    SUBCASE("a Terminal value on Inventory's canvas, the drop that names its source") {
         InventoryStory s(191 | 256);
         auto* terminal = s.r.mount_terminal();
         load::LoadPlan plan; load::ArtifactIntent artifact;
@@ -877,21 +880,141 @@ TEST_CASE("a live reference carried from Inventory lands in the Compose field it
     CHECK(rows[static_cast<std::size_t>(field)].find("[copied message/list]") != std::string::npos);
 }
 
-TEST_CASE("pane view reports the painter's rows and refuses hidden content") {
+/// The row of a pane's rows its marker stands on: the one starting `> `, or -1.
+static std::int64_t marked_row(InventoryStory& s, std::int64_t kind) {
+    const auto rows = pane_rows(s.r, kind);
+    for (std::size_t i = 0; i < rows.size(); ++i)
+        if (rows[i].rfind("> ", 0) == 0) return static_cast<std::int64_t>(i);
+    return -1;
+}
+
+TEST_CASE("Inventory draws its rows on its canvas on the medium's own ground, and a name line's caret "
+          "and selection stand in the line, writing nothing into it, each move of them drawn") {
+    InventoryStory s;
+    s.append(10, "Zulu");
+    s.click(s.source, s.row_of(s.source, "Zulu")); // the entry selected, and the keys here
+    s.key(input::scan::kN, input::mod::kCtrl);      // rename it
+    const auto held = [&s] {
+        const ExternalPane* p = s.r.session().panes.external_pane(s.source);
+        REQUIRE(p != nullptr);
+        REQUIRE(shows_canvas(*p));
+        return *p;
+    };
+    CHECK(wears_medium_ground(held()));
+    const std::int64_t line = s.row_of(s.source, "Name:") + 1;
+    REQUIRE(line > 0);
+    const auto rows = pane_rows(s.r, s.source);
+    REQUIRE(static_cast<std::size_t>(line) < rows.size());
+    CHECK(rows[static_cast<std::size_t>(line)] == "Zulu"); // no character written for the caret
+    CHECK(held_caret(held()).row == line);
+    CHECK(held_caret(held()).column == 4); // on the blank after the last character
+    const auto picture = held().canvas.content.picture;
+    s.key(input::scan::kLeft); // the caret alone moves: a picture of its own
+    CHECK(held().canvas.content.picture > picture);
+    CHECK(held_caret(held()).column == 3);
+    CHECK(pane_rows(s.r, s.source) == rows);
+    s.key(input::scan::kLeft, input::mod::kShift);
+    CHECK(held_caret(held()).column == 2);
+    CHECK(held_caret(held()).sel_begin_row == line);
+    CHECK(held_caret(held()).sel_begin_col == 2);
+    CHECK(held_caret(held()).sel_end_col == 3);
+    s.key(input::scan::kEscape); // the edit ends, and its caret with it
+    CHECK(held_caret(held()).row == surface::kNoCaret);
+    CHECK(s.row_of(s.source, "Name:") < 0);
+}
+
+TEST_CASE("a host that grants Inventory no canvas is shown its rows and a name line's caret as prose, "
+          "its presses reach nothing there, and its keys still act") {
+    InventoryStory s(191, false, false, false, false, false, /*no_canvas=*/true);
+    s.append(10, "Zulu");
+    REQUIRE_FALSE(shows_canvas(*s.r.session().panes.external_pane(s.source)));
+    const std::int64_t zulu = s.row_of(s.source, "Zulu");
+    REQUIRE(zulu >= 0);
+    const std::int64_t marked = marked_row(s, s.source);
+    REQUIRE(marked >= 0);
+    REQUIRE(marked != zulu);
+    s.click(s.source, zulu); // the keys come here; the press itself reaches nothing
+    CHECK(marked_row(s, s.source) == marked);
+    CHECK(s.shown(s.source).find("acquired") == std::string::npos);
+    for (int i = 0; i < 8 && marked_row(s, s.source) != zulu; ++i) s.key(input::scan::kDown);
+    REQUIRE(marked_row(s, s.source) == zulu);
+    s.key(input::scan::kN, input::mod::kCtrl);
+    const std::int64_t line = s.row_of(s.source, "Name:") + 1;
+    REQUIRE(line > 0);
+    CHECK(pane_rows(s.r, s.source)[static_cast<std::size_t>(line)] == "Zulu");
+    const ExternalPane* held = s.r.session().panes.external_pane(s.source);
+    CHECK(held_caret(*held).row == line);
+    CHECK(held_caret(*held).column == 4);
+}
+
+TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas, fractions carried") {
+    InventoryStory s;
+    s.append(10, "Alpha");
+    s.append(20, "Bravo");
+    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(s.source)));
+    const std::int64_t first = marked_row(s, s.source);
+    REQUIRE(first >= 0);
+    const auto wheel = [&s](double dy) {
+        input::InjectedEvent e = s.button_at(s.source, 1, true);
+        e.kind = "PointerWheel";
+        e.wheel_dy = dy;
+        s.event(e);
+    };
+    wheel(-1); // toward the weaver: the next entry
+    CHECK(marked_row(s, s.source) == first + 1);
+    wheel(0.5); // half a notch back moves nothing yet...
+    CHECK(marked_row(s, s.source) == first + 1);
+    wheel(0.5); // ...and the other half does
+    CHECK(marked_row(s, s.source) == first);
+}
+
+TEST_CASE("a right press on Inventory's rows offers its menu, and one beside them, where a prose press "
+          "would have named no row, is handed back and Workshop's own pane menu opens") {
+    InventoryStory s;
+    s.r.extent_on_window(180, 60);
+    const ExternalPane* held = s.r.session().panes.external_pane(s.source);
+    REQUIRE(held != nullptr);
+    REQUIRE(shows_canvas(*held));
+    const CanvasRows lattice = held_canvas_rows(*held);
+    REQUIRE(lattice.x > 0); // a window keeps an inset beside the rows
+    const std::int64_t x = held->canvas.x, y = held->canvas.y + lattice.row_y(1) + lattice.line / 2;
+    const auto right = [&s](std::int64_t px, std::int64_t py) {
+        for (const bool down : {true, false})
+            s.r.publish(loom::to_value(input::PointerButton{3, down, px, py, input::space::kPixels,
+                                                            input::mod::kNone}));
+    };
+    right(x + lattice.column_x(2) + 1, y); // on an entry's row: Inventory's own menu
+    CHECK(s.r.session().presented.open);
+    CHECK_FALSE(s.r.session().context.open);
+    s.key(input::scan::kEscape);
+    REQUIRE_FALSE(s.r.session().presented.open);
+    right(x, y); // in the inset beside it: handed back
+    CHECK_FALSE(s.r.session().presented.open);
+    CHECK(s.r.session().context.open);
+}
+
+TEST_CASE("pane view reports the words the pane draws, each where a press names it, and refuses hidden content") {
     InventoryStory s;
     s.append(12, "visible item");
     auto query = [&] { s.act([](loom::Mail& m) { m.send_to_role("zengine.workshop",
-        PaneViewRequested{"zengine.inventory-pane", "inventory"}); }); };
-    query(); REQUIRE(s.hand->views.size() == 1);
-    for (const auto& row : s.hand->views.back().rows) {
+        v2::PaneViewRequested{"zengine.inventory-pane", "inventory"}); }); };
+    query(); REQUIRE(s.hand->words.size() == 1);
+    CHECK(s.hand->words.back().canvas);
+    const auto rows = pane_rows(s.r, s.source);
+    REQUIRE_FALSE(s.hand->words.back().words.empty());
+    for (const auto& word : s.hand->words.back().words) {
         const auto at = external_press_at(s.r.session().panes, s.r.session().setup.active,
-            screen_of(s.r.session()), s.source, s.r.session().pane_titles, row.space, row.x, row.y);
-        CHECK(at.named); CHECK(at.row == row.row);
+            screen_of(s.r.session()), s.source, s.r.session().pane_titles, word.space, word.x, word.y);
+        REQUIRE(at.named);
+        REQUIRE(at.row < static_cast<std::int64_t>(rows.size()));
+        std::string text = word.text;
+        while (!text.empty() && text.back() == ' ') text.pop_back();
+        CHECK(rows[static_cast<std::size_t>(at.row)] == text); // the word on the row a press there names
     }
     s.hand->expect_refusal = true;
     s.r.session().context.open = true;
     query();
-    CHECK(s.hand->views.size() == 1);
+    CHECK(s.hand->words.size() == 1);
     REQUIRE(s.hand->refusals.size() == 1);
     CHECK(s.hand->refusals.back().find("covered") != std::string::npos);
     s.r.session().context.open = false;
@@ -1729,10 +1852,9 @@ TEST_CASE("views: making a view offers only that view, so a view already on the 
     const std::size_t from = s.r.canvases.size();
     (void)s.create("row");
     REQUIRE(s.r.canvases.size() > from);
-    const ui::Rect body = external_body_rect(s.r.session(), kind);
     std::size_t blank = 0;
     for (std::size_t i = from; i < s.r.canvases.size(); ++i) {
-        if (external_rows(s.r.canvases[i], body) != before) {
+        if (canvas_rows_shown(s.r.session(), s.r.canvases[i], kind) != before) {
             ++blank;
         }
     }

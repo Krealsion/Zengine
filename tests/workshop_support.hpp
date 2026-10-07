@@ -3636,9 +3636,9 @@ private:
 
 /// THE ROWS A CANVAS PANE SHOWS, read off the published canvas as `external_rows` reads a text
 /// pane's: each one-row region whose first character stands in the pane's picture's body, on the
-/// first plane that has one -- the pane's own, painted before anything that covers it -- placed
-/// on the room's lattice by where the medium draws it, each row its characters without the
-/// blanks after the last, "" where a row has none.
+/// pane's own plane -- the one its ground stands on, else the first that has such a region --
+/// painted before anything that covers it, placed on the room's lattice by where the medium draws
+/// it, each row its characters without the blanks after the last, "" where a row has none.
 inline std::vector<std::string> canvas_rows_shown(const Session& s, const surface::SurfaceCanvas& c,
                                                   std::int64_t kind) {
     std::vector<std::string> out;
@@ -3648,7 +3648,18 @@ inline std::vector<std::string> canvas_rows_shown(const Session& s, const surfac
     if (lattice.empty()) return out;
     const auto& body = pane->canvas;
     const Screen sc = screen_of(s);
+    // THE PANE'S OWN PLANE, where its picture lays the medium's ground at the body's corner as
+    // rows on the lattice do: a pane behind it may have runs in the same body too.
+    const surface::SurfaceLayer* own = nullptr;
     for (const surface::SurfaceLayer& layer : c.layers) {
+        for (const surface::SurfaceRect& rect : layer.rects) {
+            if (rect.role == surface::role::kMediumGround && rect.x == body.x && rect.y == body.y) {
+                own = &layer;
+            }
+        }
+    }
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        if (own != nullptr && &layer != own) continue;
         bool found = false;
         for (const surface::SurfaceTextRegion& r : layer.texts) {
             if (r.rows.size() != 1) continue;
