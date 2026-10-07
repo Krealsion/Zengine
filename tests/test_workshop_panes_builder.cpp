@@ -1912,17 +1912,35 @@ TEST_CASE("a press that names a picture the Builder has replaced is refused in w
         }
     }
     REQUIRE(control >= 0);
-    const std::size_t said = watch->content.size();
 
-    r.drive_watcher(watch, [control, column, now](PaneWatcher& wv, loom::Mail& m) {
-        PaneCanvasPointer p = wv.canvas_at(control, column, canvas_pointer::kPress);
-        p.picture = now + 7;
-        p.keys_went_here = true;
-        wv.point(m, pane::kBuilderPaneRole, p);
-    });
-    REQUIRE(watch->content.size() > said);
-    CHECK(watch->content.back().rows[0].text.find("the rows moved -- press again") !=
-          std::string::npos);
+    SUBCASE("a picture not drawn yet") {
+        const std::size_t said = watch->content.size();
+        r.drive_watcher(watch, [control, column, now](PaneWatcher& wv, loom::Mail& m) {
+            PaneCanvasPointer p = wv.canvas_at(control, column, canvas_pointer::kPress);
+            p.picture = now + 7;
+            p.keys_went_here = true;
+            wv.point(m, pane::kBuilderPaneRole, p);
+        });
+        REQUIRE(watch->content.size() > said);
+        CHECK(watch->content.back().rows[0].text.find("the rows moved -- press again") !=
+              std::string::npos);
+    }
+    SUBCASE("the picture of a room since granted afresh, the same size") {
+        PaneCanvasPointer old = watch->canvas_at(control, column, canvas_pointer::kPress);
+        old.keys_went_here = true;
+        r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+            wv.canvas_grant(m, pane::kBuilderPaneRole, pane::kBuilderPane, 10, 70);
+        });
+        REQUIRE(watch->canvas_room.grant != old.grant);
+        CHECK(watch->content.back().rows[0].text.find("the rows moved") == std::string::npos);
+        const std::size_t said = watch->content.size();
+        r.drive_watcher(watch, [old](PaneWatcher& wv, loom::Mail& m) {
+            wv.point(m, pane::kBuilderPaneRole, old);
+        });
+        REQUIRE(watch->content.size() > said);
+        CHECK(watch->content.back().rows[0].text.find("the rows moved -- press again") !=
+              std::string::npos);
+    }
 }
 
 // =============================================================================
@@ -2588,6 +2606,7 @@ TEST_CASE("the Builder's role line shows the medium's caret where the line's is,
     const ExternalPane* pane = b.r.session().panes.external_pane(b.kind);
     REQUIRE(pane != nullptr);
     CHECK(held_caret(*pane).row == surface::kNoCaret); // no line, no caret
+    CHECK(wears_medium_ground(*pane)); // the rows lie on the medium's own ground
     b.r.key(input::scan::kO);
     REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
     b.r.text("main");
@@ -2602,5 +2621,11 @@ TEST_CASE("the Builder's role line shows the medium's caret where the line's is,
     CHECK(any_row(b.shown(), "role for a> main?"));
     CHECK(held_caret(*pane).column == prompt + 5);
     b.r.key(input::scan::kLeft);
+    CHECK(held_caret(*pane).column == prompt + 4);
+    // ...AND A PRESS IS READ IN THE SAME CHARACTERS: pressed on the cell past that character, the
+    // caret stands there, not back where its bytes would put it.
+    bp_press_aimed(b, bp_aim(b), line, prompt + 5);
+    CHECK(held_caret(*pane).column == prompt + 5);
+    bp_press_aimed(b, bp_aim(b), line, prompt + 4);
     CHECK(held_caret(*pane).column == prompt + 4);
 }

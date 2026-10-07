@@ -813,8 +813,12 @@ public:
             // no mode, which is what keeps clicking a pane to focus it from doing anything.
             open_recipes(mail);
         } else if (m->kind == builder_row::kLine && role_.open) {
-            const std::int64_t prompt = static_cast<std::int64_t>(active_role_prompt().size());
-            role_.line.place(role_.line.position_at_column(column - prompt));
+            // A PRESS IS READ IN WHAT THE ROW DRAWS, as the caret is: the pressed column counts
+            // the spelled characters before it, never the typed bytes.
+            const std::string prompt = active_role_prompt();
+            const std::string shown = role_.line.visible(role_value_columns(prompt));
+            role_.line.place(role_.line.position_at_column(spelled_column_byte(
+                shown, column - static_cast<std::int64_t>(prompt.size()))));
             say(mail);
         }
         if (spent && published_ == published) {
@@ -1881,7 +1885,7 @@ private:
     /// One row of the picture, with what it means recorded as it is written: a press is answered
     /// from the record the composition made, never from a second calculation. Spelled in what a
     /// canvas draws (WL-OUT-03): a row may carry another owner's words, and one byte Workshop's
-    /// canvas cannot draw refuses the pane's whole picture (`judge_content`).
+    /// canvas cannot draw refuses the pane's whole picture (`canvas_content_problem`).
     void push_row(const std::string& text, std::int64_t role,
                   BuilderMeaning meaning = BuilderMeaning{}) {
         if (static_cast<std::int64_t>(composing_.size()) >= rows_) {
@@ -2147,12 +2151,32 @@ private:
         return fitted_label(role_prompt(), columns_, kMinRoleValueColumns);
     }
 
+    /// The columns the role line's value is drawn in beside `prompt`: one is kept for the caret.
+    std::int64_t role_value_columns(const std::string& prompt) const {
+        return columns_ > static_cast<std::int64_t>(prompt.size()) + 1
+                   ? columns_ - static_cast<std::int64_t>(prompt.size()) - 1
+                   : 1;
+    }
+
+    /// The byte of `shown` a press at spelled `column` names: the last character boundary whose
+    /// spelling (`ascii_spelling`) is no wider than the column.
+    static std::int64_t spelled_column_byte(const std::string& shown, std::int64_t column) {
+        std::int64_t best = 0;
+        for (std::size_t b = 1; b <= shown.size(); ++b) {
+            if (b < shown.size() && (static_cast<unsigned char>(shown[b]) & 0xC0u) == 0x80u) {
+                continue; // inside a character
+            }
+            if (static_cast<std::int64_t>(ascii_spelling(shown.substr(0, b)).size()) > column) {
+                break;
+            }
+            best = static_cast<std::int64_t>(b);
+        }
+        return best;
+    }
+
     void say_role() {
         const std::string prompt = active_role_prompt();
-        const std::int64_t cols =
-            columns_ > static_cast<std::int64_t>(prompt.size()) + 1
-                ? columns_ - static_cast<std::int64_t>(prompt.size()) - 1
-                : 1;
+        const std::int64_t cols = role_value_columns(prompt);
         role_.line.keep_caret_visible(cols);
         const std::string shown = role_.line.visible(cols);
         if (static_cast<std::int64_t>(composing_.size()) < rows_) {
@@ -2517,7 +2541,7 @@ private:
 
     /// WHAT EACH ROW AND EACH RUN OF COLUMNS IN THE LAST PICTURE MEANS, and the number of that
     /// picture -- replaced whole by every `say`. A press is answered from this record and from
-    /// nowhere else, and one that names an older number is refused.
+    /// nowhere else; which pictures drawn under it a press may name is `pictures_`'s to say.
     component::RowMap<BuilderMeaning> map_;
     /// THE ROWS BEING COMPOSED, held while `say` runs so each mode's composer and the control
     /// strip write into one list and the map records the row each of them landed on.
