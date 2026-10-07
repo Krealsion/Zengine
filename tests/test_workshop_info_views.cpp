@@ -1186,6 +1186,15 @@ TEST_CASE("info views: the wheel walks a view's fields a notch at a time on its 
     CHECK(selected_field(s, a) == second);
     wheel(0.5); // ...and the other half does
     CHECK(selected_field(s, a) == first);
+    // A wheel from the room the view stood in before a new one was granted turns nothing.
+    const ExternalPane old = *s.r.session().panes.external_pane(a);
+    s.place(info::kInfoPaneRole, "info.2", 2, 30, 84, 24);
+    REQUIRE(s.r.session().panes.external_pane(a)->canvas.grant != old.canvas.grant);
+    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
+        loom::Message(loom::to_value(PaneCanvasPointer{"info.2", old.canvas.grant, old.canvas.content.picture, 0,
+            canvas_pointer::kWheel, 0, 4, 4, 0, 0, -1})));
+    s.r.bus.drain_until_idle();
+    CHECK(selected_field(s, a) == first);
     s.key(input::scan::kReturn); // edit the selected field: the wheel walks nothing now
     REQUIRE_MESSAGE(s.shows(a, "Edit name"), s.shown(a));
     const auto editing = pane_rows(s.r, a);
