@@ -156,8 +156,9 @@ class CanvasPane:
     the middle of its widest stretch of columns no later part takes (none, in no space, where every
     column is another's). `drop` stands a word's place that many px below its row's top, as a run
     set in from its row's rectangle; `by_column` lists every row's first run before any row's
-    second, as Workshop lists a canvas pane's labels before its runs. A press or a wheel inside the
-    body is the pane's, read back to a row and a column."""
+    second, as Workshop lists a canvas pane's labels before its runs. A press, a release or a wheel
+    inside the body is the pane's, read back to a row and a column, and so are the keys once a
+    press has landed there."""
     canvas = True
 
     def __init__(self, body=(600, 100, 420, 168), inset=2, advance=7, line=14, drop=0,
@@ -241,7 +242,13 @@ class CanvasPane:
     def pressed(self, x, y):
         pass
 
+    def released(self, x, y):
+        pass
+
     def wheeled(self, dy):
+        pass
+
+    def keyed(self, scancode, modifiers):
         pass
 
 
@@ -323,6 +330,146 @@ class CanvasControls(CanvasPane):
             self.resets += 1
 
 
+class CanvasBuilder(CanvasPane):
+    """The Builder drawing its rows on its canvas: its notice, its header, its labelled rows -- the
+    compiler's answer a block padded with blank rows -- and its strip, which names the
+    load-after-build switch; or, with its output reader open, the notice, the reader's header
+    naming the lines it shows, `room` lines of `output` from line `top` -- a blank one drawn as no
+    word -- and the reader's strip on two rows. L opens the reader, Down moves it a line, Escape
+    closes it, Shift+b turns the switch. Each press is kept as the row and column it lands on."""
+
+    def __init__(self, output, room=4, reading=False, **kw):
+        CanvasPane.__init__(self, body=(600, 100, 560, 196), **kw)
+        self.output, self.room, self.reading, self.top = list(output), room, reading, 1
+        self.armed, self.notice, self.presses = False, "build #8 FAILED -- l reads its output", []
+
+    def drawn(self):
+        if self.reading:
+            shown = self.output[self.top - 1:self.top - 1 + self.room]
+            rows = ["output #8 tower-defense -- FAILED, exit 2 -- lines %d-%d of %d" % (
+                self.top, self.top + len(shown) - 1, len(self.output))] + shown + [
+                "[menu] [older build] [newer build] [back to the Builder]", "[copy the command]"]
+        else:
+            rows = ["BUILDER @zengine.builder  game/build-recipes.json",
+                    "recipe   tower-defense -> tower-defense  (1/2)",
+                    "last     FAILED -- op #8, 7 out", "exit     2          asks 8 ever", "", "",
+                    "realize  REFUSED -- op #8", "said     --", "", "",
+                    "[menu] [choose a recipe...] [build] [turn load-after-build %s]"
+                    % ("off" if self.armed else "on")]
+        return [{"runs": [(0, r)] if r else [], "parts": []} for r in [self.notice] + rows]
+
+    def pressed(self, x, y):
+        self.presses.append(self.at(x, y))
+
+    def keyed(self, scancode, modifiers):
+        if (scancode, modifiers) == (15, 0):
+            self.reading, self.top = True, 1
+        elif (scancode, modifiers) == (41, 0):
+            self.reading = False
+        elif (scancode, modifiers) == (81, 0) and self.reading:
+            self.top = min(self.top + 1, len(self.output))
+        elif (scancode, modifiers) == (5, 1):
+            self.armed = not self.armed
+            self.notice = "load after build: %s" % ("on" if self.armed else "off")
+
+
+class CanvasTerminal(CanvasPane):
+    """The Terminal drawing its transcript on its canvas: its heading, an entry a row -- a value
+    it carries named `entry:<observation>`, a blank row drawing no word -- and the line being
+    typed, named `line`. A press on a value's row picks that value up, as a drag's start."""
+    ROWS = [("TERMINAL -- weave #3", None),
+            ("> send @zengine.skin SurfaceText 1 slot=score text=one", None),
+            ("^ SurfaceText v1 -> @zengine.skin  SUBMITTED", "entry:4"),
+            ("", None),
+            ("> ask @zengine.editor-switch EditorSwitchStatusRequested 1", None),
+            ("v EditorSwitchAnswered v1 from #2", "entry:6"),
+            ("> send @zengine.skin SurfaceText 1 slot=score text=two", None),
+            ("^ SurfaceText v1 -> @zengine.skin  SUBMITTED", "entry:8"),
+            (">    Tab: what can this terminal say?  Up: recall a command", "line")]
+
+    def __init__(self, **kw):
+        CanvasPane.__init__(self, body=(20, 100, 560, 168), **kw)
+        self.picked = []
+
+    def drawn(self):
+        return [{"runs": [(0, text)] if text else [],
+                 "parts": [(name, 0, self.columns())] if name else []} for text, name in self.ROWS]
+
+    def pressed(self, x, y):
+        row = self.at(x, y)[0]
+        name = self.ROWS[row][1] if row < len(self.ROWS) else None
+        if name and name.startswith("entry:"):
+            self.picked.append(name)
+
+
+class CanvasFiles(CanvasPane):
+    """Files drawing its rows on its canvas: its header, a blank row, its entries -- each named
+    `entry:<name>`, a directory shown with a `/` -- and its strip, `[look again]` named
+    `control:files.refresh`. A press on an entry chooses it, and on `[look again]` looks again."""
+    STRIP = "[menu] [open] [new file] [look again]"
+    ENTRIES = [("demo", True), ("beat.cpp", False), ("notes.txt", False)]
+
+    def __init__(self, **kw):
+        CanvasPane.__init__(self, **kw)
+        self.cursor, self.refreshed = 0, 0
+
+    def drawn(self):
+        out = [{"runs": [(0, "Files 1/3  project  /work")], "parts": []}, {"runs": [], "parts": []}]
+        for i, (name, directory) in enumerate(self.ENTRIES):
+            out.append({"runs": [(0, ("> " if i == self.cursor else "  ") + name +
+                                  ("/" if directory else ""))],
+                        "parts": [("entry:" + name, 0, self.columns())]})
+        out.append({"runs": [(0, self.STRIP)],
+                    "parts": [("control:files.open", 7, 6),
+                              ("control:files.refresh", self.STRIP.find("[look again]"), 12)]})
+        return out
+
+    def pressed(self, x, y):
+        row, column = self.at(x, y)
+        refresh = self.STRIP.find("[look again]")
+        if 2 <= row < 2 + len(self.ENTRIES):
+            self.cursor = row - 2
+        elif row == 2 + len(self.ENTRIES) and refresh <= column < refresh + 12:
+            self.refreshed += 1
+
+
+class CanvasComposer(CanvasPane):
+    """The Composer drawing its form on its canvas: its target line first, never blank, then the
+    message's header, its fields, blank rows padding the form, its controls and its notice. A
+    command released over it is kept as the row it fell on."""
+
+    def __init__(self, notice="", **kw):
+        CanvasPane.__init__(self, **kw)
+        self.notice, self.dropped = notice, []
+
+    def drawn(self):
+        rows = ["to @zengine.inventory", "InventoryRename v1 -> @zengine.inventory",
+                "> reference: InventoryReference  (required)", "  revision: U64  (required)",
+                "  label: Text  (required)", "", "", "[ Submit ]  [ Back ]", self.notice]
+        named = {2: "field:reference", 3: "field:revision", 4: "field:label"}
+        return [{"runs": [(0, text)] if text else [],
+                 "parts": [(named[i], 0, self.columns())] if i in named else []}
+                for i, text in enumerate(rows)]
+
+    def released(self, x, y):
+        self.dropped.append(self.at(x, y)[0])
+
+
+class Quiet:
+    """A subscription to an owner's words that hears none, as `workshop/builder` holds one while
+    it acts on what the Builder's own rows confirm."""
+    subscription, relay, holder, incarnation, window = 1, "R", 5, 1, 256
+
+    def drain(self):
+        return []
+
+    def next(self, timeout=None):
+        return None
+
+    def summary(self):
+        return {"subscription": self.subscription, "heard": 0}
+
+
 class Answer(dict):
     """An owner's answer as a run reads it: by its fields' names, and whole as `fields`."""
 
@@ -334,8 +481,10 @@ class Answer(dict):
 class CanvasWorkshop(Context):
     """A run context whose Workshop shows `panes` -- {(provider, pane): CanvasPane} -- that draw
     pictures: it answers PaneView version 3 and PanePoint version 2, and fails a run that asks any
-    other version of either, as a pane drawing a picture is not read by its rows. A part `unreached`
-    names has no point. Each press or wheel inside a pane's body is that pane's. `zengine.demo`
+    other version of either, as a pane drawing a picture is not read by its rows; a pane it does
+    not show is refused as a closed one. A part `unreached` names has no point. Each press, release
+    or wheel inside a pane's body is that pane's, and the keys go to the pane a press last landed
+    on. An owner's words are observed through a subscription that hears none. `zengine.demo`
     answers its status by the resets its controls were pressed for. `act_steps` are a
     `workshop/act` run's steps; what a run keeps is kept."""
 
@@ -343,6 +492,7 @@ class CanvasWorkshop(Context):
         Context.__init__(self, steps)
         self.inputs["steps"] = json.dumps(list(act_steps))
         self.panes, self.unreached, self.asked, self.kept = dict(panes), set(unreached), [], {}
+        self.holder = None  # the pane a press last landed on, which hears the keys
 
     def produce(self, name, data):
         self.kept[name] = data
@@ -352,6 +502,9 @@ class CanvasWorkshop(Context):
             part.update(x=0, y=0, space=0)
         return part
 
+    def observe(self, producer, shapes, **options):
+        return Quiet()
+
     def ask(self, office, shape, fields, **options):
         if shape in ("PaneViewRequested", "PanePointRequested"):
             version = options.get("version", 1)
@@ -359,18 +512,26 @@ class CanvasWorkshop(Context):
             if version != (3 if shape == "PaneViewRequested" else 2):
                 raise AssertionError("%s version %d asked of a pane that draws a picture"
                                      % (shape, version))
-            pane = self.panes[(fields["provider"], fields["pane"])]
+            pane = self.panes.get((fields["provider"], fields["pane"]))
+            if pane is None:
+                from loom_session.tool import Refused
+                raise Refused("pane view unavailable: closed, unknown or covered by an interaction")
             if shape == "PanePointRequested":
                 return pane.point(fields["word"], fields["column"])
             return pane.view(fields["provider"], fields["pane"], self.pointed)
         if shape == "InjectInput":
             for e in fields["events"]:
+                if e["kind"] == "KeyPressed" and self.holder is not None:
+                    self.holder.keyed(e["scancode"], e["modifiers"])
                 for pane in self.panes.values():
                     if e["kind"] in ("PointerButton", "PointerWheel") and pane.holds(e["x"], e["y"]):
                         if e["kind"] == "PointerWheel":
                             pane.wheeled(e["wheel_dy"])
                         elif e["pressed"]:
+                            self.holder = pane
                             pane.pressed(e["x"], e["y"])
+                        else:
+                            pane.released(e["x"], e["y"])
         if shape == "DemoStatusRequested":
             return Answer(generation=3)
         if shape == "DemoReadyRequested":
@@ -532,6 +693,8 @@ def run_checks(tools, runtime):
     act = importlib.import_module("act")
     hand = importlib.import_module("hand")
     reset_button = importlib.import_module("demo_reset_button")
+    builder = importlib.import_module("builder")
+    workbench = importlib.import_module("workbench")
 
     class ToolChecks(unittest.TestCase):
         def test_drag_delegates_timed_motion_and_cleans_up_after_picture_failure(self):
@@ -1085,6 +1248,143 @@ def run_checks(tools, runtime):
             self.assertEqual(wheels, [(loaded.column_x(8) + 3, loaded.row_y(0) + 7, -1.0),
                                       (loaded.column_x(0) + 59 * 7 // 2, loaded.row_y(2) + 7, 1.0)])
             self.assertEqual(loaded.origin, 0)
+            self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
+
+        # ---- Files, the Builder, the Terminal and the Composer drawing pictures ----------------
+        BUILDER = ("zengine.builder-pane", "builder")
+        TERMINAL = ("zengine.terminal", "terminal")
+        FILES = ("zengine.files", "project-files")
+        COMPOSER = ("zengine.composer", "compose")
+        BUILT = ["-- Build files have been written to: /work/game/build", "",
+                 "game.cpp:12:5: error: 'towr' was not declared in this scope",
+                 "   12 |     towr.fire();", "", "ninja: build stopped: subcommand failed.", ""]
+
+        def test_the_builder_tool_arms_a_canvas_builder_pressing_it_by_its_words(self):
+            # Its output reader is open: a press on the first word, the notice, brings the keys and
+            # Escape closes the reader; a press on the header's first character brings them back
+            # for Shift+b, which the switch the strip names confirms.
+            pane = CanvasBuilder(self.BUILT, reading=True)
+            ctx = CanvasWorkshop(steps, {self.BUILDER: pane})
+            try:
+                said = builder.perform(ctx, {"act": "arm", "link": "workshop", "seconds": 5})
+            finally:
+                for callback in reversed(ctx.cleanups):
+                    callback()
+            self.assertIn("said 'load after build: on'", said)
+            self.assertTrue(pane.armed)
+            self.assertFalse(pane.reading)
+            self.assertEqual(pane.presses, [(0, 0), (1, 0)])
+            self.assertEqual(json.loads(ctx.kept["builder.json"])["before"]["armed"], False)
+            self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3), ("PanePointRequested", 2)})
+            self.assertFalse(ctx.owner.open)
+
+        def test_a_canvas_builders_output_lines_are_numbered_by_place_across_blank_ones(self):
+            # A blank output line is no word on a canvas: lines 2 and 5 and the last keep their
+            # numbers, and the reader's second strip row is not read as a line.
+            pane = CanvasBuilder(self.BUILT)
+            ctx = CanvasWorkshop(steps, {self.BUILDER: pane})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                with patch.object(builder, "time", SimpleNamespace(monotonic=time.monotonic,
+                                                                   sleep=lambda seconds: None)):
+                    builder.keys_into(ctx, held)
+                    read = builder.read_output(ctx, held)
+            finally:
+                held.close()
+            self.assertEqual(read.split("\n"),
+                             ["output #8 tower-defense -- FAILED, exit 2 -- lines 5-7 of 7"]
+                             + self.BUILT)
+            self.assertEqual((pane.reading, pane.top), (False, 5))
+            self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3), ("PanePointRequested", 2)})
+
+        def test_the_terminals_newest_value_saying_a_text_is_found_by_its_part_and_dragged(self):
+            terminal = CanvasTerminal()
+            ctx = CanvasWorkshop(steps, {self.TERMINAL: terminal})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                sent = held.last_part(*self.TERMINAL, "entry:", "^ SurfaceText")
+                held.drag(sent, {"x": 700, "y": 400, "space": 2}, 400)
+                answer = held.last_part(*self.TERMINAL, "entry:", "v EditorSwitchAnswered")
+                with self.assertRaisesRegex(ValueError,
+                                            r"no visible part entry:\* saying '\^ Show"):
+                    held.last_part(*self.TERMINAL, "entry:", "^ Show")
+                held.last_view(held.words(*self.TERMINAL), "last-terminal.json")
+            finally:
+                held.close()
+            # The newest is the lowest: entry:8, pressed at the middle of its row.
+            middle = (terminal.column_x(0) + 79 * 7 // 2, terminal.row_y(7) + 7)
+            self.assertEqual((sent["name"], sent["x"], sent["y"]), ("entry:8",) + middle)
+            self.assertEqual(terminal.picked, ["entry:8"])
+            self.assertEqual([(e["kind"], e["x"], e["y"]) for e in ctx.events],
+                             [("PointerButton",) + middle, ("PointerMoved", 700, 400),
+                              ("PointerButton", 700, 400)])
+            self.assertEqual(answer["name"], "entry:6")
+            kept = json.loads(ctx.kept["last-terminal.json"])
+            self.assertEqual((kept["canvas"], kept["parts"]),
+                             (True, ["entry:4", "entry:6", "entry:8", "line"]))
+            self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
+
+        def test_files_look_again_is_pressed_by_the_hand_and_an_entry_found_by_its_part(self):
+            files = CanvasFiles()
+            ctx = CanvasWorkshop(steps, {self.FILES: files})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                where = held.control(*self.FILES, "look again")
+                listed = [p["name"] for p in held.words(*self.FILES)["parts"]
+                          if p["name"].startswith("entry:")]
+                held.click(held.part(*self.FILES, "entry:notes.txt"))
+                with self.assertRaisesRegex(ValueError, r"no visible control \[look away\]"):
+                    held.control(*self.FILES, "look away")
+                kept = json.loads(ctx.kept["last-view.json"])
+            finally:
+                held.close()
+            # Word 4 is the strip, the lattice's row 5: `[look again]`'s first letter is pressed.
+            at = CanvasFiles.STRIP.find("[look again]") + 1
+            self.assertEqual((where["x"], where["y"]), (files.column_x(at) + 3, files.row_y(5) + 7))
+            self.assertEqual(files.refreshed, 1)
+            self.assertEqual(listed, ["entry:demo", "entry:beat.cpp", "entry:notes.txt"])
+            self.assertEqual(files.cursor, 2)
+            self.assertEqual(kept["rows"][-1]["text"], CanvasFiles.STRIP)
+            self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3), ("PanePointRequested", 2)})
+            # An Info view, a text pane, has its controls pressed the same way.
+            ctx = ActWorkshop(steps, [], [], panes={"info.2": ["Preset | rev 3", "[Save] [Close]"]})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                held.control("zengine.info", "info.2", "Close")
+            finally:
+                held.close()
+            self.assertEqual(ctx.points, [(1, 8)])
+
+        def test_a_command_dragged_to_a_canvas_composer_drops_on_its_first_word(self):
+            composer = CanvasComposer()
+            ctx = CanvasWorkshop(steps, {self.COMPOSER: composer})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                end = held.first(*self.COMPOSER)
+                held.drag({"x": 30, "y": 400, "space": 2}, end, 350)
+            finally:
+                held.close()
+            # The target line, where a command dropped replaces the empty form.
+            self.assertEqual(end, {"row": 0, "text": "to @zengine.inventory",
+                                   "x": composer.column_x(10) + 3, "y": composer.row_y(0) + 7,
+                                   "space": 2})
+            self.assertEqual(composer.dropped, [0])
+            self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
+
+        def test_shows_and_expect_read_a_pane_that_draws_a_picture_by_its_words(self):
+            composer = CanvasComposer(notice="Copied data into form -- review, then Submit")
+            ctx = CanvasWorkshop(steps, {self.COMPOSER: composer})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                workbench.expect(held, self.COMPOSER, "Copied data into form")
+                self.assertFalse(workbench.shows(held, self.COMPOSER, "still needed"))
+                with self.assertRaisesRegex(CheckFailed, r"does not show 'still needed': "
+                                            r"\['to @zengine.inventory', "):
+                    workbench.expect(held, self.COMPOSER, "still needed")
+                self.assertTrue(workbench.still_open(held, self.COMPOSER))
+                self.assertFalse(workbench.still_open(held, ("zengine.info", "info.3")))
+            finally:
+                held.close()
             self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)

@@ -3,10 +3,10 @@
 """Small orchestration helpers. Zengine owns geometry, motion, drops and permissions.
 
 A pane is read by its words (PaneView version 3) wherever a reader finds a row by what it says or
-a part by its name -- `row`, `part`, `rows_of` -- so a text pane and a pane that draws a canvas
-picture read alike: a text pane's word is its row, a canvas pane's each text run or label it drew,
-and a row it leaves blank is no word. `view`, `point`, `control`, `spot` and `field` read a text
-pane's rows by number (version 1), which a canvas pane does not answer."""
+a part by its name -- `row`, `part`, `last_part`, `first`, `control`, `rows_of` -- so a text pane
+and a pane that draws a canvas picture read alike: a text pane's word is its row, a canvas pane's
+each text run or label it drew, and a row it leaves blank is no word. `view`, `point`, `spot` and
+`field` read a text pane's rows by number (version 1), which a canvas pane does not answer."""
 import json
 import time
 from collections import Counter
@@ -113,10 +113,11 @@ class Hand:
                                     x=at["x"], y=at["y"], space=at["space"])])
         return view, None
 
-    def last_view(self, view):
-        """Keep what the pane last said, for a reader of a failed search."""
+    def last_view(self, view, kept="last-view.json"):
+        """Keep what the pane last said -- its rows as `rows_of` reads them, and the names of its
+        parts -- as `kept`: for a reader of a failed search, or as a run's evidence."""
         if view is not None:
-            self.ctx.produce("last-view.json", json.dumps(dict(rows_of(view), parts=[
+            self.ctx.produce(kept, json.dumps(dict(rows_of(view), parts=[
                 p["name"] for p in view.get("parts", [])]), indent=2).encode())
 
     def row(self, provider, pane, contains, scroll=False):
@@ -155,6 +156,23 @@ class Hand:
             parts = [p for p in view.get("parts", []) if p["name"] == name]
             return parts[0] if parts else None
         view, p = self.seek(provider, pane, find, scroll)
+        return self.pressable(provider, pane, view, p, name)
+
+    def last_part(self, provider, pane, named, says):
+        """The lowest part a pane draws whose name starts with `named` and whose text with `says` --
+        a transcript's newest entry saying it, as the Terminal names a value row `entry:<n>` -- as
+        `part` gives one. None drawn, or the lowest no press reaches on its own, raises ValueError
+        and keeps `last-view.json`."""
+        def find(view):
+            parts = [p for p in view.get("parts", []) if p["name"].startswith(named)
+                     and p["text"].startswith(says)]
+            return max(parts, key=lambda p: p["place"]["y"]) if parts else None
+        view, p = self.seek(provider, pane, find, False)
+        return self.pressable(provider, pane, view, p, "%s* saying %r" % (named, says))
+
+    def pressable(self, provider, pane, view, p, name):
+        """A part found in `view` as `{name, row, text, x, y, space}`; ValueError, keeping
+        `last-view.json`, where there is none or no press reaches it on its own."""
         if p is None:
             self.last_view(view)
             raise ValueError("no visible part %s in %s/%s" % (name, provider, pane))
@@ -163,8 +181,19 @@ class Hand:
             raise ValueError("no press reaches %s in %s/%s on its own: the parts over it take "
                              "every place of it" % (name, provider, pane))
         word = word_on_row(view, p)
-        return {"name": name, "row": word["word"] if word is not None else None, "text": p["text"],
-                "x": p["x"], "y": p["y"], "space": p["space"]}
+        return {"name": p["name"], "row": word["word"] if word is not None else None,
+                "text": p["text"], "x": p["x"], "y": p["y"], "space": p["space"]}
+
+    def first(self, provider, pane):
+        """A pane's first word -- the leftmost on its top row -- as `{row, text, x, y, space}`, at
+        the point Workshop gives it: where a press or a drop meant for the pane's first row lands.
+        A pane drawing no word raises ValueError and keeps `last-view.json`."""
+        view = self.words(provider, pane)
+        if not view["words"]:
+            self.last_view(view)
+            raise ValueError("%s/%s draws no word" % (provider, pane))
+        w = min(view["words"], key=lambda w: (w["place"]["y"], w["place"]["x"]))
+        return {"row": w["word"], "text": w["text"], "x": w["x"], "y": w["y"], "space": w["space"]}
 
     def point(self, provider, pane, row, column, picture):
         """Where Workshop's own measurer puts one prose cell of a pane now; refused if it moved."""
@@ -172,17 +201,18 @@ class Hand:
                         "picture": picture, "row": row, "column": column})
 
     def control(self, provider, pane, label):
-        """Press a visible `[label]` control. The column comes from the painted row; the screen
-        position from Workshop, so no caller multiplies a font metric."""
-        view = self.view(provider, pane)
+        """Press a visible `[label]` control, in a text pane's rows or a canvas pane's words: the
+        column comes from the painted word, the screen position from Workshop, so no caller
+        multiplies a font metric."""
+        view = self.words(provider, pane)
         word = "[" + label + "]"
-        for r in view["rows"]:
-            at = r["text"].find(word)
+        for w in view["words"]:
+            at = w["text"].find(word)
             if at >= 0:
-                where = self.point(provider, pane, r["row"], at + 1, view["picture"])
+                where = self.word_point(provider, pane, w["word"], at + 1, view["picture"])
                 self.click(where)
                 return where
-        self.ctx.produce("last-view.json", json.dumps({"rows": [x["text"] for x in view["rows"]]}, indent=2).encode())
+        self.last_view(view)
         raise ValueError("no visible control %s in %s/%s" % (word, provider, pane))
 
     def spot(self, provider, pane, text, row_prefix=""):

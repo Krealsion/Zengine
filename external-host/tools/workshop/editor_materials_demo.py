@@ -97,22 +97,23 @@ def run(ctx):
 
     def open_source(path):
         """Open a file the way a weaver does, from Files: it starts at this Workshop's project,
-        where `folder` is; a press selects a row and Return enters a directory or opens a file.
-        (The opening office answers an office's request, never a guest's anonymous one.)"""
+        where `folder` is; a press selects an entry, named `entry:<name>`, and Return enters a
+        directory or opens a file. (The opening office answers an office's request, never a
+        guest's anonymous one.)"""
         name = Path(path).name
         hand.control(*FILES, "look again")  # Files is a snapshot; this run may have made the files
-        rows = [r for r in hand.view(*FILES)["rows"] if r["text"].strip().endswith(name)]
-        if not rows:
-            hand.click(hand.row(*FILES, folder.name + "/", scroll=True))
+        listed = [p for p in hand.words(*FILES)["parts"] if p["name"] == "entry:" + name]
+        if not listed:
+            hand.click(hand.part(*FILES, "entry:" + folder.name, scroll=True))
             hand.key("enter")
-        hand.click(hand.row(*FILES, name, scroll=True))
+        hand.click(hand.part(*FILES, "entry:" + name, scroll=True))
         hand.key("enter")
         for _ in range(100):
             if says(name):
                 return
             time.sleep(0.05)
         ctx.fail("the Editor does not show %s; Files shows %s" % (
-            path, [r["text"] for r in hand.view(*FILES)["rows"]]))
+            path, [w["text"] for w in hand.words(*FILES)["words"]]))
 
     def typed(text):
         """Text into whatever holds the keys, without the clear `Hand.text` does first."""
@@ -152,14 +153,14 @@ def run(ctx):
         return False
 
     def capture_command():
-        """A real Terminal submission, captured into Commands as `<label> command`."""
+        """A real Terminal submission, captured into Commands as `<label> command`: the newest
+        value the Terminal says was submitted, its row named `entry:<observation>`, dragged."""
         hand.click(hand.row(*TERM, ">    Tab:"))
         hand.text("send @zengine.skin SurfaceText 1 slot=score text=" + label)
         hand.key("enter")
-        sent = [r for r in hand.view(*TERM)["rows"] if r["text"].startswith("^ SurfaceText")]
-        ctx.check(bool(sent), "the Terminal shows no submitted SurfaceText")
+        sent = hand.last_part(*TERM, "entry:", "^ SurfaceText")
         to_root(hand)
-        hand.drag(sent[-1], folder_row(hand, "Commands"), 400)
+        hand.drag(sent, folder_row(hand, "Commands"), 400)
         command, path = name_new(label + " command")
         ctx.check(path == ["Commands"], "the command is not in Commands: %s" % path)
         note("command captured", folder=path, reference=command["reference"])
