@@ -290,10 +290,11 @@ public:
         announce(mail);
     }
 
-    /// Workshop grants the pane its room: the one beat on which this tool draws. The listing is
-    /// re-enumerated here (WL-FILES-12); with no origin yet, the grant is when the browser first
-    /// asks the host where it began. A grant is not a weaver's act, so it keeps the cursor: a room
-    /// moves for resizes, dragged edges and a title row returned right behind a selecting press.
+    /// Workshop grants the pane its room -- its canvas room, or its prose room where it grants no
+    /// canvas -- the one beat on which this tool draws (`granted`). The listing is re-enumerated
+    /// on it (WL-FILES-12); with no origin yet, it is when the browser first asks the host where it
+    /// began. A grant is not a weaver's act, so it keeps the cursor: a room moves for resizes,
+    /// dragged edges and a title row returned right behind a selecting press.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != files::kProjectFilesPane) {
             return;
@@ -2139,7 +2140,8 @@ private:
     std::uint64_t published_ = 0;
     /// WHAT EACH ROW AND EACH RUN OF COLUMNS IN THE LAST PICTURE MEANS, and the number of that
     /// picture -- replaced whole by every `say`, the room grant's included. A press is answered
-    /// from this record and from nowhere else, and one that names an older number is refused.
+    /// from this record and from nowhere else; which pictures drawn under it a press may name is
+    /// `pictures_`'s to say.
     component::RowMap<FilesMeaning> map_;
     /// THE ROWS BEING COMPOSED, held while `say` runs so each mode's composer and the control
     /// strip write into one list and the map records the row each of them landed on.
