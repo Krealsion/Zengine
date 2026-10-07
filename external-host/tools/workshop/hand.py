@@ -76,8 +76,8 @@ class Hand:
         return answer
 
     def view(self, provider, pane):
-        """A text pane's rows by number (PaneView version 1), for the readers that address a cell
-        by its row and column (`point`); a canvas pane is refused."""
+        """A text pane's rows by number (PaneView version 1); a pane that draws a picture is
+        refused. `point` takes its picture from `words`, which reads either."""
         return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane})
 
     def words(self, provider, pane):

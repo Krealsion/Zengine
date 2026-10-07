@@ -730,6 +730,44 @@ TEST_CASE("a held press keeps a canvas pane's room only from its title row: a pa
     CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
 }
 
+TEST_CASE("a canvas pane whose title waits for a held press, moved while it waits, is granted its new room "
+          "at once and the press is lost") {
+    SketchRig d;
+    press_outside(d.r, d.sketch_kind); // the keys are Workshop's...
+    d.r.key(input::scan::kT);          // ...and the titles hidden
+    d.r.text("t");
+    REQUIRE_FALSE(d.r.session().pane_titles);
+    const auto author = [&](std::int64_t y, std::int64_t h) {
+        for (auto& p : d.r.session().setup.active.panes) {
+            if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
+            p.place = {pane_unit::kPixels, 4 * surface::kCanvasCellPx, y * surface::kCanvasCellPx};
+            p.width = {pane_unit::kPixels, 60 * surface::kCanvasCellPx};
+            p.height = {pane_unit::kPixels, h * surface::kCanvasCellPx};
+        }
+        d.r.extent(149, 60); // a same-size extent reseats nothing: the desk re-seats every pane
+        d.r.extent(150, 60);
+    };
+    author(20, 16);
+    d.draw();
+    v2::PaneView view;
+    REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+    const ExternalPane before = *d.r.session().panes.external_pane(d.sketch_kind);
+    // A PRIMARY PRESS HELD ON THE PANE takes the keys, and the room their title row takes waits.
+    const PaneWord& w = view.words[2];
+    d.sketch->pointers.clear();
+    d.r.publish(loom::to_value(input::PointerButton{1, true, w.x, w.y, w.space, input::mod::kNone}));
+    REQUIRE(keyboard_pane(d.r.session().panes) == d.sketch_kind);
+    REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->canvas.title_waits);
+    REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->canvas.grant == before.canvas.grant);
+    // ...AND THE PANE MOVED two rows down while its title waits: no room is kept for the press.
+    author(22, 14);
+    const ExternalPane& moved = *d.r.session().panes.external_pane(d.sketch_kind);
+    CHECK(moved.canvas.grant != before.canvas.grant);
+    CHECK_FALSE(moved.canvas.title_waits);
+    CHECK(moved.canvas.y > before.canvas.y);
+    CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
+}
+
 TEST_CASE("a pane moved one title row's height while a press is held, its title unchanged, is granted its "
           "new room at once and the press is lost, in a window and in a terminal, titled or not") {
     for (const bool window : {false, true}) {

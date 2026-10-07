@@ -4,9 +4,9 @@
 // The standard Editor in Workshop's typed carry (suite `panes`): a real loaded Workshop with the
 // Editor, Inventory and its pane, the menu presenter, the opening manager and an input actor
 // whose Loom authority each case chooses. OUT, a selection into a named Inventory folder as an
-// owned copy; IN, text dropped as one undoable edit, a saved command as its Terminal line;
-// BACK, a saved location reopened -- and the refusals that keep each honest. Pure conversions
-// are the `source_transfer` suite's.
+// owned copy; IN, text dropped as one undoable edit, a saved command as its Terminal line; BACK,
+// a saved location reopened -- the refusals that keep each honest, and the prose door's drop on a
+// text pane beside them. Pure conversions are the `source_transfer` suite's.
 
 #include "editor_transfer_story.hpp"
 
@@ -348,6 +348,7 @@ TEST_CASE("a press aimed at a picture where the text it lands on was not yet sel
     const auto d = s.doc();
     CHECK(d.anchor_row == 1);
     CHECK(d.anchor_byte == 2);
+    CHECK_FALSE((d.caret_row == 1 && d.caret_byte == 2)); // the motion swept from the press
     CHECK(d.text == "abcdef\nghijkl\nmnopqr\n");
 }
 

@@ -145,7 +145,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PaneDrop>(), // PaneDrop v1
         shape<::zengine::workshop::v2::PaneValueDrop>(), // PaneValueDrop v2
         shape<::zengine::workshop::v2::PanePressed>(), // PanePressed v2
-        // The prose pointer every shipped pane once took; the Editors draw on their canvas now.
+        // The prose pointer Workshop sends a text pane: no product weave's manifest declares it.
         shape<::zengine::workshop::PanePressed>(), // PanePressed v1
         shape<::zengine::workshop::v3::PanePressed>(), // PanePressed v3
         shape<::zengine::workshop::PaneDragged>(), // PaneDragged v1

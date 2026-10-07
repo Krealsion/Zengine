@@ -282,6 +282,23 @@ TEST_CASE("the Neovim editor holding the office with no Neovim says so on its pa
     CHECK(quit_by_key(s));
 }
 
+TEST_CASE("the Neovim editor holding the office under a profile it refuses says so, and a press on the row "
+          "saying it moves nothing") {
+    // THE PROFILE IS JUDGED BEFORE ANY NEOVIM IS MADE: no host stands behind the pane at all.
+    SwitchRig s("nvim-profile-holder");
+    NeovimEnvironment env(s.root, NEOVIM_FIXTURE);
+    set_env("ZENGINE_NEOVIM_PROFILE", "User");
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    CHECK(s.read("running") == "false");
+    REQUIRE_MESSAGE(s.shows("ZENGINE_NEOVIM_PROFILE is `User`"), s.status());
+    press_pane(s.r, s.kind, 0, 2);
+    s.r.release_cell(external_body_rect(s.r.session(), s.kind).x + 2,
+                     external_body_rect(s.r.session(), s.kind).y + kExternalHeaderRows);
+    CHECK(s.r.session().panes.keyboard == s.kind);
+    CHECK(s.read("running") == "false");
+    CHECK_MESSAGE(s.shows("ZENGINE_NEOVIM_PROFILE is `User`"), s.status());
+}
+
 TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing of Neovim's screen") {
     SwitchRig s("nvim-names");
     NeovimEnvironment env(s.root, (s.root / "no-such-dir" / "nvim").string());

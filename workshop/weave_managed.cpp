@@ -135,7 +135,8 @@ void WorkshopWeave::after_delivery(loom::Mail& mail) {
     if (canvas_room_owed_) {
         // THE ROOM THE PICTURE WAS SEATED IN, said to its holder after the showing and so after
         // any room an earlier repaint queued for it: whatever the holder heard before, it draws in
-        // the room the desk holds, numbering its pictures past the one shown.
+        // the room the desk holds, its first picture there admitted over the one shown, which
+        // the desk holds numbered none.
         canvas_room_owed_ = false;
         const std::int64_t kind = managed_kind();
         const RuntimePane* row =
@@ -235,7 +236,7 @@ void WorkshopWeave::on(const PresentationTrialRequested& asked, loom::Mail& mail
     t.title_rows = room.title_rows;
     // A ROOM FOR THE PICTURE, where the pane's holder draws on a canvas and prepares for one and
     // the asker hears of it: its grant is reserved here, for the seat the publication makes, so no
-    // picture drawn before the commitment can stand in it (WL-OPEN-03).
+    // picture drawn before the commitment can stand in it (WL-OPEN-10).
     const auto accepts = [&](std::string_view office, const auto& schema) {
         return host_->holder_accepts && host_->holder_accepts(office, *schema);
     };

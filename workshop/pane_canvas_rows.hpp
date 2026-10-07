@@ -178,6 +178,9 @@ public:
     bool current(std::int64_t grant, std::int64_t picture) const noexcept {
         return grant_ > 0 && grant == grant_ && since_ > 0 && picture >= since_ && picture <= last_;
     }
+    /// No picture numbered so far is current: the meaning they were drawn under is gone, and the
+    /// next is numbered on from the last, in the same room.
+    void retire() noexcept { since_ = 0; }
 
 private:
     std::int64_t grant_ = 0, last_ = 0, since_ = 0, meaning_ = 0;

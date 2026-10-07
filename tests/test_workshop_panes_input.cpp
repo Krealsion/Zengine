@@ -3135,9 +3135,13 @@ TEST_CASE("a text pane's sweep crosses as PaneDragged from a press on one of its
     r.motion_cell(body.x + 3, body.y - 2);
     REQUIRE(seat->drags.size() == 2);
     CHECK(seat->drags[1].row < 0);
-    // ...AND ITS RELEASE ENDS IT, saying nothing: the motion after crosses nothing.
+    // ...AND ITS RELEASE ENDS IT, saying nothing -- no press, no motion: what the sweep selected
+    // stands -- and the motion after crosses nothing.
+    const std::size_t pressed = seat->presses.size();
     r.release_cell(body.x + 3, body.y - 2);
     CHECK_FALSE(r.session().text_drag.active);
+    CHECK(seat->presses.size() == pressed);
+    CHECK(seat->drags.size() == 2);
     r.motion_cell(body.x + 4, row_y(2));
     CHECK(seat->drags.size() == 2);
     // A LOST SEAT ENDS ONE TOO: pressed, then the pane closed under the hand.
