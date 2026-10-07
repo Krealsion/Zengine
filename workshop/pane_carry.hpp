@@ -102,5 +102,15 @@ struct PaneDrop {
     ZEN_SHAPE(PaneDrop, 1, ZEN_FIELD(pane), ZEN_FIELD(data), ZEN_FIELD(row), ZEN_FIELD(column),
               ZEN_FIELD(picture));
 };
+/// A carried reference placed on a canvas pane, as `PaneDrop` places one on rows: where it landed
+/// in the canvas's own local pixels, in which granted room and on which picture. The provider
+/// hit-tests the place in the picture it drew and owns what the reference means there.
+struct PaneCanvasDrop {
+    std::string pane;
+    std::int64_t grant = 0, picture = 0, x = 0, y = 0;
+    loom::Bytes data;
+    ZEN_SHAPE(PaneCanvasDrop, 1, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
+              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(data));
+};
 } // namespace zengine::workshop
 #endif

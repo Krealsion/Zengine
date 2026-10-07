@@ -296,10 +296,11 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
     return true;
 }
 
-// A VALUE PLACED ON A CANVAS: the place in the canvas's local pixels and the picture it was
-// aimed at, for the provider to hit-test in what it drew; a provider without the canvas drop door
-// is told nothing and the value stays held, as on any place that does not accept it. A drag's
-// drop names the canvas its release met, however long the carry took to be answered.
+// A VALUE OR A REFERENCE PLACED ON A CANVAS: the place in the canvas's local pixels and the
+// picture it was aimed at, for the provider to hit-test in what it drew; a provider without the
+// canvas door for what is carried is told nothing and the item stays held, as on any place that
+// does not accept it. A drag's drop names the canvas its release met, however long the carry
+// took to be answered.
 bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& presentation,
                                    const PointedAt& point,
                                    const std::optional<CanvasRelease>& released,
@@ -311,10 +312,11 @@ bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& 
         say("The canvas the value was released on is gone; Escape cancels", true);
         return true;
     }
-    if (!carried_.value || !point.understood || !host_->holder_accepts ||
-        !host_->holder_accepts(pane.provider, c.legacy
-                                                  ? *loom::schema_of<v1::PaneCanvasValueDrop>()
-                                                  : *loom::schema_of<PaneCanvasValueDrop>()) ||
+    const bool value = carried_.value;
+    if (!point.understood || !host_->holder_accepts ||
+        !host_->holder_accepts(pane.provider, !value   ? *loom::schema_of<PaneCanvasDrop>()
+                                              : c.legacy ? *loom::schema_of<v1::PaneCanvasValueDrop>()
+                                                         : *loom::schema_of<PaneCanvasValueDrop>()) ||
         !at.body.contains_at(point.px.x, point.px.y, point.grain)) {
         say("This place does not accept the carried item; Escape cancels", true);
         return true;
@@ -322,7 +324,10 @@ bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& 
     const auto correlation = ++gesture_asks_;
     const std::int64_t x = surface::sub_px(point.px.x, at.body.x);
     const std::int64_t y = surface::sub_px(point.px.y, at.body.y);
-    const auto sent = c.legacy
+    const auto sent = !value
+        ? mail.as_role(kWorkshopProvider).send_to_role(pane.provider,
+              PaneCanvasDrop{pane.pane, at.grant, at.picture, x, y, carried_.data}, correlation)
+        : c.legacy
         ? mail.as_role(kWorkshopProvider).send_to_role(pane.provider,
               v1::PaneCanvasValueDrop{pane.pane, at.grant, at.picture, legacy_subs_of_px(x),
                                       legacy_subs_of_px(y), carried_.data,
@@ -343,7 +348,7 @@ bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& 
     session_.panes.selected = kind;
     session_.panes.keyboard = kind;
     note_routed(kind);
-    say("Value sent to " + pane.name, false);
+    say(std::string(value ? "Value" : "Reference") + " sent to " + pane.name, false);
     return true;
 }
 
