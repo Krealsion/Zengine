@@ -612,6 +612,8 @@ v2::PaneCaret   provider -> Workshop   the same, naming the generation of the ro
 A holder accepting both the current `PaneCanvasRoom` and
 `PaneCanvasPointer` receives a room when Workshop can resolve its current identity; a host
 without this capability continues to grant `PaneRoom`, so a provider can keep a text fallback.
+Every pane Zengine ships draws on its canvas this way and keeps that fallback; the examples in
+`examples/` speak prose whole.
 Once a canvas grant exists, Workshop ignores that pane's prose content until the canvas
 capability leaves. Keyboard, text input, actions, pane placement and menus keep their owners.
 
@@ -975,7 +977,7 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   may write the raw shapes instead, and then owes the four checks `Asked::take` makes. The
   shipped `examples/guard-pane` consumes the button and asks for nothing; the Pane Manager and
   the Hotkeys pane offer menus; the Neovim editor passes a right press and release to Neovim and
-  nothing more (no secondary drag crosses the seam).
+  nothing more (it spends no secondary drag, and hands back a right press beside its rows).
 
 ### The menu presenter, and replacing it
 

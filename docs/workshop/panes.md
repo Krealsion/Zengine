@@ -285,8 +285,9 @@ only the menu changed. The seam is
 the package, and the [reference](../reference/workshop-panes.md#the-menu-presenter-and-replacing-it)
 lists what crosses it.
 
-**Limits, stated.** Holding a secondary button and moving does not cross to the pane (no
-secondary drag, so no middle-button scrolling in the Editor and no right-drag in Neovim); a
+**Limits, stated.** Holding a secondary button and moving reaches only a pane that draws on its
+canvas, and neither Editor spends it (no middle-button scrolling in the Editor and no right-drag
+in Neovim); a
 modifier held with a right-click is not reported on the graphical window; and on a terminal,
 whether a right press and its release reach Workshop at all is the emulator's decision first.
 
