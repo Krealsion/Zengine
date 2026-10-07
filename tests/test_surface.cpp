@@ -890,41 +890,73 @@ TEST_CASE("canvas: the medium's own ground covers material and wears the termina
           "\x1b[2K\x1b[36m\x1b[40mcd\x1b[30m  \x1b[0m\r\n");
 }
 
-TEST_CASE("canvas: a terminal's plain text is the terminal's own text colour, so it reads on a "
-          "light ground or a dark one, a caret in it and a selection over it too") {
+TEST_CASE("canvas: a terminal's plain text is the terminal's own text colour on its own ground and "
+          "the palette's white on a ground a pane paints, so it reads on a light terminal or a "
+          "dark one, a caret in it and a selection over it too") {
     // PLAIN INK IS NO COLOUR OF THE PALETTE: the terminal's own text colour, as its own ground is
     // no ground byte -- kFill, the medium's own ground named as ink, and a role no Skin knows.
     CHECK(std::string(sgr_for_role(role::kFill)) == "\x1b[39m");
     CHECK(std::string(sgr_for_role(role::kMediumGround)) == "\x1b[39m");
     CHECK(std::string(sgr_for_role(99)) == "\x1b[39m");
+    // ...and on a ground the canvas painted, a colour of the palette, the white it always was.
+    CHECK(std::string(sgr_for_cell(role::kFill, role::kGround)) == "\x1b[37m");
+    CHECK(std::string(sgr_for_cell(role::kFill, role::kNone)) == "\x1b[39m");
+    CHECK(std::string(sgr_for_cell(role::kAccent, role::kGround)) == "\x1b[36m");
 
-    // A pane's row on the medium's own ground, a selection over two of its characters and a
-    // caret on a third: the text in the terminal's own colours, and the selection and the caret
-    // that pair swapped by reverse video, whatever the pair is.
-    SurfaceCanvas c;
-    c.width = cells_px(8);
-    c.height = cells_px(1);
-    plane(c).rects.push_back(cell_rect(0, 0, 8, 1, role::kMediumGround));
-    SurfaceTextRegion r;
-    r.w = cells_px(8);
-    r.h = cells_px(1);
-    r.rows.push_back(SurfaceTextRow{"abcdef", role::kFill});
-    r.caret_row = 0;
-    r.caret_col = 4;
-    r.sel_begin_row = r.sel_end_row = 0;
-    r.sel_begin_col = 1;
-    r.sel_end_col = 3;
-    plane(c).texts.push_back(r);
-    const std::string body = canvas_body(c);
-    CHECK(body == "\x1b[2K\x1b[39ma\x1b[7mbc\x1b[27md\x1b[7m\x1b[4me\x1b[27m\x1b[24mf  \x1b[0m\r\n");
+    // A pane's row as Workshop lays it: the medium's own ground across the room, the row's text
+    // a run that keeps the ground beneath it, a selection over two of its characters and a caret
+    // on a third.
+    const auto row_on = [](int ground) {
+        SurfaceCanvas c;
+        c.width = cells_px(8);
+        c.height = cells_px(1);
+        plane(c).rects.push_back(cell_rect(0, 0, 8, 1, ground));
+        SurfaceTextRegion r;
+        r.w = cells_px(8);
+        r.h = cells_px(1);
+        r.ground = kGroundBeneath;
+        r.rows.push_back(SurfaceTextRow{"abcdef", role::kFill});
+        r.caret_row = 0;
+        r.caret_col = 4;
+        r.sel_begin_row = r.sel_end_row = 0;
+        r.sel_begin_col = 1;
+        r.sel_end_col = 3;
+        plane(c).texts.push_back(r);
+        return canvas_body(c);
+    };
+    // ON THE TERMINAL'S OWN GROUND the text is in the terminal's own colours, and the selection
+    // and the caret are that pair swapped by reverse video, whatever the pair is.
+    const std::string own_ground = row_on(role::kMediumGround);
+    CHECK(own_ground ==
+          "\x1b[2K\x1b[39ma\x1b[7mbc\x1b[27md\x1b[7m\x1b[4me\x1b[27m\x1b[24mf\x1b[39m  \x1b[0m\r\n");
     // Not one sequence of it names a colour of the terminal's palette, for its ink or its ground.
     const std::vector<std::string> own = {"2K", "39m", "7m", "27m", "4m", "24m", "0m"};
-    for (std::size_t at = body.find("\x1b["); at != std::string::npos; at = body.find("\x1b[", at + 1)) {
-        const std::size_t end = body.find_first_of("Km", at + 2);
+    for (std::size_t at = own_ground.find("\x1b["); at != std::string::npos;
+         at = own_ground.find("\x1b[", at + 1)) {
+        const std::size_t end = own_ground.find_first_of("Km", at + 2);
         REQUIRE(end != std::string::npos);
-        const std::string said = body.substr(at + 2, end - at - 1);
+        const std::string said = own_ground.substr(at + 2, end - at - 1);
         CHECK_MESSAGE(std::find(own.begin(), own.end(), said) != own.end(), said);
     }
+    // ON A PANE'S BLACK GROUND the text is the palette's white on the palette's black, which a
+    // light terminal shows as a dark one does; the selection and the caret swap that pair.
+    CHECK(row_on(role::kGround) ==
+          "\x1b[2K\x1b[37m\x1b[40ma\x1b[7mbc\x1b[27md\x1b[7m\x1b[4me\x1b[27m\x1b[24mf\x1b[30m  "
+          "\x1b[0m\r\n");
+
+    // ONE RUN CROSSING BOTH GROUNDS changes its ink where the ground changes, the role unchanged.
+    SurfaceCanvas both;
+    both.width = cells_px(8);
+    both.height = cells_px(1);
+    plane(both).rects.push_back(cell_rect(0, 0, 4, 1, role::kMediumGround));
+    plane(both).rects.push_back(cell_rect(4, 0, 4, 1, role::kGround));
+    SurfaceTextRegion across;
+    across.w = cells_px(8);
+    across.h = cells_px(1);
+    across.ground = kGroundBeneath;
+    across.rows.push_back(SurfaceTextRow{"abcdefgh", role::kFill});
+    plane(both).texts.push_back(across);
+    CHECK(canvas_body(both) == "\x1b[2K\x1b[39mabcd\x1b[37m\x1b[40mefgh\x1b[0m\r\n");
 }
 
 // ============================================================================
