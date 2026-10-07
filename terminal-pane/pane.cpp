@@ -453,9 +453,10 @@ public:
 
     /// A PRESS NAMES A ROW OF THIS PANE'S ROOM.
     ///
-    /// TWO ROWS MEAN SOMETHING: a candidate row chooses that candidate, and the input row
-    /// places the caret. Everything else is consumed and changes nothing, which is what a
-    /// pane that owns visible room owes the cells it is not using.
+    /// THREE ROWS MEAN SOMETHING: a candidate row chooses that candidate, the input row places
+    /// the caret, and the row below the view follows the newest output again. Everything else is
+    /// consumed and changes nothing, which is what a pane that owns visible room owes the cells it
+    /// is not using.
     void press(std::int64_t row, std::int64_t column, loom::Mail& mail) {
         if (row == input_row_ && input_row_ >= 0) {
             notice_.clear();
@@ -1116,11 +1117,10 @@ private:
         wanted_ = false;
     }
 
-    // ---- The rows, and the caret beside them ----------------------------------------------
+    // ---- The rows, and the caret in them --------------------------------------------------
 
     /// The pane, composed: refusal, header, legend, what is above the view, the view, what is
-    /// below it, the completion list or the history row, the input row, and the caret beside
-    /// them. The budget is spent in priority order: the input row first (a Terminal with no line
+    /// below it, the completion list or the history row, the input row, and the caret on it. The budget is spent in priority order: the input row first (a Terminal with no line
     /// is not one), then a standing refusal, the header, the marker above the view and the
     /// legend; the rest is split between the list (at most half) and the transcript. Every row is
     /// budgeted before it is composed, so a late row can never take back the input line.
