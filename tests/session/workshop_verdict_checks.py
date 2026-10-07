@@ -46,8 +46,8 @@ class Clock:
 class Scripted:
     """A run context whose Workshop is a script. `pane(provider, pane)` answers PaneView with rows
     (a list of texts) or None (not described) -- version 3 as one word a row, the row's characters
-    without the blanks after the last, version 1 as the rows; every injected moment goes to
-    `typed`."""
+    without the blanks after the last, version 1 as the rows -- and PanePoint by the word asked for
+    (version 2) or the row (version 1); every injected moment goes to `typed`."""
 
     name = "verdict-check"
 
@@ -110,7 +110,8 @@ class Scripted:
             return {"picture": 1, "rows": [{"row": i, "text": t, "x": 1, "y": i, "space": 1}
                                            for i, t in enumerate(rows)]}
         if shape == "PanePointRequested":
-            return {"x": 1, "y": fields["row"], "space": 1}
+            return {"x": 1, "y": fields["word" if options.get("version") == 2 else "row"],
+                    "space": 1}
         raise AssertionError(shape)
 
     def typed(self, moment):

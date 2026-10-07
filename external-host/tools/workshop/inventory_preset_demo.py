@@ -58,7 +58,7 @@ def run(ctx):
     hand.row(*info, "label: absent (required)")
     ctx.produce("partial-preset.bin", preset["pair"])
     picture(ctx, ctx.inputs["link"], "incomplete")
-    hand.drag(hand.row(*inv, label + " preset", scroll=True), hand.view(*comp)["rows"][0], 350)
+    hand.drag(hand.row(*inv, label + " preset", scroll=True), hand.first(*comp), 350)
     hand.key("ctrl+enter")
     hand.row(*comp, "still needed: label")
 
@@ -70,8 +70,7 @@ def run(ctx):
     hand.row(*info, "Carrying field copy")
     hand.click(hand.row(*comp, "label:"))
     hand.row(*comp, "Copied data into form")
-    reviewed = hand.view(*comp)
-    ctx.produce("reviewed.json", json.dumps(reviewed.fields, indent=2).encode())
+    hand.last_view(hand.words(*comp), "reviewed.json")
     before = next(e for e in entries() if e["reference"] == source["reference"])
     ctx.check(before["label"] == label and before["revision"] == source["revision"], "filling the form ran it")
     picture(ctx, ctx.inputs["link"], "refilled")

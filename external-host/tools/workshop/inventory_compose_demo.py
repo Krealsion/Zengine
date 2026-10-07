@@ -38,7 +38,7 @@ def run(ctx):
 
     ctx.step("drag the stored command into the empty form")
     start = hand.row(*inv, label + " command", scroll=True)
-    end = hand.view(*comp)["rows"][0]
+    end = hand.first(*comp)  # the target line: a command dropped there replaces the empty form
     moved = hand.drag(start, end, ctx.inputs["duration_ms"], ctx.inputs["bend"],
                       during=lambda: picture(ctx, link, "dragging"))
     hand.row(*comp, "Copied data into form")

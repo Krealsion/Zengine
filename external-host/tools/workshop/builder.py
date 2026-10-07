@@ -58,7 +58,7 @@ import json
 import re
 import time
 
-from act import painted
+from act import painted, rows_by_place, words_now
 from hand import Hand
 from workshop_steps import chord_moments, moment
 
@@ -148,13 +148,18 @@ def press(ctx, hand, chord):
 
 
 def calm(ctx, hand):
-    """The Builder's own rows: close its output reader, its recipe list or a role line first."""
+    """The Builder's own rows: close its output reader, its recipe list or a role line first, the
+    keys brought by a press on its first word -- at its first character, or a blank word's own
+    point -- and then Escape."""
     for _ in range(4):
-        rows = view_rows(hand)
+        view = painted(hand, *BUILDER)
+        rows = [r["text"] for r in view["rows"]] if view else []
         ctx.check(rows, "Workshop does not describe the Builder pane; open it where nothing covers it")
         if rows[0].startswith("BUILDER") or (len(rows) > 1 and rows[1].startswith("BUILDER")):
             return rows
-        at = hand.point(*BUILDER, 0, 0, painted(hand, *BUILDER)["picture"])
+        first = view["rows"][0]
+        at = first if not first["text"] else hand.word_point(*BUILDER, first["row"], 0,
+                                                             view["picture"])
         hand.inject([moment(ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
                             space=at["space"]) for p in (True, False)])
         press(ctx, hand, "escape")
@@ -162,9 +167,11 @@ def calm(ctx, hand):
 
 
 def keys_into(ctx, hand):
+    """The keys to the Builder: a press on its header's first character, which means nothing
+    more."""
     view = painted(hand, *BUILDER)
     row = [r for r in view["rows"] if r["text"].startswith("BUILDER")][0]
-    at = hand.point(*BUILDER, row["row"], 0, view["picture"])
+    at = hand.word_point(*BUILDER, row["row"], 0, view["picture"])
     hand.inject([moment(ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
                         space=at["space"]) for p in (True, False)])
 
@@ -183,12 +190,14 @@ def choose(ctx, hand, recipe):
 
 
 def read_output(ctx, hand):
-    """Every line the reader shows, by its number: the header says `lines a-b of T`."""
+    """Every line the reader shows, by its number: the header says `lines a-b of T`, and each line
+    stands on its own row under it -- read by where the Builder's words stand (`rows_by_place`),
+    so a blank line, which a canvas draws as no word, keeps its number."""
     press(ctx, hand, "l")
     kept, header = {}, ""
     for _ in range(200):
         time.sleep(0.15)
-        rows = view_rows(hand)
+        rows = rows_by_place(words_now(hand, *BUILDER))
         heads = [i for i, r in enumerate(rows) if r.startswith("output #")]
         if not heads:
             continue
@@ -199,8 +208,8 @@ def read_output(ctx, hand):
             kept = dict(enumerate(body, 1))
             break
         first, end, total = (int(g) for g in span.groups())
-        for i, text in enumerate(body[:end - first + 1]):
-            kept[first + i] = text
+        for i in range(end - first + 1):
+            kept[first + i] = body[i] if i < len(body) else ""
         if end >= total:
             break
         hand.inject(chord_moments(ctx, "down", repeat=end - first + 1))

@@ -712,8 +712,11 @@ does not select, activate, grant authority or expose arbitrary state. A later ge
 encounter a changed picture. Legacy unnumbered panes report picture zero; the query is not an
 interaction lease. Receivers must fence their own drops. `hand.words`, `hand.word_point` and
 `hand.desk` in `hand.py` ask them; `hand.row` finds a row by what it says and `hand.part` a part by
-its name through them, wheeling the pane toward each edge when asked to scroll, so a tool reads a
-pane that draws a picture as it reads a text pane. `workshop/act` steps on them: `desk` checks a
+its name through them, wheeling the pane toward each edge when asked to scroll, `hand.last_part`
+the lowest part of a kind saying a text (a Terminal's newest value), `hand.first` a pane's first
+word and `hand.control` a `[label]` by its word, so a tool reads a pane that draws a picture as it
+reads a text pane; `act.rows_by_place` numbers a pane's lines by where they stand, a blank row a
+canvas draws as no word among them. `workshop/act` steps on them: `desk` checks a
 pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
 "view-builder", "kind:label"]}`), and fails rather than press one with no point; `open` presses
