@@ -708,6 +708,58 @@ TEST_CASE("a held press keeps a canvas pane's room only from its title row: a pa
     CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
 }
 
+TEST_CASE("a held press on the canvas pane that has the keys keeps its room while launches take its title "
+          "row away and give it back, and its title is drawn again once it has the keys again") {
+    SketchRig d;
+    press_outside(d.r, d.sketch_kind); // the keys are Workshop's...
+    d.r.key(input::scan::kT);          // ...and the titles hidden
+    d.r.text("t");
+    REQUIRE_FALSE(d.r.session().pane_titles);
+    d.draw();
+    // THE KEYS COME TO THE PANE by a click, and its title with them, in the room that title makes.
+    v2::PaneView view;
+    REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+    const PaneWord& w = view.words[2];
+    d.click(w.x, w.y, w.space);
+    REQUIRE(keyboard_pane(d.r.session().panes) == d.sketch_kind);
+    d.draw();
+    REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+    const ExternalPane titled_room = *d.r.session().panes.external_pane(d.sketch_kind);
+    const RuntimePane* row = d.r.session().panes.runtime.of_kind(d.sketch_kind);
+    REQUIRE(row != nullptr);
+    const std::string title = external_header(*row, true);
+    const auto titled = [&] {
+        for (const surface::SurfaceLayer& layer : d.r.last_canvas().layers)
+            for (const surface::SurfaceTextRegion& region : layer.texts)
+                for (const surface::SurfaceTextRow& line : region.rows)
+                    if (line.text.rfind(title, 0) == 0) return true;
+        return false;
+    };
+    REQUIRE(titled());
+    // A PRESS HELD ON IT, and a launch of another pane taking the keys -- and the title row --
+    // away while it is held: the pane keeps the room the press was aimed at, untitled.
+    const PaneWord& held_at = view.words[2];
+    d.r.publish(loom::to_value(input::PointerButton{1, true, held_at.x, held_at.y, held_at.space,
+                                                    input::mod::kNone}));
+    (void)hand_launch(d.r, PaneRef{kAlphaOffice, "alpha"});
+    REQUIRE(keyboard_pane(d.r.session().panes) == d.alpha_kind);
+    const ExternalPane& now = *d.r.session().panes.external_pane(d.sketch_kind);
+    CHECK(now.canvas.grant == titled_room.canvas.grant);
+    CHECK(now.canvas.title_waits);
+    CHECK_FALSE(titled());
+    // ...AND A LAUNCH OF THE PANE ITSELF giving them back, still held: its room and its title
+    // agree again, so it waits for nothing and its title is drawn.
+    (void)hand_launch(d.r, PaneRef{kCanvasOffice, kCanvasPane});
+    REQUIRE(keyboard_pane(d.r.session().panes) == d.sketch_kind);
+    CHECK(now.canvas.grant == titled_room.canvas.grant);
+    CHECK_FALSE(now.canvas.title_waits);
+    CHECK(titled());
+    d.r.publish(loom::to_value(input::PointerButton{1, false, held_at.x, held_at.y, held_at.space,
+                                                    input::mod::kNone}));
+    CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.grant == titled_room.canvas.grant);
+    CHECK(titled());
+}
+
 TEST_CASE("a pane's words are refused while a menu covers it or arranging is open, and the desk still answers") {
     DeskRig d;
     say_rows(d);
