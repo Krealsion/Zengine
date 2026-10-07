@@ -3098,6 +3098,58 @@ TEST_CASE("a wheel over an external pane's body crosses unchanged, follows the p
     CHECK(seat->presses.empty());
 }
 
+TEST_CASE("a text pane's sweep crosses as PaneDragged from a press on one of its rows, unclamped and with "
+          "no release, and a press on its header or a lost seat sweeps nothing") {
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    SweepSeat* seat = nullptr;
+    const std::string pane = "sweep";
+    const std::int64_t kind = r.mount_sweep("zengine.test.sweep", pane,
+                                            {surface::SurfaceTextRow{"one", surface::role::kFill},
+                                             surface::SurfaceTextRow{"two", surface::role::kFill},
+                                             surface::SurfaceTextRow{"three", surface::role::kFill}},
+                                            &seat);
+    REQUIRE(kind != kNoPaneKind);
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    const auto row_y = [&](std::int64_t row) { return body.y + kExternalHeaderRows + row; };
+    // A PRESS ON THE HOST'S OWN HEADER begins nothing: held over the rows, it sweeps none of them.
+    r.press_cell(body.x, body.y);
+    r.motion_cell(body.x + 2, row_y(1));
+    r.release_cell(body.x + 2, row_y(1));
+    CHECK_FALSE(r.session().text_drag.active);
+    CHECK(seat->drags.empty());
+    // A PRESS ON A ROW begins one: Workshop records the pane it began in, and each motion crosses
+    // as a position, unclamped -- above the body is a row before the first.
+    press_pane(r, kind, 0, 1);
+    REQUIRE_FALSE(seat->presses.empty());
+    CHECK(r.session().text_drag.active);
+    CHECK(r.session().text_drag.place == text_drag_place::kExternalPane);
+    CHECK(r.session().text_drag.kind == kind);
+    r.motion_cell(body.x + 3, row_y(1));
+    REQUIRE(seat->drags.size() == 1);
+    CHECK(seat->drags[0].pane == pane);
+    CHECK(seat->drags[0].row == 1);
+    CHECK(seat->drags[0].column == 3);
+    r.motion_cell(body.x + 3, body.y - 2);
+    REQUIRE(seat->drags.size() == 2);
+    CHECK(seat->drags[1].row < 0);
+    // ...AND ITS RELEASE ENDS IT, saying nothing: the motion after crosses nothing.
+    r.release_cell(body.x + 3, body.y - 2);
+    CHECK_FALSE(r.session().text_drag.active);
+    r.motion_cell(body.x + 4, row_y(2));
+    CHECK(seat->drags.size() == 2);
+    // A LOST SEAT ENDS ONE TOO: pressed, then the pane closed under the hand.
+    press_pane(r, kind, 0, 1);
+    REQUIRE(r.session().text_drag.active);
+    r.pick(PaneRef{"zengine.test.sweep", pane});
+    REQUIRE_FALSE(r.session().panes.has(kind));
+    r.motion_cell(body.x + 2, row_y(1));
+    CHECK_FALSE(r.session().text_drag.active);
+    CHECK(seat->drags.size() == 2);
+}
+
 TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the selection "
           "lift moves it") {
     // ⚔ MUTATION: routing the wheel by anything but `occupied_at`'s effective order -- the

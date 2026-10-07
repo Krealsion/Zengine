@@ -188,21 +188,27 @@ TEST_CASE("dropped text is inserted at the painted landing character as one undo
     CHECK(slurp(path) == "abc\ndef\n");
 }
 
-TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered: a value on the Editor's rows") {
+TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered: a value on a text pane's rows") {
     EditorStory s("xfer-gone");
-    REQUIRE(s.open(s.write("a.txt", "abc\n")).accepted);
     s.add(text_pair("one"), "snippet");
-    // The drop is queued and said sent; the Editor leaves before the bus dispatches it.
+    // A TEXT PANE TAKING A VALUE ON ITS ROWS, beside the Inventory the value is carried from.
+    SweepSeat* seat = nullptr;
+    loom::WeaveId seat_id{};
+    const std::string office = "zengine.test.rows";
+    const std::int64_t rows = s.r.mount_sweep(office, "rows",
+                                              {surface::SurfaceTextRow{"drop here", surface::role::kFill}},
+                                              &seat, &seat_id);
+    REQUIRE(rows != kNoPaneKind);
+    // The drop is queued and said sent; the pane leaves before the bus dispatches it.
     bool removed = false;
-    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&s, &removed](const loom::BusEvent& e) {
+    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&s, &removed, seat_id](const loom::BusEvent& e) {
         if (!removed && e.kind == loom::EventKind::Delivered && e.target == s.r.workshop_id &&
             s.r.last_notice().rfind("Value sent to", 0) == 0)
-            removed = s.r.kernel.unload_role(ed::kEditorPaneRole);
+            removed = s.r.bus.unregister_weave(seat_id) != nullptr;
     })};
-    s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, s.editor, s.chrome() + 0, 1);
+    s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, rows, 0, 1);
     REQUIRE_MESSAGE(removed, s.r.last_notice());
-    CHECK_MESSAGE(s.r.last_notice().find(std::string("Value not delivered to ") + ed::kEditorPaneRole) !=
-                      std::string::npos,
+    CHECK_MESSAGE(s.r.last_notice().find("Value not delivered to " + office) != std::string::npos,
                   s.r.last_notice());
 }
 

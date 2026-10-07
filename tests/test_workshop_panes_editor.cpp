@@ -238,6 +238,10 @@ struct EditorRig {
         r.host.recipe_source = [this](const std::string&) { return next_source; };
     }
 
+    /// A host that knows no canvas door, answering that no office accepts a canvas room -- the one
+    /// the Editor says its rows to as prose.
+    bool no_canvas = false;
+
     /// Which project owner this run has: the read-only door that answers at once, one that holds
     /// its answer until a case releases it, or none at all.
     enum class Project { kDoor, kSlow, kNone };
@@ -256,6 +260,12 @@ struct EditorRig {
         // manager beside it.
         r.host.managed_pane = editor_ref();
         r.mount_workshop();
+        if (no_canvas) {
+            r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
+                                                                      const loom::Schema& shape) {
+                return shape.name() != PaneCanvasRoom::zen_name && accepts(role, shape);
+            };
+        }
         if (with_manager) {
             r.mount_opening();
         }
@@ -340,7 +350,9 @@ struct EditorRig {
     /// pane's own composition rule, spent against the pane's own standing notice.
     std::int64_t chrome() {
         const ExternalPane* seated = seat();
-        const std::int64_t rows = seated != nullptr ? seated->rows : 0;
+        const std::int64_t rows = seated == nullptr       ? 0
+                                  : shows_canvas(*seated) ? held_canvas_rows(*seated).rows
+                                                          : seated->rows;
         return (!read("notice").empty() && rows >= 3) ? 2 : 1;
     }
 
@@ -412,9 +424,9 @@ struct EditorRig {
     /// oracle that watched only the row let a draining helper through.
     std::pair<std::int64_t, std::int64_t> admitted_caret() {
         const ExternalPane* seated = seat();
-        return seated == nullptr ? std::pair<std::int64_t, std::int64_t>{surface::kNoCaret, 0}
-                                 : std::pair<std::int64_t, std::int64_t>{seated->caret_row,
-                                                                         seated->caret_col};
+        if (seated == nullptr) return {surface::kNoCaret, 0};
+        const PaneCaret held = held_caret(*seated);
+        return {held.row, held.column};
     }
 
     void mount_slow_skin() {
@@ -708,11 +720,16 @@ struct EditorRig {
         return rows[0];
     }
 
-    /// Document row `n` of the window, as shown.
+    /// Document row `n` of the window, as shown: a row of the lattice the picture draws nothing
+    /// on, past its last drawn row, shows nothing.
     std::string doc_row(std::int64_t n) {
         const std::int64_t above = chrome();
         const std::vector<std::string> rows = shown();
         const std::size_t at = static_cast<std::size_t>(above + n);
+        if (at >= rows.size() && seat() != nullptr && shows_canvas(*seat()) &&
+            above + n < held_canvas_rows(*seat()).rows) {
+            return std::string();
+        }
         REQUIRE(at < rows.size());
         return rows[at];
     }
@@ -775,6 +792,15 @@ struct EditorRig {
     /// THE CARET WORKSHOP IS HOLDING FOR THIS PANE, read off the host's own record -- so a
     /// case asks what was ADMITTED rather than what was sent.
     const ExternalPane* seat() { return r.session().panes.external_pane(kind); }
+
+    /// WHERE THE CARET AND THE SELECTION STAND in the picture Workshop holds, on the lattice the
+    /// pane's rows stand on: the run carrying the caret, and the first and last runs a selection
+    /// touches, each where its span ends.
+    PaneCaret caret() {
+        const ExternalPane* seated = seat();
+        REQUIRE(seated != nullptr);
+        return held_caret(*seated);
+    }
 
     /// GIVE THIS PANE EXACTLY `rows` ROWS OF ITS OWN, by authoring the height a weaver would
     /// drag -- the pane's own chrome is three cells of the authored box, measured -- and
@@ -1090,7 +1116,7 @@ TEST_CASE("an opening that cannot be shown opens nothing, and the requester is t
     REQUIRE(e.ask_open(spelled(e.root / "first.cpp")).accepted);
     REQUIRE(e.r.session().panes.has(e.kind));
     e.press_doc(0, 2);
-    const std::int64_t caret = e.seat()->caret_col;
+    const std::int64_t caret = e.caret().column;
     // ...AND THEN ITS PLACE, OFF THIS SCREEN: seated, with no row in sight.
     REQUIRE(author_pane_place(e.r.session().setup.active, editor_ref(), 0, cells_px(200)).accepted);
     e.r.key(input::scan::kUnknown); // a delivery, so the desk claims what it now is
@@ -1107,7 +1133,7 @@ TEST_CASE("an opening that cannot be shown opens nothing, and the requester is t
     e.r.key(input::scan::kUnknown);
     CHECK(e.doc_row(0) == "first");
     CHECK(e.status().find("first.cpp") != std::string::npos);
-    CHECK(e.seat()->caret_col == caret);
+    CHECK(e.caret().column == caret);
     CHECK(e.read("path").find("first.cpp") != std::string::npos);
     // ...AND IN SIGHT, THE SAME REQUEST TAKES.
     const SourceOpened again = e.ask_open(spelled(e.root / "a.cpp"));
@@ -1303,6 +1329,7 @@ TEST_CASE("arranging the Editor pane moves its window and not one byte of its so
     const Written moved = author_pane_place(e.r.session().setup.active, editor_ref(), cells_px(6),
                                             cells_px(4));
     REQUIRE_MESSAGE(moved.accepted, moved.refusal);
+    e.r.key(input::scan::kUnknown); // a delivery, so the desk repaints the pane where it now is
     e.focus();
     CHECK(e.text() == before);
     CHECK(e.dirty());
@@ -1752,30 +1779,55 @@ TEST_CASE("a clipboard holding non-ASCII refuses the paste, and typed non-ASCII 
 // THE POINTER AND THE VIEWPORT
 // ============================================================================
 
-TEST_CASE("a press places the caret through the same tab geometry the paint used, and the caret is "
-          "published beside the rows") {
+TEST_CASE("a press places the caret through the same tab geometry the paint used, and the caret stands "
+          "in its picture where the press put it") {
     EditorRig e("edit-press");
     e.open();
     e.open_file("a.cpp", "\tab\ncd\n");
     const std::int64_t above = e.chrome(); // the status row, and the standing notice
     e.press_doc(0, 5);                     // inside `b`, past the four-column tab
     REQUIRE(e.seat() != nullptr);
-    CHECK(e.seat()->caret_row == above); // body lattice: the document starts under the chrome
-    CHECK(e.seat()->caret_col == 5);
+    CHECK(e.caret().row == above); // body lattice: the document starts under the chrome
+    CHECK(e.caret().column == 5);
     e.type("X");
     CHECK(e.doc_row(0) == "    aXb");
     // A PRESS ON THE STATUS ROW FOCUSES WITHOUT MOVING THE CARET.
     e.unfocus();
     press_pane(e.r, e.kind, 0, 0);
     CHECK(e.r.session().panes.keyboard == e.kind);
-    CHECK(e.seat()->caret_row == e.chrome());
-    CHECK(e.seat()->caret_col == 6);
+    CHECK(e.caret().row == e.chrome());
+    CHECK(e.caret().column == 6);
+}
+
+TEST_CASE("a host that grants the Editor no canvas is shown its rows and caret as prose, its presses reach "
+          "nothing there, and its keys still edit") {
+    EditorRig e("edit-no-canvas");
+    e.no_canvas = true;
+    e.open();
+    e.open_file("a.cpp", "one\ntwo\n"); // through the managed door: the candidate prepared as rows
+    REQUIRE(e.seat() != nullptr);
+    REQUIRE_FALSE(shows_canvas(*e.seat()));
+    CHECK(e.doc_row(0) == "one");
+    CHECK(e.doc_row(1) == "two");
+    CHECK(e.caret().row == e.chrome()); // beside the rows, as prose
+    CHECK(e.caret().column == 0);
+    // A PRESS REACHES NOTHING THERE: the keys come here, and the caret stays where it was.
+    e.press_doc(1, 2);
+    CHECK(e.r.session().panes.keyboard == e.kind);
+    CHECK(e.read("caret_row") == "0");
+    CHECK(e.caret().row == e.chrome());
+    // ...AND ITS KEYS STILL EDIT.
+    e.key(input::scan::kDown);
+    e.type("Z");
+    CHECK(e.doc_row(1) == "Ztwo");
+    CHECK(e.caret().row == e.chrome() + 1);
+    CHECK(e.caret().column == 1);
 }
 
 TEST_CASE("a drag sweeps a multiline selection, and the selection survives release") {
-    // THE ONE MOTION THAT CROSSES THE SEAM. The press records which pane the hand is in; each
-    // motion resolves against that pane's body and crosses as `PaneDragged`; the release ends
-    // the record and sends nothing, and the range it swept is still on screen.
+    // THE PRESS'S OWN MOTION SWEEPS. The press is held on the pane's canvas; each motion of it
+    // reaches the pane as a place it reads back to a row and a column; the release ends it, and
+    // the range it swept is still on screen.
     EditorRig e("edit-drag");
     e.open();
     e.open_file("a.cpp", "one\ntwo\nthree\n");
@@ -1783,20 +1835,20 @@ TEST_CASE("a drag sweeps a multiline selection, and the selection survives relea
     e.press_doc(0, 1);
     e.motion_doc(1, 2);
     REQUIRE(e.seat() != nullptr);
-    CHECK(e.seat()->sel_begin_row == above);
-    CHECK(e.seat()->sel_begin_col == 1);
-    CHECK(e.seat()->sel_end_row == above + 1);
-    CHECK(e.seat()->sel_end_col == 2);
+    CHECK(e.caret().sel_begin_row == above);
+    CHECK(e.caret().sel_begin_col == 1);
+    CHECK(e.caret().sel_end_row == above + 1);
+    CHECK(e.caret().sel_end_col == 2);
     e.release_doc(1, 2);
-    CHECK(e.seat()->sel_end_row == above + 1);
-    CHECK(e.seat()->sel_end_col == 2);
+    CHECK(e.caret().sel_end_row == above + 1);
+    CHECK(e.caret().sel_end_col == 2);
     // The selection is real: typing replaces it.
     e.type("_");
     CHECK(e.doc_row(0) == "o_o");
     CHECK(e.doc_row(1) == "three");
     // ...AND A MOTION WITH THE BUTTON UP SWEEPS NOTHING.
     e.motion_doc(1, 3);
-    CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
+    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
 }
 
 TEST_CASE("in a terminal, a press on a character past the caret puts the caret before that character, and a sweep ends before the character under the hand") {
@@ -1821,19 +1873,19 @@ TEST_CASE("in a terminal, a press on a character past the caret puts the caret b
     const auto [bx, by] = cell_showing('b');
     e.r.press_cell(bx, by);
     REQUIRE(e.seat() != nullptr);
-    CHECK(e.seat()->caret_col == 1);
+    CHECK(e.caret().column == 1);
     const auto [ex, ey] = cell_showing('e');
     e.r.motion_cell(ex, ey);
     e.r.release_cell(ex, ey);
-    CHECK(e.seat()->sel_begin_col == 1);
-    CHECK(e.seat()->sel_end_col == 4); // before `e`: `bcd` is swept
+    CHECK(e.caret().sel_begin_col == 1);
+    CHECK(e.caret().sel_end_col == 4); // before `e`: `bcd` is swept
     e.type("Z");
     CHECK(e.doc_row(0) == "aZefgh");
     // A PRESS PAST THE CARET, on `g`, in the cell it had before the caret came near it.
-    CHECK(e.seat()->caret_col == 2);
+    CHECK(e.caret().column == 2);
     const auto [gx, gy] = cell_showing('g');
     e.r.press_cell(gx, gy);
-    CHECK(e.seat()->caret_col == 4);
+    CHECK(e.caret().column == 4);
     e.type("X");
     CHECK(e.doc_row(0) == "aZefXgh");
 }
@@ -1857,22 +1909,23 @@ TEST_CASE("a drag past the body's bottom edge steps the window, one row per moti
     e.motion_doc(below, 0);
     CHECK(e.doc_row(0) == "line 3");
     REQUIRE(e.seat() != nullptr);
-    CHECK(e.seat()->sel_begin_row == above); // the anchor is above the window: clipped
-    CHECK(e.seat()->sel_begin_col == 0);
-    CHECK(e.seat()->sel_end_row == 5);   // the caret's own row, the last one shown
-    CHECK(e.seat()->sel_end_col == 0);
-    CHECK(e.seat()->caret_row == 5);
-    // ...AND SCROLLED BACK UP, THE RANGE RUNS PAST THE WINDOW: it ends at the exclusive row
-    // one past the last shown, `(rows, 0)`, which is the one position with no row a
-    // reading-order range may honestly name (WL-CARET-03) -- and the caret, off screen, is
-    // `kNoCaret` beside a selection that is still said.
+    CHECK(e.caret().sel_begin_row == above); // the anchor is above the window: clipped
+    CHECK(e.caret().sel_begin_col == 0);
+    // The range stands in each row it covers, to the end of the row before the caret's: the
+    // caret's own row, the last one shown, holds the caret at its start and none of the range.
+    CHECK(e.caret().sel_end_row == 4);
+    CHECK(e.caret().sel_end_col == static_cast<std::int64_t>(e.doc_row(4 - above).size()));
+    CHECK(e.caret().row == 5);
+    CHECK(e.caret().column == 0);
+    // ...AND SCROLLED BACK UP, THE RANGE RUNS PAST THE WINDOW: it stands to the end of the last
+    // row shown, and the caret, off screen, is drawn nowhere beside a selection still drawn.
     e.wheel(1.0);
     CHECK(e.doc_row(0) == "line 1");
-    CHECK(e.seat()->sel_begin_row == above);
-    CHECK(e.seat()->sel_begin_col == 0);
-    CHECK(e.seat()->sel_end_row == 6);
-    CHECK(e.seat()->sel_end_col == 0);
-    CHECK(e.seat()->caret_row == surface::kNoCaret);
+    CHECK(e.caret().sel_begin_row == above);
+    CHECK(e.caret().sel_begin_col == 0);
+    CHECK(e.caret().sel_end_row == 5);
+    CHECK(e.caret().sel_end_col == static_cast<std::int64_t>(e.doc_row(5 - above).size()));
+    CHECK(e.caret().row == surface::kNoCaret);
 }
 
 TEST_CASE("a selection that runs above the window is clipped, and one wholly out of it "
@@ -1892,26 +1945,26 @@ TEST_CASE("a selection that runs above the window is clipped, and one wholly out
     // The caret is on line 13 and the window followed it; the anchor is above the window.
     CHECK(e.status().rfind("saved L13:C3/31", 0) == 0);
     REQUIRE(e.seat() != nullptr);
-    CHECK(e.seat()->sel_begin_row == 1);
-    CHECK(e.seat()->sel_begin_col == 0);
-    CHECK(e.seat()->sel_end_row == 5);
-    CHECK(e.seat()->sel_end_col == 2);
-    CHECK(e.seat()->caret_row == 5);
+    CHECK(e.caret().sel_begin_row == 1);
+    CHECK(e.caret().sel_begin_col == 0);
+    CHECK(e.caret().sel_end_row == 5);
+    CHECK(e.caret().sel_end_col == 2);
+    CHECK(e.caret().row == 5);
     // SCROLL THE WHOLE RANGE OUT OF THE WINDOW: nothing to draw, so nothing is said.
     e.wheel(-1.0);
     e.wheel(-1.0);
     e.wheel(-1.0);
     e.wheel(-1.0);
     e.wheel(-1.0);
-    CHECK(e.seat()->caret_row == surface::kNoCaret);
-    CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
+    CHECK(e.caret().row == surface::kNoCaret);
+    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
     // ...and scrolling back up brings the range back with the caret out of the window: a
     // selection may stand with no caret (WL-CARET-03).
     for (int i = 0; i < 9; ++i) {
         e.wheel(1.0);
     }
-    CHECK(e.seat()->caret_row == surface::kNoCaret);
-    CHECK(e.seat()->sel_begin_row != surface::kNoSelection);
+    CHECK(e.caret().row == surface::kNoCaret);
+    CHECK(e.caret().sel_begin_row != surface::kNoSelection);
 }
 
 TEST_CASE("the wheel scrolls the body, moves no caret, and elsewhere reaches nothing") {
@@ -1926,7 +1979,7 @@ TEST_CASE("the wheel scrolls the body, moves no caret, and elsewhere reaches not
     e.press_doc(0, 0);
     e.wheel(-1.0); // away from the weaver: the document scrolls up by kEditorWheelLines
     CHECK(e.doc_row(0) == "line " + std::to_string(1 + kEditorWheelLines));
-    CHECK(e.seat()->caret_row == surface::kNoCaret); // the caret stayed on line 1, off screen
+    CHECK(e.caret().row == surface::kNoCaret); // the caret stayed on line 1, off screen
     CHECK(e.status().rfind("saved L1:C1", 0) == 0);
     e.wheel(1.0);
     CHECK(e.doc_row(0) == "line 1");
@@ -1956,12 +2009,12 @@ TEST_CASE("keyboard navigation scrolls the window and the caret never leaves it"
     }
     CHECK(e.status().rfind("saved L11:C1", 0) == 0);
     CHECK(e.doc_row(4) == "line 11");
-    CHECK(e.seat()->caret_row == 5);
+    CHECK(e.caret().row == 5);
     for (int i = 0; i < 20; ++i) {
         e.key(input::scan::kUp);
     }
     CHECK(e.doc_row(0) == "line 1");
-    CHECK(e.seat()->caret_row == 1);
+    CHECK(e.caret().row == 1);
 }
 
 TEST_CASE("a horizontal window follows the caret and recovers the room an erase frees") {
@@ -1977,7 +2030,7 @@ TEST_CASE("a horizontal window follows the caret and recovers the room an erase 
     e.key(input::scan::kEnd);
     CHECK(e.doc_row(0).find('a') != std::string::npos);
     CHECK(e.doc_row(0).size() < 60);
-    CHECK(e.seat()->caret_col > 0);
+    CHECK(e.caret().column > 0);
     CHECK(e.doc_row(1).empty()); // `short` is entirely left of the window
     // Erase back down, and the window comes back to the left edge.
     for (int i = 0; i < 40; ++i) {
@@ -2003,8 +2056,8 @@ TEST_CASE("a resize reconciles the viewport and does not strand the caret") {
     e.give_rows(4);
     // Three document rows, and the caret's line is one of them.
     REQUIRE(e.seat()->rows == 4);
-    CHECK(e.seat()->caret_row != surface::kNoCaret);
-    CHECK(e.doc_row(e.seat()->caret_row - 1) == "line 21");
+    CHECK(e.caret().row != surface::kNoCaret);
+    CHECK(e.doc_row(e.caret().row - 1) == "line 21");
 }
 
 TEST_CASE("in a room too small for both, the document keeps its rows and a notice stands in for "
@@ -2030,7 +2083,7 @@ TEST_CASE("in a room too small for both, the document keeps its rows and a notic
     // ONE ROW: the standing notice, and nothing else -- the caret has no row to be on.
     e.give_rows(1);
     CHECK(e.shown().size() == 1);
-    CHECK(e.seat()->caret_row == surface::kNoCaret);
+    CHECK(e.caret().row == surface::kNoCaret);
     e.type("z"); // ...and typing into it still edits the document, and clears the notice
     CHECK(e.shown().size() == 1);
     CHECK(e.shown()[0].rfind("UNSAVED", 0) == 0);
@@ -2053,7 +2106,7 @@ TEST_CASE("long and tabbed lines are windowed by displayed columns, exactly") {
     CHECK(e.doc_row(0).rfind("        xQ", 0) == 0);
     e.key(input::scan::kEnd);
     CHECK(e.doc_row(0).find('x') == std::string::npos); // scrolled off to the left
-    CHECK(e.seat()->caret_col >= 0);
+    CHECK(e.caret().column >= 0);
 }
 
 TEST_CASE("a sweep in a pane that lost its seat ends, and sends nothing") {
@@ -2061,16 +2114,14 @@ TEST_CASE("a sweep in a pane that lost its seat ends, and sends nothing") {
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
     e.press_doc(0, 1);
-    REQUIRE(e.r.session().text_drag.active);
     e.r.session().panes.keyboard = kNoPaneKind; // the keys put down with no gesture
     e.r.pick(editor_ref()); // the pane is closed mid-sweep, through the close door
     REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     const ui::Rect body = external_body_rect(e.r.session(), e.kind);
     e.r.motion_cell(body.x + 2, body.y + 3);
-    CHECK_FALSE(e.r.session().text_drag.active);
     // Back, and nothing was selected by a motion the pane never saw.
     e.r.pick(editor_ref());
-    CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
+    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
 }
 
 TEST_CASE("a press begins a sweep only where it named a row of the body") {
@@ -2082,14 +2133,16 @@ TEST_CASE("a press begins a sweep only where it named a row of the body") {
     const ui::Rect body = external_body_rect(e.r.session(), e.kind);
     e.r.press_cell(body.x, body.y); // the host's own header row
     CHECK(e.r.session().panes.keyboard == e.kind);
-    CHECK_FALSE(e.r.session().text_drag.active);
-    e.r.release_cell(body.x, body.y);
+    e.motion_doc(1, 2); // held over the document's rows: a header press swept nothing
+    e.release_doc(1, 2);
+    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
     e.press_doc(0, 0);
-    CHECK(e.r.session().text_drag.active);
-    CHECK(e.r.session().text_drag.place == text_drag_place::kExternalPane);
-    CHECK(e.r.session().text_drag.kind == e.kind);
-    e.release_doc(0, 0);
-    CHECK_FALSE(e.r.session().text_drag.active);
+    e.motion_doc(1, 2); // ...and one on a row of the body sweeps
+    CHECK(e.caret().sel_begin_row == e.chrome());
+    CHECK(e.caret().sel_end_row == e.chrome() + 1);
+    e.release_doc(1, 2);
+    e.motion_doc(0, 1); // ...until it is let go
+    CHECK(e.caret().sel_end_row == e.chrome() + 1);
 }
 
 // ============================================================================
@@ -2351,22 +2404,22 @@ TEST_CASE("a press that only focuses begins no sweep, and a gesture keeps the ge
         e.open_file("a.cpp", "one\ntwo\nthree\n");
         e.press_doc(1, 1); // a real caret, somewhere to sweep from
         REQUIRE(e.seat() != nullptr);
-        CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
+        CHECK(e.caret().sel_begin_row == surface::kNoSelection);
         e.release_doc(1, 1);
         // ...AND A PRESS THAT MEANS FOCUS AND NOTHING ELSE.
         press_pane(e.r, e.kind, 0, 0);
         CHECK(e.r.session().panes.keyboard == e.kind);
         e.motion_doc(2, 4);
         e.motion_doc(2, 5);
-        CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
-        CHECK(e.seat()->caret_row == e.chrome() + 1); // the caret did not move either
+        CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+        CHECK(e.caret().row == e.chrome() + 1); // the caret did not move either
         e.release_doc(2, 5);
-        CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
+        CHECK(e.caret().sel_begin_row == surface::kNoSelection);
         // A REAL SWEEP STILL SWEEPS, from a press that named a document row.
         e.press_doc(0, 0);
         e.motion_doc(1, 3);
-        CHECK(e.seat()->sel_begin_row == e.chrome());
-        CHECK(e.seat()->sel_end_row == e.chrome() + 1);
+        CHECK(e.caret().sel_begin_row == e.chrome());
+        CHECK(e.caret().sel_end_row == e.chrome() + 1);
     }
 
     SUBCASE("a press and the motion behind it in one poll mean the picture the weaver saw") {
@@ -2385,8 +2438,8 @@ TEST_CASE("a press that only focuses begins no sweep, and a gesture keeps the ge
         CHECK(e.admitted_caret() == caret_before);
         e.settle();
         REQUIRE(e.seat() != nullptr);
-        CHECK(e.seat()->sel_begin_col == 1);
-        CHECK(e.seat()->sel_end_col == 2);
+        CHECK(e.caret().sel_begin_col == 1);
+        CHECK(e.caret().sel_end_col == 2);
         // THE RANGE IS LINE ONE TO LINE TWO, and typing over it proves which lines they were.
         e.release_doc(1, 2);
         e.type("_");
@@ -3330,12 +3383,13 @@ TEST_CASE("a managed open has one commitment -- the published claims, the pane's
     CHECK(e.seat()->content_generation == doc->doc_epoch);
     CHECK(e.seat()->rows == desk->rows);
     {
-        // THE ADMITTED ROWS ARE B'S NOW; the painted canvas follows on the next turn, which
-        // is physical display timing and not admitted presentation state.
-        std::vector<std::string> admitted;
-        for (const surface::SurfaceTextRow& row : e.seat()->shown) {
-            admitted.push_back(row.text);
-        }
+        // THE ADMITTED PICTURE IS B'S NOW, the Editor's own, in the room the trial reserved for
+        // it: the desk's to show until the Editor draws again, so read at once and numbered
+        // none. The painted canvas follows on the next turn, which is physical display timing
+        // and not admitted presentation state.
+        REQUIRE(shows_canvas(*e.seat()));
+        CHECK(e.seat()->picture == 0);
+        const std::vector<std::string> admitted = held_row_texts(*e.seat());
         CHECK(std::find(admitted.begin(), admitted.end(), "two") != admitted.end());
         CHECK(std::find(admitted.begin(), admitted.end(), "one") == admitted.end());
     }

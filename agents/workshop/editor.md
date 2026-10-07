@@ -120,9 +120,10 @@ MEANS
 
 PROVEN BY — `editor-pane/editor.hpp` `EditorState::first_col`, `visual_col_of`,
 `byte_of_visual_col`, `expanded_slice`, `kEditorTabStop`; `editor-pane/pane.cpp` `kCaretCols`,
-`on(PanePressed)`; `tests/test_editor.cpp` case `"tab geometry maps bytes and displayed columns
+`press_at`; `tests/test_editor.cpp` case `"tab geometry maps bytes and displayed columns
 both ways, exactly"`; `tests/test_workshop_panes_editor.cpp` case `"a press places the
-caret through the same tab geometry the paint used, and the caret is published beside the rows"`.
+caret through the same tab geometry the paint used, and the caret stands in its picture where the
+press put it"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-09 — The viewport reconciles once per composition
@@ -156,29 +157,35 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-EDIT-12 — The pane composes its rows, and the caret beside them
 
-LAW — The pane composes a status row (dirty word, `L:C/N`, the path), a notice row where the room holds one, then the document through the viewport; the caret and the clipped selection are `PaneCaret`.
+LAW — The pane composes a status row (dirty word, `L:C/N`, the path), a notice row where the room holds one, then the document through the viewport; the caret and the clipped selection stand in them.
 
 MEANS
 - a room too small for both keeps the document's row: the notice replaces the status row;
-- one row is the status row alone, and the caret has nowhere to be.
+- one row is the status row alone, and the caret has nowhere to be;
+- they are its picture on its canvas, and prose rows with `PaneCaret` beside them to a host granting none.
 
-PROVEN BY — `editor-pane/pane.cpp` `say`, `compose`, `caret_of`, `status_text`,
-`kNoticeNeedsRows`; `workshop/screen_external.cpp` `external_header`, `external_body_place`;
+PROVEN BY — `editor-pane/pane.cpp` `say`, `compose`, `caret_of`, `rows_caret`, `parts_of`,
+`status_text`, `kNoticeNeedsRows`; `workshop/pane_canvas_rows.hpp` `rows_picture`;
+`workshop/screen_external.cpp` `external_header`, `external_body_place`;
 `tests/test_workshop_panes_editor.cpp` case `"a selection that runs above the window is clipped,
 and one wholly out of it is not said"`, case `"in a room too small for both, the
-document keeps its rows and a notice stands in for the status row"`.
+document keeps its rows and a notice stands in for the status row"`, case `"a host that grants
+the Editor no canvas is shown its rows and caret as prose, its presses reach nothing there, and
+its keys still edit"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-13 — The desk's half: a trial on a copy, an admission, the publication applied whole
 
-LAW — The desk judges a trial seat on a copy and moves nothing; asked to admit, it re-judges, keeps the rows and offers its presentation; shown the publication, it applies seat, keys, room and rows.
+LAW — The desk judges a trial seat on a copy and moves nothing; asked to admit, it re-judges, keeps the content and offers its presentation; shown the publication, it applies seat, keys, room and content.
 
 MEANS
 - a resize, an authored change or a routed input between the trial and the commitment aborts it;
-- a presentation it holds no trial for is Declined, said, and re-claimed from the live desk.
+- a presentation it holds no trial for is Declined, said, and re-claimed from the live desk;
+- the content is the pane's picture in the room the trial reserved, or its rows (WL-OPEN-10).
 
 PROVEN BY — `workshop/weave_managed.cpp` `on(PresentationTrialRequested)`,
-`on(PresentationAdmitRequested)`, `on(ManagedOpenSettled)`, `on_claim_published`, `trial_room`;
+`on(PresentationAdmitRequested)`, `on(v2::PresentationAdmitRequested)`, `on(ManagedOpenSettled)`,
+`on_claim_published`, `show_presentation`, `trial_room`, `trial_room_stands`;
 `workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `workshop/screen.hpp`
 `stack_slots_that_fit`; `workshop/open_seam_vocabulary.hpp` `PanePresentation`,
 `ManagedOpenSettled`; `tests/test_workshop_panes_editor.cpp` case
@@ -228,20 +235,21 @@ other time"`; `tests/test_workshop_load.cpp` case
 `"the reloaded pane reads live, not out of the snapshot it revived from"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
-## WL-EDIT-16 — A sweep arrives as positions, unclamped, and the pane says what they mean
+## WL-EDIT-16 — A sweep arrives as places, unclamped, and the pane says what they mean
 
-LAW — A `PaneDragged` extends the gesture a `PanePressed` began and means nothing otherwise; the unclamped position is read against the chrome THAT PRESS SAW, and a row past either edge steps the window.
+LAW — A held primary press's motion extends the sweep it began and means nothing otherwise; its unclamped place is read against the chrome THAT PRESS SAW, and a row past either edge steps the window.
 
 MEANS
-- a press taken as focus alone begins no gesture: later motions sweep nothing;
+- a press taken as focus alone, or beside the rows, begins no gesture: later motions sweep nothing;
 - a pointer gesture composes no new rows, so the notice and the picture survive it;
-- the host records only which pane the press began in (WL-TEXT-14) and sends no release.
+- its release or its loss ends it; the host ends the hold of a pane that left (WL-CANVAS-02).
 
-PROVEN BY — `editor-pane/pane.cpp` `on(PaneDragged)`, `on(PanePressed)`, `Drag`;
-`editor-pane/editor.hpp` `EditorBuffer::drag_to`; `workshop/pane_vocabulary.hpp` `PaneDragged`;
-`tests/test_workshop_panes_editor.cpp` case `"a press that only focuses begins no sweep, and a
-gesture keeps the geometry it was made against"`, case `"a sweep in a pane that lost
-its seat ends, and sends nothing"`.
+PROVEN BY — `editor-pane/pane.cpp` `on(PaneCanvasPointer)`, `press_at`, `dragged`, `Drag`;
+`editor-pane/editor.hpp` `EditorBuffer::drag_to`; `workshop/pane_canvas_vocabulary.hpp`
+`PaneCanvasPointer`; `tests/test_workshop_panes_editor.cpp` case `"a press that only focuses
+begins no sweep, and a gesture keeps the geometry it was made against"`, case `"a sweep in a pane
+that lost its seat ends, and sends nothing"`, case `"a press begins a sweep only where it named a
+row of the body"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## Do not assume
