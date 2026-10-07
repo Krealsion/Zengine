@@ -380,8 +380,9 @@ public:
         if (event.button == 3) {
             right_press(*v, at, shows_value(*v, event.grant, event.picture), mail);
         } else if (event.button == 1) {
-            // Only the motion of the press a field pickup is armed under may begin it.
-            canvas.held = at.shown ? event.gesture : 0;
+            // Only the motion of the press a field pickup is armed under may begin it, and only a
+            // value view's press arms one: a press on the lists leaves no earlier press armed.
+            canvas.held = at.shown && value_mode(*v) ? event.gesture : 0;
             if (at.shown) press(*v, at, event.grant, event.picture, mail);
         }
     }
@@ -573,8 +574,9 @@ public:
 
     /// A PRESS NAMES A ROW OF A VIEW'S ROOM, and this pane knows what that row is because it
     /// composed it. In the pane-property lists a pane row inspects that pane and a property row
-    /// moves the cursor, read against the rows the press was aimed at in its own room; a value
-    /// view acts only on the picture it still shows, so a stale or clipped place is refused.
+    /// moves the cursor, read against the rows last composed, in the room the press was aimed at;
+    /// a value view acts only on the picture it still shows, so a stale or clipped place is
+    /// refused.
     void press(pane::ValueView& v, const ws::RowCell& at, std::int64_t grant, std::int64_t picture,
                loom::Mail& mail) {
         if (!value_mode(v)) {

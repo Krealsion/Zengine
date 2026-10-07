@@ -36,6 +36,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdlib>
 #include <ctime>
 #include <optional>
 #include <vector>
@@ -264,11 +266,15 @@ public:
     bool wheel(double dy) {
         if (editing() || !item_) return false;
         wheel_ += dy;
+        if (!std::isfinite(wheel_)) wheel_ = 0.0;
         const auto fields = field_list();
-        bool moved = false;
-        while (wheel_ >= 1.0) { step(fields, -1); wheel_ -= 1.0; moved = true; }
-        while (wheel_ <= -1.0) { step(fields, 1); wheel_ += 1.0; moved = true; }
-        return moved;
+        // No turn walks further than the list is long, however far the wheel went.
+        const double whole = std::trunc(wheel_);
+        wheel_ -= whole;
+        const double reach = static_cast<double>(fields.size());
+        const auto notches = static_cast<std::int64_t>(std::clamp(whole, -reach, reach));
+        for (std::int64_t n = 0; n < std::abs(notches); ++n) step(fields, notches > 0 ? -1 : 1);
+        return whole != 0.0;
     }
     void key(const workshop::PaneKey& key) {
         if (pickup_ != Pickup::idle || !editing()) return;
