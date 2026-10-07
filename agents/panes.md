@@ -281,8 +281,9 @@ beside the shapes before them, and each is an ordinary optional capability any p
   deliberately NOT clamped — a row above the body is negative, one below it is past the granted
   count, and what either means is the pane's. There is no release shape: the host ends its own
   record on release, or when the pane loses its seat or its room, and sends nothing; a pane
-  resolves a sweep from the positions it was given. The Terminal ignores it; the Editor steps its
-  window on it.
+  resolves a sweep from the positions it was given. The Editor steps its window on it; a pane
+  drawing its rows on its canvas hears its pointer's motion instead, and the Terminal's means
+  nothing.
   **Workshop arms its record from geometry alone** — a press that named ANY body row takes hold
   of the pane, because the host does not read a provider's rows to learn what they mean. So a
   drag EXTENDS a gesture the pane's own `PanePressed` began, and a pane that consumed the press

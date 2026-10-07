@@ -60,7 +60,7 @@ MEANS
 DOES NOT MEAN — that reading moves anything else: the line, a recall, a list and a refusal stay.
 
 PROVEN BY — `terminal-pane/pane.cpp` `wrap_record`, `WrappedRecord`, `view_top`, `scroll`,
-`page`, `Reading`, `on(PaneWheel)`, `on(PanePressed)`; `terminal-pane/vocabulary.hpp`
+`page`, `Reading`, `wheel`, `press`; `terminal-pane/vocabulary.hpp`
 `kActionScrollUp`, `kActionScrollDown`, `kActionOldest`, `kActionNewest`;
 `tests/test_workshop_panes_terminal.cpp` case `"a long entry is read whole by scrolling and no row
 of it is clipped for good"`, case `"new output leaves a scrolled view where it is and counts

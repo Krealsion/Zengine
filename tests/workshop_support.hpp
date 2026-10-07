@@ -3486,6 +3486,40 @@ inline CanvasRows held_canvas_rows(const ExternalPane& pane) {
                                       c.graphical, c.text_advance_px, c.text_line_px});
 }
 
+/// WHERE A PANE'S CARET AND SELECTION STAND, as `PaneCaret` says them in its rows' lattice: off
+/// the runs of the picture Workshop holds while the pane draws one -- the run carrying a caret
+/// names its row and column, the runs a selection touches its first and last -- and off the caret
+/// Workshop admitted beside its prose rows otherwise.
+inline PaneCaret held_caret(const ExternalPane& pane) {
+    PaneCaret out;
+    if (!shows_canvas(pane)) {
+        out.row = pane.caret_row;
+        out.column = pane.caret_col;
+        out.sel_begin_row = pane.sel_begin_row;
+        out.sel_begin_col = pane.sel_begin_col;
+        out.sel_end_row = pane.sel_end_row;
+        out.sel_end_col = pane.sel_end_col;
+        return out;
+    }
+    const CanvasRows lattice = held_canvas_rows(pane);
+    for (const v2::PaneCanvasText& t : pane.canvas.content.texts) {
+        const RowCell at = row_cell_at(lattice, t.x, t.y);
+        if (t.caret_col >= 0) {
+            out.row = at.row;
+            out.column = at.column + t.caret_col;
+        }
+        if (t.sel_begin_col >= 0) {
+            if (out.sel_begin_row < 0) {
+                out.sel_begin_row = at.row;
+                out.sel_begin_col = at.column + t.sel_begin_col;
+            }
+            out.sel_end_row = at.row;
+            out.sel_end_col = at.column + t.sel_end_col;
+        }
+    }
+    return out;
+}
+
 /// THE ROWS OF A CANVAS PANE'S ADMITTED PICTURE, each its unpadded run on the lattice -- its
 /// characters without the blanks after the last -- and "" where a row has none.
 inline std::vector<std::string> held_canvas_text(const ExternalPane& pane) {
