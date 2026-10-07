@@ -162,19 +162,20 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-11 — Pane titles are a presentation preference with a key
 
-LAW — Pane titles are a preference with a key: the toggle flips the session's flag and writes the prefs file; one resolution answers a pane's header rows, and the keyboard's pane always keeps its title.
+LAW — Pane titles are a preference with a key that flips the session's flag and saves it; one resolution answers a pane's header rows, and the keyboard's pane wears its title, a held press's once it ends.
 
 MEANS
 - painter, press path and room grant spend the answer through `ExternalBodyPlace::header_rows`;
 - the press path spends the answer the pressed picture had, before the keys moved (WL-FOCUS-03);
-- a title's row goes or returns by the grant-on-change door, a held canvas press's once it ends: till then its picture and rows stay in the room it kept.
+- a title's row goes or returns by the grant-on-change door, a held canvas press's once it ends: till then its picture and rows stay in the room it kept, and a pane that moved keeps none.
 
 PROVEN BY — `workshop/keymap.hpp` `workshop.pane-titles`; `workshop/screen.hpp`
 `Session::pane_titles`, `ExternalBodyPlace::header_rows`, `kExternalHeaderRows`;
 `workshop/screen_external.cpp` `external_title_rows`, `paint_external`;
 `workshop/weave_canvas.cpp` `refresh_canvas_rooms`, `WorkshopWeave::canvas_release`;
 `workshop/weave_external.cpp` `refresh_external_rooms`; `workshop/panes.hpp`
-`ExternalPane::Canvas::title_waits`; `workshop/screen_canvas.hpp` `shown_canvas_place`;
+`ExternalPane::Canvas::title_waits`, `ExternalPane::Canvas::title_rows`;
+`workshop/screen_canvas.hpp` `shown_canvas_place`;
 `workshop/weave_inspection.cpp` `WorkshopWeave::visible_body`; `workshop/prefs_persist.hpp`
 `kTitlesDefaultValue`, `kTitlesDefault`; `workshop/weave.hpp` `HostContext::prefs_path`,
 `WorkshopWeave::prefs_loaded_`, `WorkshopWeave::prefs_bad_`; `workshop/weave_handlers.cpp`
@@ -189,7 +190,9 @@ a later press opens gamma"`; `tests/test_workshop_desk.cpp` case `"a canvas pane
 the keys, its title waiting with pane titles hidden, is read where its picture is painted, and a
 point there lands in the room the press kept"`, case `"a held press keeps a canvas pane's room
 only from its title row: a pane moved while the press is held is granted its new room at once,
-and the press is lost"`, case `"a held press on the canvas pane that has the keys keeps its room
+and the press is lost"`, case `"a pane moved one title row's height while a press is held, its
+title unchanged, is granted its new room at once and the press is lost, in a window and in a
+terminal, titled or not"`, case `"a held press on the canvas pane that has the keys keeps its room
 while launches take its title row away and give it back, and its title is drawn again once it has
 the keys again"`, case `"a held press a menu takes ends its canvas pane's wait in that same
 repaint: the room under the title and its rows are granted at once"`.
@@ -197,8 +200,8 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## Do not assume
 
-- That hiding pane titles can hide where typing goes — the keyboard's pane keeps its title and
-  its mark whatever the preference says (WL-FOCUS-11).
+- That hiding pane titles can hide where typing goes — the keyboard's pane wears its title and
+  its mark whatever the preference says, once a press holding its room ends (WL-FOCUS-11).
 - That the pane the keys point at is where an ordinary key goes — a mode above it takes the
   key, and a press there is reported "not here" (WL-FOCUS-04, WL-FOCUS-10).
 - That a focused pane above a live draft has its own witness — it does not (WL-FOCUS-06).
