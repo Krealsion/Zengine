@@ -1452,6 +1452,25 @@ TEST_CASE("a value released on Flow's canvas before its carry is answered names 
     CHECK(drops[0].picture == released_on);
 }
 
+TEST_CASE("the rows two canvas panes show are each read off the pane's own plane where their bodies "
+          "share a corner, the one laying the medium's ground and the one laying black") {
+    InventoryStory s(191, false, false, /*with_flow=*/true, /*with_powers=*/true); // both at one corner
+    REQUIRE(s.powers != 0);
+    REQUIRE(s.flow != 0);
+    REQUIRE(external_body_rect(s.r.session(), s.powers).x == external_body_rect(s.r.session(), s.flow).x);
+    REQUIRE(external_body_rect(s.r.session(), s.powers).y == external_body_rect(s.r.session(), s.flow).y);
+    const auto powers = pane_rows(s.r, s.powers);
+    const auto flow = pane_rows(s.r, s.flow);
+    std::string seen;
+    for (const auto& row : powers) seen += "Powers | " + row + "\n";
+    for (const auto& row : flow) seen += "Flow   | " + row + "\n";
+    INFO(seen);
+    REQUIRE_FALSE(powers.empty());
+    REQUIRE_FALSE(flow.empty());
+    CHECK(powers != flow);
+    CHECK(std::find(flow.begin(), flow.end(), powers.front()) == flow.end());
+}
+
 TEST_CASE("an operator reference dragged out of Powers is kept by Inventory like any value: the "
           "identity and the two content ids the door's row carried") {
     InventoryStory s(191 | 64, true, false, false, true); // the actor may carry a value
