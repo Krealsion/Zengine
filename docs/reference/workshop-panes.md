@@ -804,15 +804,15 @@ weaver presses a visible row
   press moves the keyboard, so a press that brings the keys back says `false`, and a press on a
   pane whose titles are hidden names the row painted where it landed (that pane's title returns
   with the keys, and the smaller room it leaves is granted right after the press). It is a fact,
-  not an instruction: the Files pane opens a row only on a press that says the keys were already
-  its own and that row was already selected, and a pane with no such rule ignores it. Nothing is
-  said when the keys leave a pane.
+  not an instruction: a pane may open a row only on a press that says the keys were already its
+  own and that row was already selected, as Files does with the same fact off its canvas pointer,
+  and a pane with no such rule ignores it. Nothing is said when the keys leave a pane.
 - **One press crosses once, in the version its pane can read.** Workshop sends the second
   version only when the host answers that the office's current holder accepts it — read from the
   bus's own role table and accept-sets — and the first version otherwise, unchanged, so a pane
   built before the second existed hears exactly what it always heard. A first-version press states
-  no fact: a pane that accepts both must treat it as "not known" (Files selects on it, and Return
-  still opens). The answer is an inspection, not a promise: the office is resolved again at
+  no fact: a pane that accepts both must treat it as "not known" -- at most it selects, and the
+  pane's own key opens. The answer is an inspection, not a promise: the office is resolved again at
   delivery, and if another holder without the second door has taken it by then, Loom refuses that
   one press, records the refusal against Workshop's send, and nothing is sent again. A pane that
   adds the second door changes what it accepts, which Loom will not reload in place: restart
