@@ -309,7 +309,7 @@ bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& 
     const CanvasRelease at = released ? *released
         : CanvasRelease{presentation.stamp.aimed, c.grant, PixelRect{c.x, c.y, c.width, c.height}};
     if (at.grant != c.grant) {
-        say("The canvas the value was released on is gone; Escape cancels", true);
+        say("The canvas the item was released on is gone; Escape cancels", true);
         return true;
     }
     const bool value = carried_.value;

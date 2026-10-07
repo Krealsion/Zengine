@@ -172,15 +172,12 @@ void WorkshopWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         return;
     }
     const loom::Ticket attempt = refused.refused_attempt();
-    // This reports an actual failed placement, on rows or on a canvas; it settles no current
-    // operation or carry.
-    const auto names = [&](std::string_view shape, std::int64_t version) {
-        return refused.shape == shape && refused.version == version;
-    };
-    const bool reference = names(PaneDrop::zen_name, PaneDrop::zen_version) ||
-                           names(PaneCanvasDrop::zen_name, PaneCanvasDrop::zen_version);
-    const bool value = names(PaneValueDrop::zen_name, PaneValueDrop::zen_version) ||
-                       names(PaneCanvasValueDrop::zen_name, PaneCanvasValueDrop::zen_version);
+    // This reports an actual failed placement -- on rows or on a canvas, in every version Workshop
+    // sends one; it settles no current operation or carry.
+    const bool reference =
+        refused.shape == PaneDrop::zen_name || refused.shape == PaneCanvasDrop::zen_name;
+    const bool value =
+        refused.shape == PaneValueDrop::zen_name || refused.shape == PaneCanvasValueDrop::zen_name;
     if (attempt.valid() && (reference || value) && !refused.role.empty() && refused.target.empty()) {
         say(std::string(reference ? "Reference" : "Value") + " not delivered to " + refused.role + " (attempt " +
             std::to_string(attempt.seq) + "): " + refused.reason, true);
