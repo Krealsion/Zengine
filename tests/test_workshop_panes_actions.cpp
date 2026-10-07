@@ -2255,7 +2255,19 @@ TEST_CASE("the band and the Hotkeys pane teach the application's keys as they ar
     };
     CHECK(row_with({"ctrl+g", "terminal", "desktop.terminal", "*"}));
     CHECK(row_with({"(no key)", "panes", "desktop.panes", "*"}));
-    CHECK(keys.find("keymap file: " + path) != std::string::npos);
+    // ...THE FILE THIS RUN READS, on a row of its own: the whole path where the room holds it,
+    // else as much as the room holds and the mark that says the rest was cut.
+    const std::string named = "keymap file: " + path;
+    const std::size_t from = keys.find("\nkeymap file: ");
+    REQUIRE(from != std::string::npos);
+    const std::string file_row = keys.substr(from + 1, keys.find('\n', from + 1) - from - 1);
+    CAPTURE(file_row);
+    const std::string mark = pane_text::kElided;
+    const std::size_t kept = file_row.size() > mark.size() ? file_row.size() - mark.size() : 0;
+    CHECK((file_row == named ||
+           (file_row.size() < named.size() && kept > 0 &&
+            file_row.compare(kept, mark.size(), mark) == 0 &&
+            named.compare(0, kept, file_row, 0, kept) == 0)));
     CHECK(keys.find("applied -- 2 authored rows") != std::string::npos);
     CHECK(keys.find("\"none\" disables") != std::string::npos);
 
