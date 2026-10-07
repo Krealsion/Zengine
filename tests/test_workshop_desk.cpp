@@ -624,6 +624,18 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
                                       label.x == kept.canvas.x + kPaneCanvasUnit &&
                                       label.y == kept.canvas.y);
         CHECK(painted);
+        // ...under no title: the title waits for the press, over the row the picture still holds.
+        const RuntimePane* row = d.r.session().panes.runtime.of_kind(d.sketch_kind);
+        REQUIRE(row != nullptr);
+        const std::string title = external_header(*row, true);
+        const auto titled = [&] {
+            for (const surface::SurfaceLayer& layer : d.r.last_canvas().layers)
+                for (const surface::SurfaceTextRegion& region : layer.texts)
+                    for (const surface::SurfaceTextRow& line : region.rows)
+                        if (line.text.rfind(title, 0) == 0) return true;
+            return false;
+        };
+        CHECK_FALSE(titled());
         // ...AND A POINT THERE: the release at it reaches the pane inside that word, in the room
         // the press was aimed at.
         v2::PanePoint at;
@@ -639,8 +651,11 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         const DeskRect l = during.words[1].place;
         CHECK(inside_locally(released, DeskRect{l.x + kPaneCanvasUnit, l.y, kPaneCanvasUnit, l.h},
                              kept));
-        // THE PRESS ENDED: the room under the title is granted now.
+        // THE PRESS ENDED: the room under the title is granted now, and the title drawn once the
+        // pane draws in it.
         CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.grant != kept.canvas.grant);
+        d.draw();
+        CHECK(titled());
     }
 }
 
