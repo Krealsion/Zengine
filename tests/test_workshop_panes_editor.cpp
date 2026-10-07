@@ -2446,6 +2446,31 @@ TEST_CASE("a press that only focuses begins no sweep, and a gesture keeps the ge
         CHECK(e.doc_row(0) == "o_o");
         CHECK(e.doc_row(1) == "three");
     }
+
+    SUBCASE("a notice that rises between the press and its motion moves no row of the sweep") {
+        EditorRig e("edit-notice-mid-sweep");
+        e.open();
+        e.open_file("a.cpp", "one\ntwo\nthree\n");
+        e.press_doc(0, 3);
+        e.release_doc(0, 3);
+        e.type("x"); // typing retires the standing notice
+        e.key(input::scan::kBackspace);
+        REQUIRE(e.chrome() == 1);
+        // ONE POLL: the press, text the Editor refuses in a notice row of its own -- the
+        // document steps down a row -- and the motion, measured against the rows before it.
+        const EditorRig::Aim at = e.aim();
+        e.enqueue_press_doc(at, 0, 1);
+        e.enqueue_text("\xc3\xa9");
+        e.enqueue_motion_doc(at, 1, 2);
+        e.settle();
+        REQUIRE(e.chrome() == 2);
+        CHECK(e.caret().sel_begin_row == e.chrome());
+        CHECK(e.caret().sel_end_row == e.chrome() + 1);
+        e.release_doc(0, 2); // the motion's own cell, in the rows standing now
+        e.type("_");
+        CHECK(e.doc_row(0) == "o_o");
+        CHECK(e.doc_row(1) == "three");
+    }
 }
 
 TEST_CASE("a paste retires with the document it was asked for") {

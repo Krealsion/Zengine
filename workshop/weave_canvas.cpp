@@ -100,8 +100,8 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         bool held = false;
         for (const CanvasHold& hold : canvas_holds_) held = held || (hold.active && hold.kind == pane.kind);
         const auto kept = canvas_body_place(where.rect, sc, c.title_rows);
-        if (same_kind && held && !body.empty() && titles != c.title_rows && c.x == kept.x &&
-            c.y == kept.y && c.width == kept.w && c.height == kept.h) {
+        if (same_kind && held && !body.empty() && c.x == kept.x && c.y == kept.y &&
+            c.width == kept.w && c.height == kept.h) {
             c.title_waits = true;
             continue;
         }
