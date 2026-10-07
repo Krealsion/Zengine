@@ -154,8 +154,9 @@ struct TerminalRig {
     void settle() { r.bus.drain_until_idle(); }
 
     /// THE ROW THE WEAVER IS TYPING ON, as the pane last drew it: its run in the picture Workshop
-    /// holds, its own trailing blanks kept, less the blank a caret after its last character
-    /// stands on, which is the picture's and not the line's.
+    /// holds, less the blank a caret after its last character stands on, which is the picture's
+    /// and not the line's. The picture keeps a row's trailing blanks only as far as its caret or
+    /// selection, so a typed blank past both does not come back here.
     std::string input_text() {
         const std::vector<std::string> rows = shown();
         REQUIRE_FALSE(rows.empty());
@@ -581,6 +582,7 @@ TEST_CASE("the pane draws its caret in its own picture, and the medium draws it 
     t.type("abc");
     CHECK(t.caret().row == t.input_row());
     CHECK(t.caret().column == 2 + 3); // `> ` and three characters
+    CHECK(wears_medium_ground(*t.seat())); // and the rows lie on the medium's own ground
     const surface::SurfaceTextRegion region = t.line_region();
     // The region the medium draws the line into carries the caret where the run said it.
     CHECK(region.caret_row == 0);
@@ -615,8 +617,8 @@ TEST_CASE("the caret carries a selection, and both ends or neither") {
 }
 
 TEST_CASE("a press on the input row places the caret where the weaver aimed") {
-    // THE INVERSE PAIR, SPENT LIVE: a press names a prose column of the room the pane was
-    // granted, and the caret the pane publishes lands at that column.
+    // THE INVERSE PAIR, SPENT LIVE: a press's place reads back to a column of the lattice the
+    // pane draws on, and the caret the pane draws stands at that column.
     TerminalRig t;
     t.open();
     t.focus();
@@ -1750,15 +1752,35 @@ TEST_CASE("the wheel reads the record three rows a notch and moves nothing else"
     t.open();
     t.give_room(12, 60);
     thirty_notices(t);
+    t.focus();
+    t.type("draft");
+    const std::string line = t.input_text();
+    const PaneCaret caret = t.caret();
     const std::int64_t above = marker_count(t, " more rows above");
     REQUIRE(above > 3);
     const ui::Rect body = external_body_rect(t.r.session(), t.kind);
     t.r.wheel_cell(1.0, body.x + 2, body.y + 2);
     CHECK(marker_count(t, " more rows above") == above - 3);
     CHECK(t.text().find("more rows below") != std::string::npos);
+    CHECK(t.input_text() == line); // the line, and its caret, stay as they were
+    CHECK(t.caret().column == caret.column);
     t.r.wheel_cell(-1.0, body.x + 2, body.y + 2);
     CHECK(marker_count(t, " more rows above") == above);
     CHECK(t.text().find("more rows below") == std::string::npos);
+    CHECK(t.input_text() == line);
+}
+
+TEST_CASE("a right press on the Terminal anywhere but a value is handed back, and Workshop's own pane menu opens") {
+    TerminalRig t;
+    t.open();
+    t.focus();
+    t.type("abc");
+    REQUIRE_FALSE(t.r.session().context.open);
+    const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+    t.r.right_press_cell(body.x + pane_cell_of(t.r.session(), t.kind, t.input_row(), 3),
+                         body.y + kExternalHeaderRows + t.input_row());
+    CHECK(t.r.session().context.open);
+    CHECK(t.input_text() == "> abc"); // the line is as it was
 }
 
 TEST_CASE("reading keys leave a recall and the line as they were") {
