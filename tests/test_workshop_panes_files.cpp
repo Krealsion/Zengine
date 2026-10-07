@@ -994,9 +994,9 @@ TEST_CASE("a press on Files' selected row after its open moved the keys to the E
 
 TEST_CASE("the keys leave Files by a press into the Editor and Files is told nothing, so only Workshop can say a later press on Files' selected row came from elsewhere") {
     // WHY A PANE-LOCAL MEMORY CANNOT ANSWER THIS. The keys leave Files for the Editor by a press
-    // on the Editor's own row, and no delivery reaches Files: there is no departure message, by
-    // design (the vocabulary's "no focus-changed notification"). The fact has to come with the
-    // press, from the party that routes the keys.
+    // on the Editor's own row, and nothing about it reaches Files -- only the end of its own last
+    // press's hold: there is no departure message, by design (the vocabulary's "no focus-changed
+    // notification"). The fact has to come with the press, from the party that routes the keys.
     FilesRig f("files-leave-by-press");
     put_file(f.root / "alpha.cpp", "the alpha source\n");
     put_file(f.root / "beta.cpp", "the beta source\n");
@@ -1016,6 +1016,7 @@ TEST_CASE("the keys leave Files by a press into the Editor and Files is told not
     CHECK(keyboard_pane(f.r.session().panes) == editor);
     // NOTHING REACHED FILES AS THE KEYS LEFT IT but the end of its own last press's hold.
     CHECK(tap.heard.size() == tap.lost);
+    CHECK(tap.lost <= 1);
     // THE EDITOR HEARD EXACTLY ONE PRESS IN IT, in the newest version it accepts: it numbers its
     // picture (its rows are a drop target), so it hears v3 as the browser does.
     REQUIRE(editor_tap.pressed.size() == 1);
@@ -1826,6 +1827,7 @@ TEST_CASE("the authoring line's caret is the medium's, where the line's is, and 
     const std::int64_t prompt = static_cast<std::int64_t>(std::string("recipe name> ").size());
     CHECK(held_caret(*pane).row == line);
     CHECK(held_caret(*pane).column == prompt + 4);
+    CHECK(wears_medium_ground(*pane)); // the rows lie on the medium's own ground
     // ...BETWEEN TWO CHARACTERS AFTER A LEFT ARROW, and no character moved for it.
     f.r.key(input::scan::kLeft);
     CHECK(held_caret(*pane).column == prompt + 3);
@@ -2687,6 +2689,27 @@ TEST_CASE("a press that names a picture Files has replaced is refused in words a
     });
     REQUIRE_FALSE(watch->content.empty());
     CHECK(rows_of(watch->content.back())[0].find("the rows moved") != std::string::npos);
+    CHECK(row_beginning(rows_of(watch->content.back()), "> alpha.cpp") >= 0);
+    CHECK(tap.attempts == 0);
+
+    // ...NOR ONE ABOUT A PICTURE OF A ROOM SINCE GRANTED AFRESH -- the same size, another grant:
+    // that picture was replaced whole, and neither its press nor its wheel moves the selection.
+    const PaneCanvasPointer old = [&] {
+        PaneCanvasPointer p = watch->canvas_at(beta, 0, canvas_pointer::kPress);
+        p.keys_went_here = true;
+        return p;
+    }();
+    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.canvas_grant(m, files::kFilesRole, files::kProjectFilesPane, 8, 60);
+    });
+    REQUIRE(watch->canvas_room.grant != old.grant);
+    f.r.drive_watcher(watch, [old](PaneWatcher& wv, loom::Mail& m) {
+        wv.point(m, files::kFilesRole, old);
+        PaneCanvasPointer wheel = old;
+        wheel.phase = canvas_pointer::kWheel;
+        wheel.dy = -3;
+        wv.point(m, files::kFilesRole, wheel);
+    });
     CHECK(row_beginning(rows_of(watch->content.back()), "> alpha.cpp") >= 0);
     CHECK(tap.attempts == 0);
 
