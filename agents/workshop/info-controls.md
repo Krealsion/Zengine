@@ -63,12 +63,19 @@ PROVEN BY — `info-pane/pane.cpp` `say`; `surface/vocabulary.hpp` `kAccent`, `k
 `"the two headings and both lists are the pane's rows, over the host's inventory and subject"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
-## WL-CTRL-07 — The ground is presentation and moved no geometry
+## WL-CTRL-07 — The ground is presentation and moves no geometry
 
-LAW — A row's ground is the host's to draw at the row the pane published it on, so the grounded strip is exactly the prose row the press inverse inverts, and no row index or hit mapping moved for it.
+LAW — Info lays each row's ground in its own picture on the lattice it reads its presses back through, so the grounded strip is the row a press names, and the ground moves no row or column.
 
-PROVEN BY — `workshop/screen_external.cpp` `paint_external`; `surface/pointing.hpp`
-`prose_row_of_pixel`; `surface/region.hpp` `kTextInsetPx`;
-`tests/test_workshop_panes_info.cpp` case `"a press on a pane row inspects it, through the
-host's own door"`.
+MEANS
+- the ground spans the room's width on its row's line, and a press is read back to a row and a column through that same lattice;
+- to a host granting no canvas the rows go as prose, and a press there reaches nothing.
+
+PROVEN BY — `workshop/pane_canvas_rows.hpp` `rows_picture`, `canvas_rows`, `row_cell_at`,
+`CanvasRows::row_y`; `info-pane/pane.cpp` `on(PaneCanvasPointer)`, `fit_room`,
+`pane_property_press`; `tests/test_workshop_panes_info.cpp` cases `"Info draws its lists on its
+canvas on the medium's own ground, and a draft's caret and selection stand in its row where the
+weaver types, moving no character, and go with it"`, `"a press on a pane row inspects it,
+through the host's own door"` and `"a host that grants Info no canvas is shown its lists and a
+draft's caret as prose, its presses reach nothing there, and its keys still inspect and edit"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
