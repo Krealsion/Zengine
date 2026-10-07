@@ -27,6 +27,7 @@ import json
 from pathlib import Path
 import time
 
+from act import rows_by_place
 from demo_setup import Measured
 from hand import Hand
 from workbench_folders import entry, folder_row, open_path, organization, to_root
@@ -57,6 +58,61 @@ Dropped here:
 """
 
 
+# ---- the Editor, read by its words and parts and pressed by the cells of its text lattice ------
+# Either Editor's status row is its lattice's row 0, never blank; a document line left blank is no
+# word where the Editor draws its picture, so its lines are numbered by where they stand.
+
+def editor_rows(hand):
+    """The Editor's rows now, its lattice's rows from the status row down to its last word: each
+    row's text, "" for a blank one (`act.rows_by_place`)."""
+    return rows_by_place(hand.words(*EDITOR))
+
+
+def says(hand, text):
+    """Whether a row of the Editor holds `text`."""
+    return any(text in r for r in editor_rows(hand))
+
+
+def cell(hand, text, offset=0, occurrence=0):
+    """Where Workshop puts the cell `offset` columns past the start of `text` on the `occurrence`th
+    row holding it -- a cell of the Editor's text lattice (`hand.point`), the one just after a
+    line's last character too -- read again where the Editor redrew between the reading and the
+    point."""
+    def pick(view):
+        rows = rows_by_place(view)
+        found = [(row, r.find(text)) for row, r in enumerate(rows) if text in r]
+        hand.ctx.check(len(found) > occurrence, "the Editor paints no %r: %s" % (text, rows))
+        row, at = found[occurrence]
+        return row, at + offset
+    return hand.lattice_point(*EDITOR, pick, repr(text))[1]
+
+
+def status_row(hand):
+    """The Editor's status row -- the part it names `status`, its lattice's row 0 -- as `{name,
+    row, text, x, y, space}`: pressed or dropped on at the point Workshop gives it, its text the
+    status or a notice standing in its place."""
+    return hand.part(*EDITOR, "status")
+
+
+def waits(hand, text, seconds=10):
+    """Read the Editor until a row holds `text`; the run fails naming its rows when none does."""
+    for _ in range(int(seconds / 0.05)):
+        if says(hand, text):
+            return True
+        time.sleep(0.05)
+    hand.ctx.fail("the Editor never showed %r: %s" % (text, editor_rows(hand)))
+
+
+def menu_covers_editor(hand):
+    """A presented menu covers the pane it opened over, and Workshop refuses that pane's view under
+    it -- the one observation of an open menu this hand has."""
+    try:
+        hand.words(*EDITOR)
+    except Exception as refused:  # loom_session's Refused, in the view's own words
+        return "covered by an interaction" in str(refused)
+    return False
+
+
 def run(ctx):
     measured = Measured(ctx)
     link = ctx.inputs["link"]
@@ -78,23 +134,6 @@ def run(ctx):
     def note(what, **facts):
         evidence["steps"].append(dict(what=what, **facts))
 
-    def editor_view():
-        return hand.view(*EDITOR)
-
-    def editor_rows():
-        return [r["text"] for r in editor_view()["rows"]]
-
-    def says(text):
-        return any(text in r for r in editor_rows())
-
-    def cell(text, offset=0, occurrence=0):
-        """Where Workshop paints the `offset`th character of the `occurrence`th painted `text`."""
-        view = editor_view()
-        found = [(r, r["text"].find(text)) for r in view["rows"] if text in r["text"]]
-        ctx.check(len(found) > occurrence, "the Editor paints no %r: %s" % (text, [r["text"] for r in view["rows"]]))
-        row, at = found[occurrence]
-        return hand.point(*EDITOR, row["row"], at + offset, view["picture"])
-
     def open_source(path):
         """Open a file the way a weaver does, from Files: it starts at this Workshop's project,
         where `folder` is; a press selects an entry, named `entry:<name>`, and Return enters a
@@ -109,7 +148,7 @@ def run(ctx):
         hand.click(hand.part(*FILES, "entry:" + name, scroll=True))
         hand.key("enter")
         for _ in range(100):
-            if says(name):
+            if says(hand, name):
                 return
             time.sleep(0.05)
         ctx.fail("the Editor does not show %s; Files shows %s" % (
@@ -132,25 +171,6 @@ def run(ctx):
 
     def pair_of(stored):
         return hand.ask("zengine.inventory", "InventoryRead", {"reference": stored["reference"]})["pair"]
-
-    def status_row():
-        return editor_view()["rows"][0]
-
-    def waits(text, seconds=10):
-        for _ in range(int(seconds / 0.05)):
-            if says(text):
-                return True
-            time.sleep(0.05)
-        ctx.fail("the Editor never showed %r: %s" % (text, editor_rows()))
-
-    def menu_covers_editor():
-        """A presented menu covers the pane it opened over, and Workshop refuses that pane's view
-        under it -- the one observation of an open menu this hand has."""
-        try:
-            editor_view()
-        except Exception as refused:  # loom_session's Refused, in the view's own words
-            return "covered by an interaction" in str(refused)
-        return False
 
     def capture_command():
         """A real Terminal submission, captured into Commands as `<label> command`: the newest
@@ -187,11 +207,11 @@ def run(ctx):
 
         ctx.step("a timed linear sweep selects; a Bezier drag from the highlight carries the copy")
         open_source(beat)
-        start, end = cell("int total = 0;"), cell("int total = 0;", len("int total = 0;"))
+        start, end = cell(hand, "int total = 0;"), cell(hand, "int total = 0;", len("int total = 0;"))
         hand.drag(start, end, ctx.inputs["duration_ms"], 0)
         shot("selected")
         to_root(hand)
-        motion = hand.drag(cell("int total = 0;", 4), folder_row(hand, "Snippets"),
+        motion = hand.drag(cell(hand, "int total = 0;", 4), folder_row(hand, "Snippets"),
                            ctx.inputs["duration_ms"], ctx.inputs["bend"],
                            during=lambda: shot("carrying"))
         snippet, path = name_new(label + " snippet")
@@ -202,8 +222,8 @@ def run(ctx):
 
         ctx.step("right-click the highlight: Extract, then place it in Snippets")
         to_root(hand)  # before the pick-up: a press in Inventory while carrying places the copy
-        hand.drag(cell("beats(4)"), cell("beats(4)", len("beats(4)")), 300, 0)
-        right_click(cell("beats(4)", 2))
+        hand.drag(cell(hand, "beats(4)"), cell(hand, "beats(4)", len("beats(4)")), 300, 0)
+        right_click(cell(hand, "beats(4)", 2))
         hand.key("enter")  # the menu's first row: Extract selection to Inventory
         hand.click(folder_row(hand, "Snippets"))
         call, path = name_new(label + " call")
@@ -211,7 +231,7 @@ def run(ctx):
         note("extracted by the menu", folder=path)
 
         ctx.step("ctrl+l carries this file's place into Places")
-        hand.click(cell("for (int i", 0))
+        hand.click(cell(hand, "for (int i", 0))
         hand.key("ctrl+l")
         hand.click(folder_row(hand, "Places"))
         place, path = name_new(label + " place")
@@ -221,33 +241,33 @@ def run(ctx):
 
         ctx.step("the captured command drops in as C++ by choice, and one undo removes it")
         open_path(hand, ["Commands"])
-        last = cell("int main()")
+        last = cell(hand, "int main()")
         hand.drag(hand.row(*INV, label + " command"), last, 400, ctx.inputs["bend"])
         hand.key("down"); hand.key("enter")  # Generate C++ that builds it
-        ctx.check(says("make_surface_text_v1"), "no generated C++ was inserted")
+        ctx.check(says(hand, "make_surface_text_v1"), "no generated C++ was inserted")
         shot("generated")
-        hand.click(status_row())
+        hand.click(status_row(hand))
         hand.key("ctrl+z")
-        ctx.check(not says("make_surface_text_v1"), "one undo did not remove the generated C++")
+        ctx.check(not says(hand, "make_surface_text_v1"), "one undo did not remove the generated C++")
         ctx.check(Path(beat).read_text(encoding="ascii") == BEAT, "generation wrote the file")
         note("C++ generated and undone")
 
         ctx.step("in a text file the command is its Terminal line; the place refuses over unsaved work")
         open_source(notes)
-        hand.drag(hand.row(*INV, label + " command"), cell("Dropped here:", len("Dropped here:")), 400, 0)
-        ctx.check(says("send @zengine.skin SurfaceText 1"), "the Terminal line was not inserted")
+        hand.drag(hand.row(*INV, label + " command"), cell(hand, "Dropped here:", len("Dropped here:")), 400, 0)
+        ctx.check(says(hand, "send @zengine.skin SurfaceText 1"), "the Terminal line was not inserted")
         shot("terminal-line")
         to_root(hand)
         open_path(hand, ["Places"])
-        hand.drag(hand.row(*INV, label + " place"), status_row(), 400, 0)
-        ctx.check(says("notes.txt") and not says("int total"), "the place replaced unsaved work")
-        refused = " ".join(editor_rows())
-        hand.click(status_row())
+        hand.drag(hand.row(*INV, label + " place"), status_row(hand), 400, 0)
+        ctx.check(says(hand, "notes.txt") and not says(hand, "int total"), "the place replaced unsaved work")
+        refused = " ".join(editor_rows(hand))
+        hand.click(status_row(hand))
         hand.key("ctrl+d")  # discard, deliberately
-        hand.drag(hand.row(*INV, label + " place"), status_row(), 400, 0)
-        ctx.check(says("for (int i") and says("beat.cpp"), "the place did not reopen beat.cpp")
+        hand.drag(hand.row(*INV, label + " place"), status_row(hand), 400, 0)
+        ctx.check(says(hand, "for (int i") and says(hand, "beat.cpp"), "the place did not reopen beat.cpp")
         shot("reopened")
-        note("place refused over unsaved work, then reopened", refused=refused, status=status_row()["text"])
+        note("place refused over unsaved work, then reopened", refused=refused, status=status_row(hand)["text"])
 
         ctx.step("save the toolbox")
         saved = hand.ask("zengine.inventory-pane", "InventoryToolboxSave", {"path": box}, settle=True)
@@ -256,46 +276,46 @@ def run(ctx):
     elif phase == "neovim":
         ctx.step("a Visual selection in Neovim, dragged from its highlight into Snippets along a Bezier")
         open_source(beat)
-        hand.click(status_row())  # Neovim's keys; a press on the status row moves nothing in Neovim
+        hand.click(status_row(hand))  # Neovim's keys; a press on the status row moves nothing in Neovim
         typed("5G0wvf;")  # `int total = 0;`, characterwise
-        waits("VISUAL")
+        waits(hand, "VISUAL")
         to_root(hand)  # before the pick-up; Neovim keeps its selection meanwhile
-        motion = hand.drag(cell("int total = 0;", 4), folder_row(hand, "Snippets"),
+        motion = hand.drag(cell(hand, "int total = 0;", 4), folder_row(hand, "Snippets"),
                            ctx.inputs["duration_ms"], ctx.inputs["bend"], during=lambda: shot("nvim-carrying"))
         snippet, path = name_new(label + " snippet")
         ctx.check(path == ["Snippets"] and b"int total = 0;" in pair_of(snippet), "Neovim's copy is wrong")
         note("Neovim selection carried", folder=path, motion=motion.fields)
         ctx.step("ctrl+r carries a linewise selection; a click places it")
-        hand.click(status_row())
+        hand.click(status_row(hand))
         hand.key("escape")
         typed("9GV")  # `    return total;`, linewise
-        waits("V-LINE")
+        waits(hand, "V-LINE")
         hand.key("ctrl+r")
         hand.click(folder_row(hand, "Snippets"))
         lines, path = name_new(label + " lines")
         ctx.check(path == ["Snippets"] and b"return total;\n" in pair_of(lines), "the linewise copy is wrong")
         shot("nvim-lines")
-        hand.click(status_row())
+        hand.click(status_row(hand))
         hand.key("escape")
         ctx.step("a stored copy dropped into Neovim is data where it lands, and u takes it back")
         open_source(notes)
         open_path(hand, ["Snippets"])
-        hand.drag(hand.row(*INV, label + " snippet"), cell("Dropped here:", len("Dropped here:")),
+        hand.drag(hand.row(*INV, label + " snippet"), cell(hand, "Dropped here:", len("Dropped here:")),
                   ctx.inputs["duration_ms"], 0)
-        waits("Dropped here:int total = 0;")
+        waits(hand, "Dropped here:int total = 0;")
         shot("nvim-dropped")
-        hand.click(status_row())
+        hand.click(status_row(hand))
         typed("u")
         for _ in range(100):
-            if not says("Dropped here:int total = 0;"):
+            if not says(hand, "Dropped here:int total = 0;"):
                 break
             time.sleep(0.05)
-        ctx.check(not says("Dropped here:int total = 0;"), "u did not take the drop back")
+        ctx.check(not says(hand, "Dropped here:int total = 0;"), "u did not take the drop back")
         note("Neovim drop inserted and undone")
         ctx.step("a command chosen while Neovim waits for input is held, not refused, and goes in when it stops")
         capture_command()
         open_source(beat)
-        hand.click(status_row())
+        hand.click(status_row(hand))
         # NEOVIM WILL WAIT FOR INPUT when the choice is made: a callback it runs by itself enters an
         # unfinished `g` after the menu opens, and leaves the buffer as it is. The drop must come
         # first -- a drop on a Neovim already waiting is refused before any menu, nothing sent.
@@ -309,33 +329,33 @@ def run(ctx):
             if settled or not hand.open:
                 return
             hand.key("escape")
-            hand.click(status_row())
+            hand.click(status_row(hand))
             hand.key("escape")
         ctx.on_cleanup(unwait, "leave the drop's menu and Neovim's wait")
         to_root(hand)
         open_path(hand, ["Commands"])
-        hand.drag(hand.row(*INV, label + " command"), cell("int main()"), 400, 0)
-        if not menu_covers_editor():  # the Editor's rows are readable only when no menu covers them
-            ctx.fail("the command's menu did not open before Neovim began to wait: %s" % editor_rows()[:1])
+        hand.drag(hand.row(*INV, label + " command"), cell(hand, "int main()"), 400, 0)
+        if not menu_covers_editor(hand):  # the Editor's rows are readable only when no menu covers them
+            ctx.fail("the command's menu did not open before Neovim began to wait: %s" % editor_rows(hand)[:1])
         time.sleep(max(0.0, scheduled + 4.8 - time.time()))
         hand.key("enter")  # the drop's menu: Insert its Terminal line
-        waits("the drop waits for Neovim")
-        ctx.check(not says("nothing was inserted"), "the held drop was said refused: %s" % editor_rows()[:2])
-        held = status_row()["text"]
+        waits(hand, "the drop waits for Neovim")
+        ctx.check(not says(hand, "nothing was inserted"), "the held drop was said refused: %s" % editor_rows(hand)[:2])
+        held = status_row(hand)["text"]
         shot("nvim-held")
-        hand.click(status_row())
+        hand.click(status_row(hand))
         hand.key("escape")  # Neovim stops waiting and runs the held insertion where it was aimed
-        waits("inserted the Terminal line")
-        ctx.check(says("send @zengine.skin SurfaceText 1"), "the held line did not go in")
-        resolved = status_row()["text"]
+        waits(hand, "inserted the Terminal line")
+        ctx.check(says(hand, "send @zengine.skin SurfaceText 1"), "the held line did not go in")
+        resolved = status_row(hand)["text"]
         shot("nvim-held-inserted")
-        hand.click(status_row())
+        hand.click(status_row(hand))
         typed("u")
         for _ in range(100):
-            if not says("send @zengine.skin SurfaceText 1"):
+            if not says(hand, "send @zengine.skin SurfaceText 1"):
                 break
             time.sleep(0.05)
-        ctx.check(not says("send @zengine.skin SurfaceText 1"), "u did not take the held line back")
+        ctx.check(not says(hand, "send @zengine.skin SurfaceText 1"), "u did not take the held line back")
         ctx.check(Path(beat).read_text(encoding="ascii") == BEAT, "the held drop wrote the file")
         settled.append(True)
         note("held drop said, run when Neovim stopped waiting, and undone", held=held, resolved=resolved)
@@ -343,7 +363,7 @@ def run(ctx):
     elif phase == "keyboard":
         ctx.step("ctrl+e picks the selection up; a click places it in Snippets")
         open_source(beat)
-        hand.click(cell("return total;"))
+        hand.click(cell(hand, "return total;"))
         for _ in range(len("return total;")):
             hand.key("shift+right")
         hand.key("ctrl+e")
@@ -352,7 +372,7 @@ def run(ctx):
         snippet, path = name_new(label + " snippet")
         ctx.check(path == ["Snippets"] and b"return total;" in pair_of(snippet), "the keyboard copy is wrong")
         ctx.step("ctrl+l picks up this file's place; a click places it in Places")
-        hand.click(cell("int main()"))
+        hand.click(cell(hand, "int main()"))
         hand.key("ctrl+l")
         hand.click(folder_row(hand, "Places"))
         place, path = name_new(label + " place")
@@ -362,10 +382,10 @@ def run(ctx):
         open_path(hand, ["Snippets"])
         hand.click(hand.row(*INV, label + " snippet"))
         hand.key("enter")
-        hand.click(cell("Dropped here:", len("Dropped here:")))
-        ctx.check(says("Dropped here:return total;"), "the picked copy did not land where clicked")
+        hand.click(cell(hand, "Dropped here:", len("Dropped here:")))
+        ctx.check(says(hand, "Dropped here:return total;"), "the picked copy did not land where clicked")
         shot("placed")
-        hand.click(status_row())
+        hand.click(status_row(hand))
         hand.key("ctrl+d")
         note("keyboard route", snippet=snippet["reference"], place=place["reference"])
 
@@ -384,19 +404,19 @@ def run(ctx):
         ctx.step("the place reopens beat.cpp, saved under the other root")
         open_source(notes)
         open_path(hand, ["Places"])
-        hand.drag(hand.row(*INV, label + " place"), status_row(), ctx.inputs["duration_ms"], ctx.inputs["bend"])
-        ctx.check(says("for (int i"), "the restored place did not reopen its file")
-        note("place reopened", status=status_row()["text"], notice=" ".join(editor_rows()[:2]))
+        hand.drag(hand.row(*INV, label + " place"), status_row(hand), ctx.inputs["duration_ms"], ctx.inputs["bend"])
+        ctx.check(says(hand, "for (int i"), "the restored place did not reopen its file")
+        note("place reopened", status=status_row(hand)["text"], notice=" ".join(editor_rows(hand)[:2]))
         shot("restored-place")
         ctx.step("the restored snippet drops into notes.txt")
         open_source(notes)
         to_root(hand)
         open_path(hand, ["Snippets"])
-        hand.drag(hand.row(*INV, label + " snippet"), cell("Dropped here:", len("Dropped here:")),
+        hand.drag(hand.row(*INV, label + " snippet"), cell(hand, "Dropped here:", len("Dropped here:")),
                   ctx.inputs["duration_ms"], ctx.inputs["bend"])
-        ctx.check(says("Dropped here:int total = 0;"), "the restored snippet did not land")
+        ctx.check(says(hand, "Dropped here:int total = 0;"), "the restored snippet did not land")
         shot("restored-snippet")
-        hand.click(status_row())
+        hand.click(status_row(hand))
         hand.key("ctrl+d")
         note("snippet retrieved")
 

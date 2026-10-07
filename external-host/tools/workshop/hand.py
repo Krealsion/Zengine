@@ -6,8 +6,10 @@ A pane is read by its words (PaneView version 3) wherever a reader finds a row b
 a part by its name -- `row`, `row_starting`, `part`, `last_part`, `first`, `control`, `spot`,
 `field`, `rows_of` -- so a text pane and a pane that draws a canvas picture read alike: a text
 pane's word is its row, a canvas pane's each text run or label it drew, and a row it leaves blank
-is no word. `view` and `point` read a text pane's rows by number (version 1), which a canvas pane
-does not answer."""
+is no word. `point` and `lattice_point` name one cell of a pane's text lattice by its row and
+column (PanePoint, asked by version 3): a text pane's painted cell, or the cell of the lattice a
+canvas pane sets its text on, a blank row's and the one after a row's last character too. `view`
+reads a text pane's rows by number (version 1), which a canvas pane does not answer."""
 import json
 import time
 from collections import Counter
@@ -239,9 +241,32 @@ class Hand:
         return {"row": w["word"], "text": w["text"], "x": w["x"], "y": w["y"], "space": w["space"]}
 
     def point(self, provider, pane, row, column, picture):
-        """Where Workshop's own measurer puts one prose cell of a pane now; refused if it moved."""
+        """Where one cell of a pane's text lattice is now, by its row and column counted from 0
+        (PanePointRequested version 3, answered as PanePoint): a text pane's painted cell, or the
+        centre of the cell of the lattice a canvas pane sets its text on -- any cell of it, a blank
+        row's and the one after a row's last character too. Refused if the picture moved, and past
+        the lattice."""
         return self.ask("zengine.workshop", "PanePointRequested", {"provider": provider, "pane": pane,
-                        "picture": picture, "row": row, "column": column})
+                        "picture": picture, "row": row, "column": column}, version=3)
+
+    def lattice_point(self, provider, pane, pick, what):
+        """The cell `pick(view)` chooses from the pane's words now -- `(row, column)` of its text
+        lattice, counted from 0 -- and where Workshop says it is (`point`), as `(cell, point)`. A
+        pane that redrew between the reading and the point is read again, as `pointed` reads a word
+        again. No cell chosen raises ValueError naming `what` and keeps `last-view.json`."""
+        for _ in range(3):
+            view = self.words(provider, pane)
+            cell = pick(view)
+            if cell is None:
+                self.last_view(view)
+                raise ValueError("no visible %s in %s/%s" % (what, provider, pane))
+            try:
+                return cell, self.point(provider, pane, cell[0], cell[1], view["picture"])
+            except Refused as refused:
+                if "picture moved" not in str(refused):
+                    raise
+                continue  # the pane redrew between the reading and the point: read it again
+        raise ValueError("%s in %s/%s kept moving while it was read" % (what, provider, pane))
 
     def control(self, provider, pane, label):
         """Press a visible `[label]` control, in a text pane's rows or a canvas pane's words: the

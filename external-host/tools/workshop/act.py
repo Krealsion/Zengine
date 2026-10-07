@@ -189,7 +189,8 @@ def wait_words(hand, provider, pane, text, seconds, present=True):
 def painted(hand, provider, pane):
     """A pane's rows now, as its words say them (PaneView version 3, `hand.rows_of`): `{picture,
     canvas, rows: [{row, text, x, y, space}]}`, or None while Workshop refuses to describe it. A
-    text pane's `row` is its row, which `hand.point` takes with the picture."""
+    text pane's `row` is its row, which `hand.point` takes with the picture; a canvas pane's is its
+    word's number, and `rows_by_place` numbers its lines by the rows they stand on."""
     try:
         return rows_of(hand.words(provider, pane))
     except Refused:
@@ -270,16 +271,27 @@ def act(ctx, hand, verb, step):
     if verb == "wheel":
         return turn_wheel(ctx, hand, step)
     if verb == "at":
-        # One painted cell by its row and column in a text pane's own lattice (its words are its
-        # rows, counted from 0): for panes whose meaning is a grid rather than a labelled row.
+        # ONE CELL OF A PANE'S TEXT LATTICE by its row and column, counted from 0 (`hand.point`): a
+        # text pane's painted cell, or the cell of the lattice a canvas pane sets its text on -- a
+        # blank row's, or the one after a row's last character, too -- for panes whose meaning is
+        # a grid rather than a labelled row. A pane that redrew between the reading and the point
+        # is read again.
         ok = isinstance(arg, list) and len(arg) == 4 and all(isinstance(v, str) for v in arg[:2]) \
             and all(isinstance(v, int) for v in arg[2:])
         ctx.check(ok, "at names [provider, pane, row, column]")
-        view = words_now(hand, arg[0], arg[1])
-        ctx.check(view is not None, "at: Workshop does not describe %s/%s now" % (arg[0], arg[1]))
-        where = hand.point(arg[0], arg[1], arg[2], arg[3], view["picture"])
-        press_at(ctx, hand, where, step.get("button", "left"))
-        return {"x": where["x"], "y": where["y"]}
+        provider, pane, row, column = arg
+        for _ in range(3):
+            view = words_now(hand, provider, pane)
+            ctx.check(view is not None, "at: Workshop does not describe %s/%s now" % (provider, pane))
+            try:
+                where = hand.point(provider, pane, row, column, view["picture"])
+            except Refused as refused:
+                if "picture moved" not in str(refused):
+                    raise
+                continue  # the pane redrew between the reading and the point: read it again
+            press_at(ctx, hand, where, step.get("button", "left"))
+            return {"x": where["x"], "y": where["y"]}
+        ctx.fail("at: %s/%s kept redrawing while it was read" % (provider, pane))
     if verb == "control":
         provider, pane, label = spelled(arg, verb, 3)[:3]
         return press_control(ctx, hand, provider, pane, label)
