@@ -691,8 +691,8 @@ arithmetic, and keeps its own meaning, names and hit testing:
   room has it. In a terminal it is the room's cells; where type is set it starts the medium's
   inset in from the left and keeps that inset free at the right, for a caret after a full row's
   last character.
-- `rows_picture(room, picture, rows, parts, caret)` draws `SurfaceTextRow`s there: the room's
-  ground (`kGround`) beneath, one unpadded run a row with its role and ground -- a row's ground
+- `rows_picture(room, picture, rows, parts, caret)` draws `SurfaceTextRow`s there: the medium's
+  own ground (`kMediumGround`) beneath, as a prose body's, one unpadded run a row with its role and ground -- a row's ground
   also laid across the room's whole width beneath it, as a prose row's is -- a row's blanks after
   its last character dropped unless a ground, the caret or the selection stands on them, a caret
   after the last character given the blank after it where the row has one, the caret and
@@ -719,8 +719,9 @@ which version its holder accepts, sends its room, pointer, hover and drop times 
 its picture back with every edge floored to the pixel the window painted it at. Participants
 whose declarations change must be rebuilt and restarted before using the new conversation.
 
-Admission is whole: positive extents, one of the five Surface roles (including the opaque
-`kGround` background), at most 4096 rectangles, 2048 labels, 2048 text runs, 4096 bytes per label
+Admission is whole: positive extents, a Surface role for each -- an ink is one of the five from
+`kFill` to the opaque `kGround`, and a rectangle or a run's ground may also be the medium's own
+(`kMediumGround`), which is no ink -- at most 4096 rectangles, 2048 labels, 2048 text runs, 4096 bytes per label
 or run, and 131072 combined text bytes.
 Both text forms require printable ASCII; a nonnegative caret and each selection range must
 lie within its run. A positive picture number
