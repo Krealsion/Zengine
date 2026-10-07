@@ -722,8 +722,14 @@ Inventory crumb, or `[Up]`), `hand.row_starting` the topmost row starting with a
 its third character as `hand.row` presses (inside an Inventory view's first box), and `hand.field`
 an Info view's field by its part `field:<path>`, wheeling the view's selection until it shows, so
 a tool reads a pane that draws a picture as it reads a text pane; `act.rows_by_place` numbers a
-pane's lines by where they stand, a blank row a canvas draws as no word among them.
-`workshop/act` steps on them: `desk` checks a
+pane's lines by where they stand, a blank row a canvas draws as no word among them. `hand.point`
+asks `PanePointRequested` version 3 for one cell of a pane's text lattice by its row and column --
+a text pane's painted cell, or the cell of a canvas pane's lattice, a blank row's and the one after
+a line's last character too -- so a tool presses a canvas pane's cell as it presses a text pane's;
+`hand.lattice_point` chooses the cell from the pane's words, reading the pane again where it
+redrew between the reading and the point.
+`workshop/act` steps on them: `at` presses one cell of a pane's text lattice the same way
+(`{"at": ["td.game", "td", 5, 17]}`); `desk` checks a
 pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
 "view-builder", "kind:label"]}`), and fails rather than press one with no point; `open` presses
