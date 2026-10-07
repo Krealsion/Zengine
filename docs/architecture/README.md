@@ -84,7 +84,8 @@ a written expectation knows what is *missing*. See
 
 **An external pane receives pointer and keyboard input only as sentences about its own room.**
 The protocol — every shape listed in
-[`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp), described in
+[`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) and
+[`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp), described in
 [A weave may offer a pane](../reference/workshop-panes.md#a-weave-may-offer-a-pane) — is
 deliberately thin: Workshop grants a pane a lattice of prose rows and columns, or a canvas room in pixels it draws its own picture on, tells it *a weaver pressed here in your room*, tells it
 *a key went down and you have the keyboard* (or, for an action the pane declared, *a weaver asked

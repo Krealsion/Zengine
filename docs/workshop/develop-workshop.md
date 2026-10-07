@@ -167,7 +167,8 @@ goes on running the image it had ([a build that worked and a load that was refus
 The launch cannot see this kind of change — a rebuilt pane never makes a runtime stale — so
 Running the same runtime again runs the copy it took of the old pane.
 
-Four changes of that kind are on this branch:
+Four changes like that are on this branch: three are refused as a reload, and the fourth loads
+and shows nothing new:
 
 - **The desktop hears Loom's word that one of its asks never arrived** (`zen.DispatchRefused`),
   so a desktop built from this source is refused as a reload of one built before it.
@@ -189,7 +190,7 @@ Four changes of that kind are on this branch:
   role a host built before it does not know: that host refuses every picture such a pane sends,
   so a pane rebuilt from this source and loaded into it shows nothing new.
 
-For either, rebuild the whole tree — CLion's build, or a `cmake --build` of it — so that the host
+For any of them, rebuild the whole tree — CLion's build, or a `cmake --build` of it — so that the host
 and every pane come from the same source. Then rename or move `workshop-runtime` (its promotions
 and reloads stay in it) and Run: the launch makes a new runtime from what the tree built, host
 and panes together, and after that, a desktop rebuilt from its own source reloads in place again.
@@ -219,8 +220,8 @@ Every refusal copies nothing, starts nothing, and leaves the runtime as it was.
 ## The loop: point, change, build, reload
 
 The example is **Attention**, which keeps one thing: the conditions you hid. If it says
-`nothing needs your attention right now`, there is nothing to hide and a reload only shows new
-text; any condition — a preferences file Workshop could not read, say — gives you one. Press into
+`nothing needs your attention right now`, there is nothing to hide, and the line step 2 edits is
+not drawn until one is hidden; any condition — a preferences file Workshop could not read, say — gives you one. Press into
 Attention and `d` hides it.
 
 **1. Right-click Attention, and choose `edit code`.** The Editor opens `attention-pane/pane.cpp`

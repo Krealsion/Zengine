@@ -253,8 +253,8 @@ search and the Composer's fields.
 **A pane's line shows you a caret, and still cannot be swept.** A pane says where its caret is
 and what it has selected, beside the rows it sends or in the picture it draws, so every one of
 those lines but Info's draft has an insertion point — a bar between glyphs in a window, an
-inverted cell in a terminal. Only the Terminal draws its line's selection; in the others a range
-selected by keyboard works and is not shown. Info's property draft does not yet say a caret; it
+inverted cell in a terminal. Only the Terminal and the layout-name line draw their selection; in
+the others a range selected by keyboard works and is not shown. Info's property draft does not yet say a caret; it
 can, unchanged, whenever that image is next touched. What no pane's LINE has is a pointer sweep: the two editors accept one while the
 button is held (`PaneDragged`) and no single-line pane does, so in a line a range is selected by
 `Shift` and the arrow keys.

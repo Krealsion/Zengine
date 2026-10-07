@@ -714,7 +714,8 @@ with a caret reserves one column. Keep measured sizes out of saved authoring dat
 they describe the current room, not a document or graph's durable coordinates.
 
 The v3 room and content identities must be used together, with `PaneCanvasPointer` v2,
-`PaneCanvasHover` v2 and `PaneCanvasValueDrop` v2, which say their places in the same pixels.
+`PaneCanvasHover` v2, `PaneCanvasValueDrop` v2 and `PaneCanvasDrop` v1, which say their places in
+the same pixels; the reference door has no earlier version, and says pixels to every holder.
 A provider built against the earlier doors — room and content v2, pointer, hover and drop v1,
 all in 1/48 canvas-cell sub-units, four to a pixel — is still answered in them: Workshop asks
 which version its holder accepts, sends its room, pointer, hover and drop times four, and reads
@@ -1177,8 +1178,8 @@ A successful send is not a completed receiver operation. An item released or cli
 **canvas** pane reaches a provider that accepts its canvas door -- `PaneCanvasValueDrop` for a
 value, `PaneCanvasDrop` for a reference -- as that place in its local pixels, within the room it
 was granted and against the picture the medium showed, so the provider hit-tests what it drew; a
-canvas provider without that door is sent nothing and the item stays held, as anywhere it is not
-accepted. A drag's drop names the picture and place its release met, even when the carry is
+canvas provider without that door is sent nothing: a clicked item stays held, as anywhere it is
+not accepted, and a dragged one is let go (below). A drag's drop names the picture and place its release met, even when the carry is
 answered after the canvas repainted, and a canvas granted afresh in between refuses it in words.
 A drop on a canvas is no canvas gesture: it begins no pointer custody.
 

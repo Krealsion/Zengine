@@ -5,7 +5,8 @@ which a pane presents it. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). The pane's own presentation — its rows, its list, its caret
 and its keys — is the Terminal pane's, not this host's: it draws them as its own canvas picture,
 says its caret beside prose rows as [`pane-caret.md`](pane-caret.md) (WL-CARET) has it, and the
-line it is typed into is [`text-box.md`](text-box.md).
+line it is typed into is [`text-box.md`](text-box.md). Its presses, wheel and right press are its
+canvas's: to a host granting no canvas it takes only keys ([`canvas.md`](canvas.md), WL-CANVAS-07).
 
 ## WL-TERM-01 — The Terminal is a pane, and nothing global reaches it
 
