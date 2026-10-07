@@ -568,7 +568,8 @@ and it lasts for the current run.
 keyboard keeps its title, mark and all. The `> ` mark names the pane your keys go back to —
 the band's first row says where a key goes right now, which a menu or a line takes first
 while it is open — and hiding chrome may never hide that, so with titles off, focusing a pane shows its
-title for exactly as long as the focus holds.
+title for exactly as long as the focus holds. A press you hold on a pane that draws its own picture
+keeps the room it was aimed at until you let go: the title it brings appears at the release.
 
 ## Panes as an author
 

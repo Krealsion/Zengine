@@ -54,7 +54,9 @@ external_press_at(panes, setup, screen, kind,     } Panes::selected and Panes::k
   budget through the ordinary grant-on-change door. **The press path spends the answer the
   PRESSED picture had**, read before the press moves the keyboard: a hidden-titles pane wears
   its title exactly while it has the keys, so the press that brings them names the row painted
-  where it landed, and the smaller room the returning title takes is granted right behind it.
+  where it landed, and the smaller room the returning title takes is granted right behind it --
+  behind a held canvas press, once it ends, its picture and rows kept meanwhile in the room the
+  press was aimed at.
   A provider must not let that grant undo what the press selected (Files keeps its selection
   by name across a same-place re-listing).
 - **A row that fits no prose is not a row.** Anything outside `[0, rows) × [0, columns)` — the

@@ -366,6 +366,10 @@ struct ExternalPane {
         /// until the press ends the picture stands here, where it was drawn, painted and read
         /// alike, and the pane's prose room waits with it.
         bool title_waits = false;
+        /// The title rows this room was granted under (`external_title_rows`): a held press keeps
+        /// the room only while the pane's title rows are no longer these and its place still
+        /// gives it under them, so a pane that moved keeps nothing.
+        std::int64_t title_rows = 0;
         /// The picture last admitted, in the current form, with the parts it names.
         v5::PaneCanvasContent content;
     } canvas;

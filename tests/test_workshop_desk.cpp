@@ -10,6 +10,7 @@
 #include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
 #include "workshop/pane_canvas_text.hpp"
+#include "workshop/screen_canvas.hpp"
 #include "view-builder/picture.hpp"
 #include "view/view.hpp"
 
@@ -715,6 +716,77 @@ TEST_CASE("a held press keeps a canvas pane's room only from its title row: a pa
     CHECK(moved.canvas.y > before.canvas.y);
     CHECK(moved.canvas.y + moved.canvas.height == before.canvas.y + before.canvas.height);
     CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
+}
+
+TEST_CASE("a pane moved one title row's height while a press is held, its title unchanged, is granted its "
+          "new room at once and the press is lost, in a window and in a terminal, titled or not") {
+    for (const bool window : {false, true}) {
+        for (const bool hidden : {false, true}) {
+            CAPTURE(window);
+            CAPTURE(hidden);
+            SketchRig d;
+            if (hidden) {
+                press_outside(d.r, d.sketch_kind); // the keys are Workshop's...
+                d.r.key(input::scan::kT);          // ...and the titles hidden
+                d.r.text("t");
+                REQUIRE_FALSE(d.r.session().pane_titles);
+            }
+            const auto author = [&](std::int64_t y, std::int64_t h) {
+                for (auto& p : d.r.session().setup.active.panes) {
+                    if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
+                    p.place = {pane_unit::kPixels, 4 * surface::kCanvasCellPx, y};
+                    p.width = {pane_unit::kPixels, 60 * surface::kCanvasCellPx};
+                    p.height = {pane_unit::kPixels, h};
+                }
+                // a same-size extent reseats nothing: the desk re-seats every pane
+                if (window) {
+                    d.r.extent_on_window(149, 60);
+                    d.r.extent_on_window(150, 60);
+                } else {
+                    d.r.extent(149, 60);
+                    d.r.extent(150, 60);
+                }
+            };
+            const std::int64_t top = 20 * surface::kCanvasCellPx, tall = 16 * surface::kCanvasCellPx;
+            author(top, tall);
+            d.draw();
+            const std::int64_t titles = hidden ? 0 : kExternalHeaderRows;
+            REQUIRE(external_title_rows(d.r.session().panes, d.sketch_kind, d.r.session().pane_titles) ==
+                    titles);
+            // ONE TITLE ROW'S HEIGHT in this medium: what a body loses to the title row.
+            const Screen sc = screen_of(d.r.session());
+            const PaneBounds at = bounds_of(d.r.session().panes, d.r.session().setup.active,
+                                            d.sketch_kind, sc);
+            const std::int64_t step =
+                canvas_body_place(at.rect, sc, kExternalHeaderRows).y - canvas_body_place(at.rect, sc, 0).y;
+            REQUIRE(step > 0);
+            v2::PaneView view;
+            REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+            const ExternalPane before = *d.r.session().panes.external_pane(d.sketch_kind);
+            // A SECONDARY PRESS HELD ON THE PANE: the keys, and so its title rows, stay as they are.
+            const PaneWord& w = view.words[2];
+            d.sketch->pointers.clear();
+            d.r.publish(loom::to_value(input::PointerButton{3, true, w.x, w.y, w.space, input::mod::kNone}));
+            REQUIRE_FALSE(d.sketch->pointers.empty());
+            REQUIRE(d.sketch->pointers.back().phase == canvas_pointer::kPress);
+            // ...AND ITS TOP EDGE MOVED one title row's height, its bottom where it was: down under a
+            // title it keeps, up with none -- each the body it would have with the other title count,
+            // and no title row's change.
+            if (hidden) {
+                author(top - step, tall + step);
+            } else {
+                author(top + step, tall - step);
+            }
+            REQUIRE(external_title_rows(d.r.session().panes, d.sketch_kind, d.r.session().pane_titles) ==
+                    titles);
+            const ExternalPane& moved = *d.r.session().panes.external_pane(d.sketch_kind);
+            CHECK(moved.canvas.grant != before.canvas.grant);
+            CHECK_FALSE(moved.canvas.title_waits);
+            CHECK(moved.canvas.y == before.canvas.y + (hidden ? -step : step));
+            CHECK(moved.canvas.y + moved.canvas.height == before.canvas.y + before.canvas.height);
+            CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
+        }
+    }
 }
 
 TEST_CASE("a held press on the canvas pane that has the keys keeps its room while launches take its title "

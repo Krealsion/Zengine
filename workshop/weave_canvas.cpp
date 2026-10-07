@@ -89,18 +89,19 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
             c.text_line_px == sc.text_line_px && c.legacy == legacy;
         if (same_kind && c.x == body.x && c.y == body.y && c.width == body.w && c.height == body.h) {
             c.title_waits = false;
+            c.title_rows = titles;
             continue;
         }
         // THE ROOM A HELD PRESS'S TITLE ROW MAKES WAITS FOR THE PRESS (WL-FOCUS-11): the keys a
         // press moved bring or take the title their pane wears while it has them, and the room
-        // that row alone changes -- the pane where it was, its room the body it had with the other
-        // title -- is granted once the press ends, so the press goes on in the room it was aimed
-        // at and its picture stays where it was drawn until then.
+        // that row alone changes -- its title rows no longer the grant's, the pane where it was --
+        // is granted once the press ends, so the press goes on in the room it was aimed at and its
+        // picture stays where it was drawn until then. A pane moved, by a title row too, keeps none.
         bool held = false;
         for (const CanvasHold& hold : canvas_holds_) held = held || (hold.active && hold.kind == pane.kind);
-        const auto retitled = canvas_body_place(where.rect, sc, titles > 0 ? 0 : kExternalHeaderRows);
-        if (same_kind && held && !body.empty() && c.x == retitled.x && c.y == retitled.y &&
-            c.width == retitled.w && c.height == retitled.h) {
+        const auto kept = canvas_body_place(where.rect, sc, c.title_rows);
+        if (same_kind && held && !body.empty() && titles != c.title_rows && c.x == kept.x &&
+            c.y == kept.y && c.width == kept.w && c.height == kept.h) {
             c.title_waits = true;
             continue;
         }
@@ -129,6 +130,7 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         c.owner = owner;
         c.grant = ++canvas_grants_;
         c.x = body.x; c.y = body.y; c.width = body.w; c.height = body.h;
+        c.title_rows = titles;
         c.grain = grain; c.graphical = graphical;
         c.text_advance_px = sc.text_advance_px; c.text_line_px = sc.text_line_px;
         c.preview = preview;
