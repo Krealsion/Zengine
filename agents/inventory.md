@@ -137,11 +137,11 @@ verification follows [verification](verification.md).
   blank"`).
 - Each view draws its rows on its own canvas; a press, a right press and a drop are read back
   to its row map, current only on the picture it still shows, and the wheel walks the selection
-  only in the room the view still holds. The line being typed
-  writes no caret into itself: the caret and selection stand in it, said beside the rows to a host
-  granting no canvas (`tests/test_workshop_inventory_info.cpp` case `"Inventory draws its rows on
-  its canvas on the medium's own ground, and a name line's caret and selection stand in the line,
-  writing nothing into it, each move of them drawn"`).
+  only in the room the view still holds. The line being typed writes no caret into itself: the
+  caret and selection stand in it, said beside the rows to a host granting no canvas
+  (`tests/test_workshop_inventory_info.cpp` case `"Inventory draws its rows on its canvas on the
+  medium's own ground, and a name line's caret and selection stand in the line, writing nothing
+  into it, each move of them drawn"`).
 - Desktop admits active globals atomically through PaneShortcuts. Invocation traverses Workshop's
   current attributed action and checks actor permission for the stored message's actual target
   and version. Configuration grants and metadata do not authorize execution. Complete messages
