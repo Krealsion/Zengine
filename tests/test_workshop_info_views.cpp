@@ -1297,6 +1297,26 @@ TEST_CASE("info views: only the motion of the press that armed a field pickup be
     CHECK_FALSE(s.shows(a, "Field pickup"));
 }
 
+TEST_CASE("info views: with pane titles hidden, a field dragged out of a view that did not hold the keys "
+          "fills a field of another") {
+    Views s(255); // the field pickup is the actor's to make
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    s.copy_into(a, "Source record");
+    s.copy_into(b, "Target record");
+    REQUIRE_MESSAGE(s.shows(b, "name: dst"), s.shown(b));
+    press_outside(s.r, a);    // the keys are Workshop's...
+    s.key(input::scan::kT);   // ...and the titles hidden
+    REQUIRE_FALSE(s.r.session().pane_titles);
+    REQUIRE(external_title_rows(s.r.session().panes, a, false) == 0);
+    REQUIRE(external_title_rows(s.r.session().panes, b, false) == 0);
+    // THE PRESS TAKES THE KEYS, AND WITH THEM ITS VIEW'S TITLE (WL-FOCUS-11): the room that title
+    // takes waits for the press, so the press's own motion picks the field up and its release
+    // places it.
+    s.drag_between(a, s.field_at(a, "name"), b, s.field_at(b, "name"));
+    CHECK_MESSAGE(s.shows(b, "name: src"), s.shown(b));
+}
+
 TEST_CASE("info views: a toolbox restore makes a linked view's link stale and keeps its draft") {
     TempDir files("info-views-restore");
     const auto path = files.file("views.toolbox");

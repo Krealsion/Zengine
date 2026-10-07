@@ -83,10 +83,19 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         auto& c = pane.canvas;
         const auto grain = chrome_grain(sc);
         const bool graphical = sc.cell_px > 0;
-        if (capable && c.owner == owner && c.grant != 0 && c.x == body.x && c.y == body.y &&
-            c.width == body.w && c.height == body.h && c.grain == grain && c.graphical == graphical &&
-            c.text_advance_px == sc.text_advance_px && c.text_line_px == sc.text_line_px &&
-            c.legacy == legacy)
+        const bool same_kind = capable && c.owner == owner && c.grant != 0 && c.grain == grain &&
+            c.graphical == graphical && c.text_advance_px == sc.text_advance_px &&
+            c.text_line_px == sc.text_line_px && c.legacy == legacy;
+        if (same_kind && c.x == body.x && c.y == body.y && c.width == body.w && c.height == body.h)
+            continue;
+        // THE ROOM A HELD PRESS'S OWN TITLE TAKES WAITS FOR THE PRESS (WL-FOCUS-11): the keys a
+        // press moved bring back the title their pane wears, and the room under it, the same
+        // width ending where it did, is granted once the press ends, so the press goes on in the
+        // room it was aimed at and its picture stays where it was drawn until then.
+        bool held = false;
+        for (const CanvasHold& hold : canvas_holds_) held = held || (hold.active && hold.kind == pane.kind);
+        if (same_kind && held && !body.empty() && c.x == body.x && c.width == body.w &&
+            c.y + c.height == body.y + body.h)
             continue;
         if (!capable && c.grant == 0) continue;
         for (std::size_t i = 0; i < 3; ++i)
@@ -247,6 +256,8 @@ bool WorkshopWeave::canvas_release(const input::PointerButton& b, loom::Mail& ma
     (void)send_canvas_pointer(held.owner, event, held.legacy, mail);
     if (slot > 0) secondary_cont_[slot - 1].released = true;
     held = CanvasHold{};
+    // A room the press's own title waited for is granted now the press has ended (WL-FOCUS-11).
+    refresh_canvas_rooms(mail);
     return true;
 }
 
