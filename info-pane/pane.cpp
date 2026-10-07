@@ -370,7 +370,7 @@ public:
             if (event.grant != canvas.room.grant || !value_mode(*v)) return;
             if (event.phase == ws::canvas_pointer::kWheel) {
                 if (v->wheel(event.dy)) say(*v, mail);
-            } else if (event.button == 1 && event.gesture == canvas.held) {
+            } else if (event.gesture == canvas.held) {
                 pane::ViewContext c{mail, asked_};
                 v->dragged(at.row, at.column, c);
             }
