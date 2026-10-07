@@ -1161,7 +1161,7 @@ std::string selected_field(Views& s, std::int64_t view) {
 }
 
 TEST_CASE("info views: the wheel walks a view's fields a notch at a time on its canvas, fractions "
-          "carried, and moves nothing while a field is edited") {
+          "carried, only in the room the view holds, and moves nothing while a field is edited") {
     Views s;
     add_records(s);
     const auto [a, b] = s.two_views();
@@ -1223,6 +1223,7 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     s.press_at(a, at.first, at.second);
     s.key(input::scan::kReturn);
     REQUIRE_MESSAGE(s.shows(a, "Edit name"), s.shown(a));
+    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(a)));
     const auto line = [&] { return s.where(a, "> "); };
     const auto caret = [&] { return held_caret(*s.r.session().panes.external_pane(a)); };
     REQUIRE(line().first >= 0);

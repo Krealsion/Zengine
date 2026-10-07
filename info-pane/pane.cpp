@@ -836,7 +836,7 @@ private:
         ws::PaneCanvasRoom room;
         ws::CanvasPictures pictures;
         std::int64_t prose_rows = 0, prose_columns = 0;
-        std::int64_t held = 0; ///< the canvas gesture of the last primary press on the rows
+        std::int64_t held = 0; ///< the last primary press's gesture, if on a value view's rows
         bool on() const { return room.grant > 0 && room.width > 0 && room.height > 0; }
     };
     Canvas& canvas_of(const pane::ValueView& v) { return canvases_[v.slot() - 1]; }

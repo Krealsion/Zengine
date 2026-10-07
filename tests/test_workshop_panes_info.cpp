@@ -305,7 +305,7 @@ struct InfoRig {
         enqueue_as_workshop(loom::to_value(PaneActionRequested{pane::kInfoPane, id}));
     }
     /// ...AND A PRESS ON ITS CANVAS, at a row and column of the lattice it holds now, aimed at the
-    /// picture Workshop holds: the press a weaver's hand makes there, said as Workshop says it.
+    /// picture Workshop admitted last: the press a weaver's hand makes there once the bus is idle.
     void enqueue_canvas_press(std::int64_t row, std::int64_t column) {
         const ExternalPane* seat = r.session().panes.external_pane(kind);
         REQUIRE(seat != nullptr);
