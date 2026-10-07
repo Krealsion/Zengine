@@ -167,12 +167,13 @@ LAW — Pane titles are a preference with a key: the toggle flips the session's 
 MEANS
 - painter, press path and room grant spend the answer through `ExternalBodyPlace::header_rows`;
 - the press path spends the answer the pressed picture had, before the keys moved (WL-FOCUS-03);
-- a title's row goes or returns through the grant-on-change door, a held canvas press's once it ends, its picture painted and read in the room it kept until then.
+- a title's row goes or returns by the grant-on-change door, a held canvas press's once it ends: till then its picture and rows stay in the room it kept.
 
 PROVEN BY — `workshop/keymap.hpp` `workshop.pane-titles`; `workshop/screen.hpp`
 `Session::pane_titles`, `ExternalBodyPlace::header_rows`, `kExternalHeaderRows`;
 `workshop/screen_external.cpp` `external_title_rows`, `paint_external`;
-`workshop/weave_canvas.cpp` `refresh_canvas_rooms`; `workshop/panes.hpp`
+`workshop/weave_canvas.cpp` `refresh_canvas_rooms`, `WorkshopWeave::canvas_release`;
+`workshop/weave_external.cpp` `refresh_external_rooms`; `workshop/panes.hpp`
 `ExternalPane::Canvas::title_waits`; `workshop/screen_canvas.hpp` `shown_canvas_place`;
 `workshop/weave_inspection.cpp` `WorkshopWeave::visible_body`; `workshop/prefs_persist.hpp`
 `kTitlesDefaultValue`, `kTitlesDefault`; `workshop/weave.hpp` `HostContext::prefs_path`,
@@ -186,7 +187,9 @@ fills a field of another"`; `tests/test_workshop_panes_files.cpp` case `"with pa
 first press on the row painted gamma selects gamma once every delivery it caused has settled, and
 a later press opens gamma"`; `tests/test_workshop_desk.cpp` case `"a canvas pane a held press gave
 the keys, its title waiting with pane titles hidden, is read where its picture is painted, and a
-point there lands in the room the press kept"`.
+point there lands in the room the press kept"`, case `"a held press keeps a canvas pane's room
+only from its title row: a pane moved while the press is held is granted its new room at once,
+and the press is lost"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## Do not assume
