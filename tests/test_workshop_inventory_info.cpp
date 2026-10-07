@@ -756,8 +756,8 @@ static std::int64_t row_saying(InventoryStory& s, std::int64_t kind, const std::
     return -1;
 }
 
-TEST_CASE("an item released on a canvas whose pane leaves before the drop is delivered is said not "
-          "delivered, a reference and a value alike") {
+TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered: a reference or a "
+          "value, on a canvas or on rows") {
     // The drop is queued and said sent; the pane leaves before the bus dispatches it.
     const auto leave_once_sent = [](InventoryStory& s, const std::string& said, const std::string& role,
                                     bool& removed) {
@@ -801,6 +801,56 @@ TEST_CASE("an item released on a canvas whose pane leaves before the drop is del
         CHECK_MESSAGE(s.r.last_notice().find("Value not delivered to zengine.flow") != std::string::npos,
                       s.r.last_notice());
     }
+    SUBCASE("a Terminal value on Inventory's rows, the drop that names its source") {
+        InventoryStory s(191 | 256);
+        auto* terminal = s.r.mount_terminal();
+        load::LoadPlan plan; load::ArtifactIntent artifact;
+        artifact.stem = "zengine-terminal-pane"; artifact.weave = load::WeaveIntent{"zengine.terminal"};
+        plan.artifacts.push_back(artifact);
+        REQUIRE(s.r.run_plan(plan).ok);
+        s.r.pick({"zengine.terminal", "terminal"});
+        const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
+        for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.terminal") {
+            p.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 31 * surface::kCanvasCellPx};
+            p.width = {pane_unit::kPixels, 80 * surface::kCanvasCellPx};
+            p.height = {pane_unit::kPixels, 24 * surface::kCanvasCellPx};
+        }
+        s.r.bus.send(terminal->id(), loom::Message(loom::to_value(loom::Ack{})));
+        s.r.extent(181, 60);
+        const std::int64_t at = row_saying(s, kind, "zen.Ack");
+        REQUIRE_MESSAGE(at >= 0, s.shown(kind));
+        bool removed = false;
+        RemoveObserver watch{s.r.bus, leave_once_sent(s, "Value sent to", slots::kRole, removed)};
+        auto press = s.button_at(kind, at, true), release = s.button_at(s.source, 0, false);
+        auto move = release;
+        move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+        s.batch({press, move, release});
+        REQUIRE_MESSAGE(removed, s.r.last_notice());
+        CHECK_MESSAGE(s.r.last_notice().find(std::string("Value not delivered to ") + slots::kRole) !=
+                          std::string::npos,
+                      s.r.last_notice());
+    }
+}
+
+TEST_CASE("a reference placed on a canvas whose pane has no door for one is sent nothing and stays held") {
+    InventoryStory s(191, true, false, true);
+    s.append(1, "A");
+    REQUIRE(s.flow != 0);
+    std::int64_t drops = 0;
+    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && (e.schema_name == PaneCanvasDrop::zen_name ||
+                                                    e.schema_name == PaneCanvasValueDrop::zen_name))
+            ++drops;
+    })};
+    s.acquire();
+    // Flow takes a value on its canvas and no reference: the place refuses, in words...
+    s.click(s.flow, 8);
+    CHECK(drops == 0);
+    CHECK_MESSAGE(s.r.last_notice().find("does not accept the carried item") != std::string::npos,
+                  s.r.last_notice());
+    // ...and the reference is still in hand: a pane that takes one is given it.
+    s.place();
+    CHECK(drops == 0);
 }
 
 TEST_CASE("a live reference carried from Inventory lands in the Compose field its place names on Compose's canvas") {
