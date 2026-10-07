@@ -912,6 +912,7 @@ def run_checks(tools, runtime):
     folders = importlib.import_module("workbench_folders")
     slots = importlib.import_module("inventory_slots_demo")
     place = importlib.import_module("place")
+    preset_demo = importlib.import_module("inventory_preset_demo")
 
     class ToolChecks(unittest.TestCase):
         def test_drag_delegates_timed_motion_and_cleans_up_after_picture_failure(self):
@@ -1707,6 +1708,41 @@ def run_checks(tools, runtime):
             self.assertEqual(kept["rows"][2]["text"], "(Save) [Save copy] [Refresh] [Watch] [Close]")
             self.assertEqual(set(ctx.asked), self.ASKED)
 
+        def test_the_preset_walk_fails_naming_a_pickup_sentence_info_says_after_ctrl_g(self):
+            # Each refusal and each wait Info's view can say of its own field pickup fails the walk
+            # where the view still draws it, naming it; a view saying none passes.
+            said = {"Field pickup refused: this operation needs a current attributed input gesture":
+                        "Field pickup",
+                    "Save unavailable: a field pickup is pending": "field pickup is pending",
+                    "COPY zen.PokeStructure | picking up field": "picking up field",
+                    "Checking field acquisition authority": "Checking field acquisition authority",
+                    "Choose a field first": "Choose a field first",
+                    "Wait for the inventory operation before picking up a field":
+                        "Wait for the inventory operation",
+                    "That field is no longer here": "That field is no longer here",
+                    "Field copy exceeds the carry limit": "Field copy exceeds the carry limit",
+                    "Field permission request could not be queued":
+                        "Field permission request could not be queued",
+                    "COPY zen.PokeStructure": None}
+            for state, sentence in said.items():
+                with self.subTest(state=state):
+                    view = CanvasInfoView("Info | Workbench sample", state, self.SAMPLED)
+                    ctx = CanvasWorkshop(steps, {self.SAMPLE: view})
+                    held = hand.Hand(ctx, "workshop")
+                    try:
+                        if sentence is None:
+                            preset_demo.says_no_pickup(ctx, held, self.SAMPLE)
+                        else:
+                            with self.assertRaises(CheckFailed) as failed:
+                                preset_demo.says_no_pickup(ctx, held, self.SAMPLE)
+                            self.assertEqual(str(failed.exception), "Info still says %r of the field "
+                                             "pickup: %r" % (sentence, state))
+                    finally:
+                        held.close()
+                    self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
+            self.assertEqual(sorted(set(said.values()) - {None}),
+                             sorted(preset_demo.INFO_PICKUP_SENTENCES))
+
         def test_a_portable_views_first_box_is_pressed_inside_it_though_its_line_crosses_all(self):
             view_pane = ("zengine.inventory-pane", "inventory.2")
             named = {}
@@ -1755,7 +1791,7 @@ def run_checks(tools, runtime):
                                               "property:Width": False, None: False})
             self.assertFalse(place.list_marked(None))
 
-    suite =unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
     return unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful()
 
 
