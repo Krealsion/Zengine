@@ -86,8 +86,10 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         const bool same_kind = capable && c.owner == owner && c.grant != 0 && c.grain == grain &&
             c.graphical == graphical && c.text_advance_px == sc.text_advance_px &&
             c.text_line_px == sc.text_line_px && c.legacy == legacy;
-        if (same_kind && c.x == body.x && c.y == body.y && c.width == body.w && c.height == body.h)
+        if (same_kind && c.x == body.x && c.y == body.y && c.width == body.w && c.height == body.h) {
+            c.title_waits = false;
             continue;
+        }
         // THE ROOM A HELD PRESS'S OWN TITLE TAKES WAITS FOR THE PRESS (WL-FOCUS-11): the keys a
         // press moved bring back the title their pane wears, and the room under it, the same
         // width ending where it did, is granted once the press ends, so the press goes on in the
@@ -95,8 +97,10 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         bool held = false;
         for (const CanvasHold& hold : canvas_holds_) held = held || (hold.active && hold.kind == pane.kind);
         if (same_kind && held && !body.empty() && c.x == body.x && c.width == body.w &&
-            c.y + c.height == body.y + body.h)
+            c.y + c.height == body.y + body.h) {
+            c.title_waits = true;
             continue;
+        }
         if (!capable && c.grant == 0) continue;
         for (std::size_t i = 0; i < 3; ++i)
             if (canvas_holds_[i].active && canvas_holds_[i].kind == pane.kind) lose_canvas_hold(i, mail);

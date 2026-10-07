@@ -167,12 +167,14 @@ LAW — Pane titles are a preference with a key: the toggle flips the session's 
 MEANS
 - painter, press path and room grant spend the answer through `ExternalBodyPlace::header_rows`;
 - the press path spends the answer the pressed picture had, before the keys moved (WL-FOCUS-03);
-- a title's row goes or returns through the grant-on-change door, a held canvas press's once it ends.
+- a title's row goes or returns through the grant-on-change door, a held canvas press's once it ends, its picture painted and read in the room it kept until then.
 
 PROVEN BY — `workshop/keymap.hpp` `workshop.pane-titles`; `workshop/screen.hpp`
 `Session::pane_titles`, `ExternalBodyPlace::header_rows`, `kExternalHeaderRows`;
 `workshop/screen_external.cpp` `external_title_rows`, `paint_external`;
-`workshop/weave_canvas.cpp` `refresh_canvas_rooms`; `workshop/prefs_persist.hpp`
+`workshop/weave_canvas.cpp` `refresh_canvas_rooms`; `workshop/panes.hpp`
+`ExternalPane::Canvas::title_waits`; `workshop/screen_canvas.hpp` `shown_canvas_place`;
+`workshop/weave_inspection.cpp` `WorkshopWeave::visible_body`; `workshop/prefs_persist.hpp`
 `kTitlesDefaultValue`, `kTitlesDefault`; `workshop/weave.hpp` `HostContext::prefs_path`,
 `WorkshopWeave::prefs_loaded_`, `WorkshopWeave::prefs_bad_`; `workshop/weave_handlers.cpp`
 `load_prefs`; `tests/test_workshop_document.cpp` case `"pane titles are one action, one binding
@@ -182,7 +184,9 @@ preference, and a reopened Workshop wears it"`; `tests/test_workshop_info_views.
 `"info views: with pane titles hidden, a field dragged out of a view that did not hold the keys
 fills a field of another"`; `tests/test_workshop_panes_files.cpp` case `"with pane titles hidden, a
 first press on the row painted gamma selects gamma once every delivery it caused has settled, and
-a later press opens gamma"`.
+a later press opens gamma"`; `tests/test_workshop_desk.cpp` case `"a canvas pane a held press gave
+the keys, its title waiting with pane titles hidden, is read where its picture is painted, and a
+point there lands in the room the press kept"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## Do not assume

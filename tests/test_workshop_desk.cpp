@@ -580,6 +580,70 @@ TEST_CASE("a canvas pane's words are its labels and text runs, each where it is 
     }
 }
 
+TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane titles hidden, is read "
+          "where its picture is painted, and a point there lands in the room the press kept") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        press_outside(d.r, d.sketch_kind); // the keys are Workshop's...
+        d.r.key(input::scan::kT);          // ...and the titles hidden
+        d.r.text("t");
+        REQUIRE_FALSE(d.r.session().pane_titles);
+        REQUIRE(external_title_rows(d.r.session().panes, d.sketch_kind, false) == 0);
+        d.draw(); // in the room the hidden title gave back
+        v2::PaneView before;
+        REQUIRE(d.words(kCanvasOffice, kCanvasPane, before).empty());
+        REQUIRE(before.words.size() == 4);
+        const ExternalPane kept = *d.r.session().panes.external_pane(d.sketch_kind);
+        // A PRESS HELD ON THE PANE takes the keys, and with them the title the pane wears while
+        // it has them (WL-FOCUS-11); the room that title takes waits for the press.
+        const PaneWord& pressed = before.words[2];
+        d.r.publish(loom::to_value(input::PointerButton{1, true, pressed.x, pressed.y, pressed.space,
+                                                        input::mod::kNone}));
+        REQUIRE(keyboard_pane(d.r.session().panes) == d.sketch_kind);
+        REQUIRE(external_title_rows(d.r.session().panes, d.sketch_kind, false) == 1);
+        const ExternalPane& held = *d.r.session().panes.external_pane(d.sketch_kind);
+        REQUIRE(held.canvas.grant == kept.canvas.grant);
+        // THE PROVIDER DRAWS AGAIN, in the room it still holds.
+        d.draw();
+        REQUIRE(held.canvas.grant == kept.canvas.grant);
+        // READ WHERE IT IS PAINTED: the words stand in the room the press kept, where the painter
+        // draws the picture -- its first label at the canvas's corner, a cell in.
+        v2::PaneView during;
+        const std::string refused = d.words(kCanvasOffice, kCanvasPane, during);
+        REQUIRE_MESSAGE(refused.empty(), refused);
+        REQUIRE(during.words.size() == 4);
+        CHECK(during.picture == held.stamp.aimed);
+        CHECK(during.words[1].place.x == kept.canvas.x + 2 * kPaneCanvasUnit);
+        CHECK(during.words[1].place.y == kept.canvas.y + 2 * kPaneCanvasUnit);
+        bool painted = false;
+        for (const surface::SurfaceLayer& layer : d.r.last_canvas().layers)
+            for (const surface::SurfaceLabel& label : layer.labels)
+                painted = painted || (label.text == "node one" &&
+                                      label.x == kept.canvas.x + kPaneCanvasUnit &&
+                                      label.y == kept.canvas.y);
+        CHECK(painted);
+        // ...AND A POINT THERE: the release at it reaches the pane inside that word, in the room
+        // the press was aimed at.
+        v2::PanePoint at;
+        const std::string unpointed =
+            d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, during.picture, 1, 1}, at);
+        REQUIRE_MESSAGE(unpointed.empty(), unpointed);
+        d.sketch->pointers.clear();
+        d.r.publish(loom::to_value(input::PointerButton{1, false, at.x, at.y, at.space, input::mod::kNone}));
+        REQUIRE_FALSE(d.sketch->pointers.empty());
+        const PaneCanvasPointer& released = d.sketch->pointers.front();
+        CHECK(released.phase == canvas_pointer::kRelease);
+        CHECK(released.grant == kept.canvas.grant);
+        const DeskRect l = during.words[1].place;
+        CHECK(inside_locally(released, DeskRect{l.x + kPaneCanvasUnit, l.y, kPaneCanvasUnit, l.h},
+                             kept));
+        // THE PRESS ENDED: the room under the title is granted now.
+        CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.grant != kept.canvas.grant);
+    }
+}
+
 TEST_CASE("a pane's words are refused while a menu covers it or arranging is open, and the desk still answers") {
     DeskRig d;
     say_rows(d);
