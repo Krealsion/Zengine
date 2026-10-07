@@ -582,7 +582,9 @@ plugin SDK. **No Loom change of any kind.**
 ### A caret and a selection
 
 A pane with an insertion point says where it is in a second sentence beside its rows; a pane
-without one says nothing (`workshop/pane_vocabulary.hpp`):
+without one says nothing (`workshop/pane_vocabulary.hpp`). A pane drawing its rows on its canvas
+says it instead in the run it stands in (`caret_col` and the selection's columns, which
+`rows_picture` sets from a `RowsCaret`), and the medium draws it the same way:
 
 ```text
 PaneCaret       provider -> Workshop   the caret's row and the column it sits before, and the
