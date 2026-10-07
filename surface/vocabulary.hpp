@@ -35,6 +35,10 @@ inline constexpr std::int64_t kAccent = 1; ///< the one thing being pointed at
 inline constexpr std::int64_t kMuted = 2;  ///< present, deliberately quiet
 inline constexpr std::int64_t kAlert = 3;  ///< something the weaver must see
 inline constexpr std::int64_t kGround = 4; ///< opaque, empty material beneath content
+/// The medium's own ground: opaque, empty, and what the medium shows where nothing is published
+/// -- a window's own background, a terminal's default one, light or dark. A ground and never an
+/// ink: a rectangle or a row's background names it, and text drawn in it paints as `kFill`.
+inline constexpr std::int64_t kMediumGround = 5;
 
 /// No role at all: the absence of a background, not an ink role. Negative, so it cannot collide
 /// with a role a later vocabulary adds (which an older Skin would silently paint as `kFill`).
