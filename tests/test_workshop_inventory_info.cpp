@@ -759,6 +759,55 @@ static std::int64_t row_saying(InventoryStory& s, std::int64_t kind, const std::
     return -1;
 }
 
+TEST_CASE("portable slots: an entry's transfer placed on a picture its view drew before that view's "
+          "rows' meaning changed moves nothing and says it expired") {
+    InventoryStory s(191, true);
+    s.append(1, "A");
+    s.append(2, "B");
+    const auto a = s.entry("A").reference;
+    const auto row = s.create("row");
+    const auto kind = s.r.session().panes.runtime.find(slots::kRole, row)->kind;
+    for (auto& p : s.r.session().setup.active.panes) if (p.ref.pane == row) {
+        p.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 34 * surface::kCanvasCellPx};
+        p.width = {pane_unit::kPixels, 72 * surface::kCanvasCellPx};
+        p.height = {pane_unit::kPixels, 10 * surface::kCanvasCellPx};
+    }
+    s.r.extent(179, 60); s.r.extent(180, 60); // a same-size extent reseats nothing: the view is placed now
+    // The row view's picture while it holds nothing, then B moved into it: other rows, another
+    // meaning, the same room.
+    const ExternalPane first = *s.r.session().panes.external_pane(kind);
+    REQUIRE(shows_canvas(first));
+    slots::InventoryViewEdit op; op.operation = "move"; op.view = row; op.entry = s.entry("B").reference;
+    s.change(op);
+    const ExternalPane& now = *s.r.session().panes.external_pane(kind);
+    REQUIRE(now.canvas.grant == first.canvas.grant);
+    REQUIRE(slots::placed(s.layout(), s.entry("B").reference) == row);
+    // A real drag of A begins in main Inventory, and Inventory hands Workshop its transfer token.
+    std::string token;
+    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered &&
+            e.schema_name == v2::PaneValueCarryRequested::zen_name && e.payload)
+            token = e.payload->get("token")->as_text();
+    })};
+    const std::int64_t at = row_saying(s, s.source, "A : ");
+    REQUIRE_MESSAGE(at >= 0, s.shown(s.source));
+    auto press = s.button_at(s.source, at, true), move = s.button_at(s.source, at + 3, false);
+    move.kind = "PointerMoved"; move.dx = 0; move.dy = 3;
+    s.batch({press, move});
+    REQUIRE_MESSAGE(!token.empty(), s.shown(s.source));
+    // That transfer, placed on the row view's picture drawn under the earlier meaning: refused.
+    const auto before = s.layout();
+    const CanvasRows lattice = held_canvas_rows(now);
+    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
+        loom::Message(loom::to_value(PaneCanvasValueDrop{row, first.canvas.grant, first.canvas.content.picture,
+            lattice.column_x(12), lattice.row_y(3), s.pair(1), slots::kRole, "inventory", token})));
+    s.r.bus.drain_until_idle();
+    const std::string said = s.shown(kind) + s.shown(s.source);
+    CHECK_MESSAGE(said.find("That slot transfer expired") != std::string::npos, said);
+    CHECK(slots::placed(s.layout(), a) == slots::placed(before, a));
+    CHECK(slots::placed(s.layout(), a) != row);
+}
+
 TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered: a reference or a "
           "value, on a canvas") {
     // The drop is queued and said sent; the pane leaves before the bus dispatches it.
@@ -994,6 +1043,19 @@ TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas
     CHECK(marked_row(s, s.source) == first + 1);
     wheel(0.5); // ...and the other half does
     CHECK(marked_row(s, s.source) == first);
+    // A wheel turned as far as a number goes walks to the list's end at once, and no further.
+    wheel(-1e300);
+    const std::int64_t end = marked_row(s, s.source);
+    CHECK(end > first);
+    wheel(-1);
+    CHECK(marked_row(s, s.source) == end);
+    wheel(1e300);
+    const std::int64_t start = marked_row(s, s.source);
+    CHECK(start <= first);
+    wheel(1);
+    CHECK(marked_row(s, s.source) == start);
+    for (int notch = 0; notch < 8 && marked_row(s, s.source) < first; ++notch) wheel(-1);
+    REQUIRE(marked_row(s, s.source) == first);
     // A wheel from the room the view stood in before a new one was granted turns nothing.
     const ExternalPane old = *s.r.session().panes.external_pane(s.source);
     for (auto& p : s.r.session().setup.active.panes)
