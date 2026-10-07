@@ -31,6 +31,9 @@ void WorkshopWeave::refresh_external_rooms(loom::Mail& mail) {
         if (row == nullptr || pane == nullptr) {
             continue;
         }
+        if (pane->canvas.title_waits) {
+            continue; // the room a held press keeps (WL-FOCUS-11): its rows wait with its canvas
+        }
         if (pane->granted && pane->rows == body.rows && pane->columns == body.columns) {
             continue; // the same room: saying so again would be noise a provider must parse
         }

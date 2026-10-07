@@ -198,11 +198,9 @@ how to open one: `^t terminal | ^p panes | ^k hotkeys`.
      the pane does not move.
    - **The subject stays until you choose another.** Pressing another pane, `Esc`, a press on
      the room — none of them moves what Info is inspecting. Info may inspect itself.
-   - **You will not see a caret while you type a value.** A pane sends finished rows and a
-     caret is not a row, so the value scrolls to where you are typing and the insertion point
-     itself does not cross. It is a real cost of Info being a loaded pane, and it is the
-     contract the Editor's own migration fixed: the Editor pane publishes its caret and its
-     selection beside its rows, and Workshop draws them into the pane.
+   - **You see where you are typing.** The draft shows its caret and what you have selected —
+     a bar between characters in a window, an inverted, underlined cell in a terminal — and a
+     long value scrolls to keep the caret in view.
    - **One write at a time.** `Enter` sends the value; `Enter` again before Workshop answers
      sends nothing (`commit not sent`), and your text waits for the next `Enter`. If the layout
      underneath changed before the write arrived, it is refused rather than landing on the
@@ -252,7 +250,7 @@ privilege the [snake example](../reference/snake.md) does not.
 | how much room | the real terminal size, minus 3 reserved rows; a redirected or captured run, whose size cannot be measured, gets the 78x22 minimum -- and, when a restored session names a window size, that size from the frame after the first | the window's own size, and the person may resize it |
 | text in a bounded region | one row per cell row, cut at the region's width | set in a real typeface at its own advance and line height |
 | labels | the terminal's own font | an embedded 6x6 bitmap face, printable ASCII only; any other byte draws a visible unknown box |
-| colour | an SGR *and a glyph* per role, so a monochrome terminal is not lied to | RGB per role |
+| colour | an SGR *and a glyph* per role, so a monochrome terminal is not lied to; plain text is the terminal's own text colour, on its own ground | RGB per role |
 | the title | two reserved slot lines | the window title carries the slot lines |
 | what needs attention | the Attention pane, where you put it | the Attention pane, where you put it |
 

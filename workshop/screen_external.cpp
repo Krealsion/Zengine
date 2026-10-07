@@ -129,7 +129,10 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         return;
     }
     if (canvas_shown(*pane)) {
-        const PixelRect canvas = canvas_body_place(b, sc, body.header_rows);
+        // Where the picture stands (`shown_canvas_place`); while its title waits, the title is
+        // not drawn over the row the picture still holds.
+        const PixelRect canvas = shown_canvas_place(pane->canvas, b, sc, body.header_rows);
+        if (pane->canvas.title_waits) region.rows.clear();
         paint_pane_canvas(layer, canvas, pane->canvas.content, sc.text_advance_px,
                           sc.text_line_px, chrome_grain(sc));
         if (pane->canvas.preview) {

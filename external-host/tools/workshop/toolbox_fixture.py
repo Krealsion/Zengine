@@ -5,6 +5,7 @@ import hashlib
 import json
 from hand import Hand
 from demo_setup import Measured, layout
+from inventory_slots_demo import first_box
 from workshop_steps import picture
 
 
@@ -69,8 +70,7 @@ def run(ctx):
         ctx.check(sum(e["label"] == output_name for e in entries()) == count + 1,
                   "the restored command did not create exactly one new result under current authority")
         edit("context", view=slot["id"], enabled=False)
-        interior = next(r for r in hand.view(office, slot["id"])["rows"] if r["text"].startswith("|"))
-        hand.drag(interior, hand.view("zengine.info", "info")["rows"][0], 350)
+        hand.drag(first_box(ctx, hand, office, slot["id"]), hand.first("zengine.info", "info"), 350)
 
     current = entries()
     command = next(e for e in current if e["label"] == command_name)

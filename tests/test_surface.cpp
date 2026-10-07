@@ -38,6 +38,7 @@
 #include <unistd.h>
 #endif
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -650,7 +651,7 @@ TEST_CASE("golden: a canvas rasterizes to exact bytes -- roles, paint order, lab
     CHECK(m.sink().out ==
           "\x1b[3;1H\x1b[0J"
           "\x1b[2K\x1b[90m......\x1b[0m\r\n"
-          "\x1b[2K\x1b[90m.\x1b[37m#\x1b[31;1mab\x1b[90m..\x1b[0m\r\n"
+          "\x1b[2K\x1b[90m.\x1b[39m#\x1b[31;1mab\x1b[90m..\x1b[0m\r\n"
           "\x1b[2K\x1b[90m......\x1b[0m\r\n");
 
     // Steady state drops only the erase-below: the same layout convention a
@@ -690,7 +691,7 @@ TEST_CASE("golden: a text region rasterizes to cells, over everything, bounded")
           "\x1b[2K\x1b[90m......\x1b[0m\r\n"
           // `ab  ` is ONE run: the padding a row is widened with carries that row's own role.
           "\x1b[2K\x1b[90m.\x1b[36mab  \x1b[90m.\x1b[0m\r\n"
-          "\x1b[2K\x1b[90m.\x1b[37mtool\x1b[90m.\x1b[0m\r\n"
+          "\x1b[2K\x1b[90m.\x1b[39mtool\x1b[90m.\x1b[0m\r\n"
           "\x1b[2K\x1b[90m......\x1b[0m\r\n");
 
     // AND THE SAME CANVAS THROUGH THE GRAPHICAL MEDIUM'S BITMAP FACE, which is the
@@ -734,7 +735,7 @@ TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a 
     CHECK(m.sink().out ==
           "\x1b[3;1H"
           // row 0: the first rect's surviving cell at x=0, then the second's two.
-          "\x1b[2K\x1b[37m#\x1b[0m \x1b[90m..\x1b[0m\r\n"
+          "\x1b[2K\x1b[39m#\x1b[0m \x1b[90m..\x1b[0m\r\n"
           // row 1: NOTHING wrapped here from row 0's overflow -- two background
           // cells, then the label's two surviving characters.
           "\x1b[2K\x1b[0m  \x1b[36mab\x1b[0m\r\n"
@@ -826,7 +827,7 @@ TEST_CASE("canvas: an unknown role paints as kFill rather than vanishing") {
     m.canvas(c, /*first=*/false);
     // Drawn, in kFill's ink and glyph: vocabulary.hpp's stated fallback, and the
     // opposite resolution from an unknown text slot (which has no row to go to).
-    CHECK(m.sink().out == "\x1b[3;1H\x1b[2K\x1b[37m##\x1b[0m\r\n");
+    CHECK(m.sink().out == "\x1b[3;1H\x1b[2K\x1b[39m##\x1b[0m\r\n");
 
     // Ground is opaque empty material, including over an earlier plane. Its
     // left-edge clip and a later accent rectangle obey ordinary painter order.
@@ -839,8 +840,8 @@ TEST_CASE("canvas: an unknown role paints as kFill rather than vanishing") {
     CHECK(canvas_cells(grounded) == " * #\n####\n");
     CHECK(canvas_body(grounded) ==
           "\x1b[2K\x1b[30m\x1b[40m \x1b[36m\x1b[49m*"
-          "\x1b[30m\x1b[40m \x1b[37m\x1b[49m#\x1b[0m\r\n"
-          "\x1b[2K\x1b[37m####\x1b[0m\r\n");
+          "\x1b[30m\x1b[40m \x1b[39m\x1b[49m#\x1b[0m\r\n"
+          "\x1b[2K\x1b[39m####\x1b[0m\r\n");
 }
 
 TEST_CASE("canvas: the medium's own ground covers material and wears the terminal's own ground") {
@@ -858,8 +859,8 @@ TEST_CASE("canvas: the medium's own ground covers material and wears the termina
     // ...but its ground is no colour of the palette: the terminal's own, light or dark, said by
     // ending the black rather than by naming a colour.
     CHECK(canvas_body(c) ==
-          "\x1b[2K\x1b[30m\x1b[40m \x1b[37m\x1b[49m  \x1b[30m\x1b[40m \x1b[0m\r\n"
-          "\x1b[2K\x1b[30m\x1b[40m \x1b[37m\x1b[49m  \x1b[30m\x1b[40m \x1b[0m\r\n");
+          "\x1b[2K\x1b[30m\x1b[40m \x1b[39m\x1b[49m  \x1b[30m\x1b[40m \x1b[0m\r\n"
+          "\x1b[2K\x1b[30m\x1b[40m \x1b[39m\x1b[49m  \x1b[30m\x1b[40m \x1b[0m\r\n");
 
     // A PICTURE ON IT ALONE EMITS NOT ONE BACKGROUND BYTE, and text named in it is no ink: it
     // paints as kFill's.
@@ -869,7 +870,7 @@ TEST_CASE("canvas: the medium's own ground covers material and wears the termina
     plane(own).rects.push_back(cell_rect(0, 0, 4, 1, role::kMediumGround));
     plane(own).labels.push_back(cell_label(1, 0, "x", role::kAccent));
     plane(own).labels.push_back(cell_label(2, 0, "y", role::kMediumGround));
-    CHECK(canvas_body(own) == "\x1b[2K\x1b[37m \x1b[36mx\x1b[37my \x1b[0m\r\n");
+    CHECK(canvas_body(own) == "\x1b[2K\x1b[39m \x1b[36mx\x1b[39my \x1b[0m\r\n");
 
     // A ROW NAMING IT AS ITS GROUND, written on black, wears the terminal's own ground for the
     // whole row, where a row naming none keeps the black beneath.
@@ -887,6 +888,75 @@ TEST_CASE("canvas: the medium's own ground covers material and wears the termina
     CHECK(canvas_body(rows) ==
           "\x1b[2K\x1b[36mab  \x1b[0m\r\n"
           "\x1b[2K\x1b[36m\x1b[40mcd\x1b[30m  \x1b[0m\r\n");
+}
+
+TEST_CASE("canvas: a terminal's plain text is the terminal's own text colour on its own ground and "
+          "the palette's white on a ground a pane paints, so it reads on a light terminal or a "
+          "dark one, a caret in it and a selection over it too") {
+    // PLAIN INK IS NO COLOUR OF THE PALETTE: the terminal's own text colour, as its own ground is
+    // no ground byte -- kFill, the medium's own ground named as ink, and a role no Skin knows.
+    CHECK(std::string(sgr_for_role(role::kFill)) == "\x1b[39m");
+    CHECK(std::string(sgr_for_role(role::kMediumGround)) == "\x1b[39m");
+    CHECK(std::string(sgr_for_role(99)) == "\x1b[39m");
+    // ...and on a ground the canvas painted, a colour of the palette, the white it always was.
+    CHECK(std::string(sgr_for_cell(role::kFill, role::kGround)) == "\x1b[37m");
+    CHECK(std::string(sgr_for_cell(role::kFill, role::kNone)) == "\x1b[39m");
+    CHECK(std::string(sgr_for_cell(role::kAccent, role::kGround)) == "\x1b[36m");
+
+    // A pane's row as Workshop lays it: the medium's own ground across the room, the row's text
+    // a run that keeps the ground beneath it, a selection over two of its characters and a caret
+    // on a third.
+    const auto row_on = [](int ground) {
+        SurfaceCanvas c;
+        c.width = cells_px(8);
+        c.height = cells_px(1);
+        plane(c).rects.push_back(cell_rect(0, 0, 8, 1, ground));
+        SurfaceTextRegion r;
+        r.w = cells_px(8);
+        r.h = cells_px(1);
+        r.ground = kGroundBeneath;
+        r.rows.push_back(SurfaceTextRow{"abcdef", role::kFill});
+        r.caret_row = 0;
+        r.caret_col = 4;
+        r.sel_begin_row = r.sel_end_row = 0;
+        r.sel_begin_col = 1;
+        r.sel_end_col = 3;
+        plane(c).texts.push_back(r);
+        return canvas_body(c);
+    };
+    // ON THE TERMINAL'S OWN GROUND the text is in the terminal's own colours, and the selection
+    // and the caret are that pair swapped by reverse video, whatever the pair is.
+    const std::string own_ground = row_on(role::kMediumGround);
+    CHECK(own_ground ==
+          "\x1b[2K\x1b[39ma\x1b[7mbc\x1b[27md\x1b[7m\x1b[4me\x1b[27m\x1b[24mf\x1b[39m  \x1b[0m\r\n");
+    // Not one sequence of it names a colour of the terminal's palette, for its ink or its ground.
+    const std::vector<std::string> own = {"2K", "39m", "7m", "27m", "4m", "24m", "0m"};
+    for (std::size_t at = own_ground.find("\x1b["); at != std::string::npos;
+         at = own_ground.find("\x1b[", at + 1)) {
+        const std::size_t end = own_ground.find_first_of("Km", at + 2);
+        REQUIRE(end != std::string::npos);
+        const std::string said = own_ground.substr(at + 2, end - at - 1);
+        CHECK_MESSAGE(std::find(own.begin(), own.end(), said) != own.end(), said);
+    }
+    // ON A PANE'S BLACK GROUND the text is the palette's white on the palette's black, which a
+    // light terminal shows as a dark one does; the selection and the caret swap that pair.
+    CHECK(row_on(role::kGround) ==
+          "\x1b[2K\x1b[37m\x1b[40ma\x1b[7mbc\x1b[27md\x1b[7m\x1b[4me\x1b[27m\x1b[24mf\x1b[30m  "
+          "\x1b[0m\r\n");
+
+    // ONE RUN CROSSING BOTH GROUNDS changes its ink where the ground changes, the role unchanged.
+    SurfaceCanvas both;
+    both.width = cells_px(8);
+    both.height = cells_px(1);
+    plane(both).rects.push_back(cell_rect(0, 0, 4, 1, role::kMediumGround));
+    plane(both).rects.push_back(cell_rect(4, 0, 4, 1, role::kGround));
+    SurfaceTextRegion across;
+    across.w = cells_px(8);
+    across.h = cells_px(1);
+    across.ground = kGroundBeneath;
+    across.rows.push_back(SurfaceTextRow{"abcdefgh", role::kFill});
+    plane(both).texts.push_back(across);
+    CHECK(canvas_body(both) == "\x1b[2K\x1b[39mabcd\x1b[37m\x1b[40mefgh\x1b[0m\r\n");
 }
 
 // ============================================================================
@@ -3036,12 +3106,12 @@ TEST_CASE("golden: the terminal medium rasterizes planes in list order, exactly"
     c.height = cells_px(1);
     plane(c).texts.push_back(one_row_region(0, 0, "abcd"));
     next_plane(c).labels.push_back(cell_label(1, 0, "XY", role::kAccent));
-    CHECK(canvas_body(c) == "\x1b[2K\x1b[37ma\x1b[36mXY\x1b[37md\x1b[0m\r\n");
+    CHECK(canvas_body(c) == "\x1b[2K\x1b[39ma\x1b[36mXY\x1b[39md\x1b[0m\r\n");
 
     // The same two planes the other way round: the region wins its own columns back, and
     // the accent run is gone from the bytes entirely.
     std::swap(c.layers[0], c.layers[1]);
-    CHECK(canvas_body(c) == "\x1b[2K\x1b[37mabcd\x1b[0m\r\n");
+    CHECK(canvas_body(c) == "\x1b[2K\x1b[39mabcd\x1b[0m\r\n");
 }
 
 TEST_CASE("canvas plan: the SDL plan carries the plane order, with and without a face") {
@@ -3216,8 +3286,8 @@ TEST_CASE("a region whose ground is BENEATH draws its rows and disturbs nothing"
     // THE CHARACTER MEDIUM, TO THE BYTE: the name's six cells in its own ink, and the material
     // resuming in `kFill`'s at the seventh -- one SGR change, no padding, no ground byte: exactly
     // what a `SurfaceLabel` at the same origin produces.
-    CHECK(canvas_body(c).find("\x1b[90mwidget\x1b[37m######\x1b[0m") != std::string::npos);
-    CHECK(canvas_body(c).find("\x1b[37m############\x1b[0m") != std::string::npos);
+    CHECK(canvas_body(c).find("\x1b[90mwidget\x1b[39m######\x1b[0m") != std::string::npos);
+    CHECK(canvas_body(c).find("\x1b[39m############\x1b[0m") != std::string::npos);
     CHECK(canvas_body(c).find("\x1b[47m") == std::string::npos); // no ground: nothing to say
 
     // ONE PROJECTED ROW, NOT FOUR. A row of such a region with no bytes, no caret and no ground
@@ -3281,7 +3351,7 @@ TEST_CASE("a row inside a BENEATH region may still name a ground of its own") {
     CHECK(rows[1].background == role::kMuted);
     // ...and the row below both is still the material's own `#`, untouched by either.
     CHECK(canvas_body(c).find("\x1b[100mlit         \x1b[0m") != std::string::npos);
-    CHECK(canvas_body(c).find("\x1b[37m############\x1b[0m") != std::string::npos);
+    CHECK(canvas_body(c).find("\x1b[39m############\x1b[0m") != std::string::npos);
 
     const PlanLayer planned =
         plan_canvas(c, SurfaceExtent{14, 6, 8, 18}, PlanSize{14 * kCanvasCellPx, 6 * kCanvasCellPx})
@@ -3331,7 +3401,7 @@ TEST_CASE("a ground this vocabulary does not know OWNS its room") {
     REQUIRE(rows.size() == 2);
     CHECK(rows[0].label.text == "hi    "); // padded: it owns its room
     CHECK(rows[1].label.text == "      ");
-    CHECK(canvas_body(c).find("[36mhi    [37m#") != std::string::npos);
+    CHECK(canvas_body(c).find("[36mhi    [39m#") != std::string::npos);
 
     const PlanLayer planned =
         plan_canvas(c, SurfaceExtent{8, 4, 8, 18}, PlanSize{8 * kCanvasCellPx, 4 * kCanvasCellPx})
@@ -3366,7 +3436,7 @@ TEST_CASE("an ordinary region keeps every byte of its old behaviour, by DEFAULT"
     CHECK(rows[0].label.text == "hi    ");
     CHECK(rows[1].label.text == "      ");
     CHECK(rows[0].ground == kGroundOwn);
-    CHECK(canvas_body(c).find("\x1b[36mhi    \x1b[37m#") != std::string::npos); // it ERASED its room
+    CHECK(canvas_body(c).find("\x1b[36mhi    \x1b[39m#") != std::string::npos); // it ERASED its room
 
     // AND THE GRAPHICAL MEDIUM STILL CLEARS ITS WHOLE VIEWPORT FIRST.
     const PlanLayer planned =
@@ -4006,7 +4076,7 @@ TEST_CASE("the character medium says a selection in reverse video, exactly") {
     r.sel_end_row = 0;
     r.sel_end_col = 3;
     plane(c).texts.push_back(r);
-    CHECK(canvas_body(c) == "\x1b[2K\x1b[37ma\x1b[7mbc\x1b[27mde \x1b[0m\r\n");
+    CHECK(canvas_body(c) == "\x1b[2K\x1b[39ma\x1b[7mbc\x1b[27mde \x1b[0m\r\n");
 
     // A RESET TAKES THE SELECTION WITH IT, so a selection running to the region's edge is
     // closed by the reset the untouched background already emits -- one sequence, not two.
@@ -4022,7 +4092,7 @@ TEST_CASE("the character medium says a selection in reverse video, exactly") {
     half.sel_end_row = 0;
     half.sel_end_col = 4;
     plane(edge).texts.push_back(half);
-    CHECK(canvas_body(edge) == "\x1b[2K\x1b[37mab\x1b[7mcd\x1b[0m    \r\n");
+    CHECK(canvas_body(edge) == "\x1b[2K\x1b[39mab\x1b[7mcd\x1b[0m    \r\n");
 
     // AND WITH NO SELECTION THE BYTES ARE THE ONES EVERY GOLDEN HOLDS: a garbage range is
     // the absence, byte for byte.
@@ -4036,7 +4106,7 @@ TEST_CASE("the character medium says a selection in reverse video, exactly") {
     SurfaceCanvas garbage = plainc;
     garbage.layers.back().texts[0].sel_begin_row = 5; // rows the region does not have
     garbage.layers.back().texts[0].sel_end_row = 2;   // ...and not in reading order
-    CHECK(canvas_body(plainc) == "\x1b[2K\x1b[37mabcde \x1b[0m\r\n");
+    CHECK(canvas_body(plainc) == "\x1b[2K\x1b[39mabcde \x1b[0m\r\n");
     CHECK(canvas_body(garbage) == canvas_body(plainc));
 }
 
@@ -4065,17 +4135,17 @@ TEST_CASE("the character medium shows a caret as its cell reversed and underline
     };
     // MID-ROW, on the character it sits before.
     CHECK(row("abcde", 6, 2, 0, 0) ==
-          "\x1b[2K\x1b[37mab\x1b[7m\x1b[4mc\x1b[27m\x1b[24mde \x1b[0m\r\n");
+          "\x1b[2K\x1b[39mab\x1b[7m\x1b[4mc\x1b[27m\x1b[24mde \x1b[0m\r\n");
     // AT A FULL ROW'S END, on its last cell, and the last character is still there.
-    CHECK(row("abcde", 5, 5, 0, 0) == "\x1b[2K\x1b[37mabcd\x1b[7m\x1b[4me\x1b[0m\r\n");
+    CHECK(row("abcde", 5, 5, 0, 0) == "\x1b[2K\x1b[39mabcd\x1b[7m\x1b[4me\x1b[0m\r\n");
     // INSIDE A SELECTION, the one plain cell of it.
     CHECK(row("abcde", 6, 2, 1, 4) ==
-          "\x1b[2K\x1b[37ma\x1b[7mb\x1b[27m\x1b[4mc\x1b[7m\x1b[24md\x1b[27me \x1b[0m\r\n");
+          "\x1b[2K\x1b[39ma\x1b[7mb\x1b[27m\x1b[4mc\x1b[7m\x1b[24md\x1b[27me \x1b[0m\r\n");
     // JUST PAST A SELECTION, reversed like it and underlined unlike it.
     CHECK(row("abcde", 6, 3, 1, 3) ==
-          "\x1b[2K\x1b[37ma\x1b[7mbc\x1b[4md\x1b[27m\x1b[24me \x1b[0m\r\n");
+          "\x1b[2K\x1b[39ma\x1b[7mbc\x1b[4md\x1b[27m\x1b[24me \x1b[0m\r\n");
     // AND A CANVAS WITH NO CARET EMITS NOT ONE BYTE OF ONE.
-    CHECK(row("abcde", 6, kNoCaret, 0, 0) == "\x1b[2K\x1b[37mabcde \x1b[0m\r\n");
+    CHECK(row("abcde", 6, kNoCaret, 0, 0) == "\x1b[2K\x1b[39mabcde \x1b[0m\r\n");
     // The capture is the glyphs less the ink: a caret is ink, so it is not in the capture.
     SurfaceCanvas c;
     c.width = cells_px(6);

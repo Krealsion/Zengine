@@ -246,18 +246,17 @@ honest bounds on that capability today:
 | Drag text, a command or a file place in and out? | **yes, as copies and text** — [carrying](editor.md#carrying-text-commands-and-file-places); dropped text obeys the same ASCII byte rule (UTF-8 beyond it is refused, where Neovim takes it), there is no block selection, a carried copy is at most <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB, and a dropped command is text, never sent |
 
 What text editing also exists is one single-line editor in this host — the layout-name line —
-and more in loaded panes over the same component: Info's property draft, the Terminal's command
-line, the Hotkeys pane's spelling line, Files' authoring line, the Builder's role line, Powers'
-search and the Composer's fields.
+and more in loaded panes over the same component: Info's property draft and its views' edit and
+rename line, Inventory's name line, the Terminal's command line, the Hotkeys pane's spelling line,
+Files' authoring line, the Builder's role line, Powers' search and the Composer's fields.
 
 **A pane's line shows you a caret, and still cannot be swept.** A pane says where its caret is
 and what it has selected, beside the rows it sends or in the picture it draws, so every one of
-those lines but Info's draft has an insertion point — a bar between glyphs in a window, an
-inverted cell in a terminal. Only the Terminal and the layout-name line draw their selection; in
-the others a range selected by keyboard works and is not shown. Info's property draft does not yet say a caret; it
-can, unchanged, whenever that image is next touched. What no pane's LINE has is a pointer sweep: the two editors accept one while the
-button is held (`PaneDragged`) and no single-line pane does, so in a line a range is selected by
-`Shift` and the arrow keys.
+those lines has an insertion point — a bar between glyphs in a window, an inverted cell in a
+terminal. Only the Terminal, Info's and Inventory's lines and the layout-name line draw their
+selection; in the others a range selected by keyboard works and is not shown. What no pane's
+LINE has is a pointer sweep: the two editors accept one while the button is held (`PaneDragged`)
+and no single-line pane does, so in a line a range is selected by `Shift` and the arrow keys.
 
 ### Neovim in the Editor pane draws plain text, one range, and no colours
 

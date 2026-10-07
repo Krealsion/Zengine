@@ -6,6 +6,22 @@ from hand import Hand
 from demo_setup import Measured
 from workshop_steps import picture
 
+# What Info's view says of a field pickup of its own: each refusal, and each wait it draws while
+# the pickup is pending. Once Workshop takes a copy picked up by key, the view says none of them.
+INFO_PICKUP_SENTENCES = (
+    "Field pickup", "field pickup is pending", "picking up field",
+    "Checking field acquisition authority", "Choose a field first",
+    "Wait for the inventory operation", "That field is no longer here",
+    "Field copy exceeds the carry limit", "Field permission request could not be queued")
+
+
+def says_no_pickup(ctx, hand, pane):
+    """Fail the run, naming the sentence, where a word `pane` draws holds one of Info's own
+    field-pickup sentences: a refusal, or a wait for a pickup Workshop has taken."""
+    for w in hand.words(*pane)["words"]:
+        said = next((s for s in INFO_PICKUP_SENTENCES if s in w["text"]), None)
+        ctx.check(said is None, "Info still says %r of the field pickup: %r" % (said, w["text"]))
+
 
 def run(ctx):
     counted = Measured(ctx)
@@ -48,7 +64,7 @@ def run(ctx):
     hand.key("escape")
 
     ctx.step("make a preset copy, unset a required value, save and reopen it")
-    hand.drag(hand.row(*inv, label + " command", scroll=True), hand.view(*info)["rows"][0], 350)
+    hand.drag(hand.row(*inv, label + " command", scroll=True), hand.first(*info), 350)
     hand.key("ctrl+b")
     hand.click(hand.row(*info, "label:")); hand.key("ctrl+u")
     hand.row(*info, "label: absent (required)")
@@ -64,10 +80,11 @@ def run(ctx):
 
     ctx.step("pick up a typed field from the saved capture and fill the missing argument")
     # Inventory Capture stores the owner's typed PokeStructure answer, not its displayed text.
-    hand.drag(hand.row(*inv, label + " : ", scroll=True), hand.view(*info)["rows"][0], 350)
+    hand.drag(hand.row(*inv, label + " : ", scroll=True), hand.first(*info), 350)
     selected = hand.row(*info, "fields[0].name:")
     hand.click(selected); hand.key("ctrl+g")
-    hand.row(*info, "Carrying field copy")
+    # Workshop holds the copy and says it is carried; Info says nothing of a carry it no longer holds.
+    says_no_pickup(ctx, hand, info)
     hand.click(hand.row(*comp, "label:"))
     hand.row(*comp, "Copied data into form")
     hand.last_view(hand.words(*comp), "reviewed.json")
