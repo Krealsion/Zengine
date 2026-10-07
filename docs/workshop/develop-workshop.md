@@ -180,10 +180,10 @@ Three changes of that kind are on this branch:
   set — the canvas's room and pointer (a press, the wheel and the second button arrive there), a
   refused picture, a menu's answer, the toggle's answer and an edit's answer — so a desktop built
   from this source is refused as a reload of one built before it, and the Neovim editor's new
-  right-button door does the same for it. Attention, Connections, the demo controls and the
-  introspection panes (`Loaded`, `Project`, `Powers`) draw their rows on their canvas through the
-  same doors, and each is refused the same way. A host from before this change never sends the
-  desktop's new sentences; a desktop from before it never hears them.
+  right-button door does the same for it. Attention, Connections, the demo controls, the
+  introspection panes (`Loaded`, `Project`, `Powers`) and Compose draw their rows on their canvas
+  through the same doors, and each is refused the same way. A host from before this change never
+  sends the desktop's new sentences; a desktop from before it never hears them.
 
 For either, rebuild the whole tree — CLion's build, or a `cmake --build` of it — so that the host
 and every pane come from the same source. Then rename or move `workshop-runtime` (its promotions

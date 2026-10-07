@@ -14,6 +14,8 @@
 #include "input/vocabulary.hpp"
 #include "introspection/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_menu.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
@@ -57,10 +59,8 @@ using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneContent;
 using zengine::workshop::PaneKey;
 using zengine::workshop::v2::PaneOffered;
-using zengine::workshop::PanePressed;
 using zengine::workshop::PaneRoom;
 using zengine::workshop::PaneTextInput;
-using zengine::workshop::PaneWheel;
 namespace stage = zengine::composer::stage;
 namespace meaning = zengine::composer::meaning;
 
@@ -87,13 +87,13 @@ public:
         return {loom::schema_of<ws::PaneResetRequested>(), loom::schema_of<loom::Activated>(),
                 loom::schema_of<PaneCatalogRequested>(),
                 loom::schema_of<PaneRoom>(),
-                loom::schema_of<PanePressed>(), loom::schema_of<ws::v3::PanePressed>(),
-                loom::schema_of<ws::PaneValueDrop>(), loom::schema_of<ws::PaneDrop>(),
+                loom::schema_of<ws::PaneCanvasRoom>(), loom::schema_of<ws::PaneCanvasPointer>(),
+                loom::schema_of<ws::PaneCanvasRejected>(),
+                loom::schema_of<ws::PaneCanvasValueDrop>(), loom::schema_of<ws::PaneCanvasDrop>(),
                 loom::schema_of<ws::PaneActionRequested>(), loom::schema_of<ws::PaneOperationAnswered>(),
                 loom::schema_of<inv::InventoryEntry>(), loom::schema_of<loom::DispatchRefused>(),
                 loom::schema_of<PaneKey>(),
                 loom::schema_of<PaneTextInput>(),
-                loom::schema_of<PaneWheel>(),
                 loom::schema_of<LoadedSelected>(),
                 loom::schema_of<surface::ClipboardCopy>(),
                 loom::schema_of<surface::ClipboardText>(),
@@ -102,11 +102,13 @@ public:
     }
 
     /// What this weave says to Workshop. A submitted command is whatever shape the weaver
-    /// filled, so it is not listed.
+    /// filled, so it is not listed. Its rows are its own canvas picture; to a host granting no
+    /// canvas it says them, and its caret, as prose.
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
         return {loom::schema_of<PaneOffered>(), loom::schema_of<ws::v4::PaneContent>(),
+                loom::schema_of<ws::v5::PaneCanvasContent>(), loom::schema_of<ws::PaneCaret>(),
                 loom::schema_of<ws::PaneActions>(), loom::schema_of<ws::PaneOperationRequested>(),
-                loom::schema_of<ws::PaneEscapeUnspent>()};
+                loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>()};
     }
 
     void handle(const loom::Message& in, loom::Bus& bus) override {
@@ -122,17 +124,22 @@ public:
             shown_ = {};
             say(mail); (void)mail.answer(loom::Ack{}); return;
         }
-        if (loom::same_identity(*loom::schema_of<ws::v3::PanePressed>(), shape)) {
-            const auto press = loom::from_value<ws::v3::PanePressed>(in.payload);
-            if (press.picture == picture_) on_pressed(PanePressed{press.pane, press.row, press.column}, mail);
-            return;
+        if (loom::same_identity(*loom::schema_of<ws::PaneCanvasPointer>(), shape)) {
+            on_pointer(loom::from_value<ws::PaneCanvasPointer>(in.payload), mail); return;
         }
-        if (loom::same_identity(*loom::schema_of<ws::PaneValueDrop>(), shape)) {
-            on_drop(loom::from_value<ws::PaneValueDrop>(in.payload), false, mail); return;
+        if (loom::same_identity(*loom::schema_of<ws::PaneCanvasValueDrop>(), shape)) {
+            const auto d = loom::from_value<ws::PaneCanvasValueDrop>(in.payload);
+            on_drop(d.pane, d.grant, d.picture, d.x, d.y, d.data, false, mail); return;
         }
-        if (loom::same_identity(*loom::schema_of<ws::PaneDrop>(), shape)) {
-            const auto d = loom::from_value<ws::PaneDrop>(in.payload);
-            on_drop({d.pane, d.data, d.row, d.column, d.picture}, true, mail); return;
+        if (loom::same_identity(*loom::schema_of<ws::PaneCanvasDrop>(), shape)) {
+            const auto d = loom::from_value<ws::PaneCanvasDrop>(in.payload);
+            on_drop(d.pane, d.grant, d.picture, d.x, d.y, d.data, true, mail); return;
+        }
+        if (loom::same_identity(*loom::schema_of<ws::PaneCanvasRoom>(), shape)) {
+            on_canvas_room(loom::from_value<ws::PaneCanvasRoom>(in.payload), mail); return;
+        }
+        if (loom::same_identity(*loom::schema_of<ws::PaneCanvasRejected>(), shape)) {
+            return; // a refused picture leaves the last good one showing; the next say draws again
         }
         if (loom::same_identity(*loom::schema_of<ws::PaneActionRequested>(), shape)) {
             const auto a = loom::from_value<ws::PaneActionRequested>(in.payload);
@@ -186,14 +193,10 @@ public:
             on_catalog_requested(mail);
         } else if (loom::same_identity(*loom::schema_of<PaneRoom>(), shape)) {
             on_room(loom::from_value<PaneRoom>(in.payload), mail);
-        } else if (loom::same_identity(*loom::schema_of<PanePressed>(), shape)) {
-            on_pressed(loom::from_value<PanePressed>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<PaneKey>(), shape)) {
             on_key(loom::from_value<PaneKey>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<PaneTextInput>(), shape)) {
             on_text(loom::from_value<PaneTextInput>(in.payload), mail);
-        } else if (loom::same_identity(*loom::schema_of<PaneWheel>(), shape)) {
-            on_wheel(loom::from_value<PaneWheel>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<LoadedSelected>(), shape)) {
             on_selected(loom::from_value<LoadedSelected>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<surface::ClipboardCopy>(), shape)) {
@@ -250,22 +253,66 @@ private:
             return; // a room for a pane this provider does not have
         }
         ++state_.rooms;
-        rows_ = room.rows;
-        columns_ = room.columns;
+        prose_rows_ = room.rows;
+        prose_columns_ = room.columns;
+        if (on_canvas()) return; // the canvas room, granted first, already drew
+        fit_room();
         say(mail);
     }
 
-    void on_pressed(const PanePressed& press, loom::Mail& mail) {
-        if (busy()) return;
+    /// THE PANE'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
+    /// lattice's rows and columns its room, and says them as prose only to a host granting none.
+    void on_canvas_room(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
             return;
         }
-        if (press.pane != kComposePane) {
+        if (room.pane != kComposePane) {
             return;
         }
+        ++state_.rooms;
+        canvas_ = room;
+        fit_room();
+        say(mail);
+    }
+
+    bool on_canvas() const { return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0; }
+
+    /// The rows and columns the pane composes for: its canvas's lattice while it holds one.
+    void fit_room() {
+        const ws::CanvasRows lattice = ws::canvas_rows(canvas_);
+        rows_ = on_canvas() ? lattice.rows : prose_rows_;
+        columns_ = on_canvas() ? lattice.columns : prose_columns_;
+    }
+
+    /// A PRESS, THE WHEEL AND A RIGHT PRESS ON THE CANVAS: a press reads back to the row it fell
+    /// on in the picture it was aimed at, and acts only while that picture was drawn under the
+    /// meaning the rows have now; the wheel walks the cursor; a right press is handed back, so
+    /// Workshop's own pane menu opens where it was made.
+    void on_pointer(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            ++state_.refused;
+            return;
+        }
+        if (event.pane != kComposePane || event.grant != canvas_.grant || !on_canvas()) return;
+        if (event.phase == ws::canvas_pointer::kWheel) {
+            on_wheel(event.dy, mail);
+            return;
+        }
+        if (event.phase != ws::canvas_pointer::kPress) return;
+        if (event.button == 3) {
+            (void)ws::pane_menu::pass_back(mail, kComposerRole, kComposePane);
+            return;
+        }
+        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), event.x, event.y);
+        if (event.button != 1 || !at.shown || !pictures_.current(event.grant, event.picture)) return;
+        on_pressed(at.row, mail);
+    }
+
+    void on_pressed(std::int64_t row, loom::Mail& mail) {
+        if (busy()) return;
         const zengine::composer::RowMeaning what =
-            zengine::composer::meaning_at_row(shown_, press.row);
+            zengine::composer::meaning_at_row(shown_, row);
         switch (what.what) {
         case meaning::kMessage:
             open_form(what.which, mail);
@@ -331,15 +378,8 @@ private:
         say(mail);
     }
 
-    void on_wheel(const PaneWheel& wheel, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            ++state_.refused;
-            return;
-        }
-        if (wheel.pane != kComposePane) {
-            return;
-        }
-        wheel_ += wheel.dy;
+    void on_wheel(double dy, loom::Mail& mail) {
+        wheel_ += dy;
         const std::int64_t rows = static_cast<std::int64_t>(wheel_);
         if (rows == 0) {
             return;
@@ -708,16 +748,21 @@ private:
             storage_notice(mail);
         } catch (const std::exception& e) { complain(e.what()); say(mail); }
     }
-    void on_drop(const ws::PaneValueDrop& drop, bool reference, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || drop.pane != kComposePane) return;
-        if (busy() || drop.picture != picture_) {
+    /// A VALUE OR A REFERENCE PLACED ON THE CANVAS: its place reads back to the row it fell on,
+    /// in the picture it was aimed at, and a field row takes it as that field's value while any
+    /// other row takes it as the whole command.
+    void on_drop(const std::string& pane, std::int64_t grant, std::int64_t picture, std::int64_t x,
+                 std::int64_t y, const loom::Bytes& data, bool reference, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || pane != kComposePane) return;
+        if (busy() || grant != canvas_.grant || !pictures_.current(grant, picture)) {
             complain("Drop refused: form is busy or its picture changed"); say(mail); return;
         }
         try {
-            auto item = inv::decode_pair({reinterpret_cast<const char*>(drop.data.data()), drop.data.size()}).item;
+            auto item = inv::decode_pair({reinterpret_cast<const char*>(data.data()), data.size()}).item;
             if (reference && !loom::same_identity(item.schema(), *loom::schema_of<inv::InventoryReference>()))
                 throw std::invalid_argument("Unsupported reference kind");
-            const auto row = zengine::composer::meaning_at_row(shown_, drop.row);
+            const auto row = zengine::composer::meaning_at_row(
+                shown_, ws::row_cell_at(ws::canvas_rows(canvas_), x, y).row);
             if (composing_.stage == stage::kForm && row.what == meaning::kField) {
                 const auto i = static_cast<std::size_t>(row.which);
                 if (composing_.draft.fields[i].present)
@@ -769,10 +814,11 @@ private:
             }
         }
         shown_ = zengine::composer::project(composing_, rows_, columns_);
-        ws::v4::PaneContent said;
-        said.picture = ++picture_;
-        said.pane = kComposePane;
-        said.rows = zengine::composer::rows_of(shown_);
+        const std::string meant = meaning_of();
+        if (meant != meant_) {
+            meant_ = meant;
+            ++meaning_;
+        }
         // A row that means nothing is not listed: a row entire lies over no other part.
         ws::PartNames<ws::PaneRowPart> named;
         for (std::size_t row = 0; row < shown_.rows.size(); ++row) {
@@ -782,8 +828,24 @@ private:
                                                 columns_});
             }
         }
-        said.parts = named.take();
-        (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, said);
+        if (on_canvas()) {
+            ws::RowsCaret caret;
+            caret.row = shown_.caret_row;
+            caret.column = shown_.caret_col;
+            (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole,
+                ws::rows_picture(canvas_, pictures_.next(canvas_, meaning_),
+                                 zengine::composer::rows_of(shown_), named.take(), caret));
+        } else {
+            ws::v4::PaneContent said;
+            said.picture = meaning_;
+            said.pane = kComposePane;
+            said.rows = zengine::composer::rows_of(shown_);
+            said.parts = named.take();
+            (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, said);
+            // The caret beside the rows, said every time, so a caret that went goes.
+            (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole,
+                ws::PaneCaret{kComposePane, shown_.caret_row, shown_.caret_col});
+        }
         (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, ws::PaneActions{kComposePane, {
             {"compose.enter", "choose", input::scan::kReturn, input::mod::kNone},
             {"compose.submit", "submit", input::scan::kReturn, input::mod::kCtrl},
@@ -792,7 +854,26 @@ private:
             {"compose.unset", "unset field and discard value", input::scan::kU, input::mod::kCtrl}}});
     }
 
-    std::int64_t picture_ = 0;
+    /// WHAT A PRESS OR A DROP ON EACH ROW WOULD MEAN, spelled: the target, the form, and every
+    /// row's meaning and name. A picture drawn under the same spelling answers as this one does.
+    std::string meaning_of() const {
+        std::string out = composing_.role + '\n' + std::to_string(composing_.stage);
+        if (composing_.draft.valid()) {
+            out += '\n' + composing_.draft.schema->name() + " v" +
+                   std::to_string(composing_.draft.schema->version());
+        }
+        for (const zengine::composer::RenderedRow& row : shown_.rows) {
+            out += '\n' + std::to_string(row.meaning.what) + ':' + std::to_string(row.meaning.which) +
+                   ':' + zengine::composer::part_name(composing_, row.meaning);
+        }
+        return out;
+    }
+
+    std::int64_t meaning_ = 0; ///< numbers what the rows mean; moves only when that changes
+    std::string meant_;
+    ws::PaneCanvasRoom canvas_;
+    ws::CanvasPictures pictures_;
+    std::int64_t prose_rows_ = 0, prose_columns_ = 0;
     std::uint64_t send_correlation_ = 0, storage_asks_ = 1000000;
     std::optional<loom::Value> send_value_;
     std::string send_role_;
@@ -800,7 +881,7 @@ private:
     inv::PaneClient storage_;
     ComposerState state_;
     zengine::ActivationCursor activation_;
-    std::int64_t rows_ = 0;
+    std::int64_t rows_ = 0;    ///< the room composed for: the canvas lattice's, else the prose room's
     std::int64_t columns_ = 0;
     std::uint64_t pending_ = 0; ///< the outstanding discovery question, if any
     bool awaiting_ = false;

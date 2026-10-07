@@ -2254,10 +2254,8 @@ struct ComposeRig {
         r.bus.drain_until_idle();
     }
 
-    /// The provider's rows, off the published canvas, with Workshop's header dropped.
-    std::vector<std::string> rows() {
-        return external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
-    }
+    /// The provider's rows, off its own picture on the published canvas.
+    std::vector<std::string> rows() { return pane_rows(r, kind); }
     bool shows(const std::string& needle) {
         for (const std::string& row : rows()) {
             if (row.find(needle) != std::string::npos) {
@@ -2766,6 +2764,40 @@ TEST_CASE("a shape this build never compiled against generates its own form") {
     CHECK_FALSE(r.shows("alpha:Text"));
 }
 
+TEST_CASE("a Compose press naming the picture drawn before its rows meant another target's messages opens nothing") {
+    // THE FENCE THE CANVAS HANDS A PANE: Workshop stamps a press with the picture the medium was
+    // showing. Compose numbers its pictures by what its rows mean, so a press aimed at one
+    // target's catalog, arriving after another's took its rows, opens neither.
+    ComposeRig r;
+    r.with_timer();
+    r.with_stranger();
+    r.select(kTimerOffice, "zengine-timer");
+    const std::int64_t row = r.row_of("StartTimer v1");
+    REQUIRE(row >= 0);
+    const ExternalPane* pane = r.r.session().panes.external_pane(r.kind);
+    REQUIRE(pane != nullptr);
+    REQUIRE(shows_canvas(*pane));
+    const std::int64_t grant = pane->canvas.grant, timers = pane->canvas.content.picture;
+    r.select("zengine.stranger", "a-stranger");
+    REQUIRE(r.row_of("Curious v1") == row);
+    REQUIRE(pane->canvas.grant == grant);
+    REQUIRE(pane->canvas.content.picture > timers);
+    const CanvasRows lattice = held_canvas_rows(*pane);
+    const auto press = [&](std::int64_t picture) {
+        const PaneCanvasPointer p{zengine::composer::kComposePane, grant, picture, 1,
+                                  canvas_pointer::kPress, 1, lattice.column_x(4), lattice.row_y(row)};
+        r.r.bus.office_send_to_role_as(r.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
+                                       kComposerOffice, loom::Message(loom::to_value(p)));
+        r.r.bus.drain_until_idle();
+    };
+    // AIMED AT StartTimer, ARRIVING AFTER Curious TOOK ITS ROW: no form opens.
+    press(timers);
+    CHECK_FALSE(r.shows(" -> @"));
+    // A press on the picture showing Curious opens Curious's form.
+    press(pane->canvas.content.picture);
+    CHECK(r.shows("Curious v1 -> @zengine.stranger"));
+}
+
 TEST_CASE("a composed message reaches a target whose shape nobody shipped") {
     ComposeRig r;
     r.with_stranger();
@@ -2846,8 +2878,7 @@ TEST_CASE("selecting a weave in the real Loaded pane retargets the real Composer
     const ui::Rect intro_body = external_body_rect(r.session(), intro_kind);
     r.press_cell(intro_body.x + 1, intro_body.y + kExternalHeaderRows + which);
 
-    const std::vector<std::string> shown =
-        external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind));
+    const std::vector<std::string> shown = pane_rows(r, compose_kind);
     REQUIRE_FALSE(shown.empty());
     CHECK(shown[0] == "to @" + std::string(kIntroOffice));
     // THE TARGET ANSWERED, in the same turn, so the pane is already showing its real
