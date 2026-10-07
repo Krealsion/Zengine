@@ -2692,17 +2692,15 @@ TEST_CASE("a press that names a picture Files has replaced is refused in words a
     CHECK(row_beginning(rows_of(watch->content.back()), "> alpha.cpp") >= 0);
     CHECK(tap.attempts == 0);
 
-    // ...NOR ONE ABOUT A PICTURE OF A ROOM SINCE GRANTED AFRESH -- the same size, another grant:
-    // that picture was replaced whole, and neither its press nor its wheel moves the selection.
-    const PaneCanvasPointer old = [&] {
-        PaneCanvasPointer p = watch->canvas_at(beta, 0, canvas_pointer::kPress);
-        p.keys_went_here = true;
-        return p;
-    }();
+    // ...NOR ONE ABOUT A ROOM SINCE GRANTED AFRESH -- the same size, another grant -- even under
+    // the number of the picture drawn now: neither its press nor its wheel moves the selection.
+    PaneCanvasPointer old = watch->canvas_at(beta, 0, canvas_pointer::kPress);
+    old.keys_went_here = true;
     f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
         wv.canvas_grant(m, files::kFilesRole, files::kProjectFilesPane, 8, 60);
     });
     REQUIRE(watch->canvas_room.grant != old.grant);
+    old.picture = watch->pictures.back();
     f.r.drive_watcher(watch, [old](PaneWatcher& wv, loom::Mail& m) {
         wv.point(m, files::kFilesRole, old);
         PaneCanvasPointer wheel = old;
