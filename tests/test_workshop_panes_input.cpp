@@ -2141,8 +2141,16 @@ struct ComposeRig {
     /// `default_size` LEAVES THE PANE EXACTLY AS THE SHIPPED DESK OPENS IT -- the developer's
     /// answer, untouched -- which is what the desk-level grow witness starts from. Every other
     /// case wants the room its form was composed for and says so below.
-    explicit ComposeRig(bool default_size = false) {
+    /// `no_canvas`: a host that knows no canvas door, answering that no office accepts a canvas
+    /// room -- the one Compose says its rows to as prose.
+    explicit ComposeRig(bool default_size = false, bool no_canvas = false) {
         r.mount_workshop();
+        if (no_canvas) {
+            r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
+                                                                      const loom::Schema& shape) {
+                return shape.name() != PaneCanvasRoom::zen_name && accepts(role, shape);
+            };
+        }
         auto producer = std::make_unique<input::InputWeaveT<ComposerReader>>(ComposerReader{physical});
         auto* raw_input = producer.get();
         auto input_grant = loom::emit_default_grant(*producer);
@@ -2579,6 +2587,78 @@ TEST_CASE("a nonexistent TimerID composes, submits, and nothing here knows bette
     CHECK(r.shows("SUBMITTED"));
     CHECK_FALSE(r.shows("Cancelled"));
     CHECK_FALSE(r.shows("Success"));
+}
+
+TEST_CASE("Compose draws the edited value's caret in its own picture, on the cell after the value, and none once the field rests") {
+    ComposeRig r;
+    r.with_timer();
+    r.select(kTimerOffice, "zengine-timer");
+    r.focus();
+    r.choose("CancelTimer v1");
+    r.fill("id", "abc");
+    const auto caret = [&r] {
+        const ExternalPane* held = r.r.session().panes.external_pane(r.kind);
+        REQUIRE(held != nullptr);
+        REQUIRE(shows_canvas(*held));
+        return held_caret(*held);
+    };
+    const std::int64_t row = r.row_of("id:");
+    REQUIRE(row >= 0);
+    const std::string text = r.rows()[static_cast<std::size_t>(row)];
+    const std::size_t value = text.find("[abc ]");
+    REQUIRE_MESSAGE(value != std::string::npos, text);
+    CHECK(caret().row == row);
+    CHECK(caret().column == static_cast<std::int64_t>(value) + 4); // the blank after `c`
+    CHECK(wears_medium_ground(*r.r.session().panes.external_pane(r.kind))); // on the medium's ground
+    r.key(input::scan::kLeft);
+    CHECK(caret().column == static_cast<std::int64_t>(value) + 3);
+    r.key(input::scan::kDown);
+    CHECK(caret().row == surface::kNoCaret);
+}
+
+TEST_CASE("a host that grants Compose no canvas is shown its rows and caret as prose, its presses reach nothing there, and its keys still compose") {
+    ComposeRig r(false, /*no_canvas=*/true);
+    r.with_timer();
+    r.select(kTimerOffice, "zengine-timer");
+    const ExternalPane* held = r.r.session().panes.external_pane(r.kind);
+    REQUIRE(held != nullptr);
+    REQUIRE_FALSE(shows_canvas(*held));
+    REQUIRE(r.reach("CancelTimer v1")); // by the keys: the catalog is longer than the pane
+    const std::int64_t row = r.row_of("CancelTimer v1");
+    r.press_row(row); // the keys stay here; the press itself reaches nothing
+    CHECK(r.r.session().panes.keyboard == r.kind);
+    CHECK_FALSE(r.shows("id:"));
+    const auto walk_to = [&r](const std::string& marked) {
+        for (int i = 0; i < 64 && r.row_of(marked) < 0; ++i) r.key(input::scan::kDown);
+        REQUIRE(r.row_of(marked) >= 0);
+    };
+    walk_to("> CancelTimer v1");
+    r.key(input::scan::kReturn);
+    REQUIRE(r.shows("id:"));
+    walk_to("> id:");
+    r.type("abc");
+    const std::int64_t field = r.row_of("id:");
+    const std::string text = r.rows()[static_cast<std::size_t>(field)];
+    const std::size_t value = text.find("[abc ]");
+    REQUIRE_MESSAGE(value != std::string::npos, text);
+    held = r.r.session().panes.external_pane(r.kind);
+    CHECK(held_caret(*held).row == field);
+    CHECK(held_caret(*held).column == static_cast<std::int64_t>(value) + 4);
+}
+
+TEST_CASE("a right press on Compose's canvas is handed back, and Workshop's own pane menu opens") {
+    ComposeRig r;
+    r.with_timer();
+    r.select(kTimerOffice, "zengine-timer");
+    REQUIRE(r.reach("CancelTimer v1"));
+    const std::int64_t row = r.row_of("CancelTimer v1");
+    REQUIRE_FALSE(r.r.session().context.open);
+    const ui::Rect body = external_body_rect(r.r.session(), r.kind);
+    const std::int64_t y = body.y + kExternalHeaderRows + row + surface::kTuiCanvasTopRow;
+    r.input(input::PointerButton{3, true, body.x + 1, y, input::space::kCells, 0});
+    r.input(input::PointerButton{3, false, body.x + 1, y, input::space::kCells, 0});
+    CHECK(r.r.session().context.open);
+    CHECK(r.row_of("CancelTimer v1") == row); // a right press opens no form
 }
 
 TEST_CASE("a form with no fields is ready at once, and invents none") {

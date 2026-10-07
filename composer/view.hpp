@@ -198,8 +198,9 @@ inline std::int64_t form_items(const MessageDraft& d) noexcept { return back_ind
 
 /// The columns a field's value gets, and there is exactly one answer: the row is `mark + name +
 /// ":" + type + "  " + [ value ]`, so the value's room is what the fixed part left, less two
-/// brackets and the blank a caret after the value's last character stands on, floored at zero. The projector and the window
-/// reconciliation both call it, so `keep_caret_visible` gets the number the painter cuts with.
+/// brackets and the blank a caret after the value's last character stands on, floored at zero.
+/// The projector and the window reconciliation both call it, so `keep_caret_visible` gets the
+/// number the painter cuts with.
 inline std::int64_t value_capacity(const MessageDraft& draft, std::size_t which,
                                    std::int64_t columns) {
     if (!draft.valid() || which >= draft.size()) {
