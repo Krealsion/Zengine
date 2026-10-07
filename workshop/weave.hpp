@@ -330,6 +330,7 @@ class WorkshopWeave
                                           zengine::workshop::TerminalCompletionRequested,
                                           zengine::workshop::PresentationTrialRequested,
                                           zengine::workshop::PresentationAdmitRequested,
+                                          zengine::workshop::v2::PresentationAdmitRequested,
                                           zengine::workshop::ManagedOpenSettled,
                                           zengine::workshop::ManagedOpenProgress,
                                           zengine::workshop::EditorSwitchProgress,
@@ -392,6 +393,7 @@ class WorkshopWeave
                                         zengine::workshop::TerminalActed,
                                         zengine::workshop::TerminalCompletionOffered,
                                         zengine::workshop::PresentationTrial,
+                                        zengine::workshop::v2::PresentationTrial,
                                         zengine::workshop::PresentationAdmitted,
                                         zengine::workshop::OpenSourceRequested,
                                         zengine::workshop::PaneSourceOpened,
@@ -859,8 +861,10 @@ public:
     void on(const WithdrawalFence& fence, loom::Mail& mail);
     /// WOULD THE PANE SEAT, AND WITH WHAT ROOM? Judged on a copy; nothing moves.
     void on(const PresentationTrialRequested& asked, loom::Mail& mail);
-    /// ADMIT THE TRIAL'S CONTENT AND OFFER THE PRESENTATION for the exact operation.
+    /// ADMIT THE TRIAL'S CONTENT AND OFFER THE PRESENTATION for the exact operation: its rows...
     void on(const PresentationAdmitRequested& asked, loom::Mail& mail);
+    /// ...or its picture, in the canvas room the trial reserved.
+    void on(const v2::PresentationAdmitRequested& asked, loom::Mail& mail);
     /// THE OPERATION ENDED, said afterwards; the commitment already happened or did not.
     void on(const ManagedOpenSettled& said, loom::Mail& mail);
     /// WHAT THE MANAGER IS WAITING ON, kept as a standing condition a weaver can read.
@@ -889,7 +893,8 @@ private:
     bool show_presentation(const PanePresentation& published);
 
     /// THE ONE TRIAL IN FLIGHT: which pane, the candidate setup with it added, the room its
-    /// body would get, and -- once admitted -- the rows and caret it will show.
+    /// body would get -- and the canvas room reserved for its picture, where its holder draws one
+    /// -- and, once admitted, the rows and caret or the picture it will show.
     struct Trial {
         bool live = false;
         std::uint64_t op = 0;
@@ -909,12 +914,19 @@ private:
         std::int64_t sel_begin_col = 0;
         std::int64_t sel_end_row = surface::kNoSelection;
         std::int64_t sel_end_col = 0;
+        PixelRect canvas_body;  ///< where the canvas room stands, and the title rows over it
+        std::int64_t title_rows = 0;
+        PaneCanvasRoom room;    ///< the canvas room reserved for the picture; no grant: rows
+        bool pictured = false;  ///< the picture below is admitted
+        v5::PaneCanvasContent picture;
     };
     struct TrialRoom {
         bool ok = false;
         std::string refusal;
         std::int64_t rows = 0;
         std::int64_t columns = 0;
+        PixelRect canvas_body; ///< the canvas body the seat would have, and its title rows
+        std::int64_t title_rows = 0;
     };
     /// The kind the managed reference resolves to right now, or `kNoPaneKind`.
     std::int64_t managed_kind() const;
@@ -926,6 +938,10 @@ private:
     void mirror_presentation(loom::Mail& mail);
     /// The room the pane's body would have after seating on `candidate`, or why not.
     TrialRoom trial_room(const Setup& candidate, std::int64_t kind, const std::string& name) const;
+    /// The trial's room judged again at its admission: empty when it stands, else why not.
+    std::string trial_room_stands();
+    /// The presentation the desk would have after the commitment, offered for the trial's operation.
+    void offer_presentation(std::int64_t op, std::int64_t generation, loom::Mail& mail);
     /// The shared admission of content, generation-aware; the v1 door passes none.
     void admit_content(std::string_view office, const std::string& pane_key,
                        const std::vector<surface::SurfaceTextRow>& rows,
@@ -944,6 +960,8 @@ private:
     /// ...and the room grant the publication owes the pane it seated, said at the end of the
     /// delivery through the one door every room goes through.
     bool room_owed_ = false;
+    /// ...and the canvas room it seated the pane's picture in, said to the holder after the showing.
+    bool canvas_room_owed_ = false;
 
     /// IS THIS THE CHARACTER THAT KEY PRODUCED?
     static bool same_keystroke(const std::string& text, const std::string& owed);

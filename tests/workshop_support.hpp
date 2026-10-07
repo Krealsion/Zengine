@@ -2245,6 +2245,44 @@ private:
     std::string office_;
 };
 
+/// A TEXT PANE THAT SPENDS THE PROSE POINTER -- the press that names its picture, the sweep it
+/// begins and a value placed on its rows -- recorded as Workshop said them and never interpreted:
+/// the prose door's own witness, every shipped pane drawing its rows on its canvas.
+class SweepSeat
+    : public loom::WeaveBase<SweepSeat, SeatState,
+                             loom::Accept<PaneCatalogRequested, PaneRoom, v3::PanePressed, PaneDragged,
+                                          PaneValueDrop, SeatDo>,
+                             loom::Emit<PaneOffered, PaneContent>> {
+public:
+    explicit SweepSeat(std::string office) : office_(std::move(office)) {}
+    void on(const PaneCatalogRequested&, loom::Mail&) {}
+    void on(const PaneRoom& r, loom::Mail&) { rooms.push_back(r); }
+    void on(const v3::PanePressed& p, loom::Mail&) { presses.push_back(p); }
+    void on(const PaneDragged& d, loom::Mail&) { drags.push_back(d); }
+    void on(const PaneValueDrop& d, loom::Mail&) { drops.push_back(d); }
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(SweepSeat&, loom::Mail&)> once;
+            once.swap(next);
+            once(*this, mail);
+        }
+    }
+    void offer(loom::Mail& mail, const PaneOffered& o) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, o);
+    }
+    void say(loom::Mail& mail, const PaneContent& c) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
+    }
+    std::vector<PaneRoom> rooms;
+    std::vector<v3::PanePressed> presses;
+    std::vector<PaneDragged> drags;
+    std::vector<PaneValueDrop> drops;
+    std::function<void(SweepSeat&, loom::Mail&)> next;
+
+private:
+    std::string office_;
+};
+
 
 /// A WEAVE THAT HOLDS `zengine.workshop` AND IS NOT WORKSHOP -- the instrument for a PROVIDER's
 /// own authorship checks, whose refusals are invisible from Workshop's side: a room the provider
@@ -2582,6 +2620,8 @@ struct PaneRig {
                               PresentationTrialRequested::zen_version, kWorkshopProvider);
         arrange.allow_to_role(PresentationAdmitRequested::zen_name,
                               PresentationAdmitRequested::zen_version, kWorkshopProvider);
+        arrange.allow_to_role(v2::PresentationAdmitRequested::zen_name,
+                              v2::PresentationAdmitRequested::zen_version, kWorkshopProvider);
         arrange.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
                               kWorkshopProvider);
         arrange.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
@@ -2592,6 +2632,8 @@ struct PaneRig {
                               kEditorRole); // the `apply` word, as workshop.cpp grants it
         arrange.allow_to_role(PrepareSourceRequested::zen_name,
                               PrepareSourceRequested::zen_version, kEditorRole);
+        arrange.allow_to_role(v2::PrepareSourceRequested::zen_name,
+                              v2::PrepareSourceRequested::zen_version, kEditorRole);
         arrange.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
         loom::allow_poke_answers(arrange); // inspectable, as the host mounts it
         opening_id = bus.register_weave(std::move(opener), std::move(arrange),
@@ -2675,6 +2717,34 @@ struct PaneRig {
         (void)bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                          loom::WeaveId{}, 0));
         bus.drain_until_idle();
+    }
+
+    /// A TEXT PANE THAT SPENDS THE PROSE POINTER in `office`, offered as `pane`, its rows `rows`,
+    /// and picked onto the desk; its kind, or `kNoPaneKind`.
+    std::int64_t mount_sweep(std::string_view office, const std::string& pane,
+                             std::vector<surface::SurfaceTextRow> rows, SweepSeat** made,
+                             loom::WeaveId* made_id = nullptr) {
+        auto seat = std::make_unique<SweepSeat>(std::string(office));
+        SweepSeat* raw = seat.get();
+        loom::Grant grant;
+        grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+        grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+        const loom::WeaveId id =
+            bus.register_weave(std::move(seat), std::move(grant), std::string(office));
+        raw->zen_set_self(id);
+        const auto run = [&](std::function<void(SweepSeat&, loom::Mail&)> what) {
+            raw->next = std::move(what);
+            (void)bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                             loom::WeaveId{}, 0));
+            bus.drain_until_idle();
+        };
+        run([pane](SweepSeat& s, loom::Mail& m) { s.offer(m, PaneOffered{pane, "Sweep", "a text pane"}); });
+        pick(PaneRef{std::string(office), pane});
+        run([pane, rows](SweepSeat& s, loom::Mail& m) { s.say(m, PaneContent{pane, rows}); });
+        *made = raw;
+        if (made_id != nullptr) *made_id = id;
+        const RuntimePane* row = session().panes.runtime.find(std::string(office), pane);
+        return row == nullptr ? kNoPaneKind : row->kind;
     }
 
     /// LOAD A REAL SHARED LIBRARY THROUGH THE REAL KERNEL AND MANAGER, exactly as a

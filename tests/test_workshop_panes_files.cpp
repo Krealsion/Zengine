@@ -1017,10 +1017,9 @@ TEST_CASE("the keys leave Files by a press into the Editor and Files is told not
     // NOTHING REACHED FILES AS THE KEYS LEFT IT but the end of its own last press's hold.
     CHECK(tap.heard.size() == tap.lost);
     CHECK(tap.lost <= 1);
-    // THE EDITOR HEARD EXACTLY ONE PRESS IN IT, in the newest version it accepts: it numbers its
-    // picture (its rows are a drop target), so it hears v3 as the browser does.
+    // THE EDITOR HEARD EXACTLY ONE PRESS IN IT, on the canvas it draws its rows on, as Files does.
     REQUIRE(editor_tap.pressed.size() == 1);
-    CHECK(editor_tap.versions[0] == 3u);
+    CHECK(editor_tap.versions[0] == PaneCanvasPointer::zen_version);
     CHECK(editor_tap.refused == 0);
 
     press_pane(f.r, f.kind, row_beginning(f.shown(), "> alpha.cpp"), 0);

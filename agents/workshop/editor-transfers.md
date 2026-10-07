@@ -31,14 +31,16 @@ WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
 ## WL-EDIT-18 — A drop and a highlight press are judged against the picture they aimed at
 
-LAW — The picture number moves exactly when the row-to-meaning map does; a drop naming another picture is refused, and a press naming one is an ordinary press that remembers nothing.
+LAW — A drop and a highlight press count only on a picture drawn under the row-to-meaning map the pane has now; a drop aimed at another is refused, and such a press is an ordinary one that remembers nothing.
 
 MEANS
 - the map is the epoch, the revision, the viewport, the chrome rows, the room, the selection;
-- a caret move alone keeps the picture; a scroll, an edit or a notice row moves it.
+- a caret move alone keeps the map; a scroll, an edit or a notice row moves it;
+- each picture is numbered in its room (`CanvasPictures`), current while the map stands.
 
 PROVEN BY — `editor-pane/pane.cpp` `say`, `PictureKey`, `press_at`, `receive`;
-`workshop/pane_carry.hpp` `PaneValueDrop`; `tests/test_workshop_editor_transfers.cpp` case `"a
+`workshop/pane_canvas_rows.hpp` `CanvasPictures`; `workshop/pane_carry.hpp`
+`PaneCanvasValueDrop`; `tests/test_workshop_editor_transfers.cpp` case `"a
 drop aimed at a picture the text has since left is refused and changes nothing"`.
 WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 

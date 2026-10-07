@@ -127,8 +127,10 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::load_persist::WorkshopLoadWeave>(), // WorkshopLoadWeave v1
         shape<::zengine::workshop::PanePresentation>(), // PanePresentation v1
         shape<::zengine::workshop::PresentationAdmitRequested>(), // PresentationAdmitRequested v1
+        shape<::zengine::workshop::v2::PresentationAdmitRequested>(), // PresentationAdmitRequested v2
         shape<::zengine::workshop::PresentationAdmitted>(), // PresentationAdmitted v1
         shape<::zengine::workshop::PresentationTrial>(), // PresentationTrial v1
+        shape<::zengine::workshop::v2::PresentationTrial>(), // PresentationTrial v2
         shape<::zengine::workshop::PresentationTrialRequested>(), // PresentationTrialRequested v1
         shape<::zengine::workshop::OpeningState>(), // OpeningState v1
         shape<::zengine::workshop::v2::PaneCanvasContent>(), // PaneCanvasContent v2
