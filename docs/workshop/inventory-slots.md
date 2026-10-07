@@ -21,6 +21,8 @@ saves the name; Escape keeps the generated name and the stored value. Existing e
 changed with right-click **Rename entry...** (or Ctrl+N). Renaming preserves identity, data and
 hotkey configuration; moving an existing entry does not prompt for a new name.
 
+![A field dragged out of Info 2 into Inventory, stored and offered Name: the name being typed, Field sample, with sample selected and the caret before it](images/inventory-name-new-item.png)
+
 Right-click **Duplicate with next number** or **Duplicate and name** for independent data.
 The duplicate remembers a configured key and target but starts disabled. To use a command hotkey:
 

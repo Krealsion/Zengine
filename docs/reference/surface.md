@@ -49,6 +49,8 @@ video, a caret's or a selection's, swaps the two; on a ground the canvas painted
 pane's black, it is the palette's white, as that ground is the palette's. The window keeps its
 own colours.
 
+![Inventory and Info in a dark terminal and in a light one, each drawing its rows on the terminal's own ground: plain text in that terminal's own text colour; Inventory's name line, Input sample, with sample selected and the caret on its s; Info's Width draft, 480, with 80 selected](../workshop/images/terminal-plain-text-light-dark.png)
+
 **Which of the two kinds of text a publisher chooses is one question, and it is not about
 importance**: *is the rectangle mine?* A `SurfaceTextRegion` is the
 semantic shape — it is the only one a graphical medium sets in real type — and it answers that
