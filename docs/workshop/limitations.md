@@ -254,9 +254,9 @@ Files' authoring line, the Builder's role line, Powers' search and the Composer'
 and what it has selected, beside the rows it sends or in the picture it draws, so every one of
 those lines has an insertion point — a bar between glyphs in a window, an inverted cell in a
 terminal. Only the Terminal, Info's and Inventory's lines and the layout-name line draw their
-selection; in the others a range selected by keyboard works and is not shown. What no pane's LINE has is a pointer
-sweep: the two editors accept one while the button is held (`PaneDragged`) and no single-line
-pane does, so in a line a range is selected by `Shift` and the arrow keys.
+selection; in the others a range selected by keyboard works and is not shown. What no pane's
+LINE has is a pointer sweep: the two editors accept one while the button is held (`PaneDragged`)
+and no single-line pane does, so in a line a range is selected by `Shift` and the arrow keys.
 
 ### Neovim in the Editor pane draws plain text, one range, and no colours
 
