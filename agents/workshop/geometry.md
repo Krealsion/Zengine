@@ -229,7 +229,7 @@ LAW — A desk and a pane's words are answered from what Workshop owns, in canva
 
 MEANS
 - a canvas pane's labels and runs are words as a text pane's rows are, and so are a menu's lines;
-- the point a word gives is resolved by the measurer a press is, so a press there lands on it;
+- the point a word or a lattice cell gives is resolved by the measurer a press is, so a press there lands on it;
 - reading grants nothing and moves nothing: a press is ordinary input.
 
 DOES NOT MEAN
@@ -237,7 +237,7 @@ DOES NOT MEAN
 - that a covered pane's words are said: a menu or arranging over it refuses them.
 
 PROVEN BY — `workshop/weave_inspection.cpp` `desk_view`, `visible_words`, `word_on`,
-`glyph_point`; `tests/test_workshop_desk.cpp` case `"every place the desk and the words give is
+`glyph_point`, `on(v3::PanePointRequested)`; `tests/test_workshop_desk.cpp` case `"every place the desk and the words give is
 where the medium draws it, in a window and in a terminal"`, case `"a canvas pane's words are its
 labels and text runs, each where it is drawn, and a press at a word's point lands inside it in
 the pane's own canvas"`, case `"a character's point is the cell showing it, a caret moving none,
@@ -246,7 +246,9 @@ as wide as its pane with a caret in it says every character, at a place inside t
 caret past its end on its last cell"`, case `"a word that is only a caret is pressed on the
 caret's own cell, inside its place, in a text row and in a canvas field at the body's right
 edge"`, case `"a part whose one cell holds the caret at the body's right edge has a point there,
-and a press on it reaches the pane"`.
+and a press on it reaches the pane"`, case `"every cell of a canvas pane's text lattice has a point, a
+blank one and the one after a row's last character too, and a press there reaches the pane at that
+cell; a text pane's cell is the first version's"`.
 WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
 ## Do not assume

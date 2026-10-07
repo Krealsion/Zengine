@@ -694,7 +694,10 @@ what Workshop owns and none read off a picture:
 - **Where one character is.** `PanePointRequested` version 2,
   `{provider,pane,picture,word,column}`, answers where one character of one word is now, for the
   picture the caller read; version 1, `{provider,pane,picture,row,column}`, one painted cell of a
-  text pane, and a pane drawing its own picture refuses it. So a tool presses a control such as `[Save copy]`, or the View Builder's `[Label]`,
+  text pane, and a pane drawing its own picture refuses it; version 3, the same fields, one cell of
+  a pane's text lattice -- a text pane's painted cell, as version 1 answers it, or the cell of the
+  lattice a canvas pane's room sets its text on, a blank one or the one after a row's last
+  character too. So a tool presses a control such as `[Save copy]`, or the View Builder's `[Label]`,
   without knowing a font.
 
 ![A 1440 by 900 window after a walk read by messages: the View Builder, at 96,102 and 840 by 240 as the desk says, made label1 when its [Label] was pressed by what it says; Info, holding the keys, has Height chosen by select and shows the 240 px written through it](images/desk-read-by-message.png)

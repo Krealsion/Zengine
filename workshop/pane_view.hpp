@@ -175,6 +175,17 @@ struct PaneView {
               ZEN_FIELD(canvas), ZEN_FIELD(words), ZEN_FIELD(parts));
 };
 
+/// Where one cell of a pane's text lattice is now, for a caller that read the pane at `picture`,
+/// answered as `PanePoint`: a text pane's painted cell, as the first version's, or a canvas pane's
+/// cell of the lattice its room's text stands on (`canvas_rows`), a blank one and the one after a
+/// row's last character too.
+struct PanePointRequested {
+    std::string provider, pane;
+    std::int64_t picture = 0, row = 0, column = 0;
+    ZEN_SHAPE(PanePointRequested, 3, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture),
+              ZEN_FIELD(row), ZEN_FIELD(column));
+};
+
 } // namespace v3
 
 namespace v2 {
