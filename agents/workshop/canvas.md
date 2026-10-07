@@ -149,7 +149,9 @@ canvas wears the medium's own ground beneath them, as a prose body does, in a wi
 terminal"; `tests/test_workshop_panes_files.cpp` case "a host that grants Files no canvas is shown
 its rows as prose, its presses reach nothing there, and Return still opens";
 `tests/test_workshop_panes_input.cpp` case "a host that grants Compose no canvas is shown its rows
-and caret as prose, its presses reach nothing there, and its keys still compose".
+and caret as prose, its presses reach nothing there, and its keys still compose";
+`tests/test_workshop_panes_info.cpp` case "a host that grants Info no canvas is shown its lists and
+a draft's caret as prose, its presses reach nothing there, and its keys still inspect and edit".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## Do not assume

@@ -24,6 +24,7 @@
 #include "inventory/observation.hpp"
 #include "inventory/pane_client.hpp"
 #include "message-draft/transfer.hpp"
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
@@ -186,12 +187,14 @@ public:
 
     // ---- opening a subject -----------------------------------------------------------------
 
-    /// A VALUE DROPPED ON THIS VIEW. A typed field copy fills the field row it was dropped on;
-    /// any other value keeps its open-subject meaning and never replaces unsaved work.
-    void drop_value(const workshop::PaneValueDrop& drop, ViewContext& c) {
+    /// A VALUE DROPPED ON THIS VIEW at `row` and `column` of the picture it was aimed at, which
+    /// `current` says this view still shows. A typed field copy fills the field row it was dropped
+    /// on; any other value keeps its open-subject meaning and never replaces unsaved work.
+    void drop_value(const loom::Bytes& data, std::int64_t row, std::int64_t column, bool current,
+                    ViewContext& c) {
         try {
-            auto decoded = inventory::decode_pair(view(drop.data));
-            if (message_draft::is_field_value(decoded.item)) { fill_field(drop, decoded.item); return; }
+            auto decoded = inventory::decode_pair(view(data));
+            if (message_draft::is_field_value(decoded.item)) { fill_field(row, column, current, decoded.item); return; }
             if (!allocated_) allocate();
             if (busy() || dirty_ || editing()) {
                 notice_ = dirty_ ? "Unsaved edits kept: a whole value would replace this draft. Save, Save copy or "
@@ -203,7 +206,7 @@ public:
             const bool watched = watching();
             stop_watch(c, {});
             load(decoded, true);
-            saved_ = {{}, 0, drop.data}; detached_ = true; label_.clear();
+            saved_ = {{}, 0, data}; detached_ = true; label_.clear();
             forget_subject();
             active = true; select_first();
             notice_ = std::string(watched ? "Watch ended: this view now holds an independent copy. " : "Independent copy; ") +
@@ -213,14 +216,14 @@ public:
 
     /// A LIVE REFERENCE DROPPED ON THIS VIEW: read the entry it names, under this gesture. Until
     /// it answers, the view keeps showing -- and watching -- what it showed, frozen.
-    void drop_reference(const workshop::PaneDrop& drop, ViewContext& c) {
+    void drop_reference(const loom::Bytes& data, ViewContext& c) {
         if (!allocated_) allocate();
         if (busy() || dirty_ || editing()) {
             notice_ = "Save, Save copy or discard this draft before linking another entry";
             return;
         }
         try {
-            const auto pair = inventory::decode_pair(view(drop.data));
+            const auto pair = inventory::decode_pair(view(data));
             if (!loom::same_identity(pair.item.schema(), *loom::schema_of<inventory::InventoryReference>()))
                 throw std::invalid_argument("Info does not yet inspect this kind of reference");
             const auto ref = loom::from_value<inventory::InventoryReference>(pair.item);
@@ -234,11 +237,12 @@ public:
 
     // ---- gestures ------------------------------------------------------------------------
 
-    /// A PRESS ON THE PICTURE THIS VIEW PUBLISHED. Returns the control a press chose, for the
-    /// weave to route through the same act a key or menu row reaches.
-    std::string press(std::int64_t row, std::int64_t column, std::int64_t picture, std::uint64_t gesture) {
+    /// A PRESS ON THE PICTURE THIS VIEW PUBLISHED, which `current` says it still shows. Returns
+    /// the control a press chose, for the weave to route through the same act a key or menu row
+    /// reaches.
+    std::string press(std::int64_t row, std::int64_t column, bool current, std::uint64_t gesture) {
         press_ = {};
-        if (!map_.current(picture)) { notice_ = "This view changed -- press again"; return {}; }
+        if (!current) { notice_ = "This view changed -- press again"; return {}; }
         const Meaning* at = map_.at(row, column);
         if (!at) return {};
         if (at->kind == Meaning::kControl) return at->control;
@@ -654,6 +658,7 @@ public:
         workshop::v4::PaneContent out;
         out.pane = key_;
         map_.begin();
+        caret_ = {};
         const auto width = columns_;
         const auto push = [&](std::string text, std::int64_t role, std::int64_t ground = surface::role::kNone) {
             if (static_cast<std::int64_t>(out.rows.size()) < rows_)
@@ -672,8 +677,19 @@ public:
         if (editing_ || renaming_) {
             if (!notice_.empty()) push(notice_, surface::role::kAlert);
             push(editing_ ? "Edit " + message_draft::path_label(field_) : std::string("View title"), surface::role::kFill);
-            line_.keep_caret_visible(std::max<std::int64_t>(0, width - 2));
-            push("> " + line_.visible(std::max<std::int64_t>(0, width - 2)), surface::role::kAccent);
+            const std::int64_t room = std::max<std::int64_t>(0, width - 2);
+            line_.keep_caret_visible(room);
+            if (room > 0 && static_cast<std::int64_t>(out.rows.size()) < rows_) {
+                const auto row = static_cast<std::int64_t>(out.rows.size());
+                caret_.row = row;
+                caret_.column = 2 + static_cast<std::int64_t>(line_.caret_column());
+                if (const auto span = line_.visible_selection(room); span.present()) {
+                    caret_.sel_begin_row = caret_.sel_end_row = row;
+                    caret_.sel_begin_col = 2 + span.begin;
+                    caret_.sel_end_col = 2 + span.end;
+                }
+            }
+            push("> " + line_.visible(room), surface::role::kAccent);
             push("Enter keeps it; Escape cancels", surface::role::kMuted);
             out.picture = map_.settle();
             return out;
@@ -713,9 +729,8 @@ public:
         return out;
     }
 
-    /// THE MEANING UNDER A PLACE, for the weave's menu placement and tests.
-    const Meaning* meaning(std::int64_t row, std::int64_t column) const { return map_.at(row, column); }
-    std::int64_t picture() const noexcept { return map_.picture(); }
+    /// WHERE THE LINE BEING TYPED HAS ITS CARET AND SELECTION in the rows last composed, or none.
+    const workshop::RowsCaret& caret() const noexcept { return caret_; }
     static std::string label_of(const std::string& id) {
         static const std::vector<std::pair<std::string, std::string>> names = {
             {kActionSave, "Save"}, {kActionSaveCopy, "Save copy"}, {kActionRefresh, "Refresh"},
@@ -1172,15 +1187,15 @@ private:
 
     /// A TYPED FIELD COPY DROPPED ON THIS VIEW: fill the field row under the drop, or refuse
     /// with the draft exactly as it was.
-    void fill_field(const workshop::PaneValueDrop& drop, const loom::Value& value) {
+    void fill_field(std::int64_t row, std::int64_t column, bool current, const loom::Value& value) {
         if (!item_) { notice_ = "Open a value here before dropping a field into it"; return; }
-        if (!map_.current(drop.picture)) { notice_ = "This view changed during the drag; nothing was filled -- drop again"; return; }
+        if (!current) { notice_ = "This view changed during the drag; nothing was filled -- drop again"; return; }
         if (editing()) { notice_ = "Finish the open edit before filling a field"; return; }
         if (const auto what = replacing(); !what.empty()) {
             notice_ = "Field drop refused, nothing changed: " + frozen(what);
             return;
         }
-        const Meaning* at = map_.at(drop.row, drop.column);
+        const Meaning* at = map_.at(row, column);
         if (!at || at->kind != Meaning::kField) { notice_ = "Drop a field onto a field row of this view"; return; }
         if (at->field.metadata >= 0) { notice_ = "Capture metadata is read-only; drop onto an item field"; return; }
         try {
@@ -1319,6 +1334,7 @@ private:
     std::int64_t rows_ = 0, columns_ = 0;
     bool granted_ = false;
     component::RowMap<Meaning> map_;
+    workshop::RowsCaret caret_;
     std::string notice_;
 
     inventory::PaneClient client_;
