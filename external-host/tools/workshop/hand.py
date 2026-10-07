@@ -203,17 +203,25 @@ class Hand:
     def control(self, provider, pane, label):
         """Press a visible `[label]` control, in a text pane's rows or a canvas pane's words: the
         column comes from the painted word, the screen position from Workshop, so no caller
-        multiplies a font metric."""
-        view = self.words(provider, pane)
+        multiplies a font metric. A pane that redrew between the reading and the point is read
+        again, as a canvas pane numbers every picture it sends."""
         word = "[" + label + "]"
-        for w in view["words"]:
-            at = w["text"].find(word)
-            if at >= 0:
-                where = self.word_point(provider, pane, w["word"], at + 1, view["picture"])
-                self.click(where)
-                return where
-        self.last_view(view)
-        raise ValueError("no visible control %s in %s/%s" % (word, provider, pane))
+        for _ in range(3):
+            view = self.words(provider, pane)
+            found = [w for w in view["words"] if word in w["text"]]
+            if not found:
+                self.last_view(view)
+                raise ValueError("no visible control %s in %s/%s" % (word, provider, pane))
+            try:
+                where = self.word_point(provider, pane, found[0]["word"],
+                                        found[0]["text"].find(word) + 1, view["picture"])
+            except Refused as refused:
+                if "picture moved" not in str(refused):
+                    raise
+                continue  # the pane redrew between the reading and the point: read it again
+            self.click(where)
+            return where
+        raise ValueError("control %s in %s/%s kept moving while it was read" % (word, provider, pane))
 
     def spot(self, provider, pane, text, row_prefix=""):
         """Where Workshop paints `text` now, on the first row starting with `row_prefix` that

@@ -493,6 +493,7 @@ class CanvasWorkshop(Context):
         self.inputs["steps"] = json.dumps(list(act_steps))
         self.panes, self.unreached, self.asked, self.kept = dict(panes), set(unreached), [], {}
         self.holder = None  # the pane a press last landed on, which hears the keys
+        self.redraws = 0  # points to refuse as a pane that redrew since it was read
 
     def produce(self, name, data):
         self.kept[name] = data
@@ -517,6 +518,10 @@ class CanvasWorkshop(Context):
                 from loom_session.tool import Refused
                 raise Refused("pane view unavailable: closed, unknown or covered by an interaction")
             if shape == "PanePointRequested":
+                if self.redraws:
+                    from loom_session.tool import Refused
+                    self.redraws -= 1
+                    raise Refused("pane point unavailable: the pane's picture moved; read it again")
                 return pane.point(fields["word"], fields["column"])
             return pane.view(fields["provider"], fields["pane"], self.pointed)
         if shape == "InjectInput":
@@ -1328,6 +1333,7 @@ def run_checks(tools, runtime):
             files = CanvasFiles()
             ctx = CanvasWorkshop(steps, {self.FILES: files})
             held = hand.Hand(ctx, "workshop")
+            ctx.redraws = 1  # Files redraws once between the reading and the point: read again
             try:
                 where = held.control(*self.FILES, "look again")
                 listed = [p["name"] for p in held.words(*self.FILES)["parts"]
