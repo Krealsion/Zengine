@@ -1142,8 +1142,17 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
     REQUIRE(aimed >= 1);
     REQUIRE(row_beginning(painted, "Files ") == 0);
 
+    const std::int64_t pressed_in = f.r.session().panes.external_pane(f.kind)->canvas.grant;
     SeamTap tap(f.r.bus, f.files_id());
     f.r.press_cell(body.x, body.y + aimed);
+    // WHILE THE PRESS IS HELD the room it was aimed at stands, and the picture is painted where it
+    // was drawn: its heading on its first row, gamma on the row pressed.
+    REQUIRE(keyboard_pane(f.r.session().panes) == f.kind);
+    CHECK(f.r.session().panes.external_pane(f.kind)->canvas.grant == pressed_in);
+    const std::vector<std::string> held = f.shown();
+    CHECK(row_beginning(held, "Files ") == 0);
+    REQUIRE(static_cast<std::int64_t>(held.size()) > aimed);
+    CHECK(held[static_cast<std::size_t>(aimed)].find("gamma.cpp") != std::string::npos);
     f.r.publish(loom::to_value(input::PointerButton{1, false, body.x, body.y + aimed + surface::kTuiCanvasTopRow,
                                                     input::space::kCells, input::mod::kNone}));
     const std::vector<std::string> after = f.shown();
