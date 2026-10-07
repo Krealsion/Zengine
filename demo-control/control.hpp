@@ -4,6 +4,8 @@
 #define ZENGINE_DEMO_CONTROL_CONTROL_HPP
 #include "vocabulary.hpp"
 #include "activation/activation.hpp"
+#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_menu.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 #include <zen/weave.hpp>
@@ -11,10 +13,12 @@
 namespace zengine::demo {
 namespace ws = zengine::workshop;
 class Control final : public loom::WeaveBase<Control, DemoStatus,
-    loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PanePressed,
+    loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
+                 ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                  DemoServiceOpened, DemoServiceClosed, DemoWorkRequested, DemoWorkFinished,
                  DemoResetRequested, DemoStatusRequested, DemoReadyRequested>,
-    loom::Emit<ws::v2::PaneOffered, ws::v4::PaneContent, DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
+    loom::Emit<ws::v2::PaneOffered, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
+               ws::PanePassRequested, DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
 public:
     void on(const loom::Activated& a, loom::Mail& m) {
         if (!activation_.accept(m, a)) return;
@@ -28,10 +32,26 @@ public:
         if (!m.authored_from_role("zengine.workshop") || r.pane != "controls") return;
         rows_ = r.rows; columns_ = r.columns; paint(m);
     }
-    void on(const ws::PanePressed& p, loom::Mail& m) {
-        if (m.authored_from_role("zengine.workshop") && p.pane == "controls" && p.row == 1)
-            reset(m, false);
+    /// THE PANE DRAWS ITS ROWS ON ITS CANVAS while it holds a room there, and says them as prose
+    /// only to a host that grants none.
+    void on(const ws::PaneCanvasRoom& r, loom::Mail& m) {
+        if (!m.authored_from_role("zengine.workshop") || r.pane != "controls") return;
+        room_ = r; paint(m);
     }
+    /// A primary press anywhere on the reset row resets; a right press is handed back, so
+    /// Workshop's own pane menu opens there.
+    void on(const ws::PaneCanvasPointer& p, loom::Mail& m) {
+        if (!m.authored_from_role("zengine.workshop") || p.pane != "controls" ||
+            p.grant != room_.grant || p.phase != ws::canvas_pointer::kPress) return;
+        if (p.button == 3) {
+            (void)ws::pane_menu::pass_back(m, kRole, "controls");
+            return;
+        }
+        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(room_), p.x, p.y);
+        if (p.button == 1 && at.shown && at.row == 1) reset(m, false);
+    }
+    /// A refused picture leaves the last good one showing; a later paint draws again.
+    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
     void on(const DemoStatusRequested&, loom::Mail& m) { (void)m.answer(state_); }
     void on(const DemoReadyRequested& r, loom::Mail& m) {
         if (r.generation < 0 || waiters_.size() >= 8) {
@@ -115,17 +135,26 @@ private:
                 } else ++it;
             }
         }
-        if (rows_ <= 0 || columns_ <= 0) return;
+        const bool canvas = room_.grant > 0 && room_.width > 0 && room_.height > 0;
+        const ws::CanvasRows lattice = ws::canvas_rows(room_);
+        const std::int64_t budget = canvas ? lattice.rows : rows_;
+        const std::int64_t columns = canvas ? lattice.columns : columns_;
+        if (budget <= 0 || columns <= 0) return;
         std::vector<surface::SurfaceTextRow> rows;
         for (const auto& text : {state_.name, std::string("[ Reset demo ]"),
                                  state_.state + ": " + state_.note}) {
-            if (static_cast<std::int64_t>(rows.size()) == rows_) break;
-            rows.push_back({ws::pane_text::drawable(ws::pane_text::fit(text, columns_)), surface::role::kFill});
+            if (static_cast<std::int64_t>(rows.size()) == budget) break;
+            rows.push_back({ws::pane_text::drawable(ws::pane_text::fit(text, columns)), surface::role::kFill});
         }
         // THE RESET ROW IS NAMED `control:reset`, and the state beneath it `status`.
         std::vector<ws::PaneRowPart> parts;
-        if (rows.size() > 1) parts.push_back(ws::PaneRowPart{"control:reset", 1, 0, columns_});
-        if (rows.size() > 2) parts.push_back(ws::PaneRowPart{"status", 2, 0, columns_});
+        if (rows.size() > 1) parts.push_back(ws::PaneRowPart{"control:reset", 1, 0, columns});
+        if (rows.size() > 2) parts.push_back(ws::PaneRowPart{"status", 2, 0, columns});
+        if (canvas) {
+            m.as_role(kRole).send_to_role("zengine.workshop",
+                ws::rows_picture(room_, pictures_.next(room_, 0), rows, parts));
+            return;
+        }
         m.as_role(kRole).send_to_role("zengine.workshop",
                                       ws::v4::PaneContent{"controls", std::move(rows), 0, 0, std::move(parts)});
     }
@@ -136,6 +165,8 @@ private:
     std::vector<Waiter> waiters_;
     bool offered_ = false, doing_ = false;
     std::int64_t rows_ = 0, columns_ = 0;
+    ws::PaneCanvasRoom room_;
+    ws::CanvasPictures pictures_;
 };
 } // namespace zengine::demo
 #endif

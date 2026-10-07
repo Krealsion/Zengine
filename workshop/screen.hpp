@@ -1296,31 +1296,13 @@ ExternalBodyPlace external_body_place(const PixelRect& pane_rect, const Screen& 
 struct ExternalPressAt {
     bool named = false;
     std::int64_t row = 0;    ///< a prose row of the BODY: 0 is the row under the header
-    std::int64_t column = 0; ///< ...and the column of the character the pressed cell shows
+    std::int64_t column = 0; ///< ...and the column of the pressed cell, the character it shows
 };
 
 /// LOCATE A PRESS IN THE ROOM A PANE WAS GRANTED, from the rectangle the painter used.
 ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
                                          const Screen& sc, std::int64_t kind, bool titles,
                                          std::int64_t space, std::int64_t x, std::int64_t y);
-
-/// WHERE A FIT IN CELLS DRAWS A PANE'S CARET INTO ITS ROWS: the column of body row `row` its
-/// glyph is inserted at (`surface::project_one_text_region`), which stands every character from
-/// there a cell to the right; -1 where there is none -- another row, no caret, a body that does
-/// not show the pane's rows, or a fit that sets type, whose caret is a bar between two characters.
-std::int64_t external_caret_glyph(const ExternalPane* pane, const surface::RegionFit& fit,
-                                  std::int64_t row) noexcept;
-
-/// The cell of a row a character at `column` is drawn in, past a caret glyph at `caret` (-1: none)...
-constexpr std::int64_t drawn_column(std::int64_t column, std::int64_t caret) noexcept {
-    return caret >= 0 && column >= caret ? column + 1 : column;
-}
-
-/// ...and the column of the character a cell shows: the glyph's own cell is the caret's column,
-/// the insertion point it stands for.
-constexpr std::int64_t shown_column(std::int64_t cell, std::int64_t caret) noexcept {
-    return caret >= 0 && cell > caret ? cell - 1 : cell;
-}
 
 /// The mark that says whether typing goes here.
 // WL-FOCUS-10 -- agents/workshop/focus.md

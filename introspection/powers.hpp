@@ -437,6 +437,10 @@ struct PowersView {
     std::vector<PowersSpan> spans;
     std::int64_t population = 0; ///< the filtered list's size -- what the marker counts
     std::int64_t cursor = -1;    ///< where in it the selection is, or -1
+    /// Where the query's caret stands, the row and the column it sits before, while the chrome
+    /// draws the query; `surface::kNoCaret` while it does not. The medium draws it.
+    std::int64_t caret_row = surface::kNoCaret;
+    std::int64_t caret_col = 0;
 };
 
 /// Which control a press landed on, or none; total over every row and column, since a provider
@@ -622,16 +626,22 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
             composite_at = static_cast<std::int64_t>(text.size()) + detail::kGap;
             text += std::string("  [") + (ui.composite_only ? "x" : " ") + "] " + kCompositeWord;
         }
+        std::int64_t caret_at = -1;
         if (shape.find) {
             const std::int64_t room = shape.query_room - 1;
-            std::string shown = ui.query.visible(room > 0 ? room : 0);
+            const std::string shown = ui.query.visible(room > 0 ? room : 0);
             const std::size_t at = ui.query.caret_column();
-            shown.insert(at <= shown.size() ? at : shown.size(), 1, surface::kCaretGlyph);
-            text += std::string("  ") + kFindLabel + shown;
+            text += std::string("  ") + kFindLabel;
+            caret_at = static_cast<std::int64_t>(text.size() + (at <= shown.size() ? at : shown.size()));
+            text += shown;
         }
         const std::string drawn = fit(text, columns);
         const std::int64_t solid = detail::solid_columns(drawn, text.size());
         const std::int64_t row = say.say(drawn, surface::role::kAccent);
+        if (caret_at >= 0 && drawn.size() == text.size()) {
+            view.caret_row = row;
+            view.caret_col = caret_at;
+        }
         say.span(row, 0, static_cast<std::int64_t>(a.size()), powers_control::kSources, solid);
         say.span(row, operators_at, static_cast<std::int64_t>(b.size()),
                  powers_control::kOperators, solid);

@@ -206,10 +206,11 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
     // row's own ground if it named one, else the canvas background if the region took its
     // rectangle, else nothing, and the glyph lands on what this layer drew beneath. Both grounds
     // are passed at every call site, never defaulted: whether text takes its cells is the
-    // publisher's to have answered.
+    // publisher's to have answered. The cell a caret stands on is that cell inverted: filled with
+    // the glyph's ink, the glyph in what the cell would have been filled with.
     const auto draw_label = [&](const SurfaceLabel& l, std::int64_t background,
                                 std::int64_t region_ground, std::int64_t sel_begin,
-                                std::int64_t sel_end) {
+                                std::int64_t sel_end, std::int64_t caret) {
         // The anchor is a canvas pixel, and every byte advances a whole cell from it.
         const std::int64_t label_y = l.y;
         if (add_cells(label_y, kCanvasCellPx) <= 0 || label_y >= h_px) {
@@ -231,7 +232,11 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
             const std::int64_t cell_y = label_y;
             const bool in_selection =
                 static_cast<std::int64_t>(i) >= sel_begin && static_cast<std::int64_t>(i) < sel_end;
-            if (in_selection) {
+            PlanInk glyph_ink = ink;
+            if (static_cast<std::int64_t>(i) == caret) {
+                quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, ink);
+                glyph_ink = in_selection ? kSelectionBand : under;
+            } else if (in_selection) {
                 quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, kSelectionBand);
             } else if (takes_the_cell) {
                 quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, under);
@@ -249,7 +254,7 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
                         ++gx;
                     }
                     quad(cell_x + run_start * kGlyphScale, cell_y + gy * kGlyphScale,
-                         (gx - run_start) * kGlyphScale, kGlyphScale, ink);
+                         (gx - run_start) * kGlyphScale, kGlyphScale, glyph_ink);
                 }
             }
         }
@@ -257,12 +262,12 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
 
     for (const SurfaceLabel& l : layer.labels) {
         // A bare label always takes its cell and is never selected: selection is a region's.
-        draw_label(l, role::kNone, kGroundOwn, 0, 0);
+        draw_label(l, role::kNone, kGroundOwn, 0, 0, -1);
     }
     for (const ProjectedRow& p : projected) {
         // Last IN THIS LAYER: a region is the topmost thing its own presentation draws.
         // A later layer still covers it -- see `plan_canvas` below.
-        draw_label(p.label, p.background, p.ground, p.sel_begin, p.sel_end);
+        draw_label(p.label, p.background, p.ground, p.sel_begin, p.sel_end, p.caret);
     }
     return out;
 }

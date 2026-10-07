@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -45,10 +46,11 @@ class Context:
     def schema(self, *args):
         self.shape_reads += 1
         types = self.steps
-        fields = [("kind", types.TEXT), ("scancode", types.INT), ("modifiers", types.INT),
-                  ("text", types.TEXT), ("button", types.INT), ("pressed", types.BOOL),
-                  ("x", types.INT), ("y", types.INT), ("space", types.INT),
-                  ("dx", types.INT), ("dy", types.INT)]
+        fields = [("kind", types.TEXT), ("scancode", types.INT), ("name", types.TEXT),
+                  ("modifiers", types.INT), ("text", types.TEXT), ("button", types.INT),
+                  ("pressed", types.BOOL), ("x", types.INT), ("y", types.INT),
+                  ("dx", types.INT), ("dy", types.INT), ("space", types.INT),
+                  ("wheel_dx", types.FLOAT), ("wheel_dy", types.FLOAT)]
         return SimpleNamespace(fields=[SimpleNamespace(name=n, type=SimpleNamespace(kind=k))
                                        for n, k in fields])
 
@@ -100,6 +102,7 @@ class Manager:
     """The Pane Manager as a script: its list through a window of `window` rows that follows the
     marker, the keys, and a press that chooses a row -- or, on the marked row with the keys already
     here, opens its pane. Its words stand at x 400 and its parts' points at x 450."""
+    canvas = False
 
     def __init__(self, panes, window=3, shown=False, cursor=0, keys=False):
         self.panes, self.window, self.shown = list(panes), window, shown
@@ -122,24 +125,270 @@ class Manager:
         return out
 
     def press(self, y):
-        row = (y - 6) // 12
+        self.choose((y - 6) // 12 - 1)
+
+    def choose(self, index):
+        """A press on the list's `index`th drawn row (none outside it): it chooses that row -- or,
+        marked with the keys here, opens its pane -- and the Pane Manager takes the keys."""
         listed = list(self.listed())
-        if 1 <= row <= len(listed):
-            at = listed[row - 1]
+        if 0 <= index < len(listed):
+            at = listed[index]
             if at == self.cursor and self.keys:
                 self.open.add(self.panes[at][:2])
                 self.selected = self.panes[at][:2]
             self.cursor = at
         self.keys = True
 
+    def holds(self, x, y):
+        """Whether a press at x, y lands on the Pane Manager."""
+        return 400 <= x < 500
+
+    def pressed(self, x, y):
+        self.press(y)
+
+
+class CanvasPane:
+    """A pane that draws its rows on its canvas, as Workshop reads one (PaneView version 3, canvas
+    true): one unpadded run a row on the lattice -- `inset` px in from the body's left, `advance`
+    by `line` px a character, rows from the body's top -- each run's word its characters without
+    the blanks after the last, so a blank row is no word and a word's number is not its row's; each
+    named part the rectangle over its row's columns, its text the characters inside it, its point
+    the middle of its widest stretch of columns no later part takes (none, in no space, where every
+    column is another's). `drop` stands a word's place that many px below its row's top, as a run
+    set in from its row's rectangle; `by_column` lists every row's first run before any row's
+    second, as Workshop lists a canvas pane's labels before its runs. A press or a wheel inside the
+    body is the pane's, read back to a row and a column."""
+    canvas = True
+
+    def __init__(self, body=(600, 100, 420, 168), inset=2, advance=7, line=14, drop=0,
+                 by_column=False):
+        self.body, self.inset, self.advance, self.line = body, inset, advance, line
+        self.drop, self.by_column, self.said = drop, by_column, []
+
+    def columns(self):
+        return (self.body[2] - 2 * self.inset) // self.advance
+
+    def column_x(self, column):
+        return self.body[0] + self.inset + column * self.advance
+
+    def row_y(self, row):
+        return self.body[1] + row * self.line
+
+    def drawn(self):
+        """Each row drawn now: `{"runs": [(column, text)], "parts": [(name, column, columns)]}`."""
+        raise NotImplementedError
+
+    def view(self, provider, pane, pointed=lambda part: part):
+        rows = self.drawn()
+        runs = [(r, i, c, t.rstrip(" ")) for r, row in enumerate(rows)
+                for i, (c, t) in enumerate(row["runs"]) if t.rstrip(" ")]
+        if self.by_column:
+            runs.sort(key=lambda run: (run[1], run[0]))
+        self.said = [(r, c, t) for r, _, c, t in runs]
+        words = [{"word": n, "text": t,
+                  "place": {"x": self.column_x(c), "y": self.row_y(r) + self.drop,
+                            "w": len(t) * self.advance, "h": self.line - self.drop},
+                  "x": self.column_x(c + (len(t) - 1) // 2) + self.advance // 2,
+                  "y": self.row_y(r) + self.line // 2, "space": 2}
+                 for n, (r, c, t) in enumerate(self.said)]
+        listed = [(r, name, c, n) for r, row in enumerate(rows) for name, c, n in row["parts"]]
+        owner = {}
+        for i, (r, _, c, n) in enumerate(listed):
+            for column in range(c, c + n):
+                owner[(r, column)] = i
+        parts = []
+        for i, (r, name, c, n) in enumerate(listed):
+            line = "".ljust(self.columns())
+            for column, text in rows[r]["runs"]:
+                line = line[:column] + text + line[column + len(text):]
+            own = [column for column in range(c, c + n) if owner[(r, column)] == i]
+            stretches = []
+            for column in own:
+                if stretches and stretches[-1][-1] == column - 1:
+                    stretches[-1].append(column)
+                else:
+                    stretches.append([column])
+            part = {"name": name, "text": line[c:c + n].rstrip(" "),
+                    "place": {"x": self.column_x(c), "y": self.row_y(r), "w": n * self.advance,
+                              "h": self.line}, "x": 0, "y": 0, "space": 0}
+            if stretches:
+                widest = max(stretches, key=len)
+                part.update(x=self.column_x(widest[0]) + len(widest) * self.advance // 2,
+                            y=self.row_y(r) + self.line // 2, space=2)
+            parts.append(pointed(part))
+        return {"provider": provider, "pane": pane, "picture": 1, "canvas": True,
+                "words": words, "parts": parts}
+
+    def point(self, word, column):
+        """Where one character of a word last said is (PanePoint version 2)."""
+        from loom_session.tool import Refused
+        if word >= len(self.said) or column >= len(self.said[word][2]):
+            raise Refused("pane point unavailable: outside the pane's visible words")
+        r, c, _ = self.said[word]
+        return {"x": self.column_x(c + column) + self.advance // 2,
+                "y": self.row_y(r) + self.line // 2, "space": 2}
+
+    def at(self, x, y):
+        """The row and column a point inside the body stands on, or None outside it."""
+        bx, by, bw, bh = self.body
+        if not (bx <= x < bx + bw and by <= y < by + bh):
+            return None
+        return (y - by) // self.line, (x - bx - self.inset) // self.advance
+
+    def holds(self, x, y):
+        return self.at(x, y) is not None
+
+    def pressed(self, x, y):
+        pass
+
+    def wheeled(self, dy):
+        pass
+
+
+class CanvasManager(Manager, CanvasPane):
+    """The Pane Manager drawing its rows on its canvas: its heading on the first row, a blank row,
+    then its list -- each row one run, or with `split` two, its marker and mark and then its label
+    after a blank -- each with `pane:<office>/<pane>` over the row and `mark:<office>/<pane>` over
+    its mark, listed after it."""
+    canvas = True
+
+    def __init__(self, panes, split=False, drop=0, **kw):
+        Manager.__init__(self, panes, **kw)
+        CanvasPane.__init__(self, drop=drop, by_column=split)
+        self.split = split
+
+    def drawn(self):
+        out = [{"runs": [(0, "PANES -- %d" % len(self.panes))], "parts": []},
+               {"runs": [], "parts": []}]
+        for i in self.listed():
+            office, pane, label = self.panes[i]
+            head = ("> " if i == self.cursor else "  ") + (
+                "[open]" if (office, pane) in self.open else "[    ]")
+            ref = "%s/%s" % (office, pane)
+            out.append({"runs": [(0, head), (9, label)] if self.split else [(0, head + " " + label)],
+                        "parts": [("pane:" + ref, 0, self.columns()), ("mark:" + ref, 2, 6)]})
+        return out
+
+    def holds(self, x, y):
+        return CanvasPane.holds(self, x, y)
+
+    def pressed(self, x, y):
+        self.choose(self.at(x, y)[0] - 2)
+
+
+class CanvasLoaded(CanvasPane):
+    """Loaded drawing its rows on its canvas: a heading, a blank row, a window of `window` weaves
+    from `origin` -- each row `weave:<name>` -- and what the window leaves out. A wheel notch away
+    from the weaver moves the window one weave toward the first, toward the weaver one toward the
+    last; a press on a weave's row chooses it."""
+
+    def __init__(self, weaves, window=3, origin=0, **kw):
+        CanvasPane.__init__(self, **kw)
+        self.weaves, self.window, self.origin, self.chosen = list(weaves), window, origin, []
+
+    def drawn(self):
+        shown = self.weaves[self.origin:self.origin + self.window]
+        out = [{"runs": [(0, "loaded weaves -- %d" % len(self.weaves))], "parts": []},
+               {"runs": [], "parts": []}]
+        out += [{"runs": [(0, "  %s @%s" % w)], "parts": [("weave:" + w[0], 0, self.columns())]}
+                for w in shown]
+        out.append({"runs": [(0, "  ... %d earlier, %d more" % (
+            self.origin, len(self.weaves) - self.origin - len(shown)))], "parts": []})
+        return out
+
+    def wheeled(self, dy):
+        self.origin = max(0, min(len(self.weaves) - self.window, self.origin - int(dy)))
+
+    def pressed(self, x, y):
+        row = self.at(x, y)[0] - 2
+        if 0 <= row < self.window:
+            self.chosen.append(self.weaves[self.origin + row][0])
+
+
+class CanvasControls(CanvasPane):
+    """The demo's controls drawing their rows on their canvas: the demo's name, `[ Reset demo ]`
+    named `control:reset`, and its state named `status`; a press on the reset row resets."""
+
+    def __init__(self, **kw):
+        CanvasPane.__init__(self, body=(20, 500, 392, 56), **kw)
+        self.resets = 0
+
+    def drawn(self):
+        return [{"runs": [(0, "Demo")], "parts": []},
+                {"runs": [(0, "[ Reset demo ]")], "parts": [("control:reset", 0, self.columns())]},
+                {"runs": [(0, "ready: Ready")], "parts": [("status", 0, self.columns())]}]
+
+    def pressed(self, x, y):
+        if self.at(x, y)[0] == 1:
+            self.resets += 1
+
+
+class Answer(dict):
+    """An owner's answer as a run reads it: by its fields' names, and whole as `fields`."""
+
+    @property
+    def fields(self):
+        return dict(self)
+
+
+class CanvasWorkshop(Context):
+    """A run context whose Workshop shows `panes` -- {(provider, pane): CanvasPane} -- that draw
+    pictures: it answers PaneView version 3 and PanePoint version 2, and fails a run that asks any
+    other version of either, as a pane drawing a picture is not read by its rows. A part `unreached`
+    names has no point. Each press or wheel inside a pane's body is that pane's. `zengine.demo`
+    answers its status by the resets its controls were pressed for. `act_steps` are a
+    `workshop/act` run's steps; what a run keeps is kept."""
+
+    def __init__(self, steps, panes, act_steps=(), unreached=()):
+        Context.__init__(self, steps)
+        self.inputs["steps"] = json.dumps(list(act_steps))
+        self.panes, self.unreached, self.asked, self.kept = dict(panes), set(unreached), [], {}
+
+    def produce(self, name, data):
+        self.kept[name] = data
+
+    def pointed(self, part):
+        if part["name"] in self.unreached:
+            part.update(x=0, y=0, space=0)
+        return part
+
+    def ask(self, office, shape, fields, **options):
+        if shape in ("PaneViewRequested", "PanePointRequested"):
+            version = options.get("version", 1)
+            self.asked.append((shape, version))
+            if version != (3 if shape == "PaneViewRequested" else 2):
+                raise AssertionError("%s version %d asked of a pane that draws a picture"
+                                     % (shape, version))
+            pane = self.panes[(fields["provider"], fields["pane"])]
+            if shape == "PanePointRequested":
+                return pane.point(fields["word"], fields["column"])
+            return pane.view(fields["provider"], fields["pane"], self.pointed)
+        if shape == "InjectInput":
+            for e in fields["events"]:
+                for pane in self.panes.values():
+                    if e["kind"] in ("PointerButton", "PointerWheel") and pane.holds(e["x"], e["y"]):
+                        if e["kind"] == "PointerWheel":
+                            pane.wheeled(e["wheel_dy"])
+                        elif e["pressed"]:
+                            pane.pressed(e["x"], e["y"])
+        if shape == "DemoStatusRequested":
+            return Answer(generation=3)
+        if shape == "DemoReadyRequested":
+            controls = self.panes[("zengine.demo", "controls")]
+            ready = controls.resets == 1 and fields["generation"] == 4
+            return Answer(state="ready" if ready else "failed", generation=fields["generation"],
+                          note="Ready" if ready else "no reset was pressed")
+        return Context.ask(self, office, shape, fields, **options)
+
 
 class ActWorkshop(Context):
     """A run context whose Workshop is a script for `workshop/act`: Info's list with a cursor the
     Down and Up keys move, a canvas pane's words, any other pane's rows as `panes` names them and
     the names `named` gives their rows, a point door that says which word and column it was asked
-    for and refuses a character no word shows, a Pane Manager when `manager` is one, and a desk with
-    a menu open whose lines are named. A part or a line `unreached` names has no point, as Workshop
-    says one no press reaches on its own. Every injected moment is kept, as `Context` keeps them."""
+    for and refuses a character no word shows, a Pane Manager when `manager` is one -- a `Manager`
+    as text rows, or a `CanvasManager` drawing a picture -- and a desk with a menu open whose lines
+    are named. A part or a line `unreached` names has no point, as Workshop says one no press
+    reaches on its own. Every injected moment is kept, as `Context` keeps them."""
 
     def __init__(self, steps, act_steps, rows, panes=None, named=None, manager=None, unreached=()):
         Context.__init__(self, steps)
@@ -181,8 +430,8 @@ class ActWorkshop(Context):
             else:
                 self.cursor = max(0, min(len(self.base) - 1, self.cursor + step))
         elif e["kind"] == "PointerButton" and e["pressed"] and m and m.shown:
-            if 400 <= e["x"] < 500:
-                m.press(e["y"])
+            if m.holds(e["x"], e["y"]):
+                m.pressed(e["x"], e["y"])
             else:
                 m.keys = False
 
@@ -195,6 +444,8 @@ class ActWorkshop(Context):
             if fields["pane"] == "launcher":
                 if not (self.manager and self.manager.shown):
                     raise Refused("pane view unavailable: closed, unknown or covered by an interaction")
+                if self.manager.canvas:
+                    return self.manager.view(fields["provider"], fields["pane"], self.pointed)
                 drawn = self.manager.rows()
                 texts, names, left = [t for t, _ in drawn], [n for _, n in drawn], 400
             else:
@@ -212,6 +463,8 @@ class ActWorkshop(Context):
                          "x": left + 50, "y": 12 * i + 6, "space": 2})
                         for i, n in enumerate(names) if n and i < len(texts)]}
         if shape == "PanePointRequested" and options.get("version") == 2:
+            if fields["pane"] == "launcher" and self.manager.canvas:
+                return self.manager.point(fields["word"], fields["column"])
             said = self.said.get(fields["pane"], [])
             if fields["word"] >= len(said) or fields["column"] >= len(said[fields["word"]]):
                 raise Refused("pane point unavailable: outside the pane's visible words")
@@ -277,6 +530,8 @@ def run_checks(tools, runtime):
     collect = importlib.import_module("inventory_collect")
     drag = importlib.import_module("drag")
     act = importlib.import_module("act")
+    hand = importlib.import_module("hand")
+    reset_button = importlib.import_module("demo_reset_button")
 
     class ToolChecks(unittest.TestCase):
         def test_drag_delegates_timed_motion_and_cleans_up_after_picture_failure(self):
@@ -611,6 +866,226 @@ def run_checks(tools, runtime):
                     with self.assertRaisesRegex(ValueError, "pane:<office>/<pane>"):
                         self.act(ctx)
                     self.assertEqual(ctx.contacts, [])
+
+        # ---- panes that draw a picture, read by their words and their names --------------------
+        # Each stand-in below answers only PaneView version 3 and PanePoint version 2 for such a
+        # pane: a reading of rows by number fails the check that made it.
+        LOADED = ("zengine.introspection", "loaded")
+        WEAVES = [("zengine-input", "zengine.input"), ("zengine-skin-sdl", "zengine.skin"),
+                  ("zengine-inventory-pane", "zengine.inventory-pane"),
+                  ("zengine-composer", "zengine.composer"), ("zengine-inventory", "zengine.inventory"),
+                  ("zengine-info", "zengine.info")]
+
+        def test_a_part_is_pressed_by_its_name_where_a_picture_draws_it_after_wheeling_to_it(self):
+            # The inventory's weave is past Loaded's window: the hand wheels toward the first weave
+            # until the words stop changing, then toward the last until Loaded draws the part.
+            loaded = CanvasLoaded(self.WEAVES, window=3, origin=1)
+            ctx = CanvasWorkshop(steps, {self.LOADED: loaded})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                at = held.part(*self.LOADED, "weave:zengine-inventory", scroll=True)
+                held.click(at)
+                rows = act.painted(held, *self.LOADED)
+            finally:
+                held.close()
+            self.assertEqual(loaded.chosen, ["zengine-inventory"])
+            self.assertEqual((at["name"], at["text"], at["row"]),
+                             ("weave:zengine-inventory", "  zengine-inventory @zengine.inventory", 3))
+            first = (loaded.column_x(8) + 3, loaded.row_y(0) + 7)  # "loaded weaves -- 6"'s middle
+            self.assertEqual([(e["x"], e["y"], e["wheel_dy"]) for e in ctx.events
+                              if e["kind"] == "PointerWheel"],
+                             [first + (1,), first + (1,), first + (-1,), first + (-1,)])
+            presses = [(e["x"], e["y"]) for e in ctx.events if e["kind"] == "PointerButton"]
+            self.assertEqual(presses, [(at["x"], at["y"])] * 2)
+            # The blank row under the heading is no word: a row's number is its word's, not its row's.
+            self.assertEqual([(r["row"], r["text"]) for r in rows["rows"]],
+                             [(0, "loaded weaves -- 6"), (1, "  zengine-inventory-pane @zengine.inventory-pane"),
+                              (2, "  zengine-composer @zengine.composer"),
+                              (3, "  zengine-inventory @zengine.inventory"), (4, "  ... 2 earlier, 1 more")])
+            self.assertTrue(rows["canvas"])
+            self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
+            self.assertFalse(ctx.owner.open)
+
+        def test_a_row_is_found_by_what_a_picture_says_and_pressed_at_its_third_character(self):
+            loaded = CanvasLoaded(self.WEAVES, window=3, origin=3)
+            ctx = CanvasWorkshop(steps, {self.LOADED: loaded})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                at = held.row(*self.LOADED, "zengine-skin-", scroll=True)
+                held.click(at)
+                with self.assertRaisesRegex(CheckFailed, "ambiguous visible row: zengine-"):
+                    held.row(*self.LOADED, "zengine-")
+                with self.assertRaisesRegex(ValueError, "visible row not found: zengine-flow"):
+                    held.row(*self.LOADED, "zengine-flow")
+                kept = json.loads(ctx.kept["last-view.json"])
+                with self.assertRaisesRegex(ValueError, "no visible part weave:zengine-flow"):
+                    held.part(*self.LOADED, "weave:zengine-flow", scroll=True)
+                named = json.loads(ctx.kept["last-view.json"])["parts"]
+            finally:
+                held.close()
+            # Word 1 is the skin's row, the lattice's row 2: its third character is where it is pressed.
+            self.assertEqual(at, {"row": 1, "text": "  zengine-skin-sdl @zengine.skin",
+                                  "x": loaded.column_x(2) + 3, "y": loaded.row_y(2) + 7, "space": 2})
+            self.assertEqual(loaded.chosen, ["zengine-skin-sdl"])
+            self.assertEqual(kept["rows"][0]["text"], "loaded weaves -- 6")
+            self.assertEqual(named, ["weave:zengine-composer", "weave:zengine-inventory",
+                                     "weave:zengine-info"])
+            self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3), ("PanePointRequested", 2)})
+
+        def test_a_row_of_a_text_pane_is_its_word_and_is_pressed_at_its_third_character(self):
+            ctx = ActWorkshop(steps, [], [">Width       480", " Height      300", " Placement", " X"])
+            held = hand.Hand(ctx, "workshop")
+            try:
+                at = held.row("zengine.info", "info", "Height")
+                short = held.row("zengine.info", "info", " X")
+                with self.assertRaisesRegex(CheckFailed, "ambiguous visible row: e"):
+                    held.row("zengine.info", "info", "e")
+                with self.assertRaisesRegex(ValueError, "visible row not found: Depth"):
+                    held.row("zengine.info", "info", "Depth")
+            finally:
+                held.close()
+            self.assertEqual(at, {"row": 1, "text": " Height      300", "x": 101, "y": 2, "space": 2})
+            self.assertEqual(short, {"row": 3, "text": " X", "x": 6, "y": 42, "space": 2})
+            self.assertEqual(ctx.points, [(1, 2)])
+            self.assertEqual([r["text"] for r in json.loads(ctx.kept["last-view.json"])["rows"]],
+                             [">Width       480", " Height      300", " Placement", " X"])
+
+        def test_painted_reads_words_as_rows_and_a_pane_not_described_never_holds_a_row(self):
+            ctx = ActWorkshop(steps, [], self.INFO_ROWS)
+            held = hand.Hand(ctx, "workshop")
+            try:
+                rows = act.painted(held, "zengine.info", "info")
+                self.assertIsNone(act.painted(held, *act.MANAGER))
+                started = time.monotonic()
+                self.assertEqual(act.wait_rows(held, *act.MANAGER, "PANES", 0.3, present=False),
+                                 (None, None))
+                self.assertGreaterEqual(time.monotonic() - started, 0.3)
+            finally:
+                held.close()
+            self.assertEqual([(r["row"], r["text"], r["x"], r["y"]) for r in rows["rows"]],
+                             [(0, self.INFO_ROWS[0], 6, 6), (1, self.INFO_ROWS[1], 6, 18),
+                              (2, self.INFO_ROWS[2], 6, 30)])
+            self.assertEqual((rows["picture"], rows["canvas"]), (1, False))
+
+        def test_the_reset_button_is_pressed_by_its_name_in_the_picture_the_controls_draw(self):
+            controls = CanvasControls()
+            ctx = CanvasWorkshop(steps, {("zengine.demo", "controls"): controls})
+            self.assertIn("next generation reached ready", reset_button.run(ctx))
+            self.assertEqual(controls.resets, 1)
+            presses = [(e["x"], e["y"], e["pressed"]) for e in ctx.events if e["kind"] == "PointerButton"]
+            self.assertEqual(presses, [(controls.column_x(0) + 55 * 7 // 2, controls.row_y(1) + 7, True),
+                                       (controls.column_x(0) + 55 * 7 // 2, controls.row_y(1) + 7, False)])
+            self.assertEqual(ctx.asked, [("PaneViewRequested", 3)])
+            self.assertFalse(ctx.owner.open)
+            # A reset row every place of which another part takes is never pressed.
+            controls = CanvasControls()
+            ctx = CanvasWorkshop(steps, {("zengine.demo", "controls"): controls},
+                                 unreached={"control:reset"})
+            with self.assertRaisesRegex(ValueError, "no press reaches control:reset"):
+                reset_button.run(ctx)
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+            self.assertEqual(controls.resets, 0)
+            self.assertFalse(ctx.owner.open)
+
+        def test_open_select_and_a_mark_read_a_pane_manager_that_draws_a_picture_by_name(self):
+            # One run a row, the same with each row drawn as two runs listed by column, and with
+            # each run set below its row's rectangle: the rows are read by the parts they stand on.
+            for drawn in ({}, {"split": True}, {"drop": 3}):
+                with self.subTest(**drawn):
+                    # HIDDEN, AND THE ROW OUT OF THE WINDOW: Ctrl+P, a press on the heading for the
+                    # keys, Down until the window draws the row, marked, and one press opening it.
+                    manager = CanvasManager(self.LISTED, **drawn)
+                    ctx = ActWorkshop(steps, [{"open": "pane:zengine.files/project-files"}], [],
+                                      manager=manager)
+                    self.act(ctx)
+                    record = ctx.done()[0]
+                    self.assertEqual((record["opened"], record["presses"], record["state"]),
+                                     ("pane:zengine.files/project-files", 1, "covered"))
+                    self.assertEqual(manager.open, {("zengine.files", "project-files")})
+                    presses = [(e["x"], e["y"]) for e in ctx.events
+                               if e["kind"] == "PointerButton" and e["pressed"]]
+                    own = manager.column_x(8) + 51 * 7 // 2  # the row's widest stretch past its mark
+                    self.assertEqual(presses, [(manager.column_x(0) + 3, manager.row_y(0) + 7),
+                                               (own, manager.row_y(4) + 7)])
+                    self.assertEqual([e["scancode"] for e in ctx.events if e["kind"] == "KeyPressed"],
+                                     [19, 81, 81, 81, 81])
+                    # DRAWN AND NOT MARKED: a press choosing it, then one opening it.
+                    manager = CanvasManager(self.LISTED, shown=True, **drawn)
+                    ctx = ActWorkshop(steps, [{"open": "pane:zengine.terminal/terminal"}], [],
+                                      manager=manager)
+                    self.act(ctx)
+                    self.assertEqual(ctx.done()[0]["presses"], 2)
+                    self.assertEqual(manager.open, {("zengine.terminal", "terminal")})
+                    # ALREADY MARKED, WITH THE KEYS THERE: one press opens it.
+                    manager = CanvasManager(self.LISTED, shown=True, cursor=1, keys=True, **drawn)
+                    ctx = ActWorkshop(steps, [{"open": "pane:zengine.desktop/hotkeys"}], [],
+                                      manager=manager)
+                    self.act(ctx)
+                    self.assertEqual(ctx.done()[0]["presses"], 1)
+                    self.assertEqual(manager.open, {("zengine.desktop", "hotkeys")})
+                    # SELECT BY NAME walks the marker there; a press on a row's mark chooses its row.
+                    manager = CanvasManager(self.LISTED, shown=True, keys=True, **drawn)
+                    ctx = ActWorkshop(steps, [
+                        {"select": ["zengine.desktop", "launcher", "pane:zengine.terminal/terminal"]},
+                        {"part": ["zengine.desktop", "launcher", "mark:zengine.info/info"]}], [],
+                        manager=manager)
+                    self.act(ctx)
+                    selected, marked = ctx.done()
+                    self.assertEqual((selected["chosen"], selected["presses"]), ("> [    ] Terminal", 2))
+                    self.assertEqual((marked["text"], marked["x"], marked["y"]),
+                                     ("[    ]", manager.column_x(2) + 21, manager.row_y(2) + 7))
+                    self.assertEqual((manager.cursor, manager.open), (0, set()))
+
+        def test_wheel_turns_over_a_named_part_or_a_panes_first_word(self):
+            ctx = ActWorkshop(steps, [{"wheel": ["zengine.info", "info", "property:Height"], "dy": -1}],
+                              self.INFO_ROWS, named=self.INFO_NAMES)
+            self.act(ctx)
+            self.assertEqual([(e["x"], e["y"], e["space"], e["wheel_dx"], e["wheel_dy"])
+                              for e in ctx.events if e["kind"] == "PointerWheel"], [(50, 18, 2, 0.0, -1.0)])
+            self.assertEqual(len([e for e in ctx.events if e["kind"] != "PointerWheel"]), 0)
+            self.assertEqual(ctx.done()[0]["part"], "property:Height")
+            ctx = ActWorkshop(steps, [{"wheel": ["zengine.editor", "editor"], "dy": 2, "dx": 0.5}], [],
+                              panes={"editor": ["notes", "more"]})
+            self.act(ctx)
+            self.assertEqual([(e["x"], e["y"], e["wheel_dx"], e["wheel_dy"]) for e in ctx.events],
+                             [(6, 6, 0.5, 2.0)])
+            ctx = ActWorkshop(steps, [{"wheel": ["zengine.info", "info", "property:Depth"], "dy": 1,
+                                       "seconds": 0}], self.INFO_ROWS, named=self.INFO_NAMES)
+            with self.assertRaisesRegex(CheckFailed, "draws no part named 'property:Depth'"):
+                self.act(ctx)
+            self.assertEqual(json.loads(ctx.kept["failed-step-parts.json"]), self.INFO_NAMES["info"])
+            ctx = ActWorkshop(steps, [{"wheel": ["zengine.info", "info", "property:Height"], "dy": 1}],
+                              self.INFO_ROWS, named=self.INFO_NAMES, unreached={"property:Height"})
+            with self.assertRaisesRegex(CheckFailed, "no point reaches 'property:Height'"):
+                self.act(ctx)
+            self.assertFalse(ctx.events)
+
+        def test_a_wheel_is_spelled_before_any_contact(self):
+            for wheel in ({"wheel": ["zengine.info", "info"]}, {"wheel": ["zengine.info"], "dy": 1},
+                          {"wheel": "zengine.info/info", "dy": 1},
+                          {"wheel": ["zengine.info", "info"], "dy": "1"},
+                          {"wheel": ["zengine.info", "info"], "dy": True},
+                          {"wheel": ["zengine.info", "info"], "dx": float("nan")},
+                          {"wheel": ["zengine.info", "info"], "dy": float("inf")}):
+                with self.subTest(wheel=wheel):
+                    ctx = ActWorkshop(steps, [{"press": "down"}, wheel], [])
+                    with self.assertRaisesRegex(ValueError, "wheel"):
+                        self.act(ctx)
+                    self.assertEqual(ctx.contacts, [])
+
+        def test_a_wheel_scrolls_a_pane_that_draws_a_picture(self):
+            loaded = CanvasLoaded(self.WEAVES, window=3, origin=0)
+            ctx = CanvasWorkshop(steps, {self.LOADED: loaded}, act_steps=[
+                {"wheel": list(self.LOADED), "dy": -1},
+                {"expect": list(self.LOADED) + ["1 earlier"], "seconds": 0},
+                {"wheel": list(self.LOADED) + ["weave:zengine-skin-sdl"], "dy": 1},
+                {"absent": list(self.LOADED) + ["1 earlier"], "seconds": 0}])
+            self.act(ctx)
+            wheels = [(e["x"], e["y"], e["wheel_dy"]) for e in ctx.events if e["kind"] == "PointerWheel"]
+            self.assertEqual(wheels, [(loaded.column_x(8) + 3, loaded.row_y(0) + 7, -1.0),
+                                      (loaded.column_x(0) + 59 * 7 // 2, loaded.row_y(2) + 7, 1.0)])
+            self.assertEqual(loaded.origin, 0)
+            self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
     return unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful()

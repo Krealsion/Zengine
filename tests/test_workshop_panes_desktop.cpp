@@ -45,11 +45,7 @@ std::vector<std::string> shown_rows(PaneRig& r, std::int64_t kind) {
     REQUIRE(shown != nullptr);
     CAPTURE(shown->refusal_why);
     CHECK(shown->refusal.empty());
-    std::vector<std::string> out;
-    for (const surface::SurfaceTextRow& line : shown->shown) {
-        out.push_back(line.text);
-    }
-    return out;
+    return held_row_texts(*shown);
 }
 
 std::string joined(const std::vector<std::string>& rows) {
@@ -427,6 +423,9 @@ struct Keys {
                                               PaneSize{pane_unit::kPixels, cells_px(120)},
                                               PaneSize{pane_unit::kPixels, cells_px(40)});
         REQUIRE_MESSAGE(tall.accepted, tall.refusal);
+        // An unchanged room repaints nothing, so the room moves and comes back: the size authored
+        // here is laid out now, not at a case's first gesture.
+        r.extent(200, 59);
         r.extent(200, 60);
         hotkeys = kind_of(r, kDesktopRole, dp::kHotkeysPane);
         REQUIRE(is_runtime_kind(hotkeys));
@@ -573,6 +572,18 @@ TEST_CASE("WL-KEY-17: a collision refuses the edit in the collision law's own wo
     k.right(row);
     k.choose("Modify (type a spelling)");
     k.r.text("w"); // `workshop.manage`'s key, in command mode
+    {
+        // THE SPELLING LINE'S CARET IS THE MEDIUM'S, after what is typed so far.
+        const ExternalPane* pane = k.r.session().panes.external_pane(k.hotkeys);
+        REQUIRE(pane != nullptr);
+        const std::string typed = "key for workshop.quit: w";
+        const auto& runs = pane->canvas.content.texts;
+        const auto line = std::find_if(runs.begin(), runs.end(), [&typed](const v2::PaneCanvasText& t) {
+            return t.text.rfind(typed, 0) == 0;
+        });
+        REQUIRE(line != runs.end());
+        CHECK(line->caret_col == static_cast<std::int64_t>(typed.size()));
+    }
     k.r.key(input::scan::kReturn);
     const std::string text = k.text();
     CAPTURE(text);
@@ -776,7 +787,10 @@ TEST_CASE("WL-DESK-14: a same-length inventory swap changes the picture, so a pr
     Desk d;
     const auto row = d.row_of("Alpha");
     REQUIRE(row >= 0);
-    const auto old_picture = d.r.session().panes.external_pane(d.launcher)->picture;
+    const auto& held = d.r.session().panes.external_pane(d.launcher)->canvas;
+    const auto old_picture = held.content.picture;
+    const auto grant = held.grant;
+    REQUIRE(old_picture > 0);
     PaneInventory inventory = d.r.w->inventory_reading();
     std::size_t alpha = inventory.panes.size();
     std::size_t gamma = inventory.panes.size();
@@ -794,11 +808,30 @@ TEST_CASE("WL-DESK-14: a same-length inventory swap changes the picture, so a pr
                                    d.r.workshop_id, 0));
     REQUIRE(updated.valid());
     const auto pressed = d.r.bus.office_send_to_role_as(d.r.workshop_id, kWorkshopProvider,
-        kDesktopRole, loom::Message(loom::to_value(ws::v3::PanePressed{dp::kLauncherPane, row,
-            kMarkCol, true, old_picture}), d.r.workshop_id, d.r.workshop_id, 0));
+        kDesktopRole, loom::Message(loom::to_value(PaneCanvasPointer{dp::kLauncherPane, grant,
+            old_picture, 1, canvas_pointer::kPress, 1, kMarkCol * kPaneCanvasUnit,
+            row * kPaneCanvasUnit, input::mod::kNone, 0, 0, true}), d.r.workshop_id,
+            d.r.workshop_id, 0));
     REQUIRE(pressed.valid());
     d.r.bus.drain_until_idle();
     CHECK_FALSE(d.open("gamma"));
+}
+
+TEST_CASE("WL-DESK-14: a pane offered under a name a canvas cannot draw keeps its row, the name made drawable") {
+    // THE LIST IS ONE PICTURE, refused whole for one byte it cannot draw, so a name another party
+    // chose is drawn as this pane draws every other party's words: one mark for each character
+    // a canvas cannot set. The list stays the list, and the row is pressed as any other.
+    Desk d;
+    d.r.drive(d.tools, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"cafe", "Caf\xC3\xA9", "a fixture"});
+    });
+    const auto row = d.walk_to("Caf?");
+    CAPTURE(joined(d.rows()));
+    REQUIRE(row >= 0);
+    CHECK(d.r.session().panes.external_pane(d.launcher)->canvas.heard);
+    d.press(row, kNameCol);
+    d.press(row, kNameCol);
+    CHECK(d.open("cafe"));
 }
 
 TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the row the hand aimed at -- the press is stamped with the picture the medium had, and refused as moved") {

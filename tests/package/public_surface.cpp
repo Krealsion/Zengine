@@ -49,6 +49,7 @@
 
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_parts.hpp"
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/setup_control.hpp"
 
 #include <cstdio>
@@ -259,6 +260,19 @@ void pane_surface() {
           "a row map's parts are listed in the order its press reads them");
     const ws::v4::PaneContent named{offer.pane, said.rows, 0, 0, parts};
     check(named.parts.size() == 1, "content names its parts beside its rows");
+    // ...and the same rows, drawn as the pane's own picture, name the same parts where they stand,
+    // and a place on the picture reads back to its row and column.
+    const ws::PaneCanvasRoom room{offer.pane, 7, 20 * ws::kPaneCanvasUnit, 3 * ws::kPaneCanvasUnit,
+                                  ws::kPaneCanvasUnit, false, 0, 0};
+    ws::CanvasPictures pictures;
+    const ws::v5::PaneCanvasContent drawn =
+        ws::rows_picture(room, pictures.next(room, 1), said.rows, parts);
+    check(drawn.texts.size() == 1 && !drawn.texts[0].padded && drawn.texts[0].text == "Tally: 3" &&
+              drawn.parts.size() == 1 && drawn.parts[0].name == "row:count",
+          "a pane's rows are drawn on its canvas naming the parts they named");
+    const ws::RowCell cell = ws::row_cell_at(ws::canvas_rows(room), 3 * ws::kPaneCanvasUnit, 0);
+    check(cell.shown && cell.row == 0 && cell.column == 3 && pictures.current(7, drawn.picture),
+          "a press on the picture reads back to a row and a column of the picture it was aimed at");
 
     ws::PaneActions actions;
     actions.pane = offer.pane;

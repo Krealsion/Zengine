@@ -126,12 +126,19 @@ without either gaining a field of its own.
 `caret_row`/`caret_col` are a row index and a column index into the rows the region carries,
 never a pixel and never a canvas cell. That is what lets each medium answer it with the metric
 it already resolved — a window fills a bar `kCaretWidthPx` wide at
-`origin_x + caret_col * advance_px`, and the cell projection *inserts* `kCaretGlyph` at the
-same column, which for a caret at the end of a line is byte-for-byte the row the Workshop
-Terminal used to append for itself. `kNoCaret` is **negative** on purpose, the same argument
+`origin_x + caret_col * advance_px`, between two characters, and a medium whose character is a
+cell shows the **cell the caret stands on, inverted**: the cell of the character it sits before,
+the blank after a row's last character, and past a full row's end the row's last cell, which
+still shows it. Nothing is inserted, so no character moves for a caret and a press on a cell
+names the character it shows. A terminal reverses that cell and underlines it; inside a
+selection, which is itself reversed, it is the one cell shown plain, still underlined. The
+bitmap face fills it with the row's ink and draws the glyph in the ground, or in the selection
+band where it is selected. `kNoCaret` is **negative** on purpose, the same argument
 `role::kNone` makes: a prose row index is non-negative by construction, so the absence of a
 caret cannot collide with a row anybody might mean. It is not a focus fact (a canvas has no
 focus, and two regions may each carry one), and not blinking — there is no clock on this shape.
+
+![A terminal's caret three ways: in the Editor, on c in the middle of abcdefgh, the cell inverted and underlined; inside the selection cde, the caret's c is the one cell shown plain and still underlined; and in the View Builder's six-cell width box typed past its end, on the box's last cell, 7, which still shows it](../workshop/images/terminal-caret.png)
 
 **A region may have a selected range**, said in the same lattice: `sel_begin_row`/`sel_begin_col`
 and `sel_end_row`/`sel_end_col` are two caret-like positions — begin inclusive, end exclusive,

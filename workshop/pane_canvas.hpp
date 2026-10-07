@@ -6,7 +6,10 @@
 #include <string_view>
 
 namespace zengine::workshop {
-inline std::string_view canvas_content_problem(const PaneCanvasContent& c) {
+// Every version's picture is judged by the same rules: a run's `padded` changes where it stands,
+// never what it may say.
+template <class Content>
+inline std::string_view canvas_content_problem(const Content& c) {
     if (c.grant <= 0 || c.picture <= 0) return "canvas grant and picture must be positive";
     if (c.rects.size() > kPaneCanvasMaxRects || c.labels.size() > kPaneCanvasMaxLabels ||
         c.texts.size() > kPaneCanvasMaxTexts)
@@ -32,6 +35,10 @@ inline std::string_view canvas_content_problem(const PaneCanvasContent& c) {
         if (t.text.size() > kPaneCanvasMaxTextBytes - bytes) return "canvas text byte budget exceeded";
         bytes += t.text.size();
         if (!role_ok(t.role)) return "canvas text has an unknown role";
+        if constexpr (requires { t.background; }) {
+            if (t.background != surface::role::kNone && !role_ok(t.background))
+                return "canvas text has an unknown ground";
+        }
         for (char byte : t.text) {
             const auto ch = static_cast<unsigned char>(byte);
             if (ch < 32 || ch > 126) return "canvas text requires printable ASCII";

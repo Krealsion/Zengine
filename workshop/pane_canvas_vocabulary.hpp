@@ -109,6 +109,63 @@ struct PaneCanvasContent {
 
 } // namespace v4
 
+namespace v2 {
+
+/// ONE LINE OF MEASURED PROSE THAT MAY STAND ON THE ROOM'S TEXT LATTICE: v1's run, whether x/y
+/// name its padded region's origin, as v1's do (`padded`), or its first character's cell, and a
+/// ground of its own under its characters, as a prose row's `background` is (`role::kNone`: the
+/// material beneath). Unpadded runs a line apart stack as a pane's prose rows do, with the
+/// medium's inset around the column of them rather than between them, so a body holds as many of
+/// them as it holds rows. The inset is still the medium's: an unpadded run is judged and drawn as
+/// the padded run whose glyphs land where it says, against a clip grown by the inset. In a
+/// terminal the two are one.
+struct PaneCanvasText {
+    std::int64_t x = 0, y = 0;
+    std::string text;
+    std::int64_t role = surface::role::kFill;
+    std::int64_t caret_col = surface::kNoCaret;
+    std::int64_t sel_begin_col = surface::kNoSelection, sel_end_col = surface::kNoSelection;
+    bool padded = true;
+    std::int64_t background = surface::role::kNone;
+    ZEN_SHAPE(PaneCanvasText, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role),
+              ZEN_FIELD(caret_col), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_col),
+              ZEN_FIELD(padded), ZEN_FIELD(background));
+};
+
+} // namespace v2
+
+namespace v5 {
+
+/// A PICTURE WHOSE TEXT MAY STAND ON THE LATTICE: v4's picture, its runs `v2::PaneCanvasText`, so
+/// a pane drawing rows of text sets them where its rows would stand. Judged and refused as v4's.
+struct PaneCanvasContent {
+    std::string pane;
+    std::int64_t grant = 0, picture = 0;
+    std::vector<PaneCanvasRect> rects;
+    std::vector<PaneCanvasLabel> labels;
+    std::vector<v2::PaneCanvasText> texts = {};
+    std::vector<PaneCanvasPart> parts = {};
+    ZEN_SHAPE(PaneCanvasContent, 5, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
+              ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts), ZEN_FIELD(parts));
+};
+
+} // namespace v5
+
+/// A run of an earlier picture as the current form says it: padded, as every earlier run is.
+inline v2::PaneCanvasText canvas_text_of(const PaneCanvasText& t) {
+    return v2::PaneCanvasText{t.x, t.y, t.text, t.role, t.caret_col, t.sel_begin_col,
+                              t.sel_end_col, true, surface::role::kNone};
+}
+
+/// An earlier picture as the current form says it, naming `parts` (none for v3's).
+inline v5::PaneCanvasContent canvas_content_of(const PaneCanvasContent& c,
+                                               std::vector<PaneCanvasPart> parts = {}) {
+    v5::PaneCanvasContent out{c.pane, c.grant, c.picture, c.rects, c.labels, {}, std::move(parts)};
+    out.texts.reserve(c.texts.size());
+    for (const PaneCanvasText& t : c.texts) out.texts.push_back(canvas_text_of(t));
+    return out;
+}
+
 struct PaneCanvasRejected {
     std::string pane;
     std::int64_t grant = 0, picture = 0;
@@ -176,7 +233,7 @@ struct PaneCanvasContent {
     std::int64_t grant = 0, picture = 0;
     std::vector<PaneCanvasRect> rects;
     std::vector<PaneCanvasLabel> labels;
-    std::vector<PaneCanvasText> texts = {};
+    std::vector<workshop::PaneCanvasText> texts = {}; // the first run, as this version said
     ZEN_SHAPE(PaneCanvasContent, 2, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
               ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
 };

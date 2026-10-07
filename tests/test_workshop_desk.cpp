@@ -329,7 +329,8 @@ constexpr const char* kCanvasPane = "sketch";
 class SketchSeat : public loom::WeaveBase<SketchSeat, SeatState,
     loom::Accept<PaneCatalogRequested, PaneRoom, PaneCanvasRoom, PaneCanvasPointer,
                  PaneCanvasHover, PaneCanvasRejected, SeatDo>,
-    loom::Emit<v3::PaneOffered, PaneCanvasContent, v4::PaneCanvasContent>> {
+    loom::Emit<v3::PaneOffered, PaneCanvasContent, v4::PaneCanvasContent,
+               v5::PaneCanvasContent>> {
 public:
     std::vector<PaneCanvasRoom> rooms;
     std::vector<PaneCanvasPointer> pointers;
@@ -354,6 +355,7 @@ loom::Grant sketch_grant() {
     grant.allow_to_any(v3::PaneOffered::zen_name, v3::PaneOffered::zen_version);
     grant.allow_to_any(PaneCanvasContent::zen_name, PaneCanvasContent::zen_version);
     grant.allow_to_any(v4::PaneCanvasContent::zen_name, v4::PaneCanvasContent::zen_version);
+    grant.allow_to_any(v5::PaneCanvasContent::zen_name, v5::PaneCanvasContent::zen_version);
     return grant;
 }
 
@@ -531,13 +533,13 @@ TEST_CASE("a canvas pane's words are its labels and text runs, each where it is 
         CHECK(view.words[1].place.w == 7 * kPaneCanvasUnit);
         CHECK(view.words[1].place.h == kPaneCanvasUnit);
         // A RUN OF MEASURED TEXT IS THE FACE'S, where the medium sets type: one cell a byte where
-        // it does not, and a terminal draws a caret glyph into the run with the caret.
+        // it does not, the caret taking none of its own in either.
         if (window) {
             CHECK(view.words[2].place.w == 14 * d.r.session().text_advance_px);
             CHECK(view.words[3].place.w == 10 * d.r.session().text_advance_px);
         } else {
             CHECK(view.words[2].place.w == 14 * kPaneCanvasUnit);
-            CHECK(view.words[3].place.w == 11 * kPaneCanvasUnit);
+            CHECK(view.words[3].place.w == 10 * kPaneCanvasUnit);
         }
         for (const PaneWord& w : view.words) {
             CAPTURE(w.text);
@@ -558,15 +560,15 @@ TEST_CASE("a canvas pane's words are its labels and text runs, each where it is 
         const DeskRect l = view.words[1].place;
         CHECK(inside_locally(d.sketch->pointers.front(),
                              DeskRect{l.x + kPaneCanvasUnit, l.y, kPaneCanvasUnit, l.h}, pane));
-        // ...AND ONE AFTER THE CARET, where a terminal draws a caret glyph before it: `d`, the
-        // run's fifth byte, stands in its sixth cell there, and in its fifth advance in a window.
+        // ...AND ONE AFTER THE CARET, which moves no character: `d`, the run's fifth byte, stands
+        // in its fifth cell in a terminal and its fifth advance in a window.
         REQUIRE(d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture, 3, 4}, at).empty());
         const DeskRect typed = view.words[3].place;
         if (window) {
             const auto advance = d.r.session().text_advance_px;
             CHECK(at.x == typed.x + 4 * advance + advance / 2);
         } else {
-            CHECK(at.x == surface::cell_of_pixel(typed.x) + 5);
+            CHECK(at.x == surface::cell_of_pixel(typed.x) + 4);
         }
         // THE FIRST VERSION STILL ANSWERS IN ROWS, AND STILL SAYS A PICTURE IS NOT ROWS.
         d.asker->refusals.clear();
@@ -599,8 +601,7 @@ TEST_CASE("a pane's words are refused while a menu covers it or arranging is ope
 namespace {
 
 /// THE TERMINAL'S OWN PICTURE OF A PLACE: the glyphs on the cells a canvas place covers, as the
-/// terminal rasterizer draws the canvas (`rasterize_canvas`), less the caret glyph it draws into
-/// a run with the caret.
+/// terminal rasterizer draws the canvas (`rasterize_canvas`).
 std::string terminal_cells(const surface::CanvasGrids& g, const DeskRect& p, bool& one_row) {
     one_row = p.h == surface::kCanvasCellPx;
     const std::int64_t y = surface::cell_of_pixel(p.y);
@@ -609,8 +610,7 @@ std::string terminal_cells(const surface::CanvasGrids& g, const DeskRect& p, boo
     std::string out;
     for (std::int64_t x = x0; x < x1; ++x) {
         if (x < 0 || y < 0 || x >= g.w || y >= g.h) return "(off the terminal)";
-        const char c = g.glyphs[static_cast<std::size_t>(y * g.w + x)];
-        if (c != surface::kCaretGlyph) out += c;
+        out += g.glyphs[static_cast<std::size_t>(y * g.w + x)];
     }
     return out;
 }
@@ -807,7 +807,7 @@ std::int64_t row_right_edge(const ExternalBodyPlace& body) {
 
 } // namespace
 
-TEST_CASE("a character's point is the cell showing it, past a terminal's caret glyph, and a press on a cell reaches the pane as the column of the character it shows") {
+TEST_CASE("a character's point is the cell showing it, a caret moving none, and a press on a cell reaches the pane as the column of the character it shows") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
@@ -853,14 +853,16 @@ TEST_CASE("a character's point is the cell showing it, past a terminal's caret g
             CHECK(d.alpha->presses[0].column == column);
         }
         if (!window) {
-            // THE CARET'S OWN CELL shows no character of the row: a press there is the caret's column.
+            // THE CARET STANDS ON THE CELL OF THE CHARACTER IT SITS BEFORE, inverted, and a press
+            // there is that character's column, the caret's own.
             v2::PaneView view;
             REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
             const surface::CanvasGrids grid = surface::rasterize_canvas(d.r.last_canvas());
             const std::int64_t row = surface::cell_of_pixel(view.words[0].place.y);
             const std::int64_t x0 = surface::cell_of_pixel(view.words[0].place.x);
-            const std::int64_t caret = terminal_cell_of(grid, row, x0, x0 + 7, surface::kCaretGlyph);
+            const std::int64_t caret = terminal_cell_of(grid, row, x0, x0 + 6, 'c');
             REQUIRE(caret == x0 + 2);
+            CHECK(grid.carets[static_cast<std::size_t>(row * grid.w + caret)] != 0);
             d.alpha->presses.clear();
             d.click(caret, row + surface::kTuiCanvasTopRow, input::space::kCells);
             REQUIRE(d.alpha->presses.size() == 1);
@@ -869,7 +871,7 @@ TEST_CASE("a character's point is the cell showing it, past a terminal's caret g
     }
 }
 
-TEST_CASE("a row as wide as its pane with a terminal's caret in it says only the characters shown, at a place inside the pane") {
+TEST_CASE("a row as wide as its pane with a caret in it says every character, at a place inside the pane, the caret past its end on its last cell") {
     for (const auto& medium : {std::pair{false, false}, std::pair{false, true}, std::pair{true, false},
                                std::pair{true, true}}) {
         const bool window = medium.first;
@@ -894,17 +896,20 @@ TEST_CASE("a row as wide as its pane with a terminal's caret in it says only the
         REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
         REQUIRE(view.words.size() == 1);
         const PaneWord& w = view.words[0];
-        // A terminal inserts the caret's glyph and then cuts the row, so one character fewer shows,
-        // unless the glyph stands past the last column, where the cut takes the glyph alone; a
-        // window draws a bar, which takes no character's place.
-        const std::int64_t shown = window || at_end ? body.columns : body.columns - 1;
-        CHECK(w.text == full.substr(0, static_cast<std::size_t>(shown)));
+        // A caret moves no character in either medium, so every character of the row shows; a
+        // terminal shows the caret past the last one on the last cell, which still shows it.
+        const std::int64_t shown = body.columns;
+        CHECK(w.text == full);
         CHECK(w.place.x + w.place.w <= row_right_edge(body));
         if (!window) {
             const surface::CanvasGrids grid = surface::rasterize_canvas(d.r.last_canvas());
             bool one_row = false;
             CHECK(terminal_cells(grid, w.place, one_row) == w.text);
             CHECK(one_row);
+            const std::int64_t row = surface::cell_of_pixel(w.place.y);
+            const std::int64_t x0 = surface::cell_of_pixel(w.place.x);
+            const std::int64_t caret_cell = at_end ? x0 + body.columns - 1 : x0 + 3;
+            CHECK(grid.carets[static_cast<std::size_t>(row * grid.w + caret_cell)] != 0);
         }
         // THE LAST CHARACTER SHOWN HAS A POINT, AND A PRESS THERE IS ITS COLUMN...
         v2::PanePoint at;
@@ -914,20 +919,18 @@ TEST_CASE("a row as wide as its pane with a terminal's caret in it says only the
         d.click(at.x, at.y, at.space);
         REQUIRE(d.alpha->presses.size() == 1);
         CHECK(d.alpha->presses[0].column == shown - 1);
-        if (!window && !at_end) {
-            // ...AND THE ONE THE CUT TOOK HAS NONE, in either version.
-            CHECK(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown}, at)
-                      .find("outside") != std::string::npos);
-            PanePoint first;
-            CHECK(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown}, first)
-                      .find("not addressable") != std::string::npos);
-        }
+        // ...AND A COLUMN PAST THE BODY HAS NONE, in either version.
+        CHECK(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown}, at)
+                  .find("outside") != std::string::npos);
+        PanePoint first;
+        CHECK(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown}, first)
+                  .find("outside") != std::string::npos);
     }
 }
 
 TEST_CASE("a word that is only a caret is pressed on the caret's own cell, inside its place, in a text row and in a canvas field at the body's right edge") {
-    // A TEXT ROW WITH NOTHING ON IT BUT THE CARET: a terminal draws the glyph in the row's first
-    // cell, and that cell is the word.
+    // A TEXT ROW WITH NOTHING ON IT BUT THE CARET: a terminal shows the row's first cell
+    // inverted, and that cell is the word.
     {
         DeskRig d;
         d.r.drive(d.alpha, [](ProviderSeat& s, loom::Mail& m) {
@@ -944,7 +947,8 @@ TEST_CASE("a word that is only a caret is pressed on the caret's own cell, insid
         CHECK(w.x == surface::cell_of_pixel(w.place.x));
         CHECK(w.y - surface::kTuiCanvasTopRow == surface::cell_of_pixel(w.place.y));
         const surface::CanvasGrids grid = surface::rasterize_canvas(d.r.last_canvas());
-        CHECK(terminal_glyph_at(grid, w.x, w.y) == surface::kCaretGlyph);
+        const std::int64_t at = (w.y - surface::kTuiCanvasTopRow) * grid.w + w.x;
+        CHECK(grid.carets[static_cast<std::size_t>(at)] != 0);
         d.alpha->presses.clear();
         d.click(w.x, w.y, w.space);
         REQUIRE(d.alpha->presses.size() == 1);
@@ -1063,6 +1067,44 @@ void press_lands(DeskRig& d, const PanePart& part, const NamedRun& run) {
 
 } // namespace
 
+TEST_CASE("a part whose one cell holds the caret at the body's right edge has a point there, and a press on it reaches the pane") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        DeskRig d;
+        if (window) {
+            d.r.extent_on_window(150, 60);
+        }
+        const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
+        REQUIRE(body.present);
+        std::string full;
+        for (std::int64_t i = 0; i < body.columns; ++i) {
+            full += static_cast<char>('a' + i % 26);
+        }
+        const std::int64_t edge = body.columns - 1;
+        d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
+            s.say_named(m, v4::PaneContent{"alpha", {surface::SurfaceTextRow{full, surface::role::kFill}},
+                                           0, 0, {PaneRowPart{"control:edge", 0, edge, 1}}});
+            s.caret(m, PaneCaret{"alpha", 0, edge});
+        });
+        v3::PaneView view;
+        REQUIRE(d.parts(kAlphaOffice, "alpha", view).empty());
+        const PanePart* part = part_named(view.parts, "control:edge");
+        REQUIRE(part != nullptr);
+        CHECK(part->text == full.substr(static_cast<std::size_t>(edge)));
+        REQUIRE(part->space == (window ? input::space::kPixels : input::space::kCells));
+        if (!window) {
+            const surface::CanvasGrids grid = surface::rasterize_canvas(d.r.last_canvas());
+            const std::int64_t at = (part->y - surface::kTuiCanvasTopRow) * grid.w + part->x;
+            CHECK(grid.carets[static_cast<std::size_t>(at)] != 0); // the caret's own cell
+        }
+        d.alpha->presses.clear();
+        d.click(part->x, part->y, part->space);
+        REQUIRE(d.alpha->presses.size() == 1);
+        CHECK(d.alpha->presses[0].row == 0);
+        CHECK(d.alpha->presses[0].column == edge);
+    }
+}
+
 TEST_CASE("a text pane's named parts are said under the pane's own names over the cells that show them, and a press at a part's point lands on it, in a window and in a terminal") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
@@ -1072,7 +1114,7 @@ TEST_CASE("a text pane's named parts are said under the pane's own names over th
         }
         const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
         REQUIRE(body.columns >= 20);
-        // The caret before `ess`: a terminal draws its glyph there, standing `[Save]` a cell on.
+        // The caret before `ess`, which moves no character in either medium.
         d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
             s.say_named(m, v4::PaneContent{"alpha",
                                            {surface::SurfaceTextRow{"first row", surface::role::kFill},
@@ -1100,12 +1142,12 @@ TEST_CASE("a text pane's named parts are said under the pane's own names over th
         const std::int64_t advance = window ? body.fit.advance_px : surface::kCanvasCellPx;
         const std::int64_t line = window ? body.fit.line_px : surface::kCanvasCellPx;
         const std::int64_t left = view.words[0].place.x;
-        // A ROW ENTIRE COVERS THE BODY'S COLUMNS, A CONTROL ITS OWN -- a cell on, past a
-        // terminal's caret -- and an empty field its own, though nothing is drawn in it.
+        // A ROW ENTIRE COVERS THE BODY'S COLUMNS, A CONTROL ITS OWN, and an empty field its own,
+        // though nothing is drawn in it.
         CHECK(first->place.x == left);
         CHECK(first->place.w == body.columns * advance);
         CHECK(first->place.y == view.words[0].place.y);
-        CHECK(save->place.x == left + (window ? 6 : 7) * advance);
+        CHECK(save->place.x == left + 6 * advance);
         CHECK(save->place.w == 6 * advance);
         CHECK(save->place.y == view.words[1].place.y);
         CHECK(save->place.h == line);
@@ -1763,7 +1805,7 @@ TEST_CASE("a picture's names are judged with it: a name twice or a part with no 
     d.draw_named({PaneCanvasPart{"node", 0, 0, 12, 12}, PaneCanvasPart{"", 6, 0, 12, 12},
                   PaneCanvasPart{"", 0, 6, 12, 12}});
     CHECK(d.sketch->rejected.empty());
-    CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.parts.size() == 3);
+    CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.content.parts.size() == 3);
 }
 
 TEST_CASE("the desk names the lines of Workshop's own menu by the action or group each shows, over the line it is drawn on") {
@@ -1888,6 +1930,65 @@ TEST_CASE("a pane's names survive the canvas: its next image draws a picture und
             CHECK(y >= after->place.y - (window ? 0 : u - 1));
             CHECK(y < after->place.y + after->place.h);
         }
+    }
+}
+
+TEST_CASE("a canvas pane's rows set on its room's lattice are words on its parts' rows, and a part's text is the characters drawn inside it") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        const PaneCanvasRoom room = d.sketch->rooms.back();
+        const CanvasTextMetrics m = canvas_text_metrics(room);
+        v5::PaneCanvasContent p;
+        p.pane = kCanvasPane;
+        p.grant = room.grant;
+        p.picture = ++d.number;
+        p.rects.push_back(PaneCanvasRect{0, 0, room.width, room.height, surface::role::kGround});
+        const std::vector<std::string> rows = {"> [open] Layouts", "  [    ] Loaded"};
+        for (std::size_t r = 0; r < rows.size(); ++r) {
+            v2::PaneCanvasText run{m.inset, static_cast<std::int64_t>(r) * m.line, rows[r],
+                                   surface::role::kFill};
+            run.padded = false;
+            p.texts.push_back(run);
+        }
+        p.parts.push_back(PaneCanvasPart{"pane:a", m.inset, 0, 20 * m.advance, m.line});
+        p.parts.push_back(PaneCanvasPart{"mark:a", m.inset + 2 * m.advance, 0, 6 * m.advance, m.line});
+        p.parts.push_back(PaneCanvasPart{"pane:b", m.inset, m.line, 20 * m.advance, m.line});
+        d.drive([p](SketchSeat&, loom::Mail& mail) {
+            (void)mail.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, p);
+        });
+        REQUIRE(d.sketch->rejected.empty());
+        v3::PaneView view;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
+        CHECK(view.canvas);
+        // ONE WORD A ROW, its text the row's, on the row its parts stand on.
+        REQUIRE(view.words.size() == 2);
+        const ExternalPane& pane = *d.r.session().panes.external_pane(d.sketch_kind);
+        for (std::size_t r = 0; r < rows.size(); ++r) {
+            CAPTURE(r);
+            CHECK(view.words[r].text == rows[r]);
+            CHECK(view.words[r].place.x == pane.canvas.x + m.inset);
+            CHECK(view.words[r].place.y == pane.canvas.y + static_cast<std::int64_t>(r) * m.line);
+            CHECK(view.words[r].place.h == m.line);
+        }
+        const PanePart* row_a = part_named(view.parts, "pane:a");
+        const PanePart* mark = part_named(view.parts, "mark:a");
+        const PanePart* row_b = part_named(view.parts, "pane:b");
+        REQUIRE(row_a != nullptr);
+        REQUIRE(mark != nullptr);
+        REQUIRE(row_b != nullptr);
+        CHECK(row_a->place.y == view.words[0].place.y);
+        CHECK(row_b->place.y == view.words[1].place.y);
+        // A PART A WORD CROSSES SAYS THE CHARACTERS ON ITS SIDE, as a row part says its columns'.
+        CHECK(row_a->text == rows[0]);
+        CHECK(mark->text == "[open]");
+        CHECK(row_b->text == rows[1]);
+        // ...and a press at the mark's point lands inside the mark, in the pane's own pixels.
+        d.sketch->pointers.clear();
+        d.click(mark->x, mark->y, mark->space);
+        REQUIRE_FALSE(d.sketch->pointers.empty());
+        CHECK(inside_locally(d.sketch->pointers.front(), mark->place, pane));
     }
 }
 

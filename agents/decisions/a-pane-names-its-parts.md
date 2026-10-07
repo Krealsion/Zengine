@@ -1,7 +1,7 @@
 # A pane names its parts, and the names ride with its picture
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [pane controls](../workshop/pane-controls.md).
+supports is in [the names a pane gives its parts](../workshop/pane-parts.md).
 
 **Context.** An agent read a pane's words by message, each numbered by its place in one answer:
 a redraw renumbered them, and a walk chose a Pane Manager row, a menu line or Info's `Height` by
@@ -36,4 +36,4 @@ sought over all of it, and a part with none is said with no point.
 part with no point. A pane moving its rows onto the canvas names the same parts in its picture,
 and a name an agent wrote still holds.
 
-**Laws supported.** [WL-HAND-06](../workshop/pane-controls.md).
+**Laws supported.** [WL-HAND-06](../workshop/pane-parts.md).

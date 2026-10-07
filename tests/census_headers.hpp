@@ -133,9 +133,11 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::OpeningState>(), // OpeningState v1
         shape<::zengine::workshop::v2::PaneCanvasContent>(), // PaneCanvasContent v2
         shape<::zengine::workshop::PaneCanvasContent>(), // PaneCanvasContent v3
+        shape<::zengine::workshop::v5::PaneCanvasContent>(), // PaneCanvasContent v5
         shape<::zengine::workshop::v1::PaneCanvasHover>(), // PaneCanvasHover v1
         shape<::zengine::workshop::v1::PaneCanvasPointer>(), // PaneCanvasPointer v1
         shape<::zengine::workshop::v2::PaneCanvasRoom>(), // PaneCanvasRoom v2
+        shape<::zengine::workshop::v2::PaneCanvasText>(), // PaneCanvasText v2
         shape<::zengine::workshop::v1::PaneCanvasValueDrop>(), // PaneCanvasValueDrop v1
         shape<::zengine::workshop::PlanDoorState>(), // PlanDoorState v1
         shape<::zengine::workshop::ProjectDoorState>(), // ProjectDoorState v2

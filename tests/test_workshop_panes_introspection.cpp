@@ -1730,9 +1730,9 @@ TEST_CASE("all three panes may be open at once, each answering its own room") {
 }
 
 TEST_CASE("the graphical medium grants a different room and both panes spend it") {
-    // BOTH MEDIA, ONE PANE SEMANTIC. The provider is handed `rows` and `columns` and never a cell,
-    // a pixel, a font or the identity of the medium that answered -- so what differs between a
-    // terminal reading and a graphical one is a pair of integers `fit_region` resolved on
+    // BOTH MEDIA, ONE PANE SEMANTIC. The provider is handed a room and the advance and line its
+    // text stands at, never a font, and composes for the rows and columns of that lattice -- so
+    // what differs between a terminal reading and a graphical one is a few integers resolved on
     // Workshop's side, and nothing else. The metric arrives as a NUMBER, which is how a lane with
     // no font engine proves a medium-dependent claim.
     PaneRig r;
@@ -1746,7 +1746,7 @@ TEST_CASE("the graphical medium grants a different room and both panes spend it"
     // A REAL FACE'S METRIC over the same surface: a 10-pixel advance is more columns in
     // the same rectangle, and an 18-pixel line in a 12-pixel cell is fewer prose rows.
     author_test_pane_room(r, kind, cells->rows, cell_cols);
-    r.extent(1200, 500, 10, 18);
+    r.extent(1200, 500, 10, 18, surface::kCanvasCellPx); // a window reports its device scale
     const ExternalPane* graphical = r.session().panes.external_pane(kind);
     REQUIRE(graphical != nullptr);
     CHECK(graphical->columns != cell_cols);

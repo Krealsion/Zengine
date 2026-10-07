@@ -55,19 +55,6 @@ bool rows_shown(const ExternalPane& pane) noexcept {
 
 } // namespace
 
-// WL-GEO-01 -- agents/workshop/geometry.md
-std::int64_t external_caret_glyph(const ExternalPane* pane, const surface::RegionFit& fit,
-                                  std::int64_t row) noexcept {
-    if (pane == nullptr || fit.graphical() || !rows_shown(*pane) ||
-        pane->caret_row == surface::kNoCaret || pane->caret_row != row ||
-        row >= static_cast<std::int64_t>(pane->shown.size())) {
-        return -1;
-    }
-    const auto width =
-        static_cast<std::int64_t>(pane->shown[static_cast<std::size_t>(row)].text.size());
-    return pane->caret_col >= 0 && pane->caret_col <= width ? pane->caret_col : -1;
-}
-
 // WL-PRESS-04 -- agents/workshop/press-chain.md
 ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
                                   const Screen& sc, std::int64_t kind, bool titles,
@@ -89,10 +76,8 @@ ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
     if (row < 0 || row >= body.rows || at.column < 0 || at.column >= body.columns) {
         return ExternalPressAt{};
     }
-    // The cell names the character it shows, past a caret drawn as a glyph of its own.
-    return ExternalPressAt{
-        true, row,
-        shown_column(at.column, external_caret_glyph(panes.external_pane(kind), body.fit, row))};
+    // The cell names the character it shows: a caret moves no character from its cell.
+    return ExternalPressAt{true, row, at.column};
 }
 
 // WL-EDIT-12 -- agents/workshop/editor.md; WL-FOCUS-10 -- agents/workshop/focus.md
@@ -151,7 +136,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
             if (!region.rows.empty()) {
                 region.rows[0].text = detail::fit("(updating) " + region.rows[0].text, body.columns);
             } else {
-                PaneCanvasContent notice;
+                v5::PaneCanvasContent notice;
                 notice.texts.push_back({0, 0, "(updating)", surface::role::kAlert});
                 paint_pane_canvas(layer, canvas, notice, sc.text_advance_px,
                                   sc.text_line_px, chrome_grain(sc));

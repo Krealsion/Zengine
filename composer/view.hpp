@@ -90,11 +90,10 @@ inline constexpr const char* kUnselectedMark = "  ";
 /// characters, because this canvas is plain ASCII by contract.
 inline constexpr const char* kElided = "...";
 
-/// What a caret looks like in a provider's row: `surface::kCaretGlyph`, the character a cell
-/// medium inserts for a region's caret, so typing here looks like typing into the Terminal. A
-/// character, not a region caret, because `PaneContent` carries rows and no caret; it costs one
-/// column of the value's room, since a caret sits between characters and after the last one.
-inline constexpr char kCaret = surface::kCaretGlyph;
+/// What a caret looks like in this pane's row: a character it writes into the edited value
+/// itself, saying no caret beside its rows (`PaneCaret`). It costs one column of the value's room,
+/// since a caret sits between characters and after the last one.
+inline constexpr char kCaret = '_';
 
 /// Fit `text` into `columns`, and say so when it did not fit. A copy, as introspection's is: a
 /// provider is a stranger to Workshop's own composition. `workshop/pane_text.hpp` now shares one
