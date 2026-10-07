@@ -135,8 +135,9 @@ verification follows [verification](verification.md).
   each. So making a view offers and draws that view alone (`tests/test_workshop_inventory_info.cpp`
   case `"views: making a view offers only that view, so a view already on the desk never stands
   blank"`).
-- Each view draws its rows on its own canvas; a press, the wheel, a right press and a drop are
-  read back to its row map, current only on the picture it still shows. The line being typed
+- Each view draws its rows on its own canvas; a press, a right press and a drop are read back
+  to its row map, current only on the picture it still shows, and the wheel walks the selection
+  only in the room the view still holds. The line being typed
   writes no caret into itself: the caret and selection stand in it, said beside the rows to a host
   granting no canvas (`tests/test_workshop_inventory_info.cpp` case `"Inventory draws its rows on
   its canvas on the medium's own ground, and a name line's caret and selection stand in the line,

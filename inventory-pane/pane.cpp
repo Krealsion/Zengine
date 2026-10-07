@@ -15,6 +15,7 @@
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include <zen/kernel/export.hpp>
+#include <cmath>
 #include <map>
 #include <random>
 #include <sstream>
@@ -138,8 +139,9 @@ public:
         if (busy() || editing_ != Editing::none) { (void)m.answer(loom::Refused{"Finish the current inventory operation or editor first"}); return; }
         apply(edit,m,m.defer_answer());
     }
-    /// A PRESS, THE WHEEL AND A RIGHT PRESS ON A VIEW'S CANVAS: a place reads back to the row and
-    /// column a prose press named, and means something only on the picture the view still shows.
+    /// A PRESS, THE WHEEL AND A RIGHT PRESS ON A VIEW'S CANVAS: a press's place reads back to the
+    /// row and column a prose press named, and means something only on the picture the view still
+    /// shows; the wheel names no place and walks the selection in the room the view still holds.
     /// Motion, a release and a loss mean nothing: a drag's carry begins at its press.
     void on(const ws::PaneCanvasPointer& p, loom::Mail& m) {
         if (!host(m) || !known(p.pane)) return;
@@ -221,9 +223,11 @@ private:
     void wheel(const std::string& view,double dy,loom::Mail& m) {
         if(editing_!=Editing::none) return;
         pressed_folder_.clear();
-        auto& v=views_[view]; v.wheel+=dy;
-        while(v.wheel>=1) { step(view,-1); v.wheel-=1; }
-        while(v.wheel<=-1) { step(view,1); v.wheel+=1; } remove_armed_=false; draw(m);
+        auto& v=views_[view]; v.wheel+=dy; if(!std::isfinite(v.wheel)) v.wheel=0;
+        // No turn walks further than the view holds rows, however far the wheel went.
+        const double whole=std::trunc(v.wheel); v.wheel-=whole;
+        const double reach=static_cast<double>(row_keys(view).size());
+        step(view,-static_cast<int>(std::clamp(whole,-reach,reach))); remove_armed_=false; draw(m);
     }
 public:
     void on(const ws::PaneMenuAnswered& a, loom::Mail& m) {
