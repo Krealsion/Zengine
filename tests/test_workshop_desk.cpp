@@ -333,11 +333,12 @@ class SketchSeat : public loom::WeaveBase<SketchSeat, SeatState,
                v5::PaneCanvasContent>> {
 public:
     std::vector<PaneCanvasRoom> rooms;
+    std::vector<PaneRoom> prose_rooms;
     std::vector<PaneCanvasPointer> pointers;
     std::vector<PaneCanvasRejected> rejected;
     std::function<void(SketchSeat&, loom::Mail&)> next;
     void on(const PaneCatalogRequested&, loom::Mail&) {}
-    void on(const PaneRoom&, loom::Mail&) {}
+    void on(const PaneRoom& r, loom::Mail&) { prose_rooms.push_back(r); }
     void on(const PaneCanvasRoom& r, loom::Mail&) { rooms.push_back(r); }
     void on(const PaneCanvasPointer& e, loom::Mail&) { pointers.push_back(e); }
     void on(const PaneCanvasHover&, loom::Mail&) {}
@@ -599,12 +600,16 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         // A PRESS HELD ON THE PANE takes the keys, and with them the title the pane wears while
         // it has them (WL-FOCUS-11); the room that title takes waits for the press.
         const PaneWord& pressed = before.words[2];
+        const std::size_t prose_before = d.sketch->prose_rooms.size();
         d.r.publish(loom::to_value(input::PointerButton{1, true, pressed.x, pressed.y, pressed.space,
                                                         input::mod::kNone}));
         REQUIRE(keyboard_pane(d.r.session().panes) == d.sketch_kind);
         REQUIRE(external_title_rows(d.r.session().panes, d.sketch_kind, false) == 1);
         const ExternalPane& held = *d.r.session().panes.external_pane(d.sketch_kind);
         REQUIRE(held.canvas.grant == kept.canvas.grant);
+        // ...and its rows with it: no prose room is granted while the press is held.
+        CHECK(held.rows == kept.rows);
+        CHECK(d.sketch->prose_rooms.size() == prose_before);
         // READ WHERE IT IS PAINTED, before the pane draws again, as it may never: the words stand
         // in the room the press kept, where the painter draws the picture.
         const auto read = [&](v2::PaneView& view) {
@@ -668,6 +673,10 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         CHECK_FALSE(after.canvas.title_waits);
         CHECK(after.canvas.y > kept.canvas.y);
         CHECK(painted_at(after.canvas));
+        // ...its rows granted with it, a title row fewer, in one prose room.
+        CHECK(after.rows == kept.rows - 1);
+        REQUIRE(d.sketch->prose_rooms.size() == prose_before + 1);
+        CHECK(d.sketch->prose_rooms.back().rows == kept.rows - 1);
         d.draw();
         CHECK(titled());
     }
@@ -758,6 +767,38 @@ TEST_CASE("a held press on the canvas pane that has the keys keeps its room whil
                                                     input::mod::kNone}));
     CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.grant == titled_room.canvas.grant);
     CHECK(titled());
+}
+
+TEST_CASE("a held press a menu takes ends its canvas pane's wait in that same repaint: the room under the "
+          "title and its rows are granted at once") {
+    SketchRig d;
+    press_outside(d.r, d.sketch_kind); // the keys are Workshop's...
+    d.r.key(input::scan::kT);          // ...and the titles hidden
+    d.r.text("t");
+    REQUIRE_FALSE(d.r.session().pane_titles);
+    d.draw();
+    v2::PaneView view;
+    REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+    const ExternalPane kept = *d.r.session().panes.external_pane(d.sketch_kind);
+    // A PRESS HELD ON THE PANE gives it the keys, and the room their title row makes waits for it.
+    const PaneWord& w = view.words[2];
+    d.r.publish(loom::to_value(input::PointerButton{1, true, w.x, w.y, w.space, input::mod::kNone}));
+    REQUIRE(keyboard_pane(d.r.session().panes) == d.sketch_kind);
+    REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->canvas.title_waits);
+    // ...AND A RIGHT PRESS ON THE ROOM BELOW IT, the first still held: the room's menu opens and
+    // takes the hold, and in that repaint the wait is over -- no press holds the room.
+    const ui::Rect pane_rect = cells_covered(external_pane_rect(d.r.session(), d.sketch_kind));
+    d.r.publish(loom::to_value(input::PointerButton{3, true, pane_rect.x + 1,
+                                                    pane_rect.y + pane_rect.h + 1 + surface::kTuiCanvasTopRow,
+                                                    input::space::kCells, input::mod::kNone}));
+    REQUIRE(d.r.session().context.open);
+    const ExternalPane& now = *d.r.session().panes.external_pane(d.sketch_kind);
+    CHECK_FALSE(now.canvas.title_waits);
+    CHECK(now.canvas.grant != kept.canvas.grant);
+    CHECK(now.canvas.y > kept.canvas.y);
+    CHECK(now.rows == kept.rows - 1);
+    REQUIRE_FALSE(d.sketch->pointers.empty());
+    CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
 }
 
 TEST_CASE("a pane's words are refused while a menu covers it or arranging is open, and the desk still answers") {

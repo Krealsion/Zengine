@@ -60,6 +60,8 @@ void WorkshopWeave::end_canvas_holds(loom::Mail& mail) {
 }
 
 void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
+    // A hold a mode, a menu or an owner change has taken ends first, so it keeps no room below.
+    end_canvas_holds(mail);
     const auto sc = screen_of(session_);
     for (auto& pane : session_.panes.external) {
         const auto* row = session_.panes.runtime.of_kind(pane.kind);
