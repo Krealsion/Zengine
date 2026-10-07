@@ -155,7 +155,7 @@ since moved"`, case `"a paste retires with the document it was asked for"`, case
 `"a dirty document with no paste in flight still refuses the exit"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
-## WL-EDIT-12 — The pane composes its rows, and the caret beside them
+## WL-EDIT-12 — The pane composes its rows, the caret and the selection standing in them
 
 LAW — The pane composes a status row (dirty word, `L:C/N`, the path), a notice row where the room holds one, then the document through the viewport; the caret and the clipped selection stand in them.
 
@@ -179,7 +179,7 @@ WHY — `agents/decisions/the-editor-is-the-custodian.md`
 LAW — The desk judges a trial seat on a copy and moves nothing; asked to admit, it re-judges, keeps the content and offers its presentation; shown the publication, it applies seat, keys, room and content.
 
 MEANS
-- a resize, an authored change or a routed input between the trial and the commitment aborts it;
+- a change of its rows, an authored change or a routed input before the commitment aborts it; a canvas moved before the admission refuses it there;
 - a presentation it holds no trial for is Declined, said, and re-claimed from the live desk;
 - the content is the pane's picture in the room the trial reserved, or its rows (WL-OPEN-10).
 
@@ -188,7 +188,9 @@ PROVEN BY — `workshop/weave_managed.cpp` `on(PresentationTrialRequested)`,
 `on_claim_published`, `show_presentation`, `trial_room`, `trial_room_stands`;
 `workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `workshop/screen.hpp`
 `stack_slots_that_fit`; `workshop/open_seam_vocabulary.hpp` `PanePresentation`,
-`ManagedOpenSettled`; `tests/test_workshop_panes_editor.cpp` case
+`ManagedOpenSettled`; `tests/test_workshop_panes_opening.cpp` case `"a canvas room that moves
+while the document is prepared refuses its admission, though its rows and columns stand"`;
+`tests/test_workshop_panes_editor.cpp` case
 `"a resize after the commitment is an ordinary presentation change"`, case
 `"the real desk, shown a presentation it holds no trial for, answers that it did not apply it --
 Declined, not held, named, and re-claiming its own truth"`.
@@ -237,7 +239,7 @@ WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-16 — A sweep arrives as places, unclamped, and the pane says what they mean
 
-LAW — A held primary press's motion extends the sweep it began and means nothing otherwise; its unclamped place is read against the chrome THAT PRESS SAW, and a row past either edge steps the window.
+LAW — A held primary press's motion extends the gesture it began and means nothing otherwise; its unclamped place is read against the chrome THAT PRESS SAW, and a row past either edge steps the window.
 
 MEANS
 - a press taken as focus alone, or beside the rows, begins no gesture: later motions sweep nothing;
@@ -248,8 +250,8 @@ PROVEN BY — `editor-pane/pane.cpp` `on(PaneCanvasPointer)`, `press_at`, `dragg
 `editor-pane/editor.hpp` `EditorBuffer::drag_to`; `workshop/pane_canvas_vocabulary.hpp`
 `PaneCanvasPointer`; `tests/test_workshop_panes_editor.cpp` case `"a press that only focuses
 begins no sweep, and a gesture keeps the geometry it was made against"`, case `"a sweep in a pane
-that lost its seat ends, and sends nothing"`, case `"a press begins a sweep only where it named a
-row of the body"`.
+that lost its seat is lost with it, and a motion after the close moves nothing it selected"`, case
+`"a press begins a sweep only where it named a row of the body"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## Do not assume

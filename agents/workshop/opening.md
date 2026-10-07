@@ -76,7 +76,7 @@ LAW — A newer request cancels a Preparing flight and tells its requester it wa
 
 MEANS
 - there is no queue of intents and no retry: the refused requester asks again;
-- a resize, setup change or owner replacement before the commitment aborts it at the bus.
+- a change of the pane's rows, the setup or the owner before the commitment aborts it at the bus; a canvas moved alone is refused at the admission (WL-EDIT-13).
 
 PROVEN BY — `workshop/weave_opening.cpp` `on(OpenSourceRequested)`, `on(JointEnded)`,
 `refusal_of`; `tests/test_workshop_panes_editor.cpp` case `"a competing open through the OLD door
@@ -200,7 +200,7 @@ LAW — Where the managed pane's holder draws on a canvas and prepares for one, 
 
 MEANS
 - the reserved grant is used by nothing before the commitment, so no picture of A stands after it;
-- the shown picture is the desk's, numbered none, until the holder draws again: read at once;
+- the shown picture is the desk's, numbered none, until the holder draws again: its words read at once, a point read again;
 - the room is said to the holder after the showing; a holder drawing no canvas is asked for rows.
 
 DOES NOT MEAN — that Workshop draws for the pane: the picture is the Editor's own, admitted as any
@@ -213,7 +213,12 @@ PROVEN BY — `workshop/open_seam_vocabulary.hpp` `v2::PresentationTrial`,
 `workshop/weave_opening.cpp` `trialled`, `prepared`; `editor-pane/pane.cpp`
 `on(v2::PrepareSourceRequested)`, `prepare`, `activate`; `tests/test_workshop_panes_opening.cpp`
 case `"an open through the managed door shows the opened document's picture at the commitment, in
-a room reserved for it, and a picture of the document it replaced, arriving after, is refused"`;
+a room reserved for it, and a picture of the document it replaced, arriving after, is refused"`,
+case `"a holder that draws nothing after the commitment still shows the picture it prepared,
+numbered none, its words read at once and a cell's point read again until it draws its own"`,
+case `"a picture prepared for a room the trial did not reserve is refused at its admission, and the
+document shown stays"`, case `"a canvas room that moves while the document is prepared refuses
+its admission, though its rows and columns stand"`;
 `tests/test_workshop_panes_editor.cpp` case `"a managed open has one commitment -- the published
 claims, the pane's reads, its snapshot and the desk agree at it, and A is current before it"`,
 case `"a host that grants the Editor no canvas is shown its rows and caret as prose, its presses

@@ -229,7 +229,7 @@ LAW — A desk and a pane's words are answered from what Workshop owns, in canva
 
 MEANS
 - a canvas pane's labels and runs are words as a text pane's rows are, and so are a menu's lines;
-- the point a word or a lattice cell gives is resolved by the measurer a press is, so a press there lands on it;
+- the point a word or a lattice cell gives is resolved by the measurer a press is, so a press there lands on it; a picture numbered none gives none;
 - reading grants nothing and moves nothing: a press is ordinary input.
 
 DOES NOT MEAN
@@ -248,7 +248,9 @@ caret's own cell, inside its place, in a text row and in a canvas field at the b
 edge"`, case `"a part whose one cell holds the caret at the body's right edge has a point there,
 and a press on it reaches the pane"`, case `"every cell of a canvas pane's text lattice has a point, a
 blank one and the one after a row's last character too, and a press there reaches the pane at that
-cell; a text pane's cell is the first version's"`.
+cell; a text pane's cell is the first version's"`; `tests/test_workshop_panes_opening.cpp` case `"a
+holder that draws nothing after the commitment still shows the picture it prepared, numbered none,
+its words read at once and a cell's point read again until it draws its own"`.
 WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
 ## Do not assume

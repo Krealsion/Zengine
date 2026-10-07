@@ -48,7 +48,8 @@ external_press_at(panes, setup, screen, kind,     } Panes::selected and Panes::k
   the row a provider means by 0 is the region's prose row under the header. Forgetting the
   subtraction on the way back is the off-by-one that would be invisible until a pane had more
   than one selectable row. The count is `external_title_rows`'s answer — the
-  pane-title preference, with the keyboard-holding pane always keeping its title — resolved
+  pane-title preference, with the keyboard-holding pane wearing its title (a held canvas
+  press's once it ends) — resolved
   once and carried on `ExternalBodyPlace::header_rows`; the painter, the press path and the
   room grant spend that one answer, and a hidden title RETURNS its row to the provider's
   budget through the ordinary grant-on-change door. **The press path spends the answer the

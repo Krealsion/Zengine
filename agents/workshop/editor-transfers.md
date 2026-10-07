@@ -14,7 +14,7 @@ LAW — Dropped text is inserted at the painted landing character as one structu
 MEANS
 - the byte law: tab and printable ASCII; LF or CRLF is one break, in the document's convention;
 - one undo takes the drop back, caret and selection as they stood; the document is dirty;
-- a refusal changes nothing, history included; an Info Text field inserts its text.
+- a refusal changes nothing, history included; one beside the rows is refused; an Info Text field inserts its text.
 
 DOES NOT MEAN — that a drop types: no byte of it is a key, and nothing reaches the Terminal.
 
@@ -23,7 +23,8 @@ PROVEN BY — `editor-pane/editor.hpp` `EditorBuffer::insert_at`; `editor-pane/p
 `standard_lines`; `tests/test_workshop_editor_transfers.cpp` case `"dropped text is inserted at
 the painted landing character as one undoable edit, replaces the highlight only when dropped
 onto it, and saves nothing"`, case `"text the standard Editor cannot hold is refused whole, and
-the document, its selection and its history stay as they were"`;
+the document, its selection and its history stay as they were"`, case `"in a window, a value
+placed on the Editor's inset beside its rows is refused and changes nothing"`;
 `tests/test_source_transfer.cpp` case `"the standard Editor's law splits LF and CRLF, keeps
 tabs, and refuses what it cannot hold whole"`, case `"a dropped pair is read as text, a
 location, a command with the address its capture supplied, or refused in words"`.
@@ -41,7 +42,10 @@ MEANS
 PROVEN BY — `editor-pane/pane.cpp` `say`, `PictureKey`, `press_at`, `receive`;
 `workshop/pane_canvas_rows.hpp` `CanvasPictures`; `workshop/pane_carry.hpp`
 `PaneCanvasValueDrop`; `tests/test_workshop_editor_transfers.cpp` case `"a
-drop aimed at a picture the text has since left is refused and changes nothing"`.
+drop aimed at a picture the text has since left is refused and changes nothing"`, case `"a press
+aimed at a picture where the text it lands on was not yet selected begins no carry; the drag
+sweeps"`; `tests/test_workshop_panes_canvas.cpp` case `"a pane's canvas pictures fence a press by
+the meaning each was drawn under"`.
 WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
 ## WL-EDIT-19 — A copy leaves only from an established selection, and the document stays

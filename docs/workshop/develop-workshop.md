@@ -180,8 +180,8 @@ and shows nothing new:
 - **The desktop is usable by mouse, on its own canvas**, and that is six more doors on its accept
   set — the canvas's room and pointer (a press, the wheel and the second button arrive there), a
   refused picture, a menu's answer, the toggle's answer and an edit's answer — so a desktop built
-  from this source is refused as a reload of one built before it, and the Neovim editor's new
-  right-button door does the same for it. Attention, Connections, the demo controls, the
+  from this source is refused as a reload of one built before it. Attention, Connections, the
+  demo controls, the
   introspection panes (`Loaded`, `Project`, `Powers`), Files, the Builder, the Terminal,
   Compose, Info and Inventory with their views, and both Editors -- every pane Zengine ships --
   draw their rows on their canvas through the same doors, and each is refused the same way. A host from before this change never

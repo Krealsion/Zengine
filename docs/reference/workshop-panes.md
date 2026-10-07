@@ -976,8 +976,9 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   choice is still the weaver's latest act. A pane
   may write the raw shapes instead, and then owes the four checks `Asked::take` makes. The
   shipped `examples/guard-pane` consumes the button and asks for nothing; the Pane Manager and
-  the Hotkeys pane offer menus; the Neovim editor passes a right press and release to Neovim and
-  nothing more (it spends no secondary drag, and hands back a right press beside its rows).
+  the Hotkeys pane offer menus; the Neovim editor, on its canvas pointer, passes a right press and
+  its release to Neovim, offers its own menu on the Visual highlight and on its status row, and
+  hands back a right press beside its rows.
 
 ### The menu presenter, and replacing it
 
@@ -1240,7 +1241,15 @@ with `PanePoint{provider, pane, picture, row, column, x, y, space}`: the center 
 in the input space the medium reads, measured and then resolved by the same press measurer. It is
 refused when the pane's handed-out picture is not `picture`, the cell is outside the visible text,
 or the pane is closed or covered, exactly as `PaneViewRequested` is. A point is not a gesture;
-pressing it is ordinary input. The guest `capture` power grants both queries.
+pressing it is ordinary input.
+
+`v3::PanePointRequested{provider, pane, picture, row, column}` names one cell of the pane's text
+lattice instead, answered with the same `PanePoint`: a text pane's painted cell, as above, or, for
+a pane that draws its rows on its canvas, the centre of that cell of the lattice its room's text
+stands on (`canvas_rows`) -- a blank row's, and the one after a row's last character, too -- read
+back to that cell before it is answered. It is refused outside the lattice, when the picture
+moved, and while the picture a managed opening showed stands, numbered none: a point there is
+read again once the pane draws its own. The guest `capture` power grants every version.
 
 ### The desk, and a pane's words
 
@@ -1260,6 +1269,7 @@ press is in the input space the answer names, as `PanePoint`'s is.
 | `PaneWord{word, text, place, x, y, space}` | One run of words: its number in the answer, its text, the place covering its glyphs, and the centre of its middle character, where a press names it |
 | `v2::PanePointRequested{provider, pane, picture, word, column}` | Where one character of one word is now, for a caller that read the words at `picture` |
 | `v2::PanePoint{provider, pane, picture, word, column, x, y, space}` | Its centre: through the press measurer for a text row, checked against the body a press lands in for a canvas word |
+| `v3::PanePointRequested{provider, pane, picture, row, column}` | Where one cell of the pane's text lattice is now, answered as `PanePoint` ([above](#where-a-painted-cell-is)) |
 
 A pane's words are refused as its rows are: closed, unsettled, overlapping, covered by a menu or
 by arranging, or outside the visible workspace. The desk answers whatever is open. Workshop names
