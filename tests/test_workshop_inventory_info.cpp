@@ -947,6 +947,34 @@ TEST_CASE("a host that grants Inventory no canvas is shown its rows and a name l
     CHECK(held_caret(*held).column == 4);
 }
 
+TEST_CASE("a right press and a drop on Inventory's canvas aimed at a picture drawn before its rows' "
+          "meaning changed are refused in words, and change nothing") {
+    InventoryStory s(191, true);
+    s.append(1, "A");
+    const ExternalPane before = *s.r.session().panes.external_pane(s.source);
+    REQUIRE(shows_canvas(before));
+    s.append(2, "B"); // a row more: what each row means has moved
+    const ExternalPane& now = *s.r.session().panes.external_pane(s.source);
+    REQUIRE(now.canvas.grant == before.canvas.grant);
+    const CanvasRows lattice = held_canvas_rows(now);
+    const std::int64_t a = s.row_of(s.source, "A");
+    REQUIRE(a >= 0);
+    const auto send = [&s](const loom::Value& said) {
+        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
+                                       loom::Message(said));
+        s.r.bus.drain_until_idle();
+    };
+    send(loom::to_value(PaneCanvasPointer{"inventory", before.canvas.grant, before.canvas.content.picture, 900,
+                                          canvas_pointer::kPress, 3, lattice.column_x(2), lattice.row_y(a)}));
+    CHECK_MESSAGE(s.shown(s.source).find("That picture moved") != std::string::npos, s.shown(s.source));
+    CHECK_FALSE(s.r.session().presented.open);
+    const auto entries = s.saved_entries().size();
+    send(loom::to_value(PaneCanvasValueDrop{"inventory", before.canvas.grant, before.canvas.content.picture,
+                                            lattice.column_x(2), lattice.row_y(a), s.pair(9), "", "", ""}));
+    CHECK_MESSAGE(s.shown(s.source).find("Drop picture changed") != std::string::npos, s.shown(s.source));
+    CHECK(s.saved_entries().size() == entries);
+}
+
 TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas, fractions carried") {
     InventoryStory s;
     s.append(10, "Alpha");

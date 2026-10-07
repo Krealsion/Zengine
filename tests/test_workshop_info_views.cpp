@@ -1216,6 +1216,28 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     CHECK(caret().row == surface::kNoCaret);
 }
 
+TEST_CASE("info views: a right press aimed at a picture drawn before the view's rows' meaning changed "
+          "opens no menu and says why") {
+    Views s;
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    (void)b;
+    const ExternalPane before = *s.r.session().panes.external_pane(a);
+    REQUIRE(shows_canvas(before));
+    s.copy_into(a, "Source record"); // a value now: other rows, other meanings
+    const ExternalPane& now = *s.r.session().panes.external_pane(a);
+    REQUIRE(now.canvas.grant == before.canvas.grant);
+    const CanvasRows lattice = held_canvas_rows(now);
+    const auto at = s.field_at(a, "name");
+    s.watch();
+    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
+        loom::Message(loom::to_value(PaneCanvasPointer{"info.2", before.canvas.grant, before.canvas.content.picture,
+            77, canvas_pointer::kPress, 3, lattice.column_x(3), lattice.row_y(at.first)})));
+    s.r.bus.drain_until_idle();
+    CHECK_MESSAGE(s.shows(a, "This view changed -- press again"), s.shown(a));
+    CHECK(s.sends(PaneMenuRequested::zen_name) == 0);
+}
+
 TEST_CASE("info views: only the motion of the press that armed a field pickup begins it") {
     Views s;
     add_records(s);

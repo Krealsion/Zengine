@@ -2557,6 +2557,27 @@ TEST_CASE("a host that grants Info no canvas is shown its lists and a draft's ca
     CHECK(held_caret(*seat).column == 12);
 }
 
+TEST_CASE("a press on Info's lists aimed at the room they stood in before a new one was granted names "
+          "nothing, and one aimed at the room they stand in now inspects") {
+    InfoRig f;
+    f.open();
+    const ExternalPane before = *f.r.session().panes.external_pane(f.kind);
+    REQUIRE(shows_canvas(before));
+    f.regrant(); // a room of another size: a new grant, the rows re-laid in it
+    const ExternalPane& now = *f.r.session().panes.external_pane(f.kind);
+    REQUIRE(now.canvas.grant != before.canvas.grant);
+    const std::int64_t at = f.pane_row("Layouts");
+    REQUIRE(at >= 0);
+    const CanvasRows lattice = held_canvas_rows(now);
+    f.enqueue_as_workshop(loom::to_value(PaneCanvasPointer{pane::kInfoPane, before.canvas.grant,
+        before.canvas.content.picture, 900, canvas_pointer::kPress, 1, lattice.column_x(3), lattice.row_y(at)}));
+    f.settle();
+    CHECK_FALSE(f.r.session().inspected.ref == layouts_ref());
+    f.enqueue_canvas_press(at, 3);
+    f.settle();
+    CHECK(f.r.session().inspected.ref == layouts_ref());
+}
+
 TEST_CASE("a right press on Info's lists asks for Info's own menu, and one beside them, where a "
           "prose press would have named no row, is handed back and Workshop's own pane menu opens") {
     InfoRig f;
