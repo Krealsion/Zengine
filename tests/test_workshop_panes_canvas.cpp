@@ -134,8 +134,22 @@ TEST_CASE("pane canvas rejects malformed pictures whole and budgets data before 
     c.rects[0].w = 1;
     c.rects[0].role = surface::role::kGround;
     CHECK(canvas_content_problem(c).empty());
+    c.rects[0].role = surface::role::kMediumGround;
+    CHECK(canvas_content_problem(c).empty());
     c.rects[0].role = 99;
     CHECK_FALSE(canvas_content_problem(c).empty());
+    // THE MEDIUM'S OWN GROUND IS A GROUND AND NO INK: a run may lie on it, and no text is drawn
+    // in it.
+    c.rects[0].role = surface::role::kAccent;
+    v5::PaneCanvasContent run{canvas_pane, 1, 1, {}, {}, {}, {}};
+    run.texts.push_back(v2::PaneCanvasText{0, 0, "ab", surface::role::kFill});
+    run.texts[0].background = surface::role::kMediumGround;
+    CHECK(canvas_content_problem(run).empty());
+    run.texts[0].role = surface::role::kMediumGround;
+    CHECK_FALSE(canvas_content_problem(run).empty());
+    run.texts[0].role = surface::role::kFill;
+    run.labels.push_back(PaneCanvasLabel{0, 0, "a", surface::role::kMediumGround});
+    CHECK_FALSE(canvas_content_problem(run).empty());
     c.rects.clear();
     c.labels.resize(kPaneCanvasMaxLabels + 1);
     CHECK_FALSE(canvas_content_problem(c).empty());
@@ -874,9 +888,9 @@ TEST_CASE("a pane's rows drawn on its canvas stand where its prose rows would, n
         CHECK(p.picture == 3);
         CHECK(canvas_content_problem(p).empty());
         CHECK(canvas_parts_problem(p.parts).empty());
-        // THE ROOM'S GROUND beneath everything, as a prose body's is cleared.
+        // THE MEDIUM'S OWN GROUND beneath everything, as a prose body's is cleared.
         REQUIRE_FALSE(p.rects.empty());
-        CHECK(p.rects[0].role == surface::role::kGround);
+        CHECK(p.rects[0].role == surface::role::kMediumGround);
         CHECK(p.rects[0].w == room.width);
         CHECK(p.rects[0].h == room.height);
         // ONE UNPADDED RUN A ROW, a row's own blanks dropped, an empty row drawn as nothing.
