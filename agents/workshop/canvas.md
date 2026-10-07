@@ -83,9 +83,10 @@ MEANS
 PROVEN BY — `workshop/pane_carry.hpp` `PaneCanvasValueDrop`, `PaneCanvasDrop`;
 `workshop/weave_operation.cpp` `drop_on_canvas`, `drop_carry`; `workshop/weave.hpp` `CanvasRelease`;
 `tests/test_workshop_inventory_info.cpp` cases "a value dragged from Inventory onto Flow's canvas
-reaches Flow as a canvas drop where it was released, and Flow offers what it can become" and "a
+reaches Flow as a canvas drop where it was released, and Flow offers what it can become", "a
 value released on Flow's canvas before its carry is answered names the picture it was released
-on, though Flow repainted meanwhile".
+on, though Flow repainted meanwhile" and "a live reference carried from Inventory lands in the
+Compose field its place names on Compose's canvas".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-05 — A canvas press may carry a value out

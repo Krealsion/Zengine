@@ -255,7 +255,7 @@ shape is byte-identical.
   pointer names a prose row of the granted body (`external_press_at`: the header and the
   remainder under the last row send nothing) and only to a pane holding a room. A pane holding
   a canvas room is sent the same notches as its canvas pointer's `kWheel` instead, at the
-  pointer's local place (`canvas_wheel`), as Loaded, Powers and the desktop's two panes are.
+  pointer's local place (`canvas_wheel`), as every pane drawing its rows on its canvas is.
 - **No place, no rows-per-notch, no accumulator on Workshop's side.** A wheel means "advance
   through what you are showing"; a row on it would be Workshop prescribing one list under the
   pointer. How many rows a notch is worth is the provider's grammar — the shipped Powers and
@@ -595,8 +595,8 @@ host action — and nothing reinterprets old bytes.
   raw scancodes has made its declaration decorative, and its weaver's override reaches nothing.
 - **Declaring is not wanting.** Rows point no keyboard at a pane and hold none: a press into its
   room is still the only way it gets the keys, and a pane that declared nothing is unchanged.
-  The Powers pane declares four (`introspection/vocabulary.hpp`); `loaded`, `arrangement` and the
-  Composer declare none — the Composer still matches raw keys, and is the next consumer.
+  The Powers pane declares four (`introspection/vocabulary.hpp`) and the Composer five
+  (`composer/composer.cpp`); `loaded` and `arrangement` declare none.
 - **A PANE'S NOTICE STANDS UNTIL THE WEAVER'S NEXT ACT, never until it has been said once.**
   A built-in wrote its sentence on the band; a pane has only its own room, so the sentence is a
   row it publishes — and ONE gesture produces SEVERAL publications in one drain (write the
@@ -718,12 +718,18 @@ The public weaver route is [Inventory to Compose](../docs/workshop/inventory-com
   live forms, clipboard asks and permission requests do not survive image replacement.
 - Scalar text uses the shared message-draft helper and Loom lexer/composer. Typed fields use
   that helper's transactional gate and deep copy. Presence is distinct from empty/false.
-- RenderedRow pairs prose and row meaning. Numbered content and pictured drops bind meaning
-  to the displayed form; an incompatible or stale drop leaves the draft intact. Existing
-  included fields require explicit exclusion before replacement. Whole forms require an
-  empty draft and one of the selected target's accepted root schemas.
-- The value and reference transfer doors remain distinct. A reference is copied as data into
-  a compatible field; its contents are not automatically read and it conveys no authority.
+- RenderedRow pairs prose and row meaning. The rows are the pane's own canvas picture
+  (`rows_picture`), numbered by what they mean (`meaning_of`): a press or a drop reads its place
+  back to a row of the picture it was aimed at and acts only while that picture's meaning stands,
+  so an incompatible or stale drop leaves the draft intact. Existing included fields require
+  explicit exclusion before replacement. Whole forms require an empty draft and one of the
+  selected target's accepted root schemas. To a host granting no canvas it says its rows and
+  caret as prose and takes no press or drop.
+- The edited value's caret is the medium's (`ComposerView::caret_row`): its row keeps a blank
+  after the value for a caret at its end, so no character moves as the caret does.
+- The value and reference transfer doors remain distinct (`PaneCanvasValueDrop`,
+  `PaneCanvasDrop`). A reference is copied as data into a compatible field; its contents are not
+  automatically read and it conveys no authority.
 - Ctrl+S stores a complete admitted command; Ctrl+B stores an original-schema partial preset
   through InventoryAdd and its actor authorization. Ctrl+U discards a field; excluded local
   values never enter a preset. StoredDraft opens against the entire accepted closure and
