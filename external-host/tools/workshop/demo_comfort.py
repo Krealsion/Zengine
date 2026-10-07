@@ -26,17 +26,17 @@ def run(ctx):
     try:
         for scroll in (0, -4, -100):
             if scroll:
-                at = hand.view("zengine.inventory-pane", "inventory")["rows"][0]
+                at = hand.first("zengine.inventory-pane", "inventory")
                 hand.inject([moment(ctx, "PointerWheel", wheel_dy=scroll,
                                     x=at["x"], y=at["y"], space=at["space"])])
-            view = hand.view("zengine.inventory-pane", "inventory")
-            text = [r["text"] for r in view["rows"]]
+            view = hand.words("zengine.inventory-pane", "inventory")
+            text = [w["text"] for w in view["words"]]
             ctx.check(sum("Demo input " in s for s in text) >= 3,
                       "the default pane did not show three real fixture entries: " + repr(text))
             views.append(view.fields)
         ctx.produce("views.json", json.dumps(views, indent=2).encode())
-        ctx.check(any("earlier" in r["text"] for r in views[1]["rows"]) and
-                  any("later" in r["text"] for r in views[1]["rows"]),
+        ctx.check(any("earlier" in w["text"] for w in views[1]["words"]) and
+                  any("later" in w["text"] for w in views[1]["words"]),
                   "the middle sample did not exercise both omission markers")
         picture(ctx, link, "default-size")
     finally:

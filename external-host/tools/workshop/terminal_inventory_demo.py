@@ -31,7 +31,7 @@ def run(ctx):
 
     def named_drop(row, name):
         before = entries()
-        hand.drag(row, hand.view(*inv)['rows'][0], 400)
+        hand.drag(row, hand.first(*inv), 400)
         hand.last_view(hand.words(*term), 'last-terminal.json')
         hand.row(*inv, 'Name:')
         hand.text(name); hand.key('enter')
@@ -77,7 +77,7 @@ def run(ctx):
     picture(ctx, ctx.inputs['link'], 'captured')
 
     ctx.step('make an incomplete preset from the captured command')
-    hand.drag(hand.row(*inv, label + ' command', scroll=True), hand.view(*info)['rows'][0], 400)
+    hand.drag(hand.row(*inv, label + ' command', scroll=True), hand.first(*info), 400)
     hand.key('ctrl+b'); hand.click(hand.row(*info, 'text:')); hand.key('ctrl+u')
     hand.row(*info, 'text: absent (required)')
     before = entries(); hand.key('ctrl+s')
@@ -89,7 +89,7 @@ def run(ctx):
     hand.row(*comp, 'text:')
 
     ctx.step('fill the preset from the saved answer through Info')
-    hand.drag(hand.row(*inv, label + ' answer', scroll=True), hand.view(*info)['rows'][0], 400)
+    hand.drag(hand.row(*inv, label + ' answer', scroll=True), hand.first(*info), 400)
     field = hand.row(*info, 'active:')
     hand.click(field); hand.key('ctrl+g')
     hand.click(hand.row(*comp, 'text:'))

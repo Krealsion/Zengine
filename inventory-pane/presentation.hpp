@@ -15,6 +15,7 @@ struct View {
     std::string selected;
     int order = 0;
     double wheel = 0;
+    std::int64_t line_row = -1; ///< the row the line being typed stands on, or -1
 };
 /// What main Inventory shows of the folder it is browsing. `show` is false for a collection
 /// without folders, which then looks exactly as it did before folders existed.
@@ -114,8 +115,10 @@ inline std::vector<surface::SurfaceTextRow> render(const InventoryViews& s, cons
          (id == "inventory" ? std::string(" | hotkeys ") + (active(s, id) ? "ON" : "OFF") : ""), role::kAccent);
     const auto it = std::find_if(entries.begin(), entries.end(), [&](const auto& e) { return key(e.reference) == v.selected; });
     const auto index = it == entries.end() ? 0u : static_cast<std::size_t>(it - entries.begin());
+    v.line_row = -1;
     if (!edit_label.empty()) {
         push(edit_label, role::kAccent);
+        if (static_cast<std::int64_t>(rows.size()) < v.rows) v.line_row = static_cast<std::int64_t>(rows.size());
         push(edit_text, role::kFill);
         push(notice.empty() ? "Enter saves; Escape cancels" : notice, role::kMuted);
     } else if (kind != "inventory") {

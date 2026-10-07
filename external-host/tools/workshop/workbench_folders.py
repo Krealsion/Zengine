@@ -41,9 +41,14 @@ def entry(hand, label):
     return found[0], names(folders, found[0]["folder"])
 
 
+def shows(hand, view, text):
+    """Whether a pane paints a word holding `text`: a text pane's row or a canvas pane's run."""
+    return any(text in w["text"] for w in hand.words(*view)["words"])
+
+
 def location(hand):
     """Inventory's location row, or empty for a collection without folders."""
-    return next((r["text"] for r in hand.view(*INV)["rows"] if r["text"].startswith(LOCATION)), "")
+    return next((w["text"] for w in hand.words(*INV)["words"] if w["text"].startswith(LOCATION)), "")
 
 
 def folder_row(hand, name):
@@ -51,7 +56,7 @@ def folder_row(hand, name):
 
 
 def to_root(hand):
-    hand.click(hand.view(*INV)["rows"][0])  # the heading: Inventory takes the keys
+    hand.click(hand.first(*INV))  # the heading: Inventory takes the keys
     hand.key("alt+home")
 
 
@@ -83,7 +88,7 @@ def retrieve(hand, label, view):
     _, path = entry(hand, label)
     if path:
         open_path(hand, path)
-    hand.drag(hand.row(*INV, label, scroll=True), hand.view(*view)["rows"][0], 350)
+    hand.drag(hand.row(*INV, label, scroll=True), hand.first(*view), 350)
     return path
 
 
@@ -94,7 +99,7 @@ def organize(ctx, hand, labels, out, pictures, shots, link):
     ctx.check(not folders and all(not e["folder"] for e in listed["entries"]),
               "restore the flat workbench first; organize starts from its root")
     ctx.step("create Workbench/Samples and Workbench/Commands/Drafts from the keyboard")
-    hand.click(hand.view(*INV)["rows"][0])
+    hand.click(hand.first(*INV))
 
     def create(name):
         hand.key("ctrl+d"); hand.text(name); hand.key("enter")
@@ -161,7 +166,7 @@ def story(ctx, hand, labels, views, pictures, shots, link):
     ctx.step("drill down to the sample and keep it in the Sample view")
     started = time.monotonic()
     path = retrieve(hand, labels["sample"], sample_view)
-    ctx.check(any("COPY zen.PokeStructure" in r["text"] for r in hand.view(*sample_view)["rows"]),
+    ctx.check(shows(hand, sample_view, "COPY zen.PokeStructure"),
               "the sample did not arrive in the Sample view")
     retrieval_ms = (time.monotonic() - started) * 1000
     pictures.append(picture(shots, link, "drilled")[0])
@@ -176,15 +181,15 @@ def story(ctx, hand, labels, views, pictures, shots, link):
     else:
         open_path(hand, preset_path)
     hand.click(hand.row(*INV, labels["preset"])); hand.key("ctrl+enter")
-    hand.click(hand.view(*preset_view)["rows"][3])
-    ctx.check(any("PRESET LINKED" in r["text"] for r in hand.view(*preset_view)["rows"]), "the preset is not linked")
+    hand.click(hand.first(*preset_view))
+    ctx.check(shows(hand, preset_view, "PRESET LINKED"), "the preset is not linked")
 
     ctx.step("fill the preset's target from the sample, field to field, and save")
     hand.field(*preset_view, "target_role")
     hand.drag(hand.field(*sample_view, "meta[0].requested_role"), hand.field(*preset_view, "target_role"), 500)
     hand.control(*preset_view, "Save")
-    ctx.check(any("saved rev" in r["text"] or "Saved" in r["text"] for r in hand.view(*preset_view)["rows"]),
-              "the filled preset was not saved")
+    said = [w["text"] for w in hand.words(*preset_view)["words"]]
+    ctx.check(any("saved rev" in t or "Saved" in t for t in said), "the filled preset was not saved")
     pictures.append(picture(shots, link, "filled-organized")[0])
 
     ctx.step("reorganize while the command sits in its row: rename its folder and move Drafts")
@@ -225,10 +230,10 @@ def menus(ctx, hand, labels, pictures, shots, link):
     info = ("zengine.info", "info")
 
     def says(text):  # a narrow room cuts a notice's tail, so callers read its head
-        return any(text in r["text"] for r in hand.view(*INV)["rows"])
+        return shows(hand, INV, text)
 
     def type_in_info():
-        hand.click(hand.view(*info)["rows"][0])
+        hand.click(hand.first(*info))
 
     def choose(row, index, before=None):
         hand.actions["menu"] += 1

@@ -3636,9 +3636,10 @@ private:
 
 /// THE ROWS A CANVAS PANE SHOWS, read off the published canvas as `external_rows` reads a text
 /// pane's: each one-row region whose first character stands in the pane's picture's body, on the
-/// first plane that has one -- the pane's own, painted before anything that covers it -- placed
-/// on the room's lattice by where the medium draws it, each row its characters without the
-/// blanks after the last, "" where a row has none.
+/// pane's own plane -- the one showing the rows of the picture Workshop holds for it, else the one
+/// its ground stands on, else the first that has such a region -- placed on the room's lattice by
+/// where the medium draws it, each row its characters without the blanks after the last, "" where
+/// a row has none.
 inline std::vector<std::string> canvas_rows_shown(const Session& s, const surface::SurfaceCanvas& c,
                                                   std::int64_t kind) {
     std::vector<std::string> out;
@@ -3648,7 +3649,8 @@ inline std::vector<std::string> canvas_rows_shown(const Session& s, const surfac
     if (lattice.empty()) return out;
     const auto& body = pane->canvas;
     const Screen sc = screen_of(s);
-    for (const surface::SurfaceLayer& layer : c.layers) {
+    // THE ROWS ONE PLANE SHOWS in the body, and whether it shows any there.
+    const auto read = [&](const surface::SurfaceLayer& layer, std::vector<std::string>& shown) {
         bool found = false;
         for (const surface::SurfaceTextRegion& r : layer.texts) {
             if (r.rows.size() != 1) continue;
@@ -3663,14 +3665,56 @@ inline std::vector<std::string> canvas_rows_shown(const Session& s, const surfac
             if (at.row < 0 || at.column < 0) continue;
             found = true;
             const auto row = static_cast<std::size_t>(at.row);
-            if (out.size() <= row) out.resize(row + 1);
-            std::string& text = out[row];
+            if (shown.size() <= row) shown.resize(row + 1);
+            std::string& text = shown[row];
             const auto column = static_cast<std::size_t>(at.column);
             if (text.size() < column) text.resize(column, ' ');
             text.replace(column, (std::min)(text.size() - column, r.rows[0].text.size()), r.rows[0].text);
             while (!text.empty() && text.back() == ' ') text.pop_back();
         }
-        if (found) return out;
+        return found;
+    };
+    // THE ROWS THIS PANE'S HELD PICTURE HAS, as far as its lattice reaches.
+    std::vector<std::string> held;
+    for (const v2::PaneCanvasText& t : body.content.texts) {
+        const RowCell at = row_cell_at(lattice, t.x, t.y);
+        if (at.row < 0 || at.column < 0 || at.row >= lattice.rows || at.column >= lattice.columns) continue;
+        const auto row = static_cast<std::size_t>(at.row);
+        if (held.size() <= row) held.resize(row + 1);
+        std::string& text = held[row];
+        const auto column = static_cast<std::size_t>(at.column);
+        const std::string kept = t.text.substr(0, static_cast<std::size_t>(lattice.columns) - column);
+        if (text.size() < column) text.resize(column, ' ');
+        text.replace(column, (std::min)(text.size() - column, kept.size()), kept);
+        while (!text.empty() && text.back() == ' ') text.pop_back();
+    }
+    // THE PANE'S OWN PLANE is the one showing those rows: first among the planes laying the
+    // medium's ground at the body's corner, as rows on the lattice lay it, then among all, since a
+    // pane behind it may have runs in the same body and panes whose bodies share a corner may each
+    // lay a ground there. Else it is the one plane laying that ground, else the first with runs.
+    std::vector<const surface::SurfaceLayer*> grounded;
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        for (const surface::SurfaceRect& rect : layer.rects) {
+            if (rect.role == surface::role::kMediumGround && rect.x == body.x && rect.y == body.y) {
+                grounded.push_back(&layer);
+                break;
+            }
+        }
+    }
+    for (const surface::SurfaceLayer* layer : grounded) {
+        std::vector<std::string> rows;
+        if (read(*layer, rows) && rows == held) return rows;
+    }
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        std::vector<std::string> rows;
+        if (read(layer, rows) && rows == held) return rows;
+    }
+    if (grounded.size() == 1) {
+        (void)read(*grounded.front(), out);
+        return out;
+    }
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        if (read(layer, out)) return out;
     }
     return out;
 }

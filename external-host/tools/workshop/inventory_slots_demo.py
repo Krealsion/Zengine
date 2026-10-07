@@ -7,6 +7,17 @@ from demo_setup import Measured, layout
 from workshop_steps import moment, picture, chord_moments
 
 
+def first_box(ctx, hand, provider, pane):
+    """A portable view's first box, where a press, a drag's start or end, or a right press means
+    that box: the view's first line inside a box, pressed at its third character. A row view's
+    line crosses every box, so its middle falls in another box or on a border; an empty box names
+    no part, so the box is found by what the view draws."""
+    try:
+        return hand.row_starting(provider, pane, "|")
+    except ValueError as missing:
+        ctx.fail("view has no complete visible slot; enlarge its room (%s)" % missing)
+
+
 def run(ctx):
     measured = Measured(ctx)
     hand = Hand(measured, ctx.inputs["link"])
@@ -20,10 +31,7 @@ def run(ctx):
         return hand.ask(inv[0], "InventoryViewsRequested", {})
 
     def tile(pane):
-        # PaneView owns the row coordinates. The first interior line is inside the first tile.
-        rows = [r for r in hand.view(inv[0], pane)["rows"] if r["text"].startswith("|")]
-        ctx.check(bool(rows), "view has no complete visible slot; enlarge its room")
-        return rows[0]
+        return first_box(ctx, hand, inv[0], pane)
 
     def menu(row, index):
         hand.inject([moment(measured, "PointerButton", button=3, pressed=p,
@@ -91,14 +99,14 @@ def run(ctx):
     copied = next(b for b in state()["bindings"] if b["reference"] == duplicate["reference"])
     ctx.check(not copied["enabled"] and copied["target"] == "zengine.inventory" and copied["scancode"] == 30,
               "duplicate did not retain its disabled key and target")
-    row = create(hand.view(*inv)["rows"][0], 1)
+    row = create(hand.first(*inv), 1)
     def deactivate():
         hand.ask(inv[0], "InventoryViewEdit", {
             "operation": "context", "view": row, "text": "", "entry": {"owner": "", "entry": ""},
             "before": {"owner": "", "entry": ""}, "scancode": 0, "modifiers": 0, "enabled": False}, settle=True)
     ctx.on_cleanup(deactivate, "turn off this story's hotkey context")
     views.append((row, 54, 15, 34, 12)); arrange(views)
-    column = create(hand.view(*inv)["rows"][0], 2)
+    column = create(hand.first(*inv), 2)
     views.append((column, 92, 0, 12, 34)); arrange(views)
 
     ctx.step("move the slot, displace a filled box, and preserve its binding")
@@ -110,7 +118,7 @@ def run(ctx):
     picture(ctx, ctx.inputs["link"], "displaced")
     hand.drag(tile(box), tile(row), 350)
     hand.drag(hand.row(*inv, label + " : ", scroll=True), tile(column), 350)
-    hand.drag(hand.row(*inv, label + " copy", scroll=True), hand.view(inv[0], row)["rows"][0], 350)
+    hand.drag(hand.row(*inv, label + " copy", scroll=True), hand.first(inv[0], row), 350)
     before_run = state()
     binding = next(b for b in before_run["bindings"] if b["reference"] == command["reference"])
     ctx.check(binding["enabled"] and binding["scancode"] == 30, "movement changed the item's binding")
@@ -119,17 +127,17 @@ def run(ctx):
     picture(ctx, ctx.inputs["link"], "arranged")
 
     ctx.step("enable the row context, invoke once, and verify the owner")
-    menu(hand.view(inv[0], row)["rows"][0], 3)
+    menu(hand.first(inv[0], row), 3)
     hand.key("alt+1")
     changed = next(e for e in entries() if e["reference"] == target["reference"])
     ctx.check(changed["label"] == label + " executed" and changed["revision"] == target["revision"] + 1,
               "the authorized hotkey did not execute exactly once")
     picture(ctx, ctx.inputs["link"], "executed")
     # Leave no test shortcut active after this run. Stored entries and view identities remain.
-    menu(hand.view(inv[0], row)["rows"][0], 3)
+    menu(hand.first(inv[0], row), 3)
     ctx.step("name a new copy on arrival without changing its source")
     menu(tile(column), 1)
-    hand.click(hand.view(*inv)["rows"][0])
+    hand.click(hand.first(*inv))
     hand.row(*inv, "Name:")
     hand.text(label + " sample"); hand.key("enter")
     named = next(e for e in entries() if e["label"] == label + " sample")

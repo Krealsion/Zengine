@@ -26,6 +26,7 @@ struct InventoryHandState { ZEN_SHAPE(InventoryHandState, 1); };
 struct InventoryHandDo { ZEN_SHAPE(InventoryHandDo, 1); };
 class InventoryHand : public loom::WeaveBase<InventoryHand, InventoryHandState,
     loom::Accept<InventoryHandDo, input::InputSessionOpened, input::InputInjected, PaneView, PanePoint,
+        v2::PaneView, v2::PanePoint,
         inv::InventoryListed, inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryEntry,
         slots::InventoryToolboxFinished, loom::Refused>,
     loom::Emit<intro::LoadedSelected, input::InputSessionRequested, input::InjectInput>> {
@@ -44,6 +45,10 @@ public:
     void on(const PaneView& v, loom::Mail&) { views.push_back(v); }
     std::vector<PanePoint> points;
     void on(const PanePoint& p, loom::Mail&) { points.push_back(p); }
+    std::vector<v2::PaneView> words;
+    void on(const v2::PaneView& v, loom::Mail&) { words.push_back(v); }
+    std::vector<v2::PanePoint> word_points;
+    void on(const v2::PanePoint& p, loom::Mail&) { word_points.push_back(p); }
     std::vector<inv::InventoryEntry> entries;
     std::vector<slots::InventoryToolboxFinished> toolboxes;
     void on(const slots::InventoryToolboxFinished& v, loom::Mail& mail) { CHECK(mail.answers_ask()); toolboxes.push_back(v); }
@@ -81,9 +86,18 @@ struct InventoryStory {
     std::shared_ptr<std::vector<QuietReader::Event>> physical =
         std::make_shared<std::vector<QuietReader::Event>>();
 
+    /// `no_canvas`: a host that knows no canvas door, answering that no office accepts a canvas
+    /// room -- the one every pane says its rows to as prose.
     explicit InventoryStory(int permissions = 191, bool composer = false, bool desktop_first = false,
-                            bool with_flow = false, bool with_powers = false, bool with_builder = false) {
+                            bool with_flow = false, bool with_powers = false, bool with_builder = false,
+                            bool no_canvas = false) {
         r.mount_workshop();
+        if (no_canvas) {
+            r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
+                                                                      const loom::Schema& shape) {
+                return shape.name() != PaneCanvasRoom::zen_name && accepts(role, shape);
+            };
+        }
         if (with_powers) {
             // The primitives, the discovery door over them, and the Powers pane to browse it.
             REQUIRE(r.catalog.mount("story.basic", zengine::op::primitive_definitions()));
@@ -192,6 +206,7 @@ struct InventoryStory {
         actor_grant.allow_to_role(inv::InventoryList::zen_name, 1, inv::kInventoryRole);
         actor_grant.allow_to_role(inv::v2::InventoryList::zen_name, 2, inv::kInventoryRole);
         actor_grant.allow_to_role(PaneViewRequested::zen_name, 1, "zengine.workshop");
+        actor_grant.allow_to_role(v2::PaneViewRequested::zen_name, 2, "zengine.workshop");
         if (permissions & 256) actor_grant.allow_to_role(TerminalValueRequested::zen_name, 1, "zengine.workshop");
         if (permissions & 1) actor_grant.allow_to_role(inv::InventoryLocate::zen_name, 1, inv::kInventoryRole);
         if (permissions & 2) actor_grant.allow_to_role(inv::InventoryRead::zen_name, 1, inv::kInventoryRole);
@@ -210,7 +225,10 @@ struct InventoryStory {
         if (permissions & 64) actor_grant.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");
         if (permissions & 128) actor_grant.allow_to_role(zengine::inventory_pane::InventoryViewEdit::zen_name, 1, "zengine.inventory-pane");
         if (permissions & 1024) actor_grant.allow_to_any(loom::PokeDescribe::zen_name, loom::PokeDescribe::zen_version);
-        if (permissions & 2048) actor_grant.allow_to_role(PanePointRequested::zen_name, 1, "zengine.workshop");
+        if (permissions & 2048) {
+            actor_grant.allow_to_role(PanePointRequested::zen_name, 1, "zengine.workshop");
+            actor_grant.allow_to_role(v2::PanePointRequested::zen_name, 2, "zengine.workshop");
+        }
         actor_grant.allow_to_role(inv::InventoryCaptureAdd::zen_name, 1, inv::kInventoryRole);
         if (permissions & 512) {
             actor_grant.allow_to_role(slots::InventoryToolboxSave::zen_name, 1, slots::kRole);

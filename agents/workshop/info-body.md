@@ -20,13 +20,14 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-02 — Nothing in the pane multiplies a font metric
 
-LAW — The pane is granted ROWS and COLUMNS and counts in them; the fit from a face to a row count is the host's, made once against the pane's rectangle, and no metric crosses the seam at all.
+LAW — The pane counts in ROWS and COLUMNS: its canvas room's lattice, or the rows and columns a host granting no canvas gives it; the fit from a face to a row count is made once, never by its own arithmetic.
 
 MEANS
 - 25 cells of body is 16 rows of an 18-pixel face and 25 rows of a cell medium, one grant.
 
-PROVEN BY — `info-pane/pane.cpp` `rows_`, `columns_`, `granted_`; `workshop/pane_vocabulary.hpp`
-`PaneRoom::rows`, `PaneRoom::columns`; `workshop/weave_external.cpp` `refresh_external_rooms`;
+PROVEN BY — `info-pane/pane.cpp` `rows_`, `columns_`, `granted_`, `fit_room`;
+`workshop/pane_canvas_rows.hpp` `canvas_rows`; `workshop/pane_vocabulary.hpp` `PaneRoom::rows`,
+`PaneRoom::columns`; `workshop/weave_external.cpp` `refresh_external_rooms`;
 `tests/test_workshop_panes_info.cpp` case `"a room too short for the body invents none of it"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
@@ -48,11 +49,11 @@ WHY — `agents/decisions/one-body-two-lists.md`
 LAW — The row that must stay visible is the draft's, else the cursor's; `mark` records what each published row is and `placed` reads it back, so the pane answers a press with the row it composed.
 
 MEANS
-- a press crosses as the pane's OWN row and column, resolved to them by the host;
+- a press is read back to the pane's OWN row and column, in the room it was aimed at;
 - a heading, a section, a marker or a blank row means nothing.
 
-PROVEN BY — `info-pane/pane.cpp` `placed`, `Placed`, `composed_`, `lead`, `say_properties`;
-`workshop/pane_vocabulary.hpp` `PanePressed::row`, `PanePressed::column`;
+PROVEN BY — `info-pane/pane.cpp` `placed`, `Placed`, `composed_`, `lead`, `say_properties`,
+`press`; `workshop/pane_canvas_rows.hpp` `row_cell_at`;
 `tests/test_workshop_panes_info.cpp` case `"a press on a pane row inspects it, through the host's
 own door"`, case `"a press on an Info row while a notice stands names the row painted
 there, and a full room keeps its last row under the notice"`.
@@ -60,20 +61,22 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-05 — A resting value is fitted and a live draft is windowed
 
-LAW — A resting value is fitted with a mark where it was cut, because a committed value has no caret to say it moved; a live draft is windowed unmarked, and the window follows a caret that cannot cross.
+LAW — A resting value is fitted with a mark where it was cut, because a committed value has no caret to say it moved; a live draft is windowed unmarked, and the window follows its caret.
 
 MEANS
-- at most one row is ever editing, and the caret itself does not cross the seam.
+- at most one row is ever editing, and its caret and selection stand in it, moving no character.
 
 PROVEN BY — `info-pane/pane.cpp` `say_properties`, `begin_draft`, `close_draft`;
 `workshop/pane_text.hpp` `fit`, `pad`; `component/text_box.hpp` `TextBox::visible`,
 `TextBox::keep_caret_visible`; `tests/test_workshop_panes_info.cpp` case `"a draft on a value the
-weaver owns is written to the desk"`.
+weaver owns is written to the desk"`, case `"Info draws its lists on its canvas on the medium's own
+ground, and a draft's caret and selection stand in its row where the weaver types, moving no
+character, and go with it"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-06 — A new room must not drop a live draft, and rows named anew must
 
-LAW — A `PaneRoom` grant keeps the draft; a picture whose rows the host named anew ABANDONS it, saying so: carried onto another pane's or desk's row, it would write a weaver's text into another property.
+LAW — A new room keeps the draft; a picture whose rows the host named anew ABANDONS it, saying so: carried onto another pane's or desk's row, it would write a weaver's text into another property.
 
 MEANS
 - draft identity is the host’s row identity and the drafted property’s label;
@@ -127,7 +130,7 @@ MEANS
 - another subject takes a draft's rows, so a live draft refuses the press before asking.
 
 PROVEN BY — `info-pane/pane.cpp` `say_panes`, `ask_inspect`, `inspect_cursor`,
-`find_list_cursor`, `hold_list`, `on(PanePressed)`, `press_placed`, `kFinishTheEdit`;
+`find_list_cursor`, `hold_list`, `pane_property_press`, `press_placed`, `kFinishTheEdit`;
 `workshop/pane_text.hpp` `drawable`; `tests/test_workshop_panes_info.cpp` case `"a press on a pane
 row inspects it, through the host's own door"`, case `"a live draft holds another
 subject back, and the reason is the weaver's"`, case `"a press on a pane while an

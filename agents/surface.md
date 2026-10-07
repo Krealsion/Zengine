@@ -36,9 +36,13 @@ what the medium shows where nothing is published — `kCanvasBackground` in SDL,
 the terminal's default background, light or dark, which `canvas_body` says by emitting no
 ground byte for it (`\x1b[49m` where one was open). It is a ground and never an ink: a
 rectangle or a row's background names it, and text named in it paints as `kFill`
-(`text_ink_for_role`), since a terminal has no ink of its default background. The SDL plan
-marks a row that named a ground (`PlanTextRow::grounded`), so a `kGroundBeneath` row naming
-it is still a strip where its colour equals the region's.
+(`text_ink_for_role`), since a terminal has no ink of its default background. In TUI `kFill`'s
+ink on the terminal's own ground is the terminal's own text colour (SGR 39, `sgr_for_role`), so
+plain text, a caret's inverted cell and a selection read on a light terminal and a dark one
+alike; on a ground the canvas painted it is the palette's white (`sgr_for_cell`), which reads on
+that ground in either; the window keeps its palette. The SDL plan marks a row that named a ground
+(`PlanTextRow::grounded`), so a `kGroundBeneath` row naming it is still a strip where its colour
+equals the region's.
 
 ## A region may have a caret, and it is said in PROSE
 

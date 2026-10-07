@@ -158,7 +158,7 @@ class CanvasPane:
     set in from its row's rectangle; `by_column` lists every row's first run before any row's
     second, as Workshop lists a canvas pane's labels before its runs. A press, a release or a wheel
     inside the body is the pane's, read back to a row and a column, and so are the keys once a
-    press has landed there."""
+    press has landed there; `redrawn` hears that the pane sent a new picture since it was read."""
     canvas = True
 
     def __init__(self, body=(600, 100, 420, 168), inset=2, advance=7, line=14, drop=0,
@@ -250,6 +250,17 @@ class CanvasPane:
 
     def keyed(self, scancode, modifiers):
         pass
+
+    def redrawn(self):
+        pass
+
+    def under(self, x, y):
+        """The row a point inside the body stands on and the name of the part it lands in there,
+        or None where it lands in none."""
+        row, column = self.at(x, y)
+        rows = self.drawn()
+        names = [n for n, c, w in rows[row]["parts"] if c <= column < c + w] if row < len(rows) else []
+        return row, (names[0] if names else None)
 
 
 class CanvasManager(Manager, CanvasPane):
@@ -455,6 +466,194 @@ class CanvasComposer(CanvasPane):
         self.dropped.append(self.at(x, y)[0])
 
 
+class CanvasInfoView(CanvasPane):
+    """An Info view drawing its rows on its canvas: its title, its state, its controls on one row
+    -- `[label]` named `control:<id>`, `(label)` while the act is unavailable -- and a window of
+    `room` of its fields that follows the selection, each `>` where the selection stands, a blank
+    mark and `label: summary`, named `field:<label>`, with what the window leaves out before and
+    after it. A wheel notch away from the weaver walks the selection to the field before, toward
+    the weaver to the one after. A press on a control is kept as its id, and a press on a field
+    chooses it; a release is kept as the row it lands on and the part there. Once it redraws, the
+    acts `on_redraw` names are unavailable."""
+    CONTROLS = [("Save", "inventory.save"), ("Save copy", "inventory.save-copy"),
+                ("Refresh", "inventory.fresh"), ("Watch", "inventory.watch"),
+                ("Close", "info.view.close")]
+
+    def __init__(self, title, state, fields, room=2, **kw):
+        CanvasPane.__init__(self, **kw)
+        self.title, self.state, self.fields, self.room = title, state, list(fields), room
+        self.selected, self.first, self.unavailable, self.on_redraw = 0, 0, set(), set()
+        self.chosen, self.dropped, self.wheels = [], [], []
+
+    def drawn(self):
+        strip, controls = "", []
+        for label, act in self.CONTROLS:
+            word = ("(%s)" if act in self.unavailable else "[%s]") % label
+            strip += " " if strip else ""
+            controls.append(("control:" + act, len(strip), len(word)))
+            strip += word
+        rows = [{"runs": [(0, self.title)], "parts": []}, {"runs": [(0, self.state)], "parts": []},
+                {"runs": [(0, strip)], "parts": controls}]
+        self.first = max(min(self.first, self.selected), self.selected - self.room + 1)
+        end = min(len(self.fields), self.first + self.room)
+        if self.first:
+            rows.append({"runs": [(0, "  ... %d earlier" % self.first)], "parts": []})
+        for i in range(self.first, end):
+            label, summary = self.fields[i]
+            rows.append({"runs": [(0, "%s %s: %s" % (">" if i == self.selected else " ", label,
+                                                     summary))],
+                         "parts": [("field:" + label, 0, self.columns())]})
+        if end < len(self.fields):
+            rows.append({"runs": [(0, "  ... %d more" % (len(self.fields) - end))], "parts": []})
+        return rows
+
+    def pressed(self, x, y):
+        _, name = self.under(x, y)
+        if name and name.startswith("control:"):
+            self.chosen.append(name[len("control:"):])
+        elif name:
+            self.selected = [label for label, _ in self.fields].index(name[len("field:"):])
+
+    def released(self, x, y):
+        self.dropped.append(self.under(x, y))
+
+    def wheeled(self, dy):
+        self.wheels.append(dy)
+        step = -1 if dy >= 1 else 1 if dy <= -1 else 0
+        self.selected = max(0, min(len(self.fields) - 1, self.selected + step))
+
+    def redrawn(self):
+        self.unavailable |= self.on_redraw
+
+
+class CanvasInfo(CanvasPane):
+    """Info's own pane drawing its rows on its canvas: its heading, its pane list -- a row a pane,
+    named `pane:<office>/<pane>` -- its subject, and the subject's properties, each named
+    `property:<label>`; `>` before the row the name `marked` names, on the list or among the
+    properties."""
+    PANES = [("zengine.info", "info", "Info"), ("zengine.inventory-pane", "inventory", "Inventory")]
+
+    def __init__(self, marked=None, **kw):
+        CanvasPane.__init__(self, **kw)
+        self.marked = marked
+
+    def drawn(self):
+        def row(name, text):
+            return {"runs": [(0, ("> " if name == self.marked else "  ") + text)],
+                    "parts": [(name, 0, self.columns())]}
+        return ([{"runs": [(0, "PANES -- %d" % len(self.PANES))], "parts": []}]
+                + [row("pane:%s/%s" % (office, pane), label + " -- open")
+                   for office, pane, label in self.PANES]
+                + [{"runs": [(0, "PANE Inventory")], "parts": []},
+                   row("property:Width", "Width: 480 px"), row("property:Height", "Height: 240 px")])
+
+
+class CanvasInventory(CanvasPane):
+    """Inventory drawing its rows on its canvas while it browses its folders: its heading; its
+    location -- `(Up) Root` at the root, else `[Up]` named `control:up`, then each folder from the
+    root a crumb named `crumb:o:<id>`, and `+1 in views` after Samples, a folder a portable view
+    holds a member of -- the folders and then the entries of the folder shown, each named
+    `folder:o:<id>` or `entry:o:<id>`, `> ` before the one a press chose; and a notice. A press on
+    a crumb or on `[Up]` shows that folder, on a row chooses it, and on the folder's row a press
+    chose opens it; Alt+Home shows the root. An entry pressed and released on `[Up]` is filed in
+    its folder's parent. Each press is kept as the part it lands on, and the keys as they come."""
+    FOLDERS = {"f1": ("Workbench", ""), "f2": ("Samples", "f1"), "f3": ("Commands", "f1"),
+               "f4": ("Drafts", "f3")}
+    ENTRIES = {"e1": ("Workbench sample", "f2"), "e2": ("Workbench note", "f2"),
+               "e3": ("Workbench capture command", "f3"), "e4": ("Workbench capture preset", "f4")}
+
+    def __init__(self, **kw):
+        CanvasPane.__init__(self, body=(20, 100, 560, 196), **kw)
+        self.folders, self.entries = dict(self.FOLDERS), dict(self.ENTRIES)
+        self.here, self.chose, self.notice, self.presses, self.keys = "", None, "", [], []
+
+    def location(self):
+        chain, at = [], self.here
+        while at:
+            chain.insert(0, at)
+            at = self.folders[at][1]
+        text = "[Up]" if self.here else "(Up)"
+        parts = [("control:up", 0, 4)] if self.here else []
+        for i, (folder, name) in enumerate([("", "Root")] + [(f, self.folders[f][0]) for f in chain]):
+            text += " > " if i else " "
+            parts.append(("crumb:o:" + folder, len(text), len(name)))
+            text += name
+        return text + ("  +1 in views" if self.here == "f2" else ""), parts
+
+    def drawn(self):
+        text, parts = self.location()
+        rows = [{"runs": [(0, "INVENTORY %d | sort: added | hotkeys OFF" % len(self.entries))],
+                 "parts": []}, {"runs": [(0, text)], "parts": parts}]
+        listed = [("folder:o:" + f, name + "/  (%d)" % sum(
+                      p == f for _, p in list(self.folders.values()) + list(self.entries.values())))
+                  for f, (name, parent) in sorted(self.folders.items()) if parent == self.here]
+        listed += [("entry:o:" + e, label + " : PokeStructure")
+                   for e, (label, folder) in sorted(self.entries.items()) if folder == self.here]
+        rows += [{"runs": [(0, ("> " if name == self.chose else "  ") + said)],
+                  "parts": [(name, 0, self.columns())]} for name, said in listed]
+        return rows + [{"runs": [(0, self.notice)] if self.notice else [], "parts": []}]
+
+    def show(self, folder):
+        self.here, self.chose = folder, None
+
+    def pressed(self, x, y):
+        _, name = self.under(x, y)
+        self.presses.append(name)
+        if name == "control:up":
+            self.show(self.folders[self.here][1])
+        elif name and name.startswith("crumb:o:"):
+            self.show(name[len("crumb:o:"):])
+        elif name and name.startswith("folder:o:") and name == self.chose:
+            self.show(name[len("folder:o:"):])
+        elif name:
+            self.chose = name
+
+    def released(self, x, y):
+        _, name = self.under(x, y)
+        if name == "control:up" and self.chose and self.chose.startswith("entry:o:"):
+            entry, parent = self.chose[len("entry:o:"):], self.folders[self.here][1]
+            label = self.entries[entry][0]
+            self.entries[entry] = (label, parent)
+            self.notice = "Filed '%s' in %s" % (label, self.folders[parent][0] if parent else "Root")
+
+    def keyed(self, scancode, modifiers):
+        self.keys.append((scancode, modifiers))
+        if (scancode, modifiers) == (74, 4):
+            self.show("")
+
+
+class CanvasInventoryView(CanvasPane):
+    """A portable Inventory view drawing its boxes on its canvas: its heading, then a row of
+    `boxes` boxes eight columns apart, each three lines inside a border -- its hotkey's hint, its
+    label, a blank -- a box holding an entry named `entry:o:<entry>` over its first line inside and
+    an empty box named nothing; or, `resize`, only a word asking for room. A press is kept as the
+    box it lands in, or None on a border or outside every box."""
+
+    def __init__(self, held=(), boxes=3, resize=False, **kw):
+        CanvasPane.__init__(self, **kw)
+        self.held, self.boxes, self.resize, self.pressed_in = list(held), boxes, resize, []
+
+    def drawn(self):
+        heading = {"runs": [(0, "ON row %d" % len(self.held))], "parts": []}
+        if self.resize:
+            return [heading, {"runs": [(0, "Resize")], "parts": []}]
+        held = self.held + [None] * (self.boxes - len(self.held))
+        edge = {"runs": [(0, "+-------" * self.boxes + "+")], "parts": []}
+
+        def inside(texts, parts=()):
+            return {"runs": [(0, "|" + "|".join(t.center(7) for t in texts) + "|")],
+                    "parts": list(parts)}
+        return [heading, edge,
+                inside(["alt+1" if h else "" for h in held],
+                       [("entry:o:" + h[0], 1 + 8 * i, 7) for i, h in enumerate(held) if h]),
+                inside([h[1] if h else "" for h in held]), inside([""] * self.boxes), edge]
+
+    def pressed(self, x, y):
+        row, column = self.at(x, y)
+        inside = 2 <= row <= 4 and column % 8 and column < 8 * self.boxes
+        self.pressed_in.append(column // 8 if inside else None)
+
+
 class Quiet:
     """A subscription to an owner's words that hears none, as `workshop/builder` holds one while
     it acts on what the Builder's own rows confirm."""
@@ -484,9 +683,10 @@ class CanvasWorkshop(Context):
     other version of either, as a pane drawing a picture is not read by its rows; a pane it does
     not show is refused as a closed one. A part `unreached` names has no point. Each press, release
     or wheel inside a pane's body is that pane's, and the keys go to the pane a press last landed
-    on. An owner's words are observed through a subscription that hears none. `zengine.demo`
-    answers its status by the resets its controls were pressed for. `act_steps` are a
-    `workshop/act` run's steps; what a run keeps is kept."""
+    on; a point refused as a redraw tells its pane it redrew. An owner's words are observed through
+    a subscription that hears none. `zengine.demo` answers its status by the resets its controls
+    were pressed for, and `zengine.inventory` lists what a `CanvasInventory` shown browses.
+    `act_steps` are a `workshop/act` run's steps; what a run keeps is kept."""
 
     def __init__(self, steps, panes, act_steps=(), unreached=()):
         Context.__init__(self, steps)
@@ -521,6 +721,7 @@ class CanvasWorkshop(Context):
                 if self.redraws:
                     from loom_session.tool import Refused
                     self.redraws -= 1
+                    pane.redrawn()
                     raise Refused("pane point unavailable: the pane's picture moved; read it again")
                 return pane.point(fields["word"], fields["column"])
             return pane.view(fields["provider"], fields["pane"], self.pointed)
@@ -537,6 +738,14 @@ class CanvasWorkshop(Context):
                             pane.pressed(e["x"], e["y"])
                         else:
                             pane.released(e["x"], e["y"])
+        if shape == "InventoryList" and options.get("version") == 2:
+            browsed = self.panes[("zengine.inventory-pane", "inventory")]
+            return Answer(entries=[{"label": label, "folder": folder,
+                                    "reference": {"owner": "o", "entry": e}}
+                                   for e, (label, folder) in sorted(browsed.entries.items())],
+                          folders=[{"folder": {"owner": "o", "folder": f}, "name": name,
+                                    "parent": parent}
+                                   for f, (name, parent) in sorted(browsed.folders.items())])
         if shape == "DemoStatusRequested":
             return Answer(generation=3)
         if shape == "DemoReadyRequested":
@@ -700,6 +909,10 @@ def run_checks(tools, runtime):
     reset_button = importlib.import_module("demo_reset_button")
     builder = importlib.import_module("builder")
     workbench = importlib.import_module("workbench")
+    folders = importlib.import_module("workbench_folders")
+    slots = importlib.import_module("inventory_slots_demo")
+    place = importlib.import_module("place")
+    preset_demo = importlib.import_module("inventory_preset_demo")
 
     class ToolChecks(unittest.TestCase):
         def test_drag_delegates_timed_motion_and_cleans_up_after_picture_failure(self):
@@ -1392,6 +1605,191 @@ def run_checks(tools, runtime):
             finally:
                 held.close()
             self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
+
+        # ---- Info and Inventory drawing pictures -----------------------------------------------
+        INVENTORY = ("zengine.inventory-pane", "inventory")
+        SAMPLE, PRESET = ("zengine.info", "info"), ("zengine.info", "info.2")
+        SAMPLED = [("fields[0].name", '"value"'), ("fields[0].value", "3"),
+                   ("meta[0].requested_role", "zengine.input"), ("meta[0].observed_at", "12")]
+        PRESETTED = [("label", '"Workbench result"'), ("options.depth", "2"), ("options.limit", "8"),
+                     ("options.note", '""'), ("target_role", "absent (required)")]
+        ASKED = {("PaneViewRequested", 3), ("PanePointRequested", 2)}
+
+        def test_the_workbench_retrieves_and_files_through_a_canvas_inventory_by_its_words(self):
+            # From the root to Samples by its rows, the sample dropped on the Info view's first
+            # word; back up by a crumb pressed by its word, and an entry filed on [Up].
+            inventory = CanvasInventory()
+            sample = CanvasInfoView("Info | Workbench sample", "COPY zen.PokeStructure",
+                                    self.SAMPLED)
+            ctx = CanvasWorkshop(steps, {self.INVENTORY: inventory, self.SAMPLE: sample})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                path = folders.retrieve(held, "Workbench sample", self.SAMPLE)
+                ctx.redraws = 1  # Inventory redraws once between the reading and the point
+                crumb = held.spot(*self.INVENTORY, "Workbench", "[Up]")
+                held.click(crumb)
+                folders.open_child(held, "Commands")
+                up = held.spot(*self.INVENTORY, "[Up]", "[Up]")
+                held.drag(held.row(*self.INVENTORY, "Workbench capture command"), up, 350)
+                filed = folders.shows(held, self.INVENTORY, "Filed 'Workbench capture command'")
+                with self.assertRaisesRegex(ValueError, r"no visible 'Drafts' on a row starting "
+                                                        r"with '\[Up\]' in zengine.inventory-pane"):
+                    held.spot(*self.INVENTORY, "Drafts", "[Up]")
+            finally:
+                held.close()
+            self.assertEqual(path, ["Workbench", "Samples"])
+            self.assertEqual(sample.dropped, [(0, None)])  # its title: any place opens a value
+            self.assertEqual(inventory.presses, [
+                None, "folder:o:f1", "folder:o:f1", "folder:o:f2", "folder:o:f2", "entry:o:e1",
+                "crumb:o:f1", "folder:o:f3", "folder:o:f3", "entry:o:e3"])
+            self.assertEqual(inventory.keys, [(74, 4)])  # Alt+Home, after the heading's press
+            # The crumb's and [Up]'s second characters, on the location row: the lattice's row 1.
+            self.assertEqual((crumb["x"], crumb["y"]), (inventory.column_x(13) + 3, inventory.row_y(1) + 7))
+            self.assertEqual((up["x"], up["y"]), (inventory.column_x(1) + 3, inventory.row_y(1) + 7))
+            self.assertTrue(filed)
+            self.assertEqual(inventory.entries["e3"], ("Workbench capture command", "f1"))
+            self.assertEqual(set(ctx.asked), self.ASKED)
+
+        def test_an_info_views_field_out_of_its_window_is_wheeled_into_it_and_dragged_onto(self):
+            sample = CanvasInfoView("Sample | Workbench sample", "COPY zen.PokeStructure",
+                                    self.SAMPLED)
+            preset = CanvasInfoView("Preset | Workbench capture preset", "PRESET LINKED  watch off",
+                                    self.PRESETTED, body=(600, 300, 420, 168))
+            ctx = CanvasWorkshop(steps, {self.SAMPLE: sample, self.PRESET: preset})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                held.field(*self.PRESET, "target_role")
+                start = held.field(*self.SAMPLE, "meta[0].requested_role")
+                end = held.field(*self.PRESET, "target_role")
+                held.drag(start, end, 500)
+                wheeled = [(e["x"], e["y"], e["wheel_dy"]) for e in ctx.events
+                           if e["kind"] == "PointerWheel"]
+                with self.assertRaisesRegex(ValueError, r"no visible part field:state_version in "
+                                                        r"zengine.info/info.2"):
+                    held.field(*self.PRESET, "state_version")
+                kept = json.loads(ctx.kept["last-view.json"])
+            finally:
+                held.close()
+            # Toward later fields first, a notch at a time at each view's first word, its title,
+            # until the window following the selection shows the field.
+            at_preset = (preset.column_x(16) + 3, preset.row_y(0) + 7, -1.0)
+            at_sample = (sample.column_x(12) + 3, sample.row_y(0) + 7, -1.0)
+            self.assertEqual(wheeled, [at_preset] * 4 + [at_sample] * 2)
+            self.assertEqual(sample.under(start["x"], start["y"]),
+                             (5, "field:meta[0].requested_role"))
+            self.assertEqual((end["name"], end["x"], end["y"]),
+                             ("field:target_role", preset.column_x(0) + 59 * 7 // 2, preset.row_y(5) + 7))
+            self.assertEqual(preset.dropped, [(5, "field:target_role")])
+            # A field the view has nowhere: walked to each end, then refused.
+            self.assertEqual([p for p in kept["parts"] if p.startswith("field:")],
+                             ["field:label", "field:options.depth"])
+            self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})  # a part's own point
+
+        def test_save_is_pressed_by_its_word_on_a_canvas_info_view_never_as_save_copy(self):
+            preset = CanvasInfoView("Preset | Workbench capture preset", "PRESET LINKED  watch off",
+                                    self.PRESETTED)
+            ctx = CanvasWorkshop(steps, {self.PRESET: preset})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                ctx.redraws = 1  # the view redraws once between the reading and the point
+                where = held.control(*self.PRESET, "Save")
+                workbench.expect(held, self.PRESET, "PRESET LINKED")
+                # Redrawn with Save unavailable, `(Save)`: only `[Save copy]` says Save in brackets.
+                preset.on_redraw, ctx.redraws = {"inventory.save"}, 1
+                with self.assertRaisesRegex(ValueError, r"no visible control \[Save\] in "
+                                                        r"zengine.info/info.2"):
+                    held.control(*self.PRESET, "Save")
+                kept = json.loads(ctx.kept["last-view.json"])
+                held.control(*self.PRESET, "Save copy")
+            finally:
+                held.close()
+            self.assertEqual((where["x"], where["y"]), (preset.column_x(1) + 3, preset.row_y(2) + 7))
+            self.assertEqual(preset.chosen, ["inventory.save", "inventory.save-copy"])
+            self.assertEqual(kept["rows"][2]["text"], "(Save) [Save copy] [Refresh] [Watch] [Close]")
+            self.assertEqual(set(ctx.asked), self.ASKED)
+
+        def test_the_preset_walk_fails_naming_a_pickup_sentence_info_says_after_ctrl_g(self):
+            # Each refusal and each wait Info's view can say of its own field pickup fails the walk
+            # where the view still draws it, naming it; a view saying none passes.
+            said = {"Field pickup refused: this operation needs a current attributed input gesture":
+                        "Field pickup",
+                    "Save unavailable: a field pickup is pending": "field pickup is pending",
+                    "COPY zen.PokeStructure | picking up field": "picking up field",
+                    "Checking field acquisition authority": "Checking field acquisition authority",
+                    "Choose a field first": "Choose a field first",
+                    "Wait for the inventory operation before picking up a field":
+                        "Wait for the inventory operation",
+                    "That field is no longer here": "That field is no longer here",
+                    "Field copy exceeds the carry limit": "Field copy exceeds the carry limit",
+                    "Field permission request could not be queued":
+                        "Field permission request could not be queued",
+                    "COPY zen.PokeStructure": None}
+            for state, sentence in said.items():
+                with self.subTest(state=state):
+                    view = CanvasInfoView("Info | Workbench sample", state, self.SAMPLED)
+                    ctx = CanvasWorkshop(steps, {self.SAMPLE: view})
+                    held = hand.Hand(ctx, "workshop")
+                    try:
+                        if sentence is None:
+                            preset_demo.says_no_pickup(ctx, held, self.SAMPLE)
+                        else:
+                            with self.assertRaises(CheckFailed) as failed:
+                                preset_demo.says_no_pickup(ctx, held, self.SAMPLE)
+                            self.assertEqual(str(failed.exception), "Info still says %r of the field "
+                                             "pickup: %r" % (sentence, state))
+                    finally:
+                        held.close()
+                    self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
+            self.assertEqual(sorted(set(said.values()) - {None}),
+                             sorted(preset_demo.INFO_PICKUP_SENTENCES))
+
+        def test_a_portable_views_first_box_is_pressed_inside_it_though_its_line_crosses_all(self):
+            view_pane = ("zengine.inventory-pane", "inventory.2")
+            named = {}
+            for held_entries in ((), (("e1", "command"),)):
+                view = CanvasInventoryView(held=held_entries)
+                ctx = CanvasWorkshop(steps, {view_pane: view})
+                held = hand.Hand(ctx, "workshop")
+                ctx.redraws = 1  # the view redraws once between the reading and the point
+                try:
+                    box = slots.first_box(ctx, held, *view_pane)
+                    held.click(box)
+                    named[len(held_entries)] = [p["name"] for p in held.words(*view_pane)["parts"]]
+                finally:
+                    held.close()
+                # The first line inside a box at its third character, in the first box: the
+                # line's middle is the second box's.
+                self.assertEqual((box["text"][:2], box["x"], box["y"]),
+                                 ("| ", view.column_x(2) + 3, view.row_y(2) + 7))
+                self.assertEqual(view.pressed_in, [0])
+                self.assertEqual(set(ctx.asked), self.ASKED)
+            self.assertEqual(named, {0: [], 1: ["entry:o:e1"]})  # an empty box names nothing
+            ctx = CanvasWorkshop(steps, {view_pane: CanvasInventoryView(resize=True)})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                with self.assertRaisesRegex(CheckFailed, "view has no complete visible slot"):
+                    slots.first_box(ctx, held, *view_pane)
+            finally:
+                held.close()
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+
+        def test_place_reads_infos_list_marker_by_the_row_a_canvas_run_stands_on(self):
+            # Each run set inside its row's rectangle, or below its top: the marker is on the list
+            # only where a `>` word stands on a `pane:` row.
+            for drop in (0, 3):
+                with self.subTest(drop=drop):
+                    marked = {}
+                    for name in ("pane:zengine.inventory-pane/inventory", "property:Width", None):
+                        ctx = CanvasWorkshop(steps, {self.SAMPLE: CanvasInfo(name, drop=drop)})
+                        held = hand.Hand(ctx, "workshop")
+                        try:
+                            marked[name] = place.list_marked(held.words(*self.SAMPLE))
+                        finally:
+                            held.close()
+                        self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
+                    self.assertEqual(marked, {"pane:zengine.inventory-pane/inventory": True,
+                                              "property:Width": False, None: False})
+            self.assertFalse(place.list_marked(None))
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
     return unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful()

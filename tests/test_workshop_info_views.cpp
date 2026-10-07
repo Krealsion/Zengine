@@ -936,6 +936,11 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     REQUIRE_MESSAGE(s.shows(b, "PRESET LINKED"), s.shown(b));
     REQUIRE(s.shows(b, "inner: absent (required)"));
     auto field = [&](std::int64_t view, const std::string& label) { return s.field_at(view, label); };
+    // The picture the destination shows before its fields are filled: a drop aimed at it is stale
+    // once a filled branch adds rows.
+    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(b)));
+    const auto aimed = s.r.session().panes.external_pane(b)->canvas;
+    const auto aimed_name = field(b, "name");
     // A NESTED MESSAGE: its whole branch, typed, into the absent required field.
     s.drag_between(a, field(a, "inner"), b, field(b, "inner"));
     CHECK_MESSAGE(s.shows(b, "*inner.a: 5"), s.shown(b));
@@ -954,13 +959,15 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     CHECK(s.shows(b, "extra: absent"));
     CHECK(s.shows(b, "numbers: absent"));
     // A STALE PICTURE REFUSES: the destination moved since the hand aimed.
-    const auto picture = s.r.session().panes.external_pane(b)->picture;
+    REQUIRE(s.r.session().panes.external_pane(b)->canvas.grant == aimed.grant);
     zengine::message_draft::Draft named(record_schema());
     named.set_text({"name"}, "forged");
     const auto encoded = inv::encode_pair(zengine::message_draft::grab_field(named, {"name"}), {});
+    const CanvasRows lattice = held_canvas_rows(*s.r.session().panes.external_pane(b));
     s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
-        loom::Message(loom::to_value(PaneValueDrop{"info.3", loom::Bytes(encoded.begin(), encoded.end()),
-            field(b, "name").first, 3, picture - 1})));
+        loom::Message(loom::to_value(PaneCanvasValueDrop{"info.3", aimed.grant, aimed.content.picture,
+            lattice.column_x(3), lattice.row_y(aimed_name.first), loom::Bytes(encoded.begin(), encoded.end()),
+            "", "", ""})));
     s.r.bus.drain_until_idle();
     CHECK_MESSAGE(s.shows(b, "nothing was filled"), s.shown(b));
     CHECK(s.shows(b, "name: dst"));
@@ -1080,13 +1087,18 @@ TEST_CASE("info views: a stale or clipped control never acts, and a press names 
     Views s;
     const auto [a, b] = s.two_views();
     (void)b;
+    // The picture the view shows before it holds a value: its controls stand elsewhere now.
+    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(a)));
+    const auto before = s.r.session().panes.external_pane(a)->canvas;
     s.copy_into(a, "story.RuntimeItem");
     const auto entries = s.saved_entries().size();
     const auto at = s.where(a, "[Save copy]");
-    const auto picture = s.r.session().panes.external_pane(a)->picture;
     // A PRESS STAMPED WITH AN OLDER PICTURE is refused, and the copy is not saved.
+    REQUIRE(s.r.session().panes.external_pane(a)->canvas.grant == before.grant);
+    const CanvasRows lattice = held_canvas_rows(*s.r.session().panes.external_pane(a));
     s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
-        loom::Message(loom::to_value(v3::PanePressed{"info.2", at.first, at.second + 2, true, picture - 1})));
+        loom::Message(loom::to_value(PaneCanvasPointer{"info.2", before.grant, before.content.picture, 1,
+            canvas_pointer::kPress, 1, lattice.column_x(at.second + 2), lattice.row_y(at.first)})));
     s.r.bus.drain_until_idle();
     CHECK_MESSAGE(s.shows(a, "This view changed -- press again"), s.shown(a));
     CHECK(s.saved_entries().size() == entries);
@@ -1103,19 +1115,30 @@ TEST_CASE("info views: a stale or clipped control never acts, and a press names 
     CHECK(s.r.session().presented.open);
 }
 
-TEST_CASE("pane point: a point names the cell a control is painted on, and a moved picture refuses") {
+TEST_CASE("pane point: a point names the cell a control is drawn on, and a moved picture refuses") {
     Views s(191 | 2048);
     const auto [a, b] = s.two_views();
     (void)b;
     s.copy_into(a, "story.RuntimeItem");
     const auto entries = s.saved_entries().size();
-    const auto at = s.where(a, "[Save copy]");
-    const auto picture = s.r.session().panes.external_pane(a)->stamp.aimed;
+    // The view's words, as Workshop holds them, and the one the control stands in.
     s.act([&](loom::Mail& m) {
-        m.send_to_role("zengine.workshop", PanePointRequested{info::kInfoPaneRole, "info.2", picture, at.first, at.second + 2});
+        m.send_to_role("zengine.workshop", v2::PaneViewRequested{info::kInfoPaneRole, "info.2"});
     });
-    REQUIRE(s.hand->points.size() == 1);
-    const auto point = s.hand->points.back();
+    REQUIRE(s.hand->words.size() == 1);
+    const v2::PaneView view = s.hand->words.back();
+    CHECK(view.canvas);
+    const auto word = std::find_if(view.words.begin(), view.words.end(), [](const PaneWord& w) {
+        return w.text.find("[Save copy]") != std::string::npos;
+    });
+    REQUIRE(word != view.words.end());
+    const auto column = static_cast<std::int64_t>(word->text.find("[Save copy]")) + 2;
+    s.act([&](loom::Mail& m) {
+        m.send_to_role("zengine.workshop", v2::PanePointRequested{info::kInfoPaneRole, "info.2", view.picture,
+                                                                  word->word, column});
+    });
+    REQUIRE(s.hand->word_points.size() == 1);
+    const auto point = s.hand->word_points.back();
     CHECK(point.space == input::space::kCells);
     input::InjectedEvent e; e.kind = "PointerButton"; e.button = 1; e.space = point.space; e.x = point.x; e.y = point.y;
     e.pressed = true; s.event(e); e.pressed = false; s.event(e);
@@ -1123,10 +1146,234 @@ TEST_CASE("pane point: a point names the cell a control is painted on, and a mov
     s.hand->expect_refusal = true;
     const auto now = s.r.session().panes.external_pane(a)->stamp.aimed;
     s.act([&](loom::Mail& m) {
-        m.send_to_role("zengine.workshop", PanePointRequested{info::kInfoPaneRole, "info.2", now + 1, at.first, at.second + 2});
+        m.send_to_role("zengine.workshop", v2::PanePointRequested{info::kInfoPaneRole, "info.2", now + 1,
+                                                                  word->word, column});
     });
     REQUIRE(s.hand->refusals.size() == 1);
     CHECK(s.hand->refusals.back().find("picture moved") != std::string::npos);
+}
+
+/// THE FIELD ROW A VIEW'S SELECTION MARKS, as it is drawn, or "".
+std::string selected_field(Views& s, std::int64_t view) {
+    for (const auto& row : pane_rows(s.r, view))
+        if (row.rfind(">", 0) == 0 && row.find(':') != std::string::npos) return row;
+    return std::string();
+}
+
+TEST_CASE("info views: the wheel walks a view's fields a notch at a time on its canvas, fractions "
+          "carried, only in the room the view holds, and moves nothing while a field is edited") {
+    Views s;
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.copy_into(a, "Source record");
+    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(a)));
+    const auto at = s.field_at(a, "name");
+    s.press_at(a, at.first, at.second); // the selection on the first field
+    const std::string first = selected_field(s, a);
+    REQUIRE_MESSAGE(first.find("name:") != std::string::npos, s.shown(a));
+    const auto wheel = [&](double dy) {
+        input::InjectedEvent e = s.at(a, at.first, at.second, true);
+        e.kind = "PointerWheel";
+        e.wheel_dy = dy;
+        s.event(e);
+    };
+    wheel(-1); // toward the weaver: the next field
+    const std::string second = selected_field(s, a);
+    CHECK_MESSAGE(second != first, s.shown(a));
+    CHECK(second.find("name:") == std::string::npos);
+    wheel(0.5); // half a notch back moves nothing yet...
+    CHECK(selected_field(s, a) == second);
+    wheel(0.5); // ...and the other half does
+    CHECK(selected_field(s, a) == first);
+    // A wheel from the room the view stood in before a new one was granted turns nothing.
+    const ExternalPane old = *s.r.session().panes.external_pane(a);
+    s.place(info::kInfoPaneRole, "info.2", 2, 30, 84, 24);
+    REQUIRE(s.r.session().panes.external_pane(a)->canvas.grant != old.canvas.grant);
+    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
+        loom::Message(loom::to_value(PaneCanvasPointer{"info.2", old.canvas.grant, old.canvas.content.picture, 0,
+            canvas_pointer::kWheel, 0, 4, 4, 0, 0, -1})));
+    s.r.bus.drain_until_idle();
+    CHECK(selected_field(s, a) == first);
+    // A wheel turned as far as a number goes walks to the list's end at once, and no further.
+    wheel(-1e300);
+    const std::string last = selected_field(s, a);
+    CHECK(last != first);
+    wheel(-1);
+    CHECK(selected_field(s, a) == last);
+    wheel(1e300);
+    CHECK(selected_field(s, a) == first);
+    s.key(input::scan::kReturn); // edit the selected field: the wheel walks nothing now
+    REQUIRE_MESSAGE(s.shows(a, "Edit name"), s.shown(a));
+    const auto editing = pane_rows(s.r, a);
+    wheel(-1);
+    CHECK(pane_rows(s.r, a) == editing);
+    s.key(input::scan::kEscape); // the edit ends, and the selection is where the edit began
+    REQUIRE_MESSAGE(!s.shows(a, "Edit name"), s.shown(a));
+    CHECK(selected_field(s, a) == first);
+}
+
+TEST_CASE("info views: a view's line being typed shows its caret on its canvas, moving no character") {
+    Views s;
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.copy_into(a, "Source record");
+    const auto at = s.field_at(a, "name");
+    s.press_at(a, at.first, at.second);
+    s.key(input::scan::kReturn);
+    REQUIRE_MESSAGE(s.shows(a, "Edit name"), s.shown(a));
+    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(a)));
+    const auto line = [&] { return s.where(a, "> "); };
+    const auto caret = [&] { return held_caret(*s.r.session().panes.external_pane(a)); };
+    REQUIRE(line().first >= 0);
+    CHECK(pane_rows(s.r, a)[static_cast<std::size_t>(line().first)] == "> src");
+    CHECK(caret().row == line().first);
+    CHECK(caret().column == 5); // the prompt, then after `src`
+    s.key(input::scan::kLeft);
+    CHECK(caret().column == 4);
+    CHECK(pane_rows(s.r, a)[static_cast<std::size_t>(line().first)] == "> src");
+    // A selection over `r`, counted as the caret is, past the prompt.
+    s.key(input::scan::kLeft, input::mod::kShift);
+    CHECK(caret().column == 3);
+    CHECK(caret().sel_begin_row == line().first);
+    CHECK(caret().sel_end_row == line().first);
+    CHECK(caret().sel_begin_col == 3);
+    CHECK(caret().sel_end_col == 4);
+    s.key(input::scan::kEscape); // the edit ends, and its caret with it
+    CHECK(caret().row == surface::kNoCaret);
+    CHECK(caret().sel_begin_row == surface::kNoSelection);
+    // THE VIEW'S TITLE BEING RENAMED shows its caret after the title, the same way.
+    s.key(input::scan::kM, input::mod::kCtrl);
+    REQUIRE_MESSAGE(s.shows(a, "View title"), s.shown(a));
+    const std::string title = pane_rows(s.r, a)[static_cast<std::size_t>(line().first)];
+    REQUIRE(title.rfind("> ", 0) == 0);
+    CHECK(caret().row == line().first);
+    CHECK(caret().column == static_cast<std::int64_t>(title.size()));
+    s.key(input::scan::kEscape);
+    CHECK(caret().row == surface::kNoCaret);
+}
+
+TEST_CASE("info views: a right press aimed at a picture drawn before the view's rows' meaning changed "
+          "opens no menu and says why") {
+    Views s;
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    (void)b;
+    const ExternalPane before = *s.r.session().panes.external_pane(a);
+    REQUIRE(shows_canvas(before));
+    s.copy_into(a, "Source record"); // a value now: other rows, other meanings
+    const ExternalPane& now = *s.r.session().panes.external_pane(a);
+    REQUIRE(now.canvas.grant == before.canvas.grant);
+    const CanvasRows lattice = held_canvas_rows(now);
+    const auto at = s.field_at(a, "name");
+    s.watch();
+    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
+        loom::Message(loom::to_value(PaneCanvasPointer{"info.2", before.canvas.grant, before.canvas.content.picture,
+            77, canvas_pointer::kPress, 3, lattice.column_x(3), lattice.row_y(at.first)})));
+    s.r.bus.drain_until_idle();
+    CHECK_MESSAGE(s.shows(a, "This view changed -- press again"), s.shown(a));
+    CHECK(s.sends(PaneMenuRequested::zen_name) == 0);
+}
+
+TEST_CASE("info views: a field copy placed on Info's pane-property lists fills no field of the value its "
+          "default view still holds") {
+    Views s(255); // the field pickup is the actor's to make
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.copy_into(a, "Source record");    // the field's source
+    s.copy_into(s.info, "Target record"); // the default view holds a value...
+    REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
+    const auto name = s.field_at(s.info, "name");
+    s.button(s.info, "Panes"); // ...and shows the pane-property lists again
+    REQUIRE_MESSAGE(s.shows(s.info, "PANES"), s.shown(s.info));
+    // A field copy picked up in another view, placed where the default view drew its `name` row.
+    const auto source = s.field_at(a, "name");
+    s.press_at(a, source.first, source.second);
+    s.key(input::scan::kG, input::mod::kCtrl);
+    REQUIRE_MESSAGE(s.r.last_notice().rfind("Carrying ", 0) == 0, s.r.last_notice());
+    s.click_at(s.info, name.first, name.second);
+    // The lists number no meaning of their own: the place is not a field of the value held.
+    s.key(input::scan::kI, input::mod::kCtrl); // back to the value
+    CHECK_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
+    CHECK_FALSE(s.shows(s.info, "name: src"));
+}
+
+TEST_CASE("info views: only the motion of the press that armed a field pickup begins it") {
+    Views s;
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.copy_into(a, "Source record");
+    const auto at = s.field_at(a, "name");
+    s.press_at(a, at.first, at.second); // a field press, released where it was: armed, never moved
+    s.watch();
+    const ExternalPane held = *s.r.session().panes.external_pane(a);
+    REQUIRE(shows_canvas(held));
+    const CanvasRows lattice = held_canvas_rows(held);
+    const auto send = [&](std::int64_t phase, std::int64_t x, std::int64_t y) {
+        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
+            info::kInfoPaneRole, loom::Message(loom::to_value(PaneCanvasPointer{"info.2", held.canvas.grant,
+                held.canvas.content.picture, 77, phase, 1, x, y})));
+        s.r.bus.drain_until_idle();
+    };
+    // A press beside the rows, where it names nothing, and that press's own motion across the
+    // field rows: the earlier press's pickup stays unasked.
+    send(canvas_pointer::kPress, -1, lattice.row_y(at.first));
+    send(canvas_pointer::kMove, lattice.column_x(4), lattice.row_y(at.first + 1));
+    CHECK(s.sends(PaneOperationRequested::zen_name) == 0);
+    CHECK_FALSE(s.shows(a, "Field pickup"));
+}
+
+TEST_CASE("info views: with pane titles hidden, a field dragged out of a view that did not hold the keys "
+          "fills a field of another") {
+    Views s(255); // the field pickup is the actor's to make
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    s.copy_into(a, "Source record");
+    s.copy_into(b, "Target record");
+    REQUIRE_MESSAGE(s.shows(b, "name: dst"), s.shown(b));
+    press_outside(s.r, a);    // the keys are Workshop's...
+    s.key(input::scan::kT);   // ...and the titles hidden
+    REQUIRE_FALSE(s.r.session().pane_titles);
+    REQUIRE(external_title_rows(s.r.session().panes, a, false) == 0);
+    REQUIRE(external_title_rows(s.r.session().panes, b, false) == 0);
+    // THE PRESS TAKES THE KEYS, AND WITH THEM ITS VIEW'S TITLE (WL-FOCUS-11): the room that title
+    // takes waits for the press, so the press's own motion picks the field up and its release
+    // places it.
+    s.drag_between(a, s.field_at(a, "name"), b, s.field_at(b, "name"));
+    CHECK_MESSAGE(s.shows(b, "name: src"), s.shown(b));
+}
+
+TEST_CASE("info views: a press on Info's pane-property lists arms no field pickup, so its motion asks "
+          "nothing once the value it held is shown again") {
+    Views s(255); // the field pickup is the actor's to make
+    add_records(s);
+    s.copy_into(s.info, "Target record"); // the default view holds a value
+    REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
+    const auto name = s.field_at(s.info, "name");
+    s.press_at(s.info, name.first, name.second); // a field press, released where it was: armed
+    s.key(input::scan::kI, input::mod::kCtrl);   // the lists again, by key: no press disarms it
+    REQUIRE_MESSAGE(s.shows(s.info, "PANES"), s.shown(s.info));
+    const ExternalPane held = *s.r.session().panes.external_pane(s.info);
+    REQUIRE(shows_canvas(held));
+    const CanvasRows lattice = held_canvas_rows(held);
+    const auto send = [&](std::int64_t phase, std::int64_t x, std::int64_t y) {
+        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
+            info::kInfoPaneRole, loom::Message(loom::to_value(PaneCanvasPointer{"info", held.canvas.grant,
+                held.canvas.content.picture, 88, phase, 1, x, y})));
+        s.r.bus.drain_until_idle();
+    };
+    // A press held on a row of the lists; the value shown again by key while it is held; then
+    // that press's motion across the rows: the earlier field press's pickup stays unasked.
+    send(canvas_pointer::kPress, lattice.column_x(3), lattice.row_y(2));
+    s.key(input::scan::kI, input::mod::kCtrl);
+    REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
+    s.watch();
+    send(canvas_pointer::kMove, lattice.column_x(5), lattice.row_y(name.first + 1));
+    CHECK(s.sends(PaneOperationRequested::zen_name) == 0);
+    CHECK_FALSE(s.shows(s.info, "Field pickup"));
 }
 
 TEST_CASE("info views: a toolbox restore makes a linked view's link stale and keeps its draft") {

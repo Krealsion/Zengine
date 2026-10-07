@@ -3,10 +3,11 @@
 """Small orchestration helpers. Zengine owns geometry, motion, drops and permissions.
 
 A pane is read by its words (PaneView version 3) wherever a reader finds a row by what it says or
-a part by its name -- `row`, `part`, `last_part`, `first`, `control`, `rows_of` -- so a text pane
-and a pane that draws a canvas picture read alike: a text pane's word is its row, a canvas pane's
-each text run or label it drew, and a row it leaves blank is no word. `view`, `point`, `spot` and
-`field` read a text pane's rows by number (version 1), which a canvas pane does not answer."""
+a part by its name -- `row`, `row_starting`, `part`, `last_part`, `first`, `control`, `spot`,
+`field`, `rows_of` -- so a text pane and a pane that draws a canvas picture read alike: a text
+pane's word is its row, a canvas pane's each text run or label it drew, and a row it leaves blank
+is no word. `view` and `point` read a text pane's rows by number (version 1), which a canvas pane
+does not answer."""
 import json
 import time
 from collections import Counter
@@ -28,6 +29,11 @@ def word_on_row(view, part):
     """The leftmost word standing on the row a part stands on, or None."""
     rows = [w for w in view["words"] if on_row(w, part)] if view else []
     return min(rows, key=lambda w: w["place"]["x"]) if rows else None
+
+
+def topmost(words):
+    """The leftmost of the words on the highest row among `words`, or None."""
+    return min(words, key=lambda w: (w["place"]["y"], w["place"]["x"])) if words else None
 
 
 def rows_of(view):
@@ -90,15 +96,16 @@ class Hand:
         the lines it names."""
         return self.ask("zengine.workshop", "DeskViewRequested", {}, version=2)
 
-    def seek(self, provider, pane, find, scroll):
+    def seek(self, provider, pane, find, scroll, toward=(1, -1), notches=256):
         """Read the pane's words until `find(view)` names something, searching toward each edge
-        with ordinary wheel input when `scroll`: one notch at a time at the first word's point,
-        until the words stop changing -- a stable view is the edge, not a reason to retry it.
-        Returns `(view, found)`, `found` None when no view named anything."""
+        with ordinary wheel input when `scroll`: one notch at a time at the first word's point, in
+        each of the wheel directions `toward` in turn (1 away from the weaver, -1 toward), at most
+        `notches` each, until the words stop changing -- a stable view is the edge, not a reason to
+        retry it. Returns `(view, found)`, `found` None when no view named anything."""
         view = None
-        for direction in ((1, -1) if scroll else (0,)):
+        for direction in (toward if scroll else (0,)):
             previous = None
-            for _ in range(256):
+            for _ in range(notches):
                 view = self.words(provider, pane)
                 found = find(view)
                 if found is not None:
@@ -146,6 +153,42 @@ class Hand:
                     "space": at["space"]}
         raise ValueError("visible row %r kept moving while it was read" % contains)
 
+    def row_starting(self, provider, pane, prefix):
+        """The topmost row starting with `prefix` -- a text pane's row, or the one run of text a
+        canvas pane draws on a row -- as `{row, text, x, y, space}`, pressed where Workshop says its
+        third character is, as `row` presses one (its own point where it has fewer): an Inventory
+        view's first line inside a box, `|`, is pressed inside its first box, though the line
+        crosses every box. A pane that redrew between the reading and the point is read again;
+        none raises ValueError and keeps `last-view.json`."""
+        def pick(view):
+            return topmost([w for w in view["words"] if w["text"].startswith(prefix)])
+        w, at = self.pointed(provider, pane, pick, lambda w: 2 if len(w["text"]) >= 3 else None,
+                             "row starting with %r" % prefix)
+        return {"row": w["word"], "text": w["text"], "x": at["x"], "y": at["y"],
+                "space": at["space"]}
+
+    def pointed(self, provider, pane, pick, column, what):
+        """The word `pick(view)` chooses among the pane's words now and where Workshop says its
+        character `column(word)` is -- the word's own point where that is None -- as `(word,
+        point)`. A pane that redrew between the reading and the point is read again, as a canvas
+        pane numbers every picture it sends. No word chosen raises ValueError naming `what` and
+        keeps `last-view.json`."""
+        for _ in range(3):
+            view = self.words(provider, pane)
+            w = pick(view)
+            if w is None:
+                self.last_view(view)
+                raise ValueError("no visible %s in %s/%s" % (what, provider, pane))
+            at = column(w)
+            try:
+                return w, (w if at is None else
+                           self.word_point(provider, pane, w["word"], at, view["picture"]))
+            except Refused as refused:
+                if "picture moved" not in str(refused):
+                    raise
+                continue  # the pane redrew between the reading and the point: read it again
+        raise ValueError("%s in %s/%s kept moving while it was read" % (what, provider, pane))
+
     def part(self, provider, pane, name, scroll=False):
         """The part a pane names `name`, wherever its last redraw put it, as `{name, row, text, x,
         y, space}` -- the point Workshop gives it, `row` the number of the word on its row (None
@@ -189,10 +232,10 @@ class Hand:
         the point Workshop gives it: where a press or a drop meant for the pane's first row lands.
         A pane drawing no word raises ValueError and keeps `last-view.json`."""
         view = self.words(provider, pane)
-        if not view["words"]:
+        w = topmost(view["words"])
+        if w is None:
             self.last_view(view)
             raise ValueError("%s/%s draws no word" % (provider, pane))
-        w = min(view["words"], key=lambda w: (w["place"]["y"], w["place"]["x"]))
         return {"row": w["word"], "text": w["text"], "x": w["x"], "y": w["y"], "space": w["space"]}
 
     def point(self, provider, pane, row, column, picture):
@@ -206,52 +249,39 @@ class Hand:
         multiplies a font metric. A pane that redrew between the reading and the point is read
         again, as a canvas pane numbers every picture it sends."""
         word = "[" + label + "]"
-        for _ in range(3):
-            view = self.words(provider, pane)
+        def pick(view):
             found = [w for w in view["words"] if word in w["text"]]
-            if not found:
-                self.last_view(view)
-                raise ValueError("no visible control %s in %s/%s" % (word, provider, pane))
-            try:
-                where = self.word_point(provider, pane, found[0]["word"],
-                                        found[0]["text"].find(word) + 1, view["picture"])
-            except Refused as refused:
-                if "picture moved" not in str(refused):
-                    raise
-                continue  # the pane redrew between the reading and the point: read it again
-            self.click(where)
-            return where
-        raise ValueError("control %s in %s/%s kept moving while it was read" % (word, provider, pane))
+            return found[0] if found else None
+        _, where = self.pointed(provider, pane, pick, lambda w: w["text"].find(word) + 1,
+                                "control " + word)
+        self.click(where)
+        return where
 
     def spot(self, provider, pane, text, row_prefix=""):
-        """Where Workshop paints `text` now, on the first row starting with `row_prefix` that
-        holds it -- a location crumb, a control or a folder name -- measured by Workshop."""
-        view = self.view(provider, pane)
-        for r in view["rows"]:
-            if r["text"].startswith(row_prefix) and text in r["text"]:
-                return self.point(provider, pane, r["row"], r["text"].find(text) + 1, view["picture"])
-        self.ctx.produce("last-view.json", json.dumps({"rows": [x["text"] for x in view["rows"]]}, indent=2).encode())
-        raise ValueError("%r is not painted in %s/%s" % (text, provider, pane))
+        """Where Workshop draws `text` now -- its second character -- on the topmost row starting
+        with `row_prefix` that holds it, a text pane's row or the one run a canvas pane draws on a
+        row: an Inventory location crumb, `[Up]`, a control or a folder name, measured by
+        Workshop. A pane that redrew between the reading and the point is read again; `text`
+        drawn on no such row raises ValueError and keeps `last-view.json`."""
+        def pick(view):
+            return topmost([w for w in view["words"]
+                            if w["text"].startswith(row_prefix) and text in w["text"]])
+        _, where = self.pointed(provider, pane, pick, lambda w: w["text"].find(text) + 1,
+                                "%r on a row starting with %r" % (text, row_prefix))
+        return where
 
     def field(self, provider, pane, label, notches=64):
-        """The row of an Info view field `label:`, walking the view's selection with the wheel
-        until it is painted (the window follows the selection)."""
-        for direction in (0, -1, 1):
-            previous = None
-            for _ in range(notches if direction else 1):
-                view = self.view(provider, pane)
-                for r in view["rows"]:
-                    if r["text"][2:].startswith(label + ":"):
-                        return r
-                visible = [x["text"] for x in view["rows"]]
-                if not direction or visible == previous:
-                    break
-                previous = visible
-                at = view["rows"][-1]
-                self.actions["wheel"] += 1
-                self.inject([moment(self.ctx, "PointerWheel", wheel_dy=direction,
-                                    x=at["x"], y=at["y"], space=at["space"])])
-        raise ValueError("no field %s in %s/%s" % (label, provider, pane))
+        """An Info view's field `label` -- the row it names `field:<label>` -- as `{name, row,
+        text, x, y, space}` at the point Workshop gives it, a press or a drop on the field. The
+        view's selection is walked with the wheel until the view draws it, as its window follows
+        the selection: toward later fields first, then earlier, at most `notches` each way. None
+        drawn raises ValueError and keeps `last-view.json`."""
+        name = "field:" + label
+        def find(view):
+            parts = [p for p in view.get("parts", []) if p["name"] == name]
+            return parts[0] if parts else None
+        view, p = self.seek(provider, pane, find, True, toward=(-1, 1), notches=notches)
+        return self.pressable(provider, pane, view, p, name)
 
     def click(self, row):
         self.actions["click"] += 1

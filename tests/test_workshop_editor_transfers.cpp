@@ -188,6 +188,24 @@ TEST_CASE("dropped text is inserted at the painted landing character as one undo
     CHECK(slurp(path) == "abc\ndef\n");
 }
 
+TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered: a value on the Editor's rows") {
+    EditorStory s("xfer-gone");
+    REQUIRE(s.open(s.write("a.txt", "abc\n")).accepted);
+    s.add(text_pair("one"), "snippet");
+    // The drop is queued and said sent; the Editor leaves before the bus dispatches it.
+    bool removed = false;
+    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&s, &removed](const loom::BusEvent& e) {
+        if (!removed && e.kind == loom::EventKind::Delivered && e.target == s.r.workshop_id &&
+            s.r.last_notice().rfind("Value sent to", 0) == 0)
+            removed = s.r.kernel.unload_role(ed::kEditorPaneRole);
+    })};
+    s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, s.editor, s.chrome() + 0, 1);
+    REQUIRE_MESSAGE(removed, s.r.last_notice());
+    CHECK_MESSAGE(s.r.last_notice().find(std::string("Value not delivered to ") + ed::kEditorPaneRole) !=
+                      std::string::npos,
+                  s.r.last_notice());
+}
+
 TEST_CASE("text the standard Editor cannot hold is refused whole, and the document, its selection and its history stay as they were") {
     EditorStory s("xfer-refuse");
     REQUIRE(s.open(s.write("a.txt", "abc\n")).accepted);

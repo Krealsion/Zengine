@@ -362,6 +362,10 @@ struct ExternalPane {
         /// The holder speaks only the earlier canvas doors, in sub-units: its room, pointer and
         /// hover cross times `kPaneCanvasLegacySubs`, and its picture is read at their floor.
         bool legacy = false;
+        /// A held press keeps this room from the title row its keys bring or take (WL-FOCUS-11):
+        /// until the press ends the picture stands here, where it was drawn, painted and read
+        /// alike, and the pane's prose room waits with it.
+        bool title_waits = false;
         /// The picture last admitted, in the current form, with the parts it names.
         v5::PaneCanvasContent content;
     } canvas;
