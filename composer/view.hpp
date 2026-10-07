@@ -73,9 +73,12 @@ struct RenderedRow {
 
 /// THE PANE, AS ROWS THAT KNOW WHAT THEY ARE. Bounded by the granted room, replaced
 /// whole on every projection, and retained by the provider for exactly one reason:
-/// to answer which item a press named.
+/// to answer which item a press named. The caret is where the edited value's is, on its row,
+/// and none while no value is edited or its row was cut; the medium draws it.
 struct ComposerView {
     std::vector<RenderedRow> rows;
+    std::int64_t caret_row = surface::kNoCaret;
+    std::int64_t caret_col = 0;
 };
 
 /// THE MARK AT THE HEAD OF EVERY SELECTABLE ROW, and the two characters cost no
@@ -89,11 +92,6 @@ inline constexpr const char* kUnselectedMark = "  ";
 /// The mark this view leaves where it could not show everything -- three plain
 /// characters, because this canvas is plain ASCII by contract.
 inline constexpr const char* kElided = "...";
-
-/// What a caret looks like in this pane's row: a character it writes into the edited value
-/// itself, saying no caret beside its rows (`PaneCaret`). It costs one column of the value's room,
-/// since a caret sits between characters and after the last one.
-inline constexpr char kCaret = '_';
 
 /// Fit `text` into `columns`, and say so when it did not fit. A copy, as introspection's is: a
 /// provider is a stranger to Workshop's own composition. `workshop/pane_text.hpp` now shares one
@@ -200,8 +198,9 @@ inline std::int64_t form_items(const MessageDraft& d) noexcept { return back_ind
 
 /// The columns a field's value gets, and there is exactly one answer: the row is `mark + name +
 /// ":" + type + "  " + [ value ]`, so the value's room is what the fixed part left, less two
-/// brackets and the caret's column, floored at zero. The projector and the window
-/// reconciliation both call it, so `keep_caret_visible` gets the number the painter cuts with.
+/// brackets and the blank a caret after the value's last character stands on, floored at zero.
+/// The projector and the window reconciliation both call it, so `keep_caret_visible` gets the
+/// number the painter cuts with.
 inline std::int64_t value_capacity(const MessageDraft& draft, std::size_t which,
                                    std::int64_t columns) {
     if (!draft.valid() || which >= draft.size()) {
@@ -213,38 +212,54 @@ inline std::int64_t value_capacity(const MessageDraft& draft, std::size_t which,
     return columns > fixed ? columns - fixed : 0;
 }
 
+/// One field row and where its caret stands in it, or `surface::kNoCaret`.
+struct FieldRow {
+    std::string text;
+    std::int64_t caret = surface::kNoCaret;
+};
+
 /// One field row: its name, its declared type (the schema's own spelling, the only thing the
 /// row says about meaning), and what the weaver authored, presence kept apart from value --
-/// `[hello_]` present (caret while editing), `[]` present and empty, `(required)` absent and
-/// needed, `(absent)` absent, `[false]` a chosen false, `(not composable in this version)`.
-inline std::string field_row_text(const MessageDraft& draft, std::size_t which, bool chosen,
-                                  bool editing, std::int64_t columns) {
+/// `[hello ]` present and edited, its caret on a character of it or on the blank after the last,
+/// `[]` present and empty, `(required)` absent and needed, `(absent)` absent, `[false]` a chosen
+/// false, `(not composable in this version)`. The blank is always there while a value is edited,
+/// so no character moves as its caret does; a row cut to its columns says no caret.
+inline FieldRow field_row(const MessageDraft& draft, std::size_t which, bool chosen, bool editing,
+                          std::int64_t columns) {
     const loom::Field& f = draft.field(which);
     std::string row =
         std::string(chosen ? kSelectedMark : kUnselectedMark) + f.name + ":" + draft.type_of(which);
     const FieldDraft& d = draft.fields[which];
     switch (composability(f.type.kind)) {
     case Composability::kNotFlat:
-        return fit(row + (d.present && d.typed ? "  [copied message/list]" : "  (drop compatible value)"), columns);
+        return {fit(row + (d.present && d.typed ? "  [copied message/list]" : "  (drop compatible value)"), columns)};
     case Composability::kNoSpelling:
-        return fit(row + (d.present && d.typed ? "  [copied bytes]" : "  (no text form; drop complete message)"), columns);
+        return {fit(row + (d.present && d.typed ? "  [copied bytes]" : "  (no text form; drop complete message)"), columns)};
     case Composability::kScalar:
         break;
     }
     if (!d.present) {
-        return fit(row + (f.required ? "  (required)" : "  (absent)"), columns);
+        return {fit(row + (f.required ? "  (required)" : "  (absent)"), columns)};
     }
     const std::int64_t room = value_capacity(draft, which, columns);
     // A resting value is fitted and a live one is windowed: `fit` marks what it cut, since a
     // committed value has no caret to say it moved; `TextBox::visible` does not, because the
     // edited value has one.
     if (!editing) {
-        return fit(row + "  [" + fit(d.value.text(), room) + "]", columns);
+        return {fit(row + "  [" + fit(d.value.text(), room) + "]", columns)};
     }
-    std::string shown = d.value.visible(room);
+    const std::string shown = d.value.visible(room);
     const std::size_t at = d.value.caret_column();
-    shown.insert(at <= shown.size() ? at : shown.size(), 1, kCaret);
-    return fit(row + "  [" + shown + "]", columns);
+    row += "  [";
+    const auto caret = static_cast<std::int64_t>(row.size() + (at <= shown.size() ? at : shown.size()));
+    const std::string whole = row + shown + " ]";
+    const std::string drawn = fit(whole, columns);
+    return {drawn, drawn.size() == whole.size() ? caret : surface::kNoCaret};
+}
+
+inline std::string field_row_text(const MessageDraft& draft, std::size_t which, bool chosen,
+                                  bool editing, std::int64_t columns) {
+    return field_row(draft, which, chosen, editing, columns).text;
 }
 
 /// What this pane is looking at and what the weaver has done to it: the provider's whole
@@ -442,8 +457,12 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
                 // SEE -- it is the one thing standing between this draft and a send.
                 role = surface::role::kAlert;
             }
-            say(field_row_text(c.draft, which, chosen, editing, columns), role,
-                RowMeaning{meaning::kField, i},
+            const FieldRow field = field_row(c.draft, which, chosen, editing, columns);
+            if (field.caret != surface::kNoCaret) {
+                view.caret_row = static_cast<std::int64_t>(view.rows.size());
+                view.caret_col = field.caret;
+            }
+            say(field.text, role, RowMeaning{meaning::kField, i},
                 chosen ? surface::role::kMuted : surface::role::kNone);
         }
         left -= w.count;

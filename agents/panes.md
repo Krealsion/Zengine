@@ -80,7 +80,7 @@ external_press_at(panes, setup, screen, kind,     } Panes::selected and Panes::k
   door — the host's `holder_accepts_on`, over the bus's role table and accept-sets, native and
   loaded holders alike — and v1 otherwise, so every older pane is unchanged. It is a fact, not
   an instruction: what it means for a row is the pane's, and a v1 press states NO fact, so a
-  pane must not read it as "the keys were here" (Files selects on it; Return still opens).
+  pane must not read it as "the keys were here". A canvas pointer always states it.
 - **Choosing the version is an inspection, not a delivery.** The office is resolved again at
   dispatch; a holder that changed in between and has no v2 door refuses the press
   `NotAccepted`, and that refusal is the press's outcome. Nothing is retried and no v1 follows
@@ -127,8 +127,8 @@ intent defeats that continuation; a click without sufficient movement transfers 
 Release outside a receiver cancels a drag, while an unsupported keyboard placement stays held.
 The release's receiver and picture are retained; a departed receiver cannot be silently replaced.
 Acquiring bytes grants no authority to an operation requested by the receiver. On a canvas pane
-the place is the canvas's own (`PaneCanvasValueDrop`, WL-CANVAS-04): local pixels, room grant
-and aimed picture, for a provider that accepts it; Flow is the first. A canvas pane carries out
+the place is the canvas's own (`PaneCanvasValueDrop`, and `PaneCanvasDrop` for a reference,
+WL-CANVAS-04): local pixels, room grant and aimed picture, for a provider that accepts it. A canvas pane carries out
 as a prose pane does: its primary press's number approves the acquisition, a drag begins with the
 press, and the carry ends the press's canvas hold as lost (WL-CANVAS-05).
 
@@ -255,7 +255,7 @@ shape is byte-identical.
   pointer names a prose row of the granted body (`external_press_at`: the header and the
   remainder under the last row send nothing) and only to a pane holding a room. A pane holding
   a canvas room is sent the same notches as its canvas pointer's `kWheel` instead, at the
-  pointer's local place (`canvas_wheel`), as Loaded, Powers and the desktop's two panes are.
+  pointer's local place (`canvas_wheel`), as every pane drawing its rows on its canvas is.
 - **No place, no rows-per-notch, no accumulator on Workshop's side.** A wheel means "advance
   through what you are showing"; a row on it would be Workshop prescribing one list under the
   pointer. How many rows a notch is worth is the provider's grammar — the shipped Powers and
@@ -281,8 +281,9 @@ beside the shapes before them, and each is an ordinary optional capability any p
   deliberately NOT clamped — a row above the body is negative, one below it is past the granted
   count, and what either means is the pane's. There is no release shape: the host ends its own
   record on release, or when the pane loses its seat or its room, and sends nothing; a pane
-  resolves a sweep from the positions it was given. The Terminal ignores it; the Editor steps its
-  window on it.
+  resolves a sweep from the positions it was given. The Editor steps its window on it; a pane
+  drawing its rows on its canvas hears its pointer's motion instead, and the Terminal's means
+  nothing.
   **Workshop arms its record from geometry alone** — a press that named ANY body row takes hold
   of the pane, because the host does not read a provider's rows to learn what they mean. So a
   drag EXTENDS a gesture the pane's own `PanePressed` began, and a pane that consumed the press
@@ -595,8 +596,8 @@ host action — and nothing reinterprets old bytes.
   raw scancodes has made its declaration decorative, and its weaver's override reaches nothing.
 - **Declaring is not wanting.** Rows point no keyboard at a pane and hold none: a press into its
   room is still the only way it gets the keys, and a pane that declared nothing is unchanged.
-  The Powers pane declares four (`introspection/vocabulary.hpp`); `loaded`, `arrangement` and the
-  Composer declare none — the Composer still matches raw keys, and is the next consumer.
+  The Powers pane declares four (`introspection/vocabulary.hpp`) and the Composer five
+  (`composer/composer.cpp`); `loaded` and `arrangement` declare none.
 - **A PANE'S NOTICE STANDS UNTIL THE WEAVER'S NEXT ACT, never until it has been said once.**
   A built-in wrote its sentence on the band; a pane has only its own room, so the sentence is a
   row it publishes — and ONE gesture produces SEVERAL publications in one drain (write the
@@ -718,12 +719,18 @@ The public weaver route is [Inventory to Compose](../docs/workshop/inventory-com
   live forms, clipboard asks and permission requests do not survive image replacement.
 - Scalar text uses the shared message-draft helper and Loom lexer/composer. Typed fields use
   that helper's transactional gate and deep copy. Presence is distinct from empty/false.
-- RenderedRow pairs prose and row meaning. Numbered content and pictured drops bind meaning
-  to the displayed form; an incompatible or stale drop leaves the draft intact. Existing
-  included fields require explicit exclusion before replacement. Whole forms require an
-  empty draft and one of the selected target's accepted root schemas.
-- The value and reference transfer doors remain distinct. A reference is copied as data into
-  a compatible field; its contents are not automatically read and it conveys no authority.
+- RenderedRow pairs prose and row meaning. The rows are the pane's own canvas picture
+  (`rows_picture`), numbered by what they mean (`meaning_of`): a press or a drop reads its place
+  back to a row of the picture it was aimed at and acts only while that picture's meaning stands,
+  so an incompatible or stale drop leaves the draft intact. Existing included fields require
+  explicit exclusion before replacement. Whole forms require an empty draft and one of the
+  selected target's accepted root schemas. To a host granting no canvas it says its rows and
+  caret as prose and takes no press or drop.
+- The edited value's caret is the medium's (`ComposerView::caret_row`): its row keeps a blank
+  after the value for a caret at its end, so no character moves as the caret does.
+- The value and reference transfer doors remain distinct (`PaneCanvasValueDrop`,
+  `PaneCanvasDrop`). A reference is copied as data into a compatible field; its contents are not
+  automatically read and it conveys no authority.
 - Ctrl+S stores a complete admitted command; Ctrl+B stores an original-schema partial preset
   through InventoryAdd and its actor authorization. Ctrl+U discards a field; excluded local
   values never enter a preset. StoredDraft opens against the entire accepted closure and

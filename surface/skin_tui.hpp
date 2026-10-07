@@ -132,7 +132,7 @@ inline const char* sgr_for_role(int role) noexcept {
     case 2: return "\x1b[90m";    // kMuted  — bright black: present, quiet
     case 3: return "\x1b[31;1m";  // kAlert  — bold red: must be seen
     case 4: return "\x1b[30m";    // kGround — black: opaque empty material
-    default: return "\x1b[37m";   // kFill and anything unknown — plain ink
+    default: return "\x1b[37m";   // kFill, kMediumGround (no ink) and anything unknown — plain ink
     }
 }
 
@@ -145,6 +145,7 @@ inline const char* sgr_bg_for_role(int role) noexcept {
     case 2: return "\x1b[100m"; // kMuted  — bright black: the selection bar
     case 3: return "\x1b[41m";  // kAlert  — red ground
     case 4: return "\x1b[40m";  // kGround — black ground
+    case 5: return "\x1b[49m";  // kMediumGround — whatever the terminal is wearing
     default: return "\x1b[47m"; // kFill and anything unknown — plain ground
     }
 }
@@ -157,6 +158,7 @@ inline char glyph_for_role(int role) noexcept {
     case 2: return '.'; // kMuted
     case 3: return '!'; // kAlert
     case 4: return ' '; // kGround
+    case 5: return ' '; // kMediumGround
     default: return '#'; // kFill and anything unknown
     }
 }
@@ -197,8 +199,8 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
     // unsigned on some targets (ARM), where an untouched cell would paint as the fallback role.
     std::vector<signed char>& roles = grids.roles;
     roles.assign(cells, static_cast<signed char>(-1)); // -1 = untouched
-    // The third grid holds explicit row grounds and opaque kGround rectangles.
-    // Ordinary material rectangles and labels replace a whole cell without
+    // The third grid holds explicit row grounds and opaque kGround and kMediumGround
+    // rectangles. Ordinary material rectangles and labels replace a whole cell without
     // claiming a background. A beneath region keeps the prior ground wherever
     // its row asks for none; an owned region clears it.
     std::vector<signed char>& grounds = grids.grounds;
@@ -260,10 +262,11 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
                 clip_span(x0, zengine::surface::cell_of_pixel(add_cells(r.x, r.w)) - x0, w);
             const CellSpan ys =
                 clip_span(y0, zengine::surface::cell_of_pixel(add_cells(r.y, r.h)) - y0, h);
+            const bool ground = r.role == zengine::surface::role::kGround ||
+                                r.role == zengine::surface::role::kMediumGround;
             for (std::int64_t y = ys.begin; y < ys.end; ++y) {
                 for (std::int64_t x = xs.begin; x < xs.end; ++x) {
-                    put(x, y, g, r.role, r.role == zengine::surface::role::kGround
-                        ? r.role : zengine::surface::role::kNone);
+                    put(x, y, g, r.role, ground ? r.role : zengine::surface::role::kNone);
                 }
             }
         }
@@ -332,7 +335,10 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         for (std::int64_t x = 0; x < w; ++x) {
             const std::size_t i = static_cast<std::size_t>(y * w + x);
             const int role = static_cast<int>(roles[i]);
-            const int ground = static_cast<int>(grounds[i]);
+            // The terminal's own ground is no ground byte: what it wears where nothing is set.
+            const int ground = grounds[i] == zengine::surface::role::kMediumGround
+                                   ? static_cast<int>(zengine::surface::role::kNone)
+                                   : static_cast<int>(grounds[i]);
             const bool caret = carets[i] != 0;
             const bool reversed = (selected[i] != 0) != caret;
             if (role != open) {

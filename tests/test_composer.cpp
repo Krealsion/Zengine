@@ -564,7 +564,7 @@ TEST_CASE("a required field nobody has authored is in the ALERT role") {
     CHECK(found);
 }
 
-TEST_CASE("the value being edited is WINDOWED and shows a caret; a resting one is FITTED") {
+TEST_CASE("the value being edited is WINDOWED with a caret the medium draws; a resting one is FITTED") {
     // `fit` marks what it cut because a committed value has no caret to tell a weaver it moved;
     // a live one has.
     cmp::Composing c = composing_form(three_scalars());
@@ -574,12 +574,41 @@ TEST_CASE("the value being edited is WINDOWED and shows a caret; a resting one i
     REQUIRE(room > 0);
     c.draft.fields[0].value.keep_caret_visible(room);
     const cmp::ComposerView editing = cmp::project(c, 20, 30);
-    CHECK(any_row(editing, std::string(1, cmp::kCaret)));
+    // THE CARET IS SAID BESIDE THE ROWS and written into none: at the value's end it stands on
+    // the blank its row keeps for it before the bracket.
+    REQUIRE(editing.caret_row >= 0);
+    const std::string& end = editing.rows[static_cast<std::size_t>(editing.caret_row)].row.text;
+    CHECK(end.size() <= 30u);
+    CHECK(end.substr(end.size() - 2) == " ]");
+    CHECK(editing.caret_col == static_cast<std::int64_t>(end.size()) - 2);
+    // ...and the window followed it there: the value's tail is shown and its head is not.
+    CHECK(end.find("z ]") != std::string::npos);
+    CHECK(end.find("[abc") == std::string::npos);
 
     // The same field with the cursor elsewhere: no caret, and a marked cut.
     c.cursor = 1;
     const cmp::ComposerView resting = cmp::project(c, 20, 30);
+    CHECK(resting.caret_row == surface::kNoCaret);
     CHECK(any_row(resting, cmp::kElided));
+}
+
+TEST_CASE("a caret moved inside the edited value moves no character of its row") {
+    cmp::Composing c = composing_form(three_scalars());
+    write(c.draft, 0, "hello");
+    c.cursor = 0;
+    const cmp::ComposerView at_end = cmp::project(c, 20, 40);
+    c.draft.fields[0].value.set("hello", 1);
+    const cmp::ComposerView inside = cmp::project(c, 20, 40);
+    REQUIRE(at_end.caret_row >= 0);
+    REQUIRE(inside.caret_row == at_end.caret_row);
+    const std::string& row = inside.rows[static_cast<std::size_t>(inside.caret_row)].row.text;
+    CHECK(row == at_end.rows[static_cast<std::size_t>(at_end.caret_row)].row.text);
+    CHECK(row.find("[hello ]") != std::string::npos);
+    CHECK(row[static_cast<std::size_t>(inside.caret_col)] == 'e');
+    CHECK(inside.caret_col == at_end.caret_col - 4);
+    // ...and a row too narrow for its value's room says no caret, rather than one on a cut.
+    const cmp::ComposerView narrow = cmp::project(c, 20, 6);
+    CHECK(narrow.caret_row == surface::kNoCaret);
 }
 
 TEST_CASE("every row of every projection fits the room it was granted") {
@@ -865,7 +894,7 @@ TEST_CASE("the pane's durable names are what a saved setup would hold") {
     CHECK(std::string(cmp::kComposePaneSummary).size() <= 64u);
 }
 
-TEST_CASE("the mark and the caret are spelled here, once, as characters") {
+TEST_CASE("the marks are spelled here, once, as characters") {
     // THE CANARY THIS SUITE WOULD OTHERWISE NOT HAVE. Every other case in this file
     // says `cmp::kSelectedMark`, which is right -- a magic string in twenty places is
     // how two spellings drift -- and a suite in which EVERY reference is the constant
@@ -873,7 +902,6 @@ TEST_CASE("the mark and the caret are spelled here, once, as characters") {
     CHECK(std::string(cmp::kSelectedMark) == "> ");
     CHECK(std::string(cmp::kUnselectedMark) == "  ");
     CHECK(std::string(cmp::kElided) == "...");
-    CHECK(cmp::kCaret == '_');
     // ...and marking a row costs no columns, so a list cannot start cutting names
     // because something in it became selected.
     CHECK(std::string(cmp::kSelectedMark).size() == std::string(cmp::kUnselectedMark).size());

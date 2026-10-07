@@ -216,6 +216,7 @@ PaneCanvasContent v2 0xa8888ec781ad1ebb
 PaneCanvasContent v3 0x98174a74b33827a4
 PaneCanvasContent v4 0xe347f30fdf3bb793
 PaneCanvasContent v5 0x6b8fd8e2abaabdb5
+PaneCanvasDrop v1 0xa2433c24f71e23ec
 PaneCanvasHover v1 0x27195870bc8113b1
 PaneCanvasHover v2 0xaf32b3cd5382c686
 PaneCanvasLabel v1 0x4047703a53b5f02f

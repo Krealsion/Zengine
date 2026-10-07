@@ -161,9 +161,11 @@ public:
             const PlanTextRow& row = p.rows[i];
             const float top = static_cast<float>(p.origin_y +
                                                  static_cast<std::int64_t>(i) * p.line_px);
-            // A row's own ground, only where it differs from the region's (a row that asked for
-            // none resolved to it). The strip spans the region's width: "this row, all of it".
-            if (!(row.background == p.background)) {
+            // A row's own ground, where it differs from the region's (a row that asked for none
+            // resolved to it) or the region took no rectangle for it to equal. The strip spans
+            // the region's width: "this row, all of it".
+            if (!(row.background == p.background) ||
+                (row.grounded && p.ground == kGroundBeneath)) {
                 SDL_SetRenderDrawColor(renderer, row.background.r, row.background.g,
                                        row.background.b, SDL_ALPHA_OPAQUE);
                 const SDL_FRect strip{0.0F, top, static_cast<float>(p.view.w),

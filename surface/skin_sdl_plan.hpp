@@ -109,19 +109,26 @@ struct PlanInk {
     friend bool operator==(const PlanInk&, const PlanInk&) = default;
 };
 
+/// What a cell shows where nothing was published, and what a label's cell is cleared to before
+/// its glyph is drawn (`plan_layer_quads`): the window's own ground, `role::kMediumGround`'s.
+inline constexpr PlanInk kCanvasBackground{18, 18, 24};
+
 inline constexpr PlanInk ink_for_role(std::int64_t role) noexcept {
     switch (role) {
     case role::kAccent: return PlanInk{112, 232, 240};
     case role::kMuted: return PlanInk{96, 96, 108};
     case role::kAlert: return PlanInk{232, 72, 72};
     case role::kGround: return PlanInk{0, 0, 0};
+    case role::kMediumGround: return kCanvasBackground;
     default: return PlanInk{176, 176, 188};
     }
 }
 
-/// What a cell shows where nothing was published, and what a label's cell is cleared to before
-/// its glyph is drawn (`plan_layer_quads`).
-inline constexpr PlanInk kCanvasBackground{18, 18, 24};
+/// The ink text is drawn in: its role's, except the medium's ground, which is no ink and draws
+/// as `kFill`, as it does where a terminal has no ink of its own background to give it.
+inline constexpr PlanInk text_ink_for_role(std::int64_t role) noexcept {
+    return ink_for_role(role == role::kMediumGround ? role::kFill : role);
+}
 
 /// The band under selected text, this medium's answer to the terminal's reverse video: the
 /// glyphs keep their ink. A medium constant, not a role (a publisher says which text is
@@ -216,7 +223,7 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
         if (add_cells(label_y, kCanvasCellPx) <= 0 || label_y >= h_px) {
             return; // no pixel row of this canvas belongs to it
         }
-        const PlanInk ink = ink_for_role(l.role);
+        const PlanInk ink = text_ink_for_role(l.role);
         const bool takes_the_cell = background >= 0 || region_ground != kGroundBeneath;
         const PlanInk under = background < 0 ? kCanvasBackground : ink_for_role(background);
         const std::int64_t label_x = l.x;
@@ -280,11 +287,13 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
 
 /// One row of a resolved region. `background` is always a real ink here: `role::kNone` has
 /// resolved to the region's own ground, and a row whose ground equals its region's is one the
-/// medium need not fill separately.
+/// medium need not fill separately -- unless the row named it on a region that takes no
+/// rectangle (`grounded`), where nothing beneath is the region's ground.
 struct PlanTextRow {
     std::string text;
     PlanInk ink{};
     PlanInk background = kCanvasBackground;
+    bool grounded = false; ///< the row named a ground of its own
 
     friend bool operator==(const PlanTextRow&, const PlanTextRow&) = default;
 };
@@ -326,8 +335,8 @@ struct PlanTextRegion {
     std::int64_t line_px = 0;
     PlanInk background = kCanvasBackground;
     /// Whether that ground is painted: `kGroundBeneath` fills nothing, and what this layer drew
-    /// shows through. A row naming its own ground still paints a strip where it differs from
-    /// `background`, which then stays the canvas ground no role resolves to.
+    /// shows through. A row naming its own ground still paints a strip: where it differs from
+    /// `background`, and on a region that takes no rectangle wherever it named one.
     std::int64_t ground = kGroundOwn;
     std::vector<PlanTextRow> rows;
     PlanCaret caret{};
@@ -407,8 +416,9 @@ inline std::vector<PlanTextRegion> plan_layer_regions(const SurfaceLayer& layer,
                     mul_px(span.end - span.begin, fit.advance_px), fit.line_px});
             }
             const std::int64_t ground = r.rows[i].background;
-            p.rows.push_back(PlanTextRow{std::move(text), ink_for_role(r.rows[i].role),
-                                         ground < 0 ? region_ground : ink_for_role(ground)});
+            p.rows.push_back(PlanTextRow{std::move(text), text_ink_for_role(r.rows[i].role),
+                                         ground < 0 ? region_ground : ink_for_role(ground),
+                                         ground >= 0});
         }
         // The caret takes the ink of the row it is on; on a row the region was not given, the
         // ordinary fill, since that is still a real position.

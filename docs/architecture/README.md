@@ -84,9 +84,10 @@ a written expectation knows what is *missing*. See
 
 **An external pane receives pointer and keyboard input only as sentences about its own room.**
 The protocol — every shape listed in
-[`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp), described in
+[`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) and
+[`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp), described in
 [A weave may offer a pane](../reference/workshop-panes.md#a-weave-may-offer-a-pane) — is
-deliberately thin: Workshop grants a pane a lattice of prose rows and columns, tells it *a weaver pressed at this row and column in your room*, tells it
+deliberately thin: Workshop grants a pane a lattice of prose rows and columns, or a canvas room in pixels it draws its own picture on, tells it *a weaver pressed here in your room*, tells it
 *a key went down and you have the keyboard* (or, for an action the pane declared, *a weaver asked
 for this action of yours*), and tells it the wheel turned over its body. **A gesture is never
 answered** — there is no disposition and no "I consumed it" — and there is no drag lifecycle, no
@@ -119,7 +120,7 @@ beside them, one file per subject the header's section banners name
 | keyboard possession across the pane seam | **Workshop**, as a spend: granted to a pane, revoked by a press anywhere else | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
 | the subject an inspector reads | **Workshop's session**, named per inspection and *published as a fact* — a named subject, not a pointer, which selecting or focusing another pane does not move. (Selection of an authored object held this row until the object canvas retired.) | [`workshop/inspection_seam_vocabulary.hpp`](../../workshop/inspection_seam_vocabulary.hpp) |
 | the external pane protocol | **`workshop/pane_vocabulary.hpp`** — the shapes it lists, prose one way, a bounded budget, input as places, keys and resolved ids with no reply to a gesture, and explicit answers only where it asks a question (the reveal, the quit) | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
-| what a pane may draw | **nothing directly.** It publishes rows; Workshop composes them into the canvas | [`workshop/screen.hpp`](../../workshop/screen.hpp) |
+| what a pane may draw | **its own picture on the canvas room it is granted**, bounded and admitted whole, or rows Workshop composes into the canvas | [`workshop/screen.hpp`](../../workshop/screen.hpp) |
 
 ### Where a cross-pane drag would cross a boundary
 

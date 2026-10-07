@@ -14,10 +14,12 @@ inline std::string_view canvas_content_problem(const Content& c) {
     if (c.rects.size() > kPaneCanvasMaxRects || c.labels.size() > kPaneCanvasMaxLabels ||
         c.texts.size() > kPaneCanvasMaxTexts)
         return "canvas primitive budget exceeded";
+    // An ink is one of the palette's roles; a ground may also be the medium's own, which is none.
     const auto role_ok = [](std::int64_t r) { return r >= surface::role::kFill && r <= surface::role::kGround; };
+    const auto ground_ok = [&](std::int64_t r) { return role_ok(r) || r == surface::role::kMediumGround; };
     for (const auto& r : c.rects) {
         if (r.w <= 0 || r.h <= 0) return "canvas rectangles must have positive extents";
-        if (!role_ok(r.role)) return "canvas rectangle has an unknown role";
+        if (!ground_ok(r.role)) return "canvas rectangle has an unknown role";
     }
     std::size_t bytes = 0;
     for (const auto& l : c.labels) {
@@ -36,7 +38,7 @@ inline std::string_view canvas_content_problem(const Content& c) {
         bytes += t.text.size();
         if (!role_ok(t.role)) return "canvas text has an unknown role";
         if constexpr (requires { t.background; }) {
-            if (t.background != surface::role::kNone && !role_ok(t.background))
+            if (t.background != surface::role::kNone && !ground_ok(t.background))
                 return "canvas text has an unknown ground";
         }
         for (char byte : t.text) {

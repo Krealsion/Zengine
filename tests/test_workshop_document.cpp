@@ -455,11 +455,11 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     bool form_open = false;
     {
         const ui::Rect body = external_body_rect(r.session(), compose_kind);
-        const std::vector<std::string> rows = external_rows(r.last_canvas(), body);
+        const std::vector<std::string> rows = pane_rows(r, compose_kind);
         for (std::size_t i = 0; i < rows.size() && !form_open; ++i) {
             r.press_cell(body.x + 1, body.y + kExternalHeaderRows + static_cast<std::int64_t>(i));
             for (const std::string& row :
-                 external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind))) {
+                 pane_rows(r, compose_kind)) {
                 form_open = form_open || row.find("enter acts") != std::string::npos;
             }
         }
@@ -497,7 +497,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     CHECK(skin->clipboard_reads == 1); // the provider asked, once, because of the paste
     bool shown = false;
     for (const std::string& row :
-         external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind))) {
+         pane_rows(r, compose_kind)) {
         shown = shown || row.find("pasted-in") != std::string::npos;
     }
     CHECK(shown);
@@ -505,7 +505,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     r.key(input::scan::kZ, input::mod::kCtrl);
     bool restored = false;
     for (const std::string& row :
-         external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind))) {
+         pane_rows(r, compose_kind)) {
         restored = restored || row.find("hello") != std::string::npos;
     }
     CHECK(restored);
@@ -534,7 +534,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     CHECK(skin->clipboard_reads == 2); // the request was real; the read happened
     bool typed_visible = false;
     for (const std::string& row :
-         external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind))) {
+         pane_rows(r, compose_kind)) {
         CAPTURE(row);
         CHECK(row.find("SECRET") == std::string::npos);
         typed_visible = typed_visible || row.find("[z") != std::string::npos;

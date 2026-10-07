@@ -140,6 +140,23 @@ def line_of(view, part):
     return found[0] if found else None
 
 
+def rows_by_place(view):
+    """A pane's lines as the rows they stand on, counted from the top line's row: each row's text,
+    and "" for a row between them that no word stands on. A line's row is its first word's place
+    against the top line's first word, in that word's height. A text pane's rows are its lines,
+    blank ones among them; a canvas pane draws a blank row as no word, and the row keeps its
+    number here all the same."""
+    found = lines(view)
+    top = found[0]["words"][0]["place"] if found else None
+    rows = []
+    for line in found:
+        place = line["words"][0]["place"]
+        at = int(round((place["y"] - top["y"]) / float(top["h"]))) if top["h"] else len(rows)
+        rows += [""] * (max(at, len(rows)) - len(rows))
+        rows.append(line["text"])
+    return rows
+
+
 def wait_part(hand, provider, pane, name, seconds):
     """Read the pane until it draws a part named `name`."""
     end = time.monotonic() + seconds
