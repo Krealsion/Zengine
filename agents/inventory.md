@@ -88,7 +88,8 @@ verification follows [verification](verification.md).
   the exact reference/revision. Pending saves cannot be retargeted by conversion.
 - Info field pickup owns a selected-branch FieldValue copy before requesting current actor
   permission for PaneValueCarryRequested. Authentic permission and carry answers plus exact
-  dispatch refusals settle it. Pickup blocks reset/replacement; metadata remains read-only.
+  dispatch refusals settle it; an accepted carry is Workshop's to say, so no sentence of the view's
+  outlives it. Pickup blocks reset/replacement; metadata remains read-only.
   The guest inventory power includes this acquisition, never authority to submit other shapes.
 
 - Info offers `info` plus slots `info.2`..`info.4`, each offered on first use and reused, never

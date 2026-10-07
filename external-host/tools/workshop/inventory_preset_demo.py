@@ -67,7 +67,9 @@ def run(ctx):
     hand.drag(hand.row(*inv, label + " : ", scroll=True), hand.view(*info)["rows"][0], 350)
     selected = hand.row(*info, "fields[0].name:")
     hand.click(selected); hand.key("ctrl+g")
-    hand.row(*info, "Carrying field copy")
+    # Workshop holds the copy and says it is carried; Info says nothing of a carry it no longer holds.
+    ctx.check(not any("Field pickup" in w["text"] for w in hand.words(*info)["words"]),
+              "Info refused the field pickup")
     hand.click(hand.row(*comp, "label:"))
     hand.row(*comp, "Copied data into form")
     hand.last_view(hand.words(*comp), "reviewed.json")

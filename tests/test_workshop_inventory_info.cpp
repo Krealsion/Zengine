@@ -964,9 +964,13 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         drag(row(s.source, "source"), s.info);
         REQUIRE_MESSAGE(s.shown(s.info).find("count: 1") != std::string::npos, s.shown(s.info));
         s.key(input::scan::kG, input::mod::kCtrl);
-        REQUIRE_MESSAGE(s.shown(s.info).find("Carrying field copy") != std::string::npos, s.shown(s.info));
+        // THE CARRY'S WORDS ARE WORKSHOP'S while the copy is in hand, and Info says none of its own.
+        REQUIRE_MESSAGE(r.last_notice().rfind("Carrying ", 0) == 0, r.last_notice());
+        CHECK(s.shown(s.info).find("field copy") == std::string::npos);
         s.click(compose, row(compose, "revision"));
         REQUIRE_MESSAGE(s.shown(compose).find("Copied data into form") != std::string::npos, s.shown(compose));
+        CHECK(r.last_notice().find("Carrying") == std::string::npos); // placed: nothing says carrying
+        CHECK(s.shown(s.info).find("Carrying") == std::string::npos);
         auto label = [&] { return r.bus.weave(r.bus.role_holder(inv::kInventoryRole))->snapshot()
             .get("entries")->as_list().front().as_message()->get("label")->as_text(); };
         CHECK(label() == "source");
@@ -976,6 +980,19 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         CHECK(s.saved_entries()[1].item.get("revision")->as_int() == 1);
         CHECK(md::read_draft(s.saved_entries()[2].item).draft.get({"revision"}) == nullptr);
     }
+}
+
+TEST_CASE("an Info field copy picked up by key is said carried by Workshop alone, so no sentence of it "
+          "outlives the carry once it is put down") {
+    InventoryStory s(127);
+    s.acquire(); s.place();
+    s.key(input::scan::kG, input::mod::kCtrl);
+    REQUIRE_MESSAGE(s.r.last_notice().rfind("Carrying ", 0) == 0, s.r.last_notice());
+    CHECK_MESSAGE(s.shown(s.info).find("Carrying") == std::string::npos, s.shown(s.info));
+    CHECK(s.shown(s.info).find("Checking field acquisition authority") == std::string::npos);
+    s.key(input::scan::kEscape); // put down
+    CHECK_MESSAGE(s.r.last_notice().find("put down") != std::string::npos, s.r.last_notice());
+    CHECK_MESSAGE(s.shown(s.info).find("Carrying") == std::string::npos, s.shown(s.info));
 }
 
 TEST_CASE("Info field acquisition needs its own current actor permission and does not alter stored data") {
