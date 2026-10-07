@@ -77,9 +77,8 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
             accepts(loom::schema_of<v1::PaneCanvasPointer>());
         const bool capable = current || legacy;
         const auto where = bounds_of(session_.panes, session_.setup.active, pane.kind, sc);
-        const auto body = capable && where.open
-            ? canvas_body_place(where.rect, sc,
-                external_title_rows(session_.panes, pane.kind, session_.pane_titles)) : PixelRect{};
+        const std::int64_t titles = external_title_rows(session_.panes, pane.kind, session_.pane_titles);
+        const auto body = capable && where.open ? canvas_body_place(where.rect, sc, titles) : PixelRect{};
         auto& c = pane.canvas;
         const auto grain = chrome_grain(sc);
         const bool graphical = sc.cell_px > 0;
@@ -90,14 +89,16 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
             c.title_waits = false;
             continue;
         }
-        // THE ROOM A HELD PRESS'S OWN TITLE TAKES WAITS FOR THE PRESS (WL-FOCUS-11): the keys a
-        // press moved bring back the title their pane wears, and the room under it, the same
-        // width ending where it did, is granted once the press ends, so the press goes on in the
-        // room it was aimed at and its picture stays where it was drawn until then.
+        // THE ROOM A HELD PRESS'S TITLE ROW MAKES WAITS FOR THE PRESS (WL-FOCUS-11): the keys a
+        // press moved bring or take the title their pane wears while it has them, and the room
+        // that row alone changes -- the pane where it was, its room the body it had with the other
+        // title -- is granted once the press ends, so the press goes on in the room it was aimed
+        // at and its picture stays where it was drawn until then.
         bool held = false;
         for (const CanvasHold& hold : canvas_holds_) held = held || (hold.active && hold.kind == pane.kind);
-        if (same_kind && held && !body.empty() && c.x == body.x && c.width == body.w &&
-            c.y + c.height == body.y + body.h) {
+        const auto retitled = canvas_body_place(where.rect, sc, titles > 0 ? 0 : kExternalHeaderRows);
+        if (same_kind && held && !body.empty() && c.x == retitled.x && c.y == retitled.y &&
+            c.width == retitled.w && c.height == retitled.h) {
             c.title_waits = true;
             continue;
         }
@@ -259,9 +260,13 @@ bool WorkshopWeave::canvas_release(const input::PointerButton& b, loom::Mail& ma
     event.modifiers = b.modifiers;
     (void)send_canvas_pointer(held.owner, event, held.legacy, mail);
     if (slot > 0) secondary_cont_[slot - 1].released = true;
+    const std::int64_t kind = held.kind;
     held = CanvasHold{};
-    // A room the press's own title waited for is granted now the press has ended (WL-FOCUS-11).
-    refresh_canvas_rooms(mail);
+    // A room the press's title row waited for is granted now the press has ended (WL-FOCUS-11),
+    // and painted at once, so the picture stands in the room the pointer answers in.
+    if (const ExternalPane* pane = session_.panes.external_pane(kind);
+        pane != nullptr && pane->canvas.title_waits)
+        repaint(mail);
     return true;
 }
 

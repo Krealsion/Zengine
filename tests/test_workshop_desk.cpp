@@ -605,25 +605,34 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         REQUIRE(external_title_rows(d.r.session().panes, d.sketch_kind, false) == 1);
         const ExternalPane& held = *d.r.session().panes.external_pane(d.sketch_kind);
         REQUIRE(held.canvas.grant == kept.canvas.grant);
-        // THE PROVIDER DRAWS AGAIN, in the room it still holds.
+        // READ WHERE IT IS PAINTED, before the pane draws again, as it may never: the words stand
+        // in the room the press kept, where the painter draws the picture.
+        const auto read = [&](v2::PaneView& view) {
+            const std::string refused = d.words(kCanvasOffice, kCanvasPane, view);
+            REQUIRE_MESSAGE(refused.empty(), refused);
+            REQUIRE(view.words.size() == 4);
+            CHECK(view.words[1].place.x == kept.canvas.x + 2 * kPaneCanvasUnit);
+            CHECK(view.words[1].place.y == kept.canvas.y + 2 * kPaneCanvasUnit);
+        };
+        const auto painted_at = [&](const ExternalPane::Canvas& room) {
+            for (const surface::SurfaceLayer& layer : d.r.last_canvas().layers)
+                for (const surface::SurfaceLabel& label : layer.labels)
+                    if (label.text == "node one" && label.x == room.x + kPaneCanvasUnit &&
+                        label.y == room.y)
+                        return true;
+            return false;
+        };
+        v2::PaneView unredrawn;
+        read(unredrawn);
+        CHECK(unredrawn.picture == before.picture);
+        CHECK(painted_at(kept.canvas));
+        // ...AND ONCE IT DRAWS AGAIN in the room it still holds, that picture read in it.
         d.draw();
         REQUIRE(held.canvas.grant == kept.canvas.grant);
-        // READ WHERE IT IS PAINTED: the words stand in the room the press kept, where the painter
-        // draws the picture -- its first label at the canvas's corner, a cell in.
         v2::PaneView during;
-        const std::string refused = d.words(kCanvasOffice, kCanvasPane, during);
-        REQUIRE_MESSAGE(refused.empty(), refused);
-        REQUIRE(during.words.size() == 4);
-        CHECK(during.picture == held.stamp.aimed);
-        CHECK(during.words[1].place.x == kept.canvas.x + 2 * kPaneCanvasUnit);
-        CHECK(during.words[1].place.y == kept.canvas.y + 2 * kPaneCanvasUnit);
-        bool painted = false;
-        for (const surface::SurfaceLayer& layer : d.r.last_canvas().layers)
-            for (const surface::SurfaceLabel& label : layer.labels)
-                painted = painted || (label.text == "node one" &&
-                                      label.x == kept.canvas.x + kPaneCanvasUnit &&
-                                      label.y == kept.canvas.y);
-        CHECK(painted);
+        read(during);
+        CHECK(during.picture == d.number);
+        CHECK(painted_at(kept.canvas));
         // ...under no title: the title waits for the press, over the row the picture still holds.
         const RuntimePane* row = d.r.session().panes.runtime.of_kind(d.sketch_kind);
         REQUIRE(row != nullptr);
@@ -651,12 +660,52 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         const DeskRect l = during.words[1].place;
         CHECK(inside_locally(released, DeskRect{l.x + kPaneCanvasUnit, l.y, kPaneCanvasUnit, l.h},
                              kept));
-        // THE PRESS ENDED: the room under the title is granted now, and the title drawn once the
-        // pane draws in it.
-        CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.grant != kept.canvas.grant);
+        // THE PRESS ENDED: the room under the title is granted, and painted at once -- the picture
+        // shown in that room, where the pointer answers now -- and the title is drawn once the pane
+        // draws there.
+        const ExternalPane& after = *d.r.session().panes.external_pane(d.sketch_kind);
+        CHECK(after.canvas.grant != kept.canvas.grant);
+        CHECK_FALSE(after.canvas.title_waits);
+        CHECK(after.canvas.y > kept.canvas.y);
+        CHECK(painted_at(after.canvas));
         d.draw();
         CHECK(titled());
     }
+}
+
+TEST_CASE("a held press keeps a canvas pane's room only from its title row: a pane moved while the press "
+          "is held is granted its new room at once, and the press is lost") {
+    SketchRig d;
+    const auto author = [&](std::int64_t y, std::int64_t h) {
+        for (auto& p : d.r.session().setup.active.panes) {
+            if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
+            p.place = {pane_unit::kPixels, 4 * surface::kCanvasCellPx, y * surface::kCanvasCellPx};
+            p.width = {pane_unit::kPixels, 60 * surface::kCanvasCellPx};
+            p.height = {pane_unit::kPixels, h * surface::kCanvasCellPx};
+        }
+        d.r.extent(149, 60); // a same-size extent reseats nothing: the desk re-seats every pane
+        d.r.extent(150, 60);
+    };
+    author(20, 16);
+    d.draw();
+    v2::PaneView view;
+    REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+    const ExternalPane before = *d.r.session().panes.external_pane(d.sketch_kind);
+    // A SECONDARY PRESS HELD ON THE PANE: its hold is the canvas's, and the keys stay where they are.
+    const PaneWord& w = view.words[2];
+    d.sketch->pointers.clear();
+    d.r.publish(loom::to_value(input::PointerButton{3, true, w.x, w.y, w.space, input::mod::kNone}));
+    REQUIRE_FALSE(d.sketch->pointers.empty());
+    REQUIRE(d.sketch->pointers.back().phase == canvas_pointer::kPress);
+    // ...AND THE PANE'S TOP EDGE MOVED two rows down, the same width ending where it did: no title
+    // row made that change, so the room is not kept for the press.
+    author(22, 14);
+    const ExternalPane& moved = *d.r.session().panes.external_pane(d.sketch_kind);
+    CHECK(moved.canvas.grant != before.canvas.grant);
+    CHECK_FALSE(moved.canvas.title_waits);
+    CHECK(moved.canvas.y > before.canvas.y);
+    CHECK(moved.canvas.y + moved.canvas.height == before.canvas.y + before.canvas.height);
+    CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
 }
 
 TEST_CASE("a pane's words are refused while a menu covers it or arranging is open, and the desk still answers") {
