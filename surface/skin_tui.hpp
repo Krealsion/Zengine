@@ -138,6 +138,17 @@ inline const char* sgr_for_role(int role) noexcept {
     }
 }
 
+/// This medium's ink for a cell: its role's, except plain ink on a ground the canvas painted,
+/// which is the palette's white. That ground is the palette's own colour and the terminal's
+/// text colour may be dark on it, so plain text on a pane's black ground reads on a light
+/// terminal as on a dark one. `ground` is `role::kNone` where the terminal's own shows.
+inline const char* sgr_for_cell(int role, int ground) noexcept {
+    switch (role) {
+    case 1: case 2: case 3: case 4: return sgr_for_role(role);
+    default: return ground < 0 ? sgr_for_role(role) : "\x1b[37m";
+    }
+}
+
 /// This medium's ground for each role: SGR 40-47 and 100-107 are all an ANSI terminal has.
 /// `role::kNone` is not in the table: it is the absence of a ground, restored by `\x1b[49m`. A
 /// publisher still chooses contrasting roles -- an ink on its own ground is invisible.
@@ -325,6 +336,8 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         // The role in effect starts at a value no role (not even the background's -1) can
         // equal, so every row's first cell states its own ink rather than inheriting one.
         int open = -2;
+        // ...and the ink it wrote, which a ground can change for one role (`sgr_for_cell`).
+        std::string_view open_ink;
         // The ground in effect, tracked apart but reset together: `\x1b[0m` also clears a
         // ground still meant to show, so a reset re-states it. With no ground, no byte of this.
         int open_bg = zengine::surface::role::kNone;
@@ -343,14 +356,16 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
                                    : static_cast<int>(grounds[i]);
             const bool caret = carets[i] != 0;
             const bool reversed = (selected[i] != 0) != caret;
-            if (role != open) {
-                out += role < 0 ? "\x1b[0m" : sgr_for_role(role);
+            const std::string_view ink = role < 0 ? "\x1b[0m" : sgr_for_cell(role, ground);
+            if (role != open || ink != open_ink) {
+                out += ink;
                 if (role < 0) {
                     open_bg = zengine::surface::role::kNone; // the reset took the ground too
                     open_sel = false;                        // ...and the selection with it
                     open_caret = false;                      // ...and a caret's underline
                 }
                 open = role;
+                open_ink = ink;
             }
             if (ground != open_bg) {
                 out += ground < 0 ? "\x1b[49m" : sgr_bg_for_role(ground);

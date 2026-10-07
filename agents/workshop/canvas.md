@@ -142,11 +142,13 @@ prose is for a host that cannot.
 
 PROVEN BY — `surface/vocabulary.hpp` `kMediumGround`; `workshop/pane_canvas_rows.hpp`
 `rows_picture`; `workshop/pane_canvas.hpp` `canvas_content_problem`; `surface/skin_tui.hpp`
-`canvas_body`; `surface/skin_sdl_plan.hpp` `ink_for_role`, `text_ink_for_role`;
-`tests/test_surface.cpp` cases "canvas: the medium's own ground covers material and wears the
-terminal's own ground", "canvas: a terminal's plain text is the terminal's own text colour, so it
-reads on a light ground or a dark one, a caret in it and a selection over it too" and "canvas plan:
-the medium's own ground is the window's own background, and no ink"; `tests/test_workshop_panes_attention.cpp` case "a pane that draws its rows on its
+`canvas_body`, `sgr_for_role`, `sgr_for_cell`; `surface/skin_sdl_plan.hpp` `ink_for_role`,
+`text_ink_for_role`; `tests/test_surface.cpp` cases "canvas: the medium's own ground covers
+material and wears the terminal's own ground", "canvas: a terminal's plain text is the terminal's
+own text colour on its own ground and the palette's white on a ground a pane paints, so it reads
+on a light terminal or a dark one, a caret in it and a selection over it too" and "canvas plan:
+the medium's own ground is the window's own background, and no ink";
+`tests/test_workshop_panes_attention.cpp` case "a pane that draws its rows on its
 canvas wears the medium's own ground beneath them, as a prose body does, in a window and in a
 terminal"; `tests/test_workshop_panes_files.cpp` case "a host that grants Files no canvas is shown
 its rows as prose, its presses reach nothing there, and Return still opens";
