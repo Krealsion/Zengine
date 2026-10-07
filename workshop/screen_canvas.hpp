@@ -28,8 +28,8 @@ inline PixelRect canvas_body_place(const PixelRect& pane_rect, const Screen& sc,
 
 /// WHERE A PANE'S PICTURE STANDS: the room it was granted while a held press keeps that room from
 /// the title row its keys bring or take (`ExternalPane::Canvas::title_waits`), else the body its
-/// place and title rows give it. The painter draws the picture there and inspection reads it there, as the
-/// pointer answers in the room granted, so all three agree on one room.
+/// place and title rows give it. The painter draws the picture there and inspection reads it
+/// there, as the pointer answers in the room granted, so all three agree on one room.
 inline PixelRect shown_canvas_place(const ExternalPane::Canvas& c, const PixelRect& pane_rect,
                                     const Screen& sc, std::int64_t header_rows) {
     if (c.title_waits) return PixelRect{c.x, c.y, c.width, c.height};
