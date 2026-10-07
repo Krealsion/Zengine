@@ -71,17 +71,17 @@ opens nothing", case
 "pane canvas resize loses capture and wheel names a local point in the latest picture".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
-## WL-CANVAS-04 — A carried value lands on a canvas as a local place
+## WL-CANVAS-04 — A carried item lands on a canvas as a local place
 
-LAW — A value dropped on a canvas reaches a provider accepting `PaneCanvasValueDrop` as local pixels in its granted room and aimed picture; another provider is sent nothing and the value stays held.
+LAW — An item dropped on a canvas reaches a provider accepting its door (`PaneCanvasValueDrop`, `PaneCanvasDrop`) as local pixels in its room and aimed picture; another is sent nothing and it stays held.
 
 MEANS
 - the provider hit-tests the place in the picture it drew and owns what the drop means;
-- a drop begins no canvas custody; v2's attribution rides with the copy;
+- a drop begins no canvas custody; a value keeps v2's attribution, a reference crosses as `PaneDrop` does;
 - a drag's drop names the picture and place its release met, or is refused in words.
 
-PROVEN BY — `workshop/pane_carry.hpp` `PaneCanvasValueDrop`; `workshop/weave_operation.cpp`
-`drop_on_canvas`, `drop_carry`; `workshop/weave.hpp` `CanvasRelease`;
+PROVEN BY — `workshop/pane_carry.hpp` `PaneCanvasValueDrop`, `PaneCanvasDrop`;
+`workshop/weave_operation.cpp` `drop_on_canvas`, `drop_carry`; `workshop/weave.hpp` `CanvasRelease`;
 `tests/test_workshop_inventory_info.cpp` cases "a value dragged from Inventory onto Flow's canvas
 reaches Flow as a canvas drop where it was released, and Flow offers what it can become" and "a
 value released on Flow's canvas before its carry is answered names the picture it was released

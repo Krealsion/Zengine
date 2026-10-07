@@ -270,6 +270,8 @@ void pane_surface() {
     check(drawn.texts.size() == 1 && !drawn.texts[0].padded && drawn.texts[0].text == "Tally: 3" &&
               drawn.parts.size() == 1 && drawn.parts[0].name == "row:count",
           "a pane's rows are drawn on its canvas naming the parts they named");
+    check(!drawn.rects.empty() && drawn.rects[0].role == zengine::surface::role::kMediumGround,
+          "a pane's rows drawn on its canvas lie on the medium's own ground, as a prose body's");
     const ws::RowCell cell = ws::row_cell_at(ws::canvas_rows(room), 3 * ws::kPaneCanvasUnit, 0);
     check(cell.shown && cell.row == 0 && cell.column == 3 && pictures.current(7, drawn.picture),
           "a press on the picture reads back to a row and a column of the picture it was aimed at");
@@ -394,6 +396,9 @@ int main() {
           "an installed consumer can transport a typed reference independently of item schemas");
     check(loom::schema_of<zengine::workshop::PaneDrop>()->find("picture") != nullptr,
           "a carried reference includes the receiving picture fence");
+    check(loom::schema_of<zengine::workshop::PaneCanvasDrop>()->find("grant") != nullptr &&
+              loom::schema_of<zengine::workshop::PaneCanvasDrop>()->find("picture") != nullptr,
+          "a reference placed on a canvas names its room's grant and the picture it was aimed at");
     check(loom::schema_of<zengine::workshop::PaneOperationRequested>()->find("shape") != nullptr,
           "an installed pane can name the operation whose initiating actor needs authority");
     check(loom::schema_of<zengine::workshop::PaneObservationRequested>()->find("subject") != nullptr &&

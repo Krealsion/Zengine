@@ -349,7 +349,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::v1::PaneCanvasPointer,

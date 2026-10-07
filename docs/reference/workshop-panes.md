@@ -1162,6 +1162,7 @@ The pane must still send the operation under its own ordinary bus grant and hand
 | `PaneCarryAnswered{carried, reason}` | Authenticated answer to that request |
 | `PaneDrop{pane, data, row, column, picture}` | Workshop to the selected receiver, under a new input correlation; `picture` is the aimed prose picture as for `PanePressed v3` |
 | `PaneCanvasValueDrop{pane, grant, picture, x, y, data, source_office, source_pane, token}` | A value copy placed on a canvas pane: the place in the canvas's local pixels, its room grant and the aimed picture, with v2's attribution |
+| `PaneCanvasDrop{pane, grant, picture, x, y, data}` | A reference placed on a canvas pane, as `PaneDrop` places one on rows: the place in the canvas's local pixels, its room grant and the aimed picture |
 
 The actor picks up the reference and clicks a receiving pane to place it. Escape cancels;
 another actor cannot place or cancel the held reference. If the initiating guest participant
@@ -1170,11 +1171,11 @@ does not end a still-connected participant. An unsupported destination leaves th
 owns decoding and the meaning of the drop; subsequent reads or writes need their own authority.
 A request that cannot be queued leaves the reference held. A later Loom dispatch refusal
 is reported with its destination and attempt; it is never retried automatically.
-A successful send is not a completed receiver operation. The reference door serves prose panes
-only. A value released or clicked onto a **canvas** pane reaches a provider that accepts
-`PaneCanvasValueDrop` as that place in its local pixels, within the room it was granted and
-against the picture the medium showed, so the provider hit-tests what it drew; a canvas
-provider without that door is sent nothing and the value stays held, as anywhere it is not
+A successful send is not a completed receiver operation. An item released or clicked onto a
+**canvas** pane reaches a provider that accepts its canvas door -- `PaneCanvasValueDrop` for a
+value, `PaneCanvasDrop` for a reference -- as that place in its local pixels, within the room it
+was granted and against the picture the medium showed, so the provider hit-tests what it drew; a
+canvas provider without that door is sent nothing and the item stays held, as anywhere it is not
 accepted. A drag's drop names the picture and place its release met, even when the carry is
 answered after the canvas repainted, and a canvas granted afresh in between refuses it in words.
 A drop on a canvas is no canvas gesture: it begins no pointer custody.
