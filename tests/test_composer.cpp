@@ -581,6 +581,9 @@ TEST_CASE("the value being edited is WINDOWED with a caret the medium draws; a r
     CHECK(end.size() <= 30u);
     CHECK(end.substr(end.size() - 2) == " ]");
     CHECK(editing.caret_col == static_cast<std::int64_t>(end.size()) - 2);
+    // ...and the window followed it there: the value's tail is shown and its head is not.
+    CHECK(end.find("z ]") != std::string::npos);
+    CHECK(end.find("[abc") == std::string::npos);
 
     // The same field with the cursor elsewhere: no caret, and a marked cut.
     c.cursor = 1;
