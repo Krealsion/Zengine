@@ -994,10 +994,14 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     REQUIRE_MESSAGE(s.saved_entries().size()==1,(s.shown(kind)+s.shown(s.source)));
     CHECK(s.saved_entries().front().item.get("text")->as_text()=="wrapped");
     s.key(input::scan::kEscape); // keep the generated copy name
-    const auto old_picture=s.r.session().panes.external_pane(kind)->picture;
+    // A PRESS AIMED AT THE PICTURE BEFORE THE RECORD MOVED: its room and number, at that row's place.
+    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(kind)));
+    const auto before=s.r.session().panes.external_pane(kind)->canvas;
+    const CanvasRows lattice=held_canvas_rows(*s.r.session().panes.external_pane(kind));
     s.r.bus.send(terminal->id(),loom::Message(loom::to_value(loom::Ack{}))); s.r.extent(182,60);
     s.r.bus.office_send_to_role_as(s.r.workshop_id,kWorkshopProvider,"zengine.terminal",
-        loom::Message(loom::to_value(v3::PanePressed{"terminal",at+1,0,false,old_picture})));
+        loom::Message(loom::to_value(PaneCanvasPointer{"terminal",before.grant,before.content.picture,1,
+            canvas_pointer::kPress,1,lattice.column_x(0),lattice.row_y(at+1)})));
     s.r.bus.drain_until_idle();
     CHECK_MESSAGE(s.shown(kind).find("That transcript")!=std::string::npos,s.shown(kind));
     rows=pane_rows(s.r,kind); at=-1;
