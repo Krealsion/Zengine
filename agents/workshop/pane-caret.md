@@ -4,7 +4,9 @@ Register `WL-CARET`: the second sentence a pane may say about its rows — where
 point is, and what it has selected — and what Workshop does with one. One law per heading;
 cite by ID. Router: [`../workshop.md`](../workshop.md). What a pane publishes as ROWS is
 [`panes-and-windows.md`](panes-and-windows.md) (`WL-PANE`) and [`../panes.md`](../panes.md);
-the first pane to say a caret is the Terminal ([`terminal.md`](terminal.md)).
+the first pane to say a caret is the Terminal ([`terminal.md`](terminal.md)). A pane drawing its
+rows on its canvas says its caret in its own picture's run instead, and only beside the prose rows
+it says to a host granting no canvas.
 
 ## WL-CARET-01 — A pane with a caret says where it is, beside its rows
 

@@ -689,11 +689,12 @@ what Workshop owns and none read off a picture:
   the pane reads a press, or none for a part every place of which another part takes. A pane keeps
   a part's name across its redraws, so a walk finds it wherever the last redraw put it ([the parts
   a pane names](../reference/workshop-panes.md#a-pane-names-its-parts)). Version 2 answers the words
-  alone, and version 1 a text pane's rows, as text fitted to the body rather than as drawn.
+  alone, and version 1 a text pane's rows, as text fitted to the body rather than as drawn; a pane
+  drawing its own picture refuses version 1 in words.
 - **Where one character is.** `PanePointRequested` version 2,
   `{provider,pane,picture,word,column}`, answers where one character of one word is now, for the
   picture the caller read; version 1, `{provider,pane,picture,row,column}`, one painted cell of a
-  text pane. So a tool presses a control such as `[Save copy]`, or the View Builder's `[Label]`,
+  text pane, and a pane drawing its own picture refuses it. So a tool presses a control such as `[Save copy]`, or the View Builder's `[Label]`,
   without knowing a font.
 
 ![A 1440 by 900 window after a walk read by messages: the View Builder, at 96,102 and 840 by 240 as the desk says, made label1 when its [Label] was pressed by what it says; Info, holding the keys, has Height chosen by select and shows the 240 px written through it](images/desk-read-by-message.png)
@@ -711,8 +712,11 @@ does not select, activate, grant authority or expose arbitrary state. A later ge
 encounter a changed picture. Legacy unnumbered panes report picture zero; the query is not an
 interaction lease. Receivers must fence their own drops. `hand.words`, `hand.word_point` and
 `hand.desk` in `hand.py` ask them; `hand.row` finds a row by what it says and `hand.part` a part by
-its name through them, wheeling the pane toward each edge when asked to scroll, so a tool reads a
-pane that draws a picture as it reads a text pane. `workshop/act` steps on them: `desk` checks a
+its name through them, wheeling the pane toward each edge when asked to scroll, `hand.last_part`
+the lowest part of a kind saying a text (a Terminal's newest value), `hand.first` a pane's first
+word and `hand.control` a `[label]` by its word, so a tool reads a pane that draws a picture as it
+reads a text pane; `act.rows_by_place` numbers a pane's lines by where they stand, a blank row a
+canvas draws as no word among them. `workshop/act` steps on them: `desk` checks a
 pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
 "view-builder", "kind:label"]}`), and fails rather than press one with no point; `open` presses
@@ -745,10 +749,10 @@ press there, and is never said.
 | Demo | `zengine.demo` `controls` | `control:reset`, the reset row, and `status`, the state beneath it | the setup's name |
 | Info | `zengine.info` `info` | `pane:<office>/<pane>`, a pane's row, and `property:<label>`, a property's row | the rows naming neither |
 | An Info view | `zengine.info` `info.2` to `info.4` | `control:<id>`, a control, and `field:<path>`, a field | |
-| Files | `zengine.files` `project-files` | `entry:<name>`, `candidate:<name>`, `field:<name>`, `control:<id>` | |
-| Builder | `zengine.builder-pane` `builder` | `recipe:<name>`, `control:<id>`, `line` | |
+| Files | `zengine.files` `project-files` | `entry:<name>`, `candidate:<name>`, `field:<name>`, `control:<id>` | the headers, a notice, the markers and the `more fields` row, an empty listing or its refusal, a strip's gaps and `+N in menu` |
+| Builder | `zengine.builder-pane` `builder` | `recipe:<name>`, `control:<id>`, `line` | the header, a notice, the facts it reports but the recipe row, the list's heading and markers, the `loads` row, the reader's header and every output line, a strip's gaps and `+N in menu` |
 | Inventory | `zengine.inventory-pane` `inventory` | `entry:<owner>:<entry>`, `folder:<owner>:<id>`, `crumb:<owner>:<id>`, `control:up`, `control:here` | |
-| Terminal | `zengine.terminal` `terminal` | `entry:<observation>`, `line`, `newest`, `candidate:<what it says>` | |
+| Terminal | `zengine.terminal` `terminal` | `entry:<observation>`, `line`, `newest`, `candidate:<what it says>` | a notice, the heading, the legend, the marker above the view, an entry carrying no value, the list's heading, the history row |
 | Composer | `zengine.composer` `compose` | `message:<name> v<version>`, `field:<name>`, `control:submit`, `control:back` | the rows naming nothing |
 | Editor | `zengine.editor` `editor` | `status`, and `line:<n>`, a document line | |
 | Neovim's Editor | `zengine.editor` `editor` | `status` | Neovim's own screen |

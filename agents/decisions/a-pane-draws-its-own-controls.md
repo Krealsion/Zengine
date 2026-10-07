@@ -15,7 +15,7 @@ catalog a weaver could not see, and nine verbs lived entirely in the bottom band
 every control is the same operation its key already had — one `perform`, reached by a key, by
 a control, or by a row of the pane's own menu. `component/control_strip.hpp` packs the faces;
 `component::RowMap` records where each one landed and numbers the composition; the pane
-answers `v3::PanePressed` and `PaneButton` against that number. Availability is drawn on the
+answers a press and a right press on the picture it drew against that number. Availability is drawn on the
 face (`[label]` against `(label)`) and checked again by the operation, which refuses in its
 own words. What the width or the room cannot seat is counted and reachable through `[menu]`,
 which is the first control every strip declares.

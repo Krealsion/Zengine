@@ -56,27 +56,28 @@ LAW — A pane activates a row on a press only when Workshop reports its keys we
 
 MEANS
 - the pane decides from `keys_went_here`; a mode having the keys is "not here";
-- a v1 press states no fact, so Files only selects on it and Return still opens;
+- a canvas pointer always states it, and a v1 press none;
 - a press crosses once, as v2 exactly when the office's current holder accepts it.
 
 DOES NOT MEAN
 - that a version chosen arrives: a new holder lacking its door refuses, one with it may take it;
-- that anything is retried, kept between presses, or said when the keys leave a pane.
+- that anything is retried, kept or said when the keys leave a pane, or that Compose keeps it: it acts on the press that brings it the keys.
 
 PROVEN BY — `workshop/screen_arrange.cpp` `typing_pane`; `workshop/weave_pointer.cpp`
 `on(PointerButton)`; `workshop/weave_external.cpp` `external_press`, `holder_accepts_on`;
 `workshop/weave.hpp` `HostContext::holder_accepts`; `workshop/pane_vocabulary.hpp` `PanePressed`,
-`keys_went_here`; `files/files.cpp` `pressed`, `open`; `tests/test_workshop_panes_files.cpp` case
+`keys_went_here`; `workshop/pane_canvas_vocabulary.hpp` `PaneCanvasPointer`;
+`workshop/weave_canvas.cpp` `WorkshopWeave::canvas_press`; `files/files.cpp`
+`pressed`, `open`; `tests/test_workshop_panes_files.cpp` case
 `"a press on Files' selected row after its open moved the keys to the Editor selects that row and
 takes the keys back, and opens nothing"`, case `"the keys leave Files by a press into the Editor
 and Files is told nothing, so only Workshop can say a later press on Files' selected row came from
 elsewhere"`, case `"a press on Files' selected row opens it when the keys were already Files',
 whether Workshop's title, Files' own header or an arrow left them there"`, case `"two presses on
 Files' selected row queued while the keys were the Editor's cross as elsewhere then here, and open
-that row's file once"`, case `"a press from a host that states no routing fact only selects in
-Files, even on the selected row with the keys Files', and Return still opens it"`, case `"Files
-takes a press of either version only from Workshop's office and about its own pane, and opens only
-on a second-version press that says the keys were already there"`, case `"a press selects, and a
+that row's file once"`, case `"Files takes a canvas press only from Workshop's office and about
+its own pane, and opens only on one that says the keys were already there"`, case `"a press
+selects, and a
 second press on the same row activates"`, case `"the wheel moves the cursor, and a
 header press names no entry"`; `tests/test_workshop_panes_input.cpp` case `"a press
 crosses once: as v2 to a pane whose office's holder accepts it, and as the unchanged v1 to one

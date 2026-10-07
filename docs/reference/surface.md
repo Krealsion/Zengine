@@ -25,7 +25,7 @@ the painter being replaced mid-game).
 ordered list of `SurfaceLayer{rects, labels, texts}` — each one a complete plane of filled
 `SurfaceRect`s in painter's (list) order, `SurfaceLabel` text runs over them, and bounded text
 regions over those. Each
-element carries a semantic **role** — `kFill`/`kAccent`/`kMuted`/`kAlert`/`kGround` — never a colour, so
+element carries a semantic **role** — `kFill`/`kAccent`/`kMuted`/`kAlert`/`kGround`/`kMediumGround` — never a colour, so
 the terminal media pick an SGR *and a glyph* per role (colour alone would be a lie on a
 monochrome terminal) while the SDL medium picks RGB, from one unchanged publisher. Every
 coordinate and extent is a whole **canvas pixel**, `kCanvasCellPx` (<!-- value kCanvasCellPx -->12<!-- /value -->) to a cell: the window
@@ -38,6 +38,12 @@ with black in the shipped SDL skin, or spaces on a black background in the termi
 Publish it before the content it sits beneath; the ordinary clipping and painter order
 still apply. It is also available as text ink or a row background, so publishers must
 choose contrasting roles. It does not change the surface's default background.
+
+`kMediumGround` is that default background itself: opaque, empty material in what the medium
+shows where nothing is published — the window's own dark ground in the SDL skin, and in the
+terminal skin whatever the terminal wears, light or dark, since it writes no ground colour there.
+A rectangle or a row's background may name it; it is not an ink, and text named in it is drawn
+as `kFill`.
 
 **Which of the two kinds of text a publisher chooses is one question, and it is not about
 importance**: *is the rectangle mine?* A `SurfaceTextRegion` is the

@@ -42,13 +42,14 @@ def named(hand, label):
 
 
 def shows(hand, view, text):
-    return any(text in r["text"] for r in hand.view(*view)["rows"])
+    """Whether a pane paints a word holding `text`: a text pane's row or a canvas pane's run."""
+    return any(text in w["text"] for w in hand.words(*view)["words"])
 
 
 def still_open(hand, view):
     """Is this pane on the desk? A closed pane's view is refused, and that refusal is the answer."""
     try:
-        hand.view(*view)
+        hand.words(*view)
         return True
     except Exception as refused:
         if "closed, unknown" in str(refused):
@@ -58,7 +59,7 @@ def still_open(hand, view):
 
 def expect(hand, view, text):
     hand.ctx.check(shows(hand, view, text), "%s/%s does not show %r: %s" % (
-        view[0], view[1], text, [r["text"] for r in hand.view(*view)["rows"]]))
+        view[0], view[1], text, [w["text"] for w in hand.words(*view)["words"]]))
 
 
 def prepare(ctx, hand, path):
@@ -132,7 +133,7 @@ def story(ctx, hand, link, pictures, shots):
 
     ctx.step("use the finished preset explicitly through Compose")
     hand.click(hand.part(*LOADED, "weave:zengine-inventory", scroll=True))
-    hand.drag(hand.row(*INV, LABELS["preset"], scroll=True), hand.view(*COMP)["rows"][0], 350)
+    hand.drag(hand.row(*INV, LABELS["preset"], scroll=True), hand.first(*COMP), 350)
     expect(hand, COMP, "Copied data into form")
     hand.key("ctrl+enter")
     results = sum(e["label"] == RESULT for e in entries(hand))

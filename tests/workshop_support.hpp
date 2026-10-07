@@ -2350,6 +2350,14 @@ public:
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(office, canvas_at(0, 0, canvas_pointer::kWheel, 0, dy));
     }
+    /// ANY POINTER, from the office this watcher holds and in its own name, for a provider's
+    /// checks on what it reads off one.
+    void point(loom::Mail& mail, const char* office, const PaneCanvasPointer& p) {
+        (void)mail.as_role(kWorkshopProvider).send_to_role(office, p, ++asks);
+    }
+    void point_personally(loom::Mail& mail, const char* office, const PaneCanvasPointer& p) {
+        (void)mail.send_to_role(office, p);
+    }
     void ask(loom::Mail& mail) {
         (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
     }
@@ -3484,6 +3492,49 @@ inline CanvasRows held_canvas_rows(const ExternalPane& pane) {
     const auto& c = pane.canvas;
     return canvas_rows(PaneCanvasRoom{std::string(), c.grant, c.width, c.height, c.grain,
                                       c.graphical, c.text_advance_px, c.text_line_px});
+}
+
+/// WHETHER A PANE'S PICTURE LIES ON THE MEDIUM'S OWN GROUND: its first rectangle is that ground,
+/// over the whole room it was granted, as `rows_picture` lays it beneath a pane's rows.
+inline bool wears_medium_ground(const ExternalPane& pane) {
+    const auto& rects = pane.canvas.content.rects;
+    return shows_canvas(pane) && !rects.empty() && rects.front().role == surface::role::kMediumGround &&
+           rects.front().x == 0 && rects.front().y == 0 && rects.front().w == pane.canvas.width &&
+           rects.front().h == pane.canvas.height;
+}
+
+/// WHERE A PANE'S CARET AND SELECTION STAND, as `PaneCaret` says them in its rows' lattice: off
+/// the runs of the picture Workshop holds while the pane draws one -- the run carrying a caret
+/// names its row and column, the runs a selection touches its first and last -- and off the caret
+/// Workshop admitted beside its prose rows otherwise.
+inline PaneCaret held_caret(const ExternalPane& pane) {
+    PaneCaret out;
+    if (!shows_canvas(pane)) {
+        out.row = pane.caret_row;
+        out.column = pane.caret_col;
+        out.sel_begin_row = pane.sel_begin_row;
+        out.sel_begin_col = pane.sel_begin_col;
+        out.sel_end_row = pane.sel_end_row;
+        out.sel_end_col = pane.sel_end_col;
+        return out;
+    }
+    const CanvasRows lattice = held_canvas_rows(pane);
+    for (const v2::PaneCanvasText& t : pane.canvas.content.texts) {
+        const RowCell at = row_cell_at(lattice, t.x, t.y);
+        if (t.caret_col >= 0) {
+            out.row = at.row;
+            out.column = at.column + t.caret_col;
+        }
+        if (t.sel_begin_col >= 0) {
+            if (out.sel_begin_row < 0) {
+                out.sel_begin_row = at.row;
+                out.sel_begin_col = at.column + t.sel_begin_col;
+            }
+            out.sel_end_row = at.row;
+            out.sel_end_col = at.column + t.sel_end_col;
+        }
+    }
+    return out;
 }
 
 /// THE ROWS OF A CANVAS PANE'S ADMITTED PICTURE, each its unpadded run on the lattice -- its

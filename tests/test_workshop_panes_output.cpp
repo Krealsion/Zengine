@@ -110,9 +110,20 @@ struct OutputRig {
     loom::WeaveId runner_id{};
     std::int64_t kind = 0;
     ProjectFrontier frontier{};
+    /// Pictures Workshop refused from the pane, read off the bus's own tap.
+    std::size_t refused = 0;
+    loom::ObserverId tap{};
+    ~OutputRig() { r.bus.remove_observer(tap); }
 
     explicit OutputRig(const char* tag) : dir(tag) {
         r.host.project_dir = dir.path().generic_string();
+        tap = r.bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Delivered &&
+                ev.schema_name == PaneCanvasRejected::zen_name &&
+                ev.authored_role == kWorkshopProvider) {
+                ++refused;
+            }
+        });
         bld::Recipe recipe;
         recipe.id = "attention";
         recipe.artifact = "zengine-attention-pane";
@@ -205,14 +216,12 @@ struct OutputRig {
 
     const ExternalPane* seat_of() { return r.session().panes.external_pane(kind); }
 
-    /// THE ROWS WORKSHOP ACCEPTED FROM THE PANE, exactly as published -- or none, when it refused.
+    /// THE ROWS WORKSHOP ACCEPTED FROM THE PANE, as the picture it holds draws them -- or none,
+    /// when it refused every picture.
     std::vector<std::string> rows() {
-        std::vector<std::string> out;
         const ExternalPane* pane = seat_of();
         REQUIRE(pane != nullptr);
-        for (const surface::SurfaceTextRow& row : pane->shown) {
-            out.push_back(row.text);
-        }
+        const std::vector<std::string> out = held_row_texts(*pane);
         // A BUILDER PANE ALWAYS SHOWS ROWS, so none is a picture Workshop refused or never took --
         // said here as a failure, rather than left to a case's `rows()[0]` to crash on, which skips
         // the rest of the suite.
@@ -295,13 +304,13 @@ TEST_CASE("read output shows a failed build's own lines on rows Workshop takes, 
 
     // THE BUILDER'S OWN FACE SAYS IT FAILED AND WHERE ITS WORDS ARE -- and Workshop took it: a
     // `said` row built from a compiler's non-ASCII line would otherwise refuse the whole picture.
-    REQUIRE_MESSAGE(o.seat_of()->refusal.empty(), o.seat_of()->refusal_why);
+    REQUIRE(o.refused == 0);
     CHECK(o.text().find("FAILED -- op #1") != std::string::npos);
     CHECK(o.text().find("-- read output") != std::string::npos);
 
     o.letter(input::scan::kL, "l");
     const std::vector<std::string> rows = o.rows();
-    REQUIRE_MESSAGE(o.seat_of()->refusal.empty(), o.seat_of()->refusal_why);
+    REQUIRE(o.refused == 0);
     CHECK(every_byte_drawable(rows));
     REQUIRE(rows.size() >= 10);
     // ONE HEADER: the operation, its recipe, how it ended, which lines, and what was spelled.
@@ -317,7 +326,7 @@ TEST_CASE("read output shows a failed build's own lines on rows Workshop takes, 
     CHECK(rows[8] == "pane.cpp(416): error C2065: 'oops': undeclared identifier");
     CHECK(rows[9] == "ninja: build stopped: subcommand failed.");
     // THE COMMAND ECHO IS ONE ROW, CUT AT THE WIDTH WITH THE MARK -- not a screen of wrapped flags.
-    const std::int64_t columns = o.seat_of()->columns;
+    const std::int64_t columns = held_canvas_rows(*o.seat_of()).columns;
     CHECK(static_cast<std::int64_t>(rows[3].size()) == columns);
     CHECK(rows[3].substr(rows[3].size() - 3) == "...");
     CHECK(rows[3].rfind("/usr/bin/c++ -I/home/weaver/zen checkout/include", 0) == 0);
@@ -349,7 +358,7 @@ TEST_CASE("a compiler's non-ASCII words in a build's last lines leave the Builde
             "/home/weaver/zen checkout/attention-pane/pane.cpp:416:23: error: "
             "\xE2\x80\x98oops\xE2\x80\x99 was not declared in this scope\n",
             1);
-    REQUIRE_MESSAGE(o.seat_of()->refusal.empty(), o.seat_of()->refusal_why);
+    REQUIRE(o.refused == 0);
     CHECK(every_byte_drawable(o.rows()));
     CHECK(o.text().find("error: 'oops' was not declared") != std::string::npos);
 }

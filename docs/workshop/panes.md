@@ -616,8 +616,9 @@ own authored arrangement; those rectangles are distinct from a pane's initial pr
 
 ## What a pane may not do
 
-An external pane is **prose within a bounded budget**. It publishes rows; it cannot draw
-arbitrary geometry, and cannot exceed the room it was granted. What it receives is a press as a
+An external pane draws **within a bounded budget**: rows of prose, or its own picture of
+rectangles, labels and text runs on a canvas room Workshop grants it, and never past the room it
+was granted. What it receives is a press as a
 place in that room, the keys and text while a weaver has pressed into it, the wheel over its
 body, and — for the actions it declared beside its offer — the resolved action id rather than
 the key, so a weaver's keymap moves a pane's keys exactly as it moves Workshop's. A pane that has

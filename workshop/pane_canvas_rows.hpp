@@ -89,15 +89,15 @@ struct RowsCaret {
     std::int64_t sel_end_row = surface::kNoSelection, sel_end_col = 0;
 };
 
-/// A PANE'S ROWS AS ITS PICTURE in `room`, numbered `picture`: the room's ground beneath them, one
-/// unpadded run for each row the lattice holds, cut to its columns -- its role, its ground blank
-/// to the row's end where it names one, laid across the room's whole width beneath it as a prose
-/// row's is, and the caret and the selection that stand in it -- and
-/// each of `parts`, in their order, the rectangle its row and columns cover. A row's blanks after
-/// its last character go, unless a ground, the caret or the selection stands on them, and a caret
-/// after the last character is given the blank after it where the row has one; a row with
-/// nothing left is drawn as nothing. A part on a row the room does not hold is left out. The
-/// picture stands for this room, and the pane sends it as itself.
+/// A PANE'S ROWS AS ITS PICTURE in `room`, numbered `picture`: the medium's own ground beneath
+/// them, as a prose body's, one unpadded run for each row the lattice holds, cut to its columns
+/// -- its role, its ground blank to the row's end where it names one, laid across the room's
+/// whole width beneath it as a prose row's is, and the caret and the selection that stand in it
+/// -- and each of `parts`, in their order, the rectangle its row and columns cover. A row's
+/// blanks after its last character go, unless a ground, the caret or the selection stands on
+/// them, and a caret after the last character is given the blank after it where the row has
+/// one; a row with nothing left is drawn as nothing. A part on a row the room does not hold is
+/// left out. The picture stands for this room, and the pane sends it as itself.
 inline v5::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64_t picture,
                                           const std::vector<surface::SurfaceTextRow>& rows,
                                           const std::vector<PaneRowPart>& parts = {},
@@ -107,7 +107,8 @@ inline v5::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64
     out.grant = room.grant;
     out.picture = picture;
     if (room.width <= 0 || room.height <= 0) return out;
-    out.rects.push_back(PaneCanvasRect{0, 0, room.width, room.height, surface::role::kGround});
+    out.rects.push_back(
+        PaneCanvasRect{0, 0, room.width, room.height, surface::role::kMediumGround});
     const CanvasRows lattice = canvas_rows(room);
     if (lattice.empty()) return out;
     surface::SurfaceTextRegion selected; // the selection's per-row arithmetic is surface's

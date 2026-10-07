@@ -8,12 +8,14 @@
 // (`TerminalCompletionRequested`): nothing here can speak as that participant, only ask it to.
 // Workshop law: agents/workshop/terminal-pane.md
 
-// The line's caret and selection are published beside the rows (`PaneCaret`). This pane
-// ignores `PaneDragged`, so a sweep is not a gesture here: a press places the caret, a second
-// press in a word selects it, and shift with the caret keys sweeps by keyboard.
+// The pane draws its rows, the line's caret and its selection as its own canvas picture, and says
+// them as prose -- the caret beside the rows (`PaneCaret`) -- only to a host granting no canvas. A
+// sweep is not a gesture here: a press places the caret, a second press in a word selects it, and
+// shift with the caret keys sweeps by keyboard.
 
 #include "terminal-pane/vocabulary.hpp"
 
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
@@ -57,10 +59,8 @@ using ws::PaneContent;
 using ws::PaneEscapeUnspent;
 using ws::PaneKey;
 using ws::v2::PaneOffered;
-using ws::PanePressed;
 using ws::PaneRoom;
 using ws::PaneTextInput;
-using ws::PaneWheel;
 using ws::ShownCandidate;
 using ws::ShownEntry;
 using ws::TerminalActed;
@@ -211,13 +211,14 @@ std::size_t first_shown(std::size_t selected, std::size_t total, std::size_t roo
 class TerminalPaneWeave
     : public loom::WeaveBase<
           TerminalPaneWeave, pane::TerminalPaneState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, ws::v3::PanePressed,
-                       ws::PaneDragged, ws::PaneButton, ws::PaneMenuAnswered,
+          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
+                       ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneMenuAnswered,
                        ws::TerminalValueAnswered, ws::PaneCarryAnswered, loom::DispatchRefused, PaneKey,
-                       PaneTextInput, PaneWheel, PaneActionRequested, TranscriptShown,
+                       PaneTextInput, PaneActionRequested, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, ws::v4::PaneContent, PaneCaret, PaneEscapeUnspent,
+          loom::Emit<PaneOffered, PaneActions, PaneContent, ws::v4::PaneContent, PaneCaret,
+                     ws::v5::PaneCanvasContent, PaneEscapeUnspent,
                      ws::TerminalValueRequested, ws::PaneValueCarryRequested, ws::PaneMenuRequested,
                      ws::PanePassRequested,
                      TerminalActRequested, TerminalCompletionRequested, surface::ClipboardCopy,
@@ -244,11 +245,30 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kTerminalPane) {
             return;
         }
-        rows_ = room.rows;
-        columns_ = room.columns;
+        prose_rows_ = room.rows;
+        prose_columns_ = room.columns;
         granted_ = true;
+        if (on_canvas()) {
+            return; // the canvas room, granted first, already drew
+        }
+        fit_room();
         say(mail);
     }
+
+    /// THE PANE'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
+    /// lattice's rows and columns its room, and says them as prose only to a host granting none.
+    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kTerminalPane) {
+            return;
+        }
+        canvas_ = room;
+        granted_ = true;
+        fit_room();
+        say(mail);
+    }
+
+    /// A refused picture leaves the last good one showing, and the next reading draws again.
+    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
 
     /// WHAT THE PARTICIPANT'S RECORD HOLDS, SAID BY THE HOST. Replaced WHOLE, never merged --
     /// this pane keeps no second copy of a transcript beyond the picture it was last shown.
@@ -270,11 +290,8 @@ public:
 
     /// THE WHEEL READS THE RECORD: three rows a notch, fractions carried, +1 away from the weaver
     /// being older output. Reading moves no line, recall, list or notice.
-    void on(const PaneWheel& wheel, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != pane::kTerminalPane) {
-            return;
-        }
-        wheel_ += wheel.dy * static_cast<double>(kWheelRows);
+    void wheel(double dy, loom::Mail& mail) {
+        wheel_ += dy * static_cast<double>(kWheelRows);
         const std::int64_t rows = static_cast<std::int64_t>(wheel_);
         wheel_ -= static_cast<double>(rows);
         if (rows == 0) {
@@ -344,31 +361,54 @@ public:
     }
 
     using Subject = std::pair<std::int64_t, std::int64_t>; // terminal instance, observation
-    void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kTerminalPane) return;
-        if (!subjects_.current(press.picture)) {
+    /// A PRESS, THE WHEEL AND A RIGHT PRESS ON THE CANVAS. A place reads back to the row and
+    /// column a prose press would have named; a press acts only while the picture (and room) it
+    /// was aimed at was drawn under what the transcript's rows mean now -- on a value it picks the
+    /// value up, elsewhere it means what a press on that row means. Motion, release and loss are
+    /// nothing: no sweep here, and a pickup's drag is Workshop's once the carry begins.
+    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || event.pane != pane::kTerminalPane ||
+            !on_canvas()) {
+            return;
+        }
+        if (event.phase == ws::canvas_pointer::kWheel) {
+            if (event.grant == canvas_.grant) wheel(event.dy, mail);
+            return;
+        }
+        if (event.phase != ws::canvas_pointer::kPress) {
+            return;
+        }
+        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), event.x, event.y);
+        if (event.button == 3) {
+            right_press(at, event.grant, event.picture, mail);
+            return;
+        }
+        if (event.button != 1 || !at.shown) {
+            return;
+        }
+        if (!pictures_.current(event.grant, event.picture)) {
             notice_ = "That transcript picture changed; try again"; say(mail); return;
         }
-        if (const auto* subject = subjects_.at(press.row, press.column)) {
+        if (const auto* subject = subjects_.at(at.row, at.column)) {
             acquire(*subject, true, mail); return;
         }
-        on(PanePressed{press.pane, press.row, press.column}, mail);
+        press(at.row, at.column, mail);
     }
-    void on(const ws::PaneDragged&, loom::Mail&) {}
-    void on(const ws::PaneButton& press, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kTerminalPane ||
-            !press.pressed || press.button != 3 || press.lost) return;
+    /// A RIGHT PRESS on a value offers to pick up a copy of it; anywhere else, or while a pickup
+    /// is in flight, it is handed back, so Workshop's own pane menu opens where it was made.
+    void right_press(const ws::RowCell& at, std::int64_t grant, std::int64_t picture,
+                     loom::Mail& mail) {
         if (capture_.pending()) { // a pickup in flight offers nothing now: handed back, not dropped
             ws::pane_menu::pass_back(mail, pane::kTerminalPaneRole, pane::kTerminalPane); return;
         }
-        if (!subjects_.current(press.picture)) {
+        if (!pictures_.current(grant, picture)) {
             notice_ = "That transcript picture changed; try again"; say(mail); return;
         }
-        const auto* subject = subjects_.at(press.row, press.column);
+        const auto* subject = at.shown ? subjects_.at(at.row, at.column) : nullptr;
         if (!subject) { ws::pane_menu::pass_back(mail, pane::kTerminalPaneRole, pane::kTerminalPane); return; }
         menu_subject_ = *subject;
         menu_ = ws::pane_menu::Offer(pane::kTerminalPane, "Transcript value")
-                    .at(press.row, press.column).row("copy", "Pick up a copy")
+                    .at(at.row, at.column).row("copy", "Pick up a copy")
                     .send(mail, pane::kTerminalPaneRole);
     }
     void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
@@ -413,14 +453,12 @@ public:
 
     /// A PRESS NAMES A ROW OF THIS PANE'S ROOM.
     ///
-    /// TWO ROWS MEAN SOMETHING: a candidate row chooses that candidate, and the input row
-    /// places the caret. Everything else is consumed and changes nothing, which is what a
-    /// pane that owns visible room owes the cells it is not using.
-    void on(const PanePressed& press, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kTerminalPane) {
-            return;
-        }
-        if (press.row == input_row_ && input_row_ >= 0) {
+    /// THREE ROWS MEAN SOMETHING: a candidate row chooses that candidate, the input row places
+    /// the caret, and the row below the view follows the newest output again. Everything else is
+    /// consumed and changes nothing, which is what a pane that owns visible room owes the cells it
+    /// is not using.
+    void press(std::int64_t row, std::int64_t column, loom::Mail& mail) {
+        if (row == input_row_ && input_row_ >= 0) {
             notice_.clear();
             history_note_.clear();
             // A PRESS ON THE LINE IS AN EDITING ACT, so a recalled line becomes the draft here
@@ -431,7 +469,7 @@ public:
             // THROUGH THE WINDOW THE ROW WAS DRAWN WITH. A visible column names
             // `first_visible + offset` of the WHOLE authored line, never the offset alone --
             // that is the one subtraction a horizontal viewport adds to a hit test.
-            const std::int64_t offset = press.column - kPromptCols;
+            const std::int64_t offset = column - kPromptCols;
             const std::size_t target =
                 line_.position_at_column(offset < 0 ? 0 : offset);
             // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT; the first press still places
@@ -454,16 +492,16 @@ public:
         word_press_ = false;
         // THE ROW BELOW THE VIEW IS THE WAY BACK TO THE NEWEST OUTPUT; the row above it says what
         // is above and is consumed like the rest of the record.
-        if (press.row == bottom_marker_row_ && bottom_marker_row_ >= 0) {
+        if (row == bottom_marker_row_ && bottom_marker_row_ >= 0) {
             reading_ = Reading{};
             say(mail);
             return;
         }
-        if (list_first_row_ >= 0 && press.row >= list_first_row_ &&
-            press.row < list_first_row_ + list_row_count_) {
+        if (list_first_row_ >= 0 && row >= list_first_row_ &&
+            row < list_first_row_ + list_row_count_) {
             // ROW 0 OF THE LIST IS THE HEADING and is not a candidate. A press on it is a
             // press on the list -- consumed, changing nothing.
-            const std::int64_t at = press.row - list_first_row_ - 1;
+            const std::int64_t at = row - list_first_row_ - 1;
             if (at < 0) {
                 return;
             }
@@ -1079,11 +1117,10 @@ private:
         wanted_ = false;
     }
 
-    // ---- The rows, and the caret beside them ----------------------------------------------
+    // ---- The rows, and the caret in them --------------------------------------------------
 
     /// The pane, composed: refusal, header, legend, what is above the view, the view, what is
-    /// below it, the completion list or the history row, the input row, and the caret beside
-    /// them. The budget is spent in priority order: the input row first (a Terminal with no line
+    /// below it, the completion list or the history row, the input row, and the caret on it. The budget is spent in priority order: the input row first (a Terminal with no line
     /// is not one), then a standing refusal, the header, the marker above the view and the
     /// legend; the rest is split between the list (at most half) and the transcript. Every row is
     /// budgeted before it is composed, so a late row can never take back the input line.
@@ -1101,9 +1138,7 @@ private:
             out.push_back(surface::SurfaceTextRow{drawable(fit(std::move(text), columns_)), role});
         };
         if (rows_ <= 0 || columns_ <= 0) {
-            (void)mail.as_role(pane::kTerminalPaneRole)
-                .send_to_role(kWorkshopRole, ws::v4::PaneContent{pane::kTerminalPane, std::move(out), 0, subjects_.settle()});
-            say_caret(mail);
+            send(std::move(out), subjects_.settle(), {}, mail);
             return;
         }
         // The input row is taken first and a notice second, before anything else is composed: a
@@ -1227,10 +1262,43 @@ private:
         }
         const std::int64_t picture = subjects_.settle();
         std::vector<ws::PaneRowPart> parts = named_rows(static_cast<std::int64_t>(out.size()));
+        send(std::move(out), picture, std::move(parts), mail);
+    }
+
+    /// THE ROWS SENT: as the pane's own picture while it holds a canvas, numbered by what the
+    /// transcript's rows mean, its caret and selection standing in it; as prose with the caret
+    /// beside it to a host granting none.
+    void send(std::vector<surface::SurfaceTextRow> out, std::int64_t meaning,
+              std::vector<ws::PaneRowPart> parts, loom::Mail& mail) {
+        if (on_canvas()) {
+            const PaneCaret said = caret();
+            ws::RowsCaret at;
+            at.row = said.row;
+            at.column = said.column;
+            at.sel_begin_row = said.sel_begin_row;
+            at.sel_begin_col = said.sel_begin_col;
+            at.sel_end_row = said.sel_end_row;
+            at.sel_end_col = said.sel_end_col;
+            (void)mail.as_role(pane::kTerminalPaneRole)
+                .send_to_role(kWorkshopRole, ws::rows_picture(canvas_, pictures_.next(canvas_, meaning),
+                                                              out, parts, at));
+            return;
+        }
         (void)mail.as_role(pane::kTerminalPaneRole)
             .send_to_role(kWorkshopRole, ws::v4::PaneContent{pane::kTerminalPane, std::move(out), 0,
-                                                             picture, std::move(parts)});
+                                                             meaning, std::move(parts)});
         say_caret(mail);
+    }
+
+    bool on_canvas() const {
+        return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0;
+    }
+
+    /// The rows and columns the pane composes for: its canvas's lattice while it holds one.
+    void fit_room() {
+        const ws::CanvasRows lattice = ws::canvas_rows(canvas_);
+        rows_ = on_canvas() ? lattice.rows : prose_rows_;
+        columns_ = on_canvas() ? lattice.columns : prose_columns_;
     }
 
     /// WHAT THE TERMINAL CALLS ITS PARTS, of the `said` rows it sends: a transcript entry carrying
@@ -1287,26 +1355,24 @@ private:
         }
     }
 
-    /// WHERE THE CARET IS, AND WHAT IS SELECTED -- beside the rows, never inside them.
+    /// WHERE THE CARET IS, AND WHAT IS SELECTED -- in the rows' own lattice, never written
+    /// into them; none when the input row was cut away.
     ///
     /// ONE MEASURER: the column comes from the same window the row was written against and
     /// the same one a press is answered with, so a caret cannot land where the text is not
     /// and a click cannot land where the caret would not.
-    void say_caret(loom::Mail& mail) {
+    PaneCaret caret() const {
         PaneCaret caret;
         caret.pane = pane::kTerminalPane;
         if (input_row_ < 0) {
-            // NO CARET, said as a sentence rather than by silence: a pane cut down to
-            // nothing still has to un-say the caret it published when it was taller.
-            (void)mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole, caret);
-            return;
+            return caret;
         }
         const std::int64_t visible = columns_ - kPromptCols - kCaretCols;
         caret.row = input_row_;
         caret.column = kPromptCols + static_cast<std::int64_t>(line_.caret_column());
         // AND THE SELECTION, THE SAME WAY: the visible part of the component's own range,
         // prompt-shifted by the same arithmetic the caret goes through. A selection scrolled
-        // wholly off the slice publishes nothing, which is the truthful picture of a row that
+        // wholly off the slice says nothing, which is the truthful picture of a row that
         // shows none of it.
         const component::TextBox::VisibleSpan span =
             line_.visible_selection(visible > 0 ? visible : 0);
@@ -1316,7 +1382,14 @@ private:
             caret.sel_end_row = input_row_;
             caret.sel_end_col = kPromptCols + span.end;
         }
-        (void)mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole, caret);
+        return caret;
+    }
+
+    /// THE CARET BESIDE THE PROSE ROWS, said every time -- no caret said as a sentence rather
+    /// than by silence, since a pane cut down to nothing still has to un-say the caret it
+    /// published when it was taller.
+    void say_caret(loom::Mail& mail) {
+        (void)mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole, caret());
     }
 
     // ---- State not in the shape --------------------------------------------------------
@@ -1427,8 +1500,13 @@ private:
     std::uint64_t wanted_intent_ = 0;
     bool wanted_ = false;
 
-    std::int64_t rows_ = 0;
+    std::int64_t rows_ = 0; ///< the room composed for: the canvas lattice's, else the prose room's
     std::int64_t columns_ = 0;
+    std::int64_t prose_rows_ = 0, prose_columns_ = 0;
+    ws::PaneCanvasRoom canvas_;
+    /// Numbers every picture within its grant, and says which of them were drawn under what the
+    /// transcript's rows mean now (`subjects_`'s number).
+    ws::CanvasPictures pictures_;
     bool granted_ = false;
 };
 

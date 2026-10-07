@@ -3,9 +3,10 @@
 Register `WL-TERM`: the terminal PARTICIPANT this host mounts and holds, and the seam across
 which a pane presents it. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). The pane's own presentation — its rows, its list, its caret
-and its keys — is the Terminal pane's, not this host's; the caret it publishes is
-[`panes-and-windows.md`](panes-and-windows.md) (WL-CARET) and the line it is typed into is
-[`text-box.md`](text-box.md).
+and its keys — is the Terminal pane's, not this host's: it draws them as its own canvas picture,
+says its caret beside prose rows as [`pane-caret.md`](pane-caret.md) (WL-CARET) has it, and the
+line it is typed into is [`text-box.md`](text-box.md). Its presses, wheel and right press are its
+canvas's: to a host granting no canvas it takes only keys ([`canvas.md`](canvas.md), WL-CANVAS-07).
 
 ## WL-TERM-01 — The Terminal is a pane, and nothing global reaches it
 
@@ -110,12 +111,11 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-06 — The completion list is rows inside the pane, never a second region
 
-LAW — The list is rows of the pane's own `PaneContent`, above the input row and taking room from the transcript; it says which slice it shows, and never lies over the input line.
+LAW — The list is rows of the pane's own picture, above the input row and taking room from the transcript; it says which slice it shows, and never lies over the input line.
 
 DOES NOT MEAN — that it still floats. It was a SECOND bounded region drawn on top of the
-overlay's own; a pane publishes one list of rows and Workshop assembles one region from it, so
-covering the
-transcript became taking rows from it. That is a change a weaver sees.
+overlay's own; the pane draws its list and its line as rows of the one picture it sends, so
+covering the transcript became taking rows from it. That is a change a weaver sees.
 
 PROVEN BY — `terminal-pane/pane.cpp` `say_list`, `first_shown`;
 `tests/test_workshop_panes_terminal.cpp` case `"the list is rows INSIDE the pane, above the line
@@ -149,11 +149,11 @@ DOES NOT MEAN — that this pane sweeps a selection by pointer. Workshop owns co
 and release. The Terminal still does not sweep input text by pointer; a second press in the same
 word selects it, and shift with caret keys selects by keyboard.
 
-PROVEN BY — `terminal-pane/pane.cpp` `on(PanePressed)`, `on(ws::v3::PanePressed)`, `say_caret`;
+PROVEN BY — `terminal-pane/pane.cpp` `on(ws::PaneCanvasPointer)`, `press`, `caret`;
 `workshop/terminal_seam_vocabulary.hpp` `TerminalCompletionOffered`;
 `tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places the caret where
-the weaver aimed"`, case `"the pane publishes a caret, and Workshop draws it
-into the region"`.
+the weaver aimed"`, case `"the pane draws its caret in its own picture, and the medium draws it
+there"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-10 — A refusal is budgeted with the rows, beside the line it is about
@@ -167,8 +167,8 @@ MEANS
 DOES NOT MEAN — that a refusal is dropped when it does not fit. It is dropped only where there
 is no row for it that is not the weaver's own line, and that room is one row.
 
-PROVEN BY — `terminal-pane/pane.cpp` `say`, `say_caret`, `kChromeRows`;
-`workshop/panes.hpp` `ExternalPane::caret_row`; `tests/test_workshop_panes_terminal.cpp` case
+PROVEN BY — `terminal-pane/pane.cpp` `say`, `caret`, `kChromeRows`;
+`workshop/pane_canvas_rows.hpp` `RowsCaret`; `tests/test_workshop_panes_terminal.cpp` case
 `"a refusal is said BESIDE the line it is about, never in place of it"`, case
 `"in a room too small for both, the LINE is what survives"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`

@@ -22,9 +22,8 @@ def run(ctx):
         return hand.ask('zengine.inventory', 'InventoryRead', {'reference': entry['reference']})
 
     def latest(prefix):
-        rows = [r for r in hand.view(*term)['rows'] if r['text'].startswith(prefix)]
-        ctx.check(bool(rows), 'latest terminal entry is not visible: ' + prefix)
-        return rows[-1]
+        # The newest value the Terminal shows saying `prefix`: its row is named entry:<observation>.
+        return hand.last_part(*term, 'entry:', prefix)
 
     def command(line):
         hand.click(hand.row(*term, '>    Tab:'))
@@ -33,7 +32,7 @@ def run(ctx):
     def named_drop(row, name):
         before = entries()
         hand.drag(row, hand.view(*inv)['rows'][0], 400)
-        ctx.produce('last-terminal.json', json.dumps(hand.view(*term).fields, indent=2).encode())
+        hand.last_view(hand.words(*term), 'last-terminal.json')
         hand.row(*inv, 'Name:')
         hand.text(name); hand.key('enter')
         added = [e for e in entries() if e['reference'] not in [x['reference'] for x in before]]
@@ -86,7 +85,7 @@ def run(ctx):
     ctx.check(len(added) == 1, 'preset save did not create one entry')
     # Rename the new preset using its visible row and ordinary context action.
     rename_selected(hand.row(*inv, added[0]['label'] + ' : ', scroll=True), label + ' preset')
-    hand.drag(hand.row(*inv, label + ' preset', scroll=True), hand.view(*comp)['rows'][0], 400)
+    hand.drag(hand.row(*inv, label + ' preset', scroll=True), hand.first(*comp), 400)
     hand.row(*comp, 'text:')
 
     ctx.step('fill the preset from the saved answer through Info')

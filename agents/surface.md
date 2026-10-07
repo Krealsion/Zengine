@@ -31,6 +31,15 @@ it adds neither a layer nor an erase operation. Text ink and row backgrounds may
 it, resolved through the same palette. **Choose contrasting roles**: an ink on its own
 ground is invisible, and nothing refuses it.
 
+**`role::kMediumGround` is the medium's own ground**: opaque and empty like `kGround`, but
+what the medium shows where nothing is published — `kCanvasBackground` in SDL, and in TUI
+the terminal's default background, light or dark, which `canvas_body` says by emitting no
+ground byte for it (`\x1b[49m` where one was open). It is a ground and never an ink: a
+rectangle or a row's background names it, and text named in it paints as `kFill`
+(`text_ink_for_role`), since a terminal has no ink of its default background. The SDL plan
+marks a row that named a ground (`PlanTextRow::grounded`), so a `kGroundBeneath` row naming
+it is still a strip where its colour equals the region's.
+
 ## A region may have a caret, and it is said in PROSE
 
 `SurfaceTextRegion` carries `caret_row`/`caret_col` — a row and a column into the rows the

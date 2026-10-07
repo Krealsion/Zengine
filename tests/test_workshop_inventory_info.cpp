@@ -666,6 +666,10 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
             p.height = {pane_unit::kPixels, 24*surface::kCanvasCellPx};
         }
         r.extent(180, 60);
+        // The picture Compose drew before it had a target: a drop aimed at it is stale once the
+        // rows mean the target's messages.
+        REQUIRE(shows_canvas(*r.session().panes.external_pane(compose_kind)));
+        const auto before_target = r.session().panes.external_pane(compose_kind)->canvas;
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
         loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
         const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroOffice);
@@ -685,12 +689,15 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
             inv::InventoryAdd{loom::Bytes(bytes.begin(), bytes.end()), "rename command"})));
         r.bus.drain_until_idle();
         const auto untouched = s.shown(compose_kind);
-        const auto current_picture = r.session().panes.external_pane(compose_kind)->picture;
-        const PaneValueDrop forged{"compose", loom::Bytes(bytes.begin(), bytes.end()), 0, 0, current_picture};
+        const auto& held = r.session().panes.external_pane(compose_kind)->canvas;
+        const PaneCanvasValueDrop forged{"compose", held.grant, held.content.picture, 0, 0,
+                                         loom::Bytes(bytes.begin(), bytes.end()), "", "", ""};
         r.bus.send_to_role(kComposerOffice, loom::Message(loom::to_value(forged)));
         r.bus.drain_until_idle();
         CHECK(s.shown(compose_kind) == untouched);
-        auto stale = forged; stale.picture = current_picture - 1;
+        auto stale = forged;
+        stale.grant = before_target.grant;
+        stale.picture = before_target.content.picture;
         r.bus.office_send_to_role_as(r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
             kComposerOffice, loom::Message(loom::to_value(stale)));
         r.bus.drain_until_idle();
@@ -713,6 +720,161 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         CHECK(current().get("entries")->as_list()[1].as_message()->get("revision")->as_int() == 1);
         if (!allowed) CHECK(s.shown(compose_kind).find("no authority") != std::string::npos);
     }
+}
+
+/// Compose on its canvas at the desk's right, its target Inventory: the pane a carried reference
+/// is dropped on, by the place of a field of Inventory's own messages.
+static std::int64_t compose_on_canvas_for_inventory(InventoryStory& s) {
+    auto& r = s.r;
+    REQUIRE(r.load_refusals.empty());
+    r.pick({"zengine.info", "info"}); // give Compose the right-hand area
+    r.pick(composer_ref());
+    const auto compose_kind = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
+    for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
+        p.place = {pane_unit::kPixels, 85*surface::kCanvasCellPx, 4*surface::kCanvasCellPx};
+        p.width = {pane_unit::kPixels, 80*surface::kCanvasCellPx};
+        p.height = {pane_unit::kPixels, 24*surface::kCanvasCellPx};
+    }
+    r.extent(180, 60);
+    auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
+    loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
+    const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroOffice);
+    raw->zen_set_self(selector_id);
+    raw->next = [](loom::Mail& m) { m.as_role(kIntroOffice).publish(
+        intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
+    r.bus.send(selector_id, loom::Message(loom::to_value(InventoryHandDo{})));
+    r.bus.drain_until_idle();
+    REQUIRE(shows_canvas(*r.session().panes.external_pane(compose_kind)));
+    return compose_kind;
+}
+
+/// The row of a pane's picture whose text holds `text`; -1 where none does.
+static std::int64_t row_saying(InventoryStory& s, std::int64_t kind, const std::string& text) {
+    const auto rows = pane_rows(s.r, kind);
+    for (std::size_t i = 0; i < rows.size(); ++i)
+        if (rows[i].find(text) != std::string::npos) return static_cast<std::int64_t>(i);
+    return -1;
+}
+
+TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered: a reference or a "
+          "value, on a canvas or on rows") {
+    // The drop is queued and said sent; the pane leaves before the bus dispatches it.
+    const auto leave_once_sent = [](InventoryStory& s, const std::string& said, const std::string& role,
+                                    bool& removed) {
+        return s.r.bus.add_observer([&s, said, role, &removed](const loom::BusEvent& e) {
+            if (!removed && e.kind == loom::EventKind::Delivered && e.target == s.r.workshop_id &&
+                s.r.last_notice().rfind(said, 0) == 0)
+                removed = s.r.kernel.unload_role(role);
+        });
+    };
+    SUBCASE("a reference on Compose's canvas") {
+        InventoryStory s(63, true);
+        s.append(7, "source");
+        const auto compose_kind = compose_on_canvas_for_inventory(s);
+        const std::int64_t rename = row_saying(s, compose_kind, "InventoryRename v1");
+        REQUIRE(rename >= 0);
+        s.click(compose_kind, rename);
+        const std::int64_t field = row_saying(s, compose_kind, "reference:");
+        REQUIRE_MESSAGE(field >= 0, s.shown(compose_kind));
+        s.acquire();
+        bool removed = false;
+        RemoveObserver watch{s.r.bus, leave_once_sent(s, "Reference sent to", kComposerOffice, removed)};
+        s.click(compose_kind, field);
+        REQUIRE(removed);
+        CHECK_MESSAGE(s.r.last_notice().find(std::string("Reference not delivered to ") +
+                                             kComposerOffice) != std::string::npos,
+                      s.r.last_notice());
+    }
+    SUBCASE("a value on Flow's canvas") {
+        InventoryStory s(191, true, false, true);
+        s.append(1, "A");
+        REQUIRE(s.flow != 0);
+        bool removed = false;
+        RemoveObserver watch{s.r.bus, leave_once_sent(s, "Value sent to", "zengine.flow", removed)};
+        auto press = s.button_at(s.source, 2, true);
+        auto release = s.button_at(s.flow, 8, false);
+        release.x += 40; // over the graph, right of Flow's rail
+        auto move = release;
+        move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+        s.batch({press, move, release});
+        REQUIRE_MESSAGE(removed, s.r.last_notice());
+        CHECK_MESSAGE(s.r.last_notice().find("Value not delivered to zengine.flow") != std::string::npos,
+                      s.r.last_notice());
+    }
+    SUBCASE("a Terminal value on Inventory's rows, the drop that names its source") {
+        InventoryStory s(191 | 256);
+        auto* terminal = s.r.mount_terminal();
+        load::LoadPlan plan; load::ArtifactIntent artifact;
+        artifact.stem = "zengine-terminal-pane"; artifact.weave = load::WeaveIntent{"zengine.terminal"};
+        plan.artifacts.push_back(artifact);
+        REQUIRE(s.r.run_plan(plan).ok);
+        s.r.pick({"zengine.terminal", "terminal"});
+        const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
+        for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.terminal") {
+            p.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 31 * surface::kCanvasCellPx};
+            p.width = {pane_unit::kPixels, 80 * surface::kCanvasCellPx};
+            p.height = {pane_unit::kPixels, 24 * surface::kCanvasCellPx};
+        }
+        s.r.bus.send(terminal->id(), loom::Message(loom::to_value(loom::Ack{})));
+        s.r.extent(181, 60);
+        const std::int64_t at = row_saying(s, kind, "zen.Ack");
+        REQUIRE_MESSAGE(at >= 0, s.shown(kind));
+        bool removed = false;
+        RemoveObserver watch{s.r.bus, leave_once_sent(s, "Value sent to", slots::kRole, removed)};
+        auto press = s.button_at(kind, at, true), release = s.button_at(s.source, 0, false);
+        auto move = release;
+        move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+        s.batch({press, move, release});
+        REQUIRE_MESSAGE(removed, s.r.last_notice());
+        CHECK_MESSAGE(s.r.last_notice().find(std::string("Value not delivered to ") + slots::kRole) !=
+                          std::string::npos,
+                      s.r.last_notice());
+    }
+}
+
+TEST_CASE("a reference placed on a canvas whose pane has no door for one is sent nothing and stays held") {
+    InventoryStory s(191, true, false, true);
+    s.append(1, "A");
+    REQUIRE(s.flow != 0);
+    std::int64_t drops = 0;
+    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && (e.schema_name == PaneCanvasDrop::zen_name ||
+                                                    e.schema_name == PaneCanvasValueDrop::zen_name))
+            ++drops;
+    })};
+    s.acquire();
+    // Flow takes a value on its canvas and no reference: the place refuses, in words...
+    s.click(s.flow, 8);
+    CHECK(drops == 0);
+    CHECK_MESSAGE(s.r.last_notice().find("does not accept the carried item") != std::string::npos,
+                  s.r.last_notice());
+    // ...and the reference is still in hand: a pane that takes one is given it.
+    s.place();
+    CHECK(drops == 0);
+}
+
+TEST_CASE("a live reference carried from Inventory lands in the Compose field its place names on Compose's canvas") {
+    InventoryStory s(63, true);
+    s.append(7, "source");
+    auto& r = s.r;
+    const auto compose_kind = compose_on_canvas_for_inventory(s);
+    const auto row_saying = [&](const std::string& text) { return ::row_saying(s, compose_kind, text); };
+    // The form the reference is for, opened by its row on the canvas...
+    const std::int64_t rename = row_saying("InventoryRename v1");
+    REQUIRE(rename >= 0);
+    s.click(compose_kind, rename);
+    const std::int64_t field = row_saying("reference:");
+    REQUIRE_MESSAGE(field >= 0, s.shown(compose_kind));
+    // ...then the source entry's live reference, picked up in Inventory and clicked onto that
+    // field: Workshop sends it as a canvas drop, and the field's row takes it.
+    s.acquire();
+    s.click(compose_kind, field);
+    INFO(s.shown(compose_kind));
+    CHECK(r.last_notice().find("Reference sent to Compose") != std::string::npos);
+    CHECK(s.shown(compose_kind).find("Copied data into form") != std::string::npos);
+    const auto rows = pane_rows(r, compose_kind);
+    REQUIRE(static_cast<std::size_t>(field) < rows.size());
+    CHECK(rows[static_cast<std::size_t>(field)].find("[copied message/list]") != std::string::npos);
 }
 
 TEST_CASE("pane view reports the painter's rows and refuses hidden content") {
@@ -940,10 +1102,14 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     REQUIRE_MESSAGE(s.saved_entries().size()==1,(s.shown(kind)+s.shown(s.source)));
     CHECK(s.saved_entries().front().item.get("text")->as_text()=="wrapped");
     s.key(input::scan::kEscape); // keep the generated copy name
-    const auto old_picture=s.r.session().panes.external_pane(kind)->picture;
+    // A PRESS AIMED AT THE PICTURE BEFORE THE RECORD MOVED: its room and number, at that row's place.
+    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(kind)));
+    const auto before=s.r.session().panes.external_pane(kind)->canvas;
+    const CanvasRows lattice=held_canvas_rows(*s.r.session().panes.external_pane(kind));
     s.r.bus.send(terminal->id(),loom::Message(loom::to_value(loom::Ack{}))); s.r.extent(182,60);
     s.r.bus.office_send_to_role_as(s.r.workshop_id,kWorkshopProvider,"zengine.terminal",
-        loom::Message(loom::to_value(v3::PanePressed{"terminal",at+1,0,false,old_picture})));
+        loom::Message(loom::to_value(PaneCanvasPointer{"terminal",before.grant,before.content.picture,1,
+            canvas_pointer::kPress,1,lattice.column_x(0),lattice.row_y(at+1)})));
     s.r.bus.drain_until_idle();
     CHECK_MESSAGE(s.shown(kind).find("That transcript")!=std::string::npos,s.shown(kind));
     rows=pane_rows(s.r,kind); at=-1;

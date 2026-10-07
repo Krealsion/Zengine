@@ -697,3 +697,84 @@ TEST_CASE("the Connections pane draws the guest door's reading as its own pictur
     CHECK(r.session().context.subject == context_subject::kPane);
     CHECK(r.session().context.pane == ref);
 }
+
+TEST_CASE("a pane that draws its rows on its canvas wears the medium's own ground beneath them, as a prose body does, in a window and in a terminal") {
+    namespace cp = zengine::connections_pane;
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        PaneRig r;
+        r.mount_workshop();
+        GuestConnections said;
+        said.listen = "127.0.0.1:4242";
+        said.rows.push_back(GuestConnection{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7, ""});
+        {
+            auto door = std::make_unique<GuestDoorSeat>(said);
+            GuestDoorSeat* raw = door.get();
+            const loom::WeaveId id = r.bus.register_weave(
+                std::move(door), loom::emit_default_grant(*raw), std::string(kGuestsRole));
+            raw->zen_set_self(id);
+        }
+        load::LoadPlan plan;
+        load::ArtifactIntent seat;
+        seat.stem = cp::kConnectionsPaneStem;
+        seat.weave = load::WeaveIntent{cp::kConnectionsPaneRole};
+        plan.artifacts.push_back(seat);
+        const load::Executed done = r.run_plan(plan);
+        REQUIRE_MESSAGE(done.ok, done.refusal);
+        r.ready();
+        if (window) {
+            r.extent_on_window(150, 65);
+        } else {
+            r.extent(160, 48);
+        }
+        const PaneRef ref{cp::kConnectionsPaneRole, cp::kConnectionsPane};
+        r.pick(ref);
+        const RuntimePane* row = r.session().panes.runtime.find(ref.provider, ref.pane);
+        REQUIRE(row != nullptr);
+        const ExternalPane* pane = r.session().panes.external_pane(row->kind);
+        REQUIRE(pane != nullptr);
+        REQUIRE(shows_canvas(*pane));
+        const auto& body = pane->canvas;
+        REQUIRE_FALSE(body.content.rects.empty());
+        CHECK(body.content.rects[0].role == surface::role::kMediumGround);
+
+        // WHAT THE MEDIUM DRAWS of the body: its own ground, and nothing black.
+        const surface::SurfaceCanvas& canvas = r.last_canvas();
+        if (window) {
+            const Session& s = r.session();
+            const surface::SurfaceExtent metric{canvas.width, canvas.height, s.text_advance_px,
+                                                s.text_line_px, s.cell_px};
+            const std::vector<surface::PlanLayer> drawn =
+                surface::plan_canvas(canvas, metric, surface::canvas_window_size(canvas));
+            bool own = false;
+            for (const surface::PlanLayer& layer : drawn) {
+                for (const surface::PlanRect& q : layer.quads) {
+                    if (q.x >= body.x + body.width || q.x + q.w <= body.x ||
+                        q.y >= body.y + body.height || q.y + q.h <= body.y) {
+                        continue;
+                    }
+                    CHECK_FALSE((q.r == 0 && q.g == 0 && q.b == 0));
+                    own = own || (q.x == body.x && q.y == body.y && q.w == body.width &&
+                                  q.h == body.height &&
+                                  surface::PlanInk{q.r, q.g, q.b} == surface::kCanvasBackground);
+                }
+            }
+            CHECK(own);
+        } else {
+            const surface::CanvasGrids cells = surface::rasterize_canvas(canvas);
+            std::size_t own = 0;
+            for (std::int64_t y = surface::cell_of_pixel(body.y);
+                 y < surface::cell_of_pixel(body.y + body.height); ++y) {
+                for (std::int64_t x = surface::cell_of_pixel(body.x);
+                     x < surface::cell_of_pixel(body.x + body.width); ++x) {
+                    const auto ground = cells.grounds[static_cast<std::size_t>(y * cells.w + x)];
+                    CHECK(ground != surface::role::kGround);
+                    if (ground == surface::role::kMediumGround) ++own;
+                }
+            }
+            CHECK(own > 0);
+            // ...which the terminal wears as its own: not one black ground byte on the screen.
+            CHECK(surface::canvas_body(canvas).find("\x1b[40m") == std::string::npos);
+        }
+    }
+}

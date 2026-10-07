@@ -582,7 +582,9 @@ plugin SDK. **No Loom change of any kind.**
 ### A caret and a selection
 
 A pane with an insertion point says where it is in a second sentence beside its rows; a pane
-without one says nothing (`workshop/pane_vocabulary.hpp`):
+without one says nothing (`workshop/pane_vocabulary.hpp`). A pane drawing its rows on its canvas
+says it instead in the run it stands in (`caret_col` and the selection's columns, which
+`rows_picture` sets from a `RowsCaret`), and the medium draws it the same way:
 
 ```text
 PaneCaret       provider -> Workshop   the caret's row and the column it sits before, and the
@@ -691,8 +693,8 @@ arithmetic, and keeps its own meaning, names and hit testing:
   room has it. In a terminal it is the room's cells; where type is set it starts the medium's
   inset in from the left and keeps that inset free at the right, for a caret after a full row's
   last character.
-- `rows_picture(room, picture, rows, parts, caret)` draws `SurfaceTextRow`s there: the room's
-  ground (`kGround`) beneath, one unpadded run a row with its role and ground -- a row's ground
+- `rows_picture(room, picture, rows, parts, caret)` draws `SurfaceTextRow`s there: the medium's
+  own ground (`kMediumGround`) beneath, as a prose body's, one unpadded run a row with its role and ground -- a row's ground
   also laid across the room's whole width beneath it, as a prose row's is -- a row's blanks after
   its last character dropped unless a ground, the caret or the selection stands on them, a caret
   after the last character given the blank after it where the row has one, the caret and
@@ -712,15 +714,17 @@ with a caret reserves one column. Keep measured sizes out of saved authoring dat
 they describe the current room, not a document or graph's durable coordinates.
 
 The v3 room and content identities must be used together, with `PaneCanvasPointer` v2,
-`PaneCanvasHover` v2 and `PaneCanvasValueDrop` v2, which say their places in the same pixels.
+`PaneCanvasHover` v2, `PaneCanvasValueDrop` v2 and `PaneCanvasDrop` v1, which say their places in
+the same pixels; the reference door has no earlier version, and says pixels to every holder.
 A provider built against the earlier doors — room and content v2, pointer, hover and drop v1,
 all in 1/48 canvas-cell sub-units, four to a pixel — is still answered in them: Workshop asks
 which version its holder accepts, sends its room, pointer, hover and drop times four, and reads
 its picture back with every edge floored to the pixel the window painted it at. Participants
 whose declarations change must be rebuilt and restarted before using the new conversation.
 
-Admission is whole: positive extents, one of the five Surface roles (including the opaque
-`kGround` background), at most 4096 rectangles, 2048 labels, 2048 text runs, 4096 bytes per label
+Admission is whole: positive extents, a Surface role for each -- an ink is one of the five from
+`kFill` to the opaque `kGround`, and a rectangle or a run's ground may also be the medium's own
+(`kMediumGround`), which is no ink -- at most 4096 rectangles, 2048 labels, 2048 text runs, 4096 bytes per label
 or run, and 131072 combined text bytes.
 Both text forms require printable ASCII; a nonnegative caret and each selection range must
 lie within its run. A positive picture number
@@ -803,15 +807,15 @@ weaver presses a visible row
   press moves the keyboard, so a press that brings the keys back says `false`, and a press on a
   pane whose titles are hidden names the row painted where it landed (that pane's title returns
   with the keys, and the smaller room it leaves is granted right after the press). It is a fact,
-  not an instruction: the Files pane opens a row only on a press that says the keys were already
-  its own and that row was already selected, and a pane with no such rule ignores it. Nothing is
-  said when the keys leave a pane.
+  not an instruction: a pane may open a row only on a press that says the keys were already its
+  own and that row was already selected, as Files does with the same fact off its canvas pointer,
+  and a pane with no such rule ignores it. Nothing is said when the keys leave a pane.
 - **One press crosses once, in the version its pane can read.** Workshop sends the second
   version only when the host answers that the office's current holder accepts it — read from the
   bus's own role table and accept-sets — and the first version otherwise, unchanged, so a pane
   built before the second existed hears exactly what it always heard. A first-version press states
-  no fact: a pane that accepts both must treat it as "not known" (Files selects on it, and Return
-  still opens). The answer is an inspection, not a promise: the office is resolved again at
+  no fact: a pane that accepts both must treat it as "not known" -- at most it selects, and the
+  pane's own key opens. The answer is an inspection, not a promise: the office is resolved again at
   delivery, and if another holder without the second door has taken it by then, Loom refuses that
   one press, records the refusal against Workshop's send, and nothing is sent again. A pane that
   adds the second door changes what it accepts, which Loom will not reload in place: restart
@@ -1161,6 +1165,7 @@ The pane must still send the operation under its own ordinary bus grant and hand
 | `PaneCarryAnswered{carried, reason}` | Authenticated answer to that request |
 | `PaneDrop{pane, data, row, column, picture}` | Workshop to the selected receiver, under a new input correlation; `picture` is the aimed prose picture as for `PanePressed v3` |
 | `PaneCanvasValueDrop{pane, grant, picture, x, y, data, source_office, source_pane, token}` | A value copy placed on a canvas pane: the place in the canvas's local pixels, its room grant and the aimed picture, with v2's attribution |
+| `PaneCanvasDrop{pane, grant, picture, x, y, data}` | A reference placed on a canvas pane, as `PaneDrop` places one on rows: the place in the canvas's local pixels, its room grant and the aimed picture |
 
 The actor picks up the reference and clicks a receiving pane to place it. Escape cancels;
 another actor cannot place or cancel the held reference. If the initiating guest participant
@@ -1169,12 +1174,12 @@ does not end a still-connected participant. An unsupported destination leaves th
 owns decoding and the meaning of the drop; subsequent reads or writes need their own authority.
 A request that cannot be queued leaves the reference held. A later Loom dispatch refusal
 is reported with its destination and attempt; it is never retried automatically.
-A successful send is not a completed receiver operation. The reference door serves prose panes
-only. A value released or clicked onto a **canvas** pane reaches a provider that accepts
-`PaneCanvasValueDrop` as that place in its local pixels, within the room it was granted and
-against the picture the medium showed, so the provider hit-tests what it drew; a canvas
-provider without that door is sent nothing and the value stays held, as anywhere it is not
-accepted. A drag's drop names the picture and place its release met, even when the carry is
+A successful send is not a completed receiver operation. An item released or clicked onto a
+**canvas** pane reaches a provider that accepts its canvas door -- `PaneCanvasValueDrop` for a
+value, `PaneCanvasDrop` for a reference -- as that place in its local pixels, within the room it
+was granted and against the picture the medium showed, so the provider hit-tests what it drew; a
+canvas provider without that door is sent nothing: a clicked item stays held, as anywhere it is
+not accepted, and a dragged one is let go (below). A drag's drop names the picture and place its release met, even when the carry is
 answered after the canvas repainted, and a canvas granted afresh in between refuses it in words.
 A drop on a canvas is no canvas gesture: it begins no pointer custody.
 
