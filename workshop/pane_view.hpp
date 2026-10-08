@@ -53,7 +53,8 @@ struct DeskRect {
 
 /// One run of words where the medium draws it: a text pane's row, a canvas pane's label or text
 /// run, a menu's line. `word` numbers it in its answer, which a point request names; `place`
-/// covers its glyphs; `x`, `y` is the centre of its middle character, where a press names it.
+/// covers its glyphs; `x`, `y` is the centre of its middle character, where a press names it --
+/// none, as `PanePart` says one, while its canvas picture takes no press.
 struct PaneWord {
     std::int64_t word = 0;
     std::string text;
@@ -149,7 +150,9 @@ struct PanePoint {
 /// listed after it holds -- a text part's middle character of its own, else its middle blank cell
 /// of its own; a canvas part's centre, else the middle of its widest stretch of its own on the row
 /// nearest its centre. A part with no place of its own has no point: `x` and `y` are 0, and
-/// `space` is `input::space::kUnknown`, a space no consumer reads.
+/// `space` is `input::space::kUnknown`, a space no consumer reads. Nor has any part or word of a
+/// canvas picture that takes no press: the one a managed opening shows, until its pane draws its
+/// own, or one its office's holder no longer holds.
 struct PanePart {
     std::string name, text;
     DeskRect place;

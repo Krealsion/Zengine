@@ -2084,6 +2084,54 @@ TEST_CASE("a canvas part's own place is sought over all of it, and a part with n
     }
 }
 
+TEST_CASE("a canvas picture its office's holder no longer holds says its words and parts with no point, "
+          "gives none, and a press where one was reaches nothing") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        d.draw_named({PaneCanvasPart{"node", kPaneCanvasUnit, 0, 8 * kPaneCanvasUnit, kPaneCanvasUnit}});
+        REQUIRE(d.sketch->rejected.empty());
+        v3::PaneView held;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, held).empty());
+        REQUIRE(held.parts.size() == 1);
+        REQUIRE(held.parts[0].space != input::space::kUnknown);
+        // THE OFFICE HELD BY NO ONE NOW, the picture standing until the desk grants its room afresh.
+        d.r.host.role_holder = [](std::string_view) { return loom::WeaveId{}; };
+        v3::PaneView now;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, now).empty());
+        CHECK(now.picture == held.picture);
+        REQUIRE(now.words.size() == held.words.size());
+        for (std::size_t i = 0; i < now.words.size(); ++i) {
+            CAPTURE(now.words[i].text);
+            CHECK(now.words[i].text == held.words[i].text);
+            CHECK(now.words[i].place.x == held.words[i].place.x);
+            CHECK(now.words[i].place.w == held.words[i].place.w);
+            CHECK(now.words[i].x == 0);
+            CHECK(now.words[i].y == 0);
+            CHECK(now.words[i].space == input::space::kUnknown);
+        }
+        REQUIRE(now.parts.size() == 1);
+        CHECK(now.parts[0].name == "node");
+        CHECK(now.parts[0].place.x == held.parts[0].place.x);
+        CHECK(now.parts[0].place.w == held.parts[0].place.w);
+        CHECK(now.parts[0].x == 0);
+        CHECK(now.parts[0].y == 0);
+        CHECK(now.parts[0].space == input::space::kUnknown);
+        // NEITHER POINT DOOR GIVES ONE...
+        v2::PanePoint character;
+        CHECK(d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, now.picture, 0, 0}, character)
+                  .find("takes no press") != std::string::npos);
+        PanePoint cell;
+        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, now.picture, 0, 0}, cell)
+                  .find("takes no press") != std::string::npos);
+        // ...AS A PRESS WHERE THE PART'S POINT WAS REACHES NOTHING.
+        d.sketch->pointers.clear();
+        d.click(held.parts[0].x, held.parts[0].y, held.parts[0].space);
+        CHECK(d.sketch->pointers.empty());
+    }
+}
+
 TEST_CASE("a picture of as many parts as it may name gives each a point a press there gives it, or none") {
     for (const bool window : {false, true}) {
         CAPTURE(window);

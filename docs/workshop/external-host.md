@@ -686,7 +686,9 @@ what Workshop owns and none read off a picture:
   it drew them last, each a word with its place and the point a press names it by; and beside them
   every part the pane names -- a row, a control, an element -- under the pane's own name, with the
   characters it covers, its place and its point: a place of its own, where a press reaches it as
-  the pane reads a press, or none for a part every place of which another part takes. A pane keeps
+  the pane reads a press, or none for a part every place of which another part takes. A canvas
+  picture that takes no press -- the one a managed opening shows, until its pane draws its own, or
+  one its office's holder no longer holds -- gives no word or part a point. A pane keeps
   a part's name across its redraws, so a walk finds it wherever the last redraw put it ([the parts
   a pane names](../reference/workshop-panes.md#a-pane-names-its-parts)). Version 2 answers the words
   alone, and version 1 a text pane's rows, as text fitted to the body rather than as drawn; a pane

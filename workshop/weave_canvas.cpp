@@ -15,6 +15,13 @@ bool WorkshopWeave::canvas_owner_current(std::int64_t kind) const {
         host_->role_holder && host_->role_holder(row->provider) == pane->canvas.owner;
 }
 
+// A PICTURE TAKES A GESTURE ONLY AS ITS HOLDER'S OWN: heard from the office's holder now, and
+// numbered. The one a managed opening shows is numbered none until the holder draws (WL-OPEN-10).
+bool WorkshopWeave::canvas_takes_press(std::int64_t kind) const {
+    const auto* pane = session_.panes.external_pane(kind);
+    return pane && canvas_owner_current(kind) && pane->canvas.heard && pane->stamp.aimed > 0;
+}
+
 loom::Ticket WorkshopWeave::send_canvas_pointer(loom::WeaveId owner, const PaneCanvasPointer& e,
                                                bool legacy, loom::Mail& mail,
                                                std::uint64_t correlation) {
@@ -219,7 +226,7 @@ bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& 
     const PixelRect body{c.x, c.y, c.width, c.height};
     if (!body.contains_at(at.px.x, at.px.y, at.grain)) return false;
     // A waiting or retired picture owns its room, but cannot acquire a new gesture.
-    if (!canvas_owner_current(kind) || !c.heard || pane->stamp.aimed <= 0) return true;
+    if (!canvas_takes_press(kind)) return true;
     const auto slot = static_cast<std::size_t>(b.button - 1);
     lose_canvas_hold(slot, mail);
     if (canvas_gestures_ == (std::numeric_limits<std::int64_t>::max)()) return true;
@@ -309,8 +316,7 @@ void WorkshopWeave::canvas_hover(const input::PointerMoved& m, loom::Mail& mail)
             host_->holder_accepts(row->provider, pane->canvas.legacy
                                                      ? *loom::schema_of<v1::PaneCanvasHover>()
                                                      : *loom::schema_of<PaneCanvasHover>());
-        if (row && pane && canvas_owner_current(here.kind) && pane->canvas.heard &&
-            pane->stamp.aimed > 0 && hears) {
+        if (row && pane && canvas_takes_press(here.kind) && hears) {
             const auto& c = pane->canvas;
             if (PixelRect{c.x, c.y, c.width, c.height}.contains_at(at.px.x, at.px.y, at.grain)) {
                 kind = here.kind;
@@ -350,7 +356,7 @@ bool WorkshopWeave::canvas_wheel(std::int64_t kind, const input::PointerWheel& w
     if (!row || !pane || pane->canvas.grant == 0) return false;
     const auto at = canvas_point_of(w.space, w.x, w.y);
     const auto& c = pane->canvas;
-    if (!canvas_owner_current(kind) || !c.heard || pane->stamp.aimed <= 0 || !at.understood ||
+    if (!canvas_takes_press(kind) || !at.understood ||
         !PixelRect{c.x, c.y, c.width, c.height}.contains_at(at.px.x, at.px.y, at.grain) ||
         !std::isfinite(w.dx) || !std::isfinite(w.dy)) return true;
     if (canvas_gestures_ == (std::numeric_limits<std::int64_t>::max)()) return true;

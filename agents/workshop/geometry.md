@@ -229,7 +229,7 @@ LAW — A desk and a pane's words are answered from what Workshop owns, in canva
 
 MEANS
 - a canvas pane's labels and runs are words as a text pane's rows are, and so are a menu's lines;
-- the point a word or a lattice cell gives is resolved by the measurer a press is, so a press there lands on it; a picture numbered none gives none;
+- the point a word or a lattice cell gives is resolved by the measurer a press is, so a press there lands on it; a picture taking none -- numbered none, or not its holder's -- gives none;
 - reading grants nothing and moves nothing: a press is ordinary input.
 
 DOES NOT MEAN
@@ -237,7 +237,8 @@ DOES NOT MEAN
 - that a covered pane's words are said: a menu or arranging over it refuses them.
 
 PROVEN BY — `workshop/weave_inspection.cpp` `desk_view`, `visible_words`, `word_on`,
-`glyph_point`, `on(v3::PanePointRequested)`; `tests/test_workshop_desk.cpp` case `"every place the desk and the words give is
+`glyph_point`, `on(v3::PanePointRequested)`; `workshop/weave_canvas.cpp` `canvas_takes_press`;
+`tests/test_workshop_desk.cpp` case `"every place the desk and the words give is
 where the medium draws it, in a window and in a terminal"`, case `"a canvas pane's words are its
 labels and text runs, each where it is drawn, and a press at a word's point lands inside it in
 the pane's own canvas"`, case `"a character's point is the cell showing it, a caret moving none,
@@ -248,9 +249,13 @@ caret's own cell, inside its place, in a text row and in a canvas field at the b
 edge"`, case `"a part whose one cell holds the caret at the body's right edge has a point there,
 and a press on it reaches the pane"`, case `"every cell of a canvas pane's text lattice has a point, a
 blank one and the one after a row's last character too, and a press there reaches the pane at that
-cell; a text pane's cell is the first version's"`; `tests/test_workshop_panes_opening.cpp` case `"a
+cell; a text pane's cell is the first version's"`, case `"a canvas picture its office's holder no longer
+holds says its words and parts with no point, gives none, and a press where one was reaches
+nothing"`; `tests/test_workshop_panes_opening.cpp` case `"a
 holder that draws nothing after the commitment still shows the picture it prepared, numbered none,
-its words read at once and a cell's point read again until it draws its own"`.
+its words read at once and a cell's point read again until it draws its own"`, case `"the picture a
+managed opening shows says its words and its named part with no point, and their points return with
+the holder's own picture, where a press reaches it"`.
 WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
 ## Do not assume

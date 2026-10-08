@@ -228,6 +228,13 @@ void no_point(PanePart& out) {
     out.space = input::space::kUnknown;
 }
 
+/// ...AND NEITHER HAS A WORD OF A PICTURE THAT TAKES NO PRESS.
+void no_point(PaneWord& out) {
+    out.x = 0;
+    out.y = 0;
+    out.space = input::space::kUnknown;
+}
+
 /// THE PART A PRESS ON EACH COLUMN OF EACH ROW REACHES: of `parts`, by its index, the last listed
 /// that holds the column, or `kNoPart` -- on each row, every column up to the last any part holds.
 std::map<std::int64_t, std::vector<std::size_t>> row_owners(const std::vector<PaneRowPart>& parts) {
@@ -579,9 +586,10 @@ void WorkshopWeave::on(const v2::DeskViewRequested&, loom::Mail& mail) {
 
 namespace {
 
-/// A CANVAS PICTURE NUMBERED NONE -- the one a managed opening showed -- takes no press: a press is
-/// taken from its pane's own first picture in that room (WL-OPEN-10), so a point is read again.
-constexpr std::string_view kUnnumberedPicture =
+/// A CANVAS PICTURE THAT TAKES NO PRESS (`canvas_takes_press`) -- the one a managed opening showed,
+/// numbered none, or one its office's holder no longer holds -- gives no point: a press is taken
+/// from its pane's own next picture (WL-OPEN-10), so a point is read again.
+constexpr std::string_view kTakesNoPress =
     "pane point unavailable: the pane's picture moved; read it again -- the one shown takes no press "
     "until its pane draws its own";
 
@@ -609,7 +617,8 @@ bool drawn_label(const PaneCanvasLabel& label, const PixelRect& body, std::strin
 // WHAT A VISIBLE BODY SHOWS, word by word: a text pane's rows under its header, a canvas pane's
 // labels and then its text runs, each where the medium draws it. A word the body does not draw
 // is not said, so a word's number is its place in this list and nowhere else. `glyphs` takes
-// where each word's glyphs stand, which a point inside it is measured by.
+// where each word's glyphs stand, which a point inside it is measured by. A picture that takes no
+// press says each word with its place and no point.
 // WL-GEO-13 -- agents/workshop/geometry.md
 std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
                                                    std::vector<WordGlyphs>* glyphs) const {
@@ -660,6 +669,9 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
         if (text.empty() && placed.text.caret_col < 0) continue;
         keep(glyph_grid(fit), std::move(text), 0);
     }
+    if (!canvas_takes_press(visible.kind)) {
+        for (PaneWord& w : out) no_point(w);
+    }
     return out;
 }
 
@@ -674,7 +686,8 @@ void WorkshopWeave::on(const v2::PaneViewRequested& asked, loom::Mail& mail) {
 }
 
 // THE PARTS A VISIBLE BODY'S PANE NAMES, each where the medium draws it, as the pane named it: a
-// part the body does not show is not said, and neither is a place the pane names nothing.
+// part the body does not show is not said, and neither is a place the pane names nothing. A
+// picture that takes no press says each part with its place and no point.
 // WL-HAND-06 -- agents/workshop/pane-parts.md
 std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
                                                    const std::vector<PaneWord>& words) const {
@@ -690,10 +703,12 @@ std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
             boxes.push_back(units_of(visible.canvas_body, part, unit));
         }
         const std::vector<std::optional<UnitPoint>> points = own_points(boxes);
+        const bool pressed = canvas_takes_press(visible.kind);
         for (std::size_t i = 0; i < parts.size(); ++i) {
             PanePart drawn;
             if (!parts[i].name.empty() && canvas_part_on(visible.canvas_body, parts[i], boxes[i],
                                                          points[i], words, space, drawn)) {
+                if (!pressed) no_point(drawn);
                 out.push_back(std::move(drawn));
             }
         }
@@ -744,8 +759,8 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
         (void)mail.answer(loom::Refused{"pane point unavailable: the pane's picture moved; read it again"});
         return;
     }
-    if (visible.canvas && visible.content->stamp.aimed <= 0) {
-        (void)mail.answer(loom::Refused{std::string(kUnnumberedPicture)});
+    if (visible.canvas && !canvas_takes_press(visible.kind)) {
+        (void)mail.answer(loom::Refused{std::string(kTakesNoPress)});
         return;
     }
     std::vector<WordGlyphs> glyphs;
@@ -792,8 +807,8 @@ void WorkshopWeave::on(const v3::PanePointRequested& asked, loom::Mail& mail) {
         (void)mail.answer(loom::Refused{"pane point unavailable: the pane's picture moved; read it again"});
         return;
     }
-    if (visible.canvas && visible.content->stamp.aimed <= 0) {
-        (void)mail.answer(loom::Refused{std::string(kUnnumberedPicture)});
+    if (visible.canvas && !canvas_takes_press(visible.kind)) {
+        (void)mail.answer(loom::Refused{std::string(kTakesNoPress)});
         return;
     }
     PanePoint reply{asked.provider, asked.pane, asked.picture, asked.row, asked.column, 0, 0, 0};
