@@ -216,15 +216,19 @@ WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-16 — A pane with a room and no answer says waiting, never unavailable
 
-LAW — A pane whose room was granted and answered by nothing valid says `kExternalWaiting`: a fact about this pane, never about the provider; `unavailable` is never said, because silence proves no fate.
+LAW — A pane granted a room and answered by nothing valid says `kExternalWaiting`, or the refusal it holds (WL-ATTN-04): a fact about this pane, not the provider; `unavailable` is never said.
 
 MEANS
-- Loom gives Workshop no participant-visible unload notification;
+- silence proves no fate: Loom gives Workshop no participant-visible unload notification;
 - an unload is said as waiting, and a reload recovers the view.
 
 PROVEN BY — `workshop/screen.hpp` `kExternalWaiting`; `tests/test_workshop_panes_seam.cpp` case
 `"silence is waiting, and Workshop never says unavailable"`; `tests/test_workshop_screen.cpp` case
-`"unload and reload -- waiting is said, and a reload recovers the view"`.
+`"unload and reload -- waiting is said, and a reload recovers the view"`;
+`tests/test_workshop_panes_seam.cpp` case `"a refusal stands until ACCEPTED CONTENT replaces it, a
+new room included"`; `tests/test_workshop_panes_canvas.cpp` case `"a canvas picture refused for
+what it holds is said in its pane and in Attention until a picture of the pane is admitted, and one
+that came late is answered to its pane alone"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## Do not assume

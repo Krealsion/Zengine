@@ -234,7 +234,7 @@ MEANS
 
 DOES NOT MEAN
 - that a word is named: its number is its place in one answer, and a pane names its parts;
-- that a covered pane's words are said: a menu or arranging over it refuses them.
+- that a covered pane's words are said: a menu or arranging over it refuses them, as a refused picture's mark over its picture does.
 
 PROVEN BY — `workshop/weave_inspection.cpp` `desk_view`, `visible_words`, `word_on`,
 `glyph_point`, `on(v3::PanePointRequested)`; `workshop/weave_canvas.cpp` `canvas_takes_press`;
@@ -251,7 +251,10 @@ and a press on it reaches the pane"`, case `"every cell of a canvas pane's text 
 blank one and the one after a row's last character too, and a press there reaches the pane at that
 cell; a text pane's cell is the first version's"`, case `"a canvas picture its office's holder no longer
 holds says its words and parts with no point, gives none, and a press where one was reaches
-nothing"`; `tests/test_workshop_panes_opening.cpp` case `"a
+nothing"`; `tests/test_workshop_desk.cpp` case `"with pane titles hidden, a refused picture's mark is Workshop's own: the pane view waits while it
+covers the picture, a press on it reaches no provider and a right press opens Workshop's menu, and
+the picture beside it takes a press as before, a press held or not"`;
+`tests/test_workshop_panes_opening.cpp` case `"a
 holder that draws nothing after the commitment still shows the picture it prepared, numbered none,
 its words read at once and a cell's point read again until it draws its own"`, case `"the picture a
 managed opening shows says its words and its named part with no point, and their points return with

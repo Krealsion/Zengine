@@ -5,6 +5,7 @@
 #include "maker/weave.hpp"
 #include "maker_fixture.hpp"
 #include "view/host.hpp"
+#include "workshop/pane_canvas.hpp"
 
 #include <algorithm>
 #include <string>
@@ -89,6 +90,23 @@ public:
     void revive(const loom::Value&) override {}
 private:
     std::vector<std::shared_ptr<const loom::Schema>> accepts_;
+};
+
+/// Accepts one shape and answers each delivery of it with a refusal in its owner's words.
+class Refuser final : public loom::Weave {
+public:
+    Refuser(std::shared_ptr<const loom::Schema> accepts, std::string reason)
+        : accepts_(std::move(accepts)), reason_(std::move(reason)) {}
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override { return {accepts_}; }
+    void handle(const loom::Message&, loom::Bus& bus) override {
+        (void)bus.answer(loom::Message(loom::to_value(loom::Refused{reason_})));
+    }
+    loom::Value snapshot() const override { return loom::Value(loom::make_schema("viewtest.Refuser", 1, {})); }
+    loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
+    void revive(const loom::Value&) override {}
+private:
+    std::shared_ptr<const loom::Schema> accepts_;
+    std::string reason_;
 };
 
 struct Rig {
@@ -638,6 +656,53 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
         if (t.role == zengine::surface::role::kAlert) notice += t.text + " ";
     CHECK(has(notice, "from 0 toward 10"));
     CHECK_FALSE(has(notice, "..."));
+}
+
+TEST_CASE("the names and refusals a view only carries reach its notice row spelled in plain ASCII, and text typed into a number field that a canvas cannot draw is refused there, the field as it was") {
+    Rig rig;
+    // A view told `tally.Größe` and saying `tally.panel.Añadir`: names a weaver gave in their own
+    // language, which no rule keeps to ASCII.
+    const auto grosse = loom::SchemaBuilder("tally.Gr\xC3\xB6\xC3\x9F" "e", 1).field("total", loom::Kind::Int).build();
+    auto d = panel();
+    d.shows = {{"total", grosse, "total"}};
+    d.intents[0].shape = shape::make(shape::qualified("tally.panel", "A\xC3\xB1" "adir"), count_shape()->fields());
+    REQUIRE(view::problem(d).empty());
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(d)}).ok);
+    // Workshop's judgement of the latest picture the view said: none, when it is drawn whole.
+    const auto judged = [&rig] {
+        const auto* p = rig.latest("tally.panel");
+        REQUIRE(p != nullptr);
+        return std::string(ws::canvas_content_problem(*p));
+    };
+    rig.room("tally.panel");
+    // WAITING: the shape's name, one `?` a character.
+    CHECK(has(rig.words("tally.panel"), "waiting to be told tally.Gr??e|"));
+    CHECK(judged().empty());
+
+    // REFUSED A SEAT, in the desk's words: a dash is its ASCII twin.
+    rig.tell("tally.panel", ws::PaneRevealAnswered{view::kPane, false, "the desk is full \xE2\x80\x94 caf\xC3\xA9 holds it"});
+    CHECK(has(rig.words("tally.panel"), "no seat on the desk: the desk is full - caf? holds it|"));
+    CHECK(judged().empty());
+
+    // SAID where nothing accepts it: the intent's name.
+    rig.press("tally.panel", d.elements[3]);
+    CHECK(has(rig.words("tally.panel"), "said tally.panel.A?adir; nothing accepts it|"));
+    CHECK(judged().empty());
+
+    // REFUSED by an accepter of the intent, in its owner's words.
+    (void)rig.bus.register_weave(std::make_unique<Refuser>(d.intents[0].shape, "caf\xC3\xA9 refuses A\xC3\xB1" "adir"),
+                                 loom::Grant{}.allow_any());
+    rig.press("tally.panel", d.elements[3]);
+    CHECK(has(rig.words("tally.panel"), "refused: caf? refuses A?adir|"));
+    CHECK(judged().empty());
+
+    // TYPED TEXT a number field cannot draw is refused at the door and said; the field keeps its text.
+    rig.press("tally.panel", d.elements[0]);
+    rig.tell("tally.panel", ws::PaneTextInput{view::kPane, "1\xC2\xB2"});
+    CHECK(has(rig.words("tally.panel"), "start: 0|"));
+    CHECK(has(rig.words("tally.panel"), "not typed -- a number field holds plain ASCII|"));
+    CHECK(rig.latest("tally.panel")->texts.back().role == zengine::surface::role::kAlert);
+    CHECK(judged().empty());
 }
 
 TEST_CASE("a refusal reaches the notice row only when Loom attests it answers the view's own intent; another participant's at that intent's correlation does not") {

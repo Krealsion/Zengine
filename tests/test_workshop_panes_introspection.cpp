@@ -164,6 +164,27 @@ TEST_CASE("a provider-only artifact is visible and wears no weave") {
     CHECK(text[i + 3].find("weave") == std::string::npos);
 }
 
+TEST_CASE("a provider's name for itself is drawn on its resolved row in what a row can carry") {
+    // THE IDENTITY A PROVIDER DECLARES ABOUT ITSELF, as the door carries it: a letter no canvas
+    // draws is drawn as one `?`, so one provider's word cannot refuse the whole Project picture.
+    // No provider this tree builds declares such a name, so the answer is a value here.
+    ws::ResolvedArrangement said = shaped_arrangement();
+    said.artifacts[0].provider = "zengine.operators.b\xC3\xA1sic";
+    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    const std::vector<std::string> text = texts_of(rows);
+    const std::int64_t at = row_with(rows, "zengine-operators-basic");
+    REQUIRE(at >= 0);
+    const std::size_t i = static_cast<std::size_t>(at);
+    REQUIRE(i + 2 < text.size());
+    CHECK(text[i + 2] == "    resolved  provider zengine.operators.b?sic, 2 powers");
+    for (const std::string& row : text) {
+        for (const char c : row) {
+            const unsigned char b = static_cast<unsigned char>(c);
+            CHECK((b >= 0x20u && b < 0x7Fu));
+        }
+    }
+}
+
 TEST_CASE("a weave-only artifact is visible and wears no provider") {
     const std::vector<surface::SurfaceTextRow> rows =
         intro::project_arrangement(shaped_arrangement(), 40, 80);
@@ -891,6 +912,47 @@ TEST_CASE("one place means one thing, and the map is the projection read backwar
     CHECK(intro::target_at(windowed, omission, 0).control == intro::powers_control::kNone);
 }
 
+TEST_CASE("two lists of powers are two press meanings whatever their identities hold") {
+    // ONE POWER WHOSE IDENTITY SPELLS A SECOND PLACE, and two powers in those places: said one
+    // place to a line they read alike, and a press aimed at the first would select `p` in the
+    // second.
+    const std::int64_t entry = intro::powers_control::kEntry;
+    intro::PowersView one;
+    one.spans.push_back(intro::PowersSpan{1, 2, 20, entry,
+                                          "p\n2 2 20 " + std::to_string(entry) + " q"});
+    intro::PowersView two;
+    two.spans.push_back(intro::PowersSpan{1, 2, 20, entry, "p"});
+    two.spans.push_back(intro::PowersSpan{2, 2, 20, entry, "q"});
+    CHECK(intro::press_meaning(one) != intro::press_meaning(two));
+    // ...nor when the identity holds what ends one place and begins the next.
+    intro::PowersView three;
+    three.spans.push_back(intro::PowersSpan{1, 2, 20, entry,
+                                            "p;2 2 20 " + std::to_string(entry) + " q"});
+    CHECK(intro::press_meaning(three) != intro::press_meaning(two));
+    // ...and a list is one meaning however often it is said.
+    CHECK(intro::press_meaning(two) == intro::press_meaning(two));
+}
+
+TEST_CASE("two lists of loaded weaves are two press meanings whatever their names and roles hold") {
+    // A NAME OR A ROLE HOLDING WHAT ENDS ONE WEAVE AND BEGINS THE NEXT, and one weave under another
+    // role: said weave by weave each pair reads alike, and a press aimed at the first would select
+    // what the second shows, or publish a role its row never showed.
+    const auto meaning = [](const std::vector<intro::LoadedWeave>& weaves) {
+        return intro::press_meaning(intro::project_loaded(weaves, 8, 46));
+    };
+    const std::vector<intro::LoadedWeave> joined{{"a;b", "test.one"}};
+    const std::vector<intro::LoadedWeave> apart{{"a", "test.one"}, {"b", "test.one"}};
+    CHECK(meaning(joined) != meaning(apart));
+    const std::vector<intro::LoadedWeave> in_role{{"a", "r;1:b"}};
+    const std::vector<intro::LoadedWeave> beside{{"a", "r"}, {"b", ""}};
+    CHECK(meaning(in_role) != meaning(beside));
+    const std::vector<intro::LoadedWeave> one_role{{"a", "test.one"}};
+    const std::vector<intro::LoadedWeave> other_role{{"a", "test.two"}};
+    CHECK(meaning(one_role) != meaning(other_role));
+    // ...and a list is one meaning however often it is said.
+    CHECK(meaning(apart) == meaning(apart));
+}
+
 TEST_CASE("a control the width cut is not a target") {
     // THE INVERSE MUST AGREE WITH THE PICTURE. A width too narrow for the second view control
     // draws `...` where it would have been, and a press on that mark must not operate a control
@@ -1390,6 +1452,66 @@ TEST_CASE("the Arrangement pane shows what THIS host actually resolved") {
     CHECK(any_row(shown, "plan: default-load-plan.json"));
 }
 
+TEST_CASE("the Project pane spells the words a plan and its loader carry, and its picture is "
+          "drawn") {
+    // A ROLE, A STEM, THE LOADER'S REFUSAL AND THE PLAN'S PATH, each holding a letter no canvas
+    // draws, through the real door. One such byte refuses a whole picture; each is drawn as one
+    // `?` per character, and the picture is admitted.
+    PaneRig r;
+    r.mount_workshop();
+    load::LoadPlan plan = pane_plan();
+    for (load::ArtifactIntent& row : plan.artifacts) {
+        if (row.stem == "zengine-plain-weave") {
+            row.weave = load::WeaveIntent{"test.pl\xC3\xA9in"};
+        }
+    }
+    // ...and an optional row no file answers: the loader refuses it, quoting the path.
+    load::ArtifactIntent unbuilt;
+    unbuilt.stem = "caf\xC3\xA9-tool";
+    unbuilt.weave = load::WeaveIntent{"test.unbuilt"};
+    unbuilt.optional = true;
+    plan.artifacts.push_back(unbuilt);
+    const load::Executed done = r.run_plan(plan);
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.mount_arrangement("/home/jos\xC3\xA9/zen/default-load-plan.json");
+    (void)r.mount_powers();
+    r.ready();
+    r.extent(160, 48);
+    REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
+    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    const std::int64_t kind = intro_row(r, intro::kArrangementPane)->kind;
+    // The whole project and the plan line, in a room wide enough for the loader's sentence to
+    // reach the path it quotes on either platform.
+    author_test_pane_room(r, kind, 19, 100);
+    r.extent(200, 60);
+
+    const ExternalPane* pane = r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    CAPTURE(pane->refusal_why);
+    CHECK(pane->refusal.empty());
+    CHECK(pane->canvas.heard);
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown[0] == "3 of 4 artifacts resolved, 1 unavailable -- 1 providers, 2 weaves");
+
+    const std::int64_t plain = row_with_text(shown, "zengine-plain-weave");
+    REQUIRE(plain >= 0);
+    REQUIRE(static_cast<std::size_t>(plain) + 1 < shown.size());
+    CHECK(shown[static_cast<std::size_t>(plain) + 1] == "    authored  weave test.pl?in");
+
+    const std::int64_t stem = row_with_text(shown, "caf?-tool");
+    REQUIRE(stem >= 0);
+    const std::size_t at = static_cast<std::size_t>(stem);
+    REQUIRE(at + 4 < shown.size());
+    CHECK(shown[at] == "  caf?-tool");
+    CHECK(shown[at + 1] == "    authored  weave test.unbuilt");
+    CHECK(shown[at + 2] == "    " + std::string(intro::kUnavailableRow));
+    CHECK(shown[at + 3].rfind("    why   weave load refused: ", 0) == 0);
+    CHECK(shown[at + 3].find("caf?-tool") != std::string::npos);
+    CHECK(shown[at + 4].rfind("    next  make 'caf?-tool' available", 0) == 0);
+    CHECK(any_row(shown, "plan: /home/jos?/zen/default-load-plan.json"));
+}
+
 TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
     // THE APPARENT DISAGREEMENT, MEASURED. `zengine-operators-basic` is a provider and not a
     // weave: no Kernel loads it, it has no WeaveId and no role. It is a row of one pane and absent
@@ -1410,6 +1532,108 @@ TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
     CHECK(any_row(loaded, std::string(intro::kIntrospectionStem) + " @" + kIntroOffice));
     CHECK(any_row(loaded, intro::kNotInProcess));
     CHECK_FALSE(r.kernel.is_loaded("zengine-operators-basic"));
+}
+
+TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is drawn") {
+    // THE KERNEL'S MAP AS IT CAME: a library name and a role each holding a letter no canvas
+    // draws. Each is drawn as one `?` per character, the picture is admitted, and a press still
+    // selects the library by its own name.
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    REQUIRE(r.load("plain-caf\xC3\xA9", WORKSHOP_SO_HELLO, "test.pl\xC3\xA9in").valid());
+    r.ready();
+    r.extent(160, 48);
+    r.pick(intro_ref());
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::int64_t kind = intro_row(r, kIntroPane)->kind;
+    {
+        const ExternalPane* drawn = r.session().panes.external_pane(kind);
+        REQUIRE(drawn != nullptr);
+        CAPTURE(drawn->refusal_why);
+        CHECK(drawn->refusal.empty());
+        CHECK(drawn->canvas.heard);
+    }
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown[0] == "loaded weaves -- 2");
+    const std::int64_t at = row_with_text(shown, "plain-caf?");
+    REQUIRE(at >= 0);
+    CHECK(shown[static_cast<std::size_t>(at)] == "  plain-caf? @test.pl?in");
+
+    // THE MARKED ROW IS SPELLED THE SAME WAY, and the selection carries the kernel's own bytes.
+    press_pane(r, kind, at, 1);
+    const ExternalPane* marked = r.session().panes.external_pane(kind);
+    REQUIRE(marked != nullptr);
+    CAPTURE(marked->refusal_why);
+    CHECK(marked->refusal.empty());
+    const std::vector<std::string> chosen = pane_rows(r, kind);
+    REQUIRE(static_cast<std::size_t>(at) < chosen.size());
+    CHECK(chosen[static_cast<std::size_t>(at)] == "> plain-caf? @test.pl?in");
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard[0].library == "plain-caf\xC3\xA9");
+    CHECK(ears.heard[0].role == "test.pl\xC3\xA9in");
+}
+
+TEST_CASE("two lists of loaded weaves are two meanings whatever their names hold, so a press carrying "
+          "the first list's picture selects nothing once the second is shown") {
+    // TWO LISTS THAT READ ALIKE one name to a line: `a\nb` and `c`, then `a` and `b\nc`. A press
+    // aimed at the first picture's row of `a\nb` must not select `a`, the weave that row shows now.
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    REQUIRE(r.load("a\nb", WORKSHOP_SO_HELLO, "test.one").valid());
+    REQUIRE(r.load("c", WORKSHOP_SO_GUARD, "test.two").valid());
+    r.ready();
+    r.extent(160, 48);
+    r.pick(intro_ref());
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::int64_t kind = intro_row(r, kIntroPane)->kind;
+    const ExternalPane* pane = r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    REQUIRE(pane->canvas.heard);
+    const std::int64_t grant = pane->canvas.grant;
+    const std::int64_t first = pane->canvas.content.picture;
+    const std::int64_t row = row_with_text(pane_rows(r, kind), "a?b");
+    REQUIRE(row >= 0);
+    const CanvasRows lattice = held_canvas_rows(*pane);
+    const auto as_workshop = [&r](const PaneCanvasPointer& e) {
+        REQUIRE(r.bus.office_send_to_role_as(r.workshop_id, kWorkshopProvider, kIntroOffice,
+            loom::Message(loom::to_value(e), r.workshop_id, r.workshop_id, 0)).valid());
+        r.bus.drain_until_idle();
+    };
+
+    // THE SECOND LIST, read in the same room: a wheel step reads the list again, and where the
+    // whole list fits the window stays where it was.
+    REQUIRE(r.unload("a\nb"));
+    REQUIRE(r.unload("c"));
+    REQUIRE(r.load("a", WORKSHOP_SO_HELLO, "test.one").valid());
+    REQUIRE(r.load("b\nc", WORKSHOP_SO_GUARD, "test.two").valid());
+    as_workshop(PaneCanvasPointer{kIntroPane, grant, first, 1, canvas_pointer::kWheel, 0, 0, 0,
+                                  input::mod::kNone, 0, -1, false});
+    pane = r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    REQUIRE(pane->canvas.grant == grant);
+    REQUIRE(pane->canvas.content.picture > first);
+    const std::vector<std::string> now = pane_rows(r, kind);
+    REQUIRE(static_cast<std::size_t>(row) + 1 < now.size());
+    CHECK(now[static_cast<std::size_t>(row)] == "  a @test.one");
+    CHECK(now[static_cast<std::size_t>(row) + 1] == "  b?c @test.two");
+
+    // A PRESS CARRYING THE FIRST PICTURE, on the row that showed `a\nb`: drawn under another
+    // meaning, so it selects nothing.
+    as_workshop(PaneCanvasPointer{kIntroPane, grant, first, 2, canvas_pointer::kPress, 1,
+                                  lattice.column_x(3), lattice.row_y(row), input::mod::kNone, 0, 0,
+                                  true});
+    CHECK(ears.heard.empty());
+    // ...and a press on the picture shown now selects what that row shows.
+    press_pane(r, kind, row, 3);
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard[0].library == "a");
 }
 
 TEST_CASE("WL-HAND-06: Loaded names each loaded weave's row, and Powers its controls and each power's row") {

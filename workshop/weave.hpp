@@ -504,6 +504,7 @@ public:
     struct CanvasRelease {
         std::int64_t picture = 0, grant = 0;
         PixelRect body;
+        bool marked = false; ///< the release met the mark over a refused picture (`on_refused_mark`)
     };
     bool drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail,
                     std::int64_t picture = -1, const PointedAt& point = PointedAt{},
@@ -1225,6 +1226,9 @@ private:
     /// Whether a canvas pane's picture takes a press, a wheel or a hover now: one its office's
     /// holder drew and numbered. A pane's words and parts say no point at one that takes none.
     bool canvas_takes_press(std::int64_t kind) const;
+    /// Whether a place is on the mark a refused picture wears where no title row carries it
+    /// (`refused_mark_cover`): Workshop's own chrome, which no press or carried item reaches through.
+    bool on_refused_mark(std::int64_t kind, const PointedAt& at) const;
     /// Tell the canvas under the pointer where it rests, to a provider that accepts
     /// `PaneCanvasHover`, and the canvas it left that it left. Geometry only: no focus, no key.
     void canvas_hover(const input::PointerMoved& m, loom::Mail& mail);

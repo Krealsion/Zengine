@@ -732,6 +732,16 @@ Both text forms require printable ASCII; a nonnegative caret and each selection 
 lie within its run. A positive picture number
 must strictly increase within its grant. Authenticated stale or malformed updates receive
 `PaneCanvasRejected{pane,grant,picture,reason}` and leave the last good picture unchanged.
+A malformed one is also said where the weaver reads, as a refused prose update is: the last good
+picture is marked `(update refused)` -- in its title, or at its corner on the medium's own ground
+where no title is shown, and in place of the **updating** marker -- or, where none stands, the
+body says `(the last picture was refused -- none of it was drawn)`; Attention names the reason,
+until a picture of that pane is admitted. The corner mark is Workshop's own chrome: while it
+covers part of a picture the pane view of that pane is refused, as for a pane another covers; a
+press on it reaches no provider, a right press there opening Workshop's menu for the pane; a
+carried item is not placed under it; and the rest of the picture takes presses as it did. A stale
+one, for a holder, a room or a number since replaced, is answered to its pane alone; a grant or a
+number that is not positive is malformed.
 Unauthenticated content changes nothing. A new room clears the old picture's admission and
 fence. When only the same provider's geometry changes, Workshop may keep the old image clipped
 to the new body with an **updating** marker. This preview cannot receive input and does not
@@ -1272,7 +1282,8 @@ press is in the input space the answer names, as `PanePoint`'s is.
 | `v3::PanePointRequested{provider, pane, picture, row, column}` | Where one cell of the pane's text lattice is now, answered as `PanePoint` ([above](#where-a-painted-cell-is)) |
 
 A pane's words are refused as its rows are: closed, unsettled, overlapping, covered by a menu or
-by arranging, or outside the visible workspace. The desk answers whatever is open. A canvas
+by arranging, or outside the visible workspace -- and a canvas pane's while a refused picture's
+corner mark covers part of it. The desk answers whatever is open. A canvas
 picture that takes no press -- the one a managed opening shows, numbered none, until its pane
 draws its own, or one its office's holder no longer holds -- says its words and parts with their
 text and places and no point, as a part with no place of its own is said, and a point asked of it

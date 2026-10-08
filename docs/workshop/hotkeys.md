@@ -79,7 +79,13 @@ is **in force right now** — a heading for each place a key is answered (comman
 arranging scopes, the contextual menu, the name line, each pane that declared rows, the keys
 above every mode), and under it each row: the key as your keymap file would spell it, what it
 does, and the id a file names it by. A `*` marks a key your own file moved or switched off.
+Beneath the list it names the keymap file this run reads and what reading it came to; a character
+the pane cannot draw there -- an `é` in your profile's folder, say -- is shown as `?`.
 `↑` `↓` `Home` `End` scroll it.
+
+![The Hotkeys pane in a window, the keymap file Renée-keymap.json it reads named as Ren?e-keymap.json beneath the list](images/hotkeys-keymap-path-window.png)
+
+![The same Hotkeys pane in a terminal, the file named the same way](images/hotkeys-keymap-path-terminal.png)
 
 It is an ordinary pane: arrange it, cover it, hide it, and `Ctrl`+`k` brings it back. It is not
 a mode — reading it takes no keyboard away from anything, and every key it lists works while it
@@ -101,7 +107,7 @@ small menu opens beside it:
 | row | does |
 |---|---|
 | `Modify (press a key)` | the next key you press becomes the action's only key |
-| `Modify (type a spelling)` | type the key as the file spells it (`ctrl+f`, `shift+h`, `[`), then `Enter` |
+| `Modify (type a spelling)` | type the key as the file spells it (`ctrl+f`, `shift+h`, `[`), then `Enter`; a spelling is plain ASCII on one line, so text typed or pasted holding anything else is not typed, and the pane says so |
 | `Add a key (press)` / `Add a key (type)` | the action keeps its keys and gains this one |
 | `` Remove `key` `` | this row's key stops requesting the action; removing the last one **disables** it, and the notice says so — nothing falls back to the default you just removed |
 | `Disable` | no key requests the action (the file says `none`) |

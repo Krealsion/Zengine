@@ -905,6 +905,44 @@ TEST_CASE("a reference placed on a canvas whose pane has no door for one is sent
     CHECK(drops == 1);
 }
 
+TEST_CASE("a reference placed on the mark a refused picture wears is not placed under it and stays held, "
+          "and placed beside the mark it reaches the pane") {
+    InventoryStory s(191, true, false, true);
+    s.append(1, "A");
+    // TITLES HIDDEN, so a refused picture's mark stands at the corner of Info's picture.
+    press_outside(s.r, s.info);
+    s.r.key(input::scan::kT);
+    s.r.text("t");
+    REQUIRE_FALSE(s.r.session().pane_titles);
+    std::int64_t drops = 0;
+    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && (e.schema_name == PaneCanvasDrop::zen_name ||
+                                                    e.schema_name == PaneCanvasValueDrop::zen_name))
+            ++drops;
+    })};
+    s.acquire();
+    REQUIRE(external_title_rows(s.r.session().panes, s.info, false) == 0);
+    // INFO'S NEXT PICTURE REFUSED for what it holds, said as its holder says its pictures.
+    const ExternalPane& info = *s.r.session().panes.external_pane(s.info);
+    REQUIRE(info.canvas.heard);
+    v5::PaneCanvasContent refused = info.canvas.content;
+    refused.picture = info.picture + 1;
+    refused.labels.push_back(PaneCanvasLabel{0, 0, "caf\xC3\xA9", surface::role::kFill});
+    const loom::WeaveId holder = s.r.bus.role_holder("zengine.info");
+    REQUIRE(s.r.bus.office_send_to_role_as(holder, "zengine.info", kWorkshopProvider,
+        loom::Message(loom::to_value(refused), holder, holder, 0)).valid());
+    s.r.bus.drain_until_idle();
+    REQUIRE(info.refusal == kExternalPictureRefused);
+    // ...ON THE MARK, at the picture's corner: not placed, said, and still in hand...
+    s.click(s.info, 0);
+    CHECK(drops == 0);
+    CHECK_MESSAGE(s.r.last_notice().find("does not accept the carried item") != std::string::npos,
+                  s.r.last_notice());
+    // ...and beside it, below the mark, the reference reaches Info.
+    s.click_at(s.info, 3, 1);
+    CHECK(drops == 1);
+}
+
 TEST_CASE("a live reference carried from Inventory lands in the Compose field its place names on Compose's canvas") {
     InventoryStory s(63, true);
     s.append(7, "source");
@@ -1485,6 +1523,68 @@ TEST_CASE("a value released on Flow's canvas before its carry is answered names 
     CHECK(s.r.session().panes.external_pane(s.flow)->stamp.aimed != released_on);
     REQUIRE(drops.size() == 1);
     CHECK(drops[0].picture == released_on);
+}
+
+TEST_CASE("a value released on the mark a refused picture wears is not placed there, though the picture "
+          "the mark stood on is replaced before its carry is answered") {
+    InventoryStory s(191, true, false, true);
+    s.append(1, "A");
+    REQUIRE(s.flow != 0);
+    // TITLES HIDDEN, so the mark stands at the corner of Flow's picture.
+    press_outside(s.r, s.flow);
+    s.r.key(input::scan::kT);
+    s.r.text("t");
+    REQUIRE_FALSE(s.r.session().pane_titles);
+    REQUIRE(external_title_rows(s.r.session().panes, s.flow, false) == 0);
+    // FLOW'S NEXT PICTURE REFUSED for what it holds, said as its holder says its pictures.
+    const ExternalPane& flow = *s.r.session().panes.external_pane(s.flow);
+    REQUIRE(flow.canvas.heard);
+    v5::PaneCanvasContent refused = flow.canvas.content;
+    refused.picture = flow.picture + 1;
+    refused.labels.push_back(PaneCanvasLabel{0, 0, "caf\xC3\xA9", surface::role::kFill});
+    const auto* row = s.r.session().panes.runtime.of_kind(s.flow);
+    REQUIRE(row != nullptr);
+    const loom::WeaveId holder = s.r.bus.role_holder(row->provider);
+    REQUIRE(s.r.bus.office_send_to_role_as(holder, row->provider, kWorkshopProvider,
+        loom::Message(loom::to_value(refused), holder, holder, 0)).valid());
+    s.r.bus.drain_until_idle();
+    REQUIRE(flow.refusal == kExternalPictureRefused);
+
+    std::vector<PaneCanvasValueDrop> drops;
+    unsigned buttons = 0;
+    const loom::WeaveId workshop = s.r.workshop_id;
+    const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind != loom::EventKind::Delivered) return;
+        if (e.payload && e.schema_name == PaneCanvasValueDrop::zen_name)
+            drops.push_back(loom::from_value<PaneCanvasValueDrop>(*e.payload));
+        // THE RELEASE HANDLED, its carry not yet asked for: the turn stops here.
+        if (e.target == workshop && e.schema_name == input::PointerButton::zen_name && ++buttons == 2)
+            s.r.bus.stop();
+    });
+    // A VALUE DRAGGED FROM INVENTORY and released on the mark, at Flow's picture's corner.
+    auto press = s.button_at(s.source, 2, true);
+    auto release = s.button_at(s.flow, 0, 1, false);
+    auto move = release;
+    move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    s.hand->next = [&](loom::Mail& m) {
+        m.send_to_role(input::kInputRole, input::InjectInput{s.hand->session, {press, move, release}});
+    };
+    s.r.bus.send(s.hand_id, loom::Message(loom::to_value(InventoryHandDo{})));
+    for (int turn = 0; turn < 64 && buttons < 2 && s.r.bus.pending() != 0; ++turn) (void)s.r.bus.pump_pending();
+    s.hand->next = {};
+    REQUIRE(buttons == 2);
+    REQUIRE(drops.empty());
+
+    // FLOW DRAWS AGAIN before the carry is answered, and its picture is kept: the mark is gone...
+    REQUIRE(s.r.bus.office_send_to_role_as(workshop, kWorkshopProvider, row->provider,
+        loom::Message(loom::to_value(PaneTextInput{row->pane, "m"}))).valid());
+    s.r.bus.drain_until_idle();
+    s.r.bus.remove_observer(tap);
+    INFO(s.r.last_notice());
+    CHECK(flow.refusal.empty());
+    // ...but the release met it, so the value is not placed where the weaver could not see.
+    CHECK(drops.empty());
+    CHECK(s.r.last_notice().find("Value was not placed") != std::string::npos);
 }
 
 TEST_CASE("the rows two canvas panes show are each read off the pane's own plane where their bodies "

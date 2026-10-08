@@ -443,6 +443,18 @@ struct PowersView {
     std::int64_t caret_col = 0;
 };
 
+/// WHAT A PRESS ON THE POWERS PANE MEANS: each place by the row and columns it covers and the
+/// control or power it is. Two lists are never one meaning, whatever their identities hold.
+inline std::string press_meaning(const PowersView& view) {
+    std::string said;
+    for (const PowersSpan& s : view.spans) {
+        said += std::to_string(s.row) + ' ' + std::to_string(s.first) + ' ' +
+                std::to_string(s.last) + ' ' + std::to_string(s.control) + ' ' +
+                length_said(s.identity) + ';';
+    }
+    return said;
+}
+
 /// Which control a press landed on, or none; total over every row and column, since a provider
 /// is handed a row off a wire and must not bound it twice.
 inline PowersTarget target_at(const PowersView& view, std::int64_t row, std::int64_t column) {
@@ -763,7 +775,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         say.say(detail::sample_header(ui.sample, hidden, columns),
                 ui.sample.ok ? surface::role::kMuted : surface::role::kAlert);
         for (std::int64_t i = 0; i < shown; ++i) {
-            say.say(fit("  " + body[static_cast<std::size_t>(i)], columns),
+            say.say(fit("  " + printable(body[static_cast<std::size_t>(i)]), columns),
                     ui.sample.ok ? surface::role::kFill : surface::role::kAlert);
         }
         if (hidden > 0 && shown < room) {
