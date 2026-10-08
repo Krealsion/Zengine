@@ -113,6 +113,7 @@ constexpr const char* kTerminalPane = "terminal";
 constexpr const char* kViewBuilderOffice = "zengine.view.builder";
 constexpr const char* kViewBuilderPane = "view-builder";
 
+using zengine::workshop::pane_text::admissible;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::pad;
 
@@ -427,7 +428,7 @@ public:
             return;
         }
         if (typed.pane == pane::kHotkeysPane && typing_.active) {
-            typing_.line.type(typed.text);
+            type_spelling(typing_.line, typed.text);
             say_keys(mail);
         }
     }
@@ -451,7 +452,7 @@ public:
         if (text.empty()) {
             return;
         }
-        line->type(text);
+        type_spelling(*line, text);
         say_keys(mail);
     }
 
@@ -853,6 +854,16 @@ private:
     }
 
     // ---- The Hotkeys pane's spelling line ------------------------------------------------------
+
+    /// A SPELLING IS THE KEYMAP FILE'S GRAMMAR, PLAIN ASCII ON ONE LINE: typed or pasted text that
+    /// holds anything else is refused whole at the line, and said, rather than drawn or changed.
+    void type_spelling(zengine::component::TextBox& line, const std::string& text) {
+        if (!admissible(text)) {
+            keys_notice_ = "not typed -- a key's spelling is plain ASCII on one line";
+            return;
+        }
+        line.type(text);
+    }
 
     /// THE LINE A PASTE LANDS IN, if one is open: the spelling line.
     zengine::component::TextBox* pasting_line() {
@@ -1578,10 +1589,10 @@ private:
             footer.push_back("  " + drawable(keys_notice_));
         }
         if (!keys_rows_.word.empty()) {
-            footer.push_back("  " + keys_rows_.word);
+            footer.push_back("  " + drawable(keys_rows_.word));
         }
         footer.push_back("keymap file: " +
-                         (keymap_.file.empty() ? std::string("(none)") : keymap_.file));
+                         (keymap_.file.empty() ? std::string("(none)") : drawable(keymap_.file)));
         if (!keymap_.word.empty()) {
             footer.push_back("  " + drawable(keymap_.word));
         }
@@ -1634,7 +1645,7 @@ private:
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const KeysLine& line = lines_[i];
             if (!line.binding) {
-                push(keymap_.rows[i + 1 < lines_.size() ? lines_[i + 1].shown : 0].group,
+                push(drawable(keymap_.rows[i + 1 < lines_.size() ? lines_[i + 1].shown : 0].group),
                      surface::role::kAccent, KeysMeaning{keys_row::kGroup, i, {}});
                 continue;
             }
