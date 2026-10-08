@@ -2195,6 +2195,29 @@ std::string hotkeys_pane_text(PaneRig& r) {
     return text;
 }
 
+/// ...AND ANOTHER PARTY'S WORDS AS THE DESKTOP SPELLS THEM IN A ROW: a control byte a space, and
+/// each character outside ASCII one `?`, whatever its length.
+std::string desktop_spelling(const std::string& text) {
+    std::string out;
+    for (std::size_t i = 0; i < text.size(); ++i) {
+        const unsigned char b = static_cast<unsigned char>(text[i]);
+        if (b < 0x20 || b == 0x7f) {
+            out += ' ';
+        } else if (b < 0x80) {
+            out += text[i];
+        } else {
+            out += '?';
+            std::size_t more = b >= 0xf0 ? 3u : b >= 0xe0 ? 2u : b >= 0xc0 ? 1u : 0u;
+            while (more > 0 && i + 1 < text.size() &&
+                   (static_cast<unsigned char>(text[i + 1]) & 0xc0) == 0x80) {
+                ++i;
+                --more;
+            }
+        }
+    }
+    return out;
+}
+
 } // namespace
 
 TEST_CASE("the band and the Hotkeys pane teach the application's keys as they are in force: a "
@@ -2255,9 +2278,10 @@ TEST_CASE("the band and the Hotkeys pane teach the application's keys as they ar
     };
     CHECK(row_with({"ctrl+g", "terminal", "desktop.terminal", "*"}));
     CHECK(row_with({"(no key)", "panes", "desktop.panes", "*"}));
-    // ...THE FILE THIS RUN READS, on a row of its own: the whole path where the room holds it,
-    // else as much as the room holds and the mark that says the rest was cut.
-    const std::string named = "keymap file: " + path;
+    // ...THE FILE THIS RUN READS, on a row of its own and spelled as the desktop spells another
+    // party's words: the whole path where the room holds it, else as much as the room holds and
+    // the mark that says the rest was cut.
+    const std::string named = "keymap file: " + desktop_spelling(path);
     const std::size_t from = keys.find("\nkeymap file: ");
     REQUIRE(from != std::string::npos);
     const std::string file_row = keys.substr(from + 1, keys.find('\n', from + 1) - from - 1);
@@ -2276,6 +2300,38 @@ TEST_CASE("the band and the Hotkeys pane teach the application's keys as they ar
     CHECK(hotkeys_pane_text(r).find("more above") != std::string::npos);
     r.key(input::scan::kHome);
     CHECK(hotkeys_pane_text(r).find("more below") != std::string::npos);
+}
+
+TEST_CASE("the Hotkeys pane names a keymap file whose path a canvas cannot draw with the path made "
+          "drawable, in a picture Workshop admits") {
+    // ⚔ MUTATION: the file row carrying the path's bytes as they are -- the whole picture is
+    // refused for one of them, and the pane shows only Workshop's refusal.
+    // A PATH NO FILE IS AT, holding a character a profile directory may hold: the host reads
+    // nothing there, and no key is edited here, so nothing is written there either.
+    const std::string path = "caf\xC3\xA9/keymap.json";
+    PaneRig r;
+    r.host.keymap_path = path;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 60);
+    load_real_desktop(r);
+    r.key(input::scan::kK, input::mod::kCtrl);
+    const Written tall = author_pane_size(r.session().setup.active,
+                                          PaneRef{kDesktopRole, dp::kHotkeysPane},
+                                          PaneSize{pane_unit::kPixels, cells_px(180)},
+                                          PaneSize{pane_unit::kPixels, cells_px(40)});
+    REQUIRE_MESSAGE(tall.accepted, tall.refusal);
+    r.extent(200, 60);
+    const std::string keys = hotkeys_pane_text(r);
+    CAPTURE(keys);
+    const RuntimePane* row = r.session().panes.runtime.find(kDesktopRole, dp::kHotkeysPane);
+    REQUIRE(row != nullptr);
+    const ExternalPane* shown = r.session().panes.external_pane(row->kind);
+    REQUIRE(shown != nullptr);
+    CHECK(shown->canvas.heard);
+    CHECK(keys.find("HOTKEYS -- ") != std::string::npos);
+    // ...ONE MARK FOR THE CHARACTER, as the desktop spells every other party's words.
+    CHECK(keys.find("\nkeymap file: caf?/keymap.json\n") != std::string::npos);
 }
 
 TEST_CASE("the Hotkeys pane's example row names a chord no pane on the desk declares") {

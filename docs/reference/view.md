@@ -63,10 +63,13 @@ and the pane conversation; it emits its intents and that conversation.
 - It draws in its size within the room Workshop grants: each element at its pixels, a number
   field's text and caret, a button's label, a label and the value it shows, and beneath the size
   a notice in `view::kNoticeRows` lines of the medium's text (`view::notice_band`), so no element
-  is under it. A pane smaller than the view and its notice rows cuts the picture.
+  is under it. Other parties' words on the notice -- a shape's name, a refusal -- are spelled in
+  printable ASCII (`workshop::pane_text::ascii_spelling`). A pane smaller than the view and its
+  notice rows cuts the picture.
   Text sits on the medium's own lattice inside its element and is fitted to what the medium
   measures, so a terminal shows the same picture floored to cells.
-- Focus, caret and field text are its own. A press focuses a number field or uses a button;
+- Focus, caret and field text are its own; a number field takes plain ASCII, and other typed
+  text is not typed and is said on the notice row. A press focuses a number field or uses a button;
   `Tab` moves between number fields, `Return` uses the button whose intent takes the focused
   field, and `Escape` puts the focus down or hands the key back.
 - Using a button publishes its intent as this participant, each field read from its number

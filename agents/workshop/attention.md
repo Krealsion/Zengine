@@ -51,10 +51,12 @@ LAW — A derived condition is never copied into the held set; its owner's next 
 
 MEANS
 - a room grant turns over the rows, `heard` and `awaiting`; the refusal is about the content;
-- so a weaver cannot un-say it by widening their window, and a re-offer does not either.
+- so a weaver cannot un-say it by widening their window, and a re-offer does not either;
+- a canvas picture refused for what it holds is one, its last admitted picture marked `(update refused)`; at its corner the mark is Workshop's own chrome, which the pane view waits behind.
 
 DOES NOT MEAN
-- that the reason follows the room — it quotes the grant the refused content was judged against.
+- that the reason follows the room — it quotes the grant the refused content was judged against;
+- that a picture refused as late -- for a holder, a room or a number since replaced -- is said: its pane alone is answered.
 
 PROVEN BY — `workshop/panes.hpp` `ExternalPane`, `ExternalPane::refusal`,
 `ExternalPane::refusal_why`, `ProjectFrontier`, `ExternalPane::clear_refusal`;
@@ -62,10 +64,21 @@ PROVEN BY — `workshop/panes.hpp` `ExternalPane`, `ExternalPane::refusal`,
 `workshop/weave_external.cpp` `refresh_external_rooms`; `workshop/weave_seam.cpp` `judge_content`;
 `workshop/screen_attention.cpp` `attention_conditions`; `workshop/attention.hpp` `HeldConditions`;
 `workshop/weave.hpp` `HostContext::frontier`; `workshop/weave_run.cpp` `frontier_now`;
+`workshop/weave_canvas.cpp` `admit_canvas_content`, `WorkshopWeave::canvas_press`,
+`WorkshopWeave::on_refused_mark`;
+`workshop/screen_external.cpp` `paint_external`, `refused_mark_cover`;
+`workshop/weave_inspection.cpp` `WorkshopWeave::visible_body`;
+`workshop/weave_operation.cpp` `WorkshopWeave::drop_on_canvas`, `WorkshopWeave::release_value_drag`;
+`workshop/screen.hpp` `kExternalPictureRefused`, `kExternalRefusedMark`;
 `tests/test_workshop_host.cpp` case `"a derived condition enters and leaves attention with its
 subject"`, case `"the project frontier is a condition while it waits and nothing after"`;
 `tests/test_workshop_panes_seam.cpp` case `"a refusal stands until ACCEPTED CONTENT
-replaces it, a new room included"`.
+replaces it, a new room included"`; `tests/test_workshop_panes_canvas.cpp` case `"a canvas picture
+refused for what it holds is said in its pane and in Attention until a picture of the pane is
+admitted, and one that came late is answered to its pane alone"`; `tests/test_workshop_desk.cpp` case
+`"with pane titles hidden, a refused picture's mark is Workshop's own: the pane view waits while it
+covers the picture, a press on it reaches no provider and a right press opens Workshop's menu, and
+the picture beside it takes a press as before, a press held or not"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-05 — One pane state earns ambient attention and four do not

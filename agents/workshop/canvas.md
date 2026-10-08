@@ -10,7 +10,7 @@ LAW — A canvas provider draws in local canvas pixels inside the pane body; Wor
 MEANS
 - bounded rectangles, fixed cell labels and measured one-line text, below the title;
 - shared fit and hit bounds; whole glyph/row clipping keeps every glyph and caret inside, and a run's padding unless the run stands on the lattice;
-- provider-owned meaning and hit testing; malformed content is refused whole.
+- provider-owned meaning and hit testing; malformed content is refused whole, and said as WL-ATTN-04 says.
 
 PROVEN BY — `workshop/pane_canvas.hpp` `canvas_content_problem`;
 `workshop/screen_canvas.hpp` `canvas_body_place`, `canvas_clip_rect`, `paint_pane_canvas`;
@@ -20,6 +20,8 @@ PROVEN BY — `workshop/pane_canvas.hpp` `canvas_content_problem`;
 "pane canvas rejects malformed pictures whole and budgets data before rendering", case
 "pane canvas clips every primitive at its local boundary before translating", case
 "pane canvas grants fenced room and keeps a good picture after a refused update", case
+"a canvas picture refused for what it holds is said in its pane and in Attention until a picture of
+the pane is admitted, and one that came late is answered to its pane alone", case
 "pane canvas measured text shares its fit with existing surface type and preserves labels", case
 "pane canvas text clipping preserves surviving positions through both edges", case
 "an unpadded run stands its first character at its own place, and runs a line apart hold as many
@@ -80,6 +82,9 @@ MEANS
 - a drop begins no canvas custody; a value keeps v2's attribution, a reference crosses as `PaneDrop` does; one refused is said not delivered;
 - a drag's drop names the picture and place its release met, or is refused in words; unsent, a clicked item stays held, a dragged one is let go.
 
+DOES NOT MEAN
+- that a place under a refused picture's mark takes a drop: the mark is Workshop's own chrome (WL-ATTN-04).
+
 PROVEN BY — `workshop/pane_carry.hpp` `PaneCanvasValueDrop`, `PaneCanvasDrop`;
 `workshop/weave_operation.cpp` `drop_on_canvas`, `drop_carry`; `workshop/weave.hpp` `CanvasRelease`;
 `tests/test_workshop_inventory_info.cpp` cases "a value dragged from Inventory onto Flow's canvas
@@ -87,8 +92,11 @@ reaches Flow as a canvas drop where it was released, and Flow offers what it can
 value released on Flow's canvas before its carry is answered names the picture it was released
 on, though Flow repainted meanwhile", "a live reference carried from Inventory lands in the
 Compose field its place names on Compose's canvas", "a reference placed on a canvas whose pane
-has no door for one is sent nothing and stays held" and "a drop whose pane leaves before it is
-delivered is said not delivered: a reference or a value, on a canvas";
+has no door for one is sent nothing and stays held", "a reference placed on the mark a refused
+picture wears is not placed under it and stays held, and placed beside the mark it reaches the
+pane", "a value released on the mark a refused picture wears is not placed there, though the
+picture the mark stood on is replaced before its carry is answered" and "a drop whose pane leaves before it is delivered is said not delivered: a reference or a
+value, on a canvas";
 `tests/test_workshop_editor_transfers.cpp` case "a drop whose pane leaves before it is delivered
 is said not delivered: a value on a text pane's rows".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`

@@ -1833,6 +1833,143 @@ TEST_CASE("a canvas pane's named parts are said where its body shows them, with 
     }
 }
 
+TEST_CASE("with pane titles hidden, a refused picture's mark is Workshop's own: the pane view waits while "
+          "it covers the picture, a press on it reaches no provider and a right press opens Workshop's "
+          "menu, and the picture beside it takes a press as before, a press held or not") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        const std::int64_t u = kPaneCanvasUnit;
+        // A DESK WITH TITLES HIDDEN and the sketch drawn, naming the part `node` over `node one`.
+        const auto hidden = [&](SketchRig& d) {
+            d.medium(window);
+            press_outside(d.r, d.sketch_kind); // the keys are Workshop's...
+            d.r.key(input::scan::kT);          // ...and the titles hidden
+            d.r.text("t");
+            REQUIRE_FALSE(d.r.session().pane_titles);
+            REQUIRE(external_title_rows(d.r.session().panes, d.sketch_kind, false) == 0);
+            d.draw_named({PaneCanvasPart{"node", 0, 0, 10 * u, u}});
+        };
+        const auto refuse = [](SketchRig& d) {
+            PaneCanvasContent refused = d.picture();
+            refused.labels[0].text = "caf\xC3\xA9";
+            d.drive([refused](SketchSeat&, loom::Mail& m) {
+                (void)m.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, refused);
+            });
+            REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->refusal ==
+                    kExternalPictureRefused);
+        };
+        // WHERE THE MARK IS PAINTED: the band of the row that carries it, none when none does.
+        const auto mark_band = [](SketchRig& d) {
+            const Screen sc = screen_of(d.r.session());
+            for (const surface::SurfaceLayer& layer : d.r.last_canvas().layers)
+                for (const surface::SurfaceTextRegion& region : layer.texts) {
+                    const surface::RegionFit fit = surface::fit_region(
+                        region.x, region.y, region.w, region.h, sc.text_advance_px, sc.text_line_px);
+                    const std::int64_t line = fit.graphical() ? fit.line_px : kPaneCanvasUnit;
+                    const std::int64_t top = fit.graphical() ? region.y + fit.origin_y : region.y;
+                    for (std::size_t i = 0; i < region.rows.size(); ++i)
+                        if (region.rows[i].text.find(kExternalRefusedMark) != std::string::npos)
+                            return DeskRect{region.x, top + static_cast<std::int64_t>(i) * line,
+                                            region.w, line};
+                }
+            return DeskRect{};
+        };
+        const auto covers = [](const DeskRect& a, const DeskRect& b) {
+            return a.w > 0 && a.h > 0 && b.w > 0 && b.h > 0 && a.x < b.x + b.w && b.x < a.x + a.w &&
+                   a.y < b.y + b.h && b.y < a.y + a.h;
+        };
+        const auto word_named = [](const v3::PaneView& view, const std::string& text) {
+            PaneWord found;
+            for (const PaneWord& w : view.words)
+                if (w.text == text) found = w;
+            return found;
+        };
+        // THE PANE VIEW WAITS while the mark covers its picture: no word, part or point is said.
+        const auto unread = [](SketchRig& d, const PaneWord& word) {
+            v3::PaneView view;
+            CHECK_FALSE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
+            v2::PaneView words;
+            CHECK_FALSE(d.words(kCanvasOffice, kCanvasPane, words).empty());
+            const std::int64_t picture = d.r.session().panes.external_pane(d.sketch_kind)->stamp.aimed;
+            v2::PanePoint at;
+            CHECK_FALSE(d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, picture, word.word,
+                                                       0}, at).empty());
+            PanePoint cell;
+            CHECK_FALSE(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, picture, 0,
+                                                               0}, cell).empty());
+        };
+
+        // NO PRESS HELD: the mark stands at the picture's corner, over `node one`.
+        SketchRig d;
+        hidden(d);
+        v3::PaneView before;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, before).empty());
+        const PaneWord node_one = word_named(before, "node one");
+        REQUIRE_FALSE(node_one.text.empty());
+        refuse(d);
+        const DeskRect band = mark_band(d);
+        REQUIRE(band.w > 0);
+        CHECK(covers(band, node_one.place));
+        CHECK(d.r.session().panes.external_pane(d.sketch_kind)->canvas.heard);
+        unread(d, node_one);
+        // A RIGHT PRESS ON THE MARK is Workshop's, as on a title row: its menu for the pane opens.
+        d.sketch->pointers.clear();
+        d.r.publish(loom::to_value(input::PointerButton{3, true, node_one.x, node_one.y,
+                                                        node_one.space, input::mod::kNone}));
+        CHECK(d.sketch->pointers.empty());
+        CHECK(d.r.session().context.open);
+        CHECK(d.r.session().context.pane == PaneRef{kCanvasOffice, kCanvasPane});
+        d.r.key(input::scan::kEscape);
+        REQUIRE_FALSE(d.r.session().context.open);
+        // ...AND A PRESS ON IT reaches no provider.
+        d.click(node_one.x, node_one.y, node_one.space);
+        CHECK(d.sketch->pointers.empty());
+
+        // THE PICTURE BESIDE THE MARK takes a press as before: it is still the one admitted.
+        SketchRig beside;
+        hidden(beside);
+        v3::PaneView shown;
+        REQUIRE(beside.parts(kCanvasOffice, kCanvasPane, shown).empty());
+        const PaneWord measured = word_named(shown, "measured words");
+        REQUIRE_FALSE(measured.text.empty());
+        refuse(beside);
+        REQUIRE_FALSE(covers(mark_band(beside), measured.place));
+        beside.sketch->pointers.clear();
+        beside.click(measured.x, measured.y, measured.space);
+        REQUIRE_FALSE(beside.sketch->pointers.empty());
+        CHECK(beside.sketch->pointers.front().phase == canvas_pointer::kPress);
+
+        // A PRESS HELD on the picture keeps its room, its title waiting: a refusal arriving then
+        // stands at the corner and the view waits, until the release gives the mark the title row.
+        SketchRig held;
+        hidden(held);
+        v3::PaneView start;
+        REQUIRE(held.parts(kCanvasOffice, kCanvasPane, start).empty());
+        const PaneWord pressed = word_named(start, "measured words");
+        REQUIRE_FALSE(pressed.text.empty());
+        held.r.publish(loom::to_value(input::PointerButton{1, true, pressed.x, pressed.y,
+                                                           pressed.space, input::mod::kNone}));
+        REQUIRE(held.r.session().panes.external_pane(held.sketch_kind)->canvas.title_waits);
+        refuse(held);
+        REQUIRE(mark_band(held).w > 0);
+        const PaneWord under = word_named(start, "node one");
+        unread(held, under);
+        // ...and a press on the mark meanwhile reaches no provider either.
+        for (const bool down : {true, false}) {
+            held.r.publish(loom::to_value(input::PointerButton{2, down, under.x, under.y, under.space,
+                                                               input::mod::kNone}));
+        }
+        for (const PaneCanvasPointer& e : held.sketch->pointers) CHECK(e.button != 2);
+        held.r.publish(loom::to_value(input::PointerButton{1, false, pressed.x, pressed.y,
+                                                           pressed.space, input::mod::kNone}));
+        const ExternalPane& released = *held.r.session().panes.external_pane(held.sketch_kind);
+        CHECK_FALSE(released.canvas.title_waits);
+        const DeskRect titled = mark_band(held);
+        REQUIRE(titled.w > 0);
+        CHECK(titled.y + titled.h <= released.canvas.y);
+    }
+}
+
 TEST_CASE("a canvas part's point is its own: a part with another over its centre is pressed where nothing inside it is, and a part a terminal paints on no cell is not said there") {
     for (const bool window : {false, true}) {
         CAPTURE(window);

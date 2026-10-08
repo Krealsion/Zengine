@@ -16,6 +16,7 @@
 // arrival or departure, no timestamp.
 
 #include "surface/vocabulary.hpp"
+#include "workshop/pane_text.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -107,11 +108,17 @@ inline std::vector<LoadedWeave> parse_loaded(std::string_view blob) {
     return out;
 }
 
+/// A plan's or a loader's words -- a stem, a role, a path, a refusal -- spelled in what a canvas
+/// draws: a row carrying one byte it cannot draw would refuse the pane's whole picture.
+inline std::string spelled(const std::string& text) {
+    return workshop::pane_text::ascii_spelling(text);
+}
+
 /// One row per weave: the mark, the name and the role, fitted whole so marked and unmarked rows
 /// are one width. The only place an entry row is spelled (`project_loaded`, `mark_selected`).
 inline std::string entry_row(const LoadedWeave& w, bool chosen, std::int64_t columns) {
-    return fit(std::string(chosen ? kSelectedMark : kUnselectedMark) + w.name + " @" +
-                   (w.role.empty() ? std::string(kNoRole) : w.role),
+    return fit(std::string(chosen ? kSelectedMark : kUnselectedMark) + spelled(w.name) + " @" +
+                   (w.role.empty() ? std::string(kNoRole) : spelled(w.role)),
                columns);
 }
 
@@ -159,6 +166,24 @@ inline const LoadedWeave* entry_at_row(const LoadedView& view, std::int64_t row)
         return nullptr;
     }
     return &view.shown[static_cast<std::size_t>(which)];
+}
+
+/// A NAME SAID BY ITS LENGTH FIRST, so names said one after another are never read as others.
+inline std::string length_said(const std::string& name) {
+    return std::to_string(name.size()) + ':' + name;
+}
+
+/// WHAT A PRESS ON THE LOADED PANE MEANS: each row by the weave it names, its name and its role,
+/// as a press publishes both; `-` for a row naming none. Two lists are never one meaning, whatever
+/// their names and roles hold.
+inline std::string press_meaning(const LoadedView& view) {
+    std::string said;
+    for (std::size_t row = 0; row < view.rows.size(); ++row) {
+        const LoadedWeave* entry = entry_at_row(view, static_cast<std::int64_t>(row));
+        said += entry != nullptr ? length_said(entry->name) + length_said(entry->role) + ';'
+                                 : std::string("-;");
+    }
+    return said;
 }
 
 /// Mark the row naming `selected` and unmark every other entry row -- nothing else moves, so a

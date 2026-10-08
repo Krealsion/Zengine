@@ -185,8 +185,10 @@ each draws on its canvas and keeps prose only for a host that grants none, while
 (`examples/guard-pane`, `tally-pane`, `tower-defense`) speak prose whole. Its picture echoes a fresh room's
 grant and numbers compositions increasingly within it. A new room clears its prior picture.
 Invalid or stale authenticated content is answered as `PaneCanvasRejected`, preserving the
-last good picture. A same-provider geometry change may retain a display-only preview marked
-as updating; it carries no current picture fence or input authority. Providers keep grants,
+last good picture; invalid content is also said, in the pane and in Attention, until a picture
+of the pane is admitted (WL-ATTN-04). A same-provider geometry change may retain a display-only
+preview marked as updating, or as refused while a refusal stands; it carries no current picture
+fence or input authority. Providers keep grants,
 picture maps and gestures outside reload state;
 they accept input only for a grant they currently hold, and begin a gesture only for a picture
 they can interpret. A gesture's later moves and end keep its initiating picture while a drag
@@ -904,9 +906,8 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   (prose) refuse a whole update for one byte a canvas cannot draw, so a chunk with any
   inadmissible byte is declined entirely — the Editor pane's own paste posture. Every road into
   the query passes that one door: typing, a mirrored `ClipboardCopy`, and the answer to a paste
-  ask. ⚠ **The shipped Composer has the same latent
-  exposure** and was deliberately not repaired here; it is a different owner and a bounded QR
-  candidate.
+  ask. The Composer takes the other posture: its draft keeps the bytes typed, and its rows
+  draw each byte a canvas cannot as `?`.
 - **THE QUERY'S SELECTION IS FUNCTIONAL AND INVISIBLE.** The pane says where the query's caret
   stands and draws no selection for it, so cut and copy work and no highlight shows. Named
   residual.

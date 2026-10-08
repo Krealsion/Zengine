@@ -461,6 +461,35 @@ TEST_CASE("a retained sample is history, and an unload does not erase it") {
     CHECK(book.heard[0].reason == op::sample(r.catalog, "prov.source.spends").reason());
 }
 
+TEST_CASE("a sample refused in words a canvas cannot draw is shown on the Powers pane, spelled") {
+    // ANOTHER PARTY'S SENTENCE, CARRIED WHOLE: a Source whose body refuses quoting a path with a
+    // letter no canvas draws. The door quotes it verbatim; the pane draws each such byte as `?`,
+    // and the picture is admitted.
+    PaneRig r;
+    const std::string identity = "zengine.test.notes";
+    const std::string why = "no notes file at /home/jos\xC3\xA9/notes.txt";
+    std::vector<op::OperatorDef> notes;
+    notes.push_back(op::OperatorDef(
+        identity, loom::make_schema(identity + ".in", 1, std::vector<loom::Field>()),
+        loom::SchemaBuilder("zengine.test.Notes", 1).field("text", loom::Kind::Text).build(),
+        [why](const loom::Value&) -> loom::Cell { throw op::Refusal(why); }));
+    const op::MountReport mounted = r.catalog.mount("zengine.test.notebook", std::move(notes));
+    REQUIRE_MESSAGE(mounted.ok, mounted.reason);
+    const std::int64_t kind = open_powers(r);
+    make_taller(r, intro::kPowersPane, 18);
+    focus_pane(r, kind);
+    select_power(r, kind, identity);
+    r.key(input::scan::kReturn);
+
+    const ExternalPane* pane = r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    CAPTURE(pane->refusal_why);
+    CHECK(pane->refusal.empty());
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    CHECK(any_row(shown, std::string(intro::kSampleRefusedWord) + "  " + identity));
+    CHECK(any_row(shown, "  no notes file at /home/jos?\?/notes.txt"));
+}
+
 TEST_CASE("the query is typed, edited, copied and pasted through the shipped seams") {
     PaneRig r;
     SkinSeat* skin = r.mount_skin_seat(); // the medium that owns the platform clipboard

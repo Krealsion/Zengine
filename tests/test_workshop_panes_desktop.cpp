@@ -704,6 +704,24 @@ TEST_CASE("WL-KEY-18: a version-1 file is imported explicitly, unrelated and unk
     CHECK(refused.outcome.refusal.find("version 1 keymap") != std::string::npos);
 }
 
+TEST_CASE("the Hotkeys pane says Workshop's refusal of its own keys in words it can draw, when the refusal quotes a gesture the keymap file spells outside plain ASCII") {
+    // THE WEAVER'S FILE GIVES ONE OF THIS PANE'S OWN ROWS A KEY NO KEYMAP CAN NAME, so its
+    // declaration is refused in words quoting the file. The pane says them as it says every other
+    // party's words, one mark for each character a canvas cannot set, in a picture Workshop admits.
+    Keys k("hotkeys-refused-spelling", keymap_file_text("default", {{"hotkeys.up", "ctrl+\xC3\xA9"}}));
+    REQUIRE(k.r.session().keymap.pane_rows(k.hotkeys) == nullptr); // none of its rows in force
+    const std::string text = k.text();
+    CAPTURE(text);
+    const ExternalPane* pane = k.r.session().panes.external_pane(k.hotkeys);
+    REQUIRE(pane != nullptr);
+    CAPTURE(pane->refusal_why);
+    CHECK(pane->canvas.heard);
+    CHECK(pane->refusal.empty());
+    CHECK(text.find("HOTKEYS -- ") != std::string::npos);
+    CHECK(text.find("keys refused: Hotkeys @zengine.desktop: `hotkeys.up`: `?` is not a key") !=
+          std::string::npos);
+}
+
 TEST_CASE("WL-KEY-17: the table has coherent columns, a visible cursor the wheel and the keys walk, a press that chooses a row, and a heading press that is handed back; a small room keeps the notice") {
     Keys k("hotkeys-table");
     // COHERENT COLUMNS: the label column begins at the same place on two rows -- laid out over
@@ -832,6 +850,83 @@ TEST_CASE("WL-DESK-14: a pane offered under a name a canvas cannot draw keeps it
     d.press(row, kNameCol);
     d.press(row, kNameCol);
     CHECK(d.open("cafe"));
+}
+
+TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name made drawable, and refuses a spelling typed or pasted outside plain ASCII at the line, says so and leaves the line as it is") {
+    // THE TABLE IS ONE PICTURE, refused whole for one byte a canvas cannot draw. A name another
+    // party chose is drawn as this pane draws every other party's words, one mark for each such
+    // character; a spelling is the keymap file's grammar, so text outside it is never typed.
+    Keys k("hotkeys-undrawable");
+    SkinSeat* skin = k.r.mount_skin_seat(); // the medium a paste asks
+    ProviderSeat* tools = k.r.mount_provider("zengine.test.tools");
+    k.r.drive(tools, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"cafe", "Caf\xC3\xA9", "a fixture"});
+        PaneActions actions;
+        actions.pane = "cafe";
+        actions.rows.push_back(PaneActionRow{"cafe.brew", "brew", input::scan::kUnknown,
+                                             input::mod::kNone});
+        s.declare(m, actions);
+    });
+    // THE PICTURE WORKSHOP HOLDS IS THE PANE'S LATEST: admitted, and none refused since.
+    const auto admitted = [&k]() {
+        const ExternalPane* pane = k.r.session().panes.external_pane(k.hotkeys);
+        REQUIRE(pane != nullptr);
+        CAPTURE(pane->refusal_why);
+        CHECK(pane->canvas.heard);
+        CHECK(pane->refusal.empty());
+    };
+    {
+        // THE PANE'S KEYS, UNDER ITS HEADING.
+        const std::int64_t brew = k.row_of("cafe.brew");
+        const std::vector<std::string> rows = k.rows();
+        CAPTURE(joined(rows));
+        REQUIRE(brew >= 1);
+        CHECK(rows[static_cast<std::size_t>(brew - 1)] == "pane Caf? @zengine.test.tools");
+        admitted();
+    }
+    // A SPELLING TYPED OUTSIDE PLAIN ASCII: refused whole at the line, and said; the line and its
+    // caret stand as they were.
+    const std::string typed = "key for workshop.quit: ctrl+";
+    const std::string not_typed = "not typed -- a key's spelling is plain ASCII on one line";
+    const auto spelling_shown = [&k, &typed]() {
+        const std::vector<std::string> shown = k.rows();
+        CAPTURE(joined(shown));
+        const std::int64_t at = row_containing(shown, "key for workshop.quit: ");
+        REQUIRE(at >= 0);
+        CHECK(shown[static_cast<std::size_t>(at)] == typed);
+        const ExternalPane* pane = k.r.session().panes.external_pane(k.hotkeys);
+        REQUIRE(pane != nullptr);
+        const auto& runs = pane->canvas.content.texts;
+        const auto line = std::find_if(runs.begin(), runs.end(), [&typed](const v2::PaneCanvasText& t) {
+            return t.text.rfind(typed, 0) == 0;
+        });
+        REQUIRE(line != runs.end());
+        CHECK(line->caret_col == static_cast<std::int64_t>(typed.size()));
+        return joined(shown);
+    };
+    std::int64_t quit = k.row_of("workshop.quit");
+    REQUIRE(quit >= 0);
+    k.right(quit);
+    k.choose("Modify (type a spelling)");
+    k.r.text("ctrl+");
+    CHECK(spelling_shown().find(not_typed) == std::string::npos);
+    k.r.text("\xC3\xA9");
+    CHECK(spelling_shown().find(not_typed) != std::string::npos);
+    admitted();
+    // ...AND ONE PASTED: the medium is asked once, and what it holds is refused the same way.
+    k.r.key(input::scan::kEscape);
+    quit = k.row_of("workshop.quit");
+    REQUIRE(quit >= 0);
+    k.right(quit);
+    k.choose("Modify (type a spelling)");
+    k.r.text("ctrl+");
+    CHECK(spelling_shown().find(not_typed) == std::string::npos);
+    skin->platform = "\xC3\xA9";
+    const int reads = skin->clipboard_reads;
+    k.r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(skin->clipboard_reads == reads + 1);
+    CHECK(spelling_shown().find(not_typed) != std::string::npos);
+    admitted();
 }
 
 TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the row the hand aimed at -- the press is stamped with the picture the medium had, and refused as moved") {
