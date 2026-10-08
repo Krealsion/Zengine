@@ -225,6 +225,8 @@ and entered like any other. The screen still draws only ASCII: in the listing ea
 it is a `?`, so a folder named `Zoë` is listed as `Zo??`. A name beyond ASCII is not offered by
 `a`, whose recipe line is measured in bytes.
 
+![Files lists a folder named Zoë Ж as Zo?? ??/ and enters it, lists café.cpp there as caf??.cpp, and opens it in the Editor, whose status row leaves blank the letters its face cannot draw](images/files-name-beyond-ascii-window.png)
+
 **A name Workshop cannot carry is marked, and not opened.** Some filenames cannot be turned into
 the text Workshop holds a path in: on Windows, a filename holding an invalid UTF-16 sequence, for
 instance, which both supported Windows standard libraries refuse to convert (measured: MSVC's
