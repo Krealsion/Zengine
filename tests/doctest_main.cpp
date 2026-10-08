@@ -74,6 +74,18 @@ int main(int argc, char** argv) {
     // timeout (measured through gdb on the runner); a desktop session refused
     // the same file with error 193 and the case passed. The lane must not depend on which.
     ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+    // A TEST PROGRAM RUNS IN THE CODE PAGE A SHIPPED ONE DOES: UTF-8, from the manifest every
+    // program here carries (VM-PLAT-16). In any other, its narrow strings are not the ones a
+    // weaver's programs hold, and a green would say nothing about those.
+    if (::GetACP() != CP_UTF8) {
+        std::fprintf(stderr,
+                     "[zengine] this test program runs in code page %u, not UTF-8: it was built "
+                     "without the manifest every program here carries "
+                     "(cmake/ZengineCodePage.cmake), or this Windows is older than 10 version "
+                     "1903 and ignores it\n",
+                     ::GetACP());
+        return 71; // beside the empty population's 70, so the cause is legible
+    }
 #endif
     doctest::Context context(argc, argv);
     const int result = context.run();

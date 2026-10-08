@@ -92,7 +92,7 @@ self-test before they answer:
 | reading what the witness shows: a diff, a title, a pixel count | [witnesses-reading](verification/witnesses-reading.md) `VM-WIT` |
 | a runtime probe, a timing, a reproduction, a moved build | [probes](verification/probes.md) `VM-PROBE` |
 | a check that reads the tree, a mass edit over it | [checks](verification/checks.md) `VM-CHECK` |
-| MinGW, MSVC, the COFF ceilings, a 9p mount, two CMakes | [platforms](verification/platforms.md) `VM-PLAT` |
+| MinGW, MSVC, the COFF ceilings, a 9p mount, two CMakes, the UTF-8 code page | [platforms](verification/platforms.md) `VM-PLAT` |
 | judging a dependency, a package option, a toolchain | [dependencies](verification/dependencies.md) `VM-DEP` |
 
 Which suite witnesses which Workshop area is the table at the end of

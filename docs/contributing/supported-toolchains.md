@@ -39,6 +39,31 @@ demo workflow, so it defaults `LOOM_ENABLE_WINDOWS_KERNEL=ON`. An explicit
 Packages that need a kernel gate on `if(TARGET loom::kernel)`, so a Windows Loom install
 without one still configures — the package simply reports that it is skipped and why.
 
+### Every program runs in the UTF-8 code page
+
+Every program this repository's CMake project defines on Windows — Workshop, its tools and every
+test program — carries a manifest naming UTF-8 its active code page, which Windows 10 version 1903
+and later honour. So `argv`, the environment and every narrow path are UTF-8 on Windows: a folder
+named with any letter, given as an argument or holding `%APPDATA%` or `%LOCALAPPDATA%`, is read
+and written as itself on both toolchains, and a pane image loads from it. One step at the end of
+the top-level `CMakeLists.txt` gives the manifest to every executable the project defines
+(`cmake/ZengineCodePage.cmake`); a sibling Loom's programs under the sibling override, and the
+stranger programs the installed-package witness builds, keep their own. It keeps what the
+toolchain's own manifest says:
+
+- **MSVC**'s linker writes a manifest naming the execution level, and CMake merges this one into
+  it.
+- **MinGW-w64** may link a default manifest into every program — MSYS2's names the execution
+  level and the Windows versions the program supports — and a program's own replaces it, so this
+  one is that default with the code page added, written into a resource script and compiled by
+  CMake's resource compiler (`CMAKE_RC_COMPILER`, a `windres` CMake finds when none is named). A
+  toolchain that links no default gets the code page alone.
+
+A doctest program that finds itself in any other code page refuses to run (exit 71), so the
+Windows lanes test the narrow strings that ship. The console keeps its own code page: Workshop's
+terminal Skin sets its output to UTF-8 while it draws, and a line printed to a console before
+that is shown in the console's page.
+
 ### MSVC
 
 ```powershell

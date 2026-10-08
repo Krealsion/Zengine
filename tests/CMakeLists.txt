@@ -274,8 +274,9 @@ endif()
 if(CMAKE_GENERATOR_TOOLSET)
     list(APPEND zengine_cn_args -T "${CMAKE_GENERATOR_TOOLSET}")
 endif()
+# The resource compiler and the manifest tool too, since every program there carries the manifest.
 foreach(passthrough CMAKE_CXX_COMPILER CMAKE_CXX_COMPILER_LAUNCHER CMAKE_CXX_FLAGS
-                    CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES)
+                    CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES CMAKE_RC_COMPILER CMAKE_MT)
     if(DEFINED ${passthrough})
         list(APPEND zengine_cn_args "-D${passthrough}=${${passthrough}}")
     endif()
