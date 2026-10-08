@@ -116,9 +116,14 @@ WHY — `agents/decisions/front-is-a-permutation.md`
 
 LAW — `author_pane_place` and `author_pane_size` write nothing when a value is refused, on either axis; an inverse edit that restores the bytes makes the setup match its file again.
 
-PROVEN BY — `workshop/setup.hpp` `author_pane_place`, `author_pane_size`;
+MEANS
+- `author_pane_setting` too, and it stores a value equal to the pane's default as its absence.
+
+PROVEN BY — `workshop/setup.hpp` `author_pane_place`, `author_pane_size`, `author_pane_setting`;
 `tests/test_workshop_panes_window.cpp` case `"a refused VALUE writes nothing, on either axis"`,
-case `"dirty is structural -- an inverse edit makes a setup clean again"`.
+case `"dirty is structural -- an inverse edit makes a setup clean again"`;
+`tests/test_workshop_panes_settings.cpp` case `"a pane's settings are part of what makes a linked
+layout modified"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-09 — A setup name is four rules and a byte count

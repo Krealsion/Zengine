@@ -339,3 +339,237 @@ TEST_CASE("what a declared setting takes is said in its own kind's words") {
     CHECK(pane_setting_row_problem(title).empty());
     CHECK(pane_setting_default(title) == PaneSetting{"title", {}, {}, std::string()});
 }
+
+// ---- A pane's settings as rows of its subject, written through the layout's settings door ----
+
+namespace {
+
+/// THE DIAL SEATED, ITS SETTINGS DECLARED, AND INSPECTED through the inspector's door.
+struct InspectedDial : DialRig {
+    void open_inspected(const std::vector<PaneSetting>& settings = {}) {
+        open(settings);
+        offer();
+        declare(dial_declared());
+        REQUIRE(hand_inspect(r, dial_ref()).accepted);
+    }
+    std::vector<PaneSetting> stored() {
+        const SetupPane* row = pane_of(r.session().setup.active, dial_ref());
+        REQUIRE(row != nullptr);
+        return row->settings;
+    }
+    std::vector<std::string> labels_after(const char* section) {
+        std::vector<std::string> out;
+        bool in = false;
+        for (const Row& row : r.session().inspected.rows) {
+            if (row.section()) {
+                in = row.label() == section;
+                continue;
+            }
+            if (in) {
+                out.push_back(row.label());
+            }
+        }
+        return out;
+    }
+};
+
+} // namespace
+
+TEST_CASE("a pane's settings are rows of its subject, named by their keys, after RESOLVED") {
+    InspectedDial t;
+    t.open_inspected({PaneSetting{"zoom", true, {}, {}}});
+    // ONE ROW PER DECLARED SETTING, IN THE PANE'S ORDER, AND A KEPT ROW FOR THE KEY NONE TAKES.
+    CHECK(t.labels_after("SETTINGS") == std::vector<std::string>{"legend", "mode", "step", "zoom"});
+    std::vector<std::string> sections;
+    for (const Row& row : t.r.session().inspected.rows) {
+        if (row.section()) {
+            sections.push_back(row.label());
+        }
+    }
+    CHECK(sections == std::vector<std::string>{"AUTHORED", "RESOLVED", "SETTINGS", "INTERIOR"});
+    // NOTHING STORED READS AS THE DEFAULT, SPELLED AS IT IS TYPED.
+    CHECK(subject_value(t.r.session(), "legend", "SETTINGS") == "on");
+    CHECK(subject_value(t.r.session(), "mode", "SETTINGS") == "wide");
+    CHECK(subject_value(t.r.session(), "step", "SETTINGS") == "1");
+    CHECK(subject_value(t.r.session(), "zoom", "SETTINGS") ==
+          "on -- kept; no setting here takes it, and `-` clears it");
+    for (const char* label : {"legend", "mode", "step", "zoom"}) {
+        CAPTURE(label);
+        CHECK(subject_row(t.r.session(), label, "SETTINGS")->editable());
+    }
+}
+
+TEST_CASE("a value a setting does not take is refused at the edit, naming what it takes") {
+    InspectedDial t;
+    t.open_inspected();
+    struct Case {
+        const char* label;
+        const char* typed;
+        const char* says;
+    };
+    for (const Case& c : std::vector<Case>{
+             {"legend", "hidden", "legend: takes on or off, not `hidden`"},
+             {"legend", "true", "legend: takes on or off, not `true`"},
+             {"step", "12", "step: takes a whole number from 0 to 9, not `12`"},
+             {"step", "two", "step: takes a whole number from 0 to 9, not `two`"},
+             {"mode", "tall", "mode: takes one of wide, narrow, not `tall`"},
+         }) {
+        CAPTURE(c.typed);
+        const PaneSubjectActed said = hand_commit(t.r, c.label, c.typed, "SETTINGS");
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal == c.says);
+        CHECK(t.stored().empty());
+    }
+}
+
+TEST_CASE("a setting typed at its default is stored as its absence, and `-` clears one") {
+    InspectedDial t;
+    t.open_inspected();
+    REQUIRE(hand_commit(t.r, "legend", "off", "SETTINGS").accepted);
+    REQUIRE(hand_commit(t.r, "step", "3", "SETTINGS").accepted);
+    CHECK(t.stored() == std::vector<PaneSetting>{PaneSetting{"legend", false, {}, {}},
+                                                 PaneSetting{"step", {}, 3, {}}});
+    CHECK(subject_value(t.r.session(), "legend", "SETTINGS") == "off");
+    // THE DEFAULT, TYPED, IS NOTHING STORED: one spelling of "the pane's default".
+    REQUIRE(hand_commit(t.r, "legend", "on", "SETTINGS").accepted);
+    CHECK(t.stored() == std::vector<PaneSetting>{PaneSetting{"step", {}, 3, {}}});
+    REQUIRE(hand_commit(t.r, "step", " - ", "SETTINGS").accepted);
+    CHECK(t.stored().empty());
+    // ...AND `-` WITH NOTHING STORED SAYS SO, writing nothing.
+    const PaneSubjectActed again = hand_commit(t.r, "step", "-", "SETTINGS");
+    CHECK_FALSE(again.accepted);
+    CHECK(again.refusal == "step: step already takes its default -- nothing is stored to clear");
+}
+
+TEST_CASE("a settings write says it was stored and handed, or why it was not handed") {
+    InspectedDial t;
+    t.open_inspected();
+    const std::size_t heard = t.seat->heard.size();
+    REQUIRE(hand_commit(t.r, "legend", "off", "SETTINGS").accepted);
+    CHECK(t.r.last_notice() == "committed legend of Dial = off; stored and handed");
+    // HANDED IN THE COMMIT'S OWN DELIVERY, before any room it grants.
+    REQUIRE(t.seat->heard.size() == heard + 1);
+    CHECK(t.seat->heard.back() == "settings");
+    CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{PaneSetting{"legend", false, {}, {}}});
+
+    // A HOLDER WITHOUT THE DOOR: stored, and the sentence says why it went no further.
+    t.r.unmount_settings_seat(t.seat);
+    ProviderSeat* plain = t.r.mount_provider(kDialOffice);
+    t.r.drive(plain, [](ProviderSeat& p, loom::Mail& m) { p.offer(m, dial_offer()); });
+    REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
+    REQUIRE(hand_commit(t.r, "legend", "-", "SETTINGS").accepted);
+    CHECK(t.r.last_notice() ==
+          "committed legend of Dial = --; stored; not handed: test.dial takes no settings");
+}
+
+TEST_CASE("a kept setting takes only `-`, and the rows are named anew when it goes") {
+    InspectedDial t;
+    t.open_inspected({PaneSetting{"zoom", true, {}, {}}});
+    const std::int64_t name = t.r.session().inspected.name;
+    const PaneSubjectActed no = hand_commit(t.r, "zoom", "off", "SETTINGS");
+    CHECK_FALSE(no.accepted);
+    CHECK(no.refusal == "zoom: kept for a pane that declares it -- it takes only `-`, which clears it");
+    CHECK(t.stored() == std::vector<PaneSetting>{PaneSetting{"zoom", true, {}, {}}});
+    REQUIRE(hand_commit(t.r, "zoom", "-", "SETTINGS").accepted);
+    CHECK(t.stored().empty());
+    // THE ROW WENT WITH ITS KEY, so the rows were named anew: a draft for them abandons aloud.
+    CHECK(t.labels_after("SETTINGS") == std::vector<std::string>{"legend", "mode", "step"});
+    CHECK(t.r.session().inspected.name != name);
+}
+
+TEST_CASE("the subject is named anew when the settings its rows are built from change") {
+    DialRig t;
+    t.open({});
+    t.offer();
+    REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
+    // NOTHING DECLARED, NOTHING STORED: no SETTINGS section at all.
+    for (const Row& row : t.r.session().inspected.rows) {
+        CHECK(row.label() != "SETTINGS");
+    }
+    const std::int64_t bare = t.r.session().inspected.name;
+
+    t.declare(dial_declared());
+    const std::int64_t declared = t.r.session().inspected.name;
+    CHECK(declared != bare);
+    REQUIRE(subject_row(t.r.session(), "legend", "SETTINGS") != nullptr);
+
+    // AN IDENTICAL DECLARATION, as every catalog request brings, keeps the name...
+    t.declare(dial_declared());
+    t.r.key(input::scan::kUnknown);
+    CHECK(t.r.session().inspected.name == declared);
+
+    // ...AND A COMMIT AGAINST THE OLD NAME IS REFUSED WITH NOTHING WRITTEN.
+    DoorHand& h = door_hand(t.r);
+    const std::size_t before = h.acted.size();
+    h.next = [bare](DoorHand&, loom::Mail& m) {
+        (void)m.as_role(DoorHand::kOffice)
+            .send_to_role(kWorkshopProvider, PaneCommitRequested{bare, 0, "off"});
+    };
+    (void)t.r.bus.send(t.r.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    t.r.bus.drain_until_idle();
+    REQUIRE(h.acted.size() == before + 1);
+    CHECK_FALSE(h.acted.back().accepted);
+    CHECK(h.acted.back().refusal == WorkshopWeave::kPaneCommitSubjectGone);
+
+    // A NEW HOLDER: the declaration stops counting, its rows become kept ones, named anew.
+    REQUIRE(hand_commit(t.r, "legend", "off", "SETTINGS").accepted);
+    t.r.unmount_settings_seat(t.seat);
+    (void)t.r.mount_settings_seat(kDialOffice);
+    t.r.key(input::scan::kUnknown);
+    CHECK(t.r.session().inspected.name != declared);
+    CHECK(subject_value(t.r.session(), "legend", "SETTINGS") ==
+          "off -- kept; no setting here takes it, and `-` clears it");
+}
+
+TEST_CASE("a close discards a pane's settings with its row, and every close door says which") {
+    InspectedDial t;
+    t.open_inspected();
+    REQUIRE(hand_commit(t.r, "legend", "off", "SETTINGS").accepted);
+    REQUIRE(hand_close(t.r, dial_ref()).closed);
+    CHECK(t.r.last_notice().find("hid Dial and its settings here (legend off) -- ") == 0);
+    REQUIRE(seat_pane(t.r, dial_ref()).opened);
+    CHECK(t.stored().empty());
+
+    REQUIRE(hand_commit(t.r, "step", "4", "SETTINGS").accepted);
+    REQUIRE(hand_toggle(t.r, dial_ref()).closed);
+    CHECK(t.r.last_notice().find("hid Dial and its settings here (step 4) -- ") == 0);
+
+    // ...AND A CLOSE OF A ROW THAT KEPT NONE SAYS NOTHING ABOUT SETTINGS.
+    REQUIRE(hand_toggle(t.r, dial_ref()).opened);
+    REQUIRE(hand_close(t.r, dial_ref()).closed);
+    CHECK(t.r.last_notice().find("hid Dial -- ") == 0);
+}
+
+TEST_CASE("arrangement's remove says the settings it discarded too") {
+    Live t;
+    open_pane(t, ref_of(stock::kKind));
+    pane_of(const_cast<Session&>(t.session()).setup.active, ref_of(stock::kKind))->settings = {
+        PaneSetting{"mode", {}, {}, std::string("wide")}};
+    enter_arrange_desk(t);
+    select_pane(t, ref_of(stock::kKind));
+    t.key(input::scan::kD);
+    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
+    CHECK(t.notice().find("hid " + ref_text(ref_of(stock::kKind)) +
+                          " and its settings here (mode wide) -- ") == 0);
+    CHECK(t.notice().find("nothing behind it was touched") != std::string::npos);
+}
+
+TEST_CASE("a pane's settings are part of what makes a linked layout modified") {
+    InspectedDial t;
+    t.open_inspected();
+    link_live_setup(const_cast<Session&>(t.r.session()).setup, "/kept/desk.json");
+    REQUIRE(live_status(t.r.session().setup) == setup_link::kCurrent);
+    REQUIRE(hand_commit(t.r, "legend", "off", "SETTINGS").accepted);
+    CHECK(live_status(t.r.session().setup) == setup_link::kModified);
+    // ...AND THE DEFAULT WRITES ITS ABSENCE, which is what the file holds: current again.
+    REQUIRE(hand_commit(t.r, "legend", "-", "SETTINGS").accepted);
+    CHECK(live_status(t.r.session().setup) == setup_link::kCurrent);
+
+    // A FILE THAT SPELLED THE DEFAULT IS NOT THE ABSENCE: the layout stays modified.
+    Session& s = const_cast<Session&>(t.r.session());
+    pane_of(s.setup.active, dial_ref())->settings = {PaneSetting{"legend", true, {}, {}}};
+    link_live_setup(s.setup, "/kept/desk.json");
+    REQUIRE(hand_commit(t.r, "legend", "-", "SETTINGS").accepted);
+    CHECK(live_status(t.r.session().setup) == setup_link::kModified);
+}

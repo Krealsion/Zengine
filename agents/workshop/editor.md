@@ -174,12 +174,12 @@ the Editor no canvas is shown its rows and caret as prose, its presses reach not
 its keys still edit"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
-## WL-EDIT-13 — The desk's half: a trial on a copy, an admission, the publication applied whole
+## WL-EDIT-13 — The desk's half: a trial on a copy, an admission, the publication applied
 
 LAW — The desk judges a trial seat on a copy and moves nothing; asked to admit, it re-judges, keeps the content and offers its presentation; shown the publication, it applies seat, keys, room and content.
 
 MEANS
-- a change of its rows, an authored change or a routed input before the commitment aborts it; a canvas moved before the admission refuses it there;
+- a change of its rows, of the desk but a setting, or a routed input before the commitment aborts it; a canvas moved before the admission refuses it there;
 - a presentation it holds no trial for is Declined, said, and re-claimed from the live desk;
 - the content is the pane's picture in the room the trial reserved, or its rows (WL-OPEN-10).
 
@@ -189,7 +189,8 @@ PROVEN BY — `workshop/weave_managed.cpp` `on(PresentationTrialRequested)`,
 `workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `workshop/screen.hpp`
 `stack_slots_that_fit`; `workshop/open_seam_vocabulary.hpp` `PanePresentation`,
 `ManagedOpenSettled`; `tests/test_workshop_panes_opening.cpp` case `"a canvas room that moves
-while the document is prepared refuses its admission, though its rows and columns stand"`;
+while the document is prepared refuses its admission, though its rows and columns stand"`, case
+`"a setting written while an opening prepares survives its publication"`;
 `tests/test_workshop_panes_editor.cpp` case
 `"a resize after the commitment is an ordinary presentation change"`, case
 `"the real desk, shown a presentation it holds no trial for, answers that it did not apply it --

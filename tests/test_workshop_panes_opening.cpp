@@ -1261,3 +1261,35 @@ TEST_CASE("a canvas room that moves while the document is prepared refuses its a
     CHECK(o.asker->opens[0].refusal.find("changed while opening") != std::string::npos);
     CHECK(o.editor->state().applied == applied);
 }
+
+TEST_CASE("a setting written while an opening prepares survives its publication") {
+    // THE DIGEST LEAVES SETTINGS OUT, so a write to another pane's settings during a held
+    // preparation does not abort the opening -- and the publication, which puts back the copy of
+    // the desk taken at the trial, keeps the live desk's settings rather than the copy's.
+    PictureOpen o("open-settings");
+    const PaneRef dial{"test.dial", "dial"};
+    SettingsSeat* seat = o.r.mount_settings_seat(dial.provider);
+    o.r.drive(seat, [](SettingsSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"dial", "Dial", "a pane that takes its settings"});
+        PaneSettingRow legend;
+        legend.key = "legend";
+        legend.flag = true;
+        s.declare(m, PaneSettingsDeclared{"dial", {legend}});
+    });
+    REQUIRE(seat_pane(o.r, dial).opened);
+    REQUIRE(hand_inspect(o.r, dial).accepted);
+
+    o.editor->hold_prepare = true;
+    o.ask_b();
+    REQUIRE(o.asker->opens.empty());
+    REQUIRE(o.editor->holding());
+    REQUIRE(hand_commit(o.r, "legend", "off", "SETTINGS").accepted);
+    o.drive([](CanvasEditor& e, loom::Mail& m) { e.answer_held(m); });
+    o.serve();
+    REQUIRE(o.asker->opens.size() == 1);
+    REQUIRE_MESSAGE(o.asker->opens[0].accepted, o.asker->opens[0].refusal);
+    const SetupPane* row = pane_of(o.r.session().setup.active, dial);
+    REQUIRE(row != nullptr);
+    CHECK(row->settings == std::vector<PaneSetting>{PaneSetting{"legend", false, {}, {}}});
+    CHECK(seat->handed.back().settings == row->settings);
+}

@@ -693,7 +693,8 @@ public:
 
     /// PERFORM ONE CLOSE, WITHOUT ASKING WHO WANTED IT -- `launch_pane`'s partner, and not its
     /// inverse: it removes participation and never unloads, and it never opens anything.
-    PaneCloseAnswered close_pane(const PaneRef& ref, loom::Mail& mail);
+    PaneCloseAnswered close_pane(const PaneRef& ref, loom::Mail& mail,
+                                 std::vector<PaneSetting>* discarded = nullptr);
 
     /// WHAT THE ONE INVENTORY CALLS A PANE -- its offered name, or its pane key when nothing
     /// names it -- for a sentence about it.
@@ -771,13 +772,16 @@ public:
     void on(const PaneSubjectRequested& asked, loom::Mail& mail);
 
     /// WRITE ONE ROW OF THE SUBJECT THE ASK NAMES, through that row's own setter -- the setup's
-    /// gesture or reset door for a placement, the definition's door for a region -- or refuse
-    /// with nothing written. The name is judged first; an accepted write reseats the desk.
+    /// gesture or reset door for a placement, its settings door for a setting -- or refuse with
+    /// nothing written. The name is judged first; an accepted write reseats the desk.
     void on(const PaneCommitRequested& asked, loom::Mail& mail);
 
+    /// HOW FAR A SETTINGS WRITE GOT PAST THE STORE: handed to the pane's holder, or why not.
+    std::string settings_handed(const PaneRef& ref) const;
+
     /// NAME WHAT THE SUBJECT'S ROWS ADDRESS AFRESH, AND REBUILD THEM, when the live desk or the
-    /// rows' INTERIOR arm moved since they were named -- asked before every reading and every
-    /// judgement, so a commit is never judged against a name the facts have left.
+    /// settings the rows were built from moved since they were named -- asked before every reading
+    /// and every judgement, so a commit is never judged against a name the facts have left.
     void refresh_inspected();
 
     /// SAY THE SUBJECT OUT LOUD, if it changed since it was last said (the inventory's rule).

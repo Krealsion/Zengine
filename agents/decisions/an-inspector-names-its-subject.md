@@ -14,7 +14,8 @@ host pane, over a subject that pane alone could choose.
 Nothing else writes it: not the selection, not the keys, not Escape; Info may name itself. The
 host builds the Pane Manager's rows over it without the Pane Manager's own keys
 (`pane_subject_rows`), names what they address — this pane, this desk put live
-(`SetupState::put_live`), this row layout — and publishes the picture compare-gated, answering
+(`SetupState::put_live`), the settings its rows were built from — and publishes the picture
+compare-gated, answering
 an arriving inspector. A commit returns that name; the host judges it first, writes through the
 row's own setter, reseats, and says what it wrote to which pane. The draft, its text and every
 answer's accounting are Info's, carried from the object inspector unchanged.
@@ -28,7 +29,8 @@ answer's accounting are Info's, carried from the object inspector unchanged.
 - *Keeping the name across a desk switch* — rejected: the same pane's Width on another desk is
   another property, and a draft typed for one would be written into the other.
 - *A general property or component editor* — out of scope: the rows are the ones the Pane
-  Manager already showed; a new kind of row is a new decision.
+  Manager already showed; a new kind of row is a new decision, as a pane's settings rows are
+  ([theirs](settings-are-rows-of-a-panes-subject.md)).
 - *One subject per inspecting office* — not needed with one inspector; recorded as the limit.
 
 **Consequences.** One subject slot: an office that asks moves it. A restore or a layout switch

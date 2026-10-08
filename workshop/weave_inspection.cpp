@@ -863,14 +863,18 @@ void WorkshopWeave::refresh_inspected() {
     if (!in.addressed()) {
         return;
     }
-    // THE TWO THINGS A NAME STANDS FOR: this pane (the door keeps it) and this desk. A value
-    // moving is neither -- the rows read fresh -- and neither is a provider arriving or leaving:
-    // its rows say so, and a write it made impossible is refused by the owner in its own words.
-    if (in.name != 0 && in.desk == session_.setup.put_live) {
+    // THE THREE THINGS A NAME STANDS FOR: this pane (the door keeps it), this desk, and the
+    // settings its rows were built from. A value moving is none of them -- the rows read fresh --
+    // and a provider arriving or leaving is one only as its declaration starts or stops counting.
+    const RuntimePane* offered = session_.panes.runtime.find(in.ref.provider, in.ref.pane);
+    const SettingsSubject settings = settings_subject(
+        session_, in.ref, offered != nullptr ? counted_settings(*offered) : nullptr);
+    if (in.name != 0 && in.desk == session_.setup.put_live && in.settings == settings) {
         return;
     }
-    in.rows = pane_subject_rows(session_, in.ref);
+    in.rows = pane_subject_rows(session_, in.ref, settings);
     in.desk = session_.setup.put_live;
+    in.settings = settings;
     in.name = ++in.minted;
 }
 
@@ -929,6 +933,29 @@ void WorkshopWeave::publish_pane_subject(loom::Mail& mail) {
     (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
 }
 
+// WL-SETTING-05 -- agents/workshop/settings.md
+std::string WorkshopWeave::settings_handed(const PaneRef& ref) const {
+    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
+    if (!kind.has_value()) {
+        return "stored; not handed: nothing offers " + ref_text(ref) + " here";
+    }
+    if (!is_runtime_kind(*kind)) {
+        return "stored; not handed: Workshop's own pane takes no settings";
+    }
+    const ExternalPane* pane = session_.panes.external_pane(*kind);
+    if (pane == nullptr || !session_.panes.has(*kind)) {
+        return "stored; not handed: the pane is not seated";
+    }
+    if (!host_->holder_accepts || !host_->holder_accepts(ref.provider, *loom::schema_of<PaneSettings>())) {
+        return "stored; not handed: " + ref.provider + " takes no settings";
+    }
+    const SetupPane* seat = pane_of(session_.setup.active, ref);
+    if (seat != nullptr && pane->settings_heard && *pane->settings_heard == seat->settings) {
+        return "stored and handed";
+    }
+    return "stored; not handed: the hand-off was not queued";
+}
+
 // WL-INFO-15 -- agents/workshop/info-body.md
 void WorkshopWeave::on(const PaneCommitRequested& asked, loom::Mail& mail) {
     if (mail.authored_role().empty()) {
@@ -956,6 +983,9 @@ void WorkshopWeave::on(const PaneCommitRequested& asked, loom::Mail& mail) {
                                     "authored value");
         return;
     }
+    const SetupPane* before_row = pane_of(session_.setup.active, in.ref);
+    const std::vector<PaneSetting> before =
+        before_row != nullptr ? before_row->settings : std::vector<PaneSetting>{};
     const Commit result = row.commit_text(asked.text);
     if (result != Commit::Accepted) {
         // THE OWNER'S OWN WORDS: an amount the face does not read, a pane that is not in this
@@ -964,12 +994,20 @@ void WorkshopWeave::on(const PaneCommitRequested& asked, loom::Mail& mail) {
         return;
     }
     // SAID WITH WHAT WAS WRITTEN, TO WHICH PANE, read before the reseat below touches anything.
-    const std::string written = "committed " + row.label() + " of " +
-                                pane_subject_shown(session_).name + " = " + row.value();
+    std::string written = "committed " + row.label() + " of " +
+                          pane_subject_shown(session_).name + " = " + row.value();
+    const SetupPane* after_row = pane_of(session_.setup.active, in.ref);
+    const bool settings_moved = after_row != nullptr && after_row->settings != before;
     // A PLACEMENT WRITE IS RECONCILED as the hand's is (`arrange_place`): an authored place
     // takes the pane out of the stack, and `apply_setup` is the one door that opens or closes a
     // pane -- for a place, with no room rationing the stack, it opens and closes nothing.
     apply_setup(mail);
+    if (settings_moved) {
+        // A SETTING'S WRITE IS HANDED NOW, before the room this repaint may grant, and the
+        // sentence says how far it got: stored is not handed, and handed is not used.
+        hand_settings(mail);
+        written += "; " + settings_handed(in.ref);
+    }
     say(written, false);
     answer(true, std::string());
     repaint(mail);

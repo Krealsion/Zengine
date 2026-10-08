@@ -82,3 +82,42 @@ handed none"`, case `"a layout switch hands a pane its new layout's settings onc
 they differ"`, case `"a re-offer and a reopened row are handed their settings again, before their
 room"`.
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
+
+## WL-SETTING-05 — A setting is edited as a row of its pane's subject, against what it takes
+
+LAW — A pane's subject has a row per declared setting and per kept key; a value its setting does not take is refused naming what it takes, its default is stored as absence, and `-` clears it.
+
+MEANS
+- a row reads the stored value or the default as typed, and one its setting does not take beside the default in effect;
+- a kept key takes only `-`; the subject is named anew when its settings rows change;
+- the band says the value was stored and handed, or why it was not handed.
+
+DOES NOT MEAN
+- that the desk acts on a value: it judges and keeps it, and what it means is the pane's.
+
+PROVEN BY — `workshop/setup.hpp` `author_pane_setting`; `workshop/screen.hpp` `SettingsSubject`;
+`workshop/screen_pane_subject.cpp` `settings_subject`, `write_pane_setting`, `write_kept_setting`,
+`pane_setting_text`, `kept_setting_text`; `workshop/weave_inspection.cpp` `settings_handed`,
+`refresh_inspected`; `tests/test_workshop_panes_settings.cpp` case `"a pane's settings are rows of
+its subject, named by their keys, after RESOLVED"`, case `"a value a setting does not take is
+refused at the edit, naming what it takes"`, case `"a setting typed at its default is stored as its
+absence, and `-` clears one"`, case `"a settings write says it was stored and handed, or why it was
+not handed"`, case `"a kept setting takes only `-`, and the rows are named anew when it goes"`, case
+`"the subject is named anew when the settings its rows are built from change"`.
+WHY — `agents/decisions/settings-are-rows-of-a-panes-subject.md`
+
+## WL-SETTING-06 — A close takes a row's settings and says so; an opening's publication keeps them
+
+LAW — A close takes the row's settings with its place and size, and each close door names them; a managed opening's publication keeps the live desk's settings, which its digest leaves out.
+
+MEANS
+- a reopened row keeps none, and is handed that;
+- a setting written while an opening prepares neither aborts it nor is lost to it.
+
+PROVEN BY — `workshop/setup.hpp` `discarded_settings`, `settings_said`; `workshop/weave_desktop.cpp`
+`close_pane`; `workshop/weave_managed.cpp` `show_presentation`, `digest_of`;
+`tests/test_workshop_panes_settings.cpp` case `"a close discards a pane's settings with its row,
+and every close door says which"`, case `"arrangement's remove says the settings it discarded
+too"`; `tests/test_workshop_panes_opening.cpp` case `"a setting written while an opening prepares
+survives its publication"`.
+WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
