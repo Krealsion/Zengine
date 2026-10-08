@@ -133,6 +133,11 @@ void WorkshopWeave::mirror_presentation(loom::Mail& mail) {
 }
 
 void WorkshopWeave::after_delivery(loom::Mail& mail) {
+    if (canvas_room_owed_ || room_owed_) {
+        // THE PANE'S SETTINGS BEFORE THE ROOMS IT WAS SEATED IN, whatever this delivery was: the
+        // repaint owed below comes after them, and hands nothing its holder has already heard.
+        hand_settings(mail);
+    }
     if (canvas_room_owed_) {
         // THE ROOM THE PICTURE WAS SEATED IN, said to its holder after the showing and so after
         // any room an earlier repaint queued for it: whatever the holder heard before, it draws in
