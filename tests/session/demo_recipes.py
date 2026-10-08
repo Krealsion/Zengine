@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -26,6 +27,9 @@ from demo_setup import prepare, layout, Measured, failure_note  # noqa: E402
 _spec = importlib.util.spec_from_file_location("demo_launcher", REPO / "external-host/demo.py")
 launcher = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(launcher)
+
+# Workshop's own readers over one file (tests/workshop_file_read.cpp), named by `--file-reader`.
+FILE_READER = None
 
 CANNOT = "setup names a pane this Workshop cannot present: "
 LINK = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)\)")
@@ -412,6 +416,91 @@ class Recipes(unittest.TestCase):
         self.assertEqual(owner.calls, [])
 
     # ---- walks ------------------------------------------------------------------------------------
+    # ---- the files a launcher writes: at the versions this Workshop writes ---------------------
+    def owner_version(self, header):
+        """A file format's version as its C++ owner declares it, read from the source."""
+        found = re.findall(r"inline constexpr std::int64_t kFormatVersion = (\d+);",
+                           (REPO / header).read_text(encoding="utf-8"))
+        self.assertEqual(len(found), 1, header)
+        return int(found[0])
+
+    def read_back(self, kind, path):
+        """What Workshop's own reader makes of a file, one fact a line."""
+        self.assertIsNotNone(FILE_READER, "run with --file-reader <zengine-workshop-file-read>, "
+                                          "as tests/CMakeLists.txt does")
+        done = subprocess.run([FILE_READER, kind, str(path)], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        return done.stdout.splitlines()
+
+    def test_a_desk_saved_now_launches_in_a_session_this_workshop_reads_whole(self):
+        setup_version = self.owner_version("workshop/setup_persist.hpp")
+        session_version = self.owner_version("workshop/session_persist.hpp")
+        # A DESK AS `s` WRITES IT NOW: Workshop's setup version, and a row keeping its settings.
+        root = make(self.tmp, "saved")
+        desk = json.loads((root / "desk.json").read_text(encoding="utf-8"))
+        desk["version"], desk["fields"]["format_version"] = setup_version, str(setup_version)
+        for row in desk["fields"]["panes"]:
+            row["settings"] = []
+        desk["fields"]["panes"][0]["settings"] = [{"key": "title", "text": "a b"},
+                                                  {"key": "zoom", "number": "3"}]
+        (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
+        wdir = Path(self.tmp) / "workshop"
+        wdir.mkdir()
+        launcher.first_files(described.Setup(root), wdir)
+
+        # ...WORKSHOP'S OWN READERS READ THE ROOT'S FILES WHOLE: the setup's viewport (cells of 12
+        # canvas pixels), the row's settings and the link...
+        self.assertIn("read setup", self.read_back("setup", wdir / "setup.json"))
+        said = self.read_back("session", wdir / "session.json")
+        self.assertIn("read session", said)
+        self.assertIn("viewport %d %d" % (120 * 12, 56 * 12), said)
+        self.assertIn("setting zengine.inventory-pane/inventory title a text `a b`", said)
+        self.assertIn("setting zengine.inventory-pane/inventory zoom a number `3`", said)
+        self.assertIn("link %s" % (wdir / "setup.json"), said)
+        # ...AT THE VERSIONS WORKSHOP WRITES, which no conversion stands between.
+        written = json.loads((wdir / "setup.json").read_text(encoding="utf-8"))
+        self.assertEqual((written["version"], written["fields"]["format_version"]),
+                         (setup_version, str(setup_version)))
+        session = json.loads((wdir / "session.json").read_text(encoding="utf-8"))
+        self.assertEqual((session["version"], session["fields"]["format_version"]),
+                         (session_version, str(session_version)))
+
+    def test_an_older_desk_is_lifted_or_refused_naming_how_to_save_it_again(self):
+        # A DESK SAVED AT SETUP VERSION 4, AS THE SHIPPED ONES ARE: lifted, its rows keeping none.
+        wdir = Path(self.tmp) / "lifted"
+        wdir.mkdir()
+        launcher.first_files(described.Setup(make(self.tmp, "older")), wdir)
+        said = self.read_back("session", wdir / "session.json")
+        self.assertIn("read session", said)
+        self.assertEqual([line for line in said if line.startswith("setting ")], [])
+        # ...AND AN OLDER ONE IS REFUSED BEFORE ANYTHING IS WRITTEN, saying how to write it anew.
+        root = make(self.tmp, "oldest")
+        desk = json.loads((root / "desk.json").read_text(encoding="utf-8"))
+        desk["version"], desk["fields"]["format_version"] = 3, "3"
+        (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
+        wdir = Path(self.tmp) / "refused"
+        wdir.mkdir()
+        with self.assertRaises(ValueError) as refused:
+            launcher.first_files(described.Setup(root), wdir)
+        self.assertIn("is setup version 3", str(refused.exception))
+        self.assertIn("save it (`s`)", str(refused.exception))
+        self.assertEqual(list(wdir.iterdir()), [])
+
+    def test_every_tool_writes_workshop_files_through_the_one_owner_of_their_versions(self):
+        # A TOOL THAT SPELLS A SETUP OR A SESSION ITSELF KEEPS THE VERSION IT WAS WRITTEN AT, so
+        # every launcher and tool composes them through workshop_formats...
+        composed = re.compile(r'"schema":\s*"Workshop(Setup|Session)"|"zengine-workshop-(setup|session)"')
+        owner = REPO / "external-host/tools/workshop/workshop_formats.py"
+        found = [str(p.relative_to(REPO)) for top in ("external-host", "examples")
+                 for p in sorted((REPO / top).rglob("*.py"))
+                 if p != owner and "__pycache__" not in p.parts
+                 and composed.search(p.read_text(encoding="utf-8"))]
+        self.assertEqual(found, [])
+        # ...which names the versions the C++ owners declare.
+        import workshop_formats as formats
+        self.assertEqual(formats.SETUP_VERSION, self.owner_version("workshop/setup_persist.hpp"))
+        self.assertEqual(formats.SESSION_VERSION, self.owner_version("workshop/session_persist.hpp"))
+
     def test_a_walk_needs_a_name_what_it_checks_and_steps_that_name_no_path(self):
         make(self.tmp, "walks", walks={
             "Bad Name": {"about": "a", "steps": [{"press": "x"}]},
@@ -992,4 +1081,7 @@ class Recipes(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--file-reader"] and len(sys.argv) > 2:
+        FILE_READER = sys.argv[2]
+        del sys.argv[1:3]
     unittest.main()
