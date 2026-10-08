@@ -74,7 +74,7 @@ struct PaneSettingsDeclared {
 };
 
 /// Workshop -> the office's holder, when it accepts this: the settings the live layout keeps for
-/// this pane, in key order, sent before any room in the same repaint. None is every setting at
+/// this pane, in key order, sent before any room the pane is granted. None is every setting at
 /// its default; a pane reads the ones it declared and passes over the rest.
 struct PaneSettings {
     std::string pane;

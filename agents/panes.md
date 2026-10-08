@@ -691,10 +691,10 @@ host's side is Workshop's law, [`workshop/settings.md`](workshop/settings.md).
   them. It counts only while the weave that sent it holds the office, and nothing waits on it: it
   makes no pane appear, and no hand-off is held for it.
 - **The hand-off waits on nothing but the door.** A seated pane whose office's holder accepts
-  `PaneSettings` is handed its row's settings, whether or not, and whenever, it declared — at the
-  top of the repaint that seats it, before any room, and again whenever what the live layout keeps
-  differs from what that holder last heard: another layout's settings, a re-offer, a re-seat, a
-  new holder. "Never handed" is not "handed none", so a reopened row's empty list is handed too.
+  `PaneSettings` is handed its row's settings, whether or not, and whenever, it declared — before
+  any room it is granted, at the top of every repaint and before the rooms a managed opening seats
+  it in, and again whenever what the live layout keeps differs from what that holder last heard:
+  another layout's settings, a re-offer, a re-seat, a managed opening, a new holder. "Never handed" is not "handed none", so a reopened row's empty list is handed too.
   It is sent to the holder itself, as a canvas room is. A holder without the door is handed
   nothing, and a pane in two layouts keeping one set of settings hears nothing on a switch.
 - **The pane means; Workshop judges and keeps.** A pane checks the stamp and its pane key, as it

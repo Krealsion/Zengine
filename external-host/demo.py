@@ -171,10 +171,11 @@ def make_project(args, setup, root, build, prefix):
 
 def first_files(setup, wdir):
     """The desk and the session a root's Workshop opens on, written into `wdir`: the setup's desk
-    less its providers' panes at the current setup version, and a session at the current version
-    holding it, at the setup's viewport and associated with that desk's file. Returns the desk."""
+    (at the current setup version, as `desk` gives it) less its providers' panes, and a session at
+    the current version holding it, at the setup's viewport and associated with that desk's file.
+    Returns the desk."""
     providers = [p["role"] for p in setup.providers()]
-    first = formats.current(setup.without(setup.desk(), providers))
+    first = setup.without(setup.desk(), providers)
     save_json(wdir / "setup.json", first)
     columns, rows = setup.get("medium")["viewport"]
     save_json(wdir / "session.json",
