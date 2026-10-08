@@ -251,12 +251,24 @@ private:
 
 std::string exe_dir() {
 #if defined(_WIN32)
-    char buf[MAX_PATH];
-    const DWORD n = ::GetModuleFileNameA(nullptr, buf, MAX_PATH);
-    if (n == 0 || n >= MAX_PATH) {
-        return ".";
+    // In the UTF-8 code page a path's bytes can outnumber its UTF-16 units, so the buffer grows
+    // until the whole path fits: up to three bytes for each of a path's 32,767 units at most.
+    std::string path(MAX_PATH, '\0');
+    for (;;) {
+        const DWORD n =
+            ::GetModuleFileNameA(nullptr, path.data(), static_cast<DWORD>(path.size()));
+        if (n == 0) {
+            return ".";
+        }
+        if (n < path.size()) {
+            path.resize(n);
+            break;
+        }
+        if (path.size() > std::size_t{3} * 32767) {
+            return ".";
+        }
+        path.resize(path.size() * 2);
     }
-    std::string path(buf, n);
     const std::size_t slash = path.find_last_of("\\/");
     return slash == std::string::npos ? "." : path.substr(0, slash);
 #else
