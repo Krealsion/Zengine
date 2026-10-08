@@ -15,10 +15,11 @@ rather than dying on it").
 **Decision.** Parent is lexical and stops at the filesystem's fixed point `p.parent_path() ==
 p`. A linked directory is marked (`symlink_status()` disagreeing with following) and enterable.
 Every write to `current_dir` and every persisted mark goes through `admit_location`. Filenames
-are `std::string` everywhere: a printable-ASCII name is exact and openable; any other keeps its
-row as a `?`-marked projection and refuses activation; what is inside a file is the editor's
-question. `path_admission.hpp` is the only place allowed to ask for a path's bytes, and it
-answers with values.
+are `std::string` everywhere: a name carried exactly as UTF-8 text with no control character is
+openable whatever its script, and drawn with a `?` for each byte outside printable ASCII; any
+other keeps its row as a `?`-marked projection and refuses activation; what is inside a file is
+the editor's question. `path_admission.hpp` is the only place allowed to ask for a path's
+bytes, and it answers with values.
 
 **Alternatives considered.**
 - *`has_parent_path()` as a root test* — rejected: true at POSIX `/`, a drive root and
@@ -31,7 +32,11 @@ answers with values.
   and its table are kept outside this repository.
 - *Keeping the link refusal* — rejected: no property survived it (`0cf8a94`); pinned by case
   `"a linked directory is marked, entered through its own spelling, and left the way it came"`.
-- *The byte test alone for openability* — rejected: a refused name's `?` projection is entirely
+- *Printable ASCII as a condition of opening* — rejected: every Zengine program carries a name
+  in any script exactly, on Windows in the UTF-8 code page, so it refused names that open; what
+  the screen cannot spell is the drawing's question; pinned by case `"a name beyond ASCII is
+  carried exactly and opens, drawn as the screen spells it"`.
+- *The name's text alone for openability* — rejected: a refused name's `?` projection is entirely
   printable ASCII and would read as openable, handing a door a path naming a different file or
   none; the `exact` flag is what stands between the two (`3920bdb`).
 - *A file-type registry or extension list* — none: a `.png` walks into the refusal that knows

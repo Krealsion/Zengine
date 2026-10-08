@@ -1348,6 +1348,32 @@ TEST_CASE("Return on a source opens it in the Editor, through the one door") {
     CHECK(std::find(rows.begin(), rows.end(), "the project") != rows.end());
 }
 
+TEST_CASE("Return enters a folder and opens a file named beyond ASCII, through the bytes the row holds") {
+    // THE ROW HOLDS THE FILESYSTEM'S OWN BYTES, so the press names exactly this folder and this
+    // file; the screen draws each byte it cannot place as `?`.
+    FilesRig f("files-beyond-ascii");
+    const auto held = [](const std::string& utf8) {
+        return std::filesystem::path(
+            std::u8string(reinterpret_cast<const char8_t*>(utf8.data()), utf8.size()));
+    };
+    const std::filesystem::path folder = f.root / held("Zo\xc3\xab \xd0\x96");
+    std::filesystem::create_directory(folder);
+    put_file(folder / held("caf\xc3\xa9.cpp"), "the letters\n");
+    f.open(160, 48, /*with_editor=*/true);
+
+    f.point_at("Zo?? ?" "?/"); // split, so no trigraph
+    f.r.key(input::scan::kReturn);
+    CHECK(any_row(f.shown(), "caf??.cpp"));
+
+    f.point_at("caf??.cpp");
+    f.r.key(input::scan::kReturn);
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(f.r.session().panes.has(editor));
+    CHECK(f.r.session().panes.keyboard == editor);
+    const std::vector<std::string> rows = pane_rows(f.r, editor);
+    CHECK(std::find(rows.begin(), rows.end(), "the letters") != rows.end());
+}
+
 TEST_CASE("a dirty Editor's refusal comes back and the pane says it") {
     // THE NO-SILENT-LOSS FLOOR, REACHING A PANE THAT IS NOT IN THIS PROCESS -- from a document
     // that is not in this process either. The Editor weave refuses; the refusal travels back as
