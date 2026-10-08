@@ -912,6 +912,47 @@ TEST_CASE("one place means one thing, and the map is the projection read backwar
     CHECK(intro::target_at(windowed, omission, 0).control == intro::powers_control::kNone);
 }
 
+TEST_CASE("two lists of powers are two press meanings whatever their identities hold") {
+    // ONE POWER WHOSE IDENTITY SPELLS A SECOND PLACE, and two powers in those places: said one
+    // place to a line they read alike, and a press aimed at the first would select `p` in the
+    // second.
+    const std::int64_t entry = intro::powers_control::kEntry;
+    intro::PowersView one;
+    one.spans.push_back(intro::PowersSpan{1, 2, 20, entry,
+                                          "p\n2 2 20 " + std::to_string(entry) + " q"});
+    intro::PowersView two;
+    two.spans.push_back(intro::PowersSpan{1, 2, 20, entry, "p"});
+    two.spans.push_back(intro::PowersSpan{2, 2, 20, entry, "q"});
+    CHECK(intro::press_meaning(one) != intro::press_meaning(two));
+    // ...nor when the identity holds what ends one place and begins the next.
+    intro::PowersView three;
+    three.spans.push_back(intro::PowersSpan{1, 2, 20, entry,
+                                            "p;2 2 20 " + std::to_string(entry) + " q"});
+    CHECK(intro::press_meaning(three) != intro::press_meaning(two));
+    // ...and a list is one meaning however often it is said.
+    CHECK(intro::press_meaning(two) == intro::press_meaning(two));
+}
+
+TEST_CASE("two lists of loaded weaves are two press meanings whatever their names and roles hold") {
+    // A NAME OR A ROLE HOLDING WHAT ENDS ONE WEAVE AND BEGINS THE NEXT, and one weave under another
+    // role: said weave by weave each pair reads alike, and a press aimed at the first would select
+    // what the second shows, or publish a role its row never showed.
+    const auto meaning = [](const std::vector<intro::LoadedWeave>& weaves) {
+        return intro::press_meaning(intro::project_loaded(weaves, 8, 46));
+    };
+    const std::vector<intro::LoadedWeave> joined{{"a;b", "test.one"}};
+    const std::vector<intro::LoadedWeave> apart{{"a", "test.one"}, {"b", "test.one"}};
+    CHECK(meaning(joined) != meaning(apart));
+    const std::vector<intro::LoadedWeave> in_role{{"a", "r;1:b"}};
+    const std::vector<intro::LoadedWeave> beside{{"a", "r"}, {"b", ""}};
+    CHECK(meaning(in_role) != meaning(beside));
+    const std::vector<intro::LoadedWeave> one_role{{"a", "test.one"}};
+    const std::vector<intro::LoadedWeave> other_role{{"a", "test.two"}};
+    CHECK(meaning(one_role) != meaning(other_role));
+    // ...and a list is one meaning however often it is said.
+    CHECK(meaning(apart) == meaning(apart));
+}
+
 TEST_CASE("a control the width cut is not a target") {
     // THE INVERSE MUST AGREE WITH THE PICTURE. A width too narrow for the second view control
     // draws `...` where it would have been, and a press on that mark must not operate a control
@@ -1534,6 +1575,65 @@ TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is dr
     REQUIRE(ears.heard.size() == 1);
     CHECK(ears.heard[0].library == "plain-caf\xC3\xA9");
     CHECK(ears.heard[0].role == "test.pl\xC3\xA9in");
+}
+
+TEST_CASE("two lists of loaded weaves are two meanings whatever their names hold, so a press carrying "
+          "the first list's picture selects nothing once the second is shown") {
+    // TWO LISTS THAT READ ALIKE one name to a line: `a\nb` and `c`, then `a` and `b\nc`. A press
+    // aimed at the first picture's row of `a\nb` must not select `a`, the weave that row shows now.
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    REQUIRE(r.load("a\nb", WORKSHOP_SO_HELLO, "test.one").valid());
+    REQUIRE(r.load("c", WORKSHOP_SO_GUARD, "test.two").valid());
+    r.ready();
+    r.extent(160, 48);
+    r.pick(intro_ref());
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::int64_t kind = intro_row(r, kIntroPane)->kind;
+    const ExternalPane* pane = r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    REQUIRE(pane->canvas.heard);
+    const std::int64_t grant = pane->canvas.grant;
+    const std::int64_t first = pane->canvas.content.picture;
+    const std::int64_t row = row_with_text(pane_rows(r, kind), "a?b");
+    REQUIRE(row >= 0);
+    const CanvasRows lattice = held_canvas_rows(*pane);
+    const auto as_workshop = [&r](const PaneCanvasPointer& e) {
+        REQUIRE(r.bus.office_send_to_role_as(r.workshop_id, kWorkshopProvider, kIntroOffice,
+            loom::Message(loom::to_value(e), r.workshop_id, r.workshop_id, 0)).valid());
+        r.bus.drain_until_idle();
+    };
+
+    // THE SECOND LIST, read in the same room: a wheel step reads the list again, and where the
+    // whole list fits the window stays where it was.
+    REQUIRE(r.unload("a\nb"));
+    REQUIRE(r.unload("c"));
+    REQUIRE(r.load("a", WORKSHOP_SO_HELLO, "test.one").valid());
+    REQUIRE(r.load("b\nc", WORKSHOP_SO_GUARD, "test.two").valid());
+    as_workshop(PaneCanvasPointer{kIntroPane, grant, first, 1, canvas_pointer::kWheel, 0, 0, 0,
+                                  input::mod::kNone, 0, -1, false});
+    pane = r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    REQUIRE(pane->canvas.grant == grant);
+    REQUIRE(pane->canvas.content.picture > first);
+    const std::vector<std::string> now = pane_rows(r, kind);
+    REQUIRE(static_cast<std::size_t>(row) + 1 < now.size());
+    CHECK(now[static_cast<std::size_t>(row)] == "  a @test.one");
+    CHECK(now[static_cast<std::size_t>(row) + 1] == "  b?c @test.two");
+
+    // A PRESS CARRYING THE FIRST PICTURE, on the row that showed `a\nb`: drawn under another
+    // meaning, so it selects nothing.
+    as_workshop(PaneCanvasPointer{kIntroPane, grant, first, 2, canvas_pointer::kPress, 1,
+                                  lattice.column_x(3), lattice.row_y(row), input::mod::kNone, 0, 0,
+                                  true});
+    CHECK(ears.heard.empty());
+    // ...and a press on the picture shown now selects what that row shows.
+    press_pane(r, kind, row, 3);
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard[0].library == "a");
 }
 
 TEST_CASE("WL-HAND-06: Loaded names each loaded weave's row, and Powers its controls and each power's row") {
