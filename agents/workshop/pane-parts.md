@@ -15,7 +15,7 @@ MEANS
 
 DOES NOT MEAN
 - that Workshop reads a name: it judges a name's form and carries it as the pane said it, and says no unnamed place;
-- that a part the body does not show is said, that one with no place of its own is given another's, or that pressing one is anything but input.
+- that a part the body does not show is said, or any while a refused picture's mark covers it, that one with no place of its own is given another's, or that pressing one is anything but input.
 
 PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_problem`,
 `canvas_parts_problem`, `PartNames`, `row_parts`; `component/row_map.hpp` `RowMap::press_order`;
@@ -33,7 +33,10 @@ PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_pro
 `neovim-editor/pane.cpp` `status_part`; `view/view.hpp` `named`; `view-builder/picture.hpp`
 `part_name`, `named`; `flow-pane/view.hpp` `part_name`, `named`;
 `tests/test_workshop_desk.cpp` case `"a canvas pane's rows set on its room's lattice are words on its
-parts' rows, and a part's text is the characters drawn inside it"`;
+parts' rows, and a part's text is the characters drawn inside it"`, case `"with pane titles hidden,
+a refused picture's mark is Workshop's own: the pane view waits while it covers the picture, a press
+on it reaches no provider and a right press opens Workshop's menu, and the picture beside it takes a
+press as before, a press held or not"`;
 `tests/test_workshop_panes_canvas.cpp` case `"a pane's rows drawn on its canvas stand where its
 prose rows would, name the same parts, and a place reads back to its row and column"`;
 `tests/test_workshop_panes_button.cpp` case `"WL-HAND-06:

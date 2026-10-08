@@ -74,6 +74,11 @@ std::string WorkshopWeave::visible_body(const std::string& provider, const std::
             out.canvas_body.w != c.width || out.canvas_body.h != c.height) {
             return "pane view unavailable: no settled picture";
         }
+        // Workshop's mark over a refused picture, where no title row carries it, covers what the
+        // picture says there: the view is refused, as for a pane another covers.
+        if (!refused_mark_cover(*content, out.canvas_body, sc, titles > 0 && !c.title_waits).empty()) {
+            return "pane view unavailable: Workshop's mark over its refused picture covers part of it";
+        }
     }
     return {};
 }

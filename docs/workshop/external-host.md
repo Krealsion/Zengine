@@ -712,7 +712,8 @@ Every place is in canvas pixels: a window's pixel is one, a terminal's cell is `
 (<!-- value kCanvasCellPx -->12<!-- /value -->), and a terminal's console counts `kTuiCanvasTopRow`
 (<!-- value kTuiCanvasTopRow -->2<!-- /value -->) rows above the canvas. A point to press is in the space the medium
 reads input in, which the answer names. Closed, unsettled, overlapping, modal-covered or
-off-workspace panes' words are refused, and the desk still answers. This reads presentation; it
+off-workspace panes' words are refused, and so are a pane's while Workshop's mark over its refused
+picture covers part of it; the desk still answers. This reads presentation; it
 does not select, activate, grant authority or expose arbitrary state. A later gesture can still
 encounter a changed picture. Legacy unnumbered panes report picture zero; the query is not an
 interaction lease. Receivers must fence their own drops. `hand.words`, `hand.word_point` and

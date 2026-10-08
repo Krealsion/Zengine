@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The screen's external pane body.
-// Workshop law: agents/workshop/focus.md (+4 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/focus.md (+5 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
 #include "screen_canvas.hpp"
@@ -53,7 +53,35 @@ bool rows_shown(const ExternalPane& pane) noexcept {
     return !canvas_shown(pane) && pane.refusal.empty() && pane.heard;
 }
 
+/// The mark a refused picture wears where no title row shows it: at the picture's corner, on the
+/// medium's own ground.
+v2::PaneCanvasText refused_mark_run() {
+    v2::PaneCanvasText run{0, 0, kExternalRefusedMark, surface::role::kAlert};
+    run.background = surface::role::kMediumGround;
+    return run;
+}
+
 } // namespace
+
+// WL-ATTN-04 -- agents/workshop/attention.md
+PixelRect refused_mark_cover(const ExternalPane& pane, const PixelRect& canvas, const Screen& sc,
+                             bool title_drawn) {
+    if (pane.refusal.empty() || !canvas_shown(pane) || title_drawn || canvas.empty()) return {};
+    const std::int64_t grain = chrome_grain(sc);
+    const PaneCanvasRoom room{std::string(), 0, canvas.w, canvas.h, grain,
+                             grain < kPaneCanvasUnit, sc.text_advance_px, sc.text_line_px};
+    const auto placed = clip_canvas_run(refused_mark_run(), {0, 0, canvas.w, canvas.h}, room);
+    if (!placed.visible()) return {};
+    // Where a medium paints it: a window its row's ground, one line at the region's text origin
+    // across its width; a terminal the region's cells.
+    const surface::SurfaceTextRegion region = canvas_text_region(placed, canvas.x, canvas.y);
+    const surface::RegionFit fit = surface::fit_region(region.x, region.y, region.w, region.h,
+                                                       sc.text_advance_px, sc.text_line_px);
+    if (fit.graphical())
+        return PixelRect{fit.view.x, surface::add_cells(fit.view.y, fit.origin_y), fit.view.w,
+                         fit.line_px};
+    return PixelRect{region.x, region.y, region.w, region.h};
+}
 
 // WL-PRESS-04 -- agents/workshop/press-chain.md
 ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
@@ -136,9 +164,9 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         paint_pane_canvas(layer, canvas, pane->canvas.content, sc.text_advance_px,
                           sc.text_line_px, chrome_grain(sc));
         // A picture older than what its pane last drew says so: refused, until a picture is
-        // admitted, else carried to a new room. With no title row the mark stands at the
-        // picture's corner, a refusal's on the medium's own ground: that picture still takes
-        // presses, and is drawn beneath.
+        // admitted, else carried to a new room. Where no title row shows the mark it stands at
+        // the picture's corner (`refused_mark_cover`), and what it covers is read and pressed by
+        // no one.
         const bool refused = !pane->refusal.empty();
         if (refused || pane->canvas.preview) {
             const std::string mark = refused ? kExternalRefusedMark : "(updating)";
@@ -147,8 +175,8 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
                 if (refused) region.rows[0].role = surface::role::kAlert;
             } else {
                 v5::PaneCanvasContent notice;
-                notice.texts.push_back({0, 0, mark, surface::role::kAlert});
-                if (refused) notice.texts.back().background = surface::role::kMediumGround;
+                notice.texts.push_back(refused ? refused_mark_run()
+                                               : v2::PaneCanvasText{0, 0, mark, surface::role::kAlert});
                 paint_pane_canvas(layer, canvas, notice, sc.text_advance_px,
                                   sc.text_line_px, chrome_grain(sc));
             }
