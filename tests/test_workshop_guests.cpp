@@ -1210,6 +1210,7 @@ TEST_CASE("open power reaches only the managed opening, and no other power opens
     // Not the Editor's old door, not a preparation, not a save, and no input or carry of its own.
     CHECK_FALSE(grant.permits_role("OpenSourceRequested", 1, "zengine.editor"));
     CHECK_FALSE(grant.permits_role("PrepareSourceRequested", 1, "zengine.editor"));
+    CHECK_FALSE(grant.permits_role("PrepareSourceRequested", 2, "zengine.editor"));
     CHECK_FALSE(grant.permits_role("PaneActionRequested", 1, "zengine.editor"));
     CHECK_FALSE(grant.permits_role("InjectInput", 1, "zengine.input"));
     CHECK_FALSE(grant.permits_role("PaneValueCarryRequested", 1, "zengine.workshop"));

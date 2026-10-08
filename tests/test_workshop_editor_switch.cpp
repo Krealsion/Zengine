@@ -32,7 +32,9 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
     s.type("X");
     REQUIRE(s.status().rfind("UNSAVED", 0) == 0);
     REQUIRE(s.seat() != nullptr);
-    const std::int64_t incumbent_generation = s.seat()->content_generation;
+    REQUIRE(shows_canvas(*s.seat()));
+    const std::int64_t incumbent_generation = std::stoll(s.read("doc_epoch"));
+    const std::int64_t incumbent_grant = s.seat()->canvas.grant;
 
     const EditorSwitchAnswered away = s.switch_to("twin");
     CHECK_MESSAGE(away.outcome == switch_outcome::kSwitched, away.detail);
@@ -54,20 +56,27 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
     CHECK(s.read("saved_text") == "int one;\nint two;\n");
     CHECK(s.read("caret_row") == "1");
     CHECK(s.read("caret_byte") == "5");
-    // THE DESK SHOWS THE SUCCESSOR IN THE SAME SEAT, at a generation past the incumbent's, so a row
-    // the incumbent said before it retired can never repaint the successor's.
+    // THE DESK SHOWS THE SUCCESSOR IN THE SAME SEAT, its picture in a room granted to it alone, so
+    // a picture the incumbent drew before it retired names a room it no longer holds and is
+    // refused; and the document is a generation past the incumbent's.
     CHECK(s.r.session().panes.has(s.kind));
     CHECK(s.shows("UNSAVED"));
     CHECK(s.shows("int Xtwo;"));
     REQUIRE(s.seat() != nullptr);
-    const std::int64_t successor_generation = s.seat()->content_generation;
+    CHECK(shows_canvas(*s.seat()));
+    CHECK(s.seat()->canvas.owner == second);
+    CHECK(s.seat()->canvas.grant != incumbent_grant);
+    const std::int64_t successor_grant = s.seat()->canvas.grant;
+    const std::int64_t successor_generation = std::stoll(s.read("doc_epoch"));
     CHECK(successor_generation > incumbent_generation);
 
     // AND BACK, through the same law, to the plan's own row.
     const EditorSwitchAnswered back = s.switch_to("standard");
     CHECK_MESSAGE(back.outcome == switch_outcome::kSwitched, back.detail);
     REQUIRE(s.seat() != nullptr);
-    CHECK(s.seat()->content_generation > successor_generation);
+    CHECK(s.seat()->canvas.owner == s.holder());
+    CHECK(s.seat()->canvas.grant != successor_grant);
+    CHECK(std::stoll(s.read("doc_epoch")) > successor_generation);
     CHECK(back.active == "standard");
     CHECK(s.r.kernel.is_loaded(pane::kEditorPaneStem));
     CHECK_FALSE(s.r.kernel.is_loaded("zengine-editor-pane-b"));

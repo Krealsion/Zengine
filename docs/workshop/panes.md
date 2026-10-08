@@ -285,8 +285,9 @@ only the menu changed. The seam is
 the package, and the [reference](../reference/workshop-panes.md#the-menu-presenter-and-replacing-it)
 lists what crosses it.
 
-**Limits, stated.** Holding a secondary button and moving does not cross to the pane (no
-secondary drag, so no middle-button scrolling in the Editor and no right-drag in Neovim); a
+**Limits, stated.** Holding a secondary button and moving reaches only a pane that draws on its
+canvas, and neither Editor spends it (no middle-button scrolling in the Editor and no right-drag
+in Neovim); a
 modifier held with a right-click is not reported on the graphical window; and on a terminal,
 whether a right press and its release reach Workshop at all is the emulator's decision first.
 
@@ -565,10 +566,12 @@ back. The choice is presentation only — no pane's identity, geometry or saved 
 and it lasts for the current run.
 
 **One exception, and it is the law rather than a leftover:** the pane currently holding the
-keyboard keeps its title, mark and all. The `> ` mark names the pane your keys go back to —
+keyboard wears its title, mark and all. The `> ` mark names the pane your keys go back to —
 the band's first row says where a key goes right now, which a menu or a line takes first
 while it is open — and hiding chrome may never hide that, so with titles off, focusing a pane shows its
-title for exactly as long as the focus holds.
+title while the focus holds. When a press you hold on a pane that draws its own picture brings it
+the keys, the title appears at the release, and until then the pane keeps the room the press was
+aimed at -- unless the pane itself moves, which gives it its new room at once and ends the press.
 
 ## Panes as an author
 

@@ -48,13 +48,16 @@ external_press_at(panes, setup, screen, kind,     } Panes::selected and Panes::k
   the row a provider means by 0 is the region's prose row under the header. Forgetting the
   subtraction on the way back is the off-by-one that would be invisible until a pane had more
   than one selectable row. The count is `external_title_rows`'s answer — the
-  pane-title preference, with the keyboard-holding pane always keeping its title — resolved
+  pane-title preference, with the keyboard-holding pane wearing its title (a held canvas
+  press's once it ends) — resolved
   once and carried on `ExternalBodyPlace::header_rows`; the painter, the press path and the
   room grant spend that one answer, and a hidden title RETURNS its row to the provider's
   budget through the ordinary grant-on-change door. **The press path spends the answer the
   PRESSED picture had**, read before the press moves the keyboard: a hidden-titles pane wears
   its title exactly while it has the keys, so the press that brings them names the row painted
-  where it landed, and the smaller room the returning title takes is granted right behind it.
+  where it landed, and the smaller room the returning title takes is granted right behind it --
+  behind a held canvas press, once it ends, its picture and rows kept meanwhile in the room the
+  press was aimed at.
   A provider must not let that grant undo what the press selected (Files keeps its selection
   by name across a same-place re-listing).
 - **A row that fits no prose is not a row.** Anything outside `[0, rows) × [0, columns)` — the
@@ -149,7 +152,12 @@ and the press measurer (`cell_center`), refusing a moved picture exactly as `Pan
 refuses a covered pane. It reads presentation; pressing the point is ordinary input. Version 2
 of both answers a canvas pane too: its words are its labels and runs as the painter clips them,
 through `visible_body` and `visible_words`, each with its place in canvas pixels and the point a
-press names it by; a canvas word's point is checked against the body its press lands in.
+press names it by; a canvas word's point is checked against the body its press lands in, and a
+picture that takes no press (`canvas_takes_press`) gives a word or part none and refuses a point,
+as its press reaches nothing. Version
+3 of the point names a cell of a pane's text lattice -- a text pane's painted cell, as version 1
+answers, or a canvas pane's cell of the lattice its room's text stands on (`canvas_rows`), blank
+or past a row's last character -- read back to that cell of the room its press lands in.
 `DeskViewRequested` answers the desk from Workshop's own numbers (WL-GEO-13). Workshop names
 nothing inside a pane: a word's number is its place in one answer. A pane names its parts
 (WL-HAND-06): `v4::PaneContent` and `v4::PaneCanvasContent` (and `v5`) carry `parts` -- a run of a row's
@@ -157,7 +165,8 @@ columns, a rectangle of the picture -- and `v2::MenuShown` a presenter's lines b
 each judged with the picture it names and refused whole with it (`row_parts_problem`,
 `canvas_parts_problem`), listed in the order the pane reads a press, a place it names nothing
 unnamed. `PaneView` version 3 says each beside the words with its place and its point, a place of
-its own a press reaches -- none for a part with no such place -- and `DeskView` version 2 a
+its own a press reaches -- none for a part with no such place, or of a picture that takes no
+press -- and `DeskView` version 2 a
 menu's named lines; a name is carried as the pane said it, and a press on a part is ordinary
 input at that point.
 
@@ -171,7 +180,9 @@ Workshop owns local-to-screen translation, clipping, picture fencing and pointer
 picture, hit testing and every semantic action. No node, wire or pan behavior belongs in the
 host. The one current-holder callback reads Loom's role table, never a second provider registry.
 
-A provider accepts both room and pointer doors to opt in. Its picture echoes a fresh room's
+A provider accepts both room and pointer doors to opt in, and every pane Zengine ships does:
+each draws on its canvas and keeps prose only for a host that grants none, while the examples
+(`examples/guard-pane`, `tally-pane`, `tower-defense`) speak prose whole. Its picture echoes a fresh room's
 grant and numbers compositions increasingly within it. A new room clears its prior picture.
 Invalid or stale authenticated content is answered as `PaneCanvasRejected`, preserving the
 last good picture. A same-provider geometry change may retain a display-only preview marked
@@ -281,14 +292,15 @@ beside the shapes before them, and each is an ordinary optional capability any p
   deliberately NOT clamped — a row above the body is negative, one below it is past the granted
   count, and what either means is the pane's. There is no release shape: the host ends its own
   record on release, or when the pane loses its seat or its room, and sends nothing; a pane
-  resolves a sweep from the positions it was given. The Editor steps its window on it; a pane
-  drawing its rows on its canvas hears its pointer's motion instead, and the Terminal's means
-  nothing.
+  resolves a sweep from the positions it was given. No pane Zengine ships spends it: each draws
+  its rows on its canvas and hears its own press's motion there (WL-CANVAS-03), the Editors
+  sweeping on it (WL-EDIT-16); a text pane is sent it, as a recording text pane witnesses
+  (WL-TEXT-14).
   **Workshop arms its record from geometry alone** — a press that named ANY body row takes hold
   of the pane, because the host does not read a provider's rows to learn what they mean. So a
   drag EXTENDS a gesture the pane's own `PanePressed` began, and a pane that consumed the press
   as focus alone ignores the motions behind it. That is the pane's half of one gesture, and the
-  Editor pins it.
+  Editors keep it on their canvas.
 - **The reveal is one ask and one answer**: **`PaneRevealRequested v1` `{pane}`**
   (provider → Workshop, as the office that offered the pane: seat me now, my act needs nothing
   more) and **`PaneRevealAnswered v1` `{pane, seated, refusal}`** (Workshop's answer, on the
@@ -481,8 +493,8 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   subject side is closed as well: a slot's meaning carries its subject (`LauncherMeaning::ref`,
   `KeysMeaning::ref`), so a same-length swap moves the map's number and a stale press is refused,
   not resolved against the row that moved in.
-- **Not in this contract:** a secondary drag (`PaneDragged` carries no button, so the Editor's
-  middle-button scroll and Neovim's right drag do not cross), modifier state on a window's
+- **Not in this contract:** a secondary drag to a text pane (`PaneDragged` carries no button; a
+  canvas hold carries its button, and neither Editor spends a secondary motion), modifier state on a window's
   button events (`mod::kNone` always), a host-performed pane operation from a menu row, the
   host's OWN menus (chrome, room, tab, pass-back, a doorless body, a `manage` row) presented by
   the presenter — they stay the host's, the management route that must work with no presenter at
@@ -506,9 +518,12 @@ joint-publication reference page, never restated here. What crosses, all in
 OpenSourceRequested v1 {path}   requester -> zengine.opening   (pane_seam_vocabulary.hpp; also
                                                                  zengine.editor, which RELAYS)
 SourceOpened v1 {accepted, refusal}   the answer: published AND applied by both owners, or why not
-PresentationTrialRequested v1 / PresentationTrial v1      manager -> desk: would it seat, what room
-PrepareSourceRequested v1 / SourcePrepared v1             manager -> Editor: prepare B for that room
-PresentationAdmitRequested v1 / PresentationAdmitted v1   manager -> desk: admit B's rows, offer
+PresentationTrialRequested v1 / PresentationTrial v1, v2  manager -> desk: would it seat, what room,
+                                                           and (v2) the canvas room reserved for it
+PrepareSourceRequested v1, v2 / SourcePrepared v1, v2     manager -> Editor: prepare B for that room,
+                                                           as rows (v1) or as its picture (v2)
+PresentationAdmitRequested v1, v2 / PresentationAdmitted v1   manager -> desk: admit B's rows or
+                                                           picture, offer
 ManagedOpenProgress v1                                    manager -> desk (and both owners at
                                                            `apply`): what is awaited, or retracted
 ManagedOpenSettled v1                                     manager -> both owners, afterwards
@@ -530,6 +545,15 @@ v2::PaneContent v2, v2::PaneCaret v2                      (pane_vocabulary.hpp) 
   document that has since been replaced, dropped rather than painted over the admitted rows. A
   v1 content carries none and is admitted as it always was; every pane that never commits
   jointly is unchanged and unrebuilt, and the separately built legacy provider still speaks v1.
+  The Editors say them only to a host granting no canvas.
+- **A pane that draws on its canvas is opened as its picture** (WL-OPEN-10). Where its holder
+  takes the canvas doors and `v2::PrepareSourceRequested`, the trial reserves the canvas room the
+  seat will have, its grant minted then and used by nothing before the commitment; the Editor
+  composes B as its own picture there, and the desk installs it under that grant at the showing,
+  the desk's until the Editor draws again, and says the room to the Editor afterwards. A picture
+  carries no generation: every picture of A names A's room and is refused. Neovim's editor shows
+  B's prepared preview until Neovim has drawn B. Rows shown for a pane that held a canvas drop its
+  picture, and the next repaint grants it a room afresh.
 - **Every managed sentence is judged under the office stamp.** The trial, the admission and
   the settlement are taken only from `zengine.opening`; a preparation only from the manager;
   a forged settlement, preparation or admission reaches its party and is dropped by it. The

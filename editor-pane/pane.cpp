@@ -3,10 +3,9 @@
 
 // The Editor pane: a loadable weave that offers Workshop one pane and holds the one source
 // document a weaver edits -- path, bytes, saved comparison, line convention, caret, selection,
-// history and viewport (WL-EDIT-01). It is the one custodian: the buffer machinery
-// (`editor.hpp`) lives here and the file is read and written from here; what crosses is a
-// source request, a preparation, a quit answer, rows and a caret. The host keeps room, focus,
-// membership and the exit decision, which it makes by asking (WL-EDIT-03, WL-EDIT-14).
+// history and viewport (WL-EDIT-01). It is the one custodian of the buffer (`editor.hpp`) and
+// the file; what crosses is a source request, a preparation, a quit answer and its picture. The
+// host keeps room, focus, membership and the exit decision, which it asks (WL-EDIT-03, WL-EDIT-14).
 // Workshop law: agents/workshop/editor.md
 
 // Save is one synchronous call (the write, then the saved comparison), so a success can never
@@ -24,6 +23,7 @@
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
@@ -85,15 +85,12 @@ using ws::ManagedOpenSettled;
 using ws::OpenSourceRequested;
 using ws::PaneActionRequested;
 using ws::PaneCatalogRequested;
-using ws::PaneDragged;
 using ws::PaneKey;
 using ws::v2::PaneOffered;
-using ws::PanePressed;
 using ws::PaneQuitAnswered;
 using ws::PaneQuitRequested;
 using ws::PaneRoom;
 using ws::PaneTextInput;
-using ws::PaneWheel;
 using ws::PrepareSourceRequested;
 using ws::ProjectRoot;
 using ws::ProjectRootRequested;
@@ -126,19 +123,22 @@ constexpr const char* kPasteInFlight =
 class EditorPaneWeave
     : public loom::WeaveBase<
           EditorPaneWeave, pane::EditorPaneState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed,
-                       ws::v3::PanePressed, PaneDragged, PaneKey, PaneTextInput, PaneWheel,
-                       ws::PaneButton, PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
-                       PrepareSourceRequested, ManagedOpenProgress, ManagedOpenSettled,
+          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
+                       ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneKey, PaneTextInput,
+                       PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
+                       PrepareSourceRequested, ws::v2::PrepareSourceRequested,
+                       ManagedOpenProgress, ManagedOpenSettled,
                        SourceOpened, loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy,
                        surface::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
                        EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
-                       ws::PaneValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
+                       ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered>,
-          loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v4::PaneContent, ws::v2::PaneCaret,
+          loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v5::PaneCanvasContent,
+                     ws::v4::PaneContent, ws::v2::PaneCaret,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
-                     PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
+                     PaneQuitAnswered, SourceOpened, SourcePrepared, ws::v2::SourcePrepared,
+                     OpenSourceRequested,
                      ProjectRootRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
                      EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
@@ -162,6 +162,9 @@ class EditorPaneWeave
         std::int64_t columns = 0;
         std::int64_t chrome_rows = 0;
         std::int64_t doc_rows = 0;
+        /// The canvas room the trial reserved, where the candidate was composed as this pane's
+        /// picture; no grant where it was composed as rows.
+        ws::PaneCanvasRoom room;
     };
 
     /// THE SWEEP A PRESS BEGAN, and the picture it began against (WL-EDIT-16).
@@ -289,19 +292,22 @@ class EditorPaneWeave
 public:
     using Base = loom::WeaveBase<
         EditorPaneWeave, pane::EditorPaneState,
-        loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed,
-                     ws::v3::PanePressed, PaneDragged, PaneKey, PaneTextInput, PaneWheel,
-                     ws::PaneButton, PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
-                     PrepareSourceRequested, ManagedOpenProgress, ManagedOpenSettled,
+        loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
+                     ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneKey, PaneTextInput,
+                     PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
+                     PrepareSourceRequested, ws::v2::PrepareSourceRequested,
+                     ManagedOpenProgress, ManagedOpenSettled,
                      SourceOpened, loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy,
                      surface::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
                      EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                      EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
-                     ws::PaneValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
+                     ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                      ws::PaneCarryAnswered>,
-        loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v4::PaneContent, ws::v2::PaneCaret,
-                     ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
-                   PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
+        loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v5::PaneCanvasContent,
+                   ws::v4::PaneContent, ws::v2::PaneCaret,
+                   ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
+                   PaneQuitAnswered, SourceOpened, SourcePrepared, ws::v2::SourcePrepared,
+                   OpenSourceRequested,
                    ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
                    EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted,
                    EditorLive, EditorRetired, ws::PaneMenuRequested, ws::PanePassRequested,
@@ -347,9 +353,14 @@ public:
         announce(mail);
     }
 
+    /// THE PROSE ROOM: the rows and columns this pane composes for where its host grants it no
+    /// canvas. Once a canvas room is granted the canvas decides, and this room is not spent.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kEditorPane) {
             return;
+        }
+        if (canvas_.grant > 0) {
+            return; // the canvas room, granted first, already drew
         }
         rows_ = room.rows;
         columns_ = room.columns;
@@ -359,6 +370,38 @@ public:
         }
         say(mail);
     }
+
+    /// THE CANVAS ROOM: this pane draws its rows there as its own picture, the lattice's rows and
+    /// columns its room. A new grant ends the sweep its predecessor held; a room with no extent
+    /// draws nothing and moves nothing, so the view a hidden pane was left at is the view it
+    /// shows again.
+    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kEditorPane) {
+            return;
+        }
+        if (room.grant != canvas_.grant) {
+            held_ = 0;
+            drag_ = Drag{};
+            if (!grab_.started) {
+                end_grab();
+            }
+        }
+        canvas_ = room;
+        if (!on_canvas()) {
+            return;
+        }
+        const ws::CanvasRows lattice = ws::canvas_rows(canvas_);
+        rows_ = lattice.rows;
+        columns_ = lattice.columns;
+        granted_ = true;
+        if (!root_asked_) {
+            ask_project_root(mail);
+        }
+        say(mail);
+    }
+
+    /// A refused picture leaves the last good one showing, and the next saying draws again.
+    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
 
     /// WHERE THIS RUN BEGAN, asked of `zengine.project` -- the one host fact a relative
     /// spelling needs, and the door Files asks for the same reason (WL-FILES-02).
@@ -497,25 +540,79 @@ public:
     /// The managed door (WL-OPEN-01, WL-OPEN-03): prepare this source for the room the desk's
     /// trial would grant, and offer the document's identity for the exact operation. Judged with
     /// nothing moved; the candidate is a whole document built beside the current one, and its
-    /// composition travels back as the trial's content. The bus can refuse the offer (not this
-    /// weave's operation, or the claim already moved); then no candidate is kept.
+    /// composition travels back as the trial's content: as rows and a caret here...
     void on(const PrepareSourceRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(ws::kOpeningRole)) {
             return;
         }
-        if (holding_.active) {
-            ++holding_.refused;
-            (void)mail.answer(not_prepared(asked.op, "the Editor is being switched -- " + asked.path +
-                                                         " was not prepared; open it again once the "
-                                                         "switch has settled"));
+        Preparation p = prepare(asked.op, asked.path, asked.rows, asked.columns, ws::PaneCanvasRoom{},
+                                mail);
+        if (!p.refusal.empty()) {
+            (void)mail.answer(not_prepared(asked.op, std::move(p.refusal)));
             return;
         }
-        candidate_ = Candidate{}; // a newer preparation supersedes an older candidate
-        const std::uint64_t op = static_cast<std::uint64_t>(asked.op);
-        Plan plan = judge_source(asked.path);
-        if (!plan.outcome.accepted) {
-            (void)mail.answer(not_prepared(asked.op, plan.outcome.refusal));
+        SourcePrepared prepared;
+        prepared.op = asked.op;
+        prepared.ok = true;
+        prepared.generation = p.generation;
+        prepared.rows = std::move(p.shown.rows);
+        prepared.caret_row = p.shown.caret.row;
+        prepared.caret_col = p.shown.caret.column;
+        prepared.sel_begin_row = p.shown.caret.sel_begin_row;
+        prepared.sel_begin_col = p.shown.caret.sel_begin_col;
+        prepared.sel_end_row = p.shown.caret.sel_end_row;
+        prepared.sel_end_col = p.shown.caret.sel_end_col;
+        (void)mail.answer(prepared);
+    }
+
+    /// ...or as this pane's own picture in the canvas room the trial reserved, composed for the
+    /// rows and columns of its lattice and numbered as the first picture in that room.
+    void on(const ws::v2::PrepareSourceRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(ws::kOpeningRole)) {
             return;
+        }
+        const ws::CanvasRows lattice = ws::canvas_rows(asked.room);
+        Preparation p = prepare(asked.op, asked.path, lattice.rows, lattice.columns, asked.room, mail);
+        ws::v2::SourcePrepared prepared;
+        prepared.op = asked.op;
+        prepared.ok = p.refusal.empty();
+        prepared.refusal = std::move(p.refusal);
+        if (prepared.ok) {
+            prepared.generation = p.generation;
+            prepared.picture = ws::rows_picture(asked.room, 1, p.shown.rows,
+                                                parts_of(p.shown, lattice.columns),
+                                                rows_caret(p.shown.caret));
+        }
+        (void)mail.answer(prepared);
+    }
+
+    /// WHAT A PREPARATION CAME TO: refused in words, or the generation offered and the
+    /// candidate's composition for the room asked.
+    struct Preparation {
+        std::string refusal;
+        std::int64_t generation = 0;
+        Composition shown;
+    };
+
+    /// PREPARE THE CANDIDATE: judged with nothing moved, built beside the current document,
+    /// composed for `rows` by `columns`, and its identity offered for the exact operation. The bus
+    /// can refuse the offer (not this weave's operation, or the claim already moved); then no
+    /// candidate is kept.
+    Preparation prepare(std::int64_t asked_op, const std::string& asked_path, std::int64_t rows,
+                        std::int64_t columns, const ws::PaneCanvasRoom& room, loom::Mail& mail) {
+        Preparation out;
+        if (holding_.active) {
+            ++holding_.refused;
+            out.refusal = "the Editor is being switched -- " + asked_path +
+                          " was not prepared; open it again once the switch has settled";
+            return out;
+        }
+        candidate_ = Candidate{}; // a newer preparation supersedes an older candidate
+        const std::uint64_t op = static_cast<std::uint64_t>(asked_op);
+        Plan plan = judge_source(asked_path);
+        if (!plan.outcome.accepted) {
+            out.refusal = plan.outcome.refusal;
+            return out;
         }
         Candidate next;
         next.live = true;
@@ -523,18 +620,16 @@ public:
         next.path = plan.path;
         next.same_path = plan.same_path;
         EditorDocument offered;
-        Composition shown;
         if (plan.same_path) {
             // THE DOCUMENT IS THIS ONE; what the operation changes is the desk. Composed for
             // the trial room on a COPY of the view, because asking for the open source again
             // moves the pane and never the view (WL-EDIT-09).
             offered = identity_now();
-            offered.opened_by = asked.op;
-            shown = compose(e_, viewport_of(e_), asked.rows, asked.columns,
-                            (e_.dirty() ? "UNSAVED edits stand -- editing " : "editing ") +
-                                tail_of_path(e_.path, asked.columns > 24 ? asked.columns - 24
-                                                                            : asked.columns),
-                            false);
+            offered.opened_by = asked_op;
+            out.shown = compose(e_, viewport_of(e_), rows, columns,
+                                (e_.dirty() ? "UNSAVED edits stand -- editing " : "editing ") +
+                                    tail_of_path(e_.path, columns > 24 ? columns - 24 : columns),
+                                false);
         } else {
             next.doc.path = plan.path;
             next.doc.saved_lines = plan.admitted.lines;
@@ -548,38 +643,28 @@ public:
             offered.content_revision =
                 static_cast<std::int64_t>(next.doc.buffer.content_revision());
             offered.dirty = false;
-            offered.opened_by = asked.op;
-            shown = compose(next.doc, viewport_of(next.doc), asked.rows, asked.columns,
-                            "editing " + tail_of_path(next.doc.path,
-                                                      asked.columns > 24 ? asked.columns - 24
-                                                                         : asked.columns),
-                            false);
+            offered.opened_by = asked_op;
+            out.shown = compose(next.doc, viewport_of(next.doc), rows, columns,
+                                "editing " + tail_of_path(next.doc.path,
+                                                          columns > 24 ? columns - 24 : columns),
+                                false);
             // The candidate keeps the viewport it was composed with, so what it shows at
             // activation is what the desk admitted.
-            apply_viewport(next.doc, shown.view);
+            apply_viewport(next.doc, out.shown.view);
         }
-        next.rows = asked.rows;
-        next.columns = asked.columns;
-        next.chrome_rows = shown.chrome_rows;
-        next.doc_rows = shown.doc_rows;
+        next.rows = rows;
+        next.columns = columns;
+        next.chrome_rows = out.shown.chrome_rows;
+        next.doc_rows = out.shown.doc_rows;
+        next.room = room;
         const loom::JointResult offer = mail.offer(op, offered);
         if (!offer.ok) {
-            (void)mail.answer(not_prepared(asked.op, offer_refusal(plan.path, offer.why)));
-            return;
+            out.refusal = offer_refusal(plan.path, offer.why);
+            return out;
         }
         candidate_ = std::move(next);
-        SourcePrepared prepared;
-        prepared.op = asked.op;
-        prepared.ok = true;
-        prepared.generation = offered.doc_epoch;
-        prepared.rows = std::move(shown.rows);
-        prepared.caret_row = shown.caret.row;
-        prepared.caret_col = shown.caret.column;
-        prepared.sel_begin_row = shown.caret.sel_begin_row;
-        prepared.sel_begin_col = shown.caret.sel_begin_col;
-        prepared.sel_end_row = shown.caret.sel_end_row;
-        prepared.sel_end_col = shown.caret.sel_end_col;
-        (void)mail.answer(prepared);
+        out.generation = offered.doc_epoch;
+        return out;
     }
 
     /// THE OPERATION ENDED, said by the manager AFTER the fact. On a commitment this weave
@@ -872,32 +957,50 @@ public:
 
     // ---- The pointer ---------------------------------------------------------------------
 
-    /// A press names a row of this pane's room. The rows above the document (status, a standing
-    /// notice) are a focus statement and move nothing; a document row places the caret through
-    /// the tab geometry the row was painted with (WL-EDIT-08), at `first_col + column`. It also
-    /// decides whether a sweep is under way (WL-EDIT-16): Workshop routes a whole button's
-    /// motions here for any body row, so a press consumed as focus must begin no gesture. And it
-    /// leaves the notice row alone, since clearing it would move the document under the hand.
-    void on(const PanePressed& press, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kEditorPane) {
+    /// THE POINTER ON THIS PANE'S CANVAS, each place read back to the row and column of the
+    /// lattice its rows stand on: a primary press places the caret or remembers what it landed
+    /// on, its motion sweeps or carries that, its release or loss ends the sweep, the wheel
+    /// scrolls, and a right press offers this pane's rows or hands the press back. A press beside
+    /// the rows, where a prose press named no row, begins nothing.
+    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || event.pane != pane::kEditorPane ||
+            !on_canvas()) {
             return;
         }
-        press_at(press.row, press.column, -1, mail); // an unnumbered press holds nothing
-    }
-
-    /// ...AND THE PRESS THAT NAMES ITS PICTURE (`v3::PanePressed`), which may mean one thing more
-    /// once the hand moves: a press ON the painted highlight is an ordinary press that remembers
-    /// the selection it landed on, and a press on the status row remembers this file's location
-    /// (WL-EDIT-19). A press aimed at an older picture remembers nothing.
-    void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kEditorPane) {
-            return;
+        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), event.x, event.y);
+        const bool same_room = event.grant == canvas_.grant;
+        const bool current = same_room && pictures_.current(event.grant, event.picture);
+        if (event.phase == ws::canvas_pointer::kPress && same_room && event.button == 1) {
+            held_ = at.shown ? event.gesture : 0;
+            if (at.shown) {
+                press_at(at.row, at.column, current, mail);
+            } else if (!holding_.active) {
+                end_grab();
+                drag_ = Drag{};
+            }
+        } else if (event.phase == ws::canvas_pointer::kPress && same_room && event.button == 3) {
+            right_press(at, current, mail);
+        } else if (event.phase == ws::canvas_pointer::kMove && event.button == 1 && held_ != 0 &&
+                   event.gesture == held_) {
+            dragged(at.row, at.column, mail);
+        } else if ((event.phase == ws::canvas_pointer::kRelease ||
+                    event.phase == ws::canvas_pointer::kLost) &&
+                   event.button == 1 && event.gesture == held_) {
+            held_ = 0;
+            drag_ = Drag{};
+        } else if (event.phase == ws::canvas_pointer::kWheel && same_room) {
+            wheel(event.dy, mail);
         }
-        press_at(press.row, press.column, press.picture, mail);
     }
 
+    /// A press names a row of this pane's room. The rows above the document are a focus statement
+    /// that moves nothing, and begins no sweep (WL-EDIT-16); a document row places the caret through
+    /// the tab geometry its row was painted with (WL-EDIT-08), the notice row left alone. On a
+    /// picture still `current` it may mean one thing more once the hand moves: ON the highlight it
+    /// remembers the selection it landed on, and on the status row this file's location
+    /// (WL-EDIT-19).
     // WL-EDIT-19 -- agents/workshop/editor-transfers.md
-    void press_at(std::int64_t prow, std::int64_t pcol, std::int64_t picture, loom::Mail& mail) {
+    void press_at(std::int64_t prow, std::int64_t pcol, bool current, loom::Mail& mail) {
         if (held_still()) {
             return;
         }
@@ -919,7 +1022,7 @@ public:
             row < e_.buffer.line_count() ? row : e_.buffer.line_count() - 1;
         const std::int64_t column = pcol < 0 ? 0 : pcol;
         const EditorPos at{target, ws::byte_of_visual_col(e_.buffer.line(target), e_.first_col + column)};
-        if (picture >= 0 && picture == picture_ && row < e_.buffer.line_count() && on_highlight(at)) {
+        if (current && row < e_.buffer.line_count() && on_highlight(at)) {
             grab_ = Grab{true, false, Take::Selection, prow, pcol, mail.correlation(), mark_now(),
                          EditorPos{e_.buffer.anchor_row(), e_.buffer.anchor_byte()},
                          EditorPos{e_.buffer.caret_row(), e_.buffer.caret_byte()}, {}};
@@ -933,14 +1036,11 @@ public:
         say(mail);
     }
 
-    /// The hand moved with the button down: the selection sweep. The row is unclamped on purpose:
+    /// The hand moved with the press held: the selection sweep. The row is unclamped on purpose:
     /// past the body's top or bottom edge the caret steps one row per motion and the follow flag
     /// pulls the viewport after it, enough to sweep a selection out of the window; a negative
     /// column steps leftward the same way (`EditorBuffer::drag_to`).
-    void on(const PaneDragged& drag, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || drag.pane != pane::kEditorPane) {
-            return;
-        }
+    void dragged(std::int64_t drow, std::int64_t dcol, loom::Mail& mail) {
         if (held_still()) {
             return;
         }
@@ -948,7 +1048,7 @@ public:
         // sweep (WL-EDIT-19): the pressed selection is put back exactly as it stood -- nothing but
         // the press's own caret moved since, or nothing is carried -- and a copy of it is taken.
         if (grab_.armed) {
-            if (!grab_.started && (drag.row != grab_.row || drag.column != grab_.column)) {
+            if (!grab_.started && (drow != grab_.row || dcol != grab_.column)) {
                 grab_.started = true;
                 if (grab_.what == Take::Location) {
                     acquire(Take::Location, true, grab_.gesture, grab_.at, mail);
@@ -968,7 +1068,7 @@ public:
         }
         // THE PICTURE THE GESTURE BEGAN AGAINST, not the one composed since: the weaver's
         // hand measured this motion against the rows they could see when they pressed.
-        const std::int64_t brow = drag.row - drag_.chrome_rows;
+        const std::int64_t brow = drow - drag_.chrome_rows;
         std::size_t target;
         if (brow < 0) {
             target = e_.first_row > 0 ? e_.first_row - 1 : 0;
@@ -977,7 +1077,7 @@ public:
         } else {
             target = e_.first_row + static_cast<std::size_t>(brow);
         }
-        e_.buffer.drag_to(target, drag.column < 0 ? std::int64_t{-1} : e_.first_col + drag.column);
+        e_.buffer.drag_to(target, dcol < 0 ? std::int64_t{-1} : e_.first_col + dcol);
         e_.follow_caret = true;
         say(mail);
     }
@@ -986,10 +1086,7 @@ public:
     /// until they are worth whole lines, the window slides inside the document, and the
     /// follow flag is deliberately NOT set -- the wheel's whole meaning is to look elsewhere
     /// while the caret stays put. The next caret gesture brings the view back.
-    void on(const PaneWheel& wheel, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != pane::kEditorPane) {
-            return;
-        }
+    void wheel(double dy, loom::Mail& mail) {
         if (held_still()) {
             return;
         }
@@ -997,7 +1094,7 @@ public:
             return;
         }
         end_grab();
-        e_.wheel_accum += wheel.dy * static_cast<double>(ws::kEditorWheelLines);
+        e_.wheel_accum += dy * static_cast<double>(ws::kEditorWheelLines);
         const std::int64_t lines = static_cast<std::int64_t>(e_.wheel_accum);
         e_.wheel_accum -= static_cast<double>(lines);
         if (lines == 0) {
@@ -1134,36 +1231,31 @@ public:
     // open for the gesture that caused it. Nothing here saves, builds, sends or runs.
 
     /// THE SECOND BUTTON, OFFERED ONLY FOR SELECTED MATERIAL: a right press on the painted
-    /// highlight offers Extract; on the status row, this file's location. Anywhere else it is
-    /// silence -- the body a right press met before this pane took the door (WL-EDIT-19).
-    /// A RIGHT PRESS OFFERS THIS PANE'S ROWS WHERE IT HAS SOME -- the status row, the painted
-    /// highlight -- and hands every other one back, so the host's pane menu opens there.
-    void on(const ws::PaneButton& b, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || b.pane != pane::kEditorPane || !b.pressed ||
-            b.lost || b.button != 3) {
-            return;
-        }
+    /// highlight of a picture still `current` offers Extract; on the status row, this file's
+    /// location (WL-EDIT-19). Every other one -- beside the rows too -- is handed back, so the
+    /// host's pane menu opens there.
+    void right_press(const ws::RowCell& at, bool current, loom::Mail& mail) {
         // HELD STILL BY A SWITCH, the Editor offers nothing, and a press that changes no document
         // is handed back rather than counted as refused.
-        if (holding_.active) {
+        if (holding_.active || !at.shown) {
             (void)ws::pane_menu::pass_back(mail, pane::kEditorPaneRole, pane::kEditorPane);
             return;
         }
         end_grab();
         if (e_.open_document()) {
-            if (b.row < chrome_rows_) {
-                if (b.row == 0 && status_row_) {
-                    offer(Take::Location, b.row, b.column, mail);
+            if (at.row < chrome_rows_) {
+                if (at.row == 0 && status_row_) {
+                    offer(Take::Location, at.row, at.column, mail);
                     return;
                 }
             } else {
                 const std::size_t row =
-                    e_.first_row + static_cast<std::size_t>(b.row - chrome_rows_);
-                if (b.picture == picture_ && row < e_.buffer.line_count() &&
+                    e_.first_row + static_cast<std::size_t>(at.row - chrome_rows_);
+                if (current && row < e_.buffer.line_count() &&
                     on_highlight(EditorPos{
                         row, ws::byte_of_visual_col(e_.buffer.line(row),
-                                                    e_.first_col + (b.column < 0 ? 0 : b.column))})) {
-                    offer(Take::Selection, b.row, b.column, mail);
+                                                    e_.first_col + (at.column < 0 ? 0 : at.column))})) {
+                    offer(Take::Selection, at.row, at.column, mail);
                     return;
                 }
             }
@@ -1175,8 +1267,9 @@ public:
     /// the selection when it landed ON the painted highlight; a location opens; a command is its
     /// Terminal line, or -- in a C++ document, by a separate choice -- C++. One undo takes any
     /// insertion back; nothing is saved. Refused material leaves the document, its selection and
-    /// its history exactly as they were.
-    void on(const ws::PaneValueDrop& drop, loom::Mail& mail) {
+    /// its history exactly as they were. Its place on the canvas reads back to the row and column
+    /// of the lattice it fell on, on a picture still `current` or not.
+    void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || drop.pane != pane::kEditorPane) {
             return;
         }
@@ -1185,7 +1278,10 @@ public:
         }
         end_grab();
         notice_.clear();
-        receive(drop, mail);
+        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), drop.x, drop.y);
+        const bool current = on_canvas() && drop.grant == canvas_.grant &&
+                             pictures_.current(drop.grant, drop.picture);
+        receive(drop.data, at, current, mail);
         say(mail);
     }
 
@@ -1612,8 +1708,8 @@ private:
         return l;
     }
 
-    void receive(const ws::PaneValueDrop& drop, loom::Mail& mail) {
-        const std::string bytes(drop.data.begin(), drop.data.end());
+    void receive(const loom::Bytes& data, const ws::RowCell& drop, bool current, loom::Mail& mail) {
+        const std::string bytes(data.begin(), data.end());
         st::Material m = st::read_material(bytes);
         if (m.kind == st::MaterialKind::Location) {
             open_location(m, mail);
@@ -1628,8 +1724,12 @@ private:
             notice("nothing was inserted -- " + busy, true);
             return;
         }
-        if (drop.picture != picture_) {
+        if (!current) {
             notice("nothing was inserted -- the text moved under the drop; drop it again", true);
+            return;
+        }
+        if (!drop.shown) {
+            notice("nothing was inserted -- drop onto the document's text", true);
             return;
         }
         if (drop.row < chrome_rows_) {
@@ -2013,12 +2113,23 @@ private:
             installed_epoch_ = e_.doc_epoch;
             installed_revision_ = e_.buffer.revision();
         }
-        // THE ROOM IS THE TRIAL'S, NOW: the desk seated this pane in the same step it
-        // published, with the rows composed for exactly this room, so a gesture that arrives
-        // before the desk's own room grant is judged against the picture that is showing.
+        // THE ROOM IS THE TRIAL'S, NOW: the desk seated this pane as it published, so a gesture
+        // before the desk's own room grant is judged against the picture showing. A candidate
+        // composed as a picture brings the canvas room it was drawn for, numbered afresh; one
+        // composed as rows for a pane drawing on a canvas leaves its room, and the desk grants it
+        // another. Either way nothing aimed at the document it replaced counts.
         granted_ = true;
-        rows_ = candidate_.rows;
-        columns_ = candidate_.columns;
+        if (candidate_.room.grant > 0) {
+            canvas_ = candidate_.room;
+            pictures_ = ws::CanvasPictures{};
+        } else {
+            pictures_.retire();
+        }
+        held_ = 0;
+        if (candidate_.room.grant > 0 || canvas_.grant <= 0) {
+            rows_ = candidate_.rows;
+            columns_ = candidate_.columns;
+        }
         chrome_rows_ = candidate_.chrome_rows;
         doc_rows_ = candidate_.doc_rows;
         opened_by_ = candidate_.op;
@@ -2391,16 +2502,37 @@ private:
         return caret;
     }
 
-    /// THE PANE, SAID: the live document composed for the granted room, its viewport moved
-    /// as the composition moved it, and the rows and the caret published beside each other,
-    /// each naming the document's generation so a projection of a document that is gone can
-    /// never repaint the one that replaced it, numbered by the picture it is, its first row named
-    /// `status` -- the status, or a notice in its place -- and each document line by its number,
-    /// `line:<n>` (`v4::PaneContent`).
+    /// THE PARTS A COMPOSITION NAMES: its first row `status` where the room has chrome, and each
+    /// document line by its number, `line:<n>`, across the room's columns.
+    static std::vector<ws::PaneRowPart> parts_of(const Composition& c, std::int64_t columns) {
+        std::vector<ws::PaneRowPart> parts;
+        if (c.chrome_rows > 0) {
+            parts.push_back(ws::PaneRowPart{"status", 0, 0, columns});
+        }
+        for (std::int64_t row = c.chrome_rows; row < static_cast<std::int64_t>(c.rows.size()); ++row) {
+            const std::size_t line = c.view.first_row + static_cast<std::size_t>(row - c.chrome_rows);
+            parts.push_back(ws::PaneRowPart{"line:" + std::to_string(line + 1), row, 0, columns});
+        }
+        return parts;
+    }
+
+    /// The caret and selection a composition says beside its rows, as its picture stands them in
+    /// them.
+    static ws::RowsCaret rows_caret(const ws::v2::PaneCaret& c) {
+        return ws::RowsCaret{c.row, c.column, c.sel_begin_row, c.sel_begin_col, c.sel_end_row,
+                             c.sel_end_col};
+    }
+
+    /// THE PANE, SAID: the live document composed for the granted room, its viewport moved as
+    /// the composition moved it, drawn as this pane's own picture in its canvas room -- the caret
+    /// and selection standing in its rows, the picture numbered within the room by what its rows
+    /// mean -- its first row named `status` (the status, or a notice in its place) and each
+    /// document line by its number, `line:<n>`. To a host granting no canvas the rows and the
+    /// caret are said beside each other as prose, each naming the document's generation.
     // WL-EDIT-18 -- agents/workshop/editor-transfers.md
     void say(loom::Mail& mail) {
-        if (!granted_) {
-            return; // no room has been sent: nothing this pane could truthfully fill
+        if (!granted_ || (canvas_.grant > 0 && !on_canvas())) {
+            return; // no room, or a canvas room with none: nothing this pane could truthfully fill
         }
         Composition c = compose(e_, viewport_of(e_), rows_, columns_, notice_, notice_bad_);
         apply_viewport(e_, c.view);
@@ -2427,13 +2559,13 @@ private:
             picture_key_ = key;
             ++picture_;
         }
-        std::vector<ws::PaneRowPart> parts;
-        if (c.chrome_rows > 0) {
-            parts.push_back(ws::PaneRowPart{"status", 0, 0, columns_});
-        }
-        for (std::int64_t row = c.chrome_rows; row < static_cast<std::int64_t>(c.rows.size()); ++row) {
-            const std::size_t line = c.view.first_row + static_cast<std::size_t>(row - c.chrome_rows);
-            parts.push_back(ws::PaneRowPart{"line:" + std::to_string(line + 1), row, 0, columns_});
+        std::vector<ws::PaneRowPart> parts = parts_of(c, columns_);
+        if (on_canvas()) {
+            (void)mail.as_role(pane::kEditorPaneRole)
+                .send_to_role(kWorkshopRole,
+                              ws::rows_picture(canvas_, pictures_.next(canvas_, picture_), c.rows,
+                                               parts, rows_caret(c.caret)));
+            return;
         }
         (void)mail.as_role(pane::kEditorPaneRole)
             .send_to_role(kWorkshopRole,
@@ -2580,6 +2712,14 @@ private:
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;
     bool granted_ = false;
+
+    /// THE CANVAS THIS PANE DRAWS ON: the room Workshop granted it there, its pictures numbered in
+    /// that room by what their rows mean, and the primary press whose motion sweeps. Not reload
+    /// state: a reloaded image waits for its room.
+    ws::PaneCanvasRoom canvas_;
+    ws::CanvasPictures pictures_;
+    std::int64_t held_ = 0;
+    bool on_canvas() const { return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0; }
 
     /// A SWITCH HOLDING THIS EDITOR STILL at its boundary: which operation, and how many inputs
     /// it refused meanwhile. Not in the state shape -- a reload is not a switch, and the hold

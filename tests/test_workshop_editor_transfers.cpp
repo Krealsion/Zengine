@@ -4,9 +4,9 @@
 // The standard Editor in Workshop's typed carry (suite `panes`): a real loaded Workshop with the
 // Editor, Inventory and its pane, the menu presenter, the opening manager and an input actor
 // whose Loom authority each case chooses. OUT, a selection into a named Inventory folder as an
-// owned copy; IN, text dropped as one undoable edit, a saved command as its Terminal line;
-// BACK, a saved location reopened -- and the refusals that keep each honest. Pure conversions
-// are the `source_transfer` suite's.
+// owned copy; IN, text dropped as one undoable edit, a saved command as its Terminal line; BACK,
+// a saved location reopened -- the refusals that keep each honest, and the prose door's drop on a
+// text pane beside them. Pure conversions are the `source_transfer` suite's.
 
 #include "editor_transfer_story.hpp"
 
@@ -188,21 +188,27 @@ TEST_CASE("dropped text is inserted at the painted landing character as one undo
     CHECK(slurp(path) == "abc\ndef\n");
 }
 
-TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered: a value on the Editor's rows") {
+TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered: a value on a text pane's rows") {
     EditorStory s("xfer-gone");
-    REQUIRE(s.open(s.write("a.txt", "abc\n")).accepted);
     s.add(text_pair("one"), "snippet");
-    // The drop is queued and said sent; the Editor leaves before the bus dispatches it.
+    // A TEXT PANE TAKING A VALUE ON ITS ROWS, beside the Inventory the value is carried from.
+    SweepSeat* seat = nullptr;
+    loom::WeaveId seat_id{};
+    const std::string office = "zengine.test.rows";
+    const std::int64_t rows = s.r.mount_sweep(office, "rows",
+                                              {surface::SurfaceTextRow{"drop here", surface::role::kFill}},
+                                              &seat, &seat_id);
+    REQUIRE(rows != kNoPaneKind);
+    // The drop is queued and said sent; the pane leaves before the bus dispatches it.
     bool removed = false;
-    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&s, &removed](const loom::BusEvent& e) {
+    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&s, &removed, seat_id](const loom::BusEvent& e) {
         if (!removed && e.kind == loom::EventKind::Delivered && e.target == s.r.workshop_id &&
             s.r.last_notice().rfind("Value sent to", 0) == 0)
-            removed = s.r.kernel.unload_role(ed::kEditorPaneRole);
+            removed = s.r.bus.unregister_weave(seat_id) != nullptr;
     })};
-    s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, s.editor, s.chrome() + 0, 1);
+    s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, rows, 0, 1);
     REQUIRE_MESSAGE(removed, s.r.last_notice());
-    CHECK_MESSAGE(s.r.last_notice().find(std::string("Value not delivered to ") + ed::kEditorPaneRole) !=
-                      std::string::npos,
+    CHECK_MESSAGE(s.r.last_notice().find("Value not delivered to " + office) != std::string::npos,
                   s.r.last_notice());
 }
 
@@ -313,6 +319,71 @@ TEST_CASE("a drop aimed at a picture the text has since left is refused and chan
     INFO(s.notice());
     CHECK(s.notice().find("moved under the drop") != std::string::npos);
     CHECK(s.doc().text == lines);
+}
+
+TEST_CASE("a press aimed at a picture where the text it lands on was not yet selected begins no carry; the drag sweeps") {
+    EditorStory s("xfer-stale-press");
+    REQUIRE(s.open(s.write("a.txt", "abcdef\nghijkl\nmnopqr\n")).accepted);
+    s.make_folder("Snippets");
+    const std::int64_t target = s.row_of(s.inventory, "Snippets");
+    s.click_doc(0, 0);
+    s.key(input::scan::kEnd, input::mod::kShift);
+    REQUIRE(s.doc().caret_byte == 6);
+    // ONE POLL: Shift+Down grows the selection over the second line, and the press on that line
+    // was read with it -- aimed at the picture where the line was not yet highlighted.
+    input::InjectedEvent grow;
+    grow.kind = "KeyPressed";
+    grow.scancode = input::scan::kDown;
+    grow.modifiers = input::mod::kShift;
+    input::InjectedEvent grown = grow;
+    grown.kind = "KeyReleased";
+    auto press = s.at(s.editor, s.chrome() + 1, 2, "PointerButton", true);
+    auto release = s.at(s.inventory, target, 2, "PointerButton", false);
+    auto move = release;
+    move.kind = "PointerMoved";
+    move.dx = release.x - press.x;
+    move.dy = release.y - press.y;
+    s.batch({grow, grown, press, move, release});
+    CHECK(s.stored().empty());
+    const auto d = s.doc();
+    CHECK(d.anchor_row == 1);
+    CHECK(d.anchor_byte == 2);
+    CHECK_FALSE((d.caret_row == 1 && d.caret_byte == 2)); // the motion swept from the press
+    CHECK(d.text == "abcdef\nghijkl\nmnopqr\n");
+}
+
+TEST_CASE("in a window, a value placed on the Editor's inset beside its rows is refused and changes nothing") {
+    EditorStory s("xfer-inset");
+    const std::string text = "alpha\nbeta\n";
+    REQUIRE(s.open(s.write("a.txt", text)).accepted);
+    s.add(text_pair("DROPPED"), "word");
+    s.click(s.inventory, s.row_of(s.inventory, "word"), 2);
+    s.key(input::scan::kReturn); // pick up a copy
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.r.extent_on_window(180, 60);
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    const ExternalPane* seat = s.r.session().panes.external_pane(s.editor);
+    REQUIRE(seat != nullptr);
+    REQUIRE(shows_canvas(*seat));
+    // THE FIRST WINDOW PIXEL OF THE ROOM, on the first document row: inside the room, and left of
+    // the lattice's first column, in the inset a window keeps beside the rows.
+    const CanvasRows lattice = held_canvas_rows(*seat);
+    const std::int64_t grain = surface::kPixelGrainPx;
+    const std::int64_t px = (seat->canvas.x + grain - 1) / grain;
+    REQUIRE(px * grain - seat->canvas.x < lattice.x);
+    input::InjectedEvent press;
+    press.kind = "PointerButton";
+    press.button = 1;
+    press.pressed = true;
+    press.space = input::space::kPixels;
+    press.x = px;
+    press.y = (seat->canvas.y + lattice.row_y(s.chrome()) + lattice.line / 2) / grain;
+    input::InjectedEvent release = press;
+    release.pressed = false;
+    s.batch({press, release});
+    INFO(s.notice() << " / " << s.r.last_notice());
+    CHECK(s.notice().find("drop onto the document's text") != std::string::npos);
+    CHECK(s.doc().text == text);
 }
 
 TEST_CASE("a saved location reopens its file through the managed opening at its line, and never over unsaved work") {

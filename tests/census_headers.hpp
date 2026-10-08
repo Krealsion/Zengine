@@ -127,8 +127,10 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::load_persist::WorkshopLoadWeave>(), // WorkshopLoadWeave v1
         shape<::zengine::workshop::PanePresentation>(), // PanePresentation v1
         shape<::zengine::workshop::PresentationAdmitRequested>(), // PresentationAdmitRequested v1
+        shape<::zengine::workshop::v2::PresentationAdmitRequested>(), // PresentationAdmitRequested v2
         shape<::zengine::workshop::PresentationAdmitted>(), // PresentationAdmitted v1
         shape<::zengine::workshop::PresentationTrial>(), // PresentationTrial v1
+        shape<::zengine::workshop::v2::PresentationTrial>(), // PresentationTrial v2
         shape<::zengine::workshop::PresentationTrialRequested>(), // PresentationTrialRequested v1
         shape<::zengine::workshop::OpeningState>(), // OpeningState v1
         shape<::zengine::workshop::v2::PaneCanvasContent>(), // PaneCanvasContent v2
@@ -143,6 +145,12 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PaneDrop>(), // PaneDrop v1
         shape<::zengine::workshop::v2::PaneValueDrop>(), // PaneValueDrop v2
         shape<::zengine::workshop::v2::PanePressed>(), // PanePressed v2
+        // The prose pointer Workshop sends a text pane: no product weave's manifest declares it.
+        shape<::zengine::workshop::PanePressed>(), // PanePressed v1
+        shape<::zengine::workshop::v3::PanePressed>(), // PanePressed v3
+        shape<::zengine::workshop::PaneDragged>(), // PaneDragged v1
+        shape<::zengine::workshop::PaneWheel>(), // PaneWheel v1
+        shape<::zengine::workshop::PaneValueDrop>(), // PaneValueDrop v1
         shape<::zengine::workshop::PlanDoorState>(), // PlanDoorState v1
         shape<::zengine::workshop::ProjectDoorState>(), // ProjectDoorState v2
         shape<::zengine::workshop::RecipesDoorState>(), // RecipesDoorState v1

@@ -67,6 +67,7 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
     speak.allow_to_any(PaneRevealAnswered::zen_name, PaneRevealAnswered::zen_version);
     speak.allow_to_any(PresentationTrial::zen_name, PresentationTrial::zen_version);
+    speak.allow_to_any(v2::PresentationTrial::zen_name, v2::PresentationTrial::zen_version);
     speak.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
     speak.allow_to_role(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version, kOpeningRole);
     speak.allow_to_any(PaneSourceOpened::zen_name, PaneSourceOpened::zen_version);

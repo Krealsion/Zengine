@@ -774,6 +774,8 @@ int main(int argc, char** argv) {
                                    PresentationTrialRequested::zen_version, kWorkshopProvider);
     arrange_openings.allow_to_role(PresentationAdmitRequested::zen_name,
                                    PresentationAdmitRequested::zen_version, kWorkshopProvider);
+    arrange_openings.allow_to_role(v2::PresentationAdmitRequested::zen_name,
+                                   v2::PresentationAdmitRequested::zen_version, kWorkshopProvider);
     arrange_openings.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
                                    kWorkshopProvider);
     arrange_openings.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
@@ -785,6 +787,8 @@ int main(int argc, char** argv) {
                                    kEditorRole);
     arrange_openings.allow_to_role(PrepareSourceRequested::zen_name,
                                    PrepareSourceRequested::zen_version, kEditorRole);
+    arrange_openings.allow_to_role(v2::PrepareSourceRequested::zen_name,
+                                   v2::PrepareSourceRequested::zen_version, kEditorRole);
     arrange_openings.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
     // ...and it answers pokes: the operation, its stage and whom it waits on are readable.
     loom::allow_poke_answers(arrange_openings);

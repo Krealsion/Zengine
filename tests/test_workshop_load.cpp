@@ -5719,6 +5719,8 @@ class HostSeat
                        // ...and numbers its picture (v3), its rows being a drop target, and
                        // names its parts beside them (v4).
                        workshop::v3::PaneContent, workshop::v4::PaneContent,
+                       // ...or, granted a canvas room, draws them there as its own picture.
+                       workshop::v5::PaneCanvasContent,
                        // ...AND THE PRESENTATION OWNER'S HALF OF A MANAGED OPENING: the source
                        // door relays to the opening manager, which asks the desk for a trial
                        // and an admission -- so this stand-in desk answers both, offers its
@@ -5728,7 +5730,8 @@ class HostSeat
           loom::Emit<workshop::PaneCatalogRequested, workshop::PaneRoom, workshop::PaneKey,
                      workshop::PaneTextInput, workshop::OpenSourceRequested,
                      workshop::PaneQuitRequested, workshop::PaneRevealAnswered,
-                     workshop::PaneWheel, workshop::PaneActionRequested,
+                     workshop::PaneCanvasRoom, workshop::PaneCanvasPointer,
+                     workshop::PaneActionRequested,
                      workshop::PresentationTrial, workshop::PresentationAdmitted>,
           loom::Claims<workshop::PanePresentation>> {
 public:
@@ -5816,6 +5819,19 @@ public:
     }
     void on(const workshop::v4::PaneContent& c, loom::Mail&) {
         contents.push_back(workshop::PaneContent{c.pane, c.rows});
+    }
+    /// A PICTURE OF THE PANE'S ROWS, kept as the rows its runs stand on, a cell each, and the
+    /// number a press on it names.
+    std::int64_t picture = 0;
+    void on(const workshop::v5::PaneCanvasContent& c, loom::Mail&) {
+        picture = c.picture;
+        workshop::PaneContent rows{c.pane, {}};
+        for (const workshop::v2::PaneCanvasText& run : c.texts) {
+            const auto row = static_cast<std::size_t>(run.y / workshop::kPaneCanvasUnit);
+            if (rows.rows.size() <= row) rows.rows.resize(row + 1);
+            rows.rows[row].text = run.text;
+        }
+        contents.push_back(std::move(rows));
     }
     void on(const workshop::v2::PaneCaret& c, loom::Mail&) {
         carets.push_back(workshop::PaneCaret{c.pane, c.row, c.column, c.sel_begin_row,
@@ -5918,7 +5934,9 @@ struct EditorReloadRig {
                          workshop::PaneQuitRequested::zen_version);
         say.allow_to_any(workshop::PaneRevealAnswered::zen_name,
                          workshop::PaneRevealAnswered::zen_version);
-        say.allow_to_any(workshop::PaneWheel::zen_name, workshop::PaneWheel::zen_version);
+        say.allow_to_any(workshop::PaneCanvasRoom::zen_name, workshop::PaneCanvasRoom::zen_version);
+        say.allow_to_any(workshop::PaneCanvasPointer::zen_name,
+                         workshop::PaneCanvasPointer::zen_version);
         say.allow_to_any(workshop::PaneActionRequested::zen_name,
                          workshop::PaneActionRequested::zen_version);
         say.allow_to_any(workshop::PresentationTrial::zen_name,
@@ -5963,6 +5981,10 @@ struct EditorReloadRig {
                               workshop::ManagedOpenProgress::zen_version, workshop::kEditorRole);
         arrange.allow_to_role(workshop::PrepareSourceRequested::zen_name,
                               workshop::PrepareSourceRequested::zen_version, workshop::kEditorRole);
+        arrange.allow_to_role(workshop::v2::PrepareSourceRequested::zen_name,
+                              workshop::v2::PrepareSourceRequested::zen_version, workshop::kEditorRole);
+        arrange.allow_to_role(workshop::v2::PresentationAdmitRequested::zen_name,
+                              workshop::v2::PresentationAdmitRequested::zen_version, HostSeat::kOffice);
         arrange.allow_to_any(workshop::SourceOpened::zen_name, workshop::SourceOpened::zen_version);
         loom::allow_poke_answers(arrange);
         opening_id = rig.bus.register_weave(std::move(opener), std::move(arrange),
@@ -6045,10 +6067,25 @@ struct EditorReloadRig {
         });
     }
 
+    /// A CANVAS ROOM of `rows` by `columns` cells, granted afresh, as a terminal's desk grants it.
+    std::int64_t canvas_grant = 0;
+    void canvas_room(std::int64_t rows, std::int64_t columns) {
+        const workshop::PaneCanvasRoom granted{"editor", ++canvas_grant,
+                                               columns * workshop::kPaneCanvasUnit,
+                                               rows * workshop::kPaneCanvasUnit,
+                                               workshop::kPaneCanvasUnit, false, 0, 0};
+        drive([granted](HostSeat&, loom::Mail& m) {
+            (void)m.as_role(HostSeat::kOffice).send_to_role("zengine.editor", granted);
+        });
+    }
+
+    /// THE WHEEL, turned over the pane's canvas.
     void wheel(double dy) {
-        drive([dy](HostSeat&, loom::Mail& m) {
-            (void)m.as_role(HostSeat::kOffice)
-                .send_to_role("zengine.editor", workshop::PaneWheel{"editor", 0.0, dy});
+        const workshop::PaneCanvasPointer turned{"editor", canvas_grant, host->picture, 0,
+                                                 workshop::canvas_pointer::kWheel, 0, 0, 0, 0,
+                                                 0.0, dy, false};
+        drive([turned](HostSeat&, loom::Mail& m) {
+            (void)m.as_role(HostSeat::kOffice).send_to_role("zengine.editor", turned);
         });
     }
 
@@ -6202,6 +6239,7 @@ TEST_CASE("an unchanged room after a reload is not a resize, and the view it was
             out << "line " << i << "\n";
         }
     }
+    w.canvas_room(8, 60); // the pane draws its rows on its canvas
     REQUIRE(w.open(w.file.generic_string()).accepted);
     // THE WHEEL SCROLLS AND MOVES NO CARET: the caret is on line 1, the window is not.
     w.wheel(-2.0);
@@ -6216,13 +6254,13 @@ TEST_CASE("an unchanged room after a reload is not a resize, and the view it was
     REQUIRE(w.rig.ears->answers.size() == 1);
     CHECK(w.rig.ears->answers[0].realized);
     w.editor = w.rig.kernel.weave_id("zengine-editor-pane");
-    w.room(8, 60); // THE SAME ROOM the pane had before it was replaced
+    w.canvas_room(8, 60); // THE SAME ROOM the pane had before it was replaced, granted afresh
 
     CHECK(w.read("first_row") == scrolled);
     CHECK(w.read("caret_row") == "0");
     CHECK(w.host->rows() == before);
     // ...AND A GENUINELY DIFFERENT ROOM STILL RECONCILES, pulling the caret's line into view.
-    w.room(4, 60);
+    w.canvas_room(4, 60);
     CHECK(w.read("first_row") == "0");
 #endif
 }

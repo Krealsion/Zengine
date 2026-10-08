@@ -43,9 +43,11 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerWheel)`; `workshop/weave_external.cpp`
 `external_wheel`; `workshop/weave_canvas.cpp` `canvas_wheel`; `editor-pane/pane.cpp`
-`on(PaneWheel)`; `tests/test_workshop_panes_editor.cpp` case `"the wheel scrolls the body, moves
-no caret, and elsewhere reaches nothing"`; `tests/test_workshop_panes_canvas.cpp` case `"pane
-canvas resize loses capture and wheel names a local point in the latest picture"`.
+`wheel`; `tests/test_workshop_panes_editor.cpp` case `"the wheel scrolls the body, moves
+no caret, and elsewhere reaches nothing"`; `tests/test_workshop_panes_input.cpp` case `"a wheel
+over an external pane's body crosses unchanged, follows the pointer, and the header sends
+nothing"`; `tests/test_workshop_panes_canvas.cpp` case `"pane canvas resize loses capture and
+wheel names a local point in the latest picture"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## Do not assume

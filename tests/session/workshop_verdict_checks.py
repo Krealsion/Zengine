@@ -46,15 +46,24 @@ class Clock:
 class Scripted:
     """A run context whose Workshop is a script. `pane(provider, pane)` answers PaneView with rows
     (a list of texts) or None (not described) -- version 3 as one word a row, the row's characters
-    without the blanks after the last, version 1 as the rows -- and PanePoint by the word asked for
-    (version 2) or the row (version 1); every injected moment goes to `typed`."""
+    without the blanks after the last, beside the parts `parts(rows)` names; version 1 as the rows
+    -- and PanePoint by the word asked for (version 2) or by the cell of the pane's text lattice
+    (versions 1 and 3), each point the cell's column and row in a space of cells. A `canvas` pane
+    draws its rows as its own picture, as Workshop reads one: a blank row is no word, so a word's
+    number is not its row's; version 3 points at any cell of its lattice, `LATTICE` rows by
+    columns, a blank row's and the one after a row's last character too; and version 1 of either
+    is refused. Every request's shape and version is kept in `asked`, and every injected moment
+    goes to `typed`."""
 
     name = "verdict-check"
+    canvas = False
+    LATTICE = (40, 120)
 
     def __init__(self, steps, pane, **inputs):
         self.inputs = dict(link="workshop", **inputs)
         self.steps, self.pane = steps, pane
-        self.moments, self.produced, self.session_open = [], {}, False
+        self.moments, self.produced, self.session_open, self.asked = [], {}, False, []
+        self.numbered = []  # (row, text) of each word the last version 3 reading numbered
         self.conn = SimpleNamespace(schema=self.schema)
 
     def schema(self, *args):
@@ -96,23 +105,48 @@ class Scripted:
                 self.moments.append(m)
                 self.typed(m)
             return {"session": 1, "admitted": len(fields["events"])}
-        if shape == "PaneViewRequested":
+        if shape in ("PaneViewRequested", "PanePointRequested"):
+            from loom_session.tool import Refused
+            version = options.get("version", 1)
+            self.asked.append((shape, version))
             rows = self.pane(fields["provider"], fields["pane"])
             if rows is None:
-                from loom_session.tool import Refused
                 raise Refused("not described")
-            if options.get("version") == 3:
+            if self.canvas and version == 1:
+                raise Refused("pane view unavailable: the pane draws a picture, not text rows")
+            if shape == "PanePointRequested":
+                return self.point(rows, version, fields)
+            if version == 3:
+                self.numbered = [(i, t.rstrip(" ")) for i, t in enumerate(rows)
+                                 if t.rstrip(" ") or not self.canvas]
                 return {"provider": fields["provider"], "pane": fields["pane"], "picture": 1,
-                        "canvas": False, "parts": [], "words": [
-                            {"word": i, "text": t.rstrip(" "), "x": 1, "y": i, "space": 1,
+                        "canvas": self.canvas, "parts": self.parts(rows), "words": [
+                            {"word": n, "text": t, "x": len(t) // 2, "y": i, "space": 1,
                              "place": {"x": 0, "y": 12 * i, "w": 12 * max(1, len(t)), "h": 12}}
-                            for i, t in enumerate(rows)]}
+                            for n, (i, t) in enumerate(self.numbered)]}
             return {"picture": 1, "rows": [{"row": i, "text": t, "x": 1, "y": i, "space": 1}
                                            for i, t in enumerate(rows)]}
-        if shape == "PanePointRequested":
-            return {"x": 1, "y": fields["word" if options.get("version") == 2 else "row"],
-                    "space": 1}
         raise AssertionError(shape)
+
+    def point(self, rows, version, fields):
+        """Where a word's character (version 2) or a cell of the lattice (versions 1 and 3) is: its
+        column and its row, in a space of cells."""
+        from loom_session.tool import Refused
+        if version == 2:
+            said = self.numbered
+            if fields["word"] >= len(said) or fields["column"] >= len(said[fields["word"]][1]):
+                raise Refused("pane point unavailable: outside the pane's visible words")
+            return {"x": fields["column"], "y": said[fields["word"]][0], "space": 1}
+        row, column = fields["row"], fields["column"]
+        if self.canvas and not (0 <= row < self.LATTICE[0] and 0 <= column < self.LATTICE[1]):
+            raise Refused("pane point unavailable: outside the pane's text lattice")
+        if not self.canvas and not (0 <= row < len(rows) and 0 <= column < self.LATTICE[1]):
+            raise Refused("pane point unavailable: outside the pane's visible text")
+        return {"x": column, "y": row, "space": 1}
+
+    def parts(self, rows):
+        """The parts the pane names beside its rows: none."""
+        return []
 
     def typed(self, moment):
         pass
@@ -780,16 +814,24 @@ def run_checks(tools, runtime):
     # ---- nvim-edit ------------------------------------------------------------------------------
     class NeovimPane(Scripted):
         """Workshop's Neovim pane over a small model of Neovim: its current buffer, the buffers it
-        holds (path -> [lines, modified]), 'hidden', its mode and last row. It answers what the
-        tool types: `:e`, the lone `:`, the `let`/`echo` question, Escape and `:w`."""
+        holds (path -> [lines, modified]), 'hidden', its mode and last row. It draws its status
+        row and Neovim's screen as its own picture (`canvas`, unless told it is a text pane), names
+        its status row `status`, and keeps the row each press lands on in `presses`. It answers
+        what the tool types: `:e`, the lone `:`, the `let`/`echo` question, Escape and `:w`."""
 
         def __init__(self, disk, current, buffers, hidden=True, prompt_after_e=False,
-                     save_leaves_modified=False, **inputs):
+                     save_leaves_modified=False, canvas=True, **inputs):
             Scripted.__init__(self, steps, self.view, **inputs)
             self.disk, self.current, self.buffers = disk, current, buffers
             self.hidden, self.prompt_after_e = hidden, prompt_after_e
             self.save_leaves_modified = save_leaves_modified
             self.mode, self.last, self.texts = "NORMAL", "", []
+            self.canvas, self.presses = canvas, []
+
+        def parts(self, rows):
+            return [{"name": "status", "text": rows[0].rstrip(" "), "x": self.LATTICE[1] // 2,
+                     "y": 0, "space": 1, "place": {"x": 0, "y": 0, "w": 12 * self.LATTICE[1],
+                                                   "h": 12}}]
 
         def status(self):
             modified = self.buffers.get(self.current, [[], False])[1]
@@ -800,6 +842,8 @@ def run_checks(tools, runtime):
             return [self.status()] + (lines or [""]) + ["~", self.current, self.last]
 
         def typed(self, m):
+            if m["kind"] == "PointerButton" and m["pressed"]:
+                self.presses.append(m["y"])
             if m["kind"] == "KeyPressed" and m["scancode"] == 41 and self.mode != "PROMPT":
                 self.mode = "NORMAL"
             if m["kind"] != "TextEntered":
@@ -929,6 +973,27 @@ def run_checks(tools, runtime):
             said, error = self.edit(pane, target, [{"create": "planned\n"}])
             self.assertIsNone(error)
             self.assertEqual(json.loads(pane.produced["edit.json"])["verdict"], "matches")
+
+        def test_neovim_is_given_the_keys_by_a_press_on_its_status_row_drawn_or_said(self):
+            # The status row is pressed by its name, where Workshop gives it -- a pane drawing its
+            # picture refuses a row's first-version cell -- and Neovim's last row is read as the
+            # command line though its blank rows are no words.
+            for canvas in (True, False):
+                with self.subTest(canvas=canvas):
+                    target = self.path("keys-%s.txt" % ("drawn" if canvas else "said"))
+                    pane = NeovimPane({}, self.path("other.txt"), {}, canvas=canvas)
+                    original = pane.typed
+
+                    def typed(m, pane=pane, original=original, target=target):
+                        if m["kind"] == "TextEntered" and m["text"] == "planned" and pane.current == target:
+                            pane.buffers[target] = [["planned"], True]
+                        original(m)
+                    pane.typed = typed
+                    said, error = self.edit(pane, target, [{"create": "planned\n"}])
+                    self.assertIsNone(error, error)
+                    self.assertEqual(Path(target).read_bytes(), b"planned\n")
+                    self.assertEqual(pane.presses, [0])
+                    self.assertEqual([a for a in pane.asked if a[1] == 1], [])
 
     suite = unittest.TestSuite()
     for case in (BuilderChecks, NeovimChecks):

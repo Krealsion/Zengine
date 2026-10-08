@@ -16,8 +16,9 @@ twice per keystroke and made a second mutable copy of the same bytes.
 **Decision.** The Editor weave holds the one open document — path, bytes, saved copy, line
 convention, epoch, caret, anchor, history, viewport — and `editor.hpp` moved with it whole. The
 host keeps room, focus, membership and the exit DECISION, and learns what it may about the
-document by asking or by being told. Five ordinary protocol shapes carry that: `PaneDragged`
-(the sweep, unclamped, no release), `PaneRevealRequested` / `PaneRevealAnswered` (the pane asks
+document by asking or by being told. Its sweep is its canvas press's own motion, unclamped and
+with no release, and four ordinary protocol shapes carry the rest: `PaneRevealRequested` /
+`PaneRevealAnswered` (the pane asks
 to be seated when its act needs nothing more, holding its own gestures until the answer; the
 desk seats, selects and focuses it in the delivery that answers, or refuses with nothing moved),
 `PaneQuitRequested` / `PaneQuitAnswered` (the host publishes, counts Loom's accepters, holds

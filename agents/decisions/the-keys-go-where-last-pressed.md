@@ -17,7 +17,7 @@ pane, on the press, whether ordinary keys were already reaching it. The candidat
 cleared and the target never stored. The modes above never reach that line. The pane gets every
 bare key, `q` included. `^c` follows the keyboard. The title's mark names the pane the keys
 return to; the band's first row says where a key goes now. Pane titles are a preference, and the
-keyboard's pane always keeps its title.
+keyboard's pane wears its title, a held canvas press's once it ends.
 
 **Alternatives tried.**
 - *A pane-local memory of having had the keys* (`had_keyboard_`, `d4815cc`) — retired: Files

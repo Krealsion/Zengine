@@ -90,7 +90,7 @@ Compose field its place names on Compose's canvas", "a reference placed on a can
 has no door for one is sent nothing and stays held" and "a drop whose pane leaves before it is
 delivered is said not delivered: a reference or a value, on a canvas";
 `tests/test_workshop_editor_transfers.cpp` case "a drop whose pane leaves before it is delivered
-is said not delivered: a value on the Editor's rows".
+is said not delivered: a value on a text pane's rows".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-05 — A canvas press may carry a value out
@@ -157,7 +157,11 @@ and caret as prose, its presses reach nothing there, and its keys still compose"
 `tests/test_workshop_panes_info.cpp` case "a host that grants Info no canvas is shown its lists and
 a draft's caret as prose, its presses reach nothing there, and its keys still inspect and edit";
 `tests/test_workshop_inventory_info.cpp` case "a host that grants Inventory no canvas is shown its
-rows and a name line's caret as prose, its presses reach nothing there, and its keys still act".
+rows and a name line's caret as prose, its presses reach nothing there, and its keys still act";
+`tests/test_workshop_panes_editor.cpp` case "a host that grants the Editor no canvas is shown its
+rows and caret as prose, its presses reach nothing there, and its keys still edit";
+`tests/test_workshop_neovim.cpp` case "a host that grants the Neovim editor no canvas is shown its
+rows and caret as prose, its presses reach nothing there, and its keys still reach Neovim".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## Do not assume
