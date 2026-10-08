@@ -504,18 +504,17 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
 - **Everything a live message can make Workshop retain is bounded before a byte is kept.** A
   provider key and a pane key by the setup file's own `check_pane_key`; a name at 32 bytes and a
   summary at 64, neither empty, neither all spaces, neither carrying a control byte; the combined
-  catalog at **32 total entries**, built-ins included, so at most thirty distinct runtime
-  `PaneRef`s. Admission is atomic in both directions — an invalid first offer adds nothing, an
+  catalog at **`kMaxPaneCatalogEntries` total entries** (`workshop/panes.hpp`), built-ins
+  included. Admission is atomic in both directions — an invalid first offer adds nothing, an
   invalid *refresh* leaves the last accepted descriptor whole, and a refresh is still allowed while
   full because the bound is on how many distinct panes are held rather than on how often a provider
   may correct itself.
 - **A runtime offer cannot shadow a built-in**, and two offices offering one pane key stay two
   panes: the `PaneRef` is the *pair*, so neither office can refresh or overwrite the other's row.
-- **The setup file did not move.** `setup_persist.hpp` is untouched, the schema is the same version
-  1, and no descriptor, content, room, handle or liveness fact is saved. A setup naming
-  `third.party/hello` loads, stays exactly as authored, resolves the moment that office offers the
-  pane — *without the file being touched* — and is unresolved again in a fresh process where the
-  provider is absent.
+- **The setup file keeps no runtime fact.** No descriptor, content, room, handle or liveness fact
+  is saved. A setup naming `third.party/hello` loads, stays exactly as authored, resolves the
+  moment that office offers the pane — *without the file being touched* — and is unresolved again
+  in a fresh process where the provider is absent.
 - **Workshop chooses the placement, and no room rations it.** Every external pane with no place
   of its own goes in the overlay stack, down one column from the room's top; a pane that would pass
   the room's floor, the bottom band's top, begins the column again at its top. At the 78×22
