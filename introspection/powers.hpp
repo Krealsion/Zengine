@@ -763,7 +763,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         say.say(detail::sample_header(ui.sample, hidden, columns),
                 ui.sample.ok ? surface::role::kMuted : surface::role::kAlert);
         for (std::int64_t i = 0; i < shown; ++i) {
-            say.say(fit("  " + body[static_cast<std::size_t>(i)], columns),
+            say.say(fit("  " + printable(body[static_cast<std::size_t>(i)]), columns),
                     ui.sample.ok ? surface::role::kFill : surface::role::kAlert);
         }
         if (hidden > 0 && shown < room) {

@@ -125,7 +125,8 @@ inline std::string providers_said(std::int64_t n) { return counted(n, "provider"
 inline std::vector<surface::SurfaceTextRow>
 artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns) {
     std::vector<surface::SurfaceTextRow> rows;
-    rows.push_back(surface::SurfaceTextRow{fit("  " + a.artifact, columns), surface::role::kFill});
+    rows.push_back(
+        surface::SurfaceTextRow{fit("  " + spelled(a.artifact), columns), surface::role::kFill});
 
     std::string authored;
     if (!a.authored_provider.empty()) {
@@ -133,7 +134,7 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
     }
     if (!a.authored_role.empty()) {
         authored += (authored.empty() ? "" : ", ");
-        authored += "weave " + a.authored_role;
+        authored += "weave " + spelled(a.authored_role);
     }
     if (authored.empty()) {
         // Unreachable through `check_artifact`; handled because this view does not own that.
@@ -157,21 +158,22 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
         rows.push_back(surface::SurfaceTextRow{
             fit("    " + std::string(said), columns),
             refused || unavailable ? surface::role::kAlert : surface::role::kMuted});
-        // WHY, AND WHAT A WEAVER CAN DO -- the owner's own two fields, shown as they came. A
+        // WHY, AND WHAT A WEAVER CAN DO -- the owner's own two fields, in its words, spelled. A
         // version 1 answer has neither, and says only the state.
         if (!a.reason.empty()) {
-            rows.push_back(
-                surface::SurfaceTextRow{fit("    why   " + a.reason, columns), surface::role::kMuted});
+            rows.push_back(surface::SurfaceTextRow{fit("    why   " + spelled(a.reason), columns),
+                                                   surface::role::kMuted});
         }
         if (!a.next.empty()) {
-            rows.push_back(
-                surface::SurfaceTextRow{fit("    next  " + a.next, columns), surface::role::kMuted});
+            rows.push_back(surface::SurfaceTextRow{fit("    next  " + spelled(a.next), columns),
+                                                   surface::role::kMuted});
         }
         return rows;
     }
     if (!a.provider.empty()) {
         rows.push_back(surface::SurfaceTextRow{
-            fit("    resolved  provider " + a.provider + ", " + powers_said(a.powers), columns),
+            fit("    resolved  provider " + spelled(a.provider) + ", " + powers_said(a.powers),
+                columns),
             surface::role::kMuted});
     }
     if (a.weave != 0) {
@@ -261,8 +263,8 @@ project_arrangement(const workshop::v2::ResolvedArrangement& said, std::int64_t 
         out.push_back(surface::SurfaceTextRow{fit(kNotAuthored, columns), surface::role::kMuted});
     }
     if (source > 0) {
-        out.push_back(
-            surface::SurfaceTextRow{fit("plan: " + said.plan, columns), surface::role::kMuted});
+        out.push_back(surface::SurfaceTextRow{fit("plan: " + spelled(said.plan), columns),
+                                              surface::role::kMuted});
     }
     return out;
 }

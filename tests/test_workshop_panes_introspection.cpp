@@ -164,6 +164,27 @@ TEST_CASE("a provider-only artifact is visible and wears no weave") {
     CHECK(text[i + 3].find("weave") == std::string::npos);
 }
 
+TEST_CASE("a provider's name for itself is drawn on its resolved row in what a row can carry") {
+    // THE IDENTITY A PROVIDER DECLARES ABOUT ITSELF, as the door carries it: a letter no canvas
+    // draws is drawn as one `?`, so one provider's word cannot refuse the whole Project picture.
+    // No provider this tree builds declares such a name, so the answer is a value here.
+    ws::ResolvedArrangement said = shaped_arrangement();
+    said.artifacts[0].provider = "zengine.operators.b\xC3\xA1sic";
+    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    const std::vector<std::string> text = texts_of(rows);
+    const std::int64_t at = row_with(rows, "zengine-operators-basic");
+    REQUIRE(at >= 0);
+    const std::size_t i = static_cast<std::size_t>(at);
+    REQUIRE(i + 2 < text.size());
+    CHECK(text[i + 2] == "    resolved  provider zengine.operators.b?sic, 2 powers");
+    for (const std::string& row : text) {
+        for (const char c : row) {
+            const unsigned char b = static_cast<unsigned char>(c);
+            CHECK((b >= 0x20u && b < 0x7Fu));
+        }
+    }
+}
+
 TEST_CASE("a weave-only artifact is visible and wears no provider") {
     const std::vector<surface::SurfaceTextRow> rows =
         intro::project_arrangement(shaped_arrangement(), 40, 80);
@@ -1390,6 +1411,66 @@ TEST_CASE("the Arrangement pane shows what THIS host actually resolved") {
     CHECK(any_row(shown, "plan: default-load-plan.json"));
 }
 
+TEST_CASE("the Project pane spells the words a plan and its loader carry, and its picture is "
+          "drawn") {
+    // A ROLE, A STEM, THE LOADER'S REFUSAL AND THE PLAN'S PATH, each holding a letter no canvas
+    // draws, through the real door. One such byte refuses a whole picture; each is drawn as one
+    // `?` per character, and the picture is admitted.
+    PaneRig r;
+    r.mount_workshop();
+    load::LoadPlan plan = pane_plan();
+    for (load::ArtifactIntent& row : plan.artifacts) {
+        if (row.stem == "zengine-plain-weave") {
+            row.weave = load::WeaveIntent{"test.pl\xC3\xA9in"};
+        }
+    }
+    // ...and an optional row no file answers: the loader refuses it, quoting the path.
+    load::ArtifactIntent unbuilt;
+    unbuilt.stem = "caf\xC3\xA9-tool";
+    unbuilt.weave = load::WeaveIntent{"test.unbuilt"};
+    unbuilt.optional = true;
+    plan.artifacts.push_back(unbuilt);
+    const load::Executed done = r.run_plan(plan);
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.mount_arrangement("/home/jos\xC3\xA9/zen/default-load-plan.json");
+    (void)r.mount_powers();
+    r.ready();
+    r.extent(160, 48);
+    REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
+    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    const std::int64_t kind = intro_row(r, intro::kArrangementPane)->kind;
+    // The whole project and the plan line, in a room wide enough for the loader's sentence to
+    // reach the path it quotes on either platform.
+    author_test_pane_room(r, kind, 19, 100);
+    r.extent(200, 60);
+
+    const ExternalPane* pane = r.session().panes.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    CAPTURE(pane->refusal_why);
+    CHECK(pane->refusal.empty());
+    CHECK(pane->canvas.heard);
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown[0] == "3 of 4 artifacts resolved, 1 unavailable -- 1 providers, 2 weaves");
+
+    const std::int64_t plain = row_with_text(shown, "zengine-plain-weave");
+    REQUIRE(plain >= 0);
+    REQUIRE(static_cast<std::size_t>(plain) + 1 < shown.size());
+    CHECK(shown[static_cast<std::size_t>(plain) + 1] == "    authored  weave test.pl?in");
+
+    const std::int64_t stem = row_with_text(shown, "caf?-tool");
+    REQUIRE(stem >= 0);
+    const std::size_t at = static_cast<std::size_t>(stem);
+    REQUIRE(at + 4 < shown.size());
+    CHECK(shown[at] == "  caf?-tool");
+    CHECK(shown[at + 1] == "    authored  weave test.unbuilt");
+    CHECK(shown[at + 2] == "    " + std::string(intro::kUnavailableRow));
+    CHECK(shown[at + 3].rfind("    why   weave load refused: ", 0) == 0);
+    CHECK(shown[at + 3].find("caf?-tool") != std::string::npos);
+    CHECK(shown[at + 4].rfind("    next  make 'caf?-tool' available", 0) == 0);
+    CHECK(any_row(shown, "plan: /home/jos?/zen/default-load-plan.json"));
+}
+
 TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
     // THE APPARENT DISAGREEMENT, MEASURED. `zengine-operators-basic` is a provider and not a
     // weave: no Kernel loads it, it has no WeaveId and no role. It is a row of one pane and absent
@@ -1410,6 +1491,49 @@ TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
     CHECK(any_row(loaded, std::string(intro::kIntrospectionStem) + " @" + kIntroOffice));
     CHECK(any_row(loaded, intro::kNotInProcess));
     CHECK_FALSE(r.kernel.is_loaded("zengine-operators-basic"));
+}
+
+TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is drawn") {
+    // THE KERNEL'S MAP AS IT CAME: a library name and a role each holding a letter no canvas
+    // draws. Each is drawn as one `?` per character, the picture is admitted, and a press still
+    // selects the library by its own name.
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    REQUIRE(r.load("plain-caf\xC3\xA9", WORKSHOP_SO_HELLO, "test.pl\xC3\xA9in").valid());
+    r.ready();
+    r.extent(160, 48);
+    r.pick(intro_ref());
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::int64_t kind = intro_row(r, kIntroPane)->kind;
+    {
+        const ExternalPane* drawn = r.session().panes.external_pane(kind);
+        REQUIRE(drawn != nullptr);
+        CAPTURE(drawn->refusal_why);
+        CHECK(drawn->refusal.empty());
+        CHECK(drawn->canvas.heard);
+    }
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown[0] == "loaded weaves -- 2");
+    const std::int64_t at = row_with_text(shown, "plain-caf?");
+    REQUIRE(at >= 0);
+    CHECK(shown[static_cast<std::size_t>(at)] == "  plain-caf? @test.pl?in");
+
+    // THE MARKED ROW IS SPELLED THE SAME WAY, and the selection carries the kernel's own bytes.
+    press_pane(r, kind, at, 1);
+    const ExternalPane* marked = r.session().panes.external_pane(kind);
+    REQUIRE(marked != nullptr);
+    CAPTURE(marked->refusal_why);
+    CHECK(marked->refusal.empty());
+    const std::vector<std::string> chosen = pane_rows(r, kind);
+    REQUIRE(static_cast<std::size_t>(at) < chosen.size());
+    CHECK(chosen[static_cast<std::size_t>(at)] == "> plain-caf? @test.pl?in");
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard[0].library == "plain-caf\xC3\xA9");
+    CHECK(ears.heard[0].role == "test.pl\xC3\xA9in");
 }
 
 TEST_CASE("WL-HAND-06: Loaded names each loaded weave's row, and Powers its controls and each power's row") {
