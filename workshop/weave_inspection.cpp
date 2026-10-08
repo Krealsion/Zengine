@@ -863,17 +863,22 @@ void WorkshopWeave::refresh_inspected() {
     if (!in.addressed()) {
         return;
     }
-    // THE THREE THINGS A NAME STANDS FOR: this pane (the door keeps it), this desk, and the
-    // settings its rows were built from. A value moving is none of them -- the rows read fresh --
-    // and a provider arriving or leaving is one only as its declaration starts or stops counting.
+    // THE FOUR THINGS A NAME STANDS FOR: this pane (the door keeps it), this desk, whether it holds
+    // the pane's row, and the settings the rows were built from. A value moving is none of them --
+    // the rows read fresh -- a row leaving or rejoining the desk is one, so a draft never lands on
+    // a row made afresh, and a provider arriving or leaving is one only as its declaration starts
+    // or stops counting.
     const RuntimePane* offered = session_.panes.runtime.find(in.ref.provider, in.ref.pane);
     const SettingsSubject settings = settings_subject(
         session_, in.ref, offered != nullptr ? counted_settings(*offered) : nullptr);
-    if (in.name != 0 && in.desk == session_.setup.put_live && in.settings == settings) {
+    const bool member = has_pane(session_.setup.active, in.ref);
+    if (in.name != 0 && in.desk == session_.setup.put_live && in.member == member &&
+        in.settings == settings) {
         return;
     }
     in.rows = pane_subject_rows(session_, in.ref, settings);
     in.desk = session_.setup.put_live;
+    in.member = member;
     in.settings = settings;
     in.name = ++in.minted;
 }
@@ -946,7 +951,11 @@ std::string WorkshopWeave::settings_handed(const PaneRef& ref) const {
     if (pane == nullptr || !session_.panes.has(*kind)) {
         return "stored; not handed: the pane is not seated";
     }
-    if (!host_->holder_accepts || !host_->holder_accepts(ref.provider, *loom::schema_of<PaneSettings>())) {
+    if (!host_->role_holder || !host_->role_holder(ref.provider).valid()) {
+        return "stored; not handed: nothing holds `" + ref.provider + "` now";
+    }
+    if (!host_->holder_accepts ||
+        !host_->holder_accepts(ref.provider, *loom::schema_of<PaneSettings>())) {
         return "stored; not handed: " + ref.provider + " takes no settings";
     }
     const SetupPane* seat = pane_of(session_.setup.active, ref);

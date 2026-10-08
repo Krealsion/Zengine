@@ -73,8 +73,8 @@ inline constexpr std::uintmax_t kMaxRecipeBytes = 1u << 16;
 // ---- The file's own shapes -----------------------------------------------------
 
 /// AN EXISTING CMAKE TARGET, AS WRITTEN -- and, since version 2, where editing its code
-/// begins. `entry` is an ordinary string whose empty value is the absence: admission has no
-/// optional, so a row that names no entry says `""`, exactly as `config` does.
+/// begins. `entry` is a required string whose empty value is the absence, so a row that names no
+/// entry says `""`, exactly as `config` does.
 struct WorkshopCMakeTarget {
     std::string build_dir;
     std::string target;

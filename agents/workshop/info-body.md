@@ -80,7 +80,7 @@ LAW — A new room keeps the draft; a picture whose rows the host named anew ABA
 
 MEANS
 - draft identity is the host’s row identity and the drafted property’s label;
-- a room, a moved value or a provider keeps the name; another pane, desk or set of settings does not;
+- a room, a moved value or a provider keeps the name; another pane, desk or set of settings does not, nor the row leaving or rejoining the desk;
 - abandonment says so; a sent commit remains sent.
 
 DOES NOT MEAN
@@ -220,7 +220,7 @@ WHY — `agents/decisions/an-undelivered-ask-is-released.md`
 LAW — Info names its pane-property subject; the host holds its rows. Selection, focus, Escape and switching views preserve it. Info may inspect itself.
 
 MEANS
-- row identity covers the pane, the desk and its settings rows; changing any renames the rows;
+- row identity covers the pane, the desk, whether it holds the row, and the settings rows; changing any renames the rows;
 - an absent pane is refused without movement; an arriving inspector is answered;
 - nothing is published about a subject until one is named.
 
@@ -237,7 +237,8 @@ PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `InspectPaneRequested`,
 standing"`, case `"Info may inspect itself, and an edit to its own place is written by the
 desk, reseats it and keeps the subject"`, case `"a subject naming a pane in neither this
 build's vocabulary nor this desk is refused in words with nothing moved, and an inspector that
-arrives is answered the picture as it is now"`.
+arrives is answered the picture as it is now"`; `tests/test_workshop_panes_settings.cpp` case
+`"the subject is named anew when its pane's row leaves the desk, and again when it comes back"`.
 WHY — `agents/decisions/an-inspector-names-its-subject.md`
 
 ## WL-INFO-15 — A property edit is the owner's write, through a door the desk already has

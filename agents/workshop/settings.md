@@ -41,7 +41,8 @@ PROVEN BY — `workshop/setup.hpp` `check_pane_settings`, `kMaxPaneSettingsPerDe
 every reader, naming its key"`, case `"a setup holding a Workshop setting is refused by name, and
 `r` leaves file and desk"`, case `"a desk at its pane bound, every key at its own bound, is a
 setup file a launch reads"`, case `"a maximal legal session is still one this build can read
-back"`.
+back"`, case `"the settings door keeps a desk inside its bound, and a value moved on a full desk
+is kept"`.
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
 ## WL-SETTING-03 — A pane's declaration stands alone and counts while its sender holds the office
@@ -73,6 +74,9 @@ MEANS
 - never handed is not handed none: a reopened row's empty list is handed too;
 - a holder without the door is handed nothing, and equal settings across a switch hand nothing.
 
+DOES NOT MEAN
+- that a managed opening's shown picture has them: it was prepared before the seat (WL-OPEN-10).
+
 PROVEN BY — `workshop/weave_external.cpp` `hand_settings`, `refresh_external_rooms`;
 `workshop/panes.hpp` `ExternalPane::settings_heard`; `workshop/weave_seam.cpp`
 `accept_pane_offer`; `workshop/grant.cpp` `workshop_grant`; `workshop/pane_settings.hpp`
@@ -80,7 +84,9 @@ PROVEN BY — `workshop/weave_external.cpp` `hand_settings`, `refresh_external_r
 before its first room, whether or not it declared"`, case `"a holder that takes no settings is
 handed none"`, case `"a layout switch hands a pane its new layout's settings once, and only when
 they differ"`, case `"a re-offer and a reopened row are handed their settings again, before their
-room"`.
+room"`, case `"a declaration counts only while the weave that sent it holds the office"`;
+`tests/test_workshop_panes_opening.cpp` case `"a managed opening hands its pane's settings before
+the room it seats it in"`.
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
 ## WL-SETTING-05 — A setting is edited as a row of its pane's subject, against what it takes
@@ -108,16 +114,17 @@ WHY — `agents/decisions/settings-are-rows-of-a-panes-subject.md`
 
 ## WL-SETTING-06 — A close takes a row's settings and says so; an opening's publication keeps them
 
-LAW — A close takes the row's settings with its place and size, and each close door names them; a managed opening's publication keeps the live desk's settings, which its digest leaves out.
+LAW — A close takes the row's settings with its place and size, and each close door names them; a managed opening's publication keeps the live desk's name and settings, which its digest leaves out.
 
 MEANS
 - a reopened row keeps none, and is handed that;
-- a setting written while an opening prepares neither aborts it nor is lost to it.
+- a setting written or a layout renamed while an opening prepares neither aborts it nor is lost to it.
 
 PROVEN BY — `workshop/setup.hpp` `discarded_settings`, `settings_said`; `workshop/weave_desktop.cpp`
 `close_pane`; `workshop/weave_managed.cpp` `show_presentation`, `digest_of`;
 `tests/test_workshop_panes_settings.cpp` case `"a close discards a pane's settings with its row,
 and every close door says which"`, case `"arrangement's remove says the settings it discarded
 too"`; `tests/test_workshop_panes_opening.cpp` case `"a setting written while an opening prepares
-survives its publication"`.
+survives its publication"`, case `"a layout renamed while an opening prepares keeps its name
+through the publication"`.
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`

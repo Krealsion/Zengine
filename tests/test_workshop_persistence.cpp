@@ -5847,6 +5847,38 @@ TEST_CASE("a setting holding no value, or two, is refused by every reader, namin
     CHECK_FALSE(setup_persist::from_text(setup_persist::to_text(full)).outcome.accepted);
 }
 
+TEST_CASE("the settings door keeps a desk inside its bound, and a value moved on a full desk is kept") {
+    Setup desk = setup_of("Full", {});
+    fill_to_every_bound(desk);
+    const PaneRef bare = desk.panes.back().ref;
+    REQUIRE(pane_of(desk, bare)->settings.empty());
+
+    // ONE MORE KEY WOULD BE THE DESK'S FIRST PAST ITS BOUND: refused, and nothing is written.
+    const Setup before = desk;
+    const Written past = author_pane_setting(desk, bare, "legend", flag_setting("legend", false),
+                                             flag_setting("legend", true));
+    CHECK_FALSE(past.accepted);
+    CHECK(past.refusal == "this layout keeps " + std::to_string(kMaxPaneSettingsPerDesk) +
+                              " settings already, the most a desk keeps -- clear one first");
+    CHECK(desk == before);
+
+    // A KEPT KEY TAKES A NEW VALUE THERE, since the count does not move...
+    const PaneRef crowded = desk.panes.front().ref;
+    const std::string key = desk.panes.front().settings.front().key;
+    REQUIRE(author_pane_setting(desk, crowded, key, text_setting(key, "moved"), std::nullopt)
+                .accepted);
+    CHECK(find_pane_setting(pane_of(desk, crowded)->settings, key)->text == "moved");
+    CHECK(desk_setting_count(desk.panes) == kMaxPaneSettingsPerDesk);
+
+    // ...AND ONE CLEARED MAKES ROOM FOR ONE MORE.
+    REQUIRE(author_pane_setting(desk, crowded, key, std::nullopt, std::nullopt).accepted);
+    CHECK(author_pane_setting(desk, bare, "legend", flag_setting("legend", false),
+                              flag_setting("legend", true))
+              .accepted);
+    CHECK(desk_setting_count(desk.panes) == kMaxPaneSettingsPerDesk);
+    CHECK(check_setup(desk).accepted);
+}
+
 TEST_CASE("a version-4 setup file reads with no settings, and the next save writes version 5") {
     const Setup desk = arranged_desk("Four");
     // A FILE A WORKSHOP OF version 4 WROTE, content id and all: what its `s` left on disk.
