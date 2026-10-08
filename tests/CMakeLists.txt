@@ -988,6 +988,7 @@ zengine_workshop_suite(panes
             test_workshop_inventory_folders.cpp
             test_workshop_info_views.cpp
             test_workshop_panes_terminal.cpp
+            test_workshop_panes_settings.cpp
             test_workshop_panes_editor.cpp
             test_workshop_editor_transfers.cpp
             test_workshop_panes_opening.cpp

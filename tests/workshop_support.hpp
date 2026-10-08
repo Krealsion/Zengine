@@ -1432,6 +1432,13 @@ inline void fill_to_every_bound(Setup& s) {
     REQUIRE_MESSAGE(check_setup(s).accepted, check_setup(s).refusal);
 }
 
+/// PRESS THE KEY THE KEYMAP BINDS TO A LAYOUT ACT, as a weaver does -- read from the keymap, so a
+/// remap re-measures the case.
+template <class Rig> inline void layout_key(Rig& r, Act act) {
+    const Gesture g = r.session().keymap.gesture_of(act);
+    r.key(g.scancode, g.modifiers);
+}
+
 /// A setup file's text with one substring replaced -- how the refusal cases
 /// forge a file the honest writer could never produce. The document tier's own
 /// `forged`, asked about the other artifact.
@@ -2293,6 +2300,58 @@ private:
     std::string office_;
 };
 
+/// A NATIVE SEAT THAT TAKES ITS SETTINGS: it holds an office, offers and declares as it is told,
+/// and records in order every room and every hand-off Workshop sends it, with the office each was
+/// authored as -- so a case reads which came first. Apart from `ProviderSeat`, whose cases count
+/// every delivery and are owed no hand-off.
+class SettingsSeat
+    : public loom::WeaveBase<SettingsSeat, SeatState,
+                             loom::Accept<PaneCatalogRequested, PaneRoom, PaneSettings, SeatDo>,
+                             loom::Emit<PaneOffered, PaneSettingsDeclared>> {
+public:
+    explicit SettingsSeat(std::string office) : office_(std::move(office)) {}
+
+    void on(const PaneCatalogRequested&, loom::Mail&) { ++asks; }
+    void on(const PaneRoom& r, loom::Mail& mail) {
+        heard.push_back("room");
+        rooms.push_back(r);
+        authors.push_back(std::string(mail.authored_role()));
+    }
+    void on(const PaneSettings& s, loom::Mail& mail) {
+        heard.push_back("settings");
+        handed.push_back(s);
+        authors.push_back(std::string(mail.authored_role()));
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(SettingsSeat&, loom::Mail&)> once;
+            once.swap(next);
+            once(*this, mail);
+        }
+    }
+
+    void offer(loom::Mail& mail, const PaneOffered& o) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, o);
+    }
+    void declare(loom::Mail& mail, const PaneSettingsDeclared& d) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, d);
+    }
+    /// ...and PERSONALLY, from the weave that holds the office, which declares nothing.
+    void declare_personally(loom::Mail& mail, const PaneSettingsDeclared& d) {
+        (void)mail.send_to_role(kWorkshopProvider, d);
+    }
+
+    std::function<void(SettingsSeat&, loom::Mail&)> next;
+    std::vector<std::string> heard;    ///< "room" or "settings", in the order they arrived
+    std::vector<PaneRoom> rooms;
+    std::vector<PaneSettings> handed;
+    std::vector<std::string> authors;  ///< the office each was authored as, in the same order
+    int asks = 0;
+
+private:
+    std::string office_;
+};
+
 /// A TEXT PANE THAT SPENDS THE PROSE POINTER -- the press that names its picture, the sweep it
 /// begins and a value placed on its rows -- recorded as Workshop said them and never interpreted:
 /// the prose door's own witness, every shipped pane drawing its rows on its canvas.
@@ -2754,6 +2813,44 @@ struct PaneRig {
 
     /// Make a seat perform one sentence INSIDE ITS OWN DELIVERY, which is what gives
     /// `mail.as_role(...)` a real authorship moment for Loom to verify.
+    /// A SEAT THAT TAKES ITS SETTINGS in `office`, granted only what it says.
+    SettingsSeat* mount_settings_seat(std::string_view office) {
+        auto seat = std::make_unique<SettingsSeat>(std::string(office));
+        SettingsSeat* raw = seat.get();
+        loom::Grant grant;
+        grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+        grant.allow_to_any(PaneSettingsDeclared::zen_name, PaneSettingsDeclared::zen_version);
+        const loom::WeaveId id =
+            bus.register_weave(std::move(seat), std::move(grant), std::string(office));
+        raw->zen_set_self(id);
+        settings_seats_.emplace_back(raw, id);
+        return raw;
+    }
+    /// ...AND TAKE IT OFF THE BUS, office and all, so another weave may hold that office.
+    void unmount_settings_seat(SettingsSeat* seat) {
+        for (std::size_t i = 0; i < settings_seats_.size(); ++i) {
+            if (settings_seats_[i].first == seat) {
+                (void)bus.unregister_weave(settings_seats_[i].second);
+                settings_seats_.erase(settings_seats_.begin() + static_cast<std::ptrdiff_t>(i));
+                return;
+            }
+        }
+    }
+    loom::WeaveId settings_seat_id(const SettingsSeat* seat) const {
+        for (const auto& [s, id] : settings_seats_) {
+            if (s == seat) {
+                return id;
+            }
+        }
+        return loom::WeaveId{};
+    }
+    void drive(SettingsSeat* seat, std::function<void(SettingsSeat&, loom::Mail&)> what) {
+        seat->next = std::move(what);
+        (void)bus.send(settings_seat_id(seat), loom::Message(loom::to_value(SeatDo{}),
+                                                             loom::WeaveId{}, loom::WeaveId{}, 0));
+        bus.drain_until_idle();
+    }
+
     void drive(ProviderSeat* seat, std::function<void(ProviderSeat&, loom::Mail&)> what) {
         seat->next = std::move(what);
         loom::WeaveId id{};
@@ -3260,6 +3357,7 @@ struct PaneRig {
 
     std::vector<loom::WeaveId> seat_ids;
     std::vector<ProviderSeat*> seats_;
+    std::vector<std::pair<SettingsSeat*, loom::WeaveId>> settings_seats_;
     /// HELD BY POINTER SO IT IS NOT CONSTRUCTED UNTIL A CASE ASKS, and declared LAST
     /// so it is destroyed FIRST: it retains the provider identity of every mount it
     /// made, and must not outlive the artifacts holding them.

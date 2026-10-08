@@ -583,6 +583,41 @@ inline Admission admit_pane_actions(const RuntimeCatalog& runtime,
     return out;
 }
 
+/// WHICH ADMITTED PANE A `PaneSettingsDeclared` IS ABOUT, under the office Loom stamped on it, and
+/// whether its settings are sound: the declaration judged whole. An office that never offered the
+/// key is refused by name. Nothing is written here; the caller writes the settings or nothing.
+// WL-SETTING-03 -- agents/workshop/settings.md
+inline Admission admit_pane_settings(const RuntimeCatalog& runtime, std::string_view stamped_office,
+                                     const PaneSettingsDeclared& declared) {
+    Admission out;
+    const Written office = check_pane_key(stamped_office, "provider");
+    if (!office.accepted) {
+        out.written = office;
+        return out;
+    }
+    const Written key = check_pane_key(declared.pane, "pane key");
+    if (!key.accepted) {
+        out.written = key;
+        return out;
+    }
+    const RuntimePane* row = runtime.find(stamped_office, declared.pane);
+    if (row == nullptr) {
+        out.written = Written::no("`" + ref_text(PaneRef{std::string(stamped_office),
+                                                         declared.pane}) +
+                                  "` is not a pane that office has offered -- its settings "
+                                  "were not taken");
+        return out;
+    }
+    const std::string wrong = pane_settings_declared_problem(declared);
+    if (!wrong.empty()) {
+        out.written = Written::no(row->name + " @" + row->provider + ": its settings were not "
+                                  "taken -- " + wrong);
+        return out;
+    }
+    out.kind = row->kind;
+    return out;
+}
+
 /// THE WHOLE-SETUP LAW, asked once on a complete candidate.
 /// It judges the name, every row, how many there are, whether any two name the
 /// same pane, whether the ranks are a permutation, and how many settings the rows keep.

@@ -35,4 +35,5 @@ worst spelling of each. Keys under `workshop.` are reserved for Workshop's own s
 older build refuses a newer file rather than drop what it cannot read.
 
 **Laws supported.** [WL-SETTING-01](../workshop/settings.md),
-[WL-SETTING-02](../workshop/settings.md).
+[WL-SETTING-02](../workshop/settings.md), [WL-SETTING-03](../workshop/settings.md),
+[WL-SETTING-04](../workshop/settings.md).

@@ -670,6 +670,38 @@ host action — and nothing reinterprets old bytes.
   compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane
   row's authored gesture (said for the file's rows at load, not yet for a pane's at admission).
 
+## A pane declares its settings, and is handed its layout's
+
+`PaneSettingsDeclared v1` `{pane, rows}` of `PaneSettingRow v1` `{key, flag?, number?, text?,
+choices, low?, high?}`, provider → Workshop, sent beside the offer; `PaneSettings v1`
+`{pane, settings}` of `PaneSetting v1` `{key, flag?, number?, text?}`, Workshop → the office's
+holder (`workshop/pane_settings.hpp`). Neither names a provider: the office is Loom's stamp. The
+host's side is Workshop's law, [`workshop/settings.md`](workshop/settings.md).
+
+- **A setting is a key and exactly one value, in its kind's own field**: a flag, a number or a
+  text. Loom admits a value with none or two, so judging "exactly one" is every reader's, and
+  each refuses such a value by its key. A declared setting's kind is the field its default fills.
+- **The declaration stands alone, on `PaneActions`' rules.** It is judged whole under the office
+  stamp: an empty office declares nothing, a pane this office never offered is refused by name,
+  and a setting whose default is not one it takes is refused naming what it does take. A refusal
+  is said in the band and leaves the settings in force standing; an accepted declaration replaces
+  them. It counts only while the weave that sent it holds the office, and nothing waits on it: it
+  makes no pane appear, and no hand-off is held for it.
+- **The hand-off waits on nothing but the door.** A seated pane whose office's holder accepts
+  `PaneSettings` is handed its row's settings, whether or not, and whenever, it declared — at the
+  top of the repaint that seats it, before any room, and again whenever what the live layout keeps
+  differs from what that holder last heard: another layout's settings, a re-offer, a re-seat, a
+  new holder. "Never handed" is not "handed none", so a reopened row's empty list is handed too.
+  It is sent to the holder itself, as a canvas room is. A holder without the door is handed
+  nothing, and a pane in two layouts keeping one set of settings hears nothing on a switch.
+- **The pane means; Workshop judges and keeps.** A pane checks the stamp and its pane key, as it
+  does for a room; takes the list whole, each setting it declared from it or its default; passes
+  over a key it did not declare; and, when it cannot use a value — no kind, two, or one its
+  setting does not take — keeps its default and says so where the setting shows. Held settings
+  are plain members, never Loom state, so a reload is refused for nothing a setting changed and
+  is handed its settings again on its re-offer. Gaining the `PaneSettings` door changes an
+  image's accepted schemas: a pane that gains it arrives with a restarted Workshop.
+
 ## The Loaded pane: the first stranger tool
 
 `introspection/` builds `zengine-introspection`, an ordinary loadable weave, and it is the
