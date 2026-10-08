@@ -185,8 +185,10 @@ each draws on its canvas and keeps prose only for a host that grants none, while
 (`examples/guard-pane`, `tally-pane`, `tower-defense`) speak prose whole. Its picture echoes a fresh room's
 grant and numbers compositions increasingly within it. A new room clears its prior picture.
 Invalid or stale authenticated content is answered as `PaneCanvasRejected`, preserving the
-last good picture. A same-provider geometry change may retain a display-only preview marked
-as updating; it carries no current picture fence or input authority. Providers keep grants,
+last good picture; invalid content is also said, in the pane and in Attention, until a picture
+of the pane is admitted (WL-ATTN-04). A same-provider geometry change may retain a display-only
+preview marked as updating, or as refused while a refusal stands; it carries no current picture
+fence or input authority. Providers keep grants,
 picture maps and gestures outside reload state;
 they accept input only for a grant they currently hold, and begin a gesture only for a picture
 they can interpret. A gesture's later moves and end keep its initiating picture while a drag

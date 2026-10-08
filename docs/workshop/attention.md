@@ -103,7 +103,7 @@ looking at it.
 | your keymap file exists and could not be read — the default bindings stand | an alert |
 | your preferences file exists and could not be read — Workshop will not overwrite it | an alert |
 | an older local keymap or session file is being shadowed by the one under your user directory | worth acting on, not urgent |
-| a pane sent Workshop an update it could not keep | an alert |
+| a pane sent Workshop an update it could not keep -- rows or a picture; the pane says so where it shows, and a picture it drew before stays, marked `(update refused)` | an alert |
 | a tool your load plan marks optional could not be loaded this run — named by its artifact, `zengine-files is not in this Workshop`, with the loader's own reason and what to do: build it, then launch again | an alert |
 | a pane you authored is resolvable and **no part of it is on the screen** — its place is off the canvas | worth acting on |
 | the project is stopped at an artifact waiting to be built | informative — waiting is not a failure |

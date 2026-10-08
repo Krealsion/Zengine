@@ -1268,6 +1268,14 @@ inline constexpr const char* kExternalWaiting = "(waiting for the provider)";
 inline constexpr const char* kExternalRefused =
     "(the last update did not fit this pane's room -- none of it was kept)";
 
+/// ...and after a picture it could not keep, which is refused for what it holds, never for its room.
+inline constexpr const char* kExternalPictureRefused =
+    "(the last picture was refused -- none of it was drawn)";
+
+/// What a picture still standing wears while a later one stands refused: it is older than what
+/// its pane last drew.
+inline constexpr const char* kExternalRefusedMark = "(update refused)";
+
 /// THE BODY OF AN EXTERNAL PANE, RESOLVED ONCE. Where it is, and how much prose the
 /// ACTIVE medium fits in it -- which is exactly the budget the provider is granted.
 struct ExternalBodyPlace {

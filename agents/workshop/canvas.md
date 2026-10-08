@@ -10,7 +10,7 @@ LAW — A canvas provider draws in local canvas pixels inside the pane body; Wor
 MEANS
 - bounded rectangles, fixed cell labels and measured one-line text, below the title;
 - shared fit and hit bounds; whole glyph/row clipping keeps every glyph and caret inside, and a run's padding unless the run stands on the lattice;
-- provider-owned meaning and hit testing; malformed content is refused whole.
+- provider-owned meaning and hit testing; malformed content is refused whole, and said as WL-ATTN-04 says.
 
 PROVEN BY — `workshop/pane_canvas.hpp` `canvas_content_problem`;
 `workshop/screen_canvas.hpp` `canvas_body_place`, `canvas_clip_rect`, `paint_pane_canvas`;
@@ -20,6 +20,8 @@ PROVEN BY — `workshop/pane_canvas.hpp` `canvas_content_problem`;
 "pane canvas rejects malformed pictures whole and budgets data before rendering", case
 "pane canvas clips every primitive at its local boundary before translating", case
 "pane canvas grants fenced room and keeps a good picture after a refused update", case
+"a canvas picture refused for what it holds is said in its pane and in Attention until a picture of
+the pane is admitted, and one that came late is answered to its pane alone", case
 "pane canvas measured text shares its fit with existing surface type and preserves labels", case
 "pane canvas text clipping preserves surviving positions through both edges", case
 "an unpadded run stands its first character at its own place, and runs a line apart hold as many
