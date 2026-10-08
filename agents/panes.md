@@ -906,9 +906,8 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   (prose) refuse a whole update for one byte a canvas cannot draw, so a chunk with any
   inadmissible byte is declined entirely — the Editor pane's own paste posture. Every road into
   the query passes that one door: typing, a mirrored `ClipboardCopy`, and the answer to a paste
-  ask. ⚠ **The shipped Composer has the same latent
-  exposure** and was deliberately not repaired here; it is a different owner and a bounded QR
-  candidate.
+  ask. The Composer takes the other posture: its draft keeps the bytes typed, and its rows
+  draw each byte a canvas cannot as `?`.
 - **THE QUERY'S SELECTION IS FUNCTIONAL AND INVISIBLE.** The pane says where the query's caret
   stands and draws no selection for it, so cut and copy work and no highlight shows. Named
   residual.
