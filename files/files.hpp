@@ -43,22 +43,60 @@ struct FileRow {
     /// A DIRECTORY THAT LEAVES THE TREE.
     // WL-FILES-04 -- agents/workshop/files.md
     bool linked = false;
-    /// Does a press open this name: carried exactly, and every byte printable ASCII?
+    /// Does a press open this name: carried exactly, as text a path in Workshop is spelled in?
     // WL-FILES-10 -- agents/workshop/files.md
     bool openable = true;
 };
 
-/// Is every byte of this name plainly printable ASCII -- the bytes this application's media can
-/// place truthfully in a column?
-inline bool printable_ascii_name(const std::string& name) {
+/// Is this name text a path in Workshop is spelled in: UTF-8, with no control character? A letter
+/// of any script is; a control byte, or bytes that spell no character, are not.
+// WL-FILES-10 -- agents/workshop/files.md
+inline bool carried_name(const std::string& name) {
     if (name.empty()) {
         return false;
     }
-    for (const char c : name) {
-        const unsigned char b = static_cast<unsigned char>(c);
-        if (b < 0x20 || b > 0x7E) {
+    std::size_t i = 0;
+    while (i < name.size()) {
+        const unsigned char b = static_cast<unsigned char>(name[i]);
+        if (b < 0x80u) {
+            if (b < 0x20u || b == 0x7Fu) {
+                return false;
+            }
+            ++i;
+            continue;
+        }
+        std::size_t width = 0;
+        std::uint32_t cp = 0;
+        std::uint32_t least = 0;
+        if (b >= 0xC2u && b <= 0xDFu) {
+            width = 2;
+            cp = b & 0x1Fu;
+            least = 0x80u;
+        } else if (b >= 0xE0u && b <= 0xEFu) {
+            width = 3;
+            cp = b & 0x0Fu;
+            least = 0x800u;
+        } else if (b >= 0xF0u && b <= 0xF4u) {
+            width = 4;
+            cp = b & 0x07u;
+            least = 0x10000u;
+        } else {
             return false;
         }
+        if (name.size() - i < width) {
+            return false;
+        }
+        for (std::size_t k = 1; k < width; ++k) {
+            const unsigned char c = static_cast<unsigned char>(name[i + k]);
+            if ((c & 0xC0u) != 0x80u) {
+                return false;
+            }
+            cp = (cp << 6) | (c & 0x3Fu);
+        }
+        if (cp < least || cp > 0x10FFFFu || (cp >= 0xD800u && cp <= 0xDFFFu)) {
+            return false;
+        }
+        i += width;
     }
     return true;
 }
@@ -132,12 +170,12 @@ inline Listing enumerate_directory(const std::string& dir) {
         FileRow row;
         // TAKING THE NAME IS ITSELF A CONVERSION THAT CAN REFUSE, and a refusal here is a
         // row rather than the end of the listing (`path_admission.hpp`). ⚠ `exact` is not
-        // redundant beside the byte test: a projection can be entirely printable ASCII, so
+        // redundant beside the text test: a projection is entirely printable ASCII, so
         // dropping it would make an unsayable name openable under a spelling that names a
         // different file or no file.
         AdmittedName admitted = admit_filename(entry.path().filename());
         row.name = std::move(admitted.name);
-        row.openable = admitted.exact && printable_ascii_name(row.name);
+        row.openable = admitted.exact && carried_name(row.name);
         std::error_code kind_ec;
         row.directory = entry.is_directory(kind_ec);
         if (kind_ec) {
@@ -186,13 +224,10 @@ inline const FileRow* row_at(const Listing& l, std::size_t cursor) {
 // notice row is cut at the band's width, so the short fixed statements go first and the
 // owner's sentence and the path in force take the tail; an accepted catalog's sentence too.
 
-/// WHY A ROW THAT DOES NOT OPEN DOES NOT, said with its name: a name carried exactly but outside
-/// printable ASCII, or the projection of a name this platform will not spell -- the one whose
-/// marks are all printable.
+/// WHY A ROW THAT DOES NOT OPEN DOES NOT, said with its name: the projection of a name this
+/// platform will not spell, or a name holding a control character or bytes that are no text.
 inline std::string unopenable_name(const FileRow& row) {
-    return "`" + shown_name(row.name) +
-           (printable_ascii_name(row.name) ? "` has bytes this Workshop cannot carry in a path"
-                                           : "` is named outside printable ASCII");
+    return "`" + shown_name(row.name) + "` has bytes this Workshop cannot carry in a path";
 }
 
 /// WHY THIS ROW CANNOT BE A RECIPE CATALOG, or empty when it can be asked about at all.
