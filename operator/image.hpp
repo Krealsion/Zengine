@@ -8,8 +8,8 @@
 // optional symbol for one load, and `mount_provider` a provider's, holding the image while its
 // contributions are installed; both need the same platform calls and RAII, written once so the
 // flags cannot drift. The flags are Loom's own (`RTLD_NOW | RTLD_LOCAL`, as `Kernel::load`
-// opens; `LoadLibraryA`, with the kernel's ANSI-path limitation), so a second open names the
-// same image and the loader's refcount keeps it so.
+// opens; `LoadLibraryA`, which reads the path in the program's code page, UTF-8 in every
+// Zengine program), so a second open names the same image and the loader's refcount keeps it so.
 // Reference: docs/reference/operator-providers.md.
 
 #include <cstdint>

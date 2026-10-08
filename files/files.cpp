@@ -1306,8 +1306,7 @@ private:
             return;
         }
         if (!row->openable) {
-            notice_ = "`" + ws::shown_name(row->name) +
-                      "` has bytes this Workshop cannot carry in a path -- it cannot be opened";
+            notice_ = ws::unopenable_name(*row) + " -- it cannot be opened";
             say(mail);
             return;
         }
