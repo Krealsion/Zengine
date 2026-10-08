@@ -2088,6 +2088,38 @@ TEST_CASE("a provider nobody wrote into the door appears anyway") {
     CHECK(active_provider(said, "math.max") == "zengine.operators.basic");
 }
 
+TEST_CASE("an image in a folder named beyond ASCII loads where it stands") {
+    // THE FOLDER IS NAMED AS A WEAVER'S MACHINE MAY NAME IT, and both loaders, the Kernel's for a
+    // weave and the provider host's, are handed its narrow UTF-8 spelling, as the host hands them
+    // the folder beside itself. A program in another code page opens nothing there.
+    const std::string folder = stage().dir.string() + "/Zo\xC3\xAB \xD0\x96 images";
+    const std::filesystem::path held(
+        std::u8string(reinterpret_cast<const char8_t*>(folder.data()), folder.size()));
+    std::error_code ec;
+    std::filesystem::create_directories(held, ec);
+    REQUIRE_MESSAGE(!ec, ec.message());
+    const std::pair<const char*, const char*> images[] = {
+        {"zengine-plain-weave", PLAIN_WEAVE_SO}, {"zengine-provider-a", PROVIDER_A_SO}};
+    for (const auto& [stem, from] : images) {
+        const std::filesystem::path dest = held / (std::string(stem) + kArtifactSuffix);
+        std::filesystem::remove(dest, ec); // `Stage::put`'s order: MinGW's copy does not overwrite
+        std::filesystem::copy_file(from, dest, ec);
+        REQUIRE_MESSAGE(!ec, "cannot stage ", std::string(from), ": ", ec.message());
+    }
+
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
+    const loom::LoadResult weave =
+        rig.kernel.load("zengine-plain-weave-beyond",
+                        folder + "/zengine-plain-weave" + kArtifactSuffix, "test.beyond");
+    REQUIRE_MESSAGE(weave.ok, weave.error);
+    CHECK(rig.kernel.is_loaded("zengine-plain-weave-beyond"));
+    const op::MountResult provider = op::mount_provider(
+        rig.catalog, folder + "/zengine-provider-a" + kArtifactSuffix, op::MountMode::Ordinary);
+    REQUIRE_MESSAGE(provider.ok, provider.reason);
+    CHECK(row_of(workshop::find_powers(rig.catalog, {}), "prov.function.1") != nullptr);
+}
+
 TEST_CASE("the host published nothing, so no row and no layer claims the host") {
     // `workshop.cpp` authors no operator, so the empty `provider` -- `op::Contribution`'s word
     // for "the host itself published this" -- appears nowhere in a Workshop-shaped arrangement.

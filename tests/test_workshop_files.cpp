@@ -118,13 +118,13 @@ inline std::string abs_spelling(const std::string& tail) {
 /// This platform's own filesystem root, spelled the way every path here is spelled.
 inline std::string root_spelling() { return abs_spelling("/"); }
 
-/// A DIRECTORY NAME OF THE SAME KIND, for the launch-capture case. On Windows it is spelled
-/// with universal-character-names on purpose -- what these characters ARE is decided by the
-/// C++ standard rather than by whatever encoding a compiler guesses this file is in -- and
-/// nothing in a single-byte code page can hold them.
+/// A DIRECTORY NAME OF THE SAME KIND, for the launch-capture case. On Windows it holds a lone
+/// surrogate, which no code page, UTF-8 included, can spell.
 inline std::filesystem::path unsayable_dir_name() {
 #if defined(_WIN32)
-    return std::filesystem::path(std::wstring(L"caf\u00E9-\u65E5\u672C"));
+    std::wstring name = L"lone";
+    name.push_back(static_cast<wchar_t>(0xD800)); // a HIGH surrogate with no low half
+    return std::filesystem::path(name);
 #else
     return std::filesystem::path(std::string("caf\xc3\xa9-\xff"));
 #endif
@@ -256,9 +256,9 @@ TEST_CASE("a launch directory this Workshop cannot say is an absence, not an exi
         // Nothing adjacent was substituted for the directory that could not be said.
         CHECK(captured.empty());
     } else {
-        // The platform CAN say this name: POSIX, where narrowing is a byte passthrough, or
-        // a Windows whose active code page carries it. Then the capture owes the ordinary
-        // truth -- a hostile-looking name is not a reason to invent an absence either.
+        // The platform CAN say this name: POSIX, where narrowing is a byte passthrough. Then
+        // the capture owes the ordinary truth -- a hostile-looking name is not a reason to
+        // invent an absence either.
         std::error_code where_ec;
         CHECK(captured == std::filesystem::current_path(where_ec).generic_string());
         CHECK_FALSE(captured.empty());

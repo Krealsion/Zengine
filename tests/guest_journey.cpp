@@ -8,8 +8,12 @@
 // SDL window's pixels (a machine with a display witnesses those) or the platform's input edge (an
 // injected moment enters at the Input weave), and neither is inferred from a green here.
 
+// And a weaver's own files: another Workshop, not isolated, whose roots and keymap stand in a
+// folder named beyond ASCII, reads them, saves its session there and reopens it.
+
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "workshop/setup_control.hpp"
 
 #include <zen/bridge/client.hpp>
 #include <zen/serialize.hpp>
@@ -57,6 +61,7 @@ int failures = 0;
 
 bool check(bool ok, const std::string& what) {
     std::printf("  %-6s %s\n", ok ? "ok" : "FAIL", what.c_str());
+    std::fflush(stdout);
     if (!ok) {
         ++failures;
     }
@@ -77,31 +82,44 @@ bool until(const std::function<bool()>& done, int timeout_ms) {
 
 // ---- the child process, and the one thing this program does to it: end it ---------------
 
+#if defined(_WIN32)
+/// UTF-8 as UTF-16, whatever this program's own code page.
+std::wstring wide(const std::string& utf8) {
+    const int n = ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()),
+                                        nullptr, 0);
+    std::wstring out(static_cast<std::size_t>(n), L'\0');
+    ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), out.data(), n);
+    return out;
+}
+#endif
+
 struct Child {
 #if defined(_WIN32)
     PROCESS_INFORMATION pi{};
     bool started = false;
+    /// THE CHILD IS HANDED UTF-16, as a shell hands a program its command line, so the child's
+    /// own code page alone decides how it reads what it was given.
     bool start(const std::string& exe, const std::vector<std::string>& args,
                const std::string& cwd, const std::string& out_path) {
-        std::string line = "\"" + exe + "\"";
+        std::wstring line = L"\"" + wide(exe) + L"\"";
         for (const std::string& a : args) {
-            line += " \"" + a + "\"";
+            line += L" \"" + wide(a) + L"\"";
         }
         SECURITY_ATTRIBUTES sa{};
         sa.nLength = sizeof(sa);
         sa.bInheritHandle = TRUE;
-        HANDLE out = ::CreateFileA(out_path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, &sa,
+        HANDLE out = ::CreateFileW(wide(out_path).c_str(), GENERIC_WRITE, FILE_SHARE_READ, &sa,
                                    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-        STARTUPINFOA si{};
+        STARTUPINFOW si{};
         si.cb = sizeof(si);
         si.dwFlags = STARTF_USESTDHANDLES;
         si.hStdOutput = out;
         si.hStdError = out;
         si.hStdInput = INVALID_HANDLE_VALUE;
-        std::vector<char> buf(line.begin(), line.end());
-        buf.push_back('\0');
-        started = ::CreateProcessA(nullptr, buf.data(), nullptr, nullptr, TRUE,
-                                   CREATE_NO_WINDOW, nullptr, cwd.c_str(), &si, &pi) != 0;
+        std::vector<wchar_t> buf(line.begin(), line.end());
+        buf.push_back(L'\0');
+        started = ::CreateProcessW(nullptr, buf.data(), nullptr, nullptr, TRUE,
+                                   CREATE_NO_WINDOW, nullptr, wide(cwd).c_str(), &si, &pi) != 0;
         ::CloseHandle(out);
         return started;
     }
@@ -284,6 +302,40 @@ std::string read_file(const std::string& path) {
     return ss.str();
 }
 
+/// The picture a capture answered, fetched by chunk; empty when any chunk did not come whole.
+std::string fetch_picture(Guest& g, const surface::SurfaceCaptured& pic) {
+    std::string picture;
+    std::int64_t offset = 0;
+    while (offset < pic.bytes) {
+        const std::uint64_t c =
+            g.ask(surface::kSkinRole, surface::SurfaceCaptureChunkRequested{pic.capture, offset});
+        const std::optional<surface::SurfaceCaptureChunk> chunk =
+            g.answer<surface::SurfaceCaptureChunk>(c);
+        if (!chunk.has_value() || chunk->offset != offset || chunk->data.empty()) {
+            return std::string();
+        }
+        picture.append(chunk->data.begin(), chunk->data.end());
+        offset += static_cast<std::int64_t>(chunk->data.size());
+    }
+    return static_cast<std::int64_t>(picture.size()) == pic.bytes ? picture : std::string();
+}
+
+/// The path of a UTF-8 spelling, as the filesystem holds it, whatever the code page.
+std::filesystem::path held(const std::string& utf8) {
+    return std::filesystem::path(
+        std::u8string(reinterpret_cast<const char8_t*>(utf8.data()), utf8.size()));
+}
+
+/// Set a variable for the children this program starts: on Windows as UTF-16, the way the
+/// system keeps an environment.
+void set_child_env(const char* name, const std::string& utf8) {
+#if defined(_WIN32)
+    ::SetEnvironmentVariableW(wide(name).c_str(), wide(utf8).c_str());
+#else
+    ::setenv(name, utf8.c_str(), 1);
+#endif
+}
+
 } // namespace
 
 // zengine-guest-journey <zengine-workshop exe> <headless load plan> <work dir>: exit 0 on PASS,
@@ -427,32 +479,15 @@ int main(int argc, char** argv) {
               std::to_string(frame_before) + ")");
     std::string picture;
     if (pic.has_value() && pic->ok) {
-        std::int64_t offset = 0;
-        bool whole = true;
-        while (offset < pic->bytes) {
-            const std::uint64_t c = g.ask(surface::kSkinRole,
-                                          surface::SurfaceCaptureChunkRequested{pic->capture, offset});
-            const std::optional<surface::SurfaceCaptureChunk> chunk =
-                g.answer<surface::SurfaceCaptureChunk>(c);
-            if (!chunk.has_value() || chunk->offset != offset) {
-                whole = false;
-                break;
-            }
-            picture.append(chunk->data.begin(), chunk->data.end());
-            offset += static_cast<std::int64_t>(chunk->data.size());
-            if (chunk->data.empty()) {
-                whole = false;
-                break;
-            }
-        }
-        check(whole && static_cast<std::int64_t>(picture.size()) == pic->bytes,
-              "...and the whole picture was fetched by chunk (" + std::to_string(picture.size()) +
-                  " bytes, " + pic->format + ")");
+        picture = fetch_picture(g, *pic);
+        check(!picture.empty(), "...and the whole picture was fetched by chunk (" +
+                                    std::to_string(picture.size()) + " bytes, " + pic->format +
+                                    ")");
         std::ofstream out(work + "/journey-capture.txt", std::ios::binary | std::ios::trunc);
         out << picture;
         // THE PICTURE IS WHAT THE TERMINAL SKIN PRESENTED: the Pane Manager the chord opened is in
         // it, and the Connections pane names this session by the host's word for it.
-        check(picture.find("Pane Manager") != std::string::npos,
+        check(picture.find("Pane Manager @zengine.desktop") != std::string::npos,
               "the picture shows the Pane Manager the injected chord opened");
     }
 
@@ -477,6 +512,204 @@ int main(int argc, char** argv) {
     const std::string out = read_file(out_path);
     check(out.find("guests: listening on 127.0.0.1:") != std::string::npos,
           "the Workshop said where it listened");
+
+    // 4. A WEAVER'S OWN FILES, IN A FOLDER NAMED BEYOND ASCII. Another Workshop, not isolated:
+    //    its per-user roots and the keymap its command line names stand in a folder named with
+    //    Western and Cyrillic letters and a space. It reads the keymap, writes its session there
+    //    on quit, and the next launch reopens that session.
+    std::printf("a weaver's own files, in a folder named beyond ASCII\n");
+    const std::string folder = work + "/Zo\xC3\xAB \xD0\x96 Doe";
+    std::error_code ec;
+    std::filesystem::remove_all(held(folder), ec);
+    std::filesystem::create_directories(held(folder), ec);
+    bool made = !ec;
+    {
+        std::ofstream k(held(folder + "/keymap.json"), std::ios::trunc);
+        k << R"({"zen":1,"schema":"WorkshopKeymap","version":2,"fields":{)"
+          << R"("format":"zengine-workshop-keymap","format_version":"2","legend":"default",)"
+          << R"("overrides":[{"action":"desktop.panes","gesture":"ctrl+q"}]}})";
+        made = made && k.good();
+    }
+#if defined(_WIN32)
+    set_child_env("APPDATA", folder + "/config");
+    set_child_env("LOCALAPPDATA", folder + "/state");
+#else
+    set_child_env("XDG_CONFIG_HOME", folder + "/config");
+    set_child_env("XDG_STATE_HOME", folder + "/state");
+#endif
+    const std::string own_guests = work + "/own-guests.json";
+    const std::string own_port = work + "/own.port";
+    {
+        std::ofstream o(own_guests, std::ios::trunc);
+        o << R"({"listen":"127.0.0.1:0","port_file":"own.port","guests":[{"name":"weaver",)"
+          << R"("credential":"open-sesame","may":["input","capture","demo"]}]})";
+    }
+    const std::vector<std::string> own_args = {"--load-plan", plan,    "--guests", own_guests,
+                                               "--log",       "own.log", "--keymap",
+                                               folder + "/keymap.json"};
+    const std::string session_file = folder + "/state/zengine-workshop/workshop-session.json";
+    const std::string prefs_file = folder + "/config/zengine-workshop/workshop-prefs.json";
+    check(made && !std::filesystem::exists(held(session_file)),
+          "the folder holds a keymap, and no session yet");
+    // As far as an admitted guest, or a failed check saying where it stopped.
+    const auto launch_own = [&](Child& own, Guest& w, const std::string& own_out) {
+        std::remove(own_port.c_str());
+        if (!check(own.start(workshop, own_args, work, own_out), "that Workshop started")) {
+            return false;
+        }
+        std::uint16_t p = 0;
+        (void)until(
+            [&] {
+                const std::string text = read_file(own_port);
+                if (text.empty()) {
+                    return !own.alive();
+                }
+                p = static_cast<std::uint16_t>(std::atoi(text.c_str()));
+                return p != 0;
+            },
+            20000);
+        if (!check(p != 0, "...and listens, its roots and its keymap read")) {
+            std::fprintf(stderr, "--- workshop output ---\n%s\n", read_file(own_out).c_str());
+            return false;
+        }
+        if (!check(w.connect(p, "weaver", "open-sesame"), "the weaver connects")) {
+            return false;
+        }
+        (void)until(
+            [&] {
+                w.poll();
+                return w.client->admitted() || w.client->denied() || w.client->disconnected();
+            },
+            5000);
+        return check(w.client->admitted(), "...and is admitted");
+    };
+    const auto look = [](Guest& w) {
+        const std::uint64_t asked = w.ask(surface::kSkinRole, surface::SurfaceCaptureRequested{});
+        const std::optional<surface::SurfaceCaptured> taken =
+            w.answer<surface::SurfaceCaptured>(asked, 10000);
+        return taken.has_value() && taken->ok ? fetch_picture(w, *taken) : std::string();
+    };
+    // Asked to quit, it saves its session and ends. A pane still settling work refuses the quit
+    // aloud and asks for it again, so a refused quit is asked again, ten times at most; its Ack
+    // can go down with its link, so the ending is what is waited for.
+    const auto quit = [](Child& own, Guest& w) {
+        std::string answer = "nothing";
+        for (int attempt = 0; attempt < 10 && own.alive(); ++attempt) {
+            const std::uint64_t asked =
+                w.ask("zengine.workshop", zengine::workshop::WorkshopQuitRequested{});
+            bool refused = false;
+            (void)until(
+                [&] {
+                    if (!own.alive()) {
+                        return true;
+                    }
+                    w.poll();
+                    const loom::BridgeEvent* said = w.delivered(asked);
+                    if (said == nullptr) {
+                        return false;
+                    }
+                    const loom::Unverified u = loom::parse(said->payload);
+                    const loom::Admission no = loom::admit(u, loom::schema_of<loom::Refused>());
+                    refused = no.ok();
+                    answer = refused ? loom::from_value<loom::Refused>(no.value()).reason
+                                     : u.claimed_name();
+                    return refused;
+                },
+                30000);
+            if (!refused) {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+        if (own.alive()) {
+            std::fprintf(stderr, "  the quit was answered: %s; Workshop is still running\n",
+                         answer.c_str());
+        }
+        return !own.alive();
+    };
+    {
+        Child own;
+        Guest w;
+        const std::string own_out = work + "/own.out";
+        if (launch_own(own, w, own_out)) {
+            const std::uint64_t asked = w.ask(input::kInputRole, input::InputSessionRequested{"own"});
+            const std::optional<input::InputSessionOpened> session =
+                w.answer<input::InputSessionOpened>(asked);
+            // The legend spells the keymap in force: the chord is pressed once it says Ctrl+Q.
+            std::string legend;
+            check(until(
+                      [&] {
+                          legend = look(w);
+                          return legend.find("^q panes") != std::string::npos;
+                      },
+                      10000),
+                  "its legend says ^q panes: the keymap in that folder is in force");
+            check(legend.find("Pane Manager @zengine.desktop") == std::string::npos,
+                  "...and the Pane Manager is not on the desk yet");
+            if (check(session.has_value(), "the Input weave opened a session")) {
+                input::InjectInput chord;
+                chord.session = session->session;
+                input::InjectedEvent press;
+                press.kind = "KeyPressed";
+                press.scancode = input::scan::kQ;
+                press.modifiers = input::mod::kCtrl;
+                input::InjectedEvent release = press;
+                release.kind = "KeyReleased";
+                chord.events = {press, release};
+                const std::uint64_t pressed = w.ask(input::kInputRole, chord, /*settle=*/true);
+                check(w.answer<input::InputInjected>(pressed).has_value() && w.settled(pressed),
+                      "Ctrl+Q was injected, and all it set in motion dispatched");
+                const std::string seen = look(w);
+                std::ofstream(work + "/own-capture.txt", std::ios::binary | std::ios::trunc) << seen;
+                check(seen.find("Pane Manager @zengine.desktop") != std::string::npos,
+                      "...and Ctrl+Q opens the Pane Manager");
+                // Escape puts the Pane Manager down, and `t` hides the titles: a preference,
+                // written under the configuration root in that folder.
+                for (const std::int64_t key : {input::scan::kEscape, input::scan::kT}) {
+                    input::InjectInput tap;
+                    tap.session = session->session;
+                    input::InjectedEvent key_down;
+                    key_down.kind = "KeyPressed";
+                    key_down.scancode = key;
+                    input::InjectedEvent key_up = key_down;
+                    key_up.kind = "KeyReleased";
+                    tap.events = {key_down, key_up};
+                    const std::uint64_t tapped = w.ask(input::kInputRole, tap, /*settle=*/true);
+                    (void)w.answer<input::InputInjected>(tapped);
+                    (void)w.settled(tapped);
+                }
+                check(until([&] { return std::filesystem::exists(held(prefs_file)); }, 5000),
+                      "Escape, then t: the titles' preference is written under the configuration "
+                      "root in that folder");
+            }
+            check(quit(own, w), "the weaver quit it, and it ended");
+            check(std::filesystem::exists(held(session_file)),
+                  "...writing its session under the state root in that folder");
+            const std::string said = read_file(own_out);
+            check(said.find("keymap: " + folder + "/keymap.json") != std::string::npos,
+                  "its banner names the keymap in that folder, in UTF-8");
+            check(said.find("last session: " + session_file) != std::string::npos &&
+                      said.find("prefs: " + prefs_file) != std::string::npos,
+                  "...and the session and the preferences under its two roots there");
+        }
+        own.end();
+    }
+    {
+        // The restore's notice is drawn at startup, before a guest can ask for a picture: the
+        // terminal Skin's own output is where it stands.
+        Child again;
+        Guest w;
+        const std::string again_out = work + "/own-again.out";
+        if (launch_own(again, w, again_out)) {
+            check(until([&] {
+                      return read_file(again_out).find("reopened your last desk") !=
+                             std::string::npos;
+                  }, 10000),
+                  "the next launch reopened the desk it saved there");
+            check(quit(again, w), "...and quit again");
+        }
+        again.end();
+    }
     std::printf("%s (%d failure%s)\n", failures == 0 ? "PASS" : "FAIL", failures,
                 failures == 1 ? "" : "s");
     if (failures != 0) {
