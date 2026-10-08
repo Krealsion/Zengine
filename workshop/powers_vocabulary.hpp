@@ -6,9 +6,9 @@
 
 // Finding a power: `FindPowers` -> `PowersFound` and `DescribePower` -> `PowerDescribed`, answered
 // by one read-only office (docs/reference/introspection.md). Values only: a description of the
-// host's catalog, and of the evaluator's forms, at the ask, which confers no authority over it. `FindPowers` is built with a
-// `loom::SchemaBuilder` rather than `ZEN_SHAPE` because every field of it is optional, so a weaver
-// at the Terminal types only what they mean: `ask @zengine.powers FindPowers 1 text=larger`.
+// host's catalog, and of the evaluator's forms, at the ask, which confers no authority over it.
+// `FindPowers` is built with a `loom::SchemaBuilder`, every field of it optional, so a weaver at
+// the Terminal types only what they mean: `ask @zengine.powers FindPowers 1 text=larger`.
 
 #include <zen/schema.hpp>
 #include <zen/switchboard/grant.hpp>

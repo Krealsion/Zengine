@@ -2036,12 +2036,10 @@ public:
     void on(const Nested&, loom::Mail&) { ++state_.heard; }
 };
 
-/// A TARGET WITH AN OPTIONAL FIELD, AS A RAW `loom::Weave`, because that is the only way one
-/// can exist: `ZEN_FIELD` derives every field required (`build_schema`, zen/weave/shape.hpp) and
-/// `WeaveBase::accepted_schemas()` is `final` over ZEN_SHAPE types, so no woven weave's
-/// accept-set holds an optional field. This one declares a hand-built schema and answers the
-/// self-description door with `encode_accepted_shapes(accepted_schemas())` -- the construction
-/// layer's own call, over the vector the gate enforces.
+/// A TARGET WITH AN OPTIONAL FIELD, AS A RAW `loom::Weave` with a hand-built schema, answering
+/// the self-description door with `encode_accepted_shapes(accepted_schemas())` -- the
+/// construction layer's own call, over the vector the gate enforces. A woven weave's accept-set
+/// holds an optional field through a `ZEN_SHAPE` member of type `std::optional<T>`.
 class Optionals final : public loom::Weave {
 public:
     static std::shared_ptr<const loom::Schema> shape() {
@@ -2677,12 +2675,9 @@ TEST_CASE("a form with no fields is ready at once, and invents none") {
 }
 
 TEST_CASE("an optional field begins ABSENT and stays there unless authored") {
-    // AND FINDING A TARGET THAT HAS ONE IS THE HALF WORTH READING. `ZEN_FIELD`
-    // derives every field required, and `WeaveBase` builds its accept-set from
-    // ZEN_SHAPE types -- so no accept-set the construction layer answers can contain
-    // an optional field, in either repository. This target hand-writes both its
-    // schema and its door (see `Optionals`), which is currently the only way one
-    // reaches a weaver at all.
+    // AND FINDING A TARGET THAT HAS ONE IS THE HALF WORTH READING. This target
+    // hand-writes both its schema and its door (see `Optionals`); a woven weave's
+    // shape reaches a weaver with one through a `std::optional<T>` member.
     ComposeRig r;
     r.with_optionals();
     r.select("zengine.optionals", "an-optional-library");

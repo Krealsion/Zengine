@@ -18,8 +18,9 @@ widens its Terminal with the two asks to that office alone. Flow and Powers ask 
 **Alternatives considered.**
 - *Argued: two more shapes on the arrangement door* — its one rule, offices only, would have had
   to split or loosen for the Terminal, and its one question is the project, not the catalog.
-- *Argued: a `ZEN_SHAPE` query* — every field would be required, so the Terminal's composer
-  would ask for all nine; a line that types one field could not compose.
+- *Argued: a query of required fields* — the Terminal's composer would ask for all nine, and a
+  line that types one field could not compose; the query's fields are optional, as a
+  `ZEN_SHAPE` with `std::optional` members would declare them too.
 - *Tried: the same question from two askers, an office and one speaking for itself* — both are
   answered the same rows, pinned by case `"the discovery door answers whoever asked -- an office,
   or one speaking for itself -- and a root's send nothing"`; and from the three shipped askers,

@@ -2105,8 +2105,8 @@ TEST_CASE("a catalog is refused by a version this Workshop does not read, and a 
     CHECK_FALSE(three.outcome.accepted);
     CHECK(three.outcome.refusal == "build recipes version 3 -- this Workshop reads versions 1 and 2");
 
-    // A VERSION 1 ROW UNDER A VERSION 2 ENVELOPE IS NOT QUIETLY TAKEN AS "NO ENTRY": admission
-    // has no optional field, and a row missing one is refused by the gate describing those bytes.
+    // A VERSION 1 ROW UNDER A VERSION 2 ENVELOPE IS NOT QUIETLY TAKEN AS "NO ENTRY": the row's
+    // `entry` is required, and a row missing it is refused by the gate describing those bytes.
     const std::string envelope = "\"version\":1,\"content_id\":\"0xddcb128121a0f122\",";
     const std::string field = "\"format_version\":\"1\"";
     std::string mixed = kVersionOneCatalog;
