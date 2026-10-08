@@ -473,18 +473,37 @@ class Recipes(unittest.TestCase):
         said = self.read_back("session", wdir / "session.json")
         self.assertIn("read session", said)
         self.assertEqual([line for line in said if line.startswith("setting ")], [])
-        # ...AND AN OLDER ONE IS REFUSED BEFORE ANYTHING IS WRITTEN, saying how to write it anew.
+        # ...AND AN OLDER ONE IS REFUSED WHEN THE SETUP IS LOADED -- which `start` does before it
+        # makes a root -- saying how to write it anew.
         root = make(self.tmp, "oldest")
         desk = json.loads((root / "desk.json").read_text(encoding="utf-8"))
         desk["version"], desk["fields"]["format_version"] = 3, "3"
         (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
-        wdir = Path(self.tmp) / "refused"
-        wdir.mkdir()
-        with self.assertRaises(ValueError) as refused:
-            launcher.first_files(described.Setup(root), wdir)
+        with self.assertRaises(described.SetupError) as refused:
+            described.Setup(root)
         self.assertIn("is setup version 3", str(refused.exception))
         self.assertIn("save it (`s`)", str(refused.exception))
-        self.assertEqual(list(wdir.iterdir()), [])
+
+    def test_a_view_seated_on_a_desk_saved_now_keeps_the_shape_workshop_reads(self):
+        # A DESK `s` WROTE, AND A VIEW SLOT: preparation seats a portable view there, and the desk it
+        # applies is one Workshop's own reader takes whole.
+        setup_version = self.owner_version("workshop/setup_persist.hpp")
+        root = make(self.tmp, "slotted", view_slots=[{"x": 2, "y": 3, "width": 30, "height": 9}])
+        desk = json.loads((root / "desk.json").read_text(encoding="utf-8"))
+        desk["version"], desk["fields"]["format_version"] = setup_version, str(setup_version)
+        for row in desk["fields"]["panes"]:
+            row["settings"] = []
+        (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
+        seated = described.Setup(root).desk(["my-view"])
+        self.assertEqual(seated["fields"]["panes"][-1]["pane"], "my-view")
+        path = Path(self.tmp) / "seated.json"
+        path.write_text(json.dumps(seated), encoding="utf-8")
+        self.assertIn("read setup", self.read_back("setup", path))
+        # ...AND SO IS A SHIPPED DESK, version 4, lifted before the view is seated on it.
+        shipped = described.Setup(make(self.tmp, "shipped", view_slots=[{"x": 2, "y": 3, "width": 30,
+                                                                           "height": 9}]))
+        path.write_text(json.dumps(shipped.desk(["my-view"])), encoding="utf-8")
+        self.assertIn("read setup", self.read_back("setup", path))
 
     def test_every_tool_writes_workshop_files_through_the_one_owner_of_their_versions(self):
         # A TOOL THAT SPELLS A SETUP OR A SESSION ITSELF KEEPS THE VERSION IT WAS WRITTEN AT, so
