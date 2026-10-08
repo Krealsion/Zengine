@@ -168,6 +168,24 @@ inline const LoadedWeave* entry_at_row(const LoadedView& view, std::int64_t row)
     return &view.shown[static_cast<std::size_t>(which)];
 }
 
+/// A NAME SAID BY ITS LENGTH FIRST, so names said one after another are never read as others.
+inline std::string length_said(const std::string& name) {
+    return std::to_string(name.size()) + ':' + name;
+}
+
+/// WHAT A PRESS ON THE LOADED PANE MEANS: each row by the weave it names, its name and its role,
+/// as a press publishes both; `-` for a row naming none. Two lists are never one meaning, whatever
+/// their names and roles hold.
+inline std::string press_meaning(const LoadedView& view) {
+    std::string said;
+    for (std::size_t row = 0; row < view.rows.size(); ++row) {
+        const LoadedWeave* entry = entry_at_row(view, static_cast<std::int64_t>(row));
+        said += entry != nullptr ? length_said(entry->name) + length_said(entry->role) + ';'
+                                 : std::string("-;");
+    }
+    return said;
+}
+
 /// Mark the row naming `selected` and unmark every other entry row -- nothing else moves, so a
 /// press re-decides nothing. A name no shown row carries leaves all unmarked, and the mark
 /// returns with the entry. `columns` is the room the view was projected for.

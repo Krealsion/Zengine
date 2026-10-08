@@ -443,6 +443,18 @@ struct PowersView {
     std::int64_t caret_col = 0;
 };
 
+/// WHAT A PRESS ON THE POWERS PANE MEANS: each place by the row and columns it covers and the
+/// control or power it is. Two lists are never one meaning, whatever their identities hold.
+inline std::string press_meaning(const PowersView& view) {
+    std::string said;
+    for (const PowersSpan& s : view.spans) {
+        said += std::to_string(s.row) + ' ' + std::to_string(s.first) + ' ' +
+                std::to_string(s.last) + ' ' + std::to_string(s.control) + ' ' +
+                length_said(s.identity) + ';';
+    }
+    return said;
+}
+
 /// Which control a press landed on, or none; total over every row and column, since a provider
 /// is handed a row off a wire and must not bound it twice.
 inline PowersTarget target_at(const PowersView& view, std::int64_t row, std::int64_t column) {

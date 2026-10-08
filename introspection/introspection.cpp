@@ -698,21 +698,13 @@ private:
 
     /// THE NUMBER OF WHAT A PRESS ON `pane` MEANS NOW: Loaded's rows by the weave each names,
     /// Powers' places by the control or power each is; Project's presses mean nothing. A repaint
-    /// that moves no meaning -- a mark, a caret, a query typed -- keeps the number.
+    /// that moves no meaning -- a mark, a caret, a query typed -- keeps the number (`press_meaning`).
     std::int64_t meaning_of(Canvas& canvas, std::string_view pane) {
         std::string spelled;
         if (pane == kLoadedPane) {
-            for (std::size_t row = 0; row < view_.rows.size(); ++row) {
-                const LoadedWeave* entry =
-                    zengine::introspection::entry_at_row(view_, static_cast<std::int64_t>(row));
-                spelled += (entry != nullptr ? entry->name : std::string()) + '\n';
-            }
+            spelled = zengine::introspection::press_meaning(view_);
         } else if (pane == kPowersPane) {
-            for (const intro::PowersSpan& s : powers_shown_.spans) {
-                spelled += std::to_string(s.row) + ' ' + std::to_string(s.first) + ' ' +
-                           std::to_string(s.last) + ' ' + std::to_string(s.control) + ' ' +
-                           s.identity + '\n';
-            }
+            spelled = intro::press_meaning(powers_shown_);
         }
         if (canvas.meaning == 0 || spelled != canvas.press_map) {
             canvas.press_map = std::move(spelled);
