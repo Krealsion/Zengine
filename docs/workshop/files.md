@@ -30,7 +30,7 @@ and nothing about your project has moved. Looking at something is not choosing i
 
 If the system cannot report a working directory the banner says so, and Files has nowhere to
 start rather than guessing somewhere for you. The same is true if it reports one Workshop
-cannot write down — a directory named with characters this build cannot carry in a path. You
+cannot write down — on Windows, a directory whose name holds an invalid UTF-16 sequence. You
 get the run without a project rather than a crash on the way in, and nothing nearby is
 substituted for the directory you were actually standing in. If you have marked places
 before, you can still jump to one of them (below) and carry on from there.
@@ -220,10 +220,8 @@ toolchains, MSVC and MinGW.
 pretends to no perimeter: a directory this process may not read refuses in the system's own
 words, right where you are, and Workshop does not bounce you back somewhere else to hide it.
 
-**A name it cannot open honestly is marked as such.** Workshop carries file paths as plain
-bytes, so a filename outside printable ASCII cannot be opened truthfully on both supported
-platforms. The row stays visible — with the bytes it cannot carry shown as `?` — and refuses to
-be opened, rather than quietly opening something else.
+**A name outside printable ASCII is marked, and not opened.** The row stays visible — with each
+byte outside printable ASCII shown as `?` — and refuses to be opened.
 
 This holds for names the system itself will not spell. Some filenames — on Windows, a filename
 holding an invalid UTF-16 sequence, for instance — cannot be turned into text at all, and
@@ -257,7 +255,7 @@ while you are looking at it, the pane will not notice until one of the moments a
 ## Using a file as the recipe catalog
 
 `u` hands the file the cursor is on to the one owner of this session's build recipes. A
-directory refuses (a catalog is one file), and a name the pane cannot carry refuses for the
+directory refuses (a catalog is one file), and a name outside printable ASCII refuses for the
 same reason it cannot be opened. Nothing here looks at the file's **name** or **extension** to
 decide whether it is a catalog: you said it is, and the recipe owner reads it and answers in
 its own words. If it is not one, you are told so and the recipes you were already using are

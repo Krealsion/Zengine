@@ -256,24 +256,32 @@ TEST_CASE("a row that cannot be a catalog is refused before the owner is trouble
     FileRow dir;
     dir.name = "somewhere";
     dir.directory = true;
-    FileRow unsayable;
-    unsayable.name = "cafÃ©";
-    unsayable.openable = false;
+    FileRow outside;
+    outside.name = "cafÃ©";
+    outside.openable = false;
+    // ...and a projection, the printable spelling of a name this platform will not spell.
+    FileRow projected;
+    projected.name = "lone?.txt";
+    projected.openable = false;
 
     CHECK(catalog_row_refusal(nullptr, true) ==
           "no row is selected -- the recipes in force are unchanged");
     CHECK(catalog_row_refusal(&dir, true).find("is a directory") != std::string::npos);
-    CHECK(catalog_row_refusal(&unsayable, true).find("cannot carry in a path") !=
+    CHECK(catalog_row_refusal(&outside, true).find("is named outside printable ASCII") !=
           std::string::npos);
-    CHECK(catalog_row_refusal(&unsayable, true).find("the recipes in force are unchanged") !=
+    CHECK(catalog_row_refusal(&outside, true).find("the recipes in force are unchanged") !=
+          std::string::npos);
+    CHECK(catalog_row_refusal(&projected, true).find("cannot carry in a path") !=
+          std::string::npos);
+    CHECK(catalog_row_refusal(&projected, true).find("the recipes in force are unchanged") !=
           std::string::npos);
     CHECK(catalog_row_refusal(&file, false) ==
           "this run began nowhere -- the recipes in force are unchanged");
     // ...AND AN ORDINARY FILE IN A RUN THAT BEGAN SOMEWHERE IS NOT REFUSED AT ALL, which
     // is the arm that makes the other four a measurement.
     CHECK(catalog_row_refusal(&file, true).empty());
-    // THE UNSAYABLE NAME IS SHOWN THE WAY EVERY OTHER ROW SHOWS IT, and never raw.
-    CHECK(catalog_row_refusal(&unsayable, true).find(shown_name(unsayable.name)) !=
+    // A NAME OUTSIDE PRINTABLE ASCII IS SHOWN THE WAY EVERY OTHER ROW SHOWS IT, and never raw.
+    CHECK(catalog_row_refusal(&outside, true).find(shown_name(outside.name)) !=
           std::string::npos);
 }
 
@@ -332,7 +340,7 @@ TEST_CASE("a listing shows what is there -- dotfiles and build trees included") 
 TEST_CASE("a name outside printable ASCII keeps its row, marked, and cannot be opened") {
     TempDir dir("names");
     put_file(dir.path() / "plain.cpp", "x");
-    // A name this application's narrow path custody cannot carry on both platforms.
+    // A name carried exactly on every platform, and outside printable ASCII.
     const std::string wide = "caf\xc3\xa9.cpp"; // UTF-8 e-acute
     put_file(dir.path() / std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(wide.data()), wide.size())), "x");
     const Listing l = enumerate_directory(dir.path().generic_string());

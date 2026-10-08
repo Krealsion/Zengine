@@ -43,14 +43,13 @@ struct FileRow {
     /// A DIRECTORY THAT LEAVES THE TREE.
     // WL-FILES-04 -- agents/workshop/files.md
     bool linked = false;
-    /// Can this name be carried through Workshop's narrow path custody at all?
+    /// Does a press open this name: carried exactly, and every byte printable ASCII?
     // WL-FILES-10 -- agents/workshop/files.md
     bool openable = true;
 };
 
-/// Is every byte of this name plainly printable ASCII -- the bytes both supported
-/// platforms carry identically through a `std::string` path, and the bytes this
-/// application's media can place truthfully in a column?
+/// Is every byte of this name plainly printable ASCII -- the bytes this application's media can
+/// place truthfully in a column?
 inline bool printable_ascii_name(const std::string& name) {
     if (name.empty()) {
         return false;
@@ -64,7 +63,7 @@ inline bool printable_ascii_name(const std::string& name) {
     return true;
 }
 
-/// WHAT A NAME THIS APPLICATION CANNOT CARRY LOOKS LIKE ON SCREEN.
+/// WHAT A NAME OUTSIDE PRINTABLE ASCII LOOKS LIKE ON SCREEN.
 // WL-FILES-10 -- agents/workshop/files.md
 inline std::string shown_name(const std::string& name) {
     std::string out;
@@ -187,6 +186,15 @@ inline const FileRow* row_at(const Listing& l, std::size_t cursor) {
 // notice row is cut at the band's width, so the short fixed statements go first and the
 // owner's sentence and the path in force take the tail; an accepted catalog's sentence too.
 
+/// WHY A ROW THAT DOES NOT OPEN DOES NOT, said with its name: a name carried exactly but outside
+/// printable ASCII, or the projection of a name this platform will not spell -- the one whose
+/// marks are all printable.
+inline std::string unopenable_name(const FileRow& row) {
+    return "`" + shown_name(row.name) +
+           (printable_ascii_name(row.name) ? "` has bytes this Workshop cannot carry in a path"
+                                           : "` is named outside printable ASCII");
+}
+
 /// WHY THIS ROW CANNOT BE A RECIPE CATALOG, or empty when it can be asked about at all.
 /// Every arm says what is wrong AND that nothing moved, because the second half is the one
 /// a weaver needs most and the one a bare reason leaves them guessing about.
@@ -195,9 +203,7 @@ inline std::string catalog_row_refusal(const FileRow* row, bool run_began_somewh
         return "no row is selected -- the recipes in force are unchanged";
     }
     if (!row->openable) {
-        return "`" + shown_name(row->name) +
-               "` has bytes this Workshop cannot carry in a path -- the recipes in force "
-               "are unchanged";
+        return unopenable_name(*row) + " -- the recipes in force are unchanged";
     }
     if (row->directory) {
         return "`" + shown_name(row->name) + "` is a directory -- a recipe catalog is one "
