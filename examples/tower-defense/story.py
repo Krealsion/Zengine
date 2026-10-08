@@ -58,6 +58,8 @@ ZENGINE = HERE.parent.parent
 PACKAGE = ZENGINE / "external-host" / "tools" / "workshop"
 MONITOR = HERE / "monitor"  # the game's own monitor: a package that builds on the one above
 NT = os.name == "nt"
+sys.path.insert(0, str(PACKAGE))
+import workshop_formats as formats  # noqa: E402  Workshop's setup and session files, as written
 EXE, LIB = (".exe", ".dll") if NT else ("", ".so")
 FINAL = ("passed", "failed", "error", "cancelled", "crashed", "interrupted")
 SETTLED = FINAL + ("absent",)  # absent: the manager holds no run of that name -- it never started
@@ -826,23 +828,17 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
     Python session runtime and Zengine guest vocabulary (`programs`). Returns what a record keeps
     of the two, their custody included. A launch that fails ends what it started."""
     width, height = (int(v) for v in viewport.split("x"))
-    desk = {"format": "zengine-workshop-setup", "format_version": "4", "name": "Default",
-            "panes": [{"provider": "zengine.info", "pane": "info",
-                       "place": {"mode": "pixels", "x": str((width - 46) * 12), "y": "0"},
-                       "width": {"mode": "pixels", "amount": str(44 * 12)},
-                       "height": {"mode": "pixels", "amount": str(16 * 12)}, "front": "0"},
-                      {"provider": "zengine.workshop", "pane": "layouts",
-                       "place": {"mode": "default", "x": "0", "y": "0"},
-                       "width": {"mode": "default", "amount": "0"},
-                       "height": {"mode": "default", "amount": "0"}, "front": "1"}]}
+    desk = formats.setup("Default", [
+        {"provider": "zengine.info", "pane": "info",
+         "place": {"mode": "pixels", "x": str((width - 46) * 12), "y": "0"},
+         "width": {"mode": "pixels", "amount": str(44 * 12)},
+         "height": {"mode": "pixels", "amount": str(16 * 12)}, "front": "0"},
+        {"provider": "zengine.workshop", "pane": "layouts",
+         "place": {"mode": "default", "x": "0", "y": "0"},
+         "width": {"mode": "default", "amount": "0"},
+         "height": {"mode": "default", "amount": "0"}, "front": "1"}])
     # A guest cannot size the window: a session file's viewport does, beside Workshop's first desk.
-    save(wdir / "session.json", {"zen": 1, "schema": "WorkshopSession", "version": 7, "fields": {
-        "format": "zengine-workshop-session", "format_version": "7",
-        "viewport": {"width": str(width * 12), "height": str(height * 12)}, "active": "0",
-        "placement": {"mode": "none", "x": "0", "y": "0", "window": "normal"},
-        "layouts": [{"desk": desk, "link": {"path": "", "known": {"format": "zengine-workshop-setup",
-                                                                 "format_version": "4", "name": "",
-                                                                 "panes": []}}}]}})
+    save(wdir / "session.json", formats.session(desk, (width * 12, height * 12)))
     credential = secrets.token_urlsafe(32)
     powers = ["input", "capture", "inspect", "inventory", "toolbox"]
     # ...AND A WATCHER, WHO MAY NOT PRESS A KEY: no power at all, only what it may observe (the
