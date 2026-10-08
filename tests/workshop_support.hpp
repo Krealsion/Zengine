@@ -1912,13 +1912,15 @@ struct SeatState {
 /// about the Pane Manager itself drive the shipped desktop image.
 class DoorHand
     : public loom::WeaveBase<DoorHand, SeatState,
-                             loom::Accept<PaneLaunchAnswered, PaneCloseAnswered, PaneSubjectActed,
-                                          SeatDo>,
+                             loom::Accept<PaneLaunchAnswered, PaneCloseAnswered,
+                                          PaneToggleAnswered, PaneSubjectActed, SeatDo>,
                              loom::Emit<PaneLaunchRequested, PaneCloseRequested,
-                                        InspectPaneRequested, PaneCommitRequested>> {
+                                        PaneToggleRequested, InspectPaneRequested,
+                                        PaneCommitRequested>> {
 public:
     void on(const PaneLaunchAnswered& a, loom::Mail&) { launched.push_back(a); }
     void on(const PaneCloseAnswered& a, loom::Mail&) { closed.push_back(a); }
+    void on(const PaneToggleAnswered& a, loom::Mail&) { toggled.push_back(a); }
     /// ...AND, ASKED AS AN INSPECTOR (Info's path), what naming a subject or writing a row came to.
     void on(const PaneSubjectActed& a, loom::Mail&) { acted.push_back(a); }
     void on(const SeatDo&, loom::Mail& mail) {
@@ -1930,6 +1932,7 @@ public:
     }
     std::vector<PaneLaunchAnswered> launched;
     std::vector<PaneCloseAnswered> closed;
+    std::vector<PaneToggleAnswered> toggled;
     std::vector<PaneSubjectActed> acted;
     std::function<void(DoorHand&, loom::Mail&)> next;
     static constexpr const char* kOffice = "zengine.test.hand";
@@ -1945,6 +1948,8 @@ inline DoorHand& door_hand(Rig& t) {
         grant.allow_to_role(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version,
                             kWorkshopProvider);
         grant.allow_to_role(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version,
+                            kWorkshopProvider);
+        grant.allow_to_role(PaneToggleRequested::zen_name, PaneToggleRequested::zen_version,
                             kWorkshopProvider);
         grant.allow_to_role(InspectPaneRequested::zen_name, InspectPaneRequested::zen_version,
                             kWorkshopProvider);
@@ -1988,6 +1993,22 @@ inline PaneCloseAnswered hand_close(Rig& t, const PaneRef& ref) {
     t.bus.drain_until_idle();
     REQUIRE_MESSAGE(h.closed.size() == before + 1, "the close door did not answer");
     return h.closed.back();
+}
+
+/// ...OR TOGGLE IT, as the desktop's Pane Manager does: hidden if the desk names it, shown if not.
+template <class Rig>
+inline PaneToggleAnswered hand_toggle(Rig& t, const PaneRef& ref) {
+    DoorHand& h = door_hand(t);
+    const std::size_t before = h.toggled.size();
+    h.next = [ref](DoorHand&, loom::Mail& m) {
+        (void)m.as_role(DoorHand::kOffice)
+            .send_to_role(kWorkshopProvider, PaneToggleRequested{ref.provider, ref.pane});
+    };
+    (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                              loom::WeaveId{}, 0));
+    t.bus.drain_until_idle();
+    REQUIRE_MESSAGE(h.toggled.size() == before + 1, "the toggle door did not answer");
+    return h.toggled.back();
 }
 
 /// NAME A PANE AS THE INSPECTED SUBJECT THROUGH THE HOST'S DOOR, as an inspector office asks it

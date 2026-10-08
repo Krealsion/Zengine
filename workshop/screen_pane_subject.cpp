@@ -153,6 +153,114 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
     return author_pane_window(s.setup.active, ref, horizontal, vertical).written;
 }
 
+// ---- A PANE'S SETTINGS AS ROWS OF ITS SUBJECT ---------------------------------------------
+
+// WL-SETTING-05 -- agents/workshop/settings.md
+SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
+                                 const std::vector<PaneSettingRow>* declared) {
+    SettingsSubject out;
+    if (declared != nullptr) {
+        out.declared = *declared;
+    }
+    if (const SetupPane* seat = pane_of(s.setup.active, ref)) {
+        for (const PaneSetting& stored : seat->settings) {
+            bool takes = false;
+            for (const PaneSettingRow& row : out.declared) {
+                takes = takes || row.key == stored.key;
+            }
+            if (!takes) {
+                out.kept.push_back(stored.key);
+            }
+        }
+    }
+    return out;
+}
+
+namespace {
+
+std::string_view without_edge_spaces(std::string_view text) {
+    while (!text.empty() && text.front() == ' ') {
+        text.remove_prefix(1);
+    }
+    while (!text.empty() && text.back() == ' ') {
+        text.remove_suffix(1);
+    }
+    return text;
+}
+
+} // namespace
+
+std::string pane_setting_text(const Session& s, const PaneRef& ref, const PaneSettingRow& row) {
+    const SetupPane* seat = pane_of(s.setup.active, ref);
+    if (seat == nullptr) {
+        return "--";
+    }
+    const PaneSetting fallback = pane_setting_default(row);
+    const PaneSetting* stored = find_pane_setting(seat->settings, row.key);
+    if (stored == nullptr) {
+        return setting_value_text(fallback);
+    }
+    if (pane_setting_refused_by(row, *stored).empty()) {
+        return setting_value_text(*stored);
+    }
+    // A STORED VALUE THE SETTING DOES NOT TAKE IS SHOWN AS STORED, never repaired, beside what it
+    // takes and what stands in for it.
+    return setting_value_text(*stored) + " -- takes " + pane_setting_takes(row) + "; " +
+           setting_value_text(fallback) + " in effect";
+}
+
+// WL-SETTING-05 -- agents/workshop/settings.md
+Written write_pane_setting(Session& s, const PaneRef& ref, const PaneSettingRow& row,
+                           const std::string& text) {
+    const std::string_view body = without_edge_spaces(text);
+    const PaneSetting fallback = pane_setting_default(row);
+    if (body == "-") {
+        return author_pane_setting(s.setup.active, ref, row.key, std::nullopt, fallback);
+    }
+    if (!has_pane(s.setup.active, ref)) {
+        return Written::no(ref_text(ref) + " is not in this layout -- open it first");
+    }
+    const std::string refused = "takes " + pane_setting_takes(row) + ", not `" +
+                                std::string(body) + "`";
+    PaneSetting typed;
+    typed.key = row.key;
+    switch (setting_kind(row)) {
+    case SettingKind::kFlag:
+        if (body == kSettingOn || body == kSettingOff) {
+            typed.flag = body == kSettingOn;
+        }
+        break;
+    case SettingKind::kNumber:
+        // A NUMBER'S ONE CONVERSION IS THE INSPECTOR'S OWN (WL-DOC-02).
+        typed.number = TextForm<std::int64_t>::parse(body);
+        break;
+    case SettingKind::kText: typed.text = std::string(body); break;
+    default: break;
+    }
+    if (setting_kind(typed) == SettingKind::kNone || !pane_setting_refused_by(row, typed).empty()) {
+        return Written::no(refused);
+    }
+    return author_pane_setting(s.setup.active, ref, row.key, typed, fallback);
+}
+
+std::string kept_setting_text(const Session& s, const PaneRef& ref, const std::string& key) {
+    const SetupPane* seat = pane_of(s.setup.active, ref);
+    const PaneSetting* stored = seat == nullptr ? nullptr : find_pane_setting(seat->settings, key);
+    if (stored == nullptr) {
+        return "--";
+    }
+    return setting_value_text(*stored) + " -- kept; no setting here takes it, and `-` clears it";
+}
+
+// WL-SETTING-05 -- agents/workshop/settings.md
+Written write_kept_setting(Session& s, const PaneRef& ref, const std::string& key,
+                           const std::string& text) {
+    if (without_edge_spaces(text) != "-") {
+        return Written::no("kept for a pane that declares it -- it takes only `-`, which clears it");
+    }
+    return author_pane_setting(s.setup.active, ref, key, std::nullopt, std::nullopt);
+}
+
 // WL-INFO-14 -- agents/workshop/info-body.md
 PaneSubjectShown pane_subject_shown(const Session& s) {
     PaneSubjectShown shown;
@@ -196,7 +304,8 @@ bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b) {
 }
 
 // WL-INFO-14 -- agents/workshop/info-body.md
-std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
+std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
+                                   const SettingsSubject& settings) {
     std::vector<Row> rows;
     if (ref.provider.empty()) {
         return rows;
@@ -281,6 +390,28 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
         }
         return out;
     }));
+    // ---- SETTINGS: a row per setting the declaration gives, named by its key, and a kept row per
+    // key the row stores that none of them takes. A pane with neither has no such section.
+    if (settings.any()) {
+        rows.push_back(Row::section("SETTINGS"));
+        for (const PaneSettingRow& declared : settings.declared) {
+            rows.push_back(Row::edit(
+                declared.key,
+                Property<std::string>(
+                    [sp, ref, declared] { return pane_setting_text(*sp, ref, declared); },
+                    [sp, ref, declared](std::string text) {
+                        return write_pane_setting(*sp, ref, declared, text);
+                    })));
+        }
+        for (const std::string& key : settings.kept) {
+            rows.push_back(Row::edit(
+                key, Property<std::string>(
+                         [sp, ref, key] { return kept_setting_text(*sp, ref, key); },
+                         [sp, ref, key](std::string text) {
+                             return write_kept_setting(*sp, ref, key, text);
+                         })));
+        }
+    }
     // ---- INTERIOR: a read-only capture of the resolved body, never inferred controls --------
     rows.push_back(Row::section("INTERIOR"));
     rows.push_back(Row::show("Interior", [sp, ref] { return interior_capture_text(*sp, ref); }));

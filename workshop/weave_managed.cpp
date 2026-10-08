@@ -16,8 +16,8 @@ namespace zengine::workshop {
 
 namespace {
 
-/// FNV-1a over a spelling of the active setup: membership, places, sizes and ranks. Any
-/// authored change to the desk moves it, and with it the presentation claim's revision.
+/// FNV-1a over a spelling of the active setup: membership, places, sizes and ranks. Any of those
+/// authored moves it, and with it the presentation claim's revision; a pane's settings do not.
 std::int64_t digest_of(const Setup& setup) {
     std::uint64_t h = 1469598103934665603ull;
     const auto mix = [&h](const std::string& s) {
@@ -426,7 +426,15 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     // ALL OF IT, HERE, BEFORE ANYTHING CAN OBSERVE THE DESK: membership through the one
     // door the launch and a restore go through, the seat through the same reconcile, the
     // selection and the keys, and the pane's admitted room, rows and caret.
-    session_.setup.active = trial_.candidate;
+    // ...AND THE LIVE DESK'S SETTINGS SURVIVE IT: the digest leaves settings out, so one written
+    // since the trial is one the copy does not hold, and each surviving row keeps the live one's.
+    Setup desk = trial_.candidate;
+    for (SetupPane& row : desk.panes) {
+        if (const SetupPane* live = pane_of(session_.setup.active, row.ref)) {
+            row.settings = live->settings;
+        }
+    }
+    session_.setup.active = std::move(desk);
     apply_setup_now();
     const std::int64_t kind = trial_.kind;
     if (!session_.panes.has(kind)) {

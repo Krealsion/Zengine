@@ -80,7 +80,7 @@ LAW — A new room keeps the draft; a picture whose rows the host named anew ABA
 
 MEANS
 - draft identity is the host’s row identity and the drafted property’s label;
-- a room, a moved value or a provider keeps the name; another pane or desk does not;
+- a room, a moved value or a provider keeps the name; another pane, desk or set of settings does not;
 - abandonment says so; a sent commit remains sent.
 
 DOES NOT MEAN
@@ -220,7 +220,7 @@ WHY — `agents/decisions/an-undelivered-ask-is-released.md`
 LAW — Info names its pane-property subject; the host holds its rows. Selection, focus, Escape and switching views preserve it. Info may inspect itself.
 
 MEANS
-- row identity covers the pane and the desk; changing either renames the rows;
+- row identity covers the pane, the desk and its settings rows; changing any renames the rows;
 - an absent pane is refused without movement; an arriving inspector is answered;
 - nothing is published about a subject until one is named.
 
@@ -242,10 +242,10 @@ WHY — `agents/decisions/an-inspector-names-its-subject.md`
 
 ## WL-INFO-15 — A property edit is the owner's write, through a door the desk already has
 
-LAW — A commit names the rows, the row and the text; the host judges the name first, writes through the row's own setter — the setup's gesture or reset door — and reseats.
+LAW — A commit names the rows, the row and the text; the host judges the name first, writes through the row's own setter — the setup's gesture, reset or settings door — and reseats.
 
 MEANS
-- a refusal is the owner's own sentence (a unit it does not read, a value out of range);
+- a refusal is the owner's own sentence (a unit it does not read, a value out of range, what a setting takes);
 - the band says what was written to which pane, read fresh from the row;
 - an answer reaches only the incarnation that asked: a replaced Info is told nothing of it.
 
@@ -254,9 +254,9 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `PaneCommitRequested`, `PaneSubjectActed`;
 `workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `workshop/weave.hpp`
-`kPaneCommitSubjectGone`; `workshop/screen_pane_subject.cpp` `write_pane_axis`;
-`tests/test_workshop_panes_info.cpp` case `"a draft on a value the weaver owns is written to the
-desk"`, case `"an Info commit queued behind another desk put live, or another and
+`kPaneCommitSubjectGone`; `workshop/screen_pane_subject.cpp` `write_pane_axis`,
+`write_pane_setting`; `tests/test_workshop_panes_info.cpp` case `"a draft on a value the weaver
+owns is written to the desk"`, case `"an Info commit queued behind another desk put live, or another and
 back, is refused: neither desk is written and the pane says why"`, case `"an Info commit whose
 image was replaced before its answer is not the successor's: the successor holds no draft and says
 nothing of it, the subject stands, and the write shows as the owner's rows"`.

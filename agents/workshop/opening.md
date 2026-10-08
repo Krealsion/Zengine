@@ -76,7 +76,7 @@ LAW — A newer request cancels a Preparing flight and tells its requester it wa
 
 MEANS
 - there is no queue of intents and no retry: the refused requester asks again;
-- a change of the pane's rows, the setup or the owner before the commitment aborts it at the bus; a canvas moved alone is refused at the admission (WL-EDIT-13).
+- a change of the pane's rows, the setup's panes, places, sizes or ranks, or the owner before the commitment aborts it at the bus; a canvas moved alone is refused at the admission (WL-EDIT-13).
 
 PROVEN BY — `workshop/weave_opening.cpp` `on(OpenSourceRequested)`, `on(JointEnded)`,
 `refusal_of`; `tests/test_workshop_panes_editor.cpp` case `"a competing open through the OLD door
