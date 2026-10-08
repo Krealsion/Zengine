@@ -9,7 +9,7 @@ Retired: WL-SESSION-12.
 
 ## WL-SESSION-05 — The session holds the run of layouts with their associations
 
-LAW — Version <!-- value session_persist::kFormatVersion -->7<!-- /value --> holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
+LAW — Version <!-- value session_persist::kFormatVersion -->8<!-- /value --> holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
 
 MEANS
 - an empty path is the absence with exactly one spelling; `link_in` refuses the half-association;
@@ -29,11 +29,13 @@ LAW — Admitting a run is four questions plus the link: non-empty, within the c
 
 MEANS
 - the ceiling is `kMaxLayouts` * (2 * `kMaxSetupBytes` + `kMaxLinkPathBytes`): two desks, a path;
-- a session this build writes is never one it refuses to read.
+- a session this build writes is never one it refuses to read;
+- in decoded cells too: `kMaxPaneSettingsPerDesk` keeps a full one inside Loom's `kMaxDecodedCells`.
 
 PROVEN BY — `workshop/session_persist.hpp` `WorkshopSession::active`, `link_in`, `layouts_in`,
 `kMaxSessionBytes`, `kMaxLinkPathBytes`, `kMaxLayouts`, `no_layouts`; `workshop/setup_persist.hpp`
-`setup_in`, `kMaxSetupBytes`; `tests/test_workshop_persistence.cpp` case `"a current run this
+`setup_in`, `kMaxSetupBytes`, `kMaxPaneSettingSpelledBytes`; `workshop/setup.hpp`
+`kMaxPaneSettingsPerDesk`; `tests/test_workshop_persistence.cpp` case `"a current run this
 Workshop could not have made is refused as CURRENT data"`, case `"a maximal legal session
 is still one this build can read back"`, case `"a session may hold as much as it may
 hold, and be read back"`.
@@ -139,7 +141,7 @@ WHY — `agents/decisions/three-ownership-domains.md`
 LAW — Selection, keyboard focus, the document and every other Workshop-global fact are this run's; a restored layout paints identically except for which pane wears the focus ink.
 
 MEANS
-- a loaded pane's own state is its own: this file remembers the reference, never the pane.
+- a loaded pane's own state is its own: this file remembers the reference and its settings, never the pane's state.
 
 PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`;
 `tests/test_workshop_persistence.cpp` case `"a session file holds the desk and the room, and

@@ -8,6 +8,7 @@
 // Workshop law: agents/workshop/layouts.md (+7 registers; agents/workshop.md routes)
 
 #include "surface/vocabulary.hpp" // `kCanvasCellPx` -- the cell an authored minimum is one of
+#include "pane_settings.hpp"
 #include "pane_vocabulary.hpp"
 #include "panes.hpp"
 #include "property.hpp"
@@ -54,6 +55,12 @@ inline constexpr std::size_t kMaxPaneSummaryLen = 64;
 /// THE LARGEST PIXEL AMOUNT A PANE MAY BE AUTHORED AT, a place or an extent.
 // WL-SETUP-03 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kMaxPanePixels = 65536;
+
+/// HOW MANY SETTINGS ONE DESK KEEPS, over all its rows: the bound that keeps a session of
+/// `kMaxLayouts` desks and their links, every other bound full, inside Loom's decode budget
+/// (`kMaxDecodedCells`), at five decoded cells a setting.
+// WL-SETTING-02 -- agents/workshop/settings.md
+inline constexpr std::size_t kMaxPaneSettingsPerDesk = 512;
 
 // ---- The value ---------------------------------------------------------------
 
@@ -106,8 +113,8 @@ struct PaneSize {
     friend bool operator==(const PaneSize&, const PaneSize&) = default;
 };
 
-/// ONE ROW OF A SETUP: which pane, and the smallest thing a weaver said about its
-/// window.
+/// ONE ROW OF A SETUP: which pane, the smallest thing a weaver said about its window, and the
+/// settings this layout keeps for it.
 // WL-SETUP-01, WL-SETUP-07 -- agents/workshop/setup-file.md
 struct SetupPane {
     PaneRef ref;
@@ -115,6 +122,8 @@ struct SetupPane {
     PaneSize width;
     PaneSize height;
     std::int64_t front = 0;
+    /// In key order, one each; none is every setting at the pane's default.
+    std::vector<PaneSetting> settings;
 
     friend bool operator==(const SetupPane&, const SetupPane&) = default;
 };
@@ -351,6 +360,35 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
     return Written::no(std::string("a pane ") + which + " is default or pixels");
 }
 
+/// WHAT A ROW'S SETTINGS MAY BE, judged by form alone: each one a setting (`pane_setting_problem`),
+/// in key order and once each, at most `kMaxPaneSettingsPerRow`, and none under `workshop.`,
+/// since this Workshop keeps no setting of its own and would drop a newer one's unread.
+// WL-SETTING-02 -- agents/workshop/settings.md
+inline Written check_pane_settings(const PaneRef& ref, const std::vector<PaneSetting>& settings) {
+    const std::string whose = "`" + ref_text(ref) + "`";
+    if (settings.size() > kMaxPaneSettingsPerRow) {
+        return Written::no(whose + " keeps at most " + std::to_string(kMaxPaneSettingsPerRow) +
+                           " settings in a layout -- this row has " +
+                           std::to_string(settings.size()));
+    }
+    for (std::size_t i = 0; i < settings.size(); ++i) {
+        const PaneSetting& s = settings[i];
+        const std::string wrong = pane_setting_problem(s);
+        if (!wrong.empty()) {
+            return Written::no(whose + ": " + wrong);
+        }
+        if (is_desk_setting_key(s.key)) {
+            return Written::no(whose + ": `" + s.key +
+                               "` is a Workshop setting this Workshop does not know");
+        }
+        if (i > 0 && !(settings[i - 1].key < s.key)) {
+            return Written::no(whose + ": a row keeps its settings in key order, once each -- `" +
+                               s.key + "` follows `" + settings[i - 1].key + "`");
+        }
+    }
+    return Written::ok();
+}
+
 /// EVERY LAW ONE AUTHORED ROW MEETS, minus the two that are about the WHOLE setup
 /// (no duplicate reference, and the rank permutation). One function so a typed
 /// gesture and a loaded file cannot come to disagree about a row.
@@ -367,7 +405,20 @@ inline Written check_setup_pane(const SetupPane& row) {
     if (!wide.accepted) {
         return wide;
     }
-    return check_pane_size(row.height, "height");
+    const Written tall = check_pane_size(row.height, "height");
+    if (!tall.accepted) {
+        return tall;
+    }
+    return check_pane_settings(row.ref, row.settings);
+}
+
+/// How many settings a desk keeps, over all its rows.
+inline std::size_t desk_setting_count(const std::vector<SetupPane>& rows) noexcept {
+    std::size_t n = 0;
+    for (const SetupPane& row : rows) {
+        n += row.settings.size();
+    }
+    return n;
 }
 
 // ---- Admitting one live offer into the runtime catalog -----------------------
@@ -534,7 +585,7 @@ inline Admission admit_pane_actions(const RuntimeCatalog& runtime,
 
 /// THE WHOLE-SETUP LAW, asked once on a complete candidate.
 /// It judges the name, every row, how many there are, whether any two name the
-/// same pane, and whether the ranks are a permutation.
+/// same pane, whether the ranks are a permutation, and how many settings the rows keep.
 // WL-SETUP-07 -- agents/workshop/setup-file.md
 inline Written check_setup(const Setup& s) {
     const Written named = check_setup_name(s.name);
@@ -567,6 +618,12 @@ inline Written check_setup(const Setup& s) {
                                    ref_text(s.panes[i].ref) + "`");
             }
         }
+    }
+    const std::size_t settings = desk_setting_count(s.panes);
+    if (settings > kMaxPaneSettingsPerDesk) {
+        return Written::no("a setup keeps at most " + std::to_string(kMaxPaneSettingsPerDesk) +
+                           " settings over all its panes -- this one keeps " +
+                           std::to_string(settings));
     }
     return Written::ok();
 }

@@ -41,7 +41,7 @@ moving a field.
 
 **Consequences.** Each format move cost the reader one number and one shape; the edges renamed
 themselves with no string edited, no plan row added and `operator/migration.hpp` unchanged. The
-forbidden-token list names v4 and v5. `HostContext::conversions` is null for every fixture. A
+forbidden-token list names every retired version. `HostContext::conversions` is null for every fixture. A
 version claim is a lookup key that reaches no load door; the file first changes at the ordinary
 close-time save.
 
@@ -49,4 +49,5 @@ close-time save.
 [WL-MIG-03](../workshop/migration.md), [WL-MIG-04](../workshop/migration.md),
 [WL-MIG-05](../workshop/migration.md), [WL-MIG-06](../workshop/migration.md),
 [WL-MIG-07](../workshop/migration.md), [WL-MIG-08](../workshop/migration.md),
-[WL-MIG-09](../workshop/migration.md), [WL-MIG-10](../workshop/migration.md).
+[WL-MIG-09](../workshop/migration.md), [WL-MIG-10](../workshop/migration.md),
+[WL-MIG-11](../workshop/migration.md).

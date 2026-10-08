@@ -7,6 +7,7 @@ task-shaped walkthrough is [making a Workshop tool](../guides/make-a-workshop-to
 
 Source: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) ·
 [`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp) ·
+[`workshop/pane_settings.hpp`](../../workshop/pane_settings.hpp) ·
 [`workshop/setup.hpp`](../../workshop/setup.hpp) ·
 [`workshop/panes.hpp`](../../workshop/panes.hpp) ·
 [`workshop/arrangement.hpp`](../../workshop/arrangement.hpp) ·
@@ -233,7 +234,8 @@ things and nothing else:
 ```text
 Setup
     a human name
-    an ordered list of PaneRefs        <- each row carries an authored WINDOW; see below
+    an ordered list of PaneRefs        <- each row carries an authored WINDOW and the
+                                          pane's SETTINGS; see below
 ```
 
 - **A `PaneRef` is a provider/service key plus a pane key**, both text
@@ -305,7 +307,7 @@ Setup
   written to or read from that file — never a dirty flag, which would need a hand at every place
   a pane is added or removed, and never a filesystem read.
 - **The file has its own format identity and its own bounds**
-  (`workshop/setup_persist.hpp`): `"format":"zengine-workshop-setup"`, one version, the Loom's own
+  (`workshop/setup_persist.hpp`): `"format":"zengine-workshop-setup"`, one version written, the Loom's own
   compat codec, deterministic output so `save -> load -> save` is byte-identical, unknown fields
   rejected, and a name/key/count/byte ceiling refused *before* anything is copied into the live
   setup. Loading **returns** a candidate rather than writing into anything, so "a malformed file
@@ -335,10 +337,11 @@ pointer, reaching the same doors. Panes may overlap, and **every pane the setup 
 whether or not it can currently be seen.** Workshop's unit is the **whole canvas pixel**,
 twelve to a cell: a pane a weaver dragged by a single window pixel differs from its neighbour
 by exactly one, while a pane on a cell boundary is an exact multiple and the character medium's
-picture of it has not moved by a byte. Setup format is **version <!-- value setup_persist::kFormatVersion -->4<!-- /value -->**, its amounts in pixels
-under the word `pixels`. A **version-3** file (`subcells`, four to a pixel) is read back to the
+picture of it has not moved by a byte. Setup format is **version <!-- value setup_persist::kFormatVersion -->5<!-- /value -->**, its amounts in pixels
+under the word `pixels` and each row's [settings](#a-panes-settings) beside them. A **version-4**
+file reads with no settings, a **version-3** file (`subcells`, four to a pixel) is read back to the
 pixel each edge was painted at, and a **version-2** whole-cell file still loads, its cells
-mapped exactly (x 12); the next explicit save writes version <!-- value setup_persist::kFormatVersion -->4<!-- /value -->. A version-1 file is refused by
+mapped exactly (x 12); the next explicit save writes version <!-- value setup_persist::kFormatVersion -->5<!-- /value -->. A version-1 file is refused by
 its number.
 
 ```text
@@ -348,7 +351,7 @@ authored setup                 resolved presentation          session interactio
     width  {mode, amount}          current clipping               chosen edge/corner
     height {mode, amount}          projection / refusal           pointer gesture custody
     front  (a canonical rank)      visibility and hit order
-                                   external PaneRoom
+    settings (key, one value)      external PaneRoom
 ```
 
 **Only the first column persists.**
@@ -428,6 +431,27 @@ authored setup                 resolved presentation          session interactio
   *arrangement* and binds no toggle. Seven states, one classifier: `closed`, `unresolved`,
   `refused`, `waiting`, `off-room`, `covered`, `open` — `covered` means every visible cell is
   behind the **union** of what is in front, and one visible cell is enough to be `open`.
+
+## A pane's settings
+
+A pane can keep **choices about how it presents itself in each layout** — a row shown or hidden,
+a step, a mode — in the layout's own setup row, beside the pane's place and size
+(`workshop/pane_settings.hpp`).
+
+- **A setting is a key and exactly one value, in the field of its kind**: `flag` (on or off),
+  `number` (a whole number) or `text` (printable ASCII). A row's settings are written in key
+  order, once each, as `"settings":[{"key":"legend","flag":false}]`, and a row that keeps none
+  writes `"settings":[]`. A value holding no kind, or two, is refused by every reader — the
+  setup file, a session's desk and a desk an agent hands across — naming its key.
+- **Workshop judges a setting's form and nothing else**, so a row whose pane this build cannot
+  present keeps its settings byte for byte, and no setting is converted, defaulted or dropped. A
+  row keeps at most `kMaxPaneSettingsPerRow` settings and a desk `kMaxPaneSettingsPerDesk`; a key
+  is at most `kMaxPaneSettingKeyLen` bytes and a text `kMaxPaneSettingTextLen`.
+- **Keys under `workshop.` are Workshop's own.** This Workshop keeps none, so a file holding one
+  is refused by name rather than half read.
+- **Three kinds and no more**: a switch, a count or step, a word. A choice among words is a text
+  the pane restricts, a fraction a whole number of a finer unit, a set one flag per member, and a
+  colour a role's name. A further kind would move every file format that carries a setting.
 
 ## A weave may offer a pane
 
@@ -1093,8 +1117,9 @@ directory they happened to be browsing when they quit is deliberately not rememb
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
   judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
   of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
-  The session format is **version <!-- value session_persist::kFormatVersion -->7<!-- /value -->**: the room in canvas pixels, the weaver's whole ordered
-  run of layouts — each an ordinary saved setup, with the Setup file it is related to, if any —
+  The session format is **version <!-- value session_persist::kFormatVersion -->8<!-- /value -->**: the room in canvas pixels, the weaver's whole ordered
+  run of layouts — each an ordinary saved setup, its panes' settings included, with the Setup
+  file it is related to, if any —
   which position was live, and the desktop placement. Older versions do **not** load through
   roads this reader carries — it admits one shape and nothing else. What reads them is a
   *conversion*, contributed by an ordinary operator provider the arrangement mounts
@@ -1103,8 +1128,9 @@ directory they happened to be browsing when they quit is deliberately not rememb
   holding the desk it always held; a session before version 5 relates every layout to no Setup
   file; a desk before version 6 gains the Layouts pane its layout surface always was; and a room
   and desks before version 7, kept in cells and sub-units, land on the pixels the window painted
-  them at. Without the provider such a file is refused by its number, naming the conversion that
-  is missing. The next close writes version <!-- value session_persist::kFormatVersion -->7<!-- /value -->.
+  them at; a desk before version 8 holds no settings. Without the provider such a file is refused
+  by its number, naming the conversion that
+  is missing. The next close writes version <!-- value session_persist::kFormatVersion -->8<!-- /value -->.
 - **The viewport is one level above the desk**, and that is the whole reason the session is not
   simply a second setup: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is

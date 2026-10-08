@@ -248,3 +248,25 @@ TEST_CASE("semantic setup refuses malformed or missing panes before changing the
     CHECK(actor.hand->acks == 1);
     CHECK(live.session().setup.active.name == "Test layout");
 }
+
+TEST_CASE("an agent's desk holding a setting with no value is refused by its key, and changes nothing") {
+    // THE DESK AN AGENT HANDS ACROSS IS READ BY THE SETUP FILE'S OWN READER, so a setting that
+    // holds no value, or two, is refused here as it is in a file -- by its key.
+    Live live; DemoActor actor(live.bus);
+    const auto before = setup_persist::to_text(live.session().setup.active);
+    // A desk naming only a pane this Workshop presents, so its settings are all it is judged on.
+    Setup candidate;
+    candidate.name = "Agent desk";
+    candidate.panes.push_back(SetupPane{ref_of(pane_kind::kLayouts), {}, {}, {}, 0, {}});
+    candidate.panes.front().settings = {PaneSetting{"legend", {}, {}, {}}};
+    actor.say(kWorkshopProvider, SetupApplyRequested{setup_persist::to_text(candidate)});
+    REQUIRE(actor.hand->refused.size() == 1);
+    CHECK(actor.hand->refused.back().find("setting `legend` holds no value") != std::string::npos);
+    CHECK(setup_persist::to_text(live.session().setup.active) == before);
+
+    // ...AND ONE HOLDING EXACTLY ONE VALUE IS KEPT AS IT CAME, whatever the pane makes of it.
+    candidate.panes.front().settings = {PaneSetting{"legend", {}, {}, std::string("hiden")}};
+    actor.say(kWorkshopProvider, SetupApplyRequested{setup_persist::to_text(candidate)});
+    CHECK(actor.hand->acks == 1);
+    CHECK(live.session().setup.active.panes.front().settings == candidate.panes.front().settings);
+}
