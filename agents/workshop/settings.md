@@ -67,10 +67,10 @@ WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
 ## WL-SETTING-04 — A seated pane is handed its row's settings before any room
 
-LAW — A seated pane whose holder accepts `PaneSettings` is handed its row's settings, declared or not, at the top of the repaint before any room, whenever they differ from what that holder last heard.
+LAW — A seated pane whose holder accepts `PaneSettings` is handed its row's settings, declared or not, before any room it is granted, whenever they differ from what that holder last heard.
 
 MEANS
-- a seat, a switch, a re-offer, a re-seat and a new holder each hand them when what is kept moved;
+- a seat, a switch, a re-offer, a re-seat, a managed opening and a new holder each hand them when what is kept moved;
 - never handed is not handed none: a reopened row's empty list is handed too;
 - a holder without the door is handed nothing, and equal settings across a switch hand nothing.
 
@@ -78,7 +78,8 @@ DOES NOT MEAN
 - that a managed opening's shown picture has them: it was prepared before the seat (WL-OPEN-10).
 
 PROVEN BY — `workshop/weave_external.cpp` `hand_settings`, `refresh_external_rooms`;
-`workshop/panes.hpp` `ExternalPane::settings_heard`; `workshop/weave_seam.cpp`
+`workshop/weave_managed.cpp` `after_delivery`; `workshop/panes.hpp` `ExternalPane::settings_heard`;
+`workshop/weave_seam.cpp`
 `accept_pane_offer`; `workshop/grant.cpp` `workshop_grant`; `workshop/pane_settings.hpp`
 `PaneSettings`; `tests/test_workshop_panes_settings.cpp` case `"a pane's settings are handed
 before its first room, whether or not it declared"`, case `"a holder that takes no settings is
@@ -86,7 +87,8 @@ handed none"`, case `"a layout switch hands a pane its new layout's settings onc
 they differ"`, case `"a re-offer and a reopened row are handed their settings again, before their
 room"`, case `"a declaration counts only while the weave that sent it holds the office"`;
 `tests/test_workshop_panes_opening.cpp` case `"a managed opening hands its pane's settings before
-the room it seats it in"`.
+the room it seats it in"`, case `"a managed opening's owed rooms follow its pane's settings when
+the next delivery repaints nothing"`.
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
 ## WL-SETTING-05 — A setting is edited as a row of its pane's subject, against what it takes

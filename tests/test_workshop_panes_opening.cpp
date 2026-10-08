@@ -1278,6 +1278,31 @@ TEST_CASE("a managed opening hands its pane's settings before the room it seats 
     CHECK(o.editor->heard.front() == "settings");
 }
 
+TEST_CASE("a managed opening's owed rooms follow its pane's settings when the next delivery repaints nothing") {
+    // A MESSAGE WORKSHOP TAKES AND ANSWERS WITH NOTHING, queued right behind its admission answer:
+    // the delivery after the showing is that one, so the rooms it owes go out before any repaint.
+    PictureOpen o("open-owed-rooms");
+    REQUIRE(hand_close(o.r, PaneRef{kEditorRole, "editor"}).closed);
+    o.editor->heard.clear();
+    bool queued = false;
+    const loom::ObserverId tap = o.r.bus.add_observer([&o, &queued](const loom::BusEvent& ev) {
+        if (!queued && ev.kind == loom::EventKind::Delivered && ev.target == o.r.workshop_id &&
+            ev.schema_name == PresentationAdmitRequested::zen_name) {
+            queued = true;
+            (void)o.r.bus.send(o.r.workshop_id,
+                               loom::Message(loom::to_value(PaneSettingsDeclared{"editor", {}}),
+                                             loom::WeaveId{}, loom::WeaveId{}, 0));
+        }
+    });
+    o.ask_b();
+    o.r.bus.remove_observer(tap);
+    REQUIRE(queued);
+    REQUIRE(o.asker->opens.size() == 1);
+    REQUIRE_MESSAGE(o.asker->opens[0].accepted, o.asker->opens[0].refusal);
+    REQUIRE_FALSE(o.editor->heard.empty());
+    CHECK(o.editor->heard.front() == "settings");
+}
+
 TEST_CASE("a layout renamed while an opening prepares keeps its name through the publication") {
     // THE DIGEST LEAVES THE NAME OUT, as it leaves settings: a rename does not abort the opening,
     // and the publication keeps the live desk's name rather than the copy's.

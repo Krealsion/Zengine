@@ -459,11 +459,12 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   under the office stamp, a refusal is said in the band and leaves the settings in force, a later
   one replaces it, and it counts only while the weave that sent it holds the office.
 - **Workshop hands a seated pane its row's settings** (`PaneSettings`) when the office's holder
-  accepts the shape, declared or not: at the top of the repaint that seats it, before any room,
-  so the first picture is drawn with them, and again whenever they differ from what that holder
-  last heard. A pane passes over keys it did not declare, and says so where a setting shows when
-  it cannot use the value it was handed. A pane a managed opening seats shows the picture it
-  prepared before the seat; its settings reach it before its room, and its next picture has them.
+  accepts the shape, declared or not: before any room it grants the pane -- at the top of every
+  repaint, and before the rooms a managed opening seats it in -- so the first picture is drawn
+  with them, and again whenever they differ from what that holder last heard. A pane passes over
+  keys it did not declare, and says so where a setting shows when it cannot use the value it was
+  handed. A pane a managed opening seats shows the picture it prepared before the seat; its
+  settings reach it before its rooms, and its next picture has them.
 
 ## A weave may offer a pane
 
