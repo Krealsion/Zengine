@@ -32,9 +32,16 @@ def setup(name, panes):
 
 def current(desk):
     """`desk`, a WorkshopSetup file, at SETUP_VERSION: as it is at that version, every field kept
-    and each row given no settings at the version before, and refused at any other."""
+    and each row given no settings at the version before, and refused at any other -- or refused
+    first, as Workshop's reader refuses it, when it is not a Workshop setup at all."""
+    fields = desk.get("fields", {}) if isinstance(desk, dict) else {}
+    if not isinstance(desk, dict) or desk.get("schema") != "WorkshopSetup" or \
+            fields.get("format") != SETUP_FORMAT:
+        raise ValueError("not a Workshop setup: it says it is `%s`"
+                         % (fields.get("format") or (desk.get("schema") if isinstance(desk, dict)
+                                                     else type(desk).__name__)))
     version = desk.get("version")
-    claimed = desk.get("fields", {}).get("format_version")
+    claimed = fields.get("format_version")
     if version == SETUP_VERSION and claimed == str(SETUP_VERSION):
         return copy.deepcopy(desk)
     if version == LIFTED_SETUP_VERSION and claimed == str(LIFTED_SETUP_VERSION):
