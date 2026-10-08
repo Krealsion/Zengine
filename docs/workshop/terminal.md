@@ -33,6 +33,10 @@ whether it shows: in Info, inspect the Terminal and set `legend` to `off` under 
 that layout gives the row to the record while another layout keeps it. A value the legend
 cannot use leaves it shown, and the row says why.
 
+![The layout Hidden: the Terminal with no legend row under its heading, and Info, inspecting the Terminal, reading legend off under SETTINGS, the band saying the value was stored and handed](images/terminal-legend-hidden.png)
+
+![The layout Shown, the same desk: the legend row under the Terminal's heading, and Info reading legend on](images/terminal-legend-shown.png)
+
 ## Recalling a command you have already run
 
 **Up** and **Down** walk the commands this session has run, newest first, when no command is being
