@@ -313,11 +313,14 @@ bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& 
         return true;
     }
     const bool value = carried_.value;
+    // Workshop's mark over a refused picture is Workshop's own chrome: nothing is placed under it,
+    // judged where a drag's release met it.
+    const bool marked = released ? released->marked : on_refused_mark(pane.kind, point);
     if (!point.understood || !host_->holder_accepts ||
         !host_->holder_accepts(pane.provider, !value   ? *loom::schema_of<PaneCanvasDrop>()
                                               : c.legacy ? *loom::schema_of<v1::PaneCanvasValueDrop>()
                                                          : *loom::schema_of<PaneCanvasValueDrop>()) ||
-        !at.body.contains_at(point.px.x, point.px.y, point.grain)) {
+        !at.body.contains_at(point.px.x, point.px.y, point.grain) || marked) {
         say("This place does not accept the carried item; Escape cancels", true);
         return true;
     }
@@ -399,7 +402,8 @@ bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom:
                 const auto& c = presentation->canvas;
                 if (c.grant != 0)
                     drag.canvas = CanvasRelease{presentation->stamp.aimed, c.grant,
-                                                PixelRect{c.x, c.y, c.width, c.height}};
+                                                PixelRect{c.x, c.y, c.width, c.height},
+                                                on_refused_mark(owner.kind, point)};
             }
         }
     }

@@ -82,6 +82,9 @@ MEANS
 - a drop begins no canvas custody; a value keeps v2's attribution, a reference crosses as `PaneDrop` does; one refused is said not delivered;
 - a drag's drop names the picture and place its release met, or is refused in words; unsent, a clicked item stays held, a dragged one is let go.
 
+DOES NOT MEAN
+- that a place under a refused picture's mark takes a drop: the mark is Workshop's own chrome (WL-ATTN-04).
+
 PROVEN BY — `workshop/pane_carry.hpp` `PaneCanvasValueDrop`, `PaneCanvasDrop`;
 `workshop/weave_operation.cpp` `drop_on_canvas`, `drop_carry`; `workshop/weave.hpp` `CanvasRelease`;
 `tests/test_workshop_inventory_info.cpp` cases "a value dragged from Inventory onto Flow's canvas
@@ -89,8 +92,11 @@ reaches Flow as a canvas drop where it was released, and Flow offers what it can
 value released on Flow's canvas before its carry is answered names the picture it was released
 on, though Flow repainted meanwhile", "a live reference carried from Inventory lands in the
 Compose field its place names on Compose's canvas", "a reference placed on a canvas whose pane
-has no door for one is sent nothing and stays held" and "a drop whose pane leaves before it is
-delivered is said not delivered: a reference or a value, on a canvas";
+has no door for one is sent nothing and stays held", "a reference placed on the mark a refused
+picture wears is not placed under it and stays held, and placed beside the mark it reaches the
+pane", "a value released on the mark a refused picture wears is not placed there, though the
+picture the mark stood on is replaced before its carry is answered" and "a drop whose pane leaves before it is delivered is said not delivered: a reference or a
+value, on a canvas";
 `tests/test_workshop_editor_transfers.cpp` case "a drop whose pane leaves before it is delivered
 is said not delivered: a value on a text pane's rows".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`

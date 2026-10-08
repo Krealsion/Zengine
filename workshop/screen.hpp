@@ -1298,6 +1298,14 @@ struct ExternalBodyPlace {
 ExternalBodyPlace external_body_place(const PixelRect& pane_rect, const Screen& sc,
                                              std::int64_t header_rows);
 
+/// WHAT A REFUSED PICTURE'S MARK COVERS, where no title row is drawn to carry it: the mark at the
+/// corner of the picture standing at `canvas`, where the medium paints it; nothing where a title
+/// row carries it or no refusal stands. While it covers, the pane view is refused, and a press or
+/// a carried item there is on Workshop's own chrome, so what is read and pressed is what a weaver
+/// sees.
+PixelRect refused_mark_cover(const ExternalPane& pane, const PixelRect& canvas, const Screen& sc,
+                             bool title_drawn);
+
 /// WHERE A PRESS LANDED IN AN EXTERNAL PANE'S GRANTED ROOM -- the `PaneRoom`
 /// lattice, and nothing a provider was not already handed.
 // WL-PRESS-04 -- agents/workshop/press-chain.md

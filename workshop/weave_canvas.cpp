@@ -15,6 +15,18 @@ bool WorkshopWeave::canvas_owner_current(std::int64_t kind) const {
         host_->role_holder && host_->role_holder(row->provider) == pane->canvas.owner;
 }
 
+// WL-ATTN-04 -- agents/workshop/attention.md
+bool WorkshopWeave::on_refused_mark(std::int64_t kind, const PointedAt& at) const {
+    const auto* pane = session_.panes.external_pane(kind);
+    if (pane == nullptr) return false;
+    const auto& c = pane->canvas;
+    const bool titled = external_title_rows(session_.panes, kind, session_.pane_titles) > 0 &&
+                        !c.title_waits;
+    return refused_mark_cover(*pane, PixelRect{c.x, c.y, c.width, c.height}, screen_of(session_),
+                              titled)
+        .contains_at(at.px.x, at.px.y, at.grain);
+}
+
 // A PICTURE TAKES A GESTURE ONLY AS ITS HOLDER'S OWN: heard from the office's holder now, and
 // numbered. The one a managed opening shows is numbered none until the holder draws (WL-OPEN-10).
 bool WorkshopWeave::canvas_takes_press(std::int64_t kind) const {
@@ -237,6 +249,12 @@ bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& 
     const auto& c = pane->canvas;
     const PixelRect body{c.x, c.y, c.width, c.height};
     if (!body.contains_at(at.px.x, at.px.y, at.grain)) return false;
+    // A press on the mark a refused picture wears is a press on Workshop's own chrome, as on a
+    // title row: a right press opens Workshop's menu for the pane, and none reaches the provider.
+    if (on_refused_mark(kind, at)) {
+        if (b.button == 3) open_context_at(at);
+        return true;
+    }
     // A waiting or retired picture owns its room, but cannot acquire a new gesture.
     if (!canvas_takes_press(kind)) return true;
     const auto slot = static_cast<std::size_t>(b.button - 1);

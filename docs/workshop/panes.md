@@ -232,8 +232,8 @@ is its own: a game-like pane blocks while you hold the button and opens nothing 
 `examples/guard-pane` does exactly that); the Neovim editor passes a right press and release to
 Neovim; the Pane Manager and the Hotkeys pane ask for a small menu of their own rows beside the
 pointer. Nothing about a right-click moves the keyboard or the selection: pointing is still
-pointing. The pane's title row and border, a layout tab and the empty room still get Workshop's
-own menu, as below, and so does a right-click in the body of a pane that does not take the
+pointing. The pane's title row and border, the `(update refused)` mark a refused picture wears, a
+layout tab and the empty room still get Workshop's own menu, as below, and so does a right-click in the body of a pane that does not take the
 button — it opens beside the click. A right-click is never lost: a pane that takes the button
 acts, offers its rows, or hands the press back where it has nothing to offer ("that row was not
 mine"), which opens Workshop's menu for the pane, once, while the press is still your latest act.

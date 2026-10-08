@@ -471,8 +471,10 @@ TEST_CASE("a canvas picture refused for what it holds is said in its pane and in
     CHECK(t.seat->rejected.back().reason == "canvas grant and picture must be positive");
     CHECK(said() == "canvas grant and picture must be positive");
 
-    // WITH NO TITLE ROW the mark stands at the picture's corner on the medium's own ground, over
-    // a picture that still takes presses.
+    // WITH TITLES HIDDEN the mark stands at the picture's corner on the medium's own ground, and the
+    // picture stays heard, not a preview.
+    t.publish(2);
+    CHECK(said().empty());
     press_outside(t.r, t.kind);
     t.r.key(input::scan::kT);
     t.r.text("t");
@@ -483,8 +485,9 @@ TEST_CASE("a canvas picture refused for what it holds is said in its pane and in
     auto again = t.picture(2);
     again.labels[0].text = "caf\xC3\xA9";
     send(again);
-    CHECK(t.view().canvas.heard);
     CHECK(said() == why);
+    CHECK(t.view().canvas.heard);
+    CHECK(external_title_rows(t.r.session().panes, t.kind, false) == 0);
     std::int64_t ground = surface::role::kFill;
     for (const auto& region : all_texts(t.r.last_canvas()))
         for (const auto& row : region.rows)
