@@ -53,7 +53,7 @@ endforeach()
 
 # ---- a runtime already there: reused only while it is this tree's, whole and current ------
 if(EXISTS "${zengine_manifest}")
-    file(STRINGS "${zengine_manifest}" zengine_lines)
+    file(STRINGS "${zengine_manifest}" zengine_lines ENCODING UTF-8)
     set(zengine_made_from "")
     set(zengine_made_format "")
     set(zengine_made_configuration "")
