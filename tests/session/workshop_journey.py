@@ -131,7 +131,8 @@ def main():
         return 1
     import workshop_verdict_checks
     if not check("T2 the waiting tools conclude only what their owners said: builder completion, "
-                 "nvim-edit's confirmation", workshop_verdict_checks.run_checks(args.tools, runtime)):
+                 "nvim-edit's confirmation",
+                 workshop_verdict_checks.run_checks(args.tools, runtime, args.work)):
         return 1
 
     work = args.work

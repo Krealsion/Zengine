@@ -57,6 +57,14 @@ from workshop_steps import chord_moments, moment
 PANE = ("zengine.editor", "editor")
 KINDS = ("create", "rewrite", "append", "after", "before", "replace", "delete")
 NT = os.name == "nt"
+# What Ex reads as something other than a path's own character when `:e` is typed unescaped.
+EX_READS_OTHERWISE = " %#|\"'\\"
+
+
+def ex_takes(posix):
+    """Whether Ex reads `posix`, a path as the tool types it (normalized, forward slashes), as
+    that path: it holds no character of EX_READS_OTHERWISE."""
+    return not any(c in posix for c in EX_READS_OTHERWISE)
 
 
 def anchor_at(ctx, lines, anchor, start=0, unique=True):
@@ -211,8 +219,8 @@ def run(ctx):
     given = Path(ctx.inputs["path"])
     ctx.check(given.is_absolute(), "path must be absolute: Neovim's working directory is Workshop's")
     posix = Path(os.path.normpath(str(given))).as_posix()
-    ctx.check(not any(c in posix for c in " %#|\"'\\"), "the path holds a character Ex would "
-              "read as something else; move the file or open it by hand")
+    ctx.check(ex_takes(posix), "the path holds a character Ex would read as something else; move "
+              "the file or open it by hand")
     path = Path(posix)
     edits = json.loads(ctx.inputs["edits"])
     ctx.check(isinstance(edits, list) and edits, "edits must be a non-empty JSON list")
