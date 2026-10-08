@@ -109,6 +109,10 @@ in-process participants are not authored artifacts
 plan: <the file the host read>
 ```
 
+A plan's or a loader's words on these rows -- a stem, a role, a provider's name, a reason, the
+plan's path -- are spelled in printable ASCII, as are the Loaded pane's names and roles and a
+retained sample's lines in Powers, so a character a canvas cannot draw never refuses the picture.
+
 **One row per authored artifact, in authored order, whatever it participates as.** `zengine-timer`
 supplies an operator power *and* is loaded as a weave; it is one authored record and it is one
 block here, with two `resolved` lines under it. That is the load plan's central result carried into
