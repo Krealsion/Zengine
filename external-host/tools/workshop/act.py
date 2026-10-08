@@ -16,8 +16,12 @@ draws it, located by the same measurer that places a press (hand.py). `expect` t
 presentation: that a pane painted a word, not that the owner it paints about finished its work.
 Pair it with that owner's evidence when completion matters. A pane Workshop will not describe
 (closed, unsettled, covered) is treated as painting nothing while an `expect` waits, and as a
-failure anywhere else. The desk (DeskView) is Workshop's own numbers for every pane on it: `desk`
-checks a place, a size, a state or the keys by number, never by a picture.
+failure anywhere else. A step that presses a pane's word, part or cell -- part, into, click, at,
+wheel, control -- waits while its picture takes no press, as the one a managed opening shows takes
+none until its pane draws its own and Workshop says its words and parts with no point
+(`hand.takes_no_press`): it reads the pane again, for at most its seconds. The desk (DeskView) is
+Workshop's own numbers for every pane on it: `desk` checks a place, a size, a state or the keys by
+number, never by a picture.
 
 WHAT A NAME IS. Beside its words a pane names the parts a weaver acts on -- a row, a control, an
 element -- with names of its own that it keeps across its redraws, and a menu names its lines by
@@ -36,7 +40,7 @@ from pathlib import Path
 
 from loom_session.tool import Refused
 
-from hand import Hand, on_row, rows_of
+from hand import NO_PRESS, Hand, on_row, rows_of, takes_no_press
 from workshop_steps import chord_moments, moment, picture, png_of, point
 
 VERBS = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
@@ -158,14 +162,31 @@ def rows_by_place(view):
 
 
 def wait_part(hand, provider, pane, name, seconds):
-    """Read the pane until it draws a part named `name`."""
+    """Read the pane until it draws a part named `name` in a picture that takes a press."""
     end = time.monotonic() + seconds
     while True:
         view = words_now(hand, provider, pane)
         part = part_of(view, name)
-        if part is not None or time.monotonic() >= end:
+        if (part is not None and not takes_no_press(view)) or time.monotonic() >= end:
             return view, part
         time.sleep(0.2)
+
+
+def no_press_yet(ctx, view, verb, provider, pane, seconds):
+    """Fail a step whose pane's picture still takes no press: what it would press reaches nothing."""
+    ctx.check(not takes_no_press(view), "%s: %s/%s's picture took no press within %gs: %s"
+              % (verb, provider, pane, seconds, NO_PRESS))
+
+
+def press_view(ctx, hand, verb, provider, pane, seconds):
+    """The pane's words once its picture takes a press (`hand.pressing`), for a step that presses:
+    a pane Workshop does not describe, or one still taking no press after `seconds`, fails it."""
+    try:
+        return hand.pressing(provider, pane, seconds)
+    except Refused:
+        ctx.fail("%s: Workshop does not describe %s/%s now" % (verb, provider, pane))
+    except ValueError as taken:
+        ctx.fail("%s: %s" % (verb, taken))
 
 
 def fields_of(answer):
@@ -173,23 +194,25 @@ def fields_of(answer):
     return getattr(answer, "fields", answer)
 
 
-def wait_words(hand, provider, pane, text, seconds, present=True):
-    """Read the pane until a word holds `text` (or, `present` false, until none does)."""
+def wait_words(hand, provider, pane, text, seconds, present=True, pressing=False):
+    """Read the pane until a word holds `text` (or, `present` false, until none does) -- and,
+    `pressing`, in a picture that takes a press."""
     end = time.monotonic() + seconds
     while True:
         view = words_now(hand, provider, pane)
         words = [w for w in view["words"] if text in w["text"]] if view else []
-        if bool(words) == present:
+        if bool(words) == present and not (pressing and takes_no_press(view)):
             return view, words
         if time.monotonic() >= end:
-            return view, None
+            return view, (words if pressing else None)
         time.sleep(0.2)
 
 
 def painted(hand, provider, pane):
     """A pane's rows now, as its words say them (PaneView version 3, `hand.rows_of`): `{picture,
     canvas, rows: [{row, text, x, y, space}]}`, or None while Workshop refuses to describe it. A
-    text pane's `row` is its row, which `hand.point` takes with the picture."""
+    text pane's `row` is its row, which `hand.point` takes with the picture; a canvas pane's is its
+    word's number, and `rows_by_place` numbers its lines by the rows they stand on."""
     try:
         return rows_of(hand.words(provider, pane))
     except Refused:
@@ -240,8 +263,10 @@ def act(ctx, hand, verb, step):
         provider, pane = spelled(arg, verb, 2)[:2]
         text = arg[2] if len(arg) > 2 else ""
         ctx.check(verb == "into" or text, "click names the text to press on")
-        view, words = wait_words(hand, provider, pane, text, float(step.get("seconds", 10)))
+        seconds = float(step.get("seconds", 10))
+        view, words = wait_words(hand, provider, pane, text, seconds, pressing=True)
         ctx.check(words, "%s: %s/%s paints no word holding %r" % (verb, provider, pane, text))
+        no_press_yet(ctx, view, verb, provider, pane, seconds)
         at = words[0]
         where = at if not at["text"] else hand.word_point(
             provider, pane, at["word"], max(0, at["text"].find(text)), view["picture"])
@@ -257,6 +282,7 @@ def act(ctx, hand, verb, step):
             ctx.produce("failed-step-parts.json", json.dumps(
                 names(view) if view else "not described", indent=1).encode())
             ctx.fail("part: %s/%s draws no part named %r within %gs" % (provider, pane, name, seconds))
+        no_press_yet(ctx, view, verb, provider, pane, seconds)
         ctx.check(not unreached(part), "part: no press reaches %r in %s/%s on its own: the parts "
                   "over it take every place of it" % (name, provider, pane))
         press_at(ctx, hand, part, step.get("button", "left"))
@@ -270,19 +296,29 @@ def act(ctx, hand, verb, step):
     if verb == "wheel":
         return turn_wheel(ctx, hand, step)
     if verb == "at":
-        # One painted cell by its row and column in a text pane's own lattice (its words are its
-        # rows, counted from 0): for panes whose meaning is a grid rather than a labelled row.
+        # ONE CELL OF A PANE'S TEXT LATTICE by its row and column, counted from 0 (`hand.point`): a
+        # text pane's painted cell, or the cell of the lattice a canvas pane sets its text on -- a
+        # blank row's, or the one after a row's last character, too -- for panes whose meaning is
+        # a grid rather than a labelled row. A pane that redrew between the reading and the point
+        # is read again.
         ok = isinstance(arg, list) and len(arg) == 4 and all(isinstance(v, str) for v in arg[:2]) \
             and all(isinstance(v, int) for v in arg[2:])
         ctx.check(ok, "at names [provider, pane, row, column]")
-        view = words_now(hand, arg[0], arg[1])
-        ctx.check(view is not None, "at: Workshop does not describe %s/%s now" % (arg[0], arg[1]))
-        where = hand.point(arg[0], arg[1], arg[2], arg[3], view["picture"])
-        press_at(ctx, hand, where, step.get("button", "left"))
-        return {"x": where["x"], "y": where["y"]}
+        provider, pane, row, column = arg
+        for _ in range(3):
+            view = press_view(ctx, hand, verb, provider, pane, float(step.get("seconds", 10)))
+            try:
+                where = hand.point(provider, pane, row, column, view["picture"])
+            except Refused as refused:
+                if "picture moved" not in str(refused):
+                    raise
+                continue  # the pane redrew between the reading and the point: read it again
+            press_at(ctx, hand, where, step.get("button", "left"))
+            return {"x": where["x"], "y": where["y"]}
+        ctx.fail("at: %s/%s kept redrawing while it was read" % (provider, pane))
     if verb == "control":
         provider, pane, label = spelled(arg, verb, 3)[:3]
-        return press_control(ctx, hand, provider, pane, label)
+        return press_control(ctx, hand, provider, pane, label, float(step.get("seconds", 10)))
     if verb == "menu":
         return choose(ctx, hand, arg, float(step.get("seconds", 10)), step.get("button", "left"))
     if verb == "desk":
@@ -357,22 +393,23 @@ def turn_wheel(ctx, hand, step):
                 names(view) if view else "not described", indent=1).encode())
             ctx.fail("wheel: %s/%s draws no part named %r within %gs"
                      % (provider, pane, name, seconds))
+        no_press_yet(ctx, view, "wheel", provider, pane, seconds)
         ctx.check(not unreached(at), "wheel: no point reaches %r in %s/%s on its own: the parts "
                   "over it take every place of it" % (name, provider, pane))
     else:
-        view, words = wait_words(hand, provider, pane, "", seconds)
+        view, words = wait_words(hand, provider, pane, "", seconds, pressing=True)
         ctx.check(words, "wheel: %s/%s paints no word within %gs" % (provider, pane, seconds))
+        no_press_yet(ctx, view, "wheel", provider, pane, seconds)
         at = words[0]
     hand.inject([moment(ctx, "PointerWheel", wheel_dx=dx, wheel_dy=dy, x=at["x"], y=at["y"],
                         space=at["space"])])
     return {"part": name, "x": at["x"], "y": at["y"], "dx": dx, "dy": dy}
 
 
-def press_control(ctx, hand, provider, pane, label):
+def press_control(ctx, hand, provider, pane, label, seconds):
     """Press a visible `[label]` control, in a text pane's rows or a canvas pane's words: the
     column comes from the painted word, the screen position from Workshop."""
-    view = words_now(hand, provider, pane)
-    ctx.check(view is not None, "control: Workshop does not describe %s/%s now" % (provider, pane))
+    view = press_view(ctx, hand, "control", provider, pane, seconds)
     word = "[" + label + "]"
     for w in view["words"]:
         at = w["text"].find(word)

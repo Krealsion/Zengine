@@ -6,8 +6,15 @@ A pane is read by its words (PaneView version 3) wherever a reader finds a row b
 a part by its name -- `row`, `row_starting`, `part`, `last_part`, `first`, `control`, `spot`,
 `field`, `rows_of` -- so a text pane and a pane that draws a canvas picture read alike: a text
 pane's word is its row, a canvas pane's each text run or label it drew, and a row it leaves blank
-is no word. `view` and `point` read a text pane's rows by number (version 1), which a canvas pane
-does not answer."""
+is no word. `point` and `lattice_point` name one cell of a pane's text lattice by its row and
+column (PanePoint, asked by version 3): a text pane's painted cell, or the cell of the lattice a
+canvas pane sets its text on, a blank row's and the one after a row's last character too. `view`
+reads a text pane's rows by number (version 1), which a canvas pane does not answer.
+
+A canvas picture that takes no press -- the one a managed opening shows, until its pane draws its
+own, or one its office's holder no longer holds -- says its words and parts with no point
+(`takes_no_press`), and refuses a point asked of it; every helper here that presses reads the pane
+again until one does (`pressing`)."""
 import json
 import time
 from collections import Counter
@@ -34,6 +41,21 @@ def word_on_row(view, part):
 def topmost(words):
     """The leftmost of the words on the highest row among `words`, or None."""
     return min(words, key=lambda w: (w["place"]["y"], w["place"]["x"])) if words else None
+
+
+#: Why a pane's picture took no press, as a tool says it when its wait runs out.
+NO_PRESS = ("Workshop gave its words and parts no point, as it does at the picture a managed opening "
+            "shows until its pane draws its own, or at one its office's holder no longer holds")
+
+
+def takes_no_press(view):
+    """Whether a pane's picture takes no press now: a canvas pane saying every word and part it
+    draws with no point -- 0, 0 in no space -- as Workshop says the picture a managed opening shows
+    until its pane draws its own, or one its office's holder no longer holds. A press there reaches
+    nothing; the pane is read again."""
+    said = (view["words"] + view.get("parts", [])) if view else []
+    return bool(view) and bool(view.get("canvas")) and bool(said) and all(
+        s.get("space", 0) == 0 for s in said)
 
 
 def rows_of(view):
@@ -74,8 +96,8 @@ class Hand:
         return answer
 
     def view(self, provider, pane):
-        """A text pane's rows by number (PaneView version 1), for the readers that address a cell
-        by its row and column (`point`); a canvas pane is refused."""
+        """A text pane's rows by number (PaneView version 1); a pane that draws a picture is
+        refused. `point` takes its picture from `words`, which reads either."""
         return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane})
 
     def words(self, provider, pane):
@@ -84,6 +106,29 @@ class Hand:
         press names it by, and beside them every part the pane names, under the pane's own name."""
         return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane},
                         version=3)
+
+    def pressing(self, provider, pane, seconds=10):
+        """The pane's words and parts, as `words` reads them, once its picture takes a press: while
+        it takes none (`takes_no_press`), or Workshop calls its picture unsettled -- as it does
+        while the pane's own picture settles after one -- the pane is read again, for at most
+        `seconds`; then ValueError, keeping `last-view.json`, or the refusal. Any other refusal --
+        a closed, covered or overlapped pane -- is raised at once, as `words` raises it."""
+        end = time.monotonic() + seconds
+        while True:
+            try:
+                view = self.words(provider, pane)
+            except Refused as refused:
+                if "no settled picture" not in str(refused) or time.monotonic() >= end:
+                    raise
+                time.sleep(0.1)
+                continue
+            if not takes_no_press(view):
+                return view
+            if time.monotonic() >= end:
+                self.last_view(view)
+                raise ValueError("%s/%s's picture took no press within %gs: %s"
+                                 % (provider, pane, seconds, NO_PRESS))
+            time.sleep(0.1)
 
     def word_point(self, provider, pane, word, column, picture):
         """Where one character of one of those words is now; refused if the picture moved."""
@@ -106,7 +151,7 @@ class Hand:
         for direction in (toward if scroll else (0,)):
             previous = None
             for _ in range(notches):
-                view = self.words(provider, pane)
+                view = self.pressing(provider, pane)
                 found = find(view)
                 if found is not None:
                     return view, found
@@ -174,7 +219,7 @@ class Hand:
         pane numbers every picture it sends. No word chosen raises ValueError naming `what` and
         keeps `last-view.json`."""
         for _ in range(3):
-            view = self.words(provider, pane)
+            view = self.pressing(provider, pane)
             w = pick(view)
             if w is None:
                 self.last_view(view)
@@ -231,7 +276,7 @@ class Hand:
         """A pane's first word -- the leftmost on its top row -- as `{row, text, x, y, space}`, at
         the point Workshop gives it: where a press or a drop meant for the pane's first row lands.
         A pane drawing no word raises ValueError and keeps `last-view.json`."""
-        view = self.words(provider, pane)
+        view = self.pressing(provider, pane)
         w = topmost(view["words"])
         if w is None:
             self.last_view(view)
@@ -239,9 +284,32 @@ class Hand:
         return {"row": w["word"], "text": w["text"], "x": w["x"], "y": w["y"], "space": w["space"]}
 
     def point(self, provider, pane, row, column, picture):
-        """Where Workshop's own measurer puts one prose cell of a pane now; refused if it moved."""
+        """Where one cell of a pane's text lattice is now, by its row and column counted from 0
+        (PanePointRequested version 3, answered as PanePoint): a text pane's painted cell, or the
+        centre of the cell of the lattice a canvas pane sets its text on -- any cell of it, a blank
+        row's and the one after a row's last character too. Refused if the picture moved, and past
+        the lattice."""
         return self.ask("zengine.workshop", "PanePointRequested", {"provider": provider, "pane": pane,
-                        "picture": picture, "row": row, "column": column})
+                        "picture": picture, "row": row, "column": column}, version=3)
+
+    def lattice_point(self, provider, pane, pick, what):
+        """The cell `pick(view)` chooses from the pane's words now -- `(row, column)` of its text
+        lattice, counted from 0 -- and where Workshop says it is (`point`), as `(cell, point)`. A
+        pane that redrew between the reading and the point is read again, as `pointed` reads a word
+        again. No cell chosen raises ValueError naming `what` and keeps `last-view.json`."""
+        for _ in range(3):
+            view = self.pressing(provider, pane)
+            cell = pick(view)
+            if cell is None:
+                self.last_view(view)
+                raise ValueError("no visible %s in %s/%s" % (what, provider, pane))
+            try:
+                return cell, self.point(provider, pane, cell[0], cell[1], view["picture"])
+            except Refused as refused:
+                if "picture moved" not in str(refused):
+                    raise
+                continue  # the pane redrew between the reading and the point: read it again
+        raise ValueError("%s in %s/%s kept moving while it was read" % (what, provider, pane))
 
     def control(self, provider, pane, label):
         """Press a visible `[label]` control, in a text pane's rows or a canvas pane's words: the

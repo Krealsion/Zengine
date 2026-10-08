@@ -11,7 +11,7 @@ joint-publication reference page, never restated here.
 LAW — The native `OpeningManager` owns one open intent, its exact participants, stage, attempts, supersession and outcome; the Editor owns the document, Workshop the presentation, Loom the publication.
 
 MEANS
-- the manager holds no document, no rows, no room, no focus and no pointer into either owner;
+- the manager holds no document, rows, picture, room, focus or pointer into either owner;
 - it asks the desk for a trial and an admission, the Editor for a preparation, and commits;
 - Files, the Builder and Edit Code ask `zengine.opening`; `zengine.editor` relays, asker's right.
 
@@ -76,7 +76,7 @@ LAW — A newer request cancels a Preparing flight and tells its requester it wa
 
 MEANS
 - there is no queue of intents and no retry: the refused requester asks again;
-- a resize, setup change or owner replacement before the commitment aborts it at the bus.
+- a change of the pane's rows, the setup or the owner before the commitment aborts it at the bus; a canvas moved alone is refused at the admission (WL-EDIT-13).
 
 PROVEN BY — `workshop/weave_opening.cpp` `on(OpenSourceRequested)`, `on(JointEnded)`,
 `refusal_of`; `tests/test_workshop_panes_editor.cpp` case `"a competing open through the OLD door
@@ -193,6 +193,40 @@ PROVEN BY — `workshop/host_pump.hpp` `contain_showing`, `ShowingFailures`, `Se
 case `"a native owner's failed showing is told in the words its own boundary captured, and every
 exception that reaches the host's turn propagates as it came"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
+
+## WL-OPEN-10 — The opening carries the pane's picture where it draws one
+
+LAW — Where the managed pane's holder draws on a canvas and prepares for one, the trial reserves the room the seat will have, the Editor composes the candidate as its picture there, and the desk shows it.
+
+MEANS
+- the reserved grant is used by nothing before the commitment, so no picture of A stands after it;
+- the shown picture is the desk's, numbered none, until the holder draws again: its words and parts read at once with no point, a point read again;
+- the room is said to the holder after the showing; a holder drawing no canvas is asked for rows.
+
+DOES NOT MEAN — that Workshop draws for the pane: the picture is the Editor's own, admitted as any
+picture is.
+
+PROVEN BY — `workshop/open_seam_vocabulary.hpp` `v2::PresentationTrial`,
+`v2::PrepareSourceRequested`, `v2::SourcePrepared`, `v2::PresentationAdmitRequested`;
+`workshop/weave_managed.cpp` `on(PresentationTrialRequested)`,
+`on(v2::PresentationAdmitRequested)`, `show_presentation`, `after_delivery`;
+`workshop/weave_opening.cpp` `trialled`, `prepared`; `workshop/weave_canvas.cpp` `canvas_takes_press`;
+`workshop/weave_inspection.cpp` `visible_words`, `visible_parts`; `editor-pane/pane.cpp`
+`on(v2::PrepareSourceRequested)`, `prepare`, `activate`; `tests/test_workshop_panes_opening.cpp`
+case `"an open through the managed door shows the opened document's picture at the commitment, in
+a room reserved for it, and a picture of the document it replaced, arriving after, is refused"`,
+case `"a holder that draws nothing after the commitment still shows the picture it prepared,
+numbered none, its words read at once and a cell's point read again until it draws its own"`,
+case `"the picture a managed opening shows says its words and its named part with no point, and their
+points return with the holder's own picture, where a press reaches it"`,
+case `"a picture prepared for a room the trial did not reserve is refused at its admission, and the
+document shown stays"`, case `"a canvas room that moves while the document is prepared refuses
+its admission, though its rows and columns stand"`;
+`tests/test_workshop_panes_editor.cpp` case `"a managed open has one commitment -- the published
+claims, the pane's reads, its snapshot and the desk agree at it, and A is current before it"`,
+case `"a host that grants the Editor no canvas is shown its rows and caret as prose, its presses
+reach nothing there, and its keys still edit"`.
+WHY — `agents/decisions/the-opening-carries-a-picture.md`
 
 ## Do not assume
 

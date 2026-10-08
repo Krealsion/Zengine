@@ -181,15 +181,17 @@ class CanvasPane:
 
     def view(self, provider, pane, pointed=lambda part: part):
         rows = self.drawn()
-        runs = [(r, i, c, t.rstrip(" ")) for r, row in enumerate(rows)
-                for i, (c, t) in enumerate(row["runs"]) if t.rstrip(" ")]
+        # A run is (column, text), or (column, text, True) where the caret stands in it: a blank run
+        # holding the caret is said as an empty word, as Workshop says it.
+        runs = [(r, i, run[0], run[1].rstrip(" ")) for r, row in enumerate(rows)
+                for i, run in enumerate(row["runs"]) if run[1].rstrip(" ") or run[2:] == (True,)]
         if self.by_column:
             runs.sort(key=lambda run: (run[1], run[0]))
         self.said = [(r, c, t) for r, _, c, t in runs]
         words = [{"word": n, "text": t,
                   "place": {"x": self.column_x(c), "y": self.row_y(r) + self.drop,
-                            "w": len(t) * self.advance, "h": self.line - self.drop},
-                  "x": self.column_x(c + (len(t) - 1) // 2) + self.advance // 2,
+                            "w": max(1, len(t)) * self.advance, "h": self.line - self.drop},
+                  "x": self.column_x(c + max(0, len(t) - 1) // 2) + self.advance // 2,
                   "y": self.row_y(r) + self.line // 2, "space": 2}
                  for n, (r, c, t) in enumerate(self.said)]
         listed = [(r, name, c, n) for r, row in enumerate(rows) for name, c, n in row["parts"]]
@@ -200,7 +202,8 @@ class CanvasPane:
         parts = []
         for i, (r, name, c, n) in enumerate(listed):
             line = "".ljust(self.columns())
-            for column, text in rows[r]["runs"]:
+            for run in rows[r]["runs"]:
+                column, text = run[0], run[1]
                 line = line[:column] + text + line[column + len(text):]
             own = [column for column in range(c, c + n) if owner[(r, column)] == i]
             stretches = []
@@ -228,6 +231,16 @@ class CanvasPane:
         r, c, _ = self.said[word]
         return {"x": self.column_x(c + column) + self.advance // 2,
                 "y": self.row_y(r) + self.line // 2, "space": 2}
+
+    def cell(self, row, column):
+        """Where the centre of one cell of the lattice the pane's text stands on is (PanePoint,
+        asked by version 3): any cell the body holds, a blank row's and the one after a row's last
+        character too."""
+        from loom_session.tool import Refused
+        if not (0 <= row < self.body[3] // self.line and 0 <= column < self.columns()):
+            raise Refused("pane point unavailable: outside the pane's text lattice")
+        return {"x": self.column_x(column) + self.advance // 2,
+                "y": self.row_y(row) + self.line // 2, "space": 2}
 
     def at(self, x, y):
         """The row and column a point inside the body stands on, or None outside it."""
@@ -654,6 +667,31 @@ class CanvasInventoryView(CanvasPane):
         self.pressed_in.append(column // 8 if inside else None)
 
 
+class CanvasEditor(CanvasPane):
+    """An Editor drawing its rows on its canvas: its status row first, named `status` and never
+    blank, then the document's lines from its first, each named `line:<n>` -- a blank one drawn as
+    no word, or as an empty word on the row `caret_row` names, where the caret stands; a line's
+    blanks before its first character drawn in its run. A press and a release are each kept as the
+    row and the column they land on."""
+
+    def __init__(self, status, lines, caret_row=None, **kw):
+        CanvasPane.__init__(self, **kw)
+        self.status, self.lines, self.presses, self.drops = status, list(lines), [], []
+        self.caret_row = caret_row
+
+    def drawn(self):
+        return ([{"runs": [(0, self.status)], "parts": [("status", 0, self.columns())]}] +
+                [{"runs": [(0, text)] if text else [(0, "", True)] if n == self.caret_row else [],
+                  "parts": [("line:%d" % n, 0, self.columns())]}
+                 for n, text in enumerate(self.lines, 1)])
+
+    def pressed(self, x, y):
+        self.presses.append(self.at(x, y))
+
+    def released(self, x, y):
+        self.drops.append(self.at(x, y))
+
+
 class Quiet:
     """A subscription to an owner's words that hears none, as `workshop/builder` holds one while
     it acts on what the Builder's own rows confirm."""
@@ -679,14 +717,21 @@ class Answer(dict):
 
 class CanvasWorkshop(Context):
     """A run context whose Workshop shows `panes` -- {(provider, pane): CanvasPane} -- that draw
-    pictures: it answers PaneView version 3 and PanePoint version 2, and fails a run that asks any
-    other version of either, as a pane drawing a picture is not read by its rows; a pane it does
-    not show is refused as a closed one. A part `unreached` names has no point. Each press, release
-    or wheel inside a pane's body is that pane's, and the keys go to the pane a press last landed
-    on; a point refused as a redraw tells its pane it redrew. An owner's words are observed through
-    a subscription that hears none. `zengine.demo` answers its status by the resets its controls
-    were pressed for, and `zengine.inventory` lists what a `CanvasInventory` shown browses.
-    `act_steps` are a `workshop/act` run's steps; what a run keeps is kept."""
+    pictures: it answers PaneView version 3, and PanePointRequested version 2 by a word's character
+    and version 3 by a cell of the pane's lattice; it refuses version 1 of either, as Workshop
+    refuses to read a pane drawing a picture by its rows, and fails a run that asks any other
+    version; a pane it does not show is refused as a closed one. A part `unreached` names has no
+    point. Each press, release or wheel inside a pane's body is that pane's, and the keys go to the
+    pane a press last landed on; a point refused as a redraw tells its pane it redrew. An injected
+    moment's answer carries its correlation, the number of the last moment it admitted. An owner's
+    words are observed through a subscription that hears none. `zengine.demo` answers its status by
+    the resets its controls were pressed for, and `zengine.inventory` lists what a
+    `CanvasInventory` shown browses. `act_steps` are a `workshop/act` run's steps; what a run keeps
+    is kept. While `window` names readings, each reading takes the first: `settled` says the pane as
+    it is, `untaken` as a picture that takes no press -- numbered none, every word and part with no
+    point, as Workshop says the one a managed opening shows -- and `unsettled` refuses it as a
+    picture not yet settled; a point asked before an `untaken` or `unsettled` reading is refused as
+    Workshop refuses it then."""
 
     def __init__(self, steps, panes, act_steps=(), unreached=()):
         Context.__init__(self, steps)
@@ -694,6 +739,7 @@ class CanvasWorkshop(Context):
         self.panes, self.unreached, self.asked, self.kept = dict(panes), set(unreached), [], {}
         self.holder = None  # the pane a press last landed on, which hears the keys
         self.redraws = 0  # points to refuse as a pane that redrew since it was read
+        self.window = []  # what each of the next readings says: "settled", "untaken" or "unsettled"
 
     def produce(self, name, data):
         self.kept[name] = data
@@ -708,21 +754,39 @@ class CanvasWorkshop(Context):
 
     def ask(self, office, shape, fields, **options):
         if shape in ("PaneViewRequested", "PanePointRequested"):
+            from loom_session.tool import Refused
             version = options.get("version", 1)
             self.asked.append((shape, version))
-            if version != (3 if shape == "PaneViewRequested" else 2):
+            if version not in ((1, 3) if shape == "PaneViewRequested" else (1, 2, 3)):
                 raise AssertionError("%s version %d asked of a pane that draws a picture"
                                      % (shape, version))
             pane = self.panes.get((fields["provider"], fields["pane"]))
             if pane is None:
-                from loom_session.tool import Refused
                 raise Refused("pane view unavailable: closed, unknown or covered by an interaction")
+            if version == 1:
+                raise Refused("pane view unavailable: the pane draws a picture, not text rows")
+            if self.window and self.window[0] != "settled" and shape == "PanePointRequested":
+                raise Refused("pane point unavailable: the pane's picture moved; read it again -- the "
+                              "one shown takes no press until its pane draws its own"
+                              if self.window[0] == "untaken" else "pane view unavailable: no settled picture")
+            if self.window and shape == "PaneViewRequested":
+                said = self.window.pop(0)
+                if said == "settled":
+                    return pane.view(fields["provider"], fields["pane"], self.pointed)
+                if said == "unsettled":
+                    raise Refused("pane view unavailable: no settled picture")
+                view = pane.view(fields["provider"], fields["pane"], self.pointed)
+                view["picture"] = 0
+                for said in view["words"] + view["parts"]:
+                    said.update(x=0, y=0, space=0)
+                return view
             if shape == "PanePointRequested":
                 if self.redraws:
-                    from loom_session.tool import Refused
                     self.redraws -= 1
                     pane.redrawn()
                     raise Refused("pane point unavailable: the pane's picture moved; read it again")
+                if version == 3:
+                    return pane.cell(fields["row"], fields["column"])
                 return pane.point(fields["word"], fields["column"])
             return pane.view(fields["provider"], fields["pane"], self.pointed)
         if shape == "InjectInput":
@@ -753,17 +817,24 @@ class CanvasWorkshop(Context):
             ready = controls.resets == 1 and fields["generation"] == 4
             return Answer(state="ready" if ready else "failed", generation=fields["generation"],
                           note="Ready" if ready else "no reset was pressed")
-        return Context.ask(self, office, shape, fields, **options)
+        answer = Context.ask(self, office, shape, fields, **options)
+        if shape == "InjectInput":
+            answer = Answer(answer)
+            answer.correlation = answer["last_seq"]
+        return answer
 
 
 class ActWorkshop(Context):
     """A run context whose Workshop is a script for `workshop/act`: Info's list with a cursor the
     Down and Up keys move, a canvas pane's words, any other pane's rows as `panes` names them and
-    the names `named` gives their rows, a point door that says which word and column it was asked
-    for and refuses a character no word shows, a Pane Manager when `manager` is one -- a `Manager`
-    as text rows, or a `CanvasManager` drawing a picture -- and a desk with a menu open whose lines
-    are named. A part or a line `unreached` names has no point, as Workshop says one no press
-    reaches on its own. Every injected moment is kept, as `Context` keeps them."""
+    the names `named` gives their rows, a point door that says which word and column (version 2)
+    or which painted cell of a text pane, `COLUMNS` wide (version 3), it was asked for and refuses
+    a character no word shows and a cell past the rows, a Pane Manager when `manager` is one -- a
+    `Manager` as text rows, or a `CanvasManager` drawing a picture -- and a desk with a menu open
+    whose lines are named. A pane drawing a picture refuses version 1 of either reading. A part or
+    a line `unreached` names has no point, as Workshop says one no press reaches on its own. Every
+    injected moment is kept, as `Context` keeps them."""
+    COLUMNS = 40
 
     def __init__(self, steps, act_steps, rows, panes=None, named=None, manager=None, unreached=()):
         Context.__init__(self, steps)
@@ -772,7 +843,12 @@ class ActWorkshop(Context):
         self.cursor = next((i for i, r in enumerate(rows) if r.startswith(">")), 0)
         self.panes, self.named, self.said = dict(panes or {}), dict(named or {}), {}
         self.manager, self.unreached = manager, set(unreached)
-        self.points, self.kept = [], {}
+        self.points, self.cells, self.kept = [], [], {}
+
+    def draws_picture(self, pane):
+        """Whether the pane draws its own picture: the View Builder, or a `CanvasManager`."""
+        return pane == "view-builder" or (pane == "launcher" and bool(self.manager) and
+                                          self.manager.canvas)
 
     def rows(self):
         return [(">" if i == self.cursor else " ") + r[1:] for i, r in enumerate(self.base)]
@@ -815,6 +891,19 @@ class ActWorkshop(Context):
         if shape == "InjectInput":
             for e in fields["events"]:
                 self.moved(e)
+        if (shape in ("PaneViewRequested", "PanePointRequested") and
+                options.get("version", 1) == 1 and self.draws_picture(fields["pane"])):
+            raise Refused("pane view unavailable: the pane draws a picture, not text rows")
+        if shape == "PanePointRequested" and options.get("version") == 3:
+            if self.draws_picture(fields["pane"]):
+                if fields["pane"] != "launcher":
+                    raise AssertionError("no lattice is scripted for %s" % fields["pane"])
+                return self.manager.cell(fields["row"], fields["column"])
+            said = self.said.get(fields["pane"], [])
+            if not (0 <= fields["row"] < len(said) and 0 <= fields["column"] < self.COLUMNS):
+                raise Refused("pane point unavailable: outside the pane's visible text")
+            self.cells.append((fields["row"], fields["column"]))
+            return {"x": 200 + fields["column"], "y": 12 * fields["row"] + 6, "space": 2}
         if shape == "PaneViewRequested" and options.get("version") == 3:
             if fields["pane"] == "launcher":
                 if not (self.manager and self.manager.shown):
@@ -913,6 +1002,9 @@ def run_checks(tools, runtime):
     slots = importlib.import_module("inventory_slots_demo")
     place = importlib.import_module("place")
     preset_demo = importlib.import_module("inventory_preset_demo")
+    materials = importlib.import_module("editor_materials_demo")
+    monitor = importlib.import_module("monitor")
+    from loom_session.tool import Refused
 
     class ToolChecks(unittest.TestCase):
         def test_drag_delegates_timed_motion_and_cleans_up_after_picture_failure(self):
@@ -1249,8 +1341,9 @@ def run_checks(tools, runtime):
                     self.assertEqual(ctx.contacts, [])
 
         # ---- panes that draw a picture, read by their words and their names --------------------
-        # Each stand-in below answers only PaneView version 3 and PanePoint version 2 for such a
-        # pane: a reading of rows by number fails the check that made it.
+        # Each stand-in below answers PaneView version 3 and PanePointRequested versions 2 and 3
+        # for such a pane, and refuses version 1 of either as Workshop does: a reading of rows by
+        # number fails the check that made it.
         LOADED = ("zengine.introspection", "loaded")
         WEAVES = [("zengine-input", "zengine.input"), ("zengine-skin-sdl", "zengine.skin"),
                   ("zengine-inventory-pane", "zengine.inventory-pane"),
@@ -1790,6 +1883,223 @@ def run_checks(tools, runtime):
                     self.assertEqual(marked, {"pane:zengine.inventory-pane/inventory": True,
                                               "property:Width": False, None: False})
             self.assertFalse(place.list_marked(None))
+
+        # ---- the Editors drawing pictures: their lines, their status row, their lattice's cells -
+        # An Editor's status row is its lattice's row 0; a blank document line is no word, so a
+        # line's row is where it stands, and a cell past a line's last character is pressed by the
+        # lattice's point (PanePointRequested version 3), which a word's point refuses.
+        EDITOR = ("zengine.editor", "editor")
+        LATTICE = {("PaneViewRequested", 3), ("PanePointRequested", 3)}
+
+        def beat_editor(self):
+            """The standard Editor showing the editor-materials walk's beat.cpp, on 20 rows."""
+            return CanvasEditor("beat.cpp  saved  line 1", materials.BEAT.split("\n")[:-1],
+                                body=(600, 100, 420, 280))
+
+        def test_the_materials_walk_reads_a_canvas_editors_lines_where_they_stand(self):
+            # The caret on the blank line: Workshop says that row as an empty word.
+            editor = CanvasEditor("beat.cpp  saved  line 1", materials.BEAT.split("\n")[:-1],
+                                  caret_row=2, body=(600, 100, 420, 280))
+            ctx = CanvasWorkshop(steps, {self.EDITOR: editor})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                rows = materials.editor_rows(held)
+                said = (materials.says(held, "beats(4)"), materials.says(held, "make_surface_text_v1"))
+                ctx.redraws = 1  # the Editor redraws once between the reading and the point
+                start = materials.cell(held, "int total = 0;")
+                end = materials.cell(held, "int total = 0;", len("int total = 0;"))
+                held.drag(start, end, 300)  # the walk's timed sweep
+                held.click(materials.cell(held, "total", 0, 1))
+                last = materials.cell(held, "int main()")
+                with self.assertRaisesRegex(CheckFailed, r"the Editor paints no 'beats\(5\)': "
+                                                         r"\['beat.cpp  saved  line 1', "):
+                    materials.cell(held, "beats(5)")
+                with self.assertRaisesRegex(Refused, "draws a picture, not text rows"):
+                    held.view(*self.EDITOR)
+            finally:
+                held.close()
+            self.assertEqual(rows, ["beat.cpp  saved  line 1"] + materials.BEAT.split("\n")[:-1])
+            self.assertEqual(rows[2], "")  # the blank line keeps its row, an empty word
+            self.assertIn((2, 0, ""), editor.said)
+            self.assertEqual(said, (True, False))
+            # The sweep runs from the line's first character, on the lattice's row 5 past the blank
+            # row 2, to the cell just after its last character, which no word's character is.
+            self.assertEqual((start["x"], start["y"]), (editor.column_x(4) + 3, editor.row_y(5) + 7))
+            self.assertEqual((end["x"], end["y"]), (editor.column_x(18) + 3, editor.row_y(5) + 7))
+            self.assertEqual(editor.presses, [(5, 4), (7, 8)])  # the second row holding `total`
+            self.assertEqual(editor.drops, [(5, 18), (7, 8)])
+            self.assertEqual((last["x"], last["y"]), (editor.column_x(0) + 3, editor.row_y(12) + 7))
+            self.assertEqual(set(ctx.asked), self.LATTICE | {("PaneViewRequested", 1)})
+            self.assertFalse(ctx.owner.open)
+
+        def test_the_materials_walk_drops_past_a_line_and_on_a_canvas_editors_status_row(self):
+            editor = CanvasEditor("notes.txt  UNSAVED  line 3", materials.NOTES.split("\n")[:-1])
+            ctx = CanvasWorkshop(steps, {self.EDITOR: editor})
+            held = hand.Hand(ctx, "workshop")
+            away = {"x": 30, "y": 400, "space": 2}  # where a drag from Inventory starts
+            try:
+                ctx.redraws = 1  # the Editor redraws once between the reading and the point
+                held.drag(away, materials.cell(held, "Dropped here:", len("Dropped here:")), 400)
+                status = materials.status_row(held)
+                held.drag(away, status, 400)  # a place dropped on the status row
+                held.click(status)  # the keys, by a press that moves nothing
+                waited = materials.waits(held, "Dropped here:")
+                covered = materials.menu_covers_editor(held)
+                del ctx.panes[self.EDITOR]  # a menu over it: Workshop refuses the Editor's view
+                under_menu = materials.menu_covers_editor(held)
+            finally:
+                held.close()
+            middle = (editor.column_x(0) + 59 * 7 // 2) - editor.body[0] - editor.inset
+            self.assertEqual(editor.drops, [(3, 13), (0, middle // 7), (0, middle // 7)])
+            self.assertEqual(editor.presses, [(0, middle // 7)])
+            self.assertEqual((status["name"], status["text"]), ("status", "notes.txt  UNSAVED  line 3"))
+            self.assertEqual((waited, covered, under_menu), (True, False, True))
+            self.assertEqual(set(ctx.asked), self.LATTICE)
+
+        def test_at_presses_a_cell_of_a_canvas_panes_lattice_a_blank_rows_too(self):
+            editor = self.beat_editor()
+            ctx = CanvasWorkshop(steps, {self.EDITOR: editor}, act_steps=[
+                {"at": list(self.EDITOR) + [2, 0]}, {"at": list(self.EDITOR) + [5, 18]}])
+            ctx.redraws = 1  # the Editor redraws once between the reading and the point
+            self.act(ctx)
+            self.assertEqual(editor.presses, [(2, 0), (5, 18)])
+            self.assertEqual([(r["x"], r["y"]) for r in json.loads(ctx.kept["steps.json"])],
+                             [(editor.column_x(0) + 3, editor.row_y(2) + 7),
+                              (editor.column_x(18) + 3, editor.row_y(5) + 7)])
+            self.assertEqual(set(ctx.asked), self.LATTICE)
+            # Past the lattice: refused in Workshop's words, and nothing is pressed.
+            ctx = CanvasWorkshop(steps, {self.EDITOR: self.beat_editor()},
+                                 act_steps=[{"at": list(self.EDITOR) + [20, 0]}])
+            with self.assertRaisesRegex(Refused, "outside the pane's text lattice"):
+                self.act(ctx)
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+            # A text pane's painted cell, by its row and column.
+            ctx = ActWorkshop(steps, [{"at": ["zengine.info", "info", 1, 3]}], self.INFO_ROWS)
+            self.act(ctx)
+            self.assertEqual(ctx.cells, [(1, 3)])
+            self.assertEqual([(e["x"], e["y"]) for e in ctx.events if e["kind"] == "PointerButton"],
+                             [(203, 18)] * 2)
+
+        def test_a_monitor_presses_a_cell_of_a_canvas_panes_lattice_by_its_row_and_column(self):
+            editor = self.beat_editor()
+            ctx = CanvasWorkshop(steps, {self.EDITOR: editor})
+            m = monitor.Monitor(ctx, SimpleNamespace(producer="td.game", shapes=[("TdSeen", 1)]))
+            try:
+                ctx.redraws = 1  # the Editor redraws once between the reading and the point
+                first = m.press_at(*self.EDITOR, 2, 0)
+                m.press_at(*self.EDITOR, 5, 18)
+            finally:
+                m.release_keys()
+            self.assertEqual(editor.presses, [(2, 0), (5, 18)])
+            self.assertEqual([(g["gesture"], g["correlation"]) for g in m.gestures],
+                             [("press zengine.editor/editor 2,0", first.correlation),
+                              ("press zengine.editor/editor 5,18", first.correlation + 2)])
+            self.assertEqual(set(ctx.asked), self.LATTICE)
+            self.assertFalse(ctx.owner.open)
+
+        # ---- a picture that takes no press: the one a managed opening shows, until the Editor draws
+        # its own. Workshop says its words and parts with no point and refuses a point asked of it,
+        # and then, for a moment, its view; a tool that presses reads the pane again through both.
+        OPENING = ["untaken", "untaken", "unsettled"]
+
+        def test_the_hand_reads_a_pane_again_while_its_picture_takes_no_press(self):
+            editor = self.beat_editor()
+            ctx = CanvasWorkshop(steps, {self.EDITOR: editor})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                ctx.window = list(self.OPENING)
+                status = held.part(*self.EDITOR, "status")
+                self.assertEqual(ctx.window, [])
+                held.click(status)
+                ctx.window = list(self.OPENING)
+                cell = materials.cell(held, "int total = 0;")
+                self.assertEqual(ctx.window, [])
+                held.click(cell)
+                ctx.window = list(self.OPENING)
+                row = held.row(*self.EDITOR, "int main()")
+                self.assertEqual(ctx.window, [])
+                ctx.window = list(self.OPENING)
+                first = held.first(*self.EDITOR)
+                self.assertEqual(ctx.window, [])
+                # THE WINDOW BEGINS BETWEEN A READING AND ITS POINT: the point is refused, and the
+                # pane read again through the window.
+                ctx.window = ["settled"] + list(self.OPENING)
+                moved = held.row(*self.EDITOR, "int total = 0;")
+                self.assertEqual(ctx.window, [])
+                # ...A FIRST READING IN THE MOMENT THE PANE'S OWN PICTURE SETTLES is read again too,
+                ctx.window = ["unsettled"]
+                held.first(*self.EDITOR)
+                self.assertEqual(ctx.window, [])
+                # ...AND A PANE WORKSHOP DOES NOT DESCRIBE IS REFUSED AT ONCE.
+                with self.assertRaisesRegex(Refused, "closed, unknown or covered"):
+                    held.pressing("zengine.editor", "no-such-pane")
+                # A PICTURE THAT NEVER TAKES ONE: the read gives up saying so, and nothing is pressed.
+                ctx.window = ["untaken"] * 1000
+                with self.assertRaisesRegex(ValueError, "zengine.editor/editor's picture took no press "
+                                                        "within 0.3s"):
+                    held.pressing(*self.EDITOR, seconds=0.3)
+            finally:
+                held.close()
+            self.assertEqual((status["name"], status["space"]), ("status", 2))
+            self.assertEqual([p[0] for p in editor.presses], [0, 5])
+            self.assertEqual(editor.presses[1], (5, 4))
+            self.assertEqual((row["text"].startswith("int main()"), row["space"]), (True, 2))
+            self.assertEqual((first["text"], first["space"]), ("beat.cpp  saved  line 1", 2))
+            self.assertEqual((moved["text"].strip(), moved["space"]), ("int total = 0;", 2))
+
+        def test_a_step_that_presses_waits_while_a_panes_picture_takes_no_press(self):
+            for step, row in (({"part": list(self.EDITOR) + ["status"]}, 0),
+                              ({"click": list(self.EDITOR) + ["int total"]}, 5),
+                              ({"at": list(self.EDITOR) + [5, 18]}, 5),
+                              ({"wheel": list(self.EDITOR) + ["status"], "dy": 1}, None)):
+                with self.subTest(step=step):
+                    editor = self.beat_editor()
+                    ctx = CanvasWorkshop(steps, {self.EDITOR: editor}, act_steps=[step])
+                    ctx.window = list(self.OPENING)
+                    self.act(ctx)
+                    self.assertEqual(ctx.window, [])
+                    if row is None:
+                        wheeled = [e for e in ctx.events if e["kind"] == "PointerWheel"]
+                        self.assertEqual([e["space"] for e in wheeled], [2])
+                        self.assertEqual(editor.at(wheeled[0]["x"], wheeled[0]["y"])[0], 0)
+                    else:
+                        self.assertEqual([p[0] for p in editor.presses], [row])
+            # A PICTURE THAT NEVER TAKES ONE: the step fails saying so, and presses nothing.
+            for step in ({"part": list(self.EDITOR) + ["status"], "seconds": 0.3},
+                         {"click": list(self.EDITOR) + ["int total"], "seconds": 0.3},
+                         {"at": list(self.EDITOR) + [5, 18], "seconds": 0.3},
+                         {"wheel": list(self.EDITOR), "dy": 1, "seconds": 0.3}):
+                with self.subTest(step=step):
+                    ctx = CanvasWorkshop(steps, {self.EDITOR: self.beat_editor()}, act_steps=[step])
+                    ctx.window = ["untaken"] * 1000
+                    with self.assertRaisesRegex(CheckFailed, "zengine.editor/editor's picture took no "
+                                                             "press within 0.3s"):
+                        self.act(ctx)
+                    self.assertFalse([e for e in ctx.events
+                                      if e["kind"] in ("PointerButton", "PointerWheel")])
+
+        def test_a_monitor_reads_a_pane_again_while_its_picture_takes_no_press(self):
+            editor = self.beat_editor()
+            ctx = CanvasWorkshop(steps, {self.EDITOR: editor})
+            m = monitor.Monitor(ctx, SimpleNamespace(producer="td.game", shapes=[("TdSeen", 1)]))
+            try:
+                ctx.window = list(self.OPENING)
+                m.press_at(*self.EDITOR, 2, 0)
+            finally:
+                m.release_keys()
+            self.assertEqual(ctx.window, [])
+            self.assertEqual(editor.presses, [(2, 0)])
+            # A PICTURE TAKING NO PRESS PAST THE MONITOR'S DEADLINE: the monitor cannot tell.
+            ctx = CanvasWorkshop(steps, {self.EDITOR: self.beat_editor()})
+            m = monitor.Monitor(ctx, SimpleNamespace(producer="td.game", shapes=[("TdSeen", 1)]),
+                                seconds=0.3)
+            try:
+                ctx.window = ["untaken"] * 1000
+                with self.assertRaisesRegex(monitor.Inconclusive, "picture took no press"):
+                    m.press_at(*self.EDITOR, 2, 0)
+            finally:
+                m.release_keys()
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
     return unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful()

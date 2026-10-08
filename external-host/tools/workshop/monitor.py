@@ -144,14 +144,31 @@ class Monitor(object):
         return self._gesture(chord, self._hand().inject(chord_moments(self.ctx, chord)))
 
     def press_at(self, provider, pane, row, column):
-        """A press on one painted cell of a pane (its lattice, counted from 0)."""
+        """A press on one cell of a pane's text lattice, by its row and column counted from 0
+        (`hand.point`): a text pane's painted cell, or the cell of the lattice a canvas pane sets
+        its text on, a blank row's too. A pane that redrew between the reading and the point is
+        read again, and so is one whose picture takes no press yet (`hand.pressing`), within the
+        deadline: past it, the monitor cannot tell."""
         hand = self._hand()
-        view = painted(hand, provider, pane)
-        self.ctx.check(view is not None, "Workshop does not describe %s/%s now" % (provider, pane))
-        at = hand.point(provider, pane, row, column, view["picture"])
-        return self._gesture("press %s/%s %d,%d" % (provider, pane, row, column), hand.inject(
-            [moment(self.ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
-                    space=at["space"]) for p in (True, False)]))
+        for _ in range(3):
+            try:
+                left = max(0.0, min(10.0, self.deadline - time.monotonic()))
+                view = hand.pressing(provider, pane, left)
+            except Refused:
+                self.ctx.fail("Workshop does not describe %s/%s now" % (provider, pane))
+            except ValueError as taken:
+                raise Inconclusive(str(taken))
+            try:
+                at = hand.point(provider, pane, row, column, view["picture"])
+            except Refused as refused:
+                if "picture moved" not in str(refused):
+                    raise
+                continue  # the pane redrew between the reading and the point: read it again
+            return self._gesture("press %s/%s %d,%d" % (provider, pane, row, column), hand.inject(
+                [moment(self.ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
+                        space=at["space"]) for p in (True, False)]))
+        self.ctx.fail("%s/%s kept redrawing while its cell %d,%d was read"
+                      % (provider, pane, row, column))
 
     def picture(self, name):
         """A capture kept as ``<name>.png`` (or ``<name>.cells.txt`` in a terminal medium)."""

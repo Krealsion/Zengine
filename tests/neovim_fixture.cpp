@@ -174,6 +174,9 @@ int main(int argc, char** argv) {
                 write_all(response(id, mp::Value::nil(), mp::Value::map(std::move(said))));
             } else if (method == "zengine_fixture_hold") {
                 continue; // a request this peer never answers
+            } else if (method == "zengine_fixture_answer_then_draw") {
+                // THE ANSWER AND THE SCREEN AFTER IT IN ONE WRITE, as Neovim answers and then redraws.
+                write_all(response(id, mp::Value::nil(), mp::Value::nil()) + redraw_of("after"));
             } else if (method == "nvim_exec_lua") {
                 if (mode == "prompt") {
                     continue; // never served, as a real prompt never serves it

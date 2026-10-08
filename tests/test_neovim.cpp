@@ -740,6 +740,20 @@ TEST_CASE("the owner starts a well-behaved peer, hears its screen, and ends it b
     CHECK_FALSE(host.call("nvim_get_mode", rpc::params(), [](const rpc::Response&) {}));
 }
 
+TEST_CASE("an answer says the screen as it stood when the answer came, not the one drawn after it") {
+    nv::Host host;
+    REQUIRE(host.start(fixture("ok")));
+    REQUIRE(until(host, [&host] { return host.ready() || !host.alive(); }));
+    REQUIRE(host.ready());
+    const std::uint64_t before = host.grid().flushes();
+    std::string why;
+    REQUIRE_MESSAGE(host.call_now("zengine_fixture_answer_then_draw", rpc::params(), 5000, why).has_value(), why);
+    REQUIRE(until(host, [&host, before] { return host.grid().flushes() > before; }));
+    CHECK(host.flushes_at_answer() == before);
+    CHECK(host.grid().at(0, 0).text == "a");
+    (void)host.finish(nv::kQuitGraceMs);
+}
+
 TEST_CASE("every way a start fails is said, in whose words, and nothing is left running") {
     struct Case {
         const char* mode;

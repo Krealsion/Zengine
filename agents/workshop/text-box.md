@@ -210,16 +210,16 @@ MEANS
 - a press begins it only on the paths that consume the press; release keeps the selection;
 - a pane's (`kExternalPane`) crosses as `PaneDragged`, unclamped, no release; a lost seat ends it.
 
-DOES NOT MEAN — that every pane sweeps. `kTerminalLine` left with the overlay and the
-Terminal asks for no sweep; a pane that never declared a use for the motion is sent one it may
-ignore, and the Editor is the one that spends it.
+DOES NOT MEAN — that every pane sweeps. `kTerminalLine` left with the overlay; a text pane that
+never declared a use for the motion is sent one it may ignore, and a pane drawing on its canvas
+hears its own press's motion instead (WL-CANVAS-03).
 
 PROVEN BY — `workshop/screen.hpp` `Session::text_drag`, `TextDrag`,
 `text_drag_place`, `kExternalPane`; `workshop/weave_external.cpp` `external_drag`;
 `workshop/weave_pointer.cpp` `on(PointerMoved)`, `end_held_gestures`;
 `component/text_box.hpp` `TextBox::drag_to_column`; `tests/test_component.cpp` case
 `"component: drag_to_column extends from the pressed anchor and can leave the slice"`;
-`tests/test_workshop_panes_editor.cpp` case `"a drag sweeps a multiline selection, and the
-selection survives release"`, case `"a press begins a sweep only where it named a row
-of the body"`.
+`tests/test_workshop_panes_input.cpp` case `"a text pane's sweep crosses as PaneDragged from a
+press on one of its rows, unclamped and with no release, and a press on its header or a lost seat
+sweeps nothing"`.
 WHY — `agents/decisions/one-press-one-gesture.md`

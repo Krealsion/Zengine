@@ -7,6 +7,7 @@
 
 #include "weave.hpp"
 #include "screen_canvas.hpp"
+#include "pane_canvas_rows.hpp"
 
 #include <algorithm>
 #include <map>
@@ -222,6 +223,13 @@ constexpr std::size_t kNoPart = static_cast<std::size_t>(-1);
 /// A PART NO PRESS REACHES ON ITS OWN HAS NO POINT: one in no space (`input::space::kUnknown`),
 /// which no consumer reads, so a press made there blindly lands nowhere rather than on another.
 void no_point(PanePart& out) {
+    out.x = 0;
+    out.y = 0;
+    out.space = input::space::kUnknown;
+}
+
+/// ...AND NEITHER HAS A WORD OF A PICTURE THAT TAKES NO PRESS.
+void no_point(PaneWord& out) {
     out.x = 0;
     out.y = 0;
     out.space = input::space::kUnknown;
@@ -578,6 +586,13 @@ void WorkshopWeave::on(const v2::DeskViewRequested&, loom::Mail& mail) {
 
 namespace {
 
+/// A CANVAS PICTURE THAT TAKES NO PRESS (`canvas_takes_press`) -- the one a managed opening showed,
+/// numbered none, or one its office's holder no longer holds -- gives no point: a press is taken
+/// from its pane's own next picture (WL-OPEN-10), so a point is read again.
+constexpr std::string_view kTakesNoPress =
+    "pane point unavailable: the pane's picture moved; read it again -- the one shown takes no press "
+    "until its pane draws its own";
+
 /// ONE CANVAS LABEL AS THE PAINTER DRAWS IT (`paint_pane_canvas`): the bytes left of the body
 /// dropped whole, the row cut at its right edge, a label outside its rows not drawn at all.
 bool drawn_label(const PaneCanvasLabel& label, const PixelRect& body, std::string& text,
@@ -602,7 +617,8 @@ bool drawn_label(const PaneCanvasLabel& label, const PixelRect& body, std::strin
 // WHAT A VISIBLE BODY SHOWS, word by word: a text pane's rows under its header, a canvas pane's
 // labels and then its text runs, each where the medium draws it. A word the body does not draw
 // is not said, so a word's number is its place in this list and nowhere else. `glyphs` takes
-// where each word's glyphs stand, which a point inside it is measured by.
+// where each word's glyphs stand, which a point inside it is measured by. A picture that takes no
+// press says each word with its place and no point.
 // WL-GEO-13 -- agents/workshop/geometry.md
 std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
                                                    std::vector<WordGlyphs>* glyphs) const {
@@ -653,6 +669,9 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
         if (text.empty() && placed.text.caret_col < 0) continue;
         keep(glyph_grid(fit), std::move(text), 0);
     }
+    if (!canvas_takes_press(visible.kind)) {
+        for (PaneWord& w : out) no_point(w);
+    }
     return out;
 }
 
@@ -667,7 +686,8 @@ void WorkshopWeave::on(const v2::PaneViewRequested& asked, loom::Mail& mail) {
 }
 
 // THE PARTS A VISIBLE BODY'S PANE NAMES, each where the medium draws it, as the pane named it: a
-// part the body does not show is not said, and neither is a place the pane names nothing.
+// part the body does not show is not said, and neither is a place the pane names nothing. A
+// picture that takes no press says each part with its place and no point.
 // WL-HAND-06 -- agents/workshop/pane-parts.md
 std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
                                                    const std::vector<PaneWord>& words) const {
@@ -683,10 +703,12 @@ std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
             boxes.push_back(units_of(visible.canvas_body, part, unit));
         }
         const std::vector<std::optional<UnitPoint>> points = own_points(boxes);
+        const bool pressed = canvas_takes_press(visible.kind);
         for (std::size_t i = 0; i < parts.size(); ++i) {
             PanePart drawn;
             if (!parts[i].name.empty() && canvas_part_on(visible.canvas_body, parts[i], boxes[i],
                                                          points[i], words, space, drawn)) {
+                if (!pressed) no_point(drawn);
                 out.push_back(std::move(drawn));
             }
         }
@@ -737,6 +759,10 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
         (void)mail.answer(loom::Refused{"pane point unavailable: the pane's picture moved; read it again"});
         return;
     }
+    if (visible.canvas && !canvas_takes_press(visible.kind)) {
+        (void)mail.answer(loom::Refused{std::string(kTakesNoPress)});
+        return;
+    }
     std::vector<WordGlyphs> glyphs;
     const std::vector<PaneWord> words = visible_words(visible, &glyphs);
     if (asked.word < 0 || asked.word >= static_cast<std::int64_t>(words.size()) ||
@@ -763,6 +789,62 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
     }
     if (!resolved) {
         (void)mail.answer(loom::Refused{"pane point unavailable: that character is not addressable"});
+        return;
+    }
+    (void)mail.answer(reply);
+}
+
+// WHERE ONE CELL OF A PANE'S TEXT LATTICE IS NOW: a text pane's painted cell, as the first version
+// answers, or a canvas pane's cell of the lattice its room's text stands on, wherever the picture
+// draws or leaves it blank -- checked by reading the point back to that cell of the room it lands in.
+void WorkshopWeave::on(const v3::PanePointRequested& asked, loom::Mail& mail) {
+    VisibleBody visible;
+    if (const auto why = visible_body(asked.provider, asked.pane, visible, true); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
+        return;
+    }
+    if (asked.picture != visible.content->stamp.aimed) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: the pane's picture moved; read it again"});
+        return;
+    }
+    if (visible.canvas && !canvas_takes_press(visible.kind)) {
+        (void)mail.answer(loom::Refused{std::string(kTakesNoPress)});
+        return;
+    }
+    PanePoint reply{asked.provider, asked.pane, asked.picture, asked.row, asked.column, 0, 0, 0};
+    if (!visible.canvas) {
+        if (asked.row < 0 || asked.column < 0 || asked.row >= visible.body.rows ||
+            asked.column >= visible.body.columns ||
+            asked.row >= static_cast<std::int64_t>(visible.content->shown.size())) {
+            (void)mail.answer(loom::Refused{"pane point unavailable: outside the pane's visible text"});
+            return;
+        }
+        if (!cell_center(visible, asked.row, asked.column, reply.x, reply.y, reply.space)) {
+            (void)mail.answer(loom::Refused{"pane point unavailable: that cell is not addressable"});
+            return;
+        }
+        (void)mail.answer(reply);
+        return;
+    }
+    const PixelRect& body = visible.canvas_body;
+    const ExternalPane::Canvas& c = visible.content->canvas;
+    const CanvasRows lattice = canvas_rows(PaneCanvasRoom{asked.pane, c.grant, body.w, body.h, c.grain,
+                                                          c.graphical, c.text_advance_px,
+                                                          c.text_line_px});
+    if (asked.row < 0 || asked.column < 0 || asked.row >= lattice.rows ||
+        asked.column >= lattice.columns) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: outside the pane's text lattice"});
+        return;
+    }
+    reply.space = input_space_of(screen_of(session_));
+    glyph_point(GlyphGrid{surface::add_cells(body.x, lattice.x), surface::add_cells(body.y, lattice.y),
+                          lattice.advance, lattice.line},
+                asked.row, asked.column, reply.space, reply.x, reply.y);
+    const PointedAt at = canvas_point_of(reply.space, reply.x, reply.y);
+    const RowCell cell = row_cell_at(lattice, surface::sub_px(at.px.x, body.x), surface::sub_px(at.px.y, body.y));
+    if (!at.understood || !body.contains_at(at.px.x, at.px.y, at.grain) || !cell.shown ||
+        cell.row != asked.row || cell.column != asked.column) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: that cell is not addressable"});
         return;
     }
     (void)mail.answer(reply);

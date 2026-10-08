@@ -282,6 +282,23 @@ TEST_CASE("the Neovim editor holding the office with no Neovim says so on its pa
     CHECK(quit_by_key(s));
 }
 
+TEST_CASE("the Neovim editor holding the office under a profile it refuses says so, and a press on the row "
+          "saying it moves nothing") {
+    // THE PROFILE IS JUDGED BEFORE ANY NEOVIM IS MADE: no host stands behind the pane at all.
+    SwitchRig s("nvim-profile-holder");
+    NeovimEnvironment env(s.root, NEOVIM_FIXTURE);
+    set_env("ZENGINE_NEOVIM_PROFILE", "User");
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    CHECK(s.read("running") == "false");
+    REQUIRE_MESSAGE(s.shows("ZENGINE_NEOVIM_PROFILE is `User`"), s.status());
+    press_pane(s.r, s.kind, 0, 2);
+    s.r.release_cell(external_body_rect(s.r.session(), s.kind).x + 2,
+                     external_body_rect(s.r.session(), s.kind).y + kExternalHeaderRows);
+    CHECK(s.r.session().panes.keyboard == s.kind);
+    CHECK(s.read("running") == "false");
+    CHECK_MESSAGE(s.shows("ZENGINE_NEOVIM_PROFILE is `User`"), s.status());
+}
+
 TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing of Neovim's screen") {
     SwitchRig s("nvim-names");
     NeovimEnvironment env(s.root, (s.root / "no-such-dir" / "nvim").string());
@@ -352,13 +369,14 @@ TEST_CASE("standard to Neovim and back carries the unsaved document and its care
     s.type("X");
     REQUIRE(s.read("text") == "alpha Xbeta\n\tgamma\n");
     REQUIRE(s.seat() != nullptr);
-    const std::int64_t incumbent_generation = s.seat()->content_generation;
+    const std::int64_t incumbent_generation = std::stoll(s.read("doc_epoch"));
 
     const EditorSwitchAnswered away = switch_live(s, "neovim");
     REQUIRE_MESSAGE(away.outcome == switch_outcome::kSwitched, away.detail);
     CHECK(away.active == "neovim");
     REQUIRE(s.seat() != nullptr);
-    CHECK(s.seat()->content_generation > incumbent_generation); // Neovim's rows pass the standard Editor's
+    // Neovim's document passes the standard Editor's
+    CHECK(std::stoll(s.read("doc_epoch")) > incumbent_generation);
     CHECK(s.r.plan_->choice_holder(pane::kEditorPaneRole) == nve::kNeovimEditorStem);
     CHECK_FALSE(s.r.kernel.is_loaded(pane::kEditorPaneStem));
     CHECK(s.read("path") == path);
@@ -371,11 +389,15 @@ TEST_CASE("standard to Neovim and back carries the unsaved document and its care
     s.type("A!");
     s.r.key(input::scan::kEscape);
     REQUIRE(beat_until(s, [&] { return s.shows("alpha Xbeta!"); }));
-    const std::int64_t neovim_generation = s.seat()->content_generation;
+    const std::int64_t neovim_generation = std::stoll(s.read("doc_epoch"));
 
     const EditorSwitchAnswered back = switch_live(s, "standard");
     REQUIRE_MESSAGE(back.outcome == switch_outcome::kSwitched, back.detail);
-    CHECK(s.seat()->content_generation > neovim_generation); // and the standard Editor's pass Neovim's
+    // ...and the standard Editor's passes Neovim's, shown in a room granted to it alone
+    CHECK(std::stoll(s.read("doc_epoch")) > neovim_generation);
+    REQUIRE(s.seat() != nullptr);
+    CHECK(shows_canvas(*s.seat()));
+    CHECK(s.seat()->canvas.owner == s.holder());
     CHECK(s.read("path") == path);
     CHECK(s.read("text") == "alpha Xbeta!\n\tgamma\n");
     CHECK(s.read("saved_text") == "alpha beta\n\tgamma\n");
@@ -490,6 +512,99 @@ TEST_CASE("an open through the office shows the file in Neovim, and the save cho
     s.r.key(input::scan::kS, input::mod::kCtrl);
     REQUIRE(beat_until(s, [&] { return s.read("modified") == "false"; }));
     CHECK(file_text(s.root / "open.txt") == "new first line\n");
+}
+
+TEST_CASE("an open in Neovim shows the opened file's picture at the commitment, and no screen of the file it "
+          "replaced after it") {
+    SwitchRig s("nvim-open-picture");
+    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
+    REQUIRE(open_through_office(s, "alpha.txt", "alpha one\nalpha two\n").accepted);
+    REQUIRE(beat_until(s, [&] { return s.shows("alpha one"); }));
+    // EVERY PICTURE THE DESK HEARS FROM THE EDITOR ONCE THE OPEN HAS COMMITTED, by the room it names.
+    bool committed = false;
+    std::vector<std::pair<std::int64_t, std::string>> after;
+    struct Watch {
+        loom::Switchboard& bus;
+        loom::ObserverId id;
+        ~Watch() { bus.remove_observer(id); }
+    } watch{s.r.bus, s.r.bus.add_observer([&s, &committed, &after](const loom::BusEvent& e) {
+        if (e.kind != loom::EventKind::Delivered || e.target != s.r.workshop_id || e.payload == nullptr) return;
+        if (e.schema_name == ManagedOpenProgress::zen_name) {
+            committed = committed || loom::from_value<ManagedOpenProgress>(*e.payload).stage == "apply";
+        } else if (committed && e.schema_name == v5::PaneCanvasContent::zen_name) {
+            const v5::PaneCanvasContent drawn = loom::from_value<v5::PaneCanvasContent>(*e.payload);
+            std::string text;
+            for (const v2::PaneCanvasText& run : drawn.texts) text += run.text + "\n";
+            after.emplace_back(drawn.grant, text);
+        }
+    })};
+    const SourceOpened opened = open_through_office(s, "bravo.txt", "bravo one\nbravo two\n");
+    REQUIRE_MESSAGE(opened.accepted, opened.refusal);
+    // AT THE COMMITMENT THE DESK SHOWS THE OPENED FILE'S PICTURE, as Neovim prepared it.
+    REQUIRE(s.seat() != nullptr);
+    REQUIRE(shows_canvas(*s.seat()));
+    const std::int64_t room = s.seat()->canvas.grant;
+    std::string shown;
+    for (const std::string& row : held_row_texts(*s.seat())) shown += row + "\n";
+    CHECK(shown.find("bravo one") != std::string::npos);
+    CHECK(shown.find("alpha") == std::string::npos);
+    // ...AND NOTHING THE EDITOR DREW IN THAT ROOM AFTER IT SHOWS THE FILE IT REPLACED, until Neovim
+    // has drawn the opened one.
+    REQUIRE(beat_until(s, [&] { return s.shows("bravo two"); }));
+    bool drawn = false;
+    for (const auto& [grant, text] : after) {
+        if (grant != room) continue;
+        CHECK_MESSAGE(text.find("alpha") == std::string::npos, text);
+        drawn = drawn || text.find("bravo one") != std::string::npos;
+    }
+    CHECK(drawn);
+}
+
+TEST_CASE("a host that grants the Neovim editor no canvas is shown its rows and caret as prose, its presses "
+          "reach nothing there, and its keys still reach Neovim") {
+    SwitchRig s("nvim-no-canvas");
+    s.no_canvas = true;
+    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
+    REQUIRE(open_through_office(s, "prose.txt", "first line\nsecond line\n").accepted);
+    REQUIRE(beat_until(s, [&] { return s.shows("second line"); }));
+    REQUIRE(s.seat() != nullptr);
+    CHECK_FALSE(shows_canvas(*s.seat()));
+    // A PRESS REACHES NOTHING THERE: the keys come here, and Neovim's cursor stays on the first line.
+    press_pane(s.r, s.kind, 2, 3);
+    CHECK(s.r.session().panes.keyboard == s.kind);
+    // ...AND ITS KEYS STILL REACH NEOVIM: it edits the line its cursor was on.
+    s.type("Ifrom keys ");
+    s.r.key(input::scan::kEscape);
+    REQUIRE(beat_until(s, [&] { return s.shows("from keys first line"); }));
+    // ...and, once Neovim has drawn its Escape, the block cursor beside the rows, as prose.
+    CHECK(beat_until(s, [&] { return held_caret(*s.seat()).sel_begin_row >= 0; }));
+}
+
+TEST_CASE("Neovim's cursor on an empty line, and after blanks it typed, is drawn as every caret is") {
+    SwitchRig s("nvim-cursor-cells");
+    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
+    REQUIRE(open_through_office(s, "cells.txt", "one\n\nthree\n").accepted);
+    REQUIRE(beat_until(s, [&] { return s.shows("three"); }));
+    focus(s);
+    // THE BLOCK CURSOR ON THE EMPTY SECOND LINE: its one cell is the range, drawn on that row.
+    s.type("j");
+    REQUIRE(beat_until(s, [&] {
+        const PaneCaret at = held_caret(*s.seat());
+        return at.sel_begin_row == 2 && at.sel_begin_col == 0 && at.sel_end_row == 2 && at.sel_end_col == 1;
+    }));
+    // ...AND A BAR AFTER TWO BLANKS TYPED THERE: the caret stands after them, on the row.
+    s.type("A  ");
+    REQUIRE(beat_until(s, [&] {
+        const PaneCaret at = held_caret(*s.seat());
+        return at.row == 2 && at.column == 2;
+    }));
+    s.r.key(input::scan::kEscape);
 }
 
 TEST_CASE("after a switch to Neovim, an open through the office shows another file in Neovim, beside the unsaved one") {

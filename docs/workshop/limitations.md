@@ -255,7 +255,7 @@ and what it has selected, beside the rows it sends or in the picture it draws, s
 those lines has an insertion point — a bar between glyphs in a window, an inverted cell in a
 terminal. Only the Terminal, Info's and Inventory's lines and the layout-name line draw their
 selection; in the others a range selected by keyboard works and is not shown. What no pane's
-LINE has is a pointer sweep: the two editors accept one while the button is held (`PaneDragged`)
+LINE has is a pointer sweep: the two editors sweep with a press held on their canvas
 and no single-line pane does, so in a line a range is selected by `Shift` and the arrow keys.
 
 ### Neovim in the Editor pane draws plain text, one range, and no colours
@@ -265,7 +265,7 @@ carries your document both ways. The honest bounds today:
 
 | question | answer |
 |---|---|
-| Syntax highlighting, search matches, colours? | **no** — the pane protocol carries rows, one caret and one selection range; what Neovim colours is not drawn |
+| Syntax highlighting, search matches, colours? | **no** — the pane draws its rows, one caret and one selection range; what Neovim colours is not drawn |
 | Non-ASCII on screen? | **drawn as `?`** — each cell is one plain character (box drawing becomes `-`, `|`, `+`); the document itself is untouched |
 | A blockwise selection? | **its cursor's row only** on screen; a switch carries its cursor only, and says so |
 | Several windows, tabs or buffers? | **inside Neovim, yes** — a switch to the standard Editor carries the current buffer, and asks your consent before other unsaved buffers are lost |

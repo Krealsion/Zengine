@@ -32,25 +32,31 @@ file hidden leaves the heard document the one Neovim shows"`;
 a refusal writes nothing"`.
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 
-## WL-NVIM-02 — Neovim's screen crosses in the pane protocol's words
+## WL-NVIM-02 — Neovim's screen is the pane's own picture, under one status row
 
 LAW — The pane is one status row over Neovim's screen in drawable ASCII; a bar or underline cursor is the caret, and the one range is Visual, else the menu's selected item, else the block cursor's cell.
 
 MEANS
 - the status row says saved or UNSAVED, the mode and the file, or a standing notice in its place;
-- Neovim is given the room less that row and the caret's column, and resized with it;
-- rows carry the document's generation, so a retired editor's rows never repaint this one.
+- Neovim is given the room less that row and the caret's column; the blanks a cursor stands on stay;
+- it draws in its own room, so a retired editor's picture never repaints it; an opened file's preview stands until Neovim draws it.
 
 DOES NOT MEAN
-- syntax colours, search matches or a rectangle: the protocol has one range, the named next seam.
+- syntax colours, search matches or a rectangle: the pane draws one range, the named next seam.
 
 PROVEN BY — `neovim/projection.hpp` `project`, `ascii_of`; `neovim-editor/pane.cpp` `compose`,
-`say`, `status_text`; `tests/test_neovim.cpp` case `"the projection: a block cursor is its cell, a
+`say`, `status_text`, `take_room`, `Preview`, `on_claim_published`; `neovim/host.hpp`
+`Host::flushes_at_answer`; `tests/test_neovim.cpp` case `"an answer says the screen as it stood
+when the answer came, not the one drawn after it"`, case `"the projection: a block cursor is its cell, a
 bar is a caret, rows carry their meaning"`, case `"the projection: Visual runs through the cursor
 cell, blockwise is the cursor row, a menu item is the range"`, case `"every cell becomes one
 drawable byte, and the document itself is never touched"`; `tests/test_workshop_neovim.cpp` case
 `"standard to Neovim and back carries the unsaved document and its caret exactly, with Neovim
-editing between"`.
+editing between"`, case `"an open in Neovim shows the opened file's picture at the commitment,
+and no screen of the file it replaced after it"`, case `"a host that grants the Neovim editor no
+canvas is shown its rows and caret as prose, its presses reach nothing there, and its keys still
+reach Neovim"`, case `"Neovim's cursor on an empty line, and after blanks it typed, is drawn as
+every caret is"`.
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 
 ## WL-NVIM-03 — A document crosses to Neovim and back exactly, and what does not is said
@@ -166,7 +172,8 @@ PROVEN BY — `neovim/launch.hpp` `check_profile`, `ProfileChoice`, `profile_tag
 `neovim-editor/pane.cpp` `start`, `status_text`, `started_words`;
 `tests/test_workshop_neovim.cpp` case `"a profile that is neither clean nor user and names no
 init file refuses the switch before starting Neovim"`, case `"the profile a weaver names is the
-configuration that runs and the pane says which one it is"`.
+configuration that runs and the pane says which one it is"`, case `"the Neovim editor holding the
+office under a profile it refuses says so, and a press on the row saying it moves nothing"`.
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 
 ## Do not assume

@@ -686,7 +686,9 @@ what Workshop owns and none read off a picture:
   it drew them last, each a word with its place and the point a press names it by; and beside them
   every part the pane names -- a row, a control, an element -- under the pane's own name, with the
   characters it covers, its place and its point: a place of its own, where a press reaches it as
-  the pane reads a press, or none for a part every place of which another part takes. A pane keeps
+  the pane reads a press, or none for a part every place of which another part takes. A canvas
+  picture that takes no press -- the one a managed opening shows, until its pane draws its own, or
+  one its office's holder no longer holds -- gives no word or part a point. A pane keeps
   a part's name across its redraws, so a walk finds it wherever the last redraw put it ([the parts
   a pane names](../reference/workshop-panes.md#a-pane-names-its-parts)). Version 2 answers the words
   alone, and version 1 a text pane's rows, as text fitted to the body rather than as drawn; a pane
@@ -694,7 +696,10 @@ what Workshop owns and none read off a picture:
 - **Where one character is.** `PanePointRequested` version 2,
   `{provider,pane,picture,word,column}`, answers where one character of one word is now, for the
   picture the caller read; version 1, `{provider,pane,picture,row,column}`, one painted cell of a
-  text pane, and a pane drawing its own picture refuses it. So a tool presses a control such as `[Save copy]`, or the View Builder's `[Label]`,
+  text pane, and a pane drawing its own picture refuses it; version 3, the same fields, one cell of
+  a pane's text lattice -- a text pane's painted cell, as version 1 answers it, or the cell of the
+  lattice a canvas pane's room sets its text on, a blank one or the one after a row's last
+  character too. So a tool presses a control such as `[Save copy]`, or the View Builder's `[Label]`,
   without knowing a font.
 
 ![A 1440 by 900 window after a walk read by messages: the View Builder, at 96,102 and 840 by 240 as the desk says, made label1 when its [Label] was pressed by what it says; Info, holding the keys, has Height chosen by select and shows the 240 px written through it](images/desk-read-by-message.png)
@@ -719,12 +724,23 @@ Inventory crumb, or `[Up]`), `hand.row_starting` the topmost row starting with a
 its third character as `hand.row` presses (inside an Inventory view's first box), and `hand.field`
 an Info view's field by its part `field:<path>`, wheeling the view's selection until it shows, so
 a tool reads a pane that draws a picture as it reads a text pane; `act.rows_by_place` numbers a
-pane's lines by where they stand, a blank row a canvas draws as no word among them.
-`workshop/act` steps on them: `desk` checks a
+pane's lines by where they stand, a blank row a canvas draws as no word among them. `hand.point`
+asks `PanePointRequested` version 3 for one cell of a pane's text lattice by its row and column --
+a text pane's painted cell, or the cell of a canvas pane's lattice, a blank row's and the one after
+a line's last character too -- so a tool presses a canvas pane's cell as it presses a text pane's;
+`hand.lattice_point` chooses the cell from the pane's words, reading the pane again where it
+redrew between the reading and the point. A canvas picture that takes no press -- the one a managed
+opening shows, until its pane draws its own, or one its office's holder no longer holds -- says its
+words and parts with no point, and every helper that presses reads the pane again until one does
+(`hand.pressing`), each reading for at most ten seconds.
+`workshop/act` steps on them: `at` presses one cell of a pane's text lattice the same way
+(`{"at": ["td.game", "td", 5, 17]}`); `desk` checks a
 pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
-"view-builder", "kind:label"]}`), and fails rather than press one with no point; `open` presses
-the Pane Manager's row named for a pane (`{"open": "pane:zengine.files/project-files"}`),
+"view-builder", "kind:label"]}`), and fails rather than press one with no point -- `part`,
+`into`, `click`, `at`, `wheel` and `control` wait out a picture that takes no press, for their
+`seconds`; `open` presses the Pane Manager's row named for a pane
+(`{"open": "pane:zengine.files/project-files"}`),
 choosing it first where it is not chosen; `menu` presses the line of the menu on the screen named
 so, or holding some text; `wheel` turns the wheel once, by `dy` and `dx` notches (`dy` 1 away from
 the weaver, -1 toward), over a part by its name or over a pane's first word (`{"wheel":

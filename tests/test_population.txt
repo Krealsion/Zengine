@@ -5,7 +5,7 @@
 # entry's floor sums its open rows (VM-POP-08). ASCII only, with square brackets paired and no
 # line ending in a backslash: file(STRINGS) cuts or welds lines at them (VM-PLAT-05, VM-CHECK-03).
 smoke                             program           always
-neovim                            doctest           always  21
+neovim                            doctest           always  22
 neovim_live                       doctest           neovim  21
 # Tripwires in this suite read snake/play.cpp and snake/clock.cpp as text (VM-WALL-11).
 snake                             doctest           always  22
@@ -45,14 +45,14 @@ neovim_journey                    program           session-neovim
 # A case in this suite reads the keymap example in docs/workshop/hotkeys.md, as a weaver copies it.
 workshop_document                 doctest           always  47
 workshop_screen                   doctest           always  137
-workshop_desk                     doctest           always  37
+workshop_desk                     doctest           always  41
 # Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  76
 # Tripwires in this suite read Workshop's presentation sources, workshop/workshop.cpp,
 # workshop/arrangement.hpp, workshop/powers_door.hpp, the Introspection, Builder, Info, Terminal
 # and Editor panes' sources and CMake files, and tests/weavelib/legacy_pane.cpp as text
 # (VM-WALL-11).
-workshop_panes                    doctest           always  933
+workshop_panes                    doctest           always  942
 # The shapes this tree publishes, and their census against tests/shapes.txt.
 workshop_shapes                   doctest           always  4
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text
@@ -60,8 +60,8 @@ workshop_shapes                   doctest           always  4
 workshop_persistence              doctest           always  158
 workshop_load                     doctest           always  161
 workshop_editor_switch            doctest           always  11
-workshop_neovim                   doctest           always  9
-workshop_neovim                   doctest           neovim  26
+workshop_neovim                   doctest           always  10
+workshop_neovim                   doctest           neovim  29
 # Tripwires in this suite read workshop/workshop.cpp, workshop/recipes.hpp and every pane entry's
 # bytes (VM-WALL-11).
 workshop_files                    doctest           always  60

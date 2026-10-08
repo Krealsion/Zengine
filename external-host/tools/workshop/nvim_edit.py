@@ -50,7 +50,7 @@ import secrets
 import time
 from pathlib import Path
 
-from act import painted, wait_rows
+from act import no_press_yet, painted, unreached, wait_part
 from hand import Hand
 from workshop_steps import chord_moments, moment
 
@@ -132,8 +132,9 @@ def plan(ctx, edits, lines):
 
 
 def pane_rows(hand):
-    """The Neovim pane's rows now: Workshop's status row first, then Neovim's own screen, its
-    command line last. Empty while Workshop does not describe the pane."""
+    """The Neovim pane's rows now, as its words say them: the status row first, then Neovim's own
+    screen -- a blank row is no word where the pane draws its picture -- its command line last
+    whenever it says anything. Empty while Workshop does not describe the pane."""
     view = painted(hand, *PANE)
     return [r["text"] for r in view["rows"]] if view and view["rows"] else []
 
@@ -240,9 +241,15 @@ def run(ctx):
         ctx.fail(words)
 
     ctx.step("give Neovim the keys")
-    view, rows = wait_rows(hand, *PANE, "", 10)
-    ctx.check(rows, "Workshop does not describe the Editor pane; open it and switch it to Neovim")
-    where = hand.point(*PANE, rows[0]["row"], 0, view["picture"])
+    # A press on the pane's top row, the part it names `status`, at the point Workshop gives it:
+    # the row above Neovim's screen, where a press moves nothing in Neovim.
+    view, where = wait_part(hand, *PANE, "status", 10)
+    ctx.check(view is not None, "Workshop does not describe the Editor pane; open it and switch it "
+              "to Neovim")
+    ctx.check(where is not None, "the Editor pane draws no status row (the parts it names: %s)"
+              % [p["name"] for p in view.get("parts", [])])
+    no_press_yet(ctx, view, "the status row", PANE[0], PANE[1], 10)
+    ctx.check(not unreached(where), "no press reaches the Editor pane's status row on its own")
     hand.inject([moment(ctx, "PointerButton", button=1, pressed=p, x=where["x"], y=where["y"],
                         space=where["space"]) for p in (True, False)])
     # After some events the top row is a notice ("editing <path>"); Escape gives the status back.

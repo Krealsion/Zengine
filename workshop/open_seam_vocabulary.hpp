@@ -6,10 +6,12 @@
 
 // The managed opening's conversation (WL-OPEN, agents/workshop/opening.md). A requester asks
 // `zengine.opening`; the manager trials the seat with Workshop, has the Editor prepare the
-// candidate and Workshop admit its rows, then publishes both owners' latest claims in one
-// protected step and answers only from the bus's record that both applied them. Nothing moves
-// before the commitment and nothing is rolled back after it; a pending open stays inspectable.
+// candidate and Workshop admit its picture -- its rows, where the pane draws no canvas -- then
+// publishes both owners' latest claims in one protected step and answers only from the bus's
+// record that both applied them. Nothing moves before the commitment and nothing is rolled back
+// after it; a pending open stays inspectable.
 
+#include "pane_canvas_vocabulary.hpp"
 #include "pane_vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>
@@ -140,6 +142,66 @@ struct SourcePrepared {
               ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
               ZEN_FIELD(sel_end_col));
 };
+
+// ---- The opening as a picture --------------------------------------------------------------
+// Where the managed pane's holder draws on a canvas and prepares for one, the same conversation
+// carries its picture: the trial reserves the canvas room the publication will seat the pane in,
+// the Editor composes the candidate as its own picture there, and the desk admits that picture and
+// shows it at the commitment under the reserved grant. A holder drawing no canvas is asked for rows.
+
+namespace v2 {
+
+/// THE TRIAL, WITH A ROOM FOR A PICTURE: the first version's answer and the canvas room the
+/// publication would seat the pane in, its grant reserved now for that seat and used by nothing
+/// before the commitment -- or a room with no grant, where the pane is prepared as rows.
+struct PresentationTrial {
+    std::int64_t op = 0;
+    bool ok = false;
+    std::string refusal;
+    std::int64_t rows = 0;
+    std::int64_t columns = 0;
+    workshop::PaneCanvasRoom room; ///< the current room shape, not the sub-unit `v2::PaneCanvasRoom`
+    ZEN_SHAPE(PresentationTrial, 2, ZEN_FIELD(op), ZEN_FIELD(ok), ZEN_FIELD(refusal),
+              ZEN_FIELD(rows), ZEN_FIELD(columns), ZEN_FIELD(room));
+};
+
+/// Prepare this source as the first version asks, composed as the pane's picture for the canvas
+/// room the trial reserved: the rows its lattice holds, under its grant.
+struct PrepareSourceRequested {
+    std::int64_t op = 0;
+    std::string path;
+    std::int64_t rows = 0;
+    std::int64_t columns = 0;
+    workshop::PaneCanvasRoom room; ///< the current room shape, not the sub-unit `v2::PaneCanvasRoom`
+    ZEN_SHAPE(PrepareSourceRequested, 2, ZEN_FIELD(op), ZEN_FIELD(path), ZEN_FIELD(rows),
+              ZEN_FIELD(columns), ZEN_FIELD(room));
+};
+
+/// The candidate prepared, as its picture in the reserved room: the pane's own, caret and parts
+/// standing in it as they will when it is shown.
+struct SourcePrepared {
+    std::int64_t op = 0;
+    bool ok = false;
+    std::string refusal;
+    std::int64_t generation = 0; ///< the candidate's doc epoch
+    v5::PaneCanvasContent picture;
+    ZEN_SHAPE(SourcePrepared, 2, ZEN_FIELD(op), ZEN_FIELD(ok), ZEN_FIELD(refusal),
+              ZEN_FIELD(generation), ZEN_FIELD(picture));
+};
+
+/// Admit this picture as the trial's content and offer the presentation claim for this
+/// operation; judged against the room the trial reserved and as any picture is. Nothing moves.
+struct PresentationAdmitRequested {
+    std::int64_t op = 0;
+    std::string provider;
+    std::string pane;
+    std::int64_t generation = 0;
+    v5::PaneCanvasContent picture;
+    ZEN_SHAPE(PresentationAdmitRequested, 2, ZEN_FIELD(op), ZEN_FIELD(provider), ZEN_FIELD(pane),
+              ZEN_FIELD(generation), ZEN_FIELD(picture));
+};
+
+} // namespace v2
 
 // ---- Manager -> both owners, afterwards ------------------------------------------------------
 

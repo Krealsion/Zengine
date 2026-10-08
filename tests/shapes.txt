@@ -271,6 +271,7 @@ PanePoint v1 0xdc77c79cfc6ba9e0
 PanePoint v2 0xac1cbc9ddc1f52d0
 PanePointRequested v1 0xda79c7baf5ba298d
 PanePointRequested v2 0x91d81e7bd73ef7b1
+PanePointRequested v3 0xaf8c31c797778d47
 PanePresentation v1 0x6ba016f3c6ef98b8
 PanePressed v1 0xc035accbd21d3704
 PanePressed v2 0x286d8d05fca36b60
@@ -325,10 +326,13 @@ PowerRow v1 0x9ecd7fade0ac53e7
 PowersDoorState v1 0x4aad189beb1ddf31
 PowersFound v1 0x4c94b35d99bee7c2
 PrepareSourceRequested v1 0x60a7a897486bec99
+PrepareSourceRequested v2 0x2e69760eabbdecb0
 PrepareTimerHandover v1 0xa360a51ea798b2ca
 PresentationAdmitRequested v1 0xac08d37d5b6df93b
+PresentationAdmitRequested v2 0x9c7628aab1b0265d
 PresentationAdmitted v1 0x39e83fd20b7f8d17
 PresentationTrial v1 0x7a9722721101ca57
+PresentationTrial v2 0x76a837ef10fcbd24
 PresentationTrialRequested v1 0x0ae10dbe80da1094
 PresenterReady v1 0xc273f6cd91765040
 ProjectDoorState v2 0xd8e1fecfc903d2d8
@@ -378,6 +382,7 @@ SourceLocation v1 0x47372595bb69f14b
 SourceLocationContext v1 0xe8a9a8b7eaee5d39
 SourceOpened v1 0xee05fd82d327bc19
 SourcePrepared v1 0x4c02c049387b2d37
+SourcePrepared v2 0x2d2236678ab5a85f
 SourceSampled v1 0x3ade3edfe4f9c815
 SourceSelection v1 0xbcb27a5d9f6c509c
 SourceText v1 0xc8eac939a45d0903

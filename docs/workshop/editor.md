@@ -164,6 +164,14 @@ edge scrolls the document a line at a time under the hand. The wheel scrolls the
 body without moving the caret; the next caret gesture brings the view back. On a terminal
 with no wheel, the keyboard is the viewport: arrows, `Ctrl`+`Home`/`End`.
 
+The Editor draws its rows on its own canvas, so the caret and the selection are drawn as every
+pane draws them, in a window and in a terminal alike -- here the standard Editor above Neovim
+([Neovim in Workshop](neovim.md)), each with a word swept:
+
+![The standard Editor with "total" selected and the caret after it, above Neovim with "total" selected in Visual mode, in a window](images/editors-caret-selection-window.png)
+
+![The same two Editors in a 120 x 30 terminal: the selection in reverse video, the standard Editor's caret on the cell after it](images/editors-caret-selection-terminal.png)
+
 The editing keys are the Editor's own mechanics and are **not remappable**; the six actions
 that *are* keymap rows (`editor.save`, `editor.newline`, `editor.tab`, `editor.discard`,
 `editor.extract`, `editor.location`) are the pane's declared rows and remap like any other

@@ -10,6 +10,7 @@
 #include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
 #include "workshop/pane_canvas_text.hpp"
+#include "workshop/screen_canvas.hpp"
 #include "view-builder/picture.hpp"
 #include "view/view.hpp"
 
@@ -39,7 +40,7 @@ class DeskAsker
                              loom::Emit<DeskViewRequested, v2::DeskViewRequested,
                                         v2::PaneViewRequested, v3::PaneViewRequested,
                                         v2::PanePointRequested, PaneViewRequested,
-                                        PanePointRequested>> {
+                                        PanePointRequested, v3::PanePointRequested>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::vector<DeskView> desks;
@@ -94,7 +95,8 @@ struct DeskRig {
                                   loom::schema_of<v3::PaneViewRequested>(),
                                   loom::schema_of<v2::PanePointRequested>(),
                                   loom::schema_of<PaneViewRequested>(),
-                                  loom::schema_of<PanePointRequested>()}) {
+                                  loom::schema_of<PanePointRequested>(),
+                                  loom::schema_of<v3::PanePointRequested>()}) {
             grant.allow_to_role(shape->name(), shape->version(), kWorkshopProvider);
         }
         asker_id = r.bus.register_weave(std::move(made), std::move(grant));
@@ -166,6 +168,17 @@ struct DeskRig {
 
     /// ...and the first version's point for a row and a column, or the refusal's reason.
     std::string first_point(const PanePointRequested& asked, PanePoint& out) {
+        asker->refusals.clear();
+        const std::size_t before = asker->first_points.size();
+        ask([&](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, asked); });
+        if (!asker->refusals.empty()) return asker->refusals.back();
+        REQUIRE(asker->first_points.size() == before + 1);
+        out = asker->first_points.back();
+        return std::string();
+    }
+
+    /// ...and the third version's point for a cell of a pane's text lattice, or the refusal's reason.
+    std::string lattice_point(const v3::PanePointRequested& asked, PanePoint& out) {
         asker->refusals.clear();
         const std::size_t before = asker->first_points.size();
         ask([&](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, asked); });
@@ -717,6 +730,115 @@ TEST_CASE("a held press keeps a canvas pane's room only from its title row: a pa
     CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
 }
 
+TEST_CASE("a canvas pane whose title waits for a held press, moved while it waits, is granted its new room "
+          "at once and the press is lost") {
+    SketchRig d;
+    press_outside(d.r, d.sketch_kind); // the keys are Workshop's...
+    d.r.key(input::scan::kT);          // ...and the titles hidden
+    d.r.text("t");
+    REQUIRE_FALSE(d.r.session().pane_titles);
+    const auto author = [&](std::int64_t y, std::int64_t h) {
+        for (auto& p : d.r.session().setup.active.panes) {
+            if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
+            p.place = {pane_unit::kPixels, 4 * surface::kCanvasCellPx, y * surface::kCanvasCellPx};
+            p.width = {pane_unit::kPixels, 60 * surface::kCanvasCellPx};
+            p.height = {pane_unit::kPixels, h * surface::kCanvasCellPx};
+        }
+        d.r.extent(149, 60); // a same-size extent reseats nothing: the desk re-seats every pane
+        d.r.extent(150, 60);
+    };
+    author(20, 16);
+    d.draw();
+    v2::PaneView view;
+    REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+    const ExternalPane before = *d.r.session().panes.external_pane(d.sketch_kind);
+    // A PRIMARY PRESS HELD ON THE PANE takes the keys, and the room their title row takes waits.
+    const PaneWord& w = view.words[2];
+    d.sketch->pointers.clear();
+    d.r.publish(loom::to_value(input::PointerButton{1, true, w.x, w.y, w.space, input::mod::kNone}));
+    REQUIRE(keyboard_pane(d.r.session().panes) == d.sketch_kind);
+    REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->canvas.title_waits);
+    REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->canvas.grant == before.canvas.grant);
+    // ...AND THE PANE MOVED two rows down while its title waits: no room is kept for the press.
+    author(22, 14);
+    const ExternalPane& moved = *d.r.session().panes.external_pane(d.sketch_kind);
+    CHECK(moved.canvas.grant != before.canvas.grant);
+    CHECK_FALSE(moved.canvas.title_waits);
+    CHECK(moved.canvas.y > before.canvas.y);
+    CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
+}
+
+TEST_CASE("a pane moved one title row's height while a press is held, its title unchanged, is granted its "
+          "new room at once and the press is lost, in a window and in a terminal, titled or not") {
+    for (const bool window : {false, true}) {
+        for (const bool hidden : {false, true}) {
+            CAPTURE(window);
+            CAPTURE(hidden);
+            SketchRig d;
+            if (hidden) {
+                press_outside(d.r, d.sketch_kind); // the keys are Workshop's...
+                d.r.key(input::scan::kT);          // ...and the titles hidden
+                d.r.text("t");
+                REQUIRE_FALSE(d.r.session().pane_titles);
+            }
+            const auto author = [&](std::int64_t y, std::int64_t h) {
+                for (auto& p : d.r.session().setup.active.panes) {
+                    if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
+                    p.place = {pane_unit::kPixels, 4 * surface::kCanvasCellPx, y};
+                    p.width = {pane_unit::kPixels, 60 * surface::kCanvasCellPx};
+                    p.height = {pane_unit::kPixels, h};
+                }
+                // a same-size extent reseats nothing: the desk re-seats every pane
+                if (window) {
+                    d.r.extent_on_window(149, 60);
+                    d.r.extent_on_window(150, 60);
+                } else {
+                    d.r.extent(149, 60);
+                    d.r.extent(150, 60);
+                }
+            };
+            const std::int64_t top = 20 * surface::kCanvasCellPx, tall = 16 * surface::kCanvasCellPx;
+            author(top, tall);
+            d.draw();
+            const std::int64_t titles = hidden ? 0 : kExternalHeaderRows;
+            REQUIRE(external_title_rows(d.r.session().panes, d.sketch_kind, d.r.session().pane_titles) ==
+                    titles);
+            // ONE TITLE ROW'S HEIGHT in this medium: what a body loses to the title row.
+            const Screen sc = screen_of(d.r.session());
+            const PaneBounds at = bounds_of(d.r.session().panes, d.r.session().setup.active,
+                                            d.sketch_kind, sc);
+            const std::int64_t step =
+                canvas_body_place(at.rect, sc, kExternalHeaderRows).y - canvas_body_place(at.rect, sc, 0).y;
+            REQUIRE(step > 0);
+            v2::PaneView view;
+            REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+            const ExternalPane before = *d.r.session().panes.external_pane(d.sketch_kind);
+            // A SECONDARY PRESS HELD ON THE PANE: the keys, and so its title rows, stay as they are.
+            const PaneWord& w = view.words[2];
+            d.sketch->pointers.clear();
+            d.r.publish(loom::to_value(input::PointerButton{3, true, w.x, w.y, w.space, input::mod::kNone}));
+            REQUIRE_FALSE(d.sketch->pointers.empty());
+            REQUIRE(d.sketch->pointers.back().phase == canvas_pointer::kPress);
+            // ...AND ITS TOP EDGE MOVED one title row's height, its bottom where it was: down under a
+            // title it keeps, up with none -- each the body it would have with the other title count,
+            // and no title row's change.
+            if (hidden) {
+                author(top - step, tall + step);
+            } else {
+                author(top + step, tall - step);
+            }
+            REQUIRE(external_title_rows(d.r.session().panes, d.sketch_kind, d.r.session().pane_titles) ==
+                    titles);
+            const ExternalPane& moved = *d.r.session().panes.external_pane(d.sketch_kind);
+            CHECK(moved.canvas.grant != before.canvas.grant);
+            CHECK_FALSE(moved.canvas.title_waits);
+            CHECK(moved.canvas.y == before.canvas.y + (hidden ? -step : step));
+            CHECK(moved.canvas.y + moved.canvas.height == before.canvas.y + before.canvas.height);
+            CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
+        }
+    }
+}
+
 TEST_CASE("a held press on the canvas pane that has the keys keeps its room while launches take its title "
           "row away and give it back, and its title is drawn again once it has the keys again") {
     SketchRig d;
@@ -1146,6 +1268,80 @@ TEST_CASE("a row as wide as its pane with a caret in it says every character, at
         PanePoint first;
         CHECK(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown}, first)
                   .find("outside") != std::string::npos);
+    }
+}
+
+TEST_CASE("every cell of a canvas pane's text lattice has a point, a blank one and the one after a row's last character too, and a press there reaches the pane at that cell; a text pane's cell is the first version's") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        if (window) d.medium(true);
+        // THE PANE'S ROWS ON ITS LATTICE: a row, a blank one, and a longer row.
+        REQUIRE_FALSE(d.sketch->rooms.empty());
+        const PaneCanvasRoom room = d.sketch->rooms.back();
+        const CanvasRows lattice = canvas_rows(room);
+        REQUIRE(lattice.rows > 3);
+        const std::vector<surface::SurfaceTextRow> rows{{"abc", surface::role::kFill},
+                                                        {"", surface::role::kFill},
+                                                        {"defg", surface::role::kFill}};
+        const v5::PaneCanvasContent drawn = rows_picture(room, ++d.number, rows);
+        d.drive([drawn](SketchSeat&, loom::Mail& m) {
+            (void)m.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, drawn);
+        });
+        v2::PaneView view;
+        REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
+        REQUIRE(view.picture == d.number);
+        // ...THE CELL AFTER A ROW'S LAST CHARACTER, A BLANK ROW'S CELL AND A ROW'S LAST CELL: each a
+        // point a press reaches the pane at, as that cell of its lattice.
+        for (const auto& [row, column] : {std::pair<std::int64_t, std::int64_t>{0, 3}, {1, 0}, {2, 1},
+                                          {0, lattice.columns - 1}}) {
+            CAPTURE(row);
+            CAPTURE(column);
+            PanePoint at;
+            REQUIRE(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture, row,
+                                                           column},
+                                    at)
+                        .empty());
+            CHECK(at.row == row);
+            CHECK(at.column == column);
+            d.sketch->pointers.clear();
+            d.click(at.x, at.y, at.space);
+            REQUIRE_FALSE(d.sketch->pointers.empty());
+            const PaneCanvasPointer& pressed = d.sketch->pointers.front();
+            REQUIRE(pressed.phase == canvas_pointer::kPress);
+            const RowCell cell = row_cell_at(lattice, pressed.x, pressed.y);
+            CHECK(cell.shown);
+            CHECK(cell.row == row);
+            CHECK(cell.column == column);
+        }
+        // ...AND NONE PAST THE LATTICE, OR FOR A PICTURE SINCE MOVED.
+        PanePoint none;
+        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture,
+                                                     lattice.rows, 0},
+                              none)
+                  .find("outside the pane's text lattice") != std::string::npos);
+        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture, 0,
+                                                     lattice.columns},
+                              none)
+                  .find("outside the pane's text lattice") != std::string::npos);
+        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture + 1, 0, 0},
+                              none)
+                  .find("picture moved") != std::string::npos);
+        // A TEXT PANE'S CELL IS THE ONE THE FIRST VERSION NAMES.
+        say_rows(d);
+        REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
+        for (std::int64_t column = 0; column < 4; ++column) {
+            CAPTURE(column);
+            PanePoint first, third;
+            REQUIRE(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 1, column}, first)
+                        .empty());
+            REQUIRE(d.lattice_point(v3::PanePointRequested{kAlphaOffice, "alpha", view.picture, 1, column},
+                                    third)
+                        .empty());
+            CHECK(third.x == first.x);
+            CHECK(third.y == first.y);
+            CHECK(third.space == first.space);
+        }
     }
 }
 
@@ -1885,6 +2081,54 @@ TEST_CASE("a canvas part's own place is sought over all of it, and a part with n
             REQUIRE(got != nullptr);
             CHECK(got->name == part.name);
         }
+    }
+}
+
+TEST_CASE("a canvas picture its office's holder no longer holds says its words and parts with no point, "
+          "gives none, and a press where one was reaches nothing") {
+    for (const bool window : {false, true}) {
+        CAPTURE(window);
+        SketchRig d;
+        d.medium(window);
+        d.draw_named({PaneCanvasPart{"node", kPaneCanvasUnit, 0, 8 * kPaneCanvasUnit, kPaneCanvasUnit}});
+        REQUIRE(d.sketch->rejected.empty());
+        v3::PaneView held;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, held).empty());
+        REQUIRE(held.parts.size() == 1);
+        REQUIRE(held.parts[0].space != input::space::kUnknown);
+        // THE OFFICE HELD BY NO ONE NOW, the picture standing until the desk grants its room afresh.
+        d.r.host.role_holder = [](std::string_view) { return loom::WeaveId{}; };
+        v3::PaneView now;
+        REQUIRE(d.parts(kCanvasOffice, kCanvasPane, now).empty());
+        CHECK(now.picture == held.picture);
+        REQUIRE(now.words.size() == held.words.size());
+        for (std::size_t i = 0; i < now.words.size(); ++i) {
+            CAPTURE(now.words[i].text);
+            CHECK(now.words[i].text == held.words[i].text);
+            CHECK(now.words[i].place.x == held.words[i].place.x);
+            CHECK(now.words[i].place.w == held.words[i].place.w);
+            CHECK(now.words[i].x == 0);
+            CHECK(now.words[i].y == 0);
+            CHECK(now.words[i].space == input::space::kUnknown);
+        }
+        REQUIRE(now.parts.size() == 1);
+        CHECK(now.parts[0].name == "node");
+        CHECK(now.parts[0].place.x == held.parts[0].place.x);
+        CHECK(now.parts[0].place.w == held.parts[0].place.w);
+        CHECK(now.parts[0].x == 0);
+        CHECK(now.parts[0].y == 0);
+        CHECK(now.parts[0].space == input::space::kUnknown);
+        // NEITHER POINT DOOR GIVES ONE...
+        v2::PanePoint character;
+        CHECK(d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, now.picture, 0, 0}, character)
+                  .find("takes no press") != std::string::npos);
+        PanePoint cell;
+        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, now.picture, 0, 0}, cell)
+                  .find("takes no press") != std::string::npos);
+        // ...AS A PRESS WHERE THE PART'S POINT WAS REACHES NOTHING.
+        d.sketch->pointers.clear();
+        d.click(held.parts[0].x, held.parts[0].y, held.parts[0].space);
+        CHECK(d.sketch->pointers.empty());
     }
 }
 
