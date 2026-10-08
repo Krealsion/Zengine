@@ -2,6 +2,7 @@
 # Copyright (c) 2026 Joshua DeMoss
 """Setup descriptions and their preparation's ownership and failure checks, without a window or
 another host."""
+import ast
 import base64
 from copy import deepcopy
 import importlib.util
@@ -214,6 +215,29 @@ def make(tmp, name="made", **fields):
     data.update(fields)
     (root / "setup.json").write_text(json.dumps(data), encoding="utf-8")
     return root
+
+
+def rows_without_settings(source):
+    """The desk rows a Python source spells -- a dict holding `provider`, `pane` and `front`, as
+    a literal or as `dict(...)` -- that name no `settings` and are not handed to
+    `formats.setup(...)` (workshop_formats), which gives each row none."""
+    tree = ast.parse(source)
+    handed = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "setup" and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "formats"):
+            handed.update(id(inner) for arg in node.args for inner in ast.walk(arg))
+
+    def keys(node):
+        if isinstance(node, ast.Dict):
+            return {k.value for k in node.keys if isinstance(k, ast.Constant)}
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "dict":
+            return {k.arg for k in node.keywords if k.arg}
+        return set()
+    return [node for node in ast.walk(tree)
+            if {"provider", "pane", "front"} <= keys(node) and "settings" not in keys(node)
+            and id(node) not in handed]
 
 
 def act_module():
@@ -515,6 +539,16 @@ class Recipes(unittest.TestCase):
                  if p != owner and "__pycache__" not in p.parts
                  and composed.search(p.read_text(encoding="utf-8"))]
         self.assertEqual(found, [])
+        # ...and every desk row a tool spells keeps its settings, the field a current row holds,
+        # unless it is handed to workshop_formats.setup, which gives each row none.
+        missing = []
+        for top in ("external-host", "examples"):
+            for p in sorted((REPO / top).rglob("*.py")):
+                if p == owner or "__pycache__" in p.parts:
+                    continue
+                missing += ["%s:%d" % (p.relative_to(REPO), row.lineno)
+                            for row in rows_without_settings(p.read_text(encoding="utf-8"))]
+        self.assertEqual(missing, [])
         # ...which names the versions the C++ owners declare.
         import workshop_formats as formats
         self.assertEqual(formats.SETUP_VERSION, self.owner_version("workshop/setup_persist.hpp"))
