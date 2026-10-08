@@ -651,8 +651,8 @@ struct SettingsSubject {
 
 /// The inspector's subject: a pane an inspector named, the owner's rows over it, and the name this
 /// host gives what they address. Written by one door (`on(InspectPaneRequested)`); the name moves
-/// only when the pane, the live desk or the settings its rows were built from do. Session, never
-/// persisted.
+/// only when the pane, the live desk, whether that desk holds the pane's row, or the settings its
+/// rows were built from do. Session, never persisted.
 // WL-INFO-14 -- agents/workshop/info-body.md
 struct InspectedPane {
     PaneRef ref;               ///< the pane an inspector asked for; an empty provider is "none"
@@ -660,6 +660,7 @@ struct InspectedPane {
     std::int64_t name = 0;     ///< what the picture carries and a commit returns; 0 is unnamed
     std::int64_t minted = 0;   ///< the last name handed out; names are never handed out twice
     std::uint64_t desk = 0;    ///< `SetupState::put_live` when `name` was given
+    bool member = false;       ///< whether that desk held the pane's row when `name` was given
     SettingsSubject settings;  ///< the settings rows `name` was given over
 
     bool addressed() const { return !ref.provider.empty(); }

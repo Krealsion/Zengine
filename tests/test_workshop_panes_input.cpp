@@ -2204,8 +2204,8 @@ struct ComposeRig {
         timer->zen_set_self(id);
     }
 
-    /// A target with an OPTIONAL field, which in this Loom means a hand-built schema
-    /// answered by a hand-written door. See `Optionals`.
+    /// A target with an OPTIONAL field: a hand-built schema answered by a hand-written door.
+    /// See `Optionals`.
     Optionals* optionals = nullptr;
     void with_optionals() {
         auto weave = std::make_unique<Optionals>();

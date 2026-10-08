@@ -72,18 +72,26 @@ template <> struct TextForm<std::int64_t> {
                 return std::nullopt;
             }
         }
-        std::int64_t value = 0;
+        // THE MAGNITUDE, UNSIGNED, so the most negative number reads as itself: its magnitude is
+        // one past the most positive one's.
+        const std::uint64_t most = negative ? 9223372036854775808ULL : 9223372036854775807ULL;
+        std::uint64_t magnitude = 0;
         for (; i < text.size(); ++i) {
             const char c = text[i];
             if (c < '0' || c > '9') {
                 return std::nullopt;
             }
-            if (value > (9223372036854775807LL - (c - '0')) / 10) {
+            const auto digit = static_cast<std::uint64_t>(c - '0');
+            if (magnitude > (most - digit) / 10) {
                 return std::nullopt; // a number too big to be one
             }
-            value = value * 10 + (c - '0');
+            magnitude = magnitude * 10 + digit;
         }
-        return negative ? -value : value;
+        if (!negative) {
+            return static_cast<std::int64_t>(magnitude);
+        }
+        return magnitude == most ? static_cast<std::int64_t>(-9223372036854775807LL - 1)
+                                 : -static_cast<std::int64_t>(magnitude);
     }
     static const char* expected() { return "a whole number"; }
 };

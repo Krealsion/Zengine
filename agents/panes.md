@@ -540,9 +540,10 @@ v2::PaneContent v2, v2::PaneCaret v2                      (pane_vocabulary.hpp) 
   capacity and the setup digest — the desk's panes, places, sizes and ranks, and not a pane's
   settings. Each owner derives its claim from its own state at the end of every delivery and
   claims only when it moved (`after_delivery`), so an edit to A, a routed input, a resize or an
-  authored change other than a setting moves a claim and aborts a preparation bound to the
-  previous revision. Nothing is held. A setting written meanwhile survives the publication,
-  which keeps the live desk's settings over the trial's copy.
+  authored change to the desk's panes, places, sizes or ranks moves a claim and aborts a
+  preparation bound to the previous revision. Nothing is held. A rename or a setting written
+  meanwhile survives the publication, which keeps the live desk's name and settings over the
+  trial's copy.
 - **`v2::PaneContent` and `v2::PaneCaret` ADD a `generation` field beside the untouched v1
   doors** (GATE-04's reason: a published `(name, version)` is frozen). Workshop admits a v2
   projection unless it names a generation older than the one the pane holds — a picture of a

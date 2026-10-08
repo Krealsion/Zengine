@@ -146,13 +146,14 @@ public:
 class CanvasEditor
     : public loom::WeaveBase<CanvasEditor, NativeEditorState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PaneCanvasRoom,
-                                          PaneCanvasPointer, PaneCanvasRejected,
+                                          PaneSettings, PaneCanvasPointer, PaneCanvasRejected,
                                           v2::PrepareSourceRequested, ManagedOpenProgress,
                                           ManagedOpenSettled, SeatDo>,
                              loom::Emit<PaneOffered, v5::PaneCanvasContent, v2::SourcePrepared>,
                              loom::Claims<EditorDocument>> {
 public:
     std::vector<PaneCanvasRoom> rooms;
+    std::vector<std::string> heard; ///< "settings" or "room" (either kind), in the order they came
     std::vector<PaneCanvasRejected> rejected;
     std::vector<PaneCanvasPointer> pointers;
     std::string row = "no document";
@@ -174,11 +175,13 @@ public:
         (void)mail.as_role(kEditorRole)
             .send_to_role(kWorkshopProvider, PaneOffered{"editor", "Editor", "a canvas stand-in"});
     }
-    void on(const PaneRoom&, loom::Mail&) {}
+    void on(const PaneRoom&, loom::Mail&) { heard.push_back("room"); }
     void on(const PaneCanvasRoom& room, loom::Mail& mail) {
         rooms.push_back(room);
+        heard.push_back("room");
         if (!quiet) draw(mail);
     }
+    void on(const PaneSettings&, loom::Mail&) { heard.push_back("settings"); }
     void on(const PaneCanvasPointer& e, loom::Mail&) { pointers.push_back(e); }
     void on(const PaneCanvasRejected& refused, loom::Mail&) { rejected.push_back(refused); }
     void on(const SeatDo&, loom::Mail& mail) {
@@ -1260,6 +1263,36 @@ TEST_CASE("a canvas room that moves while the document is prepared refuses its a
     CHECK_FALSE(o.asker->opens[0].accepted);
     CHECK(o.asker->opens[0].refusal.find("changed while opening") != std::string::npos);
     CHECK(o.editor->state().applied == applied);
+}
+
+TEST_CASE("a managed opening hands its pane's settings before the room it seats it in") {
+    // THE EDITOR TAKES ITS SETTINGS, and is off the desk when the open is asked: the opening seats
+    // it, the showing's repaint hands its settings, and the rooms it is seated in follow.
+    PictureOpen o("open-settings-first");
+    REQUIRE(hand_close(o.r, PaneRef{kEditorRole, "editor"}).closed);
+    o.editor->heard.clear();
+    o.ask_b();
+    REQUIRE(o.asker->opens.size() == 1);
+    REQUIRE_MESSAGE(o.asker->opens[0].accepted, o.asker->opens[0].refusal);
+    REQUIRE_FALSE(o.editor->heard.empty());
+    CHECK(o.editor->heard.front() == "settings");
+}
+
+TEST_CASE("a layout renamed while an opening prepares keeps its name through the publication") {
+    // THE DIGEST LEAVES THE NAME OUT, as it leaves settings: a rename does not abort the opening,
+    // and the publication keeps the live desk's name rather than the copy's.
+    PictureOpen o("open-rename");
+    o.editor->hold_prepare = true;
+    o.ask_b();
+    REQUIRE(o.asker->opens.empty());
+    REQUIRE(o.editor->holding());
+    SetupState& shelf = const_cast<Session&>(o.r.session()).setup;
+    REQUIRE(rename_layout(shelf, shelf.active_at, "Renamed"));
+    o.drive([](CanvasEditor& e, loom::Mail& m) { e.answer_held(m); });
+    o.serve();
+    REQUIRE(o.asker->opens.size() == 1);
+    REQUIRE_MESSAGE(o.asker->opens[0].accepted, o.asker->opens[0].refusal);
+    CHECK(o.r.session().setup.active.name == "Renamed");
 }
 
 TEST_CASE("a setting written while an opening prepares survives its publication") {

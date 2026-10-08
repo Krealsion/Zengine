@@ -356,6 +356,15 @@ TEST_CASE("an Info commit queued behind a layout switch is refused, and neither 
     const auto enqueue = [&t](const loom::Value& v) {
         (void)t.r.bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
     };
+    // WHAT INFO WAS ANSWERED, read off the bus: the commit it sent, and the refusal.
+    std::vector<PaneSubjectActed> answered;
+    const loom::ObserverId tap = t.r.bus.add_observer([&t, &answered](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr &&
+            ev.target == t.r.bus.role_holder(ip::kInfoPaneRole) &&
+            ev.schema_name == PaneSubjectActed::zen_name) {
+            answered.push_back(loom::from_value<PaneSubjectActed>(*ev.payload));
+        }
+    });
     const Gesture next = t.r.session().keymap.gesture_of(Act::kLayoutNext);
     enqueue(loom::to_value(input::KeyPressed{input::scan::kReturn, "", input::mod::kNone}));
     enqueue(loom::to_value(input::PointerButton{1, true, 0,
@@ -363,12 +372,47 @@ TEST_CASE("an Info commit queued behind a layout switch is refused, and neither 
                                                 input::space::kCells, input::mod::kNone}));
     enqueue(loom::to_value(input::KeyPressed{next.scancode, "", next.modifiers}));
     t.r.bus.drain_until_idle();
+    t.r.bus.remove_observer(tap);
+    REQUIRE(answered.size() == 1);
+    CHECK_FALSE(answered.front().accepted);
+    CHECK(answered.front().refusal == WorkshopWeave::kPaneCommitSubjectGone);
     CHECK(t.r.last_notice().find("committed") == std::string::npos);
     for (const Layout& layout : t.r.session().setup.shelved) {
         CHECK(terminal_settings(layout.desk).empty());
     }
     CHECK(terminal_settings(t.r.session().setup.active).empty());
     CHECK(t.legend_shown());
+}
+
+TEST_CASE("a press aimed at the Terminal's picture from before its legend hid is refused") {
+    LegendRig t;
+    t.open();
+    t.inspect_terminal();
+    t.unfocus();
+    REQUIRE(t.legend_shown());
+
+    // THE COMMIT'S HAND-OFF IS QUEUED, AND ONLY THEN DOES A PRESS ARRIVE: Workshop stamps it with
+    // the picture it holds, drawn with the legend, and the Terminal is handed the setting first.
+    const std::size_t at = subject_row_index(t.r.session(), tp::kSettingLegend, "SETTINGS");
+    const std::int64_t subject = t.r.session().inspected.name;
+    DoorHand& h = door_hand(t.r);
+    h.next = [subject, at](DoorHand&, loom::Mail& m) {
+        (void)m.as_role(DoorHand::kOffice)
+            .send_to_role(kWorkshopProvider,
+                          PaneCommitRequested{subject, static_cast<std::int64_t>(at), "off"});
+    };
+    (void)t.r.bus.send(t.r.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    (void)t.r.bus.pump_pending(); // the hand sends the commit
+    (void)t.r.bus.pump_pending(); // Workshop writes it and queues the hand-off
+    const ui::Rect body = external_body_rect(t.r.session(), t.terminal());
+    t.r.press_cell(body.x + 3, body.y + 2); // a row the legend's going moves
+    REQUIRE_FALSE(t.legend_shown());
+    bool refused = false;
+    for (const std::string& row : held_row_texts(*t.r.session().panes.external_pane(t.terminal()))) {
+        refused = refused || row.find("That transcript picture changed; try again") != std::string::npos;
+    }
+    CHECK(refused);
 }
 
 TEST_CASE("a legend value the Terminal cannot use is kept as stored, and said in its legend row") {

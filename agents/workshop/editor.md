@@ -179,7 +179,7 @@ WHY — `agents/decisions/the-editor-is-the-custodian.md`
 LAW — The desk judges a trial seat on a copy and moves nothing; asked to admit, it re-judges, keeps the content and offers its presentation; shown the publication, it applies seat, keys, room and content.
 
 MEANS
-- a change of its rows, of the desk but a setting, or a routed input before the commitment aborts it; a canvas moved before the admission refuses it there;
+- a change of its rows, of the desk's panes, places, sizes or ranks, or a routed input before the commitment aborts it; a canvas moved before the admission refuses it there;
 - a presentation it holds no trial for is Declined, said, and re-claimed from the live desk;
 - the content is the pane's picture in the room the trial reserved, or its rows (WL-OPEN-10).
 

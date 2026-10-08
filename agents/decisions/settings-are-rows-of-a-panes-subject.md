@@ -14,8 +14,9 @@ A row reads the stored value, or the default, spelled as it is typed. A commit i
 setting's kind (`on` or `off`, a whole number, a text), refused unless the setting takes it,
 naming what it takes, and written through the setup's settings door, which stores the default
 as absence; `-` clears. A kept row takes only `-`. The subject is named anew when the settings
-its rows were built from change, so a draft never lands on another setting. Info itself is
-unchanged: the rows cross as any other.
+its rows were built from change, and when its row leaves the desk or comes back, so a draft never
+lands on another setting or on a row made afresh. Info itself is unchanged: the rows cross as any
+other.
 
 **Alternatives considered.**
 - *Argued: a settings pane of its own* — refused: a second editor of the same rows would judge
@@ -25,8 +26,8 @@ unchanged: the rows cross as any other.
 - *Argued: showing `-` for a setting at its default* — refused: the row would not say what is in
   effect, and a draft would open on a word the setting does not take.
 
-**Consequences.** The name now covers three things: the pane, the desk put live, and its
-settings rows. A declaration that stops counting turns its rows into kept ones, under a new
+**Consequences.** The name covers four things: the pane, the desk put live, whether that desk
+holds the pane's row, and its settings rows. A declaration that stops counting turns its rows into kept ones, under a new
 name. A commit's sentence says whether the value was handed, which is not whether it was used.
 
 **Laws supported.** [WL-SETTING-05](../workshop/settings.md).

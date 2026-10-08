@@ -107,7 +107,8 @@ legend hidden while another shows it, written through Info's rows"`, case `"a Te
 is handed its layout's legend before its room, and its first picture keeps it"`, case `"after a
 restart the Terminal's first picture keeps its layout's legend, and so does a reload's"`, case `"a
 legend value the Terminal cannot use is kept as stored, and said in its legend row"`, case `"a
-Terminal closed in a layout that hid its legend shows it again when it is shown"`.
+Terminal closed in a layout that hid its legend shows it again when it is shown"`, case `"a press
+aimed at the Terminal's picture from before its legend hid is refused"`.
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
 ## Do not assume

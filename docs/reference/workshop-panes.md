@@ -462,7 +462,8 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   accepts the shape, declared or not: at the top of the repaint that seats it, before any room,
   so the first picture is drawn with them, and again whenever they differ from what that holder
   last heard. A pane passes over keys it did not declare, and says so where a setting shows when
-  it cannot use the value it was handed.
+  it cannot use the value it was handed. A pane a managed opening seats shows the picture it
+  prepared before the seat; its settings reach it before its room, and its next picture has them.
 
 ## A weave may offer a pane
 
@@ -1139,8 +1140,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   file; a desk before version 6 gains the Layouts pane its layout surface always was; and a room
   and desks before version 7, kept in cells and sub-units, land on the pixels the window painted
   them at; a desk before version 8 holds no settings. Without the provider such a file is refused
-  by its number, naming the conversion that
-  is missing. The next close writes version <!-- value session_persist::kFormatVersion -->8<!-- /value -->.
+  by its number, naming the conversion that is missing. The next close writes version <!-- value session_persist::kFormatVersion -->8<!-- /value -->.
 - **The viewport is one level above the desk**, and that is the whole reason the session is not
   simply a second setup: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is

@@ -2832,8 +2832,6 @@ struct PaneRig {
         return raw;
     }
 
-    /// Make a seat perform one sentence INSIDE ITS OWN DELIVERY, which is what gives
-    /// `mail.as_role(...)` a real authorship moment for Loom to verify.
     /// A SEAT THAT TAKES ITS SETTINGS in `office`, granted only what it says.
     SettingsSeat* mount_settings_seat(std::string_view office) {
         auto seat = std::make_unique<SettingsSeat>(std::string(office));
@@ -2865,6 +2863,8 @@ struct PaneRig {
         }
         return loom::WeaveId{};
     }
+    /// Make a seat perform one sentence INSIDE ITS OWN DELIVERY, which is what gives
+    /// `mail.as_role(...)` a real authorship moment for Loom to verify.
     void drive(SettingsSeat* seat, std::function<void(SettingsSeat&, loom::Mail&)> what) {
         seat->next = std::move(what);
         (void)bus.send(settings_seat_id(seat), loom::Message(loom::to_value(SeatDo{}),

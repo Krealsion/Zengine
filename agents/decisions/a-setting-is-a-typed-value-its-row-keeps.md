@@ -13,8 +13,8 @@ or a text. Each layout's setup row keeps its pane's settings beside place and si
 order, once each, judged by form alone. The kinds are the three a presentation choice needs: a
 switch, a count or step, and a word, of which a choice among words is a text the pane's row
 restricts. Loom leaves "exactly one present" to the receiver, so every reader judges it, naming
-the key. The row moved the setup to version 5 and the session to version 8, each retaining its
-predecessor's reader.
+the key. The row moved the setup to version 5, which keeps a version-4 reader, and the session
+to version 8, whose version 7 is a conversion's (`session_v7_to_v8`), never the reader's.
 
 **Alternatives considered.**
 - *Argued: a word for every setting* — refused: a number or a flag spelled as text is a value

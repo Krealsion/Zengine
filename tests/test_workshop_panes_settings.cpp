@@ -106,9 +106,10 @@ TEST_CASE("a holder that takes no settings is handed none") {
     Session& s = const_cast<Session&>(r.session());
     REQUIRE(add_pane(s.setup.active, dial_ref()));
     pane_of(s.setup.active, dial_ref())->settings = {legend_off()};
+    // NOT SENT AT ALL: neither delivered nor refused at the door it does not have.
     std::size_t handed = 0;
     const loom::ObserverId tap = r.bus.add_observer([&handed](const loom::BusEvent& ev) {
-        if (ev.kind == loom::EventKind::Delivered && ev.schema_name == PaneSettings::zen_name) {
+        if (ev.schema_name == PaneSettings::zen_name) {
             ++handed;
         }
     });
@@ -177,6 +178,13 @@ TEST_CASE("a re-offer and a reopened row are handed their settings again, before
     REQUIRE(t.seat->heard.size() == 6);
     CHECK(t.seat->heard[4] == "settings");
     CHECK(t.seat->heard[5] == "room");
+    CHECK(t.seat->handed.back().settings.empty());
+
+    // ...AND A RE-OFFER OWES EVEN THAT: the row keeping none is handed none again.
+    t.offer();
+    REQUIRE(t.seat->heard.size() == 8);
+    CHECK(t.seat->heard[6] == "settings");
+    CHECK(t.seat->heard[7] == "room");
     CHECK(t.seat->handed.back().settings.empty());
 }
 
@@ -309,6 +317,10 @@ TEST_CASE("a declaration counts only while the weave that sent it holds the offi
     t.r.drive(successor, [own](SettingsSeat& s, loom::Mail& m) { s.declare(m, own); });
     REQUIRE(t.r.w->counted_settings(*t.row()) != nullptr);
     CHECK(*t.r.w->counted_settings(*t.row()) == own.rows);
+    // ...AND THE NEW HOLDER IS HANDED WHAT THE LAYOUT KEEPS, though it equals what the last one
+    // heard: what a holder heard is that holder's.
+    REQUIRE(successor->heard == std::vector<std::string>{"settings"});
+    CHECK(successor->handed.back().settings.empty());
 }
 
 TEST_CASE("what a declared setting takes is said in its own kind's words") {
@@ -452,8 +464,18 @@ TEST_CASE("a settings write says it was stored and handed, or why it was not han
     CHECK(t.seat->heard.back() == "settings");
     CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{PaneSetting{"legend", false, {}, {}}});
 
-    // A HOLDER WITHOUT THE DOOR: stored, and the sentence says why it went no further.
+    // NOTHING HOLDING THE OFFICE: the declared row is a kept one now, and `-` clears it; stored,
+    // and the sentence says nobody holds the office.
     t.r.unmount_settings_seat(t.seat);
+    t.r.key(input::scan::kUnknown);
+    const PaneSubjectActed cleared = hand_commit(t.r, "legend", "-", "SETTINGS");
+    REQUIRE_MESSAGE(cleared.accepted, cleared.refusal);
+    CHECK(t.r.last_notice() ==
+          "committed legend of Dial = --; stored; not handed: nothing holds `test.dial` now");
+
+    // A HOLDER WITHOUT THE DOOR: stored, and the sentence says why it went no further.
+    pane_of(const_cast<Session&>(t.r.session()).setup.active, dial_ref())->settings = {
+        PaneSetting{"legend", false, {}, {}}};
     ProviderSeat* plain = t.r.mount_provider(kDialOffice);
     t.r.drive(plain, [](ProviderSeat& p, loom::Mail& m) { p.offer(m, dial_offer()); });
     REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
@@ -520,6 +542,34 @@ TEST_CASE("the subject is named anew when the settings its rows are built from c
     CHECK(t.r.session().inspected.name != declared);
     CHECK(subject_value(t.r.session(), "legend", "SETTINGS") ==
           "off -- kept; no setting here takes it, and `-` clears it");
+}
+
+TEST_CASE("the subject is named anew when its pane's row leaves the desk, and again when it comes back") {
+    InspectedDial t;
+    t.open_inspected();
+    const std::int64_t before = t.r.session().inspected.name;
+    const std::size_t at = subject_row_index(t.r.session(), "legend", "SETTINGS");
+    REQUIRE(hand_close(t.r, dial_ref()).closed);
+    const std::int64_t closed = t.r.session().inspected.name;
+    CHECK(closed != before);
+    REQUIRE(seat_pane(t.r, dial_ref()).opened);
+    CHECK(t.r.session().inspected.name != closed);
+
+    // A COMMIT DRAFTED BEFORE THE CLOSE NAMES A ROW THE DESK MADE AFRESH: refused, nothing written.
+    DoorHand& h = door_hand(t.r);
+    const std::size_t asked = h.acted.size();
+    h.next = [before, at](DoorHand&, loom::Mail& m) {
+        (void)m.as_role(DoorHand::kOffice)
+            .send_to_role(kWorkshopProvider,
+                          PaneCommitRequested{before, static_cast<std::int64_t>(at), "off"});
+    };
+    (void)t.r.bus.send(t.r.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    t.r.bus.drain_until_idle();
+    REQUIRE(h.acted.size() == asked + 1);
+    CHECK_FALSE(h.acted.back().accepted);
+    CHECK(h.acted.back().refusal == WorkshopWeave::kPaneCommitSubjectGone);
+    CHECK(t.stored().empty());
 }
 
 TEST_CASE("a close discards a pane's settings with its row, and every close door says which") {
