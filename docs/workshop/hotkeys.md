@@ -83,6 +83,10 @@ Beneath the list it names the keymap file this run reads and what reading it cam
 the pane cannot draw there -- an `é` in your profile's folder, say -- is shown as `?`.
 `↑` `↓` `Home` `End` scroll it.
 
+![The Hotkeys pane in a window, the keymap file Renée-keymap.json it reads named as Ren?e-keymap.json beneath the list](images/hotkeys-keymap-path-window.png)
+
+![The same Hotkeys pane in a terminal, the file named the same way](images/hotkeys-keymap-path-terminal.png)
+
 It is an ordinary pane: arrange it, cover it, hide it, and `Ctrl`+`k` brings it back. It is not
 a mode — reading it takes no keyboard away from anything, and every key it lists works while it
 is open. What it shows is what Workshop tells it: the effective keymap, re-told whenever your
