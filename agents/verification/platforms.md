@@ -1,8 +1,9 @@
 # Verification method — platforms
 
 Register `VM-PLAT`: platform and toolchain traps — the two COFF ceilings, what spends them, the
-9p mount, the two CMakes, the developer shell, and what a silent compiler is telling you. One
-method per heading; cite by ID. Router: [`../verification.md`](../verification.md).
+9p mount, the two CMakes, the developer shell, the code page every program runs in, and what a
+silent compiler is telling you. One method per heading; cite by ID. Router:
+[`../verification.md`](../verification.md).
 
 ## VM-PLAT-01 — MinGW needs big objects on the host's translation unit
 
@@ -119,3 +120,11 @@ BECAUSE — the estimate is arithmetic over another platform's objects; binutils
 host unit before the split and assembled it after into 28,609,284 bytes, and that sentence is what
 the flag's own comment rests on.
 SEEN — nowhere yet
+
+## VM-PLAT-16 — Every program runs in the UTF-8 code page on Windows, its tests included
+
+METHOD — Every executable this project defines carries a manifest naming UTF-8 its active code page, so a narrow string is UTF-8 on Windows; a doctest program in any other code page refuses to run.
+BECAUSE — Windows hands `argv` and the environment over in the active code page, which libstdc++
+then reads as UTF-8 and MSVC's STL as that page: a letter outside ASCII ended the MinGW-w64 Workshop
+at launch, and became `?` under MSVC. A test in another code page passes what ships cannot.
+SEEN — `cmake/ZengineCodePage.cmake` `zengine_program_code_page`; `tests/doctest_main.cpp` `GetACP`.
