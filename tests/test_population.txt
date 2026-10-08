@@ -64,7 +64,7 @@ workshop_neovim                   doctest           always  10
 workshop_neovim                   doctest           neovim  29
 # Tripwires in this suite read workshop/workshop.cpp, workshop/recipes.hpp and every pane entry's
 # bytes (VM-WALL-11).
-workshop_files                    doctest           always  60
+workshop_files                    doctest           always  61
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

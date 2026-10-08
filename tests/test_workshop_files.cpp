@@ -2383,6 +2383,27 @@ TEST_CASE("a development runtime is made whole into an absent directory, then re
           "a service somebody changed in the runtime");
 }
 
+TEST_CASE("a development runtime made beneath a folder named beyond ASCII is reused as its own tree's") {
+    // THE MANIFEST NAMES ITS BUILD TREE, letters and all, and the next launch reads it back whole.
+    TempDir scratch("dev-runtime-letters");
+    const std::string letters = "Zo\xc3\xab \xd0\x96";
+    const std::filesystem::path root =
+        scratch.path() / std::filesystem::path(std::u8string(
+                             reinterpret_cast<const char8_t*>(letters.data()), letters.size()));
+    RuntimeTree tree(root);
+    const std::filesystem::path runtime = root / "runtime";
+
+    const zengine::builder::RunResult made = tree.prepare(runtime);
+    REQUIRE_MESSAGE(made.started, made.trouble);
+    REQUIRE_MESSAGE(made.status == 0, made.output);
+    const auto kept = contents_of(runtime);
+    const zengine::builder::RunResult reused = tree.prepare(runtime);
+    REQUIRE_MESSAGE(reused.started, reused.trouble);
+    CHECK_MESSAGE(reused.status == 0, reused.output);
+    CHECK(reused.output.find("reusing the development runtime") != std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+}
+
 TEST_CASE("a development runtime that is stale, incomplete, or made for another configuration or another set of copies is refused and left exactly as it is") {
     TempDir scratch("dev-runtime-refused");
     RuntimeTree tree(scratch.path());
