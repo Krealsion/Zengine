@@ -12,6 +12,7 @@
 #include "view-builder/picture.hpp"
 #include "view-builder/vocabulary.hpp"
 #include "view/host.hpp"
+#include "workshop/pane_canvas.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
@@ -1585,6 +1586,29 @@ TEST_CASE("a value dropped on no label is refused in words whatever is selected;
     REQUIRE(d.shows.size() == 1);
     CHECK(d.shows[0].element == "total");
     CHECK(d.shows[0].field == "total");
+}
+
+TEST_CASE("a label bound to a shape named beyond plain ASCII leaves the builder's whole picture drawable, the design canvas spelling the name the view waits for") {
+    Rig rig;
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.edit("select", {"4"}).ok);
+    // A message a weaver named in their own language, `tally.Größe`, carried as Flow carries it.
+    const auto grosse = loom::SchemaBuilder("tally.Gr\xC3\xB6\xC3\x9F" "e", 1).field("total", loom::Kind::Int).build();
+    const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(*grosse), {});
+    // ON THE LABEL ON THE CANVAS: bound.
+    auto [x, y] = rig.middle(rig.now().elements[4]);
+    rig.host(ws::PaneCanvasValueDrop{vb::kPane, rig.grant, rig.picture().picture, x, y,
+                                     loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
+    const auto d = rig.now();
+    REQUIRE(d.shows.size() == 1);
+    CHECK(d.shows[0].shape->name() == "tally.Gr\xC3\xB6\xC3\x9F" "e");
+    // The picture the builder said is one Workshop draws whole...
+    CHECK(ws::canvas_content_problem(rig.picture()).empty());
+    // ...and the view's own notice on the design canvas spells the name, one `?` a character.
+    const auto* waiting = rig.drawn("waiting to be told");
+    REQUIRE(waiting != nullptr);
+    CHECK(waiting->text == "waiting to be told tally.Gr??e");
+    CHECK(rig.drawn("Total: waiting") != nullptr);
 }
 
 TEST_CASE("a carried shape brings the shapes it nests: a label binds a field of a shape nesting another from what it carries, its own intent is carried the same way, and a weave's describe answer is no carried shape") {
