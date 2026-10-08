@@ -48,9 +48,17 @@ set_target_properties(oven PROPERTIES PREFIX "")
 
 add_executable(kitchen-host kitchen_host.cpp)
 target_link_libraries(kitchen-host PRIVATE zengine::timer loom::switchboard loom::kernel)
+zengine_code_page(kitchen-host)             # on Windows, every path it handles is UTF-8
 ```
 
 Configure it with `-DCMAKE_PREFIX_PATH=<the prefix you installed into>`.
+
+**`zengine_code_page()` gives a program of yours the UTF-8 code page on Windows**, as every
+program Zengine builds has. It adds a manifest naming UTF-8 the program's active code page, which
+Windows 10 version 1903 and later honour, so its arguments, its environment and every narrow path
+it hands Zengine or the Loom hold any letter as itself; what your toolchain's own manifest says
+stays. Elsewhere it does nothing. Without it, a program on Windows runs in the system's code page,
+where a folder named with a letter outside that page cannot be spelled.
 
 **You do not call `find_package(loom)`.** Zengine's package config resolves the Loom itself,
 because the Loom is a *public* dependency of it: Zengine's headers include `<zen/...>` and its

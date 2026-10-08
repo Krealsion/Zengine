@@ -1,13 +1,19 @@
 # Every program this project builds runs in the UTF-8 code page on Windows, its tests included: a
 # manifest says so, and `argv`, the environment and every narrow path are then UTF-8 there as on
 # every other platform. What a toolchain's own manifest says, the execution level and the systems
-# it supports, stays. Method: agents/verification/platforms.md (VM-PLAT-16).
+# it supports, stays. Method: agents/verification/platforms.md (VM-PLAT-16). The package installs
+# this file beside its config, so a program built against it takes the code page by the same
+# function (docs/getting-started.md).
 
-# Under MinGW-w64: the manifest linked into every program, as an object built by CMake's resource
-# compiler. The toolchain may link a default manifest of its own, and a program's own replaces
-# it, so this one is the default with the code page added; a toolchain that links none gets the
-# code page alone.
-function(zengine_mingw_code_page fragment)
+set_property(GLOBAL PROPERTY ZENGINE_CODE_PAGE_MANIFEST
+             "${CMAKE_CURRENT_LIST_DIR}/utf8-code-page.manifest")
+
+# Under MinGW-w64: the manifest linked into every program, as one object CMake's resource compiler
+# builds in the build tree. The toolchain may link a default manifest of its own, and a program's
+# own replaces it, so this one is the default with the code page added; a toolchain that links
+# none gets the code page alone.
+function(zengine_mingw_code_page)
+    get_property(fragment GLOBAL PROPERTY ZENGINE_CODE_PAGE_MANIFEST)
     file(READ "${fragment}" manifest)
     execute_process(COMMAND "${CMAKE_CXX_COMPILER}" -print-file-name=default-manifest.o
                     OUTPUT_VARIABLE default OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -46,48 +52,68 @@ function(zengine_mingw_code_page fragment)
     string(REPLACE "\\" "\\\\" quoted "${quoted}")
     string(REPLACE "\"" "\"\"" quoted "${quoted}")
     string(REPLACE "\n" "\\n\"\n\"" quoted "${quoted}")
-    set(rc "${PROJECT_BINARY_DIR}/zengine-code-page.rc")
+    set(rc "${CMAKE_CURRENT_BINARY_DIR}/zengine-code-page.rc")
     file(WRITE "${rc}.new" "1 24\nBEGIN\n\"${quoted}\\n\"\nEND\n")
     configure_file("${rc}.new" "${rc}" COPYONLY)
     # The resource compiler reads its command line in its own code page, which may lack a letter
     # of the build directory's name, so it runs in that directory and is given the script and the
     # object by their own names.
-    set(object "${PROJECT_BINARY_DIR}/zengine-code-page.obj")
+    set(object "${CMAKE_CURRENT_BINARY_DIR}/zengine-code-page.obj")
     separate_arguments(flags NATIVE_COMMAND "${CMAKE_RC_FLAGS}")
     add_custom_command(OUTPUT "${object}"
                        COMMAND "${CMAKE_RC_COMPILER}" ${flags} -O coff zengine-code-page.rc
                                zengine-code-page.obj
                        DEPENDS "${rc}"
-                       WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
+                       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
                        COMMENT "Building the UTF-8 code page manifest every program links"
                        VERBATIM)
     add_custom_target(zengine-code-page DEPENDS "${object}")
-    set_property(DIRECTORY "${PROJECT_SOURCE_DIR}" APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-                 "${fragment}" ${configured_from})
-    set(zengine_code_page_object "${object}" PARENT_SCOPE)
-    set(zengine_code_page_kept "${kept}" PARENT_SCOPE)
+    add_library(zengine-code-page-object OBJECT IMPORTED GLOBAL)
+    set_property(TARGET zengine-code-page-object PROPERTY IMPORTED_OBJECTS "${object}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${fragment}" ${configured_from})
+    set_property(GLOBAL PROPERTY ZENGINE_CODE_PAGE_KEPT "${kept}")
+endfunction()
+
+# zengine_code_page(<target>...) -- give each program the manifest naming UTF-8 its active code
+# page on Windows; elsewhere nothing. MSVC's linker writes a manifest of its own and CMake merges
+# a listed one into it. Under MinGW-w64 the object is one of the program's own, which CMake names
+# relative to the build directory, as the linker too reads its command line in its own code page.
+function(zengine_code_page)
+    if(NOT WIN32)
+        return()
+    endif()
+    if(NOT MSVC AND NOT MINGW)
+        message(STATUS "zengine: no program manifest for this Windows toolchain, so ${ARGN} run "
+                       "in the system's code page")
+        return()
+    endif()
+    get_property(fragment GLOBAL PROPERTY ZENGINE_CODE_PAGE_MANIFEST)
+    if(MINGW AND NOT TARGET zengine-code-page)
+        zengine_mingw_code_page()
+    endif()
+    foreach(target IN LISTS ARGN)
+        if(MSVC)
+            target_sources(${target} PRIVATE "${fragment}")
+        else()
+            target_sources(${target} PRIVATE "$<TARGET_OBJECTS:zengine-code-page-object>")
+            add_dependencies(${target} zengine-code-page)
+        endif()
+    endforeach()
 endfunction()
 
 # zengine_program_code_page() -- give the manifest to every executable this project has defined;
-# called once, after the last. Under MSVC the linker writes a manifest of its own and CMake merges
-# a listed one into it. A directory of another project (a sibling Loom, a fetched dependency) is
-# not walked: its programs keep what that project gives them.
+# called once, after the last. A directory of another project (a sibling Loom, a fetched
+# dependency) is not walked: its programs keep what that project gives them.
 function(zengine_program_code_page)
     if(NOT WIN32)
         return()
     endif()
-    set(fragment "${PROJECT_SOURCE_DIR}/cmake/utf8-code-page.manifest")
-    if(MSVC)
-        set(said "merged into the linker's own")
-    elseif(MINGW)
-        zengine_mingw_code_page("${fragment}")
-        set(said "${zengine_code_page_kept}")
-    else()
+    if(NOT MSVC AND NOT MINGW)
         message(STATUS "zengine: no program manifest for this Windows toolchain, so its programs "
                        "run in the system's code page")
         return()
     endif()
-    set(programs 0)
+    set(programs "")
     set(dirs "${PROJECT_SOURCE_DIR}")
     while(dirs)
         list(GET dirs 0 dir)
@@ -102,15 +128,16 @@ function(zengine_program_code_page)
         foreach(target IN LISTS targets)
             get_target_property(type ${target} TYPE)
             if(type STREQUAL "EXECUTABLE")
-                if(MSVC)
-                    target_sources(${target} PRIVATE "${fragment}")
-                else()
-                    target_link_libraries(${target} PRIVATE "${zengine_code_page_object}")
-                    add_dependencies(${target} zengine-code-page)
-                endif()
-                math(EXPR programs "${programs} + 1")
+                list(APPEND programs ${target})
             endif()
         endforeach()
     endwhile()
-    message(STATUS "zengine: ${programs} programs run in the UTF-8 code page (${said})")
+    zengine_code_page(${programs})
+    if(MSVC)
+        set(said "merged into the linker's own")
+    else()
+        get_property(said GLOBAL PROPERTY ZENGINE_CODE_PAGE_KEPT)
+    endif()
+    list(LENGTH programs count)
+    message(STATUS "zengine: ${count} programs run in the UTF-8 code page (${said})")
 endfunction()

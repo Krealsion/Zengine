@@ -47,9 +47,10 @@ and later honour. So `argv`, the environment and every narrow path are UTF-8 on 
 named with any letter, given as an argument or holding `%APPDATA%` or `%LOCALAPPDATA%`, is read
 and written as itself on both toolchains, and a pane image loads from it. One step at the end of
 the top-level `CMakeLists.txt` gives the manifest to every executable the project defines
-(`cmake/ZengineCodePage.cmake`); a sibling Loom's programs under the sibling override, and the
-stranger programs the installed-package witness builds, keep their own. It keeps what the
-toolchain's own manifest says:
+(`cmake/ZengineCodePage.cmake`); a sibling Loom's programs under the sibling override keep their
+own, and a program built against the installed package takes it by one line,
+`zengine_code_page(<target>)` ([getting started](../getting-started.md#using-zengine-from-another-project)).
+It keeps what the toolchain's own manifest says:
 
 - **MSVC**'s linker writes a manifest naming the execution level, and CMake merges this one into
   it.
