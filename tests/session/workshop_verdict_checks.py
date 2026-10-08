@@ -9,7 +9,6 @@ delayed and immediate outcomes, unchanged or stale rows, refusals, failures, pen
 success -- and what it refuses to send. They do not claim that a real Builder or Neovim painted
 those rows: the Neovim route is tests/session/neovim_journey.py's, on a real Neovim.
 Standalone: python workshop_verdict_checks.py --tools <package> --runtime <loom runtime>
-            [--work <dir>]
 """
 
 import argparse
@@ -157,7 +156,9 @@ class Scripted:
         return [(m["scancode"], m["modifiers"]) for m in self.moments if m["kind"] == "KeyPressed"]
 
 
-def run_checks(tools, runtime, work=None):
+def run_checks(tools, runtime):
+    # A check's words can hold any letter a path does; the console's code page may not.
+    sys.stdout.reconfigure(errors="backslashreplace")
     sys.path[:0] = [str(Path(runtime).resolve()), str(Path(tools).resolve())]
     steps = importlib.import_module("workshop_steps")
     builder = importlib.import_module("builder")
@@ -818,7 +819,8 @@ def run_checks(tools, runtime, work=None):
         holds (path -> [lines, modified]), 'hidden', its mode and last row. It draws its status
         row and Neovim's screen as its own picture (`canvas`, unless told it is a text pane), names
         its status row `status`, and keeps the row each press lands on in `presses`. It answers
-        what the tool types: `:e`, the lone `:`, the `let`/`echo` question, Escape and `:w`."""
+        what the tool types: the open, the lone `:`, the `let`/`echo` question, Escape and `:w`,
+        reading a path from the Vim string it is typed as."""
 
         def __init__(self, disk, current, buffers, hidden=True, prompt_after_e=False,
                      save_leaves_modified=False, canvas=True, **inputs):
@@ -853,11 +855,14 @@ def run_checks(tools, runtime, work=None):
             self.texts.append(text)
             if self.mode == "PROMPT":
                 return  # a prompt takes none of this
-            if text.startswith(":e "):
-                path = text[3:].strip()
+            if text.startswith(":call nvim_cmd({'cmd':'edit',"):
+                path = vim_string(text, r"'args':\[")
+                if "'magic':{'file':v:false}" not in text:
+                    path = "expanded:" + path  # file expansion on reads the path as another
                 cur = self.buffers.get(self.current)
                 if cur and cur[1] and (path == self.current or not self.hidden):
-                    self.last = "E37: No write since last change (add ! to override)"
+                    self.last = ("E5555: API call: Vim:E37: No write since last change (add ! to "
+                                 "override)")
                     return
                 if self.prompt_after_e:
                     self.mode, self.last = "PROMPT", "[O]pen Read-Only, (E)dit anyway, (Q)uit, (A)bort:"
@@ -868,7 +873,7 @@ def run_checks(tools, runtime, work=None):
                 self.mode, self.last = "COMMAND", ":"
             elif text.startswith("let g:nvim_edit="):
                 token = re.search(r"'nvim-edit' '([0-9a-f]+)'", text).group(1)
-                wanted = re.search(r"==[?#]'([^']*)'", text).group(1)
+                wanted = vim_string(text, "==[?#]")
                 lines, modified = self.buffers.get(self.current, [[], False])
                 digest = hashlib.sha256(("\n".join(lines or [""]) + "\n").encode()).hexdigest()[:16]
                 self.mode = "NORMAL"
@@ -883,24 +888,25 @@ def run_checks(tools, runtime, work=None):
             Path(self.current).write_bytes(("\n".join(lines) + "\n" if lines else "").encode("utf-8"))
             self.buffers[self.current][1] = self.save_leaves_modified
 
+    # A folder name a weaver's machine may hold: a space, letters beyond ASCII and beyond the BMP,
+    # and each character Ex reads as something else that the platform allows in a name.
+    AWKWARD = ("Zo\u00eb \u0416 \U0001d4b3 100% #1 it's a[1] $HOME b{x,y} wow! `x` +p ~t" +
+               ("" if os.name == "nt" else ' "q" a|b c\\d s*? <cfile> >o\tt'))
+
+    def vim_string(text, after):
+        r"""The Vim double-quoted string that follows the pattern `after` in a typed line, read as
+        Vim reads it: a backslash escape is the character it names, `\xNN` the byte."""
+        quoted = re.search(after + r'"((?:[^"\\]|\\.)*)"', text).group(1)
+        return re.sub(r"\\x([0-9a-f]{2})|\\(.)",
+                      lambda m: chr(int(m.group(1), 16)) if m.group(1) else m.group(2), quoted)
+
     class NeovimChecks(unittest.TestCase):
         def setUp(self):
-            # The files go where nvim-edit takes their paths: under the temporary directory, else
-            # under the run's work directory. The tool refuses a path Ex would read otherwise.
-            refused = []
-            for parent in [tempfile.gettempdir()] + ([work] if work else []):
-                os.makedirs(parent, exist_ok=True)
-                self.dir = tempfile.TemporaryDirectory(prefix="zengine-nvim-edit-check-",
-                                                       dir=parent)
-                self.root = Path(self.dir.name).resolve()
-                if nvim_edit.ex_takes(self.path("")):
-                    break
-                self.dir.cleanup()
-                refused.append(self.root.parent.as_posix())
-            else:
-                self.skipTest("nvim-edit takes no path under %s: each holds a character Ex reads "
-                              "otherwise; name a work directory it takes (--work)"
-                              % " or ".join(refused))
+            # The files go in a folder whose name holds a space, letters beyond ASCII and each
+            # character Ex reads as something else that this platform allows in a name.
+            self.dir = tempfile.TemporaryDirectory(prefix="zengine-nvim-edit-check-")
+            self.root = Path(self.dir.name).resolve() / AWKWARD
+            self.root.mkdir()
             nvim_edit.time = Clock()
 
         def tearDown(self):
@@ -920,6 +926,30 @@ def run_checks(tools, runtime, work=None):
             """Everything typed after the first answer to the question."""
             at = [i for i, t in enumerate(pane.texts) if t.startswith("let g:nvim_edit=")]
             return pane.texts[at[0] + 1:] if at else None
+
+        def test_any_path_is_typed_as_a_vim_string_that_reads_back_as_itself(self):
+            # Every character Ex reads otherwise, the key names, a control character, letters
+            # beyond ASCII: the open and the question each carry the path itself, and the typed
+            # line holds one line end, its last character.
+            for path in ["/a b/%#|\"'\\/[1]{x}$HOME`x`!~+/<CR><lt>\t\x01\x7f/\u00eb\u0416.txt",
+                         "C:/Users/Jane Doe/100% #1/it's a[1]/f.txt", self.path("f.txt")]:
+                with self.subTest(path=path):
+                    line = nvim_edit.opens(path)
+                    self.assertEqual(vim_string(line, r"'args':\["), path)
+                    self.assertEqual(line.index("\n"), len(line) - 1)
+                    self.assertFalse(any(ord(c) < 0x20 or ord(c) == 0x7f for c in line[:-1]))
+                    self.assertNotIn("\\<", line.replace("\\\\", ""))
+                    self.assertEqual(vim_string("==?" + nvim_edit.vim_text(path), "==[?#]"), path)
+
+        def test_a_path_that_cannot_be_typed_whole_is_refused_with_nothing_typed(self):
+            for target, words in ((self.path("nul") + "\0.txt", "a NUL character"),
+                                  (self.path("lone") + "\ud800.txt", "not UTF-8")):
+                with self.subTest(words=words):
+                    pane = NeovimPane({}, self.path("other.txt"), {})
+                    said, error = self.edit(pane, target, [{"create": "x\n"}])
+                    self.assertIn(words, error)
+                    self.assertEqual(pane.texts, [])
+                    self.assertEqual(pane.presses, [])
 
         def test_a_draft_never_saved_is_refused_and_kept(self):
             target = self.path("draft.txt")
@@ -1020,7 +1050,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tools", required=True)
     parser.add_argument("--runtime", required=True)
-    parser.add_argument("--work", help="where the Neovim checks' files go when the temporary "
-                        "directory's path is one nvim-edit refuses")
     args = parser.parse_args()
-    sys.exit(0 if run_checks(args.tools, args.runtime, args.work) else 1)
+    sys.exit(0 if run_checks(args.tools, args.runtime) else 1)

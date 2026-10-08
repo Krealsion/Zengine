@@ -653,8 +653,10 @@ def s_first_build(st):
     line = rows[0]
     toolchain = Path(st.record["build"]).as_posix()
     workspace = (Path(st.record["root"]) / "game-build").as_posix()
-    fixed = line.replace('"toolchain_from":""', '"toolchain_from":"%s"' % toolchain).replace(
-        '"workspace":""', '"workspace":"%s"' % workspace)
+    # Spelled as JSON strings, so a root named with a quote or a backslash stays one.
+    fixed = line.replace('"toolchain_from":""', '"toolchain_from":%s'
+                         % json.dumps(toolchain, ensure_ascii=False)).replace(
+        '"workspace":""', '"workspace":%s' % json.dumps(workspace, ensure_ascii=False))
     if fixed == line:
         raise StepFailed("the recipe already names a toolchain and a workspace; read the build output")
     st.edit("recipe-toolchain", st.game + "/build-recipes.json",
