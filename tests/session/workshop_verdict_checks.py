@@ -9,6 +9,7 @@ delayed and immediate outcomes, unchanged or stale rows, refusals, failures, pen
 success -- and what it refuses to send. They do not claim that a real Builder or Neovim painted
 those rows: the Neovim route is tests/session/neovim_journey.py's, on a real Neovim.
 Standalone: python workshop_verdict_checks.py --tools <package> --runtime <loom runtime>
+            [--work <dir>]
 """
 
 import argparse
@@ -156,7 +157,7 @@ class Scripted:
         return [(m["scancode"], m["modifiers"]) for m in self.moments if m["kind"] == "KeyPressed"]
 
 
-def run_checks(tools, runtime):
+def run_checks(tools, runtime, work=None):
     sys.path[:0] = [str(Path(runtime).resolve()), str(Path(tools).resolve())]
     steps = importlib.import_module("workshop_steps")
     builder = importlib.import_module("builder")
@@ -884,8 +885,22 @@ def run_checks(tools, runtime):
 
     class NeovimChecks(unittest.TestCase):
         def setUp(self):
-            self.dir = tempfile.TemporaryDirectory(prefix="zengine-nvim-edit-check-")
-            self.root = Path(self.dir.name).resolve()
+            # The files go where nvim-edit takes their paths: under the temporary directory, else
+            # under the run's work directory. The tool refuses a path Ex would read otherwise.
+            refused = []
+            for parent in [tempfile.gettempdir()] + ([work] if work else []):
+                os.makedirs(parent, exist_ok=True)
+                self.dir = tempfile.TemporaryDirectory(prefix="zengine-nvim-edit-check-",
+                                                       dir=parent)
+                self.root = Path(self.dir.name).resolve()
+                if nvim_edit.ex_takes(self.path("")):
+                    break
+                self.dir.cleanup()
+                refused.append(self.root.parent.as_posix())
+            else:
+                self.skipTest("nvim-edit takes no path under %s: each holds a character Ex reads "
+                              "otherwise; name a work directory it takes (--work)"
+                              % " or ".join(refused))
             nvim_edit.time = Clock()
 
         def tearDown(self):
@@ -1005,5 +1020,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tools", required=True)
     parser.add_argument("--runtime", required=True)
+    parser.add_argument("--work", help="where the Neovim checks' files go when the temporary "
+                        "directory's path is one nvim-edit refuses")
     args = parser.parse_args()
-    sys.exit(0 if run_checks(args.tools, args.runtime) else 1)
+    sys.exit(0 if run_checks(args.tools, args.runtime, args.work) else 1)
