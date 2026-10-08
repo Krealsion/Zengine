@@ -453,6 +453,53 @@ TEST_CASE("a setting typed at its default is stored as its absence, and `-` clea
     CHECK(again.refusal == "step: step already takes its default -- nothing is stored to clear");
 }
 
+TEST_CASE("a text setting is stored as it is typed, spaces included, and `-` clears it") {
+    DialRig t;
+    t.open({});
+    t.offer();
+    PaneSettingsDeclared d;
+    d.pane = kDial;
+    PaneSettingRow side;
+    side.key = "side";
+    side.text = "right";
+    PaneSettingRow mode;
+    mode.key = "mode";
+    mode.text = "wide";
+    mode.choices = {"wide", "narrow"};
+    d.rows = {side, mode};
+    t.declare(d);
+    REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
+    const auto stored = [&t] { return pane_of(t.r.session().setup.active, dial_ref())->settings; };
+    const auto text = [](const char* key, const char* value) {
+        return std::vector<PaneSetting>{PaneSetting{key, {}, {}, std::string(value)}};
+    };
+
+    // A TRAILING SPACE IS PART OF THE TEXT: stored, read and handed as it was typed...
+    REQUIRE(hand_commit(t.r, "side", "left ", "SETTINGS").accepted);
+    CHECK(stored() == text("side", "left "));
+    CHECK(subject_value(t.r.session(), "side", "SETTINGS") == "left ");
+    CHECK(t.seat->handed.back().settings == text("side", "left "));
+    // ...AND A DRAFT OPENED ON IT AND COMMITTED UNCHANGED LEAVES IT AS IT IS.
+    REQUIRE(hand_commit(t.r, "side", subject_value(t.r.session(), "side", "SETTINGS"), "SETTINGS")
+                .accepted);
+    CHECK(stored() == text("side", "left "));
+
+    // THREE SPACES ARE A TEXT OF THREE SPACES, not an empty one.
+    REQUIRE(hand_commit(t.r, "side", "   ", "SETTINGS").accepted);
+    CHECK(stored() == text("side", "   "));
+
+    // A CHOICE IS TAKEN EXACTLY: one with a space the setting does not name is refused, saying
+    // what it takes, and nothing is written.
+    const PaneSubjectActed spaced = hand_commit(t.r, "mode", "narrow ", "SETTINGS");
+    CHECK_FALSE(spaced.accepted);
+    CHECK(spaced.refusal == "mode: takes one of wide, narrow, not `narrow `");
+    CHECK(stored() == text("side", "   "));
+
+    // `-`, WITH SPACES AROUND IT OR NOT, CLEARS -- as it resets every row Info edits.
+    REQUIRE(hand_commit(t.r, "side", " - ", "SETTINGS").accepted);
+    CHECK(stored().empty());
+}
+
 TEST_CASE("a settings write says it was stored and handed, or why it was not handed") {
     InspectedDial t;
     t.open_inspected();

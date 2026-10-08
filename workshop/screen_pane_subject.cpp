@@ -212,6 +212,8 @@ std::string pane_setting_text(const Session& s, const PaneRef& ref, const PaneSe
 // WL-SETTING-05 -- agents/workshop/settings.md
 Written write_pane_setting(Session& s, const PaneRef& ref, const PaneSettingRow& row,
                            const std::string& text) {
+    // `-` CLEARS, AS IT RESETS EVERY ROW INFO EDITS; a flag or a number is read from what stands
+    // between the spaces, and a text is the text as typed, its spaces part of it.
     const std::string_view body = without_edge_spaces(text);
     const PaneSetting fallback = pane_setting_default(row);
     if (body == "-") {
@@ -220,8 +222,9 @@ Written write_pane_setting(Session& s, const PaneRef& ref, const PaneSettingRow&
     if (!has_pane(s.setup.active, ref)) {
         return Written::no(ref_text(ref) + " is not in this layout -- open it first");
     }
+    const bool verbatim = setting_kind(row) == SettingKind::kText;
     const std::string refused = "takes " + pane_setting_takes(row) + ", not `" +
-                                std::string(body) + "`";
+                                (verbatim ? text : std::string(body)) + "`";
     PaneSetting typed;
     typed.key = row.key;
     switch (setting_kind(row)) {
@@ -234,7 +237,7 @@ Written write_pane_setting(Session& s, const PaneRef& ref, const PaneSettingRow&
         // A NUMBER'S ONE CONVERSION IS THE INSPECTOR'S OWN (WL-DOC-02).
         typed.number = TextForm<std::int64_t>::parse(body);
         break;
-    case SettingKind::kText: typed.text = std::string(body); break;
+    case SettingKind::kText: typed.text = text; break;
     default: break;
     }
     if (setting_kind(typed) == SettingKind::kNone || !pane_setting_refused_by(row, typed).empty()) {
