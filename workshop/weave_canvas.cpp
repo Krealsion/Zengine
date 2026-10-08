@@ -181,27 +181,39 @@ void WorkshopWeave::on(const v5::PaneCanvasContent& content, loom::Mail& mail) {
     admit_canvas_content(content, mail);
 }
 
+// WL-ATTN-04 -- agents/workshop/attention.md
 void WorkshopWeave::admit_canvas_content(const v5::PaneCanvasContent& content, loom::Mail& mail,
                                          std::string_view said) {
     const auto* row = session_.panes.runtime.find(mail.authored_role(), content.pane);
     if (!row || mail.authored_role().empty()) return;
     auto* pane = session_.panes.external_pane(row->kind);
     const std::string named = canvas_parts_problem(content.parts);
-    std::string_view reason;
+    // Late: drawn for a holder, a room or a number since replaced. Any other picture is judged
+    // for what it holds -- a grant or a number no room gives among it.
+    const bool numbered = content.grant > 0 && content.picture > 0;
+    std::string_view late;
     if (!pane || !canvas_owner_current(row->kind) || pane->canvas.owner != mail.sender())
-        reason = "canvas provider no longer holds this pane";
-    else if (content.grant != pane->canvas.grant || pane->canvas.width <= 0 || pane->canvas.height <= 0)
-        reason = "canvas room grant is no longer current";
-    else if (content.picture <= pane->picture)
-        reason = "canvas picture number must increase within its grant";
-    else if (!said.empty())
-        reason = said;
-    else reason = canvas_content_problem(content);
-    if (reason.empty() && !named.empty()) reason = named;
+        late = "canvas provider no longer holds this pane";
+    else if (numbered && (content.grant != pane->canvas.grant || pane->canvas.width <= 0 ||
+                          pane->canvas.height <= 0))
+        late = "canvas room grant is no longer current";
+    else if (numbered && content.picture <= pane->picture)
+        late = "canvas picture number must increase within its grant";
+    std::string_view reason = late;
+    if (reason.empty()) reason = !said.empty() ? said : canvas_content_problem(content);
+    if (reason.empty()) reason = named;
     if (!reason.empty()) {
         (void)mail.as_role(kWorkshopProvider).send(mail.sender(),
             PaneCanvasRejected{content.pane, content.grant, content.picture, std::string(reason)},
             mail.correlation());
+        // A late picture is answered to its pane alone. One refused for what it holds is said
+        // where the weaver reads, as a refused prose update is, until a picture of the pane is
+        // admitted; the picture last admitted stands, marked (`paint_external`).
+        if (late.empty() && (pane->refusal != kExternalPictureRefused || pane->refusal_why != reason)) {
+            pane->refusal = kExternalPictureRefused;
+            pane->refusal_why = std::string(reason);
+            repaint(mail);
+        }
         return;
     }
     pane->canvas.content = content;

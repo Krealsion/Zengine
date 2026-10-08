@@ -732,6 +732,12 @@ Both text forms require printable ASCII; a nonnegative caret and each selection 
 lie within its run. A positive picture number
 must strictly increase within its grant. Authenticated stale or malformed updates receive
 `PaneCanvasRejected{pane,grant,picture,reason}` and leave the last good picture unchanged.
+A malformed one is also said where the weaver reads, as a refused prose update is: the last good
+picture is marked `(update refused)` -- in its title, or at its corner on the medium's own ground
+where no title is shown, and in place of the **updating** marker -- or, where none stands, the
+body says `(the last picture was refused -- none of it was drawn)`; Attention names the reason,
+until a picture of that pane is admitted. A stale one, for a holder, a room or a number since
+replaced, is answered to its pane alone; a grant or a number that is not positive is malformed.
 Unauthenticated content changes nothing. A new room clears the old picture's admission and
 fence. When only the same provider's geometry changes, Workshop may keep the old image clipped
 to the new body with an **updating** marker. This preview cannot receive input and does not

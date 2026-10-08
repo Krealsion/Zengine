@@ -135,12 +135,20 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         if (pane->canvas.title_waits) region.rows.clear();
         paint_pane_canvas(layer, canvas, pane->canvas.content, sc.text_advance_px,
                           sc.text_line_px, chrome_grain(sc));
-        if (pane->canvas.preview) {
+        // A picture older than what its pane last drew says so: refused, until a picture is
+        // admitted, else carried to a new room. With no title row the mark stands at the
+        // picture's corner, a refusal's on the medium's own ground: that picture still takes
+        // presses, and is drawn beneath.
+        const bool refused = !pane->refusal.empty();
+        if (refused || pane->canvas.preview) {
+            const std::string mark = refused ? kExternalRefusedMark : "(updating)";
             if (!region.rows.empty()) {
-                region.rows[0].text = detail::fit("(updating) " + region.rows[0].text, body.columns);
+                region.rows[0].text = detail::fit(mark + " " + region.rows[0].text, body.columns);
+                if (refused) region.rows[0].role = surface::role::kAlert;
             } else {
                 v5::PaneCanvasContent notice;
-                notice.texts.push_back({0, 0, "(updating)", surface::role::kAlert});
+                notice.texts.push_back({0, 0, mark, surface::role::kAlert});
+                if (refused) notice.texts.back().background = surface::role::kMediumGround;
                 paint_pane_canvas(layer, canvas, notice, sc.text_advance_px,
                                   sc.text_line_px, chrome_grain(sc));
             }

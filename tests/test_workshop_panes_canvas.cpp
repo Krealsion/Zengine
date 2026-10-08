@@ -376,6 +376,122 @@ TEST_CASE("pane canvas grants fenced room and keeps a good picture after a refus
     CHECK(t.view().picture == 2);
 }
 
+TEST_CASE("a canvas picture refused for what it holds is said in its pane and in Attention until a "
+          "picture of the pane is admitted, and one that came late is answered to its pane alone") {
+    CanvasRig t;
+    const std::string key = pane_content_key(PaneRef{canvas_office, canvas_pane});
+    const auto send = [&t](const PaneCanvasContent& p) {
+        t.drive([p](CanvasSeat&, loom::Mail& m) {
+            (void)m.as_role(canvas_office).send_to_role(kWorkshopProvider, p);
+        });
+    };
+    const auto shown = [&t](const std::string& words) {
+        for (const auto& region : all_texts(t.r.last_canvas()))
+            for (const auto& row : region.rows)
+                if (row.text.find(words) != std::string::npos) return true;
+        return false;
+    };
+    const auto drawn = [&t](const std::string& words) {
+        for (const auto& label : all_labels(t.r.last_canvas()))
+            if (label.text == words) return true;
+        return false;
+    };
+    const auto said = [&t, &key]() {
+        const std::vector<Condition> now = t.r.conditions();
+        const Condition* c = condition_by_key(now, key);
+        return c == nullptr ? std::string() : c->detail;
+    };
+
+    // LATE: a number the pane has passed, holding a byte no canvas draws, is answered alone.
+    auto late = t.picture(1);
+    late.labels[0].text = "caf\xC3\xA9";
+    send(late);
+    REQUIRE(t.seat->rejected.size() == 1);
+    CHECK(t.seat->rejected.back().reason == "canvas picture number must increase within its grant");
+    CHECK(t.view().refusal.empty());
+    CHECK(said().empty());
+
+    // FOR WHAT IT HOLDS: said with the judge's reason, over the picture last admitted.
+    auto held = t.picture(2);
+    held.labels[0].text = "caf\xC3\xA9";
+    send(held);
+    REQUIRE(t.seat->rejected.size() == 2);
+    const std::string why = t.seat->rejected.back().reason;
+    CHECK(why == "canvas labels require printable ASCII");
+    CHECK(t.view().refusal == kExternalPictureRefused);
+    CHECK(t.view().refusal_why == why);
+    CHECK(said() == why);
+    CHECK(t.view().canvas.heard);
+    CHECK(t.view().picture == 1);
+    CHECK(drawn("node"));
+    CHECK(shown(kExternalRefusedMark));
+
+    // A NEW ROOM is no picture admitted: the refusal stands over the carried picture, and a picture
+    // for the room it replaced is late whatever it holds.
+    auto* authored = pane_of(t.r.session().setup.active, PaneRef{canvas_office, canvas_pane});
+    REQUIRE(authored);
+    const auto old_grant = t.seat->rooms.back().grant;
+    authored->width = PaneSize{pane_unit::kPixels, 44 * kPaneCanvasUnit};
+    t.r.key(input::scan::kUnknown);
+    REQUIRE(t.seat->rooms.back().grant != old_grant);
+    CHECK(t.view().canvas.preview);
+    CHECK(said() == why);
+    CHECK(shown(kExternalRefusedMark));
+    CHECK_FALSE(shown("(updating)"));
+    auto stale = t.picture(3);
+    stale.grant = old_grant;
+    stale.rects[0].w = -1;
+    send(stale);
+    CHECK(t.seat->rejected.back().reason == "canvas room grant is no longer current");
+    CHECK(t.view().refusal_why == why);
+
+    // ADMITTED: the refusal goes with it, from the pane and from Attention.
+    t.publish(1);
+    CHECK(t.view().refusal.empty());
+    CHECK(t.view().refusal_why.empty());
+    CHECK(said().empty());
+    CHECK_FALSE(shown(kExternalRefusedMark));
+
+    // BEFORE ANY PICTURE, a refused first one is said where the pane would say it waits.
+    t.r.pick(PaneRef{canvas_office, canvas_pane});
+    t.r.pick(PaneRef{canvas_office, canvas_pane});
+    REQUIRE_FALSE(t.view().canvas.heard);
+    CHECK(shown(kExternalWaiting));
+    auto first = t.picture(1);
+    first.labels[0].text = "caf\xC3\xA9";
+    send(first);
+    CHECK(said() == why);
+    CHECK(shown(std::string(kExternalPictureRefused).substr(0, 17)));
+    CHECK_FALSE(shown(kExternalWaiting));
+
+    // A PICTURE NUMBERED NONE is malformed, not late: no room gives such a number.
+    t.publish(1);
+    auto unnumbered = t.picture(0);
+    send(unnumbered);
+    CHECK(t.seat->rejected.back().reason == "canvas grant and picture must be positive");
+    CHECK(said() == "canvas grant and picture must be positive");
+
+    // WITH NO TITLE ROW the mark stands at the picture's corner on the medium's own ground, over
+    // a picture that still takes presses.
+    press_outside(t.r, t.kind);
+    t.r.key(input::scan::kT);
+    t.r.text("t");
+    REQUIRE_FALSE(t.r.session().pane_titles);
+    REQUIRE(external_title_rows(t.r.session().panes, t.kind, false) == 0);
+    t.publish(1);
+    CHECK(said().empty());
+    auto again = t.picture(2);
+    again.labels[0].text = "caf\xC3\xA9";
+    send(again);
+    CHECK(t.view().canvas.heard);
+    CHECK(said() == why);
+    std::int64_t ground = surface::role::kFill;
+    for (const auto& region : all_texts(t.r.last_canvas()))
+        for (const auto& row : region.rows)
+            if (row.text.find(kExternalRefusedMark) != std::string::npos) ground = row.background;
+    CHECK(ground == surface::role::kMediumGround);
+}
+
 TEST_CASE("pane canvas capture keeps the press picture through repaint motion and outside release") {
     CanvasRig t;
     t.button(1, true);
