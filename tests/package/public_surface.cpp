@@ -66,6 +66,16 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_settings.hpp"
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace {
 
 int failures = 0;
@@ -346,6 +356,10 @@ bool inventory_grant_answers_folders() {
 
 int main() {
     std::printf("zengine public surface, as an installed package sees it\n");
+#if defined(_WIN32)
+    // `zengine_code_page()` in this project's CMakeLists.txt, from the package.
+    check(::GetACP() == CP_UTF8, "zengine_code_page() gives a stranger's program the UTF-8 code page");
+#endif
     const auto schema = loom::SchemaBuilder("stranger.Item", 1).field("name", loom::Kind::Text).build();
     loom::Value item(schema);
     item.set("name", loom::Cell::text("installed"));
