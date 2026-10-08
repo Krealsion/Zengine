@@ -30,15 +30,25 @@ namespace zengine::workshop::setup_persist {
 inline constexpr const char* kFormat = "zengine-workshop-setup";
 
 /// The setup format version this build WRITES, and the newest it reads.
-inline constexpr std::int64_t kFormatVersion = 4;
+inline constexpr std::int64_t kFormatVersion = 5;
 
-/// The oldest version this build still reads. Version 2 (whole cells) and version 3 (sub-units)
-/// are each translated on load — never rewritten in place.
+/// The oldest version this build still reads. Version 2 (whole cells), version 3 (sub-units) and
+/// version 4 (no settings) are each translated on load — never rewritten in place.
 inline constexpr std::int64_t kOldestFormatVersion = 2;
 
-/// A setup is a smaller thing than a document, and its ceiling says so.
+/// THE MOST BYTES ONE STORED SETTING SPELLS TO in the file: its key, its text with every byte
+/// escaped to two, and the field names and punctuation around them.
 // WL-SESSION-06 -- agents/workshop/session-restore.md
-inline constexpr std::uintmax_t kMaxSetupBytes = 1u << 16;
+inline constexpr std::uintmax_t kMaxPaneSettingSpelledBytes =
+    kMaxPaneSettingKeyLen + 2u * kMaxPaneSettingTextLen + 32u;
+
+/// A setup is a smaller thing than a document, and its ceiling says so: room for a desk of
+/// `kMaxSetupPanes` rows at their bounds, and for `kMaxPaneSettingsPerDesk` settings at theirs.
+// WL-SESSION-06 -- agents/workshop/session-restore.md
+inline constexpr std::uintmax_t kMaxSetupBytes = 160u << 10;
+static_assert(kMaxSetupBytes >= (1u << 16) + kMaxPaneSettingsPerDesk * kMaxPaneSettingSpelledBytes,
+              "a setup's ceiling holds its rows' 64 KiB and every setting a desk keeps, each at "
+              "the most bytes it can spell to: a lower ceiling lets `s` write what `r` refuses");
 
 // ---- The mode WORDS, and why they are words ----------------------------------
 // WL-SETUP-04 -- agents/workshop/setup-file.md
@@ -99,8 +109,8 @@ struct WorkshopPanePlace {
     ZEN_SHAPE(WorkshopPanePlace, 3, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y));
 };
 
-/// ONE PANE ROW AS WRITTEN: the durable reference, the authored window, and how
-/// far forward it sits.
+/// ONE PANE ROW AS WRITTEN: the durable reference, the authored window, how far forward it
+/// sits, and the settings this layout keeps for the pane -- `[]`, the one spelling of none.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 struct WorkshopSetupPane {
     std::string provider;
@@ -109,9 +119,10 @@ struct WorkshopSetupPane {
     WorkshopPaneSize width;
     WorkshopPaneSize height;
     std::int64_t front = 0;
+    std::vector<PaneSetting> settings;
 
-    ZEN_SHAPE(WorkshopSetupPane, 4, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
-              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front));
+    ZEN_SHAPE(WorkshopSetupPane, 5, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
+              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front), ZEN_FIELD(settings));
 };
 
 /// A WHOLE SAVED SETUP: what it is, which version of that it is, what a weaver
@@ -122,8 +133,8 @@ struct WorkshopSetup {
     std::string name;
     std::vector<WorkshopSetupPane> panes;
 
-    /// Version 4, because the geometry its rows hold became canvas pixels.
-    ZEN_SHAPE(WorkshopSetup, 4, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
+    /// Version 5, because its rows keep each pane's settings.
+    ZEN_SHAPE(WorkshopSetup, 5, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
               ZEN_FIELD(panes));
 };
 
@@ -172,7 +183,7 @@ inline WorkshopSetup to_setup(const Setup& s) {
         // and not renumbered.
         out.panes.push_back(WorkshopSetupPane{row.ref.provider, row.ref.pane,
                                               place_out(row.place), size_out(row.width),
-                                              size_out(row.height), row.front});
+                                              size_out(row.height), row.front, row.settings});
     }
     return out;
 }
@@ -248,6 +259,64 @@ inline std::string unknown_unit(const std::string& found, const char* which,
                                 const char* allowed) {
     return "`" + found + "` is not a pane " + which + " mode (" + allowed + ")";
 }
+
+// ---- VERSION 4, RETAINED FOR READING -----------------------------------------------------
+// WL-SETUP-02 -- agents/workshop/setup-file.md
+namespace v4 {
+
+inline constexpr std::int64_t kRetainedVersion = 4;
+
+/// Version 4's row: version 5's fields but the settings, over the same place and size.
+struct WorkshopSetupPane {
+    std::string provider;
+    std::string pane;
+    WorkshopPanePlace place;
+    WorkshopPaneSize width;
+    WorkshopPaneSize height;
+    std::int64_t front = 0;
+
+    ZEN_SHAPE(WorkshopSetupPane, 4, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
+              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front));
+};
+
+struct WorkshopSetup {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::string name;
+    std::vector<WorkshopSetupPane> panes;
+
+    ZEN_SHAPE(WorkshopSetup, 4, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
+              ZEN_FIELD(panes));
+};
+
+static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kRetainedVersion),
+              "a retained setup shape's envelope version and its format version are one "
+              "number, as the current one's are");
+
+/// ONE DESK OF VERSION 4 IN THE CURRENT SHAPE: every field as it was, and no settings. Refused,
+/// in version 4's own words, for a claim that version never made.
+// WL-SETUP-02 -- agents/workshop/setup-file.md
+inline Written to_current(const WorkshopSetup& old, setup_persist::WorkshopSetup& out) {
+    if (old.format != kFormat) {
+        return Written::no("not a Workshop setup: it says it is `" + old.format + "`");
+    }
+    if (old.format_version != kRetainedVersion) {
+        return Written::no(wrong_version(old.format_version));
+    }
+    setup_persist::WorkshopSetup made;
+    made.format = old.format;
+    made.format_version = setup_persist::kFormatVersion;
+    made.name = old.name;
+    made.panes.reserve(old.panes.size());
+    for (const WorkshopSetupPane& p : old.panes) {
+        made.panes.push_back(setup_persist::WorkshopSetupPane{p.provider, p.pane, p.place, p.width,
+                                                              p.height, p.front, {}});
+    }
+    out = std::move(made);
+    return Written::ok();
+}
+
+} // namespace v4
 
 // ---- VERSION 2, RETAINED FOR READING -----------------------------------------------------
 // WL-SETUP-02 -- agents/workshop/setup-file.md
@@ -394,26 +463,26 @@ inline constexpr std::int64_t px_extent_of_subcells(std::int64_t at, std::int64_
     return px_of_subcells(surface::add_cells(at, extent)) - px_of_subcells(at);
 }
 
-/// ONE DESK OF VERSION 3 IN THE CURRENT SHAPE, LANDED ON THE PIXELS THE WINDOW PAINTED IT AT. A
+/// ONE DESK OF VERSION 3 AS VERSION 4, LANDED ON THE PIXELS THE WINDOW PAINTED IT AT. A
 /// place floors and is said in the room (`room_place_of_canvas`); an extent is its painted span from the authored place on its axis, or from a
 /// whole cell when the place is the code's (every default place is one); a `pixels` extent is a
 /// pixel count already, raised to one cell if it was less. Refused, in version 3's own words,
 /// for a claim or a word that version never had.
 // WL-SETUP-02 -- agents/workshop/setup-file.md
-inline Written to_current(const WorkshopSetup& old, setup_persist::WorkshopSetup& out) {
+inline Written to_v4(const WorkshopSetup& old, v4::WorkshopSetup& out) {
     if (old.format != kFormat) {
         return Written::no("not a Workshop setup: it says it is `" + old.format + "`");
     }
     if (old.format_version != kRetainedVersion) {
         return Written::no(wrong_version(old.format_version));
     }
-    setup_persist::WorkshopSetup made;
+    v4::WorkshopSetup made;
     made.format = old.format;
-    made.format_version = setup_persist::kFormatVersion;
+    made.format_version = v4::kRetainedVersion;
     made.name = old.name;
     made.panes.reserve(old.panes.size());
     for (const WorkshopSetupPane& p : old.panes) {
-        setup_persist::WorkshopSetupPane row;
+        v4::WorkshopSetupPane row;
         row.provider = p.provider;
         row.pane = p.pane;
         row.front = p.front;
@@ -530,6 +599,8 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out,
         SetupPane row;
         row.ref = PaneRef{p.provider, p.pane};
         row.front = p.front;
+        // AS WRITTEN: their form is the law's to judge below, and their meaning the pane's.
+        row.settings = p.settings;
         // AN UNKNOWN WORD REFUSES THE WHOLE CANDIDATE and leaves whatever the caller is
         // showing exactly as it was -- see the note above about whose value `out` is.
         if (!place_in(p.place, row.place)) {
@@ -573,8 +644,8 @@ inline LoadedSetup from_text(std::string_view bytes) {
     }
     // The version preflight orders, never loosens: it reads the claim, which exists before
     // admission, so a version-1 file is refused by its number rather than by the first field
-    // version 2 added. A version-2 or version-3 claim takes its own road: admitted at full
-    // strength against that version's retained shape, then landed on pixels.
+    // version 2 added. A version-2, -3 or -4 claim takes its own road: admitted at full strength
+    // against that version's retained shape, then landed on the current one.
     if (claim.claimed_name() == std::string(WorkshopSetup::zen_name) &&
         claim.claimed_version() == v2::WorkshopSetup::zen_version) {
         const loom::Admission old =
@@ -596,15 +667,31 @@ inline LoadedSetup from_text(std::string_view bytes) {
         return loaded;
     }
     if (claim.claimed_name() == std::string(WorkshopSetup::zen_name) &&
-        claim.claimed_version() == v3::WorkshopSetup::zen_version) {
-        const loom::Admission old =
-            loom::admit(claim, loom::schema_of<v3::WorkshopSetup>(), loom::Report::FirstError);
-        if (!old.ok()) {
-            return LoadedSetup::no(old.first_error().message());
+        (claim.claimed_version() == v3::WorkshopSetup::zen_version ||
+         claim.claimed_version() == v4::WorkshopSetup::zen_version)) {
+        // VERSION 3 LANDS ON VERSION 4, AND VERSION 4 ON THE CURRENT SHAPE, each admitted at
+        // full strength against its own retained shape first.
+        v4::WorkshopSetup four;
+        if (claim.claimed_version() == v3::WorkshopSetup::zen_version) {
+            const loom::Admission old =
+                loom::admit(claim, loom::schema_of<v3::WorkshopSetup>(), loom::Report::FirstError);
+            if (!old.ok()) {
+                return LoadedSetup::no(old.first_error().message());
+            }
+            const Written landed = v3::to_v4(loom::from_value<v3::WorkshopSetup>(old.value()), four);
+            if (!landed.accepted) {
+                return LoadedSetup::no(landed.refusal);
+            }
+        } else {
+            const loom::Admission old =
+                loom::admit(claim, loom::schema_of<v4::WorkshopSetup>(), loom::Report::FirstError);
+            if (!old.ok()) {
+                return LoadedSetup::no(old.first_error().message());
+            }
+            four = loom::from_value<v4::WorkshopSetup>(old.value());
         }
         WorkshopSetup current;
-        const Written landed =
-            v3::to_current(loom::from_value<v3::WorkshopSetup>(old.value()), current);
+        const Written landed = v4::to_current(four, current);
         if (!landed.accepted) {
             return LoadedSetup::no(landed.refusal);
         }
@@ -651,10 +738,17 @@ inline LoadedSetup from_text(std::string_view bytes) {
 // ---- The file itself -------------------------------------------------------------
 
 /// Save a setup through `persist`'s safe write: a complete candidate to a sibling, then a rename
-/// over the destination.
+/// over the destination. Text past `kMaxSetupBytes`, which `load_file` would refuse, is refused
+/// here with nothing written.
 // WL-SETUP-11 -- agents/workshop/setup-file.md
 inline Written save_file(const std::string& path, const Setup& s) {
-    return persist::write_file(path, to_text(s));
+    const std::string text = to_text(s);
+    if (text.size() > kMaxSetupBytes) {
+        return Written::no("this setup is " + std::to_string(text.size()) +
+                           " bytes, larger than a Workshop setup can be (" +
+                           std::to_string(kMaxSetupBytes) + ") -- nothing was written");
+    }
+    return persist::write_file(path, text);
 }
 
 /// Read a setup from a file. The composition of every layer: the file, the

@@ -1,13 +1,13 @@
 # Workshop law — the setup file
 
-Register `WL-SETUP`: the setup file's shape, its two retained readers, and one spelling per fact.
+Register `WL-SETUP`: the setup file's shape, its three retained readers, and one spelling per fact.
 One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 Retired: WL-SETUP-06.
 
 ## WL-SETUP-01 — A setup row is a reference plus the smallest authored difference
 
-LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->4<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}` per axis, `front`, and nothing else.
+LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->5<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}`, `front`, its `settings`, and nothing else.
 
 MEANS
 - a fresh setup is sparse: the developer's defaults are absent, not written;
@@ -21,7 +21,8 @@ PROVEN BY — `workshop/setup_persist.hpp` `kFormatVersion`, `WorkshopSetup`, `t
 `tests/test_workshop_panes_window.cpp` case `"a fresh setup is the current version, sparse, and
 carries the identity ranks"`, case `"an unresolved reference round-trips every authored field
 exactly"`; `tests/test_workshop_panes_seam.cpp` case `"setup bytes carry no descriptor, room
-or handle"`.
+or handle"`; `tests/test_workshop_persistence.cpp` case `"a setting rides its row through the
+setup file in its own kind's field"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-02 — An old setup opens where it stood in its room
@@ -29,18 +30,20 @@ WHY — `agents/decisions/setup-format-v3.md`
 LAW — An older setup's places and extents cross at the door: each edge floored to the pixel it painted, a place said from the room's top, two cells below the canvas's; other versions are refused.
 
 MEANS
-- version 3 reads at a floor of four sub-units, version 2 times twelve; an extent is its span;
+- version 4 reads with no settings, 3 at a floor of four sub-units, 2 times twelve; an extent is its span;
 - a place above that room's top lands at the room's top, the nearest place the room has;
-- an old `pixels` extent under one cell is raised to one cell; the shapes are two namespaces.
+- an old `pixels` extent under one cell is raised to one cell; the shapes are three namespaces.
 
-PROVEN BY — `workshop/setup_persist.hpp` `v2`, `v3`, `setup_in`, `from_text`, `setup_in_v2`,
-`v3::to_current`, `v3::kSubsPerPixel`, `at_least_a_cell`, `kCanvasRoomTopPx`,
-`room_place_of_canvas`; `surface/vocabulary.hpp` `kCanvasCellPx`; `workshop/session_history.hpp`
-`place_v2_to_v3`, `desk_v2_to_v3`, `desk_v3_to_v4`; `tests/test_workshop_screen.cpp` case `"a
-version-2 whole-cell setup loads at exactly its old picture"`, case `"a fine setup opens where
-the window painted it, its place in the room"`, case `"a place in an older file keeps its place in
-the room"`; `tests/test_workshop_panes_window.cpp` case `"a version-1 file is refused BY NUMBER,
-before its rows are judged"`.
+PROVEN BY — `workshop/setup_persist.hpp` `v2`, `v3`, `v4`, `setup_in`, `from_text`,
+`setup_in_v2`, `v3::to_v4`, `v4::to_current`, `v3::kSubsPerPixel`, `at_least_a_cell`,
+`kCanvasRoomTopPx`, `room_place_of_canvas`; `surface/vocabulary.hpp` `kCanvasCellPx`;
+`workshop/session_history.hpp` `place_v2_to_v3`, `desk_v2_to_v3`, `desk_v3_to_v4`,
+`desk_v4_to_v5`; `tests/test_workshop_screen.cpp` case `"a version-2 whole-cell setup loads at
+exactly its old picture"`, case `"a fine setup opens where the window painted it, its place in the
+room"`, case `"a place in an older file keeps its place in the room"`;
+`tests/test_workshop_panes_window.cpp` case `"a version-1 file is refused BY NUMBER, before its
+rows are judged"`; `tests/test_workshop_persistence.cpp` case `"a version-4 setup file reads with
+no settings, and the next save writes version 5"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-03 — `default` is a value whose unused numbers are zero
@@ -48,7 +51,7 @@ WHY — `agents/decisions/setup-format-v3.md`
 LAW — Absent intent has exactly one spelling: a `default` mode carrying a number is refused, naming the axis. A NAMED place carries none either, for the same reason.
 
 MEANS
-- admission has no optional field, so absence cannot be spelled by omitting one;
+- a place's and a size's fields are required, so omitting one spells nothing;
 - a magic coordinate is a value a weaver could otherwise mean;
 - `kRightColumn` says which place, so a coordinate beside it would be two answers.
 
@@ -150,12 +153,16 @@ WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
 
 LAW — A setup is saved by `persist::write_file`, a whole candidate renamed over the destination, so a failed write leaves the last good setup file whole; crash durability is not claimed.
 
-PROVEN BY — `workshop/setup_persist.hpp` `save_file`, `load_file`, `persist::write_file`;
-`tests/test_workshop_persistence.cpp` case `"a detected setup write failure leaves the last good
-setup file untouched"`, case `"a setup file on disk is the setup read back from it"`.
+MEANS
+- text past `kMaxSetupBytes`, which the reader would refuse, is refused at the save, nothing written.
+
+PROVEN BY — `workshop/setup_persist.hpp` `save_file`, `load_file`, `persist::write_file`,
+`kMaxSetupBytes`; `tests/test_workshop_persistence.cpp` case `"a detected setup write failure
+leaves the last good setup file untouched"`, case `"a setup file on disk is the setup read back
+from it"`, case `"a setup past its byte ceiling is refused at the save, and nothing is written"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## Do not assume
 
-- That the setup keeps no old reader — it keeps the v2 and v3 ones, because a setup is a named
-  artifact with no session to ride (WL-SETUP-02); the session reader keeps none (WL-MIG-01).
+- That the setup keeps no old reader — it keeps the v2, v3 and v4 ones, because a setup is a
+  named artifact with no session to ride (WL-SETUP-02); the session reader keeps none (WL-MIG-01).

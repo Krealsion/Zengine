@@ -20,13 +20,14 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 LAW — A retired shape is copied verbatim and keeps the wire identity an old file's bytes claim, every historical id is pinned with its provenance, and the catalog reads current off the reader's schema.
 
 MEANS
-- `v1` to `v7` composes `session_v1_to_v3`, `v3_to_v4`, `v4_to_v5`, `v5_to_v6`, `v6_to_v7`;
+- `v1` to `v8` composes `session_v1_to_v3`, `v3_to_v4`, `v4_to_v5`, `v5_to_v6`, `v6_to_v7`, `v7_to_v8`;
 - the catalog holds no `v1` to `v3` or `v3` to `v4` edge, so there is no chain to walk.
 
-PROVEN BY — `workshop/session_history.hpp` `v1`, `v2`, `v3`, `v4`, `v5`, `v6`, `conversions`,
-`session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5`, `session_v5_to_v6`,
-`session_v6_to_v7`, `v3::WorkshopSession`, `v4::WorkshopSession`, `v5::WorkshopSession`,
-`v6::WorkshopSession`, `session_v2_to_v3`, `session_v1_to_v7`, `desk_v2_to_v3`, `desk_v3_to_v4`;
+PROVEN BY — `workshop/session_history.hpp` `v1`, `v2`, `v3`, `v4`, `v5`, `v6`, `v7`,
+`conversions`, `session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5`, `session_v5_to_v6`,
+`session_v6_to_v7`, `session_v7_to_v8`, `v3::WorkshopSession`, `v4::WorkshopSession`,
+`v5::WorkshopSession`, `v6::WorkshopSession`, `v7::WorkshopSession`, `session_v2_to_v3`,
+`session_v1_to_v8`, `desk_v2_to_v3`, `desk_v3_to_v4`, `desk_v4_to_v5`;
 `tests/test_workshop_persistence.cpp` case `"a retired shape's wire identity is the identity it
 was written at"`, case `"three DIRECT edges, and
 no chain to walk even if one wanted to"`, case `"a conversion owns yesterday's
@@ -52,7 +53,7 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-04 — A retained old branch would compile, so a source tripwire forbids it
 
-LAW — A retained v4 or v5 branch in the reader would admit and behave for every file that does not depend on the distinction, so the persistence suite forbids the retired tokens in the reader.
+LAW — A retained branch for a retired version in the reader would admit and behave for every file that does not depend on the distinction, so the persistence suite forbids the retired tokens.
 
 PROVEN BY — `workshop/session_persist.hpp` `kFormatVersion`;
 `tests/test_workshop_persistence.cpp` case `"the session reader owns no historical shape
@@ -137,10 +138,25 @@ PROVEN BY — `workshop/weave_session.cpp` `save_last_session`, `restore_last_se
 close does"`, case `"the weaver sees no loss, and the next run spends no conversion"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
+## WL-MIG-11 — Version 8 gave each row its settings, and a converted desk keeps none
+
+LAW — A version-7 desk lands on version 8 with no settings in any row, and a link's `known` with it, so an associated layout still reads current; no setting is inferred.
+
+MEANS
+- the desk's own `format_version` is still judged, so a forged vintage is refused in its layout;
+- every older edge ends in the same step, so every vintage arrives with no settings.
+
+PROVEN BY — `workshop/session_history.hpp` `session_v7_to_v8`, `desk_v4_to_v5`,
+`absent_v4_desk`, `v7::WorkshopSession`; `workshop/setup_persist.hpp` `v4::to_current`;
+`tests/test_workshop_persistence.cpp` case `"a version-7 session converts with every desk and
+remembered value keeping no settings"`.
+WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
+
 ## Do not assume
 
 - That `session_persist` still reads old sessions, or that an old file gets what it asks for:
   one version is admitted; an older file opens exactly when a conversion is mounted
   (WL-MIG-01, WL-MIG-06).
-- That a session format move implies a desk format move: the session is 6 and the desk is 3
-  (WL-MIG-03).
+- That a session format move implies a desk format move: the session is
+  <!-- value session_persist::kFormatVersion -->8<!-- /value --> and the desk is
+  <!-- value setup_persist::kFormatVersion -->5<!-- /value --> (WL-MIG-03).

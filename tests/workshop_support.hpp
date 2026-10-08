@@ -1377,11 +1377,59 @@ inline setup_persist::v3::WorkshopSetup v3_desk(const Setup& s) {
     return out;
 }
 
-/// A version-3 desk read as its own reader would: landed on pixels, then the setup law.
+/// A version-3 desk read as its own reader would: landed on pixels as version 4, then on the
+/// current shape, then the setup law.
 inline Written v3_setup_in(const setup_persist::v3::WorkshopSetup& old, Setup& out) {
+    setup_persist::v4::WorkshopSetup four;
+    Written landed = setup_persist::v3::to_v4(old, four);
+    if (!landed.accepted) {
+        return landed;
+    }
     setup_persist::WorkshopSetup now;
-    const Written landed = setup_persist::v3::to_current(old, now);
+    landed = setup_persist::v4::to_current(four, now);
     return landed.accepted ? setup_persist::setup_in(now, out) : landed;
+}
+
+/// A desk as a version-4 Workshop wrote it: today's rows without their settings.
+inline setup_persist::v4::WorkshopSetup v4_desk(const Setup& s) {
+    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
+    setup_persist::v4::WorkshopSetup out;
+    out.format = now.format;
+    out.format_version = setup_persist::v4::kRetainedVersion;
+    out.name = now.name;
+    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
+        out.panes.push_back(setup_persist::v4::WorkshopSetupPane{p.provider, p.pane, p.place,
+                                                                 p.width, p.height, p.front});
+    }
+    return out;
+}
+
+/// A DESK AT EVERY BOUND A FILE CAN MEET: `kMaxSetupPanes` rows whose keys are
+/// `kMaxPaneKeyLen` bytes a writer escapes, every place and extent at `kMaxPanePixels`, and
+/// `kMaxPaneSettingsPerDesk` settings with keys at their bound and texts escaped whole -- the
+/// largest file the setup law lets a weaver write.
+inline void fill_to_every_bound(Setup& s) {
+    while (s.panes.size() < kMaxSetupPanes) {
+        const std::string tail = std::to_string(s.panes.size());
+        const std::string key = std::string(kMaxPaneKeyLen - tail.size(), '"') + tail;
+        REQUIRE(add_pane(s, PaneRef{key, key}));
+    }
+    std::size_t left = kMaxPaneSettingsPerDesk;
+    for (SetupPane& row : s.panes) {
+        row.place = PanePlace{pane_unit::kPixels, kMaxPanePixels, kMaxPanePixels};
+        row.width = PaneSize{pane_unit::kPixels, kMaxPanePixels};
+        row.height = PaneSize{pane_unit::kPixels, kMaxPanePixels};
+        row.settings.clear();
+        for (std::size_t i = 0; i < kMaxPaneSettingsPerRow && left > 0; ++i, --left) {
+            const std::string n = std::to_string(100 + i);
+            PaneSetting one;
+            one.key = std::string(kMaxPaneSettingKeyLen - n.size(), 'k') + n;
+            one.text = std::string(kMaxPaneSettingTextLen, '"');
+            row.settings.push_back(std::move(one));
+        }
+    }
+    REQUIRE(desk_setting_count(s.panes) == kMaxPaneSettingsPerDesk);
+    REQUIRE_MESSAGE(check_setup(s).accepted, check_setup(s).refusal);
 }
 
 /// A setup file's text with one substring replaced -- how the refusal cases

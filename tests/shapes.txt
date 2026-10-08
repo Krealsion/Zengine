@@ -283,6 +283,7 @@ PaneRevealAnswered v1 0xc9433fec66580502
 PaneRevealRequested v1 0x6f6ea82ad0525e00
 PaneRoom v1 0xf59705a5786e0884
 PaneRowPart v1 0xc2090f5a6cc1cb72
+PaneSetting v1 0x734b46a0def3b4c5
 PaneShortcut v1 0x3bcd34b52ee938c7
 PaneShortcutInvoked v1 0x0f764f3d33ac413f
 PaneShortcuts v1 0xa46e946d9b7487b1
@@ -449,6 +450,7 @@ WorkshopKeymap v2 0xd628ed2c757d023e
 WorkshopKeymapRow v1 0xba12530c2f6c05a5
 WorkshopLayout v1 0x3ffb3d8c6bad29a1
 WorkshopLayout v2 0x048b320272ee11f7
+WorkshopLayout v3 0xa8c681406435ea4b
 WorkshopLoadArtifact v1 0x9495c3bc5d6cce28
 WorkshopLoadArtifact v2 0xc4abf10709be1e20
 WorkshopLoadChoice v1 0x2d8cb8d6a1cfe6fb
@@ -479,14 +481,18 @@ WorkshopSession v4 0xb621c9f3616c7bb1
 WorkshopSession v5 0x6f5b0dfc72bfa501
 WorkshopSession v6 0x65ddb2477e598d18
 WorkshopSession v7 0xcac415773fb5880a
+WorkshopSession v8 0x520a73e48f9d3ed1
 WorkshopSetup v2 0xae5ff77848290ca3
 WorkshopSetup v3 0x9002adbbcadc4175
 WorkshopSetup v4 0x54df6e46cb27fac7
+WorkshopSetup v5 0x0668d7f194658222
 WorkshopSetupLink v1 0x105b169d09772295
 WorkshopSetupLink v2 0xeb671797672f105e
+WorkshopSetupLink v3 0xfce7e3b31248215e
 WorkshopSetupPane v2 0x88a1ae54885519cb
 WorkshopSetupPane v3 0xc33259e666d59a8e
 WorkshopSetupPane v4 0x880bddade58949f8
+WorkshopSetupPane v5 0x275ff773ab4e86f9
 WorkshopSingleSource v1 0x057fa1b9619ed1c6
 WorkshopState v1 0x9815b24979528431
 WorkshopViewport v1 0x59b55f2ed1ff5e6f

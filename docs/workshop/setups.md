@@ -15,7 +15,7 @@ what you are looking at are these:
 
 | file | argument | holds |
 |---|---|---|
-| the **setup** | `--setup`, default `workshop-setup.json` | one desk you deliberately kept: which panes, where, how big, in what order |
+| the **setup** | `--setup`, default `workshop-setup.json` | one desk you deliberately kept: which panes, where, how big, in what order, and each pane's settings |
 | the **last session** | `--session`, default `workshop-session.json` | the desk you were actually using when you left, plus how much room the surface had |
 | a **pane you made** | the view file you saved in the [View Builder](view-builder.md) | what is *inside* a pane you made: the view's elements — never where it sits, which is the desk's |
 
@@ -120,7 +120,7 @@ marks, the same recipes, the same window. A pane that is in two layouts is **one
 provider, one tool, one lot of state — shown in both.
 
 Each layout keeps what you authored in it: which panes participate, where each one is, how big,
-and which is in front. Switch away and back and it is exactly as you left it.
+which is in front, and each pane's settings. Switch away and back and it is exactly as you left it.
 
 Three plain bounds:
 
@@ -315,8 +315,8 @@ Three consequences worth knowing:
   by number, naming the conversion that is missing:
 
 ```text
-session version 3 cannot be read: no live conversion from `WorkshopSession` v3 to v7
-(`zengine.migrate.WorkshopSession.v3-to-v7`) -- opening with the default setup
+session version 3 cannot be read: no live conversion from `WorkshopSession` v3 to v8
+(`zengine.migrate.WorkshopSession.v3-to-v8`) -- opening with the default setup
 ```
 
   **and that run keeps no session at all** — closing it writes nothing, so your file is still
@@ -346,8 +346,8 @@ reads no setup file at all.
 > **Can a weaver reopen Workshop and return to useful work without reconstructing their panes
 > manually?**
 >
-> **Yes, and without pressing anything.** The panes, their geometry, their order and the window
-> size come back on their own. What each pane holds is the pane's own to keep: the Files pane's
+> **Yes, and without pressing anything.** The panes, their geometry and settings, their order and
+> the window size come back on their own. What each pane holds is the pane's own to keep: the Files pane's
 > marks come back and its half-finished browsing does not, and the Editor starts empty — open
 > your source again from Files or the Builder ([limitations](limitations.md)).
 
@@ -368,6 +368,7 @@ Source-traced, precisely:
 | persisting pane size | **yes** | authored size in cells or pixels, in both |
 | persisting which panes are open | **yes** | the pane list, in both |
 | persisting pane order (depth) | **yes** | the rank permutation, in both |
+| persisting a pane's settings | **yes** | per layout, in the pane's row, in both |
 | persisting the window's size | **yes** | the session's viewport, in pixels — the *normal* window's room |
 | persisting the window's position and maximized state | **yes** | remembered opaquely from the medium's own reports; the medium validates them against live displays at restore |
 | **restoring the desk and the room at launch** | **yes** | automatic, from the `--session` file |
