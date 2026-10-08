@@ -727,7 +727,11 @@ class CanvasWorkshop(Context):
     words are observed through a subscription that hears none. `zengine.demo` answers its status by
     the resets its controls were pressed for, and `zengine.inventory` lists what a
     `CanvasInventory` shown browses. `act_steps` are a `workshop/act` run's steps; what a run keeps
-    is kept."""
+    is kept. While `window` names readings, each reading takes the first: `settled` says the pane as
+    it is, `untaken` as a picture that takes no press -- numbered none, every word and part with no
+    point, as Workshop says the one a managed opening shows -- and `unsettled` refuses it as a
+    picture not yet settled; a point asked before an `untaken` or `unsettled` reading is refused as
+    Workshop refuses it then."""
 
     def __init__(self, steps, panes, act_steps=(), unreached=()):
         Context.__init__(self, steps)
@@ -735,6 +739,7 @@ class CanvasWorkshop(Context):
         self.panes, self.unreached, self.asked, self.kept = dict(panes), set(unreached), [], {}
         self.holder = None  # the pane a press last landed on, which hears the keys
         self.redraws = 0  # points to refuse as a pane that redrew since it was read
+        self.window = []  # what each of the next readings says: "settled", "untaken" or "unsettled"
 
     def produce(self, name, data):
         self.kept[name] = data
@@ -760,6 +765,21 @@ class CanvasWorkshop(Context):
                 raise Refused("pane view unavailable: closed, unknown or covered by an interaction")
             if version == 1:
                 raise Refused("pane view unavailable: the pane draws a picture, not text rows")
+            if self.window and self.window[0] != "settled" and shape == "PanePointRequested":
+                raise Refused("pane point unavailable: the pane's picture moved; read it again -- the "
+                              "one shown takes no press until its pane draws its own"
+                              if self.window[0] == "untaken" else "pane view unavailable: no settled picture")
+            if self.window and shape == "PaneViewRequested":
+                said = self.window.pop(0)
+                if said == "settled":
+                    return pane.view(fields["provider"], fields["pane"], self.pointed)
+                if said == "unsettled":
+                    raise Refused("pane view unavailable: no settled picture")
+                view = pane.view(fields["provider"], fields["pane"], self.pointed)
+                view["picture"] = 0
+                for said in view["words"] + view["parts"]:
+                    said.update(x=0, y=0, space=0)
+                return view
             if shape == "PanePointRequested":
                 if self.redraws:
                     self.redraws -= 1
@@ -1976,6 +1996,110 @@ def run_checks(tools, runtime):
                               ("press zengine.editor/editor 5,18", first.correlation + 2)])
             self.assertEqual(set(ctx.asked), self.LATTICE)
             self.assertFalse(ctx.owner.open)
+
+        # ---- a picture that takes no press: the one a managed opening shows, until the Editor draws
+        # its own. Workshop says its words and parts with no point and refuses a point asked of it,
+        # and then, for a moment, its view; a tool that presses reads the pane again through both.
+        OPENING = ["untaken", "untaken", "unsettled"]
+
+        def test_the_hand_reads_a_pane_again_while_its_picture_takes_no_press(self):
+            editor = self.beat_editor()
+            ctx = CanvasWorkshop(steps, {self.EDITOR: editor})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                ctx.window = list(self.OPENING)
+                status = held.part(*self.EDITOR, "status")
+                self.assertEqual(ctx.window, [])
+                held.click(status)
+                ctx.window = list(self.OPENING)
+                cell = materials.cell(held, "int total = 0;")
+                self.assertEqual(ctx.window, [])
+                held.click(cell)
+                ctx.window = list(self.OPENING)
+                row = held.row(*self.EDITOR, "int main()")
+                self.assertEqual(ctx.window, [])
+                ctx.window = list(self.OPENING)
+                first = held.first(*self.EDITOR)
+                self.assertEqual(ctx.window, [])
+                # THE WINDOW BEGINS BETWEEN A READING AND ITS POINT: the point is refused, and the
+                # pane read again through the window.
+                ctx.window = ["settled"] + list(self.OPENING)
+                moved = held.row(*self.EDITOR, "int total = 0;")
+                self.assertEqual(ctx.window, [])
+                # ...A FIRST READING IN THE MOMENT THE PANE'S OWN PICTURE SETTLES is read again too,
+                ctx.window = ["unsettled"]
+                held.first(*self.EDITOR)
+                self.assertEqual(ctx.window, [])
+                # ...AND A PANE WORKSHOP DOES NOT DESCRIBE IS REFUSED AT ONCE.
+                with self.assertRaisesRegex(Refused, "closed, unknown or covered"):
+                    held.pressing("zengine.editor", "no-such-pane")
+                # A PICTURE THAT NEVER TAKES ONE: the read gives up saying so, and nothing is pressed.
+                ctx.window = ["untaken"] * 1000
+                with self.assertRaisesRegex(ValueError, "zengine.editor/editor's picture took no press "
+                                                        "within 0.3s"):
+                    held.pressing(*self.EDITOR, seconds=0.3)
+            finally:
+                held.close()
+            self.assertEqual((status["name"], status["space"]), ("status", 2))
+            self.assertEqual([p[0] for p in editor.presses], [0, 5])
+            self.assertEqual(editor.presses[1], (5, 4))
+            self.assertEqual((row["text"].startswith("int main()"), row["space"]), (True, 2))
+            self.assertEqual((first["text"], first["space"]), ("beat.cpp  saved  line 1", 2))
+            self.assertEqual((moved["text"].strip(), moved["space"]), ("int total = 0;", 2))
+
+        def test_a_step_that_presses_waits_while_a_panes_picture_takes_no_press(self):
+            for step, row in (({"part": list(self.EDITOR) + ["status"]}, 0),
+                              ({"click": list(self.EDITOR) + ["int total"]}, 5),
+                              ({"at": list(self.EDITOR) + [5, 18]}, 5),
+                              ({"wheel": list(self.EDITOR) + ["status"], "dy": 1}, None)):
+                with self.subTest(step=step):
+                    editor = self.beat_editor()
+                    ctx = CanvasWorkshop(steps, {self.EDITOR: editor}, act_steps=[step])
+                    ctx.window = list(self.OPENING)
+                    self.act(ctx)
+                    self.assertEqual(ctx.window, [])
+                    if row is None:
+                        wheeled = [e for e in ctx.events if e["kind"] == "PointerWheel"]
+                        self.assertEqual([e["space"] for e in wheeled], [2])
+                        self.assertEqual(editor.at(wheeled[0]["x"], wheeled[0]["y"])[0], 0)
+                    else:
+                        self.assertEqual([p[0] for p in editor.presses], [row])
+            # A PICTURE THAT NEVER TAKES ONE: the step fails saying so, and presses nothing.
+            for step in ({"part": list(self.EDITOR) + ["status"], "seconds": 0.3},
+                         {"click": list(self.EDITOR) + ["int total"], "seconds": 0.3},
+                         {"at": list(self.EDITOR) + [5, 18], "seconds": 0.3},
+                         {"wheel": list(self.EDITOR), "dy": 1, "seconds": 0.3}):
+                with self.subTest(step=step):
+                    ctx = CanvasWorkshop(steps, {self.EDITOR: self.beat_editor()}, act_steps=[step])
+                    ctx.window = ["untaken"] * 1000
+                    with self.assertRaisesRegex(CheckFailed, "zengine.editor/editor's picture took no "
+                                                             "press within 0.3s"):
+                        self.act(ctx)
+                    self.assertFalse([e for e in ctx.events
+                                      if e["kind"] in ("PointerButton", "PointerWheel")])
+
+        def test_a_monitor_reads_a_pane_again_while_its_picture_takes_no_press(self):
+            editor = self.beat_editor()
+            ctx = CanvasWorkshop(steps, {self.EDITOR: editor})
+            m = monitor.Monitor(ctx, SimpleNamespace(producer="td.game", shapes=[("TdSeen", 1)]))
+            try:
+                ctx.window = list(self.OPENING)
+                m.press_at(*self.EDITOR, 2, 0)
+            finally:
+                m.release_keys()
+            self.assertEqual(ctx.window, [])
+            self.assertEqual(editor.presses, [(2, 0)])
+            # A PICTURE TAKING NO PRESS PAST THE MONITOR'S DEADLINE: the monitor cannot tell.
+            ctx = CanvasWorkshop(steps, {self.EDITOR: self.beat_editor()})
+            m = monitor.Monitor(ctx, SimpleNamespace(producer="td.game", shapes=[("TdSeen", 1)]),
+                                seconds=0.3)
+            try:
+                ctx.window = ["untaken"] * 1000
+                with self.assertRaisesRegex(monitor.Inconclusive, "picture took no press"):
+                    m.press_at(*self.EDITOR, 2, 0)
+            finally:
+                m.release_keys()
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
     return unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful()

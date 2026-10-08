@@ -50,7 +50,7 @@ import secrets
 import time
 from pathlib import Path
 
-from act import painted, unreached, wait_part
+from act import no_press_yet, painted, unreached, wait_part
 from hand import Hand
 from workshop_steps import chord_moments, moment
 
@@ -248,6 +248,7 @@ def run(ctx):
               "to Neovim")
     ctx.check(where is not None, "the Editor pane draws no status row (the parts it names: %s)"
               % [p["name"] for p in view.get("parts", [])])
+    no_press_yet(ctx, view, "the status row", PANE[0], PANE[1], 10)
     ctx.check(not unreached(where), "no press reaches the Editor pane's status row on its own")
     hand.inject([moment(ctx, "PointerButton", button=1, pressed=p, x=where["x"], y=where["y"],
                         space=where["space"]) for p in (True, False)])
