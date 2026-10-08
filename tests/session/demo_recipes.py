@@ -507,6 +507,19 @@ class Recipes(unittest.TestCase):
             described.Setup(root)
         self.assertIn("is setup version 3", str(refused.exception))
         self.assertIn("save it (`s`)", str(refused.exception))
+        # ...AND A FILE THAT IS NOT A SETUP AT ALL IS SAID SO, as Workshop's reader says it, whatever
+        # version it claims: a session beside the desk, and a version-4 desk of another format.
+        for name, claim in (("session", {"schema": "WorkshopSession", "version": 8, "fields": {
+                                "format": "zengine-workshop-session", "format_version": "8"}}),
+                            ("other", dict(desk, version=4, fields=dict(
+                                desk["fields"], format="zengine-workshop-keymap",
+                                format_version="4")))):
+            root = make(self.tmp, "not-a-setup-" + name)
+            (root / "desk.json").write_text(json.dumps(claim), encoding="utf-8")
+            with self.assertRaises(described.SetupError) as refused:
+                described.Setup(root)
+            self.assertIn("not a Workshop setup: it says it is", str(refused.exception))
+            self.assertNotIn("save it (`s`)", str(refused.exception))
 
     def test_a_view_seated_on_a_desk_saved_now_keeps_the_shape_workshop_reads(self):
         # A DESK `s` WROTE, AND A VIEW SLOT: preparation seats a portable view there, and the desk it
