@@ -192,8 +192,8 @@ bool cache_is_multi_config(const std::filesystem::path& cache_file) {
 
 /// How a menu's subject carries two facts across the seam: `PaneMenuAnswered` echoes one string,
 /// and an answer must re-establish both the place the menu was opened in and its row. A unit
-/// separator is a byte no admitted path or filename carries (`admit_filename` refuses everything
-/// under 0x20), so the join is unambiguous; the desktop spells the same join, as a stranger.
+/// separator is a byte no name a press can open carries (`carried_name` refuses ASCII control
+/// bytes), and a subject that splits otherwise names nothing; the desktop spells the same join.
 constexpr char kSubjectSep = '\x1f';
 
 std::string join_subject(const std::string& place, const std::string& row) {
@@ -1415,7 +1415,9 @@ private:
         Chooser chooser;
         chooser.dir = state_.current_dir;
         for (const FileRow& row : listing_.rows) {
-            if (!row.openable) {
+            // A candidate's name is typed into the recipe form, whose line is measured in bytes,
+            // so only a name the screen draws as itself is offered.
+            if (!row.openable || row.name != ws::shown_name(row.name)) {
                 continue;
             }
             if (row.directory) {

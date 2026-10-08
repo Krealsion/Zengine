@@ -83,8 +83,8 @@ inline void put_file(const std::filesystem::path& at, const std::string& bytes) 
 /// PUT THE HARDEST NAME THIS PLATFORM CAN HOLD IN `dir`, and say whether it went in. The
 /// hardness differs by family, which is the point: Windows/NTFS accepts ILL-FORMED UTF-16 (an
 /// unpaired surrogate, which `CreateFileW` takes), the MEASURED case where asking a path for
-/// its filename bytes THROWS; POSIX accepts arbitrary BYTES, inert for the printable-ASCII
-/// reason. The arrangement is per-platform, the law is not, and every case runs on both.
+/// its filename bytes THROWS; POSIX accepts arbitrary BYTES, inert because they spell no UTF-8
+/// text. The arrangement is per-platform, the law is not, and every case runs on both.
 inline bool put_unsayable_entry(const std::filesystem::path& dir) {
 #if defined(_WIN32)
     std::wstring name = (dir / "lone").wstring();

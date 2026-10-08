@@ -426,8 +426,9 @@ would type; they are names another program can leave where you are about to look
 
 **Neither case ends the program, and neither substitutes a different path.** A name Workshop
 cannot write down is refused where it is met; nothing nearby is opened, browsed, or reported in
-its place. A name Workshop can carry is used as it is, in any script; a filename holding a control
-character, or on Linux bytes that are not UTF-8, is visible and not openable.
+its place. A name Workshop can carry is used as it is, in any script; a filename holding an ASCII
+control character, or on Linux bytes that are not UTF-8, is visible and not openable, as is a name
+beyond ASCII on a Windows older than 10 version 1903.
 
 ### Lifecycle
 

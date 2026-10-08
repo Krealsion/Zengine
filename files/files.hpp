@@ -48,8 +48,8 @@ struct FileRow {
     bool openable = true;
 };
 
-/// Is this name text a path in Workshop is spelled in: UTF-8, with no control character? A letter
-/// of any script is; a control byte, or bytes that spell no character, are not.
+/// Is this name text a path in Workshop is spelled in: UTF-8, with no ASCII control character? A
+/// letter of any script is; a control byte, or bytes that spell no character, are not.
 // WL-FILES-10 -- agents/workshop/files.md
 inline bool carried_name(const std::string& name) {
     if (name.empty()) {
@@ -142,6 +142,11 @@ struct Listing {
 /// unfollowed, so there following and not following agree and the mark would be lost.
 bool leaves_the_tree(const std::filesystem::directory_entry& entry);
 
+/// DOES THIS PROCESS SPELL A NARROW PATH IN UTF-8? Every program here does on Windows from 10
+/// version 1903 (`cmake/ZengineCodePage.cmake`); an older Windows ignores the manifest, and there a
+/// name beyond ASCII, rebuilt into a path, would name another file or none.
+bool narrow_paths_are_utf8();
+
 /// Enumerate one directory. Every failure is an ordinary refusal: the iterator is driven through
 /// its `error_code` forms, so a missing, unreadable or replaced directory produces a sentence
 /// and no rows, never a partial listing. An entry that cannot be classified is still shown, as
@@ -172,10 +177,11 @@ inline Listing enumerate_directory(const std::string& dir) {
         // row rather than the end of the listing (`path_admission.hpp`). ⚠ `exact` is not
         // redundant beside the text test: a projection is entirely printable ASCII, so
         // dropping it would make an unsayable name openable under a spelling that names a
-        // different file or no file.
+        // different file or no file. A name beyond ASCII opens only where paths are UTF-8.
         AdmittedName admitted = admit_filename(entry.path().filename());
         row.name = std::move(admitted.name);
-        row.openable = admitted.exact && carried_name(row.name);
+        row.openable = admitted.exact && carried_name(row.name) &&
+                       (row.name == shown_name(row.name) || narrow_paths_are_utf8());
         std::error_code kind_ec;
         row.directory = entry.is_directory(kind_ec);
         if (kind_ec) {
@@ -225,7 +231,8 @@ inline const FileRow* row_at(const Listing& l, std::size_t cursor) {
 // owner's sentence and the path in force take the tail; an accepted catalog's sentence too.
 
 /// WHY A ROW THAT DOES NOT OPEN DOES NOT, said with its name: the projection of a name this
-/// platform will not spell, or a name holding a control character or bytes that are no text.
+/// platform will not spell, a name holding an ASCII control character or bytes that are no text,
+/// or a name beyond ASCII where a narrow path is not UTF-8.
 inline std::string unopenable_name(const FileRow& row) {
     return "`" + shown_name(row.name) + "` has bytes this Workshop cannot carry in a path";
 }

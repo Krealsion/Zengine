@@ -15,7 +15,7 @@ rather than dying on it").
 **Decision.** Parent is lexical and stops at the filesystem's fixed point `p.parent_path() ==
 p`. A linked directory is marked (`symlink_status()` disagreeing with following) and enterable.
 Every write to `current_dir` and every persisted mark goes through `admit_location`. Filenames
-are `std::string` everywhere: a name carried exactly as UTF-8 text with no control character is
+are `std::string` everywhere: a name carried exactly as UTF-8 with no ASCII control character is
 openable whatever its script, and drawn with a `?` for each byte outside printable ASCII; any
 other keeps its row as a `?`-marked projection and refuses activation; what is inside a file is
 the editor's question. `path_admission.hpp` is the only place allowed to ask for a path's

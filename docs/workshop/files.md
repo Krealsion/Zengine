@@ -221,17 +221,20 @@ pretends to no perimeter: a directory this process may not read refuses in the s
 words, right where you are, and Workshop does not bounce you back somewhere else to hide it.
 
 **A name in any script opens.** A file or directory named with letters beyond ASCII is opened
-and entered like any other. The screen draws each byte outside printable ASCII as `?`, so a
-folder named `Zoë` reads `Zo??`.
+and entered like any other. The screen still draws only ASCII: in the listing each byte outside
+it is a `?`, so a folder named `Zoë` is listed as `Zo??`. A name beyond ASCII is not offered by
+`a`, whose recipe line is measured in bytes.
 
 **A name Workshop cannot carry is marked, and not opened.** Some filenames cannot be turned into
 the text Workshop holds a path in: on Windows, a filename holding an invalid UTF-16 sequence, for
 instance, which both supported Windows standard libraries refuse to convert (measured: MSVC's
-STL reports no mapping in the target code page, MinGW's libstdc++ an illegal byte sequence); on
-Linux, a name holding a control character or bytes that are not UTF-8. Another program can leave
-one in any directory you walk into. **Such an entry is still a row.** You are shown that
-something is there, with each byte outside printable ASCII as `?`, and it cannot be opened; the
-rest of the directory lists normally, and browsing is never interrupted by a name.
+STL reports no mapping in the target code page, MinGW's libstdc++ an illegal byte sequence); a
+name holding an ASCII control character, or, on Linux, bytes that are not UTF-8; and on a Windows
+older than 10 version 1903, which ignores the manifest that makes every path UTF-8, any name
+beyond ASCII. Another program can leave one in any directory you walk into. **Such an entry is
+still a row.** You are shown that something is there, with each byte outside printable ASCII as
+`?`, and it cannot be opened; the rest of the directory lists normally, and browsing is never
+interrupted by a name.
 
 **It does not judge file contents.** Any file can be sent to the Editor pane; the Editor
 decides whether it can edit it and says so in its own words, which the Files pane repeats in
