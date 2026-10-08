@@ -152,7 +152,9 @@ and the press measurer (`cell_center`), refusing a moved picture exactly as `Pan
 refuses a covered pane. It reads presentation; pressing the point is ordinary input. Version 2
 of both answers a canvas pane too: its words are its labels and runs as the painter clips them,
 through `visible_body` and `visible_words`, each with its place in canvas pixels and the point a
-press names it by; a canvas word's point is checked against the body its press lands in. Version
+press names it by; a canvas word's point is checked against the body its press lands in, and a
+picture that takes no press (`canvas_takes_press`) gives a word or part none and refuses a point,
+as its press reaches nothing. Version
 3 of the point names a cell of a pane's text lattice -- a text pane's painted cell, as version 1
 answers, or a canvas pane's cell of the lattice its room's text stands on (`canvas_rows`), blank
 or past a row's last character -- read back to that cell of the room its press lands in.
@@ -163,7 +165,8 @@ columns, a rectangle of the picture -- and `v2::MenuShown` a presenter's lines b
 each judged with the picture it names and refused whole with it (`row_parts_problem`,
 `canvas_parts_problem`), listed in the order the pane reads a press, a place it names nothing
 unnamed. `PaneView` version 3 says each beside the words with its place and its point, a place of
-its own a press reaches -- none for a part with no such place -- and `DeskView` version 2 a
+its own a press reaches -- none for a part with no such place, or of a picture that takes no
+press -- and `DeskView` version 2 a
 menu's named lines; a name is carried as the pane said it, and a press on a part is ordinary
 input at that point.
 

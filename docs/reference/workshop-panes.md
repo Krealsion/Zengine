@@ -1248,7 +1248,7 @@ lattice instead, answered with the same `PanePoint`: a text pane's painted cell,
 a pane that draws its rows on its canvas, the centre of that cell of the lattice its room's text
 stands on (`canvas_rows`) -- a blank row's, and the one after a row's last character, too -- read
 back to that cell before it is answered. It is refused outside the lattice, when the picture
-moved, and while the picture a managed opening showed stands, numbered none: a point there is
+moved, and while the picture shown takes no press (below): a point there is
 read again once the pane draws its own. The guest `capture` power grants every version.
 
 ### The desk, and a pane's words
@@ -1266,14 +1266,18 @@ press is in the input space the answer names, as `PanePoint`'s is.
 | `DeskMenu{open, office, pane, picture, place, lines}` | Workshop's own menu (`office` is Workshop's) or a pane's, shown by its presenter, with each line as a word; `v2::DeskView`'s menu names its lines too ([below](#a-pane-names-its-parts)) |
 | `v2::PaneViewRequested{provider, pane}` | A pane's words, text or canvas alike; version 3 adds the parts the pane names ([below](#a-pane-names-its-parts)) |
 | `v2::PaneView{provider, pane, picture, canvas, words}` | A text pane's rows, or a canvas pane's labels and then its text runs as it drew them last, each clipped as the painter clips it; `canvas` says which |
-| `PaneWord{word, text, place, x, y, space}` | One run of words: its number in the answer, its text, the place covering its glyphs, and the centre of its middle character, where a press names it |
+| `PaneWord{word, text, place, x, y, space}` | One run of words: its number in the answer, its text, the place covering its glyphs, and the centre of its middle character, where a press names it -- or no point, while its canvas picture takes no press |
 | `v2::PanePointRequested{provider, pane, picture, word, column}` | Where one character of one word is now, for a caller that read the words at `picture` |
 | `v2::PanePoint{provider, pane, picture, word, column, x, y, space}` | Its centre: through the press measurer for a text row, checked against the body a press lands in for a canvas word |
 | `v3::PanePointRequested{provider, pane, picture, row, column}` | Where one cell of the pane's text lattice is now, answered as `PanePoint` ([above](#where-a-painted-cell-is)) |
 
 A pane's words are refused as its rows are: closed, unsettled, overlapping, covered by a menu or
-by arranging, or outside the visible workspace. The desk answers whatever is open. Workshop names
-nothing inside a pane: a word's number is its place in one answer, and a pane names its own parts.
+by arranging, or outside the visible workspace. The desk answers whatever is open. A canvas
+picture that takes no press -- the one a managed opening shows, numbered none, until its pane
+draws its own, or one its office's holder no longer holds -- says its words and parts with their
+text and places and no point, as a part with no place of its own is said, and a point asked of it
+is refused: a reader reads the pane again. Workshop names nothing inside a pane: a word's number
+is its place in one answer, and a pane names its own parts.
 The guest `capture` power grants all three queries.
 
 ### A pane names its parts
@@ -1333,7 +1337,8 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
   of two stretches as wide -- sought over every unit of it the body shows. A part with no place of
   its own is said with its words and place and no point: `x` and `y` are 0 and `space` is 0,
   `input::space::kUnknown`, which no consumer reads and `InjectInput` refuses; `workshop/act` never
-  presses one. A point is in the medium's own units: a window's pixel, or a terminal's cell. A
+  presses one. Every part of a canvas picture that takes no press is said so too
+  ([above](#the-desk-and-a-panes-words)). A point is in the medium's own units: a window's pixel, or a terminal's cell. A
   terminal shows a span `[begin, end)` on the cells from `floor(begin / kCanvasCellPx)` up to
   `floor(end / kCanvasCellPx)`, that one left out, so a canvas part it paints on no cell is not
   said there.

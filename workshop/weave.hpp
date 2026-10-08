@@ -1222,6 +1222,9 @@ private:
     bool canvas_wheel(std::int64_t kind, const input::PointerWheel& w, loom::Mail& mail);
     void lose_canvas_hold(std::size_t slot, loom::Mail& mail);
     bool canvas_owner_current(std::int64_t kind) const;
+    /// Whether a canvas pane's picture takes a press, a wheel or a hover now: one its office's
+    /// holder drew and numbered. A pane's words and parts say no point at one that takes none.
+    bool canvas_takes_press(std::int64_t kind) const;
     /// Tell the canvas under the pointer where it rests, to a provider that accepts
     /// `PaneCanvasHover`, and the canvas it left that it left. Geometry only: no focus, no key.
     void canvas_hover(const input::PointerMoved& m, loom::Mail& mail);

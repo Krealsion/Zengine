@@ -200,7 +200,7 @@ LAW — Where the managed pane's holder draws on a canvas and prepares for one, 
 
 MEANS
 - the reserved grant is used by nothing before the commitment, so no picture of A stands after it;
-- the shown picture is the desk's, numbered none, until the holder draws again: its words read at once, a point read again;
+- the shown picture is the desk's, numbered none, until the holder draws again: its words and parts read at once with no point, a point read again;
 - the room is said to the holder after the showing; a holder drawing no canvas is asked for rows.
 
 DOES NOT MEAN — that Workshop draws for the pane: the picture is the Editor's own, admitted as any
@@ -210,12 +210,15 @@ PROVEN BY — `workshop/open_seam_vocabulary.hpp` `v2::PresentationTrial`,
 `v2::PrepareSourceRequested`, `v2::SourcePrepared`, `v2::PresentationAdmitRequested`;
 `workshop/weave_managed.cpp` `on(PresentationTrialRequested)`,
 `on(v2::PresentationAdmitRequested)`, `show_presentation`, `after_delivery`;
-`workshop/weave_opening.cpp` `trialled`, `prepared`; `editor-pane/pane.cpp`
+`workshop/weave_opening.cpp` `trialled`, `prepared`; `workshop/weave_canvas.cpp` `canvas_takes_press`;
+`workshop/weave_inspection.cpp` `visible_words`, `visible_parts`; `editor-pane/pane.cpp`
 `on(v2::PrepareSourceRequested)`, `prepare`, `activate`; `tests/test_workshop_panes_opening.cpp`
 case `"an open through the managed door shows the opened document's picture at the commitment, in
 a room reserved for it, and a picture of the document it replaced, arriving after, is refused"`,
 case `"a holder that draws nothing after the commitment still shows the picture it prepared,
 numbered none, its words read at once and a cell's point read again until it draws its own"`,
+case `"the picture a managed opening shows says its words and its named part with no point, and their
+points return with the holder's own picture, where a press reaches it"`,
 case `"a picture prepared for a room the trial did not reserve is refused at its admission, and the
 document shown stays"`, case `"a canvas room that moves while the document is prepared refuses
 its admission, though its rows and columns stand"`;
