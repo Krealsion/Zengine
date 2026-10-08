@@ -2258,11 +2258,6 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
 
 namespace {
 
-void layout_key(PaneRig& r, Act act) {
-    const Gesture g = r.session().keymap.gesture_of(act);
-    r.key(g.scancode, g.modifiers);
-}
-
 /// The prose a pane is currently SHOWING, as text -- `SurfaceTextRow` is a wire shape
 /// with no equality of its own, and what a case wants to compare is the words.
 std::vector<std::string> shown_text(const ExternalPane& pane) {

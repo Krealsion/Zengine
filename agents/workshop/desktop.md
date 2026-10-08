@@ -106,7 +106,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-06 — A declaration is answered with its verdict, and withdrawn by its number
 
-LAW — Workshop answers each declaration it judges with its verdict, numbers an accepted one, and names that number when it later leaves the keymap; the fact is Workshop's, the recovery the provider's.
+LAW — Workshop answers each action declaration it judges with its verdict, numbers an accepted one, and names that number when it later leaves the keymap; the fact is Workshop's, the recovery the provider's.
 
 MEANS
 - the verdict is Loom's answer: it echoes the declaration's correlation, to its incarnation only;

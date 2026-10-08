@@ -293,6 +293,7 @@ class WorkshopWeave
                                           zengine::workshop::WorkshopQuitRequested,
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::v2::PaneActions,
+                                          zengine::workshop::PaneSettingsDeclared,
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::PaneCaret,
                                           zengine::workshop::v2::PaneContent,
@@ -364,6 +365,7 @@ class WorkshopWeave
                                         zengine::surface::SurfacePlacementRemembered,
                                         zengine::workshop::PaneCatalogRequested,
                                         zengine::workshop::PaneRoom,
+                                        zengine::workshop::PaneSettings,
                                         zengine::workshop::PanePressed,
                                         zengine::workshop::v2::PanePressed,
                                         zengine::workshop::v3::PanePressed,
@@ -630,6 +632,14 @@ public:
     /// after a pane did, and its overrides are owed to that pane's rows too.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     void rejoin_pane_rows(std::string& refusals, loom::Mail& mail);
+
+    /// The settings a pane takes, judged whole under the office stamp: kept with the weave that
+    /// declared them, or refused aloud with the rows in force left standing.
+    void on(const PaneSettingsDeclared& declared, loom::Mail& mail);
+
+    /// THE SETTINGS A PANE'S DECLARATION GIVES, while the weave that declared them holds its
+    /// office; nullptr when none counts.
+    const std::vector<PaneSettingRow>* counted_settings(const RuntimePane& row) const;
 
     // ---- The participating owner of the application's default behaviour (WL-DESK) --------
 
@@ -1212,8 +1222,11 @@ private:
     // ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
 
     /// GRANT EACH OPEN EXTERNAL PANE THE ROOM IT CURRENTLY HAS -- once per repaint, and
-    /// only when the answer has changed.
+    /// only when the answer has changed -- after handing it its settings.
     void refresh_external_rooms(loom::Mail& mail);
+    /// HAND EACH SEATED PANE WHOSE HOLDER TAKES THEM ITS ROW'S SETTINGS, when they differ from what
+    /// that holder last heard, before any room.
+    void hand_settings(loom::Mail& mail);
     void refresh_canvas_rooms(loom::Mail& mail);
     void end_canvas_holds(loom::Mail& mail);
     bool canvas_press(std::int64_t kind, const input::PointerButton& b,

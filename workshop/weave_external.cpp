@@ -11,8 +11,46 @@ namespace zengine::workshop {
 
 // ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
 
+// WL-SETTING-04 -- agents/workshop/settings.md
+void WorkshopWeave::hand_settings(loom::Mail& mail) {
+    if (!host_->holder_accepts || !host_->role_holder) {
+        return;
+    }
+    for (const OpenPane& p : session_.panes.open) {
+        if (!is_runtime_kind(p.kind)) {
+            continue;
+        }
+        const RuntimePane* row = session_.panes.runtime.of_kind(p.kind);
+        ExternalPane* pane = session_.panes.external_pane(p.kind);
+        const SetupPane* seat =
+            row == nullptr ? nullptr : pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
+        if (pane == nullptr || seat == nullptr) {
+            continue;
+        }
+        // A HOLDER THAT TAKES THE DOOR, whether or not, and whenever, it declared.
+        if (!host_->holder_accepts(row->provider, *loom::schema_of<PaneSettings>())) {
+            continue;
+        }
+        const loom::WeaveId holder = host_->role_holder(row->provider);
+        if (pane->settings_heard && pane->settings_holder == holder &&
+            *pane->settings_heard == seat->settings) {
+            continue; // what it holds is what this layout keeps: saying so again is noise
+        }
+        // TO THE HOLDER ITSELF, as its canvas room is, so what is recorded is who heard it.
+        const loom::Ticket sent = mail.as_role(kWorkshopProvider)
+                                      .send(holder, PaneSettings{row->pane, seat->settings});
+        if (!sent.valid()) {
+            continue; // nothing recorded, so the next repaint hands them again
+        }
+        pane->settings_heard = seat->settings;
+        pane->settings_holder = holder;
+    }
+}
+
 // WL-PANE-06 -- agents/workshop/panes-and-windows.md
 void WorkshopWeave::refresh_external_rooms(loom::Mail& mail) {
+    // A PANE'S SETTINGS BEFORE ANY ROOM, so the picture a room asks for is drawn with them.
+    hand_settings(mail);
     refresh_canvas_rooms(mail);
     const Screen sc = screen_of(session_);
     for (const OpenPane& p : session_.panes.open) {

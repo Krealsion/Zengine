@@ -284,6 +284,9 @@ PaneRevealRequested v1 0x6f6ea82ad0525e00
 PaneRoom v1 0xf59705a5786e0884
 PaneRowPart v1 0xc2090f5a6cc1cb72
 PaneSetting v1 0x734b46a0def3b4c5
+PaneSettingRow v1 0x08e89ae1903ffd5a
+PaneSettings v1 0xf6c2d4b5c1a9609f
+PaneSettingsDeclared v1 0xb743dcc778e2298c
 PaneShortcut v1 0x3bcd34b52ee938c7
 PaneShortcutInvoked v1 0x0f764f3d33ac413f
 PaneShortcuts v1 0xa46e946d9b7487b1

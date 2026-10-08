@@ -4,9 +4,10 @@
 #define ZENGINE_WORKSHOP_PANE_SETTINGS_HPP
 
 // A pane's settings: the choices a pane makes about how it presents itself, which Workshop keeps
-// per layout in the pane's setup row. A setting is a key and a value of one of three kinds -- a
-// flag, a number or a text -- in that kind's own field, exactly one present. What a setting
-// means is the pane's alone; Workshop judges a setting's form and keeps it as it was given.
+// per layout in the pane's setup row and hands back to it. A setting is a key and a value of one
+// of three kinds -- a flag, a number or a text -- in that kind's own field, exactly one present.
+// A pane declares the settings it takes; Workshop judges a weaver's edit against them, keeps what
+// it stores, and hands a seated pane its row's settings. What a setting means is the pane's.
 // Reference: docs/reference/workshop-panes.md#a-panes-settings.
 
 #include <zen/weave/shape.hpp>
@@ -20,10 +21,12 @@
 
 namespace zengine::workshop {
 
-/// The longest key, the longest text, and the most settings one pane's row keeps.
+/// The longest key, the longest text, the most settings one pane's row keeps (and so the most a
+/// pane declares), and the most choices a text setting names.
 inline constexpr std::size_t kMaxPaneSettingKeyLen = 32;
 inline constexpr std::size_t kMaxPaneSettingTextLen = 64;
 inline constexpr std::size_t kMaxPaneSettingsPerRow = 24;
+inline constexpr std::size_t kMaxPaneSettingChoices = 16;
 
 /// Keys under this prefix are Workshop's own.
 inline constexpr std::string_view kDeskSettingPrefix = "workshop.";
@@ -42,6 +45,41 @@ struct PaneSetting {
     ZEN_SHAPE(PaneSetting, 1, ZEN_FIELD(key), ZEN_FIELD(flag), ZEN_FIELD(number),
               ZEN_FIELD(text));
     friend bool operator==(const PaneSetting&, const PaneSetting&) = default;
+};
+
+/// ONE SETTING A PANE TAKES: its key, which is also what a weaver reads it by, and its default in
+/// the field of its kind -- which field is present IS the setting's kind. A text takes one of
+/// `choices` when it names any, and any text when it names none; a number takes `low` to `high`,
+/// a side left absent being open; a flag takes either.
+struct PaneSettingRow {
+    std::string key;
+    std::optional<bool> flag;
+    std::optional<std::int64_t> number;
+    std::optional<std::string> text;
+    std::vector<std::string> choices;
+    std::optional<std::int64_t> low;
+    std::optional<std::int64_t> high;
+    ZEN_SHAPE(PaneSettingRow, 1, ZEN_FIELD(key), ZEN_FIELD(flag), ZEN_FIELD(number),
+              ZEN_FIELD(text), ZEN_FIELD(choices), ZEN_FIELD(low), ZEN_FIELD(high));
+    friend bool operator==(const PaneSettingRow&, const PaneSettingRow&) = default;
+};
+
+/// Provider -> Workshop: the settings one pane takes, judged whole under the office stamp and
+/// refused aloud; a later declaration replaces it. It counts while the weave that sent it holds
+/// the office, and nothing else waits on it.
+struct PaneSettingsDeclared {
+    std::string pane;
+    std::vector<PaneSettingRow> rows;
+    ZEN_SHAPE(PaneSettingsDeclared, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
+};
+
+/// Workshop -> the office's holder, when it accepts this: the settings the live layout keeps for
+/// this pane, in key order, sent before any room in the same repaint. None is every setting at
+/// its default; a pane reads the ones it declared and passes over the rest.
+struct PaneSettings {
+    std::string pane;
+    std::vector<PaneSetting> settings;
+    ZEN_SHAPE(PaneSettings, 1, ZEN_FIELD(pane), ZEN_FIELD(settings));
 };
 
 // ---- Kinds -------------------------------------------------------------------------------
@@ -140,6 +178,147 @@ inline std::string pane_setting_problem(const PaneSetting& s) {
                std::to_string(kMaxPaneSettingTextLen) + " bytes of printable ASCII";
     }
     return std::string();
+}
+
+// ---- What a declared setting takes --------------------------------------------------------
+
+/// WHAT A DECLARED SETTING TAKES, in a weaver's words: "on or off", "one of shown, hidden", ...
+inline std::string pane_setting_takes(const PaneSettingRow& row) {
+    switch (setting_kind(row)) {
+    case SettingKind::kFlag: return std::string(kSettingOn) + " or " + kSettingOff;
+    case SettingKind::kNumber:
+        if (row.low && row.high) {
+            return "a whole number from " + std::to_string(*row.low) + " to " +
+                   std::to_string(*row.high);
+        }
+        if (row.low) {
+            return "a whole number from " + std::to_string(*row.low) + " up";
+        }
+        if (row.high) {
+            return "a whole number up to " + std::to_string(*row.high);
+        }
+        return "a whole number";
+    case SettingKind::kText: {
+        if (row.choices.empty()) {
+            return "a text of at most " + std::to_string(kMaxPaneSettingTextLen) +
+                   " printable characters";
+        }
+        std::string out = "one of ";
+        for (std::size_t i = 0; i < row.choices.size(); ++i) {
+            out += (i == 0 ? "" : ", ") + row.choices[i];
+        }
+        return out;
+    }
+    default: return "nothing";
+    }
+}
+
+/// A VALUE AS A SENTENCE NAMES IT: its kind, and the value itself where it has one.
+template <class Valued> inline std::string setting_value_named(const Valued& v) {
+    const SettingKind kind = setting_kind(v);
+    if (kind == SettingKind::kNone || kind == SettingKind::kSeveral) {
+        return setting_kind_word(kind);
+    }
+    return std::string(setting_kind_word(kind)) + " `" + setting_value_text(v) + "`";
+}
+
+/// WHY A DECLARED SETTING DOES NOT TAKE A VALUE, naming what it does take; empty when it takes it.
+template <class Valued>
+inline std::string pane_setting_refused_by(const PaneSettingRow& row, const Valued& v) {
+    const SettingKind want = setting_kind(row);
+    const SettingKind have = setting_kind(v);
+    bool takes = have == want;
+    if (takes && want == SettingKind::kNumber) {
+        takes = !(row.low && *v.number < *row.low) && !(row.high && *v.number > *row.high);
+    }
+    if (takes && want == SettingKind::kText) {
+        takes = pane_setting_text_ok(*v.text);
+        if (takes && !row.choices.empty()) {
+            takes = false;
+            for (const std::string& c : row.choices) {
+                takes = takes || c == *v.text;
+            }
+        }
+    }
+    if (takes) {
+        return std::string();
+    }
+    return row.key + " takes " + pane_setting_takes(row) + ", not " + setting_value_named(v);
+}
+
+/// WHAT IS WRONG WITH ONE DECLARED SETTING, or empty: a pane's own key, a default of one kind, and
+/// what it takes said in its kind's terms, its default among it.
+inline std::string pane_setting_row_problem(const PaneSettingRow& row) {
+    const std::string key = pane_setting_key_problem(row.key);
+    if (!key.empty()) {
+        return key;
+    }
+    const std::string at = "setting `" + row.key + "`";
+    if (is_desk_setting_key(row.key)) {
+        return at + " is Workshop's own -- a pane declares no `" +
+               std::string(kDeskSettingPrefix) + "` key";
+    }
+    const SettingKind kind = setting_kind(row);
+    if (kind == SettingKind::kNone || kind == SettingKind::kSeveral) {
+        return at + "'s default holds " + setting_kind_word(kind) +
+               " -- a default is exactly one of a flag, a number or a text, and that is its kind";
+    }
+    if (kind != SettingKind::kText && !row.choices.empty()) {
+        return at + " is " + setting_kind_word(kind) + ", and only a text names choices";
+    }
+    if (kind != SettingKind::kNumber && (row.low || row.high)) {
+        return at + " is " + setting_kind_word(kind) + ", and only a number has a low or a high";
+    }
+    if (row.low && row.high && *row.low > *row.high) {
+        return at + "'s low is above its high";
+    }
+    if (row.choices.size() > kMaxPaneSettingChoices) {
+        return at + " names more than " + std::to_string(kMaxPaneSettingChoices) + " choices";
+    }
+    for (std::size_t i = 0; i < row.choices.size(); ++i) {
+        const std::string& c = row.choices[i];
+        if (c.empty() || c == "-" || c.front() == ' ' || c.back() == ' ' ||
+            !pane_setting_text_ok(c)) {
+            return at + "'s choice `" + c + "` is not one a weaver can type -- a choice is " +
+                   "printable text, not `-`, with no space at either edge";
+        }
+        for (std::size_t j = 0; j < i; ++j) {
+            if (row.choices[j] == c) {
+                return at + " names the choice `" + c + "` twice";
+            }
+        }
+    }
+    const std::string own = pane_setting_refused_by(row, row);
+    if (!own.empty()) {
+        return at + "'s default is not one it takes: " + own;
+    }
+    return std::string();
+}
+
+/// WHAT IS WRONG WITH A WHOLE DECLARATION, or empty: at most `kMaxPaneSettingsPerRow` settings,
+/// each sound, no key twice.
+inline std::string pane_settings_declared_problem(const PaneSettingsDeclared& d) {
+    if (d.rows.size() > kMaxPaneSettingsPerRow) {
+        return "a pane declares at most " + std::to_string(kMaxPaneSettingsPerRow) +
+               " settings -- this declares " + std::to_string(d.rows.size());
+    }
+    for (std::size_t i = 0; i < d.rows.size(); ++i) {
+        const std::string wrong = pane_setting_row_problem(d.rows[i]);
+        if (!wrong.empty()) {
+            return wrong;
+        }
+        for (std::size_t j = 0; j < i; ++j) {
+            if (d.rows[j].key == d.rows[i].key) {
+                return "setting `" + d.rows[i].key + "` is declared twice";
+            }
+        }
+    }
+    return std::string();
+}
+
+/// A DECLARED SETTING'S DEFAULT, as the setting it stands for.
+inline PaneSetting pane_setting_default(const PaneSettingRow& row) {
+    return PaneSetting{row.key, row.flag, row.number, row.text};
 }
 
 /// THE SETTING UNDER `key` in a list, or nullptr.

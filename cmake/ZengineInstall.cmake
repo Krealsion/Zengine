@@ -134,6 +134,7 @@ set(zengine_public_headers_operator   operator/operator.hpp
 # the hosts connected to it, so a probe on another host can ask for the inventory it is in.
 set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_operation.hpp workshop/pane_view.hpp
                                       workshop/pane_carry.hpp
+                                      workshop/pane_settings.hpp
                                       workshop/pane_shortcuts.hpp
                                       workshop/pane_vocabulary.hpp
                                       workshop/pane_parts.hpp

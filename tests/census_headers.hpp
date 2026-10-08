@@ -200,6 +200,8 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::setup_persist::v3::WorkshopSetupPane>(), // WorkshopSetupPane v3
         shape<::zengine::workshop::setup_persist::v4::WorkshopSetupPane>(), // WorkshopSetupPane v4
         shape<::zengine::workshop::setup_persist::WorkshopSetupPane>(), // WorkshopSetupPane v5
+        shape<::zengine::workshop::PaneSettingsDeclared>(), // PaneSettingsDeclared v1
+        shape<::zengine::workshop::PaneSettings>(), // PaneSettings v1
         shape<::zengine::workshop::TerminalCaptureFacts>(), // TerminalCaptureFacts v1
         shape<::zengine::workshop::PictureFence>(), // PictureFence v1
         shape<::zengine::workshop::WithdrawalFence>(), // WithdrawalFence v1

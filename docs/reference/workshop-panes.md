@@ -322,7 +322,8 @@ Setup
   rather than a rectangle; the extent is durable one level **above** a setup, in the
   last-session file — see the final section.)
 
-Deliberately absent, so the absences are decisions: no opaque provider configuration; no multiple
+Deliberately absent, so the absences are decisions: no opaque provider configuration (a pane's
+[settings](#a-panes-settings) are typed values Workshop judges by form); no multiple
 pane instances; no setup catalog, recent list, autosave or import/export; no tabs, docking or
 layout weave. Workshop manages **one** active setup path. (The external provider, office and
 discovery protocol this list once excluded now exists, bounded — the section below says exactly
@@ -452,6 +453,16 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
 - **Three kinds and no more**: a switch, a count or step, a word. A choice among words is a text
   the pane restricts, a fraction a whole number of a finer unit, a set one flag per member, and a
   colour a role's name. A further kind would move every file format that carries a setting.
+- **A pane declares the settings it takes** (`PaneSettingsDeclared`, beside its offer): each a
+  key, its default in the field of its kind, and what it takes — a text one of its `choices` (or
+  any text when it names none), a number from `low` to `high`. The declaration is judged whole
+  under the office stamp, a refusal is said in the band and leaves the settings in force, a later
+  one replaces it, and it counts only while the weave that sent it holds the office.
+- **Workshop hands a seated pane its row's settings** (`PaneSettings`) when the office's holder
+  accepts the shape, declared or not: at the top of the repaint that seats it, before any room,
+  so the first picture is drawn with them, and again whenever they differ from what that holder
+  last heard. A pane passes over keys it did not declare, and says so where a setting shows when
+  it cannot use the value it was handed.
 
 ## A weave may offer a pane
 
