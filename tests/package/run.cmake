@@ -207,6 +207,9 @@ zen_run("reusable drafts and Flow workspace use installed headers" "${drafts}")
 zen_find_program_in(pane_menu witness-pane-menu "${stranger_bin}")
 zen_run("a stranger uses the pane menu and list helpers" "${pane_menu}")
 
+zen_find_program_in(pane_settings witness-pane-settings "${stranger_bin}")
+zen_run("a stranger's pane declares its settings and reads what it is handed" "${pane_settings}")
+
 zen_find_program_in(kitchen kitchen-host "${stranger_bin}")
 get_filename_component(kitchen_dir "${kitchen}" DIRECTORY)
 zen_run("a weave drives the installed Timer service" "${kitchen}" "${kitchen_dir}")

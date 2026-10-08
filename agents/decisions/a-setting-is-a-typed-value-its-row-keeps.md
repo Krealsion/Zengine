@@ -32,8 +32,10 @@ predecessor's reader.
 **Consequences.** A kind added later moves the setup and the session versions again. The desk's
 bound is set by Loom's decode budget at five cells a setting, and the setup's byte ceiling by the
 worst spelling of each. Keys under `workshop.` are reserved for Workshop's own settings, so an
-older build refuses a newer file rather than drop what it cannot read.
+older build refuses a newer file rather than drop what it cannot read. The Terminal's legend is
+the first setting a pane declares.
 
 **Laws supported.** [WL-SETTING-01](../workshop/settings.md),
 [WL-SETTING-02](../workshop/settings.md), [WL-SETTING-03](../workshop/settings.md),
-[WL-SETTING-04](../workshop/settings.md), [WL-SETTING-06](../workshop/settings.md).
+[WL-SETTING-04](../workshop/settings.md), [WL-SETTING-06](../workshop/settings.md),
+[WL-TERM-19](../workshop/terminal-pane.md).
