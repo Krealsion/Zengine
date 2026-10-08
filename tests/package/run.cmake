@@ -62,6 +62,12 @@ if(NOT EXISTS "${prefix}/lib/cmake/zengine/zengineConfig.cmake")
         "package witness: no zengineConfig.cmake in ${prefix}. The build tree was configured "
         "with ZENGINE_INSTALL=OFF, or the install rules did not run.")
 endif()
+# ...and beside it, what `zengine_code_page()` needs on every platform the package installs on.
+foreach(beside ZengineCodePage.cmake utf8-code-page.manifest)
+    if(NOT EXISTS "${prefix}/lib/cmake/zengine/${beside}")
+        message(FATAL_ERROR "package witness: no ${beside} beside the package config in ${prefix}")
+    endif()
+endforeach()
 
 # ---- does the package name the machine that built it? ---------------------------------
 #
