@@ -27,6 +27,12 @@ ask  @zengine.editor-switch EditorSwitchStatusRequested 1
 `send` authors one message; `ask` authors one and remembers it until Loom's answer arrives. Those
 are the two verbs, and they are the two the submitter runs — nothing is offered that would not run.
 
+The row under the header, `SUBMITTED = authored; a sender is not told its fate`, is the legend:
+what the `SUBMITTED` at the end of a line you ran means. Each layout keeps its own choice of
+whether it shows: in Info, inspect the Terminal and set `legend` to `off` under `SETTINGS`, and
+that layout gives the row to the record while another layout keeps it. A value the legend
+cannot use leaves it shown, and the row says why.
+
 ## Recalling a command you have already run
 
 **Up** and **Down** walk the commands this session has run, newest first, when no command is being
