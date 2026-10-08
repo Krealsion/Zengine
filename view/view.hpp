@@ -16,6 +16,7 @@
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/pane_parts.hpp"
+#include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/switchboard/bus.hpp>
@@ -192,8 +193,11 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     for (const auto& e : d.elements) bottom = std::max(bottom, e.y + e.h);
     const auto free_rows = static_cast<std::size_t>(
         std::max<std::int64_t>(1, (room.height - bottom) / std::max<std::int64_t>(1, line)));
-    const auto notice_lines = wrap(p.notice.empty() ? waiting_sentence(d, told) : p.notice, columns,
-                                   std::min(kNoticeRows, free_rows));
+    // The notice carries other parties' words -- a shape's name, a refusal -- spelled in what a
+    // canvas draws.
+    const auto notice_lines =
+        wrap(ws::pane_text::ascii_spelling(p.notice.empty() ? waiting_sentence(d, told) : p.notice),
+             columns, std::min(kNoticeRows, free_rows));
     const auto notice_y = std::max<std::int64_t>(
         0, surface::floor_div_px(room.height - line * static_cast<std::int64_t>(notice_lines.size()),
                                  out.grain) * out.grain);
@@ -437,7 +441,10 @@ public:
             const auto typed = loom::from_value<ws::PaneTextInput>(in.payload);
             if (typed.pane != kPane || !presentation_.focus) return;
             auto& box = field(*presentation_.focus);
-            if (box.size() + typed.text.size() > kMaxFieldTextBytes) {
+            if (!ws::pane_text::admissible(typed.text)) {
+                presentation_.notice = "not typed -- a number field holds plain ASCII";
+                presentation_.alert = true;
+            } else if (box.size() + typed.text.size() > kMaxFieldTextBytes) {
                 presentation_.notice = "a number field holds at most " +
                                        std::to_string(kMaxFieldTextBytes) + " bytes";
                 presentation_.alert = true;
