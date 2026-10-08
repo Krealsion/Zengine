@@ -96,7 +96,7 @@ WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 LAW — A pane's subject has a row per declared setting and per kept key; a value its setting does not take is refused naming what it takes, its default is stored as absence, and `-` clears it.
 
 MEANS
-- a row reads the stored value or the default as typed, and one its setting does not take beside the default in effect;
+- a text is stored as typed, spaces and all; a row reads a value as typed, and one its setting does not take beside the default in effect;
 - a kept key takes only `-`; the subject is named anew when its settings rows change;
 - the band says the value was stored and handed, or why it was not handed.
 
@@ -110,7 +110,8 @@ PROVEN BY — `workshop/setup.hpp` `author_pane_setting`; `workshop/screen.hpp` 
 its subject, named by their keys, after RESOLVED"`, case `"a value a setting does not take is
 refused at the edit, naming what it takes"`, case `"a setting typed at its default is stored as its
 absence, and `-` clears one"`, case `"a settings write says it was stored and handed, or why it was
-not handed"`, case `"a kept setting takes only `-`, and the rows are named anew when it goes"`, case
+not handed"`, case `"a text setting is stored as it is typed, spaces included, and `-` clears
+it"`, case `"a kept setting takes only `-`, and the rows are named anew when it goes"`, case
 `"the subject is named anew when the settings its rows are built from change"`.
 WHY — `agents/decisions/settings-are-rows-of-a-panes-subject.md`
 

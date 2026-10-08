@@ -519,7 +519,8 @@ one row per setting, named by its key, reading the value this layout keeps, or t
 default where it keeps none. Each layout keeps its own, so the same pane can show its legend in
 one layout and hide it in another. `Enter` opens a draft as on an authored row: type `on` or
 `off` for a switch, a whole number for a number, or a word the pane takes, and `Enter` writes it
-to this layout; `-` gives the setting back to the pane's default, and typing the default is the
+to this layout. A word is written exactly as you typed it, spaces included. `-`, with spaces
+around it or not, gives the setting back to the pane's default, and typing the default is the
 same thing — nothing is stored. A value the setting does not take is refused, naming what it
 takes, and the draft keeps your text. A row whose value reads `kept` holds a setting this
 layout keeps for a pane that does not take it here — another build, or another tool in the

@@ -11,9 +11,9 @@ the desk judges by name and writes through the setup's own doors.
 **Decision.** A pane's subject gains a SETTINGS section after RESOLVED: a row per setting its
 counted declaration gives, named by its key, and a row per key its row keeps that none takes.
 A row reads the stored value, or the default, spelled as it is typed. A commit is read in the
-setting's kind (`on` or `off`, a whole number, a text), refused unless the setting takes it,
-naming what it takes, and written through the setup's settings door, which stores the default
-as absence; `-` clears. A kept row takes only `-`. The subject is named anew when the settings
+setting's kind (`on` or `off`, a whole number, or a text exactly as typed, its spaces part of it),
+refused unless the setting takes it, naming what it takes, and written through the setup's
+settings door, which stores the default as absence; `-` clears. A kept row takes only `-`. The subject is named anew when the settings
 its rows were built from change, and when its row leaves the desk or comes back, so a draft never
 lands on another setting or on a row made afresh. Info itself is unchanged: the rows cross as any
 other.
