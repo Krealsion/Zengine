@@ -3,10 +3,10 @@
 # every other platform. What a toolchain's own manifest says, the execution level and the systems
 # it supports, stays. Method: agents/verification/platforms.md (VM-PLAT-16).
 
-# Under MinGW-w64: the manifest linked into every program, as an object library compiled by
-# CMake's resource compiler. The toolchain may link a default manifest of its own, and a program's
-# own replaces it, so this one is the default with the code page added; a toolchain that links
-# none gets the code page alone.
+# Under MinGW-w64: the manifest linked into every program, as an object built by CMake's resource
+# compiler. The toolchain may link a default manifest of its own, and a program's own replaces
+# it, so this one is the default with the code page added; a toolchain that links none gets the
+# code page alone.
 function(zengine_mingw_code_page fragment)
     file(READ "${fragment}" manifest)
     execute_process(COMMAND "${CMAKE_CXX_COMPILER}" -print-file-name=default-manifest.o
@@ -39,8 +39,8 @@ function(zengine_mingw_code_page fragment)
         set(configured_from "${default}")
     endif()
     # The manifest is written into the resource script, one quoted line each, so the resource
-    # compiler opens no file by a path it would read in its own code page; and the script is
-    # written only when its text changes, so a configure relinks nothing it did not change.
+    # compiler opens no other file; and the script is written only when its text changes, so a
+    # configure relinks nothing it did not change.
     string(REPLACE "\r" "" quoted "${manifest}")
     string(REGEX REPLACE "\n$" "" quoted "${quoted}")
     string(REPLACE "\\" "\\\\" quoted "${quoted}")
@@ -49,9 +49,22 @@ function(zengine_mingw_code_page fragment)
     set(rc "${PROJECT_BINARY_DIR}/zengine-code-page.rc")
     file(WRITE "${rc}.new" "1 24\nBEGIN\n\"${quoted}\\n\"\nEND\n")
     configure_file("${rc}.new" "${rc}" COPYONLY)
-    add_library(zengine-code-page OBJECT "${rc}")
+    # The resource compiler reads its command line in its own code page, which may lack a letter
+    # of the build directory's name, so it runs in that directory and is given the script and the
+    # object by their own names.
+    set(object "${PROJECT_BINARY_DIR}/zengine-code-page.obj")
+    separate_arguments(flags NATIVE_COMMAND "${CMAKE_RC_FLAGS}")
+    add_custom_command(OUTPUT "${object}"
+                       COMMAND "${CMAKE_RC_COMPILER}" ${flags} -O coff zengine-code-page.rc
+                               zengine-code-page.obj
+                       DEPENDS "${rc}"
+                       WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
+                       COMMENT "Building the UTF-8 code page manifest every program links"
+                       VERBATIM)
+    add_custom_target(zengine-code-page DEPENDS "${object}")
     set_property(DIRECTORY "${PROJECT_SOURCE_DIR}" APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
                  "${fragment}" ${configured_from})
+    set(zengine_code_page_object "${object}" PARENT_SCOPE)
     set(zengine_code_page_kept "${kept}" PARENT_SCOPE)
 endfunction()
 
@@ -65,11 +78,9 @@ function(zengine_program_code_page)
     endif()
     set(fragment "${PROJECT_SOURCE_DIR}/cmake/utf8-code-page.manifest")
     if(MSVC)
-        set(source "${fragment}")
         set(said "merged into the linker's own")
     elseif(MINGW)
         zengine_mingw_code_page("${fragment}")
-        set(source "$<TARGET_OBJECTS:zengine-code-page>")
         set(said "${zengine_code_page_kept}")
     else()
         message(STATUS "zengine: no program manifest for this Windows toolchain, so its programs "
@@ -91,7 +102,12 @@ function(zengine_program_code_page)
         foreach(target IN LISTS targets)
             get_target_property(type ${target} TYPE)
             if(type STREQUAL "EXECUTABLE")
-                target_sources(${target} PRIVATE "${source}")
+                if(MSVC)
+                    target_sources(${target} PRIVATE "${fragment}")
+                else()
+                    target_link_libraries(${target} PRIVATE "${zengine_code_page_object}")
+                    add_dependencies(${target} zengine-code-page)
+                endif()
                 math(EXPR programs "${programs} + 1")
             endif()
         endforeach()
