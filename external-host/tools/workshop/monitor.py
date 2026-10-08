@@ -147,11 +147,17 @@ class Monitor(object):
         """A press on one cell of a pane's text lattice, by its row and column counted from 0
         (`hand.point`): a text pane's painted cell, or the cell of the lattice a canvas pane sets
         its text on, a blank row's too. A pane that redrew between the reading and the point is
-        read again."""
+        read again, and so is one whose picture takes no press yet (`hand.pressing`), within the
+        deadline: past it, the monitor cannot tell."""
         hand = self._hand()
         for _ in range(3):
-            view = painted(hand, provider, pane)
-            self.ctx.check(view is not None, "Workshop does not describe %s/%s now" % (provider, pane))
+            try:
+                left = max(0.0, min(10.0, self.deadline - time.monotonic()))
+                view = hand.pressing(provider, pane, left)
+            except Refused:
+                self.ctx.fail("Workshop does not describe %s/%s now" % (provider, pane))
+            except ValueError as taken:
+                raise Inconclusive(str(taken))
             try:
                 at = hand.point(provider, pane, row, column, view["picture"])
             except Refused as refused:

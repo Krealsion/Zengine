@@ -729,13 +729,18 @@ asks `PanePointRequested` version 3 for one cell of a pane's text lattice by its
 a text pane's painted cell, or the cell of a canvas pane's lattice, a blank row's and the one after
 a line's last character too -- so a tool presses a canvas pane's cell as it presses a text pane's;
 `hand.lattice_point` chooses the cell from the pane's words, reading the pane again where it
-redrew between the reading and the point.
+redrew between the reading and the point. A canvas picture that takes no press -- the one a managed
+opening shows, until its pane draws its own, or one its office's holder no longer holds -- says its
+words and parts with no point, and every helper that presses reads the pane again until one does
+(`hand.pressing`), each reading for at most ten seconds.
 `workshop/act` steps on them: `at` presses one cell of a pane's text lattice the same way
 (`{"at": ["td.game", "td", 5, 17]}`); `desk` checks a
 pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
-"view-builder", "kind:label"]}`), and fails rather than press one with no point; `open` presses
-the Pane Manager's row named for a pane (`{"open": "pane:zengine.files/project-files"}`),
+"view-builder", "kind:label"]}`), and fails rather than press one with no point -- `part`,
+`into`, `click`, `at`, `wheel` and `control` wait out a picture that takes no press, for their
+`seconds`; `open` presses the Pane Manager's row named for a pane
+(`{"open": "pane:zengine.files/project-files"}`),
 choosing it first where it is not chosen; `menu` presses the line of the menu on the screen named
 so, or holding some text; `wheel` turns the wheel once, by `dy` and `dx` notches (`dy` 1 away from
 the weaver, -1 toward), over a part by its name or over a pane's first word (`{"wheel":
