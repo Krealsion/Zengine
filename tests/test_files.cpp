@@ -387,6 +387,10 @@ TEST_CASE("a name beyond ASCII is carried exactly and opens, drawn as the screen
     CHECK_FALSE(carried_name("\xa9"));
     CHECK_FALSE(carried_name("Zo\xc3"));
     CHECK_FALSE(carried_name("\xc0\xaf"));
+    CHECK_FALSE(carried_name("\xe0\x80\xaf"));
+    CHECK_FALSE(carried_name("\xf0\x8f\xbf\xbf"));
+    CHECK_FALSE(carried_name("\xc3("));
+    CHECK_FALSE(carried_name("\xf5\x80\x80\x80"));
     CHECK_FALSE(carried_name("\xed\xa0\x80"));
     CHECK_FALSE(carried_name("\xf4\x90\x80\x80"));
 }

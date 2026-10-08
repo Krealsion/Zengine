@@ -131,7 +131,7 @@ WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-10 — Filenames are `std::string` everywhere, so admission is a path law
 
-LAW — Names are `u8string()` bytes: one carried exactly as UTF-8 text with no control character opens; any other keeps its row, `?`-marked, and refuses; what is inside a file is the editor's question.
+LAW — Names are `u8string()` bytes: one carried exactly as UTF-8 with no ASCII control character opens; any other keeps its row, `?`-marked, and refuses; what is inside a file is the editor's question.
 
 DOES NOT MEAN
 - that a file-type registry or extension list exists: a `.png` meets the refusal that knows why.
