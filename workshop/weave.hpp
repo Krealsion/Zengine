@@ -47,12 +47,16 @@
 #include <cstdio>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace zengine::workshop {
+
+/// HOW MANY DESK READS ONE ASKER IS ANSWERED IN A SECOND: each composes the whole desk.
+inline constexpr std::int64_t kDeskReadsPerSecond = 4;
 
 /// What the weave needs from the host and cannot get by message; kept whole in this header so a
 /// suite can build one without linking the host.
@@ -95,6 +99,9 @@ struct HostContext {
     std::function<bool(std::string_view role, const loom::Schema& shape)> holder_emits;
     // Current incarnation, read afresh: canvas grants and held input never cross replacement.
     std::function<loom::WeaveId(std::string_view role)> role_holder;
+    /// THE INCARNATION OF A PARTICIPANT, read off the bus at the call (`participant(id)`): a reload
+    /// in place moves it. Empty answers 0, and a stamp then names no incarnation.
+    std::function<std::int64_t(loom::WeaveId)> incarnation_of;
     // A host-issued capability to read this actor's current authority. The ceiling is empty;
     // it never grants the actor anything. Unknown/dead actors yield an inert capability.
     std::function<loom::GrantAuthority(loom::WeaveId)> input_authority;
@@ -285,7 +292,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, v4::PaneViewRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -360,7 +367,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, DeskRead, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::v1::PaneCanvasPointer,
@@ -501,6 +508,31 @@ public:
     void on(const v2::DeskViewRequested& asked, loom::Mail& mail);
     /// The desk as Workshop holds it now: every pane on it, the room, arranging and the menu.
     v2::DeskView desk_view() const;
+    /// ...WITH WORKSHOP'S OWN WORDS AND ITS NUMBER: the band's notice and legend, the status slot,
+    /// and the desk number, which moves when any of it moves.
+    v3::DeskView desk_view_v3() const;
+    /// ONE PANE'S WHOLE READING, or why there is none: its words and parts but the covered ones,
+    /// what covers it, its stamp, and whether its picture is in flight.
+    std::string pane_reading(const std::string& provider, const std::string& pane,
+                             v4::PaneView& out) const;
+    /// THE PANE WORKSHOP PRESENTS ITSELF, Layouts, read as it is painted, its tabs named parts.
+    std::string layouts_reading(v4::PaneView& out) const;
+    /// What covers a presented pane's `rect`, each by the name a reading says it with.
+    struct Cover {
+        std::string by;
+        PixelRect rect;
+    };
+    std::vector<Cover> covers_of(std::int64_t kind, const PixelRect& rect) const;
+    /// The stamp of a pane offered by `provider`, at `grant` and `picture`.
+    PaneStamp stamp_of(const std::string& provider, const std::string& pane, std::int64_t grant,
+                       std::int64_t picture) const;
+    void on(const v4::PaneViewRequested& asked, loom::Mail& mail);
+    void on(const DeskReadRequested& asked, loom::Mail& mail);
+    /// Whether `who` is a guest session whose admitted row holds `capture`: the one personal asker
+    /// the desk's offers and keymap answer.
+    bool capture_guest(loom::WeaveId who) const;
+    /// Whether `asker` may read the desk once more now, or the refusal in words: a rate per asker.
+    std::string take_desk_read(loom::WeaveId asker);
     void on(const PaneShortcutInvoked& asked, loom::Mail& mail);
     /// The current gesture of `pane` approves one operation -- a named (shape, version, role) send,
     /// the action classes the act is, or both -- or why not. Spends the gesture; `approved`, when
@@ -1408,6 +1440,15 @@ private:
     /// What monotonic time it is: the host's reading if it wired one, the steady clock if not;
     /// spent at once by the caller, stored nowhere.
     std::int64_t interaction_now() const;
+    /// THE DESK NUMBER AND WHAT IT WAS LAST SAID FOR, and Layouts' picture the same way: host
+    /// keepings a reading names, each moved when what it numbers is said differently.
+    mutable std::int64_t desk_number_ = 0;
+    mutable std::string desk_said_;
+    mutable std::int64_t layouts_picture_ = 0;
+    mutable std::string layouts_said_;
+    /// EACH ASKER'S DESK READS IN THE LAST SECOND, bounded by the rate; an asker with none is
+    /// forgotten at the next read.
+    std::map<std::uint64_t, std::vector<std::int64_t>> desk_reads_;
 
     void repaint(loom::Mail& mail);
     /// A NUMBERED PICTURE THE CANVAS JUST HANDED THE MEDIUM is recorded as in flight, and one

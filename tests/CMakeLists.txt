@@ -941,7 +941,7 @@ zengine_workshop_suite(host
 # through a running view's and the View Builder's own pictures, as each reads a press.
 # Three operations keep their conversations in tests/timelines/, and the heard ones are written
 # beside the build to diff.
-zengine_workshop_suite(desk SOURCES test_workshop_desk.cpp
+zengine_workshop_suite(desk SOURCES test_workshop_desk.cpp test_workshop_desk_read.cpp
     LINKS zengine-view zengine-flow
     DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "ZENGINE_TIMELINES_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/timelines-now-$<CONFIG>\"")

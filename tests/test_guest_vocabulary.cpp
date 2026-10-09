@@ -14,11 +14,14 @@
 #include "external-host/vocabulary_weave.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
+#include "workshop/pane_view.hpp"
 
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -50,6 +53,15 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<ws::v3::PanePointRequested>(),
             loom::schema_of<ws::PanePart>(), loom::schema_of<ws::v2::DeskViewRequested>(),
             loom::schema_of<ws::v2::DeskView>(), loom::schema_of<ws::v2::DeskMenu>(),
+            // The desk read whole and a pane's page, with the stamp, the cover and the status slot
+            // they carry; and the inventory of panes and the keymap a `capture` guest reads.
+            loom::schema_of<ws::DeskReadRequested>(), loom::schema_of<ws::DeskRead>(),
+            loom::schema_of<ws::v3::DeskView>(), loom::schema_of<ws::PaneStamp>(),
+            loom::schema_of<ws::v4::PaneViewRequested>(), loom::schema_of<ws::v4::PaneView>(),
+            loom::schema_of<ws::PaneCover>(), loom::schema_of<su::SurfaceText>(),
+            loom::schema_of<ws::PaneInventoryRequested>(), loom::schema_of<ws::PaneInventory>(),
+            loom::schema_of<ws::InventoryPane>(), loom::schema_of<ws::KeymapRequested>(),
+            loom::schema_of<ws::KeymapShown>(), loom::schema_of<ws::ShownBinding>(),
             loom::schema_of<in::InjectInput>(),           loom::schema_of<in::InjectedEvent>(),
             loom::schema_of<in::InputInjected>(),         loom::schema_of<in::InputSessionClosed>(),
             loom::schema_of<su::SurfaceCaptureRequested>(), loom::schema_of<su::SurfaceCaptured>(),
@@ -60,6 +72,9 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             // ...and at version 2: each row's powers, the file's host and version, and its losses.
             loom::schema_of<ws::v2::GuestConnectionsRequested>(), loom::schema_of<ws::v2::GuestConnections>(),
             loom::schema_of<ws::v2::GuestConnection>(),
+            // The asker's own row, and the observe entries it carries.
+            loom::schema_of<ws::GuestRowDescribedRequested>(),
+            loom::schema_of<ws::GuestRowDescribed>(), loom::schema_of<ws::GuestObserve>(),
             // Named folders: the organization doors and the nested folder shapes they carry.
             loom::schema_of<zengine::inventory::InventoryFile>(), loom::schema_of<zengine::inventory::InventoryFolderCreate>(),
             loom::schema_of<zengine::inventory::InventoryFolderMove>(), loom::schema_of<zengine::inventory::InventoryFolderRemove>(),
@@ -110,6 +125,9 @@ TEST_CASE("guest vocabulary: booted, every shape Workshop's owners speak resolve
     for (const auto& accepted : bus.accepted_schemas(id)) {
         CHECK_MESSAGE(accepted->name().rfind("zen.", 0) == 0, accepted->name());
     }
+    // Its state counts what it declares at the top level, the nested shapes left out.
+    CHECK(static_cast<std::int64_t>(bus.emitted_schemas(id).size()) ==
+          zengine::external_host::GuestVocabularyState{}.declared);
 }
 
 TEST_CASE("guest vocabulary: a divergent definition of one of its shapes is refused at the wall") {

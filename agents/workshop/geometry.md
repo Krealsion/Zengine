@@ -234,7 +234,7 @@ MEANS
 
 DOES NOT MEAN
 - that a word is named: its number is its place in one answer, and a pane names its parts;
-- that a covered pane's words are said: a menu or arranging over it refuses them, as a refused picture's mark over its picture does.
+- that a covered word is said: the fourth reading says a pane's visible words and its cover (WL-READ-05), the earlier ones refuse it whole.
 
 PROVEN BY — `workshop/weave_inspection.cpp` `desk_view`, `visible_words`, `word_on`,
 `glyph_point`, `on(v3::PanePointRequested)`; `workshop/weave_canvas.cpp` `canvas_takes_press`;

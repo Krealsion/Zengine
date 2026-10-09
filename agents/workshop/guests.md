@@ -181,6 +181,42 @@ asks class open for the guest's hand: a recipe whose source is the guests file i
 weaver's host"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
+## WL-GUEST-10 — A session reads its own row, and nothing of another
+
+LAW — The guest door answers an admitted session's `GuestRowDescribedRequested` with the row it recorded for that session -- its name, powers, observe list and the file's host -- and nothing of any other row.
+
+MEANS
+- every row may ask, whatever its powers: what a row grants is the asker's own to read;
+- a session the door never admitted is refused in words.
+
+PROVEN BY — `workshop/guest_seam_vocabulary.hpp` `GuestRowDescribedRequested`, `GuestRowDescribed`,
+`GuestObserve`; `workshop/guest_door.hpp` `on(GuestRowDescribedRequested)`, `described`;
+`workshop/guests.cpp` `grant_for`; `tests/test_workshop_guests.cpp` case `"door: a session asks its
+own row and hears its name, powers, observe list and the file's host, and nothing of another
+row"`.
+WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
+
+## WL-GUEST-11 — A row observes and reads only what its powers read, and a widening is said
+
+LAW — A row without `capture` is refused, in words, every observed publication carrying the desk's words or picture, and every row `ClipboardCopy`; what `capture` reads past its first reach is said.
+
+MEANS
+- the desk's words and picture are `SurfaceCanvas`, `SurfaceText`, `TranscriptShown`, `PaneSubjectShown`, `PaneInventory`, `KeymapShown` and `StandingConditions`, from any producer;
+- `capture` reads the desk said whole, the inventory and the keymap; it is said at launch and on Attention.
+
+DOES NOT MEAN
+- that `ClipboardCopy` is anyone's yet: it needs `clipboard`, a power no file of this version grants.
+
+PROVEN BY — `workshop/guests.cpp` `observation_of`, `carries_the_desk`, `gains_of`, `grant_for`;
+`workshop/attention.hpp` `guest_row_gains`; `tests/test_workshop_guests.cpp` case `"observation: a
+row without capture is refused the desk's words and pictures, every row is refused ClipboardCopy,
+and a capture row may observe StandingConditions"`, case `"door: in a file with two rows of one
+name, the session admitted under the row without capture is refused a capture read and a capture
+observation"`, case `"guests file: capture's widening is said as a gain"`;
+`tests/test_workshop_host.cpp` case `"a development host and each row's losses stand as conditions
+on Attention"`.
+WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
+
 ## Do not assume
 
 - That a guest's hand is narrowed everywhere: every other control a key or a press reaches (a

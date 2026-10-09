@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 #ifndef ZENGINE_WORKSHOP_PANE_VIEW_HPP
 #define ZENGINE_WORKSHOP_PANE_VIEW_HPP
+#include "surface/vocabulary.hpp"
 #include <zen/weave/shape.hpp>
 #include <cstdint>
 #include <string>
@@ -219,6 +220,101 @@ struct DeskView {
 };
 
 } // namespace v2
+
+// ---- THE DESK, SAID WHOLE: one turn, paged by pane, and a pane paged by index ------------------
+// A reading names what it stands on. A pane's picture numbers restart when its office is offered
+// again and at each new canvas room, so a picture alone names nothing: a stamp names the pane's
+// holder, that holder's incarnation, the room Workshop granted it, and the picture.
+
+/// WHAT ONE PANE'S READING STANDS ON: its office's holder (a `WeaveId`), that holder's
+/// incarnation, the canvas room grant its picture was drawn for (0 for a text pane, whose room
+/// grants no number), and its picture. A reading is stale when any of the four moved.
+struct PaneStamp {
+    std::string provider, pane;
+    std::int64_t holder = 0, incarnation = 0, grant = 0, picture = 0;
+    ZEN_SHAPE(PaneStamp, 1, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(holder),
+              ZEN_FIELD(incarnation), ZEN_FIELD(grant), ZEN_FIELD(picture));
+};
+
+/// WHAT COVERS PART OF A PANE, and how much: `by` names each thing over it -- a pane in front by
+/// its name, `menu`, `arranging`, `refused mark`, `band` -- `words` counts the words and parts not
+/// said for it, and `rect` bounds the covered part of the pane. Empty for a pane nothing covers.
+struct PaneCover {
+    std::vector<std::string> by;
+    std::int64_t words = 0;
+    DeskRect rect;
+    ZEN_SHAPE(PaneCover, 1, ZEN_FIELD(by), ZEN_FIELD(words), ZEN_FIELD(rect));
+};
+
+namespace v4 {
+
+/// A PAGE OF ONE PANE'S READING: its words and then its parts, from item `from`. `stamp` names
+/// the reading a page continues: a page asked under a stamp that is no longer the pane's is
+/// refused as stale, and the reader asks again from the start. A stamp naming no holder reads the
+/// pane as it stands.
+struct PaneViewRequested {
+    std::string provider, pane;
+    std::int64_t from = 0;
+    PaneStamp stamp;
+    ZEN_SHAPE(PaneViewRequested, 4, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(from),
+              ZEN_FIELD(stamp));
+};
+/// One pane's reading, or a page of it: the third version's words and parts, the stamp it stands
+/// on (`picture` with `holder`, `incarnation`, `grant`), what covers it -- its covered words are
+/// not said -- whether its newest picture is still in flight (then no word is said), and which
+/// items this page holds: `from` its first, of `total` words and parts.
+struct PaneView {
+    std::string provider, pane;
+    std::int64_t picture = 0;
+    bool canvas = false;
+    std::vector<PaneWord> words;
+    std::vector<PanePart> parts;
+    std::int64_t holder = 0, incarnation = 0, grant = 0;
+    PaneCover covered;
+    bool in_flight = false;
+    std::int64_t from = 0, total = 0;
+    ZEN_SHAPE(PaneView, 4, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture),
+              ZEN_FIELD(canvas), ZEN_FIELD(words), ZEN_FIELD(parts), ZEN_FIELD(holder),
+              ZEN_FIELD(incarnation), ZEN_FIELD(grant), ZEN_FIELD(covered), ZEN_FIELD(in_flight),
+              ZEN_FIELD(from), ZEN_FIELD(total));
+};
+
+} // namespace v4
+
+namespace v3 {
+
+/// THE DESK WITH WORKSHOP'S OWN WORDS: the second version, a number that moves when any of its
+/// fields moves (`desk`), the band's notice and legend as words with places and no parts (the
+/// band owns no pointer space), and the status slot, a word with no place, as the medium is handed
+/// it (`slots`).
+struct DeskView {
+    std::int64_t desk = 0;
+    std::int64_t width = 0, height = 0, cell_px = 0, space = 0;
+    DeskRect room;
+    std::vector<DeskPane> panes;
+    bool arranging = false;
+    v2::DeskMenu menu;
+    std::vector<PaneWord> words;
+    std::vector<surface::SurfaceText> slots;
+    ZEN_SHAPE(DeskView, 3, ZEN_FIELD(desk), ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(cell_px),
+              ZEN_FIELD(space), ZEN_FIELD(room), ZEN_FIELD(panes), ZEN_FIELD(arranging),
+              ZEN_FIELD(menu), ZEN_FIELD(words), ZEN_FIELD(slots));
+};
+
+} // namespace v3
+
+/// THE DESK IN ONE TURN: the desk, every presented pane's stamp front to back, and as many of
+/// those panes' readings, in that order, as one decoded value holds. A stamp past the last reading
+/// names a pane to ask by `v4::PaneViewRequested`.
+struct DeskReadRequested {
+    ZEN_SHAPE(DeskReadRequested, 1);
+};
+struct DeskRead {
+    v3::DeskView desk;
+    std::vector<PaneStamp> stamps;
+    std::vector<v4::PaneView> panes;
+    ZEN_SHAPE(DeskRead, 1, ZEN_FIELD(desk), ZEN_FIELD(stamps), ZEN_FIELD(panes));
+};
 
 } // namespace zengine::workshop
 #endif

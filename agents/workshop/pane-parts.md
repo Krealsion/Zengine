@@ -6,7 +6,7 @@ ids are one series. One law per heading; cite by ID. Router: [`../workshop.md`](
 
 ## WL-HAND-06 — A pane names the parts a hand acts on, and Workshop says them where they are drawn
 
-LAW — A pane names each row, control and element a weaver acts on from what it means, kept across its redraws; Workshop says each name beside the part's words, place and point, naming nothing itself.
+LAW — A pane names each row, control and element a weaver acts on from what it means, kept across redraws; Workshop says each name with the part's words, place and point, naming only its own surfaces' parts.
 
 MEANS
 - the names ride with the picture they name, judged with it: a name once, in the order the pane reads a press, a place it names nothing unnamed;
@@ -15,7 +15,7 @@ MEANS
 
 DOES NOT MEAN
 - that Workshop reads a name: it judges a name's form and carries it as the pane said it, and says no unnamed place;
-- that a part the body does not show is said, or any while a refused picture's mark covers it, that one with no place of its own is given another's, or that pressing one is anything but input.
+- that a part the body does not show or a cover hides is said (WL-READ-05), that one with no place of its own is given another's, or that pressing one is anything but input.
 
 PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_problem`,
 `canvas_parts_problem`, `PartNames`, `row_parts`; `component/row_map.hpp` `RowMap::press_order`;
