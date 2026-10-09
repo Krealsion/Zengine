@@ -55,7 +55,7 @@ for a Loom session's run manager: `share/zengine/loom-tools/workshop`. The gener
 `zengine-inventory-read` executable installs to `bin` and reads those tools' saved pairs.
 
 **One CMake function rides along**, `zengine_code_page(<target>...)`: `cmake/ZengineCodePage.cmake`
-and the manifest it gives install beside the package config, which includes them. A stranger's
+and the manifest it gives install beside the package config, which includes the module. A stranger's
 program calls it to run in the UTF-8 code page on Windows, as every program this repository
 builds does (VM-PLAT-16); elsewhere it does nothing. The installed-package witness calls it for
 every program of its own and, on Windows, refuses one whose manifest names no UTF-8 code page;

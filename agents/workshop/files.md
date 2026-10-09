@@ -131,12 +131,12 @@ WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-10 — Filenames are `std::string` everywhere, so admission is a path law
 
-LAW — Names are `u8string()` bytes: one carried exactly as UTF-8 with no ASCII control character opens; any other keeps its row, `?`-marked, and refuses; what is inside a file is the editor's question.
+LAW — Names are `u8string()` bytes: an exact UTF-8 name with no ASCII control character opens, beyond ASCII where paths are UTF-8; any other keeps its row, `?`-marked, and refuses; contents are the editor's.
 
 DOES NOT MEAN
 - that a file-type registry or extension list exists: a `.png` meets the refusal that knows why.
 
-PROVEN BY — `files/files.hpp` `carried_name`, `FileRow::openable`, `shown_name`;
+PROVEN BY — `files/files.hpp` `carried_name`, `narrow_paths_are_utf8`, `FileRow::openable`, `shown_name`;
 `workshop/path_admission.hpp` `admit_filename`; `files/files.cpp` `row_text`, `open`;
 `tests/test_files.cpp` case `"a name beyond ASCII is carried exactly and opens, drawn as the
 screen spells it"`.

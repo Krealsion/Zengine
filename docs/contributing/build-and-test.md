@@ -136,9 +136,11 @@ What it asks, in order:
 | step | the failure it discriminates |
 |---|---|
 | install into an isolated prefix | install rules that do not run, or run into the source tree |
+| find `ZengineCodePage.cmake` and its manifest beside the package config | a package that lost what `zengine_code_page()` needs |
 | read the generated package files | an absolute path to the machine that built it |
 | read the installed public material | a header assuming this project's development environment |
 | configure the copied project | a public dependency the config does not resolve |
+| on Windows, read every program the copy built | a program built without `zengine_code_page()`, which runs in the system's code page |
 | run `witness-surfaces` | an exported target whose headers are not self-contained |
 | run `kitchen-host` | a loadable artifact a consumer cannot find or load |
 | rebuild against a **moved** prefix | a package that only works where it was installed |
