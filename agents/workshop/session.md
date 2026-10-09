@@ -76,7 +76,7 @@ LAW — The quit key, the interrupt chord and the medium's close request all rea
 MEANS
 - crash durability is not claimed: `write_file` does not fsync; a killed run loses its session;
 - `finish_quit` is the one place the desk is written and the bus stopped;
-- a guest's `WorkshopQuitRequested` is that quit too, answered `Ack` or the refusal's own words.
+- a guest's `WorkshopQuitRequested` is that quit too, answered `Ack` or the refusal's words (WL-GUEST-09).
 
 PROVEN BY — `workshop/weave_run.cpp` `quit`, `finish_quit`, `on(WorkshopQuitRequested)`,
 `answer_quit_ask`; `workshop/setup_control.hpp` `WorkshopQuitRequested`;

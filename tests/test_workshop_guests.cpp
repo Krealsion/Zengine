@@ -10,14 +10,18 @@
 
 #include "doctest.h"
 
+#include "workshop/actor_scope.hpp"
 #include "workshop/guest_door.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/guests.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/setup_control.hpp"
 
 #include "builder/vocabulary.hpp"
 #include "input/input_weave.hpp"
 #include "input/vocabulary.hpp"
+#include "inventory-pane/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "surface/skin.hpp"
 #include "surface/vocabulary.hpp"
@@ -33,9 +37,11 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 #include <variant>
@@ -162,8 +168,7 @@ struct Rig {
         REQUIRE_MESSAGE(listener != loom::kInvalidSocket, err);
         port = loom::bridge_socket_port(listener);
         auto d = std::make_unique<ws::GuestDoor>(bus, listener,
-                                                 "127.0.0.1:" + std::to_string(port),
-                                                 guests::admission_of(file));
+                                                 "127.0.0.1:" + std::to_string(port), file);
         door = d.get();
         door_id = bus.register_weave(std::move(d), ws::guest_door_grant(),
                                      std::string(ws::kGuestsRole));
@@ -384,8 +389,10 @@ TEST_CASE("observation: a row's observe list is the whole of what its session ma
     guests::GuestsFile file;
     file.rows = {agent, hands};
     const loom::WeaveId a{101}, h{102}, local{103};
-    const auto policy = guests::observation_of(file, [&](loom::WeaveId s) {
-        return s == a ? std::string("agent") : s == h ? std::string("hands") : std::string();
+    const auto policy = guests::observation_of(file, [&](loom::WeaveId s) -> std::optional<std::size_t> {
+        if (s == a) return 0;
+        if (s == h) return 1;
+        return std::nullopt;
     });
     using Shapes = std::vector<loom::observe::ShapeRef>;
     const auto ask = [&](loom::WeaveId who, const char* producer, const Shapes& shapes) {
@@ -463,8 +470,8 @@ TEST_CASE("observation: the Builder read goes with observing the exact BuildStat
         row.observe = rows[i].observe;
         file.rows.push_back(row);
     }
-    const auto policy = guests::observation_of(file, [](loom::WeaveId s) {
-        return "row-" + std::to_string(s.value - 1);
+    const auto policy = guests::observation_of(file, [](loom::WeaveId s) -> std::optional<std::size_t> {
+        return static_cast<std::size_t>(s.value - 1);
     });
     for (std::size_t i = 0; i < rows.size(); ++i) {
         CAPTURE(rows[i].why);
@@ -1169,6 +1176,308 @@ TEST_CASE("observe: through the real door, a guest observes only what its row li
     // THE DOOR SAYS THE SESSION IS GONE, AND THE RELAY FORGETS WHAT IT HELD FOR IT.
     REQUIRE(r.beat_until([&] { return relay->active() == 0; }));
     CHECK(hands.said_as<ob::Observed>().empty()); // nothing reached the guest that asked for nothing
+}
+
+// =============================================================================
+// The file's versions, the host fact, and the action classes
+// =============================================================================
+
+TEST_CASE("guests file: a file names its version, version 2 adds build and the host, and a word its version does not know is refused") {
+    Scratch f("versions");
+    guests::GuestsFile file;
+    std::string why;
+
+    SUBCASE("a file naming no version is version 1, a weaver's host") {
+        f.write(R"({"guests":[{"name":"a","credential":"x","may":["input"]}]})");
+        REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+        CHECK(file.version == 1);
+        CHECK(file.host == guests::kHostWeaver);
+        CHECK_FALSE(file.development());
+    }
+    SUBCASE("version 2 reads build and a development host") {
+        f.write(R"({"version":"2","host":"development","guests":[{"name":"a","credential":"x","may":["input","build"]}]})");
+        REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+        CHECK(file.version == 2);
+        CHECK(file.development());
+        REQUIRE(file.rows.size() == 1);
+        CHECK(file.rows[0].may == std::vector<std::string>{"input", "build"});
+    }
+    SUBCASE("version 2 naming no host is a weaver's") {
+        f.write(R"({"version":"2","guests":[{"name":"a","credential":"x","may":["build"]}]})");
+        REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+        CHECK(file.host == guests::kHostWeaver);
+    }
+    SUBCASE("a version this Workshop does not read refuses the file, naming the versions it reads") {
+        f.write(R"({"version":"3","guests":[{"name":"a","credential":"x"}]})");
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+        CHECK(why.find("names version 3") != std::string::npos);
+        CHECK(why.find("versions 1 to 2") != std::string::npos);
+    }
+    SUBCASE("build is a version-2 power: a file naming no version may not grant it") {
+        f.write(R"({"guests":[{"name":"a","credential":"x","may":["input","build"]}]})");
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+        CHECK(why.find("guest 'a' may 'build', a power of the file's version 2") != std::string::npos);
+        CHECK(why.find(R"((add "version": "2"))") != std::string::npos);
+    }
+    SUBCASE("the host is a version-2 word") {
+        f.write(R"({"host":"development","guests":[{"name":"a","credential":"x"}]})");
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+        CHECK(why.find("names a host, a word of the file's version 2") != std::string::npos);
+        CHECK(why.find("it names no version, so it is read as version 1") != std::string::npos);
+    }
+    SUBCASE("a file that names version 1 is told so, not that it names none") {
+        f.write(R"({"version":"1","host":"development","guests":[{"name":"a","credential":"x","may":["build"]}]})");
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+        CHECK(why.find("it names version 1") != std::string::npos);
+        CHECK(why.find("names no version") == std::string::npos);
+    }
+    SUBCASE("a host is a weaver's or a development host, and nothing else") {
+        f.write(R"({"version":"2","host":"agent","guests":[{"name":"a","credential":"x"}]})");
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+        CHECK(why.find("host 'agent' must be 'weaver' or 'development'") != std::string::npos);
+    }
+    SUBCASE("the version is an Int, written as the file writes every Int: a base-10 string") {
+        f.write(R"({"version":2,"guests":[{"name":"a","credential":"x"}]})");
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+    }
+}
+
+TEST_CASE("guests file: build grants no shape -- no guest is granted BuildRequested, a realization ask or a build door") {
+    guests::GuestRow row;
+    row.name = "agent";
+    row.credential = "x";
+    row.may = {guests::kPowerBuild};
+    const loom::Grant g = guests::grant_for(row);
+    for (const char* shape : {builder::BuildRequested::zen_name, builder::StatusRequested::zen_name,
+                              builder::PromoteArtifact::zen_name, builder::RevertArtifact::zen_name}) {
+        CHECK_FALSE(g.permits_role(shape, 1, builder::kBuilderRole));
+        CHECK_FALSE(g.permits(shape, 1, loom::WeaveId{7}));
+    }
+    CHECK_FALSE(g.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    // ...and with input beside it, exactly input's grant: the class is read from the row, never sent.
+    row.may = {guests::kPowerInput, guests::kPowerBuild};
+    const loom::Grant both = guests::grant_for(row);
+    CHECK(both.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK_FALSE(both.permits_role(builder::BuildRequested::zen_name, 1, builder::kBuilderRole));
+}
+
+TEST_CASE("guests file: a row's losses are what its powers do not reach on its file's host") {
+    const auto has = [](const std::vector<std::string>& losses, const char* words) {
+        for (const std::string& l : losses)
+            if (l.find(words) != std::string::npos) return true;
+        return false;
+    };
+    guests::GuestsFile file;
+    guests::GuestRow row;
+    row.name = "agent";
+    row.may = {guests::kPowerInput, guests::kPowerCapture};
+
+    SUBCASE("a version-1 row with input loses the builds, and on its weaver's host every write, the editor, the Terminal, the Hotkeys pane, typed text and the guests file") {
+        const std::vector<std::string> losses = guests::losses_of(row, file);
+        CHECK(has(losses, "builds and loads: `build` is a version-2 power"));
+        CHECK(has(losses, "file writes"));
+        CHECK(has(losses, "the editor, the Terminal and the Hotkeys pane"));
+        CHECK(has(losses, "typed text"));
+        CHECK(has(losses, "opening the guests file"));
+    }
+    SUBCASE("a version-2 row with input and build on a development host loses nothing") {
+        file.version = 2;
+        file.host = guests::kHostDevelopment;
+        row.may.push_back(guests::kPowerBuild);
+        CHECK(guests::losses_of(row, file).empty());
+    }
+    SUBCASE("on a development host a row without build loses the builds alone") {
+        file.version = 2;
+        file.host = guests::kHostDevelopment;
+        const std::vector<std::string> losses = guests::losses_of(row, file);
+        REQUIRE(losses.size() == 1);
+        CHECK(has(losses, "the row has no `build`"));
+    }
+    SUBCASE("a toolbox row on a weaver's host loses the toolbox save, and an open row its power") {
+        file.version = 2;
+        row.may = {guests::kPowerToolbox, guests::kPowerOpen};
+        const std::vector<std::string> losses = guests::losses_of(row, file);
+        CHECK(has(losses, "saving a toolbox file"));
+        CHECK(has(losses, "the `open` power: the editor it reopens a location in"));
+        CHECK_FALSE(has(losses, "builds"));
+    }
+    SUBCASE("a demo row on a weaver's host loses its quit, which writes the last session, and on a development host nothing") {
+        row.may = {guests::kPowerDemo, guests::kPowerCapture};
+        const std::vector<std::string> losses = guests::losses_of(row, file);
+        REQUIRE(losses.size() == 1);
+        CHECK(has(losses, "quitting Workshop: quitting writes the last session"));
+        file.version = 2;
+        file.host = guests::kHostDevelopment;
+        CHECK(guests::losses_of(row, file).empty());
+    }
+    SUBCASE("a row with no hand loses nothing") {
+        row.may = {guests::kPowerCapture, guests::kPowerInspect};
+        CHECK(guests::losses_of(row, file).empty());
+    }
+}
+
+TEST_CASE("action classes: a send on a guest's behalf is the classes its shape is -- a toolbox save and a quit write, and an open shows no path") {
+    namespace scope = zengine::workshop::scope;
+    // THE NAMES ARE THE OWNERS' OWN SHAPES, so a renamed shape is a red here, not a send unjudged.
+    CHECK(scope::classes_of_send(zengine::inventory_pane::InventoryToolboxSave::zen_name) ==
+          std::vector<std::string>{scope::kWrite});
+    CHECK(scope::classes_of_send(ws::WorkshopQuitRequested::zen_name) == std::vector<std::string>{scope::kWrite});
+    CHECK(scope::classes_of_send(ws::OpenSourceRequested::zen_name) == std::vector<std::string>{scope::kOpen});
+    CHECK(scope::classes_of_send(ws::PaneValueCarryRequested::zen_name).empty());
+    scope::GuestRowFacts guest;
+    guest.admitted = true;
+    guest.name = "agent";
+    guest.powers = {"input", "toolbox", "open", "demo"};
+    guest.version = 2;
+    scope::HostFact weaver;
+    scope::HostFact development;
+    development.development = true;
+    for (const char* shape : {zengine::inventory_pane::InventoryToolboxSave::zen_name,
+                              ws::WorkshopQuitRequested::zen_name}) {
+        CAPTURE(shape);
+        CHECK(scope::judge_send(guest, weaver, shape).find("only the weaver's hand writes a file here") !=
+              std::string::npos);
+        CHECK(scope::judge_send(guest, development, shape).empty());
+        CHECK(scope::judge_send(scope::GuestRowFacts{}, weaver, shape).empty());
+    }
+    CHECK(scope::judge_send(guest, weaver, ws::OpenSourceRequested::zen_name).find("shows Workshop no path") !=
+          std::string::npos);
+    CHECK(scope::judge_send(guest, development, ws::OpenSourceRequested::zen_name).empty());
+    CHECK(scope::judge_send(scope::GuestRowFacts{}, weaver, ws::OpenSourceRequested::zen_name).empty());
+    CHECK(scope::judge_send(guest, weaver, ws::PaneValueCarryRequested::zen_name).empty());
+}
+
+TEST_CASE("action classes: a guest builds only with build, writes nothing and opens no guests file on a weaver's host, and no class narrows a participant no door admitted") {
+    namespace scope = zengine::workshop::scope;
+    Scratch f("classes");
+    f.write(R"({"guests":[]})");
+    scope::GuestRowFacts guest;
+    guest.admitted = true;
+    guest.name = "agent";
+    guest.powers = {"input"};
+    scope::HostFact weaver;
+    weaver.guests_file = std::filesystem::absolute(f.path).string();
+    scope::HostFact development = weaver;
+    development.development = true;
+
+    CHECK(scope::judge(guest, weaver, scope::kBuild).find("has no `build`") != std::string::npos);
+    CHECK(scope::judge(guest, development, scope::kBuild).find("has no `build`") != std::string::npos);
+    guest.powers.push_back("build");
+    CHECK(scope::judge(guest, weaver, scope::kBuild).empty());
+    CHECK(scope::judge(guest, weaver, scope::kWrite).find("only the weaver's hand writes a file here") !=
+          std::string::npos);
+    CHECK(scope::judge(guest, development, scope::kWrite).empty());
+    CHECK(scope::judge(guest, weaver, scope::kOpen, "some-other-file.txt").empty());
+    CHECK(scope::judge(guest, weaver, scope::kOpen, f.path).find("the guests file opens only by the weaver's hand") !=
+          std::string::npos);
+    CHECK(scope::judge(guest, development, scope::kOpen, f.path).empty());
+    CHECK(scope::judge(guest, weaver, "delete").find("knows no action class 'delete'") != std::string::npos);
+    CHECK(scope::judge_all(guest, weaver, {scope::kBuild, scope::kWrite}).find("writes a file") !=
+          std::string::npos);
+    CHECK(scope::refuse_text(guest, weaver).find("a guest's typed text rests in no pane") != std::string::npos);
+    CHECK(scope::refuse_text(guest, development).empty());
+    CHECK(scope::refuse_toward(guest, weaver, "the editor").find("the editor answers only the weaver's hand") !=
+          std::string::npos);
+    CHECK(scope::refuse_toward(guest, development, "the editor").empty());
+    // NOT A GUEST: whatever its classes, a participant no door admitted is the weaver's own.
+    const scope::GuestRowFacts local;
+    for (const char* c : {scope::kBuild, scope::kWrite, scope::kOpen}) CHECK(scope::judge(local, weaver, c, f.path).empty());
+    CHECK(scope::refuse_text(local, weaver).empty());
+}
+
+TEST_CASE("door: in a file with two rows of one name, each session holds the row its own credential admitted") {
+    Scratch f("twins");
+    f.write(R"({"version":"2","guests":[)"
+            R"({"name":"agent","credential":"plain","may":["input"]},)"
+            R"({"name":"agent","credential":"builds","may":["input","build"]}]})");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    Rig r(file);
+    Guest plain(r.port, "agent", "plain");
+    Guest builds(r.port, "agent", "builds");
+    REQUIRE(r.beat_until([&] {
+        plain.poll();
+        builds.poll();
+        return plain.client->admitted() && builds.client->admitted();
+    }));
+    const loom::WeaveId p{plain.client->session()}, b{builds.client->session()};
+    CHECK(r.door->row_index(p) == std::optional<std::size_t>(0));
+    CHECK(r.door->row_index(b) == std::optional<std::size_t>(1));
+    const auto host = guests::host_fact_of(file);
+    // THE ROW THE SESSION WAS ADMITTED UNDER is judged, never the last row of its name.
+    CHECK(zengine::workshop::scope::judge(r.door->facts(p), host, zengine::workshop::scope::kBuild)
+              .find("has no `build`") != std::string::npos);
+    CHECK(zengine::workshop::scope::judge(r.door->facts(b), host, zengine::workshop::scope::kBuild).empty());
+    // A session that is not a guest's holds no row.
+    CHECK_FALSE(r.door->facts(r.input_id).admitted);
+    // ...AND A SESSION WHOSE CONNECTION HAS GONE IS STILL ITS ROW'S: an ask already on its way
+    // about it is judged as that guest's, never as no guest's.
+    plain.client.reset();
+    REQUIRE(r.beat_until([&] { return !r.door->guest_session(p); }));
+    CHECK(r.door->row_index(p) == std::optional<std::size_t>(0));
+    CHECK(r.door->facts(p).admitted);
+    CHECK(zengine::workshop::scope::judge(r.door->facts(p), host, zengine::workshop::scope::kWrite)
+              .find("only the weaver's hand writes a file here") != std::string::npos);
+    CHECK(r.door->row_index(b) == std::optional<std::size_t>(1));
+}
+
+TEST_CASE("door: version 2's inventory tells a guest its own row's powers and losses alone, and this host every row's") {
+    Scratch f("inventory");
+    f.write(R"({"guests":[)"
+            R"({"name":"agent","credential":"one","may":["input","inspect"]},)"
+            R"({"name":"other","credential":"two","may":["inspect","toolbox"]}]})");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    Rig r(file);
+    Guest one(r.port, "agent", "one");
+    Guest two(r.port, "other", "two");
+    REQUIRE(r.beat_until([&] {
+        one.poll();
+        two.poll();
+        return one.client->admitted() && two.client->admitted();
+    }));
+    one.ask(ws::kGuestsRole, 9, ws::v2::GuestConnectionsRequested{});
+    REQUIRE(r.beat_until([&] {
+        one.poll();
+        return one.answered<ws::v2::GuestConnections>(9).has_value();
+    }));
+    const ws::v2::GuestConnections told = *one.answered<ws::v2::GuestConnections>(9);
+    REQUIRE(told.rows.size() == 2);
+    for (const ws::v2::GuestConnection& c : told.rows) {
+        CAPTURE(c.established);
+        if (c.session == static_cast<std::int64_t>(one.client->session())) {
+            CHECK(c.powers == std::vector<std::string>{"input", "inspect"});
+            CHECK(c.version == 1);
+            CHECK(c.host == "weaver");
+            CHECK_FALSE(c.losses.empty());
+        } else {
+            CHECK(c.powers.empty()); // another guest's grants are not this guest's to learn
+            CHECK(c.losses.empty());
+            CHECK(c.version == 0);
+            CHECK(c.established == "other"); // ...though the connection is said as version 1 says it
+        }
+    }
+    // THIS HOST'S OWN ASKER hears every row whole.
+    const ws::v2::GuestConnections whole = r.door->inventory_v2();
+    REQUIRE(whole.rows.size() == 2);
+    for (const ws::v2::GuestConnection& c : whole.rows) {
+        CHECK_FALSE(c.powers.empty());
+        CHECK(c.version == 1);
+    }
+    // ...and the relay never forwards it to a guest, whatever its row lists.
+    guests::GuestsFile watching = file;
+    watching.rows[0].observe = {{ws::kGuestsRole, ws::v2::GuestConnections::zen_name, 2},
+                                {ws::kGuestsRole, ws::GuestConnections::zen_name, 1}};
+    const auto policy = guests::observation_of(watching, [](loom::WeaveId) -> std::optional<std::size_t> { return 0; });
+    const auto v2 = policy(loom::observe::ObserveRequest{loom::WeaveId{5}, ws::kGuestsRole,
+                                                         {{ws::v2::GuestConnections::zen_name, 2}}, "suite"});
+    CHECK_FALSE(v2.allowed);
+    CHECK(v2.reason.find("it says every row's powers") != std::string::npos);
+    CHECK(policy(loom::observe::ObserveRequest{loom::WeaveId{5}, ws::kGuestsRole,
+                                               {{ws::GuestConnections::zen_name, 1}}, "suite"})
+              .allowed);
 }
 
 TEST_SUITE_END();

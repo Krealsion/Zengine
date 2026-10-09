@@ -57,6 +57,9 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<su::SurfaceCaptureChunk>(),
             loom::schema_of<ws::GuestConnectionsRequested>(), loom::schema_of<ws::GuestConnections>(),
             loom::schema_of<ws::GuestConnection>(),
+            // ...and at version 2: each row's powers, the file's host and version, and its losses.
+            loom::schema_of<ws::v2::GuestConnectionsRequested>(), loom::schema_of<ws::v2::GuestConnections>(),
+            loom::schema_of<ws::v2::GuestConnection>(),
             // Named folders: the organization doors and the nested folder shapes they carry.
             loom::schema_of<zengine::inventory::InventoryFile>(), loom::schema_of<zengine::inventory::InventoryFolderCreate>(),
             loom::schema_of<zengine::inventory::InventoryFolderMove>(), loom::schema_of<zengine::inventory::InventoryFolderRemove>(),

@@ -37,8 +37,14 @@ without the optional canvas protocol receives a textual summary. The independent
    means a request was queued; the host's later answer establishes whether the participant exists.
 
 In a dialog, **Tab** selects the next field, **Ctrl+A** selects its text, **Enter** confirms,
-and **Escape** cancels. A refused confirmation keeps the entered text for correction. Confirm or
-cancel before changing pages, starting another edit, or quitting.
+and **Escape** cancels. Enter is the pane's `dialog-confirm` row while a dialog is open, so it
+moves in your keymap like any pane's row. A refused confirmation keeps the entered text for
+correction. A dialog that writes a file -- Save, Export, Generate native C++, the library's save --
+asks Workshop on confirm whether the confirming hand may write one, and writes nothing and keeps
+the dialog until it is answered; a confirm that reaches Flow as a raw key, before that row is in
+force or after it has moved, asks nothing and says to confirm with the row. On a
+[weaver's host](external-host.md#whose-host-this-is-and-what-each-power-reaches-there) a guest's
+is refused. Confirm or cancel before changing pages, starting another edit, or quitting.
 
 ## Find what to compose
 

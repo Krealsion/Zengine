@@ -59,11 +59,14 @@ The separate `open` power lets a guest's own gesture reopen a saved file locatio
 Editor: the Editor asks Workshop to approve opening a source through the managed opening
 (`zengine.opening`) for that gesture, and Workshop asks the guest's grant, as it does for a carry.
 It reaches the managed opening and nothing beside it — no save, no build, no Editor door — and the
-Editor's unsaved-work floor still stands; the gesture itself still needs `input`. Carrying text or
+Editor's unsaved-work floor still stands; the gesture itself still needs `input`. That drop
+reaches the Editor on a development host alone: on a weaver's host the editor answers only the
+weaver's hand ([below](#whose-host-this-is-and-what-each-power-reaches-there)). Carrying text or
 a location out of an Editor needs `inventory` (the carry), as any carry does
 ([the source editor](editor.md#carrying-text-commands-and-file-places)).
-The separate `toolbox` power permits saving/restoring Inventory toolbox files under the Workshop
-process's filesystem access. It grants no execution or input authority. The one-request
+The separate `toolbox` power permits restoring Inventory toolbox files, and saving them under the
+Workshop process's filesystem access on a development host alone: a save is a file write, which a
+weaver's host refuses a guest. It grants no execution or input authority. The one-request
 [`workshop/toolbox` tool](toolboxes.md#restore-an-executors-test-fixture) uses this power; injected
 input also needs it to operate those file controls. Ordinary `inventory` permission is insufficient.
 The Inventory → Info interaction requires both `input` and `inventory`: Workshop checks the
@@ -71,6 +74,65 @@ initiating input actor for each acquisition, read, and save. A reference grants 
 may also say `"admit": "ask"`: such a guest waits for Workshop to decide, able to act on
 nothing until it does — that is the seam a per-connection prompt will attach to; today the
 decision is a suite's or a host's.
+
+### Whose host this is, and what each power reaches there
+
+A guests file names its own **version**, at the top: `"version": "2"`, written as the file writes
+every number, a base-10 string. A file naming no version is version 1, and a version this Workshop
+does not read refuses the file in words. Version 2 adds two words:
+
+- **`host`**, a word of the whole file: `"weaver"`, the default, or `"development"`. A **weaver's
+  host** is the machine a person works on; a **development host** is an agent's own Workshop,
+  started for its work, where its hand may do what the weaver's does.
+- **`build`**, a power: the Builder's builds, realizations and loads -- `b`, `B`'s load, `f`, the
+  load-built control, adding to the load plan, promote and revert. A guest with it builds only the
+  catalog in force, which a guest on a weaver's host cannot change. It grants no message: no guest
+  is ever granted `BuildRequested` or a realization ask. A row without it is refused the Builder's
+  builds on either host, in words, before anything runs.
+
+`input` reaches every control a key or a press reaches, as the weaver's hand does, but on a
+**weaver's host** Workshop refuses a guest's hand, in words, wherever the act would write the
+weaver's files, put its words where the weaver commits them, or reach a shell:
+
+- **every file write**: the Editor's save, Files' recipe switch (`u`), recipe authoring and marks,
+  the Builder's line that adds to the load plan, Flow's save, generate, export and library save,
+  the View Builder's save, Workshop's own `s` and `t`, the toolbox save (by key, by message, or
+  relayed through the Composer), and quitting, which writes the last session -- all but the View
+  Builder's run record, the project's `view-builder.json`, which it keeps for any hand's Run,
+  Stop, New or Open;
+- **typed text**, toward any pane or line: what a guest types rests nowhere for the weaver to
+  commit as the weaver's own;
+- **its keys, text, presses, wheels and drops toward the editor** (the standard Editor or
+  Neovim's, whichever holds the office), **the Terminal** and **the Hotkeys pane**, which edits the
+  keymap file;
+- **opening the guests file**, through Files, the Builder's edit-source or Edit Code, and any
+  open a pane relays on its behalf -- the Composer's Submit, a stored command -- whose path
+  Workshop does not see.
+
+![A 1440 by 720 Workshop on a weaver's host: the Connections pane says the admitted guest's row is version 2 and names what it does not reach here, file writes first; the Attention pane stands a condition that the guest does not reach everything its powers name; and the band says, in red, that a guest's typed text rests in no pane](images/guest-on-a-weavers-host.png)
+
+On a **development host** none of these is refused: a guest with `input` writes, types and reaches
+the editor and the Terminal there as the weaver would, and one with `build` builds. A guest's
+Terminal line is then sent by the Terminal as itself, as the weaver's is.
+
+**A version-1 file still mounts**, as a weaver's host, each row keeping its reach less those
+refusals; an old row never has `build`. What each row's powers do not reach is said beside the row:
+at launch, on the Attention pane, and in the Connections pane, which reads the door's inventory at
+version 2 (`GuestConnections` v2: each row's powers, the file's host and version, and its losses).
+A guest that asks for that inventory hears every connection and its own row's powers and losses
+alone, and none may observe it through the relay. The file is read once, at launch: a changed row
+applies at the next launch.
+
+```json
+{
+  "version": "2",
+  "host": "development",
+  "listen": "127.0.0.1:7654",
+  "guests": [
+    { "name": "agent", "credential": "open-sesame", "may": ["input", "capture", "inspect", "build"] }
+  ]
+}
+```
 
 Launch with it:
 
@@ -80,6 +142,15 @@ zengine-workshop --load-plan <workshop dir>/graphical-load-plan.json --guests gu
 
 ```text
 zengine-workshop - guests: listening on 127.0.0.1:7654 for 1 guest(s) named in guests.json (door: weave #12; the Connections pane lists them)
+zengine-workshop - guests: the file is version 2, and this is a development host: guests may write and build here
+```
+
+Its row reaches every power it names there, so no loss is said. The version-1 file of
+[§ 1](#1-say-who-may-connect), a weaver's host, says what its row does not reach instead:
+
+```text
+zengine-workshop - guests: the file is version 1, and this is a weaver's host: a guest writes no file, types into no pane and reaches none of the editor, the Terminal and the Hotkeys pane
+zengine-workshop - guests: 'agent' (version 1) does not reach here: the Builder's builds and loads: `build` is a version-2 power; file writes: this is a weaver's host; the editor, the Terminal and the Hotkeys pane: they answer only the weaver's hand here; typed text: a guest's text rests in no pane here; opening the guests file
 ```
 
 Open the **Connections** pane from the Pane Manager (`Ctrl+P`). It says `nobody is connected`,
@@ -195,7 +266,11 @@ one you already have open, if you started it with `--guests`, or one started for
 Workshop launched without a guests file listens for no host at all, so attaching to a running
 application stays that application's own decision, written in its file before it started. For
 proof runs, start a Workshop of the task's own with `--isolated`, which reads and writes none of
-your profile — never the one you are working in, which an injected chord would type into.
+your profile — never the one you are working in, which an injected chord would type into — and
+name it a development host in its guests file: the tools that type, save, edit through Neovim,
+place a pane through Info or load what they build (`workshop/act`'s typing, `workshop/nvim-edit`,
+`workshop/place`, `workshop/builder`'s load-it) are refused a guest's hand on a weaver's host.
+`workshop/builder`'s builds need the row's `build` on either host.
 
 **Building while a proof Workshop is running.** A running `zengine-workshop` keeps every pane DLL
 its load plan named memory-mapped for as long as it runs — `zengine-files.dll` and the rest stay
@@ -414,7 +489,8 @@ names — one entry per office, shape and version, the version written as Zen's 
 
 - **Nothing else implies it.** `input`, `capture` and `inspect` are not observation, and a row
   without `observe` may not even ask the relay. **Observing grants nothing to act with**: a guest
-  that sees the Builder's words still builds only by pressing its keys, with its `input` power.
+  that sees the Builder's words still builds only by pressing its keys, with its `input` and
+  `build` powers.
   The one thing it may say is a read: a row that observes the Builder's `BuildStatus` at the
   version the Builder publishes (v4) may ask the Builder for the current one
   (`BuildStatusRequested`), answered to it alone — the baseline a returning observer joins. A row
@@ -661,7 +737,14 @@ late answer to the old one reaches nobody.
   why the guests file refuses any listener but loopback.
 - **No arbitration between a hand and an agent** beyond one session at a time: a person at the
   keyboard is still heard while a session is open, and the two sources interleave in arrival
-  order.
+  order. Each hand's gestures are its own -- one's key never makes the other's pending act stale
+  -- but a guest's key still lands where the weaver's keys are, and every control a key or a press
+  reaches beyond the refusals above (a layout's removal, the desktop's launch and close, the
+  clipboard) answers a guest on a weaver's host too.
+- **Admission does not ask where bytes came from.** On a weaver's host a guest builds only the
+  catalog in force, which the weaver's hand sets, but a load is still admitted by trusting every
+  artifact, and an agent with a shell as the weaver's own user still writes the weaver's files
+  directly, outside the desk.
 - **One picture retained** at a time, fetched by chunk; a picture over 32 MiB is refused, never
   cut.
 

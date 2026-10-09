@@ -11,6 +11,7 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
+#include "guest_hand.hpp"
 
 #include "builder-pane/vocabulary.hpp"
 #include "workshop/authoring.hpp"
@@ -2628,4 +2629,504 @@ TEST_CASE("the Builder's role line shows the medium's caret where the line's is,
     CHECK(held_caret(*pane).column == prompt + 5);
     bp_press_aimed(b, bp_aim(b), line, prompt + 4);
     CHECK(held_caret(*pane).column == prompt + 4);
+}
+
+// =============================================================================
+// A guest's hand on the Builder: what its row holds, what its host keeps, and each hand's gestures
+// =============================================================================
+// The risks: a build, a plan row's write or the guests file reached by a key its row or host does
+// not hold, and the weaver's own act refused for a moment that landed between gesture and send.
+
+namespace {
+
+/// WHAT WORKSHOP SAYS OF A GUEST WHOSE ROW HOLDS NO `build`, after the act the pane did not do.
+const std::string kNoBuild = "guest 'agent' may not build here: its row has no `build`";
+
+/// WALK THE PRESENTER'S CURSOR TO THE ROW READING `row` AND TAKE IT, with the guest's injected
+/// keys: `bp_choose_row`, by the other hand.
+void guest_choose_row(BuilderRig& b, guest_hand::GuestHand& g, const std::string& row) {
+    const std::int64_t at = presented_line_of(b.r.session(), row);
+    REQUIRE_MESSAGE(at >= 0, "no menu row read `", row, "` in\n",
+                    bp_picture(context_rows_on(b.r.last_canvas(), b.r.session())));
+    for (std::int64_t i = 0; i < at; ++i) {
+        g.key(input::scan::kDown);
+    }
+    g.key(input::scan::kReturn);
+}
+
+/// TWO BEATS OF ONE BUILDER ACT AND A KEY BETWEEN THEM, numbered in the order the bus delivered
+/// them. The turn ends where the pane hears Workshop's word on its gesture (`word`); the second
+/// beat's ask is the one the pane sent in that delivery, its answer the reply under that ask's
+/// number, and `typed_at` the first key Workshop hears after the word.
+class BetweenBeats {
+public:
+    BetweenBeats(BuilderRig& rig, const char* ask, const char* answer)
+        : b_(rig), pane_(rig.r.kernel.weave_id(pane::kBuilderPaneStem)), ask_shape_(ask),
+          answer_shape_(answer),
+          tap_(rig.r.bus.add_observer([this](const loom::BusEvent& ev) { see(ev); })) {}
+    ~BetweenBeats() { b_.r.bus.remove_observer(tap_); }
+    BetweenBeats(const BetweenBeats&) = delete;
+    BetweenBeats& operator=(const BetweenBeats&) = delete;
+
+    std::uint64_t word = 0;
+    std::int64_t asked_at = 0;
+    std::int64_t typed_at = 0;
+    std::int64_t answered_at = 0;
+
+private:
+    void see(const loom::BusEvent& ev) {
+        if (ev.kind != loom::EventKind::Delivered) {
+            return;
+        }
+        ++moment_;
+        if (word == 0) {
+            if (ev.target == pane_ && ev.schema_name == ws::PaneOperationAnswered::zen_name) {
+                word = ev.seq;
+                b_.r.bus.stop(); // the second beat's ask is queued, not delivered
+            }
+            return;
+        }
+        if (asked_at == 0 && ev.sender == pane_ && ev.dispatch_parent == word &&
+            ev.schema_name == ask_shape_) {
+            ask_ = ev.correlation;
+            asked_at = moment_;
+        } else if (typed_at == 0 && ev.target == b_.r.workshop_id &&
+                   ev.schema_name == input::KeyPressed::zen_name) {
+            typed_at = moment_;
+        } else if (answered_at == 0 && asked_at != 0 && ev.target == pane_ &&
+                   ev.correlation == ask_ && ev.schema_name == answer_shape_) {
+            answered_at = moment_;
+        }
+    }
+
+    BuilderRig& b_;
+    loom::WeaveId pane_;
+    std::string ask_shape_;
+    std::string answer_shape_;
+    std::uint64_t ask_ = 0;
+    std::int64_t moment_ = 0;
+    loom::ObserverId tap_;
+};
+
+} // namespace
+
+TEST_CASE("a guest without build is refused b, B, f and load-built in words on either host, "
+          "and the Builder asks for nothing") {
+    // A GUEST'S `input` REACHES THE BUILDER'S KEYS AND NONE OF ITS BUILDS. Each act that builds or
+    // loads asks Workshop class `build` before it sends, and a row without `build` is refused on
+    // both hosts: the host says what a guest may write and type, the row what it may build. The
+    // four routes are the four sends -- the build, the button, the frontier, and the menu's
+    // load-built, which has no default key -- so one that skipped its ask reaches the tool here.
+    bool development = false;
+    SUBCASE("on a weaver's host") { development = false; }
+    SUBCASE("on a development host") { development = true; }
+    CAPTURE(development);
+    BuilderRig b("bld-guest-no-build");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.frontier.waiting = true;
+    b.frontier.artifact = "zengine-snake";
+    b.open(240, 60, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    guest_hand::GuestHand g(b.r, {"input"}, development);
+
+    // THE WEAVER'S BUILD WORKED, so `B` is the button and the menu offers what it made.
+    b.letter(input::scan::kB, "b");
+    REQUIRE(b.tool->asked.size() == 1);
+    bp_settled(b, "snake", "zengine-snake", bld::outcome::kSucceeded);
+    REQUIRE_MESSAGE(b.text().find("loads zengine-snake now") != std::string::npos, b.text());
+    const std::size_t asked = b.tool->asked.size();
+    const std::int64_t builds = b.tool->builds;
+    const auto refused = [&b, asked, builds](const std::string& undone) {
+        CHECK(b.tool->asked.size() == asked);
+        CHECK(b.tool->builds == builds);
+        CHECK_MESSAGE(b.text().find(undone + " -- " + kNoBuild) != std::string::npos, b.text());
+    };
+
+    g.key(input::scan::kB);
+    refused("`snake` was not built");
+    g.key(input::scan::kB, input::mod::kShift);
+    refused("`zengine-snake` was not loaded");
+    CHECK(b.text().find("load after build: on") == std::string::npos); // the button, not the toggle
+    g.key(input::scan::kF);
+    refused("nothing was asked for");
+    // LOAD-BUILT HAS NO DEFAULT KEY: the guest opens the pane's menu and takes its row.
+    g.key(input::scan::kM, input::mod::kShift);
+    REQUIRE(any_row(bp_menu_rows(b), "load the built `zengine-snake` now"));
+    guest_choose_row(b, g, "load the built `zengine-snake` now");
+    CHECK_FALSE(menu_shown(b.r.session()));
+    refused("`zengine-snake` was not loaded");
+
+    // ...AND THE WEAVER'S OWN `b`, ON THE SAME PANE AND HOST, BUILDS: the refusals are the guest's
+    // row's, not a Builder that refuses everything.
+    b.letter(input::scan::kB, "b");
+    REQUIRE(b.tool->asked.size() == asked + 1);
+    CHECK(b.tool->asked.back() == "snake");
+}
+
+TEST_CASE("a guest with build builds the catalog in force, and on a weaver's host is refused "
+          "the role line's commit before any row is written") {
+    // `build` IS A ROW'S POWER, AND A PLAN ROW IS A FILE. A guest whose row holds `build` builds
+    // the recipe the catalog in force names, as the weaver's `b` would. The role line's commit
+    // writes the plan before it builds, so it asks `build` and `write` in one ask, and on a weaver's
+    // host only the weaver's hand writes: the plan office hears nothing, and the role the weaver
+    // typed stands on the line for the weaver to commit.
+    BuilderRig b("bld-guest-build");
+    b.tool->catalog =
+        catalog_of({{"one", "a"}, {"snake", "zengine-snake"}}, "/project/build-recipes.json");
+    b.open(240, 60);
+    guest_hand::GuestHand g(b.r, {"input", "build"});
+    const loom::WeaveId pane_id = b.r.kernel.weave_id(pane::kBuilderPaneStem);
+    REQUIRE(pane_id.value != 0);
+    int rows_asked = 0;
+    const loom::ObserverId tap =
+        b.r.bus.add_observer([&rows_asked, pane_id](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Delivered && ev.sender == pane_id &&
+                ev.schema_name == PlanRowRequested::zen_name) {
+                ++rows_asked;
+            }
+        });
+
+    // THE CATALOG IN FORCE, BUILT BY THE GUEST: the weaver chose `snake`, and the guest's `b` asks
+    // the tool for that recipe by name.
+    g.weaver_key(input::scan::kC);
+    REQUIRE_MESSAGE(b.text().find("snake -> zengine-snake  (2/2)") != std::string::npos, b.text());
+    g.key(input::scan::kB);
+    REQUIRE(b.tool->asked.size() == 1);
+    CHECK(b.tool->asked[0] == "snake");
+    CHECK(b.tool->realize_asked[0] == false);
+    CHECK_MESSAGE(b.text().find("asked the Builder for `snake`") != std::string::npos, b.text());
+
+    // THE WEAVER OPENS THE LINE AND TYPES THE ROLE; THE GUEST'S RETURN COMMITS IT.
+    g.weaver_key(input::scan::kO);
+    REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
+    g.weaver_text("zengine.oven");
+    REQUIRE_MESSAGE(b.text().find("role for zengine-snake> zengine.oven") != std::string::npos,
+                    b.text());
+    g.key(input::scan::kReturn);
+    CHECK(rows_asked == 0);
+    CHECK(b.authored.empty());
+    CHECK(b.plan_rows.empty());
+    CHECK(b.tool->asked.size() == 1);
+    CHECK_MESSAGE(b.text().find("nothing was loaded and nothing was written -- this is a weaver's "
+                                "host: only the weaver's hand writes a file here") !=
+                      std::string::npos,
+                  b.text());
+    // ...AND THE LINE STILL HOLDS THE WEAVER'S TEXT, with its own rows declared.
+    CHECK_MESSAGE(b.text().find("role for zengine-snake> zengine.oven") != std::string::npos,
+                  b.text());
+    CHECK(b.declared() == kRoleLineIds);
+
+    // THE WEAVER'S OWN COMMIT OF THE SAME LINE WRITES THE ROW.
+    g.weaver_key(input::scan::kReturn);
+    b.r.bus.remove_observer(tap);
+    CHECK(rows_asked == 1);
+    REQUIRE(b.authored.size() == 1);
+    CHECK(b.authored[0].stem == "zengine-snake");
+    CHECK(b.authored[0].role == "zengine.oven");
+    CHECK(b.authored[0].recipe == "snake");
+}
+
+TEST_CASE("the weaver's f, and the role line's commit then build, stand with a key typed "
+          "between the two beats") {
+    // ONE APPROVAL, ASKED AT THE GESTURE AND CARRIED TO THE SEND. Between an act's two beats the
+    // weaver types on, and Workshop counts that key as the weaver's newest gesture, so a send that
+    // asked again at its own beat would find its gesture old and refuse the build. Each turn ends
+    // where the pane hears Workshop's word and the key is queued there: it lands after the second
+    // beat's ask has gone out and before its answer arrives.
+    SUBCASE("the frontier action, with a key between the frontier's ask and its answer") {
+        BuilderRig b("bld-f-between");
+        b.tool->catalog = catalog_of({{"one", "a"}, {"snake", "zengine-snake"}});
+        b.frontier.waiting = true;
+        b.frontier.artifact = "zengine-snake";
+        b.open();
+        REQUIRE(b.r.kernel.weave_id(pane::kBuilderPaneStem).value != 0);
+        BetweenBeats beats(b, ProjectFrontierRequested::zen_name, ProjectFrontierSaid::zen_name);
+        b.r.key(input::scan::kF);
+        REQUIRE(beats.word != 0);
+        REQUIRE(b.r.bus.pending() > 0);
+        CHECK(b.tool->asked.empty()); // Workshop said yes; the frontier is asked, and unanswered
+        b.enqueue_key(input::scan::kDown);
+        b.settle();
+        REQUIRE(beats.asked_at != 0);
+        REQUIRE(beats.typed_at != 0);
+        REQUIRE(beats.answered_at != 0);
+        CHECK(beats.asked_at < beats.typed_at);
+        CHECK(beats.typed_at < beats.answered_at);
+        REQUIRE(b.tool->asked.size() == 1);
+        CHECK(b.tool->asked[0] == "snake");
+        CHECK(b.tool->realize_asked[0] == true);
+    }
+    SUBCASE("the role line's commit, with a key between the written row's send and its arrival") {
+        BuilderRig b("bld-row-between");
+        b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+        b.next_append.frontier = true;
+        b.next_append.product = "/build/zengine-snake.so";
+        b.next_append.detail = "waiting";
+        b.open();
+        b.letter(input::scan::kO, "o");
+        b.r.text("zengine.oven");
+        REQUIRE_MESSAGE(b.text().find("role for zengine-snake> zengine.oven") != std::string::npos,
+                        b.text());
+        REQUIRE(b.r.kernel.weave_id(pane::kBuilderPaneStem).value != 0);
+        BetweenBeats beats(b, PlanRowRequested::zen_name, PlanRowWritten::zen_name);
+        b.r.key(input::scan::kReturn);
+        REQUIRE(beats.word != 0);
+        CHECK(b.authored.empty()); // Workshop said yes; the row is asked, and not yet written
+        b.enqueue_key(input::scan::kDown);
+        b.settle();
+        REQUIRE(beats.asked_at != 0);
+        REQUIRE(beats.typed_at != 0);
+        REQUIRE(beats.answered_at != 0);
+        // THE PLAN OFFICE ANSWERS INSIDE THE DELIVERY THAT ASKED, so the key lands between the
+        // answer's send and its arrival.
+        CHECK(beats.asked_at < beats.typed_at);
+        CHECK(beats.typed_at < beats.answered_at);
+        REQUIRE(b.authored.size() == 1);
+        CHECK(b.authored[0].role == "zengine.oven");
+        REQUIRE(b.tool->asked.size() == 1);
+        CHECK(b.tool->asked[0] == "snake");
+        CHECK(b.tool->realize_asked[0] == true);
+        CHECK_MESSAGE(b.text().find("loading `zengine-snake` now") != std::string::npos, b.text());
+    }
+}
+
+TEST_CASE("the weaver's b stands when a guest's injected key lands before the Builder's approval") {
+    // ONE COUNTER FOR BOTH HANDS MADE THIS STALE: an approval current only while its gesture is the
+    // latest of every hand's lets a guest's key, landing between the weaver's `b` and the Builder's
+    // ask, make the weaver's own act old and refuse the build. Each hand keeps its own latest, so
+    // the guest's key is the guest's newest gesture and nobody else's.
+    BuilderRig b("bld-guest-between");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.open();
+    guest_hand::GuestHand g(b.r, {"input"});
+    const loom::WeaveId pane_id = b.r.kernel.weave_id(pane::kBuilderPaneStem);
+    REQUIRE(pane_id.value != 0);
+    const loom::WeaveId workshop = b.r.workshop_id;
+    // WHAT LANDED WHEN: the weaver's `b` at the pane, the guest's moment at Workshop, and the
+    // pane's ask for Workshop's word on the build.
+    std::int64_t moment = 0;
+    std::int64_t acted_at = 0;
+    std::int64_t guest_at = 0;
+    std::int64_t asked_at = 0;
+    const loom::ObserverId tap = b.r.bus.add_observer(
+        [&moment, &acted_at, &guest_at, &asked_at, pane_id, workshop](const loom::BusEvent& ev) {
+            if (ev.kind != loom::EventKind::Delivered) {
+                return;
+            }
+            ++moment;
+            if (acted_at == 0 && ev.target == pane_id &&
+                ev.schema_name == PaneActionRequested::zen_name) {
+                acted_at = moment;
+            } else if (guest_at == 0 && ev.target == workshop && ev.payload != nullptr &&
+                       ev.schema_name == input::AttributedInput::zen_name &&
+                       !loom::from_value<input::AttributedInput>(*ev.payload).local) {
+                guest_at = moment;
+            } else if (asked_at == 0 && ev.sender == pane_id && ev.target == workshop &&
+                       ev.schema_name == ws::v2::PaneOperationRequested::zen_name &&
+                       ev.schema_version == ws::v2::PaneOperationRequested::zen_version) {
+                asked_at = moment;
+            }
+        });
+    // `Home` IS A KEY THE BUILDER DECLARES NOTHING FOR WHILE BROWSING: the guest's moment means
+    // nothing to the pane, and is a gesture of the guest's all the same.
+    g.weaver_then_guest(
+        {input::KeyPressed{input::scan::kB, "", input::mod::kNone},
+         input::KeyReleased{input::scan::kB, "", input::mod::kNone}},
+        {guest_hand::GuestHand::key_event(input::scan::kHome, input::mod::kNone, true),
+         guest_hand::GuestHand::key_event(input::scan::kHome, input::mod::kNone, false)});
+    b.r.bus.remove_observer(tap);
+    REQUIRE(acted_at != 0);
+    REQUIRE(guest_at != 0);
+    REQUIRE(asked_at != 0);
+    CHECK(acted_at < guest_at);
+    CHECK(guest_at < asked_at);
+    REQUIRE(b.tool->asked.size() == 1);
+    CHECK(b.tool->asked[0] == "snake");
+    CHECK(b.tool->realize_asked[0] == false);
+    CHECK_MESSAGE(b.text().find("asked the Builder for `snake`") != std::string::npos, b.text());
+}
+
+TEST_CASE("a guest's choice in a menu the weaver opened is judged for the guest, whatever the guest pressed since") {
+    // ONE NUMBER, TWO HANDS: the weaver's Shift+M opens the Builder's menu under its act's number,
+    // and the guest's choice in it answers under that same number. The opening act is spent on the
+    // menu, so only the guest's choice can approve what the pane asks next -- judged for the guest
+    // and refused, since its row has no `build`, even when the guest's next key lands first.
+    BuilderRig b("bld-guest-chooses");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.open(240, 60, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    guest_hand::GuestHand g(b.r, {"input"}, /*development=*/true);
+    g.weaver_key(input::scan::kM, input::mod::kShift);
+    REQUIRE(menu_shown(b.r.session()));
+    const std::int64_t at = presented_line_of(b.r.session(), "build `snake`");
+    REQUIRE(at >= 0);
+    for (std::int64_t i = 0; i < at; ++i) {
+        g.key(input::scan::kDown);
+    }
+    // RETURN CHOOSES, AND THE GUEST'S NEXT KEY LANDS BEFORE THE PANE'S ASK: one batch.
+    g.inject({guest_hand::GuestHand::key_event(input::scan::kReturn, input::mod::kNone, true),
+              guest_hand::GuestHand::key_event(input::scan::kReturn, input::mod::kNone, false),
+              guest_hand::GuestHand::key_event(input::scan::kHome, input::mod::kNone, true),
+              guest_hand::GuestHand::key_event(input::scan::kHome, input::mod::kNone, false)});
+    CHECK_FALSE(menu_shown(b.r.session()));
+    CHECK(b.tool->asked.empty());
+    CHECK_MESSAGE(b.text().find(std::string("`snake` was not built -- ") + kNoBuild) != std::string::npos,
+                  b.text());
+    // THE WEAVER'S OWN `b` BUILDS: the refusal was the guest's row's.
+    b.letter(input::scan::kB, "b");
+    REQUIRE(b.tool->asked.size() == 1);
+    CHECK(b.tool->asked[0] == "snake");
+}
+
+TEST_CASE("the weaver's b stands when the weaver's own next key lands before the Builder's approval") {
+    // ONE POLL CARRIES BOTH KEYS, so Workshop routes the weaver's `l` before the Builder's ask for
+    // `b` arrives: `l` is the weaver's latest gesture, and its action replaces the record of the
+    // one `b` sent. The ask names no send, so it spends `b`'s act while unspent, and builds.
+    BuilderRig b("bld-weaver-between");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.open();
+    guest_hand::GuestHand g(b.r, {"input"});
+    const loom::WeaveId pane_id = b.r.kernel.weave_id(pane::kBuilderPaneStem);
+    REQUIRE(pane_id.value != 0);
+    const loom::WeaveId workshop = b.r.workshop_id;
+    std::int64_t moment = 0;
+    std::int64_t actions = 0;
+    std::int64_t second_at = 0;
+    std::int64_t asked_at = 0;
+    const loom::ObserverId tap = b.r.bus.add_observer(
+        [&moment, &actions, &second_at, &asked_at, pane_id, workshop](const loom::BusEvent& ev) {
+            if (ev.kind != loom::EventKind::Delivered) {
+                return;
+            }
+            ++moment;
+            if (ev.target == pane_id && ev.schema_name == PaneActionRequested::zen_name &&
+                ++actions == 2) {
+                second_at = moment;
+            } else if (asked_at == 0 && ev.sender == pane_id && ev.target == workshop &&
+                       ev.schema_name == ws::v2::PaneOperationRequested::zen_name &&
+                       ev.schema_version == ws::v2::PaneOperationRequested::zen_version) {
+                asked_at = moment;
+            }
+        });
+    for (const std::int64_t scan : {input::scan::kB, input::scan::kL}) {
+        g.weaver->push_back(input::KeyPressed{scan, "", input::mod::kNone});
+        g.weaver->push_back(input::KeyReleased{scan, "", input::mod::kNone});
+    }
+    g.pump();
+    b.r.bus.remove_observer(tap);
+    REQUIRE(second_at != 0);
+    REQUIRE(asked_at != 0);
+    CHECK(second_at < asked_at);
+    REQUIRE(b.tool->asked.size() == 1);
+    CHECK(b.tool->asked[0] == "snake");
+}
+
+TEST_CASE("on a development host a guest with build commits the role line, and its row is "
+          "written and built") {
+    // THE SAME COMMIT ON THE AGENT'S OWN HOST: there a guest's typed text rests in the line and its
+    // hand writes, so the guest opens the line, types the role and commits it, the plan office
+    // writes the row, and the row's built product finishes with the button's act -- the build the
+    // commit's one ask approved, carried to the second beat.
+    BuilderRig b("bld-guest-row-dev");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.next_append.frontier = true;
+    b.next_append.product = "/build/zengine-snake.so";
+    b.next_append.detail = "waiting";
+    b.open(240, 60);
+    guest_hand::GuestHand g(b.r, {"input", "build"}, /*development=*/true);
+
+    g.key(input::scan::kO);
+    REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
+    g.text("zengine.oven");
+    REQUIRE_MESSAGE(b.text().find("role for zengine-snake> zengine.oven") != std::string::npos,
+                    b.text());
+    g.key(input::scan::kReturn);
+    REQUIRE(b.authored.size() == 1);
+    CHECK(b.authored[0].stem == "zengine-snake");
+    CHECK(b.authored[0].role == "zengine.oven");
+    CHECK(b.authored[0].recipe == "snake");
+    CHECK(b.plan_rows == std::vector<std::string>{"zengine-snake"});
+    REQUIRE(b.tool->asked.size() == 1);
+    CHECK(b.tool->asked[0] == "snake");
+    CHECK(b.tool->realize_asked[0] == true);
+    CHECK_MESSAGE(b.text().find("loading `zengine-snake` now") != std::string::npos, b.text());
+}
+
+TEST_CASE("the Builder's edit-source asks class open for the source it found before it sends "
+          "the open") {
+    // WHAT OPENS IS KNOWN ONLY AT THE SECOND DOOR, so that is where `e` asks: the project office
+    // names the file, the pane asks Workshop class `open` about exactly that path under the gesture
+    // that began it, and only Workshop's yes sends `OpenSourceRequested`. On a weaver's host the
+    // file a guest's hand may not open is the guests file, refused before the opening office hears.
+    BuilderRig b("bld-edit-open-class");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    const std::filesystem::path source = std::filesystem::absolute(b.root / "snake.cpp");
+    const std::filesystem::path guests = std::filesystem::absolute(b.root / "guests.json");
+    put_source(source, "int main() {}\n");
+    put_source(guests, "{\"version\": 2, \"host\": \"weaver\", \"guests\": []}\n");
+    b.next_source.known = true;
+    b.next_source.kind = "single_source";
+    b.open(240, 60, /*with_editor=*/true);
+    const loom::WeaveId pane_id = b.r.kernel.weave_id(pane::kBuilderPaneStem);
+    REQUIRE(pane_id.value != 0);
+    // WHAT THE PANE SAID, IN THE ORDER IT WAS DELIVERED: each ask for Workshop's word, each open.
+    struct Said {
+        std::string what;
+        std::vector<std::string> classes;
+        std::string subject;
+    };
+    std::vector<Said> said;
+    const loom::ObserverId tap = b.r.bus.add_observer([&said, pane_id](const loom::BusEvent& ev) {
+        if (ev.kind != loom::EventKind::Delivered || ev.sender != pane_id ||
+            ev.payload == nullptr) {
+            return;
+        }
+        if (ev.schema_name == ws::v2::PaneOperationRequested::zen_name &&
+            ev.schema_version == ws::v2::PaneOperationRequested::zen_version) {
+            const auto asked = loom::from_value<ws::v2::PaneOperationRequested>(*ev.payload);
+            said.push_back(Said{"asked", asked.classes, asked.subject});
+        } else if (ev.schema_name == OpenSourceRequested::zen_name) {
+            said.push_back(
+                Said{"open", {}, loom::from_value<OpenSourceRequested>(*ev.payload).path});
+        }
+    });
+    const std::vector<std::string> open_class{ws::scope::kOpen};
+
+    SUBCASE("the weaver's e asks about the source it found, then opens it") {
+        b.next_source.source = source.generic_string();
+        b.letter(input::scan::kE, "e");
+        REQUIRE(said.size() == 2);
+        CHECK(said[0].what == "asked");
+        CHECK(said[0].classes == open_class);
+        CHECK(said[0].subject == source.generic_string());
+        CHECK(said[1].what == "open");
+        CHECK(said[1].subject == source.generic_string());
+        REQUIRE(b.r.session().panes.has(b.editor_kind()));
+        CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
+    }
+    SUBCASE("a guest's e toward the guests file is refused on a weaver's host, and nothing opens") {
+        guest_hand::GuestHand g(b.r, {"input"});
+        b.r.host.host_fact.guests_file = guests.generic_string();
+        b.next_source.source = guests.generic_string();
+        g.key(input::scan::kE);
+        REQUIRE(said.size() == 1);
+        CHECK(said[0].what == "asked");
+        CHECK(said[0].classes == open_class);
+        CHECK(said[0].subject == guests.generic_string());
+        CHECK_FALSE(b.r.session().panes.has(b.editor_kind()));
+        CHECK(b.r.session().panes.keyboard == b.kind);
+        CHECK_MESSAGE(b.text().find("`snake`: the source was not opened -- this is a weaver's "
+                                    "host: the guests file opens only by the weaver's hand") !=
+                          std::string::npos,
+                      b.text());
+        // ...AND THE WEAVER'S OWN `e` OPENS THE SAME FILE: the guests file is the weaver's to edit.
+        b.letter(input::scan::kE, "e");
+        REQUIRE(said.size() == 3);
+        CHECK(said[1].what == "asked");
+        CHECK(said[2].what == "open");
+        CHECK(said[2].subject == guests.generic_string());
+        REQUIRE(b.r.session().panes.has(b.editor_kind()));
+        CHECK(b.editor_status().find("guests.json") != std::string::npos);
+    }
+    b.r.bus.remove_observer(tap);
 }

@@ -66,6 +66,7 @@ bool same_code(const HostContext::CodeSource& now, const HostContext::CodeSource
 } // namespace
 
 // WL-CODE-02 -- agents/workshop/code.md
+// WL-GUEST-09 -- agents/workshop/guests.md
 void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
     // THE SETUP HAS ALREADY ANSWERED FOR THE REFERENCE: this is reached only through
     // `spend_pane_action`, the pane's one spend seam (WL-CTX-07), which refuses a reference that
@@ -86,6 +87,12 @@ void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
         return;
     }
     const HostContext::CodeSource::Recipe& recipe = code.recipes.front();
+    // AN OPENING, judged for the hand that chose it, by what it opens (`actor_scope.hpp`).
+    if (const std::string judged = judge_classes(input_actor_, {scope::kOpen}, recipe.source);
+        !judged.empty()) {
+        say(name + "'s code was not opened -- " + judged, true);
+        return;
+    }
     // ONE ASK IN FLIGHT, AND A NEWER SPEND REPLACES THE RECORD. The manager supersedes an open
     // still being prepared and answers the older ask; that answer then matches nothing here,
     // so it can neither say an old sentence nor tell the Builder about a file no longer wanted.

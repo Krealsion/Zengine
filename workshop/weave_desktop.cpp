@@ -142,11 +142,16 @@ void WorkshopWeave::rejoin_app_rows(std::string& refusals, loom::Mail& mail) {
 
 // WL-DESK-02 -- agents/workshop/desktop.md
 void WorkshopWeave::request_app_action(const std::string& id, loom::Mail& mail) {
+    request_app_action(id, mail, hand());
+}
+
+// WL-DESK-02 -- agents/workshop/desktop.md
+void WorkshopWeave::request_app_action(const std::string& id, loom::Mail& mail, Hand& by) {
     // THIS KEYSTROKE'S OWN NUMBER, minted here and nowhere else. Monotonic from one, so zero
     // is never an ask: an answer that echoes nothing answers nothing (`gesture_asks_`'s rule,
     // one owner over).
     const std::uint64_t answering = ++app_asks_;
-    app_asked_ = AppAsked{gestures_, answering};
+    by.app_asked = AppAsked{by.latest, answering};
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(kDesktopRole, AppActionRequested{id}, answering);
 }
@@ -159,15 +164,19 @@ void WorkshopWeave::on(const DeselectRequested&, loom::Mail& mail) {
     }
     // The particular ask this answers, first: current state cannot identify it, since a second
     // Escape recreates that state.
-    if (mail.correlation() == 0 || mail.correlation() != app_asked_.answering) {
+    Hand* by = nullptr;
+    each_hand([&](Hand& h) {
+        if (mail.correlation() != 0 && mail.correlation() == h.app_asked.answering) by = &h;
+    });
+    if (by == nullptr) {
         return;
     }
-    // ...AND IT IS STILL THE WEAVER'S LATEST GESTURE. A key, text, press or wheel since leaves
-    // this about a keystroke that is no longer what the weaver did last.
-    if (app_asked_.gesture != gestures_) {
+    // ...AND IT IS STILL ITS HAND'S LATEST GESTURE. A key, text, press or wheel of that hand's since
+    // leaves this about a keystroke that is no longer what it did last.
+    if (by->app_asked.gesture != by->latest) {
         return;
     }
-    app_asked_ = AppAsked{};
+    by->app_asked = AppAsked{};
     if (session_.panes.selected == kNoPaneKind) {
         return; // nothing is picked up; putting nothing down says nothing
     }

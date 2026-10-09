@@ -393,7 +393,11 @@ At `zengine.inventory-pane`, `InventoryToolboxSave{path}` and
 or `zen.Refused`. The completion contains the resolved absolute host path. `replace=false` requires
 an empty collection. The pane owns the file and portable configuration; the data weave still owns
 the collection. Direct callers need ordinary grants; Workshop guests need the separate `toolbox`
-power, including for the actor behind injected input. File access uses the host process's rights.
+power, including for the actor behind injected input. A save also writes a file, so it is action
+class `write`: by key the pane asks it with the gesture (`v2::PaneOperationRequested`), and a save
+sent straight to the pane first asks Workshop about its sender (`ActorScopeRequested`); on a
+weaver's host a guest's save is refused in words and nothing is written. A restore writes no file
+and asks the grant alone. File access uses the host process's rights.
 
 The data-owner protocol is `InventorySnapshotRequested -> InventorySnapshot{owner, revision,
 archive}` and `InventoryRestore{owner, revision, archive, replace} -> InventoryRestored{owner,

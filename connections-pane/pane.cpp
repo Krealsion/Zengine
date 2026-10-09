@@ -3,9 +3,10 @@
 
 // The Connections pane: a loadable weave that offers Workshop one pane, the other hosts
 // connected to it as the guest door reports them. It derives nothing: every row is the door's
-// reading (number, state, what the peer claimed, what policy established, origin, session),
-// published whole on each change, so a closed connection shows `closed` once and is gone once
-// reaped. It grants and decides nothing, and declares no actions: `awaiting-decision` is a fact.
+// reading (number, state, what the peer claimed, what policy established, origin, session, the
+// admitting row's version and what its powers do not reach here), published whole on each
+// change, so a closed connection shows `closed` once and is gone once reaped. It grants and
+// decides nothing, and declares no actions: `awaiting-decision` is a fact.
 // Pane law: agents/panes.md
 
 #include "connections-pane/vocabulary.hpp"
@@ -35,9 +36,9 @@ namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::connections_pane;
 
-using ws::GuestConnection;
-using ws::GuestConnections;
-using ws::GuestConnectionsRequested;
+using ws::v2::GuestConnection;
+using ws::v2::GuestConnections;
+using ws::v2::GuestConnectionsRequested;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::v2::PaneOffered;
@@ -46,6 +47,9 @@ using ws::PaneRoom;
 /// WHO THIS PANE IS TALKING TO: the host's office, and the door's, spelled as a stranger
 /// spells them.
 constexpr const char* kWorkshopRole = "zengine.workshop";
+
+/// THE GUESTS FILE'S WORD for a host whose guests write and build as its weaver does.
+constexpr const char* kDevelopmentHost = "development";
 
 using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
@@ -130,7 +134,8 @@ private:
                                       pane::kConnectionsPaneSummary, 7, 62});
     }
 
-    /// A presenter that just arrived asks the door once, so it need not wait for a change.
+    /// A presenter that just arrived asks the door once, so it need not wait for a change, and
+    /// at version 2, so each row's powers and losses come with it.
     void ask(loom::Mail& mail) {
         (void)mail.as_role(pane::kConnectionsPaneRole)
             .send_to_role(ws::kGuestsRole, GuestConnectionsRequested{});
@@ -163,23 +168,33 @@ private:
         } else {
             push("CONNECTIONS -- " + std::to_string(known_.rows.size()) +
                      (known_.rows.size() == 1 ? " connection" : " connections") + " at " +
-                     known_.listen,
+                     known_.listen + (development_host() ? " -- a development host" : ""),
                  surface::role::kAccent);
             const std::size_t budget = rows_ > 1 ? static_cast<std::size_t>(rows_ - 1) : 0;
             if (known_.rows.empty() && budget > 0) {
                 push("  nobody is connected", surface::role::kMuted);
             }
-            std::size_t shown = 0;
+            // A CONNECTION IS SAID WHOLE OR COUNTED: one a guests-file row admitted brings its
+            // version line, and the two stand together or not at all.
+            std::size_t shown = 0; // connections said
+            std::size_t used = 0;  // the lines they and the count took
             for (const GuestConnection& c : known_.rows) {
-                if (shown + 1 >= budget && known_.rows.size() - shown > 1) {
+                const std::size_t need = c.version > 0 ? 2 : 1;
+                const bool last = known_.rows.size() - shown == 1;
+                if (last ? used + need > budget : used + need >= budget) {
                     push("  " + omitted_text(known_.rows.size() - shown, "more"),
                          surface::role::kMuted);
+                    ++used;
                     break;
                 }
                 push("  " + row_text(c), role_of(c));
+                if (c.version > 0) {
+                    push("    " + version_text(c), role_of(c));
+                }
+                used += need;
                 ++shown;
             }
-            if (budget > shown + 1 && (known_.refused > 0 || known_.shed > 0)) {
+            if (budget > used + 1 && (known_.refused > 0 || known_.shed > 0)) {
                 push("  refused " + std::to_string(known_.refused) + ", shed " +
                          std::to_string(known_.shed) + " (all time)",
                      surface::role::kMuted);
@@ -223,6 +238,31 @@ private:
             s += "  -- " + c.refusal;
         }
         return s;
+    }
+
+    /// BENEATH A CONNECTION A GUESTS-FILE ROW ADMITTED: the file's version, and what the row's
+    /// powers do not reach on this host, in the door's own words.
+    static std::string version_text(const GuestConnection& c) {
+        std::string s = "version " + std::to_string(c.version) + " -- ";
+        if (c.losses.empty()) {
+            return s + "all its powers reach here";
+        }
+        s += "not here: ";
+        for (std::size_t i = 0; i < c.losses.size(); ++i) {
+            s += (i == 0 ? "" : "; ") + c.losses[i];
+        }
+        return s;
+    }
+
+    /// Whether the door's reading names a development host: the guests file's `host`, which every
+    /// connection a guests-file row admitted carries.
+    bool development_host() const {
+        for (const GuestConnection& c : known_.rows) {
+            if (c.host == kDevelopmentHost) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static std::int64_t role_of(const GuestConnection& c) {

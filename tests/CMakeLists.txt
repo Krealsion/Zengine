@@ -929,10 +929,11 @@ zengine_workshop_suite(files SOURCES test_workshop_files.cpp
 
 # This suite links `loom::history` and Workshop's logic does not: that the condition lifecycle
 # never reaches the Recorder or the Logger is measured only with both attached while a condition
-# is established, read, hidden and resolved.
+# is established, read, hidden and resolved. It links the guests file's reader for the conditions
+# a file's host and rows stand as.
 zengine_workshop_suite(host
     SOURCES test_workshop_host.cpp
-    LINKS loom::history
+    LINKS loom::history zengine-workshop-guests
     DEFINITIONS "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\"")
 
 # THE DESK AND THE WORDS ON IT, READ BY MESSAGE: what Workshop answers about its panes and their
@@ -996,6 +997,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_opening.cpp
             test_workshop_panes_code.cpp
             test_workshop_panes_output.cpp
+            test_workshop_panes_guests.cpp
     NEEDS zengine-composer zengine-inventory zengine-inventory-pane
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\"" "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""

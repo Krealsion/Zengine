@@ -28,7 +28,10 @@ revision arguments: replay can legitimately be refused after an earlier conditio
 ## Run the external-host demonstration
 
 Use the [external host setup](external-host.md). The guest needs `input`, `capture`, `inspect`
-and `inventory`. Leave Compose with no authored draft and show the three panes above.
+and `inventory`, on a Workshop whose guests file names it a development host: the demonstration
+types into Compose, and a
+[weaver's host](external-host.md#whose-host-this-is-and-what-each-power-reaches-there) refuses a
+guest's typed text. Leave Compose with no authored draft and show the three panes above.
 
 ```sh
 loom-session run <session-dir> workshop/inventory-compose-demo --name compose-demo \

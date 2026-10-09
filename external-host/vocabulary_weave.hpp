@@ -35,7 +35,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 73; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 75; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -65,6 +65,9 @@ class GuestVocabulary final
                      zengine::surface::SurfaceCaptureChunk,
                      zengine::workshop::GuestConnectionsRequested,
                      zengine::workshop::GuestConnections,
+                     // The door's inventory with each row's powers, version and losses.
+                     zengine::workshop::v2::GuestConnectionsRequested,
+                     zengine::workshop::v2::GuestConnections,
                      zengine::inventory::InventorySet, zengine::inventory::InventoryGet,
                      zengine::inventory::InventoryState, zengine::inventory::InventoryCaptured,
                      zengine::inventory::InventoryCaptureDescribe,

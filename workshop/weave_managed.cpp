@@ -493,8 +493,10 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
             pane->forget_pictures();
             pane->shown.clear();
             pane->clear_caret();
-            for (auto& continuation : secondary_cont_)
-                if (continuation.kind == kind) continuation = SecondaryContinuation{};
+            each_hand([&](Hand& h) {
+                for (auto& continuation : h.secondary_cont)
+                    if (continuation.kind == kind) continuation = SecondaryContinuation{};
+            });
             if (canvas_hover_.kind == kind) canvas_hover_ = CanvasHover{};
             canvas_room_owed_ = true;
         } else if (pane->canvas.grant != 0) {

@@ -19,7 +19,10 @@ building the library is not required for this authoring check. `build/CMakeCache
 contain `CMAKE_CONFIGURATION_TYPES`, including `Debug` and `Release`.
 
 Launch your task-owned Workshop with `<project>` as its working directory, the appropriate
-load plan and its own guests file. Use `--isolated`. Keep the staged runtime separate from the
+load plan and its own guests file, at version 2 and naming that Workshop a development host
+(`"version": "2"`, `"host": "development"`): this journey types into Files and writes a recipe,
+and a [weaver's host](external-host.md#whose-host-this-is-and-what-each-power-reaches-there)
+refuses a guest both. Use `--isolated`. Keep the staged runtime separate from the
 build tree you edit, as [the setup guide explains](external-host.md#3-from-a-loom-session-journeys-as-python-tools).
 Use an explicit `--recipes <project>/build-recipes.json` with this empty initial catalog:
 

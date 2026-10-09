@@ -512,6 +512,13 @@ int main(int argc, char** argv) {
     const std::string out = read_file(out_path);
     check(out.find("guests: listening on 127.0.0.1:") != std::string::npos,
           "the Workshop said where it listened");
+    // A FILE NAMING NO VERSION STILL MOUNTS, as version 1 on a weaver's host, and its row's losses
+    // are said at launch beside the row.
+    check(out.find("guests: the file is version 1, and this is a weaver's host") != std::string::npos,
+          "a version-1 file mounted, and the launch said whose host this is");
+    check(out.find("guests: 'agent' (version 1) does not reach here: the Builder's builds and loads") !=
+              std::string::npos,
+          "the launch said what the version-1 row's powers do not reach here");
 
     // 4. A WEAVER'S OWN FILES, IN A FOLDER NAMED BEYOND ASCII. Another Workshop, not isolated:
     //    its per-user roots and the keymap its command line names stand in a folder named with
@@ -540,9 +547,11 @@ int main(int argc, char** argv) {
     const std::string own_guests = work + "/own-guests.json";
     const std::string own_port = work + "/own.port";
     {
+        // A DEVELOPMENT HOST: this guest stands in for the weaver's own hand, so its `t` writes the
+        // preference and its quit writes the session, as a weaver's would.
         std::ofstream o(own_guests, std::ios::trunc);
-        o << R"({"listen":"127.0.0.1:0","port_file":"own.port","guests":[{"name":"weaver",)"
-          << R"("credential":"open-sesame","may":["input","capture","demo"]}]})";
+        o << R"({"version":"2","host":"development","listen":"127.0.0.1:0","port_file":"own.port",)"
+          << R"("guests":[{"name":"weaver","credential":"open-sesame","may":["input","capture","demo"]}]})";
     }
     const std::vector<std::string> own_args = {"--load-plan", plan,    "--guests", own_guests,
                                                "--log",       "own.log", "--keymap",

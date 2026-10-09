@@ -54,7 +54,8 @@
    "inspect",
    "inventory",
    "toolbox",
-   "demo"
+   "demo",
+   "build"
   ],
   "observe": [
    {

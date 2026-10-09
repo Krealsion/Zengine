@@ -110,11 +110,28 @@ external_press_at(panes, setup, screen, kind,     } Panes::selected and Panes::k
 
 Inventory acquisitions and edits use `workshop/pane_operation.hpp`: a pane echoes the current
 input/menu-choice correlation and names the exact owner operation. Workshop verifies that the
-gesture belongs to that pane, is current and unspent, and has authenticated Input attribution.
-A physical hand is the host's weaver; an injected hand must hold the named operation in its live
-Loom authority. An allowed answer approves this intent once and grants no new bus authority.
-The consumer still sends through its own ordinary grant. This protocol does not retrofit all
-older pane actions with actor authorization.
+gesture belongs to that pane, is current and unspent **for its own hand** -- each hand, the weaver's
+and each guest's, keeps its own gestures and records, so one hand's act never makes another's
+stale (WL-GUEST-05) -- and has authenticated Input attribution. A physical hand is the host's
+weaver; an injected hand must hold the named operation in its live Loom authority, or, for a
+classed operation, the class in its admitted row. An allowed answer approves this intent once and
+grants no new bus authority. The consumer still sends through its own ordinary grant.
+
+**An act that writes a file, builds or opens is classed** (`v2::PaneOperationRequested`'s
+`classes`: `build`, `write`, `open`, with `subject` naming what an `open` opens), and Workshop
+judges each class against the guest's admitted row and the guests file's host (WL-GUEST-03): a
+guest builds only with `build`, and on a weaver's host writes nothing and opens no guests file.
+A classed ask may name no send at all -- an act the pane does itself, such as a save -- and then
+spends its act's record while unspent, whatever its hand did since (`Hand::kept`). One approval
+stands for an act's every beat: the pane asks at the first and carries it, never asking again (the
+Builder's frontier and its role line); an act that learns its subject later asks at the beat that
+learns it (the Builder's edit-source). The Builder's, Files', Flow's and the View Builder's
+writing, building and opening acts, the Inventory pane's toolbox save and Workshop's own carry
+this; the editor office's saves and opens and the Hotkeys pane's keymap writes are kept from a
+guest on a weaver's host by the dispatch instead (WL-GUEST-06). Every other control an injected
+hand reaches by key or press still answers it as the weaver's. A door a participant sends straight to an owner, past the dispatch, is judged by
+the owner asking `ActorScopeRequested` about its sender (WL-GUEST-04). No guest is granted
+`BuildRequested`, a realization ask or a clipboard door as a shape.
 
 `workshop/pane_carry.hpp` transports one owned reference envelope from an approved acquisition.
 The same actor picks it up and places it; Escape cancels. Workshop interprets no payload fields.
@@ -224,6 +241,11 @@ knows only the earlier protocol is unchanged and valid. Which pane has the keys,
 screen says so, is Workshop routing law
 ([`workshop/focus.md`](workshop/focus.md) (WL-FOCUS-01)).
 
+- **On a weaver's host a guest's keys, text, presses, wheels and drops never reach the editor
+  office, the Terminal or the Hotkeys pane, and its typed text no pane** (WL-GUEST-06): Workshop refuses them
+  in words at the dispatch, by office, whichever implementation holds it. On a development host,
+  as the weaver's.
+
 - **Workshop does not ask a provider whether it wants keys, and there is no shape for saying
   so.** A read-only pane that is pressed does take the keyboard, and Loom's gate refuses the
   deliveries — the substrate's own correct answer to being sent a shape a weave never declared,
@@ -243,7 +265,7 @@ screen says so, is Workshop routing law
   Composer leaves a form; the Terminal sheds its list, then its line) and the editors keep every
   Escape. A holder that does not declare the word is never sent a bare Escape: it could not hand
   one back, so Escape's last meaning answers at once (`holder_emits`). There is no answer and no
-  retry; a later key, text, press or wheel makes the word stale. **The correlation is what names the Escape**: Workshop
+  retry; a later key, text, press or wheel of the same hand makes the word stale. **The correlation is what names the Escape**: Workshop
   mints one per bare Escape and carries it on whichever message delivers it, because a second
   Escape restores every other check the first one met, and an answer about the first would
   otherwise be spent on the second. Zero, an older Escape's number and an already-spent one all
@@ -384,15 +406,15 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   (`PaneButton`), a declared action sent by key (`PaneActionRequested`) and a PRIMARY press
   (`PanePressed` and its versions) each go out under a correlation a pane may echo on a
   `PaneMenuRequested`; eligibility is the same three facts where the menu opens -- this pane,
-  this number, and still the weaver's latest act -- and each is spent once
-  (`secondary_cont_`, `action_sent_`, `press_sent_`). The primary press is what lets a pane
+  this number, and still the latest act of the hand that made it -- and each is spent once
+  (`Hand::secondary_cont`, `Hand::action_sent`, `Hand::press_sent`). The primary press is what lets a pane
   that draws its own controls answer a click on a `[menu]` of its own; like the other two it
   moves no keys and no selection, and a late or replayed request is refused in words.
 - **Two records per button, and closing invalidates on its own.** A hold is release custody
   and ends only on the release, owner loss or arbitration (a press of a button believed down:
   the old hold ends with a `lost` release before the new is recorded). A continuation is
   eligibility to be handed back or to open a menu: newest press of its button, unspent, its pane
-  on the desk, no newer act since. A release is no act of its own — it completes the one its
+  on the desk, no newer act of the same hand since. A release is no act of its own — it completes the one its
   press began (`on(PointerButton)` counts presses, keys, text and the wheel, never a release) —
   so a click's own release never makes its choice late. A release never restores it; a pane that
   leaves the desk after the release cannot be handed back or given a menu — the review's first
@@ -400,10 +422,11 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   mid-hold is not promised it; the shipped helper (`HeldButton`) ignores a release of a button
   the image never held, and a holder that gives up its office ends its own hold.
 - **A menu is requested, judged where it opens, granted to the presenter, answered once.**
-  Every declared action goes to a pane under a number of its own (`action_sent_`), so a request
+  Every declared action goes to a pane under a number of its own (`Hand::action_sent`), so a request
   opened by key continues that keystroke and one opened by the second button continues that
-  press; the host judges eligibility in its own handler, and a queued primary press elsewhere is
-  a newer act, so the late request is refused and the keys stay where the newer press put them.
+  press; the host judges eligibility in its own handler, and a queued primary press elsewhere by
+  the same hand is a newer act, so the late request is refused and the keys stay where the newer
+  press put them.
   An eligible ask is GRANTED to whoever holds `zengine.presenter` (`grant_menu`): the host keeps
   custody and place — `PresentedMenu`: whose menu, what about, where, the lines last shown, which
   acts it may name — and none of the pane's rows. Beneath them it grants its own pane menu for
@@ -411,7 +434,7 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   as its own menu shows them), so one menu holds both; a standard row chosen comes back named on
   `MenuClosed::standard`, the presenter answers the requester unchosen, and the host spends the
   row on that pane (`spend_standard_row`: an action through its own seam, a group by opening its
-  own menu there) as the choosing act's continuation, while that act is the weaver's latest.
+  own menu there) as the choosing act's continuation, while that act is its hand's latest.
   No pane performs a standard row and the host performs no pane's row. While it is open the
   weaver's keys are named by the contextual
   rows and forwarded (`menu_key`, `MenuInput::verb`), presses inside or outside are forwarded
@@ -426,8 +449,8 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   chose -- the word that its requester is answered and nothing more is owed -- and the host
   records that act as the choice's continuation: a choice may continue,
   once, into the host's own pane menu (`PaneManageRequested`) or the keyboard
-  (`PaneKeyboardRequested`), honored while that act is still the weaver's latest — a newer key or
-  press defeats it, the choosing click's release does not. The reveal door is not the menu's route.
+  (`PaneKeyboardRequested`), honored while that act is still its hand's latest — a newer key or
+  press of that hand defeats it, the choosing click's release does not. The reveal door is not the menu's route.
 - **The requester reads an answer through its own record of the ask.** `pane_menu::Asked` is
   what `Offer::send` returns and what `take` settles: a choice counts only from the presenter's
   office (a refusal may also be Workshop's), under this image's pending number, once, about the

@@ -35,7 +35,7 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
     loom::Accept<ws::PaneResetRequested, loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
         ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneKey, ws::PaneTextInput,
         ws::PaneCanvasValueDrop, ws::PaneActionRequested, ws::PaneMenuAnswered,
-        ws::PaneOperationAnswered, ws::PaneCarryAnswered, ws::PaneShortcutsAnswered,
+        ws::PaneOperationAnswered, ws::ActorScopeJudged, ws::PaneCarryAnswered, ws::PaneShortcutsAnswered,
         ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn, ws::PaneLaunchAnswered,
         slots::InventoryViewEdit, slots::InventoryViewsRequested, inv::InventoryEntry,
         inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryChanged,
@@ -44,7 +44,8 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         loom::Ack, loom::Refused, loom::DispatchRefused>,
     loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent, ws::PaneCaret,
         ws::PaneMenuRequested, ws::PaneEscapeUnspent,
-        ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested, ws::PaneCarryRequested,
+        ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested,
+        ws::v2::PaneOperationRequested, ws::ActorScopeRequested, ws::PaneCarryRequested,
         ws::PaneValueCarryRequested, ws::v2::PaneValueCarryRequested, ws::PaneShortcuts,
         ws::PaneLaunchRequested, slots::InventoryViews, inv::v2::InventoryList, inv::InventoryRead,
         inv::v2::InventoryAdd, inv::InventoryRename, inv::InventoryRemove, inv::InventoryFile,
@@ -74,15 +75,20 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         std::uint64_t correlation; loom::Ticket ticket; std::string launch;
     };
 public:
+    // SENT STRAIGHT HERE, past Workshop's dispatch: no gesture crossed, so Workshop judges the
+    // sender's class `write` before the toolbox reads or writes anything.
     void on(const slots::InventoryToolboxSave& request, loom::Mail& m) {
         if (busy() || editing_ != Editing::none) { (void)m.answer(loom::Refused{"Finish the current Inventory operation or editor first"}); return; }
-        toolbox_.begin(request.path, false, false, state_.layout, m, asks_, m.defer_answer());
+        toolbox_.begin_sent_save(request.path, state_.layout, m, asks_, m.defer_answer(), pane);
         notice_ = toolbox_.notice; draw(m);
     }
     void on(const slots::InventoryToolboxRestore& request, loom::Mail& m) {
         if (busy() || editing_ != Editing::none) { (void)m.answer(loom::Refused{"Finish the current Inventory operation or editor first"}); return; }
         toolbox_.begin(request.path, true, request.replace, state_.layout, m, asks_, m.defer_answer());
         notice_ = toolbox_.notice; draw(m);
+    }
+    void on(const ws::ActorScopeJudged& judged, loom::Mail& m) {
+        if (toolbox_.hear(judged, m, asks_)) { notice_ = toolbox_.notice; draw(m); }
     }
     void on(const inv::v2::InventorySnapshot& snapshot, loom::Mail& m) {
         if (toolbox_.hear(snapshot, m, asks_)) { notice_ = toolbox_.notice; draw(m); }
