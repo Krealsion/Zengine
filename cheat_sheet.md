@@ -1,7 +1,9 @@
 # Zengine cheat sheet
 
 Dense operational reference. Everything here is checked against the source it describes.
-Prose and reasoning live in [docs/](docs/README.md); this page is for looking things up.
+Prose and reasoning live in [docs/](docs/README.md); this page is for looking things up. What
+good work in this repository looks like, practice by practice, is
+[best practices](docs/contributing/best-practices.md).
 
 Where something is genuinely awkward today it says so in a **⚠ friction** note rather than
 showing syntax that does not exist.

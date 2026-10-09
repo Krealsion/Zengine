@@ -299,4 +299,5 @@ package instead of being re-derived by each consumer. See
 
 ## Attribution
 
-Commits are authored as `Krealsion <krealsion@gmail.com>`. Do not add co-author trailers.
+Who authors a commit, and that no commit carries a co-author line or an AI credit, is in
+[repository conventions](repository-conventions.md#attribution).
