@@ -104,6 +104,9 @@ weaver's files, put its words where the weaver commits them, or reach a shell:
   Stop, New or Open;
 - **typed text**, toward any pane or line: what a guest types rests nowhere for the weaver to
   commit as the weaver's own;
+- **carrying an item**: a carry a guest would begin from a pane -- a value or a reference, by a
+  press or a drag -- is refused before it begins, so nothing it drops rests on the Composer, Info
+  or any other pane for the weaver's own Submit, commit or save;
 - **its keys, text, presses, wheels and drops toward the editor** (the standard Editor or
   Neovim's, whichever holds the office), **the Terminal** and **the Hotkeys pane**, which edits the
   keymap file;
@@ -164,7 +167,7 @@ the power's name once did, and that is said. The version-1 file of
 [§ 1](#1-say-who-may-connect), a weaver's host, says what its row does not reach too:
 
 ```text
-zengine-workshop - guests: the file is version 1, and this is a weaver's host: a guest writes no file, types into no pane and reaches none of the editor, the Terminal and the Hotkeys pane
+zengine-workshop - guests: the file is version 1, and this is a weaver's host: a guest writes no file, types into no pane, carries nothing and reaches none of the editor, the Terminal and the Hotkeys pane
 zengine-workshop - guests: 'agent' (version 1) does not reach here: the Builder's builds and loads: `build` is a version-2 power; file writes: this is a weaver's host; the editor, the Terminal and the Hotkeys pane: they answer only the weaver's hand here; typed text: a guest's text rests in no pane here; opening the guests file
 zengine-workshop - guests: 'agent' (version 1) also reaches here: the desk read whole: `capture` also reads the desk's words, the pane inventory and the keymap
 ```
@@ -260,7 +263,8 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   made with them, and replays how.
 - **The `desk` tool package**, installed at `share/zengine/loom-tools/desk` beside `workshop`:
   `desk/read`, which reads the whole desk under the guest's own row and writes it as text files
-  for a model, `AGENTS.md` first ([the desk written as text](#the-desk-written-as-text-for-an-agent)).
+  for a model, `AGENTS.md` first, and `desk/watch`, which follows the desk as it moves and writes
+  each change beside them ([the desk written as text](#the-desk-written-as-text-for-an-agent)).
   It is a package of its own because `workshop` already holds as many tools as Loom lets one
   package hold.
 
@@ -525,9 +529,11 @@ names — one entry per office, shape and version, the version written as Zen's 
   Workshop's words or the picture -- `SurfaceCanvas`, `SurfaceText`, `TranscriptShown`,
   `PaneSubjectShown`, `PaneInventory`, `KeymapShown` and `StandingConditions`, from whichever
   office publishes it -- is refused, in words, to a row without `capture`, whatever its `observe`
-  list names; a row with `capture` still observes only what that list names. `ClipboardCopy`, the
-  weaver's copied text, is refused to every row: it needs a power of its own, `clipboard`, which
-  no guests file grants yet.
+  list names; a row with `capture` still observes only what that list names. So is `DeskStamps`,
+  Workshop's notice that the desk moved (below), which says no word but follows what `capture`
+  reads: a row follows it by naming `zengine.workshop` `DeskStamps` `1` beside `capture`.
+  `ClipboardCopy`, the weaver's copied text, is refused to every row: it needs a power of its own,
+  `clipboard`, which no guests file grants yet.
 - **Subscribe before you press, and press with settlement.** A publication the press set in
   motion carries the run's own correlation for that press (`cause`); `workshop/builder` finds the
   `BuildAsked` its own press caused, keeps that ask's number and follows `BuildStatus` for it to
@@ -583,7 +589,9 @@ Workshop killed while a capture is open; a new session lifetime refusing the old
 its processes start it runs the tools' own checks against scripted panes, `builder`'s completion
 and `nvim-edit`'s confirmation among them, and `desk/read`'s against a scripted Workshop
 (`tests/session/desk_read_checks.py`): `AGENTS.md` written first, each word and part where its
-reading says, and an `out` inside a checkout refused with nothing written. Beside it, `tests/session/story_journey.py` holds [the
+reading says, and an `out` inside a checkout refused with nothing written; and `desk/watch`'s
+against a scripted desk that moves between notices (`tests/session/desk_watch_checks.py`): only
+what moved read again, the ring bounded, two watches of different panes each writing their own. Beside it, `tests/session/story_journey.py` holds [the
 tower defense story](../../examples/tower-defense/README.md)'s own custody to the same processes
 -- runs its wait gave up on, a Workshop and session host it must see end, and a watcher's session
 it reuses while it runs and replaces only once it is seen to end -- and
@@ -795,9 +803,9 @@ pictures and pane rows once did -- the desk in one turn, a pane's paged reading,
 inventory and the keymap -- and Workshop says so beside each such row, at launch and on Attention
 ([whose host this is](#whose-host-this-is-and-what-each-power-reaches-there)).
 
-- **The desk in one turn.** `DeskReadRequested`, `{}`, is answered by `DeskRead`: the desk as
-  `DeskView` version 3, every presented pane's stamp from the front back, and as many of those
-  panes' readings (`PaneView` version 4), in that order, as one decoded value holds -- Loom's
+- **The desk in one turn.** `DeskReadRequested` version 2, `{}`, is answered by `DeskRead` version
+  2: the desk as `DeskView` version 3, every presented pane's stamp from the front back, and as many
+  of those panes' readings (`PaneView` version 5), in that order, as one decoded value holds -- Loom's
   decode budget, <!-- value kDecodedCellBudget grouped -->65,536<!-- /value --> cells -- and one
   reply's <!-- value kReplyByteBudget MiB -->16<!-- /value --> MiB, in the larger of Loom's native
   and JSON serializations. A stamp with no reading beside it -- past the last one, or of a pane
@@ -808,18 +816,23 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   and holds while nothing does. Workshop answers at most
   <!-- value kDeskReadsPerSecond -->4<!-- /value --> desk reads a second to one asker -- and every
   run on one link is one asker -- and refuses the next in words naming how many milliseconds to
-  wait.
-- **A pane's reading, paged under its stamp.** `PaneViewRequested` version 4,
-  `{provider,pane,from,stamp}`, is answered by `PaneView` version 4: version 3's words and then its
+  wait. Version 1 of both answers the same desk with the earlier stamps and readings below.
+- **A pane's reading, paged under its stamp.** `PaneViewRequested` version 5,
+  `{provider,pane,from,stamp}`, is answered by `PaneView` version 5: version 3's words and then its
   parts from item `from`, as many as one decoded value and one reply's bytes hold, `total`
   counting both, and the stamp the reading stands on -- the holder of the pane's office, that
   holder's incarnation, the canvas room `grant` its picture was drawn for (0 for a text pane) and
-  the `picture`. Ask from 0 with an
-  empty stamp, then each next page from where the last ended, under the stamp the first page
-  answered: a page asked under a stamp the pane no longer stands on is refused as stale, even when
-  the new picture's number equals the old, and the pane is read again from 0. A repaint moves the
-  picture; a resize, a move, a title row shown or hidden or a metric renewed moves the room grant;
-  a reload in place moves the incarnation. A cover that moves between pages shifts the items
+  the `fingerprint`, which Workshop takes of what the pane sent and holds for the picture aimed at:
+  whatever the pane shows changing moves it, a caret or a colour too, and the same picture sent
+  again keeps it, a pane numbering no picture included; a canvas picture no press is stamped with
+  yet is named 0. `picture` is the pane's own number for that picture, which a point is asked
+  under, and may move while the stamp holds. Ask from 0 with an empty stamp, then each next page
+  from where the last ended, under the stamp the first page answered: a page asked under a stamp
+  the pane no longer stands on is refused as stale, and the pane is read again from 0. A resize, a
+  move, a title row shown or hidden or a metric renewed moves the room grant; a reload in place
+  moves the incarnation. Version 4 (a `PaneStamp` naming `picture`, the pane's number, where
+  version 2 names the fingerprint) pages the same way, stale whenever the number moved, and in
+  flight until its number is aimed at. A cover that moves between pages shifts the items
   `from` counts and leaves the stamp alone: compare each page's `total` and `covered` with the
   first page's, and read the pane again from 0 when they differ; a `from` past a reading a cover
   shrank is refused in words saying so. A partly covered pane says its visible words and parts
@@ -827,12 +840,23 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   `refused mark`, `band`), how many words and parts it did not say, and the rectangle they lie in;
   a covered word is never given a point. While a menu is open a primary press outside it reaches
   nothing beside it -- it closes the menu, or is refused -- so nothing said beside it has a point.
-  A pane whose newest picture is still in flight -- a room just granted that no picture has
-  answered included -- says `in_flight` and no word, at any page: ask it again a moment later. A
+  A pane whose newest picture is still in flight -- what it shows not yet what its stamp names, or
+  a room just granted that no picture has answered -- says `in_flight` and no word, at any page:
+  its settling moves its stamp, and so the desk's notice. A
   closed pane, one not presented, one whose last update Workshop refused -- nothing of it
   standing, or the picture a new room asked for -- and one not yet drawn for its room and waiting
   for its provider are refused in words. Layouts reads here too, as `zengine.workshop` `layouts`,
   its tabs parts Workshop names (the table below).
+- **The desk's notice that it moved.** Workshop publishes `DeskStamps`, `{desk, panes}` -- the desk
+  number and every presented pane's stamp from the front back, as a desk read would say them now
+  -- at the end of each delivery that moved either; a repaint that moved nothing, and a picture sent
+  again unchanged, publish nothing. Each notice is the whole state, so follow it as `latest`: the
+  relay may keep only the newest while you are behind, and the newest stands for every one before
+  it. A row follows it with `capture` and the `observe` entry above; on it, read again what moved
+  -- the desk, when its number moved, or each pane whose stamp moved. A notice published inside
+  the fence of your own settled send carries that send's `cause` until a later one replaces it, so
+  tell your own change by its answer, not by the notice. A holder leaving between Workshop's
+  deliveries is said at its next repaint, fence, band notice or desk read, not at any delivery.
 - **The pane inventory and the keymap.** `PaneInventoryRequested` and `KeymapRequested`, answered
   to an office, are answered to a guest session whose row holds `capture` too, to it alone:
   `PaneInventory`, the panes the Pane Manager lists with each one's state, and `KeymapShown`, the
@@ -897,7 +921,12 @@ a line's last character too -- so a tool presses a canvas pane's cell as it pres
 redrew between the reading and the point. A canvas picture that takes no press -- the one a managed
 opening shows, until its pane draws its own, or one its office's holder no longer holds -- says its
 words and parts with no point, and every helper that presses reads the pane again until one does
-(`hand.pressing`), each reading for at most ten seconds.
+(`hand.pressing`), for at most ten seconds. **A helper waiting for a pane waits for the desk to
+move** (`hand.wait`): it follows Workshop's notice from its first wait and reads the pane again
+when that pane's stamp or the desk number moved, never on a clock; a picture whose number is not
+yet aimed at is read again a tenth of a second later, Workshop's own two hops, which no notice
+marks. A row that may not follow the notice -- no `capture`, or no `DeskStamps` in its `observe` --
+reads again every 0.2 seconds, and `workshop/act` says so in its result.
 `workshop/act` steps on them: `at` presses one cell of a pane's text lattice the same way
 (`{"at": ["td.game", "td", 5, 17]}`); `desk` checks a
 pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
@@ -986,8 +1015,9 @@ phases depend on each other, so run each with `--wait` (the recipe there says wh
 
 ## The desk written as text for an agent
 
-`desk/read`, the one tool of the `desk` package, reads the whole desk under your guest row and
-writes it for a model to read, as plain text files in one directory of its own. Approve the
+`desk/read`, in the `desk` package, reads the whole desk under your guest row and writes it for a
+model to read, as plain text files in one directory of its own; `desk/watch`, beside it, follows
+the desk as it moves and writes each change there (below). Approve the
 package in `loom-tools.json` beside `workshop` ([§ 3](#3-from-a-loom-session-journeys-as-python-tools));
 a [ready-to-use setup](demo-setups.md) approves both. Name each read anew, since a run name already
 held answers with that earlier run:
@@ -998,7 +1028,7 @@ loom-session run work desk/read --name desk-1 --input out=/home/me/agent-desk --
 
 - **What it needs.** The row's `capture`, under which the desk read, each pane's pages, the pane
   inventory and the keymap are answered; its own row is answered whatever its powers. And a
-  Workshop that speaks `DeskRead`, `PaneView` version 4 and `GuestRowDescribed`. `link` names the
+  Workshop that speaks `DeskRead` version 2, `PaneView` version 5 and `GuestRowDescribed`. `link` names the
   session's link to that Workshop, `workshop` unless you say otherwise.
 - **`out` is judged before anything is asked.** It must be an absolute directory outside every
   source checkout: one that is, or lies under, a directory holding `.git` is refused, since a
@@ -1037,9 +1067,53 @@ loom-session run work desk/read --name desk-1 --input out=/home/me/agent-desk --
   a second later; a pane whose picture is in flight is asked again a tenth of a second later; each
   a few times in a row before the pane is written not read. When the desk number moved before the
   last page, the desk is read again, and a reading that still moved says the span of desk numbers
-  it stands on; a pane read on a later picture than the desk read's says so. A desk read refused for the rate is asked once more after the wait
-  Workshop names. The tool's `describe` says the rest, its recovery words included.
+  it stands on; a pane read on another picture than the desk read named says so. A desk read
+  refused for the rate is asked once more after the wait Workshop names. The tool's `describe`
+  says the rest, its recovery words included.
 - **It presses nothing and changes nothing in Workshop.** To act on a reading, press a part at the
   point it lists (`workshop/inspect-capture`'s `click`), or by name with `workshop/act`'s `part`
-  step, which reads the pane again by version 3 as it presses: a part only version 4 says -- a
-  Layouts tab, or one of a partly covered pane -- is pressed at its listed point.
+  step, which reads the pane again by version 3 as it presses: a part only versions 4 and 5 say --
+  a Layouts tab, or one of a partly covered pane -- is pressed at its listed point.
+
+**Following the desk.** `desk/watch` follows Workshop's notice that the desk moved, for `seconds`
+(its `describe` says how long by default and at most), and writes each change into `changes.txt`
+beside the readings, which it keeps current:
+
+```sh
+loom-session run work desk/watch --name watch-1 --input out=/home/me/agent-desk --input seconds=600
+```
+
+- **What it needs**, beyond `desk/read`'s: an `observe` entry naming `zengine.workshop`
+  `DeskStamps` `1` beside `capture`. A row the relay refuses fails the run, in the relay's words,
+  with `AGENTS.md` written and nothing asked.
+- **It asks nothing until it is told.** It follows the notice before its first read, with a window
+  of one notice, so while it reads the relay holds only the newest; then it reads the desk whole.
+  At each notice -- the newest of those waiting -- it reads again what moved: the desk, with every
+  pane, when the desk number moved or a pane came or left, since a pane's place and what covers it
+  are the desk's; else each pane whose stamp moved, alone. A notice its reading already stands on
+  reads and writes nothing. It starts a desk reading at most every
+  <!-- value watch.DESK_READ_GAP -->1<!-- /value --> second -- each confirms itself with a desk
+  read or two more, as desk/read does -- leaving the link's desk reads to a reader beside it, and
+  a desk read refused writes nothing and is asked again at the next notice.
+- **Each change**, under `== change N`, names each section that moved -- the desk's own lines, or a
+  pane's -- with the smaller of its changed lines (`- ` gone, `+ ` come) and its lines as they now
+  stand. A notice whose reading changed no line -- a caret, a colour -- writes nothing. A gap,
+  notices lost on the way, reads the desk whole again and says so.
+- **`changes.txt` is a ring**: the last <!-- value desk_changes.RING_CHANGES -->64<!-- /value -->
+  changes, at most <!-- value desk_changes.RING_BYTES KiB -->64<!-- /value --> KiB, newest last, its
+  first lines saying how many earlier ones were dropped; a change too large for it alone is cut and
+  says so. A watch continues the ring a last watch left, opening with a change that says what moved
+  while nothing watched is not written; a `changes.txt` this reader did not write is started again.
+- **One watch a directory.** A watch holds `out` by a file of its own, `.desk-watch`, and a second
+  watch of one `out` is refused, naming the first; a watch that ended gives it back. A watch ended
+  by force leaves the file: remove it once no watch runs there.
+- **A file you hold open** may refuse its rewrite on Windows, which refuses to replace a file open
+  without delete sharing: the watch tries again for a moment, then goes on, writes it at its next
+  change, and its result counts each write refused.
+- **A line that reads as a change's opening** -- a pane named `change 3` -- is written one space in,
+  so only a change opens with `== change N`.
+- **`panes`**, a JSON list of `["<office>", "<pane>"]`, watches those panes alone: their changes
+  and their files, and the guide. It is watching them, not the desk, so it removes `desk.txt` and
+  `glance.txt` rather than leave them stale beside what it keeps current.
+- **It ends** when its `seconds` pass, after `changes` changes are written, or when its
+  subscription ends, and its result says which, with the notices it took and the changes it wrote.

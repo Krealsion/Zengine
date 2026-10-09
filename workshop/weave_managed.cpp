@@ -20,25 +20,17 @@ namespace {
 /// authored moves it, and with it the presentation claim's revision; the desk's name and a pane's
 /// settings do not.
 std::int64_t digest_of(const Setup& setup) {
-    std::uint64_t h = 1469598103934665603ull;
-    const auto mix = [&h](const std::string& s) {
-        for (const char c : s) {
-            h ^= static_cast<unsigned char>(c);
-            h *= 1099511628211ull;
-        }
-        h ^= 0x1f;
-        h *= 1099511628211ull;
-    };
+    Fingerprint f;
     for (const SetupPane& row : setup.panes) {
-        mix(row.ref.provider);
-        mix(row.ref.pane);
-        mix(std::to_string(row.place.mode) + "," + std::to_string(row.place.x) + "," +
-            std::to_string(row.place.y));
-        mix(std::to_string(row.width.mode) + "," + std::to_string(row.width.amount));
-        mix(std::to_string(row.height.mode) + "," + std::to_string(row.height.amount));
-        mix(std::to_string(row.front));
+        f.bytes(row.ref.provider);
+        f.bytes(row.ref.pane);
+        f.bytes(std::to_string(row.place.mode) + "," + std::to_string(row.place.x) + "," +
+                std::to_string(row.place.y));
+        f.bytes(std::to_string(row.width.mode) + "," + std::to_string(row.width.amount));
+        f.bytes(std::to_string(row.height.mode) + "," + std::to_string(row.height.amount));
+        f.bytes(std::to_string(row.front));
     }
-    return static_cast<std::int64_t>(h & 0x7fffffffffffffffull);
+    return f.value();
 }
 
 bool same_presentation(const PanePresentation& a, const PanePresentation& b) {
@@ -174,6 +166,11 @@ void WorkshopWeave::after_delivery(loom::Mail& mail) {
         repaint(mail);
     }
     mirror_presentation(mail);
+    // ONE NOTICE A DELIVERY, after every repaint it made: the newest stands for each before it.
+    if (stamps_owed_) {
+        stamps_owed_ = false;
+        publish_desk_stamps(mail);
+    }
 }
 
 // ---- The trial: would it seat, and what room would it get? ---------------------------------

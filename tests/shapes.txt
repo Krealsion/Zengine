@@ -57,8 +57,11 @@ DeskMenu v1 0xca33b476bd4bb305
 DeskMenu v2 0xcf7956e19a4cb9e9
 DeskPane v1 0xd1ef2884a4d4c1a7
 DeskRead v1 0x60c47183d11cb8b4
+DeskRead v2 0xdd9f1480495b058d
 DeskReadRequested v1 0x4ad4d957c4c27340
+DeskReadRequested v2 0x37cf1aaffe01bc03
 DeskRect v1 0xf1f559e7658c5f6d
+DeskStamps v1 0xde75f1d1da54c352
 DeskView v1 0x4e83e42f40866b15
 DeskView v2 0xf275e7575d93098e
 DeskView v3 0xf6a8009114039b81
@@ -308,6 +311,7 @@ PaneShortcutsRequested v1 0xe63db645b984c243
 PaneShortcutsWithdrawn v1 0xbb4969a0cd324627
 PaneSourceOpened v1 0xbce0235bb1ac8b90
 PaneStamp v1 0x2952553e3c501510
+PaneStamp v2 0xf1f9e7ae3f50b4d7
 PaneSubjectActed v1 0x7e036a3483c1c5a4
 PaneSubjectRequested v1 0xa405e3a2d389e75c
 PaneSubjectShown v1 0x3956a00cb099e844
@@ -322,10 +326,12 @@ PaneView v1 0xc0aba31acefff6f1
 PaneView v2 0x93ac25999ff7241c
 PaneView v3 0xab767a42f8d07360
 PaneView v4 0x0cf856ded90b8b69
+PaneView v5 0x757c223119d9b5e5
 PaneViewRequested v1 0x62bcd16da2a5278b
 PaneViewRequested v2 0x01c57ef5bf599e3c
 PaneViewRequested v3 0x7a8da580eff88599
 PaneViewRequested v4 0x9fd1231619554842
+PaneViewRequested v5 0xe9077a48ea7ee2c5
 PaneViewRow v1 0x173cf318433ad948
 PaneWheel v1 0xf6d1debe710aafeb
 PaneWord v1 0x821f0e413965418f

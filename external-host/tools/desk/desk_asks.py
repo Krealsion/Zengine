@@ -3,12 +3,13 @@
 """The asks desk/read makes of a running Workshop, through the link, under the guest's own row --
 and what each came to, as values the readings are written from.
 
-THE DESK IN ONE TURN. `DeskReadRequested` answers the desk (`DeskView` v3), every presented pane's
-stamp front to back, and as many panes' readings (`PaneView` v4) as one decoded value and one
-reply's bytes hold. A stamp past the last reading names a pane this reader asks alone, by
-`PaneViewRequested` v4: from item 0 under an empty stamp, then page after page from the next item
+THE DESK IN ONE TURN. `DeskReadRequested` v2 answers the desk (`DeskView` v3), every presented
+pane's stamp front to back, and as many panes' readings (`PaneView` v5) as one decoded value and
+one reply's bytes hold. A stamp past the last reading names a pane this reader asks alone, by
+`PaneViewRequested` v5: from item 0 under an empty stamp, then page after page from the next item
 under the stamp the first page answered, until the page that reaches `total`. Workshop holds
-nothing between the asks.
+nothing between the asks. A stamp names a pane's picture by the fingerprint of what it shows, so
+the same picture sent again keeps it and every change moves it.
 
 WHAT A PANE'S READ CAN COME TO, each bounded and said, never raised:
   - a page refused as stale or as past a reading that shrank, or answered under another stamp or
@@ -23,7 +24,7 @@ THE GEOMETRY IS ONE DESK READ'S. When any pane was asked after a desk read, the 
 again to see whether its number moved before the last page. If it moved, the newer desk read is
 the one the panes are read against, at most DESK_REREADS times; then the reading is written
 with the span of desk numbers it stands on said. A pane read after the desk read names its own
-stamp, so a later picture than the desk read's is said.
+stamp, so a picture other than the one the desk read named is said.
 
 A REFUSAL IS AN ANSWER. Every ask's refusal -- the owner's `zen.Refused`, the bus's, the link's,
 a shape this host does not resolve, no answer in time -- comes back as words beside the ask, and
@@ -68,7 +69,10 @@ REFUSALS = (Refused, DispatchRefused, SendRefused, NotAnswered, LinkOutcome, Unk
             ShapeError)
 
 EMPTY_STAMP = {"provider": "", "pane": "", "holder": 0, "incarnation": 0, "grant": 0,
-               "picture": 0}
+               "fingerprint": 0}
+#: What a stamp is judged on: its holder, that holder's incarnation, the room and the picture's
+#: fingerprint.
+STAMP_FIELDS = ("holder", "incarnation", "grant", "fingerprint")
 
 
 def refusal_words(err):
@@ -108,14 +112,15 @@ def key_of(item):
 
 
 def stamp_of(view):
-    """The stamp a pane's reading stands on: its holder, incarnation, room grant and picture."""
-    return {"provider": view.get("provider", ""), "pane": view.get("pane", ""),
-            "holder": view.get("holder", 0), "incarnation": view.get("incarnation", 0),
-            "grant": view.get("grant", 0), "picture": view.get("picture", 0)}
+    """The stamp a pane's reading stands on: its holder, incarnation, room grant and the
+    fingerprint of what its picture shows."""
+    out = {"provider": view.get("provider", ""), "pane": view.get("pane", "")}
+    out.update((f, view.get(f, 0)) for f in STAMP_FIELDS)
+    return out
 
 
 def same_stamp(a, b):
-    return all(a.get(f, 0) == b.get(f, 0) for f in ("holder", "incarnation", "grant", "picture"))
+    return all(a.get(f, 0) == b.get(f, 0) for f in STAMP_FIELDS)
 
 
 def says_stale(words):
@@ -152,7 +157,7 @@ class Asker(object):
         return fields_of(answer), None
 
     def page(self, provider, pane, start, stamp):
-        return self.ask(WORKSHOP, "PaneViewRequested", 4,
+        return self.ask(WORKSHOP, "PaneViewRequested", 5,
                         {"provider": provider, "pane": pane, "from": start,
                          "stamp": dict(stamp or EMPTY_STAMP)})
 
@@ -278,11 +283,11 @@ def desk_number(desk_read):
 def ask_desk(asker):
     """One desk read. Refused for its rate, it is asked once more after the wait Workshop names
     (at most a second); any other refusal, or a second one, is the answer."""
-    answer, words = asker.ask(WORKSHOP, "DeskReadRequested", 1, {})
+    answer, words = asker.ask(WORKSHOP, "DeskReadRequested", 2, {})
     wait = RATE.search(words or "")
     if answer is None and wait:
         time.sleep(min(int(wait.group(1)), 1000) / 1000.0)
-        answer, words = asker.ask(WORKSHOP, "DeskReadRequested", 1, {})
+        answer, words = asker.ask(WORKSHOP, "DeskReadRequested", 2, {})
     return answer, words
 
 

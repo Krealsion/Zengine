@@ -137,6 +137,15 @@ inline std::string refuse_text(const GuestRowFacts& row, const HostFact& host) {
            "' typed it";
 }
 
+/// ...AND NOR DOES AN ITEM A GUEST WOULD CARRY, a value or a reference: dropped on a pane it would
+/// stand there as a draft the weaver's own Submit, commit or save sends as the weaver's, so the
+/// carry never begins. Empty when it may.
+inline std::string refuse_carry(const GuestRowFacts& row, const HostFact& host) {
+    if (!row.admitted || host.development) return {};
+    return "this is a weaver's host: a guest's carried item rests in no pane, so guest '" + row.name +
+           "' carries nothing here";
+}
+
 } // namespace zengine::workshop::scope
 
 #endif // ZENGINE_WORKSHOP_ACTOR_SCOPE_HPP

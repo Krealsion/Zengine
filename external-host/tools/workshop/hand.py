@@ -14,12 +14,20 @@ reads a text pane's rows by number (version 1), which a canvas pane does not ans
 A canvas picture that takes no press -- the one a managed opening shows, until its pane draws its
 own, or one its office's holder no longer holds -- says its words and parts with no point
 (`takes_no_press`), and refuses a point asked of it; every helper here that presses reads the pane
-again until one does (`pressing`)."""
+again until one does (`pressing`).
+
+A WAIT IS FOR THE DESK TO MOVE. Workshop says when its desk moved (`DeskStamps`, the desk number
+and every presented pane's stamp), so a helper waiting for a pane to say something reads it again
+when that pane's stamp or the desk number moved, not on a clock (`Notices`, `Hand.wait`). A row
+whose `observe` names no `zengine.workshop` `DeskStamps` 1 is read again every FALLBACK_PACE
+seconds instead, and the run says so. A picture whose number is not yet aimed at ("no settled
+picture") settles within Workshop's own two hops, which no notice marks: that is read again a
+tenth of a second later."""
 import json
 import time
 from collections import Counter
 
-from loom_session.tool import Refused
+from loom_session.tool import DispatchRefused, LinkOutcome, Refused, SendRefused
 
 from workshop_steps import moment, chord_moments, clear_moments
 
@@ -68,6 +76,83 @@ def rows_of(view):
                       "space": w["space"]} for w in view["words"]]}
 
 
+#: The notice Workshop publishes when its desk moved.
+DESK_NOTICE = ("DeskStamps", 1)
+#: How often a wait reads again when the notice cannot be followed, in seconds.
+FALLBACK_PACE = 0.2
+
+
+class Notices:
+    """Workshop's notices that the desk moved, followed through the link for one hand: a window of
+    one, so while the hand reads, the relay holds only the newest. Subscribed at the first wait,
+    which returns at once so its caller reads again under the subscription; released when the hand
+    closes."""
+
+    def __init__(self, ctx, link):
+        self.ctx, self.link = ctx, link
+        self.sub = None
+        self.why = None   # why notices are not followed, once found: the waits read on a clock
+        self.seen = None  # the newest notice taken: (desk number, {(office, pane): stamp})
+
+    def follow(self):
+        observe = getattr(self.ctx, "observe", None)
+        if observe is None:
+            self.why = "this run's context follows no publication"
+            return
+        try:
+            self.sub = observe("zengine.workshop", [DESK_NOTICE], via=self.link,
+                               latest=[DESK_NOTICE[0]], window=1, label="a hand's waits")
+        except (Refused, DispatchRefused, SendRefused, LinkOutcome) as err:
+            self.why = "Workshop's notice could not be followed: %s" % err
+
+    def moved(self, notice, pane):
+        """Whether `notice` moved what a wait for `pane` waits on since the last one taken: the
+        desk number, or `pane`'s stamp (every pane's, for a wait for the desk)."""
+        said = dict(((s.get("provider", ""), s.get("pane", "")),
+                     (s.get("holder"), s.get("incarnation"), s.get("grant"), s.get("fingerprint")))
+                    for s in notice.get("panes") or [])
+        before, self.seen = self.seen, (notice.get("desk", 0), said)
+        if before is None or before[0] != self.seen[0]:
+            return True
+        if pane is None:
+            return before[1] != said
+        return before[1].get(pane) != said.get(pane)
+
+    def wait(self, seconds, pane=None):
+        """Until the desk moves -- for `pane` (office, pane), its stamp or the desk number; for
+        none, any of it -- or `seconds` pass."""
+        if self.sub is None and self.why is None:
+            self.follow()
+            if self.sub is not None:
+                return
+        if self.sub is None:
+            time.sleep(max(0.0, min(seconds, FALLBACK_PACE)))
+            return
+        end = time.monotonic() + max(0.0, seconds)
+        while True:
+            item = self.sub.next(max(0.0, end - time.monotonic()))
+            items = ([item] if item is not None else []) + self.sub.drain()
+            woke = False
+            for i in items:
+                if i.kind == "observed":
+                    # ...and one standing for notices the relay held back may hide a move and its
+                    # return to a picture told before: it wakes the wait whatever it names.
+                    moved = self.moved(i.fields, pane)
+                    woke = moved or getattr(i, "coalesced", 0) > 0 or woke
+                else:  # a gap, or the subscription's end: read again, and on a clock after an end
+                    woke = True
+                    if i.kind == "ended":
+                        self.why, self.sub = "Workshop's notice ended: %s" % i.how, None
+                        break
+            if woke or self.sub is None or time.monotonic() >= end:
+                return
+
+    def close(self):
+        if self.sub is not None:
+            self.sub.release()
+            self.sub = None
+
+
 class Hand:
     def __init__(self, ctx, link):
         self.ctx, self.link = ctx, link
@@ -75,15 +160,29 @@ class Hand:
         self.session = self.ask("zengine.input", "InputSessionRequested",
                                 {"purpose": "inventory composition demo"})["session"]
         self.open = True
+        self.unsettled = False
+        self.notices = Notices(ctx, link)
         ctx.on_cleanup(self.close, "release the demo input session")
 
     def ask(self, role, shape, fields, **kw):
         return self.ctx.ask(role, shape, fields, via=self.link, **kw)
 
     def close(self):
-        if self.open:
-            self.ask("zengine.input", "InputSessionClosed", {"session": self.session, "holder": 0})
-            self.open = False
+        try:  # the input session first: a release refused still gives it back
+            if self.open:
+                self.ask("zengine.input", "InputSessionClosed", {"session": self.session, "holder": 0})
+                self.open = False
+        finally:
+            self.notices.close()
+
+    def wait(self, seconds, pane=None):
+        """Until the desk moves, for `pane` (office, pane) or for the desk, or `seconds` pass
+        (`Notices.wait`)."""
+        self.notices.wait(seconds, pane)
+
+    def waits_said(self):
+        """How this hand's waits waited, in words, when not by Workshop's notice; else None."""
+        return self.notices.why
 
     def inject(self, events):
         """Inject and settle; returns the Input owner's answer, whose ``correlation`` is this
@@ -103,9 +202,16 @@ class Hand:
     def words(self, provider, pane):
         """A pane's words and named parts as Workshop holds them (PaneView version 3): a text pane's
         rows or a canvas pane's labels and runs, each with its place in canvas pixels and the point a
-        press names it by, and beside them every part the pane names, under the pane's own name."""
-        return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane},
-                        version=3)
+        press names it by, and beside them every part the pane names, under the pane's own name.
+        `unsettled` says whether the last such read was refused for a picture not yet aimed at."""
+        try:
+            view = self.ask("zengine.workshop", "PaneViewRequested",
+                            {"provider": provider, "pane": pane}, version=3)
+        except Refused as refused:
+            self.unsettled = "no settled picture" in str(refused)
+            raise
+        self.unsettled = False
+        return view
 
     def pressing(self, provider, pane, seconds=10):
         """The pane's words and parts, as `words` reads them, once its picture takes a press: while
@@ -120,7 +226,7 @@ class Hand:
             except Refused as refused:
                 if "no settled picture" not in str(refused) or time.monotonic() >= end:
                     raise
-                time.sleep(0.1)
+                time.sleep(0.1)  # Workshop's two hops, which no notice marks
                 continue
             if not takes_no_press(view):
                 return view
@@ -128,7 +234,8 @@ class Hand:
                 self.last_view(view)
                 raise ValueError("%s/%s's picture took no press within %gs: %s"
                                  % (provider, pane, seconds, NO_PRESS))
-            time.sleep(0.1)
+            # THE PICTURE THAT FIRST TAKES A PRESS MOVES THE PANE'S STAMP, so it is waited for.
+            self.wait(end - time.monotonic(), (provider, pane))
 
     def word_point(self, provider, pane, word, column, picture):
         """Where one character of one of those words is now; refused if the picture moved."""
@@ -138,7 +245,9 @@ class Hand:
     def desk(self):
         """The desk by Workshop's own numbers (DeskView version 2): every pane on it with its state,
         rank from the front, place and size, selection and keys; the room; arranging; the menu, and
-        the lines it names."""
+        the lines it names. A desk read settles nothing a pane read left `unsettled`: a wait on the
+        desk waits on its notice."""
+        self.unsettled = False
         return self.ask("zengine.workshop", "DeskViewRequested", {}, version=2)
 
     def seek(self, provider, pane, find, scroll, toward=(1, -1), notches=256):

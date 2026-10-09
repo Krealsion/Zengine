@@ -243,7 +243,8 @@ def rows_without_settings(source):
 def act_module():
     """workshop/act, imported with Loom's runtime stood in for; its verbs are what a test reads."""
     tool = types.ModuleType("loom_session.tool")
-    tool.Refused = type("Refused", (Exception,), {})
+    for name in ("Refused", "DispatchRefused", "LinkOutcome", "SendRefused"):
+        setattr(tool, name, type(name, (Exception,), {}))
     saved = sys.modules.get("loom_session.tool")
     sys.modules["loom_session.tool"] = tool
     try:

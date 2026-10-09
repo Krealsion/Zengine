@@ -219,3 +219,6 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
   row by naming it, and then the application row is not requestable there (WL-DESK-07).
 - That `Ctrl+t` is the host's again — the id is `desktop.terminal`, in the weave's namespace;
   an override authored for the retired `workshop.terminal` is read as it, and the load says so.
+- That the host keeps only those four: for the desk read and its notice it also keeps the desk
+  number, each picture's fingerprint beside its number, and the last notice it published
+  (WL-READ-04, WL-READ-06, WL-READ-07).
