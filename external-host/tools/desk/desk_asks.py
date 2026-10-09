@@ -98,7 +98,8 @@ def fields_of(answer):
 
 
 def key(provider, pane):
-    return "%s/%s" % (provider, pane)
+    """A pane's identity: its provider and its pane as a pair, since either may hold `/`."""
+    return (provider, pane)
 
 
 def key_of(item):
