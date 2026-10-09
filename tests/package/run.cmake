@@ -170,6 +170,29 @@ if(NOT primary_rc EQUAL 0)
 endif()
 message(STATUS "package witness: stranger configures and builds outside both trees ok")
 
+# ---- every program it built runs in the UTF-8 code page, on Windows ------------------------
+# A program added to the stranger without `zengine_code_page()` builds, passes and runs in the
+# system's code page; its manifest is where that shows, so each one's is read and named.
+if(WIN32)
+    file(GLOB_RECURSE stranger_programs "${stranger_bin}/*.exe")
+    list(FILTER stranger_programs EXCLUDE REGEX "/CMakeFiles/")
+    if(NOT stranger_programs)
+        message(FATAL_ERROR "package witness: the stranger built no program in ${stranger_bin}")
+    endif()
+    foreach(program IN LISTS stranger_programs)
+        file(STRINGS "${program}" code_page REGEX "activeCodePage[^>]*>UTF-8<")
+        if(NOT code_page)
+            get_filename_component(program_name "${program}" NAME)
+            message(FATAL_ERROR
+                "package witness: ${program_name} was built without zengine_code_page(), so its "
+                "manifest names no UTF-8 code page and it runs in the system's")
+        endif()
+    endforeach()
+    list(LENGTH stranger_programs program_count)
+    message(STATUS "package witness: all ${program_count} programs the stranger built name the "
+                   "UTF-8 code page ok")
+endif()
+
 function(zen_find_program_in out name dir)
     find_program(found "${name}" PATHS "${dir}" "${dir}/${ZEN_CONFIG}" NO_DEFAULT_PATH)
     if(NOT found)

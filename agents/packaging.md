@@ -58,7 +58,8 @@ for a Loom session's run manager: `share/zengine/loom-tools/workshop`. The gener
 and the manifest it gives install beside the package config, which includes them. A stranger's
 program calls it to run in the UTF-8 code page on Windows, as every program this repository
 builds does (VM-PLAT-16); elsewhere it does nothing. The installed-package witness calls it for
-its own programs, and `public_surface.cpp` checks the code page there.
+every program of its own and, on Windows, refuses one whose manifest names no UTF-8 code page;
+`public_surface.cpp` checks the code page it runs in.
 
 **ARTIFACT is the noun, and the distinction is load-bearing.** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
