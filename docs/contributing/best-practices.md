@@ -20,6 +20,8 @@ can move into its surface's own document.
 - **Judge the whole result, and what it leaves the next consumer.**
   [Intent, evidence, and architectural fit](../../AGENTS.md#intent-evidence-and-architectural-fit)
 - **Stay inside the issue's fences.** [Taking an issue](taking-an-issue.md#1-choose-a-ready-issue)
+- **Write Loom, not host code.**
+  [Intent, evidence, and architectural fit](../../AGENTS.md#intent-evidence-and-architectural-fit)
 - **Preserve coherent ownership, and know who owns a behaviour before moving it.**
   [Intent, evidence, and architectural fit](../../AGENTS.md#intent-evidence-and-architectural-fit)
   and [the ownership map](../architecture/README.md#ownership-map)
@@ -76,12 +78,16 @@ can move into its surface's own document.
 
 ### Delivery
 
+- **An issue's comments are its record**: the taker claims it there, says the approach before
+  building, and links the pull request on pushing.
+  [Taking an issue](taking-an-issue.md#1-choose-a-ready-issue)
 - **One issue is one branch and one pull request, which closes it with `Fixes #n`.**
   [Taking an issue](taking-an-issue.md#1-choose-a-ready-issue) and
   [the pull request](taking-an-issue.md#9-the-pull-request)
-- **No co-author trailer of any kind, and no assistant credit line**:
-  `cmake -P tests/check_commit_attribution.cmake`. [Attribution](repository-conventions.md#attribution)
-  and [the attribution guard](../../tests/check_commit_attribution.cmake)
+- **A commit is authored by the person who makes it, never the AI agent they use, with no
+  co-author line and no AI credit**: `cmake -P tests/check_commit_attribution.cmake`.
+  [Attribution](repository-conventions.md#attribution) and
+  [the attribution guard](../../tests/check_commit_attribution.cmake)
 - **The whole diff is read before the push.**
   [Taking an issue](taking-an-issue.md#8-the-checks-whose-green-counts)
 - **A visible change shows its screenshots in the pull request.**

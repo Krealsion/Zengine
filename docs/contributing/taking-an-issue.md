@@ -28,6 +28,22 @@ A `ready` issue has four parts, and each one binds:
 One issue is one branch and one pull request. Terms for contributions from outside the project
 are in [CONTRIBUTING.md](../../CONTRIBUTING.md#code-contributions).
 
+**The issue's comments are its record.** Read them before taking it: the work is claimed and
+followed there, and reconstructed from there later. A taker says each step as a comment:
+
+| when | the comment |
+|---|---|
+| on taking the issue | `Research for fix in progress` |
+| before building the change | `Proposed idea`, with the approach |
+| on pushing it | `Fix pushed, awaiting CI`, with the pull request |
+
+```sh
+gh issue comment <n> --body "Research for fix in progress"
+```
+
+A taker that stops says so on the issue, and why. An issue whose last such comment is a day old,
+with no pull request, may be taken over by a comment that says so.
+
 ## 2. Start from current `main`
 
 ```sh
@@ -128,7 +144,8 @@ check that fails on it.
 
 ## 7. The change
 
-The smallest change that meets *done when* inside the fences. Everything it writes meets the
+Before building it, the issue gets its `Proposed idea` comment, with the approach (step 1).
+Then the smallest change that meets *done when* inside the fences. Everything it writes meets the
 repository's standards for documents, comments, names, values and tests;
 [best practices](best-practices.md) routes each to its owner.
 
@@ -187,10 +204,12 @@ gh pr create --base main --title "<what is true now>" --body-file <file outside 
 - **Each commit is one coherent step**, its subject a sentence saying what is true after it, as
   the title does. The merge keeps every commit on `main`. A commit that changes a case a law cites
   lists the laws it re-verified ([ongoing rules](../../agents/workshop.md#ongoing-rules)).
-- **No co-author trailer and no assistant credit**, in a commit or in the body
+- **Each commit is authored by the person who makes it**, never by the AI agent they use, and no
+  commit or body carries a co-author line or an AI credit
   ([attribution](repository-conventions.md#attribution)). The body becomes the merge commit's
   message, which [the attribution guard](../../tests/check_commit_attribution.cmake) reads on
   `main`.
+- **The issue gets its `Fix pushed, awaiting CI` comment**, with the pull request (step 1).
 - **You do not merge.** Leave the pull request open once it is ready.
 
 ## 10. Reading the hosted run
