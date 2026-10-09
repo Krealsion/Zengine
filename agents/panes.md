@@ -166,7 +166,8 @@ it holds on that pane -- for each pane it may observe from.
 
 `PanePointRequested` answers one painted cell's input-space point through `visible_text_body`
 and the press measurer (`cell_center`), refusing a moved picture exactly as `PaneViewRequested`
-refuses a covered pane. It reads presentation; pressing the point is ordinary input. Version 2
+versions 1 to 3 refuse a covered pane. It reads presentation; pressing the point is ordinary
+input. Version 2
 of both answers a canvas pane too: its words are its labels and runs as the painter clips them,
 through `visible_body` and `visible_words`, each with its place in canvas pixels and the point a
 press names it by; a canvas word's point is checked against the body its press lands in, and a
@@ -185,7 +186,17 @@ unnamed. `PaneView` version 3 says each beside the words with its place and its 
 its own a press reaches -- none for a part with no such place, or of a picture that takes no
 press -- and `DeskView` version 2 a
 menu's named lines; a name is carried as the pane said it, and a press on a part is ordinary
-input at that point.
+input at that point. Workshop names only its own surfaces' parts: its menu's lines and Layouts'
+tabs, `layout:<name>` and `layout:+` (WL-READ-04).
+
+`DeskReadRequested` answers the desk said whole, in one turn: `DeskView` version 3, every
+presented pane's stamp and as many `PaneView` version 4 readings as one decoded value holds
+(WL-READ-01). Version 4 pages a pane under its stamp and refuses a page whose stamp moved as
+stale (WL-READ-02), and says a covered pane's visible words with the cover named, a point only
+where a press lands (WL-READ-05); desk reads are at most
+`kDeskReadsPerSecond` a second, each asker (WL-READ-03). A guest session whose row holds `capture`
+is answered these, `PaneInventoryRequested` and `KeymapRequested` (WL-DESK-09, WL-DESK-11,
+WL-GUEST-11). The shapes: [the desk, said whole](../docs/reference/workshop-panes.md#the-desk-said-whole).
 
 ## A pane may draw locally, with an explicit room and gesture identity
 

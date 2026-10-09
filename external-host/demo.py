@@ -19,6 +19,7 @@ import uuid
 
 HERE = Path(__file__).resolve().parent
 PACKAGE = HERE / "tools" / "workshop"
+DESK_PACKAGE = HERE / "tools" / "desk"  # the reader, `desk/read`: the desk said whole
 EXAMPLES = HERE.parent / "examples"
 sys.path.insert(0, str(PACKAGE))
 import setups as described  # noqa: E402
@@ -233,7 +234,8 @@ def launch(args, source, root):
     # guest types, writes and builds as a weaver would (docs/workshop/external-host.md).
     save_json(wdir / "guests.json", formats.guests([guest], formats.DEVELOPMENT_HOST,
                                                    port_file=wdir / "guests.port"))
-    packages = [{"path": str(PACKAGE), "approve": "any-revision"}]
+    packages = [{"path": str(PACKAGE), "approve": "any-revision"},
+                {"path": str(DESK_PACKAGE), "approve": "any-revision"}]
     packages += [{"path": str(setup.asset(t)), "approve": "any-revision"} for t in setup.get("tools", [])]
     save_json(sdir / "loom-tools.json", {"python": sys.executable,
         "runtime": str(prefix / "lib" / "loom" / "python"), "packages": packages})

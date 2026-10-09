@@ -33,7 +33,7 @@ maker                             doctest           always  29
 # Tripwires in this suite read builder/weave.hpp, builder/runner.hpp and workshop/workshop.cpp as
 # text (VM-WALL-11).
 builder                           doctest           always  61
-workshop_guests                   doctest           always  25
+workshop_guests                   doctest           always  29
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
@@ -45,7 +45,7 @@ neovim_journey                    program           session-neovim
 # A case in this suite reads the keymap example in docs/workshop/hotkeys.md, as a weaver copies it.
 workshop_document                 doctest           always  47
 workshop_screen                   doctest           always  137
-workshop_desk                     doctest           always  42
+workshop_desk                     doctest           always  54
 # Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  77
 # Tripwires in this suite read Workshop's presentation sources, workshop/workshop.cpp,

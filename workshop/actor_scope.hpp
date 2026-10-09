@@ -25,6 +25,10 @@ inline constexpr const char* kBuild = "build";
 inline constexpr const char* kWrite = "write";
 inline constexpr const char* kOpen = "open";
 
+/// The power that reads the desk's words and pictures, as the guests file spells it
+/// (`guests::kPowerCapture`).
+inline constexpr const char* kPowerCapture = "capture";
+
 /// ONE GUEST SESSION'S ADMITTED ROW, as the guest door recorded it when it admitted the session:
 /// the row's own powers and the version of the file it was written in. `admitted` is false for an
 /// actor no guest door admitted.

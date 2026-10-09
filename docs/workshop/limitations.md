@@ -549,6 +549,13 @@ document's picture, which this Workshop no longer publishes, so it waits, showin
   `view-builder.json`) for a guest's Run, Stop, New or Open; loads are still admitted by trusting
   every artifact; and an agent with a shell as the weaver's own user still writes the weaver's
   files.
+- **A desk read is consistent pane by pane, not across the desk.** Each pane's reading stands on
+  its own stamp and the desk on its number; a reading gathered over several asks can hold panes
+  from different moments, and `desk/read` says which. `PaneView` versions 1 to 3 still refuse a
+  covered pane whole; version 4 says what shows of it
+  ([the desk, read by message](external-host.md#the-desk-a-panes-words-and-timed-drag-stories)).
+- **No guest observes the weaver's copied text.** `ClipboardCopy` needs a power of its own,
+  `clipboard`, which no guests file grants yet, so every row is refused it.
 - **Injection enters at the Input weave**, below the platform edge: the console reader, the
   SDL queue and the OS are not exercised by it.
 - **One session at a time, and no arbitration** between a hand and an agent beyond arrival

@@ -97,8 +97,9 @@ it says why in Workshop's own words -- the pane holding unsaved work, say -- exi
 leaves the demo running as it was; save or discard what it names and stop again.
 A stopped root is evidence: start again in a new one.
 
-This is a local development harness. Starting a setup authorizes the shipped Python packages it
-names to run in its dedicated host (`any-revision` trust) and creates a loopback credential with
+This is a local development harness. Starting a setup authorizes the shipped Python packages --
+`workshop`, `desk` (the [desk written as text](external-host.md#the-desk-written-as-text-for-an-agent))
+and those the setup names -- to run in its dedicated host (`any-revision` trust) and creates a loopback credential with
 exactly the powers its description lists, on its own Workshop -- for most setups `input`,
 `capture`, `inspect`, `inventory`, `toolbox`, `demo` and `open`, and `build` where the setup
 builds (`tower-defense`). Its guests file, at version
@@ -295,7 +296,7 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
   the Builder, and arranges the desk again;
 - `guide_files` -- files or directories the guide shows or links to (its pictures), inside the
   setup's directory beside a guide that is too, so a copy keeps them where the guide points;
-- `tools` -- Loom tool packages the session approves beside `workshop`. They run from the copy
+- `tools` -- Loom tool packages the session approves beside `workshop` and `desk`. They run from the copy
   `start` makes in the root's `prepared/<name>/`, so an edit to the setup's own package does not
   reach a running root: start a new root to run the edited tools;
 - `starting` -- [`workshop/act`](external-host.md#3-from-a-loom-session-journeys-as-python-tools)

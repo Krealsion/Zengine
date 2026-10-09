@@ -66,6 +66,18 @@ inline Condition guest_row_losses(std::size_t row, const std::string& name, std:
                      "not here: " + detail, surface::role::kAccent, ""};
 }
 
+/// WHAT A ROW'S POWERS REACH NOW THAT THEY DID NOT WHEN IT WAS WRITTEN, said beside the row as
+/// its losses are, keyed by its place in the file: a power widened is never widened silently.
+inline Condition guest_row_gains(std::size_t row, const std::string& name, std::int64_t version,
+                                 const std::vector<std::string>& gains) {
+    std::string detail;
+    for (const std::string& gain : gains) detail += (detail.empty() ? "" : "; ") + gain;
+    return Condition{"guests.gain/" + std::to_string(row),
+                     "guest '" + name + "' (version " + std::to_string(version) + ") reaches more "
+                         "here than its powers once did",
+                     "also: " + detail, surface::role::kAccent, ""};
+}
+
 /// HOW LOUD, AS AN ORDER.
 // WL-ATTN-07 -- agents/workshop/attention.md
 inline int attention_rank(std::int64_t role) noexcept {

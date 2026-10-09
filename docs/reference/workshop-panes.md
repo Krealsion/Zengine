@@ -1354,14 +1354,16 @@ press is in the input space the answer names, as `PanePoint`'s is.
 | `v2::PanePoint{provider, pane, picture, word, column, x, y, space}` | Its centre: through the press measurer for a text row, checked against the body a press lands in for a canvas word |
 | `v3::PanePointRequested{provider, pane, picture, row, column}` | Where one cell of the pane's text lattice is now, answered as `PanePoint` ([above](#where-a-painted-cell-is)) |
 
-A pane's words are refused as its rows are: closed, unsettled, overlapping, covered by a menu or
-by arranging, or outside the visible workspace -- and a canvas pane's while a refused picture's
-corner mark covers part of it. The desk answers whatever is open. A canvas
+Versions 1 to 3 refuse a pane's words as its rows are: closed, unsettled, overlapping, covered by
+a menu or by arranging, or outside the visible workspace -- and a canvas pane's while a refused
+picture's corner mark covers part of it. Version 4 says what shows of a covered pane instead
+([below](#the-desk-said-whole)). The desk answers whatever is open. A canvas
 picture that takes no press -- the one a managed opening shows, numbered none, until its pane
 draws its own, or one its office's holder no longer holds -- says its words and parts with their
 text and places and no point, as a part with no place of its own is said, and a point asked of it
 is refused: a reader reads the pane again. Workshop names nothing inside a pane: a word's number
-is its place in one answer, and a pane names its own parts.
+is its place in one answer, and a pane names its own parts; Workshop names only the parts of the
+surfaces it presents itself, its menu's lines and Layouts' tabs.
 The guest `capture` power grants all three queries.
 
 ### A pane names its parts
@@ -1427,11 +1429,80 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
   `floor(end / kCanvasCellPx)`, that one left out, so a canvas part it paints on no cell is not
   said there.
 - **A part the body does not show is not said**, and one it cuts is said as far as it shows.
-- **Workshop names its own menu's lines** by the action or the group each shows; a pane's menu is
-  named by its presenter, and the shipped presenter names each line by its row's id.
+- **Workshop names its own surfaces' parts**: its menu's lines by the action or the group each
+  shows, and Layouts' tabs ([below](#the-desk-said-whole)); a pane's menu is named by its
+  presenter, and the shipped presenter names each line by its row's id.
 - **A pane naming nothing still reads as words**, and `v2::PaneView` and `DeskView` are still
   answered, without parts. A press on a part is ordinary input at its point: no message presses
   one. The guest `capture` power grants these queries too.
+
+### The desk, said whole
+
+The same header answers the whole desk in one turn, and one pane's reading page by page under a
+stamp naming what it stands on. A picture's number alone names nothing: it starts again when a
+pane's office is offered again, and at each new canvas room.
+
+| Message | Meaning |
+|---|---|
+| `DeskReadRequested{}` | Anyone granted it, to Workshop: the desk in one turn |
+| `DeskRead{desk, stamps, panes}` | The desk as `v3::DeskView`; every presented pane's `PaneStamp`, from the front back; and as many of those panes' `v4::PaneView` readings, in that order, as one decoded value holds |
+| `PaneStamp{provider, pane, holder, incarnation, grant, picture}` | What one pane's reading stands on: the `WeaveId` holding its office, that holder's incarnation, the canvas room grant its picture was drawn for (0 for a text pane, and for Layouts) and its picture |
+| `v4::PaneViewRequested{provider, pane, from, stamp}` | A page of one pane's reading from item `from`, continuing the reading `stamp` names; a stamp naming no holder (holder 0, as an empty stamp does) at `from` 0 reads the pane as it stands |
+| `v4::PaneView{provider, pane, picture, canvas, words, parts, holder, incarnation, grant, covered, in_flight, from, total}` | `v3::PaneView`'s words and then its parts from item `from`, of `total`, as many as one decoded value holds; the stamp the reading stands on; what covers the pane; and whether its newest picture is still in flight |
+| `PaneCover{by, words, rect}` | What covers part of a pane -- `by` names each: a pane in front by its name, `menu`, `arranging`, `refused mark`, `band` -- how many of its words and parts are not said for it, and the `DeskRect` bounding what they cover of it; empty for a pane nothing covers |
+| `v3::DeskView{desk, width, height, cell_px, space, room, panes, arranging, menu, words, slots}` | `v2::DeskView` and Workshop's own words: the band's notice and legend as `PaneWord`s with their places and no point, since the band takes no press; the status slot as a `surface::SurfaceText{slot, text}`, a word with no place, as the medium is handed it; and `desk`, a number that moves when anything it says moves |
+
+- **One value, then a page at a time.** A `DeskRead` stays inside one decoded value: Loom's
+  [decode budget](https://github.com/Krealsion/Loom/blob/main/docs/reference/bounds.md#the-decode-materialization-bound),
+  which Workshop restates as `kDecodedCellBudget`
+  (<!-- value kDecodedCellBudget grouped -->65,536<!-- /value --> cells) and counts by Loom's rule:
+  a cell for each declared field of every message the decoder enters, present or not, and one for
+  each element of every list. A stamp with no reading in the answer -- past the last one, or of a
+  pane whose reading Workshop refused, said with picture 0 -- names a pane to ask alone, from item
+  0 under an empty stamp: it names the pane, not a reading to continue. A `v4::PaneView` page
+  holds as many items as the same budget leaves; the next is asked from where it ended, under the
+  stamp the first page answered, until `total`. Workshop holds nothing between asks.
+- **A stamp that moved is stale.** A page asked under a stamp the pane no longer stands on -- its
+  holder, incarnation, room grant or picture moved -- is refused as stale, in words, whatever the
+  picture's number, and the reader reads the pane again from item 0. A repaint moves the picture;
+  a new room (a resize, a move, a title row shown or hidden, a metric renewed) the grant; a reload
+  in place the incarnation. A cover that moves between pages shifts the items `from` counts and
+  leaves the stamp alone, so a reader compares each page's `total` and `covered` with the first
+  page's and reads the pane again from item 0 when they differ; a `from` past `total` is refused,
+  in words saying to read it again from the start.
+- **A covered word is not said.** A word or part whose place meets anything drawn over the pane --
+  a pane in front of it, an open menu, Workshop's or a pane's, arranging, over all of it, a canvas
+  pane's refused-picture mark, the band where the pane stands outside the room -- is left out,
+  counted in `covered.words`, and never given a point; what shows is said as version 3 says it.
+  While a menu is open a primary press outside it reaches nothing beside it -- it closes the
+  menu, or is refused -- so every word and part said beside it has its place and no point.
+- **A picture in flight says so.** While a pane's newest picture is not yet aimed -- handed out
+  and not yet fenced, a preview, a room out that no picture has answered yet -- its reading says
+  `in_flight` and no word, at any page: ask it again. A closed pane, one not presented, one whose
+  last update Workshop refused -- nothing of it standing, or the picture a new room asked for --
+  and one not yet drawn for its room whose office no participant holds, waiting for its provider,
+  are refused in words, as the pane paints them; a pane whose provider left with its last update
+  standing is read as it is painted.
+- **A few desk reads a second, each asker.** Every `DeskRead` composes the whole desk, so Workshop
+  answers at most `kDeskReadsPerSecond` (<!-- value kDeskReadsPerSecond -->4<!-- /value -->) from
+  one asker in any second, refuses the next in words naming the milliseconds until it may read
+  again, and counts no read older than a second. Pages are not counted.
+- **The desk number.** `desk` moves whenever the `v3::DeskView` Workshop says differs from the last
+  one it said, and holds while nothing does, so a reader knows whether the geometry it read still
+  stands. Consistency is per pane: each reading stands on its own stamp.
+- **Layouts reads as Workshop paints it.** Asked as `zengine.workshop` `layouts`, by version 4 or
+  in a `DeskRead` alone, its rows are words and its tabs are parts Workshop names, as it names its
+  menu's lines: `layout:<name>` for a layout's tab -- each byte of the name outside printable
+  ASCII, and `%`, `#` and `+`, spelled `%XX` in upper-case hex, so no tab is named `layout:+`, and
+  a name two layouts share followed by `#` and its place in the layout order, counted from 1 --
+  and `layout:+` for the tab that makes one. While a layout's name is being typed no tab is
+  named. Its picture is a number that moves when what it says moves.
+- **The inventory and the keymap answer a `capture` guest.** `PaneInventoryRequested` and
+  `KeymapRequested`, answered to an office, are answered to a guest session whose admitted row
+  holds `capture` too, to it alone; other personal speech is still answered by nobody.
+- **The earlier versions are unchanged**, and versions 1 to 3 still refuse a covered pane whole.
+  The guest `capture` power grants `DeskReadRequested` and `v4::PaneViewRequested`, each to
+  `zengine.workshop`.
 
 ## Attributed value origins and delegated shortcuts
 

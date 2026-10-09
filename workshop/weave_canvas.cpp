@@ -226,6 +226,7 @@ void WorkshopWeave::admit_canvas_content(const v5::PaneCanvasContent& content, l
         // A late picture is answered to its pane alone. One refused for what it holds is said
         // where the weaver reads, as a refused prose update is, until a picture of the pane is
         // admitted; the picture last admitted stands, marked (`paint_external`).
+        if (late.empty()) pane->refused_grant = content.grant;
         if (late.empty() && (pane->refusal != kExternalPictureRefused || pane->refusal_why != reason)) {
             pane->refusal = kExternalPictureRefused;
             pane->refusal_why = std::string(reason);
