@@ -40,7 +40,9 @@ MEANS
 
 DOES NOT MEAN — that the participant could have migrated. Its handler sends nothing by
 construction and it accepts only the three answer doors its host declared, so no message drives
-it: the door is the only route inside the Loom fence.
+it: the door is the only route inside the Loom fence. Nor that every hand reaches it: on a weaver's
+host only the weaver's does (WL-GUEST-06); on a development host, the agent's own, a guest's line
+leaves as the Terminal's too.
 
 PROVEN BY — `workshop/weave_terminal.cpp` `submit_terminal_line`, `on(TerminalActRequested)`;
 `workshop/weave.hpp` `HostContext::terminal`; `workshop/terminal_seam_vocabulary.hpp`

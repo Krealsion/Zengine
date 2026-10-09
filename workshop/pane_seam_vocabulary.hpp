@@ -33,6 +33,11 @@ inline constexpr const char* kRecipesRole = "zengine.recipes";
 /// two spellings agree.
 inline constexpr const char* kEditorRole = "zengine.editor";
 
+/// The office that holds the Terminal's line, and the desktop's pane that edits the keymap: literals
+/// for the same reason, each checked by a case against the weave that declares it.
+inline constexpr const char* kTerminalRole = "zengine.terminal";
+inline constexpr const char* kHotkeysPane = "hotkeys";
+
 // ---- The project root, read ----------------------------------------------------
 
 /// Ask where this run began and where its marks live. It carries nothing.

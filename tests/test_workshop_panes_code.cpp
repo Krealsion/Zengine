@@ -11,6 +11,7 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
+#include "guest_hand.hpp"
 
 #include "builder-pane/vocabulary.hpp"
 #include "builder/recipe.hpp"
@@ -1237,4 +1238,110 @@ TEST_CASE("Edit Code bound to a key in command mode names no pane, says where th
     CHECK(c.notice().find("edit code follows a pane you point at") != std::string::npos);
     CHECK(c.r.opening->state().last_path.empty());
     CHECK(c.watch->heard.empty());
+}
+
+// ============================================================================
+// A guest's hand: Edit Code is judged for the hand that chose it, by the file it would open
+// ============================================================================
+
+namespace {
+
+/// EVERY OPEN ONE WEAVE ASKED OF THE OPENING OFFICE, delivered or refused at dispatch, with each
+/// delivered path -- read off the bus's own tap, so "nothing was asked" is what crossed.
+struct OpensAsked {
+    loom::Switchboard& bus;
+    loom::WeaveId asker;
+    loom::ObserverId id{};
+    std::size_t attempts = 0;
+    std::vector<std::string> paths;
+
+    OpensAsked(loom::Switchboard& b, loom::WeaveId who) : bus(b), asker(who) {
+        id = bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.sender != asker || ev.schema_name != OpenSourceRequested::zen_name ||
+                (ev.kind != loom::EventKind::Delivered && ev.kind != loom::EventKind::Refused)) {
+                return;
+            }
+            ++attempts;
+            if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr) {
+                paths.push_back(loom::from_value<OpenSourceRequested>(*ev.payload).path);
+            }
+        });
+    }
+    ~OpensAsked() { bus.remove_observer(id); }
+    OpensAsked(const OpensAsked&) = delete;
+    OpensAsked& operator=(const OpensAsked&) = delete;
+};
+
+/// THE GUEST POINTS AT A PANE'S CHROME WITH THE SECOND BUTTON AND WALKS THE HOST'S MENU TO
+/// `edit code` -- `CodeRig::point_at` and `choose_edit_code`, every moment the guest's own.
+void guest_chooses_edit_code(CodeRig& c, guest_hand::GuestHand& g, const PaneRef& ref) {
+    const ui::Rect body = external_body_rect(c.r.session(), c.kind_of(ref));
+    g.press_cell(body.x + 1, body.y, 3);
+    REQUIRE(c.r.session().context.open);
+    REQUIRE(c.r.session().context.subject == context_subject::kPane);
+    REQUIRE(c.r.session().context.pane == ref);
+    const std::vector<ContextEntry> rows = context_population(context_subject::kPane, "");
+    std::size_t at = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (!rows[i].is_group && rows[i].row->act == Act::kEditCode) {
+            at = i;
+        }
+    }
+    REQUIRE(at < rows.size());
+    for (std::size_t i = 0; i < at; ++i) {
+        g.key(input::scan::kDown);
+    }
+    g.key(input::scan::kReturn);
+}
+
+} // namespace
+
+TEST_CASE("Edit Code asks class open for the guest's hand: a recipe whose source is the guests file is refused on a weaver's host") {
+    // THE ONE RECIPE BEHIND TALLY NAMES THE GUESTS FILE, so its Edit Code would put every row's
+    // credential on screen. Chosen by a guest's hand on a weaver's host it is refused in words and
+    // nothing reaches the opening office; the weaver's own choice of the same row opens it.
+    // ⚔ MUTATION: `edit_code` without its class `open` judgement: the guest's choice opens it.
+    CodeRig c("code-guest-guests-file");
+    const std::filesystem::path guests_at = c.root / "guests.json";
+    put_bytes(guests_at, "{\"version\": 2, \"host\": \"weaver\", \"guests\": []}\n");
+    const std::string guests = spelled(guests_at);
+    c.hold({single_recipe("tally", kTallyStem, guests)});
+    c.open();
+    guest_hand::GuestHand g(c.r, {"input"});
+    c.r.host.host_fact.guests_file = std::filesystem::absolute(guests_at).generic_string();
+    OpensAsked asked(c.r.bus, c.r.workshop_id);
+    const std::int64_t committed_before = c.r.opening->state().committed;
+
+    guest_chooses_edit_code(c, g, tally_ref());
+    CHECK(c.r.session().notice_is_bad);
+    CHECK(c.notice().rfind("Tally's code was not opened -- this is a weaver's host: the guests "
+                           "file opens only by the weaver's hand",
+                           0) == 0);
+    CHECK(asked.attempts == 0);
+    CHECK(c.r.opening->state().committed == committed_before);
+    CHECK(c.r.opening->state().last_path.empty());
+    CHECK(c.watch->heard.empty());
+    CHECK(c.editor_status().find("guests.json") == std::string::npos);
+
+    SUBCASE("the weaver's own Edit Code opens the same source") {
+        c.point_at(tally_ref());
+        c.choose_edit_code();
+        REQUIRE(asked.paths.size() == 1);
+        CHECK(asked.paths[0] == guests);
+        CHECK(c.r.opening->state().committed == committed_before + 1);
+        CHECK(c.r.opening->state().last_path == guests);
+        CHECK(c.editor_status().find("guests.json") != std::string::npos);
+        CHECK_FALSE(c.r.session().notice_is_bad);
+        CHECK(c.notice().find("opened the source of Tally") != std::string::npos);
+    }
+    SUBCASE("on a development host the same guest's Edit Code opens it") {
+        c.r.host.host_fact.development = true;
+        guest_chooses_edit_code(c, g, tally_ref());
+        REQUIRE(asked.paths.size() == 1);
+        CHECK(asked.paths[0] == guests);
+        CHECK(c.r.opening->state().committed == committed_before + 1);
+        CHECK(c.editor_status().find("guests.json") != std::string::npos);
+        CHECK_FALSE(c.r.session().notice_is_bad);
+    }
+    CHECK(g.hand->refusals.empty()); // every moment the guest injected was taken
 }

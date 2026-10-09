@@ -20,7 +20,7 @@ import workshop_formats as formats
 FORMAT, VERSION = "zengine-setup", "1"
 HERE = Path(__file__).resolve().parent
 COLLECTION = HERE / "setups"
-POWERS = ("input", "capture", "inspect", "inventory", "toolbox", "demo", "open")
+POWERS = ("input", "capture", "inspect", "inventory", "toolbox", "demo", "open", "build")
 MEDIA = ("sdl", "tui")
 VIEW_KINDS = ("row", "column", "single")
 # The panes whose owners implement PaneResetRequested (workshop/setup_control.hpp).

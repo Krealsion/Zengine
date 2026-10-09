@@ -64,7 +64,11 @@ has gained since panes began declaring their actions.
 plan row naming `zengine-connections-pane` and shows the other hosts connected to this Workshop
 — each row what the peer *claimed*, what this host *established*, whether it is admitted,
 waiting on a decision, refused or gone — as `zengine.guests` publishes the inventory and
-answers a presenter that asks. It holds no copy, declares no actions and makes no decision;
+answers a presenter that asks. It reads `GuestConnections` v2: beneath each connection a
+guests-file row admitted, it says that row's version and what its powers do not reach here
+(`version N -- not here: <losses>`, or `version N -- all its powers reach here`), and its heading
+ends `-- a development host` when an admitted connection's row stands on one: the inventory says
+the file's host with each row it describes. It holds no copy, declares no actions and makes no decision;
 the admission seam a per-connection prompt will attach to is the door's
 ([external host](../workshop/external-host.md)).
 
@@ -594,8 +598,9 @@ Escape is put down by it without being sent it**: its holder declares no way to 
 back, so Workshop answers at once. So is one whose holder accepts no `PaneKey` and whose pane
 declared no row for it. Both are the holder's own declarations read off the bus at the keystroke,
 never an inference from a pane's silence. The word is honoured only while the pane is still
-selected, still where the keys go, and that Escape is still the last gesture Workshop handled — a
-key, some text, a press or the wheel since makes it stale — and there is no answer and no retry.
+selected, still where the keys go, and that Escape is still the last gesture of the hand that
+pressed it — a key, some text, a press or the wheel of that hand since makes it stale, and another
+hand's does not — and there is no answer and no retry.
 
 Deliberately absent: no focus-changed notification, idle hover over a text pane (a canvas pane
 may ask for one, [below](#optional-pane-local-canvas)), key release or double-press
@@ -930,6 +935,7 @@ PaneButton          Workshop -> provider   button 2 or 3 down / up at (row, colu
                                            `picture` is the number of the picture shown
 PanePassRequested   provider -> Workshop   "that press was not mine": the host's own pane menu
                                            opens once, while the press is the latest act
+                                           of the hand that pressed
 PaneMenuRequested   provider -> Workshop   present these rows (id, label) beside (row, column),
                                            about `subject`, continuing the gesture by its number
 PaneMenuAnswered    presenter -> provider  chosen + id, or not chosen + why; once per request
@@ -955,7 +961,7 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
 - **Every continuation echoes a number.** The host mints a correlation per secondary press and
   per `PaneActionRequested`; a pass-back or a menu request echoes it in Loom's envelope (the
   `PaneEscapeUnspent` discipline) and is judged where the host acts: newest press of its
-  button, unspent, its pane on the desk, and no newer act since — a release completes its press
+  button, unspent, its pane on the desk, and no newer act of the same hand since — a release completes its press
   and is no act of its own, so a click's release never makes its choice late. Closing the pane
   invalidates the continuation whether or not the button is up. A stale, zero, spent or foreign
   number moves nothing.
@@ -1004,7 +1010,7 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   continues, and three gestures carry one: a secondary press (`PaneButton`), a declared action
   sent by key (`PaneActionRequested`), and a **primary press** (`PanePressed` and its later
   versions). All three are judged the same way where the menu would open — this pane, this
-  number, and still the weaver's latest act — and each is spent once, so a late or replayed
+  number, and still the latest act of the hand that made it — and each is spent once, so a late or replayed
   request is refused in words rather than opened over whatever the weaver did next. The primary
   press is what lets a pane that draws its own controls answer a click on a `[menu]` of its own;
   it moves no keys and no selection, exactly as the other two do not.
@@ -1019,7 +1025,7 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   delivery's own, for a chosen row whose edit opens only after an office has answered: the pane
   keeps the choice's number across that round trip and spends it where the line appears, and
   the host judges it exactly as it judges the same-delivery form — once, and only while that
-  choice is still the weaver's latest act. A pane
+  choice is still its hand's latest act. A pane
   may write the raw shapes instead, and then owes the four checks `Asked::take` makes. The
   shipped `examples/guard-pane` consumes the button and asks for nothing; the Pane Manager and
   the Hotkeys pane offer menus; the Neovim editor, on its canvas pointer, passes a right press and
@@ -1057,7 +1063,7 @@ HeldMenu        state                   the open menu, as the shipped presenters
 Workshop keeps what is fixed: which ask is eligible, one menu at a time, where the popup opens,
 drawing the presenter's lines inside the granted room, which of the weaver's keys and presses
 reach it, when custody moves, and the standard rows: which it grants, and spending the one
-chosen, while the act that chose it is the weaver's latest. The presenter decides everything
+chosen, while the act that chose it is its hand's latest. The presenter decides everything
 about the menu itself —
 whether an offer can be shown, how its lines read, what a key or press means, when it ends — and
 answers the requester, which is why a pane authenticates a choice from `zengine.presenter`.
@@ -1198,14 +1204,44 @@ directory they happened to be browsing when they quit is deliberately not rememb
 current input gesture or menu choice’s correlation in `gesture`. The request’s own envelope
 uses the pane’s normal conversation counter; that counter is shared with its other requests,
 so permission and owner replies cannot collide with unrelated conversations. Workshop checks that this pane
-still owns that gesture and consumes it once. Authenticated physical input identifies the
+still owns that gesture, still the latest of the hand that made it, and consumes it once: each
+hand, the weaver's and each guest's, keeps its own gestures, so another hand's act neither spends
+nor stales it. Authenticated physical input identifies the
 weaver; injected input identifies the actual session holder. For an injected actor, Workshop
 reads that participant's current Loom authority for the named shape and role. Missing
 attribution or permission is a refusal. The answer authorizes this intent at that check; it is
 not a new grant, a reusable approval, or an assertion that the owner operation succeeded.
 The pane must still send the operation under its own ordinary bus grant and handle its result.
 
-`workshop/pane_carry.hpp` carries an owned reference envelope after such an acquisition:
+**An act that writes a file, builds or opens asks for its classes.**
+`v2::PaneOperationRequested{pane, role, shape, version, gesture, classes, subject}` names every
+action class the act is -- `build`, `write`, `open` -- and, in `subject`, what an `open` opens.
+Workshop judges each class for the gesture's hand: the weaver's own hand, and a participant no
+guest door admitted, are not narrowed; a guest's are judged against the row that admitted it and
+the guests file's host, so `build` needs the row's `build` on either host, and on a weaver's host
+a `write`, or an `open` of the guests file, is refused in words
+([external host](../workshop/external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
+Naming `role`, `shape` and `version` too asks the actor's live authority for that send as well;
+naming none asks the classes alone, for an act the pane does itself, such as a save that writes
+its own file. The answer is `PaneOperationAnswered`. The pane asks once, at the act's first
+beat, and carries the approval to the act's later sends under that gesture, never asking again;
+an act that learns its subject later -- the Builder's edit-source, which learns the source's path
+from the project -- asks at the beat that learns it, under the first beat's gesture. An ask that
+names no send spends its act's record while that record is unspent, whatever its hand did since:
+no send rides on it, so the weaver's next key never makes the weaver's own act stale.
+A class is judged at the ask and is no grant: it lets no guest say a shape its grant lacks.
+
+A message sent straight to an owner, past Workshop's dispatch, crossed no gesture. Before acting
+on a classed act a guest's grant names, sent this way, the owner asks Workshop
+`ActorScopeRequested{session, pane, classes, id}` about that message's sender (`session`) and the
+act (`id`), and acts only when `ActorScopeJudged{allowed, refusal}` allows it; a refusal answers
+the sender in words. The Inventory pane's toolbox save, sent to it directly, asks this. A pane
+that relays a message as its own office -- the Composer's Submit, a stored command -- is not the
+guest, so the relayed send is judged instead at its approval, for the hand that asked, as the
+classes its shape is (`scope::classes_of_send`).
+
+`workshop/pane_carry.hpp` carries an owned reference envelope after an acquisition
+`PaneOperationRequested` approved:
 
 | Message | Direction and meaning |
 |---|---|
@@ -1236,8 +1272,8 @@ A drop on a canvas is no canvas gesture: it begins no pointer custody.
 A value drag starts with the source's primary press, becomes a drag after four pixels or one
 cell of motion, and ends at that same actor's release. A simple click selects without transfer.
 A release can arrive before the source's acquisition reply: Workshop retains its receiver,
-position and aimed picture under the same gesture. A later key, press, text or wheel makes the
-old continuation stale. An absent or replaced receiver cancels; nothing is automatically retried.
+position and aimed picture under the same gesture. A later key, press, text or wheel of that
+actor's hand makes the old continuation stale. An absent or replaced receiver cancels; nothing is automatically retried.
 Escape cancels. Source bytes remain owned copies throughout; a receiver still authorizes its
 own writes. A value release to an unsupported place cancels the drag, rather than leaving an
 invisible item held after the button is up.
@@ -1417,7 +1453,7 @@ On invocation, Desktop continues the current AppAction through `PaneShortcutInvo
 the registered holder WeaveId. Workshop checks that holder and the pane's declared
 action, then forwards `PaneActionRequested` under the current attributed gesture. This can reach
 a hidden pane; a subsequent PaneOperationRequested still needs that current actor's exact
-operation authority. Neither shortcut registration nor an old binding transfers authority.
+operation authority, and, for a classed act, its classes judged for that actor. Neither shortcut registration nor an old binding transfers authority.
 
 A WeaveId is not a code-incarnation token. Generic providers choose their same-id reload policy.
 The shipped Inventory pane keeps its registration acknowledgement flag in the image, not saved

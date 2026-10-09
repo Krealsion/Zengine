@@ -19,28 +19,29 @@ consumer-specific behavior of its extracted panes.
 | the task touches… | read |
 |---|---|
 | the composition in pixels, the right column, the whole pixel, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
-| the setup file, a pane's default and the weaver's override, its settings, places and slots, the five states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [settings](workshop/settings.md) `WL-SETTING` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
+| the setup file, a pane's default and override, its settings, places and slots, the five states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [settings](workshop/settings.md) `WL-SETTING` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
 | the pane catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
 | a pane's labelled controls, its picture number, a mode a hand can leave, its parts' names | [pane-controls](workshop/pane-controls.md) · [pane-parts](workshop/pane-parts.md) `WL-HAND` |
 | a hotkey, the keymap, an edit | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
-| the Info pane's body, its subject, its grounds, the desk row that names it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
+| Info's body, its subject, its grounds, the desk row naming it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
 | semantic text in a pane, the Builder's rows, the foot band | [regions](workshop/regions.md) `WL-RGN` |
-| the Editor pane weave, its document and what it carries, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) · [editor-transfers](workshop/editor-transfers.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
+| the Editor, its document and what it carries, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) · [editor-transfers](workshop/editor-transfers.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
 | switching the Editor: a plan's choices for an office, the coordinator, the handoff, consent, what realization records | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |
 | the Neovim-backed Editor: screen, keys, switch transfer and losses, second terminal, carry | [neovim](workshop/neovim.md) · [transfers](workshop/neovim-transfers.md) `WL-NVIM` |
-| a pane's code: the host's join from an office to its artifact and recipes, Edit Code, the Builder following it, an editing entry, a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
+| a pane's code: the join from an office to its artifact and recipes, Edit Code, the Builder following it, an editing entry, a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
 | what a build said: the runner's bytes, the tool's kept output by operation, the Builder's reader, a row spelled in ASCII | [build-output](workshop/build-output.md) `WL-OUT` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |
 | the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) · [pane-menu](workshop/pane-menu.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
 | several desks, the tab run, the durable files and the session, the orderly quit, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
-| the application's own defaults: the office that owns them, the two precedence classes, launching and closing, the one inventory said out loud, a refused declaration | [desktop](workshop/desktop.md) · [desktop-presenting](workshop/desktop-presenting.md) `WL-DESK` |
+| the application's defaults: their office, the two precedence classes, launching and closing, the one inventory said aloud, a refused declaration | [desktop](workshop/desktop.md) · [desktop-presenting](workshop/desktop-presenting.md) `WL-DESK` |
 | a pane's subject rows, a pane a weaver made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [weaver-pane](workshop/maker-pane.md) `WL-MAKER` |
 | the typed rows a property is edited through, the file doors, an old object document, the status line | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
 | the terminal participant, the seam its pane presents it across, the completer; the pane's history and its view of the record | [terminal](workshop/terminal.md) · [terminal-pane](workshop/terminal-pane.md) `WL-TERM` |
+| a guest's hand: the guests file's host, its row, action classes, what a weaver's host refuses, each hand's gestures | [guests](workshop/guests.md) `WL-GUEST` |
 | a pane's caret and selection, and the refusals that judge one | [pane-caret](workshop/pane-caret.md) `WL-CARET` |
 
 **Where the code is.** Headers declare; `workshop/screen_<subject>.cpp` and
@@ -60,8 +61,7 @@ Workshop suites to their subjects and registers.
    `// WL-… -- agents/workshop/<file>`. Other comments meet
    [the standard](../docs/contributing/repository-conventions.md#source-comment-conventions).
 4. A change that edits a `TEST_CASE` named in any PROVEN BY re-verifies every law naming it, in
-   the same commit, and lists the ids re-verified in the commit message. The evidence trail is
-   Git history.
+   the same commit, and lists the ids re-verified in the commit message.
 5. Trace both intended contract and observed behavior when they disagree. Code, test, or register
    may need correction; never weaken a law merely to match a passing test. Apply the architectural
    review in `AGENTS.md` to the complete change and its consequences for known next work.
@@ -76,7 +76,7 @@ Workshop suites to their subjects and registers.
 
 - That a case name or a document may carry a phase code: `law_register` refuses both, and a law
   id a name opens with must be declared. Renaming a case is a register edit: its citations follow
-  in the same commit. What a retired code covered is found with `git log -S'<CODE>'`.
+  in the same commit.
 - That docking exists — it is still absent and still refused.
 - That a seam law is stated here: what crosses to a provider is the protocol's law, and a
   register states the host's or a pane consumer's behavior.

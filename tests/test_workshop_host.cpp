@@ -8,6 +8,8 @@
 
 #include "workshop_support.hpp"
 
+#include "workshop/guests.hpp"
+
 // ============================================================================
 // What this terminal can say next
 // ============================================================================
@@ -1007,6 +1009,68 @@ TEST_CASE("an unavailable tool is named by its artifact on the host's own condit
     REQUIRE(now.size() == 2);
     CHECK(now[0].key == "load.unavailable/zengine-desktop-pane"); // same loudness: by key
     CHECK(now[1].key == "load.unavailable/zengine-files");
+}
+
+TEST_CASE("a development host and each row's losses stand as conditions on Attention") {
+    // WHAT A GUESTS FILE STANDS AS FOR THE WHOLE RUN, pushed as `workshop.cpp` pushes it at launch
+    // and read through the one projection a presenter spends. ⚔ MUTATION: `conditions_of` keying a
+    // row by its name -- the second file's two rows share one, and its key half fails. ⚔ MUTATION:
+    // a row standing whenever it is a guest's -- the second file's count fails, since a row that
+    // reaches everything its powers name here has nothing to say.
+    const auto stand = [](const guests::GuestsFile& file, Live& t) {
+        for (const Condition& c : guests::conditions_of(file)) t.host.standing_conditions.push_back(c);
+        ++t.host.conditions_generation;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        return t.conditions();
+    };
+    const auto row = [](std::vector<std::string> may) {
+        guests::GuestRow r;
+        r.name = "agent";
+        r.credential = "a-credential";
+        r.may = std::move(may);
+        return r;
+    };
+
+    // A FILE OF VERSION 1 names no host, so this is a weaver's, and knows no `build`: its row with
+    // `input` stands with its version, the Builder lost to a version-2 word, and every file write.
+    guests::GuestsFile old;
+    old.path = "guests.json";
+    old.version = 1;
+    old.rows.push_back(row({guests::kPowerInput, guests::kPowerCapture}));
+    {
+        Live t;
+        const std::vector<Condition> now = stand(old, t);
+        REQUIRE(now.size() == 1);
+        CHECK(now[0].key == "guests.row/0");
+        CHECK(now[0].compact == "guest 'agent' (version 1) does not reach everything its powers name here");
+        CHECK(now[0].detail.find("the Builder's builds and loads: `build` is a version-2 power") !=
+              std::string::npos);
+        CHECK(now[0].detail.find("file writes: this is a weaver's host") != std::string::npos);
+        CHECK(now[0].detail.find("typed text") != std::string::npos);
+        CHECK(now[0].detail.find("the editor, the Terminal and the Hotkeys pane") != std::string::npos);
+        CHECK(t.glance() == now[0].compact);
+    }
+
+    // A DEVELOPMENT FILE OF VERSION 2 stands as the host it names, and a row stands only for what
+    // it still does not reach here: the row with `build` reaches everything and says nothing, and
+    // the row without it stands under its own place in the file, though both rows share a name.
+    guests::GuestsFile own;
+    own.path = "guests.json";
+    own.version = 2;
+    own.host = guests::kHostDevelopment;
+    own.rows.push_back(row({guests::kPowerInput, guests::kPowerBuild}));
+    own.rows.push_back(row({guests::kPowerInput}));
+    {
+        Live t;
+        const std::vector<Condition> now = stand(own, t);
+        REQUIRE(now.size() == 2);
+        CHECK(now[0].key == "guests.host"); // same loudness: by key
+        CHECK(now[0].compact == "a development host: guests may write and build here");
+        CHECK(now[1].key == "guests.row/1");
+        CHECK(now[1].compact == "guest 'agent' (version 2) does not reach everything its powers name here");
+        CHECK(now[1].detail == "not here: the Builder's builds and loads: the row has no `build`");
+        CHECK(t.glance() == "a development host: guests may write and build here (+1 more)");
+    }
 }
 
 TEST_CASE("a held condition stands until its owner retracts it") {

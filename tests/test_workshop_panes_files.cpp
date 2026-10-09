@@ -10,6 +10,7 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
+#include "guest_hand.hpp"
 
 #include "files/vocabulary.hpp"
 #include "workshop/authoring.hpp"
@@ -133,6 +134,12 @@ struct SeamTap {
     std::size_t actions = 0;              ///< resolved ids (`PaneActionRequested`)
     std::size_t rooms = 0;
     std::size_t attempts = 0;
+    /// Every class `open` the weave asked Workshop to approve and Workshop heard: an open of a file
+    /// is asked for the gesture's hand before it is sent to the opening office.
+    std::size_t open_asks = 0;
+    /// Every approval the weave asked, heard or refused before any handler (a refusal carries no
+    /// payload, so its classes are not read).
+    std::size_t asks = 0;
     std::vector<std::string> requested;
     std::vector<std::string> ids;      ///< every `PaneActionRequested` id delivered, in order
     std::vector<std::string> authored; ///< every delivered `RecipeAuthorRequested`, by recipe id
@@ -171,6 +178,15 @@ struct SeamTap {
                     pressed.push_back(y != nullptr ? y->as_int() / kPaneCanvasUnit : -1);
                     versions.push_back(ev.schema_version);
                     keys_went_here.push_back(fact != nullptr && fact->as_bool() ? 1 : 0);
+                }
+            }
+            if (ev.sender == browser && ev.schema_name == v2::PaneOperationRequested::zen_name &&
+                ev.schema_version == v2::PaneOperationRequested::zen_version &&
+                (ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused)) {
+                ++asks;
+                if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr) {
+                    const auto asked = loom::from_value<v2::PaneOperationRequested>(*ev.payload);
+                    for (const std::string& c : asked.classes) open_asks += c == "open" ? 1u : 0u;
                 }
             }
             if (ev.sender == browser && ev.schema_name == OpenSourceRequested::zen_name &&
@@ -1318,11 +1334,16 @@ TEST_CASE("Files takes a canvas press only from Workshop's office and about its 
     CHECK(tap.attempts == 0);
     CHECK(watch->content.size() == said + 1); // it selected, and said so
 
+    CHECK(tap.asks == 0);
+
+    // ...AND THE PRESS THAT SAYS SO OPENS: it asks Workshop to approve opening that file for its
+    // hand, which is the open's first step; this stand-in approves nothing, so nothing is sent on.
     f.r.drive_watcher(watch, [&](PaneWatcher& wv, loom::Mail& m) {
         wv.point(m, files::kFilesRole, on_alpha(true));
     });
     REQUIRE(tap.pressed.size() == 4);
-    CHECK(tap.attempts == 1);
+    CHECK(tap.asks == 1);
+    CHECK(tap.attempts == 0);
 }
 
 // ============================================================================
@@ -2540,7 +2561,8 @@ TEST_CASE("a refused open's row leaves Files' published rows at the next Return 
     REQUIRE(heard);
     // TURN BY TURN, until the picture Workshop paints for the pane stops saying the refusal --
     // its content is admitted a turn after the act and painted a turn after that -- which must
-    // happen while that open is still on its way, with nothing seated.
+    // happen while that open is still on its way (Workshop's approval, then the opening office),
+    // with nothing seated.
     std::string pending = f.first();
     for (int turns = 0; turns < 16 && pending.find("could not reach") != std::string::npos &&
                         !f.r.session().panes.has(f.editor_kind());
@@ -2549,7 +2571,6 @@ TEST_CASE("a refused open's row leaves Files' published rows at the next Return 
         pending = f.first();
     }
     CHECK_FALSE(f.r.session().panes.has(f.editor_kind()));
-    CHECK(f.r.opening->state().op != 0);
     CHECK_MESSAGE(pending.find("could not reach") == std::string::npos, pending);
     // THE OPEN COMPLETES, and the row stays clean.
     bus.drain_until_idle();
@@ -3407,4 +3428,330 @@ TEST_CASE("a multi-config tree's fifth field has a menu row short enough to offe
     REQUIRE(f.recipes.all()[0].cmake_target.has_value());
     CHECK(f.recipes.all()[0].cmake_target->target == "all");
     CHECK(f.recipes.all()[0].cmake_target->config == "Release");
+}
+
+// =============================================================================
+// A guest's hand in Files: it walks and reads, and on a weaver's host writes and opens nothing
+// the weaver alone may
+// =============================================================================
+
+namespace {
+
+/// WALK THE CURSOR TO A NAMED ENTRY WITH THE GUEST'S OWN ARROWS, as `FilesRig::point_at` walks it
+/// with the weaver's, and fail loudly otherwise: every step is a moment the guest injected.
+void guest_point_at(guest_hand::GuestHand& g, FilesRig& f, const std::string& name) {
+    for (int guard = 0; guard < 64 && cursor_said(f.shown()) > 0; ++guard) {
+        g.key(input::scan::kUp);
+    }
+    for (int guard = 0; guard < 64; ++guard) {
+        if (f.at_cursor().rfind(name, 0) == 0) {
+            return;
+        }
+        g.key(input::scan::kDown);
+    }
+    REQUIRE_MESSAGE(f.at_cursor().rfind(name, 0) == 0, "the guest's arrows reached no row called ",
+                    name, " in\n", picture(f.shown()));
+}
+
+/// THE GUEST PRESSES THE CONTROL WHOSE FACE READS `face`: `press_face`, the guest's press.
+void guest_press_face(guest_hand::GuestHand& g, FilesRig& f, const std::string& face) {
+    const FaceAt at = face_at(f.shown(), face);
+    REQUIRE_MESSAGE(at.row >= 0, "no control read `", face, "` in\n", picture(f.shown()));
+    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    g.press_cell(body.x + at.column + 1, body.y + kExternalHeaderRows + at.row);
+}
+
+/// THE WEAVER DRAFTS A RECIPE FOR `oven.cpp` IN FILES' OWN LINE, every field typed by the
+/// weaver's hand, and leaves the line on its last field, uncommitted: the next commit writes
+/// `oven` or nothing.
+void weaver_drafts_oven(FilesRig& f) {
+    f.letter(input::scan::kA, "a");
+    REQUIRE_MESSAGE(row_beginning(f.shown(), "> oven.cpp") >= 0, picture(f.shown()));
+    f.r.key(input::scan::kReturn);
+    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+    f.r.key(input::scan::kReturn); // the name it suggests
+    REQUIRE(any_row(f.shown(), "artifact stem> oven"));
+    for (int i = 0; i < 64; ++i) {
+        f.r.key(input::scan::kBackspace);
+    }
+    f.r.text("zengine-oven");
+    f.r.key(input::scan::kReturn);
+    f.r.text("loom");
+    f.r.key(input::scan::kReturn);
+    f.r.text("loom::kernel");
+    REQUIRE_MESSAGE(any_row(f.shown(), "link targets (comma-separated)> loom::kernel"),
+                    picture(f.shown()));
+}
+
+/// WHAT THE BROWSER SAID TO WORKSHOP AND TO THE OPENING OFFICE, AND WHAT IT WAS ANSWERED, in the
+/// order the bus delivered it: each class ask with its classes, subject and pane, Workshop's word
+/// on it, and each open with its path -- so a case reads which came first, not two counts.
+struct AskedAndOpened {
+    loom::Switchboard& bus;
+    loom::WeaveId browser;
+    loom::ObserverId id{};
+    std::vector<std::string> said;
+
+    AskedAndOpened(loom::Switchboard& b, loom::WeaveId weave) : bus(b), browser(weave) {
+        id = bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.kind != loom::EventKind::Delivered || ev.payload == nullptr) {
+                return;
+            }
+            if (ev.sender == browser && ev.schema_name == v2::PaneOperationRequested::zen_name &&
+                ev.schema_version == v2::PaneOperationRequested::zen_version) {
+                const auto asked = loom::from_value<v2::PaneOperationRequested>(*ev.payload);
+                std::string line = "asked";
+                for (const std::string& c : asked.classes) {
+                    line += " " + c;
+                }
+                said.push_back(line + " about " + asked.subject + " for " + asked.pane);
+            } else if (ev.target == browser && ev.schema_name == PaneOperationAnswered::zen_name) {
+                const auto answered = loom::from_value<PaneOperationAnswered>(*ev.payload);
+                said.push_back(answered.allowed ? std::string("allowed")
+                                                : "refused: " + answered.reason);
+            } else if (ev.sender == browser && ev.schema_name == OpenSourceRequested::zen_name) {
+                said.push_back("opened " + loom::from_value<OpenSourceRequested>(*ev.payload).path);
+            }
+        });
+    }
+    ~AskedAndOpened() { bus.remove_observer(id); }
+    AskedAndOpened(const AskedAndOpened&) = delete;
+    AskedAndOpened& operator=(const AskedAndOpened&) = delete;
+};
+
+/// THE WORDS A WEAVER'S HOST REFUSES A GUEST'S WRITE IN, as far as they name the rule.
+constexpr const char* kOnlyTheWeaverWrites =
+    "this is a weaver's host: only the weaver's hand writes a file here";
+
+} // namespace
+
+TEST_CASE("the weaver's u stands when a guest's files.open reaches Files before Workshop answers it") {
+    // ONE DRAIN, TWO HANDS: the weaver's `u` and then the guest's Return, `files.open`, reach Files
+    // before Workshop has answered either ask. Each act waits in the pane's own book, answered by
+    // its own correlation, so the guest's later ask replaces nothing: the weaver's catalog moves,
+    // and the guest's open of that same file -- no guests file -- is sent.
+    FilesRig f("files-weaver-guest-drain");
+    put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
+    put_catalog(f.root / "theirs.json", {authored_recipe("beta", "src/beta.cpp")});
+    f.open(320, 48);
+    f.point_at("theirs.json");
+    guest_hand::GuestHand g(f.r, {"input"});
+    SeamTap tap(f.r.bus, f.files_id());
+    g.weaver_then_guest(
+        {input::KeyPressed{input::scan::kU, "", input::mod::kNone},
+         input::KeyReleased{input::scan::kU, "", input::mod::kNone}},
+        {guest_hand::GuestHand::key_event(input::scan::kReturn, input::mod::kNone, true),
+         guest_hand::GuestHand::key_event(input::scan::kReturn, input::mod::kNone, false)});
+    // BOTH ACTS WERE ASKED ABOUT, each answered on its own, and both ran.
+    const std::string theirs = (f.root / "theirs.json").lexically_normal().generic_string();
+    CHECK(tap.asks == 2);
+    CHECK_MESSAGE(f.recipes.source() == (f.root / "theirs.json").generic_string(), picture(f.shown()));
+    CHECK(tap.requested == std::vector<std::string>{theirs});
+    CHECK(g.hand->refusals.empty());
+}
+
+TEST_CASE("on a weaver's host a guest is refused u, a mark and a written recipe before any write, and still lists names") {
+    // A GUEST WITH `input` WALKS AND READS LIKE THE WEAVER, and every act that would write is
+    // refused in the pane's own row before anything is sent or saved: the catalog in force, the
+    // marks file and the recipe catalog on disk stay as the weaver left them, and the draft stays.
+    // ⚔ MUTATION: `judge`'s `write` branch answering empty: the catalog moves to `theirs.json`, a
+    // marks file appears, and `oven` is written.
+    FilesRig f("files-guest-weaver-host");
+    put_file(f.root / "oven.cpp", "// a weaver's weave\n");
+    std::filesystem::create_directory(f.root / "src");
+    put_file(f.root / "src" / "inner.cpp", "int inner;\n");
+    put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
+    put_catalog(f.root / "theirs.json", {authored_recipe("beta", "src/beta.cpp")});
+    f.open(320, 48); // wide: the refusal is read whole, and it names the guest at its end
+    const std::string catalog = (f.root / "recipes.json").generic_string();
+
+    // THE WEAVER'S OWN `u` TAKES A CATALOG, so the one in force is a file the weaver chose.
+    f.point_at("recipes.json");
+    f.letter(input::scan::kU, "u");
+    REQUIRE(f.recipes.source() == catalog);
+    REQUIRE(f.recipes.all().size() == 1);
+    const std::string catalog_bytes = slurp(catalog);
+
+    guest_hand::GuestHand g(f.r, {"input"});
+    SeamTap tap(f.r.bus, f.files_id());
+
+    // THE GUEST'S ARROWS WALK, AND THE PANE LISTS THIS FOLDER'S NAMES TO IT.
+    guest_point_at(g, f, "theirs.json");
+    CHECK(f.at_cursor().rfind("theirs.json", 0) == 0);
+    for (const char* name : {"src/", "oven.cpp", "recipes.json", "theirs.json"}) {
+        CHECK_MESSAGE(any_row(f.shown(), name), "the pane lists no `", name, "`");
+    }
+
+    // `u` IS REFUSED: the catalog in force is still the weaver's, row for row.
+    g.key(input::scan::kU);
+    CHECK(f.first().rfind(
+              std::string("the recipes in force are unchanged -- ") + kOnlyTheWeaverWrites, 0) == 0);
+    CHECK(f.first().find("guest 'agent' is not the weaver") != std::string::npos);
+    CHECK(f.recipes.source() == catalog);
+    REQUIRE(f.recipes.all().size() == 1);
+    CHECK(f.recipes.all()[0].id == "alpha");
+
+    // A FOLDER IS ENTERED BY THE GUEST'S RETURN, asking nothing; ITS MARK IS REFUSED, and no
+    // marks file is made.
+    guest_point_at(g, f, "src/");
+    g.key(input::scan::kReturn);
+    CHECK(any_row(f.shown(), "inner.cpp"));
+    CHECK(tap.open_asks == 0);
+    g.key(input::scan::kM);
+    CHECK(f.first().rfind(std::string("nothing was marked -- ") + kOnlyTheWeaverWrites, 0) == 0);
+    CHECK_FALSE(std::filesystem::exists(f.marks_path));
+    // ...AND THE WEAVER'S OWN `m` IN THE SAME PLACE WRITES IT: the refusal was the guest's alone.
+    f.letter(input::scan::kM, "m");
+    CHECK(f.first().rfind("marked: " + (f.root / "src").generic_string(), 0) == 0);
+    CHECK(std::filesystem::exists(f.marks_path));
+    g.key(input::scan::kBackspace);
+    REQUIRE(any_row(f.shown(), "theirs.json"));
+
+    // A DRAFT THE WEAVER TYPED, COMMITTED BY THE GUEST, WRITES NO RECIPE, and the line stays on it.
+    weaver_drafts_oven(f);
+    const auto refused_and_kept = [&] {
+        CHECK(f.first().rfind(std::string("no recipe was written -- ") + kOnlyTheWeaverWrites,
+                              0) == 0);
+        CHECK(tap.authored.empty());
+        CHECK(f.recipes.source() == catalog);
+        CHECK(f.recipes.all().size() == 1);
+        CHECK(slurp(catalog) == catalog_bytes);
+        CHECK(any_row(f.shown(), "link targets (comma-separated)> loom::kernel"));
+    };
+    const auto written_by_the_weaver = [&] {
+        CHECK(tap.authored == std::vector<std::string>{"oven"});
+        REQUIRE(f.recipes.all().size() == 2);
+        CHECK(f.recipes.all()[1].id == "oven");
+        CHECK(slurp(catalog).find("zengine-oven") != std::string::npos);
+        CHECK(f.first().find("authored recipe `oven`") != std::string::npos);
+    };
+    SUBCASE("the guest's Return on the last field") {
+        g.key(input::scan::kReturn);
+        refused_and_kept();
+        f.r.key(input::scan::kReturn); // the weaver's own commit of the same draft
+        written_by_the_weaver();
+    }
+    SUBCASE("the guest's press on the write control") {
+        guest_press_face(g, f, "[write the recipe]");
+        refused_and_kept();
+        press_face(f, "[write the recipe]"); // the weaver's own press on it
+        written_by_the_weaver();
+    }
+    CHECK(g.hand->refusals.empty()); // every moment the guest injected was taken
+}
+
+TEST_CASE("on a weaver's host a guest opening the guests file through Files is refused, and another file opens") {
+    // THE GUESTS FILE PUTS EVERY ROW'S CREDENTIAL ON SCREEN, so on a weaver's host only the
+    // weaver's hand opens it. Files asks class `open` with the path before it sends, and the
+    // refused ask sends nothing to the opening office; any other file the guest opens goes through.
+    // ⚔ MUTATION: `judge`'s `open` branch answering empty: the guests file reaches the opening.
+    FilesRig f("files-guest-guests-file");
+    put_file(f.root / "alpha.cpp", "int alpha;\n");
+    put_file(f.root / "guests.json", "{\"version\": 2, \"host\": \"weaver\", \"guests\": []}\n");
+    f.open(320, 48, /*with_editor=*/true);
+    guest_hand::GuestHand g(f.r, {"input"});
+    f.r.host.host_fact.guests_file =
+        std::filesystem::absolute(f.root / "guests.json").generic_string();
+    SeamTap tap(f.r.bus, f.files_id());
+    const std::int64_t committed = f.r.opening->state().committed;
+
+    guest_point_at(g, f, "guests.json");
+    g.key(input::scan::kReturn);
+    CHECK(tap.open_asks == 1);
+    CHECK(tap.attempts == 0);
+    CHECK(tap.requested.empty());
+    CHECK(f.r.opening->state().committed == committed);
+    CHECK(f.first().rfind("`guests.json` was not opened -- this is a weaver's host: the guests "
+                          "file opens only by the weaver's hand",
+                          0) == 0);
+    CHECK_FALSE(f.r.session().panes.has(f.editor_kind()));
+
+    // ANOTHER FILE, THE SAME HAND: asked, allowed, opened, and seated in the Editor.
+    guest_point_at(g, f, "alpha.cpp");
+    g.key(input::scan::kReturn);
+    CHECK(tap.open_asks == 2);
+    REQUIRE(tap.requested.size() == 1);
+    CHECK(tap.requested[0] == (f.root / "alpha.cpp").generic_string());
+    REQUIRE(f.r.session().panes.has(f.editor_kind()));
+    CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
+
+    // ...AND THE WEAVER'S OWN RETURN OPENS THE GUESTS FILE: the refusal was the guest's alone.
+    press_pane(f.r, f.kind, 1, 0); // the keys back to Files, opening nothing
+    f.point_at("guests.json");
+    f.r.key(input::scan::kReturn);
+    CHECK(tap.open_asks == 3);
+    REQUIRE(tap.requested.size() == 2);
+    CHECK(tap.requested[1] == (f.root / "guests.json").generic_string());
+    CHECK(f.editor_status().find("guests.json") != std::string::npos);
+    CHECK(g.hand->refusals.empty());
+}
+
+TEST_CASE("on a development host a guest's u, mark and recipe write as the weaver's") {
+    // THE SAME GUEST, THE SAME KEYS, ON THE AGENT'S OWN HOST: no write is refused, so the catalog
+    // in force moves, the marks file is made, and the draft is written into the catalog in force.
+    FilesRig f("files-guest-development-host");
+    put_file(f.root / "oven.cpp", "// a weaver's weave\n");
+    std::filesystem::create_directory(f.root / "src");
+    put_file(f.root / "src" / "inner.cpp", "int inner;\n");
+    put_catalog(f.root / "theirs.json", {authored_recipe("beta", "src/beta.cpp")});
+    f.open(320, 48);
+    const std::string theirs = (f.root / "theirs.json").generic_string();
+    guest_hand::GuestHand g(f.r, {"input"}, /*development=*/true);
+    SeamTap tap(f.r.bus, f.files_id());
+
+    guest_point_at(g, f, "theirs.json");
+    g.key(input::scan::kU);
+    CHECK(f.first().rfind("build recipes:", 0) == 0);
+    CHECK(f.recipes.source() == theirs);
+    REQUIRE(f.recipes.all().size() == 1);
+    CHECK(f.recipes.all()[0].id == "beta");
+
+    guest_point_at(g, f, "src/");
+    g.key(input::scan::kReturn);
+    REQUIRE(any_row(f.shown(), "inner.cpp"));
+    g.key(input::scan::kM);
+    CHECK(f.first().rfind("marked: " + (f.root / "src").generic_string(), 0) == 0);
+    REQUIRE(std::filesystem::exists(f.marks_path));
+    CHECK(slurp(f.marks_path).find((f.root / "src").generic_string()) != std::string::npos);
+    g.key(input::scan::kBackspace);
+    REQUIRE(any_row(f.shown(), "theirs.json"));
+
+    weaver_drafts_oven(f);
+    g.key(input::scan::kReturn);
+    CHECK(tap.authored == std::vector<std::string>{"oven"});
+    CHECK(f.recipes.source() == theirs);
+    REQUIRE(f.recipes.all().size() == 2);
+    CHECK(f.recipes.all()[1].id == "oven");
+    CHECK(slurp(theirs).find("zengine-oven") != std::string::npos);
+    CHECK(f.first().find("authored recipe `oven`") != std::string::npos);
+    CHECK(g.hand->refusals.empty());
+}
+
+TEST_CASE("Files asks class open for the path before it sends the open") {
+    // THE ORDER ON THE BUS, NOT TWO COUNTS: the weaver's Return on a file asks Workshop whether
+    // this gesture's hand may open exactly that path, hears yes, and only then asks the opening
+    // office for the same path. A folder is walked into, and asks nothing.
+    // ⚔ MUTATION: `open` sending `open_file` at once: the open precedes, or comes without, its ask.
+    FilesRig f("files-open-asks-first");
+    std::filesystem::create_directory(f.root / "src");
+    put_file(f.root / "src" / "inner.cpp", "int inner;\n");
+    put_file(f.root / "alpha.cpp", "int alpha;\n");
+    f.open(160, 48, /*with_editor=*/true);
+    AskedAndOpened seen(f.r.bus, f.files_id());
+
+    f.point_at("alpha.cpp");
+    f.r.key(input::scan::kReturn);
+    const std::string path = (f.root / "alpha.cpp").generic_string();
+    INFO("the browser's conversation, in order:\n", picture(seen.said));
+    CHECK(seen.said == std::vector<std::string>{
+                           "asked open about " + path + " for " + files::kProjectFilesPane,
+                           "allowed", "opened " + path});
+    CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
+
+    // ...AND A FOLDER IS WALKING: entered by the same Return, it is asked about nowhere.
+    press_pane(f.r, f.kind, 1, 0); // the keys back to Files, opening nothing
+    f.point_at("src/");
+    f.r.key(input::scan::kReturn);
+    REQUIRE(any_row(f.shown(), "inner.cpp"));
+    CHECK(seen.said.size() == 3);
 }

@@ -258,8 +258,9 @@ the document changed under the pointer — is refused: drop it again. So is a dr
 or a choice about an earlier drop, is still pending (and a pending one refuses an editor switch
 until it settles). Every carry and every open is still an act of yours that Workshop checks: an
 actor without the authority to carry, or to open a source, is told so and nothing moves (an
-external host's guest needs the `open` power to reopen a location —
-[external host](external-host.md)).
+external host's guest needs the `open` power to reopen a location, and on a weaver's host every
+key, press, wheel and drop a guest aims at the editor is refused —
+[external host](external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
 
 ## `Ctrl`+`s` is the Editor's
 

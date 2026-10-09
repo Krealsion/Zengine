@@ -140,8 +140,10 @@ python examples/tower-defense/story.py replay --root demo-runs/td --speed watch
 tree, an empty `game/` directory, Workshop launched from the runtime with that directory as its
 project (its window sized by `--viewport`, 180x80 cells unless you say otherwise: the story places
 panes for that room), and a Loom session linked to it as a guest with `input`, `capture`,
-`inspect`, `inventory` and `toolbox` powers. `--toolchain-bin` puts a directory first on `PATH`
-for both processes, such as a MinGW `bin` the built programs need.
+`inspect`, `inventory`, `toolbox` and `build` powers, in a guests file that names this Workshop a
+[development host](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/external-host.md#whose-host-this-is-and-what-each-power-reaches-there),
+so the guest types, saves and builds there as a weaver would. `--toolchain-bin` puts a directory
+first on `PATH` for both processes, such as a MinGW `bin` the built programs need.
 
 `replay` then tells the story step by step (`story.py steps` lists them). Each step is one or
 more runs of a maintained tool in the [`workshop` package](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/external-host.md#3-from-a-loom-session-journeys-as-python-tools),

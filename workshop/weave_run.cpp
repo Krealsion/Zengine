@@ -90,7 +90,13 @@ void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& 
 
 // WL-EDIT-03 -- agents/workshop/editor.md
 // WL-SESSION-13 -- agents/workshop/session.md
+// WL-GUEST-09 -- agents/workshop/guests.md
 void WorkshopWeave::quit(loom::Mail& mail) {
+    // A QUIT WRITES THE LAST SESSION, so it is a file write, judged for the hand that asked.
+    if (const std::string refused = judge_classes(input_actor_, {scope::kWrite}, {}); !refused.empty()) {
+        say("Workshop stays open -- " + refused + "; quitting writes the last session", true);
+        return;
+    }
     if (quitting_) {
         say("quitting -- waiting for " + std::to_string(quit_outstanding_) +
                 " pane(s) to answer",
@@ -137,7 +143,14 @@ void WorkshopWeave::finish_quit() {
 }
 
 // WL-SESSION-13 -- agents/workshop/session.md
+// WL-GUEST-09 -- agents/workshop/guests.md
 void WorkshopWeave::on(const WorkshopQuitRequested&, loom::Mail& mail) {
+    // ...and asked by message, the asker is the hand: a guest's quit on a weaver's host is refused.
+    const InputActor asker{true, false, mail.sender()};
+    if (const std::string refused = judge_classes(asker, {scope::kWrite}, {}); !refused.empty()) {
+        (void)mail.answer(loom::Refused{"Workshop stays open -- " + refused + "; quitting writes the last session"});
+        return;
+    }
     if (quit_asked_.valid()) {
         (void)mail.answer(loom::Refused{"a quit already asked is still waiting for its answer"});
         return;

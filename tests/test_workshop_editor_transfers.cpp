@@ -503,4 +503,56 @@ TEST_CASE("an actor without the carry cannot extract, and one without the open m
     CHECK(s.notice().find("no authority") != std::string::npos);
 }
 
+
+// THE EDITOR ANSWERS ONLY THE WEAVER'S HAND ON A WEAVER'S HOST, at a drop and a wheel too: a guest's
+// location dragged from Inventory and released over the Editor is refused at the drop, moving
+// neither the document nor the keys, and its wheel over the Editor scrolls nothing. The guest
+// stored that location on a development host, where its hand reaches the Editor as the weaver's.
+TEST_CASE("on a weaver's host a guest's wheel and value drop toward the Editor are refused, and the Editor hears neither") {
+    EditorStory s("xfer-guest-host");
+    scope::GuestRowFacts row;
+    row.admitted = true;
+    row.name = "agent";
+    row.powers = {"input", "inventory", "open"};
+    row.version = 2;
+    const loom::WeaveId guest = s.hand_id;
+    s.r.host.guest_row = [guest, row](loom::WeaveId who) {
+        return who == guest ? row : scope::GuestRowFacts{};
+    };
+    s.r.host.host_fact.development = true;
+    const std::string a = s.write("a.txt", "one\n");
+    REQUIRE(s.open(a).accepted);
+    s.key(input::scan::kL, input::mod::kCtrl);
+    s.click(s.inventory, 2, 2);
+    s.name("a.txt at 3");
+    REQUIRE(s.stored().size() == 1);
+    std::string lines;
+    for (int i = 0; i < 80; ++i) lines += "line " + std::to_string(i) + "\n";
+    REQUIRE(s.open(s.write("b.txt", lines)).accepted);
+    REQUIRE(s.doc().first_row == 0);
+    const auto wheel = [&s] {
+        input::InjectedEvent e = s.at(s.editor, s.chrome() + 2, 1, "PointerWheel");
+        e.wheel_dy = -3.0;
+        s.batch({e});
+    };
+    const std::string refused =
+        "this is a weaver's host: the editor answers only the weaver's hand, and guest 'agent' is not the weaver";
+
+    s.r.host.host_fact.development = false;
+    s.drag(s.inventory, s.row_of(s.inventory, "a.txt at 3"), 2, s.editor, s.chrome() + 0, 1);
+    INFO(s.r.last_notice());
+    CHECK(s.r.last_notice().find(refused) != std::string::npos);
+    CHECK(s.doc().path.find("b.txt") != std::string::npos);
+    CHECK(s.r.session().panes.keyboard == s.inventory); // the drag's press took them; the drop did not
+    wheel();
+    CHECK(s.r.last_notice() == refused);
+    CHECK(s.doc().first_row == 0);
+
+    // THE TWIN, ON A DEVELOPMENT HOST: the same wheel scrolls, and the same drop reopens the location.
+    s.r.host.host_fact.development = true;
+    wheel();
+    CHECK(s.doc().first_row > 0);
+    s.drag(s.inventory, s.row_of(s.inventory, "a.txt at 3"), 2, s.editor, s.chrome() + 0, 1);
+    CHECK(s.doc().path.find("a.txt") != std::string::npos);
+}
 } // TEST_SUITE

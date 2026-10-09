@@ -13,10 +13,11 @@ LAW — The native `OpeningManager` owns one open intent, its exact participants
 MEANS
 - the manager holds no document, rows, picture, room, focus or pointer into either owner;
 - it asks the desk for a trial and an admission, the Editor for a preparation, and commits;
-- Files, the Builder and Edit Code ask `zengine.opening`; `zengine.editor` relays, asker's right.
+- Files, the Builder and Edit Code ask `zengine.opening` once their hand's class `open` is judged; `zengine.editor` relays, asker's right.
 
 DOES NOT MEAN
-- that ordinary panes acquire this ceremony: a pane's reveal is still its own ask.
+- that ordinary panes acquire this ceremony: a pane's reveal is still its own ask;
+- that the manager judges a hand: it is actor-blind; Files, the Builder and Edit Code ask class `open` first (WL-GUEST-03), and the editors answer only the weaver on a weaver's host.
 
 PROVEN BY — `workshop/opening.hpp` `OpeningManager`, `OpeningState`;
 `workshop/open_seam_vocabulary.hpp` `kOpeningRole`, `PresentationTrialRequested`,

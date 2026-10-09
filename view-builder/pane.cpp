@@ -11,6 +11,7 @@
 #include "input/vocabulary.hpp"
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
+#include "workshop/actor_scope.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
@@ -71,9 +72,9 @@ class ViewBuilderPane final
                        ws::ProjectRoot>,
           loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneActions,
                      ws::PaneEscapeUnspent, ws::PanePassRequested, ws::PaneMenuRequested,
-                     ws::PaneQuitAnswered, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
-                     vb::ViewEdited, view::ViewRun, view::ViewResume, view::ViewApply, view::ViewStop,
-                     ws::ProjectRootRequested>> {
+                     ws::PaneQuitAnswered, ws::PaneOperationRequested, ws::v2::PaneOperationRequested,
+                     ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
+                     view::ViewApply, view::ViewStop, ws::ProjectRootRequested>> {
 public:
     loom::Value snapshot() const override {
         vb::ViewBuilderState saved;
@@ -92,6 +93,10 @@ public:
 
     void on(const loom::Activated& activated, loom::Mail& mail) {
         if (!activation_.accept(mail, activated)) return;
+        // A SAVE STILL WAITING ON WORKSHOP ends with this activation, and is said: its answer finds
+        // nothing waiting, and a successor never holds one.
+        if (std::exchange(saving_, std::nullopt))
+            model_.notice = "The save waiting for Workshop was dropped; save again";
         if (!restored_) {
             restored_ = true;
             // A FIRST IMAGE IS A LAUNCH, and runs again what the builder ran: its project file says
@@ -178,7 +183,8 @@ public:
             show(mail);
             return;
         }
-        perform(action.id, {}, mail);
+        if (action.id == "save") ask_save(mail);
+        else perform(action.id, {}, mail);
         show(mail);
     }
     void on(const ws::PaneQuitRequested&, loom::Mail& mail) {
@@ -294,7 +300,20 @@ public:
         carry(intent->shape, mail.correlation(), false, mail);
     }
     void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
-        if (!carry_ || !mail.answers_ask() || mail.correlation() != carry_->ask) return;
+        if (!mail.answers_ask()) return;
+        if (saving_ && mail.correlation() == saving_->ask) {
+            // ALLOWED, THE SAVE WRITES THE FILE NAMED WHEN IT WAS ASKED, and is remembered as any
+            // save is, while File still names that file; refused, the refusal is said, and nothing
+            // is written or remembered.
+            const auto saving = *std::exchange(saving_, std::nullopt);
+            if (!answer.allowed) model_.notice = "Saving was refused: " + answer.reason;
+            else if (model_.path != saving.path)
+                model_.notice = "Not saved: File no longer names " + saving.path + "; save again";
+            else perform("save", {saving.path}, mail);
+            show(mail);
+            return;
+        }
+        if (!carry_ || mail.correlation() != carry_->ask) return;
         auto carry = std::exchange(carry_, std::nullopt);
         if (!answer.allowed) {
             model_.notice = "Carrying " + carry->label + " was refused: " + answer.reason;
@@ -350,6 +369,12 @@ public:
     }
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         if (!mail.dispatch_refused()) return;
+        if (saving_ && saving_->ticket.seq == refused.refused_attempt().seq) {
+            saving_.reset();
+            model_.notice = "Not saved: Workshop could not be asked to allow it (" + refused.reason + ")";
+            show(mail);
+            return;
+        }
         for (auto it = pending_.begin(); it != pending_.end(); ++it)
             if (it->second.attempt.seq == refused.refused_attempt().seq) {
                 model_.notice = it->second.action + " was not delivered: " + refused.reason;
@@ -370,6 +395,13 @@ private:
         std::string label;
         loom::Bytes bytes;
         bool drag = false;
+    };
+    /// A SAVE ASKED OF WORKSHOP and not yet answered: the ask's number, its attempt, and the file
+    /// File named when it was asked.
+    struct Saving {
+        std::uint64_t ask = 0;
+        loom::Ticket ticket;
+        std::string path;
     };
     /// A PRESS THE BUILDER HOLDS while the button is down: a kind dragged from the palette, an
     /// element moved or resized on the design canvas, or the canvas panned. Only a release keeps
@@ -485,6 +517,8 @@ private:
             model_.choosing.reset();
         } else if (chosen.action == "choices") {
             shown_.choices_from = std::stoul(chosen.args.at(0));
+        } else if (chosen.action == "save") {
+            ask_save(mail);
         } else {
             perform(chosen.action, chosen.args, mail);
         }
@@ -823,6 +857,31 @@ private:
                                        static_cast<std::int64_t>(carry_->gesture)},
             carry_->ask);
     }
+    /// ASK BEFORE A HAND'S SAVE WRITES: a save is class `write`, judged for the actor of the
+    /// gesture that delivered it, a key's row or a press, and that gesture's approval is spent on
+    /// this save alone. Nothing is written until Workshop allows it, and one save waits at a time.
+    /// A File naming nothing is said at once, with nothing asked.
+    void ask_save(loom::Mail& mail) {
+        if (saving_) {
+            model_.notice = "A save is waiting for Workshop's answer; save again once it comes";
+            return;
+        }
+        if (model_.path.empty()) {
+            perform("save", {}, mail);
+            return;
+        }
+        Saving asked{++correlation_, {}, model_.path};
+        asked.ticket = mail.as_role(vb::kRole).send_to_role(
+            workshop_role,
+            ws::v2::PaneOperationRequested{vb::kPane, {}, {}, 0, static_cast<std::int64_t>(mail.correlation()),
+                                           {ws::scope::kWrite}, {}},
+            asked.ask);
+        if (!asked.ticket.valid()) {
+            model_.notice = "Not saved: Workshop could not be asked to allow it";
+            return;
+        }
+        saving_ = std::move(asked);
+    }
     void offer(loom::Mail& mail) {
         (void)mail.as_role(vb::kRole).send_to_role(
             workshop_role, ws::v3::PaneOffered{vb::kPane, "View Builder", "make a view by hand, then run it beside Flow", 880, 540, 0});
@@ -1005,6 +1064,7 @@ private:
     zengine::component::Clipboard clipboard_;
     ws::pane_menu::Asked menu_;
     std::optional<Carry> carry_;
+    std::optional<Saving> saving_;
 };
 } // namespace
 ZEN_EXPORT_WEAVE(ViewBuilderPane)

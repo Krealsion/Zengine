@@ -114,7 +114,10 @@ stored in Inventory survive eviction. The carrier accepts envelopes up to 64 KiB
 capture refuses clearly. [Toolbox snapshots](toolboxes.md) keep captured Inventory entries across
 restarts; Terminal's own running transcript is separate.
 
-External hands need the `inventory` power both to acquire Terminal values and to add the copy.
+External hands need the `inventory` power both to acquire Terminal values and to add the copy,
+and a Workshop whose guests file names it a development host: on a
+[weaver's host](external-host.md#whose-host-this-is-and-what-each-power-reaches-there) every key
+and press a guest aims at the Terminal is refused.
 An old address or authenticated-answer fact in metadata grants no permission to invoke anything.
 The original participant retains its command/answer history; the pane never owns that session.
 

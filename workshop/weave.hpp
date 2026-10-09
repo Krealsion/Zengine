@@ -4,6 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_WEAVE_HPP
 #define ZENGINE_WORKSHOP_WEAVE_HPP
 #include "setup_control.hpp"
+#include "actor_scope.hpp" // what a guest's hand may do beside its grant: the action classes
 
 // Workshop's own weave: the session, and the bindings from input moments to weaver gestures.
 // Workshop law: agents/workshop/session.md (+13 registers; agents/workshop.md routes)
@@ -97,6 +98,14 @@ struct HostContext {
     // A host-issued capability to read this actor's current authority. The ceiling is empty;
     // it never grants the actor anything. Unknown/dead actors yield an inert capability.
     std::function<loom::GrantAuthority(loom::WeaveId)> input_authority;
+
+    /// A GUEST SESSION'S ADMITTED ROW, answered by the guest door from the record it kept when it
+    /// admitted the session (`GuestDoor::facts`), never a row found by name; not admitted for any
+    /// other participant. Empty when no door is mounted: then no actor is a guest.
+    std::function<scope::GuestRowFacts(loom::WeaveId)> guest_row;
+    /// WHOSE HOST THIS IS, the guests file's `host`, and that file: a Workshop with no guests file,
+    /// or one naming no host, is a weaver's.
+    scope::HostFact host_fact;
 
     /// Where a terminal line can be addressed now, read off the bus at the call and kept nowhere.
     /// Empty lists nothing, and the completer offers the address forms.
@@ -276,7 +285,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -408,6 +417,14 @@ class WorkshopWeave
                              // this host makes -- the managed pane's presentation.
                              loom::Claims<zengine::workshop::PanePresentation>> {
 public:
+    /// Whose hand an input moment is: the platform's (`local`), a participant that injected it, or
+    /// unknown when no producer attributed it.
+    struct InputActor {
+        bool known = false;
+        bool local = false;
+        loom::WeaveId participant{};
+    };
+
     explicit WorkshopWeave(HostContext& host);
 
     /// READ THE WEAVER'S KEYMAP, OR STAND ON THE DEFAULTS.
@@ -485,12 +502,27 @@ public:
     /// The desk as Workshop holds it now: every pane on it, the room, arranging and the menu.
     v2::DeskView desk_view() const;
     void on(const PaneShortcutInvoked& asked, loom::Mail& mail);
-    /// The current attributed gesture of `pane` approves one (shape, version, role), or why not.
-    /// Spends the gesture; sets nothing else.
+    /// The current gesture of `pane` approves one operation -- a named (shape, version, role) send,
+    /// the action classes the act is, or both -- or why not. Spends the gesture; `approved`, when
+    /// given, is told whose hand it was.
     std::string approve_gesture(const std::string& pane, std::int64_t gesture, const std::string& role,
-                                const std::string& shape, std::int64_t version, loom::Mail& mail);
+                                const std::string& shape, std::int64_t version, loom::Mail& mail,
+                                const std::vector<std::string>& classes = {},
+                                const std::string& subject = {}, InputActor* approved = nullptr);
     std::string authorize_pane_operation(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const PaneOperationRequested& asked, loom::Mail& mail);
+    void on(const v2::PaneOperationRequested& asked, loom::Mail& mail);
+    void on(const ActorScopeRequested& asked, loom::Mail& mail);
+    /// The action classes `classes` judged for `actor`: empty when each is its own, else the refusal.
+    std::string judge_classes(const InputActor& actor, const std::vector<std::string>& classes,
+                              const std::string& subject) const;
+    /// The admitted row of `actor` when the guest door admitted it; not admitted otherwise.
+    scope::GuestRowFacts guest_of(const InputActor& actor) const;
+    /// ON A WEAVER'S HOST A GUEST'S HAND REACHES NEITHER THE EDITOR OFFICE, THE TERMINAL NOR THE
+    /// HOTKEYS PANE: the refusal in words for `actor` toward the pane `kind`, or empty.
+    std::string refused_toward(const InputActor& actor, std::int64_t kind) const;
+    /// Say a refusal of the current input actor's act, and paint it.
+    void refuse_input(const std::string& why, loom::Mail& mail);
     void on(const PaneObservationRequested& asked, loom::Mail& mail);
     void on(const PaneObservationContinued& asked, loom::Mail& mail);
     void on(const PaneObservationEnded& asked, loom::Mail& mail);
@@ -1396,16 +1428,12 @@ private:
     /// Answer the guest's `WorkshopQuitRequested` still owed, if any: `Ack`, or `Refused{why}`.
     void answer_quit_ask(const std::string& why, loom::Mail& mail);
 
-    struct InputActor {
-        bool known = false;
-        bool local = false;
-        loom::WeaveId participant{};
-    };
     struct ApprovedOperation {
         loom::WeaveId pane_owner{};
         std::string pane;
         std::uint64_t correlation = 0;
         std::uint64_t gesture = 0;
+        InputActor actor; ///< whose gesture approved it
     };
     ApprovedOperation approved_operation_;
     /// OBSERVATIONS A CURRENT GESTURE APPROVED (`pane_operation.hpp`): one per pane, bounded, and
@@ -1442,7 +1470,6 @@ private:
     };
     ValueDrag value_drag_;
     InputActor input_actor_;
-    InputActor gesture_actor_;
     loom::WeaveId attributed_producer_{};
     bool applying_attributed_ = false;
     bool duplicate_input(const loom::Mail& mail) const;
@@ -1508,9 +1535,10 @@ private:
     /// Menus off the screen whose requesters may still be owed an answer, oldest first, each kept
     /// until Loom refuses one of its sentences or its fence comes round twice.
     std::vector<WithdrawnMenu> withdrawn_;
-    /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button PRESS, the wheel -- counted, so a
-    /// pane's word about one of them can be asked whether it is still about the latest. A button's
-    /// release completes the gesture its press began and is not counted (`on(PointerButton)`).
+    /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button PRESS, the wheel -- numbered, so a
+    /// pane's word about one of them can be asked whether it is still about its hand's latest
+    /// (`Hand::latest`). A button's release completes the gesture its press began and is not
+    /// counted (`on(PointerButton)`).
     std::uint64_t gestures_ = 0;
     /// A gesture sent to a pane: the pane, the gesture and the correlation it went under -- the
     /// identity an answer must echo, because current desk state cannot identify an event.
@@ -1519,15 +1547,6 @@ private:
         std::uint64_t gesture = 0;
         std::uint64_t answering = 0;
     };
-    GestureSent escape_sent_;
-    /// The last declared action sent to a pane, on `escape_sent_`'s terms: what a menu request
-    /// opened by key must echo.
-    GestureSent action_sent_;
-    GestureSent shortcut_sent_;
-    /// The last primary press sent to a pane, on the same terms. A pane's own drawn `[menu]`
-    /// control is clicked with the primary button, so that press may continue into a menu too --
-    /// judged on the same three facts, and spent once.
-    GestureSent press_sent_;
     /// The second button keeps two records per button: a hold (release custody), ended by release,
     /// owner loss or arbitration; and a continuation, the newest unspent press whose pane is on the
     /// desk with nothing since but its own release (WL-PRESS-06).
@@ -1552,7 +1571,6 @@ private:
         PointedAt cell;
     };
     SecondaryHold secondary_hold_[2];
-    SecondaryContinuation secondary_cont_[2];
     /// The last menu choice a presenter reported for a pane: what `PaneManageRequested` or
     /// `PaneKeyboardRequested` must echo to continue it, honoured while its act is the latest.
     struct ChoiceAnswered {
@@ -1562,15 +1580,73 @@ private:
         PointedAt cell;
         bool spent = true;
     };
-    ChoiceAnswered choice_answered_;
-    /// The one application row this host awaits an answer to, and the keystroke that raised it: an
-    /// answer not echoing this number, or arriving after another gesture, acts on nothing.
+    /// The one application row a hand awaits an answer to, and the keystroke that raised it: an
+    /// answer not echoing this number, or arriving after that hand's next gesture, acts on nothing.
     struct AppAsked {
         std::uint64_t gesture = 0;
         std::uint64_t answering = 0;
     };
-    AppAsked app_asked_;
     std::uint64_t app_asks_ = 0;
+    /// ONE HAND'S GESTURES -- the weaver's, or one guest's -- and its own record of each it sent a
+    /// pane, so another hand's act never makes this hand's pending word stale nor overwrites it. A
+    /// record is current while its gesture is still its hand's `latest`.
+    // WL-GUEST-05 -- agents/workshop/guests.md
+    struct Hand {
+        InputActor actor;
+        std::uint64_t latest = 0; ///< the number of this hand's latest gesture (`gestures_`)
+        GestureSent escape_sent;
+        /// The last declared action sent to a pane, on `escape_sent`'s terms: what a menu request
+        /// opened by key must echo.
+        GestureSent action_sent;
+        GestureSent shortcut_sent;
+        /// The last primary press sent to a pane, on the same terms. A pane's own drawn `[menu]`
+        /// control is clicked with the primary button, so that press may continue into a menu too
+        /// -- judged on the same three facts, and spent once.
+        GestureSent press_sent;
+        SecondaryContinuation secondary_cont[2];
+        ChoiceAnswered choice_answered;
+        AppAsked app_asked;
+        /// The character this hand's own keystroke produced, which is not text it typed (WL-KEY-12).
+        std::string swallow_text;
+        /// EVERY ACT THIS HAND SENT A PANE -- an action, a press, a shortcut, a menu's choice --
+        /// newest last and bounded: what a classed ask naming no send may spend while it is
+        /// unspent, whatever this hand did since, for no send rides on it.
+        std::vector<GestureSent> kept;
+    };
+    /// The weaver's hand: platform input, and input no actor was attributed to.
+    Hand weaver_hand_;
+    /// Each guest's that has gestured, the most recent last; bounded, the oldest forgotten.
+    std::vector<Hand> guest_hands_;
+    static constexpr std::size_t kMaxGuestHands = 16;
+    static constexpr std::size_t kKeptActs = 8;
+    /// The actor of each recent gesture, by number, the newest last: whose act a menu's choice
+    /// was. Bounded; an act older than the book is no hand's latest.
+    std::vector<std::pair<std::uint64_t, InputActor>> recent_acts_;
+    static constexpr std::size_t kMaxRecentActs = 64;
+    Hand& hand_of(const InputActor& actor);
+    Hand& hand() { return hand_of(input_actor_); }
+    /// The hand `actor` has, or null for a guest whose hand the bound forgot: a lookup that makes
+    /// no hand and forgets none.
+    const Hand* find_hand(const InputActor& actor) const;
+    /// That hand's latest gesture; zero, which no gesture is, for a forgotten guest's.
+    std::uint64_t latest_of(const InputActor& actor) const;
+    /// `sent`, an act `h` just sent a pane, kept for a classed ask (`Hand::kept`).
+    void keep_act(Hand& h, const GestureSent& sent);
+    /// The act under `correlation`, spent by whatever route spent it: out of every hand's book, so
+    /// one correlation two hands hold -- a menu's opening act and its choice -- approves once.
+    void drop_kept(std::uint64_t correlation);
+    /// A new gesture by the current input actor: numbered, and that hand's latest.
+    void count_gesture();
+    /// The hand whose recent gesture `act` was, or null when the book no longer holds it.
+    Hand* hand_of_act(std::uint64_t act);
+    /// Every hand, the weaver's first.
+    template <class F>
+    void each_hand(F&& f) {
+        f(weaver_hand_);
+        for (Hand& h : guest_hands_) f(h);
+    }
+    /// Ask the desktop for one of its rows on behalf of `by`, whose keystroke raised it.
+    void request_app_action(const std::string& id, loom::Mail& mail, Hand& by);
     /// Monotonic from one: zero is never a gesture's number, and no record matches another kind's.
     std::uint64_t gesture_asks_ = 0;
     /// The quit in flight: its ask, the answers still owed, the refusals, the gestures held.
@@ -1586,9 +1662,6 @@ private:
     loom::AskBook paste_asks_{4};
     std::vector<PendingPaste> pending_pastes_;
 
-    /// The character a gesture's own keystroke produced, which is not text a weaver typed.
-    // WL-KEY-12 -- agents/workshop/keyboard.md
-    std::string swallow_text_;
 
     /// WHETHER THIS PROCESS HAS ALREADY TRIED TO TAKE BACK ITS LAST SESSION.
     // WL-SESSION-14 -- agents/workshop/session-restore.md

@@ -205,6 +205,7 @@ void WorkshopWeave::submit_terminal_line(const std::string& line) {
 }
 
 // WL-KEY-01 -- agents/workshop/keyboard.md
+// WL-GUEST-09 -- agents/workshop/guests.md
 void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // Each arm calls one operation. A weaver's keymap row naming a retired id is kept byte for byte
     // and said at load (`kRetiredActions`); nothing here answers it.
@@ -237,6 +238,12 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     // it, so it is written to the prefs file then, under three walls: no path is live-only, a
     // refused file is never overwritten (`prefs_bad_`), and a failed write says so.
     case Act::kPaneTitles: {
+        // The toggle is saved as it is stated, so it is a file write, judged for the hand.
+        if (const std::string refused = judge_classes(input_actor_, {scope::kWrite}, {});
+            !refused.empty()) {
+            say("pane titles were not toggled -- " + refused, true);
+            break;
+        }
         load_prefs(); // a toggle before any surface exists still toggles the truth
         session_.pane_titles = !session_.pane_titles;
         std::string note =

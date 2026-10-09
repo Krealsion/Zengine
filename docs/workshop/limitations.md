@@ -539,6 +539,16 @@ document's picture, which this Workshop no longer publishes, so it waits, showin
   takes the decision is later work ([external host](external-host.md)).
 - **A credential crosses the loopback socket in the clear.** The guests file refuses any
   listener but loopback; there is no transport security in the crossing.
+- **A weaver's host narrows a guest's hand only where it would write, type or reach a shell.**
+  There a guest's file writes, typed text, the editor, the Terminal, the Hotkeys pane and the
+  guests file are refused ([whose host this is](external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
+  Every other control a key or a press reaches still answers it as the weaver -- a layout's
+  removal, the desktop's launch and close, the clipboard -- and its drag still moves a press the
+  weaver holds; a value it carries and drops on the Composer or Info rests there as a draft the
+  weaver's own Submit or commit sends; the View Builder still keeps its run record (the project's
+  `view-builder.json`) for a guest's Run, Stop, New or Open; loads are still admitted by trusting
+  every artifact; and an agent with a shell as the weaver's own user still writes the weaver's
+  files.
 - **Injection enters at the Input weave**, below the platform edge: the console reader, the
   SDL queue and the OS are not exercised by it.
 - **One session at a time, and no arbitration** between a hand and an agent beyond arrival
