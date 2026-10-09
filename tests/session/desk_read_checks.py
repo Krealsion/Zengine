@@ -11,9 +11,10 @@ blocks marked as data, on every page; desk.txt holding each word at its place an
 its point; the paged pane whole, read again when its reading moved under a page; the in-flight,
 refused and covered panes said; an `out` inside a checkout, or a `panes` that is a link,
 refused with nothing written or removed; the desk number's span said; paging past 64 KiB, each
-page file one pane's; and a pinned character count for the fixture's sparse reading, so a
-reading drifting toward the whole grid is red. They claim nothing about a real Workshop's
-answers.
+page file one pane's; two panes whose provider and pane names would join as one string read and
+written apart, in either order and in one page or many; and a pinned character count for the
+fixture's sparse reading, so a reading drifting toward the whole grid is red. They claim nothing
+about a real Workshop's answers.
 
 Standalone: python desk_read_checks.py --tools <external-host/tools/desk> --runtime <loom runtime>
 (the runtime is the directory holding `loom_session`: an installed Loom's lib/loom/python, or
@@ -210,8 +211,9 @@ class Workshop(object):
     name = "desk-read-check"
 
     def __init__(self, tool, out, desk_numbers=(17, 17), keymap_refused=False, extra=None,
-                 without=(), desk_refusals=(), keymap=None):
+                 without=(), desk_refusals=(), keymap=None, carried=False):
         self.tool = tool
+        self.carried = carried  # the extra panes' first pages carried in the desk read
         self.keymap = keymap if keymap is not None else KEYMAP
         self.desk_refusals = list(desk_refusals)  # the first desk reads' refusals, in order
         self.inputs = {"out": out, "link": "workshop"}
@@ -288,6 +290,9 @@ class Workshop(object):
                     view(by[GAME], in_flight=True),
                     view(by[TERMINAL], in_flight=True),
                     view(by[LAYOUTS], LAYOUTS_WORDS, LAYOUTS_PARTS)]
+        if self.carried:
+            readings += [e[1].answer({"from": 0, "stamp": {"picture": 0}}, self.tool.Refused)
+                         for e in self.extra]
         desk = {"desk": number, "width": 1920, "height": 1080, "cell_px": 0, "space": PIXELS,
                 "room": rect(0, 42, 1920, 1000), "panes": panes, "arranging": False,
                 "menu": copy.deepcopy(MENU), "words": copy.deepcopy(BAND_WORDS),
@@ -678,6 +683,36 @@ def run_checks(tools, runtime):
                             self.assertEqual(page[1], header)
                         ref = "zengine.big/log-2" if "zq-own" in "\n".join(page) else "zengine.big/log"
                         self.assertIn(" %s " % ref, header, n)
+
+        def test_two_panes_whose_references_join_alike_keep_their_own_readings_and_files(self):
+            # A provider and a pane may each hold `/`: these are two panes, whatever one string
+            # joining their names would make of them.
+            first, second = ("org.demo/one", "two"), ("org.demo", "one/two")
+            files = {first: "org.demo_one.two.txt", second: "org.demo.one_two.txt"}
+            own = {first: "FIRST PANE ONLY zq-first", second: "SECOND PANE ONLY zq-second"}
+            pictures = {first: 31, second: 32}
+            for order in ((first, second), (second, first)):
+                for page_items in (1, 100):
+                    for carried in (False, True):
+                        with self.subTest(front=order[0], page_items=page_items, carried=carried):
+                            panes = {p: PagedPane(p, [word(i, "%s %d" % (own[p], i), 3, 60 + 18 * i)
+                                                      for i in range(3)],
+                                                  [part("%s-part" % own[p][:5].lower(), 9, 70)],
+                                                  pictures[p], page_items) for p in order}
+                            summary = read.run(Workshop(tool, self.out, carried=carried,
+                                                        extra=[(p, panes[p]) for p in order]))
+                            self.assertIn("7 of 9 presented pane(s) read", summary)
+                            folder = os.path.join(self.out, "panes")
+                            for p, other in ((first, second), (second, first)):
+                                page = text(os.path.join(folder, files[p]))
+                                for i in range(3):
+                                    self.assertIn("3,%d %s %d\n" % (69 + 18 * i, own[p], i), page)
+                                self.assertIn("  %s-part@9,70\n" % own[p][:5].lower(), page)
+                                self.assertNotIn(own[other], page)
+                                self.assertIn(" stamp=7/1/3/%d " % pictures[p], page)
+                            desk = self.file("desk.txt")
+                            for p in order:
+                                self.assertEqual(desk.count("%s 0\n" % own[p]), 1, desk)
 
         def test_a_guide_past_64_KiB_keeps_every_desk_word_quoted_as_data_on_every_page(self):
             rows = [{"group": "Board zq-group", "id": "board.move-%04d" % i,
