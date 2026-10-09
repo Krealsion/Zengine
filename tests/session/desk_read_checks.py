@@ -8,13 +8,16 @@ a refusal, a covered pane, a pane not presented, Workshop's own words, the statu
 menu -- and every ask is kept. The checks read the files the reader wrote: AGENTS.md written
 first and holding no word the desk said; guide.md quoting the desk's words only in attributed
 blocks marked as data, on every page; desk.txt holding each word at its place and each part at
-its point; the paged pane whole, read again when its reading moved under a page; the in-flight,
+its point; the glance writing each word at its own cell over a frame's edges; the paged pane
+whole, read again when its reading moved under a page; the in-flight,
 refused and covered panes said; an `out` inside a checkout, or a `panes` that is a link,
 refused with nothing written or removed; the desk number's span said; paging past 64 KiB, each
 page file one pane's; two panes whose provider and pane names would join as one string read and
 written apart, in either order and in one page or many; and a pinned character count for the
-fixture's sparse reading, so a reading drifting toward the whole grid is red. They claim nothing
-about a real Workshop's answers.
+fixture's sparse reading, so a reading drifting toward the whole grid is red. One check reads a
+menu as Workshop answers it on a window, from `desk_window_menu.json` beside them, which
+test_workshop_desk_read.cpp holds to Workshop's answer; the rest claim nothing about a real
+Workshop's answers.
 
 Standalone: python desk_read_checks.py --tools <external-host/tools/desk> --runtime <loom runtime>
 (the runtime is the directory holding `loom_session`: an installed Loom's lib/loom/python, or
@@ -24,6 +27,7 @@ Loom's own python/ directory). Pure Python; no Workshop and no Loom host run.
 import argparse
 import copy
 import importlib
+import json
 import os
 from pathlib import Path
 import re
@@ -38,6 +42,10 @@ FIXTURE_SPARSE_CHARS = 2155
 SPARSE_PIN = FIXTURE_SPARSE_CHARS + FIXTURE_SPARSE_CHARS // 10
 
 PIXELS = 2
+
+#: Workshop's own menu as Workshop answers it on a window (test_workshop_desk_read.cpp holds
+#: the file to that answer).
+MENU_FIXTURE = Path(__file__).resolve().parent / "desk_window_menu.json"
 
 
 def rect(x, y, w, h):
@@ -804,6 +812,85 @@ def run_checks(tools, runtime):
                 body += "".join(lines)
             self.assertEqual(body, text)
             self.assertEqual(render.pages("short\n", "desk.txt"), [("desk.txt", "short\n")])
+
+        def glance_rows(self, desk, panes=None):
+            """The glance of `desk`, its rows after its head line."""
+            return render.glance({"desk": desk, "panes": panes or {}}).splitlines()[1:]
+
+        def assert_at(self, rows, w, cell):
+            """`w`'s text stands whole at its own cell: column x / cx, row (y + h / 2) / cy."""
+            pl = w["place"]
+            row, col = (pl["y"] + pl["h"] // 2) // cell[1], pl["x"] // cell[0]
+            self.assertEqual(rows[row][col:col + len(w["text"])], w["text"], (row, rows[row]))
+
+        def test_a_window_menu_workshop_answered_keeps_every_line_on_the_glance(self):
+            # Workshop's own menu as Workshop answers it on a window after a secondary press on the
+            # empty desk at 80,180 (test_workshop_desk_read.cpp holds the file to that answer).
+            with open(MENU_FIXTURE, encoding="utf-8") as f:
+                said = json.load(f)
+            menu = said["menu"]
+            self.assertEqual(said["space"], PIXELS)
+            self.assertGreater(len(menu["lines"]), 1)
+            # Its first line's middle row is the glance row of its top edge.
+            first = menu["lines"][0]["place"]
+            self.assertEqual((first["y"] + first["h"] // 2) // render.WINDOW_CELL[1],
+                             menu["place"]["y"] // render.WINDOW_CELL[1])
+            rows = self.glance_rows({"width": said["width"], "height": said["height"],
+                                     "space": said["space"], "panes": [], "menu": menu})
+            for w in menu["lines"]:
+                self.assert_at(rows, w, render.WINDOW_CELL)
+
+        def test_the_glance_writes_each_word_at_its_own_cell_over_a_frames_edges(self):
+            for space, cell in ((PIXELS, render.WINDOW_CELL), (1, render.TERMINAL_CELL)):
+                with self.subTest(space=space):
+                    cx, cy = cell
+
+                    def at(col, row, text):
+                        return {"word": 0, "text": text,
+                                "place": rect(col * cx, row * cy, len(text) * cx, cy),
+                                "x": col * cx, "y": row * cy, "space": space}
+
+                    def pane(name, ref, col, row, cols, rows):
+                        return desk_pane(*ref, name=name, front=0,
+                                         visible=rect(col * cx, row * cy, cols * cx, rows * cy))
+
+                    notes, untitled = ("zq.notes", "notes"), ("zq.untitled", "untitled")
+                    band, quiet = ("zq.band", "band"), ("zq.quiet", "quiet")
+                    said = {
+                        # A framed pane: a word on its top edge at its left edge's column, one
+                        # inside, and one on its bottom edge ending on its right edge's column.
+                        notes: [at(2, 2, "zq top"), at(5, 5, "zq inside"),
+                                at(20, 9, "zq-right10")],
+                        # A pane with no name to title it, a word on its top edge.
+                        untitled: [at(34, 2, "zq untitled top")],
+                        # A band two rows tall, unframed in Workshop: every row of it an edge here.
+                        band: [at(0, 26, "zq band corner"), at(30, 27, "zq band bottom")],
+                        # A pane no word stands on the top edge of, its title kept, and a word
+                        # it says from two columns left of its frame.
+                        quiet: [at(34, 12, "zq quiet"), at(30, 14, "zq left")]}
+                    panes = [pane("Notes", notes, 2, 2, 28, 8), pane("", untitled, 32, 2, 26, 6),
+                             pane("Band", band, 0, 26, 60, 2), pane("Quiet", quiet, 32, 10, 26, 10)]
+                    menu = {"open": True, "office": "zengine.workshop", "pane": "", "picture": 1,
+                            "place": rect(10 * cx, 12 * cy, 20 * cx, 6 * cy),
+                            "lines": [at(10, 12, "> zq first action"), at(11, 13, "zq second")],
+                            "parts": []}
+                    reads = dict((asks.key(*ref), {"view": view(stamp(*ref, picture=1), words)})
+                                 for ref, words in said.items())
+                    rows = self.glance_rows({"width": 60 * cx, "height": 30 * cy, "space": space,
+                                             "panes": panes, "menu": menu}, reads)
+                    for w in [w for words in said.values() for w in words] + menu["lines"]:
+                        if w["text"] != "zq left":
+                            self.assert_at(rows, w, cell)
+                    glance = "\n".join(rows)
+                    # A title is drawn on a top edge no word of its own stands on; on one a word
+                    # stands on, nothing but the word and the edge.
+                    self.assertIn("[ Quiet ]", glance)
+                    for title in ("[ Notes ]", "[ Band ]", "[ menu ]"):
+                        self.assertNotIn(title, glance)
+                    top = rows[2][2:30]
+                    self.assertEqual(top, "zq top" + "-" * 21 + "+", top)
+                    # A word a pane says from left of its frame is cut there, never drawn beside it.
+                    self.assertEqual(rows[14][30:37], "   left", rows[14])
 
         def section(self, ref):
             """One pane's lines in desk.txt: its header and what follows to the next header."""
