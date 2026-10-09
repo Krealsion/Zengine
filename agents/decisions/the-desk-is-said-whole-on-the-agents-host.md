@@ -12,9 +12,10 @@ answered by nobody, since a bridged session speaks personally.
 
 **Decision.** Workshop answers the desk in one turn, `DeskRead`: `DeskView` v3 with its own words
 and a number that moves when any of it moves, every presented pane's stamp front to back, and as
-many panes' `PaneView` v4 readings as one decoded value holds. A pane past it is asked alone, paged
-by index under its stamp; a stamp names the holder, its incarnation, the room grant and the
-picture, and a page under a stamp that moved is refused as stale. A covered pane says its visible
+many panes' `PaneView` v4 readings as one decoded value and one reply's bytes hold. A pane past it
+is asked alone, paged by index under its stamp, each page inside the same two bounds; a stamp
+names the holder, its incarnation, the room grant and the picture, and a page under a stamp that
+moved is refused as stale. A covered pane says its visible
 words only and names what covers it. Workshop names its own Layouts' tabs as parts. Desk reads are
 bounded by a rate per asker. A guest session holding `capture` is answered the desk, the inventory
 and the keymap, and `capture`'s widening is said; an observe row reads only what its powers read.
@@ -22,6 +23,10 @@ The agent's own reader, `desk/read`, in a tool package of its own, writes the re
 the agent's host: `AGENTS.md` first, in its own fixed words, then the guide and the readings.
 
 **Alternatives considered.**
+- *Decoded cells as a reply's only bound* -- tried: a legal picture, its text at the canvas byte
+  limit and 512 parts over it, fit one decoded value in one page past Loom's frame, and the
+  channel refusing that frame failed, so a guest over the bridge never had the answer; case `"a picture at the canvas text limit under
+  overlapping parts reads whole, each page and the desk read inside one reply's bytes"`.
 - *The picture as the agent's way of seeing* -- argued against: it carries no names, parts, points
   or stamps, and it cannot be compared with the last reading.
 - *The grid written whole as the ordinary read* -- argued against: most of it is blank, and its
