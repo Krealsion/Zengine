@@ -1,0 +1,125 @@
+{
+ "width": 1800,
+ "height": 720,
+ "space": 2,
+ "menu": {
+  "open": true,
+  "office": "zengine.workshop",
+  "pane": "",
+  "picture": 0,
+  "place": {
+   "x": 80,
+   "y": 180,
+   "w": 172,
+   "h": 100
+  },
+  "lines": [
+   {
+    "word": 0,
+    "text": "> arrange desk   w",
+    "place": {
+     "x": 83,
+     "y": 183,
+     "w": 144,
+     "h": 18
+    },
+    "x": 151,
+    "y": 192,
+    "space": 2
+   },
+   {
+    "word": 1,
+    "text": "  save setup     s",
+    "place": {
+     "x": 83,
+     "y": 201,
+     "w": 144,
+     "h": 18
+    },
+    "x": 151,
+    "y": 210,
+    "space": 2
+   },
+   {
+    "word": 2,
+    "text": "  restore setup  r",
+    "place": {
+     "x": 83,
+     "y": 219,
+     "w": 144,
+     "h": 18
+    },
+    "x": 151,
+    "y": 228,
+    "space": 2
+   },
+   {
+    "word": 3,
+    "text": "  reset order",
+    "place": {
+     "x": 83,
+     "y": 237,
+     "w": 104,
+     "h": 18
+    },
+    "x": 135,
+    "y": 246,
+    "space": 2
+   }
+  ],
+  "parts": [
+   {
+    "name": "workshop.manage",
+    "text": "> arrange desk   w",
+    "place": {
+     "x": 83,
+     "y": 183,
+     "w": 160,
+     "h": 18
+    },
+    "x": 151,
+    "y": 192,
+    "space": 2
+   },
+   {
+    "name": "setup.name",
+    "text": "  save setup     s",
+    "place": {
+     "x": 83,
+     "y": 201,
+     "w": 160,
+     "h": 18
+    },
+    "x": 151,
+    "y": 210,
+    "space": 2
+   },
+   {
+    "name": "setup.restore",
+    "text": "  restore setup  r",
+    "place": {
+     "x": 83,
+     "y": 219,
+     "w": 160,
+     "h": 18
+    },
+    "x": 151,
+    "y": 228,
+    "space": 2
+   },
+   {
+    "name": "manage.reset-order",
+    "text": "  reset order",
+    "place": {
+     "x": 83,
+     "y": 237,
+     "w": 160,
+     "h": 18
+    },
+    "x": 135,
+    "y": 246,
+    "space": 2
+   }
+  ]
+ }
+}

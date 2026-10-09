@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Workshop desk suite, the desk said whole: one reading filled to the budget a reader's
-// decoder spends, the panes past it named by their stamps and read alone a page at a time, and
-// which participants Workshop answers.
+// decoder spends, the panes past it named by their stamps and read alone a page at a time, which
+// participants Workshop answers, and the desk's own menu on a window as a Python reader reads it.
 
 #include "doctest.h"
 #include "workshop_support.hpp"
@@ -21,7 +21,10 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <fstream>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <string>
@@ -363,6 +366,73 @@ std::size_t high_text_wrong(const v4::PaneView& whole) {
         if (whole.parts[0].text.find(high_text_word(i)) == std::string::npos) ++wrong;
     }
     return wrong;
+}
+
+void json_text(const std::string& text, std::string& out) {
+    out += '"';
+    for (const char ch : text) {
+        const auto byte = static_cast<unsigned char>(ch);
+        if (ch == '"' || ch == '\\') {
+            out += '\\';
+            out += ch;
+        } else if (byte < 0x20) {
+            char escaped[8];
+            std::snprintf(escaped, sizeof escaped, "\\u%04x", byte);
+            out += escaped;
+        } else {
+            out += ch;
+        }
+    }
+    out += '"';
+}
+
+void json_value(const loom::Value& v, std::size_t depth, std::string& out);
+
+void json_cell(const loom::Cell& c, std::size_t depth, std::string& out) {
+    switch (c.kind()) {
+    case loom::Kind::Int: out += std::to_string(c.as_int()); break;
+    case loom::Kind::Bool: out += c.as_bool() ? "true" : "false"; break;
+    case loom::Kind::Text: json_text(c.as_text(), out); break;
+    case loom::Kind::Message: json_value(*c.as_message(), depth, out); break;
+    case loom::Kind::List: {
+        const loom::Cell::Array& items = c.as_list();
+        out += '[';
+        for (std::size_t i = 0; i < items.size(); ++i) {
+            out += i ? ",\n" : "\n";
+            out.append(depth + 1, ' ');
+            json_cell(items[i], depth + 1, out);
+        }
+        if (!items.empty()) {
+            out += '\n';
+            out.append(depth, ' ');
+        }
+        out += ']';
+        break;
+    }
+    default: FAIL("a desk reading holds no cell of kind " << static_cast<int>(c.kind()));
+    }
+}
+
+/// A VALUE AS JSON, its fields in its shape's order, one to a line and indented a space a level:
+/// a desk reading said as Workshop said it, for a reader in Python.
+void json_value(const loom::Value& v, std::size_t depth, std::string& out) {
+    out += '{';
+    bool any = false;
+    for (std::size_t i = 0; i < v.field_count(); ++i) {
+        const loom::Cell* c = v.at(i);
+        if (c == nullptr) continue;
+        out += any ? ",\n" : "\n";
+        any = true;
+        out.append(depth + 1, ' ');
+        json_text(v.schema().fields()[i].name, out);
+        out += ": ";
+        json_cell(*c, depth + 1, out);
+    }
+    if (any) {
+        out += '\n';
+        out.append(depth, ' ');
+    }
+    out += '}';
 }
 
 } // namespace
@@ -919,4 +989,30 @@ TEST_CASE("a capture guest reads a picture at the canvas text limit whole over t
     CHECK_FALSE(guest.disconnected());
     REQUIRE(ask("zengine.workshop", correlation + 1, loom::to_value(DeskReadRequested{})));
     CHECK(loom::admit(loom::parse(answers[correlation + 1]), loom::schema_of<DeskRead>()).ok());
+}
+
+TEST_CASE("the desk's own menu opened on a window is answered as tests/session/desk_window_menu.json holds it, the menu the desk reader's glance check draws") {
+    ReadRig rig;
+    rig.r.extent_on_window(150, 60);
+    // A SECONDARY PRESS ON THE EMPTY DESK, as the window reports it: Workshop's own menu opens
+    // there, its first line on the glance row of its top edge at the window's 8 x 18 text cell.
+    rig.r.publish(loom::to_value(input::PointerButton{3, true, 80, 180, input::space::kPixels,
+                                                      input::mod::kNone}));
+    DeskRead read;
+    REQUIRE(rig.read(read).empty());
+    REQUIRE(read.desk.space == input::space::kPixels);
+    REQUIRE(read.desk.menu.open);
+    REQUIRE(read.desk.menu.lines.size() > 1);
+
+    std::string said = "{\n \"width\": " + std::to_string(read.desk.width) + ",\n \"height\": " +
+                       std::to_string(read.desk.height) + ",\n \"space\": " +
+                       std::to_string(read.desk.space) + ",\n \"menu\": ";
+    json_value(loom::to_value(read.desk.menu), 1, said);
+    said += "\n}\n";
+    std::ifstream file(ZENGINE_SOURCE_DIR "/tests/session/desk_window_menu.json", std::ios::binary);
+    REQUIRE(file.good());
+    std::string kept((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    kept.erase(std::remove(kept.begin(), kept.end(), '\r'), kept.end());
+    CHECK_MESSAGE(said == kept, "tests/session/desk_window_menu.json is not the menu Workshop "
+                                "answers; write Workshop's answer there:\n" << said);
 }
