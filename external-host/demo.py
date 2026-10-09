@@ -23,6 +23,7 @@ EXAMPLES = HERE.parent / "examples"
 sys.path.insert(0, str(PACKAGE))
 import setups as described  # noqa: E402
 from demo_setup import save_json  # noqa: E402
+import workshop_formats as formats  # noqa: E402
 
 EXE, LIB = (".exe", ".dll") if os.name == "nt" else ("", ".so")
 
@@ -168,6 +169,20 @@ def make_project(args, setup, root, build, prefix):
     return directory
 
 
+def first_files(setup, wdir):
+    """The desk and the session a root's Workshop opens on, written into `wdir`: the setup's desk
+    (at the current setup version, as `desk` gives it) less its providers' panes, and a session at
+    the current version holding it, at the setup's viewport and associated with that desk's file.
+    Returns the desk."""
+    providers = [p["role"] for p in setup.providers()]
+    first = setup.without(setup.desk(), providers)
+    save_json(wdir / "setup.json", first)
+    columns, rows = setup.get("medium")["viewport"]
+    save_json(wdir / "session.json",
+              formats.session(first, (columns * 12, rows * 12), wdir / "setup.json"))
+    return first
+
+
 def launch(args, source, root):
     build, prefix = Path(args.build).resolve(), Path(args.loom_prefix).resolve()
     module = runtime(prefix)
@@ -195,15 +210,7 @@ def launch(args, source, root):
                                % (made.returncode, root / "runtime-make.log"))
         host_dir = root / "runtime"
     cwd = make_project(args, setup, root, build, prefix) if project.get("recipes") else wdir
-    providers = [p["role"] for p in setup.providers()]
-    first = setup.without(setup.desk(), providers)
-    save_json(wdir / "setup.json", first)
-    columns, rows = setup.get("medium")["viewport"]
-    save_json(wdir / "session.json", {"zen": 1, "schema": "WorkshopSession", "version": 7, "fields": {
-        "format": "zengine-workshop-session", "format_version": "7",
-        "viewport": {"width": str(columns * 12), "height": str(rows * 12)}, "active": "0",
-        "placement": {"mode": "none", "x": "0", "y": "0", "window": "normal"},
-        "layouts": [{"desk": first["fields"], "link": {"path": str(wdir / "setup.json"), "known": first["fields"]}}]}})
+    first_files(setup, wdir)
     plan = json.loads((host_dir / ("default-load-plan.json" if args.tui else "graphical-load-plan.json")).read_text(encoding="utf-8"))
     plan["fields"]["artifacts"].append({"artifact": "zengine-demo-control", "provider": [],
                                         "weave": [{"role": "zengine.demo"}], "optional": False})

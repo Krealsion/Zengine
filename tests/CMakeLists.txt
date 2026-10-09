@@ -988,6 +988,8 @@ zengine_workshop_suite(panes
             test_workshop_inventory_folders.cpp
             test_workshop_info_views.cpp
             test_workshop_panes_terminal.cpp
+            test_workshop_panes_settings.cpp
+            test_workshop_panes_legend.cpp
             test_workshop_panes_editor.cpp
             test_workshop_editor_transfers.cpp
             test_workshop_panes_opening.cpp
@@ -1210,6 +1212,12 @@ zengine_program_test(guest_journey zengine-guest-journey
     ${CMAKE_BINARY_DIR}/guest-journey-work)
 set_tests_properties(guest_journey PROPERTIES TIMEOUT 120)
 
+# ---- Workshop's own readers over one file, for a case in another language ---------------------
+# tests/workshop_file_read.cpp answers `setup <path>` or `session <path>` with what the readers
+# Workshop runs make of the file, so a launcher's case asks the real reader of what it wrote.
+add_executable(zengine-workshop-file-read workshop_file_read.cpp)
+target_link_libraries(zengine-workshop-file-read PRIVATE ${ZENGINE_WORKSHOP_LIBS})
+
 # ---- the Workshop journey from a Loom session: the `session` gate --------------------------
 # tests/session/workshop_journey.py drives this tree's Workshop, a session host from the installed
 # Loom (its run manager and external-host/vocabulary_weave.hpp) linked to it twice, and the
@@ -1234,7 +1242,8 @@ if(LOOM_SESSION_TOOLS)
         # imported target found here is otherwise invisible.
         set_target_properties(Python3::Interpreter PROPERTIES IMPORTED_GLOBAL TRUE)
         zengine_program_test(demo_recipes Python3::Interpreter
-            ${CMAKE_CURRENT_SOURCE_DIR}/session/demo_recipes.py)
+            ${CMAKE_CURRENT_SOURCE_DIR}/session/demo_recipes.py
+            --file-reader $<TARGET_FILE:zengine-workshop-file-read>)
         zengine_program_test(workshop_journey Python3::Interpreter
             ${CMAKE_CURRENT_SOURCE_DIR}/session/workshop_journey.py
             --workshop $<TARGET_FILE:zengine-workshop>

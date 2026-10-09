@@ -55,7 +55,7 @@ struct PanePresentation {
     std::int64_t content_generation = 0; ///< doc epoch of the admitted rows, or 0
     std::int64_t routed = 0;         ///< inputs routed to this pane, ever
     std::int64_t capacity = 0;       ///< overlay slots the screen has now
-    std::int64_t setup_digest = 0;   ///< the active setup's membership and places, hashed
+    std::int64_t setup_digest = 0;   ///< the active setup's membership, places, sizes and ranks, hashed
     std::int64_t shown_by = 0;       ///< the managed operation that seated it, or 0
     ZEN_SHAPE(PanePresentation, 1, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(member),
               ZEN_FIELD(seated), ZEN_FIELD(selected), ZEN_FIELD(keyboard), ZEN_FIELD(rows),

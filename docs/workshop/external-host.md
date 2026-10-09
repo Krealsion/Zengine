@@ -774,7 +774,7 @@ press there, and is never said.
 | Builder | `zengine.builder-pane` `builder` | `recipe:<name>`, `control:<id>`, `line` | the header, a notice, the facts it reports but the recipe row, the list's heading and markers, the `loads` row, the reader's header and every output line, a strip's gaps and `+N in menu` |
 | Inventory | `zengine.inventory-pane` `inventory` | `entry:<owner>:<entry>`, `folder:<owner>:<id>`, `crumb:<owner>:<id>`, `control:up`, `control:here` | the heading; on the location row `(Up)` at the root, the separators, an elided crumb and the count in views; the markers, a notice or hint, the line being typed and its label |
 | An Inventory view | `zengine.inventory-pane` `inventory.<n>` | `entry:<owner>:<entry>`, a box holding an entry | the heading, the boxes' borders and an empty box, the selected label, the counts, a notice or hint, the line being typed and its label, `Resize` where no box fits |
-| Terminal | `zengine.terminal` `terminal` | `entry:<observation>`, `line`, `newest`, `candidate:<what it says>` | a notice, the heading, the legend, the marker above the view, an entry carrying no value, the list's heading, the history row |
+| Terminal | `zengine.terminal` `terminal` | `entry:<observation>`, `line`, `newest`, `candidate:<what it says>`, and `legend`, the legend row where its layout shows it | a notice, the heading, the marker above the view, an entry carrying no value, the list's heading, the history row |
 | Composer | `zengine.composer` `compose` | `message:<name> v<version>`, `field:<name>`, `control:submit`, `control:back` | the rows naming nothing |
 | Editor | `zengine.editor` `editor` | `status`, and `line:<n>`, a document line | |
 | Neovim's Editor | `zengine.editor` `editor` | `status` | Neovim's own screen |

@@ -320,10 +320,15 @@ std::string WorkshopWeave::off_this_screen(std::int64_t kind, const std::string&
 }
 
 // WL-DESK-12 -- agents/workshop/desktop.md
-PaneCloseAnswered WorkshopWeave::close_pane(const PaneRef& ref, loom::Mail& mail) {
+PaneCloseAnswered WorkshopWeave::close_pane(const PaneRef& ref, loom::Mail& mail,
+                                            std::vector<PaneSetting>* discarded) {
     PaneCloseAnswered out;
     out.office = ref.provider;
     out.pane = ref.pane;
+    // THE ROW'S SETTINGS LEAVE WITH IT, read first so the sentence can say which.
+    if (const SetupPane* row = pane_of(session_.setup.active, ref); row != nullptr && discarded) {
+        *discarded = row->settings;
+    }
     // THE DESK IS WHAT IS ASKED, NOT THE CATALOG: a row the weaver authored is theirs to take off
     // whether or not anything offers it -- an unavailable pane's row is exactly the intent a
     // weaver closes to stop asking for it.
@@ -346,11 +351,12 @@ void WorkshopWeave::on(const PaneCloseRequested& asked, loom::Mail& mail) {
         return; // an office, and only an office -- the seam's rule for changing the desk
     }
     const PaneRef ref{asked.office, asked.pane};
-    const PaneCloseAnswered answer = close_pane(ref, mail);
+    std::vector<PaneSetting> discarded;
+    const PaneCloseAnswered answer = close_pane(ref, mail, &discarded);
     if (!answer.refusal.empty()) {
         say(answer.refusal, true);
     } else {
-        say("hid " + inventory_name(ref) +
+        say("hid " + inventory_name(ref) + discarded_settings(discarded) +
                 " -- its provider and what it holds are untouched; showing it brings it back",
             false);
     }
@@ -652,11 +658,12 @@ void WorkshopWeave::on(const PaneToggleRequested& asked, loom::Mail& mail) {
     // hide; off it means show and focus. Through the two doors a launch and a close already go
     // through, so a toggle can do nothing they cannot.
     if (has_pane(session_.setup.active, ref)) {
-        const PaneCloseAnswered closed = close_pane(ref, mail);
+        std::vector<PaneSetting> discarded;
+        const PaneCloseAnswered closed = close_pane(ref, mail, &discarded);
         answer.closed = closed.closed;
         answer.refusal = closed.refusal;
         if (closed.closed) {
-            say("hid " + inventory_name(ref) +
+            say("hid " + inventory_name(ref) + discarded_settings(discarded) +
                     " -- its provider and what it holds are untouched; showing it brings it back",
                 false);
         }

@@ -16,8 +16,9 @@ namespace zengine::workshop {
 
 namespace {
 
-/// FNV-1a over a spelling of the active setup: membership, places, sizes and ranks. Any
-/// authored change to the desk moves it, and with it the presentation claim's revision.
+/// FNV-1a over a spelling of the active setup: membership, places, sizes and ranks. Any of those
+/// authored moves it, and with it the presentation claim's revision; the desk's name and a pane's
+/// settings do not.
 std::int64_t digest_of(const Setup& setup) {
     std::uint64_t h = 1469598103934665603ull;
     const auto mix = [&h](const std::string& s) {
@@ -132,6 +133,11 @@ void WorkshopWeave::mirror_presentation(loom::Mail& mail) {
 }
 
 void WorkshopWeave::after_delivery(loom::Mail& mail) {
+    if (canvas_room_owed_ || room_owed_) {
+        // THE PANE'S SETTINGS BEFORE THE ROOMS IT WAS SEATED IN, whatever this delivery was: the
+        // repaint owed below comes after them, and hands nothing its holder has already heard.
+        hand_settings(mail);
+    }
     if (canvas_room_owed_) {
         // THE ROOM THE PICTURE WAS SEATED IN, said to its holder after the showing and so after
         // any room an earlier repaint queued for it: whatever the holder heard before, it draws in
@@ -426,7 +432,17 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     // ALL OF IT, HERE, BEFORE ANYTHING CAN OBSERVE THE DESK: membership through the one
     // door the launch and a restore go through, the seat through the same reconcile, the
     // selection and the keys, and the pane's admitted room, rows and caret.
-    session_.setup.active = trial_.candidate;
+    // ...AND THE LIVE DESK'S NAME AND SETTINGS SURVIVE IT: the digest leaves both out, so a rename
+    // or a setting since the trial -- or another layout put live with the same panes -- is one
+    // the copy does not hold. The desk keeps the live name, and each surviving row its settings.
+    Setup desk = trial_.candidate;
+    desk.name = session_.setup.active.name;
+    for (SetupPane& row : desk.panes) {
+        if (const SetupPane* live = pane_of(session_.setup.active, row.ref)) {
+            row.settings = live->settings;
+        }
+    }
+    session_.setup.active = std::move(desk);
     apply_setup_now();
     const std::int64_t kind = trial_.kind;
     if (!session_.panes.has(kind)) {

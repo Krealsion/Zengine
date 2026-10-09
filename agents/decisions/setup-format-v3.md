@@ -6,7 +6,8 @@ supports is in [setup-file](../workshop/setup-file.md).
 **Context.** The code authors a default, the weaver authors an override, the host resolves the
 room: version 2 was a clean break carrying each pane's durable reference plus the smallest
 authored difference (`3ecaedd`, the commit that authored the window). Loom's admission refuses
-an unknown field and has no optional, so absence cannot be spelled by omission. When the lattice
+an unknown field, and the row's fields are required, so absence is not spelled by omission. When
+the lattice
 moved to sub-cells, version 3 followed and a version-2 whole-cell file had to keep loading
 (`07eb620`).
 
@@ -21,8 +22,9 @@ is refused by its number. An authored place is not an offset from the default, a
 independent; where a place is measured from is [the-whole-pixel](the-whole-pixel.md)'s.
 
 **Alternatives considered.**
-- *Spelling absence by omitting a field, or by a magic coordinate* — rejected: admission has no
-  optional, and a magic coordinate is a value a weaver could mean; the zeros give absent intent
+- *Spelling absence by omitting a field, or by a magic coordinate* — rejected: an omitted field
+  is a second spelling of absence, and a magic coordinate is a value a weaver could mean; the zeros
+  give absent intent
   one canonical spelling, pinned by case `"a default mode carries no numbers, and that is
   one canonical spelling"`.
 - *An integer mode in the file* — rejected: a renumber would silently change every saved
@@ -39,11 +41,14 @@ independent; where a place is measured from is [the-whole-pixel](the-whole-pixel
   place is measured from the room's top-left, not an offset from the default"`.
 
 **Consequences.** A fresh setup is sparse, an unresolved reference round-trips every authored
-field, and setup bytes carry no descriptor, room, handle or runtime fact. The setup keeps exactly
-one old reader because a setup is a weaver's named artifact with no session to ride.
+field, and setup bytes carry no descriptor, room, handle or runtime fact. The setup keeps its old
+readers because a setup is a weaver's named artifact with no session to ride.
 
 Version 4 keeps every rule here and says its amounts in canvas pixels, word `pixels`
 ([the-whole-pixel](the-whole-pixel.md)); a version-3 file is read back to the pixel it painted.
+Version 5 adds each pane's settings to its row
+([a-setting-is-a-typed-value-its-row-keeps](a-setting-is-a-typed-value-its-row-keeps.md)); a
+version-4 file reads with none.
 
 **Laws supported.** [WL-SETUP-01](../workshop/setup-file.md),
 [WL-SETUP-02](../workshop/setup-file.md), [WL-SETUP-03](../workshop/setup-file.md),

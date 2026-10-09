@@ -199,6 +199,8 @@ TEST_CASE("the whole-number text form: canonical out, and nothing but a whole nu
     CHECK(Form::parse("-3") == std::optional<std::int64_t>{-3}); // parses; a setter may refuse
     CHECK(Form::parse("9223372036854775807") ==
           std::optional<std::int64_t>{9223372036854775807LL});
+    CHECK(Form::parse("-9223372036854775808") ==
+          std::optional<std::int64_t>{-9223372036854775807LL - 1});
 
     CHECK_FALSE(Form::parse("").has_value());
     CHECK_FALSE(Form::parse("-").has_value());
@@ -206,6 +208,8 @@ TEST_CASE("the whole-number text form: canonical out, and nothing but a whole nu
     CHECK_FALSE(Form::parse("12x").has_value());
     CHECK_FALSE(Form::parse("70%").has_value());
     CHECK_FALSE(Form::parse("99999999999999999999").has_value()); // too big to be a number
+    CHECK_FALSE(Form::parse("9223372036854775808").has_value());
+    CHECK_FALSE(Form::parse("-9223372036854775809").has_value());
     CHECK(std::string(Form::expected()) == "a whole number");
 }
 

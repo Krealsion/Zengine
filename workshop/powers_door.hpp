@@ -369,7 +369,8 @@ struct PowersDoorState {
 };
 
 /// The host's discovery participant. A `loom::Weave` rather than a `WeaveBase`, because one of its
-/// doors is `find_powers_schema()`, whose optional fields no `ZEN_SHAPE` can declare. It holds the
+/// doors is the hand-built `find_powers_schema()`, which `WeaveBase`'s accept list, made of
+/// `ZEN_SHAPE` types, cannot hold. It holds the
 /// catalog as `const` and owns nothing: a copy would be a mirror, a non-const reference a
 /// controller. Any participant may ask, an office or one speaking for itself as the Terminal does,
 /// and the answer goes to it alone; only a send with no sender is left unanswered, and counted.

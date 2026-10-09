@@ -9,28 +9,30 @@ Retired: WL-PED-01, WL-PED-02, WL-PED-03, WL-PED-07, WL-PED-08.
 
 ## WL-PED-04 — A pane subject's rows read fresh, and nothing writes on paint
 
-LAW — A pane subject's rows say identity, then AUTHORED, then RESOLVED, each read when it is read; nothing writes on paint, and a section heading is the one widening of the row vocabulary.
+LAW — A pane subject's rows say identity, AUTHORED, RESOLVED, then any SETTINGS, each read when it is read; nothing writes on paint, and a section heading is the one widening of the row vocabulary.
 
 MEANS
-- rows close over the session and the subject, named anew when the pane, desk or layout moves;
+- rows close over the session and the subject, named anew when the pane, desk, layout or settings move;
 - `RESOLVED` rows call `bounds_of` and `pane_state_of` at the moment they are read.
 
-PROVEN BY — `workshop/screen_pane_subject.cpp` `pane_subject_rows`;
+PROVEN BY — `workshop/screen_pane_subject.cpp` `pane_subject_rows`, `settings_subject`;
 `workshop/weave_inspection.cpp` `refresh_inspected`; `workshop/property.hpp` `Row::section`;
 `tests/test_workshop_host.cpp` case `"the subject's rows say identity, then AUTHORED, then
-RESOLVED"`, case `"looking never authors"`.
+RESOLVED"`, case `"looking never authors"`; `tests/test_workshop_panes_settings.cpp` case `"a
+pane's settings are rows of its subject, named by their keys, after RESOLVED"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-05 — Every write is an existing door
 
-LAW — A subject's row writes through a door the desk already has: a typed axis through the gesture door (a reset door for `-`), a place through reseating; presence is the launch and close doors'.
+LAW — A subject's row writes through a door the desk has: an axis by the gesture door (a reset door for `-`), a setting by the settings door, a place by reseating; presence is the launch and close doors'.
 
 MEANS
 - there is no subject setter and no rectangle held anywhere;
 - `pane_window_base` is `managed_window_base`'s body: typed axes measure from the hands' window.
 
-PROVEN BY — `workshop/screen_pane_subject.cpp` `write_pane_axis`, `pane_window_base`;
-`workshop/setup.hpp` `author_pane_window`, `reset_pane_place`; `workshop/weave_session.cpp`
+PROVEN BY — `workshop/screen_pane_subject.cpp` `write_pane_axis`, `pane_window_base`,
+`write_pane_setting`; `workshop/setup.hpp` `author_pane_window`, `reset_pane_place`,
+`author_pane_setting`; `workshop/weave_session.cpp`
 `apply_setup`; `workshop/weave_arrange.cpp` `managed_window_base`;
 `workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `tests/test_workshop_host.cpp` case
 `"a typed place moves Layouts through the gesture door, and its tabs follow"`,

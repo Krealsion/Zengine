@@ -4,21 +4,21 @@
 import json
 from demo_setup import ROLE
 from hand import Hand
+import workshop_formats as formats
 from workshop_steps import moment, picture
 
 
 def run(ctx):
     link = ctx.inputs["link"]
-    layout = {"zen": 1, "schema": "WorkshopSetup", "version": 4, "fields": {
-        "format": "zengine-workshop-setup", "format_version": "4", "name": "Default comfort",
-        "panes": [{"provider": "zengine.inventory-pane", "pane": "inventory",
-                   "place": {"mode": "default", "x": "0", "y": "0"},
-                   "width": {"mode": "default", "amount": "0"},
-                   "height": {"mode": "default", "amount": "0"}, "front": "0"},
-                  {"provider": "zengine.workshop", "pane": "layouts",
-                   "place": {"mode": "default", "x": "0", "y": "0"},
-                   "width": {"mode": "default", "amount": "0"},
-                   "height": {"mode": "default", "amount": "0"}, "front": "1"}]}}
+    layout = formats.setup("Default comfort", [
+        {"provider": "zengine.inventory-pane", "pane": "inventory",
+         "place": {"mode": "default", "x": "0", "y": "0"},
+         "width": {"mode": "default", "amount": "0"},
+         "height": {"mode": "default", "amount": "0"}, "front": "0"},
+        {"provider": "zengine.workshop", "pane": "layouts",
+         "place": {"mode": "default", "x": "0", "y": "0"},
+         "width": {"mode": "default", "amount": "0"},
+         "height": {"mode": "default", "amount": "0"}, "front": "1"}])
     ctx.ask("zengine.inventory-pane", "PaneResetRequested", {"pane": "inventory"}, via=link, settle=True)
     ctx.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(layout)}, via=link, settle=True)
     hand = Hand(ctx, link)

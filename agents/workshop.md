@@ -19,7 +19,7 @@ consumer-specific behavior of its extracted panes.
 | the task touches… | read |
 |---|---|
 | the composition in pixels, the right column, the whole pixel, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
-| the setup file, a pane's default and the weaver's override, places and slots, the five states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
+| the setup file, a pane's default and the weaver's override, its settings, places and slots, the five states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [settings](workshop/settings.md) `WL-SETTING` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
 | the pane catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
@@ -78,6 +78,6 @@ Workshop suites to their subjects and registers.
   id a name opens with must be declared. Renaming a case is a register edit: its citations follow
   in the same commit. What a retired code covered is found with `git log -S'<CODE>'`.
 - That docking exists — it is still absent and still refused.
-- That a seam law is stated here. A room grant, a pressed row, a key or a wheel crossing to a
-  provider is the protocol's law; a Workshop register states the host or pane consumer's behavior.
+- That a seam law is stated here: what crosses to a provider is the protocol's law, and a
+  register states the host's or a pane consumer's behavior.
 - That a law without a witness is hidden. Each register lists its own under `## Do not assume`.

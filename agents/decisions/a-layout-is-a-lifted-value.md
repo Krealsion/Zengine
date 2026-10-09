@@ -50,7 +50,8 @@ associations, admitted by four questions plus the link.
 
 **Consequences.** `kMaxSessionBytes` is `kMaxLayouts * (2 * kMaxSetupBytes + kMaxLinkPathBytes)`
 — two desks and a path — so a session this build writes is never one it refuses. A pane in
-both layouts at unchanged capacity hears nothing across four switches, and an inactive layout is
+both layouts at unchanged capacity hears no grant across four switches, and is handed its
+settings only where the two layouts keep different ones; an inactive layout is
 an unread value with no catalog fanout. A half-association is refused. `s` and `r` still act on
 one desk, and a Setup file still means one desk.
 

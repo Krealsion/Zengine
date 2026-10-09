@@ -468,13 +468,13 @@ product never lands on it, and the image a reload opens is a per-operation copy.
 
 ### Info edits the pane grammar that exists, and no more
 
-[Info](panes.md#a-pane-as-a-subject--info) edits exactly the geometry a pane's setup row can say
-today — a place in the room (`X`, `Y`), a width and a height — and shows the rest beside it: the
-pane's rank in the front order and whether it is on the layout, which are arranging's and the
-Pane Manager's to change, and the resolved rectangle and state. It does not author anchors,
-fill, docking, locks, sibling-relative or parent-relative placement, because no pane can hold
-those yet; it does not edit what a pane *does*, wire panes together, or reach a loaded
-weave's own state; the "inspect" route from outside it is the Pane Manager's row menu
+[Info](panes.md#a-pane-as-a-subject--info) edits exactly what a pane's setup row can say today —
+a place in the room (`X`, `Y`), a width, a height and the settings the pane declares — and
+shows the rest beside it: the pane's rank in the front order and whether it is on the layout,
+which are arranging's and the Pane Manager's to change, and the resolved rectangle and state.
+It does not author anchors, fill, docking, locks, sibling-relative or parent-relative placement,
+because no pane can hold those yet; it does not edit what a pane *does*, wire panes together,
+or reach a loaded weave's own state; the "inspect" route from outside it is the Pane Manager's row menu
 (`inspect in Info`), which asks Info's own door — the right-click menu on a pane itself has no
 such row. Its default height is the stack's nine rows, which shows only a
 few rows of it at a time; `=` in the desk arrangement makes it usable, and that default is [the same open question](#panes-are-9-rows-tall-by-default-and-a-bigger-terminal-does-not-change-that)

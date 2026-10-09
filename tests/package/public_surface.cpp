@@ -64,6 +64,7 @@
 #include "workshop/pane_shortcuts.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_settings.hpp"
 
 namespace {
 
@@ -281,6 +282,22 @@ void pane_surface() {
     actions.rows.push_back(
         ws::PaneActionRow{"tally.add", "add one", zengine::input::scan::kSpace, 0});
     check(actions.rows.front().id == "tally.add", "a declared action is an id a keymap can move");
+
+    // A pane declares the settings it takes, judged by the installed judge before it is sent, and
+    // reads what it is handed by the same words a refusal uses.
+    ws::PaneSettingRow step;
+    step.key = "step";
+    step.number = 1;
+    step.low = 0;
+    step.high = 9;
+    const ws::PaneSettingsDeclared declared{offer.pane, {step}};
+    check(ws::pane_settings_declared_problem(declared).empty(),
+          "a declared setting is judged as Workshop judges it");
+    const ws::PaneSettings handed{offer.pane, {ws::PaneSetting{"step", {}, 12, {}}}};
+    check(ws::setting_kind(handed.settings.front()) == ws::SettingKind::kNumber &&
+              ws::pane_setting_refused_by(step, handed.settings.front()) ==
+                  "step takes a whole number from 0 to 9, not a number `12`",
+          "a handed setting the pane cannot use is said in the words Workshop refuses it in");
 }
 
 // ---- zengine::neovim -------------------------------------------------------------------

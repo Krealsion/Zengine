@@ -47,6 +47,10 @@ inline constexpr const char* kActionUp = "terminal.previous";       ///< older c
 inline constexpr const char* kActionDown = "terminal.next";         ///< newer command, or list down
 inline constexpr const char* kActionComplete = "terminal.complete"; ///< "help me here", or lock a recall
 
+/// THE ONE SETTING THE PANE DECLARES (`PaneSettingsDeclared`, workshop/pane_settings.hpp): whether
+/// its legend row shows in a layout, a flag that is on unless the layout keeps it off.
+inline constexpr const char* kSettingLegend = "legend";
+
 /// THE RECORD'S FOUR READING KEYS -- a page of the view each way, the oldest kept row and the newest.
 /// On Ctrl with the arrows, Home and End, which every backend reports (the vocabulary has no page
 /// keys) and which leave plain Up and Down to history and completion. The line keeps Home and End.
