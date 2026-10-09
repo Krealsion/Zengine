@@ -514,9 +514,12 @@ int main(int argc, char** argv) {
         history_policy.rules.push_back(loom::RetentionRule{
             std::string(shape), /*last_n=*/1, /*in_recent=*/false, /*retain_payload=*/false});
     }
-    // The pictures: remembered as events, not bytes.
+    // The pictures, and the notice that the desk moved: remembered as events, not bytes; the
+    // notice, as a beat is, outside recent context -- the newest stands for each before it.
     history_policy.rules.push_back(loom::RetentionRule{
         std::string(surface::SurfaceCanvas::zen_name), 1, true, false});
+    history_policy.rules.push_back(loom::RetentionRule{
+        std::string(DeskStamps::zen_name), 1, false, false});
     // The build: rare, bursty and what a weaver looks for -- a deep slot of its own, and its place
     // in recent context.
     for (const char* shape :
@@ -763,8 +766,8 @@ int main(int argc, char** argv) {
                     std::to_string(file.version).c_str(),
                     file.development() ? "a development host: guests may write and build here"
                                        : "a weaver's host: a guest writes no file, types into no "
-                                         "pane and reaches none of the editor, the Terminal and "
-                                         "the Hotkeys pane");
+                                         "pane, carries nothing and reaches none of the editor, "
+                                         "the Terminal and the Hotkeys pane");
         for (const Condition& c : guests::conditions_of(file)) host.standing_conditions.push_back(c);
         for (std::size_t i = 0; i < file.rows.size(); ++i) {
             const std::vector<std::string> losses = guests::losses_of(file.rows[i], file);

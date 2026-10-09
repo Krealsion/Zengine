@@ -575,6 +575,8 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
         {ws::DeskViewRequested::zen_name, ws::DeskViewRequested::zen_version},
         {ws::v2::DeskViewRequested::zen_name, ws::v2::DeskViewRequested::zen_version},
         {ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version},
+        {ws::v2::DeskReadRequested::zen_name, ws::v2::DeskReadRequested::zen_version},
+        {ws::v5::PaneViewRequested::zen_name, ws::v5::PaneViewRequested::zen_version},
         {ws::PaneInventoryRequested::zen_name, ws::PaneInventoryRequested::zen_version},
         {ws::KeymapRequested::zen_name, ws::KeymapRequested::zen_version}};
     for (const std::pair<const char*, std::uint32_t>& read : reads) {
@@ -1320,6 +1322,16 @@ TEST_CASE("guests file: a row's losses are what its powers do not reach on its f
         CHECK(has(losses, "the editor, the Terminal and the Hotkeys pane"));
         CHECK(has(losses, "typed text"));
         CHECK(has(losses, "opening the guests file"));
+        // ...BUT NOT A CARRY, which only `inventory` begins: the row never had one to lose.
+        CHECK_FALSE(has(losses, "carrying an item"));
+    }
+    SUBCASE("a row with input and inventory loses carrying an item on its weaver's host") {
+        row.may.push_back(guests::kPowerInventory);
+        const std::vector<std::string> losses = guests::losses_of(row, file);
+        CHECK(has(losses, "carrying an item: what a guest would carry rests in no pane here"));
+        file.version = 2;
+        file.host = guests::kHostDevelopment;
+        CHECK_FALSE(has(guests::losses_of(row, file), "carrying an item"));
     }
     SUBCASE("a version-2 row with input and build on a development host loses nothing") {
         file.version = 2;
@@ -1446,10 +1458,14 @@ TEST_CASE("action classes: a guest builds only with build, writes nothing and op
     CHECK(scope::refuse_toward(guest, weaver, "the editor").find("the editor answers only the weaver's hand") !=
           std::string::npos);
     CHECK(scope::refuse_toward(guest, development, "the editor").empty());
+    CHECK(scope::refuse_carry(guest, weaver).find("a guest's carried item rests in no pane") !=
+          std::string::npos);
+    CHECK(scope::refuse_carry(guest, development).empty());
     // NOT A GUEST: whatever its classes, a participant no door admitted is the weaver's own.
     const scope::GuestRowFacts local;
     for (const char* c : {scope::kBuild, scope::kWrite, scope::kOpen}) CHECK(scope::judge(local, weaver, c, f.path).empty());
     CHECK(scope::refuse_text(local, weaver).empty());
+    CHECK(scope::refuse_carry(local, weaver).empty());
 }
 
 TEST_CASE("door: in a file with two rows of one name, each session holds the row its own credential admitted") {
@@ -1817,6 +1833,119 @@ TEST_CASE("observation: a row without capture is refused the desk's words and pi
     const Shapes status = {{builds.shape, builds.version}};
     CHECK(ask(1, builder::kBuilderRole, status).allowed);
     CHECK(ask(3, builder::kBuilderRole, status).allowed);
+}
+
+namespace {
+
+struct NoticeTurn {
+    std::int64_t desk = 0;
+    ZEN_SHAPE(NoticeTurn, 1, ZEN_FIELD(desk));
+};
+
+/// AN OFFICE IN WORKSHOP'S NAME THAT SAYS THE DESK MOVED, as Workshop does: on each turn a case
+/// gives it, it publishes the notice with the desk number it is handed.
+class NoticeOffice
+    : public loom::WeaveBase<NoticeOffice, EarsState, loom::Accept<NoticeTurn>,
+                             loom::Emit<ws::DeskStamps>> {
+public:
+    void on(const NoticeTurn& turn, loom::Mail& mail) {
+        (void)mail.as_role("zengine.workshop")
+            .publish(ws::DeskStamps{turn.desk, {ws::v2::PaneStamp{"zengine.info", "info", 7, 1, 0,
+                                                                  turn.desk * 11}}});
+    }
+};
+
+} // namespace
+
+TEST_CASE("observation: an observe row naming DeskStamps without capture is refused in words, and a capture row listing it is told the notices, the newest standing for those its window held back") {
+    const std::string notices = std::string(R"({"producer":"zengine.workshop","shape":")") +
+                                ws::DeskStamps::zen_name + R"(","version":")" +
+                                std::to_string(ws::DeskStamps::zen_version) + R"("})";
+    Scratch f("desk-notices");
+    f.write(R"({"version":"2","guests":[)"
+            R"({"name":"hands","credential":"plain","may":["input"],"observe":[)" + notices +
+            R"(]},{"name":"eyes","credential":"sees","may":["input","capture"],"observe":[)" +
+            notices + "]}]}");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    Rig r(file);
+    auto made = std::make_unique<NoticeOffice>();
+    NoticeOffice* office = made.get();
+    loom::Grant grant = loom::emit_default_grant(*office);
+    const loom::WeaveId office_id =
+        r.bus.register_weave(std::move(made), std::move(grant), std::string("zengine.workshop"));
+    office->zen_set_self(office_id);
+    loom::observe::Relay* relay = ws::mount_observation(r.bus, *r.door, file);
+    Guest hands(r.port, "hands", "plain");
+    Guest eyes(r.port, "eyes", "sees");
+    REQUIRE(r.beat_until([&] {
+        hands.poll();
+        eyes.poll();
+        return hands.client->admitted() && eyes.client->admitted();
+    }));
+    namespace ob = loom::observe;
+    ob::Subscribe follow;
+    follow.producer = "zengine.workshop";
+    follow.shapes = {ob::ShapeRef{ws::DeskStamps::zen_name, ws::DeskStamps::zen_version}};
+    follow.latest = {ws::DeskStamps::zen_name};
+    follow.encoding = ob::kEncodingNative;
+    follow.window = 1;
+    follow.label = "suite";
+    hands.ask(ob::kObserveRole, 1, follow);
+    eyes.ask(ob::kObserveRole, 1, follow);
+    REQUIRE(r.beat_until([&] {
+        hands.poll();
+        eyes.poll();
+        return hands.answered<loom::Refused>(1).has_value() &&
+               eyes.answered<ob::Subscribed>(1).has_value();
+    }));
+    // REFUSED IN WORDS, its row naming the notice: it follows what only `capture` reads.
+    const std::string refused = hands.answered<loom::Refused>(1)->reason;
+    CHECK_MESSAGE(refused.find("may not observe DeskStamps v" +
+                               std::to_string(ws::DeskStamps::zen_version)) != std::string::npos,
+                  refused);
+    CHECK_MESSAGE(refused.find("only with `capture`") != std::string::npos, refused);
+    CHECK(relay->active() == 1);
+    // ...AND THE ROW WITH `capture` IS TOLD THE NOTICES. Its window is one word: the first notice is
+    // told, and while it stands unacknowledged the relay holds only the newest after it.
+    const auto publish = [&](std::int64_t desk) {
+        (void)r.bus.send(office_id, loom::Message(loom::to_value(NoticeTurn{desk}), {}, {}, 0));
+        r.bus.drain_until_idle();
+    };
+    const auto desk_of = [](const ob::Observed& o) {
+        const loom::Unverified u = loom::parse(std::string_view(
+            reinterpret_cast<const char*>(o.payload.data()), o.payload.size()));
+        loom::Admission a = loom::admit(u, loom::schema_of<ws::DeskStamps>());
+        REQUIRE(a.ok());
+        return loom::from_value<ws::DeskStamps>(a.value()).desk;
+    };
+    publish(3);
+    REQUIRE(r.beat_until([&] {
+        eyes.poll();
+        return eyes.said_as<ob::Observed>().size() == 1;
+    }));
+    publish(4);
+    publish(5);
+    for (int beat = 0; beat < 3; ++beat) {
+        r.beat();
+        eyes.poll();
+    }
+    REQUIRE(eyes.said_as<ob::Observed>().size() == 1);
+    const ob::Subscribed sub = *eyes.answered<ob::Subscribed>(1);
+    eyes.ask(ob::kObserveRole, 2, ob::Acknowledge{sub.subscription, sub.relay, 1});
+    REQUIRE(r.beat_until([&] {
+        eyes.poll();
+        return eyes.said_as<ob::Observed>().size() == 2;
+    }));
+    const auto told = eyes.said_as<ob::Observed>();
+    CHECK(told[0].second.shape == ws::DeskStamps::zen_name);
+    CHECK(desk_of(told[0].second) == 3);
+    CHECK(told[1].second.seq == 2);
+    CHECK(told[1].second.coalesced == 1);
+    CHECK(desk_of(told[1].second) == 5);
+    hands.poll();
+    CHECK(hands.said_as<ob::Observed>().empty());
 }
 
 TEST_SUITE_END();

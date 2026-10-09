@@ -36,7 +36,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 85; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 90; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -62,6 +62,11 @@ class GuestVocabulary final
                      // `capture` guest reads beside them: the inventory of panes and the keymap.
                      zengine::workshop::DeskReadRequested, zengine::workshop::DeskRead,
                      zengine::workshop::v4::PaneViewRequested, zengine::workshop::v4::PaneView,
+                     // ...the same with each stamp naming its picture by fingerprint, and the
+                     // notice that the desk moved, which a `capture` row may observe.
+                     zengine::workshop::v2::DeskReadRequested, zengine::workshop::v2::DeskRead,
+                     zengine::workshop::v5::PaneViewRequested, zengine::workshop::v5::PaneView,
+                     zengine::workshop::DeskStamps,
                      zengine::workshop::PaneInventoryRequested, zengine::workshop::PaneInventory,
                      zengine::workshop::KeymapRequested, zengine::workshop::KeymapShown,
                      zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,

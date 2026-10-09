@@ -139,6 +139,12 @@ def main():
                  desk_read_checks.run_checks(os.path.join(os.path.dirname(args.tools), "desk"),
                                              runtime)):
         return 1
+    import desk_watch_checks
+    if not check("T4 desk/watch follows the desk's notices, reads again only what moved and keeps "
+                 "the ring of its changes",
+                 desk_watch_checks.run_checks(os.path.join(os.path.dirname(args.tools), "desk"),
+                                              runtime)):
+        return 1
 
     work = args.work
     shutil.rmtree(work, ignore_errors=True)

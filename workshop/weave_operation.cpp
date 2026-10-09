@@ -405,6 +405,17 @@ void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bo
     const InputActor carrier = approved_operation_.actor;
     const std::uint64_t approved = approved_operation_.gesture;
     approved_operation_ = {};
+    // ON A WEAVER'S HOST WHAT A GUEST WOULD CARRY RESTS IN NO PANE, as its typed text rests in
+    // none: dropped on a pane it would stand as a draft the weaver's own Submit, commit or save
+    // sends as the weaver's. So the carry does not begin, and the one carry the desk holds stays
+    // the weaver's to take.
+    if (const std::string why = scope::refuse_carry(guest_of(carrier), host_->host_fact);
+        !why.empty()) {
+        say(why, true);
+        (void)mail.answer(PaneCarryAnswered{false, why});
+        repaint(mail);
+        return;
+    }
     // A DRAG IS THE CARRIER'S OWN APPROVED PRESS, still its latest: another hand's press, made
     // since, holds no carry of this one's.
     if (drag && (value_drag_.gesture == 0 || value_drag_.gesture != approved ||

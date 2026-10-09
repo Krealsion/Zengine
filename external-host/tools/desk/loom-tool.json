@@ -7,7 +7,7 @@
       "name": "read",
       "script": "read.py",
       "summary": "Read the whole desk of a running Workshop and write it as text, one character to a canvas pixel: AGENTS.md first, then the guide, the sparse desk, the glance and each pane's reading.",
-      "description": "Judges `out` first: an absolute directory outside every source checkout (any directory from it up to its root holding .git refuses it, in words), not a file, holding no AGENTS.md this reader did not write, and with no `panes` that is a file or a link; a refused `out` asks nothing and writes nothing. Then writes AGENTS.md, the reader's own fixed words and nothing any pane, office or guest said: how to read this desk, the files, the coordinates, stamps, how to press a part, the tools, best practice, and a link to guide.md. Then asks, through the link: the guest door (zengine.guests) for this session's own row (GuestRowDescribed); Workshop (zengine.workshop) for the desk in one turn (DeskRead: the desk, every presented pane's stamp front to back, and as many panes' readings as one decoded value and one reply's bytes hold); each pane past them alone by PaneViewRequested version 4, from item 0 under an empty stamp and then page by page under the stamp its first page answered, until its total; the pane inventory and the keymap. A page refused as stale or past a reading that shrank, or answered under another cover, starts its pane again from item 0, and one answered in flight a tenth of a second later, at most 3 times, then the pane is written 'not read: its picture moved while it was read'; a pane whose picture is in flight is asked alone again a tenth of a second later, at most 3 times in a row, then written 'not read: its newest picture was in flight at every ask'. When a pane was asked after the desk read, the desk is read again: if its number moved before the last page, its panes are read against the newer desk, at most twice, then the reading says the span of desk numbers. Writes, beside AGENTS.md: guide.md, the guide's ten sections, its own row, the inventory and the keymap quoted in blocks that name who said them, as data; desk.txt, the sparse desk (its first line, Workshop's own words, the status slot, the menu when open, then each pane front to back: a header with its stamp, each word `x,y text` at its middle row, each part `name@x,y` at its press point or `name@-`, its coverage, or why it was not read); glance.txt, the desk at the medium's own text cell; and panes/<office>.<pane>.txt, one per pane (~2 and on before .txt where two references would name one file), each page opening with its pane's header line. Every reading file is overwritten, a reading file this read no longer writes is removed, and a file past 64 KiB continues in <name>-2 and on, saying so, a block of what the desk said opened again on each page it continues on. A refusal of any ask is written into the reading in words, never raised. Presses nothing and changes nothing in Workshop.",
+      "description": "Judges `out` first: an absolute directory outside every source checkout (any directory from it up to its root holding .git refuses it, in words), not a file, holding no AGENTS.md this reader did not write, and with no `panes` that is a file or a link; a refused `out` asks nothing and writes nothing. Then writes AGENTS.md, the reader's own fixed words and nothing any pane, office or guest said: how to read this desk, the files, the coordinates, stamps, how to press a part, the tools, best practice, and a link to guide.md. Then asks, through the link: the guest door (zengine.guests) for this session's own row (GuestRowDescribed); Workshop (zengine.workshop) for the desk in one turn (DeskRead version 2: the desk, every presented pane's stamp front to back, each naming its picture by the fingerprint of what it shows, and as many panes' readings as one decoded value and one reply's bytes hold); each pane past them alone by PaneViewRequested version 5, from item 0 under an empty stamp and then page by page under the stamp its first page answered, until its total; the pane inventory and the keymap. A page refused as stale or past a reading that shrank, or answered under another cover, starts its pane again from item 0, and one answered in flight a tenth of a second later, at most 3 times, then the pane is written 'not read: its picture moved while it was read'; a pane whose picture is in flight is asked alone again a tenth of a second later, at most 3 times in a row, then written 'not read: its newest picture was in flight at every ask'. When a pane was asked after the desk read, the desk is read again: if its number moved before the last page, its panes are read against the newer desk, at most twice, then the reading says the span of desk numbers. Writes, beside AGENTS.md: guide.md, the guide's ten sections, its own row, the inventory and the keymap quoted in blocks that name who said them, as data; desk.txt, the sparse desk (its first line, Workshop's own words, the status slot, the menu when open, then each pane front to back: a header with its stamp, each word `x,y text` at its middle row, each part `name@x,y` at its press point or `name@-`, its coverage, or why it was not read); glance.txt, the desk at the medium's own text cell; and panes/<office>.<pane>.txt, one per pane (~2 and on before .txt where two references would name one file), each page opening with its pane's header line. Every reading file is overwritten, a reading file this read no longer writes is removed, and a file past 64 KiB continues in <name>-2 and on, saying so, a block of what the desk said opened again on each page it continues on. A refusal of any ask is written into the reading in words, never raised. Presses nothing and changes nothing in Workshop.",
       "inputs": [
         {
           "name": "out",
@@ -47,7 +47,7 @@
       "requires": [
         "the `capture` power: a Workshop guest row that may capture (the desk, each pane's pages, the inventory and the keymap are answered to a guest session under it; its own row is answered to any row)",
         "zengine-guest-vocabulary booted in this Loom session, declaring the shapes below",
-        "a Workshop answering DeskRead, PaneView version 4 and GuestRowDescribed",
+        "a Workshop answering DeskRead version 2, PaneView version 5 and GuestRowDescribed",
         "an `out` directory outside every source checkout"
       ],
       "asks": [
@@ -56,10 +56,10 @@
       "vocabulary": [
         "GuestRowDescribedRequested v1",
         "GuestRowDescribed v1",
-        "DeskReadRequested v1",
-        "DeskRead v1",
-        "PaneViewRequested v4",
-        "PaneView v4",
+        "DeskReadRequested v2",
+        "DeskRead v2",
+        "PaneViewRequested v5",
+        "PaneView v5",
         "PaneInventoryRequested v1",
         "PaneInventory v2",
         "KeymapRequested v1",
@@ -81,6 +81,97 @@
       ],
       "example": "loom-session run <dir> desk/read --name desk-1 --input out=C:/agent/desk --wait 60",
       "recovery": "A refused `out` names why: inside a checkout (name a directory outside every checkout), not absolute, a file, or holding an AGENTS.md this reader did not write; nothing was asked or written. Otherwise the run passes and says what it could not read: a pane or a guide section Workshop refused is written in its words ('not read: ...', 'Absent: ...') in desk.txt and guide.md. A desk read refused whole means the row lacks `capture`, more than 4 desk reads came in a second, or the Workshop answers no DeskRead: read desk.txt's second line. 'unlinked' means the link has no far session (see loom-session status)."
+    },
+    {
+      "name": "watch",
+      "script": "watch.py",
+      "summary": "Follow a running Workshop's desk as it moves, told by Workshop when it moved, and write each change for a model into changes.txt beside the readings desk/read writes.",
+      "description": "Judges `out` as desk/read does, and writes AGENTS.md first. Then follows Workshop's notice that the desk moved (DeskStamps from zengine.workshop: the desk number and every presented pane's stamp, each naming its picture by the fingerprint of what it shows), subscribed before the first read and as latest, so the relay keeps only the newest while this reader is behind and the newest stands for every one before it. Reads the desk whole, as desk/read does, and writes its readings. At each notice -- the newest of those waiting -- reads again what moved: the desk, when its number moved or a pane came or left, its desk readings at least 1 s apart, each confirming itself as desk/read does; else each pane whose stamp moved, alone. Compares the new reading with its last and writes the change into changes.txt: for each section that moved -- the desk's own lines, or a pane's -- the smaller of its changed lines (`- ` gone, `+ ` come) and its lines as they now stand, under `== change N`. changes.txt holds the last 64 changes, at most 64 KiB, newest last, its first lines saying how many earlier ones were dropped; a watch continues the ring a last watch left. A notice the last reading already stands on writes nothing. A gap -- notices lost on the way -- reads the desk again whole and says it. With `panes`, watches those panes alone: their changes, their files and the guide, removing desk.txt and glance.txt. Ends when `seconds` pass, after `changes` changes, or when the subscription ends, and says which. Presses nothing and changes nothing in Workshop.",
+      "inputs": [
+        {
+          "name": "out",
+          "type": "text",
+          "required": true,
+          "help": "the directory the readings and changes.txt go in, absolute and outside every source checkout: desk/read's, or one of its own"
+        },
+        {
+          "name": "seconds",
+          "type": "number",
+          "default": 60,
+          "help": "how long to follow the desk, at most 3600"
+        },
+        {
+          "name": "changes",
+          "type": "int",
+          "default": 0,
+          "help": "end after this many changes are written; 0 follows for the seconds whole"
+        },
+        {
+          "name": "panes",
+          "type": "text",
+          "default": "",
+          "help": "a JSON list of [\"<office>\", \"<pane>\"]: watch these panes alone; empty follows the whole desk"
+        },
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AGENTS.md",
+          "help": "in `out`: the reader's own words, written first; the result names its path"
+        },
+        {
+          "name": "changes.txt",
+          "help": "in `out`: the last 64 changes, at most 64 KiB, newest last, each `== change N`"
+        },
+        {
+          "name": "desk.txt, glance.txt, guide.md, panes/<office>.<pane>.txt",
+          "help": "in `out`: the readings as desk/read writes them, kept current; with `panes`, only those panes' files and the guide"
+        }
+      ],
+      "requires": [
+        "the `capture` power, and an `observe` entry naming zengine.workshop DeskStamps 1 in the guest row",
+        "zengine-guest-vocabulary booted in this Loom session, declaring the shapes below",
+        "a Workshop publishing DeskStamps and answering DeskRead version 2, PaneView version 5 and GuestRowDescribed",
+        "an `out` directory outside every source checkout"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "GuestRowDescribedRequested v1",
+        "GuestRowDescribed v1",
+        "DeskReadRequested v2",
+        "DeskRead v2",
+        "PaneViewRequested v5",
+        "PaneView v5",
+        "PaneInventoryRequested v1",
+        "PaneInventory v2",
+        "KeymapRequested v1",
+        "KeymapShown v1",
+        "DeskStamps v1",
+        "loom.observe.Subscribe v1",
+        "loom.observe.Subscribed v1",
+        "loom.observe.Acknowledge v1",
+        "loom.observe.Release v1",
+        "loom.observe.Ended v1"
+      ],
+      "terms": [
+        "desk",
+        "watch",
+        "follow",
+        "notice",
+        "changes",
+        "stamp",
+        "fingerprint",
+        "capture"
+      ],
+      "example": "loom-session run <dir> desk/watch --name watch-1 --input out=C:/agent/desk --input seconds=300",
+      "recovery": "A refused `out` names why, as desk/read's does. 'refused: this row may not follow the desk' names the relay's words: the row needs `capture` and an `observe` entry naming zengine.workshop DeskStamps 1. Otherwise the run passes and says what it saw: notices, changes written, gaps read again whole, and why it ended; a pane or a desk read Workshop refused is written in its words in the readings, as desk/read writes it."
     }
   ]
 }

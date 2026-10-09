@@ -253,15 +253,17 @@ void WorkshopWeave::on(const v4::PaneContent& content, loom::Mail& mail) {
                   content.picture, mail, &content.parts);
 }
 
-// WL-DESK-14 -- agents/workshop/desktop-presenting.md
+// WL-DESK-14 -- agents/workshop/desktop-presenting.md; WL-READ-07 -- agents/workshop/desk-read.md
 void WorkshopWeave::fence_pictures(loom::Mail& mail) {
     // WHICH NUMBERED PICTURES THIS CANVAS HANDED OUT FOR THE FIRST TIME -- a pane's, and a
     // presented menu's. A picture already in flight, or already the stamp, needs no second fence;
     // a repaint that moved no picture sends nothing, so the bus does not carry a fence per repaint.
+    // A pane whose number stayed hands out what it shows now under that number, at once.
     const std::int64_t number = fences_ + 1;
     bool handed_out = false;
     for (ExternalPane& pane : session_.panes.external) {
-        handed_out = pane.stamp.hand_out(pane.picture, number) || handed_out;
+        handed_out =
+            pane.stamp.hand_out(pane.picture, number, picture_fingerprint(pane)) || handed_out;
     }
     if (session_.presented.open) {
         handed_out =
@@ -277,7 +279,7 @@ void WorkshopWeave::fence_pictures(loom::Mail& mail) {
         .send_to_role(kWorkshopProvider, PictureFence{number, 1});
 }
 
-// WL-DESK-14 -- agents/workshop/desktop-presenting.md
+// WL-DESK-14 -- agents/workshop/desktop-presenting.md; WL-READ-06 -- agents/workshop/desk-read.md
 void WorkshopWeave::on(const PictureFence& fence, loom::Mail& mail) {
     if (!mail.authored_from_role(kWorkshopProvider) || fence.number <= 0 ||
         fence.number > fences_) {
@@ -298,7 +300,9 @@ void WorkshopWeave::on(const PictureFence& fence, loom::Mail& mail) {
         pane.stamp.come_round(fence.number);
     }
     session_.presented.stamp.come_round(fence.number);
-    // Nothing is repainted: what a press is stamped with is not something a weaver sees.
+    // Nothing is repainted: what a press is stamped with is not something a weaver sees. A reading
+    // stands on the picture aimed at, so a notice may be owed.
+    stamps_owed_ = true;
 }
 
 // Content naming its generation (WL-OPEN-03).

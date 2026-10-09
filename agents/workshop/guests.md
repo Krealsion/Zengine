@@ -113,17 +113,17 @@ files.open reaches Files before Workshop answers it"`; `tests/test_workshop_pane
 and chooses the row its press armed"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
-## WL-GUEST-06 — On a weaver's host the editor, the Terminal and typing answer only the weaver
+## WL-GUEST-06 — On a weaver's host the editor, the Terminal, typing and carrying answer only the weaver
 
-LAW — On a weaver's host a guest's keys, text, presses, wheels and drops toward the editor office, the Terminal or the Hotkeys pane, and its typed text anywhere, are refused in words at the dispatch.
+LAW — On a weaver's host a guest's keys, text, presses, wheels and drops toward the editor office, the Terminal or the Hotkeys pane, its typed text anywhere and any carry it would begin are refused in words.
 
 MEANS
 - by office, whichever implementation holds it; a refused press moves no keys and no selection;
-- no buffer, field or line holds text a guest typed for the weaver to commit as the weaver's own;
+- no buffer, field or line holds text a guest typed, or an item it carried, for the weaver to commit as the weaver's own;
 - on a development host a guest's hand reaches them as the weaver's does.
 
-PROVEN BY — `workshop/weave_operation.cpp` `refused_toward`, `drop_carry`; `workshop/actor_scope.hpp`
-`refuse_toward`, `refuse_text`; `workshop/weave_external.cpp` `external_key`;
+PROVEN BY — `workshop/weave_operation.cpp` `refused_toward`, `drop_carry`, `accept_carry`;
+`workshop/actor_scope.hpp` `refuse_toward`, `refuse_text`, `refuse_carry`; `workshop/weave_external.cpp` `external_key`;
 `workshop/weave_pointer.cpp` `on(TextEntered)`, `on(PointerButton)`, `on(PointerWheel)`;
 `workshop/pane_seam_vocabulary.hpp` `kEditorRole`, `kTerminalRole`, `kHotkeysPane`;
 `tests/test_workshop_panes_guests.cpp` case `"on a weaver's host a guest's keys, text, save and
@@ -132,7 +132,10 @@ weaver's host a guest's keys and presses toward the Terminal are refused, and no
 no editor switch asked"`, case `"on a weaver's host a guest's text toward Info, the Composer,
 Layouts' naming line and a Flow dialog field is refused, and the weaver's commit carries none of
 it"`, case `"on a development host the same guest types into the Editor and saves, types a Terminal
-line, and toggles titles"`; `tests/test_workshop_editor_transfers.cpp` case `"on a weaver's host a
+line, and toggles titles"`, case `"on a weaver's host a guest's carried item rests in no pane: its carry
+is refused in words before it begins, so nothing it drops on Info or the Composer lands, and the
+weaver's own carry does"`, case `"on a development host the same guest's carried item lands on Info and
+on the Composer as a draft"`; `tests/test_workshop_editor_transfers.cpp` case `"on a weaver's host a
 guest's wheel and value drop toward the Editor are refused, and the Editor hears neither"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
@@ -202,19 +205,22 @@ LAW — A row without `capture` is refused, in words, every observed publication
 
 MEANS
 - the desk's words and picture are `SurfaceCanvas`, `SurfaceText`, `TranscriptShown`, `PaneSubjectShown`, `PaneInventory`, `KeymapShown` and `StandingConditions`, from any producer;
-- `capture` reads the desk said whole, the inventory and the keymap; it is said at launch and on Attention.
+- `capture` reads the desk said whole, the inventory and the keymap; it is said at launch and on Attention;
+- `DeskStamps`, the notice that the desk moved, says no word but follows them, so it needs `capture` too.
 
 DOES NOT MEAN
 - that `ClipboardCopy` is anyone's yet: it needs `clipboard`, a power no file of this version grants.
 
-PROVEN BY — `workshop/guests.cpp` `observation_of`, `carries_the_desk`, `gains_of`, `grant_for`;
+PROVEN BY — `workshop/guests.cpp` `observation_of`, `carries_the_desk`, `follows_the_desk`, `gains_of`, `grant_for`;
 `workshop/attention.hpp` `guest_row_gains`; `tests/test_workshop_guests.cpp` case `"observation: a
 row without capture is refused the desk's words and pictures, every row is refused ClipboardCopy,
 and a capture row may observe StandingConditions"`, case `"door: in a file with two rows of one
 name, the session admitted under the row without capture is refused a capture read and a capture
 observation"`, case `"guests file: capture's widening is said as a gain"`;
 `tests/test_workshop_host.cpp` case `"a development host and each row's losses stand as conditions
-on Attention"`.
+on Attention"`; `tests/test_workshop_guests.cpp` case `"observation: an observe row naming DeskStamps
+without capture is refused in words, and a capture row listing it is told the notices, the newest
+standing for those its window held back"`.
 WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 
 ## Do not assume
@@ -224,7 +230,5 @@ WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 - That the sweep of writes is closed: a write a shipped act makes and no class names is a defect,
   and the View Builder's run record is the pane's own keeping, written whatever hand acts.
 - That a guest's motion is refused: its drag still moves a press the weaver holds.
-- That a guest's carried value is refused a pane: dropped on the Composer or Info, it rests there as
-  a draft the weaver's own Submit or commit sends.
 - That every classed act sent straight to its owner asks about its sender: `FlowEdit` and
   `ViewEdit` write, and no guest's grant names them, so they ask nothing.

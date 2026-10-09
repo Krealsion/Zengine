@@ -226,8 +226,12 @@ void WorkshopWeave::admit_canvas_content(const v5::PaneCanvasContent& content, l
         // A late picture is answered to its pane alone. One refused for what it holds is said
         // where the weaver reads, as a refused prose update is, until a picture of the pane is
         // admitted; the picture last admitted stands, marked (`paint_external`).
+        // ...AND WHICH ROOM IT REFUSED, which says whether anything of the pane stands: a refusal
+        // moved to the current room is repainted for, so what the pane shows is fingerprinted again.
+        const bool room_moved = late.empty() && pane->refused_grant != content.grant;
         if (late.empty()) pane->refused_grant = content.grant;
-        if (late.empty() && (pane->refusal != kExternalPictureRefused || pane->refusal_why != reason)) {
+        if (late.empty() && (room_moved || pane->refusal != kExternalPictureRefused ||
+                             pane->refusal_why != reason)) {
             pane->refusal = kExternalPictureRefused;
             pane->refusal_why = std::string(reason);
             repaint(mail);
