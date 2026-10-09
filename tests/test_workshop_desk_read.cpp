@@ -8,16 +8,24 @@
 #include "doctest.h"
 #include "workshop_support.hpp"
 #include "workshop/decoded_cells.hpp"
+#include "workshop/guest_door.hpp"
+#include "workshop/guests.hpp"
+#include "workshop/reply_bytes.hpp"
+#include "timer/vocabulary.hpp"
 
+#include <zen/bridge/client.hpp>
 #include <zen/serialize.hpp>
+#include <zen/wire.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -299,6 +307,62 @@ v4::PaneCanvasContent full_picture() {
                                          row * kPaneCanvasUnit, kPaneCanvasUnit, kPaneCanvasUnit});
     }
     return p;
+}
+
+/// THE BYTES OF EACH LABEL A HIGH-TEXT PICTURE DRAWS, and how many parts it names over them.
+constexpr std::size_t kHighTextBytes = 64;
+constexpr std::size_t kHighTextParts = 512;
+
+std::string high_text_word(std::size_t i) {
+    std::string word = "h" + std::to_string(i) + "-";
+    word.resize(kHighTextBytes, 'x');
+    return word;
+}
+
+/// A PICTURE AT THE CANVAS TEXT LIMIT UNDER OVERLAPPING PARTS: as many labels of `kHighTextBytes`
+/// as the canvas text budget holds, on four rows, and `kHighTextParts` parts of their own names,
+/// each over all of them, so every part's reading repeats every label's text.
+v4::PaneCanvasContent high_text_picture() {
+    v4::PaneCanvasContent p;
+    for (std::size_t i = 0; i < kPaneCanvasMaxTextBytes / kHighTextBytes; ++i) {
+        p.labels.push_back(PaneCanvasLabel{0, static_cast<std::int64_t>(i % 4) * kPaneCanvasUnit,
+                                           high_text_word(i), surface::role::kFill});
+    }
+    for (std::size_t i = 0; i < kHighTextParts; ++i) {
+        p.parts.push_back(PaneCanvasPart{"over" + std::to_string(i), 0, 0,
+                                         static_cast<std::int64_t>(kHighTextBytes) * kPaneCanvasUnit,
+                                         4 * kPaneCanvasUnit});
+    }
+    return p;
+}
+
+/// A DESK OF ONE CANVAS PANE WITH ROOM FOR A HIGH-TEXT PICTURE, drawn.
+void open_high_text(ReadRig& d, const std::string& office) {
+    (void)d.open_canvas(office, static_cast<std::int64_t>(kHighTextBytes) + 2, 8);
+    d.place(0, 2, 2, static_cast<std::int64_t>(kHighTextBytes) + 8, 14);
+    d.reseat();
+    d.draw(0, high_text_picture());
+}
+
+/// THE ITEMS `pages` HOLD TOGETHER ARE THE HIGH-TEXT PICTURE'S, in order: each label its word, and
+/// each part by its name, repeating every label's text. Counts the items that are not.
+std::size_t high_text_wrong(const v4::PaneView& whole) {
+    REQUIRE(whole.words.size() == kPaneCanvasMaxTextBytes / kHighTextBytes);
+    REQUIRE(whole.parts.size() == kHighTextParts);
+    std::size_t wrong = 0;
+    for (std::size_t i = 0; i < whole.words.size(); ++i) {
+        if (whole.words[i].text != high_text_word(i)) ++wrong;
+    }
+    for (std::size_t i = 0; i < whole.parts.size(); ++i) {
+        if (whole.parts[i].name != "over" + std::to_string(i) ||
+            whole.parts[i].text != whole.parts[0].text) {
+            ++wrong;
+        }
+    }
+    for (std::size_t i = 0; i < whole.words.size(); ++i) {
+        if (whole.parts[0].text.find(high_text_word(i)) == std::string::npos) ++wrong;
+    }
+    return wrong;
 }
 
 } // namespace
@@ -711,4 +775,148 @@ TEST_CASE("a capture guest's asks for the desk, a pane's page, the inventory and
     guest_asks(d, granted, granted_id, ask_lists);
     CHECK(count_of(granted->answered, "PaneInventory") == 1);
     CHECK(count_of(granted->answered, "KeymapShown") == 1);
+}
+
+TEST_CASE("a picture at the canvas text limit under overlapping parts reads whole, each page and the desk read inside one reply's bytes") {
+    ReadRig d;
+    const std::string office = "zengine.test.read-high";
+    (void)d.open_canvas(office, static_cast<std::int64_t>(kHighTextBytes) + 2, 8);
+    d.place(0, 2, 2, static_cast<std::int64_t>(kHighTextBytes) + 8, 14);
+    d.reseat();
+    // A SMALL PICTURE FIRST: the desk read carries its reading whole, in the one turn.
+    v4::PaneCanvasContent small;
+    small.labels.push_back(PaneCanvasLabel{0, 0, "small", surface::role::kFill});
+    d.draw(0, small);
+    DeskRead desk;
+    REQUIRE(d.read(desk).empty());
+    const auto carried = [&] {
+        return std::find_if(desk.panes.begin(), desk.panes.end(), [&](const v4::PaneView& v) {
+            return v.provider == office && v.pane == kReadPane;
+        });
+    };
+    REQUIRE(carried() != desk.panes.end());
+    CHECK(carried()->total == 1);
+    CHECK(item_count(*carried()) == 1);
+
+    // THE HIGH-TEXT PICTURE: the desk read stays inside one reply's bytes, and names the pane by
+    // its stamp alone.
+    d.draw(0, high_text_picture());
+    REQUIRE(d.read(desk).empty());
+    CHECK(reply_bytes(loom::to_value(desk)) <= kReplyByteBudget);
+    CHECK(decoded_cells(loom::to_value(desk)) <= kDecodedCellBudget);
+    CHECK(carried() == desk.panes.end());
+    const auto stamp = std::find_if(desk.stamps.begin(), desk.stamps.end(), [&](const PaneStamp& s) {
+        return s.provider == office && s.pane == kReadPane;
+    });
+    REQUIRE(stamp != desk.stamps.end());
+
+    // READ ALONE, page by page under its stamp: each page inside one reply's bytes, in either
+    // serialization, and one decoded value.
+    std::vector<v4::PaneView> pages;
+    const std::string why = read_alone(d, *stamp, pages);
+    REQUIRE_MESSAGE(why.empty(), why);
+    REQUIRE(pages.size() >= 2);
+    for (const v4::PaneView& p : pages) {
+        const loom::Value page = loom::to_value(p);
+        const std::size_t native = loom::serialize(page).size();
+        const std::size_t json = loom::compat::serialize(page).size();
+        CHECK_MESSAGE(native <= static_cast<std::size_t>(kReplyByteBudget),
+                      "the page from " << p.from << " is " << native << " bytes");
+        CHECK_MESSAGE(json <= static_cast<std::size_t>(kReplyByteBudget),
+                      "the page from " << p.from << " is " << json << " bytes of JSON");
+        CHECK(decoded_cells(page) <= kDecodedCellBudget);
+        CHECK(stands_on(p, view_stamp(pages.front())));
+    }
+    // TOGETHER THE PAGES ARE THE WHOLE PICTURE, every label and every part with every label's text,
+    // and more than one of Loom's frames could carry at once.
+    const v4::PaneView whole = joined(pages);
+    CHECK(high_text_wrong(whole) == 0);
+    CHECK(loom::serialize(loom::to_value(whole)).size() > loom::kMaxFrameLen);
+}
+
+TEST_CASE("a capture guest reads a picture at the canvas text limit whole over the bridge, page by page, and its connection answers the next ask") {
+    ReadRig d;
+    const std::string office = "zengine.test.read-high";
+    open_high_text(d, office);
+
+    // WORKSHOP'S OWN DOOR on the rig's bus, a row of the guests file holding `capture`.
+    guests::GuestsFile file;
+    file.rows.push_back(guests::GuestRow{"agent", "desk-key", {"capture"}, {}, false});
+    std::string err;
+    REQUIRE(loom::bridge_net_init(&err));
+    const loom::socket_t listener = loom::bridge_listen_tcp(0, &err);
+    REQUIRE_MESSAGE(listener != loom::kInvalidSocket, err);
+    const std::uint16_t port = loom::bridge_socket_port(listener);
+    auto made = std::make_unique<GuestDoor>(d.r.bus, listener, "127.0.0.1:" + std::to_string(port),
+                                            file);
+    GuestDoor* door = made.get();
+    const loom::WeaveId door_id =
+        d.r.bus.register_weave(std::move(made), guest_door_grant(), std::string(kGuestsRole));
+    door->zen_set_self(door_id);
+
+    // THE GUEST, on the far side of the socket, keeping each answer by the ask it answers.
+    const loom::socket_t s = loom::bridge_connect_tcp("127.0.0.1", port, &err);
+    REQUIRE_MESSAGE(s != loom::kInvalidSocket, err);
+    loom::BridgeClient guest(s);
+    REQUIRE(guest.hello("agent", "desk-key"));
+    std::map<std::uint64_t, std::string> answers;
+    const auto until = [&](const std::function<bool()>& done) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+        for (;;) {
+            (void)d.r.bus.send(door_id, loom::Message(loom::to_value(
+                                            zengine::timer::TimerFired{kGuestBeatId})));
+            d.r.bus.drain_until_idle();
+            std::vector<loom::BridgeEvent> got;
+            guest.poll(got);
+            for (loom::BridgeEvent& e : got) {
+                if (e.kind == loom::BridgeEvent::Kind::Delivered) {
+                    answers[e.correlation] = std::move(e.payload);
+                }
+            }
+            if (done()) return true;
+            if (guest.disconnected() || std::chrono::steady_clock::now() >= deadline) return done();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    };
+    const auto ask = [&](const char* role, std::uint64_t correlation, const loom::Value& v) {
+        guest.send_to_role(role, correlation, loom::serialize(v));
+        guest.flush();
+        return until([&] { return answers.count(correlation) != 0; });
+    };
+    REQUIRE(until([&] { return guest.admitted(); }));
+
+    // THE DESK, then the pane page by page under the stamp the desk read names, each answer inside
+    // one reply's bytes.
+    REQUIRE(ask("zengine.workshop", 1, loom::to_value(DeskReadRequested{})));
+    const loom::Admission read = loom::admit(loom::parse(answers[1]), loom::schema_of<DeskRead>());
+    REQUIRE(read.ok());
+    const DeskRead desk = loom::from_value<DeskRead>(read.value());
+    const auto stamp = std::find_if(desk.stamps.begin(), desk.stamps.end(), [&](const PaneStamp& st) {
+        return st.provider == office && st.pane == kReadPane;
+    });
+    REQUIRE(stamp != desk.stamps.end());
+    std::vector<v4::PaneView> pages;
+    std::uint64_t correlation = 2;
+    for (std::int64_t from = 0;; ++correlation) {
+        REQUIRE_MESSAGE(ask("zengine.workshop", correlation,
+                            loom::to_value(v4::PaneViewRequested{office, kReadPane, from, *stamp})),
+                        "the page from " << from << " never came; the connection "
+                                         << (guest.disconnected() ? "ended" : "is still open"));
+        const std::string& payload = answers[correlation];
+        CHECK(payload.size() <= static_cast<std::size_t>(kReplyByteBudget));
+        const loom::Admission page = loom::admit(loom::parse(payload), loom::schema_of<v4::PaneView>());
+        REQUIRE_MESSAGE(page.ok(), "the page from " << from << " was not a PaneView");
+        pages.push_back(loom::from_value<v4::PaneView>(page.value()));
+        answers.erase(correlation);
+        REQUIRE(item_count(pages.back()) > 0);
+        from += item_count(pages.back());
+        if (from >= pages.back().total) break;
+    }
+    REQUIRE(pages.size() >= 2);
+    CHECK(high_text_wrong(joined(pages)) == 0);
+
+    // ...AND THE SAME CONNECTION ANSWERS THE NEXT ASK.
+    CHECK_FALSE(guest.disconnected());
+    REQUIRE(ask("zengine.workshop", correlation + 1, loom::to_value(DeskReadRequested{})));
+    CHECK(loom::admit(loom::parse(answers[correlation + 1]), loom::schema_of<DeskRead>()).ok());
 }

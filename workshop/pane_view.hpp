@@ -304,8 +304,8 @@ struct DeskView {
 } // namespace v3
 
 /// THE DESK IN ONE TURN: the desk, every presented pane's stamp front to back, and as many of
-/// those panes' readings, in that order, as one decoded value holds. A stamp past the last reading
-/// names a pane to ask by `v4::PaneViewRequested`.
+/// those panes' readings, in that order, as one decoded value and one reply's bytes hold. A stamp
+/// past the last reading names a pane to ask by `v4::PaneViewRequested`.
 struct DeskReadRequested {
     ZEN_SHAPE(DeskReadRequested, 1);
 };

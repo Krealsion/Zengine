@@ -7,6 +7,7 @@
 
 #include "weave.hpp"
 #include "decoded_cells.hpp"
+#include "reply_bytes.hpp"
 #include "screen_canvas.hpp"
 #include "pane_canvas_rows.hpp"
 
@@ -849,25 +850,42 @@ std::vector<std::string> layout_part_names(const SetupState& setup) {
     return names;
 }
 
-/// THE ITEMS OF ONE READING FROM `from`, as many as one decoded value holds beside the rest.
-v4::PaneView page_of(const v4::PaneView& whole, std::int64_t from, std::int64_t budget) {
-    v4::PaneView page = whole;
-    page.words.clear();
-    page.parts.clear();
-    page.from = from;
-    std::int64_t cells = decoded_cells(loom::to_value(page));
+/// ONE PAGE OF A READING, and at most what it spends: its decoded cells and its reply bytes.
+struct Page {
+    v4::PaneView view;
+    std::int64_t cells = 0, bytes = 0;
+};
+
+/// THE ITEMS OF ONE READING FROM `from`, as many as `cells` decoded cells and `bytes` reply bytes
+/// hold beside the rest. An item adds at most its own reply bytes and a comma (`reply_bytes`), so
+/// the page's bytes are at most what is counted.
+Page page_of(const v4::PaneView& whole, std::int64_t from, std::int64_t cells, std::int64_t bytes) {
+    Page page;
+    page.view = whole;
+    page.view.words.clear();
+    page.view.parts.clear();
+    page.view.from = from;
+    const loom::Value shell = loom::to_value(page.view);
+    page.cells = decoded_cells(shell);
+    page.bytes = reply_bytes(shell);
     const auto nwords = static_cast<std::int64_t>(whole.words.size());
     for (std::int64_t i = from; i < whole.total; ++i) {
-        const std::int64_t cost =
-            1 + (i < nwords ? decoded_cells(loom::to_value(whole.words[static_cast<std::size_t>(i)]))
-                            : decoded_cells(loom::to_value(
-                                  whole.parts[static_cast<std::size_t>(i - nwords)])));
-        if (cells + cost > budget) break;
-        cells += cost;
-        if (i < nwords) page.words.push_back(whole.words[static_cast<std::size_t>(i)]);
-        else page.parts.push_back(whole.parts[static_cast<std::size_t>(i - nwords)]);
+        const loom::Value item =
+            i < nwords ? loom::to_value(whole.words[static_cast<std::size_t>(i)])
+                       : loom::to_value(whole.parts[static_cast<std::size_t>(i - nwords)]);
+        const std::int64_t cost = 1 + decoded_cells(item);
+        const std::int64_t size = 1 + reply_bytes(item);
+        if (page.cells + cost > cells || page.bytes + size > bytes) break;
+        page.cells += cost;
+        page.bytes += size;
+        if (i < nwords) page.view.words.push_back(whole.words[static_cast<std::size_t>(i)]);
+        else page.view.parts.push_back(whole.parts[static_cast<std::size_t>(i - nwords)]);
     }
     return page;
+}
+
+std::int64_t items_of(const v4::PaneView& v) {
+    return static_cast<std::int64_t>(v.words.size() + v.parts.size());
 }
 
 } // namespace
@@ -1138,7 +1156,15 @@ void WorkshopWeave::on(const v4::PaneViewRequested& asked, loom::Mail& mail) {
             " words and parts -- what covers the pane may have moved; read it again from the start"});
         return;
     }
-    (void)mail.answer(page_of(whole, asked.from, kDecodedCellBudget));
+    const Page page = page_of(whole, asked.from, kDecodedCellBudget, kReplyByteBudget);
+    if (asked.from < whole.total && items_of(page.view) == 0) {
+        (void)mail.answer(loom::Refused{
+            "pane view unavailable: item " + std::to_string(asked.from) +
+            " alone is past one reply's " + std::to_string(kReplyByteBudget) +
+            " bytes or one decoded value"});
+        return;
+    }
+    (void)mail.answer(page.view);
 }
 
 // AT MOST A FEW DESK READS A SECOND, EACH ASKER: every read composes the whole desk, so past the
@@ -1164,8 +1190,8 @@ std::string WorkshopWeave::take_desk_read(loom::WeaveId asker) {
 }
 
 // THE DESK IN ONE TURN: the desk, every presented pane's stamp front to back, and as many of those
-// panes' readings, in that order, as one decoded value holds; a stamp past the last reading names
-// a pane its reader asks alone. Nothing is held between asks.
+// panes' readings, in that order, as one decoded value and one reply's bytes hold; a stamp past the
+// last reading names a pane its reader asks alone. Nothing is held between asks.
 // WL-READ-01 -- agents/workshop/desk-read.md
 void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
     if (const std::string why = take_desk_read(mail.sender()); !why.empty()) {
@@ -1198,12 +1224,18 @@ void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
             readings.emplace_back(std::nullopt);
         }
     }
-    std::int64_t cells = decoded_cells(loom::to_value(out));
+    const loom::Value shell = loom::to_value(out);
+    std::int64_t cells = decoded_cells(shell);
+    std::int64_t bytes = reply_bytes(shell);
     for (const std::optional<v4::PaneView>& reading : readings) {
         if (!reading) continue;
-        const std::int64_t cost = 1 + decoded_cells(loom::to_value(*reading));
-        if (cells + cost > kDecodedCellBudget) break;
-        cells += cost;
+        // A READING IS CARRIED WHOLE OR NOT AT ALL: whole when its first page, in the room the rest
+        // leave beside its own cell and comma, holds every item.
+        const Page whole = page_of(*reading, 0, kDecodedCellBudget - cells - 1,
+                                   kReplyByteBudget - bytes - 1);
+        if (items_of(whole.view) < reading->total) break;
+        cells += 1 + whole.cells;
+        bytes += 1 + whole.bytes;
         out.panes.push_back(*reading);
     }
     (void)mail.answer(out);

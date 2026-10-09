@@ -9,22 +9,27 @@ ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-READ-01 — The desk is said in one turn, paged by pane
 
-LAW — Workshop answers `DeskReadRequested` with `DeskView` v3, every presented pane's stamp front to back, and as many of those panes' `PaneView` v4 readings, in that order, as one decoded value holds.
+LAW — Workshop answers `DeskReadRequested` with `DeskView` v3, every presented pane's stamp front to back, and as many of those panes' `PaneView` v4 readings, in that order, as one reply holds.
 
 MEANS
 - a stamp past the last reading names a pane its reader asks alone, and nothing is held between asks;
-- one decoded value is Loom's budget, counted by Loom's own rule (`decoded_cells`).
+- one reply is one decoded value by Loom's rule (`decoded_cells`), in at most a quarter of Loom's frame in the larger of its native and JSON serializations (`reply_bytes`);
+- a reading is carried whole or only named by its stamp.
 
 PROVEN BY — `workshop/pane_view.hpp` `DeskReadRequested`, `DeskRead`; `workshop/decoded_cells.hpp`
-`kDecodedCellBudget`, `decoded_cells`; `workshop/weave_inspection.cpp` `on(DeskReadRequested)`;
+`kDecodedCellBudget`, `decoded_cells`; `workshop/reply_bytes.hpp` `kReplyByteBudget`, `reply_bytes`;
+`workshop/weave_inspection.cpp` `on(DeskReadRequested)`, `page_of`;
 `tests/test_workshop_desk_read.cpp` case `"the decode budget a reading is filled to is Loom's own:
 a value of exactly that many cells decodes, and one cell more is refused"`, case `"a desk past one
-value's budget reads whole: the panes past it are named by their stamps and read alone"`.
+value's budget reads whole: the panes past it are named by their stamps and read alone"`, case `"a
+picture at the canvas text limit under overlapping parts reads whole, each page and the desk read
+inside one reply's bytes"`, case `"a capture guest reads a picture at the canvas text limit whole
+over the bridge, page by page, and its connection answers the next ask"`.
 WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 
 ## WL-READ-02 — A pane's reading stands on its stamp and pages under it
 
-LAW — A pane's `PaneView` v4 names its holder, incarnation, room grant and picture, says its words and parts from `from` within one decoded value, and no word of a picture in flight.
+LAW — A pane's `PaneView` v4 names its holder, incarnation, room grant and picture, says its words and parts from `from` within one decoded value and one reply's bytes, and no word of a picture in flight.
 
 MEANS
 - a page asked under a stamp the pane no longer stands on is refused as stale, whatever its picture;
@@ -33,12 +38,14 @@ MEANS
 
 PROVEN BY — `workshop/pane_view.hpp` `PaneStamp`, `v4::PaneViewRequested`, `v4::PaneView`;
 `workshop/weave.hpp` `HostContext::incarnation_of`; `workshop/weave_inspection.cpp`
-`pane_reading`, `stamp_of`, `on(PaneViewRequested)`; `tests/test_workshop_desk.cpp` case `"a
+`pane_reading`, `stamp_of`, `on(PaneViewRequested)`, `page_of`; `workshop/reply_bytes.hpp`
+`kReplyByteBudget`; `tests/test_workshop_desk.cpp` case `"a
 stamp names holder, incarnation, room and picture: a reading after t or a reload in place is stale
 even at an equal picture number"`, case `"a pane whose newest picture is in flight is read as in
 flight, with no word, and the desk still reads"`; `tests/test_workshop_desk_read.cpp` case `"a
 pane at its full canvas budgets reads whole, paged by index under one stamp, and a page asked after
-its picture moved is refused as stale"`.
+its picture moved is refused as stale"`, case `"a picture at the canvas text limit under
+overlapping parts reads whole, each page and the desk read inside one reply's bytes"`.
 WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 
 ## WL-READ-03 — Desk reads are a few a second, each asker

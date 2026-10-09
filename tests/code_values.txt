@@ -36,9 +36,10 @@ workshop_formats.SETUP_VERSION   external-host/tools/workshop/workshop_formats.p
 workshop_formats.SESSION_VERSION external-host/tools/workshop/workshop_formats.py  SESSION_VERSION
 guests::kGuestsFileVersion      workshop/guests.hpp                       kGuestsFileVersion
 workshop_formats.GUESTS_VERSION  external-host/tools/workshop/workshop_formats.py  GUESTS_VERSION
-# The desk said whole: Loom's decode budget as Workshop restates it, the desk-read rate, and the
-# reader's own bounds on what it writes.
+# The desk said whole: Loom's decode budget as Workshop restates it, a reply's bytes, the
+# desk-read rate, and the reader's own bounds on what it writes.
 kDecodedCellBudget              workshop/decoded_cells.hpp                kDecodedCellBudget
+kReplyByteBudget                workshop/reply_bytes.hpp                  kReplyByteBudget
 kDeskReadsPerSecond             workshop/weave.hpp                        kDeskReadsPerSecond
 desk_render.SECTION_BYTES       external-host/tools/desk/desk_render.py   SECTION_BYTES
 desk_render.DENSE_CELLS         external-host/tools/desk/desk_render.py   DENSE_CELLS
