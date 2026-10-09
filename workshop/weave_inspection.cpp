@@ -546,6 +546,13 @@ v2::DeskView WorkshopWeave::desk_view() const {
     const std::vector<std::int64_t> order = effective_pane_order(setup, panes);
     const std::int64_t selected = selected_pane(panes);
     const std::int64_t keys = keyboard_pane();
+    // THE DESK LAID OUT ONCE, back to front: a pane's place, its state and what covers it are
+    // judged from these bounds as `pane_state_of` judges them, never laying the desk out again.
+    std::vector<PaneBounds> laid;
+    for (const std::int64_t kind : order) laid.push_back(bounds_of(panes, setup, kind, sc));
+    const auto at_of = [&](std::int64_t kind) {
+        return static_cast<std::size_t>(std::find(order.begin(), order.end(), kind) - order.begin());
+    };
     for (const SetupPane& authored : setup.panes) {
         CatalogRow row{kNoPaneKind, authored.ref, authored.ref.pane, std::string()};
         for (const CatalogRow& known : rows) {
@@ -558,9 +565,21 @@ v2::DeskView WorkshopWeave::desk_view() const {
         pane.provider = authored.ref.provider;
         pane.pane = authored.ref.pane;
         pane.name = row.name;
-        pane.state = pane_state_word(pane_state_of(panes, setup, sc, row));
-        if (row.kind != kNoPaneKind && panes.has(row.kind)) {
-            const PaneBounds where = bounds_of(panes, setup, row.kind, sc);
+        const bool presented = row.kind != kNoPaneKind && panes.has(row.kind);
+        const std::size_t at = presented ? at_of(row.kind) : order.size();
+        const PaneBounds where = at < order.size() ? laid[at]
+                                 : presented        ? bounds_of(panes, setup, row.kind, sc)
+                                                    : PaneBounds{};
+        std::int64_t state = pane_state_of(panes, setup, sc, row, false, presented ? &where : nullptr);
+        if (state == pane_state::kOpen && at < order.size()) {
+            std::vector<PixelRect> ahead;
+            for (std::size_t i = at + 1; i < order.size(); ++i) {
+                if (laid[i].rect.w > 0 && laid[i].rect.h > 0) ahead.push_back(laid[i].rect);
+            }
+            if (rects_cover(where.rect, ahead)) state = pane_state::kCovered;
+        }
+        pane.state = pane_state_word(state);
+        if (presented) {
             pane.resolved = desk_rect(where.resolved);
             pane.visible = desk_rect(where.rect);
             for (std::size_t i = 0; i < order.size(); ++i) {
@@ -812,13 +831,39 @@ void without_points(std::vector<PaneWord>& words, std::vector<PanePart>& parts) 
     for (PanePart& p : parts) no_point(p);
 }
 
-bool same_stamp(const PaneStamp& a, const v4::PaneView& b) {
+bool same_stamp(const PaneStamp& a, const v5::PaneView& b) {
     return a.provider == b.provider && a.pane == b.pane && a.holder == b.holder &&
            a.incarnation == b.incarnation && a.grant == b.grant && a.picture == b.picture;
 }
 
-PaneStamp stamp_from(const v4::PaneView& v) {
+bool same_stamp(const v2::PaneStamp& a, const v2::PaneStamp& b) {
+    return a.provider == b.provider && a.pane == b.pane && a.holder == b.holder &&
+           a.incarnation == b.incarnation && a.grant == b.grant && a.fingerprint == b.fingerprint;
+}
+
+PaneStamp stamp_from(const v5::PaneView& v) {
     return PaneStamp{v.provider, v.pane, v.holder, v.incarnation, v.grant, v.picture};
+}
+
+v2::PaneStamp fingerprint_stamp_from(const v5::PaneView& v) {
+    return v2::PaneStamp{v.provider, v.pane, v.holder, v.incarnation, v.grant, v.fingerprint};
+}
+
+/// THE FOURTH VERSION OF A READING: the fifth's, its stamp the picture's number -- a reading judged
+/// by numbers (`pane_reading`), so in flight while a number handed out is not yet aimed at.
+v4::PaneView fourth_version(const v5::PaneView& v) {
+    return v4::PaneView{v.provider, v.pane,        v.picture,   v.canvas,    v.words,
+                        v.parts,    v.holder,      v.incarnation, v.grant,   v.covered,
+                        v.in_flight, v.from,       v.total};
+}
+
+/// THE FINGERPRINT A STAMP NAMES: what the picture aimed at shows, and none for a canvas picture
+/// no press is stamped with -- a room not drawn yet, a preview, a managed opening's picture -- so
+/// the picture that first takes a press moves the stamp. A room whose own picture was refused
+/// shows that refusal until another is admitted, so its stamp names what it shows.
+std::int64_t stamp_fingerprint(const ExternalPane& pane) {
+    if (pane.canvas.grant == 0 || pane.stamp.aimed != 0) return pane.stamp.aimed_fingerprint;
+    return pane.refused_grant == pane.canvas.grant ? picture_fingerprint(pane) : 0;
 }
 
 /// A LAYOUT'S PART NAME: `layout:` and its name, a byte outside printable ASCII (and `%`, `#` and
@@ -851,16 +896,18 @@ std::vector<std::string> layout_part_names(const SetupState& setup) {
 }
 
 /// ONE PAGE OF A READING, and at most what it spends: its decoded cells and its reply bytes.
+template <class View>
 struct Page {
-    v4::PaneView view;
+    View view;
     std::int64_t cells = 0, bytes = 0;
 };
 
 /// THE ITEMS OF ONE READING FROM `from`, as many as `cells` decoded cells and `bytes` reply bytes
 /// hold beside the rest. An item adds at most its own reply bytes and a comma (`reply_bytes`), so
 /// the page's bytes are at most what is counted.
-Page page_of(const v4::PaneView& whole, std::int64_t from, std::int64_t cells, std::int64_t bytes) {
-    Page page;
+template <class View>
+Page<View> page_of(const View& whole, std::int64_t from, std::int64_t cells, std::int64_t bytes) {
+    Page<View> page;
     page.view = whole;
     page.view.words.clear();
     page.view.parts.clear();
@@ -884,8 +931,39 @@ Page page_of(const v4::PaneView& whole, std::int64_t from, std::int64_t cells, s
     return page;
 }
 
-std::int64_t items_of(const v4::PaneView& v) {
+template <class View>
+std::int64_t items_of(const View& v) {
     return static_cast<std::int64_t>(v.words.size() + v.parts.size());
+}
+
+/// Why a page from `from` that holds nothing is refused though the reading goes on past it: its
+/// item alone is past one reply or one decoded value. Nothing, for a page holding any.
+template <class View>
+std::string page_alone_refused(const Page<View>& page, std::int64_t from, std::int64_t total) {
+    if (from >= total || items_of(page.view) > 0) return {};
+    return "pane view unavailable: item " + std::to_string(from) + " alone is past one reply's " +
+           std::to_string(kReplyByteBudget) + " bytes or one decoded value";
+}
+
+constexpr std::string_view kPageStale =
+    "pane view stale: the pane no longer stands on the stamp this page continues -- its holder, "
+    "incarnation, room or picture moved; read it again from the start";
+
+/// Why a page from `from` is refused, or nothing: below the first item, or past the total of a
+/// reading not in flight.
+std::string page_refused(std::int64_t from, const v5::PaneView& whole) {
+    if (from < 0) return "pane view unavailable: `from` is below the reading's first item";
+    if (!whole.in_flight && from > whole.total) {
+        return "pane view unavailable: `from` is past the reading's " + std::to_string(whole.total) +
+               " words and parts -- what covers the pane may have moved; read it again from the start";
+    }
+    return {};
+}
+
+/// A picture in flight, said at any page: no word.
+v5::PaneView in_flight_page(v5::PaneView whole, std::int64_t from) {
+    whole.from = from;
+    return whole;
 }
 
 } // namespace
@@ -946,13 +1024,13 @@ std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind,
 }
 
 // ONE PANE'S WHOLE READING: its stamp first, then, while its newest picture is still in flight --
-// handed out and not yet aimed at, or a room out that no picture has answered -- that and no word;
-// else its words and parts, a covered one not said, the cover named, and none given a point while
-// a menu is open.
-// WL-READ-02 -- agents/workshop/desk-read.md
+// what it shows not yet what the stamp names, or a room out that no picture has answered -- that
+// and no word; else its words and parts, a covered one not said, the cover named, and none given a
+// point while a menu is open. The fourth version judges in flight by numbers (`by_numbers`).
+// WL-READ-02 -- agents/workshop/desk-read.md; WL-READ-07 -- agents/workshop/desk-read.md
 std::string WorkshopWeave::pane_reading(const std::string& provider, const std::string& pane_key,
-                                        v4::PaneView& out) const {
-    out = v4::PaneView{};
+                                        v5::PaneView& out, bool by_numbers) const {
+    out = v5::PaneView{};
     out.provider = provider;
     out.pane = pane_key;
     if (provider == kWorkshopProvider && pane_key == pane_key::kLayouts) return layouts_reading(out);
@@ -971,6 +1049,7 @@ std::string WorkshopWeave::pane_reading(const std::string& provider, const std::
     out.holder = stamp.holder;
     out.incarnation = stamp.incarnation;
     out.grant = stamp.grant;
+    out.fingerprint = stamp_fingerprint(*content);
     const Screen sc = screen_of(session_);
     const auto bounds = bounds_of(session_.panes, session_.setup.active, pane->kind, sc);
     if (!bounds.open) return "pane view unavailable: the pane is not presented";
@@ -992,7 +1071,11 @@ std::string WorkshopWeave::pane_reading(const std::string& provider, const std::
     if (!content->heard && host_->role_holder && !host_->role_holder(provider).valid()) {
         return "pane view unavailable: waiting for the provider -- no participant holds its office";
     }
-    if (content->awaiting || content->canvas.preview || content->picture != content->stamp.aimed) {
+    // IN FLIGHT WHILE WHAT IS SHOWN IS NOT YET WHAT THE STAMP NAMES: a picture sent again unchanged
+    // under its next number is read at once. The fourth version judges by numbers, as it always has.
+    if (content->awaiting || content->canvas.preview ||
+        (by_numbers ? content->picture != content->stamp.aimed
+                    : picture_fingerprint(*content) != content->stamp.aimed_fingerprint)) {
         out.in_flight = true;
         return {};
     }
@@ -1024,7 +1107,7 @@ std::string WorkshopWeave::pane_reading(const std::string& provider, const std::
 // itself -- `layout:<name>` and `layout:+` -- as it names its menu's lines. Its picture moves when
 // what it says moves.
 // WL-READ-04 -- agents/workshop/desk-read.md
-std::string WorkshopWeave::layouts_reading(v4::PaneView& out) const {
+std::string WorkshopWeave::layouts_reading(v5::PaneView& out) const {
     const std::int64_t kind = pane_kind::kLayouts;
     if (!session_.panes.has(kind)) return "pane view unavailable: closed or unknown";
     const Screen sc = screen_of(session_);
@@ -1076,6 +1159,14 @@ std::string WorkshopWeave::layouts_reading(v4::PaneView& out) const {
     out.holder = stamp.holder;
     out.incarnation = stamp.incarnation;
     out.grant = 0;
+    // ...ITS FINGERPRINT WHAT IT SHOWS: what it says, and the naming line's caret and selection.
+    Fingerprint said_print;
+    said_print.bytes(bytes);
+    for (const std::int64_t n : {region.caret_row, region.caret_col, region.sel_begin_row,
+                                 region.sel_begin_col, region.sel_end_row, region.sel_end_col}) {
+        said_print.number(n);
+    }
+    out.fingerprint = said_print.value();
     out.canvas = false;
     cover_reading(covers_of(kind, bounds.rect), bounds.rect, words, parts, out.covered);
     if (session_.presented.open || session_.context.open) without_points(words, parts);
@@ -1128,40 +1219,63 @@ v3::DeskView WorkshopWeave::desk_view_v3() const {
 // a picture in flight is said so at any page.
 // WL-READ-02 -- agents/workshop/desk-read.md
 void WorkshopWeave::on(const v4::PaneViewRequested& asked, loom::Mail& mail) {
-    v4::PaneView whole;
-    if (const std::string why = pane_reading(asked.provider, asked.pane, whole); !why.empty()) {
+    v5::PaneView whole;
+    if (const std::string why = pane_reading(asked.provider, asked.pane, whole, true); !why.empty()) {
         (void)mail.answer(loom::Refused{why});
         return;
     }
     // A STAMP NAMES ITS HOLDER, so an ask naming none reads the pane as it stands.
     const bool continues = asked.from > 0 || asked.stamp.holder != 0;
     if (continues && !same_stamp(asked.stamp, whole)) {
-        (void)mail.answer(loom::Refused{
-            "pane view stale: the pane no longer stands on the stamp this page continues -- its "
-            "holder, incarnation, room or picture moved; read it again from the start"});
+        (void)mail.answer(loom::Refused{std::string(kPageStale)});
         return;
     }
-    if (asked.from < 0) {
-        (void)mail.answer(loom::Refused{"pane view unavailable: `from` is below the reading's first item"});
+    if (const std::string why = page_refused(asked.from, whole); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
+        return;
+    }
+    // FILLED AS ITS OWN VERSION COUNTS, so a page holds what one decoded value and one reply of it
+    // hold.
+    const v4::PaneView fourth = fourth_version(whole);
+    if (fourth.in_flight) {
+        v4::PaneView page = fourth;
+        page.from = asked.from;
+        (void)mail.answer(page);
+        return;
+    }
+    const Page<v4::PaneView> page = page_of(fourth, asked.from, kDecodedCellBudget, kReplyByteBudget);
+    if (const std::string why = page_alone_refused(page, asked.from, fourth.total); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
+        return;
+    }
+    (void)mail.answer(page.view);
+}
+
+// ...AND UNDER A STAMP NAMING THE PICTURE BY ITS FINGERPRINT: stale only when its holder,
+// incarnation, room or what the pane shows moved.
+// WL-READ-02 -- agents/workshop/desk-read.md
+void WorkshopWeave::on(const v5::PaneViewRequested& asked, loom::Mail& mail) {
+    v5::PaneView whole;
+    if (const std::string why = pane_reading(asked.provider, asked.pane, whole); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
+        return;
+    }
+    const bool continues = asked.from > 0 || asked.stamp.holder != 0;
+    if (continues && !same_stamp(asked.stamp, fingerprint_stamp_from(whole))) {
+        (void)mail.answer(loom::Refused{std::string(kPageStale)});
+        return;
+    }
+    if (const std::string why = page_refused(asked.from, whole); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
         return;
     }
     if (whole.in_flight) {
-        whole.from = asked.from;
-        (void)mail.answer(whole);
+        (void)mail.answer(in_flight_page(whole, asked.from));
         return;
     }
-    if (asked.from > whole.total) {
-        (void)mail.answer(loom::Refused{
-            "pane view unavailable: `from` is past the reading's " + std::to_string(whole.total) +
-            " words and parts -- what covers the pane may have moved; read it again from the start"});
-        return;
-    }
-    const Page page = page_of(whole, asked.from, kDecodedCellBudget, kReplyByteBudget);
-    if (asked.from < whole.total && items_of(page.view) == 0) {
-        (void)mail.answer(loom::Refused{
-            "pane view unavailable: item " + std::to_string(asked.from) +
-            " alone is past one reply's " + std::to_string(kReplyByteBudget) +
-            " bytes or one decoded value"});
+    const Page<v5::PaneView> page = page_of(whole, asked.from, kDecodedCellBudget, kReplyByteBudget);
+    if (const std::string why = page_alone_refused(page, asked.from, whole.total); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
         return;
     }
     (void)mail.answer(page.view);
@@ -1189,6 +1303,47 @@ std::string WorkshopWeave::take_desk_read(loom::WeaveId asker) {
     return {};
 }
 
+// EVERY PRESENTED PANE, FRONT TO BACK, by office and pane: the order a desk read and a notice say
+// their stamps in.
+std::vector<PaneRef> WorkshopWeave::presented_refs() const {
+    const Screen sc = screen_of(session_);
+    std::vector<std::int64_t> order = effective_pane_order(session_.setup.active, session_.panes);
+    std::reverse(order.begin(), order.end()); // front to back
+    std::vector<PaneRef> out;
+    for (const std::int64_t kind : order) {
+        if (!bounds_of(session_.panes, session_.setup.active, kind, sc).open) continue;
+        if (is_runtime_kind(kind)) {
+            if (const RuntimePane* row = session_.panes.runtime.of_kind(kind)) {
+                out.push_back(PaneRef{row->provider, row->pane});
+            }
+        } else if (kind == pane_kind::kLayouts) {
+            out.push_back(PaneRef{kWorkshopProvider, pane_key::kLayouts});
+        }
+    }
+    return out;
+}
+
+// THE STAMP A PANE STANDS ON NOW, ITS PICTURE BY FINGERPRINT: its holder and incarnation, the room
+// its picture was drawn for, and what the picture aimed at shows -- the one stamp a desk read, a
+// page and a notice all say.
+// WL-READ-07 -- agents/workshop/desk-read.md
+v2::PaneStamp WorkshopWeave::stamp_now(const PaneRef& ref) const {
+    if (ref.provider == kWorkshopProvider && ref.pane == pane_key::kLayouts) {
+        v5::PaneView layouts;
+        if (pane_reading(ref.provider, ref.pane, layouts).empty()) {
+            return fingerprint_stamp_from(layouts);
+        }
+        const PaneStamp none = stamp_of(ref.provider, ref.pane, 0, 0);
+        return v2::PaneStamp{ref.provider, ref.pane, none.holder, none.incarnation, 0, 0};
+    }
+    const RuntimePane* row = session_.panes.runtime.find(ref.provider, ref.pane);
+    const ExternalPane* content = row == nullptr ? nullptr : session_.panes.external_pane(row->kind);
+    const bool canvas = content != nullptr && content->canvas.heard;
+    const PaneStamp of = stamp_of(ref.provider, ref.pane, canvas ? content->canvas.grant : 0, 0);
+    return v2::PaneStamp{ref.provider, ref.pane, of.holder, of.incarnation, of.grant,
+                         content == nullptr ? 0 : stamp_fingerprint(*content)};
+}
+
 // THE DESK IN ONE TURN: the desk, every presented pane's stamp front to back, and as many of those
 // panes' readings, in that order, as one decoded value and one reply's bytes hold; a stamp past the
 // last reading names a pane its reader asks alone. Nothing is held between asks.
@@ -1200,27 +1355,14 @@ void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
     }
     DeskRead out;
     out.desk = desk_view_v3();
-    const Screen sc = screen_of(session_);
-    std::vector<std::int64_t> order = effective_pane_order(session_.setup.active, session_.panes);
-    std::reverse(order.begin(), order.end()); // front to back
     std::vector<std::optional<v4::PaneView>> readings;
-    for (const std::int64_t kind : order) {
-        if (!bounds_of(session_.panes, session_.setup.active, kind, sc).open) continue;
-        std::string provider = kWorkshopProvider, key = pane_key::kLayouts;
-        if (is_runtime_kind(kind)) {
-            const RuntimePane* row = session_.panes.runtime.of_kind(kind);
-            if (row == nullptr) continue;
-            provider = row->provider;
-            key = row->pane;
-        } else if (kind != pane_kind::kLayouts) {
-            continue;
-        }
-        v4::PaneView reading;
-        if (pane_reading(provider, key, reading).empty()) {
+    for (const PaneRef& ref : presented_refs()) {
+        v5::PaneView reading;
+        if (pane_reading(ref.provider, ref.pane, reading, true).empty()) {
             out.stamps.push_back(stamp_from(reading));
-            readings.emplace_back(std::move(reading));
+            readings.emplace_back(fourth_version(reading));
         } else {
-            out.stamps.push_back(stamp_of(provider, key, 0, 0));
+            out.stamps.push_back(stamp_of(ref.provider, ref.pane, 0, 0));
             readings.emplace_back(std::nullopt);
         }
     }
@@ -1231,14 +1373,68 @@ void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
         if (!reading) continue;
         // A READING IS CARRIED WHOLE OR NOT AT ALL: whole when its first page, in the room the rest
         // leave beside its own cell and comma, holds every item.
-        const Page whole = page_of(*reading, 0, kDecodedCellBudget - cells - 1,
-                                   kReplyByteBudget - bytes - 1);
+        const Page<v4::PaneView> whole = page_of(*reading, 0, kDecodedCellBudget - cells - 1,
+                                                 kReplyByteBudget - bytes - 1);
         if (items_of(whole.view) < reading->total) break;
         cells += 1 + whole.cells;
         bytes += 1 + whole.bytes;
         out.panes.push_back(*reading);
     }
     (void)mail.answer(out);
+    publish_desk_stamps(mail, &out.desk);
+}
+
+// ...AND ITS STAMPS BY FINGERPRINT, the ones a notice of the same desk says.
+// WL-READ-01 -- agents/workshop/desk-read.md
+void WorkshopWeave::on(const v2::DeskReadRequested&, loom::Mail& mail) {
+    if (const std::string why = take_desk_read(mail.sender()); !why.empty()) {
+        (void)mail.answer(loom::Refused{why});
+        return;
+    }
+    v2::DeskRead out;
+    out.desk = desk_view_v3();
+    std::vector<std::optional<v5::PaneView>> readings;
+    for (const PaneRef& ref : presented_refs()) {
+        out.stamps.push_back(stamp_now(ref));
+        v5::PaneView reading;
+        if (pane_reading(ref.provider, ref.pane, reading).empty()) readings.emplace_back(std::move(reading));
+        else readings.emplace_back(std::nullopt);
+    }
+    const loom::Value shell = loom::to_value(out);
+    std::int64_t cells = decoded_cells(shell);
+    std::int64_t bytes = reply_bytes(shell);
+    for (const std::optional<v5::PaneView>& reading : readings) {
+        if (!reading) continue;
+        // ...EACH READING WHOLE OR NOT AT ALL, as the first version carries its own.
+        const Page<v5::PaneView> whole = page_of(*reading, 0, kDecodedCellBudget - cells - 1,
+                                                 kReplyByteBudget - bytes - 1);
+        if (items_of(whole.view) < reading->total) break;
+        cells += 1 + whole.cells;
+        bytes += 1 + whole.bytes;
+        out.panes.push_back(*reading);
+    }
+    (void)mail.answer(out);
+    publish_desk_stamps(mail, &out.desk);
+}
+
+// THE DESK MOVED: its number and every presented pane's stamp, published as the office when either
+// differs from what was last published, so the desk number never moves without a notice and an
+// unchanged desk sends none.
+// WL-READ-06 -- agents/workshop/desk-read.md
+void WorkshopWeave::publish_desk_stamps(loom::Mail& mail, const v3::DeskView* known) {
+    DeskStamps now;
+    now.desk = known != nullptr ? known->desk : desk_owed_ ? desk_view_v3().desk : desk_number_;
+    desk_owed_ = false;
+    for (const PaneRef& ref : presented_refs()) now.panes.push_back(stamp_now(ref));
+    if (stamps_published_ && now.desk == stamps_said_.desk &&
+        std::equal(now.panes.begin(), now.panes.end(), stamps_said_.panes.begin(),
+                   stamps_said_.panes.end(),
+                   [](const v2::PaneStamp& a, const v2::PaneStamp& b) { return same_stamp(a, b); })) {
+        return;
+    }
+    if (!mail.as_role(kWorkshopProvider).publish(now).authored) return;
+    stamps_said_ = std::move(now);
+    stamps_published_ = true;
 }
 
 // WHERE ONE CHARACTER OF ONE WORD IS NOW, measured as the word was and checked by resolving it: a

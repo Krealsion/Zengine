@@ -692,6 +692,35 @@ class CanvasEditor(CanvasPane):
         self.drops.append(self.at(x, y))
 
 
+class Moving:
+    """Workshop's notice that the desk moved, said when the scripted pane comes to say other than it
+    last said: its `window`'s answers up to the first that differs stand for the time it said the
+    same, and a window of nothing but the same says nothing, after the wait asked -- as Workshop
+    says the desk moved only when a picture changes."""
+    subscription, relay, holder, incarnation, window = 2, "R", 5, 1, 1
+    ended = None
+
+    def __init__(self, workshop):
+        self.workshop = workshop
+        self.desk = 0
+
+    def next(self, timeout=None):
+        last = getattr(self.workshop, "last_said", "settled")
+        window = self.workshop.window
+        if all(said == last for said in window) and (window or last == "settled"):
+            time.sleep(timeout or 0.0)
+            return None
+        del window[:next((i for i, said in enumerate(window) if said != last), len(window))]
+        self.desk += 1
+        return SimpleNamespace(kind="observed", fields={"desk": self.desk, "panes": []})
+
+    def drain(self):
+        return []
+
+    def release(self, timeout=15.0):
+        pass
+
+
 class Quiet:
     """A subscription to an owner's words that hears none, as `workshop/builder` holds one while
     it acts on what the Builder's own rows confirm."""
@@ -700,8 +729,15 @@ class Quiet:
     def drain(self):
         return []
 
+    ended = None
+
     def next(self, timeout=None):
+        """Nothing, after the wait asked, as the client's own wait runs out."""
+        time.sleep(timeout or 0.0)
         return None
+
+    def release(self, timeout=15.0):
+        pass
 
     def summary(self):
         return {"subscription": self.subscription, "heard": 0}
@@ -750,6 +786,8 @@ class CanvasWorkshop(Context):
         return part
 
     def observe(self, producer, shapes, **options):
+        if producer == "zengine.workshop" and ("DeskStamps", 1) in [tuple(x) for x in shapes]:
+            return Moving(self)
         return Quiet()
 
     def ask(self, office, shape, fields, **options):
@@ -770,7 +808,7 @@ class CanvasWorkshop(Context):
                               "one shown takes no press until its pane draws its own"
                               if self.window[0] == "untaken" else "pane view unavailable: no settled picture")
             if self.window and shape == "PaneViewRequested":
-                said = self.window.pop(0)
+                said = self.last_said = self.window.pop(0)
                 if said == "settled":
                     return pane.view(fields["provider"], fields["pane"], self.pointed)
                 if said == "unsettled":
@@ -822,6 +860,40 @@ class CanvasWorkshop(Context):
             answer = Answer(answer)
             answer.correlation = answer["last_seq"]
         return answer
+
+
+class FollowedSub:
+    """Workshop's notices as a scripted desk says them: each wait is told the next of `notices` --
+    (office, pane, rows): that pane's rows changed, so its stamp moved; (office, pane, rows, n):
+    they changed and came back, so its stamp is the one last told, in a notice standing for `n`
+    the relay held back -- or nothing, after the wait asked, once none is left."""
+    subscription, relay, holder, incarnation, window = 3, "R", 5, 1, 1
+    ended = None
+
+    def __init__(self, workshop):
+        self.workshop = workshop
+        self.prints = {}
+        self.told = 0
+
+    def next(self, timeout=None):
+        if not self.workshop.notices:
+            time.sleep(timeout or 0.0)
+            return None
+        office, pane, rows, held = (tuple(self.workshop.notices.pop(0)) + (0,))[:4]
+        if rows is not None:
+            self.workshop.panes[pane] = rows
+        if not held:
+            self.prints[(office, pane)] = self.prints.get((office, pane), 0) + 1
+        self.told += 1
+        return SimpleNamespace(kind="observed", coalesced=held, fields={"desk": 1, "panes": [
+            {"provider": o, "pane": q, "holder": 1, "incarnation": 1, "grant": 0, "fingerprint": f}
+            for (o, q), f in sorted(self.prints.items())]})
+
+    def drain(self):
+        return []
+
+    def release(self, timeout=15.0):
+        self.workshop.released = True
 
 
 class ActWorkshop(Context):
@@ -1440,6 +1512,98 @@ def run_checks(tools, runtime):
                              [(0, self.INFO_ROWS[0], 6, 6), (1, self.INFO_ROWS[1], 6, 18),
                               (2, self.INFO_ROWS[2], 6, 30)])
             self.assertEqual((rows["picture"], rows["canvas"]), (1, False))
+
+        def test_a_wait_for_a_panes_word_reads_it_again_at_that_panes_notice_and_never_on_a_clock(self):
+            ctx = ActWorkshop(steps, [], self.INFO_ROWS, panes={"terminal": ["one"]})
+            ctx.notices = [("zengine.files", "project-files", None),
+                           ("zengine.files", "project-files", None),
+                           ("zengine.terminal-pane", "terminal", ["one", "two"])]
+            ctx.observed = []
+            ctx.observe = lambda producer, shapes, **options: (
+                ctx.observed.append((producer, [tuple(x) for x in shapes], options)) or
+                FollowedSub(ctx))
+            reads, asking = [], ctx.ask
+
+            def counted(office, shape, fields, **options):
+                if shape == "PaneViewRequested":
+                    reads.append(fields["pane"])
+                return asking(office, shape, fields, **options)
+            ctx.ask = counted
+            held = hand.Hand(ctx, "workshop")
+            slept = []
+            try:
+                with patch.object(hand.time, "sleep", side_effect=slept.append):
+                    view, words = act.wait_words(held, "zengine.terminal-pane", "terminal", "two", 5)
+            finally:
+                held.close()
+            self.assertEqual([w["text"] for w in words], ["two"])
+            # SUBSCRIBED AT THE FIRST WAIT, whole state, a window of one.
+            self.assertEqual(ctx.observed[0][:2], ("zengine.workshop", [("DeskStamps", 1)]))
+            self.assertEqual((ctx.observed[0][2]["latest"], ctx.observed[0][2]["window"]),
+                             (["DeskStamps"], 1))
+            # ...READ: before it, under it, at the first notice taken, and at the Terminal's own --
+            # never at the second Files notice, and never on a clock.
+            self.assertEqual(reads, ["terminal"] * 4)
+            self.assertEqual(slept, [])
+            self.assertTrue(ctx.released)
+            self.assertIsNone(held.waits_said())
+
+        def test_a_wait_wakes_at_a_notice_standing_for_others_held_back_though_it_names_the_pane_as_before(self):
+            # THE TERMINAL SAYS `two` AND THEN SAYS IT NO MORE, its picture back to one told before,
+            # while another pane's notice held the window: the newest stands for the move and its
+            # return, so the wait reads again though the stamp it names is the last one taken.
+            ctx = ActWorkshop(steps, [], self.INFO_ROWS, panes={"terminal": ["one", "two"]})
+            ctx.notices = [("zengine.files", "project-files", None),
+                           ("zengine.terminal-pane", "terminal", None),
+                           ("zengine.files", "project-files", None),
+                           ("zengine.terminal-pane", "terminal", ["one"], 1)]
+            ctx.observe = lambda producer, shapes, **options: FollowedSub(ctx)
+            held = hand.Hand(ctx, "workshop")
+            slept = []
+            try:
+                with patch.object(hand.time, "sleep", side_effect=slept.append):
+                    view, words = act.wait_words(held, "zengine.terminal-pane", "terminal", "two", 5,
+                                                 present=False)
+            finally:
+                held.close()
+            self.assertEqual(words, [])
+            self.assertEqual([w["text"] for w in view["words"]], ["one"])
+            self.assertEqual(slept, [])
+
+        def test_a_wait_after_a_desk_read_waits_on_the_notice_though_a_pane_read_before_was_unsettled(self):
+            ctx = ActWorkshop(steps, [], self.INFO_ROWS)
+            ctx.notices = []
+            ctx.observe = lambda producer, shapes, **options: FollowedSub(ctx)
+            held = hand.Hand(ctx, "workshop")
+            slept = []
+            try:
+                held.unsettled = True  # a pane read refused for a picture not yet aimed at
+                held.desk()
+                with patch.object(hand.time, "sleep", side_effect=slept.append):
+                    act.pause(held, time.monotonic() + 0.3)
+            finally:
+                held.close()
+            self.assertEqual(slept, [])
+
+        def test_a_row_that_may_not_follow_the_desk_reads_on_a_clock_and_the_run_says_so(self):
+            ctx = ActWorkshop(steps, [{"expect": ["zengine.terminal-pane", "terminal", "two"],
+                                       "seconds": 5}], self.INFO_ROWS, panes={"terminal": ["one"]})
+
+            def refused(producer, shapes, **options):
+                raise Refused("guest 'agent' may not observe DeskStamps v1 from zengine.workshop: "
+                              "its row's observe list does not name it")
+            ctx.observe = refused
+            slept = []
+
+            def sleep(seconds):
+                slept.append(seconds)
+                ctx.panes["terminal"] = ["one", "two"]  # the pane moves while the hand waits
+            with patch.object(hand.time, "sleep", side_effect=sleep):
+                said = act.run(ctx)
+            self.assertEqual(slept, [hand.FALLBACK_PACE])
+            self.assertIn("its waits read again every 0.2 s, not at Workshop's notice: Workshop's "
+                          "notice could not be followed: guest 'agent' may not observe DeskStamps "
+                          "v1", said)
 
         def test_the_reset_button_is_pressed_by_its_name_in_the_picture_the_controls_draw(self):
             controls = CanvasControls()

@@ -67,18 +67,22 @@ ENDED = ("exited", "killed", "unknown")
 # WHAT THE STORY'S GUEST MAY OBSERVE (its row's `observe` in Workshop's guests file): the Builder's
 # own account of each ask and of where a build stands, and the realization owner's of each ask it
 # took and its answer, which `workshop/builder` follows (and, from `BuildStatus`, the one read it
-# may ask the Builder: where it stands); and the game's observation surface (td.cpp), which
-# `tower-defense/monitor` follows. Nothing else.
+# may ask the Builder: where it stands); the game's observation surface (td.cpp), which
+# `tower-defense/monitor` follows; and Workshop's notice that the desk moved, which its walks wait
+# on. Nothing else.
 OBSERVE = [{"producer": "zengine.builder", "shape": "BuildAsked", "version": "1"},
            {"producer": "zengine.builder", "shape": "BuildStatus", "version": "4"},
            {"producer": "zengine.realization", "shape": "RealizationAsked", "version": "1"},
            {"producer": "zengine.realization", "shape": "ArtifactRealized", "version": "3"},
            {"producer": "zengine.realization", "shape": "ArtifactPromoted", "version": "2"},
            {"producer": "td.game", "shape": "TdSeen", "version": "1"},
-           {"producer": "td.game", "shape": "TdOccurred", "version": "1"}]
+           {"producer": "td.game", "shape": "TdOccurred", "version": "1"},
+           formats.DESK_NOTICE]
 # THE WATCHER'S ROW (`story.py watch`): the Builder's own words and the game's, and no power -- it
-# may come back to a build (`workshop/builder act=look`) or watch a game, and may not press a key.
-WATCHER_OBSERVES = [o for o in OBSERVE if o["producer"] != "zengine.realization"]
+# may come back to a build (`workshop/builder act=look`) or watch a game, and may not press a key,
+# nor read the desk, so it follows no notice that the desk moved.
+WATCHER_OBSERVES = [o for o in OBSERVE if o["producer"] not in ("zengine.realization",
+                                                                 "zengine.workshop")]
 
 
 class StepFailed(Exception):

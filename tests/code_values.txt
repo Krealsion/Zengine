@@ -43,6 +43,10 @@ kReplyByteBudget                workshop/reply_bytes.hpp                  kReply
 kDeskReadsPerSecond             workshop/weave.hpp                        kDeskReadsPerSecond
 desk_render.SECTION_BYTES       external-host/tools/desk/desk_render.py   SECTION_BYTES
 desk_render.DENSE_CELLS         external-host/tools/desk/desk_render.py   DENSE_CELLS
+# ...and what a watch keeps: the ring of its changes, and the least time between its desk reads.
+desk_changes.RING_CHANGES       external-host/tools/desk/desk_changes.py  RING_CHANGES
+desk_changes.RING_BYTES         external-host/tools/desk/desk_changes.py  RING_BYTES
+watch.DESK_READ_GAP             external-host/tools/desk/watch.py         DESK_READ_GAP
 keymap_persist::kFormatVersion  workshop/keymap_persist.hpp               kFormatVersion
 claim   keymap_persist::kFormatVersion  `zengine-workshop-keymap` version {}
 recipe_persist::kFormatVersion  workshop/recipe_persist.hpp               kFormatVersion

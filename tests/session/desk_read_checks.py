@@ -38,7 +38,7 @@ from unittest.mock import call, patch
 
 #: desk.txt of the fixture below, in characters, as this reader writes it now; the pin is that
 #: count and a tenth: a sparse reading stays under a pinned count.
-FIXTURE_SPARSE_CHARS = 2155
+FIXTURE_SPARSE_CHARS = 2321
 SPARSE_PIN = FIXTURE_SPARSE_CHARS + FIXTURE_SPARSE_CHARS // 10
 
 PIXELS = 2
@@ -63,13 +63,15 @@ def part(name, x, y, space=PIXELS):
 
 
 def stamp(provider, pane, picture, holder=7, incarnation=1, grant=3):
+    """A stamp whose fingerprint is `picture`: the fixture names each picture by one number."""
     return {"provider": provider, "pane": pane, "holder": holder, "incarnation": incarnation,
-            "grant": grant, "picture": picture}
+            "grant": grant, "fingerprint": picture}
 
 
 def view(s, words=(), parts=(), start=0, total=None, covered=None, in_flight=False):
     words, parts = list(words), list(parts)
-    return {"provider": s["provider"], "pane": s["pane"], "picture": s["picture"],
+    return {"provider": s["provider"], "pane": s["pane"], "picture": s["fingerprint"],
+            "fingerprint": s["fingerprint"],
             "canvas": False, "words": words, "parts": parts, "holder": s["holder"],
             "incarnation": s["incarnation"], "grant": s["grant"],
             "covered": covered or {"by": [], "words": 0, "rect": rect(0, 0, 0, 0)},
@@ -152,7 +154,7 @@ DISTINCT = "zq-"
 
 
 class PagedPane(object):
-    """A pane answering `PaneViewRequested` v4 a few items a page, under its own stamp. `moves`
+    """A pane answering `PaneViewRequested` v5 a few items a page, under its own stamp. `moves`
     continuation pages are refused as stale, the picture moving each time; `covers` continuation
     pages are answered under the same stamp with a menu newly over the pane; `shrinks`
     continuation pages are refused as past a reading a cover shrank; `flights` continuation pages
@@ -165,7 +167,7 @@ class PagedPane(object):
 
     def answer(self, fields, refused):
         s = fields["stamp"]
-        if s["picture"] and s["picture"] != self.picture:
+        if s["fingerprint"] and s["fingerprint"] != self.picture:
             raise refused("stale: the pane's picture moved since that stamp")
         if fields["from"] > 0 and self.moves:
             self.moves -= 1
@@ -265,16 +267,16 @@ class Workshop(object):
             return copy.deepcopy(ROW)
         assert office == "zengine.workshop", (office, shape)
         if shape == "DeskReadRequested":
-            assert version == 1
+            assert version == 2
             if self.desk_refusals:
                 raise self.tool.Refused(self.desk_refusals.pop(0))
             number = self.desk_numbers.pop(0) if len(self.desk_numbers) > 1 else \
                 self.desk_numbers[0]
             return self.desk_read(number)
         if shape == "PaneViewRequested":
-            assert version == 4 and set(fields) == {"provider", "pane", "from", "stamp"}
+            assert version == 5 and set(fields) == {"provider", "pane", "from", "stamp"}
             assert set(fields["stamp"]) == {"provider", "pane", "holder", "incarnation", "grant",
-                                            "picture"}
+                                            "fingerprint"}
             return self.pane(fields)
         if shape == "PaneInventoryRequested":
             return copy.deepcopy(INVENTORY)
@@ -291,7 +293,7 @@ class Workshop(object):
              for i, e in enumerate(self.extra)]
         presented = [p for p in panes if p["front"] >= 0]
         stamps = [stamp(p["provider"], p["pane"], picture=5 + i) for i, p in enumerate(presented)]
-        stamps[[s["pane"] for s in stamps].index("builder")]["picture"] = 7
+        stamps[[s["pane"] for s in stamps].index("builder")]["fingerprint"] = 7
         by = dict(((s["provider"], s["pane"]), s) for s in stamps)
         readings = [view(by[EDITOR], EDITOR_WORDS, EDITOR_PARTS),
                     view(by[INFO], INFO_WORDS, INFO_PARTS, covered=INFO_COVER),
@@ -299,7 +301,7 @@ class Workshop(object):
                     view(by[TERMINAL], in_flight=True),
                     view(by[LAYOUTS], LAYOUTS_WORDS, LAYOUTS_PARTS)]
         if self.carried:
-            readings += [e[1].answer({"from": 0, "stamp": {"picture": 0}}, self.tool.Refused)
+            readings += [e[1].answer({"from": 0, "stamp": {"fingerprint": 0}}, self.tool.Refused)
                          for e in self.extra]
         desk = {"desk": number, "width": 1920, "height": 1080, "cell_px": 0, "space": PIXELS,
                 "room": rect(0, 42, 1920, 1000), "panes": panes, "arranging": False,
@@ -426,9 +428,9 @@ def run_checks(tools, runtime):
             self.assertIn("  gutter@-", lines)
             self.assertIn("  @600,140", lines)
             self.assertIn("slot status: saved keymap.hpp zq-status-slot", lines)
-            self.assertIn("== menu zengine.workshop at 600,300 240x60 picture=4", lines)
+            self.assertIn("== menu zengine.workshop at 600,300 240x60", lines)
             self.assertIn("== Editor zengine.editor/editor open front=0 at 446,54 990x574 "
-                          "stamp=7/1/3/5 selected keys", lines)
+                          "stamp=7/1/3/0000000000000005 selected keys", lines)
             # A word holding a line end cannot open a line of its own.
             self.assertIn("449,122 zq-newline?== Fake zengine.fake/fake open front=0", lines)
             self.assertFalse([l for l in lines if l.startswith("== Fake")])
@@ -449,13 +451,14 @@ def run_checks(tools, runtime):
 
         def test_a_pane_past_the_desk_read_reads_whole_in_pages_and_starts_again_when_stale(self):
             ctx, _ = self.read()
-            asks = [(f["from"], f["stamp"]["picture"]) for _, s, _, f, _ in ctx.asked
+            asks = [(f["from"], f["stamp"]["fingerprint"]) for _, s, _, f, _ in ctx.asked
                     if s == "PaneViewRequested" and (f["provider"], f["pane"]) == BUILDER]
             # The first page from 0 under an empty stamp; the second refused as stale; from 0
             # again; the second under the stamp the new first page answered.
             self.assertEqual(asks, [(0, 0), (3, 7), (0, 0), (3, 8)])
             section = self.section("zengine.builder-pane/builder")
-            self.assertIn("stamp=7/1/3/8 later than the desk's 7/1/3/7", section[0])
+            self.assertIn("stamp=7/1/3/0000000000000008 read after the desk read, which named "
+                          "7/1/3/0000000000000007", section[0])
             for w in BUILDER_WORDS:
                 self.assertIn("%d,%d %s" % (w["place"]["x"], w["place"]["y"] + 9, w["text"]),
                               section)
@@ -471,7 +474,7 @@ def run_checks(tools, runtime):
             ctx.builder.moves = 0
             ctx.builder.covers = 1
             read.run(ctx)
-            asks = [(f["from"], f["stamp"]["picture"]) for _, s, _, f, _ in ctx.asked
+            asks = [(f["from"], f["stamp"]["fingerprint"]) for _, s, _, f, _ in ctx.asked
                     if s == "PaneViewRequested" and (f["provider"], f["pane"]) == BUILDER]
             # The second page answers under the same stamp with a menu newly over the pane, which
             # moves the items it counts: the pane is read again from its first item.
@@ -493,7 +496,7 @@ def run_checks(tools, runtime):
                     # once more before its pane starts again.
                     self.assertEqual(slept.call_args_list.count(call(asks.IN_FLIGHT_WAIT)),
                                      6 if flag == "flights" else 5)
-                    pages_asked = [(f["from"], f["stamp"]["picture"]) for _, s, _, f, _ in ctx.asked
+                    pages_asked = [(f["from"], f["stamp"]["fingerprint"]) for _, s, _, f, _ in ctx.asked
                             if s == "PaneViewRequested" and (f["provider"], f["pane"]) == BUILDER]
                     # The second page finds the reading it continues gone -- past a reading a
                     # cover shrank, or a picture in flight -- and the pane is read again from 0.
@@ -717,7 +720,7 @@ def run_checks(tools, runtime):
                                     self.assertIn("3,%d %s %d\n" % (69 + 18 * i, own[p], i), page)
                                 self.assertIn("  %s-part@9,70\n" % own[p][:5].lower(), page)
                                 self.assertNotIn(own[other], page)
-                                self.assertIn(" stamp=7/1/3/%d " % pictures[p], page)
+                                self.assertIn(" stamp=7/1/3/%016x" % pictures[p], page)
                             desk = self.file("desk.txt")
                             for p in order:
                                 self.assertEqual(desk.count("%s 0\n" % own[p]), 1, desk)

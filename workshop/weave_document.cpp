@@ -21,6 +21,7 @@ void WorkshopWeave::say(std::string text, bool bad) {
     session_.notice = std::move(text);
     session_.notice_is_bad = bad;
     ++notices_said_;
+    stamps_owed_ = desk_owed_ = true; // the band's words are the desk's, said with or without a repaint
 }
 
 // WL-DOC-23 -- agents/workshop/document-file.md

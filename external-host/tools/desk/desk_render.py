@@ -70,9 +70,11 @@ def empty(r):
 
 
 def stamp_text(s):
+    """`H/I/G/F`: holder, incarnation, room grant, and the fingerprint of what the picture shows,
+    in sixteen hex digits."""
     s = s or {}
-    return "%d/%d/%d/%d" % (s.get("holder", 0), s.get("incarnation", 0), s.get("grant", 0),
-                            s.get("picture", 0))
+    return "%d/%d/%d/%016x" % (s.get("holder", 0), s.get("incarnation", 0), s.get("grant", 0),
+                               s.get("fingerprint", 0))
 
 
 def word_line(w):
@@ -170,7 +172,7 @@ def pane_lines(desk, dp, read):
     if stamp is not None:
         head += " stamp=%s" % stamp_text(stamp)
         if desk_stamp is not None and not same_stamp(stamp, desk_stamp):
-            head += " later than the desk's %s" % stamp_text(desk_stamp)
+            head += " read after the desk read, which named %s" % stamp_text(desk_stamp)
     head += " selected" if dp.get("selected") else ""
     head += " keys" if dp.get("keys") else ""
     lines = [head]
@@ -209,8 +211,7 @@ def menu_lines(desk):
     if not menu.get("open"):
         return []
     who = clean(menu.get("office")) + ("/" + clean(menu.get("pane")) if menu.get("pane") else "")
-    lines = ["== menu %s at %s picture=%d" % (who or "-", rect(menu.get("place")),
-                                             menu.get("picture", 0))]
+    lines = ["== menu %s at %s" % (who or "-", rect(menu.get("place")))]
     body = runs(menu.get("lines"), menu.get("parts"), desk.get("space", 0))
     return lines + (body if body else ["(no lines)"])
 

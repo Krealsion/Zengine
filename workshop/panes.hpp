@@ -7,6 +7,7 @@
 // The pane catalog, the panes open this session, and each open pane's view.
 // Workshop law: agents/workshop/panes-and-windows.md (+9 registers; agents/workshop.md routes)
 
+#include "fingerprint.hpp"
 #include "pane_vocabulary.hpp"
 #include "pane_canvas_vocabulary.hpp"
 #include "pane_settings.hpp"
@@ -282,31 +283,36 @@ struct RuntimeCatalog {
     }
 };
 
-// WL-DESK-14 -- agents/workshop/desktop-presenting.md
+// WL-DESK-14 -- agents/workshop/desktop-presenting.md; WL-READ-07 -- agents/workshop/desk-read.md
 /// The picture a press is stamped with: the newest one the medium had been handed when the press
-/// was read. A picture becomes the stamp once the host's `PictureFence` has come round behind its
-/// canvas twice; delivery is single-threaded FIFO, so every press read earlier keeps the older
-/// stamp. Bounded: overflow drops the oldest entry, which only keeps a press stamped older.
+/// was read, aimed at once the host's `PictureFence` has come round behind its canvas twice;
+/// delivery is single-threaded FIFO, so every press read earlier keeps the older stamp. Bounded:
+/// overflow drops the oldest entry, which only keeps a press stamped older. Each picture carries
+/// the fingerprint of what it shows (`picture_fingerprint`), which a reading's stamp names: one
+/// handed out under the number already newest replaces that number's fingerprint where it stands.
 struct PictureStamp {
     struct InFlight {
         std::int64_t fence = 0;
         std::int64_t picture = 0;
+        std::int64_t fingerprint = 0;
     };
     static constexpr std::size_t kInFlight = 8;
-    std::int64_t aimed = 0;          ///< what a press is stamped with now; 0 = none yet
-    std::vector<InFlight> in_flight; ///< handed out, not yet fenced, oldest first
+    std::int64_t aimed = 0;             ///< what a press is stamped with now; 0 = none yet
+    std::int64_t aimed_fingerprint = 0; ///< ...and what that picture shows; 0 = nothing yet
+    std::vector<InFlight> in_flight;    ///< handed out, not yet fenced, oldest first
 
-    /// Record `picture` as handed out behind fence `fence`; false (and nothing recorded) when it
-    /// is already the newest picture handed out.
-    bool hand_out(std::int64_t picture, std::int64_t fence) {
+    /// Record `picture`, showing `fingerprint`, as handed out behind fence `fence`; false when it
+    /// is already the newest picture handed out, whose fingerprint becomes `fingerprint`.
+    bool hand_out(std::int64_t picture, std::int64_t fence, std::int64_t fingerprint = 0) {
         const std::int64_t newest = in_flight.empty() ? aimed : in_flight.back().picture;
         if (picture == newest) {
+            (in_flight.empty() ? aimed_fingerprint : in_flight.back().fingerprint) = fingerprint;
             return false;
         }
         if (in_flight.size() >= kInFlight) {
             in_flight.erase(in_flight.begin());
         }
-        in_flight.push_back(InFlight{fence, picture});
+        in_flight.push_back(InFlight{fence, picture, fingerprint});
         return true;
     }
     /// Fence `fence` came round the second time: every picture handed out behind it is aimed at.
@@ -314,12 +320,14 @@ struct PictureStamp {
         std::size_t done = 0;
         while (done < in_flight.size() && in_flight[done].fence <= fence) {
             aimed = in_flight[done].picture;
+            aimed_fingerprint = in_flight[done].fingerprint;
             ++done;
         }
         in_flight.erase(in_flight.begin(), in_flight.begin() + static_cast<std::ptrdiff_t>(done));
     }
     void forget() {
         aimed = 0;
+        aimed_fingerprint = 0;
         in_flight.clear();
     }
 };
@@ -413,6 +421,68 @@ struct ExternalPane {
         sel_end_col = 0;
     }
 };
+
+// WL-READ-07 -- agents/workshop/desk-read.md
+/// WHAT AN OPEN EXTERNAL PANE SHOWS, AS A FINGERPRINT: what its office sent and Workshop holds --
+/// a picture's rects, labels, runs and parts, never its pane, room grant or number; or prose rows,
+/// their parts and the caret -- whether it has said anything yet, Workshop's own words in place of
+/// an update it refused and whether that refusal is the current room's. The same picture sent
+/// again is the same fingerprint, whatever it was numbered.
+inline std::int64_t picture_fingerprint(const ExternalPane& pane) {
+    Fingerprint f;
+    const ExternalPane::Canvas& c = pane.canvas;
+    if (c.heard || c.preview) {
+        f.number(static_cast<std::int64_t>(c.content.rects.size()));
+        for (const PaneCanvasRect& r : c.content.rects) {
+            for (const std::int64_t n : {r.x, r.y, r.w, r.h, r.role}) f.number(n);
+        }
+        f.number(static_cast<std::int64_t>(c.content.labels.size()));
+        for (const PaneCanvasLabel& l : c.content.labels) {
+            f.number(l.x);
+            f.number(l.y);
+            f.bytes(l.text);
+            f.number(l.role);
+        }
+        f.number(static_cast<std::int64_t>(c.content.texts.size()));
+        for (const v2::PaneCanvasText& t : c.content.texts) {
+            f.number(t.x);
+            f.number(t.y);
+            f.bytes(t.text);
+            for (const std::int64_t n :
+                 {t.role, t.caret_col, t.sel_begin_col, t.sel_end_col,
+                  static_cast<std::int64_t>(t.padded), t.background}) {
+                f.number(n);
+            }
+        }
+        f.number(static_cast<std::int64_t>(c.content.parts.size()));
+        for (const PaneCanvasPart& p : c.content.parts) {
+            f.bytes(p.name);
+            for (const std::int64_t n : {p.x, p.y, p.w, p.h}) f.number(n);
+        }
+    } else {
+        f.number(static_cast<std::int64_t>(pane.shown.size()));
+        for (const surface::SurfaceTextRow& row : pane.shown) {
+            f.bytes(row.text);
+            f.number(row.role);
+            f.number(row.background);
+        }
+        f.number(static_cast<std::int64_t>(pane.parts.size()));
+        for (const PaneRowPart& p : pane.parts) {
+            f.bytes(p.name);
+            for (const std::int64_t n : {p.row, p.column, p.columns}) f.number(n);
+        }
+        for (const std::int64_t n : {pane.caret_row, pane.caret_col, pane.sel_begin_row,
+                                     pane.sel_begin_col, pane.sel_end_row, pane.sel_end_col}) {
+            f.number(n);
+        }
+    }
+    // ...and what Workshop paints of it: "(waiting for the provider)" until it is heard, and the
+    // refusal's sentence, never its reason, which Attention says.
+    f.number(pane.heard ? 1 : 0);
+    f.bytes(pane.refusal);
+    f.number(pane.refused_grant != 0 && pane.refused_grant == c.grant ? 1 : 0);
+    return f.value();
+}
 
 /// One pane a weaver has opened.
 // WL-PANE-13 -- agents/workshop/panes-and-windows.md

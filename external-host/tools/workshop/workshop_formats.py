@@ -24,6 +24,10 @@ GUESTS_VERSION = 2
 WEAVER_HOST = "weaver"
 DEVELOPMENT_HOST = "development"
 
+# WORKSHOP'S NOTICE THAT ITS DESK MOVED, as a row's `observe` names it: what `desk/watch` follows
+# and the walk tools wait on (hand.py), observed only by a row holding `capture`.
+DESK_NOTICE = {"producer": "zengine.workshop", "shape": "DeskStamps", "version": "1"}
+
 # The setup version a desk is lifted from: version 4, whose rows hold every field of the current
 # ones but the settings (`setup_persist::v4` in workshop/setup_persist.hpp).
 LIFTED_SETUP_VERSION = 4
@@ -60,6 +64,18 @@ def current(desk):
     raise ValueError("the desk is setup version %s; a launcher lifts version %d and writes %d -- "
                      "open it in Workshop and save it (`s`) to write version %d"
                      % (claimed, LIFTED_SETUP_VERSION, SETUP_VERSION, SETUP_VERSION))
+
+
+def following_the_desk(row):
+    """`row` with Workshop's notice that the desk moved in its `observe`, when it reads the desk
+    (`capture`) and does not name it already: so its reader and its walks wait on the desk's moves."""
+    row = dict(row)
+    observe = list(row.get("observe") or [])
+    if "capture" in (row.get("may") or []) and DESK_NOTICE not in observe:
+        observe.append(dict(DESK_NOTICE))
+    if observe:
+        row["observe"] = observe
+    return row
 
 
 def guests(rows, host, listen="127.0.0.1:0", port_file=None):

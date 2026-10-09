@@ -316,5 +316,79 @@ struct DeskRead {
     ZEN_SHAPE(DeskRead, 1, ZEN_FIELD(desk), ZEN_FIELD(stamps), ZEN_FIELD(panes));
 };
 
+// ---- THE DESK BY WHAT IT SHOWS: a stamp names a picture by its fingerprint ------------------
+// A pane's own picture numbers stay where a press needs them; a stamp names what the picture shows,
+// so an unchanged picture keeps its stamp and every change moves it, a pane numbering none included.
+
+namespace v2 {
+
+/// WHAT ONE PANE'S READING STANDS ON, ITS PICTURE BY WHAT IT SHOWS: the first version's holder,
+/// incarnation and room grant, and the fingerprint Workshop took of what the pane sent for the
+/// picture aimed at (`picture_fingerprint`). A reading is stale when any of the four moved.
+struct PaneStamp {
+    std::string provider, pane;
+    std::int64_t holder = 0, incarnation = 0, grant = 0, fingerprint = 0;
+    ZEN_SHAPE(PaneStamp, 2, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(holder),
+              ZEN_FIELD(incarnation), ZEN_FIELD(grant), ZEN_FIELD(fingerprint));
+};
+
+} // namespace v2
+
+namespace v5 {
+
+/// A PAGE OF ONE PANE'S READING under a stamp of the second version; a stamp naming no holder
+/// reads the pane as it stands.
+struct PaneViewRequested {
+    std::string provider, pane;
+    std::int64_t from = 0;
+    v2::PaneStamp stamp;
+    ZEN_SHAPE(PaneViewRequested, 5, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(from),
+              ZEN_FIELD(stamp));
+};
+/// The fourth version's reading, its stamp naming the picture by `fingerprint`; `picture` stays
+/// the pane's own number for the picture aimed at, which a point is asked under.
+struct PaneView {
+    std::string provider, pane;
+    std::int64_t picture = 0;
+    bool canvas = false;
+    std::vector<PaneWord> words;
+    std::vector<PanePart> parts;
+    std::int64_t holder = 0, incarnation = 0, grant = 0, fingerprint = 0;
+    PaneCover covered;
+    bool in_flight = false;
+    std::int64_t from = 0, total = 0;
+    ZEN_SHAPE(PaneView, 5, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture),
+              ZEN_FIELD(canvas), ZEN_FIELD(words), ZEN_FIELD(parts), ZEN_FIELD(holder),
+              ZEN_FIELD(incarnation), ZEN_FIELD(grant), ZEN_FIELD(fingerprint),
+              ZEN_FIELD(covered), ZEN_FIELD(in_flight), ZEN_FIELD(from), ZEN_FIELD(total));
+};
+
+} // namespace v5
+
+namespace v2 {
+
+/// THE DESK IN ONE TURN, ITS STAMPS BY FINGERPRINT: the first version's desk, stamps and readings,
+/// each a second-version stamp and a fifth-version reading.
+struct DeskReadRequested {
+    ZEN_SHAPE(DeskReadRequested, 2);
+};
+struct DeskRead {
+    v3::DeskView desk;
+    std::vector<PaneStamp> stamps;
+    std::vector<v5::PaneView> panes;
+    ZEN_SHAPE(DeskRead, 2, ZEN_FIELD(desk), ZEN_FIELD(stamps), ZEN_FIELD(panes));
+};
+
+} // namespace v2
+
+/// THE DESK MOVED: its number and every presented pane's stamp front to back, as a desk read would
+/// say them now. Workshop publishes it at the end of a delivery that moved either, so the newest
+/// stands for every one before it.
+struct DeskStamps {
+    std::int64_t desk = 0;
+    std::vector<v2::PaneStamp> panes;
+    ZEN_SHAPE(DeskStamps, 1, ZEN_FIELD(desk), ZEN_FIELD(panes));
+};
+
 } // namespace zengine::workshop
 #endif

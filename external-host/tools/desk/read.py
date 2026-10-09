@@ -21,6 +21,7 @@ fails only when `out` is refused, and then nothing is written and nothing is ask
 
 import os
 import re
+import time
 
 import desk_asks
 import desk_render as render
@@ -28,6 +29,8 @@ import desk_words as words
 
 #: Pages of a reading a shorter one leaves behind, removed when not written again.
 OLD_PAGES = re.compile(r"^(desk|glance)-\d+\.txt$|^guide-\d+\.md$")
+#: ...and the whole desk's files, which a watch of some panes does not keep, removed by it.
+DESK_FILES = re.compile(r"^(desk|glance)(-\d+)?\.txt$")
 
 
 def checkout_of(path):
@@ -77,20 +80,39 @@ def output_dir(ctx, given):
     return out
 
 
+#: How long a replacement refused while another reader holds the file open is tried again, in
+#: seconds: Windows refuses to replace a file open without delete sharing, as most readers open it.
+REPLACE_RETRY = 1.0
+
+
 def write(path, text):
     """`text` as the whole of `path`, UTF-8 with newline line ends, replacing it in one step: a
-    reader of the file sees the last reading or this one, never half of either."""
+    reader of the file sees the last reading or this one, never half of either. A replacement
+    refused while another reader holds the file is tried again for REPLACE_RETRY seconds; then
+    PermissionError."""
     partial = os.path.join(os.path.dirname(path), "." + os.path.basename(path) + ".partial")
     if os.path.lexists(partial):  # never written through: a link there is removed, not followed
         os.remove(partial)
     with open(partial, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
-    os.replace(partial, path)
+    end = time.monotonic() + REPLACE_RETRY
+    while True:
+        try:
+            os.replace(partial, path)
+            return
+        except PermissionError:
+            if time.monotonic() >= end:
+                raise
+            time.sleep(0.05)
 
 
-def readings(reading):
+def readings(reading, only=None):
     """Every reading file but AGENTS.md, as `[(path relative to out, text)]`, in the order they
-    are written: the guide, the desk, the glance, then each pane."""
+    are written: the guide, the desk, the glance, then each pane. `only`, a set of (office, pane):
+    those panes' files and nothing else, as a watch of some panes writes them."""
+    panes = pane_files(reading)
+    if only is not None:
+        return [(rel, text) for ref, rel, text in panes if ref in only]
     desk_text = render.sparse(reading)
     glance_text = render.glance(reading)
     desk_pages = render.pages(desk_text, "desk.txt")
@@ -98,10 +120,17 @@ def readings(reading):
     sizes = {"desk.txt": (len(desk_text), len(desk_pages)),
              "glance.txt": (len(glance_text), len(glance_pages))}
     files = render.pages(render.guide(reading, sizes), "guide.md") + desk_pages + glance_pages
+    return files + [(rel, text) for _, rel, text in panes]
+
+
+def pane_files(reading):
+    """Each pane's file pages, `[((office, pane), path relative to out, text)]`, front to back."""
+    files = []
     if reading.get("desk") is not None:
         taken = set()
         for dp, read in render.pane_reads(reading):
-            name = render.pane_file_name(dp.get("provider", ""), dp.get("pane", ""))
+            ref = (dp.get("provider", ""), dp.get("pane", ""))
+            name = render.pane_file_name(*ref)
             text = render.pane_file(reading, dp, read)
             # EVERY PAGE OPENS WITH ITS PANE'S HEADER, so a page names its pane whatever its file is
             # called.
@@ -114,16 +143,18 @@ def readings(reading):
                 name, n = "%s~%d.txt" % (stem, n), n + 1
                 paged = render.pages(text, name, again=head)
             taken.update(page.lower() for page, _ in paged)
-            files += [("panes/" + page, page_text) for page, page_text in paged]
+            files += [(ref, "panes/" + page, page_text) for page, page_text in paged]
     return files
 
 
-def tidy(out, written):
-    """Remove the reading files a last read wrote and this one did not."""
+def tidy(out, written, desk_files=False):
+    """Remove the reading files a last read wrote and this one did not; `desk_files`, the whole
+    desk's too."""
     kept = set(os.path.normcase(os.path.join(out, *rel.split("/"))) for rel, _ in written)
     for name in os.listdir(out):
         path = os.path.join(out, name)
-        if OLD_PAGES.match(name) and os.path.isfile(path) and not os.path.islink(path) and \
+        if (OLD_PAGES.match(name) or (desk_files and DESK_FILES.match(name))) and \
+                os.path.isfile(path) and not os.path.islink(path) and \
                 os.path.normcase(path) not in kept:
             os.remove(path)
     panes = os.path.join(out, "panes")

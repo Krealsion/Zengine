@@ -92,7 +92,11 @@ bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
             ahead.push_back(r);
         }
     }
-    if (ahead.empty()) {
+    return rects_cover(mine, ahead);
+}
+
+bool rects_cover(const PixelRect& mine, const std::vector<PixelRect>& ahead) {
+    if (mine.w <= 0 || mine.h <= 0 || ahead.empty()) {
         return false;
     }
     // Exact to the pixel, by edge compression: the union is constant between edges, so one point
@@ -136,7 +140,7 @@ bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
 }
 
 std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen& sc,
-                           const CatalogRow& row, bool judge_cover) {
+                           const CatalogRow& row, bool judge_cover, const PaneBounds* laid) {
     if (!has_pane(setup, row.ref)) {
         return pane_state::kClosed;
     }
@@ -145,7 +149,8 @@ std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen&
     }
     // Every resolved row is seated (`reconcile`), so a row with no visible rectangle has no cell
     // on this screen: its place is off the room.
-    const PaneBounds where = bounds_of(panes, setup, row.kind, sc);
+    // ...laid out here, or by a caller that laid the whole desk out once (`laid`).
+    const PaneBounds where = laid != nullptr ? *laid : bounds_of(panes, setup, row.kind, sc);
     if (!where.open || where.rect.w <= 0 || where.rect.h <= 0) {
         return pane_state::kOffRoom;
     }

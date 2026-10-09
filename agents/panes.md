@@ -128,8 +128,9 @@ Builder's frontier and its role line); an act that learns its subject later asks
 learns it (the Builder's edit-source). The Builder's, Files', Flow's and the View Builder's
 writing, building and opening acts, the Inventory pane's toolbox save and Workshop's own carry
 this; the editor office's saves and opens and the Hotkeys pane's keymap writes are kept from a
-guest on a weaver's host by the dispatch instead (WL-GUEST-06). Every other control an injected
-hand reaches by key or press still answers it as the weaver's. A door a participant sends straight to an owner, past the dispatch, is judged by
+guest on a weaver's host by the dispatch instead (WL-GUEST-06), and any carry a guest's press or
+key would begin there is refused when the pane asks Workshop to begin it. Every other control an
+injected hand reaches by key or press still answers it as the weaver's. A door a participant sends straight to an owner, past the dispatch, is judged by
 the owner asking `ActorScopeRequested` about its sender (WL-GUEST-04). No guest is granted
 `BuildRequested`, a realization ask or a clipboard door as a shape.
 
@@ -190,11 +191,13 @@ input at that point. Workshop names only its own surfaces' parts: its menu's lin
 tabs, `layout:<name>` and `layout:+` (WL-READ-04).
 
 `DeskReadRequested` answers the desk said whole, in one turn: `DeskView` version 3, every
-presented pane's stamp and as many `PaneView` version 4 readings as one decoded value and one
-reply's bytes hold (WL-READ-01). Version 4 pages a pane under its stamp and refuses a page whose
-stamp moved as stale (WL-READ-02), and says a covered pane's visible words with the cover named,
-a point only where a press lands (WL-READ-05); desk reads are at most
-`kDeskReadsPerSecond` a second, each asker (WL-READ-03). A guest session whose row holds `capture`
+presented pane's stamp and as many readings as one decoded value and one reply's bytes hold
+(WL-READ-01). A page is asked under its stamp and refused as stale when that moved (WL-READ-02),
+and says a covered pane's visible words with the cover named, a point only where a press lands
+(WL-READ-05); desk reads are at most `kDeskReadsPerSecond` a second, each asker (WL-READ-03).
+Version 2's stamps, and `PaneView` version 5's, name a picture by the fingerprint of what the pane
+sent, so a pane does nothing for it (WL-READ-07), and Workshop publishes `DeskStamps` at the end of
+each delivery that moved the desk number or a stamp (WL-READ-06). A guest session whose row holds `capture`
 is answered these, `PaneInventoryRequested` and `KeymapRequested` (WL-DESK-09, WL-DESK-11,
 WL-GUEST-11). The shapes: [the desk, said whole](../docs/reference/workshop-panes.md#the-desk-said-whole).
 
@@ -253,7 +256,8 @@ screen says so, is Workshop routing law
 ([`workshop/focus.md`](workshop/focus.md) (WL-FOCUS-01)).
 
 - **On a weaver's host a guest's keys, text, presses, wheels and drops never reach the editor
-  office, the Terminal or the Hotkeys pane, and its typed text no pane** (WL-GUEST-06): Workshop refuses them
+  office, the Terminal or the Hotkeys pane, and its typed text and any carry it would begin no
+  pane** (WL-GUEST-06): Workshop refuses them
   in words at the dispatch, by office, whichever implementation holds it. On a development host,
   as the weaver's.
 

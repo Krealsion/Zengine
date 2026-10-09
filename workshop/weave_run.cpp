@@ -67,6 +67,7 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // ...and behind the canvas, the fence that makes a newly shown picture the one a press is
     // stamped with, queued after it so no delivery comes between them.
     fence_pictures(mail);
+    stamps_owed_ = desk_owed_ = true; // the desk may have moved: looked at once, at the delivery's end
 }
 
 // WL-ATTN-12 -- agents/workshop/attention.md
