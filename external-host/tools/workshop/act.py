@@ -40,7 +40,7 @@ from pathlib import Path
 
 from loom_session.tool import Refused
 
-from hand import NO_PRESS, Hand, on_row, rows_of, takes_no_press
+from hand import FALLBACK_PACE, NO_PRESS, Hand, on_row, rows_of, takes_no_press
 from workshop_steps import chord_moments, moment, picture, png_of, point
 
 VERBS = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
@@ -73,6 +73,7 @@ def run(ctx):
             ctx.step("step %d of %d: %s" % (i + 1, len(steps), verb))
             started = time.monotonic()
             record = {"index": i, "verb": verb, "args": step[verb]}
+            hand.unsettled = False  # a step's waits judge its own reads, never a last step's
             record.update(act(ctx, hand, verb, step) or {})
             record["elapsed_ms"] = round((time.monotonic() - started) * 1000, 1)
             done.append(record)
@@ -80,7 +81,11 @@ def run(ctx):
                 time.sleep(pace)
     finally:
         ctx.produce("steps.json", json.dumps(done, indent=1).encode())
-    return "%d step(s) done: %s" % (len(done), " ".join(r["verb"] for r in done))
+    said = "%d step(s) done: %s" % (len(done), " ".join(r["verb"] for r in done))
+    if hand.waits_said():
+        said += "; its waits read again every %g s, not at Workshop's notice: %s" % (
+            FALLBACK_PACE, hand.waits_said())
+    return said
 
 
 def spelled(value, verb, count):
@@ -96,6 +101,19 @@ def words_now(hand, provider, pane):
         return hand.words(provider, pane)
     except Refused:
         return None
+
+
+def pause(hand, end, pane=None):
+    """Until what a wait waits on may have moved, or `end`: a picture not yet aimed at is read again
+    a tenth of a second later, Workshop's own two hops, which no notice marks; anything else, at the
+    desk's next move for `pane` (office, pane), or for the desk (`hand.wait`)."""
+    left = end - time.monotonic()
+    if left <= 0:
+        return
+    if hand.unsettled:
+        time.sleep(min(0.1, left))
+    else:
+        hand.wait(left, pane)
 
 
 def texts(view):
@@ -169,7 +187,7 @@ def wait_part(hand, provider, pane, name, seconds):
         part = part_of(view, name)
         if (part is not None and not takes_no_press(view)) or time.monotonic() >= end:
             return view, part
-        time.sleep(0.2)
+        pause(hand, end, (provider, pane))
 
 
 def no_press_yet(ctx, view, verb, provider, pane, seconds):
@@ -205,7 +223,7 @@ def wait_words(hand, provider, pane, text, seconds, present=True, pressing=False
             return view, words
         if time.monotonic() >= end:
             return view, (words if pressing else None)
-        time.sleep(0.2)
+        pause(hand, end, (provider, pane))
 
 
 def painted(hand, provider, pane):
@@ -231,7 +249,7 @@ def wait_rows(hand, provider, pane, text, seconds, present=True):
             return view, rows
         if time.monotonic() >= end:
             return view, None
-        time.sleep(0.2)
+        pause(hand, end, (provider, pane))
 
 
 def press_at(ctx, hand, where, button="left"):
@@ -444,7 +462,7 @@ def choose(ctx, hand, text, seconds, button):
             return {"line": lines[0]["text"], "office": menu["office"], "pane": menu["pane"]}
         if time.monotonic() >= end:
             break
-        time.sleep(0.2)
+        pause(hand, end)
     ctx.produce("failed-step-rows.json", json.dumps(
         {"lines": [l["text"] for l in menu["lines"]], "names": [p["name"] for p in menu.get("parts", [])]}
         if menu["open"] else "no menu", indent=1).encode())
@@ -492,7 +510,7 @@ def check_desk(ctx, hand, arg, step):
             return {"said": said}
         if time.monotonic() >= end:
             break
-        time.sleep(0.2)
+        pause(hand, end, tuple(arg) if arg else None)
     ctx.produce("failed-step-desk.json", json.dumps(fields_of(desk), indent=1).encode())
     ctx.fail("desk: %s %s within %gs (it said %s)" % (
         "/".join(arg) if arg else "the desk", "is not on the desk" if said is None
@@ -647,7 +665,7 @@ def open_pane(ctx, hand, name, seconds):
                 break
             if time.monotonic() >= end:
                 ctx.fail("open: the Pane Manager did not mark %r within %gs" % (name, seconds))
-            time.sleep(0.1)
+            pause(hand, end, MANAGER)
     press_at(ctx, hand, part)
     end = time.monotonic() + seconds
     while True:
@@ -660,4 +678,4 @@ def open_pane(ctx, hand, name, seconds):
             ctx.fail("open: %s is %s within %gs" % (name[len("pane:"):], "%s and %s" % (
                 on[0]["state"], "selected" if on[0]["selected"] else "not selected")
                 if on else "not on the desk", seconds))
-        time.sleep(0.2)
+        pause(hand, end)

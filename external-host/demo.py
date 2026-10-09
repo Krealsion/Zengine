@@ -230,6 +230,7 @@ def launch(args, source, root):
     guest = {"name": "workshop-demo", "credential": credential, "may": authority["may"]}
     if authority.get("observe"):
         guest["observe"] = authority["observe"]
+    guest = formats.following_the_desk(guest)
     # A SETUP'S WORKSHOP IS ITS OWN, started for this root alone: a development host, where its
     # guest types, writes and builds as a weaver would (docs/workshop/external-host.md).
     save_json(wdir / "guests.json", formats.guests([guest], formats.DEVELOPMENT_HOST,

@@ -505,9 +505,10 @@ TEST_CASE("an actor without the carry cannot extract, and one without the open m
 
 
 // THE EDITOR ANSWERS ONLY THE WEAVER'S HAND ON A WEAVER'S HOST, at a drop and a wheel too: a guest's
-// location dragged from Inventory and released over the Editor is refused at the drop, moving
-// neither the document nor the keys, and its wheel over the Editor scrolls nothing. The guest
-// stored that location on a development host, where its hand reaches the Editor as the weaver's.
+// location dragged from Inventory toward the Editor carries nothing -- what a guest would carry
+// rests in no pane there -- moving neither the document nor the keys, and its wheel over the Editor
+// scrolls nothing. The guest stored that location on a development host, where its hand reaches the
+// Editor as the weaver's.
 TEST_CASE("on a weaver's host a guest's wheel and value drop toward the Editor are refused, and the Editor hears neither") {
     EditorStory s("xfer-guest-host");
     scope::GuestRowFacts row;
@@ -541,7 +542,7 @@ TEST_CASE("on a weaver's host a guest's wheel and value drop toward the Editor a
     s.r.host.host_fact.development = false;
     s.drag(s.inventory, s.row_of(s.inventory, "a.txt at 3"), 2, s.editor, s.chrome() + 0, 1);
     INFO(s.r.last_notice());
-    CHECK(s.r.last_notice().find(refused) != std::string::npos);
+    CHECK(s.r.last_notice().find("a guest's carried item rests in no pane") != std::string::npos);
     CHECK(s.doc().path.find("b.txt") != std::string::npos);
     CHECK(s.r.session().panes.keyboard == s.inventory); // the drag's press took them; the drop did not
     wheel();

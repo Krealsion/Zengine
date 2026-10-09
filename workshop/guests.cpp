@@ -95,6 +95,10 @@ bool carries_the_desk(const std::string& shape) {
     return false;
 }
 
+// ...AND WHAT FOLLOWS THEM: a notice that the desk moved names every pane's picture as a reading
+// does, so it is observed under the same power.
+bool follows_the_desk(const std::string& shape) { return shape == DeskStamps::zen_name; }
+
 } // namespace
 
 bool split_listen(const std::string& listen, std::string* host, std::uint16_t* port) {
@@ -299,6 +303,10 @@ loom::Grant grant_for(const GuestRow& row) {
                             "zengine.workshop");
             g.allow_to_role(v4::PaneViewRequested::zen_name, v4::PaneViewRequested::zen_version,
                             "zengine.workshop");
+            g.allow_to_role(v2::DeskReadRequested::zen_name, v2::DeskReadRequested::zen_version,
+                            "zengine.workshop");
+            g.allow_to_role(v5::PaneViewRequested::zen_name, v5::PaneViewRequested::zen_version,
+                            "zengine.workshop");
             g.allow_to_role(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version,
                             "zengine.workshop");
             g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version,
@@ -405,6 +413,10 @@ std::vector<std::string> losses_of(const GuestRow& row, const GuestsFile& file) 
         out.push_back("file writes: this is a weaver's host");
         out.push_back("the editor, the Terminal and the Hotkeys pane: they answer only the weaver's hand here");
         out.push_back("typed text: a guest's text rests in no pane here");
+        // ...and a carry, which only `inventory` begins.
+        if (f.may(kPowerInventory)) {
+            out.push_back("carrying an item: what a guest would carry rests in no pane here");
+        }
     }
     if (f.may(kPowerToolbox)) out.push_back("saving a toolbox file: a file write");
     if (f.may(kPowerDemo)) out.push_back("quitting Workshop: quitting writes the last session");
@@ -498,6 +510,13 @@ loom::observe::ObservePolicy observation_of(
                     std::to_string(asked.version) + " from " + r.producer +
                     ": it carries the desk's words or its picture, which a row observes only "
                     "with `capture`");
+            }
+            if (follows_the_desk(asked.name) && !row_may(*row, kPowerCapture)) {
+                return loom::observe::ObserveVerdict::refuse(
+                    "guest '" + row->name + "' may not observe " + asked.name + " v" +
+                    std::to_string(asked.version) + " from " + r.producer +
+                    ": it says when the desk's words or its picture moved, which a row follows "
+                    "only with `capture`");
             }
             if (asked.name == surface::ClipboardCopy::zen_name) {
                 return loom::observe::ObserveVerdict::refuse(

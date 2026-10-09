@@ -1106,6 +1106,7 @@ void WorkshopWeave::on(const PresenterReady& ready, loom::Mail& mail) {
         // next `MenuShown` draws the menu in its own way; the weaver's interaction continues.
         session_.presented.stamp.forget();
         session_.presented.picture = 0;
+        stamps_owed_ = desk_owed_ = true; // the menu's number is the desk's, and nothing repaints here
         return;
     }
     // A HOLDER THAT DOES NOT CARRY IT cannot answer it: the menu ends here, answered by this host.

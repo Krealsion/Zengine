@@ -43,6 +43,7 @@ constexpr const char* kEditorRefused = "the editor answers only the weaver's han
 constexpr const char* kTerminalRefused = "the Terminal answers only the weaver's hand";
 constexpr const char* kHotkeysRefused =
     "the Hotkeys pane, which edits the keymap file, answers only the weaver's hand";
+constexpr const char* kCarryRefused = "a guest's carried item rests in no pane";
 
 bool holds_words(const std::string& said, const char* part) {
     return said.find(part) != std::string::npos;
@@ -662,6 +663,101 @@ TEST_CASE("on a weaver's host a guest's text toward Info, the Composer, Layouts'
         weaver.key(input::scan::kReturn);
         CHECK_MESSAGE(std::filesystem::exists(path), picture_text(s.r, s.flow));
         CHECK_FALSE(std::filesystem::exists(path + "-guest"));
+    }
+}
+
+// ============================================================================
+// A CARRIED ITEM: what the weaver commits holds nothing a guest dropped
+// ============================================================================
+
+/// AN INVENTORY ENTRY HOLDING A NOTE the notes desk accepts, labelled `label`, and the Inventory
+/// pane's row showing it: the item a hand drags, which the Composer takes as the desk's message.
+std::int64_t note_entry(InventoryStory& s, const std::string& words, const std::string& label) {
+    const auto pair = inv::encode_pair(loom::to_value(GuestsNote{words}), {});
+    s.r.bus.send_to_role(inv::kInventoryRole,
+                         loom::Message(loom::to_value(
+                             inv::InventoryAdd{loom::Bytes(pair.begin(), pair.end()), label})));
+    s.r.bus.drain_until_idle();
+    const std::int64_t row = s.row_of(s.source, label);
+    REQUIRE_MESSAGE(row >= 0, s.shown(s.source));
+    return row;
+}
+
+bool carrying(PaneRig& r) { return r.last_notice().rfind("Carrying ", 0) == 0; }
+
+TEST_CASE("on a weaver's host a guest's carried item rests in no pane: its carry is refused in words before it begins, so nothing it drops on Info or the Composer lands, and the weaver's own carry does") {
+    SUBCASE("on Info, by a click") {
+        InventoryStory s;
+        Weaver weaver{s.r, s.physical};
+        admit_as_guest(s.r, s.hand_id, /*development=*/false, {"input", "inventory"});
+        const std::string taken = said_for(s.r, [&] { s.acquire(); });
+        CHECK_MESSAGE(holds_words(taken, kCarryRefused), taken);
+        CHECK_FALSE(carrying(s.r));
+        s.click(s.info);
+        CHECK_MESSAGE(s.shown(s.info).find("story.RuntimeItem") == std::string::npos, s.shown(s.info));
+        // THE ONE CARRY IS THE WEAVER'S TO TAKE: the same item, carried by the weaver, lands.
+        weaver.click(s.source, 0);
+        weaver.key(input::scan::kReturn, input::mod::kCtrl);
+        REQUIRE_MESSAGE(carrying(s.r), s.r.last_notice());
+        weaver.click(s.info, 0);
+        CHECK_MESSAGE(s.shown(s.info).find("story.RuntimeItem") != std::string::npos,
+                      s.r.last_notice() << "\n" << s.shown(s.info));
+    }
+    SUBCASE("on Info, by a drag's release") {
+        InventoryStory s;
+        admit_as_guest(s.r, s.hand_id, /*development=*/false, {"input", "inventory"});
+        const std::string dropped = said_for(s.r, [&] { s.drag(); });
+        CHECK_MESSAGE(holds_words(dropped, kCarryRefused), dropped);
+        CHECK_MESSAGE(s.shown(s.info).find("COPY story.RuntimeItem") == std::string::npos, s.shown(s.info));
+        CHECK_FALSE(carrying(s.r));
+    }
+    SUBCASE("on the Composer, by a drag's release, and the weaver's Submit then sends its own words alone") {
+        InventoryStory s(191, true);
+        Weaver weaver{s.r, s.physical};
+        NoteDesk* desk = mount_note_desk(s.r);
+        const std::int64_t compose = compose_at_notes(s);
+        const std::int64_t note = note_entry(s, "guest", "guest note");
+        admit_as_guest(s.r, s.hand_id, /*development=*/false, {"input", "inventory"});
+        const std::int64_t message = s.row_of(compose, "GuestsNote v1");
+        REQUIRE_MESSAGE(message >= 0, s.shown(compose));
+        const std::string dropped =
+            said_for(s.r, [&] { s.drag_to(s.source, note, compose, message); });
+        CHECK_MESSAGE(holds_words(dropped, kCarryRefused), dropped);
+        CHECK_MESSAGE(s.shown(compose).find("Copied data into form") == std::string::npos, s.shown(compose));
+        CHECK_FALSE(carrying(s.r));
+        // THE WEAVER'S COMMIT HOLDS NOTHING THE GUEST DROPPED: it writes the message and submits.
+        weaver.click(compose, message);
+        const std::int64_t field = s.row_of(compose, "words:");
+        REQUIRE_MESSAGE(field >= 0, s.shown(compose));
+        weaver.click(compose, field);
+        REQUIRE(s.r.session().panes.keyboard == compose);
+        weaver.text("weaver");
+        const std::int64_t submit = s.row_of(compose, "[ Submit ]");
+        REQUIRE_MESSAGE(submit >= 0, s.shown(compose));
+        weaver.click(compose, submit);
+        CHECK_MESSAGE(desk->heard == std::vector<std::string>{"weaver"}, s.shown(compose));
+    }
+}
+
+TEST_CASE("on a development host the same guest's carried item lands on Info and on the Composer as a draft") {
+    SUBCASE("on Info") {
+        InventoryStory s;
+        admit_as_guest(s.r, s.hand_id, /*development=*/true, {"input", "inventory"});
+        s.acquire();
+        s.place();
+        CHECK_MESSAGE(s.shown(s.info).find("story.RuntimeItem") != std::string::npos, s.shown(s.info));
+    }
+    SUBCASE("on the Composer") {
+        InventoryStory s(191, true);
+        mount_note_desk(s.r);
+        const std::int64_t compose = compose_at_notes(s);
+        const std::int64_t note = note_entry(s, "guest", "guest note");
+        admit_as_guest(s.r, s.hand_id, /*development=*/true, {"input", "inventory"});
+        const std::int64_t message = s.row_of(compose, "GuestsNote v1");
+        REQUIRE_MESSAGE(message >= 0, s.shown(compose));
+        s.drag_to(s.source, note, compose, message);
+        CHECK_MESSAGE(s.shown(compose).find("Copied data into form") != std::string::npos,
+                      s.r.last_notice() << "\n" << s.shown(compose));
     }
 }
 

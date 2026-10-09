@@ -292,7 +292,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, v4::PaneViewRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, v4::PaneViewRequested, v5::PaneViewRequested, DeskReadRequested, v2::DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -367,7 +367,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, DeskRead, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, DeskRead, v2::DeskRead, DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::v1::PaneCanvasPointer,
@@ -512,11 +512,12 @@ public:
     /// and the desk number, which moves when any of it moves.
     v3::DeskView desk_view_v3() const;
     /// ONE PANE'S WHOLE READING, or why there is none: its words and parts but the covered ones,
-    /// what covers it, its stamp, and whether its picture is in flight.
+    /// what covers it, its stamp, and whether its picture is in flight: by what it shows, or for
+    /// the fourth version by numbers.
     std::string pane_reading(const std::string& provider, const std::string& pane,
-                             v4::PaneView& out) const;
+                             v5::PaneView& out, bool by_numbers = false) const;
     /// THE PANE WORKSHOP PRESENTS ITSELF, Layouts, read as it is painted, its tabs named parts.
-    std::string layouts_reading(v4::PaneView& out) const;
+    std::string layouts_reading(v5::PaneView& out) const;
     /// What covers a presented pane's `rect`, each by the name a reading says it with.
     struct Cover {
         std::string by;
@@ -527,7 +528,16 @@ public:
     PaneStamp stamp_of(const std::string& provider, const std::string& pane, std::int64_t grant,
                        std::int64_t picture) const;
     void on(const v4::PaneViewRequested& asked, loom::Mail& mail);
+    void on(const v5::PaneViewRequested& asked, loom::Mail& mail);
     void on(const DeskReadRequested& asked, loom::Mail& mail);
+    void on(const v2::DeskReadRequested& asked, loom::Mail& mail);
+    /// Every presented pane, front to back: the order a desk read and a notice say stamps in.
+    std::vector<PaneRef> presented_refs() const;
+    /// The stamp `ref` stands on now, its picture named by the fingerprint of what it shows.
+    v2::PaneStamp stamp_now(const PaneRef& ref) const;
+    /// `DeskStamps`, published when the desk number or a presented pane's stamp moved since the
+    /// last one; `known`, a desk computed already.
+    void publish_desk_stamps(loom::Mail& mail, const v3::DeskView* known = nullptr);
     /// Whether `who` is a guest session whose admitted row holds `capture`: the one personal asker
     /// the desk's offers and keymap answer.
     bool capture_guest(loom::WeaveId who) const;
@@ -1446,6 +1456,14 @@ private:
     mutable std::string desk_said_;
     mutable std::int64_t layouts_picture_ = 0;
     mutable std::string layouts_said_;
+    /// THE LAST NOTICE PUBLISHED, a host keeping a notice is judged against, and whether the desk
+    /// may have moved since: a repaint, a picture aimed at or a notice said owes one look.
+    DeskStamps stamps_said_;
+    bool stamps_published_ = false;
+    bool stamps_owed_ = false;
+    /// ...and whether what the desk says may have moved, so its number is computed again; a
+    /// picture aimed at moves stamps only.
+    bool desk_owed_ = true;
     /// EACH ASKER'S DESK READS IN THE LAST SECOND, bounded by the rate; an asker with none is
     /// forgotten at the next read.
     std::map<std::uint64_t, std::vector<std::int64_t>> desk_reads_;

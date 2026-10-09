@@ -1439,8 +1439,10 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
 ### The desk, said whole
 
 The same header answers the whole desk in one turn, and one pane's reading page by page under a
-stamp naming what it stands on. A picture's number alone names nothing: it starts again when a
-pane's office is offered again, and at each new canvas room.
+stamp naming what it stands on, and publishes a notice whenever the desk moves. A picture's number
+alone names nothing: it starts again when a pane's office is offered again, and at each new canvas
+room. So the second `PaneStamp` names a picture by the fingerprint Workshop takes of what the pane
+sent and holds, never its number.
 
 | Message | Meaning |
 |---|---|
@@ -1450,6 +1452,10 @@ pane's office is offered again, and at each new canvas room.
 | `v4::PaneViewRequested{provider, pane, from, stamp}` | A page of one pane's reading from item `from`, continuing the reading `stamp` names; a stamp naming no holder (holder 0, as an empty stamp does) at `from` 0 reads the pane as it stands |
 | `v4::PaneView{provider, pane, picture, canvas, words, parts, holder, incarnation, grant, covered, in_flight, from, total}` | `v3::PaneView`'s words and then its parts from item `from`, of `total`, as many as one decoded value and one reply's bytes hold; the stamp the reading stands on; what covers the pane; and whether its newest picture is still in flight |
 | `PaneCover{by, words, rect}` | What covers part of a pane -- `by` names each: a pane in front by its name, `menu`, `arranging`, `refused mark`, `band` -- how many of its words and parts are not said for it, and the `DeskRect` bounding what they cover of it; empty for a pane nothing covers |
+| `v2::DeskReadRequested{}`, `v2::DeskRead{desk, stamps, panes}` | The desk in one turn, its stamps `v2::PaneStamp` and its readings `v5::PaneView` |
+| `v2::PaneStamp{provider, pane, holder, incarnation, grant, fingerprint}` | The first `PaneStamp`, its picture named by the fingerprint of what the pane sent and holds for the picture aimed at: the same picture sent again keeps it, whatever it was numbered; 0 for a canvas picture no press is stamped with yet |
+| `v5::PaneViewRequested{provider, pane, from, stamp}`, `v5::PaneView{..., grant, fingerprint, covered, in_flight, from, total}` | Version 4's page under a `v2::PaneStamp`; the reading's `fingerprint` beside `picture`, the pane's own number for the picture aimed at, which a point is asked under |
+| `DeskStamps{desk, panes}` | Published by Workshop's office to whoever follows it: the desk number and every presented pane's `v2::PaneStamp`, from the front back, as a `v2::DeskRead` would say them now |
 | `v3::DeskView{desk, width, height, cell_px, space, room, panes, arranging, menu, words, slots}` | `v2::DeskView` and Workshop's own words: the band's notice and legend as `PaneWord`s with their places and no point, since the band takes no press; the status slot as a `surface::SurfaceText{slot, text}`, a word with no place, as the medium is handed it; and `desk`, a number that moves when anything it says moves |
 
 - **One value, then a page at a time.** A `DeskRead` stays inside one decoded value: Loom's
@@ -1468,9 +1474,10 @@ pane's office is offered again, and at each new canvas room.
   Workshop holds nothing between asks.
 - **A stamp that moved is stale.** A page asked under a stamp the pane no longer stands on -- its
   holder, incarnation, room grant or picture moved -- is refused as stale, in words, whatever the
-  picture's number, and the reader reads the pane again from item 0. A repaint moves the picture;
-  a new room (a resize, a move, a title row shown or hidden, a metric renewed) the grant; a reload
-  in place the incarnation. A cover that moves between pages shifts the items `from` counts and
+  picture's number, and the reader reads the pane again from item 0. What the pane shows moving
+  moves the fingerprint, a caret or a colour too, and the number of a `PaneStamp` with each
+  picture handed out; a new room (a resize, a move, a title row shown or hidden, a metric renewed)
+  the grant; a reload in place the incarnation. A cover that moves between pages shifts the items `from` counts and
   leaves the stamp alone, so a reader compares each page's `total` and `covered` with the first
   page's and reads the pane again from item 0 when they differ; a `from` past `total` is refused,
   in words saying to read it again from the start.
@@ -1480,9 +1487,11 @@ pane's office is offered again, and at each new canvas room.
   counted in `covered.words`, and never given a point; what shows is said as version 3 says it.
   While a menu is open a primary press outside it reaches nothing beside it -- it closes the
   menu, or is refused -- so every word and part said beside it has its place and no point.
-- **A picture in flight says so.** While a pane's newest picture is not yet aimed -- handed out
-  and not yet fenced, a preview, a room out that no picture has answered yet -- its reading says
-  `in_flight` and no word, at any page: ask it again. A closed pane, one not presented, one whose
+- **A picture in flight says so.** While a pane's newest picture is not yet aimed -- for version 5,
+  while what it shows is not yet what its stamp names; for version 4, while a number handed out
+  is not yet fenced -- or it shows a preview, or a room is out that no picture has answered yet,
+  its reading says `in_flight` and no word, at any page: its settling moves its stamp, and the
+  notice. A closed pane, one not presented, one whose
   last update Workshop refused -- nothing of it standing, or the picture a new room asked for --
   and one not yet drawn for its room whose office no participant holds, waiting for its provider,
   are refused in words, as the pane paints them; a pane whose provider left with its last update
@@ -1494,19 +1503,27 @@ pane's office is offered again, and at each new canvas room.
 - **The desk number.** `desk` moves whenever the `v3::DeskView` Workshop says differs from the last
   one it said, and holds while nothing does, so a reader knows whether the geometry it read still
   stands. Consistency is per pane: each reading stands on its own stamp.
+- **A notice when the desk moved.** Workshop publishes `DeskStamps` as its office at the end of each
+  delivery that moved the desk number or a presented pane's stamp -- one notice for every repaint
+  that delivery made, and one when a picture's fence comes round -- and a `DeskRead` that finds the
+  number moved without one publishes it. A repaint that moved nothing and a picture sent again
+  unchanged publish nothing. The notice is the whole state, so a relay may keep only the newest
+  (`latest`): the newest stands for every one before it. Its `cause` is best effort.
 - **Layouts reads as Workshop paints it.** Asked as `zengine.workshop` `layouts`, by version 4 or
   in a `DeskRead` alone, its rows are words and its tabs are parts Workshop names, as it names its
   menu's lines: `layout:<name>` for a layout's tab -- each byte of the name outside printable
   ASCII, and `%`, `#` and `+`, spelled `%XX` in upper-case hex, so no tab is named `layout:+`, and
   a name two layouts share followed by `#` and its place in the layout order, counted from 1 --
   and `layout:+` for the tab that makes one. While a layout's name is being typed no tab is
-  named. Its picture is a number that moves when what it says moves.
+  named. Its picture is a number that moves when what it says moves, and its fingerprint that of
+  what it says, with its naming line's caret.
 - **The inventory and the keymap answer a `capture` guest.** `PaneInventoryRequested` and
   `KeymapRequested`, answered to an office, are answered to a guest session whose admitted row
   holds `capture` too, to it alone; other personal speech is still answered by nobody.
 - **The earlier versions are unchanged**, and versions 1 to 3 still refuse a covered pane whole.
-  The guest `capture` power grants `DeskReadRequested` and `v4::PaneViewRequested`, each to
-  `zengine.workshop`.
+  The guest `capture` power grants `DeskReadRequested` (versions 1 and 2) and `PaneViewRequested`
+  (versions 4 and 5), each to `zengine.workshop`, and a row naming `DeskStamps` in its `observe`
+  follows the notice only with `capture`.
 
 ## Attributed value origins and delegated shortcuts
 

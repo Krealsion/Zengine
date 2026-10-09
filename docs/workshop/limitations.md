@@ -539,21 +539,25 @@ document's picture, which this Workshop no longer publishes, so it waits, showin
   takes the decision is later work ([external host](external-host.md)).
 - **A credential crosses the loopback socket in the clear.** The guests file refuses any
   listener but loopback; there is no transport security in the crossing.
-- **A weaver's host narrows a guest's hand only where it would write, type or reach a shell.**
-  There a guest's file writes, typed text, the editor, the Terminal, the Hotkeys pane and the
-  guests file are refused ([whose host this is](external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
+- **A weaver's host narrows a guest's hand only where it would write, type, carry or reach a shell.**
+  There a guest's file writes, typed text, carries, the editor, the Terminal, the Hotkeys pane and
+  the guests file are refused ([whose host this is](external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
   Every other control a key or a press reaches still answers it as the weaver -- a layout's
   removal, the desktop's launch and close, the clipboard -- and its drag still moves a press the
-  weaver holds; a value it carries and drops on the Composer or Info rests there as a draft the
-  weaver's own Submit or commit sends; the View Builder still keeps its run record (the project's
+  weaver holds; the View Builder still keeps its run record (the project's
   `view-builder.json`) for a guest's Run, Stop, New or Open; loads are still admitted by trusting
   every artifact; and an agent with a shell as the weaver's own user still writes the weaver's
   files.
 - **A desk read is consistent pane by pane, not across the desk.** Each pane's reading stands on
   its own stamp and the desk on its number; a reading gathered over several asks can hold panes
   from different moments, and `desk/read` says which. `PaneView` versions 1 to 3 still refuse a
-  covered pane whole; version 4 says what shows of it
+  covered pane whole; versions 4 and 5 say what shows of it
   ([the desk, read by message](external-host.md#the-desk-a-panes-words-and-timed-drag-stories)).
+- **The desk's notice says where it stands, not each change.** A follower told `DeskStamps` reads
+  again what moved since its own last reading; what moved and moved back between two notices it
+  took is not said. A holder leaving between Workshop's deliveries is said at its next repaint,
+  fence, band notice or desk read, and a stamp's fingerprint says whether a picture is the same,
+  never which of two came later.
 - **No guest observes the weaver's copied text.** `ClipboardCopy` needs a power of its own,
   `clipboard`, which no guests file grants yet, so every row is refused it.
 - **Injection enters at the Input weave**, below the platform edge: the console reader, the
