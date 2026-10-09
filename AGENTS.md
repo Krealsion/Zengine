@@ -23,6 +23,11 @@ truth, special cases, or migration burdens imposed on future owners. Revise that
 necessary tradeoffs explicit for acceptance. Keep the argument proportional and grounded in
 real consumers, not speculative abstractions. Required checks still have to pass.
 
+**Write Loom, not host code.** A pane or tool is a participating weave that reaches the rest only
+by messages. Split it until a piece is too small to be useful alone; that piece becomes an
+operator other weaves compose. Code that grows inside the host where a weave could hold it is the
+mistake to refuse; a problem that arises inside Loom's architecture is the one worth solving.
+
 ## Read this, then route
 
 This file is the one mandatory read before touching this repository. Everything else is

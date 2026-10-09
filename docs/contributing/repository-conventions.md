@@ -32,6 +32,8 @@ tests/               every suite, fixture and check
 reference/           the pre-Zen V1 engine, kept as a quarry. NOT built
 ```
 
+A page under `docs/contributing/` routes to the registers under `agents/` that own its rules.
+
 ## Packages
 
 Each package is a directory holding a `CMakeLists.txt`, one or more `vocabulary.hpp` headers,
@@ -210,8 +212,11 @@ where the text belongs.
 
 ## Attribution
 
-Commits are authored as `Krealsion <krealsion@gmail.com>`. Do not add co-author trailers of any
-kind.
+A commit is authored under the account of the person who makes it:
+`Krealsion <krealsion@gmail.com>` for the project's own work, and an outside contributor's own
+account for theirs, never the AI agent either uses. No commit and no pull request carries a
+co-author line or an AI credit, for anyone. `tests/check_commit_attribution.cmake` refuses an AI
+co-author and the credit line on every commit it reads.
 
 ## Licensing
 
