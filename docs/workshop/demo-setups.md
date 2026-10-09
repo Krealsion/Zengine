@@ -100,8 +100,13 @@ A stopped root is evidence: start again in a new one.
 This is a local development harness. Starting a setup authorizes the shipped Python packages it
 names to run in its dedicated host (`any-revision` trust) and creates a loopback credential with
 exactly the powers its description lists, on its own Workshop -- for most setups `input`,
-`capture`, `inspect`, `inventory`, `toolbox`, `demo` and `open`. It approves nothing on another
-Workshop. Local package edits run as trusted code, not in a sandbox. For a weaver-controlled
+`capture`, `inspect`, `inventory`, `toolbox`, `demo` and `open`, and `build` where the setup
+builds (`tower-defense`). Its guests file, at version
+<!-- value guests::kGuestsFileVersion,workshop_formats.GUESTS_VERSION -->2<!-- /value -->, names
+that Workshop a development host, so the guest
+writes files, types into panes and reaches the editor and the Terminal there as a weaver would
+([whose host this is](external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
+It approves nothing on another Workshop. Local package edits run as trusted code, not in a sandbox. For a weaver-controlled
 connection and narrower grants, use the [external-host guide](external-host.md).
 
 ## Reset and its boundary
@@ -269,7 +274,8 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
 - `medium` -- the `supports` list (`sdl`, `tui`) and the `viewport` in cells;
 - `requires` -- extra `artifacts`, named `inputs` (such as `zengine_prefix`, a launcher flag) and
   `notes`;
-- `authority` -- the guest's `may` powers (always `demo`) and what it may `observe`;
+- `authority` -- the guest's `may` powers (always `demo`; `build` for a setup that builds) and
+  what it may `observe`, granted on the setup's own Workshop, a development host;
 - `desk` and `view_slots` -- the desk file, and places for portable Inventory views that exist
   only once material creates them (Workshop refuses a desk naming a missing view): slot *i* holds
   the *i*-th declared hotkey view, and a slot beyond them the next other view holding entries

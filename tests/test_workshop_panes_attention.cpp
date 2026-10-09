@@ -617,21 +617,49 @@ struct GuestDoorSeatState {
     ZEN_SHAPE(GuestDoorSeatState, 1, ZEN_FIELD(asked));
 };
 
-/// THE GUEST DOOR, AS FAR AS THE CONNECTIONS PANE MEETS IT: the pane's one ask, answered with
-/// the inventory a case sets.
+/// THE GUEST DOOR, AS FAR AS THE CONNECTIONS PANE MEETS IT: the pane's one ask, at the inventory's
+/// version 2, answered with the inventory a case sets.
 class GuestDoorSeat
     : public loom::WeaveBase<GuestDoorSeat, GuestDoorSeatState,
-                             loom::Accept<GuestConnectionsRequested>, loom::Emit<GuestConnections>> {
+                             loom::Accept<zengine::workshop::v2::GuestConnectionsRequested>,
+                             loom::Emit<zengine::workshop::v2::GuestConnections>> {
 public:
-    explicit GuestDoorSeat(GuestConnections said) : said_(std::move(said)) {}
-    void on(const GuestConnectionsRequested&, loom::Mail& mail) {
+    explicit GuestDoorSeat(zengine::workshop::v2::GuestConnections said) : said_(std::move(said)) {}
+    void on(const zengine::workshop::v2::GuestConnectionsRequested&, loom::Mail& mail) {
         ++state_.asked;
         (void)mail.answer(said_);
     }
 
 private:
-    GuestConnections said_;
+    zengine::workshop::v2::GuestConnections said_;
 };
+
+/// A Connections pane over a door that says `said`, picked onto a desk; the pane's kind.
+std::int64_t connections_over(PaneRig& r, const zengine::workshop::v2::GuestConnections& said) {
+    namespace cp = zengine::connections_pane;
+    r.mount_workshop();
+    {
+        auto door = std::make_unique<GuestDoorSeat>(said);
+        GuestDoorSeat* raw = door.get();
+        const loom::WeaveId id = r.bus.register_weave(std::move(door), loom::emit_default_grant(*raw),
+                                                      std::string(kGuestsRole));
+        raw->zen_set_self(id);
+    }
+    load::LoadPlan plan;
+    load::ArtifactIntent seat;
+    seat.stem = cp::kConnectionsPaneStem;
+    seat.weave = load::WeaveIntent{cp::kConnectionsPaneRole};
+    plan.artifacts.push_back(seat);
+    const load::Executed done = r.run_plan(plan);
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.ready();
+    r.extent(160, 48);
+    const PaneRef ref{cp::kConnectionsPaneRole, cp::kConnectionsPane};
+    r.pick(ref);
+    const RuntimePane* row = r.session().panes.runtime.find(ref.provider, ref.pane);
+    REQUIRE(row != nullptr);
+    return row->kind;
+}
 
 } // namespace
 
@@ -639,10 +667,10 @@ TEST_CASE("the Connections pane draws the guest door's reading as its own pictur
     namespace cp = zengine::connections_pane;
     PaneRig r;
     r.mount_workshop();
-    GuestConnections said;
+    zengine::workshop::v2::GuestConnections said;
     said.listen = "127.0.0.1:4242";
-    said.rows.push_back(GuestConnection{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7, ""});
-    said.rows.push_back(GuestConnection{2, "awaiting-decision", "stranger", "", "", 0, ""});
+    said.rows.push_back(zengine::workshop::v2::GuestConnection{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7, "", {}, "", 0, {}});
+    said.rows.push_back(zengine::workshop::v2::GuestConnection{2, "awaiting-decision", "stranger", "", "", 0, "", {}, "", 0, {}});
     {
         auto door = std::make_unique<GuestDoorSeat>(said);
         GuestDoorSeat* raw = door.get();
@@ -698,15 +726,54 @@ TEST_CASE("the Connections pane draws the guest door's reading as its own pictur
     CHECK(r.session().context.pane == ref);
 }
 
+TEST_CASE("the Connections pane says a row's version and its losses beneath its connection") {
+    namespace ws2 = zengine::workshop::v2;
+    SUBCASE("a version-1 row on a weaver's host says what it does not reach") {
+        PaneRig r;
+        ws2::GuestConnections said;
+        said.listen = "127.0.0.1:4242";
+        ws2::GuestConnection tool{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7, "", {}, "", 0, {}};
+        tool.powers = {"input", "capture"};
+        tool.host = "weaver";
+        tool.version = 1;
+        tool.losses = {"builds", "file writes"};
+        said.rows.push_back(tool);
+        said.rows.push_back(ws2::GuestConnection{2, "awaiting-decision", "stranger", "", "", 0, "", {}, "", 0, {}});
+        const std::int64_t kind = connections_over(r, said);
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        REQUIRE(shown.size() >= 4);
+        CHECK(shown[0] == "CONNECTIONS -- 2 connections at 127.0.0.1:4242");
+        CHECK(shown[1] == "  #1 tool  admitted  weave 7  from 127.0.0.1:5000");
+        CHECK(shown[2] == "    version 1 -- not here: builds; file writes");
+        CHECK(shown[3] == "  #2 'stranger' (unverified)  awaiting-decision"); // no row, no version line
+    }
+    SUBCASE("a version-2 row on a development host reaches all its powers name") {
+        PaneRig r;
+        ws2::GuestConnections said;
+        said.listen = "127.0.0.1:4242";
+        ws2::GuestConnection tool{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7, "", {}, "", 0, {}};
+        tool.powers = {"input", "build"};
+        tool.host = "development";
+        tool.version = 2;
+        said.rows.push_back(tool);
+        const std::int64_t kind = connections_over(r, said);
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        REQUIRE(shown.size() >= 3);
+        // The header names the host after the listener, as far as the pane's width lets it.
+        CHECK(shown[0].rfind("CONNECTIONS -- 1 connection at 127.0.0.1:4242", 0) == 0);
+        CHECK(shown[2] == "    version 2 -- all its powers reach here");
+    }
+}
+
 TEST_CASE("a pane that draws its rows on its canvas wears the medium's own ground beneath them, as a prose body does, in a window and in a terminal") {
     namespace cp = zengine::connections_pane;
     for (const bool window : {false, true}) {
         CAPTURE(window);
         PaneRig r;
         r.mount_workshop();
-        GuestConnections said;
+        zengine::workshop::v2::GuestConnections said;
         said.listen = "127.0.0.1:4242";
-        said.rows.push_back(GuestConnection{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7, ""});
+        said.rows.push_back(zengine::workshop::v2::GuestConnection{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7, "", {}, "", 0, {}});
         {
             auto door = std::make_unique<GuestDoorSeat>(said);
             GuestDoorSeat* raw = door.get();

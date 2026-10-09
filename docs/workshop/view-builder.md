@@ -157,7 +157,10 @@ graph, numbered and titled as Flow shows it. A field that holds no whole number 
 and nothing is published.
 
 Type a `.view` file into **File** and press **Save** (`Ctrl`+`s`), and save the Flow workspace
-beside it. Quit and start Workshop again: the View Builder opens the file it had open and, since
+beside it. Save first asks Workshop whether the hand that pressed it may write a file, and writes
+nothing until it is answered; on a
+[weaver's host](external-host.md#whose-host-this-is-and-what-each-power-reaches-there) a guest's
+is refused. Quit and start Workshop again: the View Builder opens the file it had open and, since
 its view was running, runs it again, its pane where your layout left it. Open the workspace in
 Flow and **Run** it, and the panel works as before and waits until told. Nothing that was
 running is in either file: the View Builder keeps the file it saved or opened -- never a name

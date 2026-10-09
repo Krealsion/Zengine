@@ -107,6 +107,8 @@ looking at it.
 | a tool your load plan marks optional could not be loaded this run — named by its artifact, `zengine-files is not in this Workshop`, with the loader's own reason and what to do: build it, then launch again | an alert |
 | a pane you authored is resolvable and **no part of it is on the screen** — its place is off the canvas | worth acting on |
 | the project is stopped at an artifact waiting to be built | informative — waiting is not a failure |
+| the guests file names this Workshop a development host: a guest's hand writes files, types into panes and reaches the editor and the Terminal here, as yours does ([external host](external-host.md#whose-host-this-is-and-what-each-power-reaches-there)) | worth acting on, not urgent |
+| a guests-file row whose powers do not all reach here, with its version and what does not: no `build`, or what a weaver's host refuses a guest | worth acting on, not urgent |
 
 Some true things are deliberately **not** here. A pane you hid is your own choice and lives
 in the [Pane Manager](panes.md#showing-going-to-and-hiding--the-pane-manager). A pane the

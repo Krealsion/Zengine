@@ -29,7 +29,7 @@
     {"name": "build.json", "help": "with build: the Builder's own account, as workshop/builder's builder.json"}
    ],
    "requires": [
-    "a Workshop guest granting input and capture whose row may observe td.game's TdSeen v1 and TdOccurred v1 (and zengine.builder's BuildAsked v1 and BuildStatus v4 to build)",
+    "a Workshop guest granting input and capture whose row may observe td.game's TdSeen v1 and TdOccurred v1 (and, to build, the build power, a version-2 guests-file power, with zengine.builder's BuildAsked v1 and BuildStatus v4)",
     "the game pane open where Workshop describes it (td.game loaded under that role), unless build loads it",
     "zengine-guest-vocabulary booted in this Loom session, and the workshop package approved beside this one",
     "no other run on this link holding Workshop's input session (plan=watch holds none until it pauses)"

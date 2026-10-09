@@ -742,8 +742,7 @@ int main(int argc, char** argv) {
             std::ofstream port_out(file.port_file, std::ios::trunc);
             port_out << loom::bridge_socket_port(listener) << '\n';
         }
-        auto door = std::make_unique<GuestDoor>(bus, listener, guests_listen,
-                                                guests::admission_of(file));
+        auto door = std::make_unique<GuestDoor>(bus, listener, guests_listen, file);
         GuestDoor* raw_door = door.get();
         const loom::WeaveId door_id = bus.register_weave(std::move(door), guest_door_grant(),
                                                          std::string(kGuestsRole));
@@ -752,6 +751,27 @@ int main(int argc, char** argv) {
                     "(door: weave #%s; the Connections pane lists them)\n",
                     guests_listen.c_str(), file.rows.size(), args.guests.c_str(),
                     std::to_string(door_id.value).c_str());
+        // ---- WHOSE HOST THIS IS, AND WHAT EACH ROW'S POWERS DO NOT REACH HERE ---------------
+        // Said at launch, on Attention and in Connections; the dispatch and the owners read a
+        // session's admitted row through the door's record (`actor_scope.hpp`).
+        host.host_fact = guests::host_fact_of(file);
+        host.guest_row = [raw_door](loom::WeaveId session) { return raw_door->facts(session); };
+        std::printf("zengine-workshop - guests: the file is version %s, and this is %s\n",
+                    std::to_string(file.version).c_str(),
+                    file.development() ? "a development host: guests may write and build here"
+                                       : "a weaver's host: a guest writes no file, types into no "
+                                         "pane and reaches none of the editor, the Terminal and "
+                                         "the Hotkeys pane");
+        for (const Condition& c : guests::conditions_of(file)) host.standing_conditions.push_back(c);
+        for (std::size_t i = 0; i < file.rows.size(); ++i) {
+            const std::vector<std::string> losses = guests::losses_of(file.rows[i], file);
+            if (losses.empty()) continue;
+            std::string said;
+            for (const std::string& loss : losses) said += (said.empty() ? "" : "; ") + loss;
+            std::printf("zengine-workshop - guests: '%s' (version %s) does not reach here: %s\n",
+                        file.rows[i].name.c_str(), std::to_string(file.version).c_str(), said.c_str());
+        }
+        ++host.conditions_generation;
         // ---- THE OBSERVATION RELAY, beside the door (workshop/guest_door.hpp says how) --------
         // What a guest may OBSERVE is its row's `observe` list and nothing else. No weaver control
         // calls the relay's `revoke` yet -- like `decide` for an "ask" row, it is a host seam.

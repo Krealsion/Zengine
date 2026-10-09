@@ -229,8 +229,10 @@ def launch(args, source, root):
     guest = {"name": "workshop-demo", "credential": credential, "may": authority["may"]}
     if authority.get("observe"):
         guest["observe"] = authority["observe"]
-    save_json(wdir / "guests.json", {"listen": "127.0.0.1:0", "port_file": str(wdir / "guests.port"),
-                                     "guests": [guest]})
+    # A SETUP'S WORKSHOP IS ITS OWN, started for this root alone: a development host, where its
+    # guest types, writes and builds as a weaver would (docs/workshop/external-host.md).
+    save_json(wdir / "guests.json", formats.guests([guest], formats.DEVELOPMENT_HOST,
+                                                   port_file=wdir / "guests.port"))
     packages = [{"path": str(PACKAGE), "approve": "any-revision"}]
     packages += [{"path": str(setup.asset(t)), "approve": "any-revision"} for t in setup.get("tools", [])]
     save_json(sdir / "loom-tools.json", {"python": sys.executable,

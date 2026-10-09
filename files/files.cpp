@@ -13,8 +13,10 @@
 
 #include "files/files.hpp"
 #include "files/filesystem_roots.hpp"
+#include "workshop/actor_scope.hpp" // the class an act that opens or writes is judged as
 #include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
@@ -41,6 +43,7 @@
 #include <zen/weave/lifecycle.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -266,11 +269,11 @@ class FilesWeave
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
                        ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneKey, PaneTextInput,
                        PaneMenuAnswered, PaneActionRequested, ProjectRoot,
-                       RecipeOutcome, SourceOpened, loom::DispatchRefused,
-                       zengine::builder::BuildStatus, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       RecipeOutcome, SourceOpened, ws::PaneOperationAnswered,
+                       loom::DispatchRefused, zengine::builder::BuildStatus,
+                       surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
-                     ws::PaneCaret, ProjectRootRequested,
+                     ws::PaneCaret, ProjectRootRequested, ws::v2::PaneOperationRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
                      zengine::builder::StatusRequested, PaneMenuRequested, PanePassRequested,
                      ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
@@ -571,10 +574,10 @@ public:
         }
         // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
         // rows Workshop holds, which are the rows a weaver reads. Most acts say their own picture;
-        // one whose answer is still on its way (an open at the opening office, a catalog at the
-        // recipes office) or that meant nothing says none, and the spent notice would stand
-        // painted beside the act that spent it. So when a notice stood and the act published
-        // nothing, the rows are said here, once, without it.
+        // one whose answer is still on its way (Workshop's word on an act that opens or writes,
+        // then the opening or recipes office's) or that meant nothing says none, and the spent
+        // notice would stand beside the act that spent it. So when a notice stood and the act
+        // published nothing, the rows are said here, once, without it.
         const bool spent = !notice_.empty();
         const std::uint64_t published = published_;
         notice_.clear();
@@ -720,6 +723,10 @@ public:
             notice_ = "no recipe was authored";
         } else if (authoring_.open) {
             authoring_ = Authoring{};
+            // A WRITE WAITING ON WORKSHOP GOES WITH ITS DRAFT.
+            approvals_.erase(std::remove_if(approvals_.begin(), approvals_.end(),
+                                            [](const Approval& a) { return a.act == Approval::Act::kAuthor; }),
+                             approvals_.end());
             declare(mail);
             notice_ = "no recipe was written";
         }
@@ -1012,19 +1019,55 @@ public:
         }
     }
 
+    /// WORKSHOP'S WORD ON THE ACT THIS PANE ASKED ABOUT (`ask_approval`), judged for the hand of
+    /// the gesture that brought it. Allowed, the act captured at the ask is done now and is never
+    /// asked about again; refused, nothing of it happens, and the pane says why in its own row.
+    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        const std::optional<Approval> taken = take_approval(
+            [&mail](const Approval& a) { return a.pending == mail.correlation(); });
+        if (!taken) {
+            return;
+        }
+        const Approval& approved = *taken;
+        if (!answer.allowed) {
+            notice_ = not_done(approved) + " -- " + answer.reason;
+            say(mail);
+            return;
+        }
+        switch (approved.act) {
+        case Approval::Act::kOpen: open_file(approved, mail); return;
+        case Approval::Act::kUseRecipes: take_recipes(approved, mail); return;
+        case Approval::Act::kMark: toggle_mark(approved.place, mail); return;
+        case Approval::Act::kAuthor: send_recipe(approved, mail); return;
+        case Approval::Act::kNone: return;
+        }
+    }
+
     /// THE BUS'S WORD THAT ONE OF THIS PANE'S ATTEMPTS WAS REFUSED BEFORE ANY HANDLER RAN
-    /// (Loom's `zen.DispatchRefused`; WL-OPEN-07). The shape alone is ordinary speech, so
-    /// Loom's provenance is checked first; then the exact attempt is matched against the one
-    /// ask this pane can still be waiting on, and only that ask is cleared. A forged, stale,
-    /// duplicate or mismatched notice settles nothing. Delivered silence is not a refusal and
-    /// is not ended here: the ask stays awaited, and the next Return is a fresh attempt.
+    /// (Loom's `zen.DispatchRefused`; WL-OPEN-07). The shape alone is ordinary speech, so Loom's
+    /// provenance is checked first; then the exact attempt is matched against the two asks this
+    /// pane can still be waiting on -- an approval, and the open -- and only that ask is cleared.
+    /// A forged, stale, duplicate or mismatched notice settles nothing. Delivered silence is not
+    /// a refusal and is not ended here: the ask stays awaited, and the next act asks afresh.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         if (!mail.dispatch_refused()) {
             return;
         }
         const loom::Ticket attempt = refused.refused_attempt();
-        if (!attempt.valid() || !open_.awaiting || !open_.attempt.valid() ||
-            attempt.seq != open_.attempt.seq) {
+        if (!attempt.valid()) {
+            return;
+        }
+        if (const std::optional<Approval> asked = take_approval([&attempt](const Approval& a) {
+                return a.attempt.valid() && a.attempt.seq == attempt.seq;
+            })) {
+            notice_ = not_done(*asked) + " -- Workshop could not be asked (" + refused.reason + ")";
+            say(mail);
+            return;
+        }
+        if (!open_.awaiting || !open_.attempt.valid() || attempt.seq != open_.attempt.seq) {
             return;
         }
         const std::string subject = open_.subject;
@@ -1179,6 +1222,73 @@ private:
         std::string subject; ///< what the ask was about, for the sentence a refusal needs
     };
 
+    /// ONE ACT THAT OPENS OR WRITES, WAITING ON WORKSHOP'S WORD: which act, and everything it acts
+    /// on, captured at the ask, so the answer does exactly what the gesture asked for wherever the
+    /// browser has walked since. `subject` is the entry or candidate a refusal names.
+    struct Approval : Ask {
+        enum class Act { kNone, kOpen, kUseRecipes, kMark, kAuthor };
+        Act act = Act::kNone;
+        std::string path;            ///< the file opened or taken as recipes, resolved
+        std::string place;           ///< the place marked, or the directory the draft is about
+        RecipeAuthorRequested draft; ///< the draft as it stood at the ask
+    };
+
+    /// ASK WORKSHOP WHETHER THE HAND BEHIND THIS DELIVERY MAY DO AN ACT OF `action_class`, before
+    /// any of it happens, under this delivery's correlation, whichever route brought the act. The
+    /// ask names no send, so the class alone is judged; `subject` is what a class `open` opens.
+    /// Each act waits in a bounded book under its own correlation, so another hand's act between
+    /// the ask and the answer replaces nothing; a full book refuses the newest act in words.
+    void ask_approval(Approval next, const char* action_class, const std::string& subject,
+                      loom::Mail& mail) {
+        if (approvals_.size() >= kMaxApprovals) {
+            notice_ = not_done(next) + " -- " + std::to_string(kMaxApprovals) +
+                      " acts are already waiting on Workshop";
+            say(mail);
+            return;
+        }
+        next.pending = ++asked_;
+        next.awaiting = true;
+        ws::v2::PaneOperationRequested asked;
+        asked.pane = files::kProjectFilesPane;
+        asked.gesture = static_cast<std::int64_t>(mail.correlation());
+        asked.classes.push_back(action_class);
+        asked.subject = subject;
+        next.attempt = mail.as_role(files::kFilesRole)
+                           .send_to_role(kWorkshopRole, asked, next.pending);
+        if (!next.attempt.valid()) {
+            notice_ = not_done(next) + " -- Workshop could not be asked";
+            say(mail);
+            return;
+        }
+        approvals_.push_back(std::move(next));
+    }
+
+    /// THE WAITING ACT A WORD FROM THE BUS SETTLES, taken out of the book; none when it names no
+    /// act this image holds.
+    template <class Match>
+    std::optional<Approval> take_approval(Match matches) {
+        const auto at = std::find_if(approvals_.begin(), approvals_.end(), matches);
+        if (at == approvals_.end()) {
+            return std::nullopt;
+        }
+        Approval taken = std::move(*at);
+        approvals_.erase(at);
+        return taken;
+    }
+
+    /// WHAT DID NOT HAPPEN: the head of every sentence that ends an act Workshop did not approve.
+    std::string not_done(const Approval& a) const {
+        switch (a.act) {
+        case Approval::Act::kOpen: return "`" + ws::shown_name(a.subject) + "` was not opened";
+        case Approval::Act::kUseRecipes: return "the recipes in force are unchanged";
+        case Approval::Act::kMark:
+            return marks_.marked(a.place) ? "no mark was forgotten" : "nothing was marked";
+        case Approval::Act::kAuthor: return "no recipe was written";
+        case Approval::Act::kNone: break;
+        }
+        return "nothing was done";
+    }
+
     void ask_project_root(loom::Mail& mail) {
         root_.pending = ++asked_;
         root_.awaiting = true;
@@ -1329,22 +1439,31 @@ private:
             say(mail);
             return;
         }
-        // A file: ask the opening office, which arranges the document and the desk together
-        // (WL-OPEN-01); every refusal lands in this pane's own row. The ticket is kept
-        // (WL-OPEN-07): a valid one says only that the send was queued, and the bus's later word
-        // that exactly this attempt was refused reaches `on(loom::DispatchRefused)`. An invalid
-        // ticket means nothing was queued, refused now rather than awaited forever.
+        // A FILE OPENS ONLY ONCE WORKSHOP SAYS THIS GESTURE'S HAND MAY OPEN IT, judged by the
+        // path the open would send; a directory above is walking, and asks nothing.
+        Approval next;
+        next.act = Approval::Act::kOpen;
+        next.subject = row->name;
+        next.path = ws::persist::resolved_against(state_.current_dir, row->name);
+        const std::string path = next.path;
+        ask_approval(std::move(next), ws::scope::kOpen, path, mail);
+    }
+
+    /// THE APPROVED OPEN, asked of the opening office, which arranges the document and the desk
+    /// together (WL-OPEN-01); every refusal lands in this pane's own row. The ticket is kept
+    /// (WL-OPEN-07): a valid one says only that the send was queued, and the bus's later word
+    /// that exactly this attempt was refused reaches `on(loom::DispatchRefused)`. An invalid
+    /// ticket means nothing was queued, refused now rather than awaited forever.
+    void open_file(const Approval& approved, loom::Mail& mail) {
         open_.pending = ++asked_;
         open_.awaiting = true;
-        open_.subject = row->name;
+        open_.subject = approved.subject;
         open_.attempt = mail.as_role(files::kFilesRole)
-                            .send_to_role(ws::kOpeningRole,
-                                          OpenSourceRequested{ws::persist::resolved_against(
-                                              state_.current_dir, row->name)},
+                            .send_to_role(ws::kOpeningRole, OpenSourceRequested{approved.path},
                                           open_.pending);
         if (!open_.attempt.valid()) {
             open_ = Ask{};
-            notice_ = "`" + ws::shown_name(row->name) +
+            notice_ = "`" + ws::shown_name(approved.subject) +
                       "` was not opened -- nothing was queued to the opening office";
             say(mail);
         }
@@ -1357,12 +1476,21 @@ private:
             say(mail);
             return;
         }
-        const bool removed = marks_.forget(state_.current_dir);
+        // THE MARKS FILE IS WRITTEN ONLY ONCE WORKSHOP SAYS THIS GESTURE'S HAND MAY WRITE A FILE.
+        Approval next;
+        next.act = Approval::Act::kMark;
+        next.place = state_.current_dir;
+        ask_approval(std::move(next), ws::scope::kWrite, std::string(), mail);
+    }
+
+    /// THE APPROVED MARK: the place the gesture stood in is marked, or forgotten, and saved.
+    void toggle_mark(const std::string& place, loom::Mail& mail) {
+        const bool removed = marks_.forget(place);
         if (!removed) {
-            marks_.remember(state_.current_dir);
+            marks_.remember(place);
         }
         save_marks();
-        notice_ = (removed ? "no longer marked: " : "marked: ") + state_.current_dir;
+        notice_ = (removed ? "no longer marked: " : "marked: ") + place;
         say(mail);
     }
 
@@ -1397,13 +1525,22 @@ private:
             say(mail);
             return;
         }
+        // THE CATALOG IN FORCE IS WHAT THE NEXT BUILD RUNS, so choosing it is asked as a write:
+        // nothing is sent until Workshop says this gesture's hand may.
+        Approval next;
+        next.act = Approval::Act::kUseRecipes;
+        next.subject = row->name;
+        next.path = ws::persist::resolved_against(state_.current_dir, row->name);
+        ask_approval(std::move(next), ws::scope::kWrite, std::string(), mail);
+    }
+
+    /// THE APPROVED CATALOG, asked of the recipes office, which installs it or says why not.
+    void take_recipes(const Approval& approved, loom::Mail& mail) {
         recipes_.pending = ++asked_;
         recipes_.awaiting = true;
         recipes_.was_author = false;
         (void)mail.as_role(files::kFilesRole)
-            .send_to_role(ws::kRecipesRole,
-                          RecipeUseRequested{ws::persist::resolved_against(state_.current_dir, row->name)},
-                          recipes_.pending);
+            .send_to_role(ws::kRecipesRole, RecipeUseRequested{approved.path}, recipes_.pending);
     }
 
     void pick_buildable(loom::Mail& mail) {
@@ -1613,11 +1750,17 @@ private:
         compose_recipe(mail);
     }
 
-    /// THE DRAFT, COMPOSED AND HANDED TO THE RECIPES DOOR. What a weaver typed is a DRAFT; the
-    /// host composes, checks and installs it (WL-AUTH-01), and this pane hears the outcome.
+    /// THE DRAFT, COMPOSED AS IT STANDS AND HANDED TO THE RECIPES DOOR ONCE WORKSHOP SAYS THIS
+    /// GESTURE'S HAND MAY WRITE (`send_recipe`). What a weaver typed is a DRAFT; the host
+    /// composes, checks and installs it (WL-AUTH-01), and this pane hears the outcome. The line
+    /// stays open until the answer, so a refused write leaves the draft to write again.
     void compose_recipe(loom::Mail& mail) {
-        Authoring& a = authoring_;
-        RecipeAuthorRequested draft;
+        const Authoring& a = authoring_;
+        Approval next;
+        next.act = Approval::Act::kAuthor;
+        next.subject = a.chosen.name;
+        next.place = a.dir;
+        RecipeAuthorRequested& draft = next.draft;
         draft.tree = a.chosen.tree;
         draft.id = a.values[0];
         const std::string place = ws::persist::resolved_against(a.dir, a.chosen.name);
@@ -1635,15 +1778,27 @@ private:
                 draft.config = a.values[4];
             }
         }
+        ask_approval(std::move(next), ws::scope::kWrite, std::string(), mail);
+    }
+
+    /// THE APPROVED DRAFT, sent as it stood at the ask, while the line is still open on it: the
+    /// line closes, the browser's rows are in force again, and the recipes door writes the row.
+    void send_recipe(const Approval& approved, loom::Mail& mail) {
+        if (!authoring_.open || authoring_.chosen.name != approved.subject ||
+            authoring_.dir != approved.place) {
+            notice_ = "that draft is not open any more -- no recipe was written";
+            say(mail);
+            return;
+        }
         authoring_ = Authoring{};
         declare(mail); // the browser's rows are in force again
         recipes_.pending = ++asked_;
         recipes_.awaiting = true;
         recipes_.was_author = true;
-        recipes_.id = draft.id;
-        recipes_.artifact = draft.artifact;
+        recipes_.id = approved.draft.id;
+        recipes_.artifact = approved.draft.artifact;
         (void)mail.as_role(files::kFilesRole)
-            .send_to_role(ws::kRecipesRole, draft, recipes_.pending);
+            .send_to_role(ws::kRecipesRole, approved.draft, recipes_.pending);
     }
 
     // ---- The chooser's typed fields ----------------------------------------------------------
@@ -2164,6 +2319,10 @@ private:
 
     Ask root_;
     Ask open_;
+    /// THE ACTS WAITING ON WORKSHOP'S WORD (`ask_approval`), bounded. Not reload-kept: a successor
+    /// asked nothing, so its predecessor's answers settle nothing here.
+    std::vector<Approval> approvals_;
+    static constexpr std::size_t kMaxApprovals = 8;
     struct Recipes : Ask {
         bool was_author = false;
         std::string id;       ///< what the weaver called the row, for the accepted sentence

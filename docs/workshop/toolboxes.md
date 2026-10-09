@@ -38,6 +38,10 @@ The external host's Workshop guest needs the explicit **`toolbox`** power in its
 This grants toolbox file reads/writes under the Workshop process's filesystem access. It is
 separate from `inventory`, `input`, `demo` and command execution. Grant it only to a session
 intended to operate those files. Both direct requests and input-driven controls require it.
+A save writes a file, so it also needs a Workshop whose guests file names it a development host:
+on a [weaver's host](external-host.md#whose-host-this-is-and-what-each-power-reaches-there) a
+guest's save, by this tool or by key, is refused in words and nothing is written. A restore
+writes no file, and this tool's restore works on either host.
 
 With a [running ELH session](external-host.md), save once:
 

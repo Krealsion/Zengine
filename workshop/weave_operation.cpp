@@ -5,6 +5,64 @@
 #include <limits>
 
 namespace zengine::workshop {
+// ONE HAND PER ACTOR: the weaver's for platform input and input no actor was attributed to, and
+// one per guest participant, the oldest forgotten past the bound.
+WorkshopWeave::Hand& WorkshopWeave::hand_of(const InputActor& actor) {
+    if (!actor.known || actor.local) return weaver_hand_;
+    for (Hand& h : guest_hands_)
+        if (h.actor.participant == actor.participant) return h;
+    if (guest_hands_.size() >= kMaxGuestHands) {
+        const auto oldest = std::min_element(guest_hands_.begin(), guest_hands_.end(),
+            [](const Hand& a, const Hand& b) { return a.latest < b.latest; });
+        guest_hands_.erase(oldest);
+    }
+    Hand fresh;
+    fresh.actor = actor;
+    guest_hands_.push_back(fresh);
+    return guest_hands_.back();
+}
+
+const WorkshopWeave::Hand* WorkshopWeave::find_hand(const InputActor& actor) const {
+    if (!actor.known || actor.local) return &weaver_hand_;
+    for (const Hand& h : guest_hands_)
+        if (h.actor.participant == actor.participant) return &h;
+    return nullptr;
+}
+
+std::uint64_t WorkshopWeave::latest_of(const InputActor& actor) const {
+    const Hand* h = find_hand(actor);
+    return h != nullptr ? h->latest : 0;
+}
+
+void WorkshopWeave::keep_act(Hand& h, const GestureSent& sent) {
+    if (sent.answering == 0) return;
+    if (h.kept.size() >= kKeptActs) h.kept.erase(h.kept.begin());
+    h.kept.push_back(sent);
+}
+
+void WorkshopWeave::drop_kept(std::uint64_t correlation) {
+    each_hand([correlation](Hand& h) {
+        h.kept.erase(std::remove_if(h.kept.begin(), h.kept.end(),
+                                    [correlation](const GestureSent& k) { return k.answering == correlation; }),
+                     h.kept.end());
+    });
+}
+
+void WorkshopWeave::count_gesture() {
+    ++gestures_;
+    Hand& h = hand();
+    h.actor = input_actor_;
+    h.latest = gestures_;
+    if (recent_acts_.size() >= kMaxRecentActs) recent_acts_.erase(recent_acts_.begin());
+    recent_acts_.emplace_back(gestures_, input_actor_);
+}
+
+WorkshopWeave::Hand* WorkshopWeave::hand_of_act(std::uint64_t act) {
+    for (const auto& [number, actor] : recent_acts_)
+        if (number == act) return const_cast<Hand*>(find_hand(actor));
+    return nullptr;
+}
+
 bool WorkshopWeave::duplicate_input(const loom::Mail& mail) const {
     return !applying_attributed_ && attributed_producer_.valid() &&
            mail.sender() == attributed_producer_;
@@ -33,7 +91,11 @@ void WorkshopWeave::on(const input::AttributedInput& event, loom::Mail& mail) {
     input_actor_ = {true, event.local, loom::WeaveId{static_cast<std::uint64_t>(event.actor)}};
     applying_attributed_ = true;
     const auto& e = event.event;
-    if (!quitting_ && carried_.drag && (e.kind == "KeyPressed" || e.kind == "TextEntered" ||
+    // A DRAG CARRY ENDS AT ITS CARRIER'S NEXT GESTURE, OR THE WEAVER'S: another guest's never.
+    if (!quitting_ && carried_.drag &&
+        (input_actor_.local || (input_actor_.local == carried_.actor.local &&
+                                input_actor_.participant == carried_.actor.participant)) &&
+        (e.kind == "KeyPressed" || e.kind == "TextEntered" ||
         e.kind == "PointerWheel" || (e.kind == "PointerButton" && e.pressed))) {
         carried_ = {}; value_drag_ = {};
         say("Value drag cancelled by a new gesture", false);
@@ -50,9 +112,13 @@ void WorkshopWeave::on(const input::AttributedInput& event, loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
-    if (!mail.authored_from_role(kDesktopRole) || !mail.correlation() ||
-        mail.correlation() != app_asked_.answering || app_asked_.gesture != gestures_) return;
-    app_asked_ = {};
+    if (!mail.authored_from_role(kDesktopRole) || !mail.correlation()) return;
+    Hand* by = nullptr;
+    each_hand([&](Hand& h) {
+        if (h.app_asked.answering == mail.correlation() && h.app_asked.gesture == h.latest) by = &h;
+    });
+    if (by == nullptr) return;
+    by->app_asked = {};
     const auto* pane = session_.panes.runtime.find(asked.office, asked.pane);
     const auto* rows = pane ? session_.keymap.pane_rows(pane->kind) : nullptr;
     bool declared = false;
@@ -61,84 +127,193 @@ void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
         host_->role_holder(asked.office).value != static_cast<std::uint64_t>(asked.holder)) {
         say("Shortcut unavailable: its pane, action or provider has changed", true); repaint(mail); return;
     }
+    if (const std::string why = refused_toward(by->actor, pane->kind); !why.empty()) {
+        refuse_input(why, mail);
+        return;
+    }
     const auto correlation = ++gesture_asks_;
     const auto sent = mail.as_role(kWorkshopProvider).send_to_role(asked.office,
         PaneActionRequested{asked.pane, asked.action}, correlation);
-    if (sent.valid()) shortcut_sent_ = {pane->kind, gestures_, correlation};
+    if (sent.valid()) keep_act(*by, by->shortcut_sent = {pane->kind, by->latest, correlation});
     else { say("Shortcut invocation could not be queued", true); repaint(mail); }
 }
 
-// ONE CURRENT GESTURE APPROVES ONE (SHAPE, VERSION, ROLE) FOR THE PANE IT WAS DELIVERED TO, ONCE:
-// the requester holds the office that offered the pane, the pane is on the desk (or a shortcut sent
-// this action), the correlation is that pane's unspent current press, action, menu choice or
-// shortcut, and a guest's live Loom authority permits the operation. The gesture is spent.
+// ONE CURRENT GESTURE APPROVES ONE OPERATION FOR THE PANE IT WAS DELIVERED TO, ONCE: the requester
+// holds the office that offered the pane, the pane is on the desk (or a shortcut sent this action),
+// the correlation is that pane's unspent press, action, menu choice or shortcut still its hand's
+// latest, a guest's live Loom authority permits the send it names, and its admitted row holds every
+// action class the act is. The gesture is spent, and `approved` says whose it was.
+// WL-GUEST-03, WL-GUEST-05 -- agents/workshop/guests.md
 std::string WorkshopWeave::approve_gesture(const std::string& pane_key, std::int64_t gesture,
                                            const std::string& role, const std::string& shape,
-                                           std::int64_t version, loom::Mail& mail) {
+                                           std::int64_t version, loom::Mail& mail,
+                                           const std::vector<std::string>& classes,
+                                           const std::string& subject, InputActor* approved) {
     const auto* pane = session_.panes.runtime.find(mail.authored_role(), pane_key);
-    const bool shortcut = pane && gesture > 0 && shortcut_sent_.kind == pane->kind &&
-        shortcut_sent_.answering == static_cast<std::uint64_t>(gesture) && shortcut_sent_.gesture == gestures_;
+    const auto corr = gesture > 0 ? static_cast<std::uint64_t>(gesture) : 0;
+    bool shortcut = false;
+    if (pane && corr)
+        each_hand([&](Hand& h) {
+            shortcut = shortcut || (h.shortcut_sent.kind == pane->kind &&
+                                    h.shortcut_sent.answering == corr && h.shortcut_sent.gesture == h.latest);
+        });
     if (mail.authored_role().empty() || !pane || (!session_.panes.has(pane->kind) && !shortcut) ||
         !host_->role_holder || host_->role_holder(mail.authored_role()) != mail.sender()) {
         return "the requesting pane is no longer on this desk";
     }
-    const auto corr = gesture > 0 ? static_cast<std::uint64_t>(gesture) : 0;
-    bool current = false;
-    for (auto* sent : {&action_sent_, &press_sent_, &shortcut_sent_}) {
-        if (corr && sent->answering == corr && sent->kind == pane->kind &&
-            sent->gesture == gestures_) {
-            current = true;
-            *sent = GestureSent{};
+    const bool names_send = !role.empty() || !shape.empty() || version != 0;
+    // THE RECORD THIS CORRELATION NAMES, in whichever hand sent it, current while nothing of that
+    // hand's own came since: another hand's act neither spends nor stales it.
+    Hand* by = nullptr;
+    each_hand([&](Hand& h) {
+        if (!corr) return;
+        for (auto* sent : {&h.action_sent, &h.press_sent, &h.shortcut_sent}) {
+            if (sent->answering == corr && sent->kind == pane->kind && sent->gesture == h.latest) {
+                by = &h;
+                *sent = GestureSent{};
+            }
         }
-    }
-    for (auto& sent : secondary_cont_) {
-        if (corr && sent.live && !sent.spent && !sent.interrupted &&
-            sent.correlation == corr && sent.kind == pane->kind &&
-            sent.gesture_at_press == gestures_) {
-            current = true;
-            sent.spent = true;
+        for (auto& sent : h.secondary_cont) {
+            if (sent.live && !sent.spent && !sent.interrupted && sent.correlation == corr &&
+                sent.kind == pane->kind && sent.gesture_at_press == h.latest) {
+                by = &h;
+                sent.spent = true;
+            }
         }
+        if (!h.choice_answered.spent && h.choice_answered.correlation == corr &&
+            h.choice_answered.kind == pane->kind && h.choice_answered.gesture == h.latest) {
+            by = &h;
+            h.choice_answered.spent = true;
+        }
+    });
+    // A CLASSED ASK NAMING NO SEND spends its act's record while it is unspent, whatever its hand
+    // did since: no send rides on it, so nothing is laundered through a stale gesture, and its
+    // classes are judged for the hand whose act it was.
+    if (by == nullptr && corr && !names_send && !classes.empty()) {
+        each_hand([&](Hand& h) {
+            if (by != nullptr) return;
+            for (const GestureSent& k : h.kept) {
+                if (k.answering != corr || k.kind != pane->kind) continue;
+                by = &h;
+                for (auto* sent : {&h.action_sent, &h.press_sent, &h.shortcut_sent})
+                    if (sent->answering == corr) *sent = GestureSent{};
+                if (h.choice_answered.correlation == corr) h.choice_answered.spent = true;
+                return;
+            }
+        });
     }
-    if (corr && !choice_answered_.spent && choice_answered_.correlation == corr &&
-        choice_answered_.kind == pane->kind && choice_answered_.gesture == gestures_) {
-        current = true;
-        choice_answered_.spent = true;
-    }
-    if (!current || !gesture_actor_.known) {
+    if (by != nullptr) drop_kept(corr);
+    // A SEND ON AN ACTOR'S BEHALF NEEDS THAT ACTOR NAMED; an act the pane does itself, judged by its
+    // classes alone, takes unattributed input as the weaver's hand -- no guest's moment arrives
+    // unattributed, since no guest may say a raw input moment.
+    if (by == nullptr || (!by->actor.known && (names_send || classes.empty()))) {
         return "this operation needs a current attributed input gesture";
     }
-    if (role.empty() || shape.empty() || version <= 0 ||
-        version > std::numeric_limits<std::uint32_t>::max()) {
+    const InputActor actor = by->actor;
+    if ((names_send || classes.empty()) &&
+        (role.empty() || shape.empty() || version <= 0 ||
+         version > std::numeric_limits<std::uint32_t>::max())) {
         return "the operation must name its destination and versioned shape";
     }
-    if (!gesture_actor_.local) {
+    if (names_send && !actor.local) {
         const auto authority = host_->input_authority
-            ? host_->input_authority(gesture_actor_.participant) : loom::GrantAuthority{};
+            ? host_->input_authority(actor.participant) : loom::GrantAuthority{};
         const auto live = mail.describe_authority(authority);
         if (!live.available || !live.permits_role(shape, static_cast<std::uint32_t>(version), role)) {
             return "the input actor has no authority for this operation";
         }
     }
+    // A SEND ON A GUEST'S BEHALF IS THE CLASSES ITS SHAPE IS: the owner hears it from the pane
+    // that relays it, never from the guest, so it is judged here, for the hand that asked.
+    if (names_send) {
+        if (std::string refused = scope::judge_send(guest_of(actor), host_->host_fact, shape); !refused.empty())
+            return refused;
+    }
+    if (std::string refused = judge_classes(actor, classes, subject); !refused.empty()) return refused;
+    if (approved != nullptr) *approved = actor;
     return {};
 }
 
+// The classes an act is, judged for one actor: the weaver's own hand and every participant no guest
+// door admitted are not narrowed; a guest's are judged against its admitted row and this host.
+// WL-GUEST-03 -- agents/workshop/guests.md
+std::string WorkshopWeave::judge_classes(const InputActor& actor, const std::vector<std::string>& classes,
+                                         const std::string& subject) const {
+    if (classes.empty()) return {};
+    return scope::judge_all(guest_of(actor), host_->host_fact, classes, subject);
+}
+
+scope::GuestRowFacts WorkshopWeave::guest_of(const InputActor& actor) const {
+    if (!actor.known || actor.local || !host_->guest_row) return {};
+    return host_->guest_row(actor.participant);
+}
+
+// ON A WEAVER'S HOST, THE PLACES ONLY THE WEAVER'S HAND REACHES: the editor office, whichever
+// implementation holds it, the Terminal, and the Hotkeys pane, whose every act edits the keymap
+// file. A guest's keys, text and presses bound there are refused in words at the dispatch.
+// WL-GUEST-06 -- agents/workshop/guests.md
+std::string WorkshopWeave::refused_toward(const InputActor& actor, std::int64_t kind) const {
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
+    if (row == nullptr) return {};
+    const scope::GuestRowFacts guest = guest_of(actor);
+    if (!guest.admitted || host_->host_fact.development) return {};
+    if (row->provider == kEditorRole) return scope::refuse_toward(guest, host_->host_fact, "the editor");
+    if (row->provider == kTerminalRole) return scope::refuse_toward(guest, host_->host_fact, "the Terminal");
+    if (row->provider == kDesktopRole && row->pane == kHotkeysPane)
+        return scope::refuse_toward(guest, host_->host_fact, "the Hotkeys pane, which edits the keymap file,");
+    return {};
+}
+
+void WorkshopWeave::refuse_input(const std::string& why, loom::Mail& mail) {
+    say(why, true);
+    repaint(mail);
+}
+
 std::string WorkshopWeave::authorize_pane_operation(const PaneOperationRequested& asked, loom::Mail& mail) {
-    auto reason = approve_gesture(asked.pane, asked.gesture, asked.role, asked.shape, asked.version, mail);
+    InputActor actor;
+    auto reason = approve_gesture(asked.pane, asked.gesture, asked.role, asked.shape, asked.version, mail,
+                                  {}, {}, &actor);
     if (reason.empty())
         approved_operation_ = {mail.sender(), asked.pane,
-                               asked.gesture > 0 ? static_cast<std::uint64_t>(asked.gesture) : 0, gestures_};
+                               asked.gesture > 0 ? static_cast<std::uint64_t>(asked.gesture) : 0,
+                               latest_of(actor), actor};
     return reason;
 }
 void WorkshopWeave::on(const PaneOperationRequested& asked, loom::Mail& mail) {
     const auto reason = authorize_pane_operation(asked, mail);
     (void)mail.answer(PaneOperationAnswered{reason.empty(), reason});
 }
+// WL-GUEST-03 -- agents/workshop/guests.md
+// A classed act's approval is the pane's to carry to its later beats; this host keeps nothing of it,
+// so it never stands in for the one carry `approved_operation_` waits on.
+void WorkshopWeave::on(const v2::PaneOperationRequested& asked, loom::Mail& mail) {
+    const auto reason = approve_gesture(asked.pane, asked.gesture, asked.role, asked.shape, asked.version,
+                                        mail, asked.classes, asked.subject);
+    (void)mail.answer(PaneOperationAnswered{reason.empty(), reason});
+}
+
+// A DOOR NO GESTURE CROSSED: an owner asks about the sender of a message it received directly. The
+// session is judged as a gesture's actor is, from its admitted row; any other participant is not a
+// guest and is not narrowed. Only an office asks, and nothing is remembered.
+// WL-GUEST-04 -- agents/workshop/guests.md
+void WorkshopWeave::on(const ActorScopeRequested& asked, loom::Mail& mail) {
+    if (mail.authored_role().empty()) return;
+    InputActor actor;
+    actor.known = asked.session > 0;
+    actor.local = false;
+    actor.participant = loom::WeaveId{static_cast<std::uint64_t>(asked.session > 0 ? asked.session : 0)};
+    const std::string refusal = asked.classes.empty() ? std::string("the question names no action class")
+                                                      : judge_classes(actor, asked.classes, {});
+    (void)mail.answer(ActorScopeJudged{refusal.empty(), refusal});
+}
 
 // AN OBSERVATION LEASE: the same one-gesture approval, kept for repeated reads of one shape at one
 // role about one subject. One lease per pane (a new request replaces it), a bounded book, and no
 // authority of its own: every continuation is judged again below.
 void WorkshopWeave::on(const PaneObservationRequested& asked, loom::Mail& mail) {
-    auto reason = approve_gesture(asked.pane, asked.gesture, asked.role, asked.shape, asked.version, mail);
+    InputActor actor;
+    auto reason = approve_gesture(asked.pane, asked.gesture, asked.role, asked.shape, asked.version, mail,
+                                  {}, {}, &actor);
     if (reason.empty() && (asked.subject.empty() || asked.subject.size() > 256))
         reason = "the observation must name its subject";
     const std::string office(mail.authored_role());
@@ -154,7 +329,7 @@ void WorkshopWeave::on(const PaneObservationRequested& asked, loom::Mail& mail) 
     }
     if (!reason.empty()) { (void)mail.answer(PaneObservationAnswered{false, reason, 0}); return; }
     leases_.push_back({++next_lease_, mail.sender(), office, asked.pane, asked.role, asked.shape,
-                       asked.subject, asked.version, gesture_actor_});
+                       asked.subject, asked.version, actor});
     (void)mail.answer(PaneObservationAnswered{true, {}, leases_.back().id});
 }
 
@@ -219,16 +394,22 @@ void WorkshopWeave::on(const v2::PaneValueCarryRequested& asked, loom::Mail& mai
 void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bool drag, loom::Mail& mail,
                                  std::string token) {
     const auto* pane = session_.panes.runtime.find(mail.authored_role(), asked.pane);
-    if (!pane || !session_.panes.has(pane->kind) || !gesture_actor_.known ||
+    if (!pane || !session_.panes.has(pane->kind) || !approved_operation_.actor.known ||
         approved_operation_.pane_owner != mail.sender() ||
         approved_operation_.pane != asked.pane ||
         approved_operation_.correlation != mail.correlation() ||
-        approved_operation_.gesture != gestures_) {
+        approved_operation_.gesture != latest_of(approved_operation_.actor)) {
         (void)mail.answer(PaneCarryAnswered{false, "the approved acquisition is no longer current"});
         return;
     }
+    const InputActor carrier = approved_operation_.actor;
+    const std::uint64_t approved = approved_operation_.gesture;
     approved_operation_ = {};
-    if (drag && value_drag_.gesture != gestures_) {
+    // A DRAG IS THE CARRIER'S OWN APPROVED PRESS, still its latest: another hand's press, made
+    // since, holds no carry of this one's.
+    if (drag && (value_drag_.gesture == 0 || value_drag_.gesture != approved ||
+                 value_drag_.actor.local != carrier.local ||
+                 value_drag_.actor.participant != carrier.participant)) {
         (void)mail.answer(PaneCarryAnswered{false, "this value drag no longer has its primary press"});
         return;
     }
@@ -239,7 +420,7 @@ void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bo
     if (!carried_.data.empty()) {
         (void)mail.answer(PaneCarryAnswered{false, "another item is already being carried"}); return;
     }
-    carried_ = {asked.data, asked.label, gesture_actor_, value, drag,
+    carried_ = {asked.data, asked.label, carrier, value, drag,
                 std::string(mail.authored_role()), asked.pane, std::move(token)};
     if (!drag) say("Carrying " + asked.label + " — click a receiving pane; Escape cancels", false);
     // A DRAG BEGUN ON A CANVAS IS NOW A CARRY: the press's hold ends there as lost, so its later
@@ -250,6 +431,7 @@ void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bo
     repaint(mail);
 }
 
+// WL-GUEST-06 -- agents/workshop/guests.md
 bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail,
                                std::int64_t picture, const PointedAt& point,
                                const std::optional<CanvasRelease>& released) {
@@ -257,6 +439,12 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
     if (!input_actor_.known || input_actor_.local != carried_.actor.local ||
         input_actor_.participant != carried_.actor.participant) {
         say("Only the actor carrying this reference may place it", true);
+        return true;
+    }
+    // A GUEST'S DROP, by click or by a drag's release, hands its bytes to the pane it lands on, and
+    // on a weaver's host the places only the weaver's hand reaches take none.
+    if (const std::string why = refused_toward(input_actor_, kind); !why.empty()) {
+        say(why, true);
         return true;
     }
     const auto* pane = session_.panes.runtime.of_kind(kind);
@@ -288,7 +476,7 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
     }
     const bool value = carried_.value;
     carried_ = {};
-    press_sent_ = GestureSent{kind, gestures_, correlation};
+    keep_act(hand(), hand().press_sent = GestureSent{kind, hand().latest, correlation});
     session_.panes.selected = kind;
     session_.panes.keyboard = kind;
     note_routed(kind);
@@ -347,7 +535,7 @@ bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& 
     }
     carried_ = {};
     const auto kind = pane.kind;
-    press_sent_ = GestureSent{kind, gestures_, correlation};
+    keep_act(hand(), hand().press_sent = GestureSent{kind, hand().latest, correlation});
     session_.panes.selected = kind;
     session_.panes.keyboard = kind;
     note_routed(kind);
@@ -364,7 +552,7 @@ void WorkshopWeave::begin_value_drag(const input::PointerButton& b) {
 }
 bool WorkshopWeave::move_value_drag(const input::PointerMoved& motion, loom::Mail& mail) {
     auto& drag = value_drag_;
-    if (!drag.gesture || drag.gesture != gestures_ || drag.released || !input_actor_.known ||
+    if (!drag.gesture || drag.gesture != latest_of(drag.actor) || drag.released || !input_actor_.known ||
         input_actor_.local != drag.actor.local || input_actor_.participant != drag.actor.participant)
         return false;
     if (motion.space != drag.space) return false;
@@ -381,7 +569,7 @@ bool WorkshopWeave::move_value_drag(const input::PointerMoved& motion, loom::Mai
 }
 bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom::Mail& mail) {
     auto& drag = value_drag_;
-    if (button.button != 1 || !drag.gesture || drag.gesture != gestures_ || drag.released ||
+    if (button.button != 1 || !drag.gesture || drag.gesture != latest_of(drag.actor) || drag.released ||
         !input_actor_.known || input_actor_.local != drag.actor.local ||
         input_actor_.participant != drag.actor.participant) return false;
     // The release is retained even when it precedes the asynchronous acquisition answer.
@@ -416,7 +604,7 @@ void WorkshopWeave::finish_value_drag(loom::Mail& mail) {
     if (!carried_.drag) return;
     if (!drag.moved) { carried_ = {}; return; }
     const auto* pane = session_.panes.runtime.of_kind(drag.target);
-    if (drag.gesture != gestures_ || !pane || !drag.receiver.valid() || !host_->role_holder ||
+    if (drag.gesture != latest_of(drag.actor) || !pane || !drag.receiver.valid() || !host_->role_holder ||
         host_->role_holder(pane->provider) != drag.receiver) {
         carried_ = {}; say("Value drag cancelled: no current receiver at the release", true); return;
     }

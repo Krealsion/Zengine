@@ -183,10 +183,10 @@ WHY — `agents/decisions/content-sized-popups.md`
 
 ## WL-KEY-12 — The printable-trigger swallow is derived from the binding
 
-LAW — `expected_text_of` arms the swallow centrally in `on(KeyPressed)` when the keymap consumed a text-faced gesture, and the very next key or text clears it; no site hard-codes a character.
+LAW — `expected_text_of` arms the swallow centrally in `on(KeyPressed)` when the keymap consumed a text-faced gesture, and the very next key or text of that hand clears it; no site hard-codes a character.
 
 PROVEN BY — `workshop/keymap.hpp` `expected_text_of`; `workshop/weave.hpp`
-`WorkshopWeave::swallow_text_`; `workshop/weave_seam.cpp` `same_keystroke`;
+`WorkshopWeave::Hand::swallow_text`; `workshop/weave_seam.cpp` `same_keystroke`;
 `workshop/weave_handlers.cpp` `on(KeyPressed)`; `tests/test_workshop_document.cpp` case `"a
 printable trigger's own character is swallowed, wherever it is authored"`, case `"the swallow
 eats only the trigger's own character, never a different one"`, case `"a shift+letter

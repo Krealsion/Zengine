@@ -43,6 +43,29 @@ inline Condition unavailable_tool(const std::string& stem, const std::string& sa
                      surface::role::kAlert, "build its artifact, then launch again"};
 }
 
+/// A DEVELOPMENT HOST, for the whole run: the guests file names `host: development`, so a guest with
+/// `input` writes, types and reaches the editor and the Terminal here, and one with `build` builds.
+// WL-GUEST-08 -- agents/workshop/guests.md
+inline Condition development_host() {
+    return Condition{"guests.host", "a development host: guests may write and build here",
+                     "the guests file names this an agent's own host: a guest's hand writes files, "
+                     "types into panes and reaches the editor and the Terminal, as the weaver's does",
+                     surface::role::kAccent, ""};
+}
+
+/// ONE GUESTS-FILE ROW AND WHAT ITS POWERS DO NOT REACH HERE, keyed by the row's place in the file
+/// and never its name, so two rows of one name stand as two.
+// WL-GUEST-08 -- agents/workshop/guests.md
+inline Condition guest_row_losses(std::size_t row, const std::string& name, std::int64_t version,
+                                  const std::vector<std::string>& losses) {
+    std::string detail;
+    for (const std::string& loss : losses) detail += (detail.empty() ? "" : "; ") + loss;
+    return Condition{"guests.row/" + std::to_string(row),
+                     "guest '" + name + "' (version " + std::to_string(version) + ") does not reach "
+                         "everything its powers name here",
+                     "not here: " + detail, surface::role::kAccent, ""};
+}
+
 /// HOW LOUD, AS AN ORDER.
 // WL-ATTN-07 -- agents/workshop/attention.md
 inline int attention_rank(std::int64_t role) noexcept {

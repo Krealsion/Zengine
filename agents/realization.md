@@ -425,8 +425,10 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
   frontier view carries no recipe.
 - **`f` SPENDS THE EXISTING ROUTE, WHOLE.** It sets the pane's chosen recipe to the producing one
   — visibly, so the recipe row and the ask agree — and calls the same `build_now` path
-  `Shift+b` calls, with `realize=true`. One send (`BuildRequested`), same office, same grant;
-  everything downstream is the tool's, the runner's, and the owner's, unchanged. There is no
+  `Shift+b` calls, with `realize=true`. One send (`BuildRequested`), same office, same grant,
+  after the one class `build` ask the gesture's first beat made (`agents/workshop/guests.md`,
+  WL-GUEST-03), carried to it and never asked again; everything downstream is the tool's, the
+  runner's, and the owner's, unchanged. There is no
   second build path and no direct load, and a source tripwire beside the introspection suite's
   pins it: no presentation source under `workshop/` — `weave.hpp`, `screen.hpp`, `panes.hpp`,
   the seam vocabularies and the subject `.cpp` files beside them, walked by `presentation_sources`

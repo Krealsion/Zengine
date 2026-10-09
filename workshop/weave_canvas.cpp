@@ -62,7 +62,10 @@ void WorkshopWeave::lose_canvas_hold(std::size_t slot, loom::Mail& mail) {
     auto event = held.event;
     event.phase = canvas_pointer::kLost;
     (void)send_canvas_pointer(held.owner, event, held.legacy, mail);
-    if (slot > 0) secondary_cont_[slot - 1] = SecondaryContinuation{};
+    if (slot > 0)
+        each_hand([&](Hand& h) {
+            if (h.secondary_cont[slot - 1].kind == held.kind) h.secondary_cont[slot - 1] = SecondaryContinuation{};
+        });
     held = CanvasHold{};
 }
 
@@ -127,8 +130,10 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         if (!capable && c.grant == 0) continue;
         for (std::size_t i = 0; i < 3; ++i)
             if (canvas_holds_[i].active && canvas_holds_[i].kind == pane.kind) lose_canvas_hold(i, mail);
-        for (auto& continuation : secondary_cont_)
-            if (continuation.kind == pane.kind) continuation = SecondaryContinuation{};
+        each_hand([&](Hand& h) {
+            for (auto& continuation : h.secondary_cont)
+                if (continuation.kind == pane.kind) continuation = SecondaryContinuation{};
+        });
         if (canvas_hover_.kind == pane.kind) canvas_hover_ = CanvasHover{};
         // Only geometry may carry an old picture forward as an explicitly stale preview.
         // Input and grant identity still start over, including throughout repeated resizes.
@@ -269,15 +274,15 @@ bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& 
     canvas_holds_[slot] = CanvasHold{true, kind, c.owner, c.x, c.y, event, sent, c.legacy};
     // A primary press is the pane's to continue, as a prose press is: under its number the
     // provider may ask to carry a value out, and the press's release is where it lands.
-    if (slot == 0) press_sent_ = GestureSent{kind, gestures_, correlation};
+    if (slot == 0) keep_act(hand(), hand().press_sent = GestureSent{kind, hand().latest, correlation});
     if (slot > 0) {
-        auto& continuation = secondary_cont_[slot - 1];
+        auto& continuation = hand().secondary_cont[slot - 1];
         continuation = SecondaryContinuation{};
         continuation.live = true;
         continuation.kind = kind;
         continuation.button = b.button;
         continuation.correlation = correlation;
-        continuation.gesture_at_press = gestures_;
+        continuation.gesture_at_press = hand().latest;
         continuation.cell = at;
     }
     note_routed(kind);
@@ -300,7 +305,11 @@ bool WorkshopWeave::canvas_release(const input::PointerButton& b, loom::Mail& ma
     event.phase = at.understood ? canvas_pointer::kRelease : canvas_pointer::kLost;
     event.modifiers = b.modifiers;
     (void)send_canvas_pointer(held.owner, event, held.legacy, mail);
-    if (slot > 0) secondary_cont_[slot - 1].released = true;
+    if (slot > 0)
+        each_hand([&](Hand& h) {
+            if (h.secondary_cont[slot - 1].live && h.secondary_cont[slot - 1].kind == held.kind)
+                h.secondary_cont[slot - 1].released = true;
+        });
     const std::int64_t kind = held.kind;
     held = CanvasHold{};
     // A room the press's title row waited for is granted now the press has ended (WL-FOCUS-11),

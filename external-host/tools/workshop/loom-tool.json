@@ -153,7 +153,8 @@
         "a running Workshop started with a guests file whose row for this host may 'input', 'capture' and 'inspect'",
         "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
         "zengine-guest-vocabulary booted in the session host",
-        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it"
+        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it",
+        "typed text, and keys toward the editor, the Terminal or the Hotkeys pane, only on a Workshop whose guests file names it a development host: a weaver's host refuses them a guest in words"
       ],
       "asks": [
         "loom.link.StatusRequested v1 -> role loom.link.workshop",
@@ -489,7 +490,8 @@
         "a running Workshop whose guest row grants 'input', 'capture', and the source/receiver operation authority (for Inventory, 'inventory')",
         "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
         "zengine-guest-vocabulary booted in the session host",
-        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it"
+        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it",
+        "on a weaver's host, a start on neither the editor, the Terminal nor the Hotkeys pane: a guest's press there is refused, which a development host takes"
       ],
       "asks": [
         "loom.link.StatusRequested v1 -> role loom.link.workshop",
@@ -579,7 +581,8 @@
         "a running Workshop whose guest row grants 'input', 'capture', and the source/receiver operation authority (for Inventory, 'inventory')",
         "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
         "zengine-guest-vocabulary booted in the session host",
-        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it"
+        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it",
+        "a Workshop whose guests file names it a development host: the story types into Compose, and a weaver's host refuses a guest's typed text"
       ],
       "asks": [
         "loom.link.StatusRequested v1 -> role loom.link.workshop",
@@ -1128,7 +1131,8 @@
         "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
         "zengine-guest-vocabulary booted in the session host",
         "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it",
-        "the presets named demo setup; reset between repetitions"
+        "the presets named demo setup; reset between repetitions",
+        "a Workshop whose guests file names it a development host, as the presets setup's own is: the story types into Compose, and a weaver's host refuses a guest's typed text"
       ],
       "asks": [
         "loom.link.StatusRequested v1 -> role loom.link.workshop",
@@ -1221,7 +1225,8 @@
         "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
         "zengine-guest-vocabulary booted in the session host",
         "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it",
-        "the presets named demo setup; reset between repetitions"
+        "the presets named demo setup; reset between repetitions",
+        "a Workshop whose guests file names it a development host, as the presets setup's own is: the story types into Compose and Inventory, and a weaver's host refuses a guest's typed text"
       ],
       "asks": [
         "loom.link.StatusRequested v1 -> role loom.link.workshop",
@@ -1319,7 +1324,8 @@
         "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
         "zengine-guest-vocabulary booted in the session host",
         "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it",
-        "the presets named demo setup; reset between repetitions"
+        "the presets named demo setup; reset between repetitions",
+        "a Workshop whose guests file names it a development host, as the presets setup's own is: the story types a Terminal line and drags from the Terminal, which a weaver's host refuses a guest"
       ],
       "asks": [
         "loom.link.StatusRequested v1 -> role loom.link.workshop",
@@ -1402,7 +1408,8 @@
       "requires": [
         "Workshop guest grants the separate 'toolbox' file-operation power",
         "zengine-guest-vocabulary booted in the external host",
-        "Inventory data owner, pane and Desktop are loaded; no pending Inventory operation"
+        "Inventory data owner, pane and Desktop are loaded; no pending Inventory operation",
+        "for save, a Workshop whose guests file names it a development host: a weaver's host refuses a guest's save in words and writes nothing; restore works on either host"
       ],
       "asks": [
         "loom.link.Ask v1 -> role loom.link.workshop"
@@ -1601,7 +1608,8 @@
       "requires": [
         "guest powers input, capture, inspect (Sample source asks zen.PokeDescribe), inventory, toolbox (restore/prepare) and demo (layout)",
         "the running 'workbench' or 'folders' demo setup: Inventory, Desktop and Info views info, info.2, info.3 (workbench adds Loaded and Compose)",
-        "restore before story, folders or retrieve; organize after restoring the flat file in a Workshop without folders"
+        "restore before story, folders or retrieve; organize after restoring the flat file in a Workshop without folders",
+        "the setup's own Workshop, a development host: the story types into Info and Compose, and a weaver's host refuses a guest's typed text"
       ],
       "asks": [
         "loom.link.StatusRequested v1 -> role loom.link.workshop",
@@ -1754,7 +1762,8 @@
         "the editor-materials setup's desk (Editor, Inventory, Terminal) or one with the same panes visible",
         "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
         "zengine-guest-vocabulary booted in the session host",
-        "the input session free: Workshop admits one holder at a time"
+        "the input session free: Workshop admits one holder at a time",
+        "a Workshop whose guests file names it a development host, as the setup's own is: a weaver's host refuses a guest's keys, text and presses toward the editor and the Terminal"
       ],
       "asks": [
         "loom.link.StatusRequested v1 -> role loom.link.workshop",
@@ -1799,7 +1808,7 @@
         "demo"
       ],
       "example": "loom-session run <dir> workshop/editor-materials-demo --name materials --input folder=<root>/workshop/materials --input toolbox=<root>/editor-materials.toolbox --wait 300",
-      "recovery": "A failed step names what the owner answered; the entries it made stay for inspection. Use a fresh label to run again. 'no authority' means the guest row lacks the power named in requires; a refusal from zengine.opening names the file."
+      "recovery": "A failed step names what the owner answered; the entries it made stay for inspection. Use a fresh label to run again. 'no authority' means the guest row lacks the power named in requires, and a refusal naming a weaver's host means this Workshop is not a development host; a refusal from zengine.opening names the file."
     },
     {
       "name": "act",
@@ -1843,7 +1852,8 @@
       "requires": [
         "a Workshop guest granting input and capture",
         "zengine-guest-vocabulary booted in this Loom session",
-        "no other run on this link holding Workshop's input session"
+        "no other run on this link holding Workshop's input session",
+        "for type steps, and keys or presses toward the editor, the Terminal or the Hotkeys pane, a Workshop whose guests file names it a development host: a weaver's host refuses them a guest in words"
       ],
       "asks": [
         "loom.link.Ask v1 -> role loom.link.workshop"
@@ -1946,7 +1956,8 @@
         "a Workshop guest granting input and capture",
         "the Editor switched to Neovim and its pane open (docs/workshop/neovim.md)",
         "zengine-guest-vocabulary booted in this Loom session",
-        "the file readable on this machine (the comparison is a local observation)"
+        "the file readable on this machine (the comparison is a local observation)",
+        "a Workshop whose guests file names it a development host: a weaver's host refuses a guest's keys and text toward the editor, Neovim's included"
       ],
       "asks": [
         "loom.link.Ask v1 -> role loom.link.workshop"
@@ -2090,7 +2101,8 @@
       "requires": [
         "a Workshop guest granting input and capture",
         "Info open where Workshop describes it (not covered or overlapping)",
-        "zengine-guest-vocabulary booted in this Loom session"
+        "zengine-guest-vocabulary booted in this Loom session",
+        "a Workshop whose guests file names it a development host: a place is typed into Info, and a weaver's host refuses a guest's typed text"
       ],
       "asks": [
         "loom.link.Ask v1 -> role loom.link.workshop"
@@ -2191,11 +2203,12 @@
         }
       ],
       "requires": [
-        "a Workshop guest granting input and capture (not for look)",
+        "a Workshop guest granting input and capture (not for look), and build, a version-2 guests-file power, for every act but arm and look",
         "a guest row that may observe zengine.builder's BuildAsked v1 and BuildStatus v4 (look needs BuildStatus only)",
         "for promote and revert: the row also observes zengine.realization's RealizationAsked v1, ArtifactRealized v3 and ArtifactPromoted v2",
         "the Builder pane open where Workshop describes it (not for look)",
-        "zengine-guest-vocabulary booted in this Loom session"
+        "zengine-guest-vocabulary booted in this Loom session",
+        "for load-it, a Workshop whose guests file names it a development host: a weaver's host refuses a guest the role it types and the plan row it writes"
       ],
       "asks": [
         "loom.link.Ask v1 -> role loom.link.workshop"
@@ -2229,7 +2242,7 @@
         "observe"
       ],
       "example": "loom-session run <dir> workshop/builder --name build-game --input recipe=tower-defense --input act=frontier --input realize=realized --wait 320  |  after an UNRESOLVED run: loom-session run <dir> workshop/builder --name again --input act=look --input op=<N> --input relay=<lifetime> --input realize=realized",
-      "recovery": "Read builder.json and output.txt. An UNRESOLVED run names its operation once one is numbered, and the Workshop relay that numbered it; that operation keeps running in the Builder: run act=look op=<N> relay=<lifetime> to follow it again -- it presses nothing and needs no pane, so nothing is built twice, and a realization that completed meanwhile is read from the Builder's own answer. CANNOT ESTABLISH means the Builder no longer states op N here (it moved to a later ask, never numbered N, or Workshop restarted): op N's words are in the Builder's output reader (l, then the older build's output) while it keeps them. A look that is UNRESOLVED (its wait ran out while op N or the Builder's newest, unnumbered ask was still pending) names op N and the relay the same way: run it again. A SUPERSEDED run's own ending was never seen because another build was taken after it. An UNRESOLVED promote or revert names the realization owner's ask number; its answer carries that number, and nothing was pressed twice. Promote and revert change which image runs next and now respectively; neither touches source. A load refused for a changed shape leaves the running weave as it was. A refused subscription means the guest's row does not list those shapes under `observe` in Workshop's guests file: the weaver adds them; nothing was pressed."
+      "recovery": "Read builder.json and output.txt. An UNRESOLVED run names its operation once one is numbered, and the Workshop relay that numbered it; that operation keeps running in the Builder: run act=look op=<N> relay=<lifetime> to follow it again -- it presses nothing and needs no pane, so nothing is built twice, and a realization that completed meanwhile is read from the Builder's own answer. CANNOT ESTABLISH means the Builder no longer states op N here (it moved to a later ask, never numbered N, or Workshop restarted): op N's words are in the Builder's output reader (l, then the older build's output) while it keeps them. A look that is UNRESOLVED (its wait ran out while op N or the Builder's newest, unnumbered ask was still pending) names op N and the relay the same way: run it again. A SUPERSEDED run's own ending was never seen because another build was taken after it. An UNRESOLVED promote or revert names the realization owner's ask number; its answer carries that number, and nothing was pressed twice. Promote and revert change which image runs next and now respectively; neither touches source. A load refused for a changed shape leaves the running weave as it was. A refused subscription means the guest's row does not list those shapes under `observe` in Workshop's guests file: the weaver adds them; nothing was pressed. A refusal naming `build` means the guest's row lacks that power: the weaver grants it in a version-2 guests file."
     },
     {
       "name": "observe",

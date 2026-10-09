@@ -36,7 +36,8 @@ MEANS
 - a pane made from data, Workshop's own, and a weave no plan row realized each say what they are.
 
 DOES NOT MEAN
-- that a key can spend it: command mode names no pane, so the bound action says where it lives.
+- that a key can spend it: command mode names no pane, so the bound action says where it lives;
+- that any hand opens: the source is class `open` for the hand that chose it (WL-GUEST-09).
 
 PROVEN BY — `workshop/weave_code.cpp` `edit_code`, `code_refusal`; `workshop/context.hpp`
 `kContextCatalog`; `workshop/keymap.hpp` `kEditCode`, `kActionCatalog`;

@@ -218,7 +218,7 @@ void WorkshopWeave::on(const zengine::surface::ClipboardText& a, loom::Mail& mai
     repaint(mail);
 }
 
-// WL-KEY-03 -- agents/workshop/keyboard.md
+// WL-KEY-03 -- agents/workshop/keyboard.md; WL-GUEST-06 -- agents/workshop/guests.md
 void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
     if (duplicate_input(mail)) return;
     if (quitting_) {
@@ -231,16 +231,23 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
     // The swallow is judged before the gesture is counted: the character a consumed shortcut
     // produced is part of that shortcut's gesture (a terminal emits key, text and release for one
     // keystroke; SDL commits text on its own turn). Text that does not match is a new act.
-    if (!swallow_text_.empty()) {
-        const std::string owed = swallow_text_;
-        swallow_text_.clear();
+    if (!hand().swallow_text.empty()) {
+        const std::string owed = hand().swallow_text;
+        hand().swallow_text.clear();
         if (same_keystroke(t.text, owed)) {
             return; // the character the trigger produced belongs to the trigger, not a new gesture
         }
     }
-    ++gestures_;
-    gesture_actor_ = input_actor_;
+    count_gesture();
     if (t.text.empty()) {
+        return;
+    }
+    // ON A WEAVER'S HOST A GUEST'S TYPED TEXT RESTS NOWHERE: no pane's field and no line of this
+    // host's holds words the weaver would then commit as the weaver's own.
+    if (const std::string why = scope::refuse_text(guest_of(input_actor_), host_->host_fact);
+        !why.empty()) {
+        const KeyContext ctx = keyboard_context(session_);
+        if (ctx == KeyContext::kNaming || ctx == KeyContext::kPane) refuse_input(why, mail);
         return;
     }
     // Where a character goes is where a key goes, by the same resolver: a mode owning the keyboard
@@ -280,6 +287,7 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
 }
 
 // WL-FOCUS-03 -- agents/workshop/focus.md; WL-PRESS-04 -- agents/workshop/press-chain.md
+// WL-GUEST-06 -- agents/workshop/guests.md
 void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail) {
     if (duplicate_input(mail)) return;
     if (quitting_) {
@@ -301,8 +309,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     // a choosing click does not defeat its own continuation, and a newer key, character, press or
     // wheel still does (WL-PRESS-06).
     if (b.pressed) {
-        ++gestures_;
-        gesture_actor_ = input_actor_;
+        count_gesture();
     }
     // Arrangement is a mode and owns the pointer while open: every press is about a pane. A
     // secondary press leaves the arrangement (any scope, the reset prompt included) and is consumed
@@ -406,6 +413,10 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         const Occupancy taker =
             occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
         if (taker.occupied && is_runtime_kind(taker.kind)) {
+            if (const std::string why = refused_toward(input_actor_, taker.kind); !why.empty()) {
+                refuse_input(why, mail);
+                return;
+            }
             if (canvas_press(taker.kind, b, typing_pane(session_) == taker.kind, mail)) {
                 repaint(mail);
                 return;
@@ -452,6 +463,15 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // it owns is never answered by the layer around it. The occupancy walk is resolved first.
         const Occupancy here =
             occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
+        // A GUEST'S PRESS TOWARD A PLACE ONLY THE WEAVER'S HAND REACHES is refused once occupancy
+        // has named the pane, before anything is dropped, held or pressed, and before the selection
+        // and the keys are read or moved.
+        if (here.occupied && is_runtime_kind(here.kind)) {
+            if (const std::string why = refused_toward(input_actor_, here.kind); !why.empty()) {
+                refuse_input(why, mail);
+                return;
+            }
+        }
         // What the keyboard stood at is read before the lines below rewrite it: where an ordinary
         // key went, and where in a pane's body the press landed (a hidden-titles pane wears its
         // title row exactly while it has the keys). Which picture the press names is separate:
@@ -598,7 +618,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
     canvas_hover(m, mail);
 }
 
-// WL-PTR-10 -- agents/workshop/pointer.md
+// WL-PTR-10 -- agents/workshop/pointer.md; WL-GUEST-06 -- agents/workshop/guests.md
 void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
     if (duplicate_input(mail)) return;
     if (quitting_) {
@@ -608,8 +628,7 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
         (void)hold_input(std::move(held));
         return;
     }
-    ++gestures_;
-    gesture_actor_ = input_actor_;
+    count_gesture();
     if (session_.arrange.open || session_.context.open || session_.presented.open) {
         return;
     }
@@ -626,6 +645,10 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
         return;
     }
     if (is_runtime_kind(here.kind)) {
+        if (const std::string why = refused_toward(input_actor_, here.kind); !why.empty()) {
+            refuse_input(why, mail);
+            return;
+        }
         if (!canvas_wheel(here.kind, w, mail)) external_wheel(here.kind, w, mail);
         return;
     }
