@@ -24,8 +24,8 @@ PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneMenuRow`, `PaneMenuRequested`,
 `MenuWithdrawn`, `MenuGranted::standard`, `MenuGranted::pane_name`, `MenuClosed::standard`;
 `workshop/context.hpp`
 `PresentedMenu`, `context_population`; `workshop/weave.hpp`
-`grant_menu`, `press_sent_`, `withdraw_menu`, `end_menu_unanswered`, `spend_standard_row`,
-`cell_of_body_place`, `ChoiceAnswered`, `action_sent_`;
+`grant_menu`, `Hand::press_sent`, `withdraw_menu`, `end_menu_unanswered`, `spend_standard_row`,
+`cell_of_body_place`, `ChoiceAnswered`, `Hand::action_sent`;
 `workshop/weave_external.cpp` `on(PaneMenuRequested)`, `grant_menu`, `spend_standard_row`,
 `withdraw_menu`,
 `end_menu_unanswered`, `about_open_menu`, `forward_menu_input`, `menu_key`, `menu_button`,

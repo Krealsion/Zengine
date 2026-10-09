@@ -82,7 +82,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also re
   named relative to it, so a project moved whole still finds it) and whether its view runs to the
   project's `view-builder.json` (`view_builder::ViewBuilderRun`) when either differs from what the
   file holds, and counts it held only once the write succeeds, so a write that failed is made at
-  the next chance, a successor's first included. At its first activation the builder asks
+  the next chance, a successor's first included; that record is the builder's own keeping,
+  written whatever hand acts, while a hand's Save asks Workshop for class `write` under its
+  gesture and writes nothing until allowed. At its first activation the builder asks
   `zengine.project` for the project and reads that file; at a launch it opens the view the file
   names and, if its view ran, runs it again by `view::ViewResume`: a run whose pane asks nothing
   of the desk, so the restored desk seats it where it stood or leaves it hidden. A launch that

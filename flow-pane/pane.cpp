@@ -6,6 +6,7 @@
 #include "flow-pane/vocabulary.hpp"
 #include "inventory/codec.hpp"
 #include "operator/reference.hpp"
+#include "workshop/actor_scope.hpp"
 #include "workshop/pane_carry.hpp"
 #include "input/vocabulary.hpp"
 #include "operator/host.hpp"
@@ -50,7 +51,7 @@ class FlowPane final
                      ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop,
                      fh::FlowCatalog, ws::PaneMenuRequested, ws::PaneOperationRequested,
-                     ws::PaneValueCarryRequested>> {
+                     ws::v2::PaneOperationRequested, ws::PaneValueCarryRequested>> {
 public:
   loom::Value snapshot() const override {
     pane::FlowPaneState saved;
@@ -76,6 +77,10 @@ public:
   void on(const loom::Activated &activated, loom::Mail &mail) {
     if (!activation_.accept(mail, activated))
       return;
+    // AN ACTIVATION ENDS A WRITE STILL ASKED: a successor's ask numbers start again, so an
+    // earlier answer could be read as a new ask's. Its dialog stays, to be confirmed again.
+    if (const auto ended = std::exchange(writing_, std::nullopt))
+      model_.notice = pane::Model::writing(ended->verb) + " was not done: confirm it again";
     if (!restored_) {
       restored_ = true;
       if (!state_.workspace.empty())
@@ -178,6 +183,7 @@ public:
     if (model_.dialog) {
       if (key.scancode == input::scan::kEscape) {
         model_.dialog.reset(); pictures_.clear(); drag_.reset();
+        drop_writing();
       } else if (key.scancode == input::scan::kReturn) {
         perform("dialog-confirm", {}, mail);
         return;
@@ -418,7 +424,13 @@ public:
     carry(shape, mail.correlation(), false, mail);
   }
   void on(const ws::PaneOperationAnswered &answer, loom::Mail &mail) {
-    if (!carry_ || !mail.answers_ask() || mail.correlation() != carry_->ask)
+    if (!mail.answers_ask())
+      return;
+    if (writing_ && mail.correlation() == writing_->ask) {
+      settle_write(answer, mail);
+      return;
+    }
+    if (!carry_ || mail.correlation() != carry_->ask)
       return;
     auto carry = std::exchange(carry_, std::nullopt);
     if (!answer.allowed) {
@@ -615,6 +627,13 @@ public:
       show(mail);
       return;
     }
+    if (writing_ && writing_->attempt.seq == refused.refused_attempt().seq) {
+      model_.notice = pane::Model::writing(writing_->verb) +
+                      " was not done: Workshop could not be asked (" + refused.reason + ")";
+      writing_.reset();
+      show(mail);
+      return;
+    }
     for (auto it = pending_.begin(); it != pending_.end(); ++it)
       if (it->second.attempt.seq == refused.refused_attempt().seq) {
         model_.notice =
@@ -669,6 +688,56 @@ private:
         ws::PaneOperationRequested{pane::kPane, workshop_role, ws::PaneValueCarryRequested::zen_name,
                                    1, static_cast<std::int64_t>(carry_->gesture)},
         carry_->ask);
+  }
+  /// ASK WHETHER THE CONFIRMING GESTURE'S ACTOR MAY WRITE, before any byte: class `write` alone,
+  /// since Flow writes the file itself. The verb and its values are kept as confirmed, and the
+  /// dialog stays open until Workshop answers.
+  void ask_to_write(const std::string &verb, std::vector<std::string> values,
+                    loom::Mail &mail) {
+    // A RAW KEY IS NO GESTURE WORKSHOP NUMBERED: a confirm that came as one cannot be approved,
+    // so it writes nothing, keeps the dialog, and says which row confirms.
+    if (mail.correlation() == 0)
+      throw std::invalid_argument(
+          pane::Model::writing(verb) +
+          " waits: the confirm came as a raw key, which Workshop cannot approve -- confirm "
+          "with the dialog's `dialog-confirm` row");
+    const auto ask = ++correlation_;
+    const auto ticket = mail.as_role(pane::kRole).send_to_role(
+        workshop_role,
+        ws::v2::PaneOperationRequested{pane::kPane, "", "", 0,
+                                       static_cast<std::int64_t>(mail.correlation()),
+                                       {ws::scope::kWrite}, ""},
+        ask);
+    if (!ticket.valid())
+      throw std::invalid_argument(pane::Model::writing(verb) +
+                                  " was not done: Workshop could not be asked");
+    writing_ = Writing{ask, ticket, verb, std::move(values)};
+    model_.notice = pane::Model::writing(verb) + " is waiting for Workshop's approval";
+  }
+  /// WORKSHOP'S WORD ON A CONFIRMED WRITE. Allowed, the verb runs with the values as confirmed
+  /// and the dialog closes; refused, or failed, nothing is written and the dialog keeps its text
+  /// for repair.
+  void settle_write(const ws::PaneOperationAnswered &answer, loom::Mail &mail) {
+    const auto writing = *std::exchange(writing_, std::nullopt);
+    const auto doing = pane::Model::writing(writing.verb);
+    try {
+      if (!answer.allowed)
+        throw std::invalid_argument(doing + " was refused: " + answer.reason);
+      if (!model_.dialog || model_.dialog->action != writing.verb)
+        throw std::invalid_argument(doing + " was not done: its dialog is no longer open");
+      effect(model_.command(writing.verb, writing.values), mail);
+      model_.dialog.reset();
+      pictures_.clear();
+      drag_.reset();
+    } catch (const std::exception &e) {
+      model_.notice = e.what();
+    }
+    show(mail);
+  }
+  /// A dialog put down puts down the write it asked for: its answer, when it comes, finds none.
+  void drop_writing() {
+    if (const auto dropped = std::exchange(writing_, std::nullopt))
+      model_.notice = pane::Model::writing(dropped->verb) + " was cancelled with its dialog";
   }
   std::shared_ptr<const loom::Schema> declared(const std::string &name) const {
     const auto &def = model_.workspace.graph.project.definition;
@@ -742,19 +811,27 @@ private:
             workshop_role,
             ws::v3::PaneOffered{pane::kPane, "Flow",
                                 "author and exercise message-driven graphs", 704, 396, 0});
+    declare(mail, true);
+  }
+  /// THE ROWS IN FORCE FOLLOW THE DIALOG: while one is open, Return is also declared as its
+  /// confirm, so the confirm arrives as an action under a gesture Workshop can approve; Tab,
+  /// Escape and a field's own keys still arrive as keys. The offer declares first; after it,
+  /// declared again when the dialog opens or closes, or when `again` asks.
+  void declare(loom::Mail &mail, bool again = false) {
+    const bool dialog = model_.dialog.has_value();
+    if (!again && (!declared_ || *declared_ == dialog))
+      return;
+    declared_ = dialog;
+    std::vector<ws::PaneActionRow> rows{
+        {"ask-save", "Save Flow workspace", input::scan::kS, input::mod::kCtrl},
+        {"ask-open", "Open Flow workspace", input::scan::kO, input::mod::kCtrl},
+        {"run", "Run Flow", input::scan::kR, input::mod::kCtrl},
+        {"ask-generate", "Generate native C++", input::scan::kG, input::mod::kCtrl},
+        {"ask-discard", "Discard unsaved marker", 0, 0}};
+    if (dialog)
+      rows.push_back({"dialog-confirm", "Confirm the dialog", input::scan::kReturn, 0});
     (void)mail.as_role(pane::kRole)
-        .send_to_role(
-            workshop_role,
-            ws::PaneActions{
-                pane::kPane,
-                {{"ask-save", "Save Flow workspace", input::scan::kS,
-                  input::mod::kCtrl},
-                 {"ask-open", "Open Flow workspace", input::scan::kO,
-                  input::mod::kCtrl},
-                 {"run", "Run Flow", input::scan::kR, input::mod::kCtrl},
-                 {"ask-generate", "Generate native C++", input::scan::kG,
-                  input::mod::kCtrl},
-                 {"ask-discard", "Discard unsaved marker", 0, 0}}});
+        .send_to_role(workshop_role, ws::PaneActions{pane::kPane, std::move(rows)});
   }
   void perform(const std::string &action, const std::vector<std::string> &args,
                loom::Mail &mail) {
@@ -852,15 +929,25 @@ private:
                  {{"Path", "examples.flow-values"}});
     else if (action == "dialog-field") {
       model_.dialog->selected = flow::index_of(args.at(0));
-    } else if (action == "dialog-cancel")
+    } else if (action == "dialog-cancel") {
       model_.dialog.reset();
-    else if (action == "dialog-confirm") {
+      drop_writing();
+    } else if (action == "dialog-confirm") {
       if (!model_.dialog)
         return;
+      // ONE WRITE IN FLIGHT: a second confirm waits for the first one's answer.
+      if (writing_)
+        throw std::invalid_argument(pane::Model::writing(writing_->verb) +
+                                    " is already waiting for Workshop's approval");
       const auto saved = *model_.dialog;
       std::vector<std::string> values;
       for (const auto &entry : saved.entries)
         values.push_back(entry.text.text());
+      // A WRITE IS ASKED UNDER THE CONFIRMING GESTURE, and runs at Workshop's answer.
+      if (pane::Model::writes_file(saved.action)) {
+        ask_to_write(saved.action, std::move(values), mail);
+        return;
+      }
       // Refusal keeps the form and its authored text available for repair.
       if (saved.action == "discard")
         act("discard", values, mail);
@@ -987,6 +1074,10 @@ private:
                      std::int64_t{50}, std::int64_t{200});
       model_.touched();
     } else {
+      // A VERB THAT WRITES A FILE IS NO BARE ACTION: only its dialog's confirm asks for it.
+      if (pane::Model::writes_file(action))
+        throw std::invalid_argument(pane::Model::writing(action) +
+                                    " was refused: confirm it in its dialog");
       effect(model_.command(action, args), mail);
       drag_.reset();
     }
@@ -1144,6 +1235,7 @@ private:
   }
   void show(loom::Mail &mail) {
     find(mail);
+    declare(mail);
     if (room_.grant > 0 && room_.width > 0 && room_.height > 0) {
       auto current = pane::picture(model_, room_, ++picture_number_);
       const auto ticket = mail.as_role(pane::kRole)
@@ -1204,11 +1296,22 @@ private:
     loom::Bytes bytes;
     bool drag = false;
   };
+  /// A file write a dialog confirmed, waiting on Workshop's word for the confirming actor: the
+  /// ask and its attempt, and the verb and values as confirmed. Never saved with the pane.
+  struct Writing {
+    std::uint64_t ask = 0;
+    loom::Ticket attempt;
+    std::string verb;
+    std::vector<std::string> values;
+  };
   Finding finding_;
   std::string asked_;
   std::optional<Adding> adding_;
   ws::pane_menu::Asked menu_;
   std::optional<Carry> carry_;
+  std::optional<Writing> writing_;
+  /// Whether the rows last declared held the dialog's confirm; none before the offer's.
+  std::optional<bool> declared_;
 };
 } // namespace
 ZEN_EXPORT_WEAVE(FlowPane)

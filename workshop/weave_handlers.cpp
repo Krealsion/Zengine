@@ -236,8 +236,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         (void)hold_input(std::move(held));
         return;
     }
-    ++gestures_;
-    gesture_actor_ = input_actor_;
+    count_gesture();
     if (!carried_.data.empty() && k.scancode == input::scan::kEscape &&
         input_actor_.known && input_actor_.local == carried_.actor.local &&
         input_actor_.participant == carried_.actor.participant) {
@@ -253,26 +252,26 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // The swallow belongs to one moment: cleared on every key, armed only when this keystroke is
     // consumed as a binding whose key also enters text (`expected_text_of`); an unmatched
     // expectation eats nothing.
-    swallow_text_.clear();
+    hand().swallow_text.clear();
     if (ctx == KeyContext::kContext && session_.presented.open) {
         // Every key a presented menu takes is its presenter's, so the character it produced is
         // part of that act, not a second one.
-        swallow_text_ = expected_text_of(k.scancode, k.modifiers);
+        hand().swallow_text = expected_text_of(k.scancode, k.modifiers);
     } else if (session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) !=
         Act::kNone) {
-        swallow_text_ = expected_text_of(k.scancode, k.modifiers);
+        hand().swallow_text = expected_text_of(k.scancode, k.modifiers);
     } else if (session_.keymap.app_action_for(app_precedence::kAboveModes, ctx, k.scancode,
                                              k.modifiers, keyboard_pane()) != nullptr) {
         // An application row is a binding too (WL-DESK-07): a desktop's launch on a bare letter
         // must not also type that letter.
-        swallow_text_ = expected_text_of(k.scancode, k.modifiers);
+        hand().swallow_text = expected_text_of(k.scancode, k.modifiers);
     } else if (ctx == KeyContext::kPane &&
                session_.keymap.pane_action_for(keyboard_pane(), k.scancode, k.modifiers) !=
                    nullptr) {
         // A PANE'S OWN ROW IS A BINDING TOO (WL-KEY-15): the keystroke crosses as the
         // resolved id, and the character it produced belongs to the trigger, not to the
         // pane's field.
-        swallow_text_ = expected_text_of(k.scancode, k.modifiers);
+        hand().swallow_text = expected_text_of(k.scancode, k.modifiers);
     }
     // Only the rows declared above the modes are answered here; `workshop.quit`'s ordinary `q`
     // row still travels the chain, behind every mode.

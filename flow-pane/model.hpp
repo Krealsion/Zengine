@@ -163,6 +163,17 @@ public:
         return {identity, static_cast<loom::ContentId>(flow::integer(in)),
                 static_cast<loom::ContentId>(flow::integer(out))};
     }
+    /// THE VERBS THAT WRITE A FILE, each with the word a notice names it by; empty for every other
+    /// verb. A hand reaches one only through its dialog's confirm, which asks Workshop for the
+    /// confirming actor's class `write` before `command` runs it. `command` judges no actor.
+    static std::string writing(const std::string& action) {
+        if (action == "save") return "Saving";
+        if (action == "generate") return "Generating";
+        if (action == "export-project") return "Exporting";
+        if (action == "library-save") return "Saving the library";
+        return {};
+    }
+    static bool writes_file(const std::string& action) { return !writing(action).empty(); }
 private:
     Action perform(const std::string& action, const std::vector<std::string>& args) {
         const auto previous_notice = notice;

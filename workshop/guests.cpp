@@ -26,8 +26,10 @@
 #include <zen/weave/describe.hpp>
 #include <zen/weave/poke.hpp>
 
+#include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <system_error>
 #include <utility>
 
 namespace zengine::workshop::guests {
@@ -55,8 +57,12 @@ std::shared_ptr<const loom::Schema> row_schema() {
     return s;
 }
 
+// Every version's words in one envelope; which of them a file may use is its own `version`'s,
+// judged after the gate.
 std::shared_ptr<const loom::Schema> file_schema() {
     static const auto s = loom::SchemaBuilder("zen.WorkshopGuests", 1)
+                              .field("version", loom::Kind::Int, /*required=*/false)
+                              .field("host", loom::Kind::Text, /*required=*/false)
                               .field("listen", loom::Kind::Text, /*required=*/false)
                               .field("port_file", loom::Kind::Text, /*required=*/false)
                               .list("guests", loom::type_message(row_schema()))
@@ -112,6 +118,32 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
         return false;
     }
     const loom::Value& v = a.value();
+    if (const loom::Cell* version = v.get("version")) {
+        out->version = version->as_int();
+        if (out->version < 1 || out->version > kGuestsFileVersion) {
+            *error = "guests file '" + path + "' names version " + std::to_string(out->version) +
+                     ", which this Workshop does not read (it reads versions 1 to " +
+                     std::to_string(kGuestsFileVersion) + ")";
+            return false;
+        }
+    }
+    // WHAT A FILE OF VERSION 1 IS TOLD when it says a later version's word: whether it named its
+    // version or was read as 1 for naming none.
+    const std::string read_as = v.get("version") != nullptr
+        ? "it names version 1 (name \"version\": \"2\")"
+        : "it names no version, so it is read as version 1 (add \"version\": \"2\")";
+    if (const loom::Cell* host = v.get("host")) {
+        if (out->version < 2) {
+            *error = "guests file '" + path + "' names a host, a word of the file's version 2; " + read_as;
+            return false;
+        }
+        out->host = host->as_text();
+        if (out->host != kHostWeaver && out->host != kHostDevelopment) {
+            *error = "guests file '" + path + "': host '" + out->host + "' must be '" +
+                     kHostWeaver + "' or '" + kHostDevelopment + "'";
+            return false;
+        }
+    }
     out->listen = text_or(v, "listen", "127.0.0.1:0");
     out->port_file = text_or(v, "port_file", "");
     std::string host;
@@ -150,12 +182,17 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
         if (const loom::Cell* may = r.get("may")) {
             for (const loom::Cell& p : may->as_list()) {
                 const std::string power = p.as_text();
+                if (power == kPowerBuild && out->version < 2) {
+                    *error = "guests file '" + path + "': guest '" + row.name + "' may '" + power +
+                             "', a power of the file's version 2; " + read_as;
+                    return false;
+                }
                 if (power != kPowerInput && power != kPowerCapture && power != kPowerInspect &&
                     power != kPowerInventory && power != kPowerToolbox && power != kPowerDemo &&
-                    power != kPowerOpen) {
+                    power != kPowerOpen && power != kPowerBuild) {
                     *error = "guests file '" + path + "': guest '" + row.name +
                              "' may '" + power + "', which is not a power this host grants "
-                             "(input, capture, inspect, inventory, toolbox, demo, open)";
+                             "(input, capture, inspect, inventory, toolbox, demo, open, build)";
                     return false;
                 }
                 row.may.push_back(power);
@@ -243,6 +280,8 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_any(loom::PokeDescribe::zen_name, loom::PokeDescribe::zen_version);
             g.allow_to_role(GuestConnectionsRequested::zen_name,
                             GuestConnectionsRequested::zen_version, kGuestsRole);
+            g.allow_to_role(v2::GuestConnectionsRequested::zen_name,
+                            v2::GuestConnectionsRequested::zen_version, kGuestsRole);
         } else if (power == kPowerDemo) {
             for (const char* shape : {"DemoServiceOpened", "DemoServiceClosed", "DemoWorkRequested",
                                       "DemoWorkFinished", "DemoResetRequested", "DemoStatusRequested", "DemoReadyRequested"})
@@ -254,6 +293,9 @@ loom::Grant grant_for(const GuestRow& row) {
         } else if (power == kPowerOpen) {
             // THE MANAGED OPENING, and nothing beside it: no document door, no save, no build.
             g.allow_to_role(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version, kOpeningRole);
+        } else if (power == kPowerBuild) {
+            // NOTHING TO SAY: `build` is an action class the Builder asks for a gesture's actor
+            // (`actor_scope.hpp`), never a shape a guest sends.
         } else if (power == kPowerToolbox) {
             g.allow_to_role(zengine::inventory_pane::InventoryToolboxSave::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory_pane::InventoryToolboxRestore::zen_name, 1, zengine::inventory_pane::kRole);
@@ -299,17 +341,72 @@ loom::Grant grant_for(const GuestRow& row) {
     return g;
 }
 
-loom::BridgeAdmission admission_of(const GuestsFile& file) {
+scope::GuestRowFacts facts_of(const GuestRow& row, const GuestsFile& file) {
+    scope::GuestRowFacts f;
+    f.admitted = true;
+    f.name = row.name;
+    f.powers = row.may;
+    f.version = file.version;
+    return f;
+}
+
+scope::HostFact host_fact_of(const GuestsFile& file) {
+    scope::HostFact h;
+    h.development = file.development();
+    std::error_code ec;
+    const std::filesystem::path absolute = std::filesystem::absolute(std::filesystem::path(file.path), ec);
+    h.guests_file = ec ? file.path : absolute.lexically_normal().string();
+    return h;
+}
+
+std::vector<std::string> losses_of(const GuestRow& row, const GuestsFile& file) {
+    const scope::GuestRowFacts f = facts_of(row, file);
+    std::vector<std::string> out;
+    if (f.may(kPowerInput) && !f.may(kPowerBuild)) {
+        out.push_back(file.version < 2 ? "the Builder's builds and loads: `build` is a version-2 power"
+                                       : "the Builder's builds and loads: the row has no `build`");
+    }
+    if (file.development()) return out;
+    if (f.may(kPowerInput)) {
+        out.push_back("file writes: this is a weaver's host");
+        out.push_back("the editor, the Terminal and the Hotkeys pane: they answer only the weaver's hand here");
+        out.push_back("typed text: a guest's text rests in no pane here");
+    }
+    if (f.may(kPowerToolbox)) out.push_back("saving a toolbox file: a file write");
+    if (f.may(kPowerDemo)) out.push_back("quitting Workshop: quitting writes the last session");
+    if (f.may(kPowerInput)) out.push_back("opening the guests file");
+    if (f.may(kPowerOpen)) {
+        out.push_back("the `open` power: the editor it reopens a location in answers only the "
+                      "weaver's hand here");
+    }
+    return out;
+}
+
+std::vector<Condition> conditions_of(const GuestsFile& file) {
+    std::vector<Condition> out;
+    if (file.development()) out.push_back(development_host());
+    for (std::size_t i = 0; i < file.rows.size(); ++i) {
+        const std::vector<std::string> losses = losses_of(file.rows[i], file);
+        if (!losses.empty()) out.push_back(guest_row_losses(i, file.rows[i].name, file.version, losses));
+    }
+    return out;
+}
+
+loom::BridgeAdmission admission_of(const GuestsFile& file, std::shared_ptr<AdmittedRows> admitted) {
     const std::vector<GuestRow> rows = file.rows;
-    return [rows](const loom::ConnectionRequest& r) {
+    return [rows, admitted](const loom::ConnectionRequest& r) {
         if (r.credential.empty()) {
             return loom::ConnectionVerdict::refuse("this Workshop admits guests by credential, "
                                                    "and none was presented");
         }
-        for (const GuestRow& row : rows) {
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            const GuestRow& row = rows[i];
             if (row.credential != r.credential) {
                 continue;
             }
+            // THE ROW IS RECORDED AGAINST THE CONNECTION before any verdict, so whatever later
+            // asks which row a session holds reads this row, whatever its name.
+            if (admitted) admitted->record(r.connection, i);
             if (row.ask) {
                 return loom::ConnectionVerdict::defer();
             }
@@ -325,22 +422,26 @@ loom::BridgeAdmission admission_of(const GuestsFile& file) {
 }
 
 loom::observe::ObservePolicy observation_of(
-    const GuestsFile& file, std::function<std::string(loom::WeaveId)> established) {
+    const GuestsFile& file, std::function<std::optional<std::size_t>(loom::WeaveId)> row_of) {
     const std::vector<GuestRow> rows = file.rows;
-    return [rows, established](const loom::observe::ObserveRequest& r) {
-        const std::string name = established ? established(r.subscriber) : std::string();
-        const GuestRow* row = nullptr;
-        for (const GuestRow& candidate : rows) {
-            if (!name.empty() && candidate.name == name) {
-                row = &candidate;
-            }
-        }
+    return [rows, row_of](const loom::observe::ObserveRequest& r) {
+        const std::optional<std::size_t> index = row_of ? row_of(r.subscriber) : std::nullopt;
+        const GuestRow* row = (index && *index < rows.size()) ? &rows[*index] : nullptr;
         if (row == nullptr) {
             return loom::observe::ObserveVerdict::refuse(
                 "this Workshop lets only a guest its guests file names observe, and the asker "
                 "is not one");
         }
         for (const loom::observe::ShapeRef& asked : r.shapes) {
+            // THE INVENTORY THAT SAYS EVERY ROW'S POWERS is this host's own: a guest asks for its own
+            // row's, and observes the inventory only as version 1 says it.
+            if (r.producer == kGuestsRole && asked.name == v2::GuestConnections::zen_name &&
+                asked.version >= v2::GuestConnections::zen_version) {
+                return loom::observe::ObserveVerdict::refuse(
+                    "guest '" + row->name + "' may not observe " + asked.name + " v" +
+                    std::to_string(asked.version) + ": it says every row's powers; ask for your own "
+                    "with GuestConnectionsRequested v2");
+            }
             bool listed = false;
             for (const ObserveScope& s : row->observe) {
                 listed = listed || (s.producer == r.producer && s.shape == asked.name &&

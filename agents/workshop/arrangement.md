@@ -215,13 +215,13 @@ LAW — `PaneEscapeUnspent{pane}` from the office that offered it, echoing the n
 MEANS
 - what is shed is `unselect_pane`'s two lines: nothing closes, and no arrangement moves;
 - the default a pane gets is to drop its selection first, then say the word (`pane_escape`);
-- zero, another Escape's number, a spent one, or a later gesture: the word moves nothing.
+- zero, another Escape's number, a spent one, or a later gesture of its hand: the word moves nothing.
 
 DOES NOT MEAN — a consumption protocol: it is Escape's own last meaning, asked for by the party
 that knows whether Escape meant anything there.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneEscapeUnspent`; `workshop/weave.hpp`
-`WorkshopWeave::gestures_`, `WorkshopWeave::escape_sent_`, `WorkshopWeave::GestureSent`,
+`WorkshopWeave::gestures_`, `WorkshopWeave::Hand::escape_sent`, `WorkshopWeave::GestureSent`,
 `WorkshopWeave::gesture_asks_`; `workshop/weave_external.cpp` `on(PaneEscapeUnspent)`,
 `WorkshopWeave::external_key`; `workshop/pane_escape.hpp` `answer`, `unspent`, `bare`;
 `terminal-pane/pane.cpp` `composing_nothing`;

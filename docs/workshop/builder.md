@@ -178,6 +178,13 @@ anywhere else they do nothing. Nothing builds by default from across the desk.
 | **`Return`** / **`Escape`** | while the `o` role line is open: commit it, or abandon it whole. Every other key is an ordinary character for the line, so `Backspace` deletes one |
 | **`e`** | while the recipe list is open: **open the source of the row the cursor is on**, without changing your choice ([below](#choosing-a-recipe-from-the-list)) |
 
+**A guest's hand.** An agent driving Workshop from another host builds, loads, promotes and
+reverts -- `b`, `f`, the load-built button, `o`'s commit, `Shift`+`p`, `Shift`+`r` -- only when
+its guests-file row grants `build`, on any Workshop; without it each is refused in words before
+anything runs. On a weaver's host its typing on `o`'s line, the plan row that line writes, and `e`
+on the guests file are refused too
+([whose host this is](external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
+
 **Reached from a pane.** Choosing `edit code` on a running pane's context menu opens the source
 of the one recipe that builds that pane's artifact, and the Builder follows: it chooses that
 recipe, visibly, and says the source is open and whether load after build is on. It builds,

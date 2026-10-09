@@ -3,6 +3,8 @@
 # every shape enclosing it; the census as it stands is written beside the build to diff against.
 ActionsJudged v1 0xeb0998f48ba3335b
 ActionsWithdrawn v1 0x7aaceb7e61c4a2df
+ActorScopeJudged v1 0x44b57fa39b52a9fb
+ActorScopeRequested v1 0x5275db1a5f42d659
 AppActionRequested v1 0xbcf77ddd7334feae
 AppActionRow v1 0x22b5f069b3060f7a
 AppActions v1 0x8ed795b4ebd1f55e
@@ -113,8 +115,11 @@ FlowStop v1 0x278297d584178707
 FoodEaten v1 0xd706fbefb2e08392
 GuardState v1 0xf93fed8943c3f59e
 GuestConnection v1 0x55cc9e2d95fe050e
+GuestConnection v2 0xd9b53dca6ec2503b
 GuestConnections v1 0x99b700c26009a18d
+GuestConnections v2 0x879e441ecfad5f76
 GuestConnectionsRequested v1 0xc4ff99356b7b4054
+GuestConnectionsRequested v2 0xb1f9da8da4ba8917
 GuestDoorState v1 0x6b3cb41abf5fe4ce
 GuestVocabularyState v1 0x3f20502e8bc320e5
 HeldMenu v2 0x25a83fd1db508fa4
@@ -265,6 +270,7 @@ PaneOffered v2 0xd3741acfc782c2da
 PaneOffered v3 0xa104d108a1619cac
 PaneOperationAnswered v1 0x445fdc32f738c767
 PaneOperationRequested v1 0x1d1e32577a3c4b28
+PaneOperationRequested v2 0x58bac8ed37b3f1bf
 PanePart v1 0x6933389f16efa613
 PanePassRequested v1 0x09078704f67cc99e
 PanePoint v1 0xdc77c79cfc6ba9e0

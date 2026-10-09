@@ -194,7 +194,7 @@ LAW — `f` ASKS the host for the frontier, compares that artifact with each cat
 MEANS
 - the catalog's order is nobody's intent: the refusal names the candidates; the pick is `c`'s;
 - `picked` names the recipe `c` chose, and stands only while that recipe is still the choice;
-- there is no second build path, no direct load and no new sentence on the bus.
+- no second build path, no direct load: one class ask, carried from its first beat to the send.
 
 PROVEN BY — `builder-pane/pane.cpp` `begin_frontier_build`, `finish_frontier_build`,
 `choose_recipe`; `workshop/pane_doors.hpp` `ProjectDoor`; `workshop/builder_seam_vocabulary.hpp`

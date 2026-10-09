@@ -168,7 +168,9 @@ verification follows [verification](verification.md).
 - Restored binding/context switches are OFF. Unused offered views become empty inactive spares;
   repeated restore reuses identities. Desktop cleanup follows the owner commit; a later refusal
   explicitly reports that the collection already changed. No distributed rollback is claimed.
-- Guest file access uses the separate `toolbox` power, checked for injected actors too. A file
+- Guest file access uses the separate `toolbox` power, checked for injected actors too, and a
+  save is class `write`: on a weaver's host Workshop refuses a guest's, by key or sent straight to
+  the pane (`ActorScopeRequested`, WL-GUEST-04), before anything is read or written. A file
   operation never executes stored commands. The bounded file reader and existing single-writer
   replacement helper preserve the previous completed file on failure. Tests in test_inventory.cpp
   and test_workshop_inventory_info.cpp cover files, conflicting writers, fresh references,

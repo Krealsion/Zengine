@@ -35,7 +35,7 @@ LAW — A default-class row is requested exactly where the resolved context clai
 
 MEANS
 - the contexts are `default_row_context`'s, plus a pane whose holder had no door for the key;
-- an answer echoing zero, another number, or arriving behind a later gesture, moves nothing;
+- an answer echoing zero, another number, or behind a later gesture of the same hand, moves nothing;
 - a pane's `PaneEscapeUnspent` is judged by the host and then asks the same row.
 
 DOES NOT MEAN

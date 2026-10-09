@@ -842,16 +842,17 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
     # A guest cannot size the window: a session file's viewport does, beside Workshop's first desk.
     save(wdir / "session.json", formats.session(desk, (width * 12, height * 12)))
     credential = secrets.token_urlsafe(32)
-    powers = ["input", "capture", "inspect", "inventory", "toolbox"]
+    # The story's Workshop is the agent's own development host: its guest builds, types into the
+    # Editor and Neovim, and writes recipes, plans and the desk, as the weaver would.
+    powers = ["input", "capture", "inspect", "inventory", "toolbox", "build"]
     # ...AND A WATCHER, WHO MAY NOT PRESS A KEY: no power at all, only what it may observe (the
     # Builder, with its one read of where the Builder stands, and the game). `story.py watch` links
     # a second ELH session as it; nothing connects as it unless that is asked for.
     watcher = secrets.token_urlsafe(32)
-    save(wdir / "guests.json", {"listen": "127.0.0.1:0", "port_file": (wdir / "guests.port").as_posix(),
-                                "guests": [{"name": "td-weaver", "credential": credential, "may": powers,
-                                            "observe": OBSERVE},
-                                           {"name": "td-watcher", "credential": watcher,
-                                            "observe": WATCHER_OBSERVES}]})
+    save(wdir / "guests.json", formats.guests(
+        [{"name": "td-weaver", "credential": credential, "may": powers, "observe": OBSERVE},
+         {"name": "td-watcher", "credential": watcher, "observe": WATCHER_OBSERVES}],
+        formats.DEVELOPMENT_HOST, port_file=(wdir / "guests.port").as_posix()))
     wargs = [str(runtime / ("zengine-workshop" + EXE)), "--isolated", "--session", str(wdir / "session.json"),
              "--guests", str(wdir / "guests.json"), "--log", str(wdir / "workshop.log"), "--log-refusals",
              "--demo-history", "--dump", str(wdir / "history.txt")]

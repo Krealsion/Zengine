@@ -47,6 +47,9 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   data and dirty state; reopening restores active context by exact schema identity.
 - A graphical dialog is an unfinished edit owned by its current interaction context. All
   `FlowEdit` requests are refused while it is open; failure to confirm preserves its text.
+  While one is open the pane declares Return as its `dialog-confirm` row, so a confirm arrives
+  under a gesture; a writing verb's confirm (save, generate, export, library save) asks Workshop
+  for class `write` before any byte, and a refusal keeps the dialog and its text.
   Pane reload retains the page, dialog text/caret/selection, dirty flag and deliberate-state
   flag separately from the saved workspace. New observations cannot overwrite an initial-state
   edit awaiting Run. Grants, hit maps, held gestures and pending asks are reacquired or ended.

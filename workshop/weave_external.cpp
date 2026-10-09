@@ -160,7 +160,7 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column}, answering);
     }
-    press_sent_ = GestureSent{kind, gestures_, answering};
+    keep_act(hand(), hand().press_sent = GestureSent{kind, hand().latest, answering});
     note_routed(kind); // admitted work, not yet delivered (WL-OPEN-03)
     return true;
 }
@@ -204,26 +204,33 @@ std::int64_t WorkshopWeave::keyboard_pane() const {
 }
 
 // WL-KEY-15 -- agents/workshop/keyboard.md; WL-ARR-16 -- agents/workshop/arrangement.md
+// WL-GUEST-06 -- agents/workshop/guests.md
 bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
                                  loom::Mail& mail) {
     const RuntimePane* row = session_.panes.runtime.of_kind(kind);
     if (row == nullptr) {
         return false;
     }
+    // A GUEST'S KEY TOWARD A PLACE ONLY THE WEAVER'S HAND REACHES is refused here, and consumed:
+    // no row of the pane's, no raw key, and no Escape's default meaning behind it.
+    if (const std::string why = refused_toward(input_actor_, kind); !why.empty()) {
+        say(why, true);
+        return true;
+    }
     const bool escape = k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone;
     // Only an Escape gets its own number, the identity an answer must echo; no published shape
     // gains a field. The pane's own rows come first, against the effective map, and a match
     // crosses as the id, not the key. Every declared action goes out under its own number, so a
-    // menu asked for by key is told apart from one about an earlier keystroke (`action_sent_`).
+    // menu asked for by key is told apart from one about an earlier keystroke (`Hand::action_sent`).
     if (const PaneRow* action =
             session_.keymap.pane_action_for(kind, k.scancode, k.modifiers)) {
         const std::uint64_t answering = ++gesture_asks_;
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, PaneActionRequested{row->pane, action->id}, answering);
         note_routed(kind);
-        action_sent_ = GestureSent{kind, gestures_, answering};
+        keep_act(hand(), hand().action_sent = GestureSent{kind, hand().latest, answering});
         if (escape) {
-            escape_sent_ = GestureSent{kind, gestures_, answering};
+            hand().escape_sent = GestureSent{kind, hand().latest, answering};
         }
         return true;
     }
@@ -245,7 +252,7 @@ bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
         .send_to_role(row->provider, PaneKey{row->pane, k.scancode, k.modifiers}, answering);
     note_routed(kind);
     if (escape) {
-        escape_sent_ = GestureSent{kind, gestures_, answering};
+        hand().escape_sent = GestureSent{kind, hand().latest, answering};
     }
     return true;
 }
@@ -301,11 +308,14 @@ bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
             (void)mail.as_role(kWorkshopProvider)
                 .send_to_role(old->provider, PaneButton{old->pane, button, false, 0, 0, true, 0});
         }
+        const std::uint64_t ended = secondary_hold_[s].correlation;
         secondary_hold_[s] = SecondaryHold{};
-        secondary_cont_[s] = SecondaryContinuation{};
+        each_hand([&](Hand& h) {
+            if (h.secondary_cont[s].correlation == ended) h.secondary_cont[s] = SecondaryContinuation{};
+        });
     }
-    // THIS PRESS IS A GESTURE FOR THE OTHER BUTTON'S CONTINUATION.
-    for (SecondaryContinuation& other : secondary_cont_) {
+    // THIS PRESS IS A GESTURE FOR THE OTHER BUTTON'S CONTINUATION -- of the same hand.
+    for (SecondaryContinuation& other : hand().secondary_cont) {
         if (other.live && other.button != button) {
             other.interrupted = true;
         }
@@ -321,13 +331,13 @@ bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
         return false; // nothing queued: known non-delivery, and the host's surface answers
     }
     secondary_hold_[s] = SecondaryHold{true, kind, button, answering, sent};
-    SecondaryContinuation& c = secondary_cont_[s];
+    SecondaryContinuation& c = hand().secondary_cont[s];
     c = SecondaryContinuation{};
     c.live = true;
     c.kind = kind;
     c.button = button;
     c.correlation = answering;
-    c.gesture_at_press = gestures_;
+    c.gesture_at_press = hand().latest;
     c.cell = cell;
     note_routed(kind);
     return true;
@@ -345,14 +355,15 @@ bool WorkshopWeave::external_release(std::int64_t button, const zengine::input::
         return false;
     }
     const std::int64_t kind = h.kind;
+    const std::uint64_t held = h.correlation;
     h = SecondaryHold{};
     // THE RELEASE ENDS CUSTODY AND NEVER RESTORES ELIGIBILITY: a continuation stays eligible only
     // if nothing but this release happened since its press -- and the release itself is no
     // gesture (`on(PointerButton)`), so "nothing since" is the count still standing at the press.
-    SecondaryContinuation& c = secondary_cont_[s];
-    if (c.live && !c.released) {
-        c.released = true;
-    }
+    each_hand([&](Hand& hd) {
+        SecondaryContinuation& c = hd.secondary_cont[s];
+        if (c.live && !c.released && c.correlation == held) c.released = true;
+    });
     const RuntimePane* row = session_.panes.runtime.of_kind(kind);
     if (row == nullptr) {
         return false;
@@ -399,10 +410,10 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
         }
         // The continuation is invalidated on its own terms: a pane that left the desk after the
         // release cannot have its press handed back or a menu opened for it.
-        SecondaryContinuation& c = secondary_cont_[s];
-        if (c.live && !session_.panes.has(c.kind)) {
-            c = SecondaryContinuation{};
-        }
+        each_hand([&](Hand& hd) {
+            SecondaryContinuation& c = hd.secondary_cont[s];
+            if (c.live && !session_.panes.has(c.kind)) c = SecondaryContinuation{};
+        });
     }
     // ...AND A MENU PRESENTED FOR A PANE THAT LEFT is withdrawn: its subject has no room on the
     // desk any more, and a choice about it would reach a pane the weaver cannot see. The presenter
@@ -414,9 +425,10 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
             withdraw_menu("the pane left the desk", mail);
         }
     }
-    if (choice_answered_.kind != kNoPaneKind && !session_.panes.has(choice_answered_.kind)) {
-        choice_answered_ = ChoiceAnswered{};
-    }
+    each_hand([&](Hand& hd) {
+        if (hd.choice_answered.kind != kNoPaneKind && !session_.panes.has(hd.choice_answered.kind))
+            hd.choice_answered = ChoiceAnswered{};
+    });
 }
 
 // WL-PRESS-06 -- agents/workshop/press-chain.md
@@ -425,8 +437,12 @@ bool WorkshopWeave::end_refused_button(const loom::Ticket& refused_attempt, loom
         for (std::size_t i = 0; i < 3; ++i) {
             auto& held = canvas_holds_[i];
             if (held.active && held.attempt.valid() && held.attempt.seq == refused_attempt.seq) {
+                const std::int64_t kind = held.kind;
                 held = CanvasHold{};
-                if (i > 0) secondary_cont_[i - 1] = SecondaryContinuation{};
+                if (i > 0)
+                    each_hand([&](Hand& hd) {
+                        if (hd.secondary_cont[i - 1].kind == kind) hd.secondary_cont[i - 1] = SecondaryContinuation{};
+                    });
                 return true;
             }
         }
@@ -442,8 +458,11 @@ bool WorkshopWeave::end_refused_button(const loom::Ticket& refused_attempt, loom
         // The press never reached its recipient: the hold and its continuation are dropped, so the
         // release sends nothing and no pass-back or menu finds a record. The pane, never told,
         // holds nothing; Loom's tap already attributes the refusal.
+        const std::uint64_t ended = h.correlation;
         h = SecondaryHold{};
-        secondary_cont_[s] = SecondaryContinuation{};
+        each_hand([&](Hand& hd) {
+            if (hd.secondary_cont[s].correlation == ended) hd.secondary_cont[s] = SecondaryContinuation{};
+        });
         (void)mail;
         return true;
     }
@@ -467,16 +486,20 @@ void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
         return; // an answer echoing nothing answers nothing
     }
     SecondaryContinuation* c = nullptr;
-    for (SecondaryContinuation& each : secondary_cont_) {
-        if (each.live && each.correlation == mail.correlation()) {
-            c = &each;
+    Hand* by = nullptr;
+    each_hand([&](Hand& h) {
+        for (SecondaryContinuation& each : h.secondary_cont) {
+            if (each.live && each.correlation == mail.correlation()) {
+                c = &each;
+                by = &h;
+            }
         }
-    }
+    });
     if (c == nullptr || c->kind != row->kind || c->spent) {
         return; // stale, another pane's, or already handed back
     }
-    if (c->interrupted || gestures_ != c->gesture_at_press) {
-        return; // the weaver did something since: the press is not their latest act
+    if (c->interrupted || by->latest != c->gesture_at_press) {
+        return; // that hand did something since: the press is not its latest act
     }
     c->spent = true;
     // THE HOST'S CONFIGURED FALLBACK FOR A BODY PRESS: its own pane menu, at the press's cell,
@@ -565,35 +588,41 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     // menu is refused; nothing here moves the keys or the selection.
     PointedAt at;
     bool eligible = false;
-    for (SecondaryContinuation& c : secondary_cont_) {
-        if (!c.live || c.correlation != mail.correlation()) {
-            continue;
+    each_hand([&](Hand& h) {
+        for (SecondaryContinuation& c : h.secondary_cont) {
+            if (eligible || !c.live || c.correlation != mail.correlation()) {
+                continue;
+            }
+            if (c.kind == row->kind && !c.spent && !c.interrupted && h.latest == c.gesture_at_press) {
+                c.spent = true;
+                at = c.cell;
+                eligible = true;
+            }
         }
-        if (c.kind == row->kind && !c.spent && !c.interrupted && gestures_ == c.gesture_at_press) {
-            c.spent = true;
-            at = c.cell;
+    });
+    each_hand([&](Hand& h) {
+        if (!eligible && h.action_sent.answering == mail.correlation() &&
+            h.action_sent.kind == row->kind && h.action_sent.gesture == h.latest) {
+            h.action_sent = GestureSent{};
+            at = cell_of_body_place(row->kind, asked.row, asked.column);
             eligible = true;
         }
-        break;
-    }
-    if (!eligible && action_sent_.answering == mail.correlation() &&
-        action_sent_.kind == row->kind && action_sent_.gesture == gestures_) {
-        action_sent_ = GestureSent{};
-        at = cell_of_body_place(row->kind, asked.row, asked.column);
-        eligible = true;
-    }
-    // ...OR A PRIMARY PRESS, on the same three terms: this pane, this number, and still the
-    // weaver's latest act. A pane that draws a `[menu]` control answers the click that hit it.
-    if (!eligible && press_sent_.answering == mail.correlation() &&
-        press_sent_.kind == row->kind && press_sent_.gesture == gestures_) {
-        press_sent_ = GestureSent{};
-        at = cell_of_body_place(row->kind, asked.row, asked.column);
-        eligible = true;
-    }
+        // ...OR A PRIMARY PRESS, on the same three terms: this pane, this number, and still its
+        // hand's latest act. A pane that draws a `[menu]` control answers the click that hit it.
+        if (!eligible && h.press_sent.answering == mail.correlation() &&
+            h.press_sent.kind == row->kind && h.press_sent.gesture == h.latest) {
+            h.press_sent = GestureSent{};
+            at = cell_of_body_place(row->kind, asked.row, asked.column);
+            eligible = true;
+        }
+    });
     if (!eligible) {
         refuse("late -- the weaver acted since that gesture, or it was already spent");
         return;
     }
+    // THE OPENING ACT IS SPENT ON THE MENU: its choice, made under the same number, is the
+    // chooser's own record (`on(MenuClosed)`).
+    drop_kept(mail.correlation());
     // ...AND SOMEBODY TO PRESENT IT. The office's holder is read off the bus now; the role is
     // resolved again at delivery, and a presenter that left in between is Loom's refusal to
     // settle (`on(DispatchRefused)`), answered then.
@@ -803,12 +832,13 @@ void WorkshopWeave::forward_menu_input(std::int64_t kind, std::int64_t verb,
     if (!menu.open) {
         return;
     }
-    // NUMBERED AS THE ACT IT IS. A release carries its press's number because it is not counted
-    // (`on(PointerButton)`), so a presenter that chooses on the release names the click's act.
+    // NUMBERED AS THE ACT IT IS, its own hand's latest. A release carries its press's number,
+    // being no act of its own (`on(PointerButton)`), and another hand's act since renumbers
+    // neither: a presenter that chooses on the release names the click's act, and its hand.
     menu.last_input = gestures_;
     MenuInput in;
     in.menu = menu.menu;
-    in.input = static_cast<std::int64_t>(gestures_);
+    in.input = static_cast<std::int64_t>(hand().latest);
     in.kind = kind;
     in.verb = verb;
     in.scancode = scancode;
@@ -825,6 +855,12 @@ void WorkshopWeave::forward_menu_input(std::int64_t kind, std::int64_t verb,
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::menu_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+    if (const RuntimePane* row = session_.panes.runtime.find(session_.presented.office, session_.presented.pane)) {
+        if (const std::string why = refused_toward(input_actor_, row->kind); !why.empty()) {
+            say(why, true);
+            return;
+        }
+    }
     // THE WEAVER'S OWN CONTEXTUAL ROWS NAME THE KEY -- wherever they moved `context.up`, the
     // presenter hears "up" -- and the key that opens a menu closes it, the shared rule. What each
     // verb MEANS on this menu is the presenter's; a key no row names still crosses, with its
@@ -846,9 +882,17 @@ void WorkshopWeave::menu_key(const zengine::input::KeyPressed& k, loom::Mail& ma
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Mail& mail) {
+    // A MENU ABOUT A PLACE ONLY THE WEAVER'S HAND REACHES takes no press of a guest's; its
+    // releases still end the custody they end, and reach no presenter.
+    const RuntimePane* about = session_.panes.runtime.find(session_.presented.office, session_.presented.pane);
+    const std::string refused = about != nullptr ? refused_toward(input_actor_, about->kind) : std::string();
     // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THE MENU OPENED (WL-PRESS-06): custody first.
     if (!b.pressed && (b.button == 2 || b.button == 3)) {
         (void)external_release(b.button, b, mail);
+        return true;
+    }
+    if (b.pressed && !refused.empty()) {
+        say(refused, true);
         return true;
     }
     // A RIGHT PRESS RE-ASKS THE QUESTION ABOUT WHATEVER IS UNDER IT NOW: the menu is withdrawn
@@ -868,8 +912,10 @@ bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Ma
         // A PRIMARY RELEASE: a drag that began before the menu opened ends here (the Terminal's
         // and management's own repair), and the presenter hears where the hand came up.
         (void)end_held_gestures();
-        forward_menu_input(menu_input::kRelease, menu_verb::kNone, 0, 0, b.button,
-                           hit.inside ? hit.line : -1, mail);
+        if (refused.empty()) {
+            forward_menu_input(menu_input::kRelease, menu_verb::kNone, 0, 0, b.button,
+                               hit.inside ? hit.line : -1, mail);
+        }
         return true;
     }
     // A PRESS INSIDE IS THE PRESENTER'S TO READ; ONE OUTSIDE IS SPENT ON THE MENU -- nothing
@@ -959,7 +1005,10 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     // that menu; a request continuing it is honored while that act is the weaver's latest (the
     // choosing click's release is no new act).
     const std::uint64_t act = closed.input > 0 ? static_cast<std::uint64_t>(closed.input) : 0;
-    if (closed.chosen && act >= ended.first_input && act <= ended.last_input) {
+    // THE HAND THAT MADE THE CHOOSING ACT: its choice is that hand's to continue, while that act is
+    // still its latest. An act the book no longer holds is no hand's latest.
+    Hand* chooser = act != 0 ? hand_of_act(act) : nullptr;
+    if (chooser != nullptr && closed.chosen && act >= ended.first_input && act <= ended.last_input) {
         if (const RuntimePane* row = session_.panes.runtime.find(ended.office, ended.pane)) {
             ChoiceAnswered c;
             c.kind = row->kind;
@@ -971,15 +1020,20 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
             c.cell.cell.x = surface::cell_of_pixel(ended.anchor_x);
             c.cell.cell.y = surface::cell_of_pixel(ended.anchor_y);
             c.spent = false;
-            choice_answered_ = c;
+            chooser->choice_answered = c;
+            keep_act(*chooser, GestureSent{c.kind, c.gesture, c.correlation});
         }
     }
     // A STANDARD ROW IS THE HOST'S OWN: spent here on the pane the menu was about, as the act that
     // chose it, while that act is still the weaver's latest -- the presenter answered the
     // requester unchosen, so no pane performs it.
-    if (!closed.chosen && !closed.standard.empty() && act != 0 && act >= ended.first_input &&
-        act <= ended.last_input && act == gestures_) {
+    if (chooser != nullptr && !closed.chosen && !closed.standard.empty() && act >= ended.first_input &&
+        act <= ended.last_input && act == chooser->latest) {
+        // The row is spent as the chooser's own act, so a class it is is judged for that hand.
+        const InputActor before = input_actor_;
+        input_actor_ = chooser->actor;
         spend_standard_row(ended, closed.standard, mail);
+        input_actor_ = before;
     }
     repaint(mail);
 }
@@ -1069,14 +1123,19 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
         return;
     }
     // A CONTINUATION OF THE CHOICE A PRESENTER LAST REPORTED FOR THAT PANE, and only while that
-    // choice is still the weaver's latest act; once, and never for a pane the inventory does not
+    // choice is still its hand's latest act; once, and never for a pane the inventory does not
     // name.
-    if (choice_answered_.spent || choice_answered_.kind != row->kind ||
-        choice_answered_.correlation != mail.correlation() ||
-        choice_answered_.gesture != gestures_) {
+    ChoiceAnswered* choice = nullptr;
+    each_hand([&](Hand& h) {
+        if (!h.choice_answered.spent && h.choice_answered.kind == row->kind &&
+            h.choice_answered.correlation == mail.correlation() && h.choice_answered.gesture == h.latest)
+            choice = &h.choice_answered;
+    });
+    if (choice == nullptr) {
         return;
     }
-    choice_answered_.spent = true;
+    choice->spent = true;
+    const ChoiceAnswered& chosen = *choice;
     const PaneRef subject{asked.office, asked.target};
     bool named = false;
     for (const CatalogRow& r : inventory_rows(session_.setup.active, session_.panes)) {
@@ -1093,9 +1152,9 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
     withdraw_menu("the host's own menu opened", mail);
     ContextMenu next;
     next.open = true;
-    next.anchored = choice_answered_.cell.understood;
-    next.anchor_x = choice_answered_.cell.px.x;
-    next.anchor_y = choice_answered_.cell.px.y;
+    next.anchored = chosen.cell.understood;
+    next.anchor_x = chosen.cell.px.x;
+    next.anchor_y = chosen.cell.px.y;
     next.subject = context_subject::kPane;
     next.pane = subject;
     session_.context = next;
@@ -1113,14 +1172,18 @@ void WorkshopWeave::on(const PaneKeyboardRequested& asked, loom::Mail& mail) {
         return;
     }
     // A continuation of the choice a presenter last reported for that pane, judged as a manage
-    // request is (`choice_answered_`). The menu left the keys where they were; a pane whose chosen
-    // row begins an edit asks for them here.
-    if (choice_answered_.spent || choice_answered_.kind != row->kind ||
-        choice_answered_.correlation != mail.correlation() ||
-        choice_answered_.gesture != gestures_) {
+    // request is (`Hand::choice_answered`). The menu left the keys where they were; a pane whose
+    // chosen row begins an edit asks for them here.
+    ChoiceAnswered* choice = nullptr;
+    each_hand([&](Hand& h) {
+        if (!h.choice_answered.spent && h.choice_answered.kind == row->kind &&
+            h.choice_answered.correlation == mail.correlation() && h.choice_answered.gesture == h.latest)
+            choice = &h.choice_answered;
+    });
+    if (choice == nullptr) {
         return;
     }
-    choice_answered_.spent = true;
+    choice->spent = true;
     if (!session_.panes.has(row->kind) || !kind_takes_keyboard(row->kind)) {
         return; // a pane not on the desk, or one that takes no keys, gets none
     }
@@ -1146,17 +1209,21 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
     // The particular Escape this answers, first: current state cannot identify it, since a second
     // Escape recreates that state. The number was minted for one keystroke, and zero (an answer
     // echoing nothing) is never an Escape.
-    if (mail.correlation() == 0 || mail.correlation() != escape_sent_.answering) {
+    Hand* by = nullptr;
+    each_hand([&](Hand& h) {
+        if (mail.correlation() != 0 && mail.correlation() == h.escape_sent.answering) by = &h;
+    });
+    if (by == nullptr) {
         return;
     }
-    // STILL THE WEAVER'S LATEST GESTURE, INTO THIS PANE, WHICH STILL HAS THE DESK AND THE KEYS.
-    // A key, text, press or wheel since leaves this about an Escape that is no longer what the
-    // weaver did last, and putting a pane down under a later gesture would act on a stale word.
-    if (escape_sent_.kind != kind || escape_sent_.gesture != gestures_ ||
+    // STILL ITS HAND'S LATEST GESTURE, INTO THIS PANE, WHICH STILL HAS THE DESK AND THE KEYS.
+    // A key, text, press or wheel of that hand's since leaves this about an Escape that is no longer
+    // what it did last, and putting a pane down under a later gesture would act on a stale word.
+    if (by->escape_sent.kind != kind || by->escape_sent.gesture != by->latest ||
         session_.panes.selected != kind || typing_pane(session_) != kind) {
         return;
     }
-    escape_sent_ = GestureSent{};
+    by->escape_sent = GestureSent{};
     // What an unspent Escape means is the desktop's (WL-DESK-02); the judgement above stays the
     // host's, as facts about the room. The chain has two links, both checked: the pane echoed this
     // host's number, and `request_app_action` mints a second for the desktop. A desktop declaring
@@ -1164,7 +1231,7 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
     if (const AppRow* app_row = session_.keymap.app_action_for(
             app_precedence::kDefault, KeyContext::kPane, input::scan::kEscape,
             input::mod::kNone, kind)) {
-        request_app_action(app_row->id, mail);
+        request_app_action(app_row->id, mail, *by);
     }
     repaint(mail);
 }

@@ -146,7 +146,14 @@ const std::string& WorkshopWeave::setup_artifact() const {
 }
 
 // WL-LAYOUT-09, WL-LAYOUT-10, WL-LAYOUT-11 -- agents/workshop/layouts.md
+// WL-GUEST-09 -- agents/workshop/guests.md
 void WorkshopWeave::save_setup() {
+    // A FILE WRITE, judged for the hand that asked (`actor_scope.hpp`): a guest's on a weaver's host
+    // writes nothing.
+    if (const std::string refused = judge_classes(input_actor_, {scope::kWrite}, {}); !refused.empty()) {
+        say("the setup was not saved -- " + refused, true);
+        return;
+    }
     const std::string path = setup_artifact();
     if (path.empty()) {
         say(kNoSetupFile, true);

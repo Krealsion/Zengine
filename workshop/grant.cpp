@@ -29,6 +29,7 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(v2::DeskView::zen_name, v2::DeskView::zen_version);
     speak.allow_to_any(PaneObservationAnswered::zen_name, PaneObservationAnswered::zen_version);
     speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
+    speak.allow_to_any(ActorScopeJudged::zen_name, ActorScopeJudged::zen_version);
     speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
     speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);
     speak.allow_to_any(PaneValueDrop::zen_name, PaneValueDrop::zen_version);

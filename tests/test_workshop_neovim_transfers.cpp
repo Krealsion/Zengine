@@ -725,6 +725,88 @@ TEST_CASE("a location carried from a long line keeps whole characters where the 
     CHECK(s.until([&] { return s.notice().find("at line 2") != std::string::npos; }));
 }
 
+TEST_CASE("on a weaver's host a guest's :!, :w and :lua toward Neovim's Editor are refused at the dispatch, and the file is unchanged") {
+    NeovimStory s("nvim-guest-dispatch");
+    const std::string held = "alpha\nbeta\n";
+    const std::string path = s.write("held.txt", held);
+    REQUIRE(s.open(path).accepted);
+    REQUIRE(s.until([&] { return s.shows("beta"); }));
+    // NEOVIM HOLDS THE KEYS, given by the hand while no guest door has admitted it.
+    s.focus();
+    s.settle();
+    REQUIRE(s.r.session().panes.keyboard == s.editor);
+    // ...AND NOW THE SEAM ANSWERS THE SAME HAND AS A ROW A GUEST DOOR ADMITTED, on a weaver's host.
+    zengine::workshop::scope::GuestRowFacts row;
+    row.admitted = true;
+    row.name = "agent";
+    row.powers = {"input", "inventory"};
+    row.version = 2;
+    const loom::WeaveId guest = s.hand_id;
+    s.r.host.host_fact.development = false;
+    s.r.host.guest_row = [guest, row](loom::WeaveId who) {
+        return who == guest ? row : zengine::workshop::scope::GuestRowFacts{};
+    };
+
+    // THE MODE NEOVIM RESTS IN, as the pane last heard it: a line that reached Neovim would leave it.
+    const std::string resting = s.read("mode");
+    const std::string typed = "this is a weaver's host: a guest's typed text rests in no pane, and guest 'agent' typed it";
+    const std::string keyed =
+        "this is a weaver's host: the editor answers only the weaver's hand, and guest 'agent' is not the weaver";
+    const auto at = [&](const char* name) { return (s.root / name).lexically_normal().generic_string(); };
+    const std::string ran = at("ran.txt"), elsewhere = at("elsewhere.txt"), lua = at("lua.txt");
+    INFO(s.notice() << " / " << s.r.last_notice() << "\n" << all_rows(s));
+    // ONE COMMAND LINE, AS THE STORY TYPES ONE: its text, then Return. Neither reaches Neovim: the
+    // text is refused as a guest's words and Return as a key toward the editor, each in its own
+    // words at Workshop's dispatch, and Neovim never leaves Normal mode for its command line.
+    const auto refused = [&](const std::string& line) {
+        s.keys(line);
+        CHECK(s.r.last_notice() == typed);
+        CHECK(s.read("mode") == resting);
+        s.key(input::scan::kReturn);
+        s.settle();
+        CHECK(s.r.last_notice() == keyed);
+        CHECK(s.read("mode") == resting);
+    };
+    // AN EDIT FIRST, which a bare `:w` would then write over the open file, and Escape after it.
+    s.keys("ggdG");
+    CHECK(s.r.last_notice() == typed);
+    s.escape();
+    CHECK(s.r.last_notice() == keyed);
+    CHECK(s.read("modified") == "false");
+    refused(":!echo ran> \"" + ran + "\"");
+    refused(":w " + elsewhere);
+    refused(":lua vim.fn.writefile({\"x\"}, \"" + lua + "\")");
+    refused(":w");
+    CHECK(s.read("modified") == "false");
+    CHECK(s.shows("alpha"));
+    CHECK(slurp(path) == held);
+
+    // THE SAME GUEST ON A DEVELOPMENT HOST reaches Neovim with the same lines, and each does what it
+    // says -- so the lines above were refused, not lost.
+    s.r.host.host_fact.development = true;
+    const std::string ran_here = at("ran-here.txt"), elsewhere_here = at("elsewhere-here.txt"),
+                      lua_here = at("lua-here.txt");
+    s.keys(":lua vim.fn.writefile({\"x\"}, \"" + lua_here + "\")");
+    s.key(input::scan::kReturn);
+    s.keys(":w " + elsewhere_here);
+    s.key(input::scan::kReturn);
+    s.keys(":!echo ran> \"" + ran_here + "\"");
+    s.key(input::scan::kReturn);
+    REQUIRE(s.until([&] {
+        return std::filesystem::exists(lua_here) && std::filesystem::exists(elsewhere_here) &&
+               std::filesystem::exists(ran_here);
+    }));
+    s.key(input::scan::kReturn); // past the prompt the shell command leaves
+    s.settle();
+    CHECK(slurp(elsewhere_here) == held);
+    // NEOVIM HAS RUN EVERYTHING IT WAS GIVEN BEFORE THESE: a refused line that had reached it would
+    // have run first, and none did.
+    CHECK_FALSE(std::filesystem::exists(ran));
+    CHECK_FALSE(std::filesystem::exists(elsewhere));
+    CHECK_FALSE(std::filesystem::exists(lua));
+    CHECK(slurp(path) == held);
+}
+
 } // TEST_SUITE
 
 #endif // NEOVIM_PROGRAM

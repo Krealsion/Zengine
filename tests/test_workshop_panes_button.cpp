@@ -11,6 +11,7 @@
 #include "doctest.h"
 
 #include "workshop_support.hpp"
+#include "guest_hand.hpp"
 
 #include "workshop/pane_menu.hpp"
 
@@ -1793,6 +1794,47 @@ TEST_CASE("WL-CTX-10: a menu its image answered is not reopened by a give-back b
     CHECK(t.guard->taken[0] == "seat.first");
 }
 
+
+TEST_CASE("a release forwarded to an open menu carries its own press's number when another hand acts between, and chooses the row its press armed") {
+    // A PRESENTER THAT CHOOSES ON THE RELEASE OF THE PRESS THAT ARMED A ROW (the replacement one)
+    // knows the two by their number. A guest's wheel between them is the guest's act, counted and
+    // spent on the open menu; the weaver's release, no act of its own, still carries the weaver's
+    // press's number, so the row the weaver pressed is chosen.
+    Rigged t(WORKSHOP_SO_NUMBERED_PRESENTER);
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    // THE CELL OF "First row", where the popup's own press measurer reads that line.
+    const std::int64_t line = presented_line_of(t.r.session(), "First row");
+    REQUIRE(line >= 0);
+    std::int64_t x = -1;
+    std::int64_t y = -1;
+    const Screen sc = screen_of(t.r.session());
+    for (std::int64_t cy = 0; cy < 200 && x < 0; ++cy) {
+        for (std::int64_t cx = 0; cx < 400 && x < 0; ++cx) {
+            const PointedAt at = canvas_point_of(input::space::kCells, cx, cy);
+            const PresentedPressAt hit = presented_press_at(t.r.session(), sc, input::space::kCells, cx, cy, at);
+            if (hit.inside && hit.line == line) {
+                x = cx;
+                y = cy;
+            }
+        }
+    }
+    REQUIRE(x >= 0);
+    guest_hand::GuestHand g(t.r, {"input"});
+    t.r.publish(loom::to_value(input::PointerButton{1, true, x, y, input::space::kCells, input::mod::kNone}));
+    input::InjectedEvent wheel = guest_hand::GuestHand::button_event(1, 1, true);
+    wheel.kind = "PointerWheel";
+    wheel.wheel_dy = -1.0;
+    g.inject({wheel});
+    REQUIRE(g.hand->refusals.empty());
+    REQUIRE(t.foreign_open());
+    t.r.publish(loom::to_value(input::PointerButton{1, false, x, y, input::space::kCells, input::mod::kNone}));
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK(t.guard->answers[0].chosen);
+    CHECK(t.guard->answers[0].id == "seat.first");
+}
 
 TEST_CASE("WL-CTX-10: a give-back is one office's word about one menu, and settles no other") {
     Rigged t;
