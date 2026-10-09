@@ -26,7 +26,10 @@ real consumers, not speculative abstractions. Required checks still have to pass
 ## Read this, then route
 
 This file is the one mandatory read before touching this repository. Everything else is
-routed: read a surface's document when the task touches that surface, not before.
+routed: read a surface's document when the task touches that surface, not before. An issue
+labelled `ready` goes to a pull request by [taking an issue](docs/contributing/taking-an-issue.md),
+and [best practices](docs/contributing/best-practices.md) says, surface by surface, what good work
+looks like and which document owns each practice.
 
 | the task touches… | read |
 |---|---|

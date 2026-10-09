@@ -95,6 +95,8 @@ Every page below has one reader purpose, named.
 
 | page | purpose |
 |---|---|
+| [contributing/taking-an-issue.md](contributing/taking-an-issue.md) | from an issue labelled `ready` to a pull request ready to merge, with nothing outside this repository's own documentation |
+| [contributing/best-practices.md](contributing/best-practices.md) | **best practices**: what good work looks like here, surface by surface, each practice pointing at the law or page that owns it |
 | [contributing/build-and-test.md](contributing/build-and-test.md) | every configuration, the verification lanes, and what a green means |
 | [contributing/testing-workshop-panes.md](contributing/testing-workshop-panes.md) | arrange loaded-pane gestures, grants, delayed replies and layout without mistaking fixture behavior for a product defect |
 | [contributing/supported-toolchains.md](contributing/supported-toolchains.md) | the platform matrix, and the reloadable-weave build contract |
