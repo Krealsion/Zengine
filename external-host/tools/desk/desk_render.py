@@ -9,8 +9,9 @@ asks and no files.
           front to back, a header line, each word `x,y text` at its middle row (place.y +
           place.h / 2) and each part `  name@x,y` at its press point (`name@-`: none).
   glance  (`glance.txt`) -- the grid sampled at the medium's own text cell, 8 x 18 canvas pixels
-          in a window and 12 x 12 in a terminal: frames back to front, each word at its cell,
-          Workshop's words and the menu over them.
+          in a window and 12 x 12 in a terminal: frames back to front, each word at its own cell
+          over its frame's edges (no title on a top edge a word stands on), Workshop's words and
+          the menu over them.
   guide   (`guide.md`) -- the guide's ten sections; every text the desk said stands in a fenced
           block after a line naming who said it, marked as data.
 
@@ -275,7 +276,9 @@ class Grid(object):
         self.w, self.h = max(0, w), max(0, h)
         self.rows = [[" "] * self.w for _ in range(self.h)]
 
-    def put(self, col, row, text, limit=None):
+    def put(self, col, row, text, limit=None, start=0):
+        """`text` from `col` on `row`, its characters before column `start` or from `limit` on
+        left out: cut where it is, never moved."""
         if not 0 <= row < self.h:
             return
         end = self.w if limit is None else min(self.w, limit)
@@ -283,7 +286,7 @@ class Grid(object):
             c = col + i
             if c >= end:
                 break
-            if c >= 0:
+            if c >= max(0, start):
                 self.rows[row][c] = ch
 
     def frame(self, x0, y0, x1, y1, title):
@@ -314,19 +317,29 @@ def cells_of(r, sx, sy):
     return x // sx, y // sy, (x + r.get("w", 0)) // sx, (y + r.get("h", 0)) // sy
 
 
+def cell_at(w, sx, sy):
+    """A word's cell, `(column, row)`: column x / sx, row (y + h / 2) / sy."""
+    pl = w.get("place") or {}
+    return pl.get("x", 0) // sx, (pl.get("y", 0) + pl.get("h", 0) // 2) // sy
+
+
 def place_words(g, word_list, sx, sy, box=None):
-    """Each word at its cell: column x / sx, row (y + h / 2) / sy; inside `box`'s frame when one
-    is given (its edges excepted, a word on the bottom edge's row kept)."""
+    """Each word at its own cell; with `box`, a frame's columns and rows, only what of it stands
+    on the frame's cells, written over its edges: a frame never moves a word or hides one."""
     for w in word_list or []:
-        pl = w.get("place") or {}
-        row, col = (pl.get("y", 0) + pl.get("h", 0) // 2) // sy, pl.get("x", 0) // sx
+        col, row = cell_at(w, sx, sy)
         text = clean(w.get("text"))
         if box is None:
             g.put(col, row, text)
             continue
         x0, y0, x1, y1 = box
-        if y0 < row <= y1 - 1:
-            g.put(max(col, x0 + 1), row, text, x1 - 1)
+        if y0 <= row <= y1 - 1:
+            g.put(col, row, text, x1, start=x0)
+
+
+def titled(title, box, word_list, sx, sy):
+    """A frame's title, or none where a word of its own stands on its top edge."""
+    return None if any(cell_at(w, sx, sy)[1] == box[1] for w in word_list or []) else title
 
 
 def glance(reading):
@@ -341,17 +354,19 @@ def glance(reading):
              not empty(p.get("visible"))]
     for p in sorted(shown, key=lambda p: -p.get("front", 0)):
         box = cells_of(p["visible"], sx, sy)
-        g.frame(box[0], box[1], box[2], box[3], clean(p.get("name")))
         read = panes.get(key_of(p))
         if read is None or read.get("view") is None:
+            g.frame(box[0], box[1], box[2], box[3], clean(p.get("name")))
             g.put(box[0] + 1, box[1] + 1, "(not read)", box[2] - 1)
             continue
-        place_words(g, read["view"].get("words"), sx, sy, box)
+        said = read["view"].get("words")
+        g.frame(box[0], box[1], box[2], box[3], titled(clean(p.get("name")), box, said, sx, sy))
+        place_words(g, said, sx, sy, box)
     place_words(g, desk.get("words"), sx, sy)
     menu = desk.get("menu") or {}
     if menu.get("open") and not empty(menu.get("place")):
         box = cells_of(menu["place"], sx, sy)
-        g.frame(box[0], box[1], box[2], box[3], "menu")
+        g.frame(box[0], box[1], box[2], box[3], titled("menu", box, menu.get("lines"), sx, sy))
         place_words(g, menu.get("lines"), sx, sy, box)
     return "\n".join([glance_head((sx, sy))] + g.lines()) + "\n"
 
