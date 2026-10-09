@@ -1445,10 +1445,10 @@ pane's office is offered again, and at each new canvas room.
 | Message | Meaning |
 |---|---|
 | `DeskReadRequested{}` | Anyone granted it, to Workshop: the desk in one turn |
-| `DeskRead{desk, stamps, panes}` | The desk as `v3::DeskView`; every presented pane's `PaneStamp`, from the front back; and as many of those panes' `v4::PaneView` readings, in that order, as one decoded value holds |
+| `DeskRead{desk, stamps, panes}` | The desk as `v3::DeskView`; every presented pane's `PaneStamp`, from the front back; and as many of those panes' `v4::PaneView` readings, in that order, as one decoded value and one reply's bytes hold |
 | `PaneStamp{provider, pane, holder, incarnation, grant, picture}` | What one pane's reading stands on: the `WeaveId` holding its office, that holder's incarnation, the canvas room grant its picture was drawn for (0 for a text pane, and for Layouts) and its picture |
 | `v4::PaneViewRequested{provider, pane, from, stamp}` | A page of one pane's reading from item `from`, continuing the reading `stamp` names; a stamp naming no holder (holder 0, as an empty stamp does) at `from` 0 reads the pane as it stands |
-| `v4::PaneView{provider, pane, picture, canvas, words, parts, holder, incarnation, grant, covered, in_flight, from, total}` | `v3::PaneView`'s words and then its parts from item `from`, of `total`, as many as one decoded value holds; the stamp the reading stands on; what covers the pane; and whether its newest picture is still in flight |
+| `v4::PaneView{provider, pane, picture, canvas, words, parts, holder, incarnation, grant, covered, in_flight, from, total}` | `v3::PaneView`'s words and then its parts from item `from`, of `total`, as many as one decoded value and one reply's bytes hold; the stamp the reading stands on; what covers the pane; and whether its newest picture is still in flight |
 | `PaneCover{by, words, rect}` | What covers part of a pane -- `by` names each: a pane in front by its name, `menu`, `arranging`, `refused mark`, `band` -- how many of its words and parts are not said for it, and the `DeskRect` bounding what they cover of it; empty for a pane nothing covers |
 | `v3::DeskView{desk, width, height, cell_px, space, room, panes, arranging, menu, words, slots}` | `v2::DeskView` and Workshop's own words: the band's notice and legend as `PaneWord`s with their places and no point, since the band takes no press; the status slot as a `surface::SurfaceText{slot, text}`, a word with no place, as the medium is handed it; and `desk`, a number that moves when anything it says moves |
 
@@ -1457,11 +1457,15 @@ pane's office is offered again, and at each new canvas room.
   which Workshop restates as `kDecodedCellBudget`
   (<!-- value kDecodedCellBudget grouped -->65,536<!-- /value --> cells) and counts by Loom's rule:
   a cell for each declared field of every message the decoder enters, present or not, and one for
-  each element of every list. A stamp with no reading in the answer -- past the last one, or of a
-  pane whose reading Workshop refused, said with picture 0 -- names a pane to ask alone, from item
-  0 under an empty stamp: it names the pane, not a reading to continue. A `v4::PaneView` page
-  holds as many items as the same budget leaves; the next is asked from where it ended, under the
-  stamp the first page answered, until `total`. Workshop holds nothing between asks.
+  each element of every list. It stays inside one reply's bytes too, `kReplyByteBudget`
+  (<!-- value kReplyByteBudget MiB -->16<!-- /value --> MiB, a quarter of Loom's frame), counted
+  in the larger of Loom's native and JSON serializations, the two an answer to an agent's run
+  crosses in; a reading is carried whole or only named by its stamp. A stamp with no reading in
+  the answer -- past the last one, or of a pane whose reading Workshop refused, said with picture
+  0 -- names a pane to ask alone, from item 0 under an empty stamp: it names the pane, not a
+  reading to continue. A `v4::PaneView` page holds as many items as the same two bounds leave; the
+  next is asked from where it ended, under the stamp the first page answered, until `total`.
+  Workshop holds nothing between asks.
 - **A stamp that moved is stale.** A page asked under a stamp the pane no longer stands on -- its
   holder, incarnation, room grant or picture moved -- is refused as stale, in words, whatever the
   picture's number, and the reader reads the pane again from item 0. A repaint moves the picture;
