@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Cheap, first, and independent of any build or of Loom: the repository refuses to record
-  # an AI assistant as a commit co-author, over all of main. The check self-tests before it
+  # Cheap, first, and independent of any build or of Loom: the repository refuses a commit
+  # co-author line and an AI credit, over all of main. The check self-tests before it
   # answers, because a clean history and a broken detector look identical from here, and
   # needs full history to state the invariant over everything reachable. Deliberately not
   # `needs: resolve-loom` and not a step in the stranger lane: it answers in seconds even when
@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Refuse AI co-authorship in reachable history
+      - name: Refuse co-author lines and AI credit in reachable history
         run: cmake -P tests/check_commit_attribution.cmake
 
   # Does the change touch a compiled line? tests/check_change_kind.cmake answers from the base (a
