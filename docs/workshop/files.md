@@ -30,7 +30,7 @@ and nothing about your project has moved. Looking at something is not choosing i
 
 If the system cannot report a working directory the banner says so, and Files has nowhere to
 start rather than guessing somewhere for you. The same is true if it reports one Workshop
-cannot write down — a directory named with characters this build cannot carry in a path. You
+cannot write down — on Windows, a directory whose name holds an invalid UTF-16 sequence. You
 get the run without a project rather than a crash on the way in, and nothing nearby is
 substituted for the directory you were actually standing in. If you have marked places
 before, you can still jump to one of them (below) and carry on from there.
@@ -220,18 +220,23 @@ toolchains, MSVC and MinGW.
 pretends to no perimeter: a directory this process may not read refuses in the system's own
 words, right where you are, and Workshop does not bounce you back somewhere else to hide it.
 
-**A name it cannot open honestly is marked as such.** Workshop carries file paths as plain
-bytes, so a filename outside printable ASCII cannot be opened truthfully on both supported
-platforms. The row stays visible — with the bytes it cannot carry shown as `?` — and refuses to
-be opened, rather than quietly opening something else.
+**A name in any script opens.** A file or directory named with letters beyond ASCII is opened
+and entered like any other. The screen still draws only ASCII: in the listing each byte outside
+it is a `?`, so a folder named `Zoë` is listed as `Zo??`. A name beyond ASCII is not offered by
+`a`, whose recipe line is measured in bytes.
 
-This holds for names the system itself will not spell. Some filenames — on Windows, a filename
-holding an invalid UTF-16 sequence, for instance — cannot be turned into text at all, and
-another program can leave one in any directory you walk into. That is the answer of both
-supported Windows standard libraries, measured: MSVC's STL reports no mapping in the target code
-page, MinGW's libstdc++ an illegal byte sequence. **Such an entry is still a row.**
-You are shown that something is there, marked the same way, and it cannot be opened; the rest of
-the directory lists normally, and browsing is never interrupted by a name.
+![Files lists a folder named Zoë Ж as Zo?? ??/ and offers to enter it; inside, it lists café.cpp as caf??.cpp and offers to open it; the Editor then holds the file, and Workshop says it opened café.cpp](images/files-name-beyond-ascii-window.png)
+
+**A name Workshop cannot carry is marked, and not opened.** Some filenames cannot be turned into
+the text Workshop holds a path in: on Windows, a filename holding an invalid UTF-16 sequence, for
+instance, which both supported Windows standard libraries refuse to convert (measured: MSVC's
+STL reports no mapping in the target code page, MinGW's libstdc++ an illegal byte sequence); a
+name holding an ASCII control character, or, on Linux, bytes that are not UTF-8; and on a Windows
+older than 10 version 1903, which ignores the manifest that makes every path UTF-8, any name
+beyond ASCII. Another program can leave one in any directory you walk into. **Such an entry is
+still a row.** You are shown that something is there, with each byte outside printable ASCII as
+`?`, and it cannot be opened; the rest of the directory lists normally, and browsing is never
+interrupted by a name.
 
 **It does not judge file contents.** Any file can be sent to the Editor pane; the Editor
 decides whether it can edit it and says so in its own words, which the Files pane repeats in
@@ -257,8 +262,8 @@ while you are looking at it, the pane will not notice until one of the moments a
 ## Using a file as the recipe catalog
 
 `u` hands the file the cursor is on to the one owner of this session's build recipes. A
-directory refuses (a catalog is one file), and a name the pane cannot carry refuses for the
-same reason it cannot be opened. Nothing here looks at the file's **name** or **extension** to
+directory refuses (a catalog is one file), and a name Workshop cannot carry refuses for the same
+reason it cannot be opened. Nothing here looks at the file's **name** or **extension** to
 decide whether it is a catalog: you said it is, and the recipe owner reads it and answers in
 its own words. If it is not one, you are told so and the recipes you were already using are
 still the recipes you are using.

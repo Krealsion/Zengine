@@ -274,8 +274,9 @@ endif()
 if(CMAKE_GENERATOR_TOOLSET)
     list(APPEND zengine_cn_args -T "${CMAKE_GENERATOR_TOOLSET}")
 endif()
+# The resource compiler and the manifest tool too, since every program there carries the manifest.
 foreach(passthrough CMAKE_CXX_COMPILER CMAKE_CXX_COMPILER_LAUNCHER CMAKE_CXX_FLAGS
-                    CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES)
+                    CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES CMAKE_RC_COMPILER CMAKE_MT)
     if(DEFINED ${passthrough})
         list(APPEND zengine_cn_args "-D${passthrough}=${${passthrough}}")
     endif()
@@ -1199,7 +1200,8 @@ zengine_doctest_test(workshop_probe zengine-workshop-probe-tests)
 # A real `zengine-workshop` launched with a guests file and the shipped terminal plan beside it,
 # and this program as the other host: admitted by credential, refused by a wrong one, an input
 # session, the desktop's chord injected, the desktop asked what it accepts, and a picture of the
-# real terminal Skin read for the Pane Manager the chord opened. A `program` entry.
+# real terminal Skin read for the Pane Manager the chord opened; then a Workshop whose roots and
+# keymap stand in a folder named beyond ASCII, saving its session there and reopening it.
 add_executable(zengine-guest-journey guest_journey.cpp)
 target_link_libraries(zengine-guest-journey
     PRIVATE loom::bridge loom::switchboard loom::core
@@ -1210,7 +1212,7 @@ zengine_program_test(guest_journey zengine-guest-journey
     $<TARGET_FILE:zengine-workshop>
     $<TARGET_FILE_DIR:zengine-workshop>/default-load-plan.json
     ${CMAKE_BINARY_DIR}/guest-journey-work)
-set_tests_properties(guest_journey PROPERTIES TIMEOUT 120)
+set_tests_properties(guest_journey PROPERTIES TIMEOUT 240)
 
 # ---- Workshop's own readers over one file, for a case in another language ---------------------
 # tests/workshop_file_read.cpp answers `setup <path>` or `session <path>` with what the readers

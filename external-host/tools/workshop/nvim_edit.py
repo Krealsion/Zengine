@@ -27,17 +27,23 @@ in one answer carrying a fresh token (so an older answer is never read as this o
 current buffer exactly this file, is it modified, and how many lines and which text (a digest)
 does it hold.
 
-WHAT IT CONFIRMS BEFORE IT TYPES INTO A BUFFER. After `:e`, the edit goes ahead only when the
+THE PATH IS NEVER READ AS EX TEXT. The open is typed as `:call nvim_cmd(...)` running `:edit`
+with the path a Vim string and file expansion off, so a space, `%`, `#`, a wildcard, `$NAME`, a
+quote, a bar and a backslash each name themselves, and the question below compares the buffer's
+name with the same string. A path holding a NUL, or text that is not UTF-8, cannot be typed whole,
+and is refused before anything is.
+
+WHAT IT CONFIRMS BEFORE IT TYPES INTO A BUFFER. After the open, the edit goes ahead only when the
 buffer IS the requested file, is NOT modified, and holds exactly the lines on disk (an absent
 file: none). A draft never saved to disk, an unsaved change to an existing file, a buffer that
-differs from the disk, and an `:e` Neovim refused -- another buffer still current -- all refuse
+differs from the disk, and an open Neovim refused -- another buffer still current -- all refuse
 with nothing typed into any buffer. An absent file is not evidence of an empty buffer.
 
 WHAT SUCCESS MEANS. After `:w` the same question is asked again: the run passes only when Neovim
 says the buffer is the file, is not modified and holds the planned lines, AND the file on disk is
 byte for byte the planned text.
 
-WHAT IT REFUSES. A path Ex would have to escape, a CRLF file, a buffer with unsaved changes (the
+WHAT IT REFUSES. A path it cannot type whole, a CRLF file, a buffer with unsaved changes (the
 tool would not know which text is meant), an anchor that matches no line or several. It does not
 undo: a failed run says what Neovim was asked to do and leaves the buffer as it is. A retry after
 an interrupted run starts from the buffer and the disk as they are then: typing the interrupted
@@ -57,14 +63,21 @@ from workshop_steps import chord_moments, moment
 PANE = ("zengine.editor", "editor")
 KINDS = ("create", "rewrite", "append", "after", "before", "replace", "delete")
 NT = os.name == "nt"
-# What Ex reads as something other than a path's own character when `:e` is typed unescaped.
-EX_READS_OTHERWISE = " %#|\"'\\"
 
 
-def ex_takes(posix):
-    """Whether Ex reads `posix`, a path as the tool types it (normalized, forward slashes), as
-    that path: it holds no character of EX_READS_OTHERWISE."""
-    return not any(c in posix for c in EX_READS_OTHERWISE)
+def vim_text(text):
+    r"""`text` as a Vim double-quoted string, as it is typed: a backslash and a double quote
+    escaped, every control character a \x escape, so the typed line holds no key a command line
+    acts on and no `\<...>` key name."""
+    return '"%s"' % "".join("\\" + c if c in '\\"' else "\\x%02x" % ord(c)
+                            if ord(c) < 0x20 or ord(c) == 0x7f else c for c in text)
+
+
+def opens(posix):
+    """The command line that opens `posix`, a path as the tool types it: `:edit` with the path an
+    argument, never Ex text, and file expansion off."""
+    return (":call nvim_cmd({'cmd':'edit','args':[%s],'magic':{'file':v:false}},{})\n"
+            % vim_text(posix))
 
 
 def anchor_at(ctx, lines, anchor, start=0, unique=True):
@@ -194,7 +207,7 @@ def ask(ctx, hand, posix, when):
     token = secrets.token_hex(3)
     # One `let` gathers the facts (it says nothing, so a long line that wraps asks for no
     # Return); a short `echo` says them. Windows paths compare as Windows compares them.
-    here = ("tr(expand('%:p'),'\\','/')==?'" if NT else "expand('%:p')==#'") + posix + "'"
+    here = ("tr(expand('%:p'),'\\','/')==?" if NT else "expand('%:p')==#") + vim_text(posix)
     facts = "[%s,&mod,line('$'),sha256(join(getline(1,'$'),\"\\n\").\"\\n\")[0:15]]" % here
     hand.inject([moment(ctx, "TextEntered", text="let g:nvim_edit=%s\n:echo 'nvim-edit' '%s' "
                         "join(g:nvim_edit)\n" % (facts, token))])
@@ -216,11 +229,16 @@ def ask(ctx, hand, posix, when):
 
 
 def run(ctx):
+    # Asked of the path as given: a normalization may cut it at a NUL.
+    ctx.check("\0" not in ctx.inputs["path"], "the path holds a NUL character, which no file name "
+              "can")
+    try:
+        ctx.inputs["path"].encode("utf-8")
+    except UnicodeEncodeError:
+        ctx.fail("the path is not UTF-8 text (a lone surrogate); Workshop types UTF-8 into Neovim")
     given = Path(ctx.inputs["path"])
     ctx.check(given.is_absolute(), "path must be absolute: Neovim's working directory is Workshop's")
     posix = Path(os.path.normpath(str(given))).as_posix()
-    ctx.check(ex_takes(posix), "the path holds a character Ex would read as something else; move "
-              "the file or open it by hand")
     path = Path(posix)
     edits = json.loads(ctx.inputs["edits"])
     ctx.check(isinstance(edits, list) and edits, "edits must be a non-empty JSON list")
@@ -271,7 +289,8 @@ def run(ctx):
     ctx.check(mode.replace("-", "").isalpha() and mode.isupper(), "the Editor pane is not Neovim's "
               "(its top row reads %r); switch the Editor to Neovim" % status(hand))
     # Escape leaves Insert, Visual and a command line. A terminal buffer keeps it, and there a
-    # typed `:e` would be the terminal's input: nothing is typed until Neovim is in Normal mode.
+    # typed command line would be the terminal's input: nothing is typed until Neovim is in Normal
+    # mode.
     end = time.monotonic() + 3
     while mode_of(status(hand)) != "NORMAL":
         ctx.check(time.monotonic() < end, "Neovim is in %s mode and Escape did not bring it to "
@@ -279,12 +298,12 @@ def run(ctx):
         time.sleep(0.1)
 
     ctx.step("open the file and ask Neovim what it holds")
-    hand.inject([moment(ctx, "TextEntered", text=":e %s\n" % posix)])
-    opened = ask(ctx, hand, posix, "after :e")
+    hand.inject([moment(ctx, "TextEntered", text=opens(posix))])
+    opened = ask(ctx, hand, posix, "after the open")
     record["opened"] = opened
     if not opened["same"]:
         refuse("NOT OPENED", "Neovim did not open %s: its current buffer is another file "
-               "(Workshop's row reads %r). Neovim refuses :e while the current buffer holds unsaved "
+               "(Workshop's row reads %r). Neovim refuses :edit while the current buffer holds unsaved "
                "changes and 'hidden' is off. Nothing was typed into any buffer"
                % (posix, opened["row"]))
     if opened["modified"]:

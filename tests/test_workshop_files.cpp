@@ -83,8 +83,8 @@ inline void put_file(const std::filesystem::path& at, const std::string& bytes) 
 /// PUT THE HARDEST NAME THIS PLATFORM CAN HOLD IN `dir`, and say whether it went in. The
 /// hardness differs by family, which is the point: Windows/NTFS accepts ILL-FORMED UTF-16 (an
 /// unpaired surrogate, which `CreateFileW` takes), the MEASURED case where asking a path for
-/// its filename bytes THROWS; POSIX accepts arbitrary BYTES, inert for the printable-ASCII
-/// reason. The arrangement is per-platform, the law is not, and every case runs on both.
+/// its filename bytes THROWS; POSIX accepts arbitrary BYTES, inert because they spell no UTF-8
+/// text. The arrangement is per-platform, the law is not, and every case runs on both.
 inline bool put_unsayable_entry(const std::filesystem::path& dir) {
 #if defined(_WIN32)
     std::wstring name = (dir / "lone").wstring();
@@ -118,13 +118,13 @@ inline std::string abs_spelling(const std::string& tail) {
 /// This platform's own filesystem root, spelled the way every path here is spelled.
 inline std::string root_spelling() { return abs_spelling("/"); }
 
-/// A DIRECTORY NAME OF THE SAME KIND, for the launch-capture case. On Windows it is spelled
-/// with universal-character-names on purpose -- what these characters ARE is decided by the
-/// C++ standard rather than by whatever encoding a compiler guesses this file is in -- and
-/// nothing in a single-byte code page can hold them.
+/// A DIRECTORY NAME OF THE SAME KIND, for the launch-capture case. On Windows it holds a lone
+/// surrogate, which no code page, UTF-8 included, can spell.
 inline std::filesystem::path unsayable_dir_name() {
 #if defined(_WIN32)
-    return std::filesystem::path(std::wstring(L"caf\u00E9-\u65E5\u672C"));
+    std::wstring name = L"lone";
+    name.push_back(static_cast<wchar_t>(0xD800)); // a HIGH surrogate with no low half
+    return std::filesystem::path(name);
 #else
     return std::filesystem::path(std::string("caf\xc3\xa9-\xff"));
 #endif
@@ -256,9 +256,9 @@ TEST_CASE("a launch directory this Workshop cannot say is an absence, not an exi
         // Nothing adjacent was substituted for the directory that could not be said.
         CHECK(captured.empty());
     } else {
-        // The platform CAN say this name: POSIX, where narrowing is a byte passthrough, or
-        // a Windows whose active code page carries it. Then the capture owes the ordinary
-        // truth -- a hostile-looking name is not a reason to invent an absence either.
+        // The platform CAN say this name: POSIX, where narrowing is a byte passthrough. Then
+        // the capture owes the ordinary truth -- a hostile-looking name is not a reason to
+        // invent an absence either.
         std::error_code where_ec;
         CHECK(captured == std::filesystem::current_path(where_ec).generic_string());
         CHECK_FALSE(captured.empty());
@@ -2381,6 +2381,27 @@ TEST_CASE("a development runtime is made whole into an absent directory, then re
           std::string::npos);
     CHECK(slurp((runtime / "zengine-timer.dll").string()) ==
           "a service somebody changed in the runtime");
+}
+
+TEST_CASE("a development runtime made beneath a folder named beyond ASCII is reused as its own tree's") {
+    // THE MANIFEST NAMES ITS BUILD TREE, letters and all, and the next launch reads it back whole.
+    TempDir scratch("dev-runtime-letters");
+    const std::string letters = "Zo\xc3\xab \xd0\x96";
+    const std::filesystem::path root =
+        scratch.path() / std::filesystem::path(std::u8string(
+                             reinterpret_cast<const char8_t*>(letters.data()), letters.size()));
+    RuntimeTree tree(root);
+    const std::filesystem::path runtime = root / "runtime";
+
+    const zengine::builder::RunResult made = tree.prepare(runtime);
+    REQUIRE_MESSAGE(made.started, made.trouble);
+    REQUIRE_MESSAGE(made.status == 0, made.output);
+    const auto kept = contents_of(runtime);
+    const zengine::builder::RunResult reused = tree.prepare(runtime);
+    REQUIRE_MESSAGE(reused.started, reused.trouble);
+    CHECK_MESSAGE(reused.status == 0, reused.output);
+    CHECK(reused.output.find("reusing the development runtime") != std::string::npos);
+    CHECK(contents_of(runtime) == kept);
 }
 
 TEST_CASE("a development runtime that is stale, incomplete, or made for another configuration or another set of copies is refused and left exactly as it is") {

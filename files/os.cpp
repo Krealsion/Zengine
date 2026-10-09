@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The two out-of-line bodies the Files tool's pure half needs: whether a directory entry leaves
-// the tree, and which roots this operating system reports. Everything else the browser and the
-// marks spend is header-only; these two ask the platform, so they are the places `<windows.h>`
-// may appear, compiled in the tool's own image. They keep `namespace zengine::workshop`, the
-// namespace of the headers that declare them, so every WL-FILES law names the same identifiers.
+// The out-of-line bodies the Files tool's pure half needs: whether a directory entry leaves the
+// tree, which roots this operating system reports, and whether a narrow path is UTF-8 here. The
+// rest is header-only; these ask the platform, so they are the places `<windows.h>` may appear,
+// compiled in the tool's own image. They keep `namespace zengine::workshop`, the namespace of the
+// headers that declare them, so every WL-FILES law names the same identifiers.
 // Files law: agents/workshop/files.md
 
 #if defined(_WIN32)
@@ -35,6 +35,14 @@ bool leaves_the_tree(const std::filesystem::directory_entry& entry) {
     std::error_code link_ec;
     const std::filesystem::file_status own = entry.symlink_status(link_ec);
     return link_ec ? true : !std::filesystem::is_directory(own);
+#endif
+}
+
+bool narrow_paths_are_utf8() {
+#if defined(_WIN32)
+    return ::GetACP() == CP_UTF8;
+#else
+    return true; // a narrow path here is the bytes the filesystem holds
 #endif
 }
 

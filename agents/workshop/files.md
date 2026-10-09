@@ -131,15 +131,15 @@ WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-10 — Filenames are `std::string` everywhere, so admission is a path law
 
-LAW — Names are `u8string()` bytes: a printable-ASCII name is exact and openable, any other keeps its row as a `?`-marked projection and refuses activation; what is inside a file is the editor's question.
+LAW — Names are `u8string()` bytes: an exact UTF-8 name with no ASCII control character opens, beyond ASCII where paths are UTF-8; any other keeps its row, `?`-marked, and refuses; contents are the editor's.
 
 DOES NOT MEAN
 - that a file-type registry or extension list exists: a `.png` meets the refusal that knows why.
 
-PROVEN BY — `files/files.hpp` `printable_ascii_name`, `FileRow::openable`, `shown_name`;
+PROVEN BY — `files/files.hpp` `carried_name`, `narrow_paths_are_utf8`, `FileRow::openable`, `shown_name`;
 `workshop/path_admission.hpp` `admit_filename`; `files/files.cpp` `row_text`, `open`;
-`tests/test_files.cpp` case `"a name outside printable ASCII keeps its row, marked, and
-cannot be opened"`.
+`tests/test_files.cpp` case `"a name beyond ASCII is carried exactly and opens, drawn as the
+screen spells it"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-11 — Asking for a path's bytes can throw, and one header is allowed to ask
@@ -147,7 +147,7 @@ WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 LAW — `workshop/path_admission.hpp` alone asks for a path's bytes: a path is admitted as a value (carried or not, plus its spelling), a filename as a name with an exact flag, the launch capture as the host's.
 
 MEANS
-- `exact`, never the bytes, is what `open` and `use_recipes` ask through `openable`;
+- `exact` and the name's text, never the path again, are what `open` and `use_recipes` ask through `openable`;
 - a second `generic_string()` anywhere is a second way for the process to die;
 - the header is shared by include path and no link edge, so both halves keep one custody law.
 

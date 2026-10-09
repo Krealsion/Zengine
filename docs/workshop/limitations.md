@@ -411,13 +411,13 @@ every keystroke. Mark a place once from an ordinary launch and that run can jump
 
 ### Some filesystem names cannot be written down, and that is said rather than survived
 
-Workshop holds every path as plain text. A filesystem will accept names that cannot be turned
+Workshop holds every path as plain text: on Windows UTF-8, since every Zengine program runs in
+the UTF-8 code page (Windows 10 version 1903 and later), so a name in any language is carried as
+itself; on Linux, the bytes the name holds. A filesystem will accept names that cannot be turned
 into that text at all — on Windows, a filename holding an invalid UTF-16 sequence, which both
 supported Windows standard libraries refuse to convert (measured: MSVC's STL reports no mapping
-in the target code page, MinGW's libstdc++ an illegal byte sequence), and, under MSVC's STL
-only, a directory named outside the system's active code page, which libstdc++ carries as UTF-8
-instead. These are not names you would type; they are names another program can leave where
-you are about to look.
+for the Unicode character, MinGW's libstdc++ an illegal byte sequence). These are not names you
+would type; they are names another program can leave where you are about to look.
 
 | where you meet one | today |
 |---|---|
@@ -426,8 +426,9 @@ you are about to look.
 
 **Neither case ends the program, and neither substitutes a different path.** A name Workshop
 cannot write down is refused where it is met; nothing nearby is opened, browsed, or reported in
-its place. What Workshop *can* carry is unchanged: a path is still plain bytes, and a filename
-outside printable ASCII is still visible and still not openable.
+its place. A name Workshop can carry is used as it is, in any script; a filename holding an ASCII
+control character, or on Linux bytes that are not UTF-8, is visible and not openable, as is a name
+beyond ASCII on a Windows older than 10 version 1903.
 
 ### Lifecycle
 

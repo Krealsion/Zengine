@@ -1889,7 +1889,7 @@
       "name": "nvim-edit",
       "script": "nvim_edit.py",
       "summary": "Edit one file through Workshop's Neovim pane -- create, append, insert after or before an anchor line, replace or delete a range -- save it there, and check the saved file is exactly the planned text.",
-      "description": "Plans every edit against the file's current text (a local read), then drives Neovim as a weaver would: open the file with :e, go to the anchor's line, open a line and type, delete a range, write with :w. Typed text stays literal: after opening, 'paste' is set again and autoindent, smartindent, cindent, indentexpr and expandtab are cleared for that buffer (a buffer's indent script can re-enable autoindent); a new file gets Unix line endings. Text is typed in bounded chunks because Neovim reads its input after Workshop's settle fence, which is also why no single row is trusted: after :e and again after :w the tool types a lone `:`, waits until Neovim sits idle in an empty command line (a prompt never does, and ends the run with nothing more typed), and asks Neovim itself -- in one answer carrying a fresh token -- whether its current buffer is exactly the file, whether it is modified, and a digest of its lines. Nothing is typed into a buffer unless it IS the file, is NOT modified and holds exactly what is on disk: a draft never saved, an unsaved change, a buffer that differs from the disk and a buffer Neovim would not leave are all refused untouched. The run passes only when Neovim says the buffer is saved and holds the planned lines AND the file on disk equals the planned text; otherwise expected.txt and actual.txt are kept. An anchor is text that must occur in exactly one line (a range's last anchor is the first line at or after its first).",
+      "description": "Plans every edit against the file's current text (a local read), then drives Neovim as a weaver would: open the file (`:edit` through nvim_cmd, the path a Vim string with file expansion off, so any character names itself), go to the anchor's line, open a line and type, delete a range, write with :w. Typed text stays literal: after opening, 'paste' is set again and autoindent, smartindent, cindent, indentexpr and expandtab are cleared for that buffer (a buffer's indent script can re-enable autoindent); a new file gets Unix line endings. Text is typed in bounded chunks because Neovim reads its input after Workshop's settle fence, which is also why no single row is trusted: after the open and again after :w the tool types a lone `:`, waits until Neovim sits idle in an empty command line (a prompt never does, and ends the run with nothing more typed), and asks Neovim itself -- in one answer carrying a fresh token -- whether its current buffer is exactly the file, whether it is modified, and a digest of its lines. Nothing is typed into a buffer unless it IS the file, is NOT modified and holds exactly what is on disk: a draft never saved, an unsaved change, a buffer that differs from the disk and a buffer Neovim would not leave are all refused untouched. The run passes only when Neovim says the buffer is saved and holds the planned lines AND the file on disk equals the planned text; otherwise expected.txt and actual.txt are kept. An anchor is text that must occur in exactly one line (a range's last anchor is the first line at or after its first).",
       "inputs": [
         {
           "name": "link",
@@ -1901,7 +1901,7 @@
           "name": "path",
           "type": "text",
           "default": "",
-          "help": "the file, absolute, without spaces or Ex specials (% # | quotes backslash)"
+          "help": "the file, absolute; any name but one holding a NUL or text that is not UTF-8"
         },
         {
           "name": "edits",
@@ -1931,7 +1931,7 @@
       "outputs": [
         {
           "name": "edit.json",
-          "help": "path, line spans each edit produced, bytes typed, before/expected/after sha256, the disk's and the plan's digests, Neovim's own answers after :e (opened) and after :w (saved), the pane's last top row, verdict (matches, DIFFERS, NOT SAVED, or on a refusal UNSAVED, NOT OPENED, NOT THE FILE)"
+          "help": "path, line spans each edit produced, bytes typed, before/expected/after sha256, the disk's and the plan's digests, Neovim's own answers after the open (opened) and after :w (saved), the pane's last top row, verdict (matches, DIFFERS, NOT SAVED, or on a refusal UNSAVED, NOT OPENED, NOT THE FILE)"
         },
         {
           "name": "expected.txt",
