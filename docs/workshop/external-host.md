@@ -798,9 +798,10 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
 - **The desk in one turn.** `DeskReadRequested`, `{}`, is answered by `DeskRead`: the desk as
   `DeskView` version 3, every presented pane's stamp from the front back, and as many of those
   panes' readings (`PaneView` version 4), in that order, as one decoded value holds -- Loom's
-  decode budget, <!-- value kDecodedCellBudget grouped -->65,536<!-- /value --> cells. A stamp with
-  no reading beside it -- past the last one, or of a pane whose reading Workshop refused -- names a
-  pane to ask alone. `DeskView`
+  decode budget, <!-- value kDecodedCellBudget grouped -->65,536<!-- /value --> cells -- and one
+  reply's <!-- value kReplyByteBudget MiB -->16<!-- /value --> MiB, in the larger of Loom's native
+  and JSON serializations. A stamp with no reading beside it -- past the last one, or of a pane
+  whose reading Workshop refused -- names a pane to ask alone. `DeskView`
   version 3 adds Workshop's own words to version 2: the band's notice and legend, each a word with
   its place and no point, since the band takes no press; the status slot, a word with no place,
   as the medium is handed it; and `desk`, a number that moves whenever what the desk says moves
@@ -810,9 +811,10 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   wait.
 - **A pane's reading, paged under its stamp.** `PaneViewRequested` version 4,
   `{provider,pane,from,stamp}`, is answered by `PaneView` version 4: version 3's words and then its
-  parts from item `from`, as many as one decoded value holds, `total` counting both, and the stamp
-  the reading stands on -- the holder of the pane's office, that holder's incarnation, the canvas
-  room `grant` its picture was drawn for (0 for a text pane) and the `picture`. Ask from 0 with an
+  parts from item `from`, as many as one decoded value and one reply's bytes hold, `total`
+  counting both, and the stamp the reading stands on -- the holder of the pane's office, that
+  holder's incarnation, the canvas room `grant` its picture was drawn for (0 for a text pane) and
+  the `picture`. Ask from 0 with an
   empty stamp, then each next page from where the last ended, under the stamp the first page
   answered: a page asked under a stamp the pane no longer stands on is refused as stale, even when
   the new picture's number equals the old, and the pane is read again from 0. A repaint moves the

@@ -190,10 +190,10 @@ input at that point. Workshop names only its own surfaces' parts: its menu's lin
 tabs, `layout:<name>` and `layout:+` (WL-READ-04).
 
 `DeskReadRequested` answers the desk said whole, in one turn: `DeskView` version 3, every
-presented pane's stamp and as many `PaneView` version 4 readings as one decoded value holds
-(WL-READ-01). Version 4 pages a pane under its stamp and refuses a page whose stamp moved as
-stale (WL-READ-02), and says a covered pane's visible words with the cover named, a point only
-where a press lands (WL-READ-05); desk reads are at most
+presented pane's stamp and as many `PaneView` version 4 readings as one decoded value and one
+reply's bytes hold (WL-READ-01). Version 4 pages a pane under its stamp and refuses a page whose
+stamp moved as stale (WL-READ-02), and says a covered pane's visible words with the cover named,
+a point only where a press lands (WL-READ-05); desk reads are at most
 `kDeskReadsPerSecond` a second, each asker (WL-READ-03). A guest session whose row holds `capture`
 is answered these, `PaneInventoryRequested` and `KeymapRequested` (WL-DESK-09, WL-DESK-11,
 WL-GUEST-11). The shapes: [the desk, said whole](../docs/reference/workshop-panes.md#the-desk-said-whole).
