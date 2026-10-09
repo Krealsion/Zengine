@@ -1,5 +1,13 @@
 # Contributing
 
+## Taking an issue
+
+Bounded work is a GitHub issue labelled `ready`.
+[Taking an issue](docs/contributing/taking-an-issue.md) goes from one to a pull request ready to
+merge, with nothing outside this repository's own documentation, and
+[best practices](docs/contributing/best-practices.md) says what good work looks like here, surface
+by surface. An automated collaborator reads [AGENTS.md](AGENTS.md) first.
+
 ## Code contributions
 
 Issues, testing, design discussion, reproductions, and feedback are welcome.

@@ -23,10 +23,18 @@ truth, special cases, or migration burdens imposed on future owners. Revise that
 necessary tradeoffs explicit for acceptance. Keep the argument proportional and grounded in
 real consumers, not speculative abstractions. Required checks still have to pass.
 
+**Write Loom, not host code.** A pane or tool is a participating weave that reaches the rest only
+by messages. Split it until a piece is too small to be useful alone; that piece becomes an
+operator other weaves compose. Code that grows inside the host where a weave could hold it is the
+mistake to refuse; a problem that arises inside Loom's architecture is the one worth solving.
+
 ## Read this, then route
 
 This file is the one mandatory read before touching this repository. Everything else is
-routed: read a surface's document when the task touches that surface, not before.
+routed: read a surface's document when the task touches that surface, not before. An issue
+labelled `ready` goes to a pull request by [taking an issue](docs/contributing/taking-an-issue.md),
+and [best practices](docs/contributing/best-practices.md) says, surface by surface, what good work
+looks like and which document owns each practice.
 
 | the task touches… | read |
 |---|---|
