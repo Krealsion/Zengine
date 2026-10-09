@@ -89,6 +89,29 @@ struct GuestConnectionsRequested {
 };
 } // namespace v2
 
+/// ONE THING A ROW MAY OBSERVE, as its guests file names it: publications of `shape` at `version`
+/// by whoever holds `producer`.
+struct GuestObserve {
+    std::string producer, shape;
+    std::int64_t version = 0;
+    ZEN_SHAPE(GuestObserve, 1, ZEN_FIELD(producer), ZEN_FIELD(shape), ZEN_FIELD(version));
+};
+
+/// THE ASKER'S OWN ROW: the row the door admitted the asking session under -- never a row found by
+/// name, and nothing of any other -- its name, its powers, what it may observe, and the guests
+/// file's `host`. Any admitted session may ask; nothing else is answered.
+struct GuestRowDescribedRequested {
+    ZEN_SHAPE(GuestRowDescribedRequested, 1);
+};
+struct GuestRowDescribed {
+    std::string name;
+    std::vector<std::string> may;
+    std::vector<GuestObserve> observe;
+    std::string host;
+    ZEN_SHAPE(GuestRowDescribed, 1, ZEN_FIELD(name), ZEN_FIELD(may), ZEN_FIELD(observe),
+              ZEN_FIELD(host));
+};
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_GUEST_SEAM_VOCABULARY_HPP

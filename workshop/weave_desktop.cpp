@@ -733,8 +733,8 @@ PaneInventory WorkshopWeave::inventory_reading() const {
 
 // WL-DESK-09 -- agents/workshop/desktop-presenting.md
 void WorkshopWeave::on(const PaneInventoryRequested&, loom::Mail& mail) {
-    if (mail.authored_role().empty()) {
-        return; // an office asks; personal speech is answered by nobody, the offer's rule
+    if (mail.authored_role().empty() && !capture_guest(mail.sender())) {
+        return; // an office, or a guest session holding `capture`; other speech is answered by nobody
     }
     // THE READING NOW, TO THE ONE WHO ASKED -- the incarnation that just arrived, and no other
     // (Loom ANS-03). The publication's record of its own last utterance is not touched: other
@@ -809,8 +809,8 @@ void WorkshopWeave::publish_keymap(loom::Mail& mail) {
 
 // WL-DESK-11 -- agents/workshop/desktop-presenting.md
 void WorkshopWeave::on(const KeymapRequested&, loom::Mail& mail) {
-    if (mail.authored_role().empty()) {
-        return; // an office asks
+    if (mail.authored_role().empty() && !capture_guest(mail.sender())) {
+        return; // an office asks, or a guest session holding `capture`
     }
     (void)mail.answer(keymap_shown(session_, host_->keymap_path, keymap_standing_));
 }

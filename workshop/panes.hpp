@@ -338,6 +338,9 @@ struct ExternalPane {
     /// ...and why, in the judge's own words.
     // WL-ATTN-04 -- agents/workshop/attention.md
     std::string refusal_why;
+    /// ...and the canvas room grant a refused picture was drawn for, so a refusal of the picture a
+    /// new room asked for is told from one made before it; 0 when none.
+    std::int64_t refused_grant = 0;
     std::vector<surface::SurfaceTextRow> shown;
     /// The parts of those rows the pane names, admitted with them and gone with them.
     std::vector<PaneRowPart> parts;
@@ -397,6 +400,7 @@ struct ExternalPane {
     void clear_refusal() {
         refusal.clear();
         refusal_why.clear();
+        refused_grant = 0;
     }
 
     // WL-CARET-02 -- agents/workshop/pane-caret.md

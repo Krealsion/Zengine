@@ -690,6 +690,9 @@ int main(int argc, char** argv) {
     // `kWorkshopProvider`, the built-in rows' own provider string rather than a credential, so a
     // provider can verify its asks; holding the office is not a super-grant (Loom MSG-07).
     host.role_holder = [&bus](std::string_view role) { return bus.role_holder(role); };
+    host.incarnation_of = [&bus](loom::WeaveId id) {
+        return static_cast<std::int64_t>(bus.participant(id).incarnation);
+    };
     host.input_authority = [&bus](loom::WeaveId actor) {
         return bus.alive(actor)
             ? loom::host_grant_authority(bus, actor, loom::LiveAuthority::nothing())
@@ -769,6 +772,14 @@ int main(int argc, char** argv) {
             std::string said;
             for (const std::string& loss : losses) said += (said.empty() ? "" : "; ") + loss;
             std::printf("zengine-workshop - guests: '%s' (version %s) does not reach here: %s\n",
+                        file.rows[i].name.c_str(), std::to_string(file.version).c_str(), said.c_str());
+        }
+        for (std::size_t i = 0; i < file.rows.size(); ++i) {
+            const std::vector<std::string> gains = guests::gains_of(file.rows[i], file);
+            if (gains.empty()) continue;
+            std::string said;
+            for (const std::string& gain : gains) said += (said.empty() ? "" : "; ") + gain;
+            std::printf("zengine-workshop - guests: '%s' (version %s) also reaches here: %s\n",
                         file.rows[i].name.c_str(), std::to_string(file.version).c_str(), said.c_str());
         }
         ++host.conditions_generation;

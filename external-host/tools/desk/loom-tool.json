@@ -1,0 +1,86 @@
+{
+  "package": "desk",
+  "version": "1",
+  "summary": "The agent's desk: a running Workshop's desk read whole under the guest's own row, and written for a model as text files in a directory of the reader's own.",
+  "tools": [
+    {
+      "name": "read",
+      "script": "read.py",
+      "summary": "Read the whole desk of a running Workshop and write it as text, one character to a canvas pixel: AGENTS.md first, then the guide, the sparse desk, the glance and each pane's reading.",
+      "description": "Judges `out` first: an absolute directory outside every source checkout (any directory from it up to its root holding .git refuses it, in words), not a file, holding no AGENTS.md this reader did not write, and with no `panes` that is a file or a link; a refused `out` asks nothing and writes nothing. Then writes AGENTS.md, the reader's own fixed words and nothing any pane, office or guest said: how to read this desk, the files, the coordinates, stamps, how to press a part, the tools, best practice, and a link to guide.md. Then asks, through the link: the guest door (zengine.guests) for this session's own row (GuestRowDescribed); Workshop (zengine.workshop) for the desk in one turn (DeskRead: the desk, every presented pane's stamp front to back, and as many panes' readings as one decoded value holds); each pane past them alone by PaneViewRequested version 4, from item 0 under an empty stamp and then page by page under the stamp its first page answered, until its total; the pane inventory and the keymap. A page refused as stale or past a reading that shrank, or answered under another cover, starts its pane again from item 0, and one answered in flight a tenth of a second later, at most 3 times, then the pane is written 'not read: its picture moved while it was read'; a pane whose picture is in flight is asked alone again a tenth of a second later, at most 3 times in a row, then written 'not read: its newest picture was in flight at every ask'. When a pane was asked after the desk read, the desk is read again: if its number moved before the last page, its panes are read against the newer desk, at most twice, then the reading says the span of desk numbers. Writes, beside AGENTS.md: guide.md, the guide's ten sections, its own row, the inventory and the keymap quoted in blocks that name who said them, as data; desk.txt, the sparse desk (its first line, Workshop's own words, the status slot, the menu when open, then each pane front to back: a header with its stamp, each word `x,y text` at its middle row, each part `name@x,y` at its press point or `name@-`, its coverage, or why it was not read); glance.txt, the desk at the medium's own text cell; and panes/<office>.<pane>.txt, one per pane (~2 and on before .txt where two references would name one file), each page opening with its pane's header line. Every reading file is overwritten, a reading file this read no longer writes is removed, and a file past 64 KiB continues in <name>-2 and on, saying so, a block of what the desk said opened again on each page it continues on. A refusal of any ask is written into the reading in words, never raised. Presses nothing and changes nothing in Workshop.",
+      "inputs": [
+        {
+          "name": "out",
+          "type": "text",
+          "required": true,
+          "help": "the directory the readings go in, absolute and outside every source checkout; made when absent, and the reader's own: its reading files are overwritten and removed at each read"
+        },
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AGENTS.md",
+          "help": "in `out`, not the run's out/ directory: the reader's own words, written first; the result names its path"
+        },
+        {
+          "name": "guide.md",
+          "help": "in `out`: the guide's ten sections; every text the desk said quoted as data, after a line naming who said it"
+        },
+        {
+          "name": "desk.txt",
+          "help": "in `out`: the sparse reading of the whole desk"
+        },
+        {
+          "name": "glance.txt",
+          "help": "in `out`: the desk at the medium's own text cell, 8 x 18 canvas pixels in a window, 12 x 12 in a terminal"
+        },
+        {
+          "name": "panes/<office>.<pane>.txt",
+          "help": "in `out`: one pane's sparse reading beneath the desk's first line"
+        }
+      ],
+      "requires": [
+        "the `capture` power: a Workshop guest row that may capture (the desk, each pane's pages, the inventory and the keymap are answered to a guest session under it; its own row is answered to any row)",
+        "zengine-guest-vocabulary booted in this Loom session, declaring the shapes below",
+        "a Workshop answering DeskRead, PaneView version 4 and GuestRowDescribed",
+        "an `out` directory outside every source checkout"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "GuestRowDescribedRequested v1",
+        "GuestRowDescribed v1",
+        "DeskReadRequested v1",
+        "DeskRead v1",
+        "PaneViewRequested v4",
+        "PaneView v4",
+        "PaneInventoryRequested v1",
+        "PaneInventory v2",
+        "KeymapRequested v1",
+        "KeymapShown v1"
+      ],
+      "terms": [
+        "desk",
+        "read",
+        "reading",
+        "sparse",
+        "glance",
+        "agents",
+        "guide",
+        "panes",
+        "words",
+        "parts",
+        "stamp",
+        "capture"
+      ],
+      "example": "loom-session run <dir> desk/read --name desk-1 --input out=C:/agent/desk --wait 60",
+      "recovery": "A refused `out` names why: inside a checkout (name a directory outside every checkout), not absolute, a file, or holding an AGENTS.md this reader did not write; nothing was asked or written. Otherwise the run passes and says what it could not read: a pane or a guide section Workshop refused is written in its words ('not read: ...', 'Absent: ...') in desk.txt and guide.md. A desk read refused whole means the row lacks `capture`, more than 4 desk reads came in a second, or the Workshop answers no DeskRead: read desk.txt's second line. 'unlinked' means the link has no far session (see loom-session status)."
+    }
+  ]
+}

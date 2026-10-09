@@ -210,14 +210,14 @@ if(NOT ZENGINE_INSTALLED_ARTIFACTS)
         "package will carry public headers and exported targets only")
 endif()
 
-# ---- The Workshop tool package, for a Loom session's run manager -------------------------------
-#
-# Python tools that run against a running Workshop from another Loom host's session (Loom's
-# `loom-host --serve` and its run manager). DATA, not a target: a session's catalog names the
-# directory, its operator approves it, and nothing here is compiled or linked. It rides the same
-# condition as the vocabulary weave it needs (a Loom that can host loadable weaves).
+# ---- The Workshop tool packages, for a Loom session's run manager ------------------------------
+# Python tools another Loom host's session runs against Workshop: `workshop`, and `desk`, the desk
+# read and written as text (a package of its own: `workshop` holds Loom's 32 tools a package).
+# DATA, not a target: a session's catalog names each directory and its operator approves it. They
+# ride the condition of the vocabulary weave they need (a Loom that can host loadable weaves).
 if(TARGET zengine-guest-vocabulary)
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/external-host/tools/workshop
+                      ${CMAKE_SOURCE_DIR}/external-host/tools/desk
             DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/loom-tools
             PATTERN "__pycache__" EXCLUDE
             PATTERN "*.pyc" EXCLUDE)
