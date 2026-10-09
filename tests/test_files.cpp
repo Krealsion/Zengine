@@ -92,7 +92,8 @@ inline bool put_unsayable_entry(const std::filesystem::path& dir) {
     ::CloseHandle(made);
     return true;
 #else
-    put_file(dir / std::filesystem::path(std::string("loneÿ.txt")), "x");
+    // POSIX names are bytes, and these spell no character.
+    put_file(dir / std::filesystem::path(std::string("lone\xff.txt")), "x");
     return true;
 #endif
 }
@@ -256,24 +257,34 @@ TEST_CASE("a row that cannot be a catalog is refused before the owner is trouble
     FileRow dir;
     dir.name = "somewhere";
     dir.directory = true;
-    FileRow unsayable;
-    unsayable.name = "cafÃ©";
-    unsayable.openable = false;
+    // A name holding bytes that spell no character...
+    FileRow outside;
+    outside.name = "caf\xe9";
+    outside.openable = false;
+    // ...and a projection, the printable spelling of a name this platform will not spell.
+    FileRow projected;
+    projected.name = "lone?.txt";
+    projected.openable = false;
 
     CHECK(catalog_row_refusal(nullptr, true) ==
           "no row is selected -- the recipes in force are unchanged");
     CHECK(catalog_row_refusal(&dir, true).find("is a directory") != std::string::npos);
-    CHECK(catalog_row_refusal(&unsayable, true).find("cannot carry in a path") !=
+    CHECK(catalog_row_refusal(&outside, true).find("cannot carry in a path") !=
           std::string::npos);
-    CHECK(catalog_row_refusal(&unsayable, true).find("the recipes in force are unchanged") !=
+    CHECK(catalog_row_refusal(&outside, true).find("the recipes in force are unchanged") !=
+          std::string::npos);
+    CHECK(catalog_row_refusal(&projected, true).find("cannot carry in a path") !=
+          std::string::npos);
+    CHECK(catalog_row_refusal(&projected, true).find("the recipes in force are unchanged") !=
           std::string::npos);
     CHECK(catalog_row_refusal(&file, false) ==
           "this run began nowhere -- the recipes in force are unchanged");
     // ...AND AN ORDINARY FILE IN A RUN THAT BEGAN SOMEWHERE IS NOT REFUSED AT ALL, which
     // is the arm that makes the other four a measurement.
     CHECK(catalog_row_refusal(&file, true).empty());
-    // THE UNSAYABLE NAME IS SHOWN THE WAY EVERY OTHER ROW SHOWS IT, and never raw.
-    CHECK(catalog_row_refusal(&unsayable, true).find(shown_name(unsayable.name)) !=
+    // A NAME OUTSIDE PRINTABLE ASCII IS SHOWN THE WAY EVERY OTHER ROW SHOWS IT, and never raw.
+    CHECK(catalog_row_refusal(&outside, true).find("caf?") != std::string::npos);
+    CHECK(catalog_row_refusal(&outside, true).find(shown_name(outside.name)) !=
           std::string::npos);
 }
 
@@ -329,28 +340,59 @@ TEST_CASE("a listing shows what is there -- dotfiles and build trees included") 
     CHECK(l.rows.size() == 4);
 }
 
-TEST_CASE("a name outside printable ASCII keeps its row, marked, and cannot be opened") {
+TEST_CASE("a name beyond ASCII is carried exactly and opens, drawn as the screen spells it") {
     TempDir dir("names");
     put_file(dir.path() / "plain.cpp", "x");
-    // A name this application's narrow path custody cannot carry on both platforms.
-    const std::string wide = "caf\xc3\xa9.cpp"; // UTF-8 e-acute
-    put_file(dir.path() / std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(wide.data()), wide.size())), "x");
+    // A folder and a file named with letters beyond ASCII, one of them beyond the BMP, carried
+    // exactly on every platform.
+    const std::string folder = "Zo\xc3\xab \xd0\x96";
+    const std::string file = "caf\xc3\xa9 \xf0\x9d\x92\xb3.cpp";
+    const auto held = [](const std::string& utf8) {
+        return std::filesystem::path(
+            std::u8string(reinterpret_cast<const char8_t*>(utf8.data()), utf8.size()));
+    };
+    std::filesystem::create_directory(dir.path() / held(folder));
+    put_file(dir.path() / held(file), "x");
     const Listing l = enumerate_directory(dir.path().generic_string());
     REQUIRE(l.known);
-    REQUIRE(l.rows.size() == 2);
-    const FileRow* odd = nullptr;
-    const FileRow* ok = nullptr;
+    REQUIRE(l.rows.size() == 3);
+    const FileRow* in = nullptr;
+    const FileRow* named = nullptr;
     for (const FileRow& r : l.rows) {
-        (r.openable ? ok : odd) = &r;
+        CHECK_MESSAGE(r.openable, shown_name(r.name), " does not open");
+        if (r.name == folder) {
+            in = &r;
+        } else if (r.name == file) {
+            named = &r;
+        }
     }
-    REQUIRE(ok != nullptr);
-    REQUIRE(odd != nullptr);
-    CHECK(ok->name == "plain.cpp");
-    // THE ROW EXISTS, and its projection MARKS the loss at the position it happened
-    // rather than tidying it away -- and the projection is never the identity.
-    CHECK(odd->name != shown_name(odd->name));
-    CHECK(shown_name(odd->name).find('?') != std::string::npos);
-    CHECK_FALSE(printable_ascii_name(odd->name));
+    // THE BYTES ARE THE FILESYSTEM'S OWN, so a press names exactly this folder and this file.
+    REQUIRE(in != nullptr);
+    REQUIRE(named != nullptr);
+    CHECK(in->directory);
+    // ...AND THE SCREEN STILL DRAWS ASCII: each byte it cannot place is a `?`, never raw.
+    CHECK(shown_name(in->name) == "Zo?? ??");
+    CHECK(shown_name(named->name).find('?') != std::string::npos);
+
+    // WHAT A PATH IN WORKSHOP IS SPELLED IN: any letter, and no control character or bytes that
+    // spell none -- a stray continuation, a cut sequence, an overlong form, a surrogate.
+    CHECK(carried_name(folder));
+    CHECK(carried_name(file));
+    CHECK(carried_name("plain.cpp"));
+    CHECK_FALSE(carried_name(""));
+    CHECK_FALSE(carried_name("a\x1f" "b"));
+    CHECK_FALSE(carried_name("tab\there"));
+    CHECK_FALSE(carried_name("del\x7f"));
+    CHECK_FALSE(carried_name("caf\xe9"));
+    CHECK_FALSE(carried_name("\xa9"));
+    CHECK_FALSE(carried_name("Zo\xc3"));
+    CHECK_FALSE(carried_name("\xc0\xaf"));
+    CHECK_FALSE(carried_name("\xe0\x80\xaf"));
+    CHECK_FALSE(carried_name("\xf0\x8f\xbf\xbf"));
+    CHECK_FALSE(carried_name("\xc3("));
+    CHECK_FALSE(carried_name("\xf5\x80\x80\x80"));
+    CHECK_FALSE(carried_name("\xed\xa0\x80"));
+    CHECK_FALSE(carried_name("\xf4\x90\x80\x80"));
 }
 
 TEST_CASE("an ordinary path and an ordinary name are carried exactly as they were") {
@@ -365,7 +407,7 @@ TEST_CASE("an ordinary path and an ordinary name are carried exactly as they wer
     const AdmittedName plain = admit_filename(std::filesystem::path("hello.cpp"));
     CHECK(plain.exact);
     CHECK(plain.name == "hello.cpp");
-    CHECK(printable_ascii_name(plain.name));
+    CHECK(carried_name(plain.name));
 }
 
 TEST_CASE("a name this platform will not spell is one inert row, not the end of it") {
@@ -399,9 +441,9 @@ TEST_CASE("a name this platform will not spell is one inert row, not the end of 
 #if defined(_WIN32)
     // ⚠ WINDOWS-ONLY, AND IT IS THE WHOLE REASON `exact` EXISTS. Here the platform refused
     // to hand over any bytes, so this row's name is a PROJECTION -- and the projection is
-    // entirely printable ASCII. A byte test alone would call it openable and hand a door a
+    // entirely printable ASCII. A text test alone would call it openable and hand a door a
     // path that names a different file or no file.
-    CHECK(printable_ascii_name(unsayable->name));
+    CHECK(carried_name(unsayable->name));
 #endif
 }
 

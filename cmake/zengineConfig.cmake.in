@@ -26,6 +26,10 @@ else()
         "with no kernel. The exported targets and public headers are unaffected.")
 endif()
 
+# zengine_code_page(<target>...): a program of yours runs in the UTF-8 code page on Windows, as
+# every program Zengine builds does, so its arguments, environment and narrow paths hold any letter.
+include("${CMAKE_CURRENT_LIST_DIR}/ZengineCodePage.cmake")
+
 # ---- the substrate underneath ------------------------------------------------------------
 #
 # The Loom is a PUBLIC dependency of this package, not a private one: every exported target's

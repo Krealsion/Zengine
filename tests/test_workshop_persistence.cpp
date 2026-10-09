@@ -2636,6 +2636,52 @@ TEST_CASE("no legacy file, no destination -- the import does nothing, silently")
     CHECK_FALSE(std::filesystem::exists(dir.file("root")));
 }
 
+// ---- A folder named beyond ASCII ---------------------------------------------------------
+
+namespace {
+
+/// A FOLDER A WEAVER'S MACHINE MAY HOLD: Western and Cyrillic letters and a space, as the UTF-8
+/// bytes every narrow door of the product takes.
+const std::string kBeyondAscii = "Zo\xC3\xAB \xD0\x96 Doe";
+
+/// The same path as the filesystem holds it, built from UTF-8 whatever the code page.
+std::filesystem::path held(const std::string& utf8) {
+    return std::filesystem::path(
+        std::u8string(reinterpret_cast<const char8_t*>(utf8.data()), utf8.size()));
+}
+
+} // namespace
+
+TEST_CASE("a weaver's files under a folder named beyond ASCII are written, found and read back") {
+    // EVERY DOOR TAKES THE NARROW UTF-8 SPELLING, as the host hands it the roots and the command
+    // line; the filesystem is then asked by the name it really holds. A program in another code
+    // page writes nothing there, or something under another name.
+    TempDir dir("beyond-ascii");
+    const std::string folder = dir.path().string() + "/" + kBeyondAscii;
+    const std::string session = folder + "/state/zengine-workshop/workshop-session.json";
+    const Setup desk = arranged_desk("Debugging");
+    const Written saved = session_persist::save_file(session, one_layout(desk), 0, cells_px(120),
+                                                     cells_px(44), session_persist::Placement{});
+    REQUIRE_MESSAGE(saved.accepted, saved.refusal);
+    CHECK(std::filesystem::exists(held(session)));
+    CHECK(std::filesystem::exists(session));
+    const session_persist::LoadedSession read = session_persist::load_file(session);
+    REQUIRE(read.present);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(live_layout(read) == desk);
+
+    // The one-time import, from a legacy file in such a folder to a root in another.
+    const std::string legacy = folder + "/workshop-keymap.json";
+    const std::string keymap = folder + "/config/zengine-workshop/workshop-keymap.json";
+    REQUIRE(persist::write_file(legacy, "the weaver's bytes").accepted);
+    const user_paths::LegacyImport did = user_paths::import_legacy_file(keymap, legacy, "keymap");
+    CHECK_MESSAGE(did.imported, did.note);
+    CHECK(std::filesystem::exists(held(keymap)));
+    const persist::FileText back = persist::read_file(keymap, 1024, "a keymap");
+    REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
+    CHECK(back.text == "the weaver's bytes");
+}
+
 TEST_CASE("the host resolves the weaver's files through the one precedence") {
     // A SOURCE TRIPWIRE, the host tier's own instrument: main() must reach every per-user
     // default through `user_paths::resolve_durable_path` -- one spelling of the precedence,

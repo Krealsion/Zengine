@@ -244,9 +244,13 @@ write_basic_package_version_file(
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMajorVersion)
 
+# Beside them, the function a program built against the package calls to run in the UTF-8 code
+# page on Windows, as every program this repository builds does, and the manifest it gives.
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfigVersion.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineCodePage.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/utf8-code-page.manifest
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zengine)
 
 # ---- what is deliberately not in the package -----------------------------------------------

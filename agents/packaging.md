@@ -54,6 +54,13 @@ offer a link line that must never be written. Beside them, as data, the Workshop
 for a Loom session's run manager: `share/zengine/loom-tools/workshop`. The generic
 `zengine-inventory-read` executable installs to `bin` and reads those tools' saved pairs.
 
+**One CMake function rides along**, `zengine_code_page(<target>...)`: `cmake/ZengineCodePage.cmake`
+and the manifest it gives install beside the package config, which includes the module. A stranger's
+program calls it to run in the UTF-8 code page on Windows, as every program this repository
+builds does (VM-PLAT-16); elsewhere it does nothing. The installed-package witness calls it for
+every program of its own and, on Windows, refuses one whose manifest names no UTF-8 code page;
+`public_surface.cpp` checks the code page it runs in.
+
 **ARTIFACT is the noun, and the distinction is load-bearing.** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
 Seven of the eight above are weaves; `zengine-operators-basic` is a provider and explicitly not

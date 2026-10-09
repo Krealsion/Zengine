@@ -326,6 +326,11 @@ else()
     message(STATUS "zengine: BUILD_TESTING=OFF — library targets only, no suites registered")
 endif()
 
+# ---- every program in the UTF-8 code page ----------------------------------------------
+# After the last program is defined, so that each one, the tests' included, is given the manifest.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineCodePage.cmake)
+zengine_program_code_page()
+
 # ---- the package a stranger installs and finds -----------------------------------------
 # Last, since it names every target it exports and stages the loadable artifacts by
 # $<TARGET_FILE:...>. The whole public consumer surface is decided in that one file, with the

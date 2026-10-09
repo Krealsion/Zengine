@@ -216,6 +216,14 @@ never trims or "fixes" it; the only thing that writes it is an edit you made in 
 pane, and that never touches a file that was refused or that changed under it
 ([editing a binding](#editing-a-binding)).
 
+The file and its folder may be named in any language. Below, Workshop was launched with its
+per-user folders, and the file its `--keymap` names, in a folder named `Zoë Ж`, then quit and
+launched again: the desk, the hidden titles and the keymap came back from there. The keymap gives
+the Pane Manager `ctrl+q` beside `ctrl+p`; the notice line names the file whole, and the Hotkeys
+pane spells what it cannot draw as `?`.
+
+![Workshop launched again from a folder named Zoë Ж: the desk saved there restored, the legend offering ^p and ^q for panes, the Hotkeys pane naming the keymap file Zo? ?/keymap.json, and the notice line naming it Zoë Ж/keymap.json, applied with 2 overrides](images/hotkeys-keymap-folder-window.png)
+
 **What is refused, by name:**
 
 - a gesture outside the grammar, naming what was found and what would have worked;

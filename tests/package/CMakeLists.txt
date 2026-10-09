@@ -116,3 +116,9 @@ add_dependencies(flow-host flow-native)
 
 add_executable(witness-message-drafts message_draft_consumer.cpp)
 target_link_libraries(witness-message-drafts PRIVATE zengine::message-draft zengine::flow zengine::pane)
+
+# ---- every program here runs in the UTF-8 code page on Windows, as a stranger asks ---------
+# run.cmake refuses a program built without it there, and public_surface.cpp checks the code page
+# it runs in; elsewhere the line does nothing.
+zengine_code_page(witness-surfaces witness-pane-menu witness-pane-settings kitchen-host
+                  flow-author flow-host witness-message-drafts)

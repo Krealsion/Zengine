@@ -14,9 +14,11 @@ Neovim from Workshop's Terminal, as the story does. Every claim about an edit is
 the tool's verdict, the buffer as the Neovim pane paints it, and the file on disk. A new empty
 document is created; a draft never saved, an unsaved change to a file on disk, an interrupted
 creation's leftover typing and a buffer Neovim would not leave are refused with nothing typed
-into them; a retry after the leftover is discarded succeeds. Then `story.py stop` refuses to quit
-over the unsaved work, `--discard-unsaved` discards it and quits, and `--force` ends a Workshop
-that will not quit -- each seen to end. Exit 0 only when every check held.
+into them; a retry after the leftover is discarded succeeds; and a file in a folder named with a
+space, letters beyond ASCII and beyond the BMP, and each character Ex reads otherwise is created
+and edited as itself. Then `story.py stop` refuses to quit over the unsaved work,
+`--discard-unsaved` discards it and quits, and `--force` ends a Workshop that will not quit --
+each seen to end. Exit 0 only when every check held.
 """
 
 import argparse
@@ -77,7 +79,10 @@ def prepare(rig, name):
 
 
 def draft(st, label, path, keys):
-    st.act(label, [{"into": EDITOR}, {"press": "escape"}, {"type": ":e %s\n" % Path(path).as_posix()},
+    """A weaver's own draft: the file opened as the tool opens it, and keys typed, unsaved."""
+    import nvim_edit
+    st.act(label, [{"into": EDITOR}, {"press": "escape"},
+                   {"type": nvim_edit.opens(Path(path).as_posix())},
                    {"wait": 0.5}, {"type": keys}, {"press": "escape"},
                    {"expect": EDITOR + ["UNSAVED"], "seconds": 10}])
 
@@ -147,13 +152,24 @@ def edits(rig):
     check("N6 after the leftover is discarded, the retry creates the file exactly as planned",
           verdict == "passed" and cut.read_bytes() == text.encode(), said)
 
+    # ---- a folder named as a weaver's machine may name it ------------------------------------
+    awkward = game / ("Zo\u00eb \u0416 \U0001d4b3 100% #1 it's a[1] $HOME b{x,y} wow! `x` +p ~t" +
+                      ("" if os.name == "nt" else ' "q" a|b c\\d s*? <cfile> >o\tt')) / "notes.txt"
+    verdict, said = edit(story, st, "awkward", awkward, [{"create": "one\n"}])
+    again, said_again = edit(story, st, "awkward-2", awkward, [{"append": "two\n"}])
+    shown = rows(st, "awkward-rows")
+    check("N8 a file in a folder named with a space, letters beyond ASCII and beyond the BMP, and "
+          "each character Ex reads otherwise is created, then edited, as itself", verdict == "passed" and again == "passed" and
+          awkward.read_bytes() == b"one\ntwo\n" and shown[0].startswith("saved "),
+          (said, said_again, shown[:3]))
+
     # ---- a buffer Neovim will not leave: the other file is never typed into ---------------------
     a, b = game / "a1" / "abcdefghijklmnopqrstuvwxyz.txt", game / "a2" / "abcdefghijklmnopqrstuvwxyz.txt"
     st.act("hidden-off", [{"into": EDITOR}, {"press": "escape"}, {"type": ":set nohidden\n"}])
     draft(st, "a-draft", a, "iDRAFT IN FILE A")
     verdict, said = edit(story, st, "b", b, [{"create": "text meant for B\n"}])
     shown = rows(st, "a-rows")
-    check("N7 when :e is refused (another buffer unsaved, 'hidden' off) nothing is typed into that "
+    check("N7 when the open is refused (another buffer unsaved, 'hidden' off) nothing is typed into that "
           "buffer and neither file is written", verdict == "refused" and "did not open" in said and
           shown[0].startswith("UNSAVED ") and names(shown[0], posix(a)) and shown[1] == "DRAFT IN FILE A" and
           not a.exists() and not b.exists(), (said, shown[:2]))
@@ -189,8 +205,12 @@ def main():
     parser = arguments(argparse.ArgumentParser(description=__doc__))
     parser.add_argument("--neovim", required=True)
     args = parser.parse_args()
+    # A check's words can hold any letter a path does; the console's code page may not.
+    sys.stdout.reconfigure(errors="backslashreplace")
     rig = Rig(args, env={"ZENGINE_NEOVIM": str(Path(args.neovim).resolve()),
                          "ZENGINE_NEOVIM_PROFILE": "clean"})
+    # The tool's own open line, for a weaver's drafts typed by hand.
+    sys.path[:0] = [rig.tools["loom_python"], str(rig.story.PACKAGE)]
     try:
         stops(rig, edits(rig))
     finally:
