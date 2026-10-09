@@ -27,7 +27,7 @@ import os
 import re
 import unicodedata
 
-from desk_asks import key, key_of, same_stamp
+from desk_asks import key_of, same_stamp
 import desk_words as words
 
 #: One reading file at most, in UTF-8 bytes; past it the reading continues in `<name>-2` ...
@@ -140,6 +140,11 @@ def desk_notes(reading):
     return notes
 
 
+def label_of(item):
+    """A pane's reference as a reader reads it, `provider/pane`: words, never its identity."""
+    return "%s/%s" % (item.get("provider", ""), item.get("pane", ""))
+
+
 def ordered(desk):
     """The desk's panes front to back, those not presented last, in the desk's order."""
     panes = list(desk.get("panes") or [])
@@ -155,7 +160,7 @@ def pane_lines(desk, dp, read):
     if empty(visible) and not empty(dp.get("resolved")):
         at += " (resolves to %s)" % rect(dp.get("resolved"))
     head = "== %s %s %s front=%s at %s" % (
-        clean(dp.get("name")) or "(unnamed)", clean(key_of(dp)), clean(dp.get("state")),
+        clean(dp.get("name")) or "(unnamed)", clean(label_of(dp)), clean(dp.get("state")),
         "%d" % front if front >= 0 else "-", at)
     # A pane read names the stamp its reading stands on; a pane not read, the desk read's.
     desk_stamp = (read or {}).get("desk_stamp")
