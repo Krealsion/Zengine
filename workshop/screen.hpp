@@ -638,9 +638,21 @@ struct PaneArrange {
     bool addressed() const { return !pane.provider.empty(); }
 };
 
+/// WHAT A SUBJECT'S SETTINGS ROWS ARE: the settings its pane's declaration gives while it counts,
+/// and the keys its row keeps that none of them declares, in key order. A row is built from each.
+// WL-SETTING-05 -- agents/workshop/settings.md
+struct SettingsSubject {
+    std::vector<PaneSettingRow> declared;
+    std::vector<std::string> kept;
+
+    bool any() const { return !declared.empty() || !kept.empty(); }
+    friend bool operator==(const SettingsSubject&, const SettingsSubject&) = default;
+};
+
 /// The inspector's subject: a pane an inspector named, the owner's rows over it, and the name this
 /// host gives what they address. Written by one door (`on(InspectPaneRequested)`); the name moves
-/// only when the pane, the live desk or the rows' interior arm does. Session, never persisted.
+/// only when the pane, the live desk, whether that desk holds the pane's row, or the settings its
+/// rows were built from do. Session, never persisted.
 // WL-INFO-14 -- agents/workshop/info-body.md
 struct InspectedPane {
     PaneRef ref;               ///< the pane an inspector asked for; an empty provider is "none"
@@ -648,6 +660,8 @@ struct InspectedPane {
     std::int64_t name = 0;     ///< what the picture carries and a commit returns; 0 is unnamed
     std::int64_t minted = 0;   ///< the last name handed out; names are never handed out twice
     std::uint64_t desk = 0;    ///< `SetupState::put_live` when `name` was given
+    bool member = false;       ///< whether that desk held the pane's row when `name` was given
+    SettingsSubject settings;  ///< the settings rows `name` was given over
 
     bool addressed() const { return !ref.provider.empty(); }
 };
@@ -1565,11 +1579,33 @@ std::string pane_axis_text(const Session& s, const PaneRef& ref, std::size_t axi
 Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
                                const std::string& text);
 
-/// The rows a pane is inspected by -- identity, authored, resolved, interior -- every closure
-/// reading fresh and every setter an existing door. The rows name no key: the inspector holds its
-/// own.
+/// THE SETTINGS ROWS A SUBJECT HAS NOW, from the declaration that counts (none when nothing
+/// counts) and what the live layout's row keeps.
+SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
+                                 const std::vector<PaneSettingRow>* declared);
+
+/// ONE SETTING AS A WEAVER READS IT in its row: the stored value, or the default when nothing is
+/// stored, spelled as it is typed -- and, for a stored value the setting does not take, why, and
+/// the default in effect. `--` when the live layout has no row for the pane.
+std::string pane_setting_text(const Session& s, const PaneRef& ref, const PaneSettingRow& row);
+
+/// WRITE ONE SETTING FROM WHAT A WEAVER TYPED: `-` for its default, else a value read in the
+/// setting's kind and refused, naming what it takes, unless the setting takes it -- through the
+/// layout's settings door (`author_pane_setting`).
+Written write_pane_setting(Session& s, const PaneRef& ref, const PaneSettingRow& row,
+                           const std::string& text);
+
+/// ...AND A KEY NO DECLARED SETTING TAKES: read as kept, and only `-`, which clears it, written.
+std::string kept_setting_text(const Session& s, const PaneRef& ref, const std::string& key);
+Written write_kept_setting(Session& s, const PaneRef& ref, const std::string& key,
+                           const std::string& text);
+
+/// The rows a pane is inspected by -- identity, authored, resolved, settings, interior -- every
+/// closure reading fresh and every setter an existing door. The rows name no key: the inspector
+/// holds its own.
 // WL-INFO-14 -- agents/workshop/info-body.md
-std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref);
+std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
+                                   const SettingsSubject& settings = {});
 
 /// THE INSPECTOR'S SUBJECT AS THE SEAM CARRIES IT: the reference, the inventory's name for it,
 /// the name of the rows and every row read fresh. Pure over the session.

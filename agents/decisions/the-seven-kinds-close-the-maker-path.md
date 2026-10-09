@@ -4,7 +4,8 @@
 supports is in [definition](../maker/definition.md).
 
 **Context.** The Loom's value model has seven kinds — Int, Float, Text, Bool, Bytes, Message and
-List — and a field's `required` bit. The shape path (`ZEN_SHAPE`) spells required-only. A weaver
+List — and a field's `required` bit. The shape path (`ZEN_SHAPE`) spells an optional field by its
+member's type, `std::optional<T>`. A weaver
 authoring a state at an editor will want a keyed table, a one-of, an optional field, and the
 research asked whether the maker path should grow a kind or a default for any of them.
 

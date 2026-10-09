@@ -59,6 +59,8 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
             // gave out must not match the new image's picture of the same number.
             pane->forget_pictures();
             pane->canvas = ExternalPane::Canvas{};
+            // ...AND ITS SETTINGS ARE OWED AGAIN: a reloaded image holds none it was handed.
+            pane->settings_heard.reset();
             // ...AND NOT THE REFUSAL, for the room grant's reason exactly: a provider
             // correcting its own summary has not sent content this host accepted, so what
             // last happened to this pane's content is still what happened to it.
@@ -195,6 +197,39 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
     for (const Dropped& d : told) {
         say_withdrawn(d.office, ActionsWithdrawn{d.pane, d.declaration, d.refusal}, mail);
     }
+}
+
+// WL-SETTING-03 -- agents/workshop/settings.md
+void WorkshopWeave::on(const PaneSettingsDeclared& declared, loom::Mail& mail) {
+    const std::string_view office = mail.authored_role();
+    if (office.empty()) {
+        return; // personal speech declares nothing (the offer's rule)
+    }
+    const Admission admitted = admit_pane_settings(session_.panes.runtime, office, declared);
+    if (!admitted.written.accepted) {
+        // REFUSED ALOUD, AND THE SETTINGS IN FORCE STAND: only an accepted declaration replaces.
+        say(admitted.written.refusal, true);
+        repaint(mail);
+        return;
+    }
+    // JUDGED WHOLE; ONLY NOW IS ANYTHING WRITTEN, by handle, as an action declaration is. The
+    // sender is kept beside the settings, which count while it holds the office.
+    for (RuntimePane& row : session_.panes.runtime.entries) {
+        if (row.kind == admitted.kind) {
+            row.settings_rows = declared.rows;
+            row.settings_from = mail.sender();
+        }
+    }
+    repaint(mail);
+}
+
+// WL-SETTING-03 -- agents/workshop/settings.md
+const std::vector<PaneSettingRow>* WorkshopWeave::counted_settings(const RuntimePane& row) const {
+    if (!row.settings_from.valid() || !host_->role_holder ||
+        host_->role_holder(row.provider) != row.settings_from) {
+        return nullptr;
+    }
+    return &row.settings_rows;
 }
 
 void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {

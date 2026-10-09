@@ -1377,11 +1377,66 @@ inline setup_persist::v3::WorkshopSetup v3_desk(const Setup& s) {
     return out;
 }
 
-/// A version-3 desk read as its own reader would: landed on pixels, then the setup law.
+/// A version-3 desk read as its own reader would: landed on pixels as version 4, then on the
+/// current shape, then the setup law.
 inline Written v3_setup_in(const setup_persist::v3::WorkshopSetup& old, Setup& out) {
+    setup_persist::v4::WorkshopSetup four;
+    Written landed = setup_persist::v3::to_v4(old, four);
+    if (!landed.accepted) {
+        return landed;
+    }
     setup_persist::WorkshopSetup now;
-    const Written landed = setup_persist::v3::to_current(old, now);
+    landed = setup_persist::v4::to_current(four, now);
     return landed.accepted ? setup_persist::setup_in(now, out) : landed;
+}
+
+/// A desk as a version-4 Workshop wrote it: today's rows without their settings.
+inline setup_persist::v4::WorkshopSetup v4_desk(const Setup& s) {
+    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
+    setup_persist::v4::WorkshopSetup out;
+    out.format = now.format;
+    out.format_version = setup_persist::v4::kRetainedVersion;
+    out.name = now.name;
+    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
+        out.panes.push_back(setup_persist::v4::WorkshopSetupPane{p.provider, p.pane, p.place,
+                                                                 p.width, p.height, p.front});
+    }
+    return out;
+}
+
+/// A DESK AT EVERY BOUND A FILE CAN MEET: `kMaxSetupPanes` rows whose keys are
+/// `kMaxPaneKeyLen` bytes a writer escapes, every place and extent at `kMaxPanePixels`, and
+/// `kMaxPaneSettingsPerDesk` settings with keys at their bound and texts escaped whole -- the
+/// largest file the setup law lets a weaver write.
+inline void fill_to_every_bound(Setup& s) {
+    while (s.panes.size() < kMaxSetupPanes) {
+        const std::string tail = std::to_string(s.panes.size());
+        const std::string key = std::string(kMaxPaneKeyLen - tail.size(), '"') + tail;
+        REQUIRE(add_pane(s, PaneRef{key, key}));
+    }
+    std::size_t left = kMaxPaneSettingsPerDesk;
+    for (SetupPane& row : s.panes) {
+        row.place = PanePlace{pane_unit::kPixels, kMaxPanePixels, kMaxPanePixels};
+        row.width = PaneSize{pane_unit::kPixels, kMaxPanePixels};
+        row.height = PaneSize{pane_unit::kPixels, kMaxPanePixels};
+        row.settings.clear();
+        for (std::size_t i = 0; i < kMaxPaneSettingsPerRow && left > 0; ++i, --left) {
+            const std::string n = std::to_string(100 + i);
+            PaneSetting one;
+            one.key = std::string(kMaxPaneSettingKeyLen - n.size(), 'k') + n;
+            one.text = std::string(kMaxPaneSettingTextLen, '"');
+            row.settings.push_back(std::move(one));
+        }
+    }
+    REQUIRE(desk_setting_count(s.panes) == kMaxPaneSettingsPerDesk);
+    REQUIRE_MESSAGE(check_setup(s).accepted, check_setup(s).refusal);
+}
+
+/// PRESS THE KEY THE KEYMAP BINDS TO A LAYOUT ACT, as a weaver does -- read from the keymap, so a
+/// remap re-measures the case.
+template <class Rig> inline void layout_key(Rig& r, Act act) {
+    const Gesture g = r.session().keymap.gesture_of(act);
+    r.key(g.scancode, g.modifiers);
 }
 
 /// A setup file's text with one substring replaced -- how the refusal cases
@@ -1857,13 +1912,15 @@ struct SeatState {
 /// about the Pane Manager itself drive the shipped desktop image.
 class DoorHand
     : public loom::WeaveBase<DoorHand, SeatState,
-                             loom::Accept<PaneLaunchAnswered, PaneCloseAnswered, PaneSubjectActed,
-                                          SeatDo>,
+                             loom::Accept<PaneLaunchAnswered, PaneCloseAnswered,
+                                          PaneToggleAnswered, PaneSubjectActed, SeatDo>,
                              loom::Emit<PaneLaunchRequested, PaneCloseRequested,
-                                        InspectPaneRequested, PaneCommitRequested>> {
+                                        PaneToggleRequested, InspectPaneRequested,
+                                        PaneCommitRequested>> {
 public:
     void on(const PaneLaunchAnswered& a, loom::Mail&) { launched.push_back(a); }
     void on(const PaneCloseAnswered& a, loom::Mail&) { closed.push_back(a); }
+    void on(const PaneToggleAnswered& a, loom::Mail&) { toggled.push_back(a); }
     /// ...AND, ASKED AS AN INSPECTOR (Info's path), what naming a subject or writing a row came to.
     void on(const PaneSubjectActed& a, loom::Mail&) { acted.push_back(a); }
     void on(const SeatDo&, loom::Mail& mail) {
@@ -1875,6 +1932,7 @@ public:
     }
     std::vector<PaneLaunchAnswered> launched;
     std::vector<PaneCloseAnswered> closed;
+    std::vector<PaneToggleAnswered> toggled;
     std::vector<PaneSubjectActed> acted;
     std::function<void(DoorHand&, loom::Mail&)> next;
     static constexpr const char* kOffice = "zengine.test.hand";
@@ -1890,6 +1948,8 @@ inline DoorHand& door_hand(Rig& t) {
         grant.allow_to_role(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version,
                             kWorkshopProvider);
         grant.allow_to_role(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version,
+                            kWorkshopProvider);
+        grant.allow_to_role(PaneToggleRequested::zen_name, PaneToggleRequested::zen_version,
                             kWorkshopProvider);
         grant.allow_to_role(InspectPaneRequested::zen_name, InspectPaneRequested::zen_version,
                             kWorkshopProvider);
@@ -1933,6 +1993,22 @@ inline PaneCloseAnswered hand_close(Rig& t, const PaneRef& ref) {
     t.bus.drain_until_idle();
     REQUIRE_MESSAGE(h.closed.size() == before + 1, "the close door did not answer");
     return h.closed.back();
+}
+
+/// ...OR TOGGLE IT, as the desktop's Pane Manager does: hidden if the desk names it, shown if not.
+template <class Rig>
+inline PaneToggleAnswered hand_toggle(Rig& t, const PaneRef& ref) {
+    DoorHand& h = door_hand(t);
+    const std::size_t before = h.toggled.size();
+    h.next = [ref](DoorHand&, loom::Mail& m) {
+        (void)m.as_role(DoorHand::kOffice)
+            .send_to_role(kWorkshopProvider, PaneToggleRequested{ref.provider, ref.pane});
+    };
+    (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                              loom::WeaveId{}, 0));
+    t.bus.drain_until_idle();
+    REQUIRE_MESSAGE(h.toggled.size() == before + 1, "the toggle door did not answer");
+    return h.toggled.back();
 }
 
 /// NAME A PANE AS THE INSPECTED SUBJECT THROUGH THE HOST'S DOOR, as an inspector office asks it
@@ -2240,6 +2316,58 @@ public:
     std::vector<PaneActionRequested> actions;
     std::vector<std::string> action_authors;
     std::function<void(ProviderSeat&, loom::Mail&)> next;
+
+private:
+    std::string office_;
+};
+
+/// A NATIVE SEAT THAT TAKES ITS SETTINGS: it holds an office, offers and declares as it is told,
+/// and records in order every room and every hand-off Workshop sends it, with the office each was
+/// authored as -- so a case reads which came first. Apart from `ProviderSeat`, whose cases count
+/// every delivery and are owed no hand-off.
+class SettingsSeat
+    : public loom::WeaveBase<SettingsSeat, SeatState,
+                             loom::Accept<PaneCatalogRequested, PaneRoom, PaneSettings, SeatDo>,
+                             loom::Emit<PaneOffered, PaneSettingsDeclared>> {
+public:
+    explicit SettingsSeat(std::string office) : office_(std::move(office)) {}
+
+    void on(const PaneCatalogRequested&, loom::Mail&) { ++asks; }
+    void on(const PaneRoom& r, loom::Mail& mail) {
+        heard.push_back("room");
+        rooms.push_back(r);
+        authors.push_back(std::string(mail.authored_role()));
+    }
+    void on(const PaneSettings& s, loom::Mail& mail) {
+        heard.push_back("settings");
+        handed.push_back(s);
+        authors.push_back(std::string(mail.authored_role()));
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(SettingsSeat&, loom::Mail&)> once;
+            once.swap(next);
+            once(*this, mail);
+        }
+    }
+
+    void offer(loom::Mail& mail, const PaneOffered& o) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, o);
+    }
+    void declare(loom::Mail& mail, const PaneSettingsDeclared& d) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, d);
+    }
+    /// ...and PERSONALLY, from the weave that holds the office, which declares nothing.
+    void declare_personally(loom::Mail& mail, const PaneSettingsDeclared& d) {
+        (void)mail.send_to_role(kWorkshopProvider, d);
+    }
+
+    std::function<void(SettingsSeat&, loom::Mail&)> next;
+    std::vector<std::string> heard;    ///< "room" or "settings", in the order they arrived
+    std::vector<PaneRoom> rooms;
+    std::vector<PaneSettings> handed;
+    std::vector<std::string> authors;  ///< the office each was authored as, in the same order
+    int asks = 0;
 
 private:
     std::string office_;
@@ -2704,8 +2832,46 @@ struct PaneRig {
         return raw;
     }
 
+    /// A SEAT THAT TAKES ITS SETTINGS in `office`, granted only what it says.
+    SettingsSeat* mount_settings_seat(std::string_view office) {
+        auto seat = std::make_unique<SettingsSeat>(std::string(office));
+        SettingsSeat* raw = seat.get();
+        loom::Grant grant;
+        grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+        grant.allow_to_any(PaneSettingsDeclared::zen_name, PaneSettingsDeclared::zen_version);
+        const loom::WeaveId id =
+            bus.register_weave(std::move(seat), std::move(grant), std::string(office));
+        raw->zen_set_self(id);
+        settings_seats_.emplace_back(raw, id);
+        return raw;
+    }
+    /// ...AND TAKE IT OFF THE BUS, office and all, so another weave may hold that office.
+    void unmount_settings_seat(SettingsSeat* seat) {
+        for (std::size_t i = 0; i < settings_seats_.size(); ++i) {
+            if (settings_seats_[i].first == seat) {
+                (void)bus.unregister_weave(settings_seats_[i].second);
+                settings_seats_.erase(settings_seats_.begin() + static_cast<std::ptrdiff_t>(i));
+                return;
+            }
+        }
+    }
+    loom::WeaveId settings_seat_id(const SettingsSeat* seat) const {
+        for (const auto& [s, id] : settings_seats_) {
+            if (s == seat) {
+                return id;
+            }
+        }
+        return loom::WeaveId{};
+    }
     /// Make a seat perform one sentence INSIDE ITS OWN DELIVERY, which is what gives
     /// `mail.as_role(...)` a real authorship moment for Loom to verify.
+    void drive(SettingsSeat* seat, std::function<void(SettingsSeat&, loom::Mail&)> what) {
+        seat->next = std::move(what);
+        (void)bus.send(settings_seat_id(seat), loom::Message(loom::to_value(SeatDo{}),
+                                                             loom::WeaveId{}, loom::WeaveId{}, 0));
+        bus.drain_until_idle();
+    }
+
     void drive(ProviderSeat* seat, std::function<void(ProviderSeat&, loom::Mail&)> what) {
         seat->next = std::move(what);
         loom::WeaveId id{};
@@ -3212,6 +3378,7 @@ struct PaneRig {
 
     std::vector<loom::WeaveId> seat_ids;
     std::vector<ProviderSeat*> seats_;
+    std::vector<std::pair<SettingsSeat*, loom::WeaveId>> settings_seats_;
     /// HELD BY POINTER SO IT IS NOT CONSTRUCTED UNTIL A CASE ASKS, and declared LAST
     /// so it is destroyed FIRST: it retains the provider identity of every mount it
     /// made, and must not outlive the artifacts holding them.

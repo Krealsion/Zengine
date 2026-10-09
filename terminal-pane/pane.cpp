@@ -26,6 +26,7 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_parts.hpp"
+#include "workshop/pane_settings.hpp"
 #include <zen/weave/dispatch_refusal.hpp>
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -84,8 +85,8 @@ constexpr std::int64_t kPromptCols = 2;
 /// the blank cell after the last character.
 constexpr std::int64_t kCaretCols = 1;
 
-/// The chrome a pane spends on being this pane, whatever is in it: the header, the standing
-/// legend, the omission marker and the input row.
+/// The chrome a pane spends on being this pane, whatever is in it: the header, the legend (where
+/// its layout shows it), the omission marker and the input row.
 constexpr std::int64_t kChromeRows = 4;
 
 /// ROWS OF THE RECORD A WHEEL NOTCH READS.
@@ -137,7 +138,7 @@ std::string entry_line(const ShownEntry& e) {
     return e.text;
 }
 
-/// WHAT `^` MEANS, said once, on a row the pane always shows.
+/// WHAT `^` MEANS, said once, on a row the pane shows unless its layout keeps the legend off.
 std::string legend_text() { return "SUBMITTED = authored; a sender is not told its fate"; }
 
 std::vector<std::string> entry_wrapped(const ShownEntry& e, std::int64_t width) {
@@ -211,13 +212,15 @@ std::size_t first_shown(std::size_t selected, std::size_t total, std::size_t roo
 class TerminalPaneWeave
     : public loom::WeaveBase<
           TerminalPaneWeave, pane::TerminalPaneState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
+          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneSettings,
+                       ws::PaneCanvasRoom,
                        ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneMenuAnswered,
                        ws::TerminalValueAnswered, ws::PaneCarryAnswered, loom::DispatchRefused, PaneKey,
                        PaneTextInput, PaneActionRequested, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, ws::v4::PaneContent, PaneCaret,
+          loom::Emit<PaneOffered, PaneActions, ws::PaneSettingsDeclared, PaneContent,
+                     ws::v4::PaneContent, PaneCaret,
                      ws::v5::PaneCanvasContent, PaneEscapeUnspent,
                      ws::TerminalValueRequested, ws::PaneValueCarryRequested, ws::PaneMenuRequested,
                      ws::PanePassRequested,
@@ -253,6 +256,34 @@ public:
         }
         fit_room();
         say(mail);
+    }
+
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole: a list that keeps none is every
+    /// setting at its default. A value the legend cannot use leaves it shown and says why in its
+    /// own row; a key it did not declare is passed over. Held as plain members, never reload state.
+    void on(const ws::PaneSettings& handed, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kTerminalPane) {
+            return;
+        }
+        const ws::PaneSettingRow row = legend_setting();
+        const ws::PaneSetting* legend = ws::find_pane_setting(handed.settings, row.key);
+        const bool was = legend_shown_;
+        legend_shown_ = true;
+        legend_problem_.clear();
+        if (legend != nullptr) {
+            const std::string refused = ws::pane_setting_refused_by(row, *legend);
+            if (refused.empty()) {
+                legend_shown_ = *legend->flag;
+            } else {
+                legend_problem_ = refused + " -- " + ws::kSettingOn;
+            }
+        }
+        if (legend_shown_ != was) {
+            // EVERY ROW BELOW THE LEGEND MOVES, so no press aimed at the last picture lands here.
+            pictures_.retire();
+        }
+        fit_room();
+        say(mail); // draws nothing until a room is granted, so the first picture has the setting
     }
 
     /// THE PANE'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
@@ -728,6 +759,17 @@ private:
                           PaneOffered{pane::kTerminalPane, pane::kTerminalPaneName,
                                       pane::kTerminalPaneSummary, 10, 72});
         declare(mail);
+        (void)mail.as_role(pane::kTerminalPaneRole)
+            .send_to_role(kWorkshopRole,
+                          ws::PaneSettingsDeclared{pane::kTerminalPane, {legend_setting()}});
+    }
+
+    /// THE SETTING THE PANE TAKES: its legend shown or not, shown unless a layout says otherwise.
+    static ws::PaneSettingRow legend_setting() {
+        ws::PaneSettingRow row;
+        row.key = pane::kSettingLegend;
+        row.flag = true;
+        return row;
     }
 
     /// What this pane answers to: nine rows, and they never change. No modes, unlike Info's and
@@ -1130,6 +1172,7 @@ private:
         }
         subjects_.begin();
         input_row_ = -1;
+        legend_row_ = -1;
         list_first_row_ = -1;
         list_row_count_ = 0;
         list_shown_first_ = 0;
@@ -1148,7 +1191,7 @@ private:
         const std::int64_t body = rows_ - 1 - (notice ? 1 : 0);
         const bool header = body >= 1;
         const bool omission = body >= 2;
-        const bool legend = body >= kChromeRows;
+        const bool legend = legend_shown_ && body >= kChromeRows;
         std::int64_t rest = body - (header ? 1 : 0) - (omission ? 1 : 0) - (legend ? 1 : 0);
         if (rest < 0) {
             rest = 0;
@@ -1169,7 +1212,10 @@ private:
                  surface::role::kAccent);
         }
         if (legend) {
-            push(legend_text(), surface::role::kMuted);
+            // WHERE THE SETTING SHOWS, SO WHERE A VALUE IT CANNOT USE IS SAID.
+            legend_row_ = static_cast<std::int64_t>(out.size());
+            push(legend_problem_.empty() ? legend_text() : legend_problem_,
+                 legend_problem_.empty() ? surface::role::kMuted : surface::role::kAlert);
         }
 
         // THE LIST'S SHARE, DECIDED BEFORE THE TRANSCRIPT'S so the transcript gets what is
@@ -1303,7 +1349,8 @@ private:
 
     /// WHAT THE TERMINAL CALLS ITS PARTS, of the `said` rows it sends: a transcript entry carrying
     /// a value, `entry:<observation>`; the line being typed, `line`; the way back to the newest
-    /// output, `newest`; and a completion candidate, `candidate:<what it says>`.
+    /// output, `newest`; a completion candidate, `candidate:<what it says>`; and the legend row,
+    /// `legend`, which a layout's setting shows or hides.
     std::vector<ws::PaneRowPart> named_rows(std::int64_t said) const {
         ws::PartNames<ws::PaneRowPart> names;
         const auto name = [&](std::string what, std::int64_t row) {
@@ -1314,6 +1361,7 @@ private:
         }
         name("line", input_row_);
         name("newest", bottom_marker_row_);
+        name(pane::kSettingLegend, legend_row_);
         for (std::int64_t i = 1; i < list_row_count_; ++i) {
             const std::size_t index = list_shown_first_ + static_cast<std::size_t>(i - 1);
             if (list_first_row_ >= 0 && index < offered_.candidates.size()) {
@@ -1467,6 +1515,13 @@ private:
     Paste paste_;
 
     std::string notice_;
+
+    /// THE LEGEND SETTING THIS LAYOUT HANDED, and why a value it could not use left it shown --
+    /// said on the legend row itself, which no keystroke clears. Plain members: a reloaded image
+    /// is handed them again before its room.
+    bool legend_shown_ = true;
+    std::string legend_problem_;
+    std::int64_t legend_row_ = -1;
 
     /// WHICH COMPOSED ROW IS THE INPUT LINE, and where the list is -- written by `say` and
     /// read by a press, so a press and a picture cannot disagree about what is where.

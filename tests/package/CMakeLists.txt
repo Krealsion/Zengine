@@ -41,6 +41,12 @@ target_link_libraries(witness-surfaces
 add_executable(witness-pane-menu pane_menu_consumer.cpp)
 target_link_libraries(witness-pane-menu PRIVATE zengine::pane zengine::component loom::switchboard)
 
+# ---- a stranger's pane declares its settings and reads what it is handed, live ------------
+# pane_settings_consumer.cpp declares through the installed judge and reads a hand-off from a
+# stand-in host, from `zengine::pane` and the Loom bus alone, out of tree.
+add_executable(witness-pane-settings pane_settings_consumer.cpp)
+target_link_libraries(witness-pane-settings PRIVATE zengine::pane loom::switchboard)
+
 # ---- one capability, end to end: a weave that orders time ------------------------------
 #
 # loom_weave_build_contract() arrives with the Loom package, which zengineConfig.cmake found

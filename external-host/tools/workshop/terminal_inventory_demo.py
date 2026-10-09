@@ -61,7 +61,8 @@ def run(ctx):
     panes.append({'provider': term[0], 'pane': term[1],
                   'place': {'mode': 'pixels', 'x': '12', 'y': '0'},
                   'width': {'mode': 'pixels', 'amount': str(50 * 12)},
-                  'height': {'mode': 'pixels', 'amount': str(22 * 12)}, 'front': str(len(panes))})
+                  'height': {'mode': 'pixels', 'amount': str(22 * 12)}, 'front': str(len(panes)),
+                  'settings': []})
     for index, pane in enumerate(panes):
         pane['front'] = str(index)
     hand.ask('zengine.workshop', 'SetupApplyRequested', {'setup': json.dumps(setup)}, settle=True)

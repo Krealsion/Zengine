@@ -83,7 +83,15 @@ The root keeps the setup's files, the guest policy, both process logs, the Loom 
 setup with a project, `project/` and a development runtime. `start` first copies the setup, as
 `export` does, into `prepared/<name>/` in the root: the desk, toolbox, project files and tool
 packages come from that copy, so the root prepares -- and every Reset restores -- the revision it
-started with, whatever later happens to the setup's own directory. `stop` asks Workshop to quit
+started with, whatever later happens to the setup's own directory. Workshop opens on a desk and a
+session `start` writes at the versions this Workshop writes, setup version
+<!-- value setup_persist::kFormatVersion,workshop_formats.SETUP_VERSION -->5<!-- /value --> and
+session version
+<!-- value session_persist::kFormatVersion,workshop_formats.SESSION_VERSION -->8<!-- /value -->
+(`external-host/tools/workshop/workshop_formats.py`), and every desk the setup applies is at that
+setup version: a desk saved at setup version 4 is lifted, its rows keeping no settings, and an
+older one is refused when the setup is loaded, before `start` writes anything, saying to open it
+and save it again with `s`. `stop` asks Workshop to quit
 (`WorkshopQuitRequested`), sees the link close, then ends the Loom session. If the quit is refused
 it says why in Workshop's own words -- the pane holding unsaved work, say -- exits non-zero and
 leaves the demo running as it was; save or discard what it names and stop again.

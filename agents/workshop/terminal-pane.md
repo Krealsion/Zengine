@@ -1,7 +1,7 @@
 # Workshop law — the Terminal pane's line and record
 
 Register `WL-TERM`, continued from [`terminal.md`](terminal.md): what the Terminal pane does with
-the line a weaver composes and the record it is shown. One law per heading; cite by ID. Router:
+the line a weaver composes, the record it is shown, and the setting its layout keeps for it. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). The participant, the picture and the completer are
 [`terminal.md`](terminal.md); what crosses the pane seam is [`../panes.md`](../panes.md).
 
@@ -87,6 +87,29 @@ top and the rows below at its bottom"`, case `"when the entry being read is evic
 to the oldest kept and says why"`, case `"in every small room the line is the last row and its
 caret and press agree while reading and composing"`.
 WHY — `agents/decisions/the-record-is-read-through-a-view.md`
+
+## WL-TERM-19 — The Terminal's legend is a setting each layout keeps
+
+LAW — The Terminal declares one setting, `legend`, a flag on by default; handed it off, its legend row's place goes to the record, and handed a value it cannot use, the legend row stays and says why.
+
+MEANS
+- it takes what it is handed whole and holds it in plain members, so a reload is handed it again;
+- the legend row is its part `legend`, there while it shows and gone while it does not;
+- every row below it moves when it shows or hides, so no press aimed at the last picture lands.
+
+DOES NOT MEAN
+- the band's legend preference (WL-KEY-09): that is the keymap file's, over Workshop's own rows.
+
+PROVEN BY — `terminal-pane/pane.cpp` `on(ws::PaneSettings)`, `legend_setting`, `announce`,
+`legend_shown_`, `legend_problem_`, `named_rows`, `say`; `terminal-pane/vocabulary.hpp`
+`kSettingLegend`; `tests/test_workshop_panes_legend.cpp` case `"a layout keeps the Terminal's
+legend hidden while another shows it, written through Info's rows"`, case `"a Terminal seated again
+is handed its layout's legend before its room, and its first picture keeps it"`, case `"after a
+restart the Terminal's first picture keeps its layout's legend, and so does a reload's"`, case `"a
+legend value the Terminal cannot use is kept as stored, and said in its legend row"`, case `"a
+Terminal closed in a layout that hid its legend shows it again when it is shown"`, case `"a press
+aimed at the Terminal's picture from before its legend hid is refused"`.
+WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
 ## Do not assume
 

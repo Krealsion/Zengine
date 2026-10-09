@@ -373,13 +373,17 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     // unresolved row exactly as on an open one (rule).
     case Act::kManageRemove: {
         const std::string name = ref_text(ref);
+        const SetupPane* row = pane_of(s, ref);
+        const std::vector<PaneSetting> discarded =
+            row != nullptr ? row->settings : std::vector<PaneSetting>{};
         if (!remove_pane(s, ref)) {
             say(name + " is no longer in this setup -- the Pane Manager can show it again",
                 true);
             return;
         }
         apply_setup(mail);
-        say("hid " + name + " -- the Pane Manager shows it again; nothing behind it was touched",
+        say("hid " + name + discarded_settings(discarded) +
+                " -- the Pane Manager shows it again; nothing behind it was touched",
             false);
         return;
     }

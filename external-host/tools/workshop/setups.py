@@ -15,6 +15,8 @@ import posixpath
 import re
 import unicodedata
 
+import workshop_formats as formats
+
 FORMAT, VERSION = "zengine-setup", "1"
 HERE = Path(__file__).resolve().parent
 COLLECTION = HERE / "setups"
@@ -219,19 +221,20 @@ class Setup:
         return self.data.get("material") or {}
 
     def desk(self, views=()):
-        """The WorkshopSetup envelope to apply, as loaded, with each portable view in `views`
-        seated in the next declared view slot (Workshop refuses a setup naming a view that does
-        not exist)."""
+        """The WorkshopSetup envelope to apply, at the setup version Workshop writes (a version-4
+        desk lifted, an older one refused: workshop_formats), with each portable view in `views`
+        seated in the next declared view slot, keeping no settings (Workshop refuses a setup
+        naming a view that does not exist)."""
         if isinstance(self._desk, Exception):
             raise self._desk
-        desk = json.loads(self._desk)
+        desk = formats.current(json.loads(self._desk))
         rows = desk["fields"]["panes"]
         for slot, view in zip(self.data.get("view_slots", []), views):
             rows.append({"provider": "zengine.inventory-pane", "pane": view,
                          "place": {"mode": "pixels", "x": str(slot["x"] * 12), "y": str(slot["y"] * 12)},
                          "width": {"mode": "pixels", "amount": str(slot["width"] * 12)},
                          "height": {"mode": "pixels", "amount": str(slot["height"] * 12)},
-                         "front": str(len(rows))})
+                         "front": str(len(rows)), "settings": []})
         return desk
 
     def without(self, desk, providers):

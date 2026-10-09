@@ -9,6 +9,7 @@
 
 #include "pane_vocabulary.hpp"
 #include "pane_canvas_vocabulary.hpp"
+#include "pane_settings.hpp"
 #include <zen/switchboard/message.hpp>
 
 #include "builder/vocabulary.hpp"
@@ -16,6 +17,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -233,6 +235,11 @@ struct RuntimePane {
     /// when nothing this office declared for the pane is in force. An `ActionsWithdrawn` names it.
     // WL-DESK-06 -- agents/workshop/desktop.md
     std::int64_t declaration = 0;
+    /// THE SETTINGS THIS PANE DECLARED, as admitted, and the weave that declared them: they
+    /// count while that weave holds the office (`WorkshopWeave::counted_settings`).
+    // WL-SETTING-03 -- agents/workshop/settings.md
+    std::vector<PaneSettingRow> settings_rows = {};
+    loom::WeaveId settings_from{};
     std::int64_t preferred_rows = 0;
     std::int64_t preferred_columns = 0;
     /// A canvas body asked for in canvas pixels (`v3::PaneOffered`), and the rows of text beneath
@@ -354,6 +361,11 @@ struct ExternalPane {
     /// The press stamp, echoed on `v3::PanePressed` and `PaneButton` so the pane can refuse an
     /// older picture.
     PictureStamp stamp;
+    /// THE SETTINGS LAST HANDED TO THE OFFICE'S HOLDER for this presentation, and that holder.
+    /// Nothing until the first hand-off, which is not the empty list a hand-off may carry.
+    // WL-SETTING-04 -- agents/workshop/settings.md
+    std::optional<std::vector<PaneSetting>> settings_heard;
+    loom::WeaveId settings_holder{};
     struct Canvas {
         loom::WeaveId owner{};
         std::int64_t grant = 0, x = 0, y = 0, width = 0, height = 0, grain = 0;

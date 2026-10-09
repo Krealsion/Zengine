@@ -75,15 +75,20 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-06 — Per-layout is the value's own fields and nothing else
 
-LAW — Participation, authored place, extent, front order and the name are per-layout; everything else is one Workshop-global truth a switch does not copy, clear or revalidate.
+LAW — Participation, authored place, extent, front order, a pane's settings and the name are per-layout; everything else is one Workshop-global truth a switch does not copy, clear or revalidate.
 
 MEANS
 - the catalog, providers and their state (the Editor's document among them), the marks;
 - recipes, the project anchor, the clipboard, the keymap, the window, selection and keyboard.
 
-PROVEN BY — `workshop/setup.hpp` `Setup`; `workshop/weave_session.cpp` `switch_layout`;
-`tests/test_workshop_host.cpp` case `"a switch touches no Workshop-global fact"`,
-case `"a new layout is blank and duplicates no Workshop-global state"`.
+DOES NOT MEAN
+- that a pane's own state is a setting: a switch hands a pane its settings and copies none of it.
+
+PROVEN BY — `workshop/setup.hpp` `Setup`, `SetupPane::settings`; `workshop/weave_session.cpp`
+`switch_layout`; `tests/test_workshop_host.cpp` case `"a switch touches no Workshop-global
+fact"`, case `"a new layout is blank and duplicates no Workshop-global state"`;
+`tests/test_workshop_panes_settings.cpp` case `"a layout switch hands a pane its new layout's
+settings once, and only when they differ"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-07 — One pane in two layouts is one pane and one provider
@@ -91,12 +96,14 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 LAW — Leaving a layout withdraws the presentation (`close_kind`; no unload, nothing sent), entering one re-seats it and re-earns its room, and an inactive layout is an unread value, never walked.
 
 MEANS
-- a pane in both layouts at the same prose capacity hears nothing: no grant, no ask.
+- a pane in both layouts at the same prose capacity hears no grant and no ask;
+- ...and is handed its settings only when the two layouts keep different ones (WL-SETTING-04).
 
 PROVEN BY — `workshop/weave_session.cpp` `apply_setup`; `workshop/panes.hpp` `close_kind`;
 `workshop/setup.hpp` `SetupState::shelved`; `tests/test_workshop_panes_window.cpp` case
 `"a pane in two layouts is one pane, one provider, one room"`, case `"an inactive
-layout's rows are dormant, not maintained"`.
+layout's rows are dormant, not maintained"`; `tests/test_workshop_panes_settings.cpp` case `"a
+layout switch hands a pane its new layout's settings once, and only when they differ"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-08 — `kMaxLayouts` refuses a ninth rather than dropping one

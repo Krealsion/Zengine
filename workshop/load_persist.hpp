@@ -115,8 +115,8 @@ struct WorkshopLoadArtifact {
 } // namespace v1
 
 /// One artifact row as written (format version 3): which artifact, which surfaces it is asked
-/// for, and whether this project may stand without it. `provider` and `weave` are lists because
-/// the wire has no optional; the plan law bounds each at one. `optional` is a plain `bool`: every
+/// for, and whether this project may stand without it. `provider` and `weave` are lists, each
+/// empty or of one, the plan law's bound. `optional` is a plain `bool`: every
 /// row either may be stepped over or may not, so a version-3 file says so on every row.
 struct WorkshopLoadArtifact {
     std::string artifact;

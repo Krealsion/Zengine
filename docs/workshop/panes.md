@@ -85,7 +85,8 @@ Pane Manager's own visibility.
 
 **Hiding unloads nothing.** `x` takes the pane off the layout you are on and leaves its tool
 running exactly as it was: the Editor keeps an unsaved file, the Terminal keeps its history,
-and `Enter` shows the pane again to find them. Hiding a pane that is not on the layout is
+and `Enter` shows the pane again to find them. Its place, size and settings in that layout go
+with it, and the band names the settings it took. Hiding a pane that is not on the layout is
 refused in words, and it shows nothing.
 
 **Showing never loads anything.** A `[gone]` row is a pane nothing in this Workshop is offering
@@ -513,6 +514,19 @@ Reading the resolved rows never writes anything. Resize the window, switch to th
 select other panes, look as long as you like: the authored values are byte-for-byte what they
 were.
 
+`SETTINGS` appears for a pane that declares settings, or whose row in this layout keeps some:
+one row per setting, named by its key, reading the value this layout keeps, or the pane's
+default where it keeps none. Each layout keeps its own, so the same pane can show its legend in
+one layout and hide it in another. `Enter` opens a draft as on an authored row: type `on` or
+`off` for a switch, a whole number for a number, or a word the pane takes, and `Enter` writes it
+to this layout. A word is written exactly as you typed it, spaces included. `-`, with spaces
+around it or not, gives the setting back to the pane's default, and typing the default is the
+same thing — nothing is stored. A value the setting does not take is refused, naming what it
+takes, and the draft keeps your text. A row whose value reads `kept` holds a setting this
+layout keeps for a pane that does not take it here — another build, or another tool in the
+same office — and takes only `-`, which clears it. The band says whether the pane was handed
+the value; what it does with it is the pane's.
+
 `INTERIOR` says what is **inside** the subject, honestly: a pane is code, or a loaded weave's
 own — a view you made is its own participant's — and the row is a read-only capture of its
 resolved body — where it is and how many rows of type it holds — and the plain statement that
@@ -624,7 +638,8 @@ rectangles, labels and text runs on a canvas room Workshop grants it, and never 
 was granted. What it receives is a press as a
 place in that room, the keys and text while a weaver has pressed into it, the wheel over its
 body, and — for the actions it declared beside its offer — the resolved action id rather than
-the key, so a weaver's keymap moves a pane's keys exactly as it moves Workshop's. A pane that has
+the key, so a weaver's keymap moves a pane's keys exactly as it moves Workshop's; a pane that
+takes its settings is handed the ones its layout keeps for it. A pane that has
 more to say than it can hold must say *how much it left out* — a count a reader can trust is a
 count that names what it read.
 

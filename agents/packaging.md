@@ -24,8 +24,8 @@ house and a guest spell them identically: `activation`, `timer`, `surface`, `inp
 header `workshop/pane_vocabulary.hpp`, `workshop/pane_canvas_vocabulary.hpp`, and the optional
 helpers beside them, `workshop/pane_menu.hpp`, `workshop/pane_canvas_text.hpp` and
 `workshop/pane_canvas_rows.hpp`,
-plus `workshop/pane_operation.hpp`, `workshop/pane_carry.hpp`, `workshop/pane_view.hpp`,
-`workshop/pane_shortcuts.hpp` and `workshop/setup_control.hpp`,
+plus `workshop/pane_operation.hpp`, `workshop/pane_carry.hpp`, `workshop/pane_settings.hpp`,
+`workshop/pane_view.hpp`, `workshop/pane_shortcuts.hpp` and `workshop/setup_control.hpp`,
 installed under `include/zengine/workshop/`), `neovim` (the one
 header `neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),

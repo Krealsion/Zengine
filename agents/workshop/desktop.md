@@ -106,7 +106,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-06 — A declaration is answered with its verdict, and withdrawn by its number
 
-LAW — Workshop answers each declaration it judges with its verdict, numbers an accepted one, and names that number when it later leaves the keymap; the fact is Workshop's, the recovery the provider's.
+LAW — Workshop answers each action declaration it judges with its verdict, numbers an accepted one, and names that number when it later leaves the keymap; the fact is Workshop's, the recovery the provider's.
 
 MEANS
 - the verdict is Loom's answer: it echoes the declaration's correlation, to its incarnation only;
@@ -180,7 +180,8 @@ LAW — A close names a pane by its durable keys; the host takes its row off the
 
 MEANS
 - a launch finds it as it was: an Editor's unsaved source, a Terminal's history;
-- a close never opens anything, and the launcher's Return never closes anything (`x` does).
+- a close never opens anything, and the launcher's Return never closes anything (`x` does);
+- the row is what goes: its place, size and settings start afresh, and the close named the settings.
 
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneCloseRequested`, `PaneCloseAnswered`;
 `workshop/weave.hpp` `close_pane`, `on(PaneCloseRequested)`; `workshop/weave_desktop.cpp`

@@ -367,7 +367,7 @@ TEST_CASE("the whole-setup law: duplicates, the count bound, and an empty list")
     // about what `check_setup` says of one has to build it by hand -- with a rank
     // that is otherwise legal, so the refusal below is about the DUPLICATE and not
     // about the permutation.
-    twice.panes.push_back(SetupPane{ref_of(stock::kKind), {}, {}, {}, 1});
+    twice.panes.push_back(SetupPane{ref_of(stock::kKind), {}, {}, {}, 1, {}});
     CHECK_FALSE(check_setup(twice).accepted);
     CHECK(check_setup(twice).refusal.find("twice") != std::string::npos);
     CHECK(check_setup(twice).refusal.find("zengine.test.stack/stack") != std::string::npos);
@@ -570,7 +570,7 @@ TEST_CASE("a setup file says what it is, in words a weaver can read") {
 
     // ITS OWN FORMAT IDENTITY, beside the document's and not equal to it.
     CHECK(text.find("\"format\":\"zengine-workshop-setup\"") != std::string::npos);
-    CHECK(text.find("\"format_version\":\"4\"") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"5\"") != std::string::npos);
     CHECK(text.find("\"name\":\"Default\"") != std::string::npos);
     CHECK(text.find("\"provider\":\"zengine.workshop\"") != std::string::npos);
     CHECK(text.find("\"pane\":\"info\"") != std::string::npos);
@@ -672,11 +672,11 @@ TEST_CASE("a malformed setup file is refused, and the live setup is untouched") 
     cases.push_back({"the wrong format identity",
                      forged_setup(good, "\"zengine-workshop-setup\"", "\"someone-elses-tool\"")});
     cases.push_back({"an unsupported format version",
-                     forged_setup(good, "\"format_version\":\"4\"", "\"format_version\":\"9\"")});
+                     forged_setup(good, "\"format_version\":\"5\"", "\"format_version\":\"9\"")});
     cases.push_back({"a missing required field",
                      forged_setup(good, "\"name\":\"Everything\",", "")});
     cases.push_back({"a field of the wrong kind",
-                     forged_setup(good, "\"format_version\":\"4\"", "\"format_version\":3")});
+                     forged_setup(good, "\"format_version\":\"5\"", "\"format_version\":3")});
     cases.push_back({"a field the setup does not declare",
                      forged_setup(good, "\"name\":", "\"colour\":\"red\",\"name\":")});
     cases.push_back({"a field a pane reference does not declare",
@@ -763,13 +763,7 @@ TEST_CASE("a missing setup file is an ordinary refusal, not an empty setup") {
 TEST_CASE("a file too large to be a setup is refused before it is read") {
     TempDir dir("setup-huge");
     const std::string path = dir.file("setup.json");
-    {
-        std::ofstream out(path, std::ios::binary | std::ios::trunc);
-        const std::string chunk(1u << 12, 'x');
-        for (int i = 0; i < 32; ++i) { // 128 KiB, past the 64 KiB ceiling
-            out.write(chunk.data(), static_cast<std::streamsize>(chunk.size()));
-        }
-    }
+    spillout(path, std::string(static_cast<std::size_t>(setup_persist::kMaxSetupBytes) + 1, 'x'));
     REQUIRE(std::filesystem::file_size(path) > setup_persist::kMaxSetupBytes);
 
     const setup_persist::LoadedSetup refused = setup_persist::load_file(path);
@@ -1825,7 +1819,7 @@ TEST_CASE("a name carrying a quote and a backslash survives its file exactly") {
     // THE FORMAT WORD IS UNCHANGED AND THE VERSION IS NOT: an authored name carrying the two
     // bytes the quoting owner escapes comes back exactly as it went in, whatever the version,
     // and handing Workshop the wrong one of its own two files is still named, not half-read.
-    CHECK(setup_persist::kFormatVersion == 4);
+    CHECK(setup_persist::kFormatVersion == 5);
     CHECK(std::string(setup_persist::kFormat) == "zengine-workshop-setup");
 
     const std::string path = dir.file("q.json");
@@ -1833,7 +1827,7 @@ TEST_CASE("a name carrying a quote and a backslash survives its file exactly") {
     const std::string a = slurp(path);
     INFO(a);
     CHECK(a.find("\"format\":\"zengine-workshop-setup\"") != std::string::npos);
-    CHECK(a.find("\"format_version\":\"4\"") != std::string::npos);
+    CHECK(a.find("\"format_version\":\"5\"") != std::string::npos);
 
     const setup_persist::LoadedSetup read = setup_persist::load_file(path);
     REQUIRE(read.outcome.accepted);
@@ -2145,9 +2139,9 @@ TEST_CASE("a malformed session costs the desk and nothing else") {
          [] {
              std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
                                                          session_persist::Placement{});
-             const std::size_t at = text.find("\"version\":7");
+             const std::size_t at = text.find("\"version\":8");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":7").size(), "\"version\":8");
+             text.replace(at, std::string("\"version\":8").size(), "\"version\":9");
              return text;
          }()},
         {"a session whose desk is not a legal setup",
@@ -2187,9 +2181,9 @@ TEST_CASE("an unreadable session names its version by NUMBER") {
     TempDir dir("wux0-d-version");
     std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
                                                 session_persist::Placement{});
-    const std::size_t at = text.find("\"version\":7");
+    const std::size_t at = text.find("\"version\":8");
     REQUIRE(at != std::string::npos);
-    text.replace(at, std::string("\"version\":7").size(), "\"version\":8");
+    text.replace(at, std::string("\"version\":8").size(), "\"version\":9");
     const session_persist::LoadedSession refused = session_persist::from_text(text);
     CHECK(refused.present);
     CHECK_FALSE(refused.outcome.accepted);
@@ -2197,8 +2191,8 @@ TEST_CASE("an unreadable session names its version by NUMBER") {
     // version to this one is live. The identity of the missing power is named, because it is
     // a fact this host knows and a weaver can look for.
     CHECK(refused.outcome.refusal ==
-          "session version 8 cannot be read: no live conversion from `WorkshopSession` v8 to "
-          "v7 (`zengine.migrate.WorkshopSession.v8-to-v7`)");
+          "session version 9 cannot be read: no live conversion from `WorkshopSession` v9 to "
+          "v8 (`zengine.migrate.WorkshopSession.v9-to-v8`)");
     // AND IT CLAIMS NOTHING IT CANNOT KNOW: not that a converter exists on disk, not that
     // one should be installed. There is no unloaded discovery in this system to be honest
     // about, so the sentence does not pretend there is.
@@ -2213,15 +2207,15 @@ TEST_CASE("a current-version file whose own field says otherwise is a forgery") 
     // forgery produces one.
     std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
                                                 session_persist::Placement{});
-    const std::size_t at = text.find("\"format_version\":\"8\"");
+    const std::size_t at = text.find("\"format_version\":\"9\"");
     REQUIRE(at == std::string::npos);
     // ⚠ THE SESSION'S OWN FIELD AND A LAYOUT'S ARE TWO FACTS AND TWO NUMBERS: a session nests
     // desks at their own version. The case edits the session's and asserts the session's
     // sentence; the desk's own has a separate owner, and the case below proves it.
-    const std::size_t field = text.find("\"format_version\":\"7\"");
+    const std::size_t field = text.find("\"format_version\":\"8\"");
     REQUIRE(field != std::string::npos);
-    text.replace(field, std::string("\"format_version\":\"7\"").size(),
-                 "\"format_version\":\"8\"");
+    text.replace(field, std::string("\"format_version\":\"8\"").size(),
+                 "\"format_version\":\"9\"");
 
     op::Catalog conversions;
     REQUIRE(conversions.mount("suite", session_history::conversions()));
@@ -2229,7 +2223,7 @@ TEST_CASE("a current-version file whose own field says otherwise is a forgery") 
         session_persist::from_text(text, &conversions);
     CHECK_FALSE(refused.outcome.accepted);
     CHECK(refused.outcome.refusal ==
-          "this session claims version 7 and its own format_version field says 8");
+          "this session claims version 8 and its own format_version field says 9");
     // ...and it did not become a conversion request on the way past.
     CHECK(refused.outcome.refusal.find("conversion") == std::string::npos);
 }
@@ -2910,7 +2904,7 @@ TEST_CASE("a version-2 session still loads, its placement reading as absence") {
     // The next close writes the current version, byte-stable thereafter.
     const std::string saved = session_persist::to_text(read.layouts, read.active, read.viewport_w,
                                                        read.viewport_h, read.placement);
-    CHECK(saved.find("\"format_version\":\"4\"") != std::string::npos);
+    CHECK(saved.find("\"format_version\":\"5\"") != std::string::npos);
     CHECK(session_persist::from_text(saved).outcome.accepted);
 }
 
@@ -3347,7 +3341,7 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
     CHECK(live_layout(read) == second_authored);
     CHECK(has_pane(read.layouts[1].desk, ref_of(stock::kKind)));
     CHECK_FALSE(has_pane(read.layouts[0].desk, ref_of(stock::kKind)));
-    CHECK(slurp(session).find("\"version\":7") != std::string::npos);
+    CHECK(slurp(session).find("\"version\":8") != std::string::npos);
     CHECK(slurp(session).find("\"layouts\":") != std::string::npos);
 
     // AND THE NEXT RUN COMES BACK ON ALL THREE, standing on the one it left on.
@@ -3505,12 +3499,13 @@ TEST_CASE("the shipped artifact supplies exactly the conventional edges") {
     // THE IDENTITIES ARE DERIVED FROM THE EDGES, so this list is a reading of the
     // convention rather than a list somebody typed twice.
     const std::vector<std::string> supplied = history.catalog.identities();
-    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v7",
-                                               "zengine.migrate.WorkshopSession.v2-to-v7",
-                                               "zengine.migrate.WorkshopSession.v3-to-v7",
-                                               "zengine.migrate.WorkshopSession.v4-to-v7",
-                                               "zengine.migrate.WorkshopSession.v5-to-v7",
-                                               "zengine.migrate.WorkshopSession.v6-to-v7"});
+    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v8",
+                                               "zengine.migrate.WorkshopSession.v2-to-v8",
+                                               "zengine.migrate.WorkshopSession.v3-to-v8",
+                                               "zengine.migrate.WorkshopSession.v4-to-v8",
+                                               "zengine.migrate.WorkshopSession.v5-to-v8",
+                                               "zengine.migrate.WorkshopSession.v6-to-v8",
+                                               "zengine.migrate.WorkshopSession.v7-to-v8"});
     // ...and each of them declares the edge its name claims.
     for (const std::string& identity : supplied) {
         CAPTURE(identity);
@@ -3638,7 +3633,7 @@ TEST_CASE("an old session's OWN law still runs -- the conversion skips no check"
         CHECK(no.outcome.refusal.find("default or cells") != std::string::npos);
         // The conversion that refused is named, because a weaver who has one converter
         // mounted and another missing needs to know which spoke.
-        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v7") !=
+        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v8") !=
               std::string::npos);
     }
     SUBCASE("a viewport this build will not open at is declined, and the desk still comes") {
@@ -3746,8 +3741,8 @@ TEST_CASE("reading an old session does not rewrite it; the next close does") {
     // 4. AND THE ORDINARY CLOSE-TIME SAVE WROTE THE CURRENT SHAPE, on its own existing law.
     const std::string now = slurp(path);
     CHECK(now != original);
-    CHECK(now.find("\"version\":7") != std::string::npos);
-    CHECK(now.find("\"format_version\":\"4\"") != std::string::npos);
+    CHECK(now.find("\"version\":8") != std::string::npos);
+    CHECK(now.find("\"format_version\":\"5\"") != std::string::npos);
 
     // 5. ...SO THE NEXT RUN NEEDS NO CONVERTER AT ALL.
     Live back;
@@ -3841,26 +3836,29 @@ TEST_CASE("the session reader owns no historical shape and no conversion") {
     // Defence in depth, the shape this repository's other source tripwires use: what a
     // translation unit can NAME is a fact only reading the file carries, and the point is
     // that the current owner does not grow a rung per vintage. A retained shape, a
-    // `kV*FormatVersion` or a `claimed_version() == 5` arm each reddens this case. ⚠ Version 5
-    // matters most: its FIELDS are the current shape's, so a retained v5 branch would compile,
+    // `kV*FormatVersion` or a `claimed_version() == 7` arm each reddens this case. ⚠ Version 7
+    // matters most: its FIELDS are the current shape's, so a retained v7 branch would compile,
     // admit and behave -- nothing but reading this file catches it.
     const std::string source = slurp(WORKSHOP_SESSION_PERSIST_HPP);
     REQUIRE_FALSE(source.empty());
     for (const char* forbidden : {"namespace v1", "namespace v2", "namespace v3",
-                                  "namespace v4", "namespace v5", "setup_in_v2",
+                                  "namespace v4", "namespace v5", "namespace v6",
+                                  "namespace v7", "setup_in_v2",
                                   "kV1FormatVersion", "kV2FormatVersion",
                                   "kV3FormatVersion", "kV4FormatVersion",
-                                  "kV5FormatVersion", "session_history::",
+                                  "kV5FormatVersion", "kV6FormatVersion",
+                                  "kV7FormatVersion", "session_history::",
                                   "WorkshopSession, 1", "WorkshopSession, 2",
                                   "WorkshopSession, 3", "WorkshopSession, 4",
-                                  "WorkshopSession, 5", "claimed_version() ==",
+                                  "WorkshopSession, 5", "WorkshopSession, 6",
+                                  "WorkshopSession, 7", "claimed_version() ==",
                                   "claimed_version()=="}) {
         CAPTURE(forbidden);
         CHECK(source.find(forbidden) == std::string::npos);
     }
     // ...and the one number it does carry is the one it writes.
-    CHECK(session_persist::kFormatVersion == 7);
-    CHECK(session_persist::WorkshopSession::zen_version == 7u);
+    CHECK(session_persist::kFormatVersion == 8);
+    CHECK(session_persist::WorkshopSession::zen_version == 8u);
 }
 
 TEST_CASE("a session this run could not read is never written over") {
@@ -3879,11 +3877,14 @@ TEST_CASE("a session this run could not read is never written over") {
         {"the vintage this build most recently retired",
          loom::compat::serialize(loom::to_value(
              [] {
-                 session_history::v3::WorkshopSession old;
+                 session_history::v7::WorkshopSession old;
                  old.format = session_persist::kFormat;
-                 old.format_version = 3;
-                 old.viewport = session_history::v6::WorkshopViewport{120, 44};
-                 old.desk = v3_desk(arranged_desk("Retired"));
+                 old.format_version = session_history::kV7FormatVersion;
+                 old.viewport = session_persist::WorkshopViewport{cells_px(120), cells_px(44)};
+                 old.layouts.push_back(session_history::v7::WorkshopLayout{
+                     v4_desk(arranged_desk("Retired")),
+                     session_history::v7::WorkshopSetupLink{std::string(),
+                                                            session_history::absent_v4_desk()}});
                  old.placement = session_history::absent_placement();
                  return old;
              }())),
@@ -3891,9 +3892,9 @@ TEST_CASE("a session this run could not read is never written over") {
         {"a version this build has never written", [] {
              std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
                                                          session_persist::Placement{});
-             const std::size_t at = text.find("\"version\":7");
+             const std::size_t at = text.find("\"version\":8");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":7").size(), "\"version\":9");
+             text.replace(at, std::string("\"version\":8").size(), "\"version\":9");
              return text;
          }(), true},
         {"bytes that are not a session at all", std::string("{"), true},
@@ -3971,12 +3972,12 @@ TEST_CASE("a conversion owns yesterday's semantics and does not rewrite history"
 
     SUBCASE("the session's own format_version must be the vintage the edge converts") {
         session_history::v1::WorkshopSession old = old_v1_session("Forged", 100, 30);
-        old.format_version = 7; // the envelope still claims v1
+        old.format_version = 8; // the envelope still claims v1
         const session_persist::LoadedSession no =
             session_persist::from_text(as_text(old), &history.catalog);
         CHECK_FALSE(no.outcome.accepted);
         CHECK(no.outcome.refusal.find("this session claims version 1 and its own "
-                                      "format_version field says 7") != std::string::npos);
+                                      "format_version field says 8") != std::string::npos);
     }
     SUBCASE("...and so must the nested desk's") {
         session_history::v1::WorkshopSession old = old_v1_session("Forged", 100, 30);
@@ -4125,8 +4126,8 @@ TEST_CASE("a whole layout run round-trips exactly, active in the middle") {
     CHECK(session_persist::to_text(read.layouts, read.active, read.viewport_w,
                                    read.viewport_h, read.placement) == text);
     // AND THE FILE SAYS WHAT IT IS: the current version, a run, and a position.
-    CHECK(text.find("\"version\":7") != std::string::npos);
-    CHECK(text.find("\"format_version\":\"7\"") != std::string::npos);
+    CHECK(text.find("\"version\":8") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"8\"") != std::string::npos);
     CHECK(text.find("\"layouts\":") != std::string::npos);
     CHECK(text.find("\"active\":\"1\"") != std::string::npos);
     // ...and every layout in it is an ordinary setup, at the setup format's own version.
@@ -4201,19 +4202,23 @@ TEST_CASE("a current run this Workshop could not have made is refused as CURRENT
 
 TEST_CASE("a desk at its pane bound, every key at its own bound, is a setup file a launch reads") {
     // The row bound and the file's byte bound are two owners' numbers: raising the rows must
-    // not let a weaver save a desk the next launch refuses as too large.
-    const std::string long_key(kMaxPaneKeyLen, 'k');
+    // not let a weaver save a desk the next launch refuses as too large. Every key, place,
+    // extent and setting at its own bound, the texts a writer escapes, is the largest file.
     Setup s = setup_of(std::string(kMaxSetupNameLen, 'n'), {});
-    while (s.panes.size() < kMaxSetupPanes) {
-        const std::string tail = std::to_string(s.panes.size());
-        REQUIRE(add_pane(s, PaneRef{long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail,
-                                    long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail}));
-    }
+    fill_to_every_bound(s);
     const std::string text = setup_persist::to_text(s);
     CHECK(text.size() <= setup_persist::kMaxSetupBytes);
     const auto read = setup_persist::from_text(text);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
-    CHECK(read.setup.panes.size() == kMaxSetupPanes);
+    CHECK(read.setup == s);
+
+    // ...AND THROUGH THE FILE: `s` writes it and `r`'s reader reads it back whole.
+    TempDir dir("setup-every-bound");
+    const std::string path = dir.file("setup.json");
+    REQUIRE(setup_persist::save_file(path, s).accepted);
+    const auto loaded = setup_persist::load_file(path);
+    REQUIRE_MESSAGE(loaded.outcome.accepted, loaded.outcome.refusal);
+    CHECK(loaded.setup == s);
 }
 
 TEST_CASE("a session may hold as much as it may hold, and be read back") {
@@ -4222,19 +4227,14 @@ TEST_CASE("a session may hold as much as it may hold, and be read back") {
     // DESK'S CEILING -- and a session ceiling left there would have `q` write a file the next
     // launch refuses. Every bound is the owner's own constant, never a literal, so raising any
     // of them re-measures this case instead of stranding it.
-    const std::string long_key(kMaxPaneKeyLen, 'k');
     std::vector<Layout> run;
     for (std::size_t i = 0; i < kMaxLayouts; ++i) {
         Setup s = layout_of(std::string(kMaxSetupNameLen - 2, 'n') + std::to_string(i),
                             static_cast<std::int64_t>(i) + 1);
-        // FULL DESKS, to the setup owner's own row bound, with references at its own key
-        // bound: a reference this build cannot resolve is legal and is written exactly as
+        // FULL DESKS, to the setup owner's own bounds -- rows, keys, places, extents and
+        // settings: a reference this build cannot resolve is legal and is written exactly as
         // authored, which is what makes it the honest way to reach a maximal file.
-        while (s.panes.size() < kMaxSetupPanes) {
-            const std::string tail = std::to_string(s.panes.size());
-            REQUIRE(add_pane(s, PaneRef{long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail,
-                                        long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail}));
-        }
+        fill_to_every_bound(s);
         run.push_back(Layout{std::move(s), SetupLink{}});
     }
     const std::string text =
@@ -4293,6 +4293,10 @@ TEST_CASE("a retired shape's wire identity is the identity it was written at") {
         // repository): every one says `"content_id":"0x65ddb2477e598d18"`.
         {"v6", loom::schema_of<session_history::v6::WorkshopSession>(), 6u,
          0x65ddb2477e598d18ull},
+        // v7's is the content id the census pinned for it while version 7 was the one Zengine
+        // wrote (`tests/shapes.txt` at Zengine 6205dc9), and every version 7 file names.
+        {"v7", loom::schema_of<session_history::v7::WorkshopSession>(), 7u,
+         0xcac415773fb5880aull},
     };
     for (const Vintage& v : history) {
         CAPTURE(v.what);
@@ -4303,7 +4307,7 @@ TEST_CASE("a retired shape's wire identity is the identity it was written at") {
     // ...and the current shape is none of them, which is what makes them history.
     const std::shared_ptr<const loom::Schema> current =
         loom::schema_of<session_persist::WorkshopSession>();
-    CHECK(current->version() == 7u);
+    CHECK(current->version() == 8u);
     for (const Vintage& v : history) {
         CAPTURE(v.what);
         CHECK_FALSE(loom::same_identity(*current, *v.shape));
@@ -4450,9 +4454,9 @@ TEST_CASE("three DIRECT edges, and no chain to walk even if one wanted to") {
         CAPTURE(absent);
         CHECK(history.catalog.find(absent) == nullptr);
     }
-    for (const char* live : {"zengine.migrate.WorkshopSession.v1-to-v7",
-                             "zengine.migrate.WorkshopSession.v2-to-v7",
-                             "zengine.migrate.WorkshopSession.v3-to-v7"}) {
+    for (const char* live : {"zengine.migrate.WorkshopSession.v1-to-v8",
+                             "zengine.migrate.WorkshopSession.v2-to-v8",
+                             "zengine.migrate.WorkshopSession.v3-to-v8"}) {
         CAPTURE(live);
         REQUIRE(history.catalog.find(live) != nullptr);
     }
@@ -4482,7 +4486,7 @@ TEST_CASE("a version-3 file with no conversion live refuses and is not rewritten
 
         CHECK(t.session().notice_is_bad);
         CHECK(t.notice().find("session version 3 cannot be read") != std::string::npos);
-        CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v3-to-v7`") !=
+        CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v3-to-v8`") !=
               std::string::npos);
         CHECK(t.session().setup.active == default_setup());
         CHECK(layout_count(t.session().setup) == 1);
@@ -4908,7 +4912,7 @@ TEST_CASE("the whole run and every association come back after a restart") {
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.layouts == authored);
     CHECK(read.active == 0);
-    CHECK(slurp(session).find("\"version\":7") != std::string::npos);
+    CHECK(slurp(session).find("\"version\":8") != std::string::npos);
     CHECK(slurp(session).find("\"link\":") != std::string::npos);
 
     // AND THE NEXT RUN COMES BACK ON ALL THREE, with all three verdicts.
@@ -5073,7 +5077,7 @@ TEST_CASE("a version-4 session opens with its run whole and every link none") {
     (void)session_persist::from_text(loom::compat::serialize(loom::to_value(old)),
                                      &history.catalog);
     CHECK(op::invocations() == before + 1);
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v4-to-v7") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v4-to-v8") != nullptr);
     // ...and no intermediate rung was added for the older vintages to be routed through.
     CHECK(history.catalog.find("zengine.migrate.WorkshopSession.v1-to-v4") == nullptr);
     CHECK(history.catalog.find("zengine.migrate.WorkshopSession.v3-to-v4") == nullptr);
@@ -5083,16 +5087,13 @@ TEST_CASE("a maximal legal session is still one this build can read back") {
     // THE DERIVED CEILING, RE-MEASURED FOR THE SECOND DESK PER LAYOUT. `kMaxLayouts`
     // layouts of a maximal desk AND a maximal remembered value is the largest legal file
     // this build writes; a ceiling left at one desk per layout would let `q` write a file
-    // the next launch refuses, which is the worst thing a durable owner can do.
-    const std::string long_key(kMaxPaneKeyLen, 'k');
+    // the next launch refuses, which is the worst thing a durable owner can do. Every desk at
+    // every bound is also the most decoded cells a session holds: what Loom's decode budget
+    // must admit, which this read meets for real.
     std::vector<Layout> run;
     for (std::size_t i = 0; i < kMaxLayouts; ++i) {
         Setup s = setup_of(std::string(kMaxSetupNameLen, static_cast<char>('a' + i)), {});
-        while (s.panes.size() < kMaxSetupPanes) {
-            const std::string tail = std::to_string(s.panes.size());
-            REQUIRE(add_pane(s, PaneRef{long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail,
-                                        long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail}));
-        }
+        fill_to_every_bound(s);
         // ...AND ITS ASSOCIATION REMEMBERS A MAXIMAL DESK TOO, which is the whole point.
         run.push_back(Layout{s, SetupLink{std::string(256, 'p') + ".json", s}});
     }
@@ -5227,7 +5228,7 @@ TEST_CASE("a real version-5 session comes back with nothing lost") {
     CHECK(read.placement.maximized);
 
     // AND THE EDGE IS ONE AUTHORED CONVERSION, SPENT ONCE.
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v5-to-v7") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v5-to-v8") != nullptr);
     const std::uint64_t before = op::invocations();
     REQUIRE(session_persist::from_text(as_text(old), &history.catalog).outcome.accepted);
     CHECK(op::invocations() == before + 1);
@@ -5279,8 +5280,8 @@ TEST_CASE("the weaver sees no loss, and the next run spends no conversion") {
 
     // THE FILE IS THE CURRENT SHAPE NOW, and only the current shape.
     const std::string bytes = slurp(session);
-    CHECK(bytes.find("\"version\":7") != std::string::npos);
-    CHECK(bytes.find("\"format_version\":\"7\"") != std::string::npos);
+    CHECK(bytes.find("\"version\":8") != std::string::npos);
+    CHECK(bytes.find("\"format_version\":\"8\"") != std::string::npos);
     CHECK(bytes.find("\"pane\":\"layouts\"") != std::string::npos);
 
     // ...AND THE NEXT RUN READS IT WITH NO CONVERSION IN THE ARRANGEMENT AT ALL, which is
@@ -5346,7 +5347,7 @@ TEST_CASE("a version-5 file with no conversion live refuses, and is not rewritte
     t.host.session_path = path; // no `conversions` hook: this arrangement mounts none
     t.publish(loom::to_value(surface::SurfaceReady{}));
     CHECK(t.session().notice_is_bad);
-    CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v5-to-v7`") != std::string::npos);
+    CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v5-to-v8`") != std::string::npos);
     // ...and it claims nothing it cannot know.
     CHECK(t.notice().find("install") == std::string::npos);
 
@@ -5733,3 +5734,287 @@ TEST_CASE("a session with nothing to convert says nothing about it") {
     CHECK(t.notice().find("project-files") == std::string::npos);
 }
 
+
+// ---- A pane's settings in its setup row ---------------------------------------------------
+
+namespace {
+
+PaneSetting flag_setting(const std::string& key, bool on) { return PaneSetting{key, on, {}, {}}; }
+PaneSetting number_setting(const std::string& key, std::int64_t n) {
+    return PaneSetting{key, {}, n, {}};
+}
+PaneSetting text_setting(const std::string& key, const std::string& text) {
+    return PaneSetting{key, {}, {}, text};
+}
+
+/// A desk whose stock row keeps one setting of each kind, and whose stranger -- a pane this
+/// build cannot present -- keeps one of its own.
+Setup desk_with_settings() {
+    Setup desk = arranged_desk("Settings");
+    pane_of(desk, ref_of(stock::kKind))->settings = {number_setting("count", 12),
+                                                     flag_setting("legend", false),
+                                                     text_setting("mode", "wide")};
+    REQUIRE(add_pane(desk, stranger()));
+    pane_of(desk, stranger())->settings = {flag_setting("kept", true)};
+    REQUIRE_MESSAGE(check_setup(desk).accepted, check_setup(desk).refusal);
+    return desk;
+}
+
+} // namespace
+
+TEST_CASE("a setting rides its row through the setup file in its own kind's field") {
+    const Setup desk = desk_with_settings();
+    const std::string text = setup_persist::to_text(desk);
+    // A NUMBER IS A NUMBER AND A FLAG A FLAG: each in the field of its kind, never spelled as
+    // text, and the two fields a value does not hold are absent rather than empty.
+    CHECK(text.find(R"("settings":[{"key":"count","number":"12"},{"key":"legend","flag":false},)"
+                    R"({"key":"mode","text":"wide"}])") != std::string::npos);
+    CHECK(text.find(R"("settings":[{"key":"kept","flag":true}])") != std::string::npos);
+    // ...AND A ROW THAT KEEPS NONE SAYS SO THE ONE WAY: an empty list.
+    CHECK(text.find(R"("settings":[])") != std::string::npos);
+
+    const setup_persist::LoadedSetup read = setup_persist::from_text(text);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.setup == desk);
+    // AN UNRESOLVED REFERENCE KEEPS ITS SETTINGS, and the file comes back byte for byte.
+    CHECK(pane_of(read.setup, stranger())->settings ==
+          std::vector<PaneSetting>{flag_setting("kept", true)});
+    CHECK(setup_persist::to_text(read.setup) == text);
+}
+
+TEST_CASE("a setting holding no value, or two, is refused by every reader, naming its key") {
+    struct Case {
+        const char* what;
+        std::vector<PaneSetting> settings;
+        const char* says;
+    };
+    std::vector<PaneSetting> crowded;
+    for (std::size_t i = 0; i <= kMaxPaneSettingsPerRow; ++i) {
+        crowded.push_back(number_setting("k" + std::to_string(100 + i), 1));
+    }
+    const std::vector<Case> cases = {
+        {"no value", {PaneSetting{"legend", {}, {}, {}}}, "setting `legend` holds no value"},
+        {"two values", {PaneSetting{"legend", true, {}, std::string("on")}},
+         "setting `legend` holds more than one value"},
+        {"a key a weaver cannot type", {flag_setting("Legend", true)}, "`Legend` is not"},
+        {"a key past its bound", {flag_setting(std::string(kMaxPaneSettingKeyLen + 1, 'k'), true)},
+         "a setting's key is at most"},
+        {"a text past its bound",
+         {text_setting("title", std::string(kMaxPaneSettingTextLen + 1, 't'))},
+         "setting `title` holds a text past"},
+        {"a text a pane cannot draw", {text_setting("title", "two\nlines")},
+         "setting `title` holds a text past"},
+        {"two settings out of key order", {flag_setting("zoom", true), flag_setting("legend", true)},
+         "`legend` follows `zoom`"},
+        {"one key twice", {flag_setting("legend", true), flag_setting("legend", false)},
+         "`legend` follows `legend`"},
+        {"a Workshop setting this Workshop does not know", {number_setting("workshop.text", 1)},
+         "`workshop.text` is a Workshop setting this Workshop does not know"},
+        {"more settings than a row keeps", crowded, "settings in a layout -- this row has"},
+    };
+    for (const Case& c : cases) {
+        CAPTURE(c.what);
+        Setup desk = arranged_desk("Bad");
+        pane_of(desk, ref_of(stock::kKind))->settings = c.settings;
+
+        // THE LAW, AS A TYPED GESTURE WOULD MEET IT...
+        const Written law = check_setup(desk);
+        CHECK_FALSE(law.accepted);
+        CHECK(law.refusal.find(c.says) != std::string::npos);
+
+        // ...THE SETUP FILE...
+        const setup_persist::LoadedSetup file =
+            setup_persist::from_text(setup_persist::to_text(desk));
+        CHECK_FALSE(file.outcome.accepted);
+        CHECK(file.outcome.refusal.find(c.says) != std::string::npos);
+
+        // ...AND A SESSION'S DESK, refused whole in the layout it stands in.
+        const session_persist::LoadedSession session = session_persist::from_text(
+            session_persist::to_text(one_layout(desk), 0, cells_px(100), cells_px(30),
+                                     session_persist::Placement{}));
+        CHECK_FALSE(session.outcome.accepted);
+        CHECK(session.outcome.refusal.find(c.says) != std::string::npos);
+        CHECK(session.outcome.refusal.find("layout at position 0") != std::string::npos);
+    }
+
+    // AND A DESK PAST ITS OWN BOUND, however its rows share them out.
+    Setup full = setup_of("Full", {});
+    fill_to_every_bound(full);
+    full.panes.back().settings.push_back(number_setting("zz", 1));
+    const Written past = check_setup(full);
+    CHECK_FALSE(past.accepted);
+    CHECK(past.refusal.find("settings over all its panes") != std::string::npos);
+    CHECK_FALSE(setup_persist::from_text(setup_persist::to_text(full)).outcome.accepted);
+}
+
+TEST_CASE("the settings door keeps a desk inside its bound, and a value moved on a full desk is kept") {
+    Setup desk = setup_of("Full", {});
+    fill_to_every_bound(desk);
+    const PaneRef bare = desk.panes.back().ref;
+    REQUIRE(pane_of(desk, bare)->settings.empty());
+
+    // ONE MORE KEY WOULD BE THE DESK'S FIRST PAST ITS BOUND: refused, and nothing is written.
+    const Setup before = desk;
+    const Written past = author_pane_setting(desk, bare, "legend", flag_setting("legend", false),
+                                             flag_setting("legend", true));
+    CHECK_FALSE(past.accepted);
+    CHECK(past.refusal == "this layout keeps " + std::to_string(kMaxPaneSettingsPerDesk) +
+                              " settings already, the most a desk keeps -- clear one first");
+    CHECK(desk == before);
+
+    // A KEPT KEY TAKES A NEW VALUE THERE, since the count does not move...
+    const PaneRef crowded = desk.panes.front().ref;
+    const std::string key = desk.panes.front().settings.front().key;
+    REQUIRE(author_pane_setting(desk, crowded, key, text_setting(key, "moved"), std::nullopt)
+                .accepted);
+    CHECK(find_pane_setting(pane_of(desk, crowded)->settings, key)->text == "moved");
+    CHECK(desk_setting_count(desk.panes) == kMaxPaneSettingsPerDesk);
+
+    // ...AND ONE CLEARED MAKES ROOM FOR ONE MORE.
+    REQUIRE(author_pane_setting(desk, crowded, key, std::nullopt, std::nullopt).accepted);
+    CHECK(author_pane_setting(desk, bare, "legend", flag_setting("legend", false),
+                              flag_setting("legend", true))
+              .accepted);
+    CHECK(desk_setting_count(desk.panes) == kMaxPaneSettingsPerDesk);
+    CHECK(check_setup(desk).accepted);
+}
+
+TEST_CASE("a version-4 setup file reads with no settings, and the next save writes version 5") {
+    const Setup desk = arranged_desk("Four");
+    // A FILE A WORKSHOP OF version 4 WROTE, content id and all: what its `s` left on disk.
+    const std::string four = loom::compat::serialize(loom::to_value(v4_desk(desk)));
+    REQUIRE(four.find("\"version\":4") != std::string::npos);
+    REQUIRE(four.find("settings") == std::string::npos);
+
+    const setup_persist::LoadedSetup read = setup_persist::from_text(four);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.setup == desk);
+    for (const SetupPane& row : read.setup.panes) {
+        CHECK(row.settings.empty());
+    }
+    const std::string now = setup_persist::to_text(read.setup);
+    CHECK(now.find("\"format_version\":\"5\"") != std::string::npos);
+    CHECK(now.find("\"settings\":[]") != std::string::npos);
+
+    // ...AND AN ENVELOPE OF version 4 OVER A BODY THAT SAYS ANOTHER IS REFUSED BY NUMBER.
+    setup_persist::v4::WorkshopSetup forged = v4_desk(desk);
+    forged.format_version = 5;
+    const setup_persist::LoadedSetup no =
+        setup_persist::from_text(loom::compat::serialize(loom::to_value(forged)));
+    CHECK_FALSE(no.outcome.accepted);
+    CHECK(no.outcome.refusal == "setup version 5 -- this Workshop reads versions 2, 3, 4 and 5");
+}
+
+TEST_CASE("a setup past its byte ceiling is refused at the save, and nothing is written") {
+    // NOT A DESK THE LAW ALLOWS -- every row at its own bound is far past the desk's -- so the
+    // write side's own refusal is what stands between it and a file `r` would refuse.
+    Setup huge = setup_of("Huge", {});
+    fill_to_every_bound(huge);
+    for (SetupPane& row : huge.panes) {
+        while (row.settings.size() < kMaxPaneSettingsPerRow) {
+            PaneSetting one;
+            one.key = "z" + std::to_string(100 + row.settings.size());
+            one.text = std::string(kMaxPaneSettingTextLen, '"');
+            row.settings.push_back(std::move(one));
+        }
+    }
+    REQUIRE(setup_persist::to_text(huge).size() > setup_persist::kMaxSetupBytes);
+
+    TempDir dir("setup-over-ceiling");
+    const std::string path = dir.file("setup.json");
+    spillout(path, "the weaver's own bytes");
+    const Written saved = setup_persist::save_file(path, huge);
+    CHECK_FALSE(saved.accepted);
+    CHECK(saved.refusal.find("larger than a Workshop setup can be") != std::string::npos);
+    CHECK(saved.refusal.find("nothing was written") != std::string::npos);
+    CHECK(slurp(path) == "the weaver's own bytes");
+}
+
+TEST_CASE("a setup holding a Workshop setting is refused by name, and `r` leaves file and desk") {
+    TempDir dir("setup-desk-setting");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    Setup newer = arranged_desk("Newer");
+    pane_of(newer, ref_of(stock::kKind))->settings = {number_setting("workshop.text", 1)};
+    // WHAT A NEWER WORKSHOP COULD WRITE: sound in every other respect, so the refusal is the
+    // key and nothing else.
+    const std::string bytes = setup_persist::to_text(newer);
+    spillout(t.host.setup_path, bytes);
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    const Setup before = t.session().setup.active;
+
+    t.key(input::scan::kR);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("`workshop.text` is a Workshop setting this Workshop does not know") !=
+          std::string::npos);
+    CHECK(t.session().setup.active == before);
+    CHECK(slurp(t.host.setup_path) == bytes);
+}
+
+TEST_CASE("a layout's settings come back with its desk after a restart") {
+    TempDir dir("settings-restart");
+    const std::string session = dir.file("session.json");
+    const Setup desk = desk_with_settings();
+    arrange_and_close(session, dir.file("setup.json"), desk, 120, 44);
+
+    Live back;
+    back.host.session_path = session;
+    back.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(back.session().setup.active == desk);
+    REQUIRE(pane_of(back.session().setup.active, ref_of(stock::kKind)) != nullptr);
+    CHECK(pane_of(back.session().setup.active, ref_of(stock::kKind))->settings ==
+          pane_of(desk, ref_of(stock::kKind))->settings);
+}
+
+TEST_CASE("a version-7 session converts with every desk and remembered value keeping no settings") {
+    // THE NEWEST RETIRED VINTAGE: a layout associated with its artifact still matches it, every
+    // desk and every remembered value arrives with no settings, and nothing else moves.
+    MountedHistory history;
+    REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
+    const std::vector<Setup> desks = three_desks();
+    session_history::v7::WorkshopSession old;
+    old.format = session_persist::kFormat;
+    old.format_version = session_history::kV7FormatVersion;
+    old.viewport = session_persist::WorkshopViewport{cells_px(132), cells_px(41)};
+    for (std::size_t i = 0; i < desks.size(); ++i) {
+        session_history::v7::WorkshopLayout layout{
+            v4_desk(desks[i]),
+            session_history::v7::WorkshopSetupLink{std::string(), session_history::absent_v4_desk()}};
+        if (i == 0) {
+            layout.link = session_history::v7::WorkshopSetupLink{"/kept/home.json", v4_desk(desks[i])};
+        }
+        old.layouts.push_back(std::move(layout));
+    }
+    old.active = 1;
+    old.placement = session_history::absent_placement();
+    const std::string bytes = loom::compat::serialize(loom::to_value(old));
+
+    const std::uint64_t before = op::invocations();
+    const session_persist::LoadedSession read = session_persist::from_text(bytes, &history.catalog);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(op::invocations() == before + 1);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v7-to-v8") != nullptr);
+    CHECK(desks_of(read.layouts) == desks);
+    CHECK(read.active == 1);
+    for (const Layout& layout : read.layouts) {
+        for (const SetupPane& row : layout.desk.panes) {
+            CHECK(row.settings.empty());
+        }
+    }
+    // THE ASSOCIATION'S REMEMBERED VALUE IS CONVERTED WITH ITS DESK, or the layout would read
+    // `modified` after an upgrade the weaver did not make.
+    CHECK(read.layouts[0].link.path == "/kept/home.json");
+    CHECK(link_status(read.layouts[0].desk, read.layouts[0].link) == setup_link::kCurrent);
+    CHECK(link_status(read.layouts[1].desk, read.layouts[1].link) == setup_link::kNone);
+    CHECK(read.viewport_w == cells_px(132));
+    CHECK(read.viewport_h == cells_px(41));
+
+    // ...AND A DESK OF version 7 WHOSE OWN FIELD SAYS ANOTHER IS REFUSED BY THE CONVERSION,
+    // which skips no check its own reader made.
+    session_history::v7::WorkshopSession forged = old;
+    forged.layouts[2].desk.format_version = 9;
+    const session_persist::LoadedSession no = session_persist::from_text(
+        loom::compat::serialize(loom::to_value(forged)), &history.catalog);
+    CHECK_FALSE(no.outcome.accepted);
+    CHECK(no.outcome.refusal.find("layout at position 2: setup version 9") != std::string::npos);
+}
