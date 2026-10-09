@@ -325,7 +325,8 @@ def cell_at(w, sx, sy):
 
 def place_words(g, word_list, sx, sy, box=None):
     """Each word at its own cell; with `box`, a frame's columns and rows, only what of it stands
-    on the frame's cells, written over its edges: a frame never moves a word or hides one."""
+    on the frame's cells, written over its edges -- a frame never moves a word or hides one --
+    and the blanks it begins or ends with leaving what is under them."""
     for w in word_list or []:
         col, row = cell_at(w, sx, sy)
         text = clean(w.get("text"))
@@ -334,7 +335,7 @@ def place_words(g, word_list, sx, sy, box=None):
             continue
         x0, y0, x1, y1 = box
         if y0 <= row <= y1 - 1:
-            g.put(col, row, text, x1, start=x0)
+            g.put(col + len(text) - len(text.lstrip(" ")), row, text.strip(" "), x1, start=x0)
 
 
 def titled(title, box, word_list, sx, sy):

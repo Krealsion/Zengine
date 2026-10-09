@@ -818,10 +818,12 @@ def run_checks(tools, runtime):
             return render.glance({"desk": desk, "panes": panes or {}}).splitlines()[1:]
 
         def assert_at(self, rows, w, cell):
-            """`w`'s text stands whole at its own cell: column x / cx, row (y + h / 2) / cy."""
+            """`w`'s text stands at its own cell, column x / cx and row (y + h / 2) / cy, every
+            character from its first that is not a blank to its last."""
             pl = w["place"]
             row, col = (pl["y"] + pl["h"] // 2) // cell[1], pl["x"] // cell[0]
-            self.assertEqual(rows[row][col:col + len(w["text"])], w["text"], (row, rows[row]))
+            lead, body = len(w["text"]) - len(w["text"].lstrip(" ")), w["text"].strip(" ")
+            self.assertEqual(rows[row][col + lead:col + lead + len(body)], body, (row, rows[row]))
 
         def test_a_window_menu_workshop_answered_keeps_every_line_on_the_glance(self):
             # Workshop's own menu as Workshop answers it on a window after a secondary press on the
@@ -839,6 +841,12 @@ def run_checks(tools, runtime):
                                      "space": said["space"], "panes": [], "menu": menu})
             for w in menu["lines"]:
                 self.assert_at(rows, w, render.WINDOW_CELL)
+            # ...and a line's own leading blanks leave the frame's left edge under them.
+            left = menu["place"]["x"] // render.WINDOW_CELL[0]
+            for w in menu["lines"][1:]:
+                self.assertTrue(w["text"].startswith(" "), w["text"])
+                row = (w["place"]["y"] + w["place"]["h"] // 2) // render.WINDOW_CELL[1]
+                self.assertEqual(rows[row][left], "|", rows[row])
 
         def test_the_glance_writes_each_word_at_its_own_cell_over_a_frames_edges(self):
             for space, cell in ((PIXELS, render.WINDOW_CELL), (1, render.TERMINAL_CELL)):
