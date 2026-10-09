@@ -50,8 +50,10 @@ by `ZENGINE_ARTIFACT_DIR`: `zengine-timer`, `zengine-input`, `zengine-inventory`
 starts one), `zengine-operators-basic`, and `zengine-guest-vocabulary` (booted by another
 Loom host, a session, to speak Workshop's guest shapes). They install as FILES, not as
 exported targets — an artifact is opened by path and never linked, and an imported target would
-offer a link line that must never be written. Beside them, as data, the Workshop tool package
-for a Loom session's run manager: `share/zengine/loom-tools/workshop`. The generic
+offer a link line that must never be written. Beside them, as data, the Workshop tool packages
+for a Loom session's run manager: `share/zengine/loom-tools/workshop`, the journeys, and
+`share/zengine/loom-tools/desk`, the agent's desk reader, a package of its own because `workshop`
+holds as many tools as Loom lets one package hold. The generic
 `zengine-inventory-read` executable installs to `bin` and reads those tools' saved pairs.
 
 **One CMake function rides along**, `zengine_code_page(<target>...)`: `cmake/ZengineCodePage.cmake`

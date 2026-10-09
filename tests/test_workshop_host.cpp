@@ -1040,15 +1040,23 @@ TEST_CASE("a development host and each row's losses stand as conditions on Atten
     {
         Live t;
         const std::vector<Condition> now = stand(old, t);
-        REQUIRE(now.size() == 1);
-        CHECK(now[0].key == "guests.row/0");
-        CHECK(now[0].compact == "guest 'agent' (version 1) does not reach everything its powers name here");
-        CHECK(now[0].detail.find("the Builder's builds and loads: `build` is a version-2 power") !=
+        // ITS LOSSES, AND ITS `capture` WIDENED TO THE DESK READ WHOLE, each a condition of its own.
+        REQUIRE(now.size() == 2);
+        const auto lost = std::find_if(now.begin(), now.end(),
+                                       [](const Condition& c) { return c.key == "guests.row/0"; });
+        const auto gained = std::find_if(now.begin(), now.end(),
+                                         [](const Condition& c) { return c.key == "guests.gain/0"; });
+        REQUIRE(lost != now.end());
+        REQUIRE(gained != now.end());
+        CHECK(lost->compact == "guest 'agent' (version 1) does not reach everything its powers name here");
+        CHECK(lost->detail.find("the Builder's builds and loads: `build` is a version-2 power") !=
               std::string::npos);
-        CHECK(now[0].detail.find("file writes: this is a weaver's host") != std::string::npos);
-        CHECK(now[0].detail.find("typed text") != std::string::npos);
-        CHECK(now[0].detail.find("the editor, the Terminal and the Hotkeys pane") != std::string::npos);
-        CHECK(t.glance() == now[0].compact);
+        CHECK(lost->detail.find("file writes: this is a weaver's host") != std::string::npos);
+        CHECK(lost->detail.find("typed text") != std::string::npos);
+        CHECK(lost->detail.find("the editor, the Terminal and the Hotkeys pane") != std::string::npos);
+        CHECK(gained->compact == "guest 'agent' (version 1) reaches more here than its powers once did");
+        CHECK(gained->detail.find("`capture` also reads the desk's words") != std::string::npos);
+        CHECK(t.glance() == now[0].compact + " (+1 more)");
     }
 
     // A DEVELOPMENT FILE OF VERSION 2 stands as the host it names, and a row stands only for what

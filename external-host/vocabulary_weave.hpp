@@ -4,11 +4,11 @@
 #ifndef ZENGINE_EXTERNAL_HOST_VOCABULARY_WEAVE_HPP
 #define ZENGINE_EXTERNAL_HOST_VOCABULARY_WEAVE_HPP
 
-// Workshop's guest vocabulary, declared on another Loom host. An external host's link re-admits
-// a far answer, and encodes a Python tool's JSON request, against shapes its own registry
-// resolves (the Loom's bridge reference page); a Python tool is no participant there, so this
-// weave declares them: the Input session, injection and closing shapes, the Skin's picture and
-// chunk shapes, the guest door's inventory, the managed opening's ask and answer, the Builder's.
+// Workshop's guest vocabulary, declared on another Loom host. An external host's link re-admits a
+// far answer, and encodes a Python tool's JSON request, against shapes its own registry resolves
+// (the Loom's bridge reference page); a Python tool is no participant there, so this weave declares
+// them: Input's session shapes, the Skin's picture, the desk read whole, the pane inventory, the
+// keymap, the door's inventory and the asker's own row, the managed opening and the Builder's read.
 // Reference: docs/workshop/external-host.md.
 
 // Declared through Loom's agreement wall (`Emit<...>`: a declared shape resolves while its
@@ -21,6 +21,7 @@
 #include "inventory/vocabulary.hpp"
 #include "inventory-pane/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
@@ -35,7 +36,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 75; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 85; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -57,6 +58,12 @@ class GuestVocabulary final
                      zengine::workshop::v3::PaneViewRequested, zengine::workshop::v3::PaneView,
                      zengine::workshop::v3::PanePointRequested,
                      zengine::workshop::v2::DeskViewRequested, zengine::workshop::v2::DeskView,
+                     // The desk read whole, a pane's reading paged under one stamp, and what a
+                     // `capture` guest reads beside them: the inventory of panes and the keymap.
+                     zengine::workshop::DeskReadRequested, zengine::workshop::DeskRead,
+                     zengine::workshop::v4::PaneViewRequested, zengine::workshop::v4::PaneView,
+                     zengine::workshop::PaneInventoryRequested, zengine::workshop::PaneInventory,
+                     zengine::workshop::KeymapRequested, zengine::workshop::KeymapShown,
                      zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,
                      zengine::input::PointerMotionRequested, zengine::input::InjectInput, zengine::input::InputInjected,
                      zengine::input::InputSessionClosed,
@@ -68,6 +75,9 @@ class GuestVocabulary final
                      // The door's inventory with each row's powers, version and losses.
                      zengine::workshop::v2::GuestConnectionsRequested,
                      zengine::workshop::v2::GuestConnections,
+                     // The asker's own row, which any admitted session may ask for.
+                     zengine::workshop::GuestRowDescribedRequested,
+                     zengine::workshop::GuestRowDescribed,
                      zengine::inventory::InventorySet, zengine::inventory::InventoryGet,
                      zengine::inventory::InventoryState, zengine::inventory::InventoryCaptured,
                      zengine::inventory::InventoryCaptureDescribe,

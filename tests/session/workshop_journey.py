@@ -134,6 +134,11 @@ def main():
                  "nvim-edit's confirmation",
                  workshop_verdict_checks.run_checks(args.tools, runtime)):
         return 1
+    import desk_read_checks
+    if not check("T3 desk/read writes AGENTS.md first and the desk said whole",
+                 desk_read_checks.run_checks(os.path.join(os.path.dirname(args.tools), "desk"),
+                                             runtime)):
+        return 1
 
     work = args.work
     shutil.rmtree(work, ignore_errors=True)

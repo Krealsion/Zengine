@@ -11,12 +11,17 @@
 #include "doctest.h"
 
 #include "workshop/actor_scope.hpp"
+#include "workshop/attention_seam_vocabulary.hpp"
+#include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_door.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/guests.hpp"
+#include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/pane_view.hpp"
 #include "workshop/setup_control.hpp"
+#include "workshop/terminal_seam_vocabulary.hpp"
 
 #include "builder/vocabulary.hpp"
 #include "input/input_weave.hpp"
@@ -44,6 +49,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -528,12 +534,19 @@ TEST_CASE("toolbox file access is an explicit power separate from inventory inpu
     }
 }
 
-TEST_CASE("guests file: each power is exactly its grant, and a row with none may say nothing") {
+TEST_CASE("guests file: each power is exactly its grant, and a row with none may ask only for its own row") {
     guests::GuestRow row;
     row.name = "agent";
     row.credential = "x";
     const loom::Grant none = guests::grant_for(row);
     CHECK_FALSE(none.permits_role(input::InputSessionRequested::zen_name, 1, input::kInputRole));
+    // EVERY ROW MAY ASK THE DOOR FOR ITSELF, and for nothing else of the door's or Workshop's.
+    CHECK(none.permits_role(ws::GuestRowDescribedRequested::zen_name,
+                            ws::GuestRowDescribedRequested::zen_version, ws::kGuestsRole));
+    CHECK_FALSE(none.permits_role(ws::GuestRowDescribedRequested::zen_name,
+                                  ws::GuestRowDescribedRequested::zen_version, "zengine.workshop"));
+    CHECK_FALSE(none.permits_role(ws::GuestConnectionsRequested::zen_name, 1, ws::kGuestsRole));
+    CHECK_FALSE(none.permits_role(ws::DeskReadRequested::zen_name, 1, "zengine.workshop"));
 
     row.may = {guests::kPowerInput};
     const loom::Grant in = guests::grant_for(row);
@@ -549,6 +562,29 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK(cap.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
     CHECK(cap.permits_role(surface::SurfaceCaptureChunkRequested::zen_name, 1, surface::kSkinRole));
     CHECK_FALSE(cap.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    // THE DESK'S WORDS ARE `capture`'s, every reading of them asked of Workshop's office alone: the
+    // pane and desk views at each version, the desk read whole, the inventory and the keymap.
+    const std::vector<std::pair<const char*, std::uint32_t>> reads = {
+        {ws::PaneViewRequested::zen_name, ws::PaneViewRequested::zen_version},
+        {ws::v2::PaneViewRequested::zen_name, ws::v2::PaneViewRequested::zen_version},
+        {ws::v3::PaneViewRequested::zen_name, ws::v3::PaneViewRequested::zen_version},
+        {ws::v4::PaneViewRequested::zen_name, ws::v4::PaneViewRequested::zen_version},
+        {ws::PanePointRequested::zen_name, ws::PanePointRequested::zen_version},
+        {ws::v2::PanePointRequested::zen_name, ws::v2::PanePointRequested::zen_version},
+        {ws::v3::PanePointRequested::zen_name, ws::v3::PanePointRequested::zen_version},
+        {ws::DeskViewRequested::zen_name, ws::DeskViewRequested::zen_version},
+        {ws::v2::DeskViewRequested::zen_name, ws::v2::DeskViewRequested::zen_version},
+        {ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version},
+        {ws::PaneInventoryRequested::zen_name, ws::PaneInventoryRequested::zen_version},
+        {ws::KeymapRequested::zen_name, ws::KeymapRequested::zen_version}};
+    for (const std::pair<const char*, std::uint32_t>& read : reads) {
+        CAPTURE(read.first);
+        CAPTURE(read.second);
+        CHECK(cap.permits_role(read.first, read.second, "zengine.workshop"));
+        CHECK_FALSE(cap.permits_role(read.first, read.second, ws::kDesktopRole));
+        CHECK_FALSE(in.permits_role(read.first, read.second, "zengine.workshop"));
+        CHECK_FALSE(none.permits_role(read.first, read.second, "zengine.workshop"));
+    }
 
     row.may = {guests::kPowerInspect};
     const loom::Grant look = guests::grant_for(row);
@@ -573,6 +609,11 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK_FALSE(stow.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
     CHECK_FALSE(stow.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
     CHECK_FALSE(stow.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
+    // ...and whatever its powers, a row may ask for its own.
+    for (const loom::Grant& any : {none, in, cap, look, stow}) {
+        CHECK(any.permits_role(ws::GuestRowDescribedRequested::zen_name,
+                               ws::GuestRowDescribedRequested::zen_version, ws::kGuestsRole));
+    }
 }
 
 // =============================================================================
@@ -1316,6 +1357,32 @@ TEST_CASE("guests file: a row's losses are what its powers do not reach on its f
     }
 }
 
+TEST_CASE("guests file: capture's widening is said as a gain") {
+    guests::GuestsFile file;
+    guests::GuestRow row;
+    row.name = "agent";
+    row.may = {guests::kPowerCapture};
+    const std::vector<std::string> gains = guests::gains_of(row, file);
+    CHECK(gains == std::vector<std::string>{"the desk read whole: `capture` also reads the desk's "
+                                            "words, the pane inventory and the keymap"});
+    // ...in a file of any version, on either host, beside any other power.
+    file.version = 2;
+    file.host = guests::kHostDevelopment;
+    CHECK(guests::gains_of(row, file) == gains);
+    row.may = {guests::kPowerInput, guests::kPowerCapture, guests::kPowerBuild};
+    CHECK(guests::gains_of(row, file) == gains);
+    // A GAIN IS NOT A LOSS: on a weaver's host the row's losses are said apart from it.
+    file.host = guests::kHostWeaver;
+    const std::vector<std::string> losses = guests::losses_of(row, file);
+    REQUIRE_FALSE(losses.empty());
+    for (const std::string& loss : losses) CHECK(loss.find("`capture`") == std::string::npos);
+    // ...and a row without `capture` gains nothing, whatever else it may do.
+    row.may = {guests::kPowerInput,   guests::kPowerInspect, guests::kPowerInventory,
+               guests::kPowerToolbox, guests::kPowerDemo,    guests::kPowerOpen,
+               guests::kPowerBuild};
+    CHECK(guests::gains_of(row, file).empty());
+}
+
 TEST_CASE("action classes: a send on a guest's behalf is the classes its shape is -- a toolbox save and a quit write, and an open shows no path") {
     namespace scope = zengine::workshop::scope;
     // THE NAMES ARE THE OWNERS' OWN SHAPES, so a renamed shape is a red here, not a send unjudged.
@@ -1478,6 +1545,278 @@ TEST_CASE("door: version 2's inventory tells a guest its own row's powers and lo
     CHECK(policy(loom::observe::ObserveRequest{loom::WeaveId{5}, ws::kGuestsRole,
                                                {{ws::GuestConnections::zen_name, 1}}, "suite"})
               .allowed);
+}
+
+// =============================================================================
+// The asker's own row, and what `capture` reads
+// =============================================================================
+
+namespace {
+
+/// AN OFFICE IN WORKSHOP'S NAME, as the door's suite needs one: it answers the desk read, counting
+/// each ask it hears, and declares the picture, so that a guest may ask to observe it.
+class DeskOffice
+    : public loom::WeaveBase<DeskOffice, EarsState, loom::Accept<ws::DeskReadRequested>,
+                             loom::Emit<ws::DeskRead, surface::SurfaceCanvas>> {
+public:
+    explicit DeskOffice(std::int64_t& asked) : asked_(&asked) {}
+    void on(const ws::DeskReadRequested&, loom::Mail& mail) {
+        ++*asked_;
+        (void)mail.answer(ws::DeskRead{});
+    }
+
+private:
+    std::int64_t* asked_;
+};
+
+void mount_desk_office(loom::Switchboard& bus, std::int64_t& asked) {
+    auto made = std::make_unique<DeskOffice>(asked);
+    DeskOffice* raw = made.get();
+    loom::Grant grant = loom::emit_default_grant(*raw);
+    raw->zen_set_self(bus.register_weave(std::move(made), std::move(grant),
+                                         std::string("zengine.workshop")));
+}
+
+struct StrangerTurn {
+    ZEN_SHAPE(StrangerTurn, 1);
+};
+
+/// A PARTICIPANT OF THIS HOST'S OWN, which no door admitted: on its turn it asks the door for its
+/// row, and keeps each refusal it is told and the name of any row it is described.
+class Stranger
+    : public loom::WeaveBase<Stranger, EarsState,
+                             loom::Accept<StrangerTurn, ws::GuestRowDescribed, loom::Refused>,
+                             loom::Emit<ws::GuestRowDescribedRequested>> {
+public:
+    explicit Stranger(std::vector<std::string>& told) : told_(&told) {}
+    void on(const StrangerTurn&, loom::Mail& mail) {
+        (void)mail.send_to_role(ws::kGuestsRole, ws::GuestRowDescribedRequested{});
+    }
+    void on(const ws::GuestRowDescribed& row, loom::Mail&) {
+        told_->push_back("described " + row.name);
+    }
+    void on(const loom::Refused& refusal, loom::Mail&) { told_->push_back(refusal.reason); }
+
+private:
+    std::vector<std::string>* told_;
+};
+
+} // namespace
+
+TEST_CASE("door: a session asks its own row and hears its name, powers, observe list and the file's host, and nothing of another row") {
+    Scratch f("described");
+    f.write(R"({"version":"2","host":"development","guests":[)"
+            R"({"name":"agent","credential":"one","may":["input"],"observe":[)"
+            R"({"producer":"zengine.builder","shape":"BuildStatus","version":")" +
+            std::to_string(builder::BuildStatus::zen_version) + R"("}]},)"
+            R"({"name":"other","credential":"two","may":["capture","inspect"],"observe":[)"
+            R"({"producer":"td.game","shape":"TdOccurred","version":"1"}]}]})");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    Rig r(file);
+    Guest one(r.port, "agent", "one");
+    Guest two(r.port, "other", "two");
+    REQUIRE(r.beat_until([&] {
+        one.poll();
+        two.poll();
+        return one.client->admitted() && two.client->admitted();
+    }));
+    one.ask(ws::kGuestsRole, 1, ws::GuestRowDescribedRequested{});
+    two.ask(ws::kGuestsRole, 1, ws::GuestRowDescribedRequested{});
+    REQUIRE(r.beat_until([&] {
+        one.poll();
+        two.poll();
+        return one.answered<ws::GuestRowDescribed>(1).has_value() &&
+               two.answered<ws::GuestRowDescribed>(1).has_value();
+    }));
+    const ws::GuestRowDescribed mine = *one.answered<ws::GuestRowDescribed>(1);
+    CHECK(mine.name == "agent");
+    CHECK(mine.may == std::vector<std::string>{"input"});
+    REQUIRE(mine.observe.size() == 1);
+    CHECK(mine.observe[0].producer == builder::kBuilderRole);
+    CHECK(mine.observe[0].shape == builder::BuildStatus::zen_name);
+    CHECK(mine.observe[0].version == static_cast<std::int64_t>(builder::BuildStatus::zen_version));
+    CHECK(mine.host == guests::kHostDevelopment);
+    // ...AND NOTHING OF ANOTHER ROW: the other guest is told its own, and each is told once.
+    const ws::GuestRowDescribed theirs = *two.answered<ws::GuestRowDescribed>(1);
+    CHECK(theirs.name == "other");
+    CHECK(theirs.may == std::vector<std::string>{"capture", "inspect"});
+    REQUIRE(theirs.observe.size() == 1);
+    CHECK(theirs.observe[0].producer == "td.game");
+    CHECK(theirs.observe[0].shape == "TdOccurred");
+    CHECK(theirs.host == guests::kHostDevelopment);
+    CHECK(one.said_as<ws::GuestRowDescribed>().size() == 1);
+    CHECK(two.said_as<ws::GuestRowDescribed>().size() == 1);
+    // A PARTICIPANT NO DOOR ADMITTED holds no row, and is refused in words.
+    std::vector<std::string> told;
+    const loom::WeaveId stranger = loom::mount<Stranger>(r.bus, told);
+    (void)r.bus.send(stranger, loom::Message(loom::to_value(StrangerTurn{})));
+    r.bus.drain_until_idle();
+    CHECK(told ==
+          std::vector<std::string>{"only a session this door admitted has a row to describe"});
+}
+
+TEST_CASE("door: in a file with two rows of one name, the session admitted under the row without capture is refused a capture read and a capture observation") {
+    const std::string canvas = std::string(R"({"producer":"zengine.workshop","shape":")") +
+                               surface::SurfaceCanvas::zen_name + R"(","version":")" +
+                               std::to_string(surface::SurfaceCanvas::zen_version) + R"("})";
+    Scratch f("capture-twins");
+    f.write(R"({"version":"2","guests":[)"
+            R"({"name":"agent","credential":"plain","may":["input"],"observe":[)" + canvas +
+            R"(]},{"name":"agent","credential":"sees","may":["input","capture"],"observe":[)" +
+            canvas + "]}]}");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    // THE GRANT EACH ROW IS WORTH: only the row with `capture` may ask Workshop for the desk.
+    CHECK_FALSE(guests::grant_for(file.rows[0]).permits_role(
+        ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version, "zengine.workshop"));
+    CHECK(guests::grant_for(file.rows[1]).permits_role(
+        ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version, "zengine.workshop"));
+    Rig r(file);
+    std::int64_t asked = 0;
+    mount_desk_office(r.bus, asked);
+    loom::observe::Relay* relay = ws::mount_observation(r.bus, *r.door, file);
+    Guest plain(r.port, "agent", "plain");
+    Guest sees(r.port, "agent", "sees");
+    REQUIRE(r.beat_until([&] {
+        plain.poll();
+        sees.poll();
+        return plain.client->admitted() && sees.client->admitted();
+    }));
+    REQUIRE(r.door->row_index(loom::WeaveId{plain.client->session()}) ==
+            std::optional<std::size_t>(0));
+    REQUIRE(r.door->row_index(loom::WeaveId{sees.client->session()}) ==
+            std::optional<std::size_t>(1));
+    // A CAPTURE READ: the far bus refuses the plain row's ask under its own grant, and Workshop's
+    // office answers the other's, though both sessions hold one name.
+    plain.ask("zengine.workshop", 1, ws::DeskReadRequested{});
+    sees.ask("zengine.workshop", 1, ws::DeskReadRequested{});
+    REQUIRE(r.beat_until([&] {
+        plain.poll();
+        sees.poll();
+        const loom::BridgeEvent* d = plain.last(loom::BridgeEvent::Kind::Delivered);
+        return d != nullptr && d->correlation == 1 && d->dispatch_refused &&
+               sees.answered<ws::DeskRead>(1).has_value();
+    }));
+    CHECK(asked == 1);
+    CHECK_FALSE(plain.answered<ws::DeskRead>(1).has_value());
+    // A CAPTURE OBSERVATION: both rows list the picture, and the relay lets only the row with
+    // `capture` follow it, telling the other why in words.
+    namespace ob = loom::observe;
+    ob::Subscribe picture;
+    picture.producer = "zengine.workshop";
+    picture.shapes = {ob::ShapeRef{surface::SurfaceCanvas::zen_name,
+                                   surface::SurfaceCanvas::zen_version}};
+    picture.encoding = ob::kEncodingNative;
+    picture.label = "suite";
+    plain.ask(ob::kObserveRole, 2, picture);
+    sees.ask(ob::kObserveRole, 2, picture);
+    REQUIRE(r.beat_until([&] {
+        plain.poll();
+        sees.poll();
+        return plain.answered<loom::Refused>(2).has_value() &&
+               sees.answered<ob::Subscribed>(2).has_value();
+    }));
+    const std::string refused = plain.answered<loom::Refused>(2)->reason;
+    CHECK_MESSAGE(refused.find("may not observe SurfaceCanvas v" +
+                               std::to_string(surface::SurfaceCanvas::zen_version)) !=
+                      std::string::npos,
+                  refused);
+    CHECK_MESSAGE(refused.find("only with `capture`") != std::string::npos, refused);
+    CHECK(relay->active() == 1);
+}
+
+TEST_CASE("observation: a row without capture is refused the desk's words and pictures, every row is refused ClipboardCopy, and a capture row may observe StandingConditions") {
+    struct Asked {
+        std::string producer, shape;
+        std::int64_t version;
+    };
+    // EVERY PUBLICATION CARRYING A PANE'S OR WORKSHOP'S WORDS, OR THE PICTURE, by its owner's own
+    // name; the status slot's words from another office too, since the rule reads no producer.
+    const std::vector<Asked> words = {
+        {"zengine.workshop", surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version},
+        {"zengine.workshop", surface::SurfaceText::zen_name, surface::SurfaceText::zen_version},
+        {"td.game", surface::SurfaceText::zen_name, surface::SurfaceText::zen_version},
+        {"zengine.workshop", ws::TranscriptShown::zen_name, ws::TranscriptShown::zen_version},
+        {"zengine.workshop", ws::PaneSubjectShown::zen_name, ws::PaneSubjectShown::zen_version},
+        {"zengine.workshop", ws::PaneInventory::zen_name, ws::PaneInventory::zen_version},
+        {"zengine.workshop", ws::KeymapShown::zen_name, ws::KeymapShown::zen_version},
+        {"zengine.workshop", ws::StandingConditions::zen_name,
+         ws::StandingConditions::zen_version},
+    };
+    // THE WEAVER'S COPIED TEXT, from Workshop and from a text pane alike.
+    const std::vector<Asked> copied = {
+        {"zengine.workshop", surface::ClipboardCopy::zen_name, surface::ClipboardCopy::zen_version},
+        {"zengine.editor", surface::ClipboardCopy::zen_name, surface::ClipboardCopy::zen_version},
+    };
+    const guests::ObserveScope builds{builder::kBuilderRole, builder::BuildStatus::zen_name,
+                                      builder::BuildStatus::zen_version};
+    guests::GuestRow hands;
+    hands.name = "hands";
+    hands.may = {guests::kPowerInput, guests::kPowerInspect};
+    for (const Asked& a : words) hands.observe.push_back({a.producer, a.shape, a.version});
+    for (const Asked& a : copied) hands.observe.push_back({a.producer, a.shape, a.version});
+    hands.observe.push_back(builds);
+    guests::GuestRow eyes = hands;
+    eyes.name = "eyes";
+    eyes.may = {guests::kPowerCapture};
+    guests::GuestRow unlisted = eyes; // `capture`, and an observe list naming none of the desk
+    unlisted.name = "unlisted";
+    unlisted.observe = {builds};
+    guests::GuestsFile file;
+    file.rows = {hands, eyes, unlisted};
+    const auto policy =
+        guests::observation_of(file, [](loom::WeaveId s) -> std::optional<std::size_t> {
+            return static_cast<std::size_t>(s.value - 1);
+        });
+    using Shapes = std::vector<loom::observe::ShapeRef>;
+    const auto ask = [&](std::uint64_t who, const std::string& office, const Shapes& shapes) {
+        return policy(loom::observe::ObserveRequest{loom::WeaveId{who}, office, shapes, "suite"});
+    };
+    for (const Asked& a : words) {
+        CAPTURE(a.shape);
+        CAPTURE(a.producer);
+        const Shapes one = {{a.shape, a.version}};
+        const auto refused = ask(1, a.producer, one);
+        CHECK_FALSE(refused.allowed);
+        CHECK(refused.reason.find("guest 'hands' may not observe " + a.shape + " v" +
+                                  std::to_string(a.version) + " from " + a.producer) !=
+              std::string::npos);
+        CHECK(refused.reason.find("only with `capture`") != std::string::npos);
+        CHECK(ask(2, a.producer, one).allowed);
+        // `capture` IS NEEDED, NEVER ENOUGH: a row that does not list the shape is refused.
+        const auto not_named = ask(3, a.producer, one);
+        CHECK_FALSE(not_named.allowed);
+        CHECK(not_named.reason.find("its row's observe list does not name it") !=
+              std::string::npos);
+    }
+    for (const Asked& a : copied) {
+        CAPTURE(a.producer);
+        const Shapes one = {{a.shape, a.version}};
+        for (const std::uint64_t session : {std::uint64_t{1}, std::uint64_t{2}}) {
+            const auto refused = ask(session, a.producer, one);
+            CHECK_FALSE(refused.allowed);
+            CHECK(refused.reason.find("may not observe ClipboardCopy") != std::string::npos);
+            CHECK(refused.reason.find("needs `clipboard`, a power this Workshop's guests file does "
+                                      "not grant yet") != std::string::npos);
+        }
+    }
+    // A ROW WITH `capture` HEARS ATTENTION'S CONDITIONS, beside any other word it lists...
+    const loom::observe::ShapeRef conditions{ws::StandingConditions::zen_name,
+                                             ws::StandingConditions::zen_version};
+    const loom::observe::ShapeRef keys{ws::KeymapShown::zen_name, ws::KeymapShown::zen_version};
+    const loom::observe::ShapeRef clipboard{surface::ClipboardCopy::zen_name,
+                                            surface::ClipboardCopy::zen_version};
+    CHECK(ask(2, "zengine.workshop", {conditions}).allowed);
+    CHECK(ask(2, "zengine.workshop", {conditions, keys}).allowed);
+    // ...and one shape it may not observe refuses the whole ask.
+    CHECK_FALSE(ask(2, "zengine.workshop", {conditions, clipboard}).allowed);
+    // What carries no word of the desk is judged by the list alone: the Builder's whole picture.
+    const Shapes status = {{builds.shape, builds.version}};
+    CHECK(ask(1, builder::kBuilderRole, status).allowed);
+    CHECK(ask(3, builder::kBuilderRole, status).allowed);
 }
 
 TEST_SUITE_END();

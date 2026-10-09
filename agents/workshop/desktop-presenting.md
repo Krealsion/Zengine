@@ -8,7 +8,7 @@ Router: [`../workshop.md`](../workshop.md).
 
 ## WL-DESK-09 — A presenter that arrives is answered the inventory as it is now
 
-LAW — A presenter that asks as an office is answered the inventory reading of that moment, alone; an offer clears the publication's record, so the next reading is said to everyone.
+LAW — A presenter asking as an office, or a guest session holding `capture`, is answered the inventory reading of that moment, alone; an offer clears the record, so the next is said to all.
 
 MEANS
 - a desktop reloaded while nothing changes shows the list at once, not at an unrelated change;

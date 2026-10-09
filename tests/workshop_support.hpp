@@ -741,6 +741,9 @@ struct Live {
             return holder_emits_on(bus, role, shape);
         };
         host.role_holder = [this](std::string_view role) { return bus.role_holder(role); };
+        host.incarnation_of = [this](loom::WeaveId id) {
+            return static_cast<std::int64_t>(bus.participant(id).incarnation);
+        };
         host.destinations = [this] {
             return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
                                                                   : loom::WeaveId{});
@@ -2692,6 +2695,9 @@ struct PaneRig {
             return holder_emits_on(bus, role, shape);
         };
         host.role_holder = [this](std::string_view role) { return bus.role_holder(role); };
+        host.incarnation_of = [this](loom::WeaveId id) {
+            return static_cast<std::int64_t>(bus.participant(id).incarnation);
+        };
         // ...and where a terminal line can go, read off the same bus at the ask, as workshop.cpp
         // wires it. A case that wants a host listing nothing empties `host.destinations`.
         host.destinations = [this] {

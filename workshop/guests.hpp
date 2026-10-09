@@ -100,6 +100,11 @@ scope::HostFact host_fact_of(const GuestsFile& file);
 /// opening, a quit by message and the `open` power. Empty when the row reaches all its powers name.
 std::vector<std::string> losses_of(const GuestRow& row, const GuestsFile& file);
 
+/// WHAT THIS ROW'S POWERS REACH PAST WHAT THEIR NAMES SAY: a widening, in words to stand beside
+/// the row's losses. `capture` reads the desk whole, its words, the pane inventory and the keymap
+/// included. Empty when no power of the row is widened.
+std::vector<std::string> gains_of(const GuestRow& row, const GuestsFile& file);
+
 /// WHAT THE FILE STANDS AS ON ATTENTION for the whole run: a development host, and each row whose
 /// powers do not reach everything here, keyed by its place in the file.
 std::vector<Condition> conditions_of(const GuestsFile& file);
@@ -135,8 +140,9 @@ loom::BridgeAdmission admission_of(const GuestsFile& file, std::shared_ptr<Admit
 /// WHAT EACH GUEST MAY OBSERVE, as the relay's policy: a subscriber is judged by the row its
 /// session was admitted under (`row_of` answers which row that is, by session, from the record the
 /// policy kept), and every shape it asks for must be in that row's `observe` list for that
-/// producer. Anything else -- a local participant, a session no row admitted, one shape too many --
-/// is refused whole, in words.
+/// producer; one carrying the desk's words or picture needs `capture` too, and `ClipboardCopy` is
+/// observed by no row. Anything else -- a local participant, a session no row admitted, one shape
+/// too many -- is refused whole, in words.
 loom::observe::ObservePolicy observation_of(
     const GuestsFile& file, std::function<std::optional<std::size_t>(loom::WeaveId)> row_of);
 
