@@ -2,7 +2,7 @@
 
 Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `surface/` — the drawing
 vocabulary, the two shipped media (character cells and SDL), text regions, grounds, planes, and
-what a medium may know. Public reference: [`../docs/reference/surface.md`](../docs/reference/surface.md).
+what a medium may know. Public reference: [`surface/docs/surface.md`](../surface/docs/surface.md).
 
 ## A row may sit on something, and it is one field
 

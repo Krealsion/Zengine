@@ -10,7 +10,7 @@
 // its body. Every consumer resolves through the host catalog, so a provider overlay
 // changes the composed behavior at spend.
 // Native leaves receive values, not a Bus; ambient C++ effects are not sandboxed.
-// Reference: docs/reference/operator-providers.md.
+// Reference: operator/docs/operator-providers.md.
 
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"

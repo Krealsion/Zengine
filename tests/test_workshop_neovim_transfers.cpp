@@ -13,8 +13,8 @@
 #include "editor_transfer_story.hpp"
 #include "neovim_environment.hpp"
 
-#include "desktop-pane/vocabulary.hpp"
-#include "neovim-editor/vocabulary.hpp"
+#include "workshop/desktop-pane/vocabulary.hpp"
+#include "editor/neovim-editor/vocabulary.hpp"
 
 #if defined(NEOVIM_PROGRAM)
 

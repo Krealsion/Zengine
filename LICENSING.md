@@ -48,7 +48,7 @@ under those terms. Bundled third-party material is listed in
 test framework, the JetBrains Mono typeface the graphical skin sets its text in
 (`surface/fonts/`, SIL OFL 1.1, provenance in
 [surface/fonts/PROVENANCE.md](surface/fonts/PROVENANCE.md)), and the font files
-inside the reference quarry (below). SDL, SDL_ttf and FreeType, when the SDL
+inside the quarry (below). SDL, SDL_ttf and FreeType, when the SDL
 skin is enabled, are fetched at build time and are not distributed in this
 repository.
 
@@ -59,9 +59,9 @@ the SIL Open Font License 1.1, whose text travels with them in
 so anything distributing that weave is distributing the font and carries the
 OFL's notice obligation with it — which is what the notices file records.
 
-## `reference/` — the quarry
+## `quarry/` — the quarry
 
-`reference/` is the read-only quarry imported from the prior V1 Zen engine
+`quarry/` is the read-only quarry imported from the prior V1 Zen engine
 working tree. Its C++ source is first-party (single-author history, no
 contrary notices) and falls under this repository's MPL-2.0 statement, but as
 frozen reference material it does not carry per-file headers.

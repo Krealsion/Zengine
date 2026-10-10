@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
-#include "flow-host/runtime.hpp"
+#include "flow/flow-host/runtime.hpp"
 #include "flow/example.hpp"
 #include "operator/primitives.hpp"
 #include "timer/timer_weave.hpp"

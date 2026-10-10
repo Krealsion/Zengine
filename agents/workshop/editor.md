@@ -15,9 +15,9 @@ MEANS
 - `EditorState` and `EditorBuffer` moved with it whole; the host holds no path, no bytes;
 - the seam carries values only: no `Session&`, no `HostContext`, no pointer of any kind.
 
-PROVEN BY — `editor-pane/editor.hpp` `EditorState`, `EditorBuffer`, `kEditorUndoDepth`,
-`kEditorUndoBudgetBytes`; `editor-pane/pane.cpp`
-`EditorPaneWeave`, `e_`; `editor-pane/vocabulary.hpp` `kEditorPaneRole`, `kEditorPane`;
+PROVEN BY — `editor/editor-pane/editor.hpp` `EditorState`, `EditorBuffer`, `kEditorUndoDepth`,
+`kEditorUndoBudgetBytes`; `editor/editor-pane/pane.cpp`
+`EditorPaneWeave`, `e_`; `editor/editor-pane/vocabulary.hpp` `kEditorPaneRole`, `kEditorPane`;
 `workshop/default-load-plan.json`; `tests/test_workshop_panes_editor.cpp` case `"the Editor is an
 ordinary arranged pane, offered by an office"`, case `"the editor this host used to
 compile is named by no presentation source"`.
@@ -30,8 +30,8 @@ LAW — The single-line component is untouched; the buffer's gestures are declar
 DOES NOT MEAN
 - that a replacement may touch path custody, save authority or presentation.
 
-PROVEN BY — `editor-pane/editor.hpp` `EditorBuffer`, `kEditorVocabulary`,
-`EditorBuffer::consume`; `component/text_box.hpp` `TextBox`; `editor-pane/pane.cpp`
+PROVEN BY — `editor/editor-pane/editor.hpp` `EditorBuffer`, `kEditorVocabulary`,
+`EditorBuffer::consume`; `component/text_box.hpp` `TextBox`; `editor/editor-pane/pane.cpp`
 `on(PaneKey)`; `tests/test_editor.cpp` case `"the editor's declared vocabulary and consume agree,
 both directions"`, case `"undo groups typing, treats joins and pastes as one edit,
 and redo returns"`, case `"set_lines wipes the history -- undo cannot
@@ -46,8 +46,8 @@ MEANS
 - discard is undoable through `revert_to`, which keeps the history;
 - process death still loses drafts: no crash recovery.
 
-PROVEN BY — `editor-pane/pane.cpp` `judge_source`, `discard_source_edits`,
-`on(PaneQuitRequested)`; `editor-pane/editor.hpp` `EditorBuffer::revert_to`, `EditorState`;
+PROVEN BY — `editor/editor-pane/pane.cpp` `judge_source`, `discard_source_edits`,
+`on(PaneQuitRequested)`; `editor/editor-pane/editor.hpp` `EditorBuffer::revert_to`, `EditorState`;
 `workshop/weave_run.cpp` `quit`, `on(PaneQuitAnswered)`; `tests/test_workshop_panes_editor.cpp`
 case `"removing and reopening the pane cannot lose a byte, a caret, or a step of history"`, case
 `"a dirty buffer refuses a different source, and a save opens the way"`, case `"an
@@ -66,9 +66,9 @@ MEANS
 DOES NOT MEAN
 - that a candidate rides a reload: a successor shown what it did not prepare declines.
 
-PROVEN BY — `editor-pane/pane.cpp` `on(OpenSourceRequested)`, `on(SourceOpened)`,
+PROVEN BY — `editor/editor-pane/pane.cpp` `on(OpenSourceRequested)`, `on(SourceOpened)`,
 `on(PrepareSourceRequested)`, `on_claim_published`, `judge_source`, `Candidate`, `Relay`,
-`activate`; `editor-pane/editor.hpp` `source_in`, `EditorState`;
+`activate`; `editor/editor-pane/editor.hpp` `source_in`, `EditorState`;
 `workshop/pane_seam_vocabulary.hpp` `OpenSourceRequested`, `SourceOpened`, `kEditorRole`;
 `workshop/open_seam_vocabulary.hpp` `PrepareSourceRequested`, `SourcePrepared`, `kOpeningRole`;
 `tests/test_workshop_panes_editor.cpp` case
@@ -88,8 +88,8 @@ MEANS
 DOES NOT MEAN
 - that case-folding and hard links are handled.
 
-PROVEN BY — `editor-pane/pane.cpp` `resolve`, `project_dir_`, `project_known_`,
-`on(ProjectRoot)`; `workshop/persist.hpp` `resolved_against`; `editor-pane/editor.hpp`
+PROVEN BY — `editor/editor-pane/pane.cpp` `resolve`, `project_dir_`, `project_known_`,
+`on(ProjectRoot)`; `workshop/persist.hpp` `resolved_against`; `editor/editor-pane/editor.hpp`
 `EditorState::path`; `tests/test_workshop_panes_editor.cpp` case `"a relative path is the
 project's file, and means nothing until the project has said"`, case `"re-requesting the open
 source reveals it and destroys nothing"`.
@@ -104,8 +104,8 @@ MEANS
 - `source_in`/`source_text` are exact inverses; the file is never rewritten;
 - typed and pasted text meet the same law at the doors, refused in a row.
 
-PROVEN BY — `editor-pane/editor.hpp` `source_in`, `source_text`, `pasteable_source`,
-`line_ending`, `source_byte_ok`, `PasteableSource`; `editor-pane/pane.cpp` `on(PaneTextInput)`;
+PROVEN BY — `editor/editor-pane/editor.hpp` `source_in`, `source_text`, `pasteable_source`,
+`line_ending`, `source_byte_ok`, `PasteableSource`; `editor/editor-pane/pane.cpp` `on(PaneTextInput)`;
 `tests/test_editor.cpp` case `"source_in and source_text are inverse over everything admitted"`;
 `tests/test_workshop_panes_editor.cpp` case `"a clipboard holding non-ASCII refuses
 the paste, and typed non-ASCII is refused with a sentence"`.
@@ -118,8 +118,8 @@ LAW — Tabs expand only at presentation, at a four-column stop; one tab-geometr
 MEANS
 - `kCaretCols` reserves the caret's column of every document row (the Terminal's rule).
 
-PROVEN BY — `editor-pane/editor.hpp` `EditorState::first_col`, `visual_col_of`,
-`byte_of_visual_col`, `expanded_slice`, `kEditorTabStop`; `editor-pane/pane.cpp` `kCaretCols`,
+PROVEN BY — `editor/editor-pane/editor.hpp` `EditorState::first_col`, `visual_col_of`,
+`byte_of_visual_col`, `expanded_slice`, `kEditorTabStop`; `editor/editor-pane/pane.cpp` `kCaretCols`,
 `press_at`; `tests/test_editor.cpp` case `"tab geometry maps bytes and displayed columns
 both ways, exactly"`; `tests/test_workshop_panes_editor.cpp` case `"a press places the
 caret through the same tab geometry the paint used, and the caret stands in its picture where the
@@ -134,7 +134,7 @@ MEANS
 - a notice appearing or clearing changes the document's rows and is not a resize;
 - asking for the OPEN source again is a reveal: a scrolled view is the weaver's.
 
-PROVEN BY — `editor-pane/pane.cpp` `reconcile`, `say`; `editor-pane/editor.hpp`
+PROVEN BY — `editor/editor-pane/pane.cpp` `reconcile`, `say`; `editor/editor-pane/editor.hpp`
 `EditorState::follow_caret`, `EditorState::last_rows`; `tests/test_workshop_panes_editor.cpp`
 case `"keyboard navigation scrolls the window and the caret never leaves it"`, case
 `"asking for the open source again moves the pane, never the view"`.
@@ -147,8 +147,8 @@ LAW — A pending paste pins the document epoch and the buffer revision it was a
 MEANS
 - it retires with its subject: a new document clears the flight, so a clean one is not
 
-PROVEN BY — `editor-pane/pane.cpp` `begin_paste`, `on(ClipboardText)`, `Paste`, `activate`;
-`editor-pane/editor.hpp` `EditorState::doc_epoch`, `EditorBuffer::revision`,
+PROVEN BY — `editor/editor-pane/pane.cpp` `begin_paste`, `on(ClipboardText)`, `Paste`, `activate`;
+`editor/editor-pane/editor.hpp` `EditorState::doc_epoch`, `EditorBuffer::revision`,
 `EditorBuffer::paste_lines`, `EditorBuffer::set_lines`;
 `tests/test_workshop_panes_editor.cpp` case `"a late paste answer may not land at a caret that has
 since moved"`, case `"a paste retires with the document it was asked for"`, case
@@ -164,7 +164,7 @@ MEANS
 - one row is the status row alone, and the caret has nowhere to be;
 - they are its picture on its canvas, and prose rows with `PaneCaret` beside them to a host granting none.
 
-PROVEN BY — `editor-pane/pane.cpp` `say`, `compose`, `caret_of`, `rows_caret`, `parts_of`,
+PROVEN BY — `editor/editor-pane/pane.cpp` `say`, `compose`, `caret_of`, `rows_caret`, `parts_of`,
 `status_text`, `kNoticeNeedsRows`; `workshop/pane_canvas_rows.hpp` `rows_picture`;
 `workshop/screen_external.cpp` `external_header`, `external_body_place`;
 `tests/test_workshop_panes_editor.cpp` case `"a selection that runs above the window is clipped,
@@ -210,7 +210,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/weave_run.cpp` `quit`, `finish_quit`, `on(PaneQuitAnswered)`,
 `hold_input`, `replay_held`; `workshop/weave.hpp` `HeldInput`, `kMaxHeldInput`, `quitting_`;
-`workshop/pane_vocabulary.hpp` `PaneQuitRequested`, `PaneQuitAnswered`; `editor-pane/pane.cpp`
+`workshop/pane_vocabulary.hpp` `PaneQuitRequested`, `PaneQuitAnswered`; `editor/editor-pane/pane.cpp`
 `on(PaneQuitRequested)`, `kPasteInFlight`; `tests/test_workshop_panes_editor.cpp` case
 `"a Workshop with no custodian in the room quits at once"`, case `"a forged quit answer
 moves nothing -- only Loom's answer to the host's ask decides"`, case `"an edit racing
@@ -229,9 +229,9 @@ MEANS
 DOES NOT MEAN
 - that the undo history, an operation in flight or the wheel fraction ride.
 
-PROVEN BY — `editor-pane/vocabulary.hpp` `EditorPaneState`, `EditorPaneState::text_builds`;
-`editor-pane/pane.cpp` `mirror_state`, `revive`, `restore_from_state`, `saved_stamp_`;
-`editor-pane/editor.hpp` `EditorBuffer::restore_selection`, `EditorBuffer::content_revision`;
+PROVEN BY — `editor/editor-pane/vocabulary.hpp` `EditorPaneState`, `EditorPaneState::text_builds`;
+`editor/editor-pane/pane.cpp` `mirror_state`, `revive`, `restore_from_state`, `saved_stamp_`;
+`editor/editor-pane/editor.hpp` `EditorBuffer::restore_selection`, `EditorBuffer::content_revision`;
 `tests/test_workshop_panes_editor.cpp` case `"the mirror is rebuilt when the bytes move and at no
 other time"`; `tests/test_workshop_load.cpp` case
 `"an unchanged room after a reload is not a resize, and the view it was scrolled to stands"`, case
@@ -247,8 +247,8 @@ MEANS
 - a pointer gesture composes no new rows, so the notice and the picture survive it;
 - its release or its loss ends it; the host ends the hold of a pane that left (WL-CANVAS-02).
 
-PROVEN BY — `editor-pane/pane.cpp` `on(PaneCanvasPointer)`, `press_at`, `dragged`, `Drag`;
-`editor-pane/editor.hpp` `EditorBuffer::drag_to`; `workshop/pane_canvas_vocabulary.hpp`
+PROVEN BY — `editor/editor-pane/pane.cpp` `on(PaneCanvasPointer)`, `press_at`, `dragged`, `Drag`;
+`editor/editor-pane/editor.hpp` `EditorBuffer::drag_to`; `workshop/pane_canvas_vocabulary.hpp`
 `PaneCanvasPointer`; `tests/test_workshop_panes_editor.cpp` case `"a press that only focuses
 begins no sweep, and a gesture keeps the geometry it was made against"`, case `"a sweep in a pane
 that lost its seat is lost with it, and a motion after the close moves nothing it selected"`, case

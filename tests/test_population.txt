@@ -7,7 +7,7 @@
 smoke                             program           always
 neovim                            doctest           always  22
 neovim_live                       doctest           neovim  21
-# Tripwires in this suite read snake/play.cpp and snake/clock.cpp as text (VM-WALL-11).
+# Tripwires in this suite read examples/snake/play.cpp and examples/snake/clock.cpp as text (VM-WALL-11).
 snake                             doctest           always  22
 timer                             doctest           always  82
 # Tripwires in this suite read input/input_sdl.cpp and input/translate_sdl.hpp as text (VM-WALL-11).
@@ -42,7 +42,7 @@ workshop_journey                  program           session
 story_journey                     program           session
 neovim_journey                    program           session-neovim
 
-# A case in this suite reads the keymap example in docs/workshop/hotkeys.md, as a weaver copies it.
+# A case in this suite reads the keymap example in workshop/docs/hotkeys.md, as a weaver copies it.
 workshop_document                 doctest           always  47
 workshop_screen                   doctest           always  137
 workshop_desk                     doctest           always  67
@@ -81,6 +81,7 @@ package_vocabulary                script            always
 law_register                      script            always
 source_comments                   script            always
 code_values                       script            always
+folder_map                        script            always
 flow                              doctest           always  60
 
 message_draft                     doctest           always  11

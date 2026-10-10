@@ -10,7 +10,7 @@
 // outlives everything; an offer is scoped around one ordinary `zen.LoadWeave`, placed before the
 // load is asked for, since a weave's first need can be inside `create()`, where no host can get
 // between.
-// Reference: docs/reference/operator-host.md.
+// Reference: operator/docs/operator-host.md.
 
 // The host opens the image itself: Loom has no public door to a second exported symbol of a
 // kernel-loaded image. Both opens name one image (the loader refcounts), and the offer's share

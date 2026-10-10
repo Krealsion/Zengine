@@ -29,8 +29,8 @@
 
 #include "builder/recipe.hpp"
 #include "builder/vocabulary.hpp"
-#include "editor-pane/editor.hpp"
-#include "editor-pane/vocabulary.hpp"
+#include "editor/editor-pane/editor.hpp"
+#include "editor/editor-pane/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/opening.hpp"
@@ -5371,7 +5371,7 @@ TEST_CASE("a reload's copy is a file nothing wrote before, and a name another pr
     std::error_code cleared;
     std::filesystem::remove_all(scratch, cleared);
     const std::filesystem::path host = scratch / "runtime";
-    const std::filesystem::path out = scratch / "build" / "attention-pane";
+    const std::filesystem::path out = scratch / "build" / "attention";
     std::filesystem::create_directories(host / "zengine-attention-pane.reloads");
     std::filesystem::create_directories(out);
     const std::string product = so_of(out.generic_string(), "zengine-attention-pane");

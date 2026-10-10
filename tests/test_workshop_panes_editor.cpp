@@ -12,9 +12,9 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
-#include "desktop-pane/vocabulary.hpp"
-#include "editor-pane/editor.hpp"
-#include "editor-pane/vocabulary.hpp"
+#include "workshop/desktop-pane/vocabulary.hpp"
+#include "editor/editor-pane/editor.hpp"
+#include "editor/editor-pane/vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_doors.hpp"
 #include "workshop/pane_migration.hpp"
@@ -2207,7 +2207,7 @@ TEST_CASE("the editor this host used to compile is named by no presentation sour
                                       "refresh_editor(", "PasteOwner::kEditor",
                                       "kEditorBody", "open_source(", "save_source(",
                                       "discard_source_edits(", "\"zengine.editor\"",
-                                      "editor-pane/"}) {
+                                      "editor/editor-pane/"}) {
             CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " names '",
                           forbidden, "'");
         }

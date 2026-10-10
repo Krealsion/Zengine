@@ -8,7 +8,7 @@
 // v2`, and the state, the weave's own value at its own schema -- their native bytes, and the
 // admission a definition passes before the interpreter registers it. Version 1, whose bodies hold
 // no fold, still reads. There is no signature or provenance field.
-// Reference: docs/reference/maker-weave.md.
+// Reference: maker/docs/maker-weave.md.
 
 #include "maker/write.hpp"
 #include "operator/catalog.hpp"

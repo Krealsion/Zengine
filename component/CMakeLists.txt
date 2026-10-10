@@ -1,6 +1,6 @@
 # The Component package: reusable pieces of a weaver-facing tool that own their own semantic
 # state and know nothing about the medium showing them, earned by repeated working behaviour,
-# never by a list of widgets (docs/reference/component.md). Not ui/, whose one distinction is
+# never by a list of widgets (component/docs/component.md). Not ui/, whose one distinction is
 # authored content versus a viewport's observation of it; not workshop/, or the next visual
 # application would reinvent them; not the Loom, since nothing here crosses the bus.
 

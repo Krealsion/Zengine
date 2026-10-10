@@ -16,7 +16,7 @@
 // newly observed facts -- nothing upstream asks "is it done yet?". `op` means something within
 // this incarnation: the runner is mounted natively, so no successor can inherit a number (a
 // loadable one would need a surviving high-water mark). Destroying it terminates and reaps every
-// child and publishes nothing. Reference: docs/reference/builder.md.
+// child and publishes nothing. Reference: builder/docs/builder-reference.md.
 
 #include "builder/generate.hpp"
 #include "builder/recipe.hpp"

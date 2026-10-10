@@ -1,10 +1,10 @@
 # Described views
 
-Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view-builder/`. Also read
+Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Also read
 [panes](panes.md) (the canvas and the carry), [flow](flow.md) (the one shape model) and
 [flow host](flow-host.md) (the sibling host). Public contract:
-[view reference](../docs/reference/view.md); weaver guide:
-[the View Builder](../docs/workshop/view-builder.md).
+[view reference](../view/docs/view.md); weaver guide:
+[the View Builder](../view/docs/view-builder.md).
 
 - A view description is presentation as data: its size, elements inside it, the field a label
   shows, the intent a button says. It holds no business value, no resolved geometry and no

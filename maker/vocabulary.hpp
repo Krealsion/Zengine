@@ -9,7 +9,7 @@
 // bytes, admitted by the receiver at its own door, so they name no field of any definition. Their
 // wire names carry the package's `zengine.maker.` prefix, which `ZEN_SHAPE` cannot spell, so they
 // are registered by hand, as Loom's poke and standard shapes are. Reference:
-// docs/reference/maker-weave.md.
+// maker/docs/maker-weave.md.
 
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>

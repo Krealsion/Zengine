@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// Suite `workshop_neovim`: the Neovim-backed Editor (`neovim-editor/`) holding the Editor's
+// Suite `workshop_neovim`: the Neovim-backed Editor (`editor/neovim-editor/`) holding the Editor's
 // office in a LIVE Workshop, through the switch suite's rig (`workshop_switch_rig.hpp`).
 // Always: no Neovim, and a fake one (`neovim-fixture`) failing at start each way a real one
 // can. Behind the `neovim` gate: a real Neovim, documents crossing both ways exactly. A case
@@ -12,9 +12,9 @@
 
 #include "workshop_switch_rig.hpp"
 
-#include "neovim-editor/vocabulary.hpp"
+#include "editor/neovim-editor/vocabulary.hpp"
 #include "neovim_environment.hpp"
-#include "neovim/child.hpp"
+#include "editor/neovim/child.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <chrono>

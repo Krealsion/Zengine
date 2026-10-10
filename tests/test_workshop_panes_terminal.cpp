@@ -12,7 +12,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
-#include "terminal-pane/vocabulary.hpp"
+#include "terminal/vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 
 #include <algorithm>

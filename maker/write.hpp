@@ -9,7 +9,7 @@
 // alone can judge, so a definition is refused at admission; `write_fields` adds the one refusal
 // only a value can raise. A constant may be `Text`, which the composite wire form refuses
 // (operator/provider.hpp): that wall is a binding's, not a write's. Also here: a data-built
-// schema's default, and the pack a trigger is spent over. Reference: docs/reference/maker-weave.md.
+// schema's default, and the pack a trigger is spent over. Reference: maker/docs/maker-weave.md.
 
 #include "operator/catalog.hpp"
 

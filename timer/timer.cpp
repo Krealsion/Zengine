@@ -5,8 +5,8 @@
 // timer_weave.hpp (pinned over a fake clock); this is the real Clock -- the monotonic read and
 // the nap -- here because this weave's whole purpose is time and no host winds it (TIMER-02). It
 // also decides which operator truth this instance spends: its constructor takes the host's offer
-// inside `create()`, the only window a scoped offer leaves open (docs/reference/operator-host.md).
-// Timer law: docs/laws/timer-laws.md
+// inside `create()`, the only window a scoped offer leaves open (operator/docs/operator-host.md).
+// Timer law: timer/docs/timer-laws.md
 
 #include "normalize.hpp"
 #include "timer_weave.hpp"

@@ -13,7 +13,7 @@
 
 #include "workshop_support.hpp"
 
-#include "editor-pane/vocabulary.hpp"
+#include "editor/editor-pane/vocabulary.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"

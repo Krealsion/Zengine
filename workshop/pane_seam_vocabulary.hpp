@@ -29,7 +29,7 @@ inline constexpr const char* kProjectRole = "zengine.project";
 inline constexpr const char* kRecipesRole = "zengine.recipes";
 
 /// The office that holds the one source document. A literal rather than
-/// `editor-pane/vocabulary.hpp`'s constant: neither asker links the weave, and a case checks the
+/// `editor/editor-pane/vocabulary.hpp`'s constant: neither asker links the weave, and a case checks the
 /// two spellings agree.
 inline constexpr const char* kEditorRole = "zengine.editor";
 
@@ -79,7 +79,7 @@ struct RecipeAuthorRequested {
                                         ///< everywhere else
     bool tree = false;                 ///< which of the two kinds this draft is
     // Version 2 since `config` joined (WL-AUTH-01). For a pane built apart from its host, see
-    // docs/workshop/develop-workshop.md's "a pane's messages change".
+    // workshop/docs/develop-workshop.md's "a pane's messages change".
     ZEN_SHAPE(RecipeAuthorRequested, 2, ZEN_FIELD(id), ZEN_FIELD(artifact), ZEN_FIELD(source),
               ZEN_FIELD(packages), ZEN_FIELD(links), ZEN_FIELD(build_dir), ZEN_FIELD(target),
               ZEN_FIELD(artifact_dir), ZEN_FIELD(config), ZEN_FIELD(tree));

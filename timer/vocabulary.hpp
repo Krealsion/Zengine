@@ -7,8 +7,8 @@
 // The Timer package's message vocabulary: time, message-shaped. Games and packages neither read
 // the OS clock nor sleep; a weave asks for time (`StartTimer`, `EnsureTimer`, ...) and it arrives
 // as a message (`TimerFired`) from the service holding `zengine.timer`, the one place with a
-// monotonic clock and a nap. Laws: docs/laws/timer-laws.md (TIMER-01..05); every shape and
-// field: docs/reference/timer-protocol.md; succession: docs/reference/timer-continuity.md.
+// monotonic clock and a nap. Laws: timer/docs/timer-laws.md (TIMER-01..05); every shape and
+// field: timer/docs/timer-protocol.md; succession: timer/docs/timer-continuity.md.
 //
 // A continuity decision is about one kind of state: intent (what a consumer wants, re-declared
 // on its own activation), progress (the remaining time to the next firing -- the one thing a

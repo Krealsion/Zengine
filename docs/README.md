@@ -4,92 +4,58 @@ Zengine documents what it owns: its packages, and Workshop. Substrate truth — 
 lifecycle, replacement, capabilities — belongs to the Loom and lives in
 [Loom's documentation](https://github.com/Krealsion/Loom/blob/main/docs/README.md).
 
-Every page below has one reader purpose, named.
+Every page has one reader purpose, named. A folder's own pages — its guides, reference pages,
+laws and decisions — are listed on its front page, its `README.md`; this page is the map of the
+front pages, and the index of the pages no one folder owns.
 
 ## Start here
 
 | page | purpose | for |
 |---|---|---|
-| [../README.md](../README.md) | **orientation** | what Zengine is, whether it is mature enough for you, how to build it |
+| [../README.md](../README.md) | **orientation** | what Zengine is, whether it is mature enough for you, how to build it, and the map of its folders |
 | [getting-started.md](getting-started.md) | **getting started** | a C++ developer, from nothing to a running weave that uses the Timer |
 | [../cheat_sheet.md](../cheat_sheet.md) | **cheat sheet** | looking something up while you work |
-| [workshop/getting-started.md](workshop/getting-started.md) | **getting started** | a weaver, launching and using Workshop |
+| [../workshop/docs/getting-started.md](../workshop/docs/getting-started.md) | **getting started** | a weaver, launching and using Workshop |
+| [../workshop/docs/limitations.md](../workshop/docs/limitations.md) | **limitations** | what does not work yet, in one place |
 
-## Guides — task-shaped
+## The map
 
-| page | purpose |
+**Features** — what a weaver meets by name in Workshop, each with its parts and its pages:
+
+| front page | what it is |
 |---|---|
-| [guides/flow.md](guides/flow.md) | author a stateful message-driven rule, edit it live, save and generate native C++ |
-| [guides/timers.md](guides/timers.md) | ordering a timer: the shapes, the receipts, the `TimerReady` rule |
-| [guides/timed-weaves.md](guides/timed-weaves.md) | a weave whose rhythm is part of what it is, and where that layer's boundary lies |
-| [guides/make-a-workshop-tool.md](guides/make-a-workshop-tool.md) | build a loaded Tally pane, add an authorized typed interaction, recognize its answer/refusal, and diagnose a missing reply grant |
+| [attention/](../attention/README.md) | what needs your attention, at a glance and in a pane of its own |
+| [builder/](../builder/README.md) | the Builder: build a recipe, then load or reload what it made |
+| [composer/](../composer/README.md) | Compose: fill in a typed message and send it |
+| [editor/](../editor/README.md) | the Editor, standard or held by a Neovim, and the source material it carries |
+| [external-host/](../external-host/README.md) | Workshop driven from another Loom host, and the Connections pane |
+| [files/](../files/README.md) | Files: browse the project you launched in and open a file |
+| [flow/](../flow/README.md) | Flow: author a stateful weave as a graph, edit it live, generate native C++ |
+| [info/](../info/README.md) | Info: independent views that inspect and edit a value |
+| [introspection/](../introspection/README.md) | Loaded, Project and Powers: what a running system is made of |
+| [inventory/](../inventory/README.md) | Inventory: stored typed values, portable toolboxes and hotkeys |
+| [terminal/](../terminal/README.md) | the Terminal: type a command to the weaves on the bus |
+| [view/](../view/README.md) | a view described as data, the view host, and the View Builder |
 
-## Workshop — the product
+**The host** — [workshop/](../workshop/README.md): Workshop, the interactive environment for
+weavers, with the Pane Manager, Hotkeys and the menus.
 
-| page | purpose |
+**Libraries** — what a program links or a weave builds on by name:
+
+| front page | what it owns |
 |---|---|
-| [workshop/getting-started.md](workshop/getting-started.md) | launch, the screen, the first five minutes, the key map |
-| [workshop/panes.md](workshop/panes.md) | opening, moving, resizing and ordering panes — how a bigger one is actually obtained, and how a pane of your own is made from data |
-| [workshop/inventory-compose.md](workshop/inventory-compose.md) | typed drops, explicit command submission and a timed external-host demo |
-| [workshop/inventory-slots.md](workshop/inventory-slots.md) | portable boxes and strips, disabled duplicate bindings and the live demo |
-| [workshop/inventory-folders.md](workshop/inventory-folders.md) | organize Inventory in named nested folders: open, climb, file, move and keep them in toolboxes, with the organized workbench story |
-| [workshop/toolboxes.md](workshop/toolboxes.md) | save typed Inventory toolboxes across restarts and restore a test fixture with one request |
-| [workshop/info-views.md](workshop/info-views.md) | several independent Info views: visible controls, field-to-field transfer, watching a linked entry, sampling a source again, and the inspection-workbench toolbox |
-| [workshop/hotkeys.md](workshop/hotkeys.md) | the one binding truth: the hotkey view, the band legend, and the hand-edited keymap file |
-| [workshop/attention.md](workshop/attention.md) | what is true right now and worth knowing — the compact indicator, the current-condition view, and why hiding one is not fixing it |
-| [workshop/demo-setups.md](workshop/demo-setups.md) | one-command ready setups: find and describe them, prepare and return, visible Reset, hotkeys a setup turns on, authoring a setup, measurements |
-| [workshop/setups.md](workshop/setups.md) | the three persisted files, saving an arrangement under a name, the last session that comes back on its own, and an explicit verdict on workspace continuity |
-| [workshop/load-plans.md](workshop/load-plans.md) | choosing what a run is made of, from a weaver's side |
-| [workshop/builder.md](workshop/builder.md) | authored build recipes, the two recipe kinds and a CMake target's editing entry, authoring a recipe from Files, load after build, reload in place, reading what a build said, and loading a built artifact into the plan |
-| [workshop/flow.md](workshop/flow.md) | author and exercise a stateful weave graphically, retain message examples, and save the workspace |
-| [workshop/view-builder.md](workshop/view-builder.md) | make a small panel by hand beside Flow, run it as a participant of its own, and join it to a Flow definition by dragging its shapes |
-| [workshop/editor.md](workshop/editor.md) | the Editor pane — open a source, edit, save, and back to the build; the pane holds the document |
-| [workshop/files.md](workshop/files.md) | the Files pane — browse the project you launched in and open a file from it |
-| [workshop/terminal.md](workshop/terminal.md) | the Terminal pane — type a command to the weaves on this bus, recall one you ran, read back through the record, and choose a destination from what is there |
-| [workshop/neovim.md](workshop/neovim.md) | **walkthrough**: edit in Neovim inside Workshop, switch the Editor between the standard Editor and Neovim with your unsaved work, and run Neovim from a Loom with no Workshop |
-| [workshop/edit-a-running-pane.md](workshop/edit-a-running-pane.md) | **walkthrough**: right-click a running pane, edit its code, build and reload it in place, then revert or promote — with the Tally example |
-| [workshop/develop-workshop.md](workshop/develop-workshop.md) | **walkthrough**: change a pane Workshop ships from inside Workshop — one Run that launches it, the development catalog and runtime, a failed build read in the Builder, which panes, and what a setup does not follow |
-| [workshop/external-host.md](workshop/external-host.md) | **walkthrough**: drive Workshop from another Loom host — the guests file that admits one and the Connections pane that shows who is connected, then a reader-intent table routing to whichever path fits: a Loom session's editable Python tools (no compiler, recommended), or a compiled probe weave that opens an input session, presses keys, takes a picture and keeps the exchange in its own history; and the desk read by message, whole, and written as text for an agent |
-| [workshop/elh-recipe-journey.md](workshop/elh-recipe-journey.md) | **walkthrough**: prepare a multi-config fixture, author through Files using ELH tools, verify refusal and saved values, and recover the story from another client |
-| [../examples/tower-defense/README.md](../examples/tower-defense/README.md) | **worked example**: a small game made from inside Workshop by an external host -- typed in Neovim, reloaded in place by the Builder after each milestone, its commands kept in Inventory -- and a script that replays how from an empty directory, at a pace you choose |
-| [workshop/limitations.md](workshop/limitations.md) | **what does not work yet**, in one place |
+| [timer/](../timer/README.md) | the clock, the only sleep, one beat chain per activation; the Timer laws |
+| [input/](../input/README.md) | the sole producer of key, text and pointer moments |
+| [surface/](../surface/README.md) | drawing intent, and the skins that paint it |
+| [ui/](../ui/README.md) | authored placement and extent, resolved against a viewport |
+| [component/](../component/README.md) | reusable pieces of a tool: text editing, list and table arithmetic, a control strip, motion sampling |
+| [activation/](../activation/README.md) | reading your own activation, once, without replay |
+| [operator/](../operator/README.md) | typed reusable rules, supplied by artifacts |
+| [maker/](../maker/README.md) | a weave built from a weaver's definition, edited live |
+| [message-draft/](../message-draft/README.md) | typed value forms, unfinished drafts and named presets |
 
-## Reference — exact contracts
-
-| page | purpose |
-|---|---|
-| [reference/input.md](reference/input.md) | the Input package: what each shape preserves, and which backend produces it |
-| [reference/surface.md](reference/surface.md) | the drawing vocabulary, the rule for choosing between its text shapes, the depth model |
-| [reference/ui.md](reference/ui.md) | authored versus resolved geometry, and the fence between them |
-| [reference/component.md](reference/component.md) | reusable editing, list and motion helpers |
-| [reference/activation.md](reference/activation.md) | the activation cursor: when a weave acts on a `zen.Activated`, and why the Loom's attestation comes before the weave's own lineage |
-| [reference/builder.md](reference/builder.md) | the Builder package: authored recipes, the generated single-source project, process custody, and the seam to realization |
-| [reference/snake.md](reference/snake.md) | a worked example whose parts are genuinely separate weaves |
-| [reference/timer-protocol.md](reference/timer-protocol.md) | exact Timer semantics |
-| [reference/timer-continuity.md](reference/timer-continuity.md) | what a schedule does across the service's own replacement |
-| [reference/timer-binding.md](reference/timer-binding.md) | the `TimedWeave` model and its boundary |
-| [reference/load-plan.md](reference/load-plan.md) | the authored load plan: format, execution law, rollback |
-| [reference/workshop-panes.md](reference/workshop-panes.md) | the contracts a Workshop tool author builds on: the pane system, named setups, the pane a weave offers and its protocol, presses, menus, authorized input, the desk and each pane's words read by message, and the desk that comes back |
-| [reference/editor-switch.md](reference/editor-switch.md) | switching the Editor's office: a plan's choices, the four messages and their answers, the handoff, and exactly what crosses, resets, needs consent or is refused |
-| [reference/introspection.md](reference/introspection.md) | `Loaded`, `Project`, `Powers` — what each shows, where each fact's authority lives, and why two of them deliberately disagree |
-| [reference/operator-host.md](reference/operator-host.md) | how a loaded weave asks a host to evaluate a rule it did not compile with, and the five ways it can fail |
-| [reference/operator-providers.md](reference/operator-providers.md) | how an artifact supplies operator definitions, how one power may be shadowed then revealed, and how a contribution becomes the conversion that reads an older file |
-| [reference/flow.md](reference/flow.md) | Flow authoring, graph workspaces, persistence, native generation, recovery and host lifetimes |
-| [reference/message-drafts.md](reference/message-drafts.md) | typed value editing, unfinished drafts, named presets, schema closure and compatibility |
-| [reference/inventory.md](reference/inventory.md) | owned typed entries, metadata, portable views, contextual hotkeys and lifetime |
-| [reference/source-transfer.md](reference/source-transfer.md) | the text, command and file-location material the Editors carry to Inventory and take back: shapes, byte laws, the Terminal line, generated C++ |
-| [reference/flow-runtime.md](reference/flow-runtime.md) | Flow sessions on an existing host: authority, live editing, dispatch observations and custody |
-| [reference/view.md](reference/view.md) | a view described as data: the description and its format, the view host, and the renderer that draws it on a pane's canvas |
-| [reference/maker-weave.md](reference/maker-weave.md) | the maker weave: the two artifacts a definition and a state are, what a trigger is, and the two ways a live definition is edited |
-| [reference/operator-sources.md](reference/operator-sources.md) | the catalog entries you can spend with nothing in hand: what a Source is, sampling one, seeing what a sample would yield without sampling it |
-| [reference/pointer-spaces.md](reference/pointer-spaces.md) | where a reported pointer position lands, and which package owns each step |
-
-## Invariants and decisions
-
-| page | purpose |
-|---|---|
-| [laws/timer-laws.md](laws/timer-laws.md) | TIMER-01..05 |
-| [decisions/timer-continuity-carries-remaining-duration.md](decisions/timer-continuity-carries-remaining-duration.md) | why durations rather than deadlines |
+**Examples** — [examples/](../examples/README.md): worked examples, among them a game whose parts
+are separate weaves and a small game made from inside Workshop.
 
 ## Contributing
 

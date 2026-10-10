@@ -181,7 +181,7 @@ def journey(ctx):
     # than holding it -- and text typed into what it opened -- ctrl+p, then a name typed into
     # the pane it raised). The Input weave publishes an injected batch in the order handed --
     # never several batches whose relative order this tool would have to trust separately
-    # (investigated, not assumed: see `docs/workshop/external-host.md`'s own account of what
+    # (investigated, not assumed: see `external-host/docs/external-host.md`'s own account of what
     # settlement orders and does not).
     click_events = click_moments(ctx, click, button) if click else []
     if not chord_spelling:

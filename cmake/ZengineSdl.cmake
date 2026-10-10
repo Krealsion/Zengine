@@ -142,7 +142,7 @@ if(zengine_sdl_fetched)
 endif()
 
 # ---- SDL_ttf: a real typeface for the graphical Skin -------------------------------------
-# A font engine that pairs with this SDL3 (docs/reference/surface.md says why the Skin needs one).
+# A font engine that pairs with this SDL3 (surface/docs/surface.md says why the Skin needs one).
 # SDL_ttf requires FreeType and its tarball does not bundle it, and both of its doors were
 # measured shut here: SDLTTF_VENDORED=OFF finds no FreeType on the WSL lane or in CLion's MinGW,
 # and ON needs external/freetype to exist. So FreeType is fetched, pinned, into that directory;

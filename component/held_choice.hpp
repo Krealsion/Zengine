@@ -9,7 +9,7 @@
 // still a choice while lost, since acting on whatever slid into its place is the defect this
 // keeps out. It owns the key, whether one was chosen, where the marker stands and whether the
 // key is missing; the key type and the reload shape stay the consumer's.
-// Reference: docs/reference/component.md.
+// Reference: component/docs/component.md.
 
 #include <cstddef>
 #include <cstdint>

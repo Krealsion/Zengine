@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Joshua DeMoss
 """Prepare a described setup and keep it ready: the service behind `demo.py start` and the
 visible Reset button. Product state changes always go through their owners; what a setup
-prepares is read from its description (setups.py, docs/workshop/demo-setups.md)."""
+prepares is read from its description (setups.py, workshop/docs/demo-setups.md)."""
 import base64
 from collections import Counter
 import json

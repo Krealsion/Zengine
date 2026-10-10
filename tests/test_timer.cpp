@@ -26,7 +26,7 @@
 #include "input/vocabulary.hpp"
 #include "probe_vocabulary.hpp"
 #include "lifecycle_door.hpp"
-#include "snake/vocabulary.hpp"
+#include "examples/snake/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <cstddef>
@@ -969,7 +969,7 @@ TEST_CASE("a newer activation replaces the chain; a different sender begins a ne
     CHECK(r.bus.pending() == 1);
 
     // A DIFFERENT SENDER — a second lifecycle operator — is a new lineage. It
-    // is accepted (the Loom attested it; docs/reference/activation.md says why
+    // is accepted (the Loom attested it; activation/docs/activation.md says why
     // an attested sender is a lineage), and note its sequence is 1: LOWER than
     // the current one, which is exactly the point. Sequences are only comparable
     // WITHIN a lineage, so a new sender's 1 is not a replay of the old sender's

@@ -9,7 +9,7 @@
 // applications interpret gestures (a drag, a selection, a click on a panel), which are not
 // spoken here. `scancode` carries SDL scancode values (USB HID usage ids, `scan::`), the wire
 // identity of a key; `name` is a courtesy, never authoritative.
-// Reference: docs/reference/input.md.
+// Reference: input/docs/input.md.
 
 // A key transition says which key changed state; `TextEntered` says what the platform's layout
 // produced, and a consumer never derives one from the other. Editing controls (Backspace,

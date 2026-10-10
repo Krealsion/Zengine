@@ -9,15 +9,15 @@
 
 #include "doctest.h"
 
-#include "neovim/child.hpp"
-#include "neovim/document.hpp"
-#include "neovim/grid.hpp"
-#include "neovim/host.hpp"
-#include "neovim/keys.hpp"
-#include "neovim/launch.hpp"
-#include "neovim/msgpack.hpp"
-#include "neovim/projection.hpp"
-#include "neovim/rpc.hpp"
+#include "editor/neovim/child.hpp"
+#include "editor/neovim/document.hpp"
+#include "editor/neovim/grid.hpp"
+#include "editor/neovim/host.hpp"
+#include "editor/neovim/keys.hpp"
+#include "editor/neovim/launch.hpp"
+#include "editor/neovim/msgpack.hpp"
+#include "editor/neovim/projection.hpp"
+#include "editor/neovim/rpc.hpp"
 
 #if defined(_WIN32)
 #include "builder/run.hpp"

@@ -11,7 +11,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
-#include "builder-pane/vocabulary.hpp"
+#include "builder/builder-pane/vocabulary.hpp"
 #include "builder/recipe.hpp"
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
@@ -38,14 +38,14 @@ const std::string kEcho = [] {
     for (int i = 0; i < 60; ++i) {
         echo += " -I/home/weaver/zen checkout/include/a/path/a/command/echo/carries";
     }
-    return echo + " -c /home/weaver/zen checkout/attention-pane/pane.cpp";
+    return echo + " -c /home/weaver/zen checkout/attention/pane.cpp";
 }();
 const std::string kDiagnostic =
-    "[1/2] Building CXX object attention-pane/CMakeFiles/zengine-attention-pane.dir/pane.cpp.o\n"
-    "FAILED: attention-pane/CMakeFiles/zengine-attention-pane.dir/pane.cpp.o \n" + kEcho + "\n"
-    "/home/weaver/zen checkout/attention-pane/pane.cpp: In member function "
+    "[1/2] Building CXX object attention/CMakeFiles/zengine-attention-pane.dir/pane.cpp.o\n"
+    "FAILED: attention/CMakeFiles/zengine-attention-pane.dir/pane.cpp.o \n" + kEcho + "\n"
+    "/home/weaver/zen checkout/attention/pane.cpp: In member function "
     "\xE2\x80\x98void {anonymous}::AttentionPaneWeave::say_view(Push&&)\xE2\x80\x99:\n"
-    "/home/weaver/zen checkout/attention-pane/pane.cpp:416:23: error: \xE2\x80\x98oops\xE2\x80\x99 "
+    "/home/weaver/zen checkout/attention/pane.cpp:416:23: error: \xE2\x80\x98oops\xE2\x80\x99 "
     "was not declared in this scope\n"
     "  416 |         push(\"ATTENTION\" + oops);\n"
     "      |                            ^~~~\n"
@@ -128,7 +128,7 @@ struct OutputRig {
         bld::Recipe recipe;
         recipe.id = "attention";
         recipe.artifact = "zengine-attention-pane";
-        recipe.artifact_dir = "/zen/build/attention-pane";
+        recipe.artifact_dir = "/zen/build/attention";
         recipe.cmake_target =
             bld::CMakeTargetRecipe{"/zen/build", "zengine-attention-pane", "", "/zen/src/pane.cpp"};
         r.host_recipes.hold("/zen/runtime/development-build-recipes.json", {recipe},
@@ -319,8 +319,8 @@ TEST_CASE("read output shows a failed build's own lines on rows Workshop takes, 
     CHECK(rows[0].find("4 characters spelled in ASCII") != std::string::npos);
     // ...THEN THE LINES, ONE ROW EACH, IN ORDER: the compiler's line whole, its quotes spelled.
     CHECK(rows[1].rfind("[1/2] Building CXX object", 0) == 0);
-    CHECK(rows[2].rfind("FAILED: attention-pane/", 0) == 0);
-    CHECK(rows[5] == "/home/weaver/zen checkout/attention-pane/pane.cpp:416:23: error: 'oops' was "
+    CHECK(rows[2].rfind("FAILED: attention/", 0) == 0);
+    CHECK(rows[5] == "/home/weaver/zen checkout/attention/pane.cpp:416:23: error: 'oops' was "
                      "not declared in this scope");
     CHECK(rows[6] == "  416 |         push(\"ATTENTION\" + oops);");
     CHECK(rows[7] == "      |                            ^~~~"); // the caret stays under its column
@@ -356,7 +356,7 @@ TEST_CASE("a compiler's non-ASCII words in a build's last lines leave the Builde
     OutputRig o("out-detail");
     o.open();
     o.build(1,
-            "/home/weaver/zen checkout/attention-pane/pane.cpp:416:23: error: "
+            "/home/weaver/zen checkout/attention/pane.cpp:416:23: error: "
             "\xE2\x80\x98oops\xE2\x80\x99 was not declared in this scope\n",
             1);
     REQUIRE(o.refused == 0);
@@ -368,7 +368,7 @@ TEST_CASE("the reader stays bound to its build: a newer build and a new status d
     OutputRig o("out-bound");
     o.open();
     o.build(1, kDiagnostic, 1);
-    o.build(2, "[1/2] Building CXX object attention-pane/pane.cpp.o\n[2/2] Linking\n", 0);
+    o.build(2, "[1/2] Building CXX object attention/pane.cpp.o\n[2/2] Linking\n", 0);
 
     // OPENED NOW, IT IS ABOUT THE BUILD THE TOOL IS FOLLOWING: #2. Its artifact is not on disk
     // here, so the tool's word for it is NO ARTIFACT -- the reader carries that word as told.
@@ -472,7 +472,7 @@ TEST_CASE("a build that worked and a realization that was refused read as two an
     o.r.key(input::scan::kB, input::mod::kShift);
     o.r.text("B");
     REQUIRE(o.text().find("load after build: on") != std::string::npos);
-    o.build(1, "[2/2] Linking CXX shared library attention-pane/zengine-attention-pane.so\n", 0);
+    o.build(1, "[2/2] Linking CXX shared library attention/zengine-attention-pane.so\n", 0);
 
     const std::string face = o.text();
     CHECK(raw->state().offers == 1);

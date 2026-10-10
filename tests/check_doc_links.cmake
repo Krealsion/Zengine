@@ -4,7 +4,7 @@
 # The `doc_links` entry (docs/contributing/build-and-test.md): does each repo-local reference
 # resolve -- a current-facing markdown file's links and anchors, a first-party source comment's
 # `.md` path read from the repository root -- and does no current-facing file name a path outside
-# this repository? Frozen history, the reference/ quarry and paths above the root are not asked.
+# this repository? Frozen history, the quarry and paths above the root are not asked.
 #   cmake -P tests/check_doc_links.cmake    (from the repository root, or -DZEN_REPO=<repo>)
 
 cmake_minimum_required(VERSION 3.16)
@@ -35,17 +35,14 @@ set(ZEN_DOC_EXCLUDE
     "^\\.vscode/"
     "^\\.claude/"            # harness state, gitignored
     "^docs/history/"         # frozen: describes the tree at its source commit
-    "^reference/"            # the pre-Zen engine, kept as a quarry and not live
+    "^quarry/"            # the pre-Zen engine, kept as a quarry and not live
     "third_party/")          # vendored
 
-# First-party C/C++, CMake and the population manifest, whose comments are read: the roots
-# source_comments holds, so a new package is a root in both. A root that is a file is read alone.
-set(ZEN_DOC_SOURCE_ROOTS
-    CMakeLists.txt activation attention-pane builder builder-pane cmake component composer
-    connections-pane demo-control desktop-pane editor-pane examples external-host files flow
-    flow-host flow-pane info-pane input introspection inventory inventory-pane maker
-    menu-presenter message-draft neovim neovim-editor operator smoke snake source-transfer surface
-    terminal-pane tests timer ui workshop)
+# First-party C/C++, CMake and the population manifest, whose comments are read: the folders
+# tests/folders.txt names as holding code, which source_comments holds too, and the root
+# CMakeLists.txt, a root that is a file and is read alone.
+include("${CMAKE_CURRENT_LIST_DIR}/text_checks.cmake")
+zen_source_roots("${ZEN_REPO}" ZEN_DOC_SOURCE_ROOTS)
 set(ZEN_DOC_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake *.cmake.in
     test_population.txt)
 # The globs as one name pattern, so each root is walked once: a walk per glob reads every
@@ -430,7 +427,7 @@ endfunction()
 
 # A build tree is excluded and a package named like one is not.
 foreach(excluded_case "build/x.md;1" "build-san/x.md;1" "cmake-build-debug/x.md;1"
-                      "builder/weave.hpp;0" "builder-pane/pane.cpp;0" "tests/third_party/x.h;1")
+                      "builder/weave.hpp;0" "builder/builder-pane/pane.cpp;0" "tests/third_party/x.h;1")
     list(GET excluded_case 0 excluded_rel)
     list(GET excluded_case 1 excluded_want)
     zen_doc_excluded("${excluded_rel}" excluded_got)

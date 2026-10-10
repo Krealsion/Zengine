@@ -8,7 +8,7 @@
 // of three kinds -- a flag, a number or a text -- in that kind's own field, exactly one present.
 // A pane declares the settings it takes; Workshop judges a weaver's edit against them, keeps what
 // it stores, and hands a seated pane its row's settings. What a setting means is the pane's.
-// Reference: docs/reference/workshop-panes.md#a-panes-settings.
+// Reference: workshop/docs/workshop-panes.md#a-panes-settings.
 
 #include <zen/weave/shape.hpp>
 

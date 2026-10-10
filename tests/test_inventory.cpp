@@ -13,7 +13,7 @@
 #include "inventory/codec.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory/weave.hpp"
-#include "inventory-pane/toolbox_file.hpp"
+#include "inventory/inventory-pane/toolbox_file.hpp"
 #include "message-draft/transfer.hpp"
 #include "workshop/admission.hpp"
 

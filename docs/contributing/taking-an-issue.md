@@ -89,7 +89,7 @@ needs:
 
 Two optional tools each open a gate of the population: Python, beside a Loom installed with its
 session tools, opens `session`, and a Neovim named by `-DZENGINE_NEOVIM_PROGRAM=<path>` opens
-`neovim` ([the versions it needs](../workshop/neovim.md#before-you-start)). The lane prints the
+`neovim` ([the versions it needs](../../editor/docs/neovim.md#before-you-start)). The lane prints the
 gates it ran under, and an entry whose gate is shut is declared absent, never passed
 ([the population file](../../tests/test_population.txt)).
 
@@ -110,8 +110,8 @@ run: not every suite has a build edge to the libraries it loads
 The case comes first, and it fails on the unchanged code for the reason the issue gives.
 
 1. **Put it with its subject's cases.** Workshop's suites are split by subject, and
-   [where a case goes](../../agents/verification/population.md#where-a-case-goes) says how to
-   find the one that pins a register's law; each package has its own suite; the external host's
+   the router of the folder the change is in, its `AGENTS.md`, names the one that pins a
+   register's law; each package has its own suite; the external host's
    tool packages are checked by the scripts under `tests/session/`.
    [Testing a loaded pane](testing-workshop-panes.md) covers a case that needs a real pane. A case
    added to a suite raises that suite's floor in `tests/test_population.txt` to the measured
@@ -198,8 +198,8 @@ gh pr create --base main --title "<what is true now>" --body-file <file outside 
   case, the commit it was red on and what it printed; the lanes that passed, each with its
   repository, configuration and compiler; what did not run, and why. Then screenshots of a
   visible result, captured from the tested state, or the sentence that screenshots do not apply.
-  A picture is attached on the pull request's web page, or committed under `docs/` and linked at
-  its commit; [witnesses](../../agents/verification/witnesses.md) says how a live one is taken.
+  A picture is attached on the pull request's web page, or committed under a `docs/` folder and
+  linked at its commit; [witnesses](../../agents/verification/witnesses.md) says how a live one is taken.
   Last, on a line of its own, `Fixes #<n>`, which closes the issue when the pull request merges.
 - **Each commit is one coherent step**, its subject a sentence saying what is true after it, as
   the title does. The merge keeps every commit on `main`. A commit that changes a case a law cites

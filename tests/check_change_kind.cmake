@@ -31,7 +31,7 @@ string(ASCII 6 ZEN_TB)    # a tab inside a literal
 string(ASCII 7 ZEN_DIR)   # the end of a preprocessing directive
 
 # ---- what a file is ------------------------------------------------------------------------
-# documentation: Markdown, an image under docs/, a text check and the files only the text checks
+# documentation: Markdown, an image under a docs/ folder, a text check and the files only the text checks
 # read. source: a C/C++ file, judged by its tokens. Anything else is built or run by the official
 # lane, and so is this file, the lane and the list they read, and Markdown a compiled test reads.
 function(zen_kind_of_path rel out)
@@ -41,7 +41,7 @@ function(zen_kind_of_path rel out)
     endforeach()
     if(rel IN_LIST ZEN_COMPILED_READS_DOCS)
         set(${out} other PARENT_SCOPE)
-    elseif(rel MATCHES "[.]md$" OR rel MATCHES "^docs/.*[.](png|jpe?g|gif|svg)$"
+    elseif(rel MATCHES "[.]md$" OR rel MATCHES "(^|/)docs/.*[.](png|jpe?g|gif|svg)$"
        OR rel IN_LIST ZEN_TEXT_ONLY_FILES OR rel IN_LIST checks)
         set(${out} documentation PARENT_SCOPE)
     elseif(rel MATCHES "[.](h|hpp|ipp|inl|c|cc|cpp|cxx)$")
@@ -145,10 +145,11 @@ zen_kind_comments_only("auto s = R\"(a)\";\n" "auto s = R\"(a)\"; // b\n" st_raw
 if(st_raw OR NOT st_raw_why MATCHES "raw string")
     message(FATAL_ERROR "change-kind: SELF-TEST FAILED -- a raw string was read token by token")
 endif()
-foreach(pair "notes.md|documentation" "docs/workshop/images/a.png|documentation"
+foreach(pair "notes.md|documentation" "docs/images/a.png|documentation"
+             "files/docs/images/a.png|documentation" "examples/x/images/a.png|other"
              "tests/check_code_values.cmake|documentation" "src/a.cpp|source"
              "CMakeLists.txt|other" "tests/text_checks.cmake|other" ".github/workflows/ci.yml|other"
-             "docs/workshop/hotkeys.md|other")
+             "workshop/docs/hotkeys.md|other")
     string(REPLACE "|" ";" pp "${pair}")
     list(GET pp 0 p)
     list(GET pp 1 want)

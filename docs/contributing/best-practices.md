@@ -99,10 +99,9 @@ can move into its surface's own document.
 
 The host, `workshop/`, and the panes that reach it. Workshop's law is in the registers
 [its router](../../agents/workshop.md#where-the-law-is) lists, what crosses the pane seam is
-[the pane protocol's](../../agents/panes.md), and
-[where a case goes](../../agents/verification/population.md#where-a-case-goes) says how to find
-the suite that pins a register's law. The Workshop entry `workshop_<subject>` runs
-`build/tests/zengine-workshop-<subject>-tests`.
+[the pane protocol's](../../agents/panes.md), a register's PROVEN BY names the cases that pin its
+law, and the router of each folder, its `AGENTS.md`, names the suites. The Workshop entry
+`workshop_<subject>` runs `build/tests/zengine-workshop-<subject>-tests`.
 
 ### Every pane
 
@@ -121,7 +120,7 @@ the suite that pins a register's law. The Workshop entry `workshop_<subject>` ru
 - **Grants, picture maps and gestures stay out of reload state.**
   [A pane may draw locally](../../agents/panes.md#a-pane-may-draw-locally-with-an-explicit-room-and-gesture-identity)
 - **A pane whose messages or state change cannot be reloaded in place.**
-  [When a pane's messages change](../workshop/develop-workshop.md#when-a-panes-messages-change-a-new-runtime-too)
+  [When a pane's messages change](../../workshop/docs/develop-workshop.md#when-a-panes-messages-change-a-new-runtime-too)
 - **Routing and arbitration are Workshop's**; a pane never decides where input goes.
   [Where a cross-pane drag crosses a boundary](../architecture/README.md#where-a-cross-pane-drag-crosses-a-boundary)
 - **A claim about routing, permission, layout or a reply is tested through the real pane.**
@@ -133,15 +132,11 @@ the suite that pins a register's law. The Workshop entry `workshop_<subject>` ru
 - **A test follows a delay or a refusal with the weaver's next act.**
   [Test what happens after the first outcome](testing-workshop-panes.md#test-what-happens-after-the-first-outcome)
 - **Build the pane's own target with its suite; a focused run is not a green.**
-  [Build and check only the relevant work](../guides/make-a-workshop-tool.md#build-and-check-only-the-relevant-work-while-iterating)
+  [Build and check only the relevant work](../../workshop/docs/make-a-workshop-tool.md#build-and-check-only-the-relevant-work-while-iterating)
 
 ### The host (`workshop/`)
 
-Workshop's own registers, which [the router](../../agents/workshop.md#where-the-law-is) lists by
-subject; [panes](../workshop/panes.md), [setups](../workshop/setups.md) and
-[the pane contracts](../reference/workshop-panes.md); witnessed by `workshop_panes`,
-`workshop_screen`, `workshop_host`, `workshop_document`, `workshop_desk`, `workshop_persistence`,
-`workshop_load` and `workshop_shapes`.
+Its law, pages and suites: [`workshop/AGENTS.md`](../../workshop/AGENTS.md).
 
 - **A header declares**; the bodies are in the subject files, each `// WL-` pointer beside its
   body. [Where the law is](../../agents/workshop.md#where-the-law-is)
@@ -155,9 +150,7 @@ subject; [panes](../workshop/panes.md), [setups](../workshop/setups.md) and
 
 ### Components (`component/`)
 
-The [text box](../../agents/workshop/text-box.md) and [pane controls](../../agents/workshop/pane-controls.md)
-registers; [the component package](../reference/component.md); witnessed by `component`,
-`workshop_panes` and `workshop_document`.
+Its law, pages and suites: [`component/AGENTS.md`](../../component/AGENTS.md).
 
 - **A piece joins the package when extracting it deletes copies that working tools carry.**
   [Recurring principles](../architecture/README.md#recurring-principles)
@@ -166,43 +159,35 @@ registers; [the component package](../reference/component.md); witnessed by `com
 - **A paste is a conversation**, and its answer belongs to the draft that asked.
   [WL-TEXT-09](../../agents/workshop/text-box.md#wl-text-09--a-paste-is-a-conversation-and-the-answer-belongs-to-the-draft-that-asked)
 
-### Attention (`attention-pane/`)
+### Attention (`attention/`)
 
-The [attention](../../agents/workshop/attention.md) register;
-[what needs your attention](../workshop/attention.md); witnessed by `workshop_panes` and
-`workshop_host`.
+Its law, pages and suites: [`attention/AGENTS.md`](../../attention/AGENTS.md).
 
 - **A condition leaves only when it stops being true.**
-  [What makes a condition go away](../workshop/attention.md#what-makes-a-condition-go-away)
+  [What makes a condition go away](../../attention/docs/attention.md#what-makes-a-condition-go-away)
 - **Hiding is not fixing**: a condition that materially changes comes back, and the glance still
-  counts what is hidden. [Hiding is not fixing](../workshop/attention.md#hiding-is-not-fixing)
+  counts what is hidden. [Hiding is not fixing](../../attention/docs/attention.md#hiding-is-not-fixing)
 - **Nothing Workshop discovers opens the pane or takes the keys.**
-  [The Attention pane](../workshop/attention.md#the-attention-pane)
+  [The Attention pane](../../attention/docs/attention.md#the-attention-pane)
 
-### The Builder (`builder-pane/`, `builder/`)
+### The Builder (`builder/builder-pane/`, `builder/`)
 
-[Realization](../../agents/realization.md), and the [project](../../agents/workshop/project.md),
-[build output](../../agents/workshop/build-output.md), [code](../../agents/workshop/code.md) and
-[authoring](../../agents/workshop/authoring.md) registers; [Workshop's Builder](../workshop/builder.md)
-and [the Builder package](../reference/builder.md); witnessed by `workshop_panes`, `workshop_files`,
-`workshop_load` and `builder`.
+Its law, pages and suites: [`builder/AGENTS.md`](../../builder/AGENTS.md).
 
 - **A build succeeded when it exited zero and its named artifact exists**, judged in that order.
-  [A process exiting zero is not an artifact](../reference/builder.md#a-process-exiting-zero-is-not-an-artifact)
+  [A process exiting zero is not an artifact](../../builder/docs/builder-reference.md#a-process-exiting-zero-is-not-an-artifact)
 - **A recipe names inputs, never a program.**
-  [A recipe can name no program](../reference/builder.md#a-recipe-is-authored-knowledge-and-it-can-name-no-program)
+  [A recipe can name no program](../../builder/docs/builder-reference.md#a-recipe-is-authored-knowledge-and-it-can-name-no-program)
 - **A reload in place keeps the running weave's shapes**; anything else is refused before the
-  weave is touched. [Load after build](../workshop/builder.md#load-after-build-and-reload-in-place)
+  weave is touched. [Load after build](../../builder/docs/builder.md#load-after-build-and-reload-in-place)
 - **An observer follows a press by the request it caused**, never by the first status to arrive.
-  [What an observer is told](../workshop/builder.md#what-an-observer-is-told)
+  [What an observer is told](../../builder/docs/builder.md#what-an-observer-is-told)
 - **Two builds at once in one case take two build trees.**
   [VM-LANE-21](../../agents/verification/lanes.md#vm-lane-21--one-owner-per-build-tree-holds-inside-one-process-too)
 
-### Connections (`connections-pane/`)
+### Connections (`external-host/connections-pane/`)
 
-The [guests](../../agents/workshop/guests.md) register and [the pane protocol](../../agents/panes.md);
-[the external host](../workshop/external-host.md#whose-host-this-is-and-what-each-power-reaches-there);
-witnessed by `workshop_panes`, `workshop_guests` and `guest_journey`.
+Its law, pages and suites: [`external-host/AGENTS.md`](../../external-host/AGENTS.md).
 
 - **A row's losses are one function's**, said at launch, in Attention and here.
   [WL-GUEST-08](../../agents/workshop/guests.md#wl-guest-08--what-a-rows-powers-do-not-reach-is-said-beside-it)
@@ -211,74 +196,60 @@ witnessed by `workshop_panes`, `workshop_guests` and `guest_journey`.
 - **A guest in a test is arranged with its admitted row and its host.**
   [Permissions belong to the arranged actor](testing-workshop-panes.md#permissions-belong-to-the-arranged-actor)
 
-### The Pane Manager and Hotkeys (`desktop-pane/`)
+### The Pane Manager and Hotkeys (`workshop/desktop-pane/`)
 
-The [desktop](../../agents/workshop/desktop.md), [desktop presenting](../../agents/workshop/desktop-presenting.md),
-[keyboard](../../agents/workshop/keyboard.md) and [keymap edit](../../agents/workshop/keymap-edit.md)
-registers; [the Pane Manager](../workshop/panes.md#showing-going-to-and-hiding--the-pane-manager)
-and [hotkeys](../workshop/hotkeys.md); witnessed by `workshop_panes` and `workshop_document`.
+Its law, pages and suites: [`workshop/AGENTS.md`](../../workshop/AGENTS.md).
 
 - **The application's defaults are declared once, by the desktop.**
-  [Keys the application supplies](../workshop/hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)
+  [Keys the application supplies](../../workshop/docs/hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)
 - **A pane takes an application row only by naming its id.**
   [Do not assume](../../agents/workshop/desktop.md#do-not-assume)
 - **A launch opens or focuses a pane; it never toggles and never loads.**
   [WL-DESK-03](../../agents/workshop/desktop.md#wl-desk-03--a-launch-opens-or-focuses-it-never-toggles-and-never-loads)
 
-### The Editor (`editor-pane/`, `source-transfer/`)
+### The Editor (`editor/editor-pane/`, `editor/source-transfer/`)
 
-The [editor](../../agents/workshop/editor.md), [editor transfers](../../agents/workshop/editor-transfers.md),
-[opening](../../agents/workshop/opening.md) and [editor switch](../../agents/workshop/editor-switch.md)
-registers; [the source editor](../workshop/editor.md) and
-[source transfer](../reference/source-transfer.md); witnessed by `workshop_panes`, `editor`,
-`workshop_editor_switch`, `workshop_load`, `source_transfer` and `source_transfer_cpp`.
+Its law, pages and suites: [`editor/AGENTS.md`](../../editor/AGENTS.md).
 
-- **Every opener goes through the one managed opening.** [Opening a source](../workshop/editor.md#opening-a-source)
+- **Every opener goes through the one managed opening.** [Opening a source](../../editor/docs/editor.md#opening-a-source)
 - **A held Editor is repaired by reloading its image**; closing its pane repairs nothing.
-  [While an open is on its way](../workshop/editor.md#while-an-open-is-on-its-way-and-if-it-stalls)
-- **No ordinary act drops dirty source.** [Save, dirty, and never losing work](../workshop/editor.md#save-dirty-and-never-losing-work)
-- **What the Editors carry is refused whole past its limit, never cut.** [Limits](../reference/source-transfer.md#limits)
+  [While an open is on its way](../../editor/docs/editor.md#while-an-open-is-on-its-way-and-if-it-stalls)
+- **No ordinary act drops dirty source.** [Save, dirty, and never losing work](../../editor/docs/editor.md#save-dirty-and-never-losing-work)
+- **What the Editors carry is refused whole past its limit, never cut.** [Limits](../../editor/docs/source-transfer.md#limits)
 - **The opening's witnesses are model rigs; none drives a live medium.**
   [Do not assume](../../agents/workshop/opening.md#do-not-assume)
 
 ### Files (`files/`)
 
-The [files](../../agents/workshop/files.md) register; [Files](../workshop/files.md); witnessed by
-`files_weave` for its values, and `workshop_panes` and `workshop_files` for its gestures.
+Its law, pages and suites: [`files/AGENTS.md`](../../files/AGENTS.md).
 
 - **The host holds three doors and the plan row that loads the browser, and knows nothing else of
   it.** [Do not assume](../../agents/workshop/files.md#do-not-assume)
 - **A pane's rows are its mode's, and an id is one operation.**
   [WL-FILES-16](../../agents/workshop/files.md#wl-files-16--a-panes-rows-are-its-modes-and-an-id-is-one-operation)
 - **Files judges no file's contents and no recipe**; it hands over a path or a place.
-  [What it is not](../workshop/files.md#what-it-is-not)
+  [What it is not](../../files/docs/files.md#what-it-is-not)
 
-### Flow (`flow-pane/`, `flow/`, `flow-host/`)
+### Flow (`flow/flow-pane/`, `flow/`, `flow/flow-host/`)
 
-[Flow authoring](../../agents/flow.md) and [Flow on a host](../../agents/flow-host.md);
-[Flow](../workshop/flow.md) and [its reference](../reference/flow.md); witnessed by `flow` and
-`flow_pane`, and at the installed boundary by the package witness.
+Its law, pages and suites: [`flow/AGENTS.md`](../../flow/AGENTS.md).
 
 - **The authoring package stays independent of Workshop and of the external host.**
   [Flow authoring](../../agents/flow.md)
 - **Powers are found only through the discovery door**, and shown as it answered them.
   [Flow authoring](../../agents/flow.md)
-- **An open dialog refuses every `FlowEdit`.** [Other interfaces](../workshop/flow.md#other-interfaces)
+- **An open dialog refuses every `FlowEdit`.** [Other interfaces](../../flow/docs/flow.md#other-interfaces)
 - **A new semantic boundary joins the named witnesses**, not only a canned example.
   [Flow authoring](../../agents/flow.md)
 - **A Flow session pumps and waits nothing of its own**, and `FlowAnswer.ok` on a send proves
   only queueing. [Flow on a host](../../agents/flow-host.md)
 
-### Info (`info-pane/`)
+### Info (`info/`)
 
-The [Info body](../../agents/workshop/info-body.md), [Info controls](../../agents/workshop/info-controls.md)
-and [settings](../../agents/workshop/settings.md) registers, the [pane manager](../../agents/workshop/pane-manager.md)
-register for a pane's subject rows, and [Inventory](../../agents/inventory.md) for the value views;
-[Info views](../workshop/info-views.md); witnessed by `workshop_panes` and `workshop_persistence`,
-and the subject rows by `workshop_host`.
+Its law, pages and suites: [`info/AGENTS.md`](../../info/AGENTS.md).
 
 - **While a view waits, its draft is frozen and nothing times out.**
-  [While a view waits](../workshop/info-views.md#while-a-view-waits)
+  [While a view waits](../../info/docs/info-views.md#while-a-view-waits)
 - **Only an inspector's own ask names its subject**; selection, keys and Escape never move it.
   [WL-INFO-14](../../agents/workshop/info-body.md#wl-info-14--the-subject-is-a-pane-info-names-and-nothing-else-moves-it)
 - **An ask Loom says never arrived is released.**
@@ -286,11 +257,9 @@ and the subject rows by `workshop_host`.
 - **A slow source in a test defers its answer**; it never forges a correlation.
   [Delay a reply](testing-workshop-panes.md#delay-a-reply-without-changing-what-a-reply-means)
 
-### Inventory (`inventory-pane/`, `inventory/`)
+### Inventory (`inventory/inventory-pane/`, `inventory/`)
 
-[Inventory](../../agents/inventory.md); [slots](../workshop/inventory-slots.md),
-[folders](../workshop/inventory-folders.md), [toolboxes](../workshop/toolboxes.md) and
-[the reference](../reference/inventory.md); witnessed by `inventory` and `workshop_panes`.
+Its law, pages and suites: [`inventory/AGENTS.md`](../../inventory/AGENTS.md).
 
 - **One gesture changes one fact at one owner.** [Inventory](../../agents/inventory.md)
 - **A refusal leaves storage unchanged**, and a reference never rebinds by label or row.
@@ -298,36 +267,31 @@ and the subject rows by `workshop_host`.
 - **The actor in a test is granted exactly the operation**, and denied it for the negative case.
   [Permissions belong to the arranged actor](testing-workshop-panes.md#permissions-belong-to-the-arranged-actor)
 
-### The Terminal (`terminal-pane/`)
+### The Terminal (`terminal/`)
 
-The [terminal](../../agents/workshop/terminal.md) and [Terminal pane](../../agents/workshop/terminal-pane.md)
-registers; [Terminal](../workshop/terminal.md); witnessed by `workshop_panes` and `workshop_host`.
+Its law, pages and suites: [`terminal/AGENTS.md`](../../terminal/AGENTS.md).
 
 - **The image that presents the Terminal's participant cannot reach it.**
   [WL-TERM-08](../../agents/workshop/terminal.md#wl-term-08--the-image-that-presents-a-participant-cannot-reach-one)
 - **Escape sheds one layer a press**, and is given back only when the pane holds nothing.
-  [Leaving the pane](../workshop/terminal.md#leaving-the-pane)
+  [Leaving the pane](../../terminal/docs/terminal.md#leaving-the-pane)
 - **A case moved to another consumer is coverage lost.**
   [VM-POP-21](../../agents/verification/population.md#vm-pop-21--a-test-repointed-to-another-consumer-is-coverage-lost-at-the-first)
 
-### The View Builder (`view-builder/`, `view/`)
+### The View Builder (`view/view-builder/`, `view/`)
 
-[Described views](../../agents/view.md) and the [weaver's pane](../../agents/workshop/maker-pane.md)
-register; [the View Builder](../workshop/view-builder.md) and [views](../reference/view.md);
-witnessed by `view`, `view_builder` and `workshop_panes`.
+Its law, pages and suites: [`view/AGENTS.md`](../../view/AGENTS.md).
 
 - **`view::picture` is the one drawing of a view**; the builder draws only marks over it.
   [Described views](../../agents/view.md)
 - **Pan, grid, gestures and marks are presentation**, never saved into a description.
   [Described views](../../agents/view.md)
 - **A described view, an Info view and an Inventory view are three different things.**
-  [Views here, in Info and in Inventory](../workshop/view-builder.md#views-here-in-info-and-in-inventory)
+  [Views here, in Info and in Inventory](../../view/docs/view-builder.md#views-here-in-info-and-in-inventory)
 
-### Neovim (`neovim-editor/`, `neovim/`)
+### Neovim (`editor/neovim-editor/`, `editor/neovim/`)
 
-The [Neovim](../../agents/workshop/neovim.md) and [Neovim transfers](../../agents/workshop/neovim-transfers.md)
-registers; [Neovim in Workshop](../workshop/neovim.md); witnessed by `neovim` and
-`workshop_neovim`, and with a Neovim named at configure, `neovim_live` too.
+Its law, pages and suites: [`editor/AGENTS.md`](../../editor/AGENTS.md).
 
 - **The ungated cases use a Neovim that fails at start on purpose**; the gated ones need a real one.
   [Do not assume](../../agents/workshop/neovim.md#do-not-assume)
@@ -338,8 +302,7 @@ registers; [Neovim in Workshop](../workshop/neovim.md); witnessed by `neovim` an
 
 ### Loaded, Project and Powers (`introspection/`)
 
-The pane protocol's [introspection sections](../../agents/panes.md#the-system-can-show-what-it-is);
-[introspection](../reference/introspection.md); witnessed by `workshop_panes` and `workshop_load`.
+Its law, pages and suites: [`introspection/AGENTS.md`](../../introspection/AGENTS.md).
 
 - **Loaded and Project disagree on purpose.**
   [The system can show what it is](../../agents/panes.md#the-system-can-show-what-it-is)
@@ -350,54 +313,44 @@ The pane protocol's [introspection sections](../../agents/panes.md#the-system-ca
 
 ### Compose (`composer/`, `message-draft/`)
 
-[The Composer](../../agents/panes.md#the-composer-is-a-schema-directed-message-form) and
-[message drafts](../../agents/message-drafts.md); [reuse a stored command](../workshop/inventory-compose.md)
-and [message drafts](../reference/message-drafts.md); witnessed by `composer`, `message_draft`
-and `workshop_panes`.
+Its law, pages and suites: [`composer/AGENTS.md`](../../composer/AGENTS.md) and
+[`message-draft/AGENTS.md`](../../message-draft/AGENTS.md).
 
 - **A drop never submits**, and submitting authorizes the exact destination and versioned shape.
   [The Composer](../../agents/panes.md#the-composer-is-a-schema-directed-message-form)
-- **`SUBMITTED` means queued**, not applied. [Reuse a stored command](../workshop/inventory-compose.md)
+- **`SUBMITTED` means queued**, not applied. [Reuse a stored command](../../inventory/docs/inventory-compose.md)
 - **Drafts spend Loom's lexer and composer**, and absence, false and empty stay distinct.
   [Message drafts](../../agents/message-drafts.md)
 
-### The menu presenter (`menu-presenter/`)
+### The menu presenter (`workshop/menu-presenter/`)
 
-The [pane menu](../../agents/workshop/pane-menu.md) register and
-[the second button](../../agents/panes.md#the-second-button-crosses-as-one-shape-a-menu-is-presented-by-a-participant-and-a-press-names-its-picture);
-[replacing the menu presenter](../workshop/panes.md#replacing-the-menu-presenter); witnessed by
-`workshop_panes`.
+Its law, pages and suites: [`workshop/AGENTS.md`](../../workshop/AGENTS.md).
 
 - **The presenter owns a menu's showing and lifetime; replacing it is ordinary.**
   [WL-CTX-10](../../agents/workshop/pane-menu.md#wl-ctx-10--the-presenter-owns-a-menus-showing-and-lifetime-replacing-it-is-ordinary)
 - **A presenter that keeps `HeldMenu` as its reload state takes over an open menu when reloaded.**
-  [Replacing the menu presenter](../workshop/panes.md#replacing-the-menu-presenter) and
-  [the menu presenter, and replacing it](../reference/workshop-panes.md#the-menu-presenter-and-replacing-it)
+  [Replacing the menu presenter](../../workshop/docs/panes.md#replacing-the-menu-presenter) and
+  [the menu presenter, and replacing it](../../workshop/docs/workshop-panes.md#the-menu-presenter-and-replacing-it)
 
-## The external host (`external-host/`, `demo-control/`)
+## The external host (`external-host/`, `external-host/demo-control/`)
 
-[The external host](../workshop/external-host.md) and [demo setups](../workshop/demo-setups.md);
-the [guests](../../agents/workshop/guests.md) and [desk read](../../agents/workshop/desk-read.md)
-registers; witnessed by `guest_vocabulary`, `workshop_guests`, `workshop_probe`, `workshop_desk`
-and `guest_journey`, and with Python, `demo_recipes` and `workshop_journey`, which first runs the
-tool packages' checks under `tests/session/`.
+Its law, pages and suites: [`external-host/AGENTS.md`](../../external-host/AGENTS.md).
 
 - **A tool's capability and its help change together.**
-  [Journeys as Python tools](../workshop/external-host.md#3-from-a-loom-session-journeys-as-python-tools)
+  [Journeys as Python tools](../../external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools)
 - **Settlement orders the bus's work; success is each owner's own answer.**
-  [Run the journey](../workshop/external-host.md#5-run-the-journey)
+  [Run the journey](../../external-host/docs/external-host.md#5-run-the-journey)
 - **A tool gives Workshop's input session back in its cleanup**; a forced cancel or a dead worker
   leaves it held.
-  [Giving Workshop's input session back](../workshop/external-host.md#giving-workshops-input-session-back)
+  [Giving Workshop's input session back](../../external-host/docs/external-host.md#giving-workshops-input-session-back)
 - **The desk is written outside every source checkout.**
-  [The desk written as text for an agent](../workshop/external-host.md#the-desk-written-as-text-for-an-agent)
+  [The desk written as text for an agent](../../external-host/docs/external-host.md#the-desk-written-as-text-for-an-agent)
 - **Reset is no transaction**: a pending owner operation refuses it.
-  [Reset and its boundary](../workshop/demo-setups.md#reset-and-its-boundary)
+  [Reset and its boundary](../../workshop/docs/demo-setups.md#reset-and-its-boundary)
 
 ## Surface (`surface/`)
 
-[Surface](../../agents/surface.md); [the surface reference](../reference/surface.md); witnessed by
-`surface`, its SDL half under the `sdl` gate.
+Its law, pages and suites: [`surface/AGENTS.md`](../../surface/AGENTS.md).
 
 - **Choose a text primitive by who owns the room.**
   [Which text primitive](../../agents/surface.md#which-text-primitive-who-owns-the-room)
@@ -409,11 +362,10 @@ tool packages' checks under `tests/session/`.
 
 ## Input (`input/`)
 
-[The Input package](../reference/input.md) and its backends in [surface](../../agents/surface.md);
-witnessed by `input`, its SDL half under the `sdl` gate.
+Its law, pages and suites: [`input/AGENTS.md`](../../input/AGENTS.md).
 
 - **An SDL scancode is the key's identity**; its name is a convenience.
-  [The Input package](../reference/input.md)
+  [The Input package](../../input/docs/input.md)
 - **A scan name names a value that already arrives.**
   [Input scan names](../../agents/surface.md#input-scan-names-are-names-for-values-that-already-arrived)
 - **A suspect translation is bracketed by two probes.**
@@ -423,36 +375,33 @@ witnessed by `input`, its SDL half under the `sdl` gate.
 
 ## UI (`ui/`)
 
-[The UI package](../reference/ui.md); witnessed by `ui` and its three compile entries.
+Its law, pages and suites: [`ui/AGENTS.md`](../../ui/AGENTS.md).
 
 - **The fence keeps resolved numbers out of an authored type, by type and by name**, each half a
-  compile entry beside its control, and the name half is not airtight. [The fence](../reference/ui.md#the-fence)
-- **Resolution is total over every value.** [Resolution is total](../reference/ui.md#resolution-is-total)
-- **A broken chain is absent**, never guessed. [A broken chain is absent](../reference/ui.md#a-broken-chain-is-absent)
+  compile entry beside its control, and the name half is not airtight. [The fence](../../ui/docs/ui.md#the-fence)
+- **Resolution is total over every value.** [Resolution is total](../../ui/docs/ui.md#resolution-is-total)
+- **A broken chain is absent**, never guessed. [A broken chain is absent](../../ui/docs/ui.md#a-broken-chain-is-absent)
 - **Extent arithmetic runs the sanitizer lane too.** [The sanitizer lane](build-and-test.md#the-sanitizer-lane)
 
 ## The Timer and activation (`timer/`, `activation/`)
 
-[TIMER-01 to TIMER-05](../laws/timer-laws.md), [the timer guide](../guides/timers.md) and
-[activation](../reference/activation.md); witnessed by `timer`, its compile entries and
-`audit_probes`.
+Its law, pages and suites: [`timer/AGENTS.md`](../../timer/AGENTS.md) and
+[`activation/AGENTS.md`](../../activation/AGENTS.md).
 
 - **A process with the Timer loaded is never idle**: its host loop turns with `pump_pending()`.
   [Do not assume](../../AGENTS.md#do-not-assume)
 - **Orders are placed again on `TimerReady`.**
-  [The one rule](../guides/timers.md#the-one-rule-that-keeps-schedules-honest)
+  [The one rule](../../timer/docs/timers.md#the-one-rule-that-keeps-schedules-honest)
 - **A compile wall is judged on its diagnostic, beside a control that must compile.**
   [VM-WALL-04](../../agents/verification/walls.md#vm-wall-04--one-compile-negative-case-per-reachable-path-with-its-control)
 - **An activation's provenance is asked before its lineage.**
-  [Two questions, in this order](../reference/activation.md#two-questions-in-this-order)
+  [Two questions, in this order](../../activation/docs/activation.md#two-questions-in-this-order)
 - **The lane stays serial on Windows.**
   [Build / test](../../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom)
 
 ## Operators (`operator/`)
 
-[Operators](../../agents/operators.md); the [host](../reference/operator-host.md),
-[providers](../reference/operator-providers.md) and [sources](../reference/operator-sources.md)
-references; witnessed by `operator`.
+Its law, pages and suites: [`operator/AGENTS.md`](../../operator/AGENTS.md).
 
 - **A loadable consumer never links the operator library**, which would give it a catalog of its
   own. [A loaded weave can spend the host's operators](../../agents/operators.md#a-loaded-weave-can-spend-the-hosts-operators)
@@ -462,8 +411,7 @@ references; witnessed by `operator`.
 
 ## The maker weave (`maker/`)
 
-[The maker router](../../agents/maker.md) and its registers; [the maker weave](../reference/maker-weave.md);
-witnessed by `maker`.
+Its law, pages and suites: [`maker/AGENTS.md`](../../maker/AGENTS.md).
 
 - **Cases go in the one `maker` suite**, authoring their definitions as data.
   [Where the law is](../../agents/maker.md#where-the-law-is)
@@ -471,10 +419,10 @@ witnessed by `maker`.
 - **A source tripwire is a pure string check**: reword the prose, never weaken the check.
   [VM-WALL-10](../../agents/verification/walls.md#vm-wall-10--a-source-tripwire-is-a-pure-string-check)
 
-## Snake and smoke (`snake/`, `smoke/`)
+## Snake and smoke (`examples/snake/`, `tests/smoke/`)
 
-[Snake](../reference/snake.md) and [the lane's table](build-and-test.md#what-is-in-the-lane);
-witnessed by `snake` and `smoke`.
+Snake's law, pages and suites: [`examples/AGENTS.md`](../../examples/AGENTS.md); `smoke` is the
+root [AGENTS.md](../../AGENTS.md#read-this-then-route)'s.
 
 - **The smoke test shows the gate refusing**, which is what makes it a proof.
   [What is in the lane](build-and-test.md#what-is-in-the-lane)
@@ -483,14 +431,12 @@ witnessed by `snake` and `smoke`.
 
 ## Examples (`examples/`)
 
-[Documentation conventions](repository-conventions.md#documentation-conventions) and
-[making a Workshop tool](../guides/make-a-workshop-tool.md); compiled by `tests/` and loaded by the
-Workshop suites.
+Its law, pages and suites: [`examples/AGENTS.md`](../../examples/AGENTS.md).
 
 - **An example that claims to compile has been compiled.**
   [Documentation conventions](repository-conventions.md#documentation-conventions)
 - **An action keeps its id while its meaning holds**, and a new meaning is a new action.
-  [Start with the running example](../guides/make-a-workshop-tool.md#start-with-the-running-example)
+  [Start with the running example](../../workshop/docs/make-a-workshop-tool.md#start-with-the-running-example)
 
 ## The installed package (`cmake/ZengineInstall.cmake`, public headers)
 
@@ -511,8 +457,8 @@ witnessed by the installed-package witness and `package_vocabulary`.
 
 [Documentation conventions](repository-conventions.md#documentation-conventions) and
 [the population contract](../../AGENTS.md#the-population-contract); witnessed by `doc_links`,
-`package_vocabulary`, `law_register`, `source_comments` and `code_values`, which the documentation
-lane runs together.
+`package_vocabulary`, `law_register`, `source_comments`, `code_values` and `folder_map`, which the
+documentation lane runs together.
 
 - **One page has one reader purpose.**
   [Documentation conventions](repository-conventions.md#documentation-conventions)

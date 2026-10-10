@@ -11,10 +11,10 @@
 
 #include "inventory_story.hpp"
 
-#include "desktop-pane/vocabulary.hpp"
-#include "editor-pane/vocabulary.hpp"
+#include "workshop/desktop-pane/vocabulary.hpp"
+#include "editor/editor-pane/vocabulary.hpp"
 #include "message-draft/transfer.hpp"
-#include "source-transfer/vocabulary.hpp"
+#include "editor/source-transfer/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"

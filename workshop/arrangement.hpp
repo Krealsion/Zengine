@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_ARRANGEMENT_HPP
 #define ZENGINE_WORKSHOP_ARRANGEMENT_HPP
 
-// The host's read-only observation door (docs/reference/introspection.md): a derivation, pure over
+// The host's read-only observation door (introspection/docs/introspection.md): a derivation, pure over
 // the live realization owner it reads, and the weave that answers an office that asks. It keeps no
 // store, publishes nothing, and cannot mount,
 // unmount, overlay, evaluate, load, unload, reload or replace anything. Which powers resolve

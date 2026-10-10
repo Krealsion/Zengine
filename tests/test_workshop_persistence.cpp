@@ -9,7 +9,7 @@
 
 #include "workshop_support.hpp"
 
-#include "desktop-pane/vocabulary.hpp"
+#include "workshop/desktop-pane/vocabulary.hpp"
 
 // The historical session shapes and their conversions -- the conversion artifact's
 // material, named here because this suite owns what a durable session file means.

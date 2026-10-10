@@ -9,7 +9,7 @@
 // nothing selected goes back to Workshop unspent, so Workshop puts the pane down. A holder that
 // sends the word lists `PaneEscapeUnspent` in its `Emit<...>`; Workshop sends a bare Escape to no
 // other holder, so a pane that never mentions Escape is put down by it without asking.
-// Reference: docs/reference/workshop-panes.md#escape-in-a-pane-that-holds-the-keys
+// Reference: workshop/docs/workshop-panes.md#escape-in-a-pane-that-holds-the-keys
 //
 //     void on(const PaneKey& key, loom::Mail& mail) {
 //         if (pane_escape::answer(key, mail, kOffice, [&] { return drop_selection(mail); }))

@@ -13,8 +13,8 @@
 #include "operator/primitives.hpp"
 #include "message-draft/transfer.hpp"
 #include "inventory/vocabulary.hpp"
-#include "inventory-pane/slots.hpp"
-#include "inventory-pane/presentation.hpp"
+#include "inventory/inventory-pane/slots.hpp"
+#include "inventory/inventory-pane/presentation.hpp"
 #include "input/input_weave.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 #include <zen/host/grant_wiring.hpp>

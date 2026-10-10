@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // Numbered Presenter: an ordinary replacement for the presenter of a pane's offered menu that
-// Workshop ships (`menu-presenter/`), loaded under `zengine.presenter` in its place; the seam is
+// Workshop ships (`workshop/menu-presenter/`), loaded under `zengine.presenter` in its place; the seam is
 // `workshop/presenter_vocabulary.hpp`, and what it does differently is its walkthrough's:
-// docs/workshop/panes.md ("Replacing the menu presenter"). One source file, built by a
+// workshop/docs/panes.md ("Replacing the menu presenter"). One source file, built by a
 // single-source recipe with zengine::pane, zengine::activation, zengine::component,
 // zengine::input, loom::switchboard, and loaded by a load-plan row under that role.
 

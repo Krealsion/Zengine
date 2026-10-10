@@ -1,8 +1,8 @@
 # Verification method — population
 
 Register `VM-POP`: the population contract, the floors, the Workshop suites and what a split
-creates. One method per heading; cite by ID. Which suite witnesses which Workshop area is the
-table at the end. Router: [`../verification.md`](../verification.md).
+creates. One method per heading; cite by ID. Which suites witness a register is said by the
+router of the folder it serves. Router: [`../verification.md`](../verification.md).
 
 ## VM-POP-01 — A green means the intended population existed and ran
 
@@ -163,31 +163,3 @@ counts balanced, the sentence said "repointed rather than deleted", the protecti
 SEEN — `tests/test_workshop_panes_terminal.cpp` case `"clipboard text lands in the draft that
 asked for it, or nowhere"`; `tests/test_population.txt`.
 
-## Where a case goes
-
-The registers cite their witnesses by exact case name, so the answer to "which suite pins this
-law" is a grep over `agents/workshop/`; this table is the current shape of that answer, most-cited
-suite first, for choosing where a new case goes and which target to build. Keymap and clipboard
-law is witnessed in the *document* suite, keyboard focus in *panes_input*, the Info grounds in
-*document* — the suite is the subject the case proves, not the file the law names.
-
-| register | witnessed by |
-|---|---|
-| arrangement, chrome, geometry, planes, pointer, tab-run, terminal | `workshop_screen`, then `workshop_panes` (window) and `workshop_host` |
-| attention, info-body, info-controls, pane-manager | `workshop_host`, then `workshop_document` |
-| catalog, panes-and-windows, setup-file | `workshop_panes` (seam, window), then `workshop_screen` |
-| contextual, press-chain | `workshop_host`, `workshop_screen`, `workshop_document` |
-| code | `workshop_panes` (code), then `workshop_files` (the entry's format, the development catalog, runtime and launch) |
-| build-output | `builder` (the runner's bytes, the kept record), then `workshop_panes` (output) |
-| document | `workshop_document`; the file half (document-file) in `workshop_persistence` |
-| editor, files, project | `workshop_panes` (editor) and `workshop_files`; the buffer in `editor`; project also `workshop_host` |
-| authoring | `workshop_files` (the chooser), `workshop_host` (`o`), `workshop_load` (the append door and the plan writer) |
-| focus | `workshop_panes` (input, editor), then `workshop_files`, `workshop_document` |
-| keyboard, text-box | `workshop_document`; text-box also `component` |
-| layouts, migration, session | `workshop_persistence`, then `workshop_screen` and `workshop_host` |
-| weaver-pane | `workshop_panes` (actions), then `workshop_host` |
-| regions | `workshop_screen`, `workshop_document` |
-| session-restore | `workshop_persistence`, then `surface` and `workshop_files` |
-| editor-transfers | `workshop_panes` (editor transfers), then `source_transfer`; the `open` power in `workshop_guests` |
-| editor-switch | `workshop_editor_switch`, then `workshop_load` (the choices, the record) |
-| neovim | `workshop_neovim` (always, and gate `neovim`; its carry in its transfers source), then `neovim` and `neovim_live` |

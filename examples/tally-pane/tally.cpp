@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // Tally: a small Workshop pane you can open, change, and reload while it runs, keeping its count
-// in its weave state across a reload in place. Walkthrough: docs/workshop/edit-a-running-pane.md
+// in its weave state across a reload in place. Walkthrough: builder/docs/edit-a-running-pane.md
 // One source file using only headers the installed Zengine and Loom packages publish, so a
 // single-source recipe builds it with these links:
 //     zengine::pane, zengine::activation, zengine::input, loom::switchboard

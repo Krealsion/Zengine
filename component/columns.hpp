@@ -9,7 +9,7 @@
 // press on a cell is answered by its column. It owns the layout arithmetic only; cutting
 // (`fit`) and padding (`pad`) are the consumer's (`workshop/pane_text.hpp`), and the widths are
 // spent twice -- to write the line and to record the spans (`RowMap`): one layout draws and hits.
-// Reference: docs/reference/component.md.
+// Reference: component/docs/component.md.
 
 #include <cstddef>
 #include <cstdint>

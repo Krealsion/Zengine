@@ -1,0 +1,134 @@
+# What needs your attention
+
+**Workshop as a product.** Workshop says two different kinds of thing out loud, and telling
+them apart is the whole of this page:
+
+| | |
+|---|---|
+| **something happened** | `committed Width of Layouts = 12 cells`, `hid Info -- …`, `released #12`. It was true at one instant and it is a report about the past. It goes on the **notice row** in the bottom band, and the next thing Workshop says replaces it. |
+| **something is true** | your keymap file could not be read; a pane you authored is off the screen; the project is waiting on an artifact you have not built. It is still true when you read it, and it is still true an hour later. It goes to **attention**. |
+
+The difference matters because the two need opposite lifetimes. A report about the past is
+finished the moment it is said; a standing truth has to disappear **when it stops being true**
+and at no other moment. A sentence somebody said once cannot do that.
+
+## The Attention pane
+
+What is true is a **pane**: show it from the Pane Manager (`Ctrl`+`p`), put it where you want it
+on the desk, and it stays there. Nothing outside it — no corner of the window, no title, no
+terminal row — says what needs attention.
+
+Its first row is the **glance**: the most serious condition and an honest count of the rest, in
+that condition's colour:
+
+```text
+keymap refused -- default bindings stand (+2 more)
+```
+
+The order is decided by how loud each condition currently is, then by its identity — never by
+which one arrived last, so the row does not re-shuffle itself when something unrelated changes.
+When nothing deserves attention it says so: `nothing needs your attention right now`. Make the
+pane one row tall and the glance is all it shows.
+
+![A refused keymap file: the Attention pane's first row is the glance, keymap refused -- default bindings stand, in the alert colour, over the list and the reason; nothing at the window's corner or in its title](images/attention-glance.png)
+
+Beneath the glance the pane lists every condition that is currently true, in the words of
+whatever owns it, with the cursor on one of them.
+
+| key | does |
+|---|---|
+| `↑` `↓` | move the cursor |
+| `d` | hide the condition the cursor is on |
+
+Its keys work **while the pane holds the keyboard** — press into it first, exactly as with
+every other pane. They are ordinary rows and you can move them in your
+[keymap file](../../workshop/docs/hotkeys.md) under the names `attention.up`, `attention.down` and
+`attention.dismiss`.
+
+The row under the cursor also shows its owner's own explanation — the loader's refusal
+sentence, the reason a pane update did not fit, what the project is waiting on — and, where
+there is something you could do about it, the gesture that does it, spelled from your
+effective keymap. Reading a condition never performs anything: the pane shows you a gesture
+and you press it somewhere else.
+
+Putting the pane on your desk is always **your** gesture. Nothing Workshop discovers —
+however serious — opens a pane, steals the keyboard or interrupts what you were doing.
+
+> **The list is a pane, not a chord.** It is chosen from the Pane Manager like the Files browser
+> and the Builder, arranged where you want it and readable at the same time as everything else. If
+> your keymap file moves `attention.close` or `workshop.attention`, those two rows no longer
+> name anything — the other three moved with the pane and still work. `Ctrl`+`a` is now the
+> **select all** of whatever text field has your keys, everywhere, with no exception to
+> remember.
+
+The glance says what is **true** — so a condition you have hidden from the list is still named or
+counted there. Hiding is a decision about what you are reading, not about what is the case.
+
+## Hiding is not fixing
+
+`d` hides one condition from the pane's list. The glance still counts it, and it changes
+**nothing** about what is true:
+
+- the condition is still true, and whatever owns it still holds it;
+- the wall it describes is still standing — a refused preferences file is still refused, and
+  Workshop still will not overwrite it;
+- **if the condition materially changes, it comes back.** A dismissal is scoped to the exact
+  statement you hid, so a wall that changes its reason is a new statement and is visible
+  again. That is deliberate: hiding a condition should silence the thing you read, not the
+  next thing you have not.
+
+When you have hidden every condition that is currently true, the list says so —
+`all conditions hidden -- 2 are still true` — and not `nothing needs your attention right now`,
+which the pane says only when nothing is true.
+
+Hiding lasts as long as the run. Nothing about it is written to a file, and a fresh Workshop
+starts by showing you everything that is true. A hidden condition that then stops being true
+takes your decision with it: if the same thing becomes true again later, you see it again.
+
+## What makes a condition go away
+
+Exactly one thing: **it stops being true.** Fix the keymap file and the wall is gone at the
+next launch. Send a pane a valid update and its refusal is gone immediately. Reset a pane's
+place and its off-screen condition is gone the moment the place is reset. Build the frontier
+and the project stops waiting.
+
+Nothing has to be un-said, no sentence has to be overwritten, and no timer has to expire.
+There are no toasts, nothing fades, and nothing disappears on its own while you are still
+looking at it.
+
+## What earns attention today
+
+| condition | how loud |
+|---|---|
+| your keymap file exists and could not be read — the default bindings stand | an alert |
+| your preferences file exists and could not be read — Workshop will not overwrite it | an alert |
+| an older local keymap or session file is being shadowed by the one under your user directory | worth acting on, not urgent |
+| a pane sent Workshop an update it could not keep -- rows or a picture; the pane says so where it shows, and a picture it drew before stays, marked `(update refused)` | an alert |
+| a tool your load plan marks optional could not be loaded this run — named by its artifact, `zengine-files is not in this Workshop`, with the loader's own reason and what to do: build it, then launch again | an alert |
+| a pane you authored is resolvable and **no part of it is on the screen** — its place is off the canvas | worth acting on |
+| the project is stopped at an artifact waiting to be built | informative — waiting is not a failure |
+| the guests file names this Workshop a development host: a guest's hand writes files, types into panes and reaches the editor and the Terminal here, as yours does ([external host](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there)) | worth acting on, not urgent |
+| a guests-file row whose powers do not all reach here, with its version and what does not: no `build`, or what a weaver's host refuses a guest | worth acting on, not urgent |
+| a guests-file row whose powers reach more here than their names once did, with its version and what more: `capture` reads the desk said whole, the pane inventory and the keymap ([external host](../../external-host/docs/external-host.md#the-desk-a-panes-words-and-timed-drag-stories)) | worth acting on, not urgent |
+
+Some true things are deliberately **not** here. A pane you hid is your own choice and lives
+in the [Pane Manager](../../workshop/docs/panes.md#showing-going-to-and-hiding--the-pane-manager). A pane the
+setup names that this run cannot resolve is already counted on Workshop's first row, all day. A pane that is behind another one is still on the screen,
+and stacking is what arranging *is*. Attention is for what you would otherwise not find out.
+
+## What this is not
+
+- **not a notification history.** A condition that stopped being true has nothing to show. If
+  you want a record of what happened, that is `--log` and `--dump`
+  ([getting started](../../workshop/docs/getting-started.md#launch-it)).
+- **not a message queue.** Nothing accumulates, nothing is unread, and there is no badge
+  counting things you have not looked at — only things that are true right now.
+- **not timed.** Nothing expires, nothing auto-dismisses, and nothing animates.
+- **not a decision.** Workshop never asks you a question you did not open.
+
+## See also
+
+- [Hotkeys and the keymap](../../workshop/docs/hotkeys.md) — the one binding truth, and how to remap `Ctrl`+`a`.
+- [Panes](../../workshop/docs/panes.md) — the Pane Manager, arranging, and how a pane comes to be off the screen.
+- [Setups](../../workshop/docs/setups.md) — the files Workshop reads and writes, and which ones can refuse.
+- [What does not work yet](../../workshop/docs/limitations.md).

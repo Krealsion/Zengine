@@ -6,7 +6,7 @@ expected to keep. This describes working on the public project.
 ## Layout
 
 ```text
-README.md            orientation
+README.md            orientation, and the map of the folders below
 cheat_sheet.md       dense operational reference
 AGENTS.md            the contract for automated collaborators working in this tree
 agents/              routed detail behind AGENTS.md, by surface — internal working law for
@@ -15,21 +15,25 @@ agents/              routed detail behind AGENTS.md, by surface — internal wor
 CONTRIBUTING.md      contribution terms
 LICENSING.md         the plain-language licence boundary
 
-docs/                all documentation; docs/README.md is the index
+docs/                the pages no one folder owns; docs/README.md is the index of them all
   getting-started.md
-  guides/            how-to, task-shaped
-  reference/         exact contracts, one per package or subject
-  workshop/          Workshop as a product, for a weaver
   contributing/      this directory
   architecture/      why it is shaped this way
-  laws/              numbered invariants
-  decisions/         one decision per file, with its alternatives
   history/           frozen. Describes the tree it was written against
 
-<package>/           one directory per package; see below
-examples/            small sources a weaver copies into a project of their own; compiled by tests/
-tests/               every suite, fixture and check
-reference/           the pre-Zen V1 engine, kept as a quarry. NOT built
+<feature>/           what a weaver meets by name in Workshop: its README.md (its front page), its
+                     AGENTS.md (its router: its law, suites, the host's side and practices), its
+                     parts, its core library if it has one, and, where it has pages of its own,
+                     docs/ -- its guides, reference pages, laws and decisions
+workshop/            the host: Workshop itself, with its README.md and AGENTS.md, the parts it
+                     carries (workshop/desktop-pane/, workshop/menu-presenter/) and docs/ -- its
+                     guides and reference pages
+<package>/           one directory per library, with its README.md, AGENTS.md and docs/; see below
+examples/            worked examples to read, run and copy into a project of their own;
+                     examples/snake/ is built with the tree, the pane examples by tests/
+tests/               every suite, fixture and check; tests/folders.txt names every top-level
+                     folder and its kind
+quarry/              the pre-Zen V1 engine, kept as a quarry. NOT built
 ```
 
 A page under `docs/contributing/` routes to the registers under `agents/` that own its rules.
@@ -116,12 +120,12 @@ obvious.
 **`docs/history/` is frozen.** It describes the tree it was written against and is not
 maintained against the current one. Do not fix it and do not cite it as current.
 
-**`reference/` is a quarry, not a codebase.** It holds the pre-Zen V1 engine as material to
+**`quarry/` is a quarry, not a codebase.** It holds the pre-Zen V1 engine as material to
 read. Nothing in it is built by this repository, and ports out of it are read-and-rewrite —
 landing in their proper home from birth, never lift-and-shift. Its provenance is a plain file
 import of that project's working tree rather than a history-carrying subtree split, so its
 history stays in the original working copy. What is actually in there is indexed by
-[reference/QUARRY-CATALOG.md](../../reference/QUARRY-CATALOG.md) — capability by capability,
+[quarry/QUARRY-CATALOG.md](../../quarry/QUARRY-CATALOG.md) — capability by capability,
 with source paths, the legacy interaction shape, and where the comparable question is answered
 today. It is archaeology, not authority: an entry saying a capability is absent is a statement
 about coverage, never a request for work.
@@ -205,8 +209,8 @@ custody or lifetime is at stake.
   simplify the case into one that passes for the wrong reason. A method a verification register
   states is named by its id.
 
-`source_comments` holds the roots its own list names (`ZEN_COMMENT_ROOTS` in
-`tests/check_source_comments.cmake`) to this on the official lane: a comment block over six lines
+`source_comments` holds the folders `tests/folders.txt` lists as code, and the root
+`CMakeLists.txt`, to this on the official lane: a comment block over six lines
 outside an installed header, a removal note, or a phase name or private id is a red that names
 where the text belongs.
 

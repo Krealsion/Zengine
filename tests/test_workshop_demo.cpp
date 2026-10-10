@@ -5,7 +5,7 @@
 // media, and a semantic setup's refusals before it changes the active layout.
 
 #include "workshop_support.hpp"
-#include "demo-control/control.hpp"
+#include "external-host/demo-control/control.hpp"
 
 namespace {
 namespace demo = zengine::demo;

@@ -6,9 +6,9 @@ Bundled third-party material actually present in this repository:
 |---|---|---|---|---|
 | doctest | `tests/third_party/doctest.h` | Copyright (c) 2016-2023 Viktor Kirilov | MIT | stated in the file's own header; canonical text at <https://opensource.org/licenses/MIT> |
 | JetBrains Mono 2.304, Regular | `surface/fonts/JetBrainsMono-Regular.ttf` | Copyright 2020 The JetBrains Mono Project Authors | SIL Open Font License 1.1 (no Reserved Font Name declared) | `surface/fonts/OFL.txt`, verbatim from upstream |
-| Airstream font | `reference/Resources/TTFs/Airstream.ttf` | Nick's Fonts | Nick's Fonts freeware EULA | `reference/Resources/TTFs/Nick's Fonts License.txt` |
-| Basic font | `reference/Resources/TTFs/Basic-Regular.ttf` | its original authors (unverified) | no adjacent notice; terms unverified | — |
-| Elounda font | `reference/Resources/TTFs/Elounda-Regular.otf` | its original authors (unverified) | no adjacent notice; terms unverified | — |
+| Airstream font | `quarry/Resources/TTFs/Airstream.ttf` | Nick's Fonts | Nick's Fonts freeware EULA | `quarry/Resources/TTFs/Nick's Fonts License.txt` |
+| Basic font | `quarry/Resources/TTFs/Basic-Regular.ttf` | its original authors (unverified) | no adjacent notice; terms unverified | — |
+| Elounda font | `quarry/Resources/TTFs/Elounda-Regular.otf` | its original authors (unverified) | no adjacent notice; terms unverified | — |
 
 The two unattributed fonts are quarry material from the prior V1 engine tree;
 they are excluded from the repository's first-party MPL-2.0 claim, and their

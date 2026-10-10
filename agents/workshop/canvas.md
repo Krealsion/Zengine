@@ -112,7 +112,7 @@ MEANS
 
 PROVEN BY — `workshop/weave_canvas.cpp` `canvas_press`; `workshop/weave_pointer.cpp`
 `on(PointerButton)`; `workshop/weave_operation.cpp` `accept_carry`, `begin_value_drag`;
-`flow-pane/pane.cpp` `carry`; `tests/test_workshop_inventory_info.cpp` case "a press on a canvas
+`flow/flow-pane/pane.cpp` `carry`; `tests/test_workshop_inventory_info.cpp` case "a press on a canvas
 pane drags a value out as a prose press does: the hold ends as lost when the carry begins, the
 value lands where the hand lets go, and a click carries nothing"; `tests/test_flow_pane.cpp` case
 "a press on a declared message asks under that press to drag its shape out, and still opens it; a

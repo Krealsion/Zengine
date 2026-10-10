@@ -10,7 +10,7 @@
 // is derived from V. It declares a repeating beat on `kPumpTimerId`, addressed to `kInputRole`
 // so a successor inherits it, and the timer binding keeps it established; `PumpInput` is the
 // same hands on direct request, for suites and timer-less hosts.
-// Reference: docs/reference/input.md.
+// Reference: input/docs/input.md.
 
 #include "component/motion.hpp"
 #include "translate.hpp"

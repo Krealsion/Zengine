@@ -135,8 +135,8 @@ PROVEN BY — `component/text_box.hpp` `Clipboard::paste_requests`, `TextBox::pa
 `TextBox::draft_epoch`; `workshop/weave_seam.cpp` `paste_owner_now`, `naming_line`,
 `begin_clipboard_paste`; `workshop/weave.hpp` `WorkshopWeave::paste_asks_`, `AskBook`,
 `PasteOwner`, `PendingPaste`; `workshop/weave_pointer.cpp` `answers_ask`, `on(ClipboardText)`;
-`terminal-pane/pane.cpp` `begin_paste`,
-`on(ClipboardText)`, `Paste`; `files/files.cpp` `paste_epoch_`; `info-pane/pane.cpp`
+`terminal/pane.cpp` `begin_paste`,
+`on(ClipboardText)`, `Paste`; `files/files.cpp` `paste_epoch_`; `info/pane.cpp`
 `begin_paste`, `on(ClipboardText)`, `Paste::epoch`; `surface/vocabulary.hpp`
 `ClipboardTextRequested`, `kSkinRole`; `tests/test_workshop_document.cpp` case `"paste reads the
 platform current, not the mirror stale"`, case `"an unsolicited ClipboardText enters no

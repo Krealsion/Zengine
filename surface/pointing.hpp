@@ -10,7 +10,7 @@
 // the numbers live here, and a consumer keeps only where its own work sits on the canvas. No
 // registry and no backend dispatch: a consumer picks the function for the space its event was
 // stamped with. They describe the shipped Skins; a second graphical layout needs its own.
-// Reference: docs/reference/pointer-spaces.md.
+// Reference: workshop/docs/pointer-spaces.md.
 
 #include "cells.hpp"
 #include "region.hpp"

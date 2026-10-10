@@ -20,7 +20,7 @@ DOES NOT MEAN
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneInventoryRequested`;
 `workshop/weave.hpp` `on(PaneInventoryRequested)`, `inventory_published_`;
 `workshop/weave_desktop.cpp` `on(PaneInventoryRequested)`; `workshop/weave_seam.cpp`
-`on(PaneOffered)`; `desktop-pane/pane.cpp` `DesktopWeave`, `from_workshop`;
+`on(PaneOffered)`; `workshop/desktop-pane/pane.cpp` `DesktopWeave`, `from_workshop`;
 `tests/test_workshop_panes_actions.cpp` case `"a desktop reloaded in place is not left waiting:
 its new image asks for the inventory and shows it, though nothing about the inventory changed"`,
 case `"an arriving presenter is answered the inventory as it is now, to itself alone, and an
@@ -40,8 +40,8 @@ DOES NOT MEAN
 - that the launcher owns the inventory: it keeps the host's last reading and edits none of it.
 - that both keys empty is a lost choice: it is a cursor never given a pane, which takes its row.
 
-PROVEN BY — `desktop-pane/vocabulary.hpp` `DesktopState`, `DesktopState::cursor_office`,
-`DesktopState::cursor_pane`; `desktop-pane/pane.cpp` `find_cursor`, `write_choice`,
+PROVEN BY — `workshop/desktop-pane/vocabulary.hpp` `DesktopState`, `DesktopState::cursor_office`,
+`DesktopState::cursor_pane`; `workshop/desktop-pane/pane.cpp` `find_cursor`, `write_choice`,
 `launch_cursor`, `close_cursor`; `component/held_choice.hpp` `HeldChoice`;
 `component/list_window.hpp` `ListWindow`, `cursor_window`;
 `tests/test_workshop_panes_actions.cpp` case `"the launcher keeps the row it will open in view,
@@ -70,7 +70,7 @@ PROVEN BY — `workshop/pane_canvas_vocabulary.hpp` `v5::PaneCanvasContent`, `Pa
 `ExternalPane::stamp`, `ExternalPane::forget_pictures`, `PictureStamp`;
 `workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v5::PaneCanvasContent)`, `canvas_press`,
 `canvas_wheel`; `workshop/weave_seam.cpp` `fence_pictures`, `on(PictureFence)`;
-`desktop-pane/pane.cpp` `PanePress`, `launcher_press`, `keys_press`, `second_button`, `wheel`,
+`workshop/desktop-pane/pane.cpp` `PanePress`, `launcher_press`, `keys_press`, `second_button`, `wheel`,
 `publish_launcher`, `publish_keys`, `fit_rooms`, `offer_launcher_row`, `offer_keys_row`,
 `launcher_chose`, `keys_chose`, `LauncherMeaning`, `LauncherMeaning::ref`, `KeysMeaning`,
 `KeysMeaning::ref`, `launcher_ref`, `keys_line_ref`, `kMovedSentence`, `take_notches`;
@@ -110,7 +110,7 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `ShownBinding`, `KeymapShow
 `KeymapRequested`; `workshop/screen.hpp` `keymap_shown`; `workshop/screen_hotkeys.cpp`
 `keymap_shown`, `keyboard_context_name`; `workshop/weave.hpp` `publish_keymap`,
 `on(KeymapRequested)`; `workshop/weave_desktop.cpp` `publish_keymap`, `on(KeymapRequested)`;
-`desktop-pane/pane.cpp` `DesktopWeave`; `desktop-pane/vocabulary.hpp` `kHotkeysPane`,
+`workshop/desktop-pane/pane.cpp` `DesktopWeave`; `workshop/desktop-pane/vocabulary.hpp` `kHotkeysPane`,
 `kActionHotkeys`; `tests/test_workshop_panes_actions.cpp` case `"the band and the Hotkeys pane
 teach the application's keys as they are in force: a moved row where it moved, a disabled one as
 having no key"`; `tests/test_workshop_document.cpp` case `"the effective keymap lists every place

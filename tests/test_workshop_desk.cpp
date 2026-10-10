@@ -11,7 +11,7 @@
 #include "surface/skin_tui.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/screen_canvas.hpp"
-#include "view-builder/picture.hpp"
+#include "view/view-builder/picture.hpp"
 #include "view/view.hpp"
 
 #include <algorithm>
