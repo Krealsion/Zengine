@@ -52,7 +52,7 @@ workshop_host                   doctest           always  77
 # workshop/arrangement.hpp, workshop/powers_door.hpp, the Introspection, Builder, Info, Terminal
 # and Editor panes' sources and CMake files, and tests/weavelib/legacy_pane.cpp as text
 # (VM-WALL-11).
-workshop_panes                    doctest           always  1018
+workshop_panes                    doctest           always  1020
 # The shapes this tree publishes, and their census against tests/shapes.txt.
 workshop_shapes                   doctest           always  4
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text

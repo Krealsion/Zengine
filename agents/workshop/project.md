@@ -148,14 +148,20 @@ LAW — The pane's `awaiting` latch is set when it asks and released only at an 
 MEANS
 - `heard` tells "the tool has not answered" from "the tool never built anything";
 - a pane granted room while a child is alive is told `running`, shows it, and announces nothing;
-- `awaiting_realization` is the twin latch, held longer, and none of them is durable state.
+- `awaiting_realization` is the twin latch, held longer, to the load's answer for the operation whose build it watched end; none of them is durable state.
 
-PROVEN BY — `builder-pane/pane.cpp` `on(builder::BuildStatus)`, `build_words`, `realize_words`;
-`builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder/vocabulary.hpp` `still_going`;
-`tests/test_workshop_panes_builder.cpp` case
+DOES NOT MEAN
+- that a build ask refused at dispatch, or refused while a plain build runs, leaves a load armed.
+
+PROVEN BY — `builder-pane/pane.cpp` `on(builder::BuildStatus)`, `send_build`, `build_words`,
+`realize_words`; `builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder/vocabulary.hpp`
+`still_going`; `tests/test_workshop_panes_builder.cpp` case
 `"the pane asks the tool what it is on its own room grant, and shows it"`, case
 `"after a plain build that worked, `B` is the button"`, case
-`"closing the pane forgets its copy; the TOOL keeps its own count"`.
+`"closing the pane forgets its copy; the TOOL keeps its own count"`, case
+`"a build-and-load is said twice: the build's ending, then the load's answer"`, case
+`"a build-and-load refused at dispatch is said with the office and Loom's reason, and nothing stays
+armed"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-12 — The tool's status is kept only while a pane presents it
