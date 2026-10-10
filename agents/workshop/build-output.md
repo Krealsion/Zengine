@@ -86,7 +86,8 @@ Workshop takes, spelled in ASCII and said to be"`, case `"the reader stays bound
 newer build and a new status do not move it, and it steps between the builds kept"`, case `"a
 build the tool no longer keeps is said, and no other build's lines are shown under its
 number"`, case `"a build that worked and a realization that was refused read as two answers, and
-the reader says the build succeeded"`.
+the reader says the build succeeded"`, case `"a page refused at dispatch is said in the reader,
+which stops saying it is asking"`.
 WHY — `agents/decisions/a-build-keeps-its-own-words.md`
 
 ## Do not assume
