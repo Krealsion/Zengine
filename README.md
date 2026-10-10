@@ -57,8 +57,10 @@ What is not, stated plainly:
 - **Linux/WSL with GCC is the only fully-supported configuration.** Windows builds a
   documented subset; the Loom's OS sandbox is Linux-only. See [supported
   toolchains](docs/contributing/supported-toolchains.md).
-- **Workshop has real gaps** — no workspace restore at launch, no text editor, one
-  hard-coded build target, no run-time unload or reload. Each is written down in
+- **Workshop has real limits** — the desk and the window come back at launch but the file you
+  were editing does not, a session is written only on an orderly close, the Builder builds only
+  what an authored recipe catalog holds, and a rebuilt weave whose shapes changed is refused
+  rather than reloaded in place. Each is written down in
   [Workshop limitations](docs/workshop/limitations.md) rather than left to be discovered.
 
 ## Build it
