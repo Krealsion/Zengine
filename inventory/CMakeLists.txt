@@ -10,7 +10,6 @@ target_link_libraries(zengine-inventory-vocabulary INTERFACE loom::core)
 
 add_executable(zengine-inventory-read read.cpp)
 target_link_libraries(zengine-inventory-read PRIVATE zengine::inventory zengine-warnings zengine-sanitize)
-install(TARGETS zengine-inventory-read RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if(TARGET loom::kernel)
     zengine_weave(zengine-inventory inventory.cpp)
