@@ -91,7 +91,7 @@ did not take up its half. Whoever asked is told which side, and in what words:
 
 **A held Editor is repaired by reloading its image**: rebuild `zengine-editor-pane` with a
 recipe that builds it and load it in place from the Builder (see
-[load after build](../../builder/docs/builder.md#load-after-build-and-reload-in-place)). Closing the Editor's pane
+[load after build](../../workshop/docs/load-plans.md#when-a-built-artifact-is-loaded-again)). Closing the Editor's pane
 repairs nothing — it takes the pane off your desk, and the Editor behind it, its document and
 its hold stay exactly as they were — and Workshop has no way to unload the Editor while it
 runs. The reloaded Editor still has the document it had before the open, and nothing of the

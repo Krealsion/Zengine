@@ -53,6 +53,7 @@ weavers, with the Pane Manager, Hotkeys and the menus.
 | [operator/](../operator/README.md) | typed reusable rules, supplied by artifacts |
 | [maker/](../maker/README.md) | a weave built from a weaver's definition, edited live |
 | [message-draft/](../message-draft/README.md) | typed value forms, unfinished drafts and named presets |
+| [manual/](../manual/README.md) | a weave's manual, compiled into the weave it describes |
 
 **Examples** — [examples/](../examples/README.md): worked examples, among them a game whose parts
 are separate weaves and a small game made from inside Workshop.

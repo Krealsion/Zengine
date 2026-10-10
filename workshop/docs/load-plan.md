@@ -201,7 +201,7 @@ do — makes the one Workshop a weaver could have built it in refuse to start.
 So realization asks the **host**, per row, one question: *is this row waiting on the weaver?*
 The host answers it from two facts neither of which is realization's — whether the artifact file
 is there (the host owns the rule that spells a stem as a file) and whether some authored
-[build recipe](../../builder/docs/builder-reference.md) can produce that stem. A yes means **realization stops at that row**;
+[build recipe](../../builder/docs/recipes.md) can produce that stem. A yes means **realization stops at that row**;
 nothing is mounted, opened or commanded for it, the rows behind it are not reached, and the
 executor never learns *why* the answer was yes.
 
@@ -395,6 +395,6 @@ rows for the other, and it keeps neither.
 **Restart persistence exists; clean-build persistence does not.** A fresh process reconstructs
 the same provider and weave arrangement from the same file with no source change between runs.
 Recreating the artifacts themselves is **build intent**, it is a separate file with a separate
-owner ([the Builder](../../builder/docs/builder-reference.md)), and the only thing joining the two is the artifact stem — a
+owner ([the Builder](../../builder/docs/zengine.builder.md)), and the only thing joining the two is the artifact stem — a
 plan row carries no source path, package prefix, compiler flag or build tree, and a recipe
 carries no role, mount mode or load order.

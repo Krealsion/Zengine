@@ -168,7 +168,7 @@ Tally keeps running the code it had. Your edit is still in the Editor, saved.
 The `last` row ends `-- read output`. Press **`l`** in the Builder: it shows that build's own
 lines, as the build wrote them, under a header naming the build — `↓` and `End` move down to
 the error, which names the file, the line and the column, and `→` pans along a long line. `Escape`
-gives the Builder's rows back ([reading what a build said](builder.md#reading-what-a-build-said)).
+gives the Builder's rows back ([reading what a build said](zengine.builder-pane.md#builderoutput)).
 Fix it in the Editor, save, and `b` again: the reload goes ahead as if nothing had happened.
 
 ### A change to what the pane keeps
@@ -195,7 +195,7 @@ nothing:
 |---|---|---|
 | `no build recipe produces …, the artifact behind …` | no recipe in the catalog makes the artifact that pane runs from | for a one-file pane of your own, author its recipe with `a` in Files. Every pane Zengine ships says this under the shipped catalog; the development catalog has their recipes ([develop Workshop](../../workshop/docs/develop-workshop.md)) |
 | `2 recipes build …` | several recipes make that artifact, and choosing between them is yours | choose one in the Builder with `c`, then `e` there opens its source |
-| `recipe … is a cmake_target recipe with no editing entry` | that recipe builds an existing CMake target and names no file to start reading at | give the recipe an `entry` ([the Builder](builder.md#an-existing-cmake-target)), or open the file you mean from Files |
+| `recipe … is a cmake_target recipe with no editing entry` | that recipe builds an existing CMake target and names no file to start reading at | give the recipe an `entry` ([the recipe file](recipes.md#an-existing-cmake-target)), or open the file you mean from Files |
 | `… is part of Workshop itself` | the pane is one Workshop draws | there is no separate code to open |
 | `… is drawn by … which this project's plan did not load` | the pane's weave did not come from this project's load plan, so no artifact is known for it | load it through the plan |
 
@@ -214,7 +214,7 @@ file, the open is refused in those words, and nothing moves until you save or di
 - **It does not search.** The Editor holds one file and has no find or go-to-line; the example
   keeps the part to change at the top so the first loop is short.
 
-The pieces, each in depth: [the Builder](builder.md) (recipes, load after build, reload, promote,
+The pieces, each in depth: [the Builder pane](zengine.builder-pane.md) (recipes, load after build, reload, promote,
 revert), [the Editor](../../editor/docs/editor.md) (opening, saving, what can refuse an open), the
 [context menu](../../workshop/docs/panes.md#the-context-menu--what-can-i-do-with-this), and
 [making a Workshop tool](../../workshop/docs/make-a-workshop-tool.md) for a pane of your own.

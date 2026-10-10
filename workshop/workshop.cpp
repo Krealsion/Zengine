@@ -81,6 +81,7 @@ namespace {
 
 using namespace zengine::workshop;
 namespace builder = zengine::builder;
+namespace manual = zengine::manual;
 namespace op = zengine::op;
 namespace surface = zengine::surface;
 namespace timer = zengine::timer;
@@ -535,7 +536,7 @@ int main(int argc, char** argv) {
     // ---- ...and what it chooses not to forget ---------------------------------------------------
     // The Logger keeps a few facts for good: Loom's defaults, a build that finished or never
     // started, and what the project made of an offered artifact -- the one place a long refusal is
-    // kept whole (builder/docs/builder.md). Not `BuildStatus`: it is republished on every chunk.
+    // kept whole (builder/docs/zengine.builder.md). Not `BuildStatus`: it is republished on every chunk.
     loom::LoggerSelection log_selection = loom::default_selection();
     log_selection.log_refusals = args.log_refusals;
     for (const char* shape :
@@ -672,6 +673,9 @@ int main(int argc, char** argv) {
     // or process (WL-OUT-02).
     order_builds.allow_to_any(builder::BuildOutputSaid::zen_name,
                               builder::BuildOutputSaid::zen_version);
+    // ...and what a shape it accepts does, from its own page, to the one who asked.
+    order_builds.allow_to_any(manual::ShapeDocumentShown::zen_name,
+                              manual::ShapeDocumentShown::zen_version);
     const loom::WeaveId builder_tool = mount_in_office<builder::BuilderWeave>(
         bus, std::move(order_builds), builder::kBuilderRole, current_recipes.views(),
         current_recipes.source());

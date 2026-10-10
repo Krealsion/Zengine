@@ -1,0 +1,44 @@
+# The action census: every action a shipped pane declares, in every mode its suite drives, one row
+# each, `<office> <mode> <id> <default key> <label>`, in the order the pane declares them. The key is
+# spelled as a weaver's keymap file spells it, `unbound` for none; the mode is the census's own name
+# for the state it drove the pane into. The census case in tests/test_workshop_panes_builder.cpp
+# holds this file equal to what each pane declares and writes the census as it stands beside the
+# build to diff; tests/check_manual.cmake holds every manual's commands and key markers to it.
+# A pane is listed once a manual or a tutorial names its keys. ASCII only.
+zengine.builder-pane browse builder.build b build
+zengine.builder-pane browse builder.build-realize shift+b load after build
+zengine.builder-pane browse builder.promote shift+p promote image
+zengine.builder-pane browse builder.revert shift+r revert image
+zengine.builder-pane browse builder.load o load it
+zengine.builder-pane browse builder.recipe c recipe
+zengine.builder-pane browse builder.recipe-back shift+c recipe back
+zengine.builder-pane browse builder.frontier f frontier
+zengine.builder-pane browse builder.edit-source e edit source
+zengine.builder-pane browse builder.output l read output
+zengine.builder-pane browse builder.recipes return choose a recipe...
+zengine.builder-pane browse builder.menu shift+m this pane's menu
+zengine.builder-pane browse builder.arm unbound turn load-after-build on or off
+zengine.builder-pane browse builder.load-built unbound load what was built
+zengine.builder-pane recipes builder.recipes-up up row up
+zengine.builder-pane recipes builder.recipes-down down row down
+zengine.builder-pane recipes builder.recipe-choose return choose this recipe
+zengine.builder-pane recipes builder.edit-source e edit source
+zengine.builder-pane recipes builder.menu shift+m this pane's menu
+zengine.builder-pane recipes builder.recipes-close escape close the list
+zengine.builder-pane output builder.output-up up line up
+zengine.builder-pane output builder.output-down down line down
+zengine.builder-pane output builder.output-first home first line
+zengine.builder-pane output builder.output-last end last lines
+zengine.builder-pane output builder.output-left left pan left
+zengine.builder-pane output builder.output-right right pan right
+zengine.builder-pane output builder.output-older [ older build
+zengine.builder-pane output builder.output-newer ] newer build
+zengine.builder-pane output builder.menu shift+m this pane's menu
+zengine.builder-pane output builder.output-close escape close output
+zengine.builder-pane role authoring.commit return load it
+zengine.builder-pane role builder.menu unbound this pane's menu
+zengine.builder-pane role authoring.cancel escape cancel
+zengine.desktop desk desktop.terminal ctrl+t terminal
+zengine.desktop desk desktop.panes ctrl+p panes
+zengine.desktop desk desktop.hotkeys ctrl+k hotkeys
+zengine.desktop desk desktop.deselect escape put down

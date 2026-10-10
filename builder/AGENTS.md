@@ -58,8 +58,12 @@ Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_builder
 
 ## Pages
 
-- [The Builder package](docs/builder-reference.md)
-- [Workshop's Builder](docs/builder.md)
+- [The Builder pane](docs/zengine.builder-pane.md), a manual, compiled into the pane
+  (`MANUAL` in `builder-pane/CMakeLists.txt`) and declared beside its offer
+- [The Builder](docs/zengine.builder.md), a manual, compiled into whatever mounts the office
+  (`zengine_manual` in `CMakeLists.txt`); the office answers a shape's section from it
+- [The recipe file](docs/recipes.md)
+- [Build your first pane](docs/tutorials/build-your-first-pane/README.md), a tutorial
 - [Edit a running pane](docs/edit-a-running-pane.md)
 
 ## Practices

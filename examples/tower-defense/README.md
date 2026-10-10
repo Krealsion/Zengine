@@ -107,7 +107,7 @@ change. Compose composes one from the game's accepted shapes (Loaded, then `towe
 ## Build it into your own project
 
 `td.cpp` is one source file that uses only headers the installed Zengine and Loom packages publish.
-In a project directory holding a copy of it, [author its recipe in Files](https://github.com/Krealsion/Zengine/blob/main/builder/docs/builder.md#authoring-a-recipe-from-files)
+In a project directory holding a copy of it, [author its recipe in Files](https://github.com/Krealsion/Zengine/blob/main/builder/docs/recipes.md#adding-a-recipe-from-files)
 (`a`) with the links `zengine::pane,zengine::activation,zengine::input,zengine::timer,loom::switchboard`,
 add it to the load plan in the Builder (`o`) with the role `td.game`, and build what the project
 waits on (`f`). [Edit a running pane](https://github.com/Krealsion/Zengine/blob/main/builder/docs/edit-a-running-pane.md) is the same loop
@@ -117,7 +117,7 @@ A recipe written from Files borrows no toolchain: CMake chooses this machine's d
 default is not the compiler Workshop was built with -- on Windows with several compilers
 installed, say -- the first build fails with CMake's own words (`CMAKE_CXX_COMPILER not set`).
 Name the configured build tree Workshop came from in the recipe's `toolchain_from`, and a fresh
-directory in its `workspace`, in a text editor ([the recipe format](https://github.com/Krealsion/Zengine/blob/main/builder/docs/builder.md#one-source-file)),
+directory in its `workspace`, in a text editor ([the recipe format](https://github.com/Krealsion/Zengine/blob/main/builder/docs/recipes.md#one-source-file)),
 then press `u` on the catalog in Files and build again. The story does exactly that when it has to.
 
 The game's state is its save format across a reload: every field the finished game needs was

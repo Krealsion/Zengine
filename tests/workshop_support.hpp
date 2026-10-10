@@ -2331,7 +2331,7 @@ private:
 class SettingsSeat
     : public loom::WeaveBase<SettingsSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PaneSettings, SeatDo>,
-                             loom::Emit<PaneOffered, PaneSettingsDeclared>> {
+                             loom::Emit<PaneOffered, PaneSettingsDeclared, PaneDocumentDeclared>> {
 public:
     explicit SettingsSeat(std::string office) : office_(std::move(office)) {}
 
@@ -2363,6 +2363,10 @@ public:
     /// ...and PERSONALLY, from the weave that holds the office, which declares nothing.
     void declare_personally(loom::Mail& mail, const PaneSettingsDeclared& d) {
         (void)mail.send_to_role(kWorkshopProvider, d);
+    }
+    /// A pane's manual, as its office.
+    void declare_document(loom::Mail& mail, const PaneDocumentDeclared& d) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, d);
     }
 
     std::function<void(SettingsSeat&, loom::Mail&)> next;
@@ -2845,6 +2849,7 @@ struct PaneRig {
         loom::Grant grant;
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         grant.allow_to_any(PaneSettingsDeclared::zen_name, PaneSettingsDeclared::zen_version);
+        grant.allow_to_any(PaneDocumentDeclared::zen_name, PaneDocumentDeclared::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(office));
         raw->zen_set_self(id);

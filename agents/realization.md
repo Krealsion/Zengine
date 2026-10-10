@@ -4,7 +4,7 @@ Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `workshop/l
 `workshop/load_plan.hpp`, `builder/`, or a host's boot path — the authored load plan, the
 realization owner, the load conversation, and how building relates to participating. Public
 reference: [`workshop/docs/load-plan.md`](../workshop/docs/load-plan.md) and
-[`builder/docs/builder-reference.md`](../builder/docs/builder-reference.md).
+[`builder/docs/zengine.builder.md`](../builder/docs/zengine.builder.md).
 
 ## The running arrangement is an authored FILE
 

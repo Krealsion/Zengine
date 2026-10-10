@@ -15,7 +15,7 @@
 // the recipe names (generator, platform, toolset, make program, C++ compiler, build type). An
 // MSVC tree needs the Visual Studio environment, inherited from this process and never set
 // here. An empty `toolchain_from` lets CMake choose for this machine.
-// Reference: builder/docs/builder-reference.md.
+// Reference: builder/docs/recipes.md.
 
 #include "builder/recipe.hpp"
 

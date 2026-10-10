@@ -183,6 +183,17 @@ target_compile_definitions(zengine-editor-throwing PRIVATE ZENGINE_EDITOR_TEST_T
 target_link_libraries(zengine-editor-throwing PRIVATE zengine-workshop-vocabulary zengine-component
                                                      zengine-input-vocabulary zengine-activation)
 
+# THE BUILDER PANE WITH OTHER WORDS: the shipped pane's own source, built with another page, so a
+# reload in place from the shipped image to this one can be told by the manual it declares. Loaded
+# by one suite, named in no host's boot list, never installed.
+zengine_weave(zengine-builder-pane-reworded ${PROJECT_SOURCE_DIR}/builder/builder-pane/pane.cpp
+              MANUAL weavelib/reworded-builder-pane.md)
+target_link_libraries(zengine-builder-pane-reworded PRIVATE zengine-workshop-vocabulary
+                                                            zengine-builder-vocabulary
+                                                            zengine-component
+                                                            zengine-input-vocabulary
+                                                            zengine-activation)
+
 # THE EDITOR SWITCH'S OTHER CHOICES, for suite `workshop_editor_switch`: the standard Editor's own
 # source built under other stems, so a switch runs between two real Editors with no Neovim at all
 # -- one plain, three that fail on purpose at exactly one step (a candidate that never answers
@@ -991,6 +1002,7 @@ zengine_workshop_suite(panes
             test_workshop_info_views.cpp
             test_workshop_panes_terminal.cpp
             test_workshop_panes_settings.cpp
+            test_workshop_panes_manual.cpp
             test_workshop_panes_legend.cpp
             test_workshop_panes_editor.cpp
             test_workshop_editor_transfers.cpp
@@ -998,8 +1010,14 @@ zengine_workshop_suite(panes
             test_workshop_panes_code.cpp
             test_workshop_panes_output.cpp
             test_workshop_panes_guests.cpp
-    NEEDS zengine-composer zengine-inventory zengine-inventory-pane
+    NEEDS zengine-composer zengine-inventory zengine-inventory-pane zengine-builder-pane-reworded
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
+                # The action census: what every shipped pane declares, pinned, and the census
+                # as it stands written beside the build; and the Builder pane built with other
+                # words, the image a reload in place swaps in.
+                "ZENGINE_ACTIONS=\"${CMAKE_SOURCE_DIR}/tests/actions.txt\""
+                "ZENGINE_ACTIONS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/actions-now-$<CONFIG>.txt\""
+                "WORKSHOP_SO_BUILDER_PANE_REWORDED=\"$<TARGET_FILE:zengine-builder-pane-reworded>\""
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\"" "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
                 "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
@@ -1035,6 +1053,8 @@ zengine_workshop_suite(panes
                 # ...and the golden the C++ generator must write for a saved EnsureTimer, which a
                 # drop on a C++ document inserts (the `source_transfer` suite pins the same bytes).
                 "SOURCE_TRANSFER_GOLDEN_FOR_PANES=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_ensure_timer.generated.hpp\"")
+# ...and the Builder pane's page as its build embeds it, which the held declaration is compared to.
+zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/builder/docs/zengine.builder-pane.md)
 
 zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""

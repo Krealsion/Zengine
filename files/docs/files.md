@@ -72,8 +72,8 @@ Press into the pane to point your keys at it, then:
 | `Return` | **enter** a directory, or **open** a file in the editor |
 | `Backspace` | up one directory |
 | `r` | look again |
-| `u` | **use this file as the current recipe catalog** — see [the Builder](../../builder/docs/builder.md#choosing-a-recipe-catalog-while-workshop-is-running) |
-| `a` | **pick buildable** — list what this directory can try to build and author one recipe row — see [the Builder](../../builder/docs/builder.md#authoring-a-recipe-from-files) |
+| `u` | **use this file as the current recipe catalog** — see [the recipe file](../../builder/docs/recipes.md#choosing-another-recipe-file-while-workshop-runs) |
+| `a` | **pick buildable** — list what this directory can try to build and author one recipe row — see [the recipe file](../../builder/docs/recipes.md#adding-a-recipe-from-files) |
 | `m` | **mark** this directory, or unmark it if it is already marked |
 | `n` / `N` | go to the **next** / **previous** marked place |
 
@@ -270,7 +270,7 @@ still the recipes you are using.
 
 The whole of what that gesture does — including what happens to a build already running, and
 why nothing is remembered for next time — is on [the Builder's
-page](../../builder/docs/builder.md#choosing-a-recipe-catalog-while-workshop-is-running).
+page](../../builder/docs/recipes.md#choosing-another-recipe-file-while-workshop-runs).
 
 ## Authoring a recipe from here
 
@@ -321,7 +321,7 @@ writing anything. There is no popup and nothing covers your desk.
 
 Workshop itself composes no recipe: what you typed is handed over, and the same rule that reads
 a catalog file checks it, appends it as written and installs it. The whole of it is on [the
-Builder's page](../../builder/docs/builder.md#authoring-a-recipe-from-files).
+Builder's page](../../builder/docs/recipes.md#adding-a-recipe-from-files).
 
 ## What it is not
 
