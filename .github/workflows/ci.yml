@@ -218,7 +218,7 @@ jobs:
       - name: Verify the repository-owned population
         run: |
           set +e
-          cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake 2>&1 | tee verify.log
+          cmake -DZEN_BUILD_DIR=build -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake 2>&1 | tee verify.log
           verify_rc="${PIPESTATUS[0]}"
           verify_outcome=failed
           if (( verify_rc == 0 )); then verify_outcome=passed; fi
@@ -368,7 +368,7 @@ jobs:
       - name: Verify the repository-owned population under ASan + UBSan
         run: |
           set +e
-          cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake 2>&1 | tee verify.log
+          cmake -DZEN_BUILD_DIR=build-san -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake 2>&1 | tee verify.log
           verify_rc="${PIPESTATUS[0]}"
           verify_outcome=failed
           if (( verify_rc == 0 )); then verify_outcome=passed; fi
