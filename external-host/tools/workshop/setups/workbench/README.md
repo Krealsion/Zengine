@@ -26,7 +26,7 @@ Useful next steps, all on the same desk:
   view) and drag the sample's `requested_role` field onto its `target_role`.
 - Watch `Workbench note` in the third view while the second view saves it.
 - Run the whole weaver story: `loom-session run <session> workshop/workbench --input phase=story`
-  ([the inspection workbench](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/info-views.md#the-inspection-workbench)).
+  ([the inspection workbench](https://github.com/Krealsion/Zengine/blob/main/info/docs/info-views.md#the-inspection-workbench)).
 
 ## The hotkey
 

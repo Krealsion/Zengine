@@ -25,13 +25,13 @@ PROVEN BY — `workshop/pane_parts.hpp` `pane_part_name_problem`, `row_parts_pro
 `workshop/screen_attention.cpp` `context_line_names`; `workshop/weave_seam.cpp` `admit_content`,
 `on(v4::PaneContent)`; `workshop/weave_canvas.cpp` `admit_canvas_content`, `on(v4::PaneCanvasContent)`,
 `on(v5::PaneCanvasContent)`;
-`workshop/weave_external.cpp` `admit_menu_lines`; `menu-presenter/presenter.cpp` `show`;
-`desktop-pane/pane.cpp` `launcher_part`, `keys_part`; `info-pane/pane.cpp` `named_rows`;
-`info-pane/value_view.hpp` `part_name`; `files/files.cpp` `part_name`; `builder-pane/pane.cpp`
-`part_name`; `inventory-pane/pane.cpp` `part_name`; `terminal-pane/pane.cpp` `named_rows`;
+`workshop/weave_external.cpp` `admit_menu_lines`; `workshop/menu-presenter/presenter.cpp` `show`;
+`workshop/desktop-pane/pane.cpp` `launcher_part`, `keys_part`; `info/pane.cpp` `named_rows`;
+`info/value_view.hpp` `part_name`; `files/files.cpp` `part_name`; `builder/builder-pane/pane.cpp`
+`part_name`; `inventory/inventory-pane/pane.cpp` `part_name`; `terminal/pane.cpp` `named_rows`;
 `composer/view.hpp` `part_name`; `introspection/introspection.cpp` `loaded_parts`, `powers_parts`;
-`neovim-editor/pane.cpp` `status_part`; `view/view.hpp` `named`; `view-builder/picture.hpp`
-`part_name`, `named`; `flow-pane/view.hpp` `part_name`, `named`;
+`editor/neovim-editor/pane.cpp` `status_part`; `view/view.hpp` `named`; `view/view-builder/picture.hpp`
+`part_name`, `named`; `flow/flow-pane/view.hpp` `part_name`, `named`;
 `tests/test_workshop_desk.cpp` case `"a canvas pane's rows set on its room's lattice are words on its
 parts' rows, and a part's text is the characters drawn inside it"`, case `"with pane titles hidden,
 a refused picture's mark is Workshop's own: the pane view waits while it covers the picture, a press

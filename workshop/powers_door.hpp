@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_POWERS_DOOR_HPP
 #define ZENGINE_WORKSHOP_POWERS_DOOR_HPP
 
-// The host's discovery door (docs/reference/introspection.md): two derivations, pure over the live
+// The host's discovery door (introspection/docs/introspection.md): two derivations, pure over the live
 // `op::Catalog` they read, and the participant that answers them in the office `zengine.powers`.
 // It derives every answer at the ask and keeps nothing between asks, describes and cannot
 // evaluate (sampling is `zengine.sources`'), answers only whoever asked, publishes nothing, and

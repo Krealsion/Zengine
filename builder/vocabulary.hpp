@@ -16,7 +16,7 @@
 // `op`, minted by the runner, names one live operation so later facts say which build they are
 // about: not a WeaveId (an operation is no participant), not a correlation (it outlives any
 // conversation), meaningful within one runner's life (builder/runner.hpp); `op == 0` is none.
-// Reference: docs/reference/builder.md.
+// Reference: builder/docs/builder-reference.md.
 
 #include <zen/weave/shape.hpp>
 

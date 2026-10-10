@@ -229,7 +229,7 @@ inline Written keymap_in(const WorkshopKeymap& file, Keymap& out) {
 
 /// THE version-1 IMPORT: read explicitly, one action per row, and applied as this build's
 /// keymap. The next write is version 2; the file's identity changes with it, and the guide says
-/// so (`docs/workshop/hotkeys.md`).
+/// so (`workshop/docs/hotkeys.md`).
 inline Written keymap_in(const v1::WorkshopKeymap& file, Keymap& out) {
     return keymap_rows_in(file.format, file.format_version, kFormatVersionOne, file.legend,
                           file.overrides, false, out);

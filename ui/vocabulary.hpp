@@ -6,7 +6,7 @@
 
 // The UI package's authored side: an element's identity, the frame it is measured in, and its
 // place and size as a weaver said them. No resolved number exists here; ui/layout.hpp resolves.
-// Not a widget set, a layout engine or a drawing vocabulary. Reference: docs/reference/ui.md.
+// Not a widget set, a layout engine or a drawing vocabulary. Reference: ui/docs/ui.md.
 
 #include <zen/weave/shape.hpp>
 
@@ -57,7 +57,7 @@ inline constexpr std::int64_t kRootContext = 0;
 /// `width`/`height` are Extents, which the frame's span resolves. `context` names, by identity
 /// and never by position, the element whose resolved rectangle is the frame, or is kRootContext.
 /// It is not containment, ownership, clipping, paint order or lifetime: an application that
-/// wants any of those builds it on top (docs/reference/ui.md#context-is-a-frame-not-a-parent).
+/// wants any of those builds it on top (ui/docs/ui.md#context-is-a-frame-not-a-parent).
 ///
 /// The static assertion at the end of this header fires if Element carries a resolved number;
 /// the UI suite's contract case pins its wire shape, `Element` version 2.
@@ -201,7 +201,7 @@ inline ContextWalk walk_context(const std::vector<Element>& elements, const ById
 
 // ---- The authored/resolved fence, at compile time --------------------------------------
 // Two traits over any type, so an application can hold its own authored type to the rule the
-// assertion below holds Element to (docs/reference/ui.md#the-fence). The compile entries
+// assertion below holds Element to (ui/docs/ui.md#the-fence). The compile entries
 // `ui_authored_extent_required` and `ui_resolved_geometry_refused` show each half refusing, beside
 // the control `ui_authored_element_compiles` (tests/compile_negative/ui_fence.cpp).
 

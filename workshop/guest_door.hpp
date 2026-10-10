@@ -340,7 +340,7 @@ inline loom::Grant guest_door_grant() {
 /// what its row's `observe` list names (`guests::observation_of`), `cause` is read from the fences
 /// this door's server opened, and a gone session's subscriptions are forgotten. The pointer is for
 /// the host's own calls (`revoke`); the door must outlive the relay's use of it
-/// (docs/workshop/external-host.md).
+/// (external-host/docs/external-host.md).
 inline loom::observe::Relay* mount_observation(loom::Switchboard& bus, GuestDoor& door,
                                                 const guests::GuestsFile& file) {
     GuestDoor* d = &door;

@@ -2,7 +2,7 @@
 
 Register `WL-NVIM`, continued from [`neovim.md`](neovim.md): the Neovim-backed Editor in
 Workshop's typed carry -- a selection out, material in as data, a location back through the
-managed opening -- and a change Neovim holds. The shapes are `source-transfer/`'s; the standard
+managed opening -- and a change Neovim holds. The shapes are `editor/source-transfer/`'s; the standard
 Editor's halves are [`editor-transfers.md`](editor-transfers.md). One law per heading; cite by
 ID. Router: [`../workshop.md`](../workshop.md).
 
@@ -17,8 +17,8 @@ MEANS
 
 DOES NOT MEAN — that the copy is Neovim's register: no register, mark or mode is moved.
 
-PROVEN BY — `neovim-editor/pane.cpp` `on(PaneCanvasPointer)`, `press_at`, `dragged`,
-`right_press`, `carry_snapshot`, `snapshot_now`, `carries_selection`, `declare`; `neovim/lua.hpp`
+PROVEN BY — `editor/neovim-editor/pane.cpp` `on(PaneCanvasPointer)`, `press_at`, `dragged`,
+`right_press`, `carry_snapshot`, `snapshot_now`, `carries_selection`, `declare`; `editor/neovim/lua.hpp`
 `kSelection`;
 `tests/test_workshop_neovim_transfers.cpp` case `"a Visual selection dragged from its highlight
 lands in a named Inventory folder as exactly what Neovim's yank takes, unsaved edits included,
@@ -43,8 +43,8 @@ MEANS
 
 DOES NOT MEAN — that a `cpp` buffer takes C++ unasked: a command is its line, C++ whole lines.
 
-PROVEN BY — `neovim-editor/pane.cpp` `receive`, `insert_lines`, `say`, `fresh`,
-`picture_hash`, `insert_cpp`; `neovim/lua.hpp` `kDrop`;
+PROVEN BY — `editor/neovim-editor/pane.cpp` `receive`, `insert_lines`, `say`, `fresh`,
+`picture_hash`, `insert_cpp`; `editor/neovim/lua.hpp` `kDrop`;
 `tests/test_workshop_neovim_transfers.cpp` case `"dropped text lands in Neovim as data where the
 hand aimed, as one undo step, replaces the Visual highlight only when dropped onto it, and
 writes nothing"`, case `"a drop aimed at a picture Neovim has since redrawn is refused and
@@ -68,8 +68,8 @@ MEANS
 
 DOES NOT MEAN — that a capped line proves the whole line: past the observation it is unread.
 
-PROVEN BY — `neovim-editor/pane.cpp` `acquire_location`, `open_location`, `settle_location`;
-`declare`; `neovim/lua.hpp` `kLocate`; `source-transfer/material.hpp` `observe_line`,
+PROVEN BY — `editor/neovim-editor/pane.cpp` `acquire_location`, `open_location`, `settle_location`;
+`declare`; `editor/neovim/lua.hpp` `kLocate`; `editor/source-transfer/material.hpp` `observe_line`,
 `whole_line`; `tests/test_workshop_neovim_transfers.cpp` case `"the
 status row carries this file's location, which reopens the file through the managed opening at
 its line; Neovim's unsaved buffer is kept, and a changed line or a missing file is refused in
@@ -94,9 +94,9 @@ MEANS
 DOES NOT MEAN — that every unanswered request is held: an adoption, an open's preparation and
 its showing are not.
 
-PROVEN BY — `neovim/host.hpp` `Host::ask`, `Host::Asked`, `Host::call_now`;
-`neovim-editor/pane.cpp` `change`, `settle_held`, `heard_of`, `insert_lines`, `settle_location`,
-`judge_now`, `status_text`; `neovim/lua.hpp` `kDrop`, `kLocate`; `tests/test_neovim_live.cpp`
+PROVEN BY — `editor/neovim/host.hpp` `Host::ask`, `Host::Asked`, `Host::call_now`;
+`editor/neovim-editor/pane.cpp` `change`, `settle_held`, `heard_of`, `insert_lines`, `settle_location`,
+`judge_now`, `status_text`; `editor/neovim/lua.hpp` `kDrop`, `kLocate`; `tests/test_neovim_live.cpp`
 case `"a change asked while Neovim waits for input is outstanding, not refused: Neovim runs it
 when the wait ends, after the keys typed with its end, and its answer arrives exactly once"`,
 case `"a change Neovim holds when it ends is answered exactly once, with the ending as its

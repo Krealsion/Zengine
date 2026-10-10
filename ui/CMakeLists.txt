@@ -3,7 +3,7 @@
 # which holds no resolved number) versus what a viewport makes of it (layout.hpp). Not a
 # relocation of the Loom's `loom::Widget` / px_layout, a different model (relational stack
 # layout for an operator console) that fences out the authored placement this package needs.
-# Reference: docs/reference/ui.md.
+# Reference: ui/docs/ui.md.
 
 # No kernel dependency and no weave: vocabulary and pure functions, present in every
 # configuration. It links loom::core for zen/weave/shape.hpp alone -- the authored side is

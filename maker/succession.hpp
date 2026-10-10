@@ -7,7 +7,7 @@
 // A schema edit is a succession: a prepared replacement whose conversion is written as data in the
 // successor's definition, mounted as an edge in `operator/migration.hpp`'s convention and spent by
 // the host's one coordinator, `Succession`. It needs nothing Loom's prepared replacement does not
-// already offer. The six steps, and who may speak at the boundary: docs/reference/maker-weave.md.
+// already offer. The six steps, and who may speak at the boundary: maker/docs/maker-weave.md.
 
 #include "maker/definition.hpp"
 #include "maker/vocabulary.hpp"

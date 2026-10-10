@@ -15,7 +15,7 @@ There are two ways in, and they are separate on purpose:
 | | what it is | start here |
 |---|---|---|
 | **Zengine** | the C++ library. Link it, write a weave, run it. Workshop is not involved. | [docs/getting-started.md](docs/getting-started.md) |
-| **Workshop** | an interactive environment *built with* Zengine, for a *weaver*: the person who writes and runs weaves. Optional. | [docs/workshop/getting-started.md](docs/workshop/getting-started.md) |
+| **Workshop** | an interactive environment *built with* Zengine, for a *weaver*: the person who writes and runs weaves. Optional. | [workshop/docs/getting-started.md](workshop/docs/getting-started.md) |
 
 A developer looking for the library never has to learn Workshop. A weaver who wants
 Workshop never has to read the library's internals.
@@ -61,7 +61,7 @@ What is not, stated plainly:
   were editing does not, a session is written only on an orderly close, the Builder builds only
   what an authored recipe catalog holds, and a rebuilt weave whose shapes changed is refused
   rather than reloaded in place. Each is written down in
-  [Workshop limitations](docs/workshop/limitations.md) rather than left to be discovered.
+  [Workshop limitations](workshop/docs/limitations.md) rather than left to be discovered.
 
 ## Build it
 
@@ -141,7 +141,7 @@ It needs a terminal at least **78x22**. For the windowed build, pass the graphic
 ```
 
 `Ctrl`+`p` opens the Pane Manager (open, close or make a pane), `Ctrl`+`t` the Terminal, `w`
-arranges the desk, `q` quits. See [docs/workshop/getting-started.md](docs/workshop/getting-started.md).
+arranges the desk, `q` quits. See [workshop/docs/getting-started.md](workshop/docs/getting-started.md).
 
 ## Where to go next
 
@@ -149,32 +149,64 @@ arranges the desk, `q` quits. See [docs/workshop/getting-started.md](docs/worksh
 |---|---|
 | write my first weave | [docs/getting-started.md](docs/getting-started.md) |
 | look something up fast | [cheat_sheet.md](cheat_sheet.md) |
-| read a package's exact contract | [docs/README.md](docs/README.md) — the documentation index |
-| use Workshop | [docs/workshop/getting-started.md](docs/workshop/getting-started.md) |
-| know what does not work yet | [docs/workshop/limitations.md](docs/workshop/limitations.md) |
+| read a package's exact contract | its folder's `README.md` ([the map](#the-map)), or [docs/README.md](docs/README.md) — the documentation index |
+| use Workshop | [workshop/docs/getting-started.md](workshop/docs/getting-started.md) |
+| know what does not work yet | [workshop/docs/limitations.md](workshop/docs/limitations.md) |
 | build, test, or contribute | [docs/contributing/build-and-test.md](docs/contributing/build-and-test.md) |
 | understand why it is shaped this way | [docs/architecture/README.md](docs/architecture/README.md) |
 
-## The packages
+## The map
 
-Each is independently linkable; most are header-only vocabularies plus one loadable weave.
+Every folder holds what it is about: a feature's pane, its tools and its pages sit in the feature's
+folder, and each feature, the host and each library says what it is in its own `README.md`.
 
-| package | what it owns | exported as | reference |
-|---|---|---|---|
-| `timer/` | the clock, the only sleep, one beat chain per activation | `zengine::timer` | [timers](docs/guides/timers.md) · [protocol](docs/reference/timer-protocol.md) |
-| `input/` | the sole producer of key, text and pointer moments | `zengine::input` | [input](docs/reference/input.md) |
-| `surface/` | drawing intent, and the skins that paint it | `zengine::surface` | [surface](docs/reference/surface.md) |
-| `ui/` | authored placement and extent, resolved against a viewport | `zengine::ui` | [ui](docs/reference/ui.md) |
-| `component/` | reusable pieces of a tool that own their state and know no medium: text editing, list and table arithmetic, a control strip, motion sampling | `zengine::component` | [component](docs/reference/component.md) |
-| `activation/` | reading your own activation, once, without replay | `zengine::activation` | [activation](docs/reference/activation.md) · [timed weaves](docs/guides/timed-weaves.md) |
-| `operator/` | typed reusable rules, supplied by artifacts | `zengine::operator` | [operators](docs/reference/operator-providers.md) |
-| `flow/` | standalone authoring, live behavior edits, graph export and native C++ generation | `zengine::flow` | [Flow guide](docs/guides/flow.md) |
-| `maker/` | a weave built from a weaver's definition — state, triggers and emits as data, edited live | `zengine::maker` | [maker weave](docs/reference/maker-weave.md) |
-| `builder/` | starting an OS process from a named recipe | not exported | [builder](docs/reference/builder.md) |
-| `introspection/` | panes that show what a running system is made of | not exported | [introspection](docs/reference/introspection.md) |
-| `files/` | the Files pane, as a loadable weave rather than code inside Workshop | not exported | [Files](docs/workshop/files.md) |
-| `workshop/` | the interactive environment for weavers | not exported | [Workshop docs](docs/workshop/getting-started.md) |
-| `snake/` | a worked example: a game whose parts are separate weaves | not exported | [snake](docs/reference/snake.md) |
+**Features** — what a weaver meets by name in Workshop:
+
+| folder | what it is | exported as |
+|---|---|---|
+| [`attention/`](attention/README.md) | what needs your attention, at a glance and in a pane of its own | not exported |
+| [`builder/`](builder/README.md) | the Builder: build a recipe, then load or reload what it made | not exported |
+| [`composer/`](composer/README.md) | Compose: fill in a typed message and send it | not exported |
+| [`editor/`](editor/README.md) | the Editor, standard or held by a Neovim, and the source material it carries | `zengine::neovim`, `zengine::source-transfer` |
+| [`external-host/`](external-host/README.md) | Workshop driven from another Loom host, and the Connections pane | not exported |
+| [`files/`](files/README.md) | Files: browse the project you launched in and open a file | not exported |
+| [`flow/`](flow/README.md) | Flow: author a stateful weave as a graph, edit it live, generate native C++ | `zengine::flow` |
+| [`info/`](info/README.md) | Info: independent views that inspect and edit a value | not exported |
+| [`introspection/`](introspection/README.md) | Loaded, Project and Powers: what a running system is made of | not exported |
+| [`inventory/`](inventory/README.md) | Inventory: stored typed values, portable toolboxes and hotkeys | `zengine::inventory` |
+| [`terminal/`](terminal/README.md) | the Terminal: type a command to the weaves on the bus | not exported |
+| [`view/`](view/README.md) | a view described as data, the view host, and the View Builder | not exported |
+
+**The host** — [`workshop/`](workshop/README.md), the interactive environment for weavers, with
+the Pane Manager, Hotkeys and the menus; its pane protocol is exported as `zengine::pane`.
+
+**Libraries** — what a program links or a weave builds on by name:
+
+| folder | what it owns | exported as |
+|---|---|---|
+| [`timer/`](timer/README.md) | the clock, the only sleep, one beat chain per activation | `zengine::timer` |
+| [`input/`](input/README.md) | the sole producer of key, text and pointer moments | `zengine::input` |
+| [`surface/`](surface/README.md) | drawing intent, and the skins that paint it | `zengine::surface` |
+| [`ui/`](ui/README.md) | authored placement and extent, resolved against a viewport | `zengine::ui` |
+| [`component/`](component/README.md) | reusable pieces of a tool that own their state and know no medium: text editing, list and table arithmetic, a control strip, motion sampling | `zengine::component` |
+| [`activation/`](activation/README.md) | reading your own activation, once, without replay | `zengine::activation` |
+| [`operator/`](operator/README.md) | typed reusable rules, supplied by artifacts | `zengine::operator`, `zengine::operator-consumer` |
+| [`maker/`](maker/README.md) | a weave built from a weaver's definition — state, triggers and emits as data, edited live | `zengine::maker` |
+| [`message-draft/`](message-draft/README.md) | typed value forms, unfinished drafts and named presets | `zengine::message-draft` |
+
+**Examples** — [`examples/`](examples/README.md): worked examples, among them `snake/`, a game
+whose parts are separate weaves.
+
+**The repository's own** — `tests/` (every suite, fixture and check), `cmake/` (build helpers),
+`tools/` (repository scripts), `docs/` ([the documentation index](docs/README.md), getting
+started, contributing, architecture), `agents/` (the law automated collaborators work to) and
+`quarry/` (the pre-Zen engine, kept as a quarry and not built).
+
+An exported package's headers install under `include/zengine/` at the path they have here, so
+`#include "timer/vocabulary.hpp"` reads the same from either side, and a part's vocabulary is
+spelled with its feature: `flow/flow-host/vocabulary.hpp`, `flow/flow-pane/vocabulary.hpp`,
+`inventory/inventory-pane/vocabulary.hpp`, `editor/neovim-editor/vocabulary.hpp` and
+`editor/source-transfer/vocabulary.hpp`.
 
 ## Licence
 

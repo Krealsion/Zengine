@@ -9,7 +9,7 @@
 // Its signature is a pair of Loom schemas, input ports and output ports: every port's TypeRef
 // comes from `loom::type_ref_for`, the pack is admitted by `loom::admit` (a missing port is a
 // `MissingField`; no arity check is written), and `Schema::content_id()` versions a signature.
-// Reference: docs/reference/operator-providers.md.
+// Reference: operator/docs/operator-providers.md.
 
 // C++ derives arity and every type from a function pointer; C++20 has no parameter source
 // names, so port names are authored, and the identity is authored on purpose (derived from the

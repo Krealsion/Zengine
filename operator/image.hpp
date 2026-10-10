@@ -10,7 +10,7 @@
 // flags cannot drift. The flags are Loom's own (`RTLD_NOW | RTLD_LOCAL`, as `Kernel::load`
 // opens; `LoadLibraryA`, which reads the path in the program's code page, UTF-8 in every
 // Zengine program), so a second open names the same image and the loader's refcount keeps it so.
-// Reference: docs/reference/operator-providers.md.
+// Reference: operator/docs/operator-providers.md.
 
 #include <cstdint>
 #include <string>

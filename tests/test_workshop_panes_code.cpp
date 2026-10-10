@@ -13,7 +13,7 @@
 #include "workshop_support.hpp"
 #include "guest_hand.hpp"
 
-#include "builder-pane/vocabulary.hpp"
+#include "builder/builder-pane/vocabulary.hpp"
 #include "builder/recipe.hpp"
 #include "builder/vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"

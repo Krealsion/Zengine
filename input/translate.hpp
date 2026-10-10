@@ -8,7 +8,7 @@
 // take record fields as plain integers (local constants), so every lane pins both translations,
 // and the readers in input.cpp only fetch. The job: preserve what the backend already knew, and
 // claim nothing else -- an untranslatable event is dropped, a fact in the native record is not.
-// Reference: docs/reference/input.md.
+// Reference: input/docs/input.md.
 //
 // What each backend knows, source-traced:
 //

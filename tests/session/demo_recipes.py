@@ -45,7 +45,7 @@ def anchors(page):
 
 class Owner:
     """Workshop's owners as the service meets them: answers, refusals and the calls made. Its
-    portable views behave as inventory-pane/slots.hpp does: a removed entry keeps its place and
+    portable views behave as inventory/inventory-pane/slots.hpp does: a removed entry keeps its place and
     binding, the door refuses an entry it cannot name, a rebind keeps the item's switch, an item in
     no view is live while main Inventory's context is ON, and an edit leaving two live items on one
     chord is refused with the arrangement kept."""

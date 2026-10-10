@@ -61,7 +61,7 @@ pane names -- once, while the choice is the weaver's latest act, and never for a
 inventory lacks"`, case `"WL-CTX-09: a chosen row that begins an edit may take the keyboard --
 once, while the choice is the weaver's latest act, and never under another number"`;
 `workshop/pane_menu.hpp` `take_keyboard`, `take_keyboard_continuing`; `files/files.cpp`
-`take_keys`; `builder-pane/pane.cpp` `take_keys`; `tests/test_workshop_panes_files.cpp` case
+`take_keys`; `builder/builder-pane/pane.cpp` `take_keys`; `tests/test_workshop_panes_files.cpp` case
 `"a Files menu choice that begins authoring takes the keyboard the menu left behind"`, case `"a
 Files menu choice that opens no edit leaves the keyboard where the weaver put it"`;
 `tests/test_workshop_panes_builder.cpp` case `"a Builder menu choice that opens the role line
@@ -86,11 +86,11 @@ DOES NOT MEAN
 PROVEN BY — `workshop/presenter_vocabulary.hpp` `HeldMenu`, `HeldMenu::standard`,
 `HeldMenu::pane_name`,
 `PresenterReady`, `MenuClosed`, `MenuReturned`, `kMaxMenuLines`;
-`menu-presenter/presenter.cpp` `MenuPresenter`, `refusal_of`, `MenuPresenter::give_back`,
+`workshop/menu-presenter/presenter.cpp` `MenuPresenter`, `refusal_of`, `MenuPresenter::give_back`,
 `MenuPresenter::row_of`, `MenuPresenter::is_rule`, `rule_line`, `drawable`;
 `examples/numbered-presenter/presenter.cpp` `NumberedPresenter`, `digit_row`, `line_for`,
 `NumberedPresenter::give_back`, `NumberedPresenter::row_of`;
-`workshop/pane_menu.hpp` `Asked`, `Asked::take`, `Offer`; `desktop-pane/pane.cpp`
+`workshop/pane_menu.hpp` `Asked`, `Asked::take`, `Offer`; `workshop/desktop-pane/pane.cpp`
 `launcher_asked_`, `keys_asked_`; `workshop/weave_external.cpp` `on(PresenterReady)`,
 `answer_withdrawn`, `end_refused_menu`, `on(WithdrawalFence)`, `on(MenuReturned)`,
 `forget_withdrawn`; `workshop/context.hpp`

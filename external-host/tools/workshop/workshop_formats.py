@@ -5,7 +5,7 @@ current Workshop reads, whatever desk it was handed.
 
 SETUP_VERSION and SESSION_VERSION are the setup file's and the session file's `kFormatVersion`
 (workshop/setup_persist.hpp, workshop/session_persist.hpp). tests/code_values.txt reads both owners
-and docs/workshop/demo-setups.md marks one value for each pair, so a Workshop that moves either
+and workshop/docs/demo-setups.md marks one value for each pair, so a Workshop that moves either
 file's version is a red until this module moves with it. A desk a launcher is handed is lifted to
 SETUP_VERSION before anything is written around it: a version-4 desk keeps every field and gains
 each row's settings, none; another version is refused, naming what to do.

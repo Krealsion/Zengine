@@ -8,7 +8,7 @@
 // View Builder makes a view's intent through it, so a shape keeps these rules wherever it is
 // authored. It edits no value; values are `message_draft::Draft`'s. A shape carried out of a pane
 // travels as a `zengine.flow.CarriedShape` with the shapes it nests (`carried`, `described`).
-// Reference: docs/reference/flow.md.
+// Reference: flow/docs/flow-reference.md.
 
 #include "message-draft/library.hpp"
 

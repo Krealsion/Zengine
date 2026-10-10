@@ -3,8 +3,8 @@
 """The inspection workbench: regenerate its packaged toolboxes, restore one, or run its weaver stories.
 
 Zengine owns views, sampling, edits, permissions, folders and hit testing; this orchestrates them
-through visible controls and ordinary owner requests. docs/workshop/info-views.md and
-docs/workshop/inventory-folders.md are the guides."""
+through visible controls and ordinary owner requests. info/docs/info-views.md and
+inventory/docs/inventory-folders.md are the guides."""
 import json
 import os
 import time

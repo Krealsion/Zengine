@@ -6,7 +6,7 @@
 // The view host, the Flow host's sibling: over the host's existing bus it registers each view as
 // its own participant from its description, granted only what the description declares, applies
 // a change at the same shapes in place, and registers a change of shapes afresh. It owns no
-// Kernel, rendering policy or file policy. Law: agents/view.md. Reference: docs/reference/view.md.
+// Kernel, rendering policy or file policy. Law: agents/view.md. Reference: view/docs/view.md.
 
 #include "view/view.hpp"
 #include "view/vocabulary.hpp"

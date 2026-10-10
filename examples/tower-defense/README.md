@@ -107,17 +107,17 @@ change. Compose composes one from the game's accepted shapes (Loaded, then `towe
 ## Build it into your own project
 
 `td.cpp` is one source file that uses only headers the installed Zengine and Loom packages publish.
-In a project directory holding a copy of it, [author its recipe in Files](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/builder.md#authoring-a-recipe-from-files)
+In a project directory holding a copy of it, [author its recipe in Files](https://github.com/Krealsion/Zengine/blob/main/builder/docs/builder.md#authoring-a-recipe-from-files)
 (`a`) with the links `zengine::pane,zengine::activation,zengine::input,zengine::timer,loom::switchboard`,
 add it to the load plan in the Builder (`o`) with the role `td.game`, and build what the project
-waits on (`f`). [Edit a running pane](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/edit-a-running-pane.md) is the same loop
+waits on (`f`). [Edit a running pane](https://github.com/Krealsion/Zengine/blob/main/builder/docs/edit-a-running-pane.md) is the same loop
 for a smaller pane.
 
 A recipe written from Files borrows no toolchain: CMake chooses this machine's default. Where that
 default is not the compiler Workshop was built with -- on Windows with several compilers
 installed, say -- the first build fails with CMake's own words (`CMAKE_CXX_COMPILER not set`).
 Name the configured build tree Workshop came from in the recipe's `toolchain_from`, and a fresh
-directory in its `workspace`, in a text editor ([the recipe format](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/builder.md#one-source-file)),
+directory in its `workspace`, in a text editor ([the recipe format](https://github.com/Krealsion/Zengine/blob/main/builder/docs/builder.md#one-source-file)),
 then press `u` on the catalog in Files and build again. The story does exactly that when it has to.
 
 The game's state is its save format across a reload: every field the finished game needs was
@@ -141,12 +141,12 @@ tree, an empty `game/` directory, Workshop launched from the runtime with that d
 project (its window sized by `--viewport`, 180x80 cells unless you say otherwise: the story places
 panes for that room), and a Loom session linked to it as a guest with `input`, `capture`,
 `inspect`, `inventory`, `toolbox` and `build` powers, in a guests file that names this Workshop a
-[development host](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/external-host.md#whose-host-this-is-and-what-each-power-reaches-there),
+[development host](https://github.com/Krealsion/Zengine/blob/main/external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there),
 so the guest types, saves and builds there as a weaver would. `--toolchain-bin` puts a directory
 first on `PATH` for both processes, such as a MinGW `bin` the built programs need.
 
 `replay` then tells the story step by step (`story.py steps` lists them). Each step is one or
-more runs of a maintained tool in the [`workshop` package](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/external-host.md#3-from-a-loom-session-journeys-as-python-tools),
+more runs of a maintained tool in the [`workshop` package](https://github.com/Krealsion/Zengine/blob/main/external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools),
 and the script itself never reads or writes the game project:
 
 | steps | what happens | tools |
@@ -217,7 +217,7 @@ time -- it starts, ends and removes nothing, and says so: `loom-session status D
 while that session still runs, `loom-session stop DIR/watch` asks it to end, and `watch` can be
 run again once its ending is seen. From it, coming back to a build
 presses nothing and needs no pane (the ELH guide's
-[coming back to an operation](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/external-host.md#following-what-an-owner-says-instead-of-reading-its-pane)):
+[coming back to an operation](https://github.com/Krealsion/Zengine/blob/main/external-host/docs/external-host.md#following-what-an-owner-says-instead-of-reading-its-pane)):
 
 ```text
 loom-session run DIR/watch workshop/builder --name again --input act=look --input op=N --input relay=R

@@ -45,7 +45,7 @@ MEANS
 - the owner is not authorship: nothing completes host paths back into the recipe file.
 
 DOES NOT MEAN
-- that a running build re-aims when the catalog changes — it resolved its artifact at accept.
+- that a running build re-aims when the catalog changes — it resolved its artifact at accept (no witness yet).
 
 PROVEN BY — `workshop/recipes.hpp` `CurrentRecipes`, `RecipeView`, `CurrentRecipes::hold`;
 `workshop/workshop.cpp` `BuildRunnerWeave`, `BuilderWeave`; `builder/weave.hpp`
@@ -104,7 +104,7 @@ MEANS
 - the name is the pane's durable state, so a reload keeps a choice an index would have lost;
 - `picked` is a name too: a reordering keeps it, and a catalog without its recipe releases it.
 
-PROVEN BY — `builder-pane/vocabulary.hpp` `BuilderPaneState::chosen`; `builder-pane/pane.cpp`
+PROVEN BY — `builder/builder-pane/vocabulary.hpp` `BuilderPaneState::chosen`; `builder/builder-pane/pane.cpp`
 `named_row`, `cursor_row`; `tests/test_workshop_panes_builder.cpp`
 case `"the choice follows its RECIPE to a new row, not its index"`, case
 `"a choice whose recipe is gone is released, not inherited"`, case
@@ -153,8 +153,8 @@ MEANS
 DOES NOT MEAN
 - that a build ask refused at dispatch, or refused while a plain build runs, leaves a load armed.
 
-PROVEN BY — `builder-pane/pane.cpp` `on(builder::BuildStatus)`, `send_build`, `build_words`,
-`realize_words`; `builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder/vocabulary.hpp`
+PROVEN BY — `builder/builder-pane/pane.cpp` `on(builder::BuildStatus)`, `send_build`, `build_words`,
+`realize_words`; `builder/builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder/vocabulary.hpp`
 `still_going`; `tests/test_workshop_panes_builder.cpp` case
 `"the pane asks the tool what it is on its own room grant, and shows it"`, case
 `"after a plain build that worked, `B` is the button"`, case
@@ -172,7 +172,7 @@ MEANS
 - a copy kept against a later opening makes a presentation a second owner of somebody's facts;
 - closing reaches no tool: it retracts no offer, sends no unload and changes nothing.
 
-PROVEN BY — `builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder-pane/pane.cpp`
+PROVEN BY — `builder/builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder/builder-pane/pane.cpp`
 `on(PaneRoom)`, `ask_status`; `tests/test_workshop_panes_builder.cpp` case
 `"closing the pane forgets its copy; the TOOL keeps its own count"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
@@ -185,8 +185,8 @@ MEANS
 - the row is the PANE's and acts only while it holds the keyboard: elsewhere it reaches nobody;
 - everything after the send belongs to the tool, the runner and the realization owner.
 
-PROVEN BY — `builder-pane/pane.cpp` `build_now`, `send_build`, `has_recipe`;
-`builder-pane/vocabulary.hpp` `kActionBuild`; `tests/test_workshop_panes_builder.cpp` case
+PROVEN BY — `builder/builder-pane/pane.cpp` `build_now`, `send_build`, `has_recipe`;
+`builder/builder-pane/vocabulary.hpp` `kActionBuild`; `tests/test_workshop_panes_builder.cpp` case
 `"`b` builds only after the weaver has pressed into the pane"`, case
 `"`b` builds the recipe the weaver chose, by name"`, case
 `"an empty catalog is said plainly, and `b` asks for nothing"`, case
@@ -202,7 +202,7 @@ MEANS
 - `picked` names the recipe `c` chose, and stands only while that recipe is still the choice;
 - no second build path, no direct load: one class ask, carried from its first beat to the send.
 
-PROVEN BY — `builder-pane/pane.cpp` `begin_frontier_build`, `finish_frontier_build`,
+PROVEN BY — `builder/builder-pane/pane.cpp` `begin_frontier_build`, `finish_frontier_build`,
 `choose_recipe`; `workshop/pane_doors.hpp` `ProjectDoor`; `workshop/builder_seam_vocabulary.hpp`
 `ProjectFrontierRequested`, `ProjectFrontierSaid`; `tests/test_workshop_panes_builder.cpp` case
 `"the frontier row comes from the host's read-only door"`, case
@@ -246,8 +246,8 @@ DOES NOT MEAN
 PROVEN BY — `workshop/recipe_persist.hpp` `complete_recipes`; `workshop/staging.hpp` `stage`,
 `promote`, `copy_fresh`; `workshop/load_execute.hpp` `PlanExecutor::reload`,
 `PlanExecutor::promote`,
-`PlanExecutor::revert`, `reload_refusal_words`; `builder-pane/pane.cpp` `build_realize`,
-`promote_image`, `revert_image`; `builder-pane/vocabulary.hpp` `BuilderPaneState::arm`;
+`PlanExecutor::revert`, `reload_refusal_words`; `builder/builder-pane/pane.cpp` `build_realize`,
+`promote_image`, `revert_image`; `builder/builder-pane/vocabulary.hpp` `BuilderPaneState::arm`;
 `tests/test_workshop_files.cpp` case
 `"a single-source recipe's product lands in its workspace, never on the loaded path"`;
 `tests/test_workshop_load.cpp` case `"a live weave-only row reloads in place -- same WeaveId,
@@ -259,9 +259,4 @@ plan's file, sibling then rename, and revert reloads the image before the last r
 `"after a plain build that worked, `B` is the button"`, case
 `"`P` and `R` are one offer each, about the built artifact"`.
 WHY — `agents/decisions/a-reload-lands-off-the-loaded-path.md`
-
-## Do not assume
-
-- That a running build follows a replaced catalog — it does not, and that has no witness yet
-  (WL-PROJ-03).
 

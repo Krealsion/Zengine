@@ -3,7 +3,7 @@
 # succession; `maker::Weave` implements the raw `loom::Weave` contract over a schema decoded at
 # runtime. Not a second type system, evaluator or lifecycle: the seven Loom kinds close the maker
 # path, triggers are compositions spent through the host's one catalog, and a schema edit is a
-# prepared replacement whose conversion is data (docs/reference/maker-weave.md).
+# prepared replacement whose conversion is data (maker/docs/maker-weave.md).
 
 # Header-only, in operator/'s shape; it links what its headers use -- loom::core,
 # loom::switchboard and zengine-operator -- and needs no loom::kernel, since a definition is

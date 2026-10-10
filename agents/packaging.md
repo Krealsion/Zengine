@@ -27,20 +27,20 @@ helpers beside them, `workshop/pane_menu.hpp`, `workshop/pane_canvas_text.hpp` a
 plus `workshop/pane_operation.hpp`, `workshop/pane_carry.hpp`, `workshop/pane_settings.hpp`,
 `workshop/pane_view.hpp`, `workshop/pane_shortcuts.hpp` and `workshop/setup_control.hpp`,
 installed under `include/zengine/workshop/`), `neovim` (the one
-header `neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
+header `editor/neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),
 `message-draft` (`draft.hpp`, `library.hpp` and `transfer.hpp`: typed editing, schema closure and reusable
 value persistence), `inventory` (`codec.hpp`, `vocabulary.hpp`, `grant.hpp` and
-`inventory-pane/vocabulary.hpp`: the inventory
+`inventory/inventory-pane/vocabulary.hpp`: the inventory
 item+metadata envelope, its wire shapes and an explicit bounded host grant; decoding needs no
 compiled knowledge of the item's or a metadata entry's schema; portable-view configuration is
 owned separately by the pane), `source-transfer` (the one header
-`source-transfer/vocabulary.hpp`: the text, selection, location and location-context shapes the
+`editor/source-transfer/vocabulary.hpp`: the text, selection, location and location-context shapes the
 Editors carry, so a stranger's pane can make or recognize them; the byte laws, the Terminal line
 and the C++ generator stay internal), and `flow` (standalone
 authoring, `graph_edit.hpp`, `workspace.hpp`,
 persistence, generated-runtime support, and the public control vocabularies
-`flow-host/vocabulary.hpp` and `flow-pane/vocabulary.hpp`). The optional
+`flow/flow-host/vocabulary.hpp` and `flow/flow-pane/vocabulary.hpp`). The optional
 `zengine-flow` executable installs to `bin` when a Loom kernel is available. A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
@@ -76,7 +76,7 @@ page does not spell them.
 SDL input reader, because a fetched SDL is a build-tree library this install does not own;
 Workshop, because its executable carries `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake
 that configured it (`cmake/ZengineInstall.cmake`), so installing it would ship one machine's layout;
-the implementation in `flow-host/runtime.hpp` and the Flow pane model/view,
+the implementation in `flow/flow-host/runtime.hpp` and the Flow pane model/view,
 because these currently implement Workshop session policy and presentation; the view package
 (`view/`) and the View Builder, because Workshop composes the view host and is the one consumer
 of the description format. Their control

@@ -9,7 +9,7 @@
 // is not. It owns the spans of one composition, replaced whole each time the rows are said,
 // and a picture number moved only by a recomposition whose spans differ. It knows no row's
 // text, role, medium or wire shape: `Meaning` is whatever the consumer's press handler reads.
-// Reference: docs/reference/component.md.
+// Reference: component/docs/component.md.
 
 #include <algorithm>
 #include <cstddef>

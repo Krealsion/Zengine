@@ -20,10 +20,10 @@ MEANS
 DOES NOT MEAN
 - that Workshop knows it is Neovim: no host line names this weave or its artifact.
 
-PROVEN BY — `neovim-editor/pane.cpp` `NeovimEditorWeave`, `on(PrepareSourceRequested)`,
+PROVEN BY — `editor/neovim-editor/pane.cpp` `NeovimEditorWeave`, `on(PrepareSourceRequested)`,
 `on_claim_published`, `on(OpenSourceRequested)`, `declare`, `on(PaneActionRequested)`;
-`neovim-editor/vocabulary.hpp` `kEditorOffice`, `kEditorPane`, `kActionWrite`, `kActionJumpOlder`;
-`workshop/keymap.hpp` `kActionCatalog`; `neovim/lua.hpp` `kModule`;
+`editor/neovim-editor/vocabulary.hpp` `kEditorOffice`, `kEditorPane`, `kActionWrite`, `kActionJumpOlder`;
+`workshop/keymap.hpp` `kActionCatalog`; `editor/neovim/lua.hpp` `kModule`;
 `tests/test_workshop_neovim.cpp` case `"an open through the office shows the file in Neovim, and
 the save chord writes it"`, case `"after a switch to Neovim, an open through the office shows
 another file in Neovim, beside the unsaved one"`; `tests/test_neovim_live.cpp` case `"preparing a
@@ -44,8 +44,8 @@ MEANS
 DOES NOT MEAN
 - syntax colours, search matches or a rectangle: the pane draws one range, the named next seam.
 
-PROVEN BY — `neovim/projection.hpp` `project`, `ascii_of`; `neovim-editor/pane.cpp` `compose`,
-`say`, `status_text`, `take_room`, `Preview`, `on_claim_published`; `neovim/host.hpp`
+PROVEN BY — `editor/neovim/projection.hpp` `project`, `ascii_of`; `editor/neovim-editor/pane.cpp` `compose`,
+`say`, `status_text`, `take_room`, `Preview`, `on_claim_published`; `editor/neovim/host.hpp`
 `Host::flushes_at_answer`; `tests/test_neovim.cpp` case `"an answer says the screen as it stood
 when the answer came, not the one drawn after it"`, case `"the projection: a block cursor is its cell, a
 bar is a caret, rows carry their meaning"`, case `"the projection: Visual runs through the cursor
@@ -68,8 +68,8 @@ MEANS
 - a linewise selection crosses as its lines, a blockwise one as its cursor, each said;
 - a modified buffer's saved comparison is its file; a file not yet written counts as unsaved.
 
-PROVEN BY — `neovim/document.hpp` `place`, `carry`, `neovim_text`, `file_bytes`;
-`neovim-editor/pane.cpp` `on(EditorAdoptRequested)`, `judge_now`; `tests/test_workshop_neovim.cpp`
+PROVEN BY — `editor/neovim/document.hpp` `place`, `carry`, `neovim_text`, `file_bytes`;
+`editor/neovim-editor/pane.cpp` `on(EditorAdoptRequested)`, `judge_now`; `tests/test_workshop_neovim.cpp`
 case `"standard to Neovim and back carries the unsaved document and its caret exactly, with Neovim
 editing between"`, case `"a selection crosses to Neovim as Visual and comes back as the same
 range, in its direction"`; `tests/test_neovim.cpp` case `"every placement a document allows
@@ -84,7 +84,7 @@ MEANS
 - an unfinished count is cancelled with Escape, and said among the resets;
 - the boundary asks Neovim again, so losses that moved send the weaver back to confirm.
 
-PROVEN BY — `neovim-editor/pane.cpp` `judge_now`, `wait_unblocked`,
+PROVEN BY — `editor/neovim-editor/pane.cpp` `judge_now`, `wait_unblocked`,
 `on(EditorHandoffJudgeRequested)`, `on(EditorHandoffRequested)`; `tests/test_workshop_neovim.cpp`
 case `"a switch away from Neovim names another modified buffer for consent, and carries the
 current one"`, case `"an unfinished command in Neovim is reset by a switch and said, and a prompt
@@ -100,7 +100,7 @@ MEANS
 - with no Neovim the pane says so, an open is refused in words, and the quit is permitted;
 - the beat is ordered in the Timer's own words, and a beat the Timer refuses is said on the pane.
 
-PROVEN BY — `neovim/host.hpp` `Host::call_now`, `Host::start`; `neovim-editor/pane.cpp`
+PROVEN BY — `editor/neovim/host.hpp` `Host::call_now`, `Host::start`; `editor/neovim-editor/pane.cpp`
 `on(EditorWarmRequested)`, `settle_warm`, `lua_now`, `ensure_running`, `ensure_beat`,
 `on(TimerResolution)`; `tests/test_workshop_neovim.cpp` case `"the Neovim editor orders its beat
 in words the Timer reads, and a refused beat is said on its pane"`;
@@ -120,7 +120,7 @@ MEANS
 - the quit is refused naming the unsaved buffers, or the running terminal jobs;
 - a document handed to a Neovim that ended before it served is carried back as it was handed.
 
-PROVEN BY — `neovim-editor/pane.cpp` `snapshot`, `on(PaneQuitRequested)`, `absorb`, `judge_now`;
+PROVEN BY — `editor/neovim-editor/pane.cpp` `snapshot`, `on(PaneQuitRequested)`, `absorb`, `judge_now`;
 `tests/test_workshop_neovim.cpp` case `"the orderly quit is refused while Neovim holds unsaved
 changes, naming the file, and permitted once written"`, case `"Neovim ended from inside leaves the
 office held with no document, said so, and switching back carries nothing"`, case `"a reload of
@@ -136,7 +136,7 @@ MEANS
 - a linewise copy is its lines and one newline; text ending in a newline pastes linewise;
 - the provider is installed only where the weaver's own configuration chose none.
 
-PROVEN BY — `neovim/lua.hpp` `kModule`; `neovim-editor/pane.cpp` `absorb`, `on(ClipboardText)`,
+PROVEN BY — `editor/neovim/lua.hpp` `kModule`; `editor/neovim-editor/pane.cpp` `absorb`, `on(ClipboardText)`,
 `join_lines`, `paste_lines`; `tests/test_workshop_neovim.cpp` case `"a copy in Neovim reaches the
 Skin, and a paste in Neovim asks the Skin"`.
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
@@ -149,8 +149,8 @@ MEANS
 - the stop is refused while a buffer holds unsaved changes, naming them, unless `discard` is set;
 - `loom-host` keeps its console: Neovim's own interface runs in the second terminal.
 
-PROVEN BY — `neovim-editor/pane.cpp` `on(NeovimStartRequested)`, `on(NeovimStopRequested)`,
-`on(NeovimStatusRequested)`; `neovim/launch.hpp` `launch_spec`; `tests/test_workshop_neovim.cpp`
+PROVEN BY — `editor/neovim-editor/pane.cpp` `on(NeovimStartRequested)`, `on(NeovimStopRequested)`,
+`on(NeovimStatusRequested)`; `editor/neovim/launch.hpp` `launch_spec`; `tests/test_workshop_neovim.cpp`
 case `"from a Loom with no Workshop, Neovim listens for a second terminal, says where, and stops
 only when nothing is lost"`.
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
@@ -167,9 +167,9 @@ MEANS
 DOES NOT MEAN — that a relative init path follows Neovim's own working directory, which is the
 project's: it follows the directory this process started in, where the weaver set the variable.
 
-PROVEN BY — `neovim/launch.hpp` `check_profile`, `ProfileChoice`, `profile_tag`,
+PROVEN BY — `editor/neovim/launch.hpp` `check_profile`, `ProfileChoice`, `profile_tag`,
 `profile_words`, `choice_from_environment`, `kProfileVariable`, `kProgramVariable`;
-`neovim-editor/pane.cpp` `start`, `status_text`, `started_words`;
+`editor/neovim-editor/pane.cpp` `start`, `status_text`, `started_words`;
 `tests/test_workshop_neovim.cpp` case `"a profile that is neither clean nor user and names no
 init file refuses the switch before starting Neovim"`, case `"the profile a weaver names is the
 configuration that runs and the pane says which one it is"`, case `"the Neovim editor holding the

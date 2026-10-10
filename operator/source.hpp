@@ -9,7 +9,7 @@
 // `def.inputs()->fields().empty()`, a question asked of a shape and never of a name. A zero-input
 // native getter and a fully-bound composite are both ordinary `OperatorDef`s in one store, so
 // binding an operator's last input turns it into a Source with nothing re-registered.
-// Reference: docs/reference/operator-sources.md.
+// Reference: operator/docs/operator-sources.md.
 
 // Routing is not evaluation: registration, mount, `find`, enumeration, description, schema and
 // provenance inspection and `is_source` touch a definition, never a body -- `invoke_native` has

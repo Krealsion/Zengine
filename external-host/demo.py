@@ -5,7 +5,7 @@
 `start` makes one dedicated Workshop and Loom session per root, prepares the setup through
 Workshop's own owners and waits until it is usable; run again on the same root it returns to the
 running desk without resetting it. `walk` replays one of the setup's named walks against it. Uses an existing Zengine build and installed Loom. Python owns
-launch policy; every Workshop mutation crosses the admitted link. docs/workshop/demo-setups.md."""
+launch policy; every Workshop mutation crosses the admitted link. workshop/docs/demo-setups.md."""
 import argparse
 import json
 import os
@@ -232,7 +232,7 @@ def launch(args, source, root):
         guest["observe"] = authority["observe"]
     guest = formats.following_the_desk(guest)
     # A SETUP'S WORKSHOP IS ITS OWN, started for this root alone: a development host, where its
-    # guest types, writes and builds as a weaver would (docs/workshop/external-host.md).
+    # guest types, writes and builds as a weaver would (external-host/docs/external-host.md).
     save_json(wdir / "guests.json", formats.guests([guest], formats.DEVELOPMENT_HOST,
                                                    port_file=wdir / "guests.port"))
     packages = [{"path": str(PACKAGE), "approve": "any-revision"},

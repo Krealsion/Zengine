@@ -6,8 +6,8 @@
 // in exactly one way per mode. It is not Neovim and claims nothing about Neovim; the live suite
 // (`neovim_live`) is where Neovim's own behaviour is pinned.
 
-#include "neovim/msgpack.hpp"
-#include "neovim/rpc.hpp"
+#include "editor/neovim/msgpack.hpp"
+#include "editor/neovim/rpc.hpp"
 
 #include <cstdio>
 #include <cstdlib>

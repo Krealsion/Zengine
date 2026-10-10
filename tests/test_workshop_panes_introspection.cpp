@@ -2039,7 +2039,8 @@ TEST_CASE("Workshop knows no pane, and the two new ones are no exception") {
         const std::string source = file_source(path.c_str());
         for (const char* forbidden : {"\"arrangement\"", "\"powers\"", "\"loaded\"",
                                       "kArrangementPane", "kPowersPane", "kLoadedPane",
-                                      "introspection/", "kIntrospectionRole"}) {
+                                      "\"introspection/", "<introspection/", "/introspection/",
+                                      "kIntrospectionRole"}) {
             CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " names '",
                           forbidden, "'");
         }

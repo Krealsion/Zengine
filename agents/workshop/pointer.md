@@ -25,7 +25,7 @@ WHY — `agents/decisions/time-is-an-argument.md`
 
 LAW — The terminal medium asks for button-event tracking (`1002`), so an idle pointer reaches nobody there; it is a documented medium fact, not a defect to repair with `1003`.
 
-PROVEN BY — `surface/skin_tui.hpp` `kTuiPointerOn`; `docs/workshop/limitations.md` `hover`;
+PROVEN BY — `surface/skin_tui.hpp` `kTuiPointerOn`; `workshop/docs/limitations.md` `hover`;
 `tests/test_surface.cpp` case `"the Skin's terminal claim includes pointer reporting, and leave
 undoes enter"`.
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
@@ -42,7 +42,7 @@ DOES NOT MEAN
 - that there is a scroll framework, a scrollbar, a global offset map or a persisted position.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerWheel)`; `workshop/weave_external.cpp`
-`external_wheel`; `workshop/weave_canvas.cpp` `canvas_wheel`; `editor-pane/pane.cpp`
+`external_wheel`; `workshop/weave_canvas.cpp` `canvas_wheel`; `editor/editor-pane/pane.cpp`
 `wheel`; `tests/test_workshop_panes_editor.cpp` case `"the wheel scrolls the body, moves
 no caret, and elsewhere reaches nothing"`; `tests/test_workshop_panes_input.cpp` case `"a wheel
 over an external pane's body crosses unchanged, follows the pointer, and the header sends

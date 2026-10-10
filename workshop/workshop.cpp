@@ -18,7 +18,7 @@
 #include "recipes.hpp"
 #include "staging.hpp"
 #include "user_paths.hpp"
-#include "flow-host/runtime.hpp"
+#include "flow/flow-host/runtime.hpp"
 #include "view/host.hpp"
 #include "weave.hpp"
 #include <zen/host/grant_wiring.hpp>
@@ -535,7 +535,7 @@ int main(int argc, char** argv) {
     // ---- ...and what it chooses not to forget ---------------------------------------------------
     // The Logger keeps a few facts for good: Loom's defaults, a build that finished or never
     // started, and what the project made of an offered artifact -- the one place a long refusal is
-    // kept whole (docs/workshop/builder.md). Not `BuildStatus`: it is republished on every chunk.
+    // kept whole (builder/docs/builder.md). Not `BuildStatus`: it is republished on every chunk.
     loom::LoggerSelection log_selection = loom::default_selection();
     log_selection.log_refusals = args.log_refusals;
     for (const char* shape :

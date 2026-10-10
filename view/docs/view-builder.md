@@ -1,0 +1,223 @@
+# Make a small panel by hand in the View Builder
+
+The **View Builder** is a pane beside [Flow](../../flow/docs/flow.md) where you make a small panel, a **view**,
+by hand: drag number fields, buttons and labels onto a canvas, move and size them with the
+pointer, and type their values where they sit. The canvas is the view's own picture, so what you
+see there is what runs. **Run** asks the view host to make the view a participant of its own, and
+it opens in a pane of its own. Flow composes what happens when the view speaks; the two meet only
+at message shapes, which you drag from one pane to the other. The contract beneath this page is
+the [view reference](view.md).
+
+Open the Pane Manager and press `n`, or choose **View Builder**. The shipped plans include the
+optional `zengine-view-builder` artifact in the `zengine.view.builder` office. The builder takes
+its place in the column down the room's left like any pane you show, and a view you run opens in
+front, with the keys: where the column has no room left for it, at the column's top.
+
+![n in the Pane Manager showed the View Builder beneath it; the view greeting, run from it, opened at the column's top in front of both, with the keys](images/view-builder-run-in-front.png)
+
+## The builder
+
+On the left are the view's name and file in boxes, **Add** with the three kinds of element, the
+view's **Size** and the **Grid** in boxes, and the list of the view's elements. In the middle is
+the design canvas: the view drawn by its own picture code at its own pixels, 12 to a cell, in a
+room exactly its size with its notice rows beneath, the same picture it shows when it runs. In a
+wide
+pane the selected element's values sit in boxes on the right; in a narrow one, below the list.
+
+- **Size** the view by dragging the handles on its right and bottom edges, or their corner, or
+  type its width and height into the boxes beside **Size**. A new view is 480 by 240. Beneath
+  its size are three rows of text where it says what it is waiting for, so nothing you place is
+  ever under them, and when it runs it asks its pane for its size and those rows, and gets them:
+  in a window, a view of 680 by 360 runs in a pane exactly 680 pixels wide, and one of 683 by 361
+  in one exactly 683; a terminal gives it the whole cells that hold it.
+
+  ![Two running views, each in a pane exactly its size: 680 by 360 above, 683 by 361 below, the notice's three rows beneath each](images/view-room-exact.png)
+
+- **Make** an element by dragging **Label**, **Number** or **Button** from **Add** onto the
+  canvas: it is made where you let go, inside the view, snapped as a move is. A click on a kind
+  makes one below the last, if the view has room there.
+- **Select** one by clicking it on the canvas or in the list. It is outlined, with a handle on
+  each side and at each corner.
+- **Move** it by dragging it, and **size** it by dragging a handle: a side's moves that side
+  alone, a corner's the two sides it meets. What you place by hand moves by whole pixels and
+  snaps to an edge: an edge you move comes to another element's edge, or the view's, within
+  <!-- value view_builder::kSnapReach -->6<!-- /value --> pixels, marked by a line across the
+  canvas while you hold it. Type a number into **Grid**, up to
+  <!-- value view_builder::kMaxGrid -->96<!-- /value -->, and a place by hand snaps to a grid that
+  many pixels apart as well, until you set it back to 1. Hold `Alt` while you drag to set every
+  snap aside. The arrow keys move the selected element a pixel, and with `Shift` a cell, and a
+  value typed into its box is exact. A drag cut short -- a menu opening, the pane resized -- puts
+  the element, or the size, back where it was.
+- **Nothing sits outside the view.** A dragged element stops at its edges; a value typed or a key
+  pressed that would carry it across one is refused, with the reason on the last row; and the
+  size cannot shrink past an element.
+- **Pan** the canvas by dragging it with the middle button: the view moves with your hand, so a
+  view larger than the canvas can be seen, pressed and dragged anywhere, and whatever you let go
+  there lands where you see it. It pans from the view's top left corner until its right and
+  bottom edges, and their handles, are in sight. The pan and the grid are the builder's, never
+  the view's: they are not saved, and **New** or **Open** shows a view from its corner.
+- **Type its values**: click a box -- `id`, `label`, a number field's starting `text`, `x`, `y`,
+  `w`, `h` -- type, and press `Return`. `Tab` keeps the value and selects the next box's whole,
+  so typing replaces it; `Escape` puts the value back. A value the view's rules refuse stays in
+  its box with the reason on the last row. A drag and a typed value change the same element.
+- **Rest** the pointer on an element and it is marked, and its row with it.
+- `Delete` or **Remove** removes the selected element. **New** or **Open** over an unsaved view
+  asks for a second press before it discards it.
+
+![A new view, 480 by 240, its right and bottom edges ruled with their handles; button1 selected, with a handle on each side and at each corner, while the pointer resting on field2 marks it and its row](images/view-builder-hand.png)
+
+![A view 1500 by 900, panned by the middle button to its far corner; label1, placed at 1100,700 and dragged onto button2, made there while panned, snaps to button2's left edge and top, both lines marked while the button is held](images/view-builder-pan-snap.png)
+
+![label1's right side dragged alone to button2's right edge: its width 96, its left side and its row where they were](images/view-builder-side.png)
+
+![label1 dragged far right stops at the view's right edge, at 1404 in a view 1500 wide, the edge it met marked](images/view-builder-size.png)
+
+![The tally panel shrunk by its handles to its elements, 249 by 203, Total bound and not yet told: Total: waiting stays above the size's edge, and the notice, waiting to be told tally.Total, sits in its rows beneath](images/view-builder-notice.png)
+
+## Make the tally panel
+
+The panel counts from a start toward a limit by a step, and shows the total a Flow definition
+named `tally` works out.
+
+1. Click **View**, type `tally.panel` and press `Return`. The name is the view's office, the name
+   its pane is listed under, and the namespace of what it says.
+2. Drag **Number** onto the canvas three times, then a **Button** and a **Label** beneath them.
+3. Select each and type its values: number fields `start`, `limit` and `step` (give `step` the
+   starting text `1`), a button `count` labelled `Count`, and a label `total` labelled `Total`.
+   An id names a field an intent will carry, so it is letters, digits and `_`. Drag and resize
+   them until the panel looks right.
+4. Select `count` and press **Make intent**: the builder makes `tally.panel.Count {start: Int,
+   limit: Int, step: Int}`, one required `Int` for each number field, named after the button's
+   label, through the same shape rules Flow declares messages with, and `count` says it. Its
+   name after `says tally.panel.` is a box, if you want another.
+5. Press **Run**. The panel opens in its own pane; `Total` says `waiting`, and so does its last
+   row, until something tells it `tally.Total`.
+
+![The tally panel made by hand: its elements on the design canvas, count selected with its handles and its values, beside Flow running tally and the panel in its own pane](images/view-builder-tally.png)
+
+## Drag shapes between the builder and Flow
+
+Shapes cross both ways by dragging them, or by a menu: right-press the line, choose **Carry**,
+then click where it goes.
+
+- **The intent into Flow.** In the builder, select `count` and drag its `says tally.panel.` words
+  onto Flow. Flow's page names the shape it was given and its fields, and offers **Declare
+  tally.panel.Count v1 as an accepted message**. Make the
+  `tally` definition there with a fold of `math.add` ([finding the fold](../../flow/docs/flow.md#find-what-to-compose))
+  and an emitted `tally.Total {total}` ([emits](../../flow/docs/flow.md#say-what-changed-emits)).
+- **What Flow says, onto a label.** In Flow's **Messages**, drag `tally.Total` from under
+  **Emitted** onto the `Total` label on the canvas, or onto its row in the list. While you hold it
+  over a label, the label is marked where it would land. A shape with one field a label can show
+  is bound at once (`shows tally.Total.total`); with several, the builder asks which, with a
+  button for each, wrapped to the values' width; when they are more than the pane's rows hold,
+  **More** shows the next of them. A binding longer than the values column is cut to end in
+  `...`, so **Unshow** beside it stays whole. Let go anywhere but a label and nothing is bound: the
+  builder says where to drop it. A value from Inventory binds by its shape, and a field carried
+  from Info binds that field.
+
+![The intent's says dragged onto Flow: Dropped the shape tally.panel.Count v1, its three Int fields, and the offer to declare it](images/view-builder-intent-onto-flow.png)
+
+![Flow's emitted tally.Total dragged onto the Total label on the design canvas: shows tally.Total.total](images/view-builder-carry.png)
+
+![The panel's own intent, its number fields given long ids, dragged onto Total: a button for each field, each on a row of its own within the values column](images/view-builder-choice.png)
+
+![The last of them chosen: the binding's words cut to end in ..., and Unshow whole beside them inside the column](images/view-builder-unshow.png)
+
+![tally.Total let go over the Elements heading with Total selected: not shown, and Total keeps the field it shows](images/view-builder-drop-refused.png)
+
+Binding `Total` changes what the view is told, so **Apply** registers the view afresh and says
+so; its field text starts again from the description. A later change to a label, a place or a
+size keeps the same shapes, and **Apply** takes it in place: what you typed stays. If the new
+view cannot register -- an intent whose fields changed while something still listens for the
+old ones under the same name and version, say -- **Apply** says why, and the running panel goes
+on as it was.
+
+![step's id changed and the intent made again as tally.panel.Count v1, which tally still means with step: Apply refused in Loom's words, and the running panel still counting](images/view-builder-apply-refused.png)
+
+## Use it
+
+With `tally` running in Flow, type into the panel's fields (press a field, then type; `Tab`
+moves between fields) and press **Count**, or `Return` in a field:
+
+| start, limit, step | the panel shows |
+|---|---|
+| `0, 10, 1` | `Total: 45` |
+| `10, 0, -2` | `Total: 30` |
+| `0, 10, 3` | `Total: 18` |
+| `0, 10, 0` | `refused: tally on tally.panel.Count at %0 fold math.add: a step of 0 never moves the count from 0 toward 10`, and `Total` stays |
+| `0, 2000000, 1` | refused by the fold's count bound, and `Total` stays |
+
+![The panel told 45, 30 and 18, then refusing a step of 0 and a count past the fold's bound, its total unchanged](images/view-builder-uses.png)
+
+The panel publishes `tally.panel.Count` as its own participant; whoever accepts that shape hears
+it. It does not know `tally`, and `tally` does not know the panel: the panel is told
+`tally.Total` because it accepts that shape. A refusal answered to the panel is shown on its last
+rows, in its owner's words: which definition refused, on which message, and at which node of its
+graph, numbered and titled as Flow shows it. A field that holds no whole number is said there,
+and nothing is published.
+
+Type a `.view` file into **File** and press **Save** (`Ctrl`+`s`), and save the Flow workspace
+beside it. Save first asks Workshop whether the hand that pressed it may write a file, and writes
+nothing until it is answered; on a
+[weaver's host](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there) a guest's
+is refused. Quit and start Workshop again: the View Builder opens the file it had open and, since
+its view was running, runs it again, its pane where your layout left it. Open the workspace in
+Flow and **Run** it, and the panel works as before and waits until told. Nothing that was
+running is in either file: the View Builder keeps the file it saved or opened -- never a name
+typed into **File** and not saved -- and whether its view ran, in the project's
+`view-builder.json`; a write of it that fails is said, and made again at the next chance. If
+that file is missing at a launch, the View Builder says so and leaves `view-builder.json` as it
+was until you open, save or start a view, so putting the file back brings its view back at the
+next launch.
+**Stop** ends the panel: its pane first says it stopped, and once Workshop sees its participant
+gone it says it is waiting for the provider. No field or button is left that looks live.
+
+In a terminal Workshop the builder works as it does in a window, its picture floored to cells: a
+drag moves an element by whole cells, 12 pixels each, the middle button pans by whole cells, and
+a value typed into its box is still a pixel. A side's handle is the cell beside the middle of
+that side, outside the element, or the side's own middle cell where the canvas ends; the view's
+size handles are the cells beyond its edges. The same panel works too, its picture the window's floored to cells and each line fitted
+to the cell. Here a step of 0 was refused, and the total stayed:
+
+```text
+> tally.panel @tally.panel
+
+ ............
+ .start: 0...
+
+ ............
+ .limit: 10..
+
+ ............
+ .step: 0_...
+
+ ...........
+ .Count.....
+
+     Total: 45
+
+
+refused: tally on tally.panel.Count at %0 fold
+math.add: a step of 0 never moves the count from 0
+toward 10
+```
+
+## Views here, in Info and in Inventory
+
+Three panes show something called a view, and they are different things:
+
+- **A described view** is a participant of its own, made from a description: it is told values by
+  their shape and says intents by publication. You build it here and it runs in its own pane.
+- **An [Info view](../../info/docs/info-views.md)** is one of Info's own windows onto a typed value you are
+  inspecting or editing; it belongs to Info and speaks for nothing.
+- **A [portable Inventory view](../../inventory/docs/inventory-slots.md)** is a box, row or column of stored entries;
+  it belongs to Inventory and holds entries, not a panel.
+
+## Limits
+
+Three element kinds: a label, a number field that holds a whole number, and a button, placed
+side by side, never inside one another. A button says at most one intent, made from all the
+view's number fields. A label shows one top-level field. The canvas pans but does not zoom. A
+window does not say when the pointer leaves it, so a
+mark made under the pointer stays until the pointer moves inside the window again; a terminal
+reports no resting pointer at all, so there only a carried value is marked.

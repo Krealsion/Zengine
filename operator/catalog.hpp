@@ -11,7 +11,7 @@
 // nodes and a loaded consumer alike. A composition holds identities and the signatures it was
 // authored against and resolves at every spend; nothing caches an operator, an index or a
 // callable, so an executor and a previewer cannot disagree about what a rule means.
-// Reference: docs/reference/operator-providers.md.
+// Reference: operator/docs/operator-providers.md.
 
 // Who says what went wrong: an unresolved operator, or a signature that is not the authored one
 // (a `ContentId` compare), is this file's sentence; arguments or an answer a schema refuses is

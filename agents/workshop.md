@@ -1,7 +1,7 @@
 # Agent law — Workshop (router)
 
-Routed behind [`../AGENTS.md`](../AGENTS.md), for `workshop/`, `component/`, and the extracted
-pane implementations named there. Behavioral ownership follows the component when its code moves.
+Routed behind [`../workshop/AGENTS.md`](../workshop/AGENTS.md); each folder's router links the
+registers here that serve it. Behavioral ownership follows the component when its code moves.
 Workshop's law lives in the registers under [`workshop/`](workshop/): one law per `##`, a
 `WL-<AREA>-<NN>` id that is permanent, a `LAW` of one line, `MEANS`, `DOES NOT MEAN`, a
 `PROVEN BY` naming the owner identifiers and the exact witness cases, and a `WHY` naming one
@@ -48,8 +48,8 @@ consumer-specific behavior of its extracted panes.
 `workshop/weave_<subject>.cpp` compile the bodies once. A `// WL-` pointer belongs beside the
 body, never its prototype.
 
-**Where a case goes.** [Population](verification/population.md#where-a-case-goes) maps the
-Workshop suites to their subjects and registers.
+**Where a case goes.** A register's PROVEN BY names its cases; the folder's `AGENTS.md` names
+its suites.
 
 ## Ongoing rules
 

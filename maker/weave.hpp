@@ -8,7 +8,7 @@
 // schema nothing in C++ declared, and `apply_behaviour_edit`, a new revision of its triggers at the
 // same state schema; with them the bodies and the grant a definition implies. What the weave does
 // with a delivery is the runtime's (maker/runtime.hpp), and a changed state schema is a succession
-// (maker/succession.hpp). Reference: docs/reference/maker-weave.md.
+// (maker/succession.hpp). Reference: maker/docs/maker-weave.md.
 
 #include "maker/definition.hpp"
 #include "maker/runtime.hpp"

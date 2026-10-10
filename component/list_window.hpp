@@ -10,7 +10,7 @@
 // accounting is shared -- the counts are conserved (`before + count + after == total`), and a
 // marker is a row of the same budget (`count + markers <= budget`), since a marker that overran
 // the budget cut the last entry. A cut side with no reserved row is the consumer's to say.
-// Reference: docs/reference/component.md.
+// Reference: component/docs/component.md.
 
 #include <cstddef>
 #include <cstdint>

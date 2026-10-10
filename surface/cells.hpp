@@ -7,7 +7,7 @@
 // Arithmetic on canvas cell coordinates, for the Skins that rasterize them. Every coordinate in
 // a canvas is a number a publisher chose, so these are total: a sum that cannot leave the number
 // line, and a span clipped to the canvas before any loop or pixel multiply runs over it.
-// Reference: docs/reference/surface.md.
+// Reference: surface/docs/surface.md.
 
 #include <cstdint>
 #include <limits>

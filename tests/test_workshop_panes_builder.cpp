@@ -13,7 +13,7 @@
 #include "workshop_support.hpp"
 #include "guest_hand.hpp"
 
-#include "builder-pane/vocabulary.hpp"
+#include "builder/builder-pane/vocabulary.hpp"
 #include "workshop/authoring.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_doors.hpp"
@@ -1293,7 +1293,7 @@ TEST_CASE("a lookup queued to a project office nobody holds and an open queued t
     // emitter at load, so the lookup is queued to the unheld office, refused at dispatch, and the
     // pane says in words that the lookup failed. Its branch for a ticket that is not valid is not
     // reachable through a declared shape and stays source-traced (`edit_source`,
-    // builder-pane/pane.cpp).
+    // builder/builder-pane/pane.cpp).
     BuilderRig a("bld-lookup-refused");
     a.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     a.open(160, 48, /*with_editor=*/true, /*with_manager=*/true, /*with_project_door=*/false);

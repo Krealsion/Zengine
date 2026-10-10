@@ -1954,7 +1954,7 @@
       ],
       "requires": [
         "a Workshop guest granting input and capture",
-        "the Editor switched to Neovim and its pane open (docs/workshop/neovim.md)",
+        "the Editor switched to Neovim and its pane open (editor/docs/neovim.md)",
         "zengine-guest-vocabulary booted in this Loom session",
         "the file readable on this machine (the comparison is a local observation)",
         "a Workshop whose guests file names it a development host: a weaver's host refuses a guest's keys and text toward the editor, Neovim's included"

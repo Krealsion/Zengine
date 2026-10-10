@@ -22,8 +22,8 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `KeymapEditRequested`,
 `KeymapEditAnswered`; `workshop/weave.hpp` `on(KeymapEditRequested)`;
 `workshop/weave_desktop.cpp` `on(KeymapEditRequested)`, `authored_spelling`;
 `workshop/keymap.hpp` `apply_overrides`, `join_app_rows`, `join_pane_rows`;
-`workshop/pane_menu.hpp` `take_keyboard`; `desktop-pane/pane.cpp` `ask_edit`, `keys_chose`,
-`keys_key`, `keys_action`, `Capture`, `Typing`; `desktop-pane/vocabulary.hpp` `kMenuModifyPress`,
+`workshop/pane_menu.hpp` `take_keyboard`; `workshop/desktop-pane/pane.cpp` `ask_edit`, `keys_chose`,
+`keys_key`, `keys_action`, `Capture`, `Typing`; `workshop/desktop-pane/vocabulary.hpp` `kMenuModifyPress`,
 `kMenuModifyType`, `kMenuAddPress`, `kMenuAddType`, `kMenuRemove`, `kMenuDisable`, `kMenuReset`;
 `tests/test_workshop_panes_desktop.cpp` case `"WL-KEY-17: Modify on an UNFOCUSED Hotkeys pane
 takes the keyboard through the guarded transition and captures the key"`, case `"WL-KEY-17: a

@@ -69,8 +69,8 @@ zen_law_families_derive()
 # The method registers (the VM form), their router, and the one heading one may carry that is no
 # entry. A phase tag is a parenthesised two-part token (letters, a dash, an optional letter, a
 # digit) whose family is none of these: the table's law families, the method family VM, and the
-# families docs/laws/ here and in Loom spell. A three-part citation is never read as a tag by its
-# shape; every table family must be listed here, which is checked below.
+# families timer/docs/timer-laws.md here and Loom's docs/laws/ spell. A three-part citation is
+# never read as a tag by its shape; every table family must be listed here, which is checked below.
 set(ZEN_VM_REGISTER_DIRS agents/verification)
 set(ZEN_VM_ROUTERS agents/verification.md)
 set(ZEN_VM_TABLE_HEADING "## Where a case goes")
@@ -118,12 +118,12 @@ set(ZEN_LAW_EXCLUDE
     "^_install"
     "^\\.git/"
     "^docs/history/"
-    "^reference/"
+    "^quarry/"
     "third_party/")
 set(ZEN_LAW_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx)
 # Current-facing text the document sweep would not reach: the one Zen-authored file inside the
 # excluded quarry, and a root file no glob names. Each is read as a document; a missing one fails.
-set(ZEN_PLAN_EXTRA_DOCUMENTS reference/QUARRY-CATALOG.md .gitattributes)
+set(ZEN_PLAN_EXTRA_DOCUMENTS quarry/QUARRY-CATALOG.md .gitattributes)
 
 # A backticked token in PROVEN BY is a path when it ends in one of these; otherwise it is
 # an identifier checked against the path named before it.

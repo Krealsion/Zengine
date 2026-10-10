@@ -20,7 +20,7 @@ MEANS
 DOES NOT MEAN — that the participant moved. It is mounted by this host and reached by a pointer
 this host holds (WL-TERM-02).
 
-PROVEN BY — `terminal-pane/vocabulary.hpp` `kTerminalPaneRole`, `kTerminalPane`,
+PROVEN BY — `terminal/vocabulary.hpp` `kTerminalPaneRole`, `kTerminalPane`,
 `kActionSubmit`, `kActionBack`, `kActionUp`, `kActionDown`, `kActionComplete`;
 `workshop/default-load-plan.json`; `tests/test_workshop_panes_terminal.cpp` case `"the Terminal is
 an ordinary arranged pane, offered by an office"`, case `"the five keys are the pane's
@@ -119,7 +119,7 @@ DOES NOT MEAN — that it still floats. It was a SECOND bounded region drawn on 
 overlay's own; the pane draws its list and its line as rows of the one picture it sends, so
 covering the transcript became taking rows from it. That is a change a weaver sees.
 
-PROVEN BY — `terminal-pane/pane.cpp` `say_list`, `first_shown`;
+PROVEN BY — `terminal/pane.cpp` `say_list`, `first_shown`;
 `tests/test_workshop_panes_terminal.cpp` case `"the list is rows INSIDE the pane, above the line
 it belongs to"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
@@ -128,7 +128,7 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 LAW — A transcript entry takes as many of the pane's rows as its sentence needs; the core records it whole, so a length is a question about the pane and never about the grammar.
 
-PROVEN BY — `terminal-pane/pane.cpp` `entry_line`, `entry_wrapped`, `wrap_record`,
+PROVEN BY — `terminal/pane.cpp` `entry_line`, `entry_wrapped`, `wrap_record`,
 `legend_text`, `omission_text`; `workshop/pane_text.hpp` `wrap`;
 `workshop/weave_terminal.cpp` `submit_terminal_line`; `tests/test_workshop_panes_terminal.cpp`
 case `"a weaver presses in, types a line, and the participant runs it"`.
@@ -136,9 +136,9 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-08 — The image that presents a participant cannot reach one
 
-LAW — `terminal-pane/` includes no header declaring `loom::TerminalSession` or its transcript, links neither this host's logic nor Loom's terminal, and keeps no copy of the record.
+LAW — `terminal/` includes no header declaring `loom::TerminalSession` or its transcript, links neither this host's logic nor Loom's terminal, and keeps no copy of the record.
 
-PROVEN BY — `terminal-pane/CMakeLists.txt`; `terminal-pane/pane.cpp` `TerminalPaneWeave`;
+PROVEN BY — `terminal/CMakeLists.txt`; `terminal/pane.cpp` `TerminalPaneWeave`;
 `tests/test_workshop_panes_terminal.cpp` case `"the image that presents a participant
 cannot reach one"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
@@ -151,7 +151,7 @@ DOES NOT MEAN — that this pane sweeps a selection by pointer. Workshop owns co
 and release. The Terminal still does not sweep input text by pointer; a second press in the same
 word selects it, and shift with caret keys selects by keyboard.
 
-PROVEN BY — `terminal-pane/pane.cpp` `on(ws::PaneCanvasPointer)`, `press`, `caret`;
+PROVEN BY — `terminal/pane.cpp` `on(ws::PaneCanvasPointer)`, `press`, `caret`;
 `workshop/terminal_seam_vocabulary.hpp` `TerminalCompletionOffered`;
 `tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places the caret where
 the weaver aimed"`, case `"the pane draws its caret in its own picture, and the medium draws it
@@ -169,7 +169,7 @@ MEANS
 DOES NOT MEAN — that a refusal is dropped when it does not fit. It is dropped only where there
 is no row for it that is not the weaver's own line, and that room is one row.
 
-PROVEN BY — `terminal-pane/pane.cpp` `say`, `caret`, `kChromeRows`;
+PROVEN BY — `terminal/pane.cpp` `say`, `caret`, `kChromeRows`;
 `workshop/pane_canvas_rows.hpp` `RowsCaret`; `tests/test_workshop_panes_terminal.cpp` case
 `"a refusal is said BESIDE the line it is about, never in place of it"`, case
 `"in a room too small for both, the LINE is what survives"`.
@@ -187,7 +187,7 @@ MEANS
 DOES NOT MEAN — that a weaver never sees the gap. The ask and its answer are one turn of the
 host's drain; what a medium draws inside that turn is a different question, and unmeasured.
 
-PROVEN BY — `terminal-pane/pane.cpp` `here`, `moved`, `offer_applies`, `ask_completion`,
+PROVEN BY — `terminal/pane.cpp` `here`, `moved`, `offer_applies`, `ask_completion`,
 `on(TerminalCompletionOffered)`, `selectable`, `accept_candidate`;
 `tests/test_workshop_panes_terminal.cpp` case `"a completion answer about a line that is gone is
 neither shown nor taken"`, case `"an answer for a caret that has since moved does not
@@ -229,7 +229,7 @@ MEANS
 - the receiver separately authorizes storage and later execution under the current actor.
 
 PROVEN BY — `workshop/weave_terminal.cpp` `on(TerminalValueRequested)`;
-`workshop/weave_operation.cpp` `authorize_pane_operation`; `terminal-pane/pane.cpp` `acquire`;
+`workshop/weave_operation.cpp` `authorize_pane_operation`; `terminal/pane.cpp` `acquire`;
 `tests/test_workshop_inventory_info.cpp` case "terminal capture: primary drag stores exact
 authored content and names the new copy",
 case "terminal capture: retrieval and Inventory storage need separate current actor authority".

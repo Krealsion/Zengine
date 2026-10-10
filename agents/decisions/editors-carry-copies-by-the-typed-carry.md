@@ -10,7 +10,7 @@ what was dropped or losing unsaved work, and without a copy that silently change
 
 **Decision.** Both Editors join the existing typed carry: a pane asks Workshop to approve a carry
 for the actor's own gesture, and Workshop moves an owned pair to the receiver. The material is a
-small package, `source-transfer/`: `SourceText`, `SourceLocation`, their observations, the two
+small package, `editor/source-transfer/`: `SourceText`, `SourceLocation`, their observations, the two
 byte laws, the Terminal line (proved by Loom's lexer), the reading of a dropped pair, and the C++
 generator. A copy leaves only from an established selection -- a drag begun on the painted
 highlight, a right-click Extract, or a key -- and an insertion is one undoable edit at the painted

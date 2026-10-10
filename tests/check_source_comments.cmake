@@ -19,15 +19,11 @@ if(NOT EXISTS "${ZEN_REPO}/AGENTS.md")
 endif()
 
 # ---- scope -----------------------------------------------------------------------------
-# The roots held: a directory is read whole, a file alone; a new package adds its root. Vendored
-# code is never held, nor a golden a suite compares byte for byte, whose comments are the
-# generator's text for a weaver.
-set(ZEN_COMMENT_ROOTS
-    CMakeLists.txt cmake examples tests workshop
-    activation attention-pane builder builder-pane component composer connections-pane
-    demo-control desktop-pane editor-pane external-host files flow flow-host flow-pane info-pane
-    input introspection inventory inventory-pane maker menu-presenter message-draft neovim
-    neovim-editor operator smoke snake source-transfer surface terminal-pane timer ui view view-builder)
+# The roots held: the folders tests/folders.txt names as holding code, each read whole, and the
+# root CMakeLists.txt alone. Vendored code is never held, nor a golden a suite compares byte for
+# byte, whose comments are the generator's text for a weaver.
+include("${CMAKE_CURRENT_LIST_DIR}/text_checks.cmake")
+zen_source_roots("${ZEN_REPO}" ZEN_COMMENT_ROOTS)
 set(ZEN_COMMENT_EXCLUDED tests/third_party/ tests/source_transfer_ensure_timer.generated.hpp
     tests/source_transfer_string_bytes.generated.hpp)
 set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake

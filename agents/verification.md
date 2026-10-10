@@ -55,7 +55,7 @@ fails configuration out loud.
 
 ## The tree-reading checks
 
-Four `script` entries read the source tree rather than a build, ride the official lane, and
+Six `script` entries read the source tree rather than a build, ride the official lane, and
 self-test before they answer:
 
 - **`doc_links`** (`tests/check_doc_links.cmake`) — every relative link and anchor in a
@@ -73,10 +73,17 @@ self-test before they answer:
   current-facing document cites by name existing wherever the citation stands, every WL, MW or VM
   id a source comment names declared, and no development-phase id in a current-facing Markdown
   file.
-- **`source_comments`** (`tests/check_source_comments.cmake`) — the comments under the roots its
-  own `ZEN_COMMENT_ROOTS` names meet the source comment standard: no block over six lines outside
-  an installed header, no removal note, no phase name or private id; each finding names where the
-  text belongs.
+- **`source_comments`** (`tests/check_source_comments.cmake`) — the comments under the folders
+  `tests/folders.txt` lists as code meet the source comment standard: no block over six lines
+  outside an installed header, no removal note, no phase name or private id; each finding names
+  where the text belongs.
+- **`code_values`** (`tests/check_code_values.cmake`) — every value `tests/code_values.txt`
+  registers is read from its owner: no marker out of step, no known value copied unmarked, no
+  test count naming no commit and command.
+- **`folder_map`** (`tests/check_folder_map.cmake`) — `tests/folders.txt` names every top-level
+  folder and its kind; every feature, the host and every library holds a `README.md` and an
+  `AGENTS.md` router within the router budget; every file under `agents/` but the decision records
+  is routed by one router's `## Law`, and every CTest entry is claimed by one `## Suites`.
 
 ## Where the method is
 
@@ -95,7 +102,7 @@ self-test before they answer:
 | MinGW, MSVC, the COFF ceilings, a 9p mount, two CMakes, the UTF-8 code page | [platforms](verification/platforms.md) `VM-PLAT` |
 | judging a dependency, a package option, a toolchain | [dependencies](verification/dependencies.md) `VM-DEP` |
 
-Which suite witnesses which Workshop area is the table at the end of
-[population](verification/population.md#where-a-case-goes). The working harnesses for the live
+A register's PROVEN BY names its witnesses by exact case; the router of the folder it serves, that
+folder's `AGENTS.md`, names the folder's suites. The working harnesses for the live
 witness and the mutation matrix are kept outside this repository (VM-WIT-24); a register
 restates the method, never the program.

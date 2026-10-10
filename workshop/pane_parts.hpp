@@ -6,7 +6,7 @@
 // The parts a pane names, judged by their form: the rules Workshop admits a picture's names by,
 // which a pane may ask of its own before it sends them, and the parts of a composition a row map
 // records, named by the pane's own rule and listed in the order its press reads them.
-// Reference: docs/reference/workshop-panes.md#a-pane-names-its-parts.
+// Reference: workshop/docs/workshop-panes.md#a-pane-names-its-parts.
 
 #include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"

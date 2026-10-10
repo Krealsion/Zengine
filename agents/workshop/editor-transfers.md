@@ -2,7 +2,7 @@
 
 Register `WL-EDIT`, continued from [`editor.md`](editor.md): text, a command and a file location
 carried between the standard Editor and a receiving pane by Workshop's typed carry. The shapes
-are `source-transfer/`'s; the carry and its approval are the protocol's
+are `editor/source-transfer/`'s; the carry and its approval are the protocol's
 ([`../panes.md`](../panes.md)); the Neovim-backed Editor's halves are
 [`neovim-transfers.md`](neovim-transfers.md).
 One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
@@ -18,8 +18,8 @@ MEANS
 
 DOES NOT MEAN — that a drop types: no byte of it is a key, and nothing reaches the Terminal.
 
-PROVEN BY — `editor-pane/editor.hpp` `EditorBuffer::insert_at`; `editor-pane/pane.cpp`
-`receive`, `insert_lines`, `landing`, `insertion_refusal`; `source-transfer/text.hpp`
+PROVEN BY — `editor/editor-pane/editor.hpp` `EditorBuffer::insert_at`; `editor/editor-pane/pane.cpp`
+`receive`, `insert_lines`, `landing`, `insertion_refusal`; `editor/source-transfer/text.hpp`
 `standard_lines`; `tests/test_workshop_editor_transfers.cpp` case `"dropped text is inserted at
 the painted landing character as one undoable edit, replaces the highlight only when dropped
 onto it, and saves nothing"`, case `"text the standard Editor cannot hold is refused whole, and
@@ -39,7 +39,7 @@ MEANS
 - a caret move alone keeps the map; a scroll, an edit or a notice row moves it;
 - each picture is numbered in its room (`CanvasPictures`), current while the map stands.
 
-PROVEN BY — `editor-pane/pane.cpp` `say`, `PictureKey`, `press_at`, `receive`;
+PROVEN BY — `editor/editor-pane/pane.cpp` `say`, `PictureKey`, `press_at`, `receive`;
 `workshop/pane_canvas_rows.hpp` `CanvasPictures`; `workshop/pane_carry.hpp`
 `PaneCanvasValueDrop`; `tests/test_workshop_editor_transfers.cpp` case `"a
 drop aimed at a picture the text has since left is refused and changes nothing"`, case `"a press
@@ -59,9 +59,9 @@ MEANS
 
 DOES NOT MEAN — that the copy follows later edits, or that its observation is authority.
 
-PROVEN BY — `editor-pane/pane.cpp` `press_at`, `acquire`, `mark_now`, `on_highlight`;
-`source-transfer/material.hpp` `text_pair`, `kMaxCarryBytes`;
-`source-transfer/vocabulary.hpp` `SourceText`, `SourceSelection`;
+PROVEN BY — `editor/editor-pane/pane.cpp` `press_at`, `acquire`, `mark_now`, `on_highlight`;
+`editor/source-transfer/material.hpp` `text_pair`, `kMaxCarryBytes`;
+`editor/source-transfer/vocabulary.hpp` `SourceText`, `SourceSelection`;
 `tests/test_workshop_editor_transfers.cpp` case `"a selection dragged from its highlight lands in
 a named Inventory folder as an owned copy of the buffer's text, unsaved edits included, and
 nothing of the document moves"`, case `"a press on the highlight that never moves is an
@@ -86,9 +86,9 @@ MEANS
 
 DOES NOT MEAN — that anything is sent, saved or built, or a default invented for a hole.
 
-PROVEN BY — `editor-pane/pane.cpp` `insert_command`, `choose_drop`, `insert_cpp`;
-`source-transfer/command_line.hpp` `terminal_line`, `kAddressPlaceholder`;
-`source-transfer/cpp.hpp` `cpp_value_function`, `cpp_document`;
+PROVEN BY — `editor/editor-pane/pane.cpp` `insert_command`, `choose_drop`, `insert_cpp`;
+`editor/source-transfer/command_line.hpp` `terminal_line`, `kAddressPlaceholder`;
+`editor/source-transfer/cpp.hpp` `cpp_value_function`, `cpp_document`;
 `tests/test_workshop_editor_transfers.cpp` case `"a saved Terminal command dropped on a text
 document becomes its editable Terminal line and is never sent; a preset's missing fields stay
 missing"`, case `"in a C++ document a dropped command offers its Terminal line or generated
@@ -116,8 +116,8 @@ MEANS
 
 DOES NOT MEAN — that a location is text or a name: it is never inserted, and never rebound.
 
-PROVEN BY — `editor-pane/pane.cpp` `open_location`, `settle_location`, `handoff_refusal`;
-`source-transfer/material.hpp` `location_pair`, `observe_line`, `still_reads`;
+PROVEN BY — `editor/editor-pane/pane.cpp` `open_location`, `settle_location`, `handoff_refusal`;
+`editor/source-transfer/material.hpp` `location_pair`, `observe_line`, `still_reads`;
 `workshop/guests.cpp` `grant_for`; `workshop/guests.hpp` `kPowerOpen`;
 `tests/test_workshop_editor_transfers.cpp` case `"a saved location reopens its file through the
 managed opening at its line, and never over unsaved work"`, case `"a location whose saved line

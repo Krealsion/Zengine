@@ -24,7 +24,7 @@ permission mask does not include the separate `PaneValueCarryRequested` rule use
 field from Info. A loaded pane's own send grant does not supply the input actor's missing grant.
 Add the specific capability for a positive case and deliberately withhold it for the negative
 case. An integer mask is a helper convention; the shape, version and target are the capability.
-See [external-host powers](../workshop/external-host.md) for real guest admission.
+See [external-host powers](../../external-host/docs/external-host.md) for real guest admission.
 
 A guest's hand is judged by its admitted row and the guests file's host as well as its grant.
 [`tests/guest_hand.hpp`](../../tests/guest_hand.hpp)'s `GuestHand` arranges both in any `PaneRig`:
@@ -116,5 +116,5 @@ A useful operation test follows a delay or refusal with the weaver's next action
   began it: the Inventory drag case asserts the `from` its filing sent, not only the outcome.
 
 These are test-design obligations for the behavior under change, not a claim that every existing
-pane implements the same policy. The [pane authoring guide](../guides/make-a-workshop-tool.md#ask-another-weave-and-recognize-its-answer)
+pane implements the same policy. The [pane authoring guide](../../workshop/docs/make-a-workshop-tool.md#ask-another-weave-and-recognize-its-answer)
 explains the separate decisions of recognizing a reply and applying its result.

@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_LOAD_PLAN_HPP
 
 // Which artifacts participate in this project, and how: the typed load plan and its law
-// (docs/reference/load-plan.md, agents/realization.md).
+// (workshop/docs/load-plan.md, agents/realization.md).
 
 #include "property.hpp" // `Written` -- a refusal carries its reason
 

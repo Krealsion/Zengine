@@ -60,7 +60,7 @@ MEANS
 DOES NOT MEAN
 - that the Editor admits such text: a source document stays printable ASCII.
 
-PROVEN BY — `workshop/pane_text.hpp` `ascii_spelling`; `builder-pane/pane.cpp` `say`, `publish`,
+PROVEN BY — `workshop/pane_text.hpp` `ascii_spelling`; `builder/builder-pane/pane.cpp` `say`, `publish`,
 `say_output`; `tests/test_workshop_panes_output.cpp` case `"a compiler's non-ASCII words in a
 build's last lines leave the Builder's picture standing"`, case `"read output shows a failed
 build's own lines on rows Workshop takes, spelled in ASCII and said to be"`.
@@ -79,8 +79,8 @@ DOES NOT MEAN
 - that a refused realization is a failed build: the reader says the build succeeded;
 - that the reader builds, opens a file or moves a caret: it reads.
 
-PROVEN BY — `builder-pane/pane.cpp` `open_output`, `say_output`, `read_output`, `scroll`,
-`ask_page`; `builder-pane/vocabulary.hpp` `kActionOutput`, `kActionOutputClose`;
+PROVEN BY — `builder/builder-pane/pane.cpp` `open_output`, `say_output`, `read_output`, `scroll`,
+`ask_page`; `builder/builder-pane/vocabulary.hpp` `kActionOutput`, `kActionOutputClose`;
 `tests/test_workshop_panes_output.cpp` case `"read output shows a failed build's own lines on rows
 Workshop takes, spelled in ASCII and said to be"`, case `"the reader stays bound to its build: a
 newer build and a new status do not move it, and it steps between the builds kept"`, case `"a

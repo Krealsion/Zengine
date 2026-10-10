@@ -25,7 +25,7 @@ endif()
 set(ZEN_VALUES_REGISTRY tests/code_values.txt)
 set(ZEN_VALUES_EXCLUDE
     "^build(-[^/]*)?/" "^cmake-build" "^_install" "^out/" "^[.]git(/|$)" "^[.]idea/" "^[.]vscode/"
-    "^[.]claude/" "^docs/history/" "^reference/" "third_party/"
+    "^[.]claude/" "^docs/history/" "^quarry/" "third_party/"
     "^tests/check_code_values[.]cmake$")
 set(ZEN_VALUES_SOURCE_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake)
 
