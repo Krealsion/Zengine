@@ -206,8 +206,8 @@ custody or lifetime is at stake.
   simplify the case into one that passes for the wrong reason. A method a verification register
   states is named by its id.
 
-`source_comments` holds the roots its own list names (`ZEN_COMMENT_ROOTS` in
-`tests/check_source_comments.cmake`) to this on the official lane: a comment block over six lines
+`source_comments` holds the folders `tests/folders.txt` lists as code, and the root
+`CMakeLists.txt`, to this on the official lane: a comment block over six lines
 outside an installed header, a removal note, or a phase name or private id is a red that names
 where the text belongs.
 
