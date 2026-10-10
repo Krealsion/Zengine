@@ -162,6 +162,7 @@ set(zengine_public_headers_flow-pane flow-pane/vocabulary.hpp)
 if(TARGET zengine-flow-tool)
     install(TARGETS zengine-flow-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
+install(TARGETS zengine-inventory-read RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 foreach(pkg IN ITEMS maker flow flow-host flow-pane message-draft inventory source-transfer activation timer surface input ui component operator workshop neovim-editor)
     install(FILES ${zengine_public_headers_${pkg}}

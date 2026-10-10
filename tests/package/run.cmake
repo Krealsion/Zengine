@@ -255,6 +255,14 @@ endif()
 zen_run("Flow native authoring loop from installed packages" "${flow_host}" "${flow_artifact}")
 zen_find_program_in(flow_tool zengine-flow "${prefix}/bin")
 zen_run("the installed Flow workbench starts" "${flow_tool}" --help)
+# Given no pair file, the inventory reader answers with its usage and exit 2 (inventory/read.cpp).
+zen_find_program_in(inventory_reader zengine-inventory-read "${prefix}/bin")
+execute_process(COMMAND "${inventory_reader}" RESULT_VARIABLE reader_rc ERROR_VARIABLE reader_said)
+if(NOT reader_rc EQUAL 2 OR NOT reader_said MATCHES "usage: zengine-inventory-read")
+    message(FATAL_ERROR "package witness: the installed inventory reader starts FAILED "
+                        "(exit ${reader_rc}: ${reader_said})")
+endif()
+message(STATUS "package witness: the installed inventory reader starts ok")
 
 # ---- ...and the same program's genuine failure --------------------------------------------
 # The arm above passes only if the successful run reported no refusal, which diagnostics that had
