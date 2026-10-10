@@ -602,9 +602,10 @@ v2::PaneContent v2, v2::PaneCaret v2                      (pane_vocabulary.hpp) 
   a forged settlement, preparation or admission reaches its party and is dropped by it. The
   manager's own answers are matched by Loom's `answers_ask()` plus its correlation and stage.
 - **The requesters keep their tickets.** Files' open, the Builder's recipe-source lookup and
-  its open, and the Editor's relay each keep the send ticket and clear only the ask whose
-  exact attempt Loom's `zen.DispatchRefused` names; an enqueue that queued nothing is refused
-  at once, in words (WL-OPEN-07).
+  its open, its plan-names ask, its frontier action's ask, its role line's row and its reader's
+  page, and the Editor's relay each keep the send ticket and clear only the ask whose exact
+  attempt Loom's `zen.DispatchRefused` names; an enqueue that queued nothing is refused at once,
+  in words (WL-OPEN-07).
 - **Not in this contract:** a document-only open, a queue of intents, a timeout, a retry, a
   rollback after publication, or a loaded manager. A host that replaces its manager mints
   its authority again (WL-OPEN-08).
