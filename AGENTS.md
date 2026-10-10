@@ -1,8 +1,9 @@
 # AGENTS.md — Zengine
 
 The contract for automated collaborators working in this tree. Docs router:
-**`docs/README.md`** — every public page and its reader purpose, written for external readers
-(`docs/contributing/repository-conventions.md` owns the external-reader rule, what may not
+**`docs/README.md`** — the map of every folder's front page (each folder's `README.md` lists its
+pages and their reader purposes) and the index of the pages no one folder owns, written for
+external readers (`docs/contributing/repository-conventions.md` owns the external-reader rule, what may not
 appear in a public page, and `doc_links`). Substrate truth belongs to the Loom:
 <https://github.com/Krealsion/Loom/blob/main/docs/README.md>, machine router
 <https://github.com/Krealsion/Loom/blob/main/docs/CONTEXT.md>; with a sibling checkout those
@@ -31,31 +32,32 @@ mistake to refuse; a problem that arises inside Loom's architecture is the one w
 ## Read this, then route
 
 This file is the one mandatory read before touching this repository. Everything else is
-routed: read a surface's document when the task touches that surface, not before. An issue
-labelled `ready` goes to a pull request by [taking an issue](docs/contributing/taking-an-issue.md),
-and [best practices](docs/contributing/best-practices.md) says, surface by surface, what good work
-looks like and which document owns each practice.
+routed: **a task in `<folder>/` reads `<folder>/AGENTS.md`**, that folder's router — its law, its
+suites by CTest entry, the host's side of it, its pages and its practices — and reads a surface's
+document when the task touches that surface, not before. [`tests/folders.txt`](tests/folders.txt)
+names every top-level folder and its kind; every feature, the host and every library holds a front
+page (`README.md`) and a router, and `folder_map` holds the routers to routing every register and
+CTest entry once. An issue labelled `ready` goes to a pull request by
+[taking an issue](docs/contributing/taking-an-issue.md), and
+[best practices](docs/contributing/best-practices.md) says what good work looks like.
+
+What crosses folders, and the folders with no router of their own (`tests/`, `cmake/`, `tools/`,
+`docs/`, `agents/`, `quarry/` and the forge's `.github/` and `.run/`), are routed here; `quarry/` is
+read and never built ([the quarry's catalog](quarry/QUARRY-CATALOG.md)):
 
 | the task touches… | read |
 |---|---|
-| lanes, suites, populations, CI, what a green means, platform build traps, a harness, a witness, a check | [agents/verification.md](agents/verification.md), the router over the method registers under `agents/verification/` |
-| `surface/` — the drawing vocabulary, grounds, planes, the TUI/SDL media, input backends | [agents/surface.md](agents/surface.md) |
-| `workshop/` or `component/` — Workshop's law, one register per owner under `agents/workshop/` | [agents/workshop.md](agents/workshop.md), the router |
-| `files/`, `builder/builder-pane/`, `attention/`, `info/`, `terminal/` — extracted pane behavior and its shared protocol | [agents/workshop.md](agents/workshop.md) and [agents/panes.md](agents/panes.md) |
-| the external pane protocol, `introspection/`, `composer/` | [agents/panes.md](agents/panes.md) |
-| `flow/` — authoring, graph workspaces, generated rules and the native host boundary | [agents/flow.md](agents/flow.md) |
-| `message-draft/` — typed value forms and reusable preset persistence | [agents/message-drafts.md](agents/message-drafts.md), [agents/packaging.md](agents/packaging.md) |
-| `inventory/`, `inventory/inventory-pane/` — stored typed values, portable slots, capture metadata and durable toolboxes | [agents/inventory.md](agents/inventory.md), [agents/packaging.md](agents/packaging.md), [agents/panes.md](agents/panes.md) |
-| `flow/flow-host/` — sessions on an existing host, custody and observation | [agents/flow-host.md](agents/flow-host.md) |
-| `view/`, `view/view-builder/` — a view described as data, the view host and the View Builder | [agents/view.md](agents/view.md) |
-| `flow/flow-pane/` — graphical authoring and retained forms | [agents/flow.md](agents/flow.md), [agents/panes.md](agents/panes.md), [agents/message-drafts.md](agents/message-drafts.md) |
-| `operator/` — named rules, the catalog, the host/consumer seam, providers | [agents/operators.md](agents/operators.md) |
-| `maker/` — a weave built from a weaver's definition: the two artifacts, the triggers, the behaviour edit and the schema edit by succession | [agents/maker.md](agents/maker.md), the router over the `MW` registers under `agents/maker/` |
-| load plans, realization, the load conversation, `builder/` | [agents/realization.md](agents/realization.md) |
+| lanes, suites, populations, CI, what a green means, platform build traps, a harness, a witness, a check | [agents/verification.md](agents/verification.md), the router over the method registers: [checks](agents/verification/checks.md) · [dependencies](agents/verification/dependencies.md) · [fixtures](agents/verification/fixtures.md) · [lanes](agents/verification/lanes.md) · [mutation](agents/verification/mutation.md) · [mutation verdicts](agents/verification/mutation-verdicts.md) · [platforms](agents/verification/platforms.md) · [population](agents/verification/population.md) · [probes](agents/verification/probes.md) · [walls](agents/verification/walls.md) · [driving a witness](agents/verification/witnesses.md) · [reading one](agents/verification/witnesses-reading.md) |
 | `cmake/ZengineInstall.cmake`, any public header, any exported target's link line | [agents/packaging.md](agents/packaging.md) |
-| Timer semantics | [timer/docs/timer-laws.md](timer/docs/timer-laws.md) (TIMER-01..05) and the `timer/docs/timer-*.md` pages |
-| the Input, UI or Snake packages | [input/docs/input.md](input/docs/input.md) · [ui/docs/ui.md](ui/docs/ui.md) · [examples/snake/README.md](examples/snake/README.md) |
-| `external-host/`, `external-host/demo-control/` — the guest vocabulary, optional reset controls and the Python tool packages a Loom session drives Workshop through and reads the desk with | [external-host/docs/external-host.md](external-host/docs/external-host.md); its § 2 routes a reader's actual question, its § 3 is the maintained `workshop` package (`workshop/connections`, `workshop/inspect-capture`, `workshop/verify-recipe`), and "The desk written as text for an agent" the `desk` package's `desk/read` and `desk/watch` |
+| the pane seam: what crosses between Workshop and every pane, and the tools that arrive through it | [agents/panes.md](agents/panes.md) |
+| Workshop, the host every feature is mounted in | [workshop/AGENTS.md](workshop/AGENTS.md) |
+
+The suites no one folder holds:
+
+- `doc_links`, `package_vocabulary`, `law_register`, `source_comments`, `code_values`, `folder_map`
+  — the checks that read the source tree, each stating its contract in its own header (below)
+- `smoke` — the one suite with no kernel, in `tests/smoke/`
+- `workshop_shapes` — every shape the tree publishes against `tests/shapes.txt` (Do not assume)
 
 **Where law lives (the re-accretion guard).** Surface law belongs in the routed surface
 document that owns it; this core gains a rule only when the rule is genuinely cross-cutting —
@@ -63,8 +65,8 @@ needed for essentially any Zengine task. Routed documents hold **current law, re
 place**: a change updates the sentences it made false and states the present, never an account
 of itself, and its story stays in Git history, not here. A change that edits this core rechecks
 its budget: **this file stays at or under <!-- value ZEN_LAW_CORE_BYTES KiB -->20<!-- /value --> KB.**
-Executor/internal material (this file and `agents/`) stays out of the public documentation
-index and out of the installed package.
+Executor/internal material (this file, every folder's `AGENTS.md` router, and `agents/`) stays out
+of the public documentation index and out of the installed package.
 
 **The register rules** (`law_register` enforces form and names; the router, procedure).
 **a** a claim lives in LAW, MEANS or DOES NOT MEAN, never the heading. **b** what a weaver types
@@ -164,7 +166,7 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
 - Every suite but `smoke` needs a Loom exporting `loom::kernel` (on Windows: the Loom's
   opt-in `LOOM_ENABLE_WINDOWS_KERNEL`); against a kernel-less package `tests/` fails
   configuration out loud. `-DBUILD_TESTING=OFF` is the supported library-only configuration.
-- Five entries read the source tree rather than a build: `doc_links` (every repo-local
+- Six entries read the source tree rather than a build: `doc_links` (every repo-local
   documentation reference must resolve, anchors included, and no current-facing file names a path
   outside the repository), `package_vocabulary` (the installed package's nouns), `law_register`
   (the registers under `agents/`: the form, every name they make, and every file's byte budget;
@@ -172,9 +174,11 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   resolving; no plan code or step label in a case name, and in a current-facing document no plan
   code, no development phase used as a clock and no history told in the forms the check names),
   `source_comments` (the comment standard over the folders `tests/folders.txt` lists as code: no
-  long block, removal note or private id) and `code_values` (every value `tests/code_values.txt`
+  long block, removal note or private id), `code_values` (every value `tests/code_values.txt`
   registers read from its owner: no marker out of step, no known value copied unmarked, no test
-  count without its commit and command). Full contract detail:
+  count without its commit and command) and `folder_map` (every top-level folder listed with its
+  kind, a front page and a router in every feature, the host and every library, and every
+  register and CTest entry routed by exactly one router). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction

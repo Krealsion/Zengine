@@ -81,6 +81,7 @@ package_vocabulary                script            always
 law_register                      script            always
 source_comments                   script            always
 code_values                       script            always
+folder_map                        script            always
 flow                              doctest           always  60
 
 message_draft                     doctest           always  11
