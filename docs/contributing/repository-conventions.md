@@ -21,15 +21,18 @@ docs/                the pages no one folder owns; docs/README.md is the index o
   architecture/      why it is shaped this way
   history/           frozen. Describes the tree it was written against
 
-<feature>/           what a weaver meets by name in Workshop: its parts, its core library if it
-                     has one, and, where it has pages of its own, docs/ -- its guides, reference
-                     pages, laws and decisions
-workshop/            the host: Workshop itself, the parts it carries (workshop/desktop-pane/,
-                     workshop/menu-presenter/) and docs/ -- its guides and reference pages
-<package>/           one directory per library; see below. Its pages are in its own docs/
+<feature>/           what a weaver meets by name in Workshop: its README.md (its front page), its
+                     AGENTS.md (its router: its law, suites, the host's side and practices), its
+                     parts, its core library if it has one, and, where it has pages of its own,
+                     docs/ -- its guides, reference pages, laws and decisions
+workshop/            the host: Workshop itself, with its README.md and AGENTS.md, the parts it
+                     carries (workshop/desktop-pane/, workshop/menu-presenter/) and docs/ -- its
+                     guides and reference pages
+<package>/           one directory per library, with its README.md, AGENTS.md and docs/; see below
 examples/            worked examples to read, run and copy into a project of their own;
                      examples/snake/ is built with the tree, the pane examples by tests/
-tests/               every suite, fixture and check
+tests/               every suite, fixture and check; tests/folders.txt names every top-level
+                     folder and its kind
 quarry/              the pre-Zen V1 engine, kept as a quarry. NOT built
 ```
 

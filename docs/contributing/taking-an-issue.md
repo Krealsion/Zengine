@@ -110,8 +110,8 @@ run: not every suite has a build edge to the libraries it loads
 The case comes first, and it fails on the unchanged code for the reason the issue gives.
 
 1. **Put it with its subject's cases.** Workshop's suites are split by subject, and
-   [where a case goes](../../agents/verification/population.md#where-a-case-goes) says how to
-   find the one that pins a register's law; each package has its own suite; the external host's
+   the router of the folder the change is in, its `AGENTS.md`, names the one that pins a
+   register's law; each package has its own suite; the external host's
    tool packages are checked by the scripts under `tests/session/`.
    [Testing a loaded pane](testing-workshop-panes.md) covers a case that needs a real pane. A case
    added to a suite raises that suite's floor in `tests/test_population.txt` to the measured
