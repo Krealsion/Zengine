@@ -64,7 +64,10 @@ PROVEN BY — `builder-pane/vocabulary.hpp` `kActionLoadIt`, `kActionCommit`, `k
 `"Escape abandons the line, and nothing is written"`, case
 `"an artifact the plan already names is refused before the line"`, case
 `"a refused row is said in the owner's own words"`, case
-`"a row whose product is built finishes with the button's act"`;
+`"a row whose product is built finishes with the button's act"`, case
+`"`o` and the frontier action asked of a project office nobody holds are each refused at dispatch,
+in words"`, case `"a role line's row refused at dispatch by the plan office is said, and nothing is
+written or built"`;
 `tests/test_workshop_load.cpp` case `"the minimum row is written as authored, the plan round-trips
 byte for byte, and a duplicate stem is refused by the plan's own law"`, case `"the
 writer says where the frontier row's product is, through the staging rule: present when the
