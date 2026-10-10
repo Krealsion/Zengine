@@ -588,11 +588,11 @@ afresh. Neither is op N.
 `RealizationAsked` the press caused is the ask, and only the answer naming its number ends it. A
 status that reads `promoted:` may be an older promotion's, republished.
 
-**One seam to step around.** An ask for a recipe the Builder does not hold is refused before its
-one-at-a-time rule, and while a build runs that refusal is folded into the one `outcome` field of
-the status (*unknown recipe*) although the running build carries on and ends later with its own
-outcome. Its `BuildAsked` says whose word that was: a follower sets that status aside. A later
-vocabulary could keep a refusal out of the running build's picture; this one says which is which.
+**A refusal is not an ending.** An ask for a recipe the Builder does not hold is refused before
+its one-at-a-time rule, so it is refused in its own words, in its own `BuildAsked`. While a build
+runs, the status keeps that build's `outcome` and says the refusal in `detail`, as it does for an
+ask refused because a build is already running, and the running build is followed to its own
+ending. With no build running, the outcome is *unknown recipe*.
 
 ## What it deliberately does not do
 
