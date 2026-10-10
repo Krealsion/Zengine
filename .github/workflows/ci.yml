@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - main
+  # A nightly run on `main` keeps the compiler caches it writes from expiring while `main` is quiet.
+  schedule:
+    - cron: '17 9 * * *'
 
 permissions:
   contents: read
@@ -131,11 +134,14 @@ jobs:
           git -C "$loom_source" checkout --detach FETCH_HEAD
           test "$(git -C "$loom_source" rev-parse HEAD)" = "$LOOM_SHA"
 
+      # Loom's tests and examples stay off, as in both Windows jobs: Zengine consumes the installed
+      # prefix alone, and Loom runs its own lanes in its own repository.
       - name: Build and install Loom to a fresh prefix
         run: |
           loom_prefix="$RUNNER_TEMP/loom-prefix"
           test ! -e "$loom_prefix"
-          cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -DCMAKE_BUILD_TYPE=Debug
+          cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -DCMAKE_BUILD_TYPE=Debug \
+            -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF
           cmake --build "$RUNNER_TEMP/loom-build" --parallel "$(nproc)"
           cmake --install "$RUNNER_TEMP/loom-build" --prefix "$loom_prefix"
 
@@ -153,17 +159,56 @@ jobs:
           tar -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz" -C "$RUNNER_TEMP"
           "$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim" --version
 
+      # THE COMPILER CACHE holds intermediates only: objects ccache keys by the compiler, its
+      # command line and every byte the source read, one store per job and runner image. Every run
+      # restores the store `main`'s last run saved; only a run on `main` saves one, and a pull
+      # request's run never does. A product is never taken from it: the objects only feed this
+      # job's links, and Loom's build above has no launcher.
+      - name: Fetch pinned ccache 4.13.6
+        id: ccache
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/ccache.tar.xz" \
+            https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-musl-static.tar.xz
+          echo "156ec57c5198cc849d92834023d09910b83dc5504c6cf405d09e6ae7b208a3e5  $RUNNER_TEMP/ccache.tar.xz" \
+            | sha256sum --check --strict -
+          mkdir "$RUNNER_TEMP/ccache-bin"
+          tar -xJf "$RUNNER_TEMP/ccache.tar.xz" -C "$RUNNER_TEMP/ccache-bin" --strip-components=1
+          "$RUNNER_TEMP/ccache-bin/ccache" --version | head -n 1
+          {
+            echo "ZEN_CCACHE=$RUNNER_TEMP/ccache-bin/ccache"
+            echo "ZEN_CCACHE_SINCE=$(date +%s)"
+            echo "CCACHE_DIR=$RUNNER_TEMP/ccache"
+            echo "CCACHE_MAXSIZE=3G"
+          } >> "$GITHUB_ENV"
+          echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the compiler cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-linux-debug-${{ steps.ccache.outputs.image }}-
+
       - name: Configure Zengine as a stranger
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
+            -DCMAKE_C_COMPILER_LAUNCHER="$ZEN_CCACHE" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER="$ZEN_CCACHE" \
             -DZEN_LOOM_DEV=OFF \
             -DBUILD_TESTING=ON \
             -DZENGINE_NEOVIM_PROGRAM="$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim"
 
       - name: Build Zengine
-        run: cmake --build build --parallel "$(nproc)"
+        run: |
+          "$ZEN_CCACHE" --zero-stats
+          cmake --build build --parallel "$(nproc)"
+          {
+            printf '## Zengine / Linux / canonical Loom stranger: the compiler cache\n\n```text\n'
+            "$ZEN_CCACHE" --show-stats --verbose
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # The repository-owned lane, not a bare ctest: it also requires that the CTest
       # inventory match tests/test_population.txt, that every doctest surface clear
@@ -173,7 +218,7 @@ jobs:
       - name: Verify the repository-owned population
         run: |
           set +e
-          cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake 2>&1 | tee verify.log
+          cmake -DZEN_BUILD_DIR=build -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake 2>&1 | tee verify.log
           verify_rc="${PIPESTATUS[0]}"
           verify_outcome=failed
           if (( verify_rc == 0 )); then verify_outcome=passed; fi
@@ -196,6 +241,21 @@ jobs:
       - name: Witness the installed package from outside the tree
         run: |
           cmake -DZEN_BUILD_DIR=build -DZEN_WORK="$RUNNER_TEMP/zengine-package" -P tests/package/run.cmake
+
+      # Only `main` saves, and only what this run used: entries no compile read since the job began
+      # are dropped first, so the store follows `main`.
+      - name: Keep only what this run used
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        run: |
+          "$ZEN_CCACHE" --evict-older-than "$(( $(date +%s) - ZEN_CCACHE_SINCE + 60 ))s"
+          "$ZEN_CCACHE" --show-stats
+
+      - name: Save the compiler cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # THE STANDING SANITIZER WITNESS, a separate job so the ordinary lane's result stays
   # readable on its own: `verify.cmake` asks whether the intended population ran and passed,
@@ -241,7 +301,8 @@ jobs:
         run: |
           loom_prefix="$RUNNER_TEMP/loom-prefix"
           test ! -e "$loom_prefix"
-          cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -DCMAKE_BUILD_TYPE=Debug
+          cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -DCMAKE_BUILD_TYPE=Debug \
+            -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF
           cmake --build "$RUNNER_TEMP/loom-build" --parallel "$(nproc)"
           cmake --install "$RUNNER_TEMP/loom-build" --prefix "$loom_prefix"
 
@@ -256,23 +317,58 @@ jobs:
           tar -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz" -C "$RUNNER_TEMP"
           "$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim" --version
 
+      # The compiler cache as in the stranger lane, in a store of this job's own.
+      - name: Fetch pinned ccache 4.13.6
+        id: ccache
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/ccache.tar.xz" \
+            https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-musl-static.tar.xz
+          echo "156ec57c5198cc849d92834023d09910b83dc5504c6cf405d09e6ae7b208a3e5  $RUNNER_TEMP/ccache.tar.xz" \
+            | sha256sum --check --strict -
+          mkdir "$RUNNER_TEMP/ccache-bin"
+          tar -xJf "$RUNNER_TEMP/ccache.tar.xz" -C "$RUNNER_TEMP/ccache-bin" --strip-components=1
+          "$RUNNER_TEMP/ccache-bin/ccache" --version | head -n 1
+          {
+            echo "ZEN_CCACHE=$RUNNER_TEMP/ccache-bin/ccache"
+            echo "ZEN_CCACHE_SINCE=$(date +%s)"
+            echo "CCACHE_DIR=$RUNNER_TEMP/ccache"
+            echo "CCACHE_MAXSIZE=3G"
+          } >> "$GITHUB_ENV"
+          echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the compiler cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-asan-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-linux-asan-${{ steps.ccache.outputs.image }}-
+
       - name: Configure Zengine as a stranger, instrumented
         run: |
           cmake -S . -B build-san \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
+            -DCMAKE_C_COMPILER_LAUNCHER="$ZEN_CCACHE" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER="$ZEN_CCACHE" \
             -DZEN_LOOM_DEV=OFF \
             -DBUILD_TESTING=ON \
             -DZENGINE_SANITIZE=ON \
             -DZENGINE_NEOVIM_PROGRAM="$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim"
 
       - name: Build Zengine
-        run: cmake --build build-san --parallel "$(nproc)"
+        run: |
+          "$ZEN_CCACHE" --zero-stats
+          cmake --build build-san --parallel "$(nproc)"
+          {
+            printf '## Zengine / Linux / ASan + UBSan: the compiler cache\n\n```text\n'
+            "$ZEN_CCACHE" --show-stats --verbose
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify the repository-owned population under ASan + UBSan
         run: |
           set +e
-          cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake 2>&1 | tee verify.log
+          cmake -DZEN_BUILD_DIR=build-san -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake 2>&1 | tee verify.log
           verify_rc="${PIPESTATUS[0]}"
           verify_outcome=failed
           if (( verify_rc == 0 )); then verify_outcome=passed; fi
@@ -285,6 +381,19 @@ jobs:
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
+
+      - name: Keep only what this run used
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        run: |
+          "$ZEN_CCACHE" --evict-older-than "$(( $(date +%s) - ZEN_CCACHE_SINCE + 60 ))s"
+          "$ZEN_CCACHE" --show-stats
+
+      - name: Save the compiler cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-asan-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # THE TWO WINDOWS LANES ARE TWO STANDARD LIBRARIES, and a claim about "Windows" names the
   # one it was measured on. MinGW-w64/libstdc++ is the maintainers' daily build, so this lane is
@@ -340,9 +449,40 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug `
             -DCMAKE_C_COMPILER=C:/mingw64/bin/gcc.exe `
             -DCMAKE_CXX_COMPILER=C:/mingw64/bin/g++.exe `
+            -DZEN_BUILD_TESTS=OFF `
+            -DZEN_BUILD_EXAMPLES=OFF `
             -DLOOM_ENABLE_WINDOWS_KERNEL=ON
           cmake --build $loomBuild
           cmake --install $loomBuild --prefix $loomPrefix
+
+      # The compiler cache as in the Linux lanes, in a store of this job's own.
+      - name: Fetch pinned ccache 4.13.6
+        id: ccache
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'ccache.zip'
+          $bin = Join-Path $env:RUNNER_TEMP 'ccache-bin'
+          Invoke-WebRequest -UseBasicParsing -OutFile $zip `
+            -Uri https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-windows-x86_64.zip
+          $sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
+          if ($sha -ne '3d7cebb05850ad704e197b3f1d3f0f924ab6c9fdfc561578e146184fe9d89380') {
+            throw "ccache archive checksum $sha does not match the pin"
+          }
+          Expand-Archive -LiteralPath $zip -DestinationPath $bin
+          $exe = (Get-ChildItem -LiteralPath $bin -Recurse -Filter ccache.exe | Select-Object -First 1).FullName
+          & $exe --version | Select-Object -First 1
+          "ZEN_CCACHE=$($exe -replace '\\', '/')" >> $env:GITHUB_ENV
+          "ZEN_CCACHE_SINCE=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" >> $env:GITHUB_ENV
+          "CCACHE_DIR=$(Join-Path $env:RUNNER_TEMP 'ccache')" >> $env:GITHUB_ENV
+          "CCACHE_MAXSIZE=3G" >> $env:GITHUB_ENV
+          "image=$env:ImageOS-$env:ImageVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Restore the compiler cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-mingw-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-mingw-debug-${{ steps.ccache.outputs.image }}-
 
       - name: Configure Zengine as a stranger with MinGW-w64
         shell: pwsh
@@ -352,13 +492,22 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug `
             -DCMAKE_C_COMPILER=C:/mingw64/bin/gcc.exe `
             -DCMAKE_CXX_COMPILER=C:/mingw64/bin/g++.exe `
+            "-DCMAKE_C_COMPILER_LAUNCHER=$env:ZEN_CCACHE" `
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:ZEN_CCACHE" `
             "-DCMAKE_PREFIX_PATH=$loomPrefix" `
             -DZEN_LOOM_DEV=OFF `
             -DBUILD_TESTING=ON `
             -DZENGINE_SDL_SKIN=OFF
 
       - name: Build Zengine
-        run: cmake --build build-win
+        shell: pwsh
+        run: |
+          & $env:ZEN_CCACHE --zero-stats
+          cmake --build build-win
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "## Zengine / Windows / MinGW-w64 Loom stranger: the compiler cache`n`n``````text" >> $env:GITHUB_STEP_SUMMARY
+          & $env:ZEN_CCACHE --show-stats --verbose >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
 
       # Required, and it verifies the same repository-owned population -- with the `sdl` and
       # `neovim` gates off, so the SDL-gated suites are contractually smaller here than on
@@ -367,6 +516,21 @@ jobs:
       # so a green here means the same thing; the numbers live in that file and nowhere else.
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
+
+      - name: Keep only what this run used
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        shell: pwsh
+        run: |
+          $age = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]$env:ZEN_CCACHE_SINCE + 60
+          & $env:ZEN_CCACHE --evict-older-than "${age}s"
+          & $env:ZEN_CCACHE --show-stats
+
+      - name: Save the compiler cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-mingw-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # The MSVC stranger, ADVISORY: MSVC is the toolchain released Windows users build with, but
   # not the maintainers' daily build, so a red here cannot yet be proven or repaired locally as a
