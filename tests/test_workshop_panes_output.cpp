@@ -106,6 +106,7 @@ struct OutputRig {
     TempDir dir;
     PaneRig r;
     bld::BuilderWeave* tool = nullptr;
+    loom::WeaveId tool_id{};
     RunnerSeat* runner = nullptr;
     loom::WeaveId runner_id{};
     std::int64_t kind = 0;
@@ -143,8 +144,8 @@ struct OutputRig {
         auto held = std::make_unique<bld::BuilderWeave>(r.host_recipes.views(),
                                                         r.host_recipes.source());
         tool = held.get();
-        const loom::WeaveId tool_id = r.bus.register_weave(std::move(held), std::move(order),
-                                                           std::string(bld::kBuilderRole));
+        tool_id = r.bus.register_weave(std::move(held), std::move(order),
+                                       std::string(bld::kBuilderRole));
         tool->zen_set_self(tool_id);
 
         auto seat = std::make_unique<RunnerSeat>();
@@ -399,6 +400,22 @@ TEST_CASE("the reader stays bound to its build: a newer build and a new status d
     o.letter(input::scan::kRightBracket, "]");
     CHECK(o.text().find("no newer build's output is kept") != std::string::npos);
     CHECK(o.text().find("output #3") != std::string::npos);
+}
+
+TEST_CASE("a page refused at dispatch is said in the reader, which stops saying it is asking") {
+    // THE TOOL GOES BEFORE DELIVERY: the page is queued with a valid ticket and Loom refuses that
+    // attempt, so the reader says the page was not read and why, and no longer that it waits.
+    OutputRig o("out-page-refused");
+    o.open();
+    o.build(1, kDiagnostic, 1);
+    o.r.bus.kill(o.tool_id);
+    o.letter(input::scan::kL, "l");
+    const std::string text = o.text();
+    CHECK_MESSAGE(text.find("output #1: the page was not read -- the ask could not reach "
+                            "zengine.builder (TargetUnavailable)") != std::string::npos,
+                  text);
+    CHECK_MESSAGE(text.find("output #1 -- no page read") != std::string::npos, text);
+    CHECK_MESSAGE(text.find("asking the Builder") == std::string::npos, text);
 }
 
 TEST_CASE("a build the tool no longer keeps is said, and no other build's lines are shown under its number") {

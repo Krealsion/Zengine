@@ -703,9 +703,10 @@ public:
 
     /// The bus's word that one of this pane's attempts was refused before any handler ran
     /// (WL-OPEN-07). Provenance first, then the exact attempt against the asks it may name --
-    /// the recipe-source lookup at the project office, the open at the opening office, and each
-    /// ask for Workshop's word on a gesture -- and only the matched one is cleared and named.
-    /// Delivered silence is not a refusal.
+    /// `e`'s lookup, `o`'s plan names and the frontier action's ask at the project office, `e`'s
+    /// open, the role line's row, the reader's page and each ask for Workshop's word on a gesture
+    /// -- and only the matched one is cleared and named. A paint ask's refusal is no act's and
+    /// says nothing; delivered silence is not a refusal.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         if (!mail.dispatch_refused()) {
             return;
@@ -727,6 +728,39 @@ public:
             open_ = Ask{};
             notice_ = "`" + recipe + "`: the source was not opened -- the open could not reach " +
                       ws::kOpeningRole + " (" + refused.reason + ")";
+            say(mail);
+            return;
+        }
+        if (names_.awaiting && names_.attempt.valid() && attempt.seq == names_.attempt.seq) {
+            const std::string recipe = names_.recipe;
+            names_ = NamesAsk{};
+            notice_ = "`" + recipe + "`: nothing was added to the plan -- the ask could not reach " +
+                      ws::kProjectRole + " (" + refused.reason + ")";
+            say(mail);
+            return;
+        }
+        if (frontier_build_.awaiting && frontier_build_.attempt.valid() &&
+            attempt.seq == frontier_build_.attempt.seq) {
+            frontier_build_ = Ask{};
+            notice_ = std::string("nothing was asked for -- the ask could not reach ") +
+                      ws::kProjectRole + " (" + refused.reason + ")";
+            say(mail);
+            return;
+        }
+        if (row_.awaiting && row_.attempt.valid() && attempt.seq == row_.attempt.seq) {
+            const std::string stem = row_.stem;
+            row_ = RowAsk{};
+            notice_ = "`" + stem + "`: nothing was loaded and nothing was written -- the row could "
+                      "not reach " + ws::kPlanRole + " (" + refused.reason + ")";
+            say(mail);
+            return;
+        }
+        if (output_.ask.awaiting && output_.ask.attempt.valid() &&
+            attempt.seq == output_.ask.attempt.seq) {
+            output_.ask = Ask{};
+            notice_ = "output #" + std::to_string(output_.op) +
+                      ": the page was not read -- the ask could not reach " + builder::kBuilderRole +
+                      " (" + refused.reason + ")";
             say(mail);
             return;
         }
@@ -1371,8 +1405,8 @@ private:
     void ask_frontier(loom::Mail& mail, Ask& into) {
         into.pending = ++asked_;
         into.awaiting = true;
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(ws::kProjectRole, ProjectFrontierRequested{}, into.pending);
+        into.attempt = mail.as_role(pane::kBuilderPaneRole)
+                           .send_to_role(ws::kProjectRole, ProjectFrontierRequested{}, into.pending);
     }
 
     // ---- Workshop's word on a gesture ------------------------------------------------
@@ -1493,6 +1527,10 @@ private:
             // THE FIRST BEAT'S APPROVAL, CARRIED: the frontier is asked into the action's own
             // record, and its answer builds without asking again (`finish_frontier_build`).
             ask_frontier(mail, frontier_build_);
+            if (!frontier_build_.attempt.valid()) {
+                frontier_build_ = Ask{};
+                say_undone(a, std::string("nothing was queued to ") + ws::kProjectRole, mail);
+            }
             return;
         case Act::kRow:
             commit_approved(a, mail);
@@ -1774,8 +1812,15 @@ private:
         names_.awaiting = true;
         names_.recipe = row.recipe;
         names_.choice = choice_; // nonzero only when a menu row began this
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(ws::kProjectRole, PlanNamesRequested{row.artifact}, names_.pending);
+        names_.attempt = mail.as_role(pane::kBuilderPaneRole)
+                             .send_to_role(ws::kProjectRole, PlanNamesRequested{row.artifact},
+                                           names_.pending);
+        if (!names_.attempt.valid()) {
+            names_ = NamesAsk{};
+            notice_ = "`" + row.recipe + "`: nothing was added to the plan -- nothing was queued "
+                      "to " + ws::kProjectRole;
+            say(mail);
+        }
     }
 
     void open_role(const std::string& stem, const std::string& recipe) {
@@ -1825,9 +1870,14 @@ private:
         row_.stem = a.stem;
         row_.role = a.role;
         row_.recipe = a.subject;
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(ws::kPlanRole, PlanRowRequested{a.stem, a.role, a.subject},
-                          row_.pending);
+        row_.attempt = mail.as_role(pane::kBuilderPaneRole)
+                           .send_to_role(ws::kPlanRole, PlanRowRequested{a.stem, a.role, a.subject},
+                                         row_.pending);
+        if (!row_.attempt.valid()) {
+            row_ = RowAsk{};
+            say_undone(a, std::string("nothing was queued to ") + ws::kPlanRole, mail);
+            return;
+        }
         close_role();
         declare(mail);
         say(mail);
@@ -2018,10 +2068,16 @@ private:
         const std::int64_t lines = output_body_rows() > 0 ? output_body_rows() : 1;
         output_.ask.pending = ++asked_;
         output_.ask.awaiting = true;
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(builder::kBuilderRole,
-                          builder::BuildOutputRequested{output_.op, output_.top, lines},
-                          output_.ask.pending);
+        output_.ask.attempt =
+            mail.as_role(pane::kBuilderPaneRole)
+                .send_to_role(builder::kBuilderRole,
+                              builder::BuildOutputRequested{output_.op, output_.top, lines},
+                              output_.ask.pending);
+        if (!output_.ask.attempt.valid()) {
+            output_.ask = Ask{};
+            notice_ = "output #" + std::to_string(output_.op) +
+                      ": the page was not read -- nothing was queued to " + builder::kBuilderRole;
+        }
     }
 
     /// The rows the reader's lines may spend: the room, less its header, less a notice, less
@@ -2042,7 +2098,8 @@ private:
         const std::string number = "#" + std::to_string(output_.op);
         std::string head = "output " + number;
         if (!output_.heard) {
-            push_row(head + " -- asking the Builder", surface::role::kAccent);
+            push_row(head + (output_.ask.awaiting ? " -- asking the Builder" : " -- no page read"),
+                     output_.ask.awaiting ? surface::role::kAccent : surface::role::kAlert);
             say_controls(output_controls());
             return;
         }

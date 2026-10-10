@@ -45,7 +45,8 @@ struct ToolState {
 class Tool
     : public loom::WeaveBase<Tool, ToolState,
                              loom::Accept<bld::StatusRequested, bld::BuildRequested,
-                                          bld::PromoteArtifact, bld::RevertArtifact, SeatDo>,
+                                          bld::PromoteArtifact, bld::RevertArtifact,
+                                          bld::BuildOutputRequested, SeatDo>,
                              loom::Emit<bld::BuildStatus, bld::RecipeCatalog>> {
 public:
     bld::RecipeCatalog catalog{};
@@ -82,6 +83,9 @@ public:
     }
     void on(const bld::PromoteArtifact& said, loom::Mail&) { promotes.push_back(said.artifact); }
     void on(const bld::RevertArtifact& said, loom::Mail&) { reverts.push_back(said.artifact); }
+    /// A READER'S PAGE, HEARD AND NOT ANSWERED: the page waits on a tool that holds no output.
+    void on(const bld::BuildOutputRequested&, loom::Mail&) { ++pages_asked; }
+    std::int64_t pages_asked = 0;
 
     /// SAY WHAT YOU ARE, unasked -- how the real tool republishes after a build settles.
     void say(loom::Mail& mail) { (void)mail.publish(next); }
@@ -335,8 +339,9 @@ struct BuilderRig {
         tool = raw;
     }
 
-    /// The read-only project office `mount_doors` seated, when it seated one.
+    /// The read-only project office `mount_doors` seated, when it seated one, and the plan office.
     loom::WeaveId project_id{};
+    loom::WeaveId plan_id{};
 
     void mount_doors(bool with_project_door = true) {
         r.host.frontier = [this] { return frontier; };
@@ -387,6 +392,7 @@ struct BuilderRig {
         const loom::WeaveId did =
             r.bus.register_weave(std::move(plan), std::move(say_plan), std::string(kPlanRole));
         draw->zen_set_self(did);
+        plan_id = did;
     }
 
 private:
@@ -1181,6 +1187,55 @@ TEST_CASE("a lookup queued to a project office nobody holds and an open queued t
     REQUIRE(b.r.session().panes.has(b.editor_kind()));
     CHECK(b.r.session().panes.keyboard == b.editor_kind());
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
+}
+
+TEST_CASE("`o` and the frontier action asked of a project office nobody holds are each refused at "
+          "dispatch, in words") {
+    // BOTH ASKS ARE QUEUED WITH A VALID TICKET to an office nobody holds, and Loom refuses each by
+    // that attempt. The frontier the pane asks for its own picture at the grant is refused the same
+    // way, and it is no act of the weaver's: nothing is said for it.
+    BuilderRig a("bld-asks-refused");
+    a.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    a.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/false);
+    CHECK_MESSAGE(a.text().find("could not reach") == std::string::npos, a.text());
+
+    a.letter(input::scan::kO, "o");
+    CHECK_MESSAGE(a.text().find("`snake`: nothing was added to the plan -- the ask could not reach "
+                                "zengine.project (NoSuchTarget)") != std::string::npos,
+                  a.text());
+    CHECK_MESSAGE(a.text().find("role for") == std::string::npos, a.text());
+
+    a.letter(input::scan::kF, "f");
+    CHECK_MESSAGE(a.text().find("nothing was asked for -- the ask could not reach zengine.project "
+                                "(NoSuchTarget)") != std::string::npos,
+                  a.text());
+    CHECK(a.tool->asked.empty());
+
+    // ...AND A FRESH `o` TAKES once the office is held.
+    a.mount_doors(true);
+    a.letter(input::scan::kO, "o");
+    CHECK_MESSAGE(a.text().find("role for zengine-snake") != std::string::npos, a.text());
+}
+
+TEST_CASE("a role line's row refused at dispatch by the plan office is said, and nothing is written "
+          "or built") {
+    // THE OFFICE GOES BEFORE DELIVERY: Workshop approves the commit, the row is queued to the plan
+    // office with a valid ticket, and the office is gone when Loom would deliver it.
+    BuilderRig b("bld-row-refused");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.open();
+    b.letter(input::scan::kO, "o");
+    REQUIRE_MESSAGE(b.text().find("role for zengine-snake") != std::string::npos, b.text());
+    b.r.text("zengine.oven");
+    REQUIRE(b.plan_id.valid());
+    b.r.bus.kill(b.plan_id);
+    b.r.key(input::scan::kReturn);
+    CHECK_MESSAGE(b.text().find("`zengine-snake`: nothing was loaded and nothing was written -- the "
+                                "row could not reach zengine.plan (TargetUnavailable)") !=
+                      std::string::npos,
+                  b.text());
+    CHECK(b.authored.empty());
+    CHECK(b.tool->asked.empty());
 }
 
 TEST_CASE("a lookup queued to the project office and refused at dispatch -- the office gone before "

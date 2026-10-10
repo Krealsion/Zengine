@@ -202,7 +202,9 @@ PROVEN BY — `builder-pane/pane.cpp` `begin_frontier_build`, `finish_frontier_b
 `"the frontier row comes from the host's read-only door"`, case
 `"`f` builds and realizes the one recipe that makes the frontier"`, case
 `"`f` refuses in words, and never chooses between recipes"`, case
-`"the recipe `f` took as the one producer carries no pick of another recipe"`.
+`"the recipe `f` took as the one producer carries no pick of another recipe"`, case
+`"`o` and the frontier action asked of a project office nobody holds are each refused at dispatch,
+in words"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-15 — The shipped catalog is staged beside the executable
