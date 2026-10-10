@@ -54,7 +54,7 @@ read and never built ([the quarry's catalog](quarry/QUARRY-CATALOG.md)):
 
 The suites no one folder holds:
 
-- `doc_links`, `package_vocabulary`, `law_register`, `source_comments`, `code_values`, `folder_map`
+- `doc_links`, `package_vocabulary`, `law_register`, `source_comments`, `code_values`, `folder_map`, `manual`
   — the checks that read the source tree, each stating its contract in its own header (below)
 - `smoke` — the one suite with no kernel, in `tests/smoke/`
 - `workshop_shapes` — every shape the tree publishes against `tests/shapes.txt` (Do not assume)
@@ -166,7 +166,7 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
 - Every suite but `smoke` needs a Loom exporting `loom::kernel` (on Windows: the Loom's
   opt-in `LOOM_ENABLE_WINDOWS_KERNEL`); against a kernel-less package `tests/` fails
   configuration out loud. `-DBUILD_TESTING=OFF` is the supported library-only configuration.
-- Six entries read the source tree rather than a build: `doc_links` (every repo-local
+- Seven entries read the source tree rather than a build: `doc_links` (every repo-local
   documentation reference must resolve, anchors included, and no current-facing file names a path
   outside the repository), `package_vocabulary` (the installed package's nouns), `law_register`
   (the registers under `agents/`: the form, every name they make, and every file's byte budget;
@@ -178,7 +178,9 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   registers read from its owner: no marker out of step, no known value copied unmarked, no test
   count without its commit and command) and `folder_map` (every top-level folder listed with its
   kind, a front page and a router in every feature, the host and every library, and every
-  register and CTest entry routed by exactly one router). Full contract detail:
+  register and CTest entry routed by exactly one router) and `manual` (every weave's manual in
+  form and carried by a target, a pane's commands exactly its ids in `tests/actions.txt`, and every
+  key marker its declared default). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction

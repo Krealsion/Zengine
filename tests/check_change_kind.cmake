@@ -33,13 +33,14 @@ string(ASCII 7 ZEN_DIR)   # the end of a preprocessing directive
 # ---- what a file is ------------------------------------------------------------------------
 # documentation: Markdown, an image under a docs/ folder, a text check and the files only the text checks
 # read. source: a C/C++ file, judged by its tokens. Anything else is built or run by the official
-# lane, and so is this file, the lane and the list they read, and Markdown a compiled test reads.
+# lane, and so is this file, the lane and the list they read, Markdown a compiled test reads, and a
+# manual, which the build compiles in.
 function(zen_kind_of_path rel out)
     set(checks "")
     foreach(c IN LISTS ZEN_TEXT_CHECKS)
         list(APPEND checks "tests/check_${c}.cmake")
     endforeach()
-    if(rel IN_LIST ZEN_COMPILED_READS_DOCS)
+    if(rel IN_LIST ZEN_COMPILED_READS_DOCS OR rel MATCHES "${ZEN_COMPILED_READS_MANUALS}")
         set(${out} other PARENT_SCOPE)
     elseif(rel MATCHES "[.]md$" OR rel MATCHES "(^|/)docs/.*[.](png|jpe?g|gif|svg)$"
        OR rel IN_LIST ZEN_TEXT_ONLY_FILES OR rel IN_LIST checks)
@@ -149,7 +150,9 @@ foreach(pair "notes.md|documentation" "docs/images/a.png|documentation"
              "files/docs/images/a.png|documentation" "examples/x/images/a.png|other"
              "tests/check_code_values.cmake|documentation" "src/a.cpp|source"
              "CMakeLists.txt|other" "tests/text_checks.cmake|other" ".github/workflows/ci.yml|other"
-             "workshop/docs/hotkeys.md|other")
+             "workshop/docs/hotkeys.md|other" "builder/docs/zengine.builder-pane.md|other"
+             "builder/docs/recipes.md|documentation"
+             "builder/docs/tutorials/build-your-first-pane/README.md|documentation")
     string(REPLACE "|" ";" pp "${pair}")
     list(GET pp 0 p)
     list(GET pp 1 want)

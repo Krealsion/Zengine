@@ -15,6 +15,7 @@
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -31,6 +32,8 @@
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+
+#include "manuals/zengine.builder-pane.hpp" // this pane's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -197,7 +200,8 @@ class BuilderPaneWeave
                        surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        PaneMenuAnswered, ws::PaneOperationAnswered>,
-          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
+          loom::Emit<PaneOffered, PaneActions, ws::PaneDocumentDeclared, ws::v4::PaneContent,
+                     ws::v5::PaneCanvasContent,
                      ws::PaneCaret, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
@@ -1321,6 +1325,11 @@ private:
             .send_to_role(kWorkshopRole, PaneOffered{pane::kBuilderPane, pane::kBuilderPaneName,
                                                      pane::kBuilderPaneSummary, 14, 70});
         declare(mail);
+        // ...AND ITS MANUAL, every section of the page this image was built with: Workshop holds
+        // it while this weave holds the office, so the words it shows are this image's own.
+        const zengine::manual::Manual& page = zengine::manual::pages::zengine_builder_pane::kManual;
+        (void)mail.as_role(pane::kBuilderPaneRole)
+            .send_to_role(kWorkshopRole, ws::pane_document_of(pane::kBuilderPane, page));
     }
 
     /// What this pane answers to right now, re-declared whenever the mode changes. A pane is one

@@ -13,10 +13,10 @@ zengine-workshop --load-plan <path>
 ```
 
 Default: `workshop-plan.json` in the directory you launched from, when there is one — the file
-`o` in the [Builder](../../builder/docs/builder.md#loading-a-built-artifact-into-the-plan) writes — else
+`o` in the [Builder](../../builder/docs/zengine.builder-pane.md#builderload) writes — else
 `default-load-plan.json`, beside the binary. The build-recipe catalog is found by the same
 rule: `build-recipes.json` there, else the shipped one
-([Builder](../../builder/docs/builder.md#authoring-a-recipe-from-files)).
+([the recipe file](../../builder/docs/recipes.md#adding-a-recipe-from-files)).
 
 That is why there is no `--skin` flag and no `--input` flag. Those two were the flags a plan
 replaced, and the replacement is not cosmetic: a plan is repeatable, diffable and durable, so
@@ -125,7 +125,7 @@ for that copy — a downgrade invisible in every answer until the two disagree.
 
 ## When an artifact has not been built yet
 
-A row whose artifact is **not on this disk** and which some [build recipe](../../builder/docs/builder.md) in this
+A row whose artifact is **not on this disk** and which some [build recipe](../../builder/docs/recipes.md) in this
 project **can produce** is not a failure. Workshop stops at that row, says so, and keeps
 running:
 
@@ -140,7 +140,7 @@ participates, the artifact has not been built yet, and Workshop still starts. Th
 shows the same fact on its `project` row — the waiting artifact, the recipe that produces it,
 and how many authored rows are stopped behind it — and **`f`** builds and realizes it in one
 gesture (or `b` with *load after build* armed, having chosen the recipe with `c`; see
-[the frontier](../../builder/docs/builder.md#the-project-frontier)). Its authored participation is performed **in
+[the frontier](../../builder/docs/zengine.builder-pane.md#builderfrontier)). Its authored participation is performed **in
 the same run** — the role, the mount mode and the order all come from this file, and the
 Builder supplies nothing but the file. The moment it settles, the rows after it are performed
 too.
@@ -158,15 +158,61 @@ the artifact the project is waiting on, and nothing changes.
 An artifact that is missing and that **nothing here can build** still refuses the plan by name.
 And an artifact that is already loaded is **reloaded in place** when you load its rebuilt
 product — same `WeaveId`, state kept, same shapes only; the plan's row is untouched, and which
-image a restart loads is a separate, explicit act (see [Builder](../../builder/docs/builder.md)).
+image a restart loads is a separate, explicit act ([below](#when-a-built-artifact-is-loaded-again)).
 
 The `Project` pane calls the waiting row `pending`, and every row behind it `authored`.
+
+## When a built artifact is loaded again
+
+A build offered to the running project ([load after build](../../builder/docs/zengine.builder-pane.md#builderarm),
+or `f`) is decided by the realization owner, `zengine.realization`. A row that is **waiting** is
+realized: the product is copied into place and loaded. A row that is **already live** is
+**reloaded in place**:
+
+- the host copies the rebuilt product to a path of its own beside Workshop,
+  `<stem>.reloads/<stem>-<n>`, off the file the process has loaded, under a name no file has yet;
+- the realization owner asks the Weave Manager to reload the weave from that copy;
+- the Loom swaps the code behind the **same weave id** and carries the weave's **state** across.
+  The role, the routing and every other weave are untouched.
+
+The Builder's `realize` row then says `reloaded in place -- weave #N keeps its id and its state`,
+naming the operation it is about. Any other offer is refused in the owner's words: an artifact the
+plan does not name (`this project does not name artifact 'oven': a build can produce a file, and
+only the project's own plan can say how it participates`), or one behind the row the project waits
+on, which may be built now and takes part when the rows in front of it have.
+
+**Two things a reload leaves you.** The file a restart loads is exactly what it was, so the row says
+`NOT DEFAULT` until you choose. **Promote** ([`builder.promote`](../../builder/docs/zengine.builder-pane.md#builderpromote))
+writes the running image into that file, beside itself and then renamed, so a refused write leaves
+nothing half written. **Revert** ([`builder.revert`](../../builder/docs/zengine.builder-pane.md#builderrevert))
+runs the image before the last reload again, by the same reload: same id, state kept. Before a
+promotion writes over the file, it keeps those bytes beside the reloads, so a revert after a promote
+still runs the code you had. With no reload in this run there is nothing to revert to, and revert
+says so.
+
+**Same shapes only.** A reload carries state and keeps routing, so it is refused, before the running
+weave is touched, when the rebuilt weave keeps a different **state** or answers different
+**messages**; the refusal says what changed:
+
+> the rebuilt 'zengine-oven' keeps a different STATE than the running one; a same-shape reload
+> cannot carry the state across, so the running weave was left as it is. Replacing it is a
+> prepared replacement with an authored migration (Loom: state schema version mismatch; reload
+> refused)
+
+An artifact that also supplies operators to the catalog is not reloaded, and a row that is only a
+provider has no weave to reload; both are refused in words.
+
+Every offer, promotion and revert the owner hears is numbered: it says `RealizationAsked` v1 first,
+taken as ask number N or refused in its own words, and its answer names N (`ArtifactRealized` v3,
+`ArtifactPromoted` v2; 0 for an ask it did not take). A promotion is answered at once, a revert when
+its reload settles. Follow a promotion or a revert by that number: a status that reads `promoted:`
+may be an older promotion's.
 
 ## What a plan cannot do
 
 No directory scan, no artifact enumeration, no dependency resolution, no version consultation,
 no network, no resolution cache, and no rewriting itself: the one thing that adds a row is your
-own `o` in the [Builder](../../builder/docs/builder.md#loading-a-built-artifact-into-the-plan), which appends to the
+own `o` in the [Builder](../../builder/docs/zengine.builder-pane.md#builderload), which appends to the
 project's `workshop-plan.json` after the running project accepted the row, and nothing edits,
 reorders or removes one. And **no unload and no replacement**:
 a plan is initial and restart intent, and a reload in place changes no row of it. See

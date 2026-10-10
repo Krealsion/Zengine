@@ -10,6 +10,7 @@
 #include "fingerprint.hpp"
 #include "pane_vocabulary.hpp"
 #include "pane_canvas_vocabulary.hpp"
+#include "pane_document.hpp"
 #include "pane_settings.hpp"
 #include <zen/switchboard/message.hpp>
 
@@ -241,6 +242,11 @@ struct RuntimePane {
     // WL-SETTING-03 -- agents/workshop/settings.md
     std::vector<PaneSettingRow> settings_rows = {};
     loom::WeaveId settings_from{};
+    /// THE MANUAL THIS PANE DECLARED, as admitted, and the weave that declared it: it counts while
+    /// that weave holds the office, and a re-offer drops it (`WorkshopWeave::counted_document`).
+    // WL-DESK-06 -- agents/workshop/desktop.md
+    PaneDocumentDeclared document = {};
+    loom::WeaveId document_from{};
     std::int64_t preferred_rows = 0;
     std::int64_t preferred_columns = 0;
     /// A canvas body asked for in canvas pixels (`v3::PaneOffered`), and the rows of text beneath

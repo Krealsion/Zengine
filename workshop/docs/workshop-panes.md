@@ -212,11 +212,11 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   from a build that failed. `c` moves the weaver's choice through the recipes the tool published,
   `b` builds the chosen one, and with *load after build* armed (`Shift+b`) it offers the result
   to the running project too; `o` asks a role and puts the chosen artifact into the project's plan
-  ([the weaver's page](../../builder/docs/builder.md#loading-a-built-artifact-into-the-plan)). The choice
+  ([the weaver's page](../../builder/docs/zengine.builder-pane.md#builderload)). The choice
   is genuinely the pane's — what the tool holds is what it *built*.
 
 What can be built is an **authored file** now, not a target compiled into the executable
-([Builder](../../builder/docs/builder.md)); what this Workshop ships is a recipe for
+([Builder](../../builder/docs/zengine.builder-pane.md)); what this Workshop ships is a recipe for
 `zengine-skin-tui-block`, in Zengine's own build tree. That target is deliberately not one of
 the artifacts this running Workshop has loaded — building one of those would overwrite a shared
 library the process has mapped — and `zengine-workshop` rebuilding itself is the same hazard

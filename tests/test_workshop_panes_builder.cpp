@@ -15,13 +15,18 @@
 
 #include "builder/builder-pane/vocabulary.hpp"
 #include "workshop/authoring.hpp"
+#include "workshop/desktop-pane/vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_doors.hpp"
 #include "workshop/pane_migration.hpp"
 
+#include "manuals/zengine.builder-pane.hpp" // the pane's page, as this tree's build embedded it
+
 #include <algorithm>
 #include <fstream>
+#include <functional>
 #include <map>
+#include <set>
 
 namespace {
 
@@ -3332,4 +3337,181 @@ TEST_CASE("the Builder's edit-source asks class open for the source it found bef
         CHECK(b.editor_status().find("guests.json") != std::string::npos);
     }
     b.r.bus.remove_observer(tap);
+}
+
+// ============================================================================
+// The manual: the rows the Builder declares in each mode, and the page Workshop holds for it
+// ============================================================================
+
+namespace {
+
+/// WALK THE BUILDER THROUGH EVERY MODE ITS ROWS CHANGE IN, calling `at` in each: browsing, the
+/// recipe list, the output reader and the role line, each entered and left by its own keys.
+void each_builder_mode(BuilderRig& b, const std::function<void(const char*)>& at) {
+    const auto declares = [&b](const char* id) {
+        const std::vector<std::string> now = b.declared();
+        return std::find(now.begin(), now.end(), std::string(id)) != now.end();
+    };
+    REQUIRE(declares(pane::kActionBuild));
+    at("browse");
+    b.r.key(input::scan::kReturn);
+    REQUIRE(declares(pane::kActionRecipeChoose));
+    at("recipes");
+    b.r.key(input::scan::kEscape);
+    REQUIRE(declares(pane::kActionBuild));
+    b.tool->next.recipe = "tally";
+    b.tool->next.artifact = "tally";
+    b.tool->next.op = 1;
+    b.tool->next.outcome = bld::outcome::kFailed;
+    b.tool_says();
+    b.letter(input::scan::kL, "l");
+    REQUIRE(declares(pane::kActionOutputClose));
+    at("output");
+    b.r.key(input::scan::kEscape);
+    REQUIRE(declares(pane::kActionBuild));
+    b.letter(input::scan::kO, "o");
+    REQUIRE(declares(pane::kActionCommit));
+    at("role");
+    b.r.key(input::scan::kEscape);
+    REQUIRE(declares(pane::kActionBuild));
+}
+
+/// ONE CENSUS LINE: `<office> <mode> <id> <default key, as a keymap file spells it> <label>`.
+std::string census_line(const std::string& office, const char* mode, const std::string& id,
+                        std::int64_t scancode, std::int64_t modifiers, const std::string& label) {
+    const Gesture g{scancode, modifiers};
+    return office + " " + mode + " " + id + " " +
+           (is_bound(g) ? gesture_word(g) : std::string("unbound")) + " " + label;
+}
+
+std::vector<std::string> census_pinned() {
+    std::vector<std::string> out;
+    std::ifstream in(ZENGINE_ACTIONS);
+    REQUIRE_MESSAGE(in.good(), "tests/actions.txt could not be read");
+    std::string line;
+    while (std::getline(in, line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (!line.empty() && line[0] != '#') {
+            out.push_back(line);
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("the action census: the rows the Builder declares in each mode, and the desk's, are "
+          "tests/actions.txt") {
+    std::vector<std::string> census;
+    {
+        BuilderRig b("bld-census");
+        b.tool->catalog = catalog_of({{"tally", "tally"}});
+        b.open();
+        each_builder_mode(b, [&](const char* mode) {
+            for (const v2::PaneActionRow& a : b.row()->actions) {
+                census.push_back(census_line(pane::kBuilderPaneRole, mode, a.id, a.scancode,
+                                             a.modifiers, a.label));
+            }
+        });
+    }
+    {
+        // THE DESK'S OWN ROWS, as its weave declares them: the keys a page names to reach a pane.
+        PaneRig r;
+        r.mount_workshop();
+        r.ready();
+        r.extent(160, 48);
+        REQUIRE(r.load(zengine::desktop_pane::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE, kDesktopRole)
+                    .valid());
+        REQUIRE_FALSE(r.session().keymap.app.empty());
+        for (const AppRow& a : r.session().keymap.app) {
+            census.push_back(census_line(kDesktopRole, "desk", a.id, a.gesture.scancode,
+                                         a.gesture.modifiers, a.label));
+        }
+    }
+    // WRITTEN BESIDE THE BUILD AS IT STANDS, ready to diff, and held to the pinned file line by line.
+    std::ofstream now(ZENGINE_ACTIONS_NOW, std::ios::binary);
+    for (const std::string& line : census) {
+        now << line << "\n";
+    }
+    now.close();
+    const std::vector<std::string> pinned = census_pinned();
+    for (const std::string& line : census) {
+        CHECK_MESSAGE(std::find(pinned.begin(), pinned.end(), line) != pinned.end(),
+                      "declared and not in tests/actions.txt: `" << line << "` (the census as it "
+                      "stands: " << ZENGINE_ACTIONS_NOW << ")");
+    }
+    for (const std::string& line : pinned) {
+        CHECK_MESSAGE(std::find(census.begin(), census.end(), line) != census.end(),
+                      "in tests/actions.txt and declared by no shipped pane: `" << line << "`");
+    }
+    CHECK(census == pinned);
+}
+
+TEST_CASE("the manual Workshop holds for the Builder is the page its build embedded, and names "
+          "exactly the commands it declares in each mode") {
+    namespace manual = zengine::manual;
+    const manual::Manual& page = manual::pages::zengine_builder_pane::kManual;
+    BuilderRig b("bld-manual-held");
+    b.tool->catalog = catalog_of({{"tally", "tally"}});
+    b.open();
+
+    const PaneDocumentDeclared* held = b.r.w->counted_document(*b.row());
+    REQUIRE(held != nullptr);
+    CHECK(held->content_id == std::string(page.content_id));
+    REQUIRE(held->sections.size() == page.count);
+    for (std::size_t i = 0; i < page.count; ++i) {
+        CHECK(held->sections[i].key == std::string(page.sections[i].key));
+        CHECK(held->sections[i].text == std::string(page.sections[i].text));
+    }
+
+    // EVERY ID THE PANE DECLARES, IN EVERY MODE, HAS ITS SECTION IN WHAT WORKSHOP HOLDS...
+    std::set<std::string> declared;
+    each_builder_mode(b, [&](const char* mode) {
+        const PaneDocumentDeclared* now = b.r.w->counted_document(*b.row());
+        REQUIRE(now != nullptr);
+        for (const v2::PaneActionRow& a : b.row()->actions) {
+            declared.insert(a.id);
+            const PaneDocumentSection* section = find_pane_document_section(*now, a.id);
+            INFO("mode ", mode, ", id ", a.id);
+            REQUIRE(section != nullptr);
+            CHECK(manual::is_command_group(section->group));
+        }
+    });
+    // ...AND THE HELD COMMANDS ARE EXACTLY THOSE: no section for an id the pane never declares.
+    std::set<std::string> commands;
+    for (const PaneDocumentSection& s : held->sections) {
+        if (manual::is_command_group(s.group) && s.key != "commands" &&
+            s.key.rfind("commands-", 0) != 0) {
+            commands.insert(s.key);
+        }
+    }
+    CHECK(commands == declared);
+    CHECK(declared.size() >= 29);
+}
+
+TEST_CASE("a Builder reloaded in place with other words is held with only the new ones") {
+    BuilderRig b("bld-manual-reload");
+    b.tool->catalog = catalog_of({{"tally", "tally"}});
+    b.open();
+    const PaneDocumentDeclared* before = b.r.w->counted_document(*b.row());
+    REQUIRE(before != nullptr);
+    const std::string old_id = before->content_id;
+    REQUIRE(find_pane_document_section(*before, pane::kActionBuild) != nullptr);
+
+    // THE SAME OFFICE, ITS SAME SOURCE, BUILT WITH ANOTHER PAGE, reloaded in place through the
+    // real control door: the same weave id and its state, a new image, and its own words.
+    b.r.enqueue_reload(pane::kBuilderPaneStem, WORKSHOP_SO_BUILDER_PANE_REWORDED);
+    b.r.bus.drain_until_idle();
+    REQUIRE(b.r.load_refusals.empty());
+    const PaneDocumentDeclared* after = b.r.w->counted_document(*b.row());
+    REQUIRE(after != nullptr);
+    CHECK(after->content_id != old_id);
+    const PaneDocumentSection* about = find_pane_document_section(*after, "about");
+    REQUIRE(about != nullptr);
+    CHECK(about->text.find("reworded") != std::string::npos);
+    // NOTHING OF THE OLD PAGE IS HELD: its commands' sections went with it.
+    CHECK(find_pane_document_section(*after, pane::kActionBuild) == nullptr);
+    CHECK(after->sections.size() < 10);
 }

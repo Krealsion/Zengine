@@ -4,8 +4,8 @@
 // The Builder suite -- the tool, the runner, the line between a NAME and a COMMAND, and the
 // line between a build and the turn that asked for it. Its subject is an EFFECT, a child
 // process with a real exit status: whether a build happens and what comes back is true, whether
-// it outlives the turn that started it, and who may cause one (builder/docs/builder-reference.md, "How
-// it is measured"). No process starts but through a recipe a case wrote -- `cmake -E ...` or
+// it outlives the turn that started it, and who may cause one (builder/AGENTS.md, its suites).
+// No process starts but through a recipe a case wrote -- `cmake -E ...` or
 // `cmake -P tests/slow_build.cmake` -- so the suite needs no shell on either platform.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
@@ -238,6 +238,20 @@ public:
         heard.push_back(Heard{s, mail.answers_ask(), mail.correlation()});
     }
     std::vector<Heard> heard;
+};
+
+/// A READER OF THE OFFICE'S PAGE: it asks what a shape does and keeps each answer.
+class DocumentAsker
+    : public loom::WeaveBase<DocumentAsker, HeardState,
+                             loom::Accept<zengine::manual::ShapeDocumentShown>,
+                             loom::Emit<zengine::manual::ShapeDocumentRequested>> {
+public:
+    void on(const zengine::manual::ShapeDocumentShown& s, loom::Mail& mail) {
+        heard.push_back(s);
+        answers.push_back(mail.answers_ask());
+    }
+    std::vector<zengine::manual::ShapeDocumentShown> heard;
+    std::vector<bool> answers;
 };
 
 /// UNRELATED TRAFFIC, COUNTED -- the falsifier of a build that does not hold the pump: one that
@@ -517,6 +531,8 @@ loom::Grant tool_grant() {
     g.allow_to_any(RecipeCatalog::zen_name, RecipeCatalog::zen_version);
     g.allow_to_any(OfferArtifact::zen_name, OfferArtifact::zen_version);
     g.allow_to_any(BuildOutputSaid::zen_name, BuildOutputSaid::zen_version);
+    g.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                   zengine::manual::ShapeDocumentShown::zen_version);
     return g;
 }
 
@@ -1685,6 +1701,87 @@ TEST_CASE("the tool says where it stands to one asker alone, and that moves noth
     CHECK(answers[1].status.outcome == live.ears->last().outcome);
     CHECK(answers[1].status.realization == live.ears->last().realization);
     CHECK(answers[1].status.op == live.ears->last().op);
+}
+
+TEST_CASE("the office answers a shape's section from its own page, said against the content id "
+          "the asker holds, and its page covers every shape it accepts") {
+    namespace manual = zengine::manual;
+    Live live({cmake_recipe("alpha", "fixture-slow5")});
+    loom::Grant may_ask;
+    may_ask.allow_to_role(manual::ShapeDocumentRequested::zen_name,
+                          manual::ShapeDocumentRequested::zen_version, kBuilderRole);
+    DocumentAsker* asker = nullptr;
+    const loom::WeaveId asker_id = mount_plain<DocumentAsker>(live.bus, may_ask, &asker);
+    const auto ask = [&](const manual::ShapeDocumentRequested& what) {
+        asker->heard.clear();
+        asker->answers.clear();
+        (void)live.bus.send_as_to_role(asker_id, kBuilderRole,
+                                       loom::Message(loom::to_value(what), asker_id,
+                                                     loom::WeaveId{}, 7));
+        live.bus.drain_until_idle();
+        REQUIRE(asker->heard.size() == 1);
+        CHECK(asker->answers[0]); // Loom's word: the answer to this asker's own ask
+        return asker->heard[0];
+    };
+    const manual::Manual& page = manual::pages::zengine_builder::kManual;
+    const manual::Section* section = page.find(BuildRequested::zen_name);
+    REQUIRE(section != nullptr);
+    const std::string held = manual::content_id_text(schema_of<BuildRequested>()->content_id());
+
+    // BY THE CONTENT ID THE ASKER HOLDS: the section, from the page this build embedded.
+    const manual::ShapeDocumentShown named = ask({BuildRequested::zen_name, 2, held});
+    CHECK(named.refusal.empty());
+    CHECK(named.current);
+    CHECK(named.said.empty());
+    CHECK(named.content_id == held);
+    CHECK(named.page == std::string(page.content_id));
+    CHECK(named.group == "Commands");
+    CHECK(named.text == std::string(section->text));
+    CHECK(named.text.find("**Refuses:**") != std::string::npos);
+    // ...and asked with none, against the office's own.
+    CHECK(ask({BuildRequested::zen_name, 2, ""}).current);
+
+    // ANOTHER ID IS ANOTHER DEFINITION: the words are said, and said to be out of date for it.
+    const manual::ShapeDocumentShown other =
+        ask({BuildRequested::zen_name, 2, "0x0000000000000001"});
+    CHECK_FALSE(other.current);
+    CHECK(other.content_id == held);
+    CHECK(other.said.find("out of date") != std::string::npos);
+    CHECK(other.said.find("0x0000000000000001") != std::string::npos);
+    CHECK(other.text == named.text);
+
+    // A SHAPE THE OFFICE DOES NOT ACCEPT, under that version or at all, is refused with no words.
+    const manual::ShapeDocumentShown old = ask({BuildRequested::zen_name, 1, ""});
+    CHECK(old.refusal == "zengine.builder does not accept `BuildRequested` v1");
+    CHECK(old.text.empty());
+    CHECK_FALSE(ask({BuildStatus::zen_name, 4, ""}).refusal.empty());
+    // ...and a heard shape is answered from `Hears`.
+    CHECK(ask({BuildFinished::zen_name, BuildFinished::zen_version, ""}).group == "Hears");
+
+    // THE PAGE COVERS THE GATE: every shape the office accepts has a section under Commands or
+    // Hears -- Loom's own doors and the document door aside -- and the page names no other.
+    std::vector<std::string> accepted;
+    for (const auto& schema : live.tool->accepted_schemas()) {
+        const std::string& name = schema->name();
+        if (name.rfind("zen.", 0) == 0 || name == manual::ShapeDocumentRequested::zen_name) {
+            continue;
+        }
+        accepted.push_back(name);
+        const manual::Section* s = page.find(name);
+        INFO("shape ", name);
+        REQUIRE(s != nullptr);
+        CHECK((manual::is_command_group(s->group) || manual::is_heard_group(s->group)));
+    }
+    REQUIRE(accepted.size() >= 10);
+    for (std::size_t i = 0; i < page.count; ++i) {
+        const manual::Section& s = page.sections[i];
+        if (s.key == "commands" || s.key == "hears" ||
+            !(manual::is_command_group(s.group) || manual::is_heard_group(s.group))) {
+            continue;
+        }
+        INFO("section ", std::string(s.key));
+        CHECK(std::find(accepted.begin(), accepted.end(), std::string(s.key)) != accepted.end());
+    }
 }
 
 TEST_CASE("a presentation opened mid-build learns from the TOOL that one is running") {

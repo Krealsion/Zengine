@@ -310,6 +310,7 @@ class WorkshopWeave
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::v2::PaneActions,
                                           zengine::workshop::PaneSettingsDeclared,
+                                          zengine::workshop::PaneDocumentDeclared,
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::PaneCaret,
                                           zengine::workshop::v2::PaneContent,
@@ -714,6 +715,15 @@ public:
     /// THE SETTINGS A PANE'S DECLARATION GIVES, while the weave that declared them holds its
     /// office; nullptr when none counts.
     const std::vector<PaneSettingRow>* counted_settings(const RuntimePane& row) const;
+
+    /// A pane's manual, judged whole under the office stamp: kept with the weave that declared
+    /// it, or refused aloud with the document in force left standing.
+    // WL-DESK-06 -- agents/workshop/desktop.md
+    void on(const PaneDocumentDeclared& declared, loom::Mail& mail);
+
+    /// THE DOCUMENT A PANE DECLARED, while the weave that declared it holds its office and the
+    /// pane has not been offered again since; nullptr when none counts.
+    const PaneDocumentDeclared* counted_document(const RuntimePane& row) const;
 
     // ---- The participating owner of the application's default behaviour (WL-DESK) --------
 

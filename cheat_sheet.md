@@ -745,8 +745,8 @@ Declare `Emit<builder::BuildRequested, ...>` and
 Behind the tool is its conversation with the runner: the tool sends `RunBuild{recipe}` to
 `zengine.build-runner`, and the runner reports `BuildStarted`, `BuildOutput`, `BuildFinished` and
 `BuildNotStarted` to the tool's office, so a weave hears a build only through the tool. Following
-one ask to its ending is [what an observer is told](builder/docs/builder.md#what-an-observer-is-told);
-the package is [the Builder reference](builder/docs/builder-reference.md).
+one ask to its ending is [the Builder's Follow](builder/docs/zengine.builder.md#follow);
+the office is [the Builder's manual](builder/docs/zengine.builder.md).
 
 The wire **cannot spell a command**: no shape here has a field that is a program, an argument
 list or a directory. The runner holds the catalog; the host writes it.
@@ -758,7 +758,7 @@ and points at Zengine's own build tree; a weaver edits the file to build their o
 reachable catalog file the current one without restarting — one transaction, so a file that
 cannot be read or parsed leaves the previous catalog in force, and a build already running
 finishes from the facts it started with. The choice is session-only. See [Workshop's
-Builder](builder/docs/builder.md).
+Builder](builder/docs/zengine.builder-pane.md).
 
 ---
 
