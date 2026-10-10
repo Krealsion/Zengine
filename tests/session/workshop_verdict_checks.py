@@ -438,13 +438,36 @@ def run_checks(tools, runtime):
             self.assertIn("ask 9 before ask 8", r.error)
             self.assertEqual(r.record["superseded"]["ask"], 8)
 
-        def test_an_unknown_recipe_refusal_during_the_build_is_set_aside(self):
+        def test_an_unknown_recipe_refusal_during_the_build_leaves_the_build_running(self):
             r = self.run_builder("build", caused=[asked(8), status(8, 8, 6)],
                                  later=[other(asked(0, taken=False, refusal="no recipe called x")),
-                                        status(8, 8, 5, detail="no recipe called x"),
+                                        status(8, 8, 6, detail="no recipe called x"),
                                         status(8, 8, 2, detail="built")])
             self.assertIsNone(r.error, r.error)
             self.assertIn("op #8 build succeeded", r.said)
+            self.assertNotIn("set_aside", r.record)
+
+        def test_an_unknown_recipe_refusal_after_the_build_carries_its_realization(self):
+            # No build runs, so the refusal is said in the outcome field over op #8's picture, and
+            # that picture's realization is op #8's: the owner's answer arrives in it.
+            refusal = "this Builder holds no recipe called `x` (it holds 1)"
+            r = self.run_builder("frontier", caused=[asked(8, realize=True), status(8, 8, 6, 1, True)],
+                                 later=[status(8, 8, 2, 2, True),
+                                        other(asked(0, taken=False, refusal=refusal)),
+                                        status(8, 8, 5, 2, True, detail=refusal),
+                                        status(8, 8, 5, 3, True, detail=refusal,
+                                               realized="reloaded in place")],
+                                 realize="realized")
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
+            self.assertEqual(r.record["realization"]["outcome"], "realized")
+            self.assertEqual(r.record["realization"]["detail"], "reloaded in place")
+            # ...and the refusal is never this build's ending.
+            r = self.run_builder("frontier", caused=[asked(8, realize=True), status(8, 8, 6, 1, True)],
+                                 later=[status(8, 8, 5, 1, True, detail=refusal),
+                                        status(8, 8, 2, 2, True), status(8, 8, 2, 3, True)])
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
             self.assertEqual(len(r.record["set_aside"]), 1)
 
         def test_a_failed_build_is_judged_by_expect_and_its_realization_reported_apart(self):
@@ -666,6 +689,16 @@ def run_checks(tools, runtime):
             self.assertIn("realization REFUSED", r.said)
             r = self.look(status(8, 8, 2, 2, True), later=[refused], realize="realized")
             self.assertIn("the realization was REFUSED, not realized", r.error)
+
+        def test_look_reads_a_realization_said_over_an_unknown_recipe_refusal(self):
+            refusal = "this Builder holds no recipe called `x` (it holds 1)"
+            r = self.look(status(8, 8, 2, 2, True),
+                          later=[status(8, 8, 5, 2, True, detail=refusal),
+                                 status(8, 8, 5, 3, True, detail=refusal, realized="loaded")],
+                          realize="realized")
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
+            self.assertEqual(r.record["realization"]["outcome"], "realized")
 
         def test_look_tells_a_plain_build_from_a_pending_one(self):
             r = self.look(status(8, 8, 2))
