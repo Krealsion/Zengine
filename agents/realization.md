@@ -402,13 +402,13 @@ row N is waiting on the weaver
 The Builder pane shows the waiting frontier and `f` builds-and-realizes it, and the whole
 feature is one read-only seam plus one gesture over the existing route.
 
-⚠ THE PANE IS A LOADED WEAVE NOW (`Zengine/builder-pane/`), so the seam below crosses one more
-boundary than it did when this was written, and nothing else about it moved. What was a host
-function the presentation called at every repaint is an ASK to the read-only project office
+⚠ THE PANE IS A LOADED WEAVE (`Zengine/builder-pane/`), so the seam below is a message
+boundary: the pane calls no host function, it ASKS the read-only project office
 (`ProjectFrontierRequested` -> `ProjectFrontierSaid`, `workshop/builder_seam_vocabulary.hpp`),
-answered by `ProjectDoor` out of the same `HostContext::frontier` reading. The pane asks on the
-beats where the answer can have moved -- its room grant, a settled `BuildStatus`, and the answer
-to a plan row it wrote -- and holds a picture nothing can mistake for authority.
+and `ProjectDoor` answers out of the `HostContext::frontier` reading the bullets below describe.
+The pane asks on the beats where the answer can have moved -- its room grant, a settled
+`BuildStatus`, and the answer to a plan row it wrote -- and holds a picture nothing can mistake
+for authority.
 
 - **THE OWNER PROJECTS ITS OWN FRONTIER.** `PlanExecutor::behind()` joined `waiting_on()` —
   how many authored rows are behind the waiting row, derived from the same cursor, 0 in every
