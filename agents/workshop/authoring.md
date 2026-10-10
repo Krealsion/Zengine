@@ -50,8 +50,8 @@ DOES NOT MEAN
 - that a plan is edited, reordered or pruned — the one act is one appended row;
 - that `o` builds from nothing or stages, or that the line is a keyboard mode of this HOST.
 
-PROVEN BY — `builder-pane/vocabulary.hpp` `kActionLoadIt`, `kActionCommit`, `kActionCancel`;
-`builder-pane/pane.cpp` `begin_load_it`, `open_role`, `commit_role`, `say_role`;
+PROVEN BY — `builder/builder-pane/vocabulary.hpp` `kActionLoadIt`, `kActionCommit`, `kActionCancel`;
+`builder/builder-pane/pane.cpp` `begin_load_it`, `open_role`, `commit_role`, `say_role`;
 `workshop/builder_seam_vocabulary.hpp` `PlanNamesRequested`, `PlanNames`, `PlanRowRequested`,
 `PlanRowWritten`; `workshop/pane_doors.hpp` `PlanDoor`;
 `workshop/weave.hpp` `HostContext::PlanAppend`, `HostContext::append_plan_row`,

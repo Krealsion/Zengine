@@ -7,9 +7,9 @@
 // The TimerService weave, over an injected Clock: anything with `std::int64_t now_ms()`
 // (monotonic) and `void nap_ms(std::int64_t)` (block; <=0 lets the clock decline). timer.cpp's is
 // the OS clock and the system's one nap; the suite's is virtual. The wire is
-// docs/reference/timer-protocol.md and succession docs/reference/timer-continuity.md; what
+// timer/docs/timer-protocol.md and succession timer/docs/timer-continuity.md; what
 // follows here is what those pages do not carry: the ordering this code depends on, its traps.
-// Timer law: docs/laws/timer-laws.md
+// Timer law: timer/docs/timer-laws.md
 
 // The beat chain is authored from the activation (TIMER-01): accept it, decide what was
 // inherited, publish TimerReady, seed Drive 0; each valid Drive naps to the soonest deadline (at

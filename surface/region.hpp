@@ -9,7 +9,7 @@
 // origin and a capacity, so a publisher's "12 earlier" and the medium's drawing never disagree.
 // A zero metric is the cell projection, a real answer: a terminal's text is a cell. Every
 // product saturates, because a region's bounds are numbers a publisher chose. Reference:
-// docs/reference/surface.md.
+// surface/docs/surface.md.
 
 #include "cells.hpp"
 #include "vocabulary.hpp"

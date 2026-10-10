@@ -9,7 +9,7 @@
 // value. Its ports derive from its body, `(start, limit, step : Int, initial : T, ...) -> T`, the
 // body's other ports wired from scope like any argument; the count is computed first, so no
 // counted value is reached by repeated addition. Only `Catalog` spends a fold.
-// Reference: docs/reference/operator-providers.md.
+// Reference: operator/docs/operator-providers.md.
 
 #include "operator/operator.hpp"
 

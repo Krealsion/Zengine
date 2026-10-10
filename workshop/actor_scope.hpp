@@ -5,7 +5,7 @@
 
 // WHAT A GUEST'S HAND MAY DO BESIDE WHAT ITS GRANT SAYS: the action classes an owner asks for its
 // act -- build, write, open -- judged against the row the guest door admitted the actor's session
-// under and the guests file's `host` (docs/workshop/external-host.md). Pure: the host answers the
+// under and the guests file's `host` (external-host/docs/external-host.md). Pure: the host answers the
 // facts, this says yes or the refusal in words. An actor no guest door admitted is the weaver's own
 // participant, and no class narrows it.
 

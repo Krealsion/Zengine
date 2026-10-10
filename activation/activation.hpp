@@ -7,7 +7,7 @@
 // The activation cursor: whether a weave acts on an arriving `zen.Activated`. What an activation
 // means, and who may attest one, are the Loom's (its lifecycle laws); the cursor reads the Loom's
 // attestation and keeps one lineage. Not a lifecycle and not a scheduler: what a weave does with
-// an accepted activation is its own. Reference: docs/reference/activation.md.
+// an accepted activation is its own. Reference: activation/docs/activation.md.
 
 #include <zen/switchboard/message.hpp>
 #include <zen/weave.hpp>

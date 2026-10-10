@@ -9,7 +9,7 @@
 // crosses as its contract and is reached by index while the image is held; a composite crosses
 // as its graph, its nodes still naming `math.max`, so the host resolves them against whatever
 // provides them at every spend, and a power replaced underneath propagates through it.
-// Reference: docs/reference/operator-providers.md.
+// Reference: operator/docs/operator-providers.md.
 
 // The encoding is `zen.Manifest`'s shape: a `referenced` section carries the post-order closure
 // of nested schemas as `zen.SchemaDesc v1` entries (no second schema language), and the graph

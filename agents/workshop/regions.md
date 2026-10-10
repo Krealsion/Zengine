@@ -27,7 +27,7 @@ MEANS
 - the realize row has three faces and no second row: armed, the button, or the outcome;
 - the pane is a WEAVE and composes into the rows of the room it is granted, not a region it resolved.
 
-PROVEN BY — `builder-pane/pane.cpp` `say_builder`, `publish`, `labelled_block`;
+PROVEN BY — `builder/builder-pane/pane.cpp` `say_builder`, `publish`, `labelled_block`;
 `tests/test_workshop_panes_builder.cpp` case
 `"the pane asks the tool what it is on its own room grant, and shows it"`, case
 `"the frontier row comes from the host's read-only door"`, case

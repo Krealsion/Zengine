@@ -15,12 +15,12 @@
 #include "pane_carry.hpp"
 #include "terminal_seam_vocabulary.hpp"
 #include "setup_control.hpp"
-#include "demo-control/vocabulary.hpp"
+#include "external-host/demo-control/vocabulary.hpp"
 
 #include "builder/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
-#include "inventory-pane/vocabulary.hpp"
+#include "inventory/inventory-pane/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <zen/schema.hpp>

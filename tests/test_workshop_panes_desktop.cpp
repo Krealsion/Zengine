@@ -11,7 +11,7 @@
 
 #include "workshop_support.hpp"
 
-#include "desktop-pane/vocabulary.hpp"
+#include "workshop/desktop-pane/vocabulary.hpp"
 
 #include <filesystem>
 #include <fstream>

@@ -11,8 +11,8 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
-#include "desktop-pane/vocabulary.hpp"
-#include "editor-pane/vocabulary.hpp"
+#include "workshop/desktop-pane/vocabulary.hpp"
+#include "editor/editor-pane/vocabulary.hpp"
 #include "weavelib/legacy_pane_protocol.hpp"
 #include "workshop/pane_text.hpp"
 

@@ -41,21 +41,21 @@ looks like and which document owns each practice.
 | lanes, suites, populations, CI, what a green means, platform build traps, a harness, a witness, a check | [agents/verification.md](agents/verification.md), the router over the method registers under `agents/verification/` |
 | `surface/` — the drawing vocabulary, grounds, planes, the TUI/SDL media, input backends | [agents/surface.md](agents/surface.md) |
 | `workshop/` or `component/` — Workshop's law, one register per owner under `agents/workshop/` | [agents/workshop.md](agents/workshop.md), the router |
-| `files/`, `builder-pane/`, `attention-pane/`, `info-pane/`, `terminal-pane/` — extracted pane behavior and its shared protocol | [agents/workshop.md](agents/workshop.md) and [agents/panes.md](agents/panes.md) |
+| `files/`, `builder/builder-pane/`, `attention/`, `info/`, `terminal/` — extracted pane behavior and its shared protocol | [agents/workshop.md](agents/workshop.md) and [agents/panes.md](agents/panes.md) |
 | the external pane protocol, `introspection/`, `composer/` | [agents/panes.md](agents/panes.md) |
 | `flow/` — authoring, graph workspaces, generated rules and the native host boundary | [agents/flow.md](agents/flow.md) |
 | `message-draft/` — typed value forms and reusable preset persistence | [agents/message-drafts.md](agents/message-drafts.md), [agents/packaging.md](agents/packaging.md) |
-| `inventory/`, `inventory-pane/` — stored typed values, portable slots, capture metadata and durable toolboxes | [agents/inventory.md](agents/inventory.md), [agents/packaging.md](agents/packaging.md), [agents/panes.md](agents/panes.md) |
-| `flow-host/` — sessions on an existing host, custody and observation | [agents/flow-host.md](agents/flow-host.md) |
-| `view/`, `view-builder/` — a view described as data, the view host and the View Builder | [agents/view.md](agents/view.md) |
-| `flow-pane/` — graphical authoring and retained forms | [agents/flow.md](agents/flow.md), [agents/panes.md](agents/panes.md), [agents/message-drafts.md](agents/message-drafts.md) |
+| `inventory/`, `inventory/inventory-pane/` — stored typed values, portable slots, capture metadata and durable toolboxes | [agents/inventory.md](agents/inventory.md), [agents/packaging.md](agents/packaging.md), [agents/panes.md](agents/panes.md) |
+| `flow/flow-host/` — sessions on an existing host, custody and observation | [agents/flow-host.md](agents/flow-host.md) |
+| `view/`, `view/view-builder/` — a view described as data, the view host and the View Builder | [agents/view.md](agents/view.md) |
+| `flow/flow-pane/` — graphical authoring and retained forms | [agents/flow.md](agents/flow.md), [agents/panes.md](agents/panes.md), [agents/message-drafts.md](agents/message-drafts.md) |
 | `operator/` — named rules, the catalog, the host/consumer seam, providers | [agents/operators.md](agents/operators.md) |
 | `maker/` — a weave built from a weaver's definition: the two artifacts, the triggers, the behaviour edit and the schema edit by succession | [agents/maker.md](agents/maker.md), the router over the `MW` registers under `agents/maker/` |
 | load plans, realization, the load conversation, `builder/` | [agents/realization.md](agents/realization.md) |
 | `cmake/ZengineInstall.cmake`, any public header, any exported target's link line | [agents/packaging.md](agents/packaging.md) |
-| Timer semantics | [docs/laws/timer-laws.md](docs/laws/timer-laws.md) (TIMER-01..05) and the `docs/reference/timer-*.md` pages |
-| the Input, UI or Snake packages | [docs/reference/input.md](docs/reference/input.md) · [docs/reference/ui.md](docs/reference/ui.md) · [docs/reference/snake.md](docs/reference/snake.md) |
-| `external-host/`, `demo-control/` — the guest vocabulary, optional reset controls and the Python tool packages a Loom session drives Workshop through and reads the desk with | [docs/workshop/external-host.md](docs/workshop/external-host.md); its § 2 routes a reader's actual question, its § 3 is the maintained `workshop` package (`workshop/connections`, `workshop/inspect-capture`, `workshop/verify-recipe`), and "The desk written as text for an agent" the `desk` package's `desk/read` and `desk/watch` |
+| Timer semantics | [timer/docs/timer-laws.md](timer/docs/timer-laws.md) (TIMER-01..05) and the `timer/docs/timer-*.md` pages |
+| the Input, UI or Snake packages | [input/docs/input.md](input/docs/input.md) · [ui/docs/ui.md](ui/docs/ui.md) · [examples/snake/README.md](examples/snake/README.md) |
+| `external-host/`, `external-host/demo-control/` — the guest vocabulary, optional reset controls and the Python tool packages a Loom session drives Workshop through and reads the desk with | [external-host/docs/external-host.md](external-host/docs/external-host.md); its § 2 routes a reader's actual question, its § 3 is the maintained `workshop` package (`workshop/connections`, `workshop/inspect-capture`, `workshop/verify-recipe`), and "The desk written as text for an agent" the `desk` package's `desk/read` and `desk/watch` |
 
 **Where law lives (the re-accretion guard).** Surface law belongs in the routed surface
 document that owns it; this core gains a rule only when the rule is genuinely cross-cutting —

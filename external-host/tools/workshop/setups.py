@@ -6,7 +6,7 @@ A setup is a directory holding ``setup.json`` (this module reads it), the desk i
 Workshop's own ``WorkshopSetup`` file, a guide, and the assets it names. Describing or loading a
 setup reads files and nothing else: it runs no command and confers no authority. The launcher
 (``external-host/demo.py``) and the preparation service (``demo_setup.py``) read the same
-description. docs/workshop/demo-setups.md is the guide."""
+description. workshop/docs/demo-setups.md is the guide."""
 import hashlib
 import json
 import os

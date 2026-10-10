@@ -883,7 +883,7 @@ public:
                                           authoring_.step + 1));
         } else {
             // A short label naming no field, clear of two bounds: `refusal_of`
-            // (`menu-presenter/presenter.cpp`) refuses the whole offer once any label exceeds
+            // (`workshop/menu-presenter/presenter.cpp`) refuses the whole offer once any label exceeds
             // `kMaxPaneMenuLabelLen` bytes, and below that the popup clips a row to its
             // display room. The line names the field; `next_field`'s notice says the rest.
             offer.row(files::kMenuNextField, "this is the last field");
@@ -1815,7 +1815,7 @@ private:
     // (`cache_is_multi_config`): ask for the few things nothing can detect. `name` carries the
     // why and is pane-local text, clipped to the pane's width; `menu_label` carries the what and
     // crosses as a `PaneMenuRow`, where one row over 64 bytes makes the presenter refuse the
-    // whole offer (`menu-presenter/presenter.cpp`'s `refusal_of`) -- every menu this form offers.
+    // whole offer (`workshop/menu-presenter/presenter.cpp`'s `refusal_of`) -- every menu this form offers.
     static const Field& field_at(bool tree, bool multi_config, std::size_t step) {
         static constexpr Field kSource[] = {{"recipe name", true},
                                             {"artifact stem", true},

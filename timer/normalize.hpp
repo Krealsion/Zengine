@@ -8,8 +8,8 @@
 // composition over two published primitives, with no C++ body, evaluated by the one evaluator
 // every consumer uses -- so a second consumer needs no copy of it, and cannot disagree with the
 // Timer. A repeating delay below 1 ms becomes 1; a negative delay fires on the next beat
-// (docs/reference/timer-protocol.md).
-// Timer law: docs/laws/timer-laws.md
+// (timer/docs/timer-protocol.md).
+// Timer law: timer/docs/timer-laws.md
 
 #include "operator/catalog.hpp"
 #include "operator/host.hpp"

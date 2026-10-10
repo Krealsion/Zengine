@@ -9,7 +9,7 @@
 // and `TimerReady`, placing orders, routing `TimerFired` by id). It is not a scheduler or a
 // second reading of time: the raw vocabulary stays public, and a firing runs on the ordinary
 // thread, in the ordinary handler, with the ordinary `Mail`. Law: TIMER-05,
-// docs/laws/timer-laws.md; the model and its boundary: docs/reference/timer-binding.md.
+// timer/docs/timer-laws.md; the model and its boundary: timer/docs/timer-binding.md.
 //
 // A weave that mixes this in declares, in its manifest, the whole Timer protocol the binding
 // speaks. Its own `on` handlers hide the binding's, so it writes `using TimedWeave::on;` (a

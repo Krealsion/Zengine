@@ -5,7 +5,7 @@ them to reuse its entries, and measure a retrieval in a flat and an organized to
 
 Zengine owns folders, membership, navigation, hit testing and authority. Every step here reads
 the owner's current listing by name and acts through visible controls; no folder or entry id is
-remembered between runs. docs/workshop/inventory-folders.md is the guide."""
+remembered between runs. inventory/docs/inventory-folders.md is the guide."""
 import itertools
 import re
 import time

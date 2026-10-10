@@ -7,7 +7,7 @@
 // The seam between Workshop and the participant that presents a pane's menu, installed beside the
 // pane protocol so a presenter built against the package can hold `zengine.presenter` and be
 // replaced like any loaded weave
-// (docs/reference/workshop-panes.md#the-menu-presenter-and-replacing-it).
+// (workshop/docs/workshop-panes.md#the-menu-presenter-and-replacing-it).
 // The requester owns what its rows mean and every operation; Workshop owns input custody, the
 // popup, one menu at a time, and the standard rows it adds beneath the requester's -- its own pane
 // menu, which it spends itself; the presenter owns the menu's presentation and lifetime, and

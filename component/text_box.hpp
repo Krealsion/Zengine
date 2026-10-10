@@ -9,7 +9,7 @@
 // and no medium -- no SDL, terminal, cell, pixel or font metric; no commit, validation, focus,
 // blink or drawing -- and is not an entity: a member of whatever owns it, dying with it. The
 // capacity is always an argument, and the `Clipboard` it operates on is the owner's.
-// Reference: docs/reference/component.md.
+// Reference: component/docs/component.md.
 //
 // The unit is a byte and the steps are characters: every presentation counts one column per
 // byte, so a caret is a byte index, and the operations never stop inside a UTF-8 character.

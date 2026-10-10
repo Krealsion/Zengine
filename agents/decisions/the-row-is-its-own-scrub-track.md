@@ -27,7 +27,7 @@ hover.
   painter and one arm in the resolver.
 - *Moving the terminal to any-motion tracking (`1003`)* — rejected: it would price every idle
   motion in every session; `1002` is documented as a medium fact in
-  `docs/workshop/limitations.md`.
+  `workshop/docs/limitations.md`.
 
 **Consequences.** Eligibility is `rest != full`, so a value that fits is perfectly still. A live
 draft is excluded — it is windowed against its own caret. Nothing durable holds the reveal, and

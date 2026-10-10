@@ -10,7 +10,7 @@
 #include "workshop_support.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "view-builder/vocabulary.hpp"
+#include "view/view-builder/vocabulary.hpp"
 #include "builder/weave.hpp"
 
 #include <zen/registry.hpp>
@@ -92,7 +92,7 @@ std::map<std::string, std::set<std::string>> declared_shape_names(const std::fil
         if (it->is_directory()) {
             const bool top = it.depth() == 0;
             if (name == ".git" || name == "third_party" ||
-                (top && (name == "tests" || name == "docs" || name == "reference" ||
+                (top && (name == "tests" || name == "docs" || name == "quarry" ||
                          name == "build" || name.rfind("build-", 0) == 0 ||
                          name.rfind("cmake-build", 0) == 0 || name == "_install"))) {
                 it.disable_recursion_pending();

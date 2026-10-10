@@ -11,7 +11,7 @@
  * (the Timer consumes the host's rule and supplies it) or neither. A provider need not be a
  * weave: a host that opened the file resolves this table, with no Kernel, WeaveId, role, grant
  * or bus involved.
- * Reference: docs/reference/operator-providers.md.
+ * Reference: operator/docs/operator-providers.md.
  *
  * describe(index, sink) emits `zengine.OperatorContribution` bytes for contribution `index`,
  * at version 2 or 1 (a host reads both): the identity, both port schemas with the closure of

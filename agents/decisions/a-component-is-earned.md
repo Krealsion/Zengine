@@ -26,7 +26,7 @@ word has one definition and three compositions. `component::Button` is not extra
   bit, a bracket convention and a row, presentation with no invariant to keep, and consumer #2
   cost four lines (`5f8fab8`).
 - *A focus flag, a filter, a max length, a multiline mode, a blink* — refused: the pre-Zen
-  `Zen::TextBox` in `reference/` had most of those and could not move its caret.
+  `Zen::TextBox` in `quarry/` had most of those and could not move its caret.
 - *The box learning application chords to refuse* — rejected: declining is `default:`, and a
   chord carrying Alt or Super is never the box's; pinned by case `"component: consume owns
   exactly the editing vocabulary and declines the rest"`.

@@ -9,7 +9,7 @@
 // takes the offer in its constructor (`op::OperatorHost::offered()`), describes a rule once and
 // evaluates it as often as it likes, getting real `loom::Schema`s and admitted `loom::Value`s --
 // never a catalog, a callable or an index.
-// Reference: docs/reference/operator-host.md.
+// Reference: operator/docs/operator-host.md.
 
 // Evaluation takes the contract, not the name: bytes become a `loom::Value` only at a door, so
 // `evaluate("id", pack)` would hide a second crossing per call. A `HostSignature` is an identity

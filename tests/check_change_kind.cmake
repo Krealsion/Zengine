@@ -148,7 +148,7 @@ endif()
 foreach(pair "notes.md|documentation" "docs/workshop/images/a.png|documentation"
              "tests/check_code_values.cmake|documentation" "src/a.cpp|source"
              "CMakeLists.txt|other" "tests/text_checks.cmake|other" ".github/workflows/ci.yml|other"
-             "docs/workshop/hotkeys.md|other")
+             "workshop/docs/hotkeys.md|other")
     string(REPLACE "|" ";" pp "${pair}")
     list(GET pp 0 p)
     list(GET pp 1 want)

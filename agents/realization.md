@@ -3,8 +3,8 @@
 Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `workshop/load_execute.hpp`,
 `workshop/load_plan.hpp`, `builder/`, or a host's boot path — the authored load plan, the
 realization owner, the load conversation, and how building relates to participating. Public
-reference: [`../docs/reference/load-plan.md`](../docs/reference/load-plan.md) and
-[`../docs/reference/builder.md`](../docs/reference/builder.md).
+reference: [`workshop/docs/load-plan.md`](../workshop/docs/load-plan.md) and
+[`builder/docs/builder-reference.md`](../builder/docs/builder-reference.md).
 
 ## The running arrangement is an authored FILE
 
@@ -402,7 +402,7 @@ row N is waiting on the weaver
 The Builder pane shows the waiting frontier and `f` builds-and-realizes it, and the whole
 feature is one read-only seam plus one gesture over the existing route.
 
-⚠ THE PANE IS A LOADED WEAVE (`Zengine/builder-pane/`), so the seam below is a message
+⚠ THE PANE IS A LOADED WEAVE (`Zengine/builder/builder-pane/`), so the seam below is a message
 boundary: the pane calls no host function, it ASKS the read-only project office
 (`ProjectFrontierRequested` -> `ProjectFrontierSaid`, `workshop/builder_seam_vocabulary.hpp`),
 and `ProjectDoor` answers out of the `HostContext::frontier` reading the bullets below describe.

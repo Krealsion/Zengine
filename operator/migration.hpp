@@ -9,7 +9,7 @@
 // whose signature is the edge it converts -- mounted, layered, replaced and spent under every
 // other operator's law, in the one catalog. This header adds a naming convention
 // (`zengine.migrate.<family>.v<from>-to-v<to>`), a shape predicate and one lookup; no store.
-// Reference: docs/reference/operator-providers.md.
+// Reference: operator/docs/operator-providers.md.
 
 // Both halves of the shape are forced. The input schema is the historical message schema itself,
 // since `loom::admit(Unverified, door)` asks the claim to name its door, so the file's own bytes

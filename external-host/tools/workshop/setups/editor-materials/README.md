@@ -12,7 +12,7 @@ Run `workshop/editor-materials-demo` with phase=prepare (its README names the in
 
 Expect: The carried materials are filed in folders and saved as a toolbox.
 
-More: phase=retrieve in a new root; phase=keyboard with --tui; phase=neovim with --neovim <program>. The story is [carrying from the Editor](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/editor.md#carrying-text-commands-and-file-places).
+More: phase=retrieve in a new root; phase=keyboard with --tui; phase=neovim with --neovim <program>. The story is [carrying from the Editor](https://github.com/Krealsion/Zengine/blob/main/editor/docs/editor.md#carrying-text-commands-and-file-places).
 
 ## Reset
 

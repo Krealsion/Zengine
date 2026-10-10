@@ -102,7 +102,7 @@ DOES NOT MEAN
 - that Surface's slot is gone: a Skin draws it, in the picture and the title, for whoever uses it.
 
 PROVEN BY — `workshop/attention_seam_vocabulary.hpp` `attention_glance`;
-`attention-pane/pane.cpp` `say_view`; `workshop/weave_run.cpp` `WorkshopWeave::repaint`;
+`attention/pane.cpp` `say_view`; `workshop/weave_run.cpp` `WorkshopWeave::repaint`;
 `tests/test_workshop_host.cpp` case `"Workshop puts nothing on the attention slot, healthy or
 not: what is true is said to whoever presents it"`, case `"the glance is ranked by truth, and
 says how many it is not saying"`; `tests/test_workshop_panes_attention.cpp` case `"the Attention
@@ -128,8 +128,8 @@ MEANS
 - dismiss is not resolve: the host still holds the condition, derives it and says it;
 - so a list whose every current condition is hidden says they are hidden, never the all-clear.
 
-PROVEN BY — `attention-pane/vocabulary.hpp` `Dismissal`, `AttentionPaneState::dismissed`;
-`attention-pane/pane.cpp` `say_view`, `visible`, `known_`;
+PROVEN BY — `attention/vocabulary.hpp` `Dismissal`, `AttentionPaneState::dismissed`;
+`attention/pane.cpp` `say_view`, `visible`, `known_`;
 `workshop/attention.hpp` `Condition::stamp`; `tests/test_workshop_panes_attention.cpp` case
 `"dismissal hides a presentation and changes nothing that is true"`, case
 `"a dismissed condition comes back when it materially changes"`, case

@@ -4,7 +4,7 @@
 // The Builder suite -- the tool, the runner, the line between a NAME and a COMMAND, and the
 // line between a build and the turn that asked for it. Its subject is an EFFECT, a child
 // process with a real exit status: whether a build happens and what comes back is true, whether
-// it outlives the turn that started it, and who may cause one (docs/reference/builder.md, "How
+// it outlives the turn that started it, and who may cause one (builder/docs/builder-reference.md, "How
 // it is measured"). No process starts but through a recipe a case wrote -- `cmake -E ...` or
 // `cmake -P tests/slow_build.cmake` -- so the suite needs no shell on either platform.
 
@@ -1342,7 +1342,7 @@ TEST_CASE("a failed build's own lines are kept by its operation, and a page read
 
     // THE COMPILER'S LINE IS AMONG THEM, found by what no transport changes: its path with a
     // space, its line and column, and its reason.
-    const std::string at = "/home/weaver/zen checkout/attention-pane/pane.cpp:416:23: error: ";
+    const std::string at = "/home/weaver/zen checkout/attention/pane.cpp:416:23: error: ";
     const auto error = std::find_if(page.text.begin(), page.text.end(),
                                     [&at](const std::string& l) { return l.rfind(at, 0) == 0; });
     REQUIRE(error != page.text.end());

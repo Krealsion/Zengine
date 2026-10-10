@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // The pane protocol: every shape a weave and Workshop exchange to offer, present and drive a
-// pane (docs/reference/workshop-panes.md). No shape names a provider: the provider is the office
+// pane (workshop/docs/workshop-panes.md). No shape names a provider: the provider is the office
 // Loom stamped on the message, `mail.authored_role()`, which no payload can write. Workshop sends
 // each gesture and asks nothing back; a shape a pane does not accept is refused at Loom's gate.
 

@@ -4,8 +4,8 @@ Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching the externa
 protocol, `introspection/` or `composer/` — what crosses the Workshop↔provider seam, and the
 shipped tools that live entirely on the far side of it. Workshop's own screen and routing law
 is [`workshop.md`](workshop.md); public reference:
-[`../docs/reference/workshop-panes.md`](../docs/reference/workshop-panes.md) and
-[`../docs/reference/introspection.md`](../docs/reference/introspection.md).
+[`workshop/docs/workshop-panes.md`](../workshop/docs/workshop-panes.md) and
+[`introspection/docs/introspection.md`](../introspection/docs/introspection.md).
 
 ## A press crosses the seam as a place, never as a meaning
 
@@ -199,13 +199,13 @@ Version 2's stamps, and `PaneView` version 5's, name a picture by the fingerprin
 sent, so a pane does nothing for it (WL-READ-07), and Workshop publishes `DeskStamps` at the end of
 each delivery that moved the desk number or a stamp (WL-READ-06). A guest session whose row holds `capture`
 is answered these, `PaneInventoryRequested` and `KeymapRequested` (WL-DESK-09, WL-DESK-11,
-WL-GUEST-11). The shapes: [the desk, said whole](../docs/reference/workshop-panes.md#the-desk-said-whole).
+WL-GUEST-11). The shapes: [the desk, said whole](../workshop/docs/workshop-panes.md#the-desk-said-whole).
 
 ## A pane may draw locally, with an explicit room and gesture identity
 
 The optional `workshop/pane_canvas_vocabulary.hpp` shapes are a second presentation contract,
 not a reinterpretation of prose rows. The complete wire reference, budgets and limits are in
-[`../docs/reference/workshop-panes.md#optional-pane-local-canvas`](../docs/reference/workshop-panes.md#optional-pane-local-canvas).
+[`workshop/docs/workshop-panes.md#optional-pane-local-canvas`](../workshop/docs/workshop-panes.md#optional-pane-local-canvas).
 Workshop owns local-to-screen translation, clipping, picture fencing and pointer custody;
 [`workshop/canvas.md`](workshop/canvas.md) records those host laws. The provider owns its
 picture, hit testing and every semantic action. No node, wire or pan behavior belongs in the
@@ -675,7 +675,7 @@ host action — and nothing reinterprets old bytes.
   budget, or the room's last row is cut after the fact. Measured twice before it was written
   down: `u` on a catalog produced no visible row (the project browser's whole-loop witness),
   and the Builder's seam suite caught the same class one pane over. `files/files.cpp` and
-  `builder-pane/pane.cpp` both spell it.
+  `builder/builder-pane/pane.cpp` both spell it.
   **AND SPENT MEANS GONE FROM THE PUBLISHED ROWS.** A private clear is complete only when the
   picture Workshop holds says it: an act whose answer is still on its way — the Builder's `e`
   lookup, Files' open, Info's select — says nothing of its own, and neither does an accepted act
@@ -809,7 +809,7 @@ stem         zengine-introspection                  a line in the HOST'S boot li
 ## The Composer is a schema-directed message form
 
 `composer/` builds `zengine-composer`, holding `zengine.composer` and offering pane `compose`.
-The public weaver route is [Inventory to Compose](../docs/workshop/inventory-compose.md).
+The public weaver route is [Inventory to Compose](../inventory/docs/inventory-compose.md).
 
 - LoadedSelected is accepted only from the introspection office. The target supplies its
   accepted roots and referenced closure through authenticated DescribeAccepted answers.
@@ -1031,5 +1031,5 @@ leave off a desk it does not prepare. `PaneResetRequested` explicitly discards t
 in the addressed Info, Compose or Inventory pane, refusing while its owner operation is pending.
 It neither removes inventory entries nor reverses earlier external effects. Setup preparation
 uses these owner doors; what a setup prepares is its description's (`setup.json`), read by the
-Python service. [Ready-to-use setups](../docs/workshop/demo-setups.md) owns the public scope and
+Python service. [Ready-to-use setups](../workshop/docs/demo-setups.md) owns the public scope and
 recovery path.

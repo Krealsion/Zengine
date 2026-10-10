@@ -2,9 +2,9 @@
 
 Register `WL-READ`: the desk read in one turn, a pane's reading paged under its stamp, what covers
 a pane and what is said of it, the rate desk reads are answered at, the words Workshop says of its
-own surfaces, the notice that the desk moved, and the stamp that names a picture by what it shows. The shapes are public in [workshop panes](../../docs/reference/workshop-panes.md);
+own surfaces, the notice that the desk moved, and the stamp that names a picture by what it shows. The shapes are public in [workshop panes](../../workshop/docs/workshop-panes.md);
 the reader that writes them on an agent's host is
-[Drive Workshop from another host](../../docs/workshop/external-host.md)'s. One law per heading; cite by
+[Drive Workshop from another host](../../external-host/docs/external-host.md)'s. One law per heading; cite by
 ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-READ-01 — The desk is said in one turn, paged by pane

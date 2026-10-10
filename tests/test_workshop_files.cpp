@@ -15,7 +15,7 @@
 // same completed catalog the editor reads.
 #include "builder/generate.hpp"
 #include "builder/run.hpp" // the development runtime script, run as a weaver runs it
-#include "editor-pane/editor.hpp" // the Editor's source law, asked of each development entry
+#include "editor/editor-pane/editor.hpp" // the Editor's source law, asked of each development entry
 #include "workshop/develop.hpp"   // ...and the launch that runs that script, then its host
 #include "workshop/authoring.hpp"
 #include "workshop/load_persist.hpp"
@@ -2130,7 +2130,7 @@ TEST_CASE("an editing entry is written, read back, checked as a recipe path, and
     relative.id = "attention";
     relative.artifact = "zengine-attention-pane";
     relative.cmake_target = zengine::builder::CMakeTargetRecipe{
-        "/zen/build", "zengine-attention-pane", std::string(), "attention-pane/pane.cpp"};
+        "/zen/build", "zengine-attention-pane", std::string(), "attention/pane.cpp"};
     zengine::builder::Recipe absolute = relative;
     absolute.id = "files";
     absolute.artifact = "zengine-files";
@@ -2152,12 +2152,12 @@ TEST_CASE("an editing entry is written, read back, checked as a recipe path, and
     // catalog file's own directory is not a base, exactly as for a single source.
     std::vector<zengine::builder::Recipe> completed = read.recipes;
     recipe_persist::complete_recipes(completed, "/zen/runtime", "/zen/checkout");
-    CHECK(completed[0].cmake_target->entry == "/zen/checkout/attention-pane/pane.cpp");
+    CHECK(completed[0].cmake_target->entry == "/zen/checkout/attention/pane.cpp");
     CHECK(completed[1].cmake_target->entry == "/zen/checkout/files/files.cpp");
     CHECK(completed[2].cmake_target->entry.empty());
     CHECK(completed[0].cmake_target->build_dir == "/zen/build"); // nothing else moved
     CHECK(provenance::recipe_source_of(completed, "attention").source ==
-          "/zen/checkout/attention-pane/pane.cpp");
+          "/zen/checkout/attention/pane.cpp");
 
     // AN ENTRY IS A PATH A RECIPE NAMES: a quote or a control byte is refused whole.
     zengine::builder::Recipe quoted = relative;
@@ -2179,28 +2179,28 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
         recipe_persist::load_file(WORKSHOP_DEVELOPMENT_RECIPES);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     const std::vector<std::pair<std::string, std::string>> panes = {
-        {"zengine-attention-pane", "attention-pane/pane.cpp"},
-        {"zengine-builder-pane", "builder-pane/pane.cpp"},
+        {"zengine-attention-pane", "attention/pane.cpp"},
+        {"zengine-builder-pane", "builder/builder-pane/pane.cpp"},
         // THE DESKTOP IS A PANE WEAVE LIKE ANY OTHER, which is what makes the application's
         // own defaults reachable through the ordinary edit/build/replace loop: a weaver
         // right-presses the launcher, opens this source, changes what it declares or what its
         // floor says, builds THIS target and reloads it (WL-DESK-01).
-        {"zengine-desktop-pane", "desktop-pane/pane.cpp"},
+        {"zengine-desktop-pane", "workshop/desktop-pane/pane.cpp"},
         // ...and the Connections pane, the other hosts connected here, a pane like any other.
-        {"zengine-connections-pane", "connections-pane/pane.cpp"},
-        {"zengine-editor-pane", "editor-pane/pane.cpp"},
-        {"zengine-neovim-editor", "neovim-editor/pane.cpp"},
+        {"zengine-connections-pane", "external-host/connections-pane/pane.cpp"},
+        {"zengine-editor-pane", "editor/editor-pane/pane.cpp"},
+        {"zengine-neovim-editor", "editor/neovim-editor/pane.cpp"},
         {"zengine-files", "files/files.cpp"},
-        {"zengine-info-pane", "info-pane/pane.cpp"},
-        {"zengine-terminal-pane", "terminal-pane/pane.cpp"},
+        {"zengine-info-pane", "info/pane.cpp"},
+        {"zengine-terminal-pane", "terminal/pane.cpp"},
         {"zengine-introspection", "introspection/introspection.cpp"},
         {"zengine-composer", "composer/composer.cpp"},
         // ...AND THE MENU PRESENTER, the one participant here that is not a pane: it draws nothing
         // of its own, and a weaver edits, builds and reloads it from this catalog like any pane --
         // the development road to replacing how every pane's menu is presented (WL-CTX-09).
-        {"zengine-menu-presenter", "menu-presenter/presenter.cpp"},
-        {"zengine-flow-pane", "flow-pane/pane.cpp"},
-        {"zengine-view-builder", "view-builder/pane.cpp"}};
+        {"zengine-menu-presenter", "workshop/menu-presenter/presenter.cpp"},
+        {"zengine-flow-pane", "flow/flow-pane/pane.cpp"},
+        {"zengine-view-builder", "view/view-builder/pane.cpp"}};
     REQUIRE(read.recipes.size() == panes.size());
     const std::filesystem::path host_dir =
         std::filesystem::path(WORKSHOP_HOST_DIR).lexically_normal();
@@ -2286,8 +2286,8 @@ struct RuntimeTree {
 
     explicit RuntimeTree(const std::filesystem::path& root) : build(root / "build") {
         put("workshop/zengine-workshop.exe", "host one");
-        put("snake/zengine-timer.dll", "service one");
-        put("attention-pane/zengine-attention-pane.dll", "pane one", true);
+        put("examples/snake/zengine-timer.dll", "service one");
+        put("attention/zengine-attention-pane.dll", "pane one", true);
         put("workshop/graphical-load-plan.json", "plan one");
         put("workshop/development-build-recipes.json", "catalog one");
     }
@@ -2356,7 +2356,7 @@ TEST_CASE("a development runtime is made whole into an absent directory, then re
     put_file(runtime / "zengine-attention-pane.dll", "pane promoted");
     std::filesystem::create_directories(runtime / "zengine-attention-pane.reloads");
     put_file(runtime / "zengine-attention-pane.reloads" / "zengine-attention-pane-1.dll", "a reload");
-    tree.put("attention-pane/zengine-attention-pane.dll", "pane rebuilt", true);
+    tree.put("attention/zengine-attention-pane.dll", "pane rebuilt", true);
     const auto kept = contents_of(runtime);
     const zengine::builder::RunResult reused = tree.prepare(runtime);
     REQUIRE_MESSAGE(reused.started, reused.trouble);
@@ -2422,12 +2422,12 @@ TEST_CASE("a development runtime that is stale, incomplete, or made for another 
     CHECK(contents_of(runtime) == kept);
     // ...and a rebuilt service is the same answer.
     tree.put("workshop/zengine-workshop.exe", "host one");
-    tree.put("snake/zengine-timer.dll", "service two");
+    tree.put("examples/snake/zengine-timer.dll", "service two");
     const zengine::builder::RunResult service = tree.prepare(runtime);
     CHECK(service.status != 0);
     CHECK(service.output.find("has built zengine-timer.dll anew") != std::string::npos);
     CHECK(contents_of(runtime) == kept);
-    tree.put("snake/zengine-timer.dll", "service one");
+    tree.put("examples/snake/zengine-timer.dll", "service one");
     REQUIRE(tree.prepare(runtime).status == 0);
 
     // ANOTHER CONFIGURATION of the same tree.

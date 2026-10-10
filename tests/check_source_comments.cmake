@@ -24,10 +24,10 @@ endif()
 # generator's text for a weaver.
 set(ZEN_COMMENT_ROOTS
     CMakeLists.txt cmake examples tests workshop
-    activation attention-pane builder builder-pane component composer connections-pane
-    demo-control desktop-pane editor-pane external-host files flow flow-host flow-pane info-pane
-    input introspection inventory inventory-pane maker menu-presenter message-draft neovim
-    neovim-editor operator smoke snake source-transfer surface terminal-pane timer ui view view-builder)
+    activation attention builder component composer
+    editor external-host files flow info
+    input introspection inventory maker message-draft
+    operator surface terminal timer ui view)
 set(ZEN_COMMENT_EXCLUDED tests/third_party/ tests/source_transfer_ensure_timer.generated.hpp
     tests/source_transfer_string_bytes.generated.hpp)
 set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake

@@ -17,7 +17,7 @@ MEANS
 DOES NOT MEAN
 - that Workshop runs views: the view host runs them, granted what each description implies.
 
-PROVEN BY — `desktop-pane/vocabulary.hpp` `kActionNew`; `desktop-pane/pane.cpp` `pane_rows`,
+PROVEN BY — `workshop/desktop-pane/vocabulary.hpp` `kActionNew`; `workshop/desktop-pane/pane.cpp` `pane_rows`,
 `kViewBuilderOffice`, `kViewBuilderPane`, `launch`; `tests/test_workshop_panes_actions.cpp` case
 `"WL-MAKER-11: the shipped Pane Manager's `n` shows the View Builder through the host's launch
 door, and a Workshop without one says so in the door's words"`.

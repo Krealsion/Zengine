@@ -5,7 +5,7 @@
 
 // One loadable inventory: complete typed pairs are owned as independent bytes.
 // CaptureDescribe is a narrow acquisition adapter; Set/Get stay schema-generic.
-// See docs/reference/inventory.md for authority, pending behavior and lifetime.
+// See inventory/docs/inventory.md for authority, pending behavior and lifetime.
 
 #include "inventory/codec.hpp"
 #include "inventory/archive.hpp"

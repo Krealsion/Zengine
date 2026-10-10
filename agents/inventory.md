@@ -1,7 +1,7 @@
 # The inventory weave
 
 Routed behind [AGENTS.md](../AGENTS.md). Public contract:
-[inventory](../docs/reference/inventory.md). Packaging follows [packaging](packaging.md);
+[inventory](../inventory/docs/inventory.md). Packaging follows [packaging](packaging.md);
 verification follows [verification](verification.md).
 
 - `zengine::inventory` exports the codec, vocabulary and explicit `inventory_grant()` helper.
@@ -25,7 +25,7 @@ verification follows [verification](verification.md).
 - `workshop/admission.hpp` preserves the inventory office's bounded grant when loading its
   artifact. Emit declarations do not grant authority. This grant is separate from a guest's
   `inventory` power, owned by `workshop/guests.hpp` and `guests.cpp`; see
-  [external-host](../docs/workshop/external-host.md).
+  [external-host](../external-host/docs/external-host.md).
 - `tests/test_inventory.cpp` covers admission, nested custody, forged replies/refusals, exact
   capture results and real artifact unload/load. The installed-package consumer uses the public
   codec and vocabulary; `zengine-inventory-read` renders arbitrary captured shapes. The tool's
@@ -33,7 +33,7 @@ verification follows [verification](verification.md).
 - References identify an owner and one entry, never a raw pointer or the slot's next occupant.
   Set/Capture replace identity; Write checks revision and preserves identity. Refusals leave
   storage unchanged. `test_inventory.cpp` owns these cases.
-- `inventory-pane/` owns the collection presentation; `info-pane/value_view.hpp` owns each Info
+- `inventory/inventory-pane/` owns the collection presentation; `info/value_view.hpp` owns each Info
   view's value draft (copy or linked entry) using `message-draft::Draft`. Metadata remains separate and
   read-only in this UI. A late save answer never erases newer edits; a failed fresh read never
   silently retargets a replaced entry. The loaded-pane stories are in
@@ -67,7 +67,7 @@ verification follows [verification](verification.md).
 - Inventory list pictures map rows to entry identities with `component::RowMap`. Sorting and
   renaming cannot redirect a queued press; source data is read by reference, never row index.
   The small-room projection uses `cursor_window` and accounts for its marker rows.
-- Main Inventory browses one folder (`inventory-pane/browser.hpp`): folders by name, then
+- Main Inventory browses one folder (`inventory/inventory-pane/browser.hpp`): folders by name, then
   entries. Navigation is local view state, never reload state: it follows a moved folder, falls
   back to the nearest surviving ancestor, and a restore returns to the root. Folder, crumb and
   control meanings carry the owner. Navigation works while an operation waits; other acts refuse

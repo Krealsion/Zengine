@@ -19,8 +19,8 @@
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
 
-#include "neovim-editor/vocabulary.hpp"
-#include "source-transfer/vocabulary.hpp"
+#include "editor/neovim-editor/vocabulary.hpp"
+#include "editor/source-transfer/vocabulary.hpp"
 
 #include "operator/catalog.hpp"
 #include "operator/host.hpp"
@@ -60,7 +60,7 @@
 #include "inventory/codec.hpp"
 #include "inventory/grant.hpp"
 #include "inventory/vocabulary.hpp"
-#include "inventory-pane/vocabulary.hpp"
+#include "inventory/inventory-pane/vocabulary.hpp"
 #include "workshop/pane_shortcuts.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_carry.hpp"

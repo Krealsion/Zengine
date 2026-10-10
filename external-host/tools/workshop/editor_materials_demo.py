@@ -6,7 +6,7 @@ Workshop.
 
 Zengine owns every meaning here -- what a press on the highlight is, what a drop inserts, where
 a location opens, who may do each -- and every step reads the owners' current answers by name.
-docs/workshop/editor.md#carrying-text-commands-and-file-places is the guide.
+editor/docs/editor.md#carrying-text-commands-and-file-places is the guide.
 
   prepare   pointer route (SDL): a timed linear sweep selects, a Bezier drag carries the copy
             into Snippets; right-click Extract; ctrl+l carries the place into Places; a real

@@ -6,7 +6,7 @@ expected to keep. This describes working on the public project.
 ## Layout
 
 ```text
-README.md            orientation
+README.md            orientation, and the map of the folders below
 cheat_sheet.md       dense operational reference
 AGENTS.md            the contract for automated collaborators working in this tree
 agents/              routed detail behind AGENTS.md, by surface — internal working law for
@@ -15,21 +15,22 @@ agents/              routed detail behind AGENTS.md, by surface — internal wor
 CONTRIBUTING.md      contribution terms
 LICENSING.md         the plain-language licence boundary
 
-docs/                all documentation; docs/README.md is the index
+docs/                the pages no one folder owns; docs/README.md is the index of them all
   getting-started.md
-  guides/            how-to, task-shaped
-  reference/         exact contracts, one per package or subject
-  workshop/          Workshop as a product, for a weaver
   contributing/      this directory
   architecture/      why it is shaped this way
-  laws/              numbered invariants
-  decisions/         one decision per file, with its alternatives
   history/           frozen. Describes the tree it was written against
 
-<package>/           one directory per package; see below
-examples/            small sources a weaver copies into a project of their own; compiled by tests/
+<feature>/           what a weaver meets by name in Workshop: its parts, its core library if it
+                     has one, and, where it has pages of its own, docs/ -- its guides, reference
+                     pages, laws and decisions
+workshop/            the host: Workshop itself, the parts it carries (workshop/desktop-pane/,
+                     workshop/menu-presenter/) and docs/ -- its guides and reference pages
+<package>/           one directory per library; see below. Its pages are in its own docs/
+examples/            worked examples to read, run and copy into a project of their own;
+                     examples/snake/ is built with the tree, the pane examples by tests/
 tests/               every suite, fixture and check
-reference/           the pre-Zen V1 engine, kept as a quarry. NOT built
+quarry/              the pre-Zen V1 engine, kept as a quarry. NOT built
 ```
 
 A page under `docs/contributing/` routes to the registers under `agents/` that own its rules.
@@ -116,12 +117,12 @@ obvious.
 **`docs/history/` is frozen.** It describes the tree it was written against and is not
 maintained against the current one. Do not fix it and do not cite it as current.
 
-**`reference/` is a quarry, not a codebase.** It holds the pre-Zen V1 engine as material to
+**`quarry/` is a quarry, not a codebase.** It holds the pre-Zen V1 engine as material to
 read. Nothing in it is built by this repository, and ports out of it are read-and-rewrite —
 landing in their proper home from birth, never lift-and-shift. Its provenance is a plain file
 import of that project's working tree rather than a history-carrying subtree split, so its
 history stays in the original working copy. What is actually in there is indexed by
-[reference/QUARRY-CATALOG.md](../../reference/QUARRY-CATALOG.md) — capability by capability,
+[quarry/QUARRY-CATALOG.md](../../quarry/QUARRY-CATALOG.md) — capability by capability,
 with source paths, the legacy interaction shape, and where the comparable question is answered
 today. It is archaeology, not authority: an entry saying a capability is absent is a statement
 about coverage, never a request for work.

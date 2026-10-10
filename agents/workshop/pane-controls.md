@@ -21,7 +21,7 @@ DOES NOT MEAN
 
 PROVEN BY — `component/control_strip.hpp` `Control`, `PlacedControl`, `ControlStrip`,
 `control_face`, `pack_controls`; `files/files.cpp` `browser_controls`, `say_controls`,
-`strip_budget`; `builder-pane/pane.cpp` `builder_controls`, `say_controls`, `strip_budget`;
+`strip_budget`; `builder/builder-pane/pane.cpp` `builder_controls`, `say_controls`, `strip_budget`;
 `tests/test_workshop_panes_files.cpp` case `"every control the browser draws is a target, and
 pressing it performs that operation"`, case `"in a room too short for every control the strip
 says how many are in the menu, and the menu keeps them"`.
@@ -37,7 +37,7 @@ MEANS
 - a room too small for one strip row leaves the right press, which opens the same rows.
 
 PROVEN BY — `component/list_window.hpp` `ListWindow::markers`, `cursor_window`;
-`files/files.cpp` `body_budget`, `say_entries`, `strip_budget`; `builder-pane/pane.cpp`
+`files/files.cpp` `body_budget`, `say_entries`, `strip_budget`; `builder/builder-pane/pane.cpp`
 `publish`, `output_body_rows`, `strip_budget`; `tests/test_workshop_panes_files.cpp` case `"in a
 room too short for every control the strip says how many are in the menu, and the menu keeps
 them"`; `tests/test_workshop_panes_output.cpp` case `"WL-OUT-04: a build's own words are opened,
@@ -56,7 +56,7 @@ MEANS
 PROVEN BY — `component/row_map.hpp` `RowMap::begin`, `RowMap::settle`, `RowMap::picture`,
 `RowMap::current`; `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
 `workshop/pane_canvas_rows.hpp` `CanvasPictures`; `files/files.cpp` `kMovedSentence`, `pressed`,
-`say_entries`; `builder-pane/pane.cpp` `kMovedSentence`; `tests/test_workshop_panes_canvas.cpp`
+`say_entries`; `builder/builder-pane/pane.cpp` `kMovedSentence`; `tests/test_workshop_panes_canvas.cpp`
 case `"a pane's canvas pictures fence a press by the meaning each was drawn under"`;
 `tests/test_workshop_panes_files.cpp` case `"two queued presses on the row
 painted as one entry open THAT entry"`, case `"a press that names a picture Files has
@@ -78,8 +78,8 @@ DOES NOT MEAN
 `RowMap::current` refuses it first (WL-HAND-03);
 - that the artifact name alone is the promise: `target_op_of` checks the operation beside it too.
 
-PROVEN BY — `builder-pane/vocabulary.hpp` `kActionArm`, `kActionLoadBuilt`;
-`builder-pane/pane.cpp` `BuilderMeaning::op`, `target_of`, `target_op_of`, `perform_on`,
+PROVEN BY — `builder/builder-pane/vocabulary.hpp` `kActionArm`, `kActionLoadBuilt`;
+`builder/builder-pane/pane.cpp` `BuilderMeaning::op`, `target_of`, `target_op_of`, `perform_on`,
 `offered_as`, `Offered`, `load_built`, `arm_only`, `ready_to_load`, `standing`,
 `builder_controls`, `list_controls`, `offer_menu`, `say_controls`;
 `tests/test_workshop_panes_builder.cpp` case `"the control that loads what was built names the
@@ -112,10 +112,10 @@ DOES NOT MEAN
 and the second button are its routes.
 
 PROVEN BY — `files/files.cpp` `chooser_controls`, `authoring_controls`, `edit_field`,
-`write_recipe`, `next_field`, `offer_field`, `say_authoring`; `builder-pane/pane.cpp`
+`write_recipe`, `next_field`, `offer_field`, `say_authoring`; `builder/builder-pane/pane.cpp`
 `list_controls`, `role_controls`, `output_controls`, `offer_menu`; `files/vocabulary.hpp`
 `kActionWriteRecipe`, `kActionNextField`, `kActionMenu`, `menu_edit_field`;
-`builder-pane/vocabulary.hpp` `kActionRecipes`, `kActionRecipesClose`, `kActionMenu`,
+`builder/builder-pane/vocabulary.hpp` `kActionRecipes`, `kActionRecipesClose`, `kActionMenu`,
 `kMenuOutputOlder`, `kMenuOutputRight`; `tests/test_workshop_panes_files.cpp` case `"a weaver
 authors a recipe with the mouse alone: the chooser, every field, and the write"`, case `"the
 unavailable `(next field)` control refuses in its own words and writes no recipe"`, case `"a

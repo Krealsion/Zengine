@@ -89,8 +89,8 @@ DOES NOT MEAN
 - that the next build reloads the pane: eligibility is the owner's, and Workshop's notice says it;
 - that a finished build's button now loads this recipe: it loads the build that finished.
 
-PROVEN BY — `builder-pane/pane.cpp` `on(PaneSourceOpened)`, `finish_frontier_build`,
-`build_realize`; `builder-pane/vocabulary.hpp` `BuilderPaneState::chosen`,
+PROVEN BY — `builder/builder-pane/pane.cpp` `on(PaneSourceOpened)`, `finish_frontier_build`,
+`build_realize`; `builder/builder-pane/vocabulary.hpp` `BuilderPaneState::chosen`,
 `BuilderPaneState::arm`; `tests/test_workshop_panes_code.cpp` case `"the Builder pane follows an
 opened pane source only when Workshop's office said so"`, case `"Edit Code opens the pointed
 pane's one source through the opening office, and the Builder follows its recipe"`, case `"the

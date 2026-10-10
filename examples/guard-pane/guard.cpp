@@ -4,7 +4,7 @@
 // Guard: a small Workshop pane that blocks while the right mouse button is held on it, the
 // game-like consumer of the second button: the right press is ordinary input and ends there, no
 // menu opens, and Workshop's own pane menu is reached through the Pane Manager or the chrome.
-// Walkthrough: docs/workshop/panes.md ("The second button"). One source file, built by a
+// Walkthrough: workshop/docs/panes.md ("The second button"). One source file, built by a
 // single-source recipe with zengine::pane, zengine::activation, zengine::input, loom::switchboard,
 // and loaded by a load-plan row under the role "example.guard" (kOffice, below).
 

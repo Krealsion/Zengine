@@ -26,7 +26,7 @@
 #include "builder/vocabulary.hpp"
 #include "input/input_weave.hpp"
 #include "input/vocabulary.hpp"
-#include "inventory-pane/vocabulary.hpp"
+#include "inventory/inventory-pane/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "surface/skin.hpp"
 #include "surface/vocabulary.hpp"

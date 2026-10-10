@@ -13,7 +13,7 @@
 // discovery door's two asks, one `SampleRequested` per weaver gesture, and the clipboard pair. It
 // links no operator target, so browsing cannot evaluate. The loader binds `allow_any()` to every
 // library, so this is a claim about what the weave does, not containment.
-// Reference: docs/reference/introspection.md.
+// Reference: introspection/docs/introspection.md.
 
 #include "loaded.hpp"
 #include "powers.hpp"

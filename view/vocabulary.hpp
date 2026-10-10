@@ -5,7 +5,7 @@
 
 // What a participant asks the view host, and its one answer. A session is the asker's own: the
 // office that authored the ask, or else its bus-stamped identity, never a name it may guess.
-// Reference: docs/reference/view.md.
+// Reference: view/docs/view.md.
 
 #include <zen/weave/shape.hpp>
 

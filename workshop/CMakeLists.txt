@@ -323,7 +323,7 @@ file(GENERATE OUTPUT ${zengine_workshop_dir}/development-runtime.cmake CONTENT
 #
 # Makes or reuses a development runtime: a copy of this build's Workshop that no build rule
 # writes, so a pane rebuilt from its development catalog reloads into a running Workshop without
-# the build touching an image that Workshop has mapped. See docs/workshop/develop-workshop.md.
+# the build touching an image that Workshop has mapped. See workshop/docs/develop-workshop.md.
 #
 #     cmake [-DZEN_RUNTIME=<dir>] -P ${zengine_workshop_dir}/development-runtime.cmake
 cmake_minimum_required(VERSION 3.16)

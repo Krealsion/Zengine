@@ -72,7 +72,7 @@ std::map<Key, std::string> declared_shapes(const std::filesystem::path& root) {
                                      it->path().parent_path().filename() == "examples" &&
                                      (name == "tower-defense" || name == "workshop-probe");
             if (name == ".git" || name == "third_party" || own_project ||
-                (top && (name == "tests" || name == "docs" || name == "reference" ||
+                (top && (name == "tests" || name == "docs" || name == "quarry" ||
                          name == "build" || name.rfind("build-", 0) == 0 ||
                          name.rfind("cmake-build", 0) == 0 || name == "_install"))) {
                 it.disable_recursion_pending();

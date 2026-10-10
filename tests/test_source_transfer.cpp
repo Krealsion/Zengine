@@ -9,11 +9,11 @@
 
 #include "doctest.h"
 
-#include "source-transfer/command_line.hpp"
-#include "source-transfer/cpp.hpp"
-#include "source-transfer/material.hpp"
-#include "source-transfer/text.hpp"
-#include "source-transfer/vocabulary.hpp"
+#include "editor/source-transfer/command_line.hpp"
+#include "editor/source-transfer/cpp.hpp"
+#include "editor/source-transfer/material.hpp"
+#include "editor/source-transfer/text.hpp"
+#include "editor/source-transfer/vocabulary.hpp"
 
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"

@@ -5,7 +5,7 @@ is an intentional choice — nothing here is needed to use the library or Worksh
 
 If you want to *use* something, go to [getting started](../getting-started.md), the
 [cheat sheet](../../cheat_sheet.md) or the [reference pages](../README.md). If you want to know
-what does not work yet, go to [limitations](../workshop/limitations.md).
+what does not work yet, go to [limitations](../../workshop/docs/limitations.md).
 
 ## The three layers
 
@@ -86,7 +86,7 @@ a written expectation knows what is *missing*. See
 The protocol — every shape listed in
 [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) and
 [`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp), described in
-[A weave may offer a pane](../reference/workshop-panes.md#a-weave-may-offer-a-pane) — is
+[A weave may offer a pane](../../workshop/docs/workshop-panes.md#a-weave-may-offer-a-pane) — is
 deliberately thin: Workshop grants a pane a lattice of prose rows and columns, or a canvas room in pixels it draws its own picture on, tells it *a weaver pressed here in your room*, tells it
 *a key went down and you have the keyboard* (or, for an action the pane declared, *a weaver asked
 for this action of yours*), and tells it the wheel turned over its body. **A pane never says it
@@ -96,7 +96,7 @@ Workshop's own meaning then runs; a pane that says neither keeps the gesture. On
 is held for its provider: its motion and its release are told to it under the press's room,
 picture and number until the press ends, and Workshop ends it as lost when a mode, a menu, a new
 room or a carry takes it (the
-[pane-local canvas](../reference/workshop-panes.md#optional-pane-local-canvas)).
+[pane-local canvas](../../workshop/docs/workshop-panes.md#optional-pane-local-canvas)).
 A pane may ask Workshop to carry a value or a reference
 ([`workshop/pane_carry.hpp`](../../workshop/pane_carry.hpp)) under the gesture that approved it —
 a press, an action, a shortcut or a menu choice. A value dragged out under a primary press lands
@@ -181,21 +181,21 @@ paying for.
 
 Per-subject design detail lives with the subject:
 
-- [Timer protocol](../reference/timer-protocol.md), [continuity](../reference/timer-continuity.md),
-  [the binding layer](../reference/timer-binding.md), [laws](../laws/timer-laws.md), and
-  [why durations rather than deadlines](../decisions/timer-continuity-carries-remaining-duration.md).
-- [Operator providers](../reference/operator-providers.md) — how an artifact supplies rules to a
+- [Timer protocol](../../timer/docs/timer-protocol.md), [continuity](../../timer/docs/timer-continuity.md),
+  [the binding layer](../../timer/docs/timer-binding.md), [laws](../../timer/docs/timer-laws.md), and
+  [why durations rather than deadlines](../../timer/docs/timer-continuity-carries-remaining-duration.md).
+- [Operator providers](../../operator/docs/operator-providers.md) — how an artifact supplies rules to a
   host, and how one power may be shadowed and revealed again.
-- [The operator host surface](../reference/operator-host.md) — how a loaded weave asks a host to
+- [The operator host surface](../../operator/docs/operator-host.md) — how a loaded weave asks a host to
   evaluate a rule it did not compile with.
-- [Load plans](../reference/load-plan.md) — the execution law, and what a failed artifact rolls
+- [Load plans](../../workshop/docs/load-plan.md) — the execution law, and what a failed artifact rolls
   back.
-- [Introspection](../reference/introspection.md) — why three panes rather than one table, and why
+- [Introspection](../../introspection/docs/introspection.md) — why three panes rather than one table, and why
   two of them deliberately disagree.
-- [Pointer spaces](../reference/pointer-spaces.md) — where a reported position lands, and which
+- [Pointer spaces](../../workshop/docs/pointer-spaces.md) — where a reported position lands, and which
   package owns each step.
-- [The Surface package](../reference/surface.md) — the depth model, and the two kinds of text.
-- [The UI package](../reference/ui.md) — the authored/resolved fence.
+- [The Surface package](../../surface/docs/surface.md) — the depth model, and the two kinds of text.
+- [The UI package](../../ui/docs/ui.md) — the authored/resolved fence.
 
 Frozen material describing an earlier tree is in [`docs/history/`](../history/pre-r2c/README.md)
 and is not maintained against the current one.

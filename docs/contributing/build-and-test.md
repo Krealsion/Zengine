@@ -242,7 +242,7 @@ It is a CMake script, like every repository-owned check here, because CMake is a
 project already has on every lane by construction — a verifier may not depend on a tool that
 merely happens to be installed. It deliberately does not require a comment to carry a
 reference, does not reach outside this repository (a standalone clone has no sibling to look at),
-and does not police `docs/history/` or the `reference/` quarry. Its self-test makes the real
+and does not police `docs/history/` or the quarry, `quarry/`. Its self-test makes the real
 predicate say **no** to a bad path and a bad anchor before it answers, because a clean tree and
 a broken checker produce byte-identical output.
 

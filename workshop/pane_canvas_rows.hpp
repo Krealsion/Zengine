@@ -8,7 +8,7 @@
 // names as the rectangles they cover, and the inverse a pointer's place is read through. The pane
 // owns the picture -- what each row says, which parts it names and what a press means; this is
 // the arithmetic every pane drawing rows would otherwise repeat. Reference:
-// docs/reference/workshop-panes.md, "Rows on the lattice".
+// workshop/docs/workshop-panes.md, "Rows on the lattice".
 
 #include "pane_canvas_text.hpp"
 #include "pane_canvas_vocabulary.hpp"

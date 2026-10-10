@@ -13,7 +13,7 @@
 #include "cells.hpp"
 #include "region.hpp"
 #include "skin_sdl_glyphs.hpp"
-#include "snake/vocabulary.hpp"
+#include "examples/snake/vocabulary.hpp"
 #include "vocabulary.hpp"
 
 #include <cstdint>

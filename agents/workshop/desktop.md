@@ -21,8 +21,8 @@ DOES NOT MEAN
 - that holding the office is speaking for it — a personal declaration registers nothing.
 
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `kDesktopRole`;
-`desktop-pane/vocabulary.hpp` `kDesktopRole`, `kLauncherPane`, `kLauncherName`,
-`kLauncherSummary`, `kDesktopStem`, `DesktopState`; `desktop-pane/pane.cpp` `DesktopWeave`;
+`workshop/desktop-pane/vocabulary.hpp` `kDesktopRole`, `kLauncherPane`, `kLauncherName`,
+`kLauncherSummary`, `kDesktopStem`, `DesktopState`; `workshop/desktop-pane/pane.cpp` `DesktopWeave`;
 `tests/test_workshop_load.cpp` case `"the shipped default plan is a legal plan, and it is the
 terminal arrangement"`; `tests/test_workshop_files.cpp` case `"the development catalog this tree
 generated names every shipped pane by its own target, build directory and weave source, each one
@@ -70,7 +70,7 @@ DOES NOT MEAN
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneLaunchRequested`,
 `PaneLaunchAnswered`; `workshop/weave.hpp` `launch_pane`, `on(PaneLaunchRequested)`,
 `provider_present`; `workshop/weave_desktop.cpp` `launch_pane`, `on(PaneLaunchRequested)`,
-`provider_present`; `workshop/setup.hpp` `inventory_rows`; `desktop-pane/vocabulary.hpp`
+`provider_present`; `workshop/setup.hpp` `inventory_rows`; `workshop/desktop-pane/vocabulary.hpp`
 `kActionTerminal`, `kActionPanes`, `kActionLaunch`; `tests/test_workshop_panes_actions.cpp` case
 `"a pane whose provider left is unavailable in the launcher and refused at launch, while its
 identity and the desk row naming it stay"`, case `"a pane the run is still loading is pending,
@@ -121,7 +121,7 @@ PROVEN BY — `workshop/pane_vocabulary.hpp` `ActionsJudged`, `ActionsWithdrawn`
 `workshop/weave.hpp` `answer_declaration`, `say_withdrawn`, `rejoin_app_rows`;
 `workshop/weave_desktop.cpp` `answer_declaration`, `say_withdrawn`, `rejoin_app_rows`;
 `workshop/weave_seam.cpp` `declare_pane_actions`, `rejoin_pane_rows`; `workshop/panes.hpp`
-`RuntimePane::declaration`; `desktop-pane/pane.cpp` `DesktopWeave`;
+`RuntimePane::declaration`; `workshop/desktop-pane/pane.cpp` `DesktopWeave`;
 `tests/test_workshop_panes_actions.cpp` case `"a verdict answers the declaration it judges: a
 refused attempt is named by its own number after a later one was accepted, and an accepted one
 is given Workshop's"`, case `"a declaration the keymap file displaces is withdrawn by the number
@@ -185,7 +185,7 @@ MEANS
 
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneCloseRequested`, `PaneCloseAnswered`;
 `workshop/weave.hpp` `close_pane`, `on(PaneCloseRequested)`; `workshop/weave_desktop.cpp`
-`close_pane`, `on(PaneCloseRequested)`; `desktop-pane/vocabulary.hpp` `kActionClose`;
+`close_pane`, `on(PaneCloseRequested)`; `workshop/desktop-pane/vocabulary.hpp` `kActionClose`;
 `tests/test_workshop_panes_actions.cpp` case `"WL-DESK-12: a close takes a pane off the desk and
 leaves its provider holding; a close of a pane that is not there is refused and opens nothing"`,
 case `"the shipped desktop's x closes the row its marker holds, and Return opens it again: the
@@ -208,7 +208,7 @@ DOES NOT MEAN
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneToggleRequested`,
 `PaneToggleAnswered`; `workshop/weave.hpp` `on(PaneToggleRequested)`;
 `workshop/weave_desktop.cpp` `on(PaneToggleRequested)`, `launch_pane`, `close_pane`;
-`desktop-pane/vocabulary.hpp` `kActionPanes`; `tests/test_workshop_panes_desktop.cpp` case
+`workshop/desktop-pane/vocabulary.hpp` `kActionPanes`; `tests/test_workshop_panes_desktop.cpp` case
 `"WL-DESK-13: Ctrl+P is a strict visibility toggle judged by the host -- open becomes closed,
 closed becomes open and focused, whatever the desktop last heard"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`

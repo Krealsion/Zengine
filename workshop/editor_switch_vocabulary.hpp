@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_EDITOR_SWITCH_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_EDITOR_SWITCH_VOCABULARY_HPP
 
-// Switching the Editor as a weaver asks for it (WL-SWITCH, docs/reference/editor-switch.md): the
+// Switching the Editor as a weaver asks for it (WL-SWITCH, editor/docs/editor-switch.md): the
 // office `zengine.editor-switch` moves `zengine.editor` between the choices the load plan authors,
 // carrying the document. Four asks, each answered with `EditorSwitchAnswered`; while a switch is
 // under way, `EditorSwitchProgress` keeps it on the desk as a standing condition.
