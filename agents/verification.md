@@ -73,10 +73,10 @@ self-test before they answer:
   current-facing document cites by name existing wherever the citation stands, every WL, MW or VM
   id a source comment names declared, and no development-phase id in a current-facing Markdown
   file.
-- **`source_comments`** (`tests/check_source_comments.cmake`) — the comments under the roots its
-  own `ZEN_COMMENT_ROOTS` names meet the source comment standard: no block over six lines outside
-  an installed header, no removal note, no phase name or private id; each finding names where the
-  text belongs.
+- **`source_comments`** (`tests/check_source_comments.cmake`) — the comments under the folders
+  `tests/folders.txt` lists as code meet the source comment standard: no block over six lines
+  outside an installed header, no removal note, no phase name or private id; each finding names
+  where the text belongs.
 
 ## Where the method is
 

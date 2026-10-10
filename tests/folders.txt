@@ -1,0 +1,38 @@
+# One row per top-level folder of this repository, `folder kind`: the one list of folders the text
+# checks read (tests/text_checks.cmake, zen_source_roots). A feature is what a weaver meets by name
+# in Workshop, a pane or the tool behind one; the host is Workshop; a library is what a program
+# links or a weave builds on by name; the rest is the repository's own: examples, the build's
+# helpers (build), every suite and check (tests), repository scripts (tools), the cross-cutting
+# pages (docs), the law registers (law), the pre-Zen engine kept and not built (quarry), and the
+# forge's and the IDE's settings (repository). A new top-level folder takes a row here. ASCII only.
+activation        library
+agents            law
+attention         feature
+builder           feature
+cmake             build
+component         library
+composer          feature
+docs              docs
+editor            feature
+examples          examples
+external-host     feature
+files             feature
+flow              feature
+info              feature
+input             library
+introspection     feature
+inventory         feature
+maker             library
+message-draft     library
+operator          library
+quarry            quarry
+surface           library
+terminal          feature
+tests             tests
+timer             library
+tools             tools
+ui                library
+view              feature
+workshop          host
+.github           repository
+.run              repository

@@ -79,7 +79,25 @@ std::vector<std::string> shape_names_in(const std::string& text) {
     return out;
 }
 
-/// EVERY SHAPE NAME THE TREE'S COMPONENTS DECLARE, with the top-level directories declaring it.
+/// THE COMPONENT A SOURCE BELONGS TO: the deepest folder at or below its top-level folder that is a
+/// package -- a CMakeLists.txt or a vocabulary.hpp of its own -- so a feature's parts
+/// (`builder/builder-pane`, the header-only `flow/flow-host`) are components as a top-level package
+/// is, and a folder that is no package belongs to the one above it.
+std::string component_of(const std::filesystem::path& root, const std::filesystem::path& file) {
+    namespace fs = std::filesystem;
+    const fs::path rel = fs::relative(file, root);
+    std::string component = rel.begin()->string();
+    fs::path walked;
+    for (auto it = rel.begin(); std::next(it) != rel.end(); ++it) {
+        walked /= *it;
+        if (fs::exists(root / walked / "CMakeLists.txt") || fs::exists(root / walked / "vocabulary.hpp")) {
+            component = walked.generic_string();
+        }
+    }
+    return component;
+}
+
+/// EVERY SHAPE NAME THE TREE'S COMPONENTS DECLARE, with the components declaring it.
 /// The tests keep copies of published shapes on purpose, and build trees and vendored code are not
 /// this tree's own, so none of them is read.
 std::map<std::string, std::set<std::string>> declared_shape_names(const std::filesystem::path& root,
@@ -105,7 +123,7 @@ std::map<std::string, std::set<std::string>> declared_shape_names(const std::fil
         }
         std::ifstream in(it->path(), std::ios::binary);
         const std::string text{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
-        const std::string component = fs::relative(it->path(), root).begin()->string();
+        const std::string component = component_of(root, it->path());
         for (const std::string& shape : shape_names_in(text)) {
             out[shape].insert(component);
             ++declarations;

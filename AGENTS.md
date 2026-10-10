@@ -111,7 +111,7 @@ cmake -P tests/documentation_lane.cmake
 ```
 
 - **A change that touches no compiled line is verified by the documentation lane**: Markdown, an
-  image under `docs/`, a text check or the files only text checks read.
+  image under a `docs/` folder, a text check or the files only text checks read.
   `tests/check_change_kind.cmake` says each changed file's kind against `origin/main` and why,
   and the lane runs every text check `tests/text_checks.cmake` lists, in seconds, passing only
   for a documentation-only change; CI runs those checks on every change and skips the build and
@@ -171,10 +171,10 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   every case a current-facing document cites and every law id a source comment or document names
   resolving; no plan code or step label in a case name, and in a current-facing document no plan
   code, no development phase used as a clock and no history told in the forms the check names),
-  `source_comments` (the comment standard over the roots its own list names: no long block,
-  removal note or private id) and `code_values` (every value `tests/code_values.txt` registers
-  read from its owner: no marker out of step, no known value copied unmarked, no test count
-  without its commit and command). Full contract detail:
+  `source_comments` (the comment standard over the folders `tests/folders.txt` lists as code: no
+  long block, removal note or private id) and `code_values` (every value `tests/code_values.txt`
+  registers read from its owner: no marker out of step, no known value copied unmarked, no test
+  count without its commit and command). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction

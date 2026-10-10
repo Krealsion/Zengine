@@ -38,14 +38,11 @@ set(ZEN_DOC_EXCLUDE
     "^quarry/"            # the pre-Zen engine, kept as a quarry and not live
     "third_party/")          # vendored
 
-# First-party C/C++, CMake and the population manifest, whose comments are read: the roots
-# source_comments holds, so a new package is a root in both. A root that is a file is read alone.
-set(ZEN_DOC_SOURCE_ROOTS
-    CMakeLists.txt activation attention builder cmake component composer
-    editor examples external-host files flow
-    info input introspection inventory maker
-    message-draft operator surface
-    terminal tests timer ui workshop)
+# First-party C/C++, CMake and the population manifest, whose comments are read: the folders
+# tests/folders.txt names as holding code, which source_comments holds too, and the root
+# CMakeLists.txt, a root that is a file and is read alone.
+include("${CMAKE_CURRENT_LIST_DIR}/text_checks.cmake")
+zen_source_roots("${ZEN_REPO}" ZEN_DOC_SOURCE_ROOTS)
 set(ZEN_DOC_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake *.cmake.in
     test_population.txt)
 # The globs as one name pattern, so each root is walked once: a walk per glob reads every
