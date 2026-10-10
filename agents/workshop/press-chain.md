@@ -64,9 +64,9 @@ PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerButton)`; `workshop/weave_
 `external_press`; `workshop/screen_chrome.cpp` `occupied_at`; `workshop/screen.hpp`
 `Occupancy::kind`, `ExternalPressAt`, `kNoKind`; `workshop/screen_external.cpp`
 `external_press_at`; `tests/test_workshop_screen.cpp` case `"a pane in front of the Layouts pane
-takes the press"`, case `"outside arrangement, an addressed pane behind
-another clicks through nothing"`; `tests/test_workshop_panes_input.cpp` case `"management
-chrome gets first refusal, and a mode takes the press whole"`.
+takes the press"`; `tests/test_workshop_panes_window.cpp` case `"outside arrangement, an
+addressed pane behind another clicks through nothing"`; `tests/test_workshop_panes_input.cpp`
+case `"management chrome gets first refusal, and a mode takes the press whole"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-05 — `band_tab_at` is the Layouts pane's local inverse
