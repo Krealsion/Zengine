@@ -1558,20 +1558,50 @@ TEST_CASE("every ask the tool hears is answered by its own word: taken as its nu
     CHECK(live.ears->asked[1].refusal.find("already running") != std::string::npos);
     CHECK_FALSE(live.ears->asked[2].taken);
     CHECK(live.ears->asked[2].refusal.find("no recipe called `something-else`") != std::string::npos);
-    // THE SEAM A FOLLOWER MUST STEP AROUND: the unknown-recipe refusal is folded into the one
-    // outcome field while build #1 runs. Its BuildAsked says whose word that is.
-    CHECK(live.ears->last().outcome == outcome::kUnknownRecipe);
+    // BOTH REFUSALS LEAVE BUILD #1'S PICTURE ITS OWN: each is said in its BuildAsked and in
+    // `detail`, and the outcome stays the running build's.
+    CHECK(live.ears->last().outcome == outcome::kRunning);
+    CHECK(live.ears->last().detail.find("no recipe called `something-else`") != std::string::npos);
     CHECK(live.ears->last().builds == 1);
     CHECK(live.runner->ran() == 1);
-    CHECK(live.runner->live() == 1); // ...while build #1 is still running: the outcome field lies
-                                     // about it, which is why this rig's carry cannot be used here
+    CHECK(live.runner->live() == 1);
+
+    live.carry_until_over();
+    CHECK(live.tool->known().outcome == outcome::kSucceeded); // build #1's own ending, said later
+    CHECK(live.tool->known().builds == 1);
+    CHECK(live.ears->asked.size() == 3); // an ending is a status, never another ask's word
+}
+
+TEST_CASE("an ask for a recipe the tool does not hold, heard while a build runs, lets no second "
+          "build in, and the running build is followed to its own ending") {
+    // Two trees, so that a run in which the third ask is taken never puts two builds in one tree.
+    Live live({cmake_recipe("alpha", "fixture-slow5"),
+               cmake_recipe_in(kFixtureTreeB, "beta", "fixture-slow4")});
+    live.tell_tool(BuildRequested{"alpha", true});
+    REQUIRE(live.tool->known().outcome == outcome::kRunning);
+    REQUIRE(live.tool->known().op == 1);
+
+    live.tell_tool(BuildRequested{"something-else"}); // a name it does not hold
+    live.tell_tool(BuildRequested{"beta"});           // a name it holds, while #1 runs
+    REQUIRE(live.ears->asked.size() == 3);
+    CHECK_FALSE(live.ears->asked[1].taken);
+    CHECK(live.ears->asked[1].refusal.find("no recipe called `something-else`") != std::string::npos);
+    CHECK_FALSE(live.ears->asked[2].taken);
+    CHECK(live.ears->asked[2].refusal.find("already running: operation #1") != std::string::npos);
+    CHECK(live.tool->known().builds == 1);
+    CHECK(live.runner->ran() == 1);
 
     for (int guard = 0; guard < 2000000 && live.runner->live() > 0; ++guard) {
         live.beat();
     }
-    CHECK(live.tool->known().outcome == outcome::kSucceeded); // build #1's own ending, said later
-    CHECK(live.tool->known().builds == 1);
-    CHECK(live.ears->asked.size() == 3); // an ending is a status, never another ask's word
+    CHECK(live.runner->live() == 0);
+    // BUILD #1 IS STILL THE ONE FOLLOWED: its ending is judged, nothing it said is stray, and the
+    // realization it asked for is offered, once.
+    CHECK(live.tool->known().recipe == "alpha");
+    CHECK(live.tool->known().outcome == outcome::kSucceeded);
+    CHECK(live.tool->known().stray == 0);
+    REQUIRE(live.ears->built.size() == 1);
+    CHECK(live.ears->built[0].recipe == "alpha");
 }
 
 TEST_CASE("the tool says where it stands to one asker alone, and that moves nothing and tells "

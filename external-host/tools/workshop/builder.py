@@ -352,9 +352,9 @@ def follow(ctx, words, record, ask):
             superseded(ctx, record, "the Builder took ask %d before ask %d's ending was seen"
                        % (s["builds"], number), number, op)
         if s["outcome"] == 5:
-            # ANOTHER ASK'S REFUSAL, NOT THIS BUILD'S ENDING: the Builder judges an unknown recipe
-            # before its one-at-a-time rule, and says so in the one outcome field while a build
-            # runs. A taken ask's recipe was known, so its build never ends this way.
+            # ANOTHER ASK'S REFUSAL, NOT THIS BUILD'S ENDING: with no build running, the Builder
+            # says an unknown recipe in the one outcome field, over the picture of the build before
+            # it. A taken ask's recipe was known, so its build never ends this way.
             record.setdefault("set_aside", []).append({"seq": item.seq, "why": s["detail"]})
             continue
         last = {"seq": item.seq, "op": s["op"], "outcome": OUTCOME.get(s["outcome"], s["outcome"]),
