@@ -285,7 +285,11 @@ public:
     void on(const BuildRequested& ask, loom::Mail& mail) {
         const RecipeView* chosen = view_named(recipes_, ask.recipe);
         if (chosen == nullptr) {
-            state_.outcome = outcome::kUnknownRecipe;
+            // A build that is running keeps its outcome: the refusal is this ask's, said in its
+            // `BuildAsked` and in `detail`, as the one-at-a-time refusal below says itself.
+            if (!still_going(state_.outcome)) {
+                state_.outcome = outcome::kUnknownRecipe;
+            }
             state_.detail = recipes_.empty()
                                 ? std::string("this Builder holds no recipes at all")
                                 : "this Builder holds no recipe called `" + ask.recipe +
