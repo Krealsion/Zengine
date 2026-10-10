@@ -351,10 +351,11 @@ def follow(ctx, words, record, ask):
         if s["builds"] > number:
             superseded(ctx, record, "the Builder took ask %d before ask %d's ending was seen"
                        % (s["builds"], number), number, op)
-        if s["outcome"] == 5:
+        if s["outcome"] == 5 and build is None:
             # ANOTHER ASK'S REFUSAL, NOT THIS BUILD'S ENDING: with no build running, the Builder
             # says an unknown recipe in the one outcome field, over the picture of the build before
-            # it. A taken ask's recipe was known, so its build never ends this way.
+            # it. A taken ask's recipe was known, so its build never ends this way. Once this
+            # build has ended, the picture's realization is still its own and is read below.
             record.setdefault("set_aside", []).append({"seq": item.seq, "why": s["detail"]})
             continue
         last = {"seq": item.seq, "op": s["op"], "outcome": OUTCOME.get(s["outcome"], s["outcome"]),
@@ -437,7 +438,9 @@ def look(ctx, words, record, op, relay, link):
     def judge(s, seq, delivery, source):
         """One picture of op N's own; the further along stands."""
         judged["builds"] = s["builds"]
-        if s["outcome"] == 5:
+        if s["outcome"] == 5 and record["build"] is None:
+            # An unknown recipe's refusal hides op N's outcome; after op N's ending was seen, its
+            # realization is still op N's.
             record.setdefault("set_aside", []).append({"seq": seq, "why": s["detail"]})
             return
         judged["realize"] = bool(s["realize"])
