@@ -2,6 +2,13 @@ name: CI
 
 on:
   pull_request:
+  # PROOF ONLY, never merged: runs on this branch save into this branch's cache scope.
+  workflow_dispatch:
+    inputs:
+      owe_regeneration:
+        description: Touch CMakeLists.txt after the build, so CMake owes the tree a regeneration
+        type: boolean
+        default: false
   push:
     branches:
       - main
@@ -215,6 +222,10 @@ jobs:
       # its case floor, and that each of them still refuse an empty population. No
       # expected counts live in this file -- they live in the manifest, which keeps them
       # out of reach of an edit that deletes a registration.
+      - name: Owe CMake a regeneration
+        if: ${{ inputs.owe_regeneration }}
+        run: touch CMakeLists.txt
+
       - name: Verify the repository-owned population
         run: |
           set +e
@@ -245,13 +256,13 @@ jobs:
       # Only `main` saves, and only what this run used: entries no compile read since the job began
       # are dropped first, so the store follows `main`.
       - name: Keep only what this run used
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
         run: |
           "$ZEN_CCACHE" --evict-older-than "$(( $(date +%s) - ZEN_CCACHE_SINCE + 60 ))s"
           "$ZEN_CCACHE" --show-stats
 
       - name: Save the compiler cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
@@ -365,6 +376,10 @@ jobs:
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Owe CMake a regeneration
+        if: ${{ inputs.owe_regeneration }}
+        run: touch CMakeLists.txt
+
       - name: Verify the repository-owned population under ASan + UBSan
         run: |
           set +e
@@ -383,13 +398,13 @@ jobs:
           exit "$verify_rc"
 
       - name: Keep only what this run used
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
         run: |
           "$ZEN_CCACHE" --evict-older-than "$(( $(date +%s) - ZEN_CCACHE_SINCE + 60 ))s"
           "$ZEN_CCACHE" --show-stats
 
       - name: Save the compiler cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
@@ -518,7 +533,7 @@ jobs:
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 
       - name: Keep only what this run used
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
         shell: pwsh
         run: |
           $age = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]$env:ZEN_CCACHE_SINCE + 60
@@ -526,7 +541,7 @@ jobs:
           & $env:ZEN_CCACHE --show-stats
 
       - name: Save the compiler cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
