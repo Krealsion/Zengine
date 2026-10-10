@@ -1604,6 +1604,39 @@ TEST_CASE("an ask for a recipe the tool does not hold, heard while a build runs,
     CHECK(live.ears->built[0].recipe == "alpha");
 }
 
+TEST_CASE("an ask for a recipe the tool does not hold, heard before the build it follows has "
+          "started, lets no second build in") {
+    // THE THREE ASKS ARRIVE IN ONE DRAIN, so the second and the third are heard while the first is
+    // asked and not yet started: the window before the runner numbers it.
+    Live live({cmake_recipe("alpha", "fixture-slow5"),
+               cmake_recipe_in(kFixtureTreeB, "beta", "fixture-slow4")});
+    for (const BuildRequested& ask : {BuildRequested{"alpha", true},
+                                      BuildRequested{"something-else"}, BuildRequested{"beta"}}) {
+        (void)live.bus.send_to_role(kBuilderRole, loom::Message(loom::to_value(ask)));
+    }
+    live.bus.drain_until_idle();
+    REQUIRE(live.ears->asked.size() == 3);
+    CHECK(live.ears->asked[0].taken);
+    CHECK_FALSE(live.ears->asked[1].taken);
+    CHECK(live.ears->asked[1].refusal.find("no recipe called `something-else`") != std::string::npos);
+    CHECK_FALSE(live.ears->asked[2].taken);
+    CHECK(live.ears->asked[2].refusal.find("has not started yet") != std::string::npos);
+    REQUIRE(live.ears->said.size() >= 2);
+    CHECK(live.ears->said[1].outcome == outcome::kAsked); // the picture after the unknown refusal
+    CHECK(live.tool->known().builds == 1);
+    CHECK(live.runner->ran() == 1);
+
+    for (int guard = 0; guard < 2000000 && live.runner->live() > 0; ++guard) {
+        live.beat();
+    }
+    CHECK(live.runner->live() == 0);
+    CHECK(live.tool->known().recipe == "alpha");
+    CHECK(live.tool->known().outcome == outcome::kSucceeded);
+    CHECK(live.tool->known().stray == 0);
+    REQUIRE(live.ears->built.size() == 1);
+    CHECK(live.ears->built[0].recipe == "alpha");
+}
+
 TEST_CASE("the tool says where it stands to one asker alone, and that moves nothing and tells "
           "nobody else") {
     Live live({cmake_recipe("slow", "fixture-slow5")});
