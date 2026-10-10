@@ -71,16 +71,26 @@ public:
     /// about the ask. A stand-in that answered a settled outcome inside the ask would be
     /// answering a question nobody had waited for.
     void on(const bld::BuildRequested& ask, loom::Mail& mail) {
-        ++builds;
         ++state_.answered;
         asked.push_back(ask.recipe);
         realize_asked.push_back(ask.realize);
+        if (busy) {
+            // ONE AT A TIME: refused in the tool's own voice, its picture the running build's.
+            (void)mail.publish(next);
+            return;
+        }
+        ++builds;
         next.recipe = ask.recipe;
         next.realize = ask.realize;
         next.builds = builds;
+        next.op = 0;
         next.outcome = bld::outcome::kAsked;
+        next.realization = ask.realize ? bld::realization::kAsked : bld::realization::kNotAsked;
+        next.realized_detail.clear();
         (void)mail.publish(next);
     }
+    /// A build is running that the tool will not leave for another ask.
+    bool busy = false;
     void on(const bld::PromoteArtifact& said, loom::Mail&) { promotes.push_back(said.artifact); }
     void on(const bld::RevertArtifact& said, loom::Mail&) { reverts.push_back(said.artifact); }
     /// A READER'S PAGE, HEARD AND NOT ANSWERED: the page waits on a tool that holds no output.
@@ -720,6 +730,144 @@ TEST_CASE("`P` and `R` are one offer each, about the built artifact") {
     CHECK(b.tool->reverts[0] == "zengine-snake");
     // ...and the revert's sentence says what it leaves alone: the source the weaver saved.
     CHECK(b.text().find("saved source unchanged") != std::string::npos);
+}
+
+/// THE NOTICE ROW ITSELF -- the first row the pane says -- begins with `words`. The realize row
+/// carries the owner's words too, so a search of the whole text cannot tell the two apart.
+bool notice_says(BuilderRig& b, const std::string& words) {
+    const std::vector<std::string> rows = b.shown();
+    return !rows.empty() && rows[0].rfind(words, 0) == 0;
+}
+
+TEST_CASE("a build-and-load is said twice: the build's ending, then the load's answer") {
+    BuilderRig b("bld-two-notices");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.open(240, 60);
+    b.r.key(input::scan::kB, input::mod::kShift);
+    REQUIRE(b.text().find("load after build: on") != std::string::npos);
+
+    SUBCASE("the gesture's sentence while it builds, the build's ending, then the load's") {
+        b.letter(input::scan::kB, "b");
+        REQUIRE(b.tool->realize_asked.size() == 1);
+        REQUIRE(b.tool->realize_asked[0]);
+        CHECK_MESSAGE(notice_says(b, "asked the Builder for `snake` and to realize it"), b.text());
+
+        b.tool->next.op = 1;
+        b.tool->next.artifact = "zengine-snake";
+        b.tool->next.outcome = bld::outcome::kSucceeded;
+        b.tool->next.detail = "built zengine-snake";
+        b.tool->next.realization = bld::realization::kOffered;
+        b.tool->next.realized_detail = "offered to the project";
+        b.tool_says();
+        CHECK_MESSAGE(notice_says(b, "succeeded `snake` -> zengine-snake -- built"), b.text());
+
+        b.tool->next.realization = bld::realization::kRealized;
+        b.tool->next.realized_detail = "reloaded in place";
+        b.tool->next.default_image = false;
+        b.tool_says();
+        CHECK_MESSAGE(notice_says(b, "realize: realized, NOT DEFAULT (promote makes it the file a "
+                                     "restart loads) -- reloaded in place"),
+                      b.text());
+
+        // THE LOAD WAS SAID ONCE: a revert's answer about the same image is the revert's row, and
+        // the revert keeps its own sentence.
+        b.r.key(input::scan::kR, input::mod::kShift);
+        REQUIRE(b.tool->reverts.size() == 1);
+        b.tool->next.realized_detail = "reverted: the previous image runs";
+        b.tool_says();
+        CHECK_MESSAGE(notice_says(b, "asked to revert `zengine-snake`"), b.text());
+    }
+
+    SUBCASE("a build that failed is one notice, its refused load said by the build's ending") {
+        b.letter(input::scan::kB, "b");
+        b.tool->next.op = 1;
+        b.tool->next.outcome = bld::outcome::kFailed;
+        b.tool->next.status = 2;
+        b.tool->next.detail = "error: snake.cpp:3";
+        b.tool->next.realization = bld::realization::kRefused;
+        b.tool->next.realized_detail = "the build failed, so nothing was offered to the project";
+        b.tool_says();
+        CHECK_MESSAGE(notice_says(b, "FAILED `snake` -- error: snake.cpp:3"), b.text());
+        b.tool_says();
+        CHECK_MESSAGE(notice_says(b, "FAILED `snake`"), b.text());
+    }
+
+    SUBCASE("a build-and-load the tool refuses while another build runs leaves no load waiting") {
+        b.tool->next.recipe = "snake";
+        b.tool->next.builds = 1;
+        b.tool->next.op = 7;
+        b.tool->next.outcome = bld::outcome::kRunning;
+        b.tool->next.realization = bld::realization::kNotAsked;
+        b.tool->busy = true;
+        b.tool_says();
+        b.letter(input::scan::kB, "b");
+        REQUIRE(b.tool->realize_asked.size() == 1);
+        CHECK(b.tool->builds == 0);
+        // The running plain build ends; its picture names no load to come.
+        b.tool->busy = false;
+        b.tool->next.artifact = "zengine-snake";
+        b.tool->next.outcome = bld::outcome::kSucceeded;
+        b.tool->next.detail = "built zengine-snake";
+        b.tool_says();
+        REQUIRE_MESSAGE(notice_says(b, "succeeded `snake`"), b.text());
+        // A load the tool later answers for op #7 was asked by nobody here.
+        b.tool->next.realization = bld::realization::kRealized;
+        b.tool->next.realized_detail = "reloaded in place";
+        b.tool_says();
+        CHECK_MESSAGE(notice_says(b, "succeeded `snake`"), b.text());
+    }
+
+    SUBCASE("a later operation's load is never this one's") {
+        b.letter(input::scan::kB, "b");
+        b.tool->next.op = 1;
+        b.tool->next.artifact = "zengine-snake";
+        b.tool->next.outcome = bld::outcome::kSucceeded;
+        b.tool->next.detail = "built zengine-snake";
+        b.tool->next.realization = bld::realization::kOffered;
+        b.tool_says();
+        REQUIRE_MESSAGE(notice_says(b, "succeeded `snake`"), b.text());
+        // ANOTHER ASKER'S BUILD-AND-LOAD is taken before this one's load is answered: op #1's offer
+        // will not be answered now, and op #2's answer is not this pane's.
+        b.tool->next.op = 2;
+        b.tool->next.outcome = bld::outcome::kRunning;
+        b.tool->next.realization = bld::realization::kAsked;
+        b.tool_says();
+        b.tool->next.outcome = bld::outcome::kSucceeded;
+        b.tool->next.realization = bld::realization::kRealized;
+        b.tool->next.realized_detail = "reloaded in place";
+        b.tool_says();
+        CHECK_MESSAGE(notice_says(b, "succeeded `snake`"), b.text());
+    }
+}
+
+TEST_CASE("a build-and-load refused at dispatch is said with the office and Loom's reason, and "
+          "nothing stays armed") {
+    // THE OFFICE GOES BEFORE DELIVERY: Workshop approves the build, the ask is queued to the
+    // tool's office with a valid ticket, and the office is gone when Loom would deliver it.
+    BuilderRig b("bld-build-refused");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.open(240, 60);
+    b.r.key(input::scan::kB, input::mod::kShift);
+    REQUIRE(b.text().find("load after build: on") != std::string::npos);
+    const std::string bytes = b.r.bus.snapshot_bytes(b.tool_id);
+    b.r.bus.kill(b.tool_id);
+    b.letter(input::scan::kB, "b");
+    CHECK_MESSAGE(notice_says(b, "`snake` was not built or loaded -- the ask could not reach "
+                                 "zengine.builder (TargetUnavailable)"),
+                  b.text());
+    CHECK_MESSAGE(b.text().find("waiting for it to start") == std::string::npos, b.text());
+
+    // THE OFFICE COMES BACK, and a load it then answers was asked by nobody here.
+    REQUIRE(b.r.bus.swap_state(b.tool_id, bytes).revived);
+    CHECK(b.tool->asked.empty());
+    b.tool->next.recipe = "snake";
+    b.tool->next.op = 3;
+    b.tool->next.artifact = "zengine-snake";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool->next.realized_detail = "reloaded in place";
+    b.tool_says();
+    CHECK_MESSAGE(notice_says(b, "`snake` was not built or loaded"), b.text());
 }
 
 // ============================================================================

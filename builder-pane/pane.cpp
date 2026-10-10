@@ -480,24 +480,41 @@ public:
         // the second is news (WL-PROJ-11): an answer about a build that finished earlier is not
         // announced as though it just happened.
         const bool watching = awaiting_;
+        const bool ended = !builder::still_going(said.outcome);
         heard_ = true;
         shown_ = said;
-        if (!builder::still_going(said.outcome)) {
+        if (ended) {
             awaiting_ = false;
+            build_ = Ask{};
         }
         // THE FRONTIER MOVES WHEN REALIZATION DOES, and realization moves behind a settled
         // build. Asking here is what keeps the `project` row honest without a publication
         // nobody asked the owner for.
-        if (!builder::still_going(said.outcome)) {
+        if (ended) {
             ask_frontier(mail, frontier_);
         }
-        if (watching && !builder::still_going(said.outcome)) {
+        const bool build_news = watching && ended;
+        if (build_news) {
             notice_ = build_words(said);
         }
-        if (watching && awaiting_realization_ &&
-            said.realization != builder::realization::kNotAsked) {
-            awaiting_realization_ = false;
-            notice_ = realize_words(said);
+        // THE LOAD IS ANNOUNCED AT ITS OWN END, after the build's: realized or REFUSED, about the
+        // operation whose build this pane watched end. A build that ended without offering its
+        // artifact ended the load with it, and the build's sentence says so.
+        if (awaiting_realization_ && build_news) {
+            if (said.outcome == builder::outcome::kSucceeded &&
+                said.realization == builder::realization::kOffered) {
+                loading_op_ = said.op;
+            } else {
+                awaiting_realization_ = false;
+            }
+        } else if (awaiting_realization_ && !watching) {
+            if (said.op != loading_op_) {
+                awaiting_realization_ = false; // another operation's: this load is no longer said
+            } else if (said.realization == builder::realization::kRealized ||
+                       said.realization == builder::realization::kRefused) {
+                awaiting_realization_ = false;
+                notice_ = realize_words(said);
+            }
         }
         // A READER BOUND TO THIS OPERATION HEARS THAT IT SAID MORE, OR ENDED: the page it shows
         // is asked for again, where it is. A reader bound to another operation is not moved.
@@ -637,10 +654,13 @@ public:
             // No new route: the tool confirms the build, offers, and the owner decides.
             // Workshop approved the commit as a build and a write before the row was asked
             // for, and `row_` carries that approval here: this send asks nothing more.
-            send_build(mail, row_.recipe, /*realize=*/true);
-            notice_ = "loading `" + row_.stem + "` now -- loaded as " + row_.role + ", " +
-                      said.detail + "; Workshop stays live while the incremental build "
-                      "confirms it" + written;
+            if (send_build(mail, row_.recipe, /*realize=*/true)) {
+                notice_ = "loading `" + row_.stem + "` now -- loaded as " + row_.role + ", " +
+                          said.detail + "; Workshop stays live while the incremental build "
+                          "confirms it" + written;
+            } else {
+                notice_ += "; the row was written as " + row_.role + written;
+            }
         } else {
             notice_ = "loaded `" + row_.stem + "` as " + row_.role + " -- " + said.detail +
                       (said.frontier ? "; nothing is built yet -- the frontier action builds "
@@ -704,9 +724,9 @@ public:
     /// The bus's word that one of this pane's attempts was refused before any handler ran
     /// (WL-OPEN-07). Provenance first, then the exact attempt against the asks it may name --
     /// `e`'s lookup, `o`'s plan names and the frontier action's ask at the project office, `e`'s
-    /// open, the role line's row, the reader's page and each ask for Workshop's word on a gesture
-    /// -- and only the matched one is cleared and named. A paint ask's refusal is no act's and
-    /// says nothing; delivered silence is not a refusal.
+    /// open, the role line's row, the build, the reader's page and each ask for Workshop's word on
+    /// a gesture -- and only the matched one is cleared and named. A paint ask's refusal is no
+    /// act's and says nothing; delivered silence is not a refusal.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         if (!mail.dispatch_refused()) {
             return;
@@ -752,6 +772,16 @@ public:
             row_ = RowAsk{};
             notice_ = "`" + stem + "`: nothing was loaded and nothing was written -- the row could "
                       "not reach " + ws::kPlanRole + " (" + refused.reason + ")";
+            say(mail);
+            return;
+        }
+        if (build_.awaiting && build_.attempt.valid() && attempt.seq == build_.attempt.seq) {
+            notice_ = not_built(build_.subject, awaiting_realization_) +
+                      " -- the ask could not reach " + builder::kBuilderRole + " (" +
+                      refused.reason + ")";
+            build_ = Ask{};
+            awaiting_ = false;
+            awaiting_realization_ = false;
             say(mail);
             return;
         }
@@ -1506,9 +1536,10 @@ private:
                 say_undone(a, "it is not what is built and waiting now", mail);
                 return;
             }
-            send_build(mail, a.subject, /*realize=*/true);
-            notice_ = "loading the built `" + a.artifact +
-                      "` now -- Workshop stays live while the incremental build confirms it";
+            if (send_build(mail, a.subject, /*realize=*/true)) {
+                notice_ = "loading the built `" + a.artifact +
+                          "` now -- Workshop stays live while the incremental build confirms it";
+            }
             say(mail);
             return;
         case Act::kPromote:
@@ -1543,12 +1574,31 @@ private:
 
     /// THE BUILD, ASKED OF THE TOOL AS THIS PANE'S OFFICE. It asks Workshop nothing: every caller
     /// already holds its act's approval -- a one-beat act's on Workshop's word, the frontier
-    /// action's and the role line's carried from their first beat.
-    void send_build(loom::Mail& mail, const std::string& recipe, bool realize) {
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(builder::kBuilderRole, builder::BuildRequested{recipe, realize});
+    /// action's and the role line's carried from their first beat. Its ticket is kept for Loom's
+    /// word that exactly this send was refused (WL-OPEN-07); a send that queued nothing arms
+    /// nothing, says so in the notice, and answers false.
+    bool send_build(loom::Mail& mail, const std::string& recipe, bool realize) {
+        const loom::Ticket attempt =
+            mail.as_role(pane::kBuilderPaneRole)
+                .send_to_role(builder::kBuilderRole, builder::BuildRequested{recipe, realize});
+        if (!attempt.valid()) {
+            notice_ = not_built(recipe, realize) + " -- nothing was queued to " +
+                      builder::kBuilderRole;
+            return false;
+        }
+        build_ = Ask{};
+        build_.awaiting = true;
+        build_.attempt = attempt;
+        build_.subject = recipe;
         awaiting_ = true;
         awaiting_realization_ = realize;
+        loading_op_ = 0;
+        return true;
+    }
+
+    /// What a build send that never reached the tool did not do.
+    static std::string not_built(const std::string& recipe, bool realize) {
+        return "`" + recipe + "` was not built" + (realize ? " or loaded" : "");
     }
 
     // ---- The catalog and the weaver's choice -----------------------------------------
@@ -1608,7 +1658,10 @@ private:
     /// THE BUILD SENT, AND SAID: where `b` ends on Workshop's word, and where the frontier action
     /// ends with the approval its first beat carried. It asks nothing itself.
     void build_sent(loom::Mail& mail, const std::string& recipe, bool realize) {
-        send_build(mail, recipe, realize);
+        if (!send_build(mail, recipe, realize)) {
+            say(mail);
+            return;
+        }
         notice_ = "asked the Builder for `" + recipe + "`" +
                   (realize ? " and to realize it" : std::string()) +
                   " -- Workshop stays live while it builds";
@@ -1690,7 +1743,6 @@ private:
         // per-operation copy, and whether the write is possible are the realization owner's
         // and the host's; this pane says one sentence and shows the answer.
         (void)mail.publish(builder::PromoteArtifact{artifact});
-        awaiting_realization_ = true;
         notice_ = "asked to promote `" + artifact +
                   "` -- the file a restart loads takes the running image";
         say(mail);
@@ -1698,7 +1750,6 @@ private:
 
     void revert_sent(loom::Mail& mail, const std::string& artifact) {
         (void)mail.publish(builder::RevertArtifact{artifact});
-        awaiting_realization_ = true;
         // ...AND WHAT A REVERT DOES NOT TOUCH, said at the gesture and inside one row: the source
         // a weaver saved is still the edited one, and the next build builds it. A running image and
         // a saved file are two facts, and a weaver reading only the pane would take one for the other.
@@ -2788,6 +2839,11 @@ private:
     bool heard_ = false;
     bool awaiting_ = false;
     bool awaiting_realization_ = false;
+    /// The operation whose load `awaiting_realization_` waits on once its build has ended; 0
+    /// while the build runs.
+    std::int64_t loading_op_ = 0;
+    /// The build send's ticket and recipe, held until the build it asked for ends.
+    Ask build_{};
     builder::BuildStatus shown_{};
     builder::RecipeCatalog known_{};
     /// WHICH RECIPE THE WEAVER LAST PICKED WITH `c`, by name -- empty when they never have, or when
