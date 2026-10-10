@@ -215,8 +215,14 @@ where the text belongs.
 A commit is authored under the account of the person who makes it:
 `Krealsion <krealsion@gmail.com>` for the project's own work, and an outside contributor's own
 account for theirs, never the AI agent either uses. No commit and no pull request carries a
-co-author line or an AI credit, for anyone. `tests/check_commit_attribution.cmake` refuses an AI
-co-author and the credit line on every commit it reads.
+co-author line or an AI credit, for anyone. The reason:
+
+> You will be the one held accountable for the code you open a pull request for, not the agent
+> you used. Take care in the work you do, and consider the reasons and outcomes of the choices
+> you make.
+
+`tests/check_commit_attribution.cmake` refuses every co-author line and the credit line on every
+commit it reads, and its refusal gives the same reason.
 
 ## Licensing
 
