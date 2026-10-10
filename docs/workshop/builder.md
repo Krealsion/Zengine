@@ -592,7 +592,9 @@ status that reads `promoted:` may be an older promotion's, republished.
 its one-at-a-time rule, so it is refused in its own words, in its own `BuildAsked`. While a build
 runs, the status keeps that build's `outcome` and says the refusal in `detail`, as it does for an
 ask refused because a build is already running, and the running build is followed to its own
-ending. With no build running, the outcome is *unknown recipe*.
+ending. With no build running, the outcome is *unknown recipe*, said over the picture of the build
+before it: its `builds`, `op` and `realization` are still that build's, and that outcome is not
+its ending.
 
 ## What it deliberately does not do
 
