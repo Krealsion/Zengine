@@ -724,19 +724,28 @@ Reference: [docs/reference/load-plan.md](docs/reference/load-plan.md).
 ## Building things (the Builder package)
 
 ```cpp
-#include "builder/vocabulary.hpp"
+#include "builder/vocabulary.hpp"   // this repository's header: the installed package has no builder/
 namespace builder = zengine::builder;
-mail.send_to_role(builder::kBuildRunnerRole, builder::RunBuild{"my-target"});
+mail.send_to_role(builder::kBuilderRole, builder::BuildRequested{"my-recipe", /*realize=*/false});
 ```
+
+Declare `Emit<builder::BuildRequested, ...>` and
+`Accept<builder::BuildAsked, builder::BuildStatus, ...>` yourself. A weave asks the tool
+(`zengine.builder`), never the runner.
 
 | shape | direction | means |
 |---|---|---|
-| `RunBuild{target}` | → runner | build this catalog entry (anything else is refused by name) |
-| `BuildStarted` | ← runner | a child process exists |
-| `BuildOutput` | ← runner | newly drained output |
-| `BuildFinished` | ← runner | it ended, with an exit status |
-| `BuildNotStarted` | ← runner | there is no compiler / it could not start |
-| `BuildStatus` | ← tool | what the Builder currently knows, for any presentation |
+| `BuildRequested{recipe, realize}` | → tool | build the recipe the catalog holds under this name; `realize` also offers the result to the running project |
+| `BuildAsked` | ← tool, published | what became of one ask: taken as ask number `ask`, or refused in the tool's words |
+| `BuildStatus` | ← tool, published | what the Builder currently knows, for any presentation |
+| `StatusRequested` | → tool | publish the catalog (`RecipeCatalog`) and the status again, to every listener |
+| `BuildStatusRequested` | → tool | answer the status to the asker alone |
+
+Behind the tool is its conversation with the runner: the tool sends `RunBuild{recipe}` to
+`zengine.build-runner`, and the runner reports `BuildStarted`, `BuildOutput`, `BuildFinished` and
+`BuildNotStarted` to the tool's office, so a weave hears a build only through the tool. Following
+one ask to its ending is [what an observer is told](docs/workshop/builder.md#what-an-observer-is-told);
+the package is [the Builder reference](docs/reference/builder.md).
 
 The wire **cannot spell a command**: no shape here has a field that is a program, an argument
 list or a directory. The runner holds the catalog; the host writes it.
