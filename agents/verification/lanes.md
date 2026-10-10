@@ -84,7 +84,8 @@ METHOD — The lane may run in parallel on Linux/GCC with `-DZEN_CTEST_ARGS=-j<n
 BECAUSE — no CTest entry writes this build tree, so the entries cannot race it; the `timer`
 failure is measured at the same rate before and after the compile-test repair (two of six runs
 after, four of six before), so it is a separate defect.
-SEEN — `tests/verify.cmake` `ZEN_CTEST_ARGS`; `AGENTS.md`.
+SEEN — `tests/verify.cmake` `ZEN_CTEST_ARGS`; `.github/workflows/ci.yml` `ZEN_CTEST_ARGS`, both Linux
+jobs at `-j4`; `AGENTS.md`.
 
 ## VM-LANE-12 — The filesystem decides parallel safety
 
