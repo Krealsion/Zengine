@@ -12,7 +12,7 @@ Run `workshop/inventory-preset-demo` with a fresh label.
 
 Expect: A blank template, a complete command and an incomplete preset are stored; both editors reset.
 
-More: Run `workshop/inventory-slots-demo` for portable rows and hotkeys. The story is [portable inventory toolboxes](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/inventory-slots.md#reusable-live-demonstration).
+More: Run `workshop/inventory-slots-demo` for portable rows and hotkeys. The story is [portable inventory toolboxes](https://github.com/Krealsion/Zengine/blob/main/inventory/docs/inventory-slots.md#reusable-live-demonstration).
 
 ## Reset
 

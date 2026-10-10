@@ -15,7 +15,7 @@
 #include "vocabulary.hpp"
 
 #include "activation/activation.hpp" // the skin arranges its own time from its activation
-#include "snake/vocabulary.hpp" // the snake frame the Skins still accept
+#include "examples/snake/vocabulary.hpp" // the snake frame the Skins still accept
 #include "timer/vocabulary.hpp"      // the skin asks for its own beat now
 
 #include <zen/weave.hpp>

@@ -6,7 +6,7 @@
 // own rules (names, bounds, trees, archives) are pinned in test_inventory.cpp.
 #include "workshop_support.hpp"
 #include "inventory_story.hpp"
-#include "inventory-pane/toolbox_file.hpp"
+#include "inventory/inventory-pane/toolbox_file.hpp"
 
 #include <optional>
 

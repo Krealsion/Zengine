@@ -846,7 +846,7 @@ struct Live {
     /// The same workspace cell, as the WINDOW would report it: the pixel at the
     /// cell's top-left corner. Deliberately the inverse of the graphical Skin's
     /// own layout and not of the terminal's -- the two media report different
-    /// numbers for one place (docs/reference/pointer-spaces.md).
+    /// numbers for one place (workshop/docs/pointer-spaces.md).
     std::int64_t px_x(std::int64_t wx) const { return wx * surface::kCanvasCellPx; }
     std::int64_t px_y(std::int64_t wy) const {
         return screen_of(w->session()).room_y + wy * surface::kCanvasCellPx;
@@ -3439,7 +3439,7 @@ inline ui::Rect external_body_rect(const Session& s, std::int64_t kind) {
 }
 
 /// THE DURABLE REFERENCE THE INFO PANE IS OFFERED UNDER, as a case spells it: a weave's name
-/// (`info-pane/vocabulary.hpp`), not a built-in kind's. A case in the panes suite checks this
+/// (`info/vocabulary.hpp`), not a built-in kind's. A case in the panes suite checks this
 /// literal against the weave's own constant, which is where a divergence would be caught.
 inline PaneRef info_ref() { return PaneRef{"zengine.info", "info"}; }
 
@@ -3714,7 +3714,7 @@ inline Session screen_session(std::int64_t w, std::int64_t h, std::int64_t advan
 /// middle of that cell, which is where a weaver's pointer actually is.
 ///
 /// It is the inverse of `plan_canvas`'s layout and NOT of the terminal's, because the
-/// two media report different numbers for one place (docs/reference/pointer-spaces.md).
+/// two media report different numbers for one place (workshop/docs/pointer-spaces.md).
 inline std::int64_t cell_mid_px(std::int64_t cell) {
     return cell * surface::kCanvasCellPx + surface::kCanvasCellPx / 2;
 }
@@ -3997,7 +3997,7 @@ inline PaneRef composer_ref() { return PaneRef{kComposerOffice, kComposePane}; }
 // has no such row and Escape does nothing -- "a weaver can disable an application default" -- and
 // a case asserting the deselect must supply the party that owns it. A stand-in, not the shipped
 // weave: it declares the shipped ids on the shipped gestures and answers the deselect row the
-// shipped way, for the many cases that need the behaviour without loading `desktop-pane/`.
+// shipped way, for the many cases that need the behaviour without loading `workshop/desktop-pane/`.
 class DesktopSeat
     : public loom::WeaveBase<DesktopSeat, SeatState,
                              loom::Accept<AppActionRequested, ActionsJudged, ActionsWithdrawn,
@@ -4533,7 +4533,7 @@ inline std::string file_source(const char* path) {
 }
 
 /// THE PRESENTATION, AS A POPULATION OF SOURCE FILES, for the tripwires that read Workshop as
-/// text: every `.hpp` and `.cpp` under `WORKSHOP_SOURCE_DIR` but the host's side of the seam,
+/// text: every `.hpp` and `.cpp` directly in `WORKSHOP_SOURCE_DIR` but the host's side of the seam,
 /// whose whole business is what the presentation must not reach -- a tripwire that read those
 /// would forbid a door from naming what it opens. WALKED, NEVER ENUMERATED: a list fails open when
 /// a body moves into a new file, and a walk holds the file the moment it exists. A walk that finds

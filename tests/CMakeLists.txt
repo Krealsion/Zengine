@@ -174,11 +174,11 @@ target_link_libraries(zengine-failing-editor
             zengine-warnings zengine-sanitize)
 
 # The real Editor built once more with one deliberate throw (WL-OPEN-02): the exact source of
-# editor-pane/pane.cpp with ZENGINE_EDITOR_TEST_THROW_ON_B_CPP defined, whose showing hook throws
+# editor/editor-pane/pane.cpp with ZENGINE_EDITOR_TEST_THROW_ON_B_CPP defined, whose showing hook throws
 # once, before anything is activated, for a published path ending in `/b.cpp`. A reload of its
 # record into the normal image is the repair the cases witness; the normal image defines none of
 # it. Loaded by one suite, named in no host's boot list, never installed.
-zengine_weave(zengine-editor-throwing ${PROJECT_SOURCE_DIR}/editor-pane/pane.cpp)
+zengine_weave(zengine-editor-throwing ${PROJECT_SOURCE_DIR}/editor/editor-pane/pane.cpp)
 target_compile_definitions(zengine-editor-throwing PRIVATE ZENGINE_EDITOR_TEST_THROW_ON_B_CPP=1)
 target_link_libraries(zengine-editor-throwing PRIVATE zengine-workshop-vocabulary zengine-component
                                                      zengine-input-vocabulary zengine-activation)
@@ -190,7 +190,7 @@ target_link_libraries(zengine-editor-throwing PRIVATE zengine-workshop-vocabular
 # serve), and one whose switch away loses something that moves with its document, so consent can
 # be asked for and made stale. Each definition compiles into its own image only.
 foreach(switch_variant IN ITEMS "b" "silent" "refusing" "not-live" "losing")
-    zengine_weave(zengine-editor-pane-${switch_variant} ${PROJECT_SOURCE_DIR}/editor-pane/pane.cpp)
+    zengine_weave(zengine-editor-pane-${switch_variant} ${PROJECT_SOURCE_DIR}/editor/editor-pane/pane.cpp)
     target_link_libraries(zengine-editor-pane-${switch_variant}
         PRIVATE zengine-workshop-vocabulary zengine-component zengine-input-vocabulary
                 zengine-activation)
@@ -208,7 +208,7 @@ target_link_libraries(zengine-tests
             zengine-warnings zengine-sanitize)
 target_include_directories(zengine-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
-    ${CMAKE_SOURCE_DIR}/snake)
+    ${CMAKE_SOURCE_DIR}/examples/snake)
 
 # The suites drive the real libraries through the real kernel, and the build hands them their
 # paths as the Loom's own harness does.
@@ -220,10 +220,10 @@ target_compile_definitions(zengine-tests PRIVATE
     "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\""
     # The host's source, for the tripwire that no privileged wind returns: a root Drive is
     # inert, so only reading the file can catch one (VM-WALL-11).
-    "HOST_PLAY_CPP=\"${CMAKE_SOURCE_DIR}/snake/play.cpp\""
+    "HOST_PLAY_CPP=\"${CMAKE_SOURCE_DIR}/examples/snake/play.cpp\""
     # The clock adapter's source, for the binding tripwire: hand-written ceremony and the
     # binding behave identically, so only the file tells which is there (VM-WALL-11).
-    "CLOCK_CPP=\"${CMAKE_SOURCE_DIR}/snake/clock.cpp\"")
+    "CLOCK_CPP=\"${CMAKE_SOURCE_DIR}/examples/snake/clock.cpp\"")
 
 zengine_doctest_test(snake zengine-tests)
 
@@ -352,7 +352,7 @@ target_link_libraries(zengine-input-tests
             zengine-timer-vocabulary zengine-warnings zengine-sanitize)
 target_include_directories(zengine-input-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
-    ${CMAKE_SOURCE_DIR}/snake)
+    ${CMAKE_SOURCE_DIR}/examples/snake)
 
 target_compile_definitions(zengine-input-tests PRIVATE
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
@@ -485,7 +485,7 @@ zengine_doctest_test(component zengine-component-tests)
 
 # ---- the Editor buffer suite: the multiline document as values -------------------------
 # The buffer, the source byte law, the tab geometry and the paste flattening are
-# editor-pane/editor.hpp's; what they do is this suite's claim, in its own executable with an
+# editor/editor-pane/editor.hpp's; what they do is this suite's claim, in its own executable with an
 # include set that can name nothing of the host. That the Editor pane gets its answers from it
 # is the panes suite's claim.
 add_executable(zengine-editor-tests test_editor.cpp doctest_main.cpp)
@@ -1017,21 +1017,21 @@ zengine_workshop_suite(panes
                 # the build graph says about a loaded image, and the five names a
                 # presentation may not spell, are claims a source read can keep and a
                 # runtime case cannot.
-                "BUILDER_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/builder-pane/CMakeLists.txt\""
-                "BUILDER_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/builder-pane/pane.cpp\""
+                "BUILDER_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/builder/builder-pane/CMakeLists.txt\""
+                "BUILDER_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/builder/builder-pane/pane.cpp\""
                 # ...and the Info pane's own source, for the claim only a source read can
                 # keep: that the image which shows a weaver's document holds no document.
-                "INFO_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/info-pane/pane.cpp\""
+                "INFO_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/info/pane.cpp\""
                 # ...and the Terminal pane's source and build file, for the claim only a
                 # source read can keep: that the image which presents a Loom participant
                 # cannot construct, own, reach or author through one.
-                "TERMINAL_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/terminal-pane/pane.cpp\""
-                "TERMINAL_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/terminal-pane/CMakeLists.txt\""
+                "TERMINAL_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/terminal/pane.cpp\""
+                "TERMINAL_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/terminal/CMakeLists.txt\""
                 # ...and the Editor pane's source and build file, for the claim only a source
                 # read can keep: that the image which holds a weaver's document cannot reach
                 # the host's session, screen or weave.
-                "EDITOR_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/editor-pane/pane.cpp\""
-                "EDITOR_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/editor-pane/CMakeLists.txt\""
+                "EDITOR_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/editor/editor-pane/pane.cpp\""
+                "EDITOR_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/editor/editor-pane/CMakeLists.txt\""
                 # ...and the golden the C++ generator must write for a saved EnsureTimer, which a
                 # drop on a C++ document inserts (the `source_transfer` suite pins the same bytes).
                 "SOURCE_TRANSFER_GOLDEN_FOR_PANES=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_ensure_timer.generated.hpp\"")
@@ -1332,7 +1332,7 @@ target_link_libraries(zengine-audit-probes
             zengine-operator zengine-warnings zengine-sanitize)
 target_include_directories(zengine-audit-probes PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
-    ${CMAKE_SOURCE_DIR}/snake)
+    ${CMAKE_SOURCE_DIR}/examples/snake)
 
 target_compile_definitions(zengine-audit-probes PRIVATE
     "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""

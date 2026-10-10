@@ -10,7 +10,7 @@
  * symbol saying "I can receive an operator host"; a Zengine host about to load it offers a
  * narrow C table. Nothing about the catalog crosses -- no object, callable or index -- only the
  * ability to ask the host to spend its current truth, and two answers in bytes.
- * Reference: docs/reference/operator-host.md.
+ * Reference: operator/docs/operator-host.md.
  *
  * The conventions are `zen/kernel/abi.h`'s: opaque context, plain function pointers, inputs
  * valid only for the call, `ZenByteSink` for every return, a version field the reader refuses

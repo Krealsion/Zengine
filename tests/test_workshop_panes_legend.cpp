@@ -10,8 +10,8 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
-#include "info-pane/vocabulary.hpp"
-#include "terminal-pane/vocabulary.hpp"
+#include "info/vocabulary.hpp"
+#include "terminal/vocabulary.hpp"
 
 #include <filesystem>
 #include <string>

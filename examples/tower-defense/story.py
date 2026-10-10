@@ -548,7 +548,7 @@ def s_connect(st):
 
 
 def s_editor(st):
-    """Switch the Editor to Neovim from Workshop's Terminal (docs/workshop/neovim.md)."""
+    """Switch the Editor to Neovim from Workshop's Terminal (editor/docs/neovim.md)."""
     return st.act("editor", [
         {"press": "ctrl+t"}, {"expect": ["zengine.terminal", "terminal", "TERMINAL"], "seconds": 5},
         {"type": "ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim"},

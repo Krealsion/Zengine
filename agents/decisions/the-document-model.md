@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [document](../workshop/document.md) and
 [document-file](../workshop/document-file.md); the authored/resolved vocabulary itself is
-[the UI reference](../../docs/reference/ui.md).
+[the UI reference](../../ui/docs/ui.md).
 
 **What this record governs.** The object canvas it decided — the prototype canvas's rectangles,
 their identities and frames, the hands that moved and sized them, the file that kept them and the

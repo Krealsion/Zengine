@@ -21,7 +21,7 @@
 
 #include "lifecycle_door.hpp"
 
-#include "snake/vocabulary.hpp"
+#include "examples/snake/vocabulary.hpp"
 
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>

@@ -15,11 +15,11 @@ string(ASCII 13 zen_cr)
 string(REPEAT "-I/home/weaver/zen checkout/include/a/path/a/command/echo/carries " 80 zen_echo)
 
 file(WRITE "${OUT}"
-"[1/2] Building CXX object attention-pane/CMakeFiles/zengine-attention-pane.dir/pane.cpp.o\n"
-"FAILED: attention-pane/CMakeFiles/zengine-attention-pane.dir/pane.cpp.o \n"
-"/usr/bin/c++ ${zen_echo}-c /home/weaver/zen checkout/attention-pane/pane.cpp\n"
-"/home/weaver/zen checkout/attention-pane/pane.cpp: In member function ‘void {anonymous}::AttentionPaneWeave::say_view(Push&&)’:\n"
-"/home/weaver/zen checkout/attention-pane/pane.cpp:416:23: error: ‘oops’ was not declared in this scope\n"
+"[1/2] Building CXX object attention/CMakeFiles/zengine-attention-pane.dir/pane.cpp.o\n"
+"FAILED: attention/CMakeFiles/zengine-attention-pane.dir/pane.cpp.o \n"
+"/usr/bin/c++ ${zen_echo}-c /home/weaver/zen checkout/attention/pane.cpp\n"
+"/home/weaver/zen checkout/attention/pane.cpp: In member function ‘void {anonymous}::AttentionPaneWeave::say_view(Push&&)’:\n"
+"/home/weaver/zen checkout/attention/pane.cpp:416:23: error: ‘oops’ was not declared in this scope\n"
 "  416 |         push(\"ATTENTION\" + oops);\n"
 "      |                            ^~~~\n"
 "pane.cpp(416): error C2065: 'oops': undeclared identifier${zen_cr}\n"

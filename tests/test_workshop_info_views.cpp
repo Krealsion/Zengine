@@ -4,10 +4,10 @@
 // INDEPENDENT INFO VIEWS, through the real loaded Info, Inventory and Inventory pane artifacts:
 // per-view custody of drafts, pictures and pending requests; field-to-field composition; the
 // scoped observation lease a watch spends; Sample Source; and the bounded view lifecycle.
-// agents/inventory.md owns the law; docs/workshop/info-views.md is the weaver's guide.
+// agents/inventory.md owns the law; info/docs/info-views.md is the weaver's guide.
 
 #include "inventory_story.hpp"
-#include "info-pane/vocabulary.hpp"
+#include "info/vocabulary.hpp"
 #include "inventory/observation.hpp"
 #include "workshop/setup_control.hpp"
 #include <zen/weave/poke.hpp>

@@ -44,7 +44,7 @@ row is fitted whole and a press on it selects in command mode only.
 the tail. `component/text_box.hpp` was byte-identical through the change.
 
 **Carried to a loaded image.** The Info pane is
-`Zengine/info-pane/` now: every decision above holds one image over, said as rows into a room
+`Zengine/info/` now: every decision above holds one image over, said as rows into a room
 the pane is granted instead of written into a region the pane resolved for itself. Two of the
 sentences changed party rather than meaning — the font metric is the HOST's one multiplication
 and no metric crosses the seam, and the press is never rounded because a press crosses as the

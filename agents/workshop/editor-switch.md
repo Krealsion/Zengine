@@ -76,7 +76,7 @@ MEANS
 - an open, relay or paste in flight refuses a switch; an open or quit while held is refused;
 - when nothing moved before the commitment, the incumbent is told, resumes, and says so.
 
-PROVEN BY — `editor-pane/pane.cpp` `on(EditorHandoffJudgeRequested)`,
+PROVEN BY — `editor/editor-pane/pane.cpp` `on(EditorHandoffJudgeRequested)`,
 `on(EditorHandoffRequested)`, `on(EditorHandoffEnded)`, `on(EditorRetireRequested)`,
 `held_still`, `handoff_refusal`, `transfer_now`; `workshop/editor_switch.hpp` `end_handoff`,
 `on(EditorRetired)`; `tests/test_workshop_editor_switch.cpp` case `"a keystroke that reaches the
@@ -94,7 +94,7 @@ MEANS
 - the successor's document generation passes the incumbent's; traffic queued behind reaches it;
 - the retired editor is unloaded once the successor serves; a kept one goes at the next switch.
 
-PROVEN BY — `editor-pane/pane.cpp` `on(EditorAdoptRequested)`, `on(EditorLiveRequested)`,
+PROVEN BY — `editor/editor-pane/pane.cpp` `on(EditorAdoptRequested)`, `on(EditorLiveRequested)`,
 `after_delivery`; `workshop/editor_switch.hpp` `on(EditorAdopted)`, `on(EditorLive)`,
 `release_retired`, `release_retained`; `tests/test_workshop_editor_switch.cpp` case `"a switch
 between two authored Editors carries the document, its unsaved edits and its caret, and moves the

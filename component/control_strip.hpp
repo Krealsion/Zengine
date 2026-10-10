@@ -10,7 +10,7 @@
 // pane's, judged again when the press arrives -- and `pack` is pure. An available control is
 // `[label]`, an unavailable one `(label)`; both are placed, since a pane must answer for a
 // control it will refuse. The first control is never dropped while a row can hold it.
-// Reference: docs/reference/component.md.
+// Reference: component/docs/component.md.
 
 #include <cstddef>
 #include <cstdint>

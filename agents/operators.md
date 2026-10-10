@@ -2,9 +2,9 @@
 
 Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `operator/` — named
 semantic rules, the catalog, the host/consumer seam, and providers. Public reference:
-[`../docs/reference/operator-host.md`](../docs/reference/operator-host.md),
-[`../docs/reference/operator-providers.md`](../docs/reference/operator-providers.md) and
-[`../docs/reference/operator-sources.md`](../docs/reference/operator-sources.md). How a
+[`operator/docs/operator-host.md`](../operator/docs/operator-host.md),
+[`operator/docs/operator-providers.md`](../operator/docs/operator-providers.md) and
+[`operator/docs/operator-sources.md`](../operator/docs/operator-sources.md). How a
 host's load plan mounts providers is [`realization.md`](realization.md).
 
 ## One semantic rule has an owner, and the Timer is not it

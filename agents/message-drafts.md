@@ -1,7 +1,7 @@
 # Reusable typed drafts
 
 Routed behind [AGENTS.md](../AGENTS.md). Public contract:
-[message drafts](../docs/reference/message-drafts.md). Public headers also follow
+[message drafts](../message-draft/docs/message-drafts.md). Public headers also follow
 [packaging](packaging.md); evidence follows [verification](verification.md).
 
 - `message_draft::Draft` edits Loom `Value` against its immutable original `Schema`.

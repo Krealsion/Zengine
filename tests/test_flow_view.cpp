@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
-#include "flow-pane/view.hpp"
+#include "flow/flow-pane/view.hpp"
 #include "workshop/pane_canvas.hpp"
 #include "workshop/screen_canvas.hpp"
 #include "surface/skin_sdl_plan.hpp"

@@ -15,7 +15,7 @@
 #include "timer/timer_weave.hpp"
 #include "timer/vocabulary.hpp"
 
-#include "snake/vocabulary.hpp"
+#include "examples/snake/vocabulary.hpp"
 
 #include "lifecycle_door.hpp"
 

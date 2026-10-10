@@ -30,7 +30,7 @@ claim   setup_persist::kFormatVersion  Setup format is **version {}**
 session_persist::kFormatVersion workshop/session_persist.hpp              kFormatVersion
 claim   session_persist::kFormatVersion  session format is **version {}**
 # ...and the same two, and the guests file's version, as the tool package writes them:
-# docs/workshop/demo-setups.md marks one value for each pair, so the two owners cannot come to
+# workshop/docs/demo-setups.md marks one value for each pair, so the two owners cannot come to
 # disagree.
 workshop_formats.SETUP_VERSION   external-host/tools/workshop/workshop_formats.py  SETUP_VERSION
 workshop_formats.SESSION_VERSION external-host/tools/workshop/workshop_formats.py  SESSION_VERSION
@@ -70,10 +70,10 @@ kMaxSetupBytes                  workshop/setup_persist.hpp                kMaxSe
 kMaxLinkPathBytes               workshop/session_persist.hpp              kMaxLinkPathBytes
 kMaxPaneCatalogEntries          workshop/panes.hpp                        kMaxPaneCatalogEntries
 kMaxSetupPanes                  workshop/setup.hpp                        kMaxSetupPanes
-kMaxPortableViews               inventory-pane/slots.hpp                  kMaxPortableViews
-kMaxConfiguredHotkeys           inventory-pane/slots.hpp                  kMaxConfiguredHotkeys
+kMaxPortableViews               inventory/inventory-pane/slots.hpp                  kMaxPortableViews
+kMaxConfiguredHotkeys           inventory/inventory-pane/slots.hpp                  kMaxConfiguredHotkeys
 kMaxSavedEntries                inventory/archive.hpp                     kMaxSavedEntries
-kMaxProviderShortcuts           desktop-pane/shortcuts.hpp                kMaxProviderShortcuts
+kMaxProviderShortcuts           workshop/desktop-pane/shortcuts.hpp                kMaxProviderShortcuts
 kMaxAppActionRows               workshop/keymap.hpp                       kMaxAppActionRows
 kMaxPaneActionRows              workshop/keymap.hpp                       kMaxPaneActionRows
 
@@ -89,8 +89,8 @@ kTextInsetPx                    surface/region.hpp                        kTextI
 kMaxScancode                    input/vocabulary.hpp                      kMaxScancode
 kMaxHeldKeys                    input/vocabulary.hpp                      kMaxHeldKeys
 kRootContext                    ui/vocabulary.hpp                         kRootContext
-view_builder::kSnapReach        view-builder/picture.hpp                  kSnapReach
-view_builder::kMaxGrid          view-builder/picture.hpp                  kMaxGrid
+view_builder::kSnapReach        view/view-builder/picture.hpp                  kSnapReach
+view_builder::kMaxGrid          view/view-builder/picture.hpp                  kMaxGrid
 
 # ---- the Timer
 kPreparedClaimBeats             timer/vocabulary.hpp                      kPreparedClaimBeats

@@ -1,7 +1,8 @@
 # Zengine cheat sheet
 
 Dense operational reference. Everything here is checked against the source it describes.
-Prose and reasoning live in [docs/](docs/README.md); this page is for looking things up. What
+Prose and reasoning live in each folder's pages, indexed by [docs/](docs/README.md); this page
+is for looking things up. What
 good work in this repository looks like, practice by practice, is
 [best practices](docs/contributing/best-practices.md).
 
@@ -115,13 +116,13 @@ list holds both kinds:
 | `zengine-input` | weave |
 | `zengine-skin-tui-classic`, `zengine-skin-tui-block` | weave |
 | `zengine-operators-basic` | **provider** — opened by a host, never loaded onto the bus |
-| `zengine-guest-vocabulary` | weave — booted by *another* Loom host (a session) so its tools speak Workshop's guest shapes; [external host](docs/workshop/external-host.md#3-from-a-loom-session-journeys-as-python-tools) |
+| `zengine-guest-vocabulary` | weave — booted by *another* Loom host (a session) so its tools speak Workshop's guest shapes; [external host](external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools) |
 
 `ZENGINE_RUNTIME_ARTIFACTS` is **empty** when the package was built against a Loom with no
 kernel.
 
 ⚠ **friction** — Workshop, the SDL skin and the SDL input reader are not in the package;
-[limitations](docs/workshop/limitations.md#the-library-itself) says why for each.
+[limitations](workshop/docs/limitations.md#the-library-itself) says why for each.
 
 The witness for all of the above:
 
@@ -343,7 +344,7 @@ Declare `Accept<timer::TimerFired, ...>` and `Emit<timer::StartTimer, ...>` your
 `h.restart(mail, new_delay)` and no way to add a binding at run time and have it take effect
 before the next `TimerReady`. A message-driven delay must use the raw protocol, which means
 writing the accept/emit sets, the id filter and the receipt handling by hand. This is the
-designed split ([TIMER-05](docs/laws/timer-laws.md)), not an oversight — but it is the split
+designed split ([TIMER-05](timer/docs/timer-laws.md)), not an oversight — but it is the split
 an author meets first.
 
 ### The vocabulary
@@ -363,9 +364,9 @@ Continuity spellings for `preferred`/`fallback`: `kPreserveRemaining`, `kRestart
 `kDrop`. Receipts: `kResolutionPreserved`, `kResolutionRestarted`, `kResolutionDropped`,
 `kResolutionRefused`.
 
-Deeper: [timers guide](docs/guides/timers.md) · [timed weaves](docs/guides/timed-weaves.md) ·
-[protocol](docs/reference/timer-protocol.md) · [continuity](docs/reference/timer-continuity.md) ·
-[binding layer](docs/reference/timer-binding.md) · [laws](docs/laws/timer-laws.md).
+Deeper: [timers guide](timer/docs/timers.md) · [timed weaves](timer/docs/timed-weaves.md) ·
+[protocol](timer/docs/timer-protocol.md) · [continuity](timer/docs/timer-continuity.md) ·
+[binding layer](timer/docs/timer-binding.md) · [laws](timer/docs/timer-laws.md).
 
 ---
 
@@ -396,8 +397,8 @@ void on(const input::TextEntered& t, loom::Mail&) { /* t.text is UTF-8 as typed 
 Positions are `int64` and carry a `space` (`kCells` on both current backends, `kPixels`
 declared). Backspace, Enter and Escape are **keys**, never text.
 
-Full reference: [docs/reference/input.md](docs/reference/input.md) ·
-[pointer spaces](docs/reference/pointer-spaces.md).
+Full reference: [input/docs/input.md](input/docs/input.md) ·
+[pointer spaces](workshop/docs/pointer-spaces.md).
 
 ---
 
@@ -450,7 +451,7 @@ medium calls, so publisher and medium cannot disagree. It answers a `RegionFit` 
 means "text is a cell" — the honest answer for every terminal, and for a window before (or
 without) a font.
 
-Full reference: [docs/reference/surface.md](docs/reference/surface.md).
+Full reference: [surface/docs/surface.md](surface/docs/surface.md).
 
 ---
 
@@ -488,7 +489,7 @@ const ui::Placed* mine        = ui::placed_for(scene, e.id);
 - A chain that cannot reach the root (a cycle, a missing source) is **not placed at all**.
 
 No parent/child, no widget kinds, no colour, no z. Full reference:
-[docs/reference/ui.md](docs/reference/ui.md).
+[ui/docs/ui.md](ui/docs/ui.md).
 
 ---
 
@@ -518,7 +519,7 @@ These are the **defaults**. Every binding below can be remapped through the keym
 (`--keymap`), and the executable truth is always on screen: `Ctrl`+`k` opens the **Hotkeys**
 pane, every key as it is in force and where it is answered, and the bottom band projects the
 same bindings. A binding matches its modifiers **exactly** — `w` arranges the desk and
-`Ctrl`+`w` removes a layout. See [hotkeys and the keymap](docs/workshop/hotkeys.md).
+`Ctrl`+`w` removes a layout. See [hotkeys and the keymap](workshop/docs/hotkeys.md).
 
 **Anywhere** — the application's own keys, which the **desktop** supplies (a tool you can
 edit, rebuild, remap or switch off), answered even while you type in a pane:
@@ -554,7 +555,7 @@ The Pane Manager is itself a pane: arrange it, close it, or replace the desktop 
 
 **A pane of your own** (in the Pane Manager) — `n` shows the **View Builder**, where you lay out
 labels, number fields and buttons, save the view and run it in its own pane; it runs again when
-you relaunch. See [a pane of your own](docs/workshop/panes.md#a-pane-of-your-own--a-view).
+you relaunch. See [a pane of your own](workshop/docs/panes.md#a-pane-of-your-own--a-view).
 
 **Info** (press into it) — the panes, and the properties of the one you inspect. `↑` `↓`
 step; `Enter` on a pane inspects it; `Tab` moves between the list and the properties; `Enter`
@@ -563,7 +564,7 @@ opens a draft that `Enter` writes through the desk's own door and `Esc` abandons
 is refused, never clamped. `RESOLVED` rows are what this screen makes of them and change
 nothing when read; `INTERIOR` is what is inside the subject. The subject stays until you
 inspect another pane: selection and focus never move it. See
-[a pane as a subject](docs/workshop/panes.md#a-pane-as-a-subject--info).
+[a pane as a subject](workshop/docs/panes.md#a-pane-as-a-subject--info).
 
 **Hotkeys** (`Ctrl`+`k`) — every key as it is in force, where it is answered and the id a
 keymap file names it by; `↑` `↓` `Home` `End` scroll; `*` marks a key your file moved.
@@ -582,7 +583,7 @@ mouse places and sweeps; the wheel scrolls. `Ctrl`+`s` saves the **source** whil
 holds the keys; `Ctrl`+`d` deliberately discards unsaved edits (undo takes them back). A dirty
 source refuses to be replaced or quit past until saved or discarded, and hiding or rearranging
 the pane loses nothing. Plain-ASCII files only; tabs, line endings and the final newline
-round-trip exactly. See [the source editor](docs/workshop/editor.md).
+round-trip exactly. See [the source editor](editor/docs/editor.md).
 
 **What needs attention** (the **Attention** pane, opened from the Pane Manager) — `↑` `↓`
 choose, `d` hides one. It lists what is **currently true** and worth knowing — a settings file
@@ -593,7 +594,7 @@ Hiding one is not fixing it: the condition stays true, the glance still counts i
 reappears if it materially changes. A condition disappears when it stops being true
 and at no other moment. The **notice row** in the bottom band is the other voice and keeps its
 own job: what just happened, replaced by whatever happens next. See
-[what needs your attention](docs/workshop/attention.md).
+[what needs your attention](attention/docs/attention.md).
 
 **Arranging** — right-click a pane → `arrange` binds the interaction to that one pane; `w`
 arranges the whole desk. In either scope the panes wear their handles: drag a body to move, an
@@ -616,8 +617,8 @@ or `Esc` leaves — leaving is all that press does.
 **Context menu** — right-click a pane, a layout tab, or the empty room, and a small menu beside
 the click lists what can be done with the thing you pointed at: pane arrangement (arrange,
 Order, Reset, remove), `edit code` (the pane's source, through its recipe —
-[edit a running pane](docs/workshop/edit-a-running-pane.md), and for Workshop's own panes
-[develop Workshop](docs/workshop/develop-workshop.md)), a tab's rename and removal, or the room's
+[edit a running pane](builder/docs/edit-a-running-pane.md), and for Workshop's own panes
+[develop Workshop](workshop/docs/develop-workshop.md)), a tab's rename and removal, or the room's
 own doors (arrange the desk, save or restore the setup, reset the order). Rows whose action has a
 working shortcut in the place you are returning to show it after the label, spelled from the live
 keymap. `↑` `↓` choose, `Enter` chooses (a `… >` row opens its group, staying beside the click),
@@ -625,7 +626,7 @@ keymap. `↑` `↓` choose, `Enter` chooses (a `… >` row opens its group, stay
 `arrange` binds the pane. `a` opens the same menu from the keyboard for the room, so no mouse is
 required — on a terminal, right-click delivery is the emulator's decision first (the Windows
 console and Windows Terminal both deliver it). See
-[the context menu](docs/workshop/panes.md#the-context-menu--what-can-i-do-with-this).
+[the context menu](workshop/docs/panes.md#the-context-menu--what-can-i-do-with-this).
 
 **The second button is the pane's first** — a right-click inside a pane's body reaches a pane
 that takes it (the Pane Manager and Hotkeys ask for a menu of their own rows, which the menu
@@ -634,14 +635,14 @@ release), and in the body of a pane that does not take it nothing happens. Works
 answers on a pane's title row and border, a layout tab and the empty room, or when a pane hands
 the press back. A pane's menu takes no keys and returns none. The Pane Manager's rows offer
 `manage...` for any pane, right-clickable or not. See
-[the second button](docs/workshop/panes.md#the-second-button--the-panes-first); the presenter is
-an ordinary weave ([replacing it](docs/workshop/panes.md#replacing-the-menu-presenter)).
+[the second button](workshop/docs/panes.md#the-second-button--the-panes-first); the presenter is
+an ordinary weave ([replacing it](workshop/docs/panes.md#replacing-the-menu-presenter)).
 
 **By mouse in the Pane Manager** — click the mark to show or hide, the name to choose, the
 marked name again to open or focus; the wheel walks the marker; `m` or a right-click opens the
 row's menu. **In Hotkeys** — a click chooses a binding; `m` or a right-click opens its menu:
 modify by pressing a key or typing its spelling, add a key, remove one, disable, reset — live at
-once and written to the keymap file ([hotkeys](docs/workshop/hotkeys.md#editing-a-binding)).
+once and written to the keymap file ([hotkeys](workshop/docs/hotkeys.md#editing-a-binding)).
 
 ### Panes
 
@@ -662,18 +663,18 @@ it.
 
 `Loaded` and `Project` deliberately disagree when the plan asked for something that did not
 resolve — that difference is the information. Reference:
-[docs/reference/introspection.md](docs/reference/introspection.md).
+[introspection/docs/introspection.md](introspection/docs/introspection.md).
 
 ⚠ **friction — panes are 9 rows tall by default** and a bigger terminal does not grant more.
 A larger pane is authored in arrangement (`w`, then `Shift`+arrows or `=`), or typed into its
 `Width` and `Height` rows in Info, and persists with the layout. See
-[pane geometry](docs/workshop/panes.md#pane-geometry).
+[pane geometry](workshop/docs/panes.md#pane-geometry).
 
 **Your desk comes back on its own.** The panes, their geometry, their order and the window's
 size all return from the last session (`--session`, default `workshop-session.json`), with no
 keypress. On a graphical run the window's screen position and maximized state come back too,
 validated against the displays that exist now; a terminal run has neither to restore and keeps
-the last one it was told. See [workspace continuity](docs/workshop/setups.md#workspace-continuity).
+the last one it was told. See [workspace continuity](workshop/docs/setups.md#workspace-continuity).
 
 **On-screen hints** (so you need this page less): every hint is a projection of the effective
 keymap, so a remapped binding is spelled correctly everywhere it appears — the bottom band's
@@ -717,7 +718,7 @@ becoming a refusal somebody made up.
 
 Shipped plans: [`workshop/default-load-plan.json`](workshop/default-load-plan.json) (terminal)
 and [`workshop/graphical-load-plan.json`](workshop/graphical-load-plan.json) (SDL window).
-Reference: [docs/reference/load-plan.md](docs/reference/load-plan.md).
+Reference: [workshop/docs/load-plan.md](workshop/docs/load-plan.md).
 
 ---
 
@@ -744,8 +745,8 @@ Declare `Emit<builder::BuildRequested, ...>` and
 Behind the tool is its conversation with the runner: the tool sends `RunBuild{recipe}` to
 `zengine.build-runner`, and the runner reports `BuildStarted`, `BuildOutput`, `BuildFinished` and
 `BuildNotStarted` to the tool's office, so a weave hears a build only through the tool. Following
-one ask to its ending is [what an observer is told](docs/workshop/builder.md#what-an-observer-is-told);
-the package is [the Builder reference](docs/reference/builder.md).
+one ask to its ending is [what an observer is told](builder/docs/builder.md#what-an-observer-is-told);
+the package is [the Builder reference](builder/docs/builder-reference.md).
 
 The wire **cannot spell a command**: no shape here has a field that is a program, an argument
 list or a directory. The runner holds the catalog; the host writes it.
@@ -757,7 +758,7 @@ and points at Zengine's own build tree; a weaver edits the file to build their o
 reachable catalog file the current one without restarting — one transaction, so a file that
 cannot be read or parsed leaves the previous catalog in force, and a build already running
 finishes from the facts it started with. The choice is session-only. See [Workshop's
-Builder](docs/workshop/builder.md).
+Builder](builder/docs/builder.md).
 
 ---
 

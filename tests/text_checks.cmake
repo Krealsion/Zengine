@@ -12,7 +12,7 @@ set(ZEN_TEXT_ONLY_FILES tests/code_values.txt)
 
 # Markdown a compiled test reads, so a change to it is the official lane's: the hotkeys guide's
 # keymap example, applied by the document suite as a weaver copies it.
-set(ZEN_COMPILED_READS_DOCS docs/workshop/hotkeys.md)
+set(ZEN_COMPILED_READS_DOCS workshop/docs/hotkeys.md)
 
 # A C/C++ change qualifies not even when only its comments change: compiled tests read source as
 # text (the Editor's source law over each pane's entry file, the tripwires over workshop/), and a

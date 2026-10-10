@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// Suite `neovim_live` -- the hosting library against a REAL Neovim (gate `neovim`): what `neovim/`
+// Suite `neovim_live` -- the hosting library against a REAL Neovim (gate `neovim`): what `editor/neovim/`
 // claims of Neovim's behaviour, measured on every lane that has one -- the start and its failures,
 // byte-exact adoption, the caret and selection, a real screen's projection, typing, the clipboard,
 // the swap guard, ending. EVERY NEOVIM HERE IS SANDBOXED: its XDG directories, LOCALAPPDATA and log
@@ -10,12 +10,12 @@
 
 #include "doctest.h"
 
-#include "neovim/document.hpp"
-#include "neovim/host.hpp"
-#include "neovim/keys.hpp"
-#include "neovim/launch.hpp"
-#include "neovim/lua.hpp"
-#include "neovim/projection.hpp"
+#include "editor/neovim/document.hpp"
+#include "editor/neovim/host.hpp"
+#include "editor/neovim/keys.hpp"
+#include "editor/neovim/launch.hpp"
+#include "editor/neovim/lua.hpp"
+#include "editor/neovim/projection.hpp"
 
 #include <chrono>
 #include <cstdint>

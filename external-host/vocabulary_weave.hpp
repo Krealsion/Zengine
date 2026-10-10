@@ -9,7 +9,7 @@
 // (the Loom's bridge reference page); a Python tool is no participant there, so this weave declares
 // them: Input's session shapes, the Skin's picture, the desk read whole, the pane inventory, the
 // keymap, the door's inventory and the asker's own row, the managed opening and the Builder's read.
-// Reference: docs/workshop/external-host.md.
+// Reference: external-host/docs/external-host.md.
 
 // Declared through Loom's agreement wall (`Emit<...>`: a declared shape resolves while its
 // declarer lives), compiled from the same published headers as Workshop, so a drifted definition
@@ -19,7 +19,7 @@
 #include "builder/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
-#include "inventory-pane/vocabulary.hpp"
+#include "inventory/inventory-pane/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
@@ -27,7 +27,7 @@
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
 #include "workshop/setup_control.hpp"
-#include "demo-control/vocabulary.hpp"
+#include "external-host/demo-control/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 

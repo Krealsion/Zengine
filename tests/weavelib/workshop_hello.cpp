@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Hello pane provider: a real dynamic weave offering Workshop one read-only pane, and the
-// smallest complete witness of the external pane seam (docs/workshop/panes.md). A fixture, not a
+// smallest complete witness of the external pane seam (workshop/docs/panes.md). A fixture, not a
 // product: loaded only by the Workshop suites, through the real ABI and Kernel. It writes no file,
 // starts no process, opens no socket and publishes no canvas: the pane protocol grants a provider
 // no ambient authority. Its bus grant is Loom's in-process default, `allow_any`, so the protocol's

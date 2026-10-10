@@ -35,7 +35,7 @@ inline constexpr const char* kFilesPane = "project-files";
 inline constexpr const char* kRetiredBuilderProvider = "zengine.workshop";
 
 /// The office it is offered from now, for `kFilesProvider`'s reason
-/// (`builder-pane/vocabulary.hpp`).
+/// (`builder/builder-pane/vocabulary.hpp`).
 inline constexpr const char* kBuilderProvider = "zengine.builder-pane";
 
 /// THE PANE KEY, WHICH DID NOT MOVE. Only the office changed hands.
@@ -49,7 +49,7 @@ inline constexpr const char* kInfoProvider = "zengine.info";
 inline constexpr const char* kInfoPane = "info";
 
 /// The source editor's old office and its office now, for `kFilesProvider`'s reasons
-/// (`editor-pane/vocabulary.hpp`).
+/// (`editor/editor-pane/vocabulary.hpp`).
 inline constexpr const char* kRetiredEditorProvider = "zengine.workshop";
 inline constexpr const char* kEditorProvider = "zengine.editor";
 
@@ -59,7 +59,7 @@ inline constexpr const char* kEditorPane = "editor";
 
 /// The host's own Pane Manager and the desktop's pane that is the Pane Manager now: the first pair
 /// whose pane key moved too (`pane-editor` to `launcher`). What a weaver authored carries over;
-/// checked against `desktop-pane/vocabulary.hpp` by a case.
+/// checked against `workshop/desktop-pane/vocabulary.hpp` by a case.
 inline constexpr const char* kRetiredManagerProvider = "zengine.workshop";
 inline constexpr const char* kRetiredManagerPane = "pane-editor";
 inline constexpr const char* kManagerProvider = "zengine.desktop";

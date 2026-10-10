@@ -224,7 +224,7 @@ PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneEscapeUnspent`; `workshop/weav
 `WorkshopWeave::gestures_`, `WorkshopWeave::Hand::escape_sent`, `WorkshopWeave::GestureSent`,
 `WorkshopWeave::gesture_asks_`; `workshop/weave_external.cpp` `on(PaneEscapeUnspent)`,
 `WorkshopWeave::external_key`; `workshop/pane_escape.hpp` `answer`, `unspent`, `bare`;
-`terminal-pane/pane.cpp` `composing_nothing`;
+`terminal/pane.cpp` `composing_nothing`;
 `tests/test_workshop_panes_input.cpp` case `"a pane that takes keys keeps Escape until it says the
 Escape was unspent"`, case `"a word about an Escape moves nothing when it is stale or anonymous or
 about another pane"`, case `"an answer to an Escape that is over cannot borrow the next Escape's

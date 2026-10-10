@@ -8,7 +8,7 @@
 // `#if defined(_WIN32)` the terminal medium needs. It measures the terminal's own size in
 // character cells; which rows a TUI Skin spends is skin_tui.hpp's. Asked, not watched: no
 // SIGWINCH handler and no thread, since a Skin asks on its beat, which is prompt enough.
-// Reference: docs/reference/surface.md.
+// Reference: surface/docs/surface.md.
 
 #include <cstdint>
 

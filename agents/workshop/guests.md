@@ -4,7 +4,7 @@ Register `WL-GUEST`: who a guest is to this Workshop and what its hand may do be
 the guests file's version and host, the row that admitted each session, the action classes an
 owner asks for, the places only the weaver's hand reaches on a weaver's host, each hand's own
 gestures, and what a row's powers do not reach, said beside the row. The file's form and its powers
-are public in [Drive Workshop from another host](../../docs/workshop/external-host.md). One law per
+are public in [Drive Workshop from another host](../../external-host/docs/external-host.md). One law per
 heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-GUEST-01 — The guests file names its version, and version 2 adds build and the host
@@ -79,7 +79,7 @@ MEANS
 
 PROVEN BY — `workshop/pane_operation.hpp` `ActorScopeRequested`, `ActorScopeJudged`;
 `workshop/weave_operation.cpp` `on(ActorScopeRequested)`, `approve_gesture`;
-`workshop/actor_scope.hpp` `classes_of_send`, `judge_send`; `inventory-pane/toolbox.hpp`
+`workshop/actor_scope.hpp` `classes_of_send`, `judge_send`; `inventory/inventory-pane/toolbox.hpp`
 `Toolbox::begin_sent_save`; `tests/test_workshop_panes_guests.cpp` case `"on a weaver's host a
 guest's toolbox save sent to the Inventory pane is refused through ActorScopeRequested, and no file
 is written"`, case `"on a weaver's host a guest's Submit of a toolbox save in the Composer is
@@ -162,7 +162,7 @@ MEANS
 - conditions are keyed by the row's place in the file, never its name.
 
 PROVEN BY — `workshop/guests.cpp` `losses_of`; `workshop/attention.hpp` `development_host`,
-`guest_row_losses`; `connections-pane/pane.cpp` `version_text`; `tests/test_workshop_guests.cpp`
+`guest_row_losses`; `external-host/connections-pane/pane.cpp` `version_text`; `tests/test_workshop_guests.cpp`
 case `"guests file: a row's losses are what its powers do not reach on its file's host"`;
 `tests/test_workshop_host.cpp` case `"a development host and each row's losses stand as
 conditions on Attention"`; `tests/test_workshop_panes_attention.cpp` case `"the Connections pane

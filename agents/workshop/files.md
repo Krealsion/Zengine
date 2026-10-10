@@ -167,7 +167,7 @@ MEANS
 - a walk nobody asked for, a grant or a build, keeps the selected entry by name (`relist`).
 
 PROVEN BY — `files/files.cpp` `refresh`, `relist`; `files/vocabulary.hpp` `kActionRefresh`;
-`docs/workshop/limitations.md` `listing`; `tests/test_workshop_panes_files.cpp` case
+`workshop/docs/limitations.md` `listing`; `tests/test_workshop_panes_files.cpp` case
 `"the pane lists the place this run began, asked of the host"`, case `"with pane
 titles hidden, a first press on the row painted gamma selects gamma once every delivery it caused
 has settled, and a later press opens gamma"`.
@@ -243,7 +243,7 @@ MEANS
 PROVEN BY — `workshop/pane_seam_vocabulary.hpp` `ProjectRootRequested`, `ProjectRoot`,
 `RecipeUseRequested`, `RecipeAuthorRequested`, `RecipeOutcome`, `OpenSourceRequested`,
 `SourceOpened`, `kEditorRole`; `workshop/pane_doors.hpp` `ProjectDoor`, `RecipesDoor`;
-`editor-pane/pane.cpp` `on(OpenSourceRequested)`; `tests/test_workshop_files.cpp` case
+`editor/editor-pane/pane.cpp` `on(OpenSourceRequested)`; `tests/test_workshop_files.cpp` case
 `"the project door answers the weave that asked, and nobody else"`, case `"a door
 answers an office, and refuses speech with no author"`, case `"the recipes door spends this
 host's one writer and re-words nothing"`;

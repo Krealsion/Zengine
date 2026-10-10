@@ -28,7 +28,7 @@ and order are fixed.
   nothing can drift out of agreement with the screen.
 - *Asking the OS for roots inside `files_has_keyboard`* — refused: it answers at every keystroke
   and paint; the residual (no origin and no marks declines the keyboard) is named in
-  `docs/workshop/limitations.md`.
+  `workshop/docs/limitations.md`.
 - *A watcher, a timer, a poll for the listing* — none; a finished build refreshes it, gated on
   `build_news` rather than on a status arriving.
 - *A locale, a natural sort, extension grouping* — none: bytewise over admitted name bytes.

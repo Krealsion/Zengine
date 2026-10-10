@@ -41,7 +41,7 @@ MEANS
 
 PROVEN BY — `workshop/weave_opening.cpp` `on(PresentationAdmitted)`, `on(JointApplied)`,
 `settle`, `unapplied_words`; `workshop/weave_managed.cpp` `on_claim_published`;
-`editor-pane/pane.cpp` `on_claim_published`, `activate`; `tests/test_workshop_panes_editor.cpp`
+`editor/editor-pane/pane.cpp` `on_claim_published`, `activate`; `tests/test_workshop_panes_editor.cpp`
 case `"a loaded owner that cannot apply the published claim is held, named, and reloaded"`, case
 `"the real desk, shown a presentation it holds no trial for, answers that it did
 not apply it -- Declined, not held, named, and re-claiming its own truth"`, case `"the real
@@ -63,7 +63,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/weave_managed.cpp` `note_routed`, `derive_presentation`,
 `mirror_presentation`; `workshop/weave_external.cpp` `external_key`, `external_text`;
-`editor-pane/pane.cpp` `claim_document`, `after_delivery`, `judge_source`;
+`editor/editor-pane/pane.cpp` `claim_document`, `after_delivery`, `judge_source`;
 `tests/test_workshop_panes_editor.cpp` case `"legitimate A input while B is being arranged is
 admitted to A, and B is refused without moving the desk"`, case `"more than 256
 ordinary events across an opening, from three producers, are admitted in order with nothing held
@@ -144,8 +144,8 @@ DOES NOT MEAN
 - that handler failure or delivered silence is a dispatch refusal;
 - that a shape a pane declares can go unqueued for want of a registrar (Loom ABI v9): it resolves.
 
-PROVEN BY — `files/files.cpp` `on(DispatchRefused)`, `Ask::attempt`; `builder-pane/pane.cpp`
-`on(DispatchRefused)`, `edit_source`; `editor-pane/pane.cpp` `on(DispatchRefused)`, `Relay`;
+PROVEN BY — `files/files.cpp` `on(DispatchRefused)`, `Ask::attempt`; `builder/builder-pane/pane.cpp`
+`on(DispatchRefused)`, `edit_source`; `editor/editor-pane/pane.cpp` `on(DispatchRefused)`, `Relay`;
 `workshop/weave_opening.cpp` `on(DispatchRefused)`; `tests/test_workshop_panes_files.cpp`
 case `"an open refused at dispatch is said by that exact attempt, and a fresh attempt takes once
 an opening office is present"`, case `"a forged refusal naming the pane's own
@@ -212,7 +212,7 @@ PROVEN BY — `workshop/open_seam_vocabulary.hpp` `v2::PresentationTrial`,
 `workshop/weave_managed.cpp` `on(PresentationTrialRequested)`,
 `on(v2::PresentationAdmitRequested)`, `show_presentation`, `after_delivery`;
 `workshop/weave_opening.cpp` `trialled`, `prepared`; `workshop/weave_canvas.cpp` `canvas_takes_press`;
-`workshop/weave_inspection.cpp` `visible_words`, `visible_parts`; `editor-pane/pane.cpp`
+`workshop/weave_inspection.cpp` `visible_words`, `visible_parts`; `editor/editor-pane/pane.cpp`
 `on(v2::PrepareSourceRequested)`, `prepare`, `activate`; `tests/test_workshop_panes_opening.cpp`
 case `"an open through the managed door shows the opened document's picture at the commitment, in
 a room reserved for it, and a picture of the document it replaced, arriving after, is refused"`,

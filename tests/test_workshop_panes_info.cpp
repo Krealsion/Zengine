@@ -12,7 +12,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
-#include "info-pane/vocabulary.hpp"
+#include "info/vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
 
 #include <algorithm>
@@ -2213,7 +2213,7 @@ TEST_CASE("an Info commit a doorless office refuses at dispatch: the draft stand
     // `PaneCommitRequested` in its `Emit<...>` and a declared shape is registered by its emitter
     // at load, so the commit is queued, refused at dispatch as NotAccepted, and Loom's notice
     // releases the record (the other half of WL-INFO-13). The ticket-not-valid branch is
-    // unreachable that way and stays source-traced (`ask_commit`, info-pane/pane.cpp).
+    // unreachable that way and stays source-traced (`ask_commit`, info/pane.cpp).
     InfoRig f;
     f.open();
     f.draft_holding("Width", "77");

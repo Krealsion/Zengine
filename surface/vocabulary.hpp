@@ -7,7 +7,7 @@
 // The Surface package's message vocabulary: a weave publishes visual intent, and the Skin -- the
 // replaceable weave holding the singleton `zengine.skin` role -- claims the medium and paints it.
 // A Skin claims its medium in its constructor and releases it in its destructor; loading a
-// second Skin into the held role is refused. Reference: docs/reference/surface.md.
+// second Skin into the held role is refused. Reference: surface/docs/surface.md.
 
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>
@@ -212,7 +212,7 @@ struct SurfacePlacement {
 /// A remembered placement, offered back to `kSkinRole` once by a publisher restoring a session:
 /// a want, not an instruction. The medium judges it against the displays that exist now: a
 /// reachable position is restored as sent, a stranded one is moved onto the nearest display,
-/// and with no display truth nothing moves (docs/reference/surface.md). What comes back is the
+/// and with no display truth nothing moves (surface/docs/surface.md). What comes back is the
 /// next `SurfacePlacement`, never an echo; a terminal medium does nothing.
 struct SurfacePlacementRemembered {
     std::int64_t x = 0;

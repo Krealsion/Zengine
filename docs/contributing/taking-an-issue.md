@@ -89,7 +89,7 @@ needs:
 
 Two optional tools each open a gate of the population: Python, beside a Loom installed with its
 session tools, opens `session`, and a Neovim named by `-DZENGINE_NEOVIM_PROGRAM=<path>` opens
-`neovim` ([the versions it needs](../workshop/neovim.md#before-you-start)). The lane prints the
+`neovim` ([the versions it needs](../../editor/docs/neovim.md#before-you-start)). The lane prints the
 gates it ran under, and an entry whose gate is shut is declared absent, never passed
 ([the population file](../../tests/test_population.txt)).
 

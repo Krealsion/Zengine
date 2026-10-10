@@ -10,7 +10,7 @@
 // and how to host operators, not what any of them means. Only bytes cross: no catalog,
 // `OperatorDef`, `std::function`, container, exception or raw callable, and the index between
 // `describe` and `invoke` is provider-local and transient.
-// Reference: docs/reference/operator-providers.md.
+// Reference: operator/docs/operator-providers.md.
 
 // Custody: a `ProviderRecord` holds the table and one share of the image, and is held by every
 // native contribution's callable and by the catalog until unmount, so the image is released

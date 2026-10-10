@@ -18,7 +18,7 @@ DOES NOT MEAN
 - a log the pane keeps: answers, notices and refusals are never recalled, and eviction bounds it;
 - history across launches: the participant and its record belong to the run.
 
-PROVEN BY — `terminal-pane/pane.cpp` `recallable`, `recall`, `composing_nothing`,
+PROVEN BY — `terminal/pane.cpp` `recallable`, `recall`, `composing_nothing`,
 `cancel_recall`, `show_recalled`, `history_heading`, `Recall`;
 `tests/test_workshop_panes_terminal.cpp` case `"history says where its ends are and past the
 newest is the line before the recall"`, case `"Escape on a recalled line goes back to the line
@@ -36,7 +36,7 @@ MEANS
 - a key the line does not take ends no recall, and a paste asked for before it lands nowhere;
 - a completion answer is taken only by the intent that asked, even when the bytes match again.
 
-PROVEN BY — `terminal-pane/pane.cpp` `settle_recall`, `moved`, `offer_applies`,
+PROVEN BY — `terminal/pane.cpp` `settle_recall`, `moved`, `offer_applies`,
 `ask_completion`, `on(PaneActionRequested)`, `on(TerminalCompletionOffered)`;
 `tests/test_workshop_panes_terminal.cpp` case `"on an empty line Up Up Enter leaves the older
 command ready to edit and runs nothing until the next Enter runs it"`, case `"Tab on a recalled
@@ -59,8 +59,8 @@ MEANS
 
 DOES NOT MEAN — that reading moves anything else: the line, a recall, a list and a refusal stay.
 
-PROVEN BY — `terminal-pane/pane.cpp` `wrap_record`, `WrappedRecord`, `view_top`, `scroll`,
-`page`, `Reading`, `wheel`, `press`; `terminal-pane/vocabulary.hpp`
+PROVEN BY — `terminal/pane.cpp` `wrap_record`, `WrappedRecord`, `view_top`, `scroll`,
+`page`, `Reading`, `wheel`, `press`; `terminal/vocabulary.hpp`
 `kActionScrollUp`, `kActionScrollDown`, `kActionOldest`, `kActionNewest`;
 `tests/test_workshop_panes_terminal.cpp` case `"a long entry is read whole by scrolling and no row
 of it is clipped for good"`, case `"new output leaves a scrolled view where it is and counts
@@ -80,7 +80,7 @@ MEANS
 - when the entry being read is evicted, the view moves to the oldest kept and says so once;
 - in a room with no row for the one below, the row above says both.
 
-PROVEN BY — `terminal-pane/pane.cpp` `omission_text`, `below_text`, `say`;
+PROVEN BY — `terminal/pane.cpp` `omission_text`, `below_text`, `say`;
 `tests/test_workshop_panes_terminal.cpp` case `"the pane says what it is not showing, in the two
 senses that differ"`, case `"a view scrolled into the middle says the rows above at its
 top and the rows below at its bottom"`, case `"when the entry being read is evicted the view moves
@@ -100,8 +100,8 @@ MEANS
 DOES NOT MEAN
 - the band's legend preference (WL-KEY-09): that is the keymap file's, over Workshop's own rows.
 
-PROVEN BY — `terminal-pane/pane.cpp` `on(ws::PaneSettings)`, `legend_setting`, `announce`,
-`legend_shown_`, `legend_problem_`, `named_rows`, `say`; `terminal-pane/vocabulary.hpp`
+PROVEN BY — `terminal/pane.cpp` `on(ws::PaneSettings)`, `legend_setting`, `announce`,
+`legend_shown_`, `legend_problem_`, `named_rows`, `say`; `terminal/vocabulary.hpp`
 `kSettingLegend`; `tests/test_workshop_panes_legend.cpp` case `"a layout keeps the Terminal's
 legend hidden while another shows it, written through Info's rows"`, case `"a Terminal seated again
 is handed its layout's legend before its room, and its first picture keeps it"`, case `"after a

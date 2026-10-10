@@ -12,8 +12,8 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
-#include "attention-pane/vocabulary.hpp"
-#include "connections-pane/vocabulary.hpp"
+#include "attention/vocabulary.hpp"
+#include "external-host/connections-pane/vocabulary.hpp"
 #include "workshop/attention_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 

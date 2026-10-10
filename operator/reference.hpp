@@ -9,7 +9,7 @@
 // step. It is what a step holds, and it grants nothing: only the evaluator spends one, resolving
 // it at the spend. A reference whose operator now has other ports is stale and is refused, never
 // re-bound to whatever bears the name. It names no catalog, so a pane that only shows and carries
-// references links no operator target. Reference: docs/reference/operator-providers.md.
+// references links no operator target. Reference: operator/docs/operator-providers.md.
 
 #include <zen/gate.hpp>
 #include <zen/schema.hpp>

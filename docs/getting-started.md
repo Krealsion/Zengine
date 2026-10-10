@@ -73,7 +73,7 @@ exported targets name `loom::core`, `loom::switchboard` and — for a host — `
 | `zengine::input` | receive key, text and pointer moments; translate a byte stream |
 | `zengine::ui` | author placement and extent; read what a viewport resolved |
 | `zengine::maker` | run definitions as data-authored weaves |
-| `zengine::flow` | author, save and generate native rules; [Flow guide](guides/flow.md) |
+| `zengine::flow` | author, save and generate native rules; [Flow guide](../flow/docs/flow-guide.md) |
 | `zengine::component` | medium-independent text editing, list and table arithmetic, a control strip, motion sampling |
 | `zengine::activation` | read your own activation as a cursor |
 | `zengine::operator` | hold and evaluate named typed rules; mount a provider |
@@ -234,7 +234,7 @@ have it take effect before the next `TimerReady`. So when the delay is *data* �
 a message, a person typed it, a job carries its own cadence — speak the raw protocol as the
 oven does: declare `timer::TimerFired` in your accept set and `timer::StartTimer` in your emit
 set, send, and filter firings by the id you chose. That split is deliberate
-([TIMER-05](laws/timer-laws.md)); it is also the first thing most authors meet.
+([TIMER-05](../timer/docs/timer-laws.md)); it is also the first thing most authors meet.
 
 For domain work that belongs to your first breath, implement `on_timed_activation` — it runs
 *after* your bindings are reconciled, and only for an activation the layer accepted:
@@ -491,7 +491,7 @@ all. The package names the physical things, because one list holds both kinds:
 | `zengine-operators-basic` | **provider** — typed operator definitions, mounted by a host, never loaded onto the bus |
 
 An artifact could expose both surfaces, or a surface that does not exist yet; `zengine::operator`
-and [operator providers](reference/operator-providers.md) are where the provider side is
+and [operator providers](../operator/docs/operator-providers.md) are where the provider side is
 written down.
 
 ```sh
@@ -521,7 +521,7 @@ kitchen: the bake completed
 **"It loads and nothing happens" deserves its own paragraph**, because it is the failure a
 stranger hits first and the one the substrate is quietest about. A sender sees its own send's
 fate only as far as it asks
-([limitations](workshop/limitations.md#a-sender-sees-its-own-sends-fate-only-if-it-asks)):
+([limitations](../workshop/docs/limitations.md#a-sender-sees-its-own-sends-fate-only-if-it-asks)):
 
 - the ticket a send returns says whether the attempt was *queued*, not whether it was delivered;
 - a weave that explicitly accepts `zen.DispatchRefused`, and believes a notice only when
@@ -570,8 +570,8 @@ holds still is, which is the line above.
 ## Where to go next
 
 - [cheat_sheet.md](../cheat_sheet.md) — the same material, dense and searchable.
-- [Ordering a timer](guides/timers.md) and [a weave with an authored rhythm](guides/timed-weaves.md).
-- [Reading input](reference/input.md) and [drawing](reference/surface.md), if your program has
+- [Ordering a timer](../timer/docs/timers.md) and [a weave with an authored rhythm](../timer/docs/timed-weaves.md).
+- [Reading input](../input/docs/input.md) and [drawing](../surface/docs/surface.md), if your program has
   a face.
-- [snake](reference/snake.md) — a worked example whose parts are genuinely separate weaves.
-- [Workshop](workshop/getting-started.md), if you want the interactive environment.
+- [snake](../examples/snake/README.md) — a worked example whose parts are genuinely separate weaves.
+- [Workshop](../workshop/docs/getting-started.md), if you want the interactive environment.

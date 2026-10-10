@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Editor buffer suite: `editor-pane/editor.hpp` as VALUES -- the buffer's mechanics, the
+// The Editor buffer suite: `editor/editor-pane/editor.hpp` as VALUES -- the buffer's mechanics, the
 // source byte law, the tab geometry, the column window, paste flattening, and its declared
 // vocabulary agreeing with `consume`. A case builds a buffer, acts and reads it back; that the
 // Editor pane answers from it is test_workshop_panes_editor.cpp's claim. NO WORKSHOP SUPPORT IS
@@ -12,7 +12,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
-#include "editor-pane/editor.hpp"
+#include "editor/editor-pane/editor.hpp"
 
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"

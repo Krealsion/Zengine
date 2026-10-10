@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
-#include "flow-pane/view.hpp" // `unit` -- Flow's authored grid, which a drag lands in
-#include "flow-pane/vocabulary.hpp"
-#include "flow-host/runtime.hpp"
+#include "flow/flow-pane/view.hpp" // `unit` -- Flow's authored grid, which a drag lands in
+#include "flow/flow-pane/vocabulary.hpp"
+#include "flow/flow-host/runtime.hpp"
 #include "flow/shape.hpp"
 #include "flow/workspace.hpp"
 #include "input/vocabulary.hpp"

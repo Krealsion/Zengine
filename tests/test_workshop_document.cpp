@@ -839,7 +839,7 @@ namespace {
 
 /// The keymap file the hotkeys guide shows under "The keymap file", as a weaver would copy it.
 std::string hotkeys_guide_example() {
-    std::ifstream guide(std::string(ZENGINE_SOURCE_DIR) + "/docs/workshop/hotkeys.md");
+    std::ifstream guide(std::string(ZENGINE_SOURCE_DIR) + "/workshop/docs/hotkeys.md");
     REQUIRE(guide);
     std::string line, example;
     bool section = false, inside = false;
@@ -1703,7 +1703,7 @@ namespace {
 /// The spellings the hotkeys guide gives a weaver to type into `Modify (type a spelling)`: the
 /// code spans of that row's second cell, as a weaver reads them.
 std::vector<std::string> hotkeys_guide_typed_spellings() {
-    std::ifstream guide(std::string(ZENGINE_SOURCE_DIR) + "/docs/workshop/hotkeys.md");
+    std::ifstream guide(std::string(ZENGINE_SOURCE_DIR) + "/workshop/docs/hotkeys.md");
     REQUIRE(guide);
     std::string line;
     while (std::getline(guide, line)) {

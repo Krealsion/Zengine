@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 # The view package: a view described as data, the renderer that draws it on its pane's canvas,
-# and the host that registers each view as its own participant (docs/reference/view.md).
+# and the host that registers each view as its own participant (view/docs/view.md).
 # Header-only and internal: Workshop composes the host, and the View Builder authors descriptions.
 add_library(zengine-view INTERFACE)
 target_include_directories(zengine-view INTERFACE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)

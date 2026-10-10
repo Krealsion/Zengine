@@ -6,7 +6,7 @@
 
 // The UI package's resolved side: what a viewport makes of authored elements, and which element
 // is under a cell. Everything here is an observation, recomputed when wanted: never stored on the
-// elements, never cached, and without a wire form. Reference: docs/reference/ui.md.
+// elements, never cached, and without a wire form. Reference: ui/docs/ui.md.
 
 #include "ui/vocabulary.hpp"
 
@@ -146,7 +146,7 @@ inline Rect resolve_in(const Element& e, const Rect& context) noexcept {
 /// An element whose chain does not reach the root, through a cycle or a context no element
 /// carries, is not placed: absent, never resolved against the root instead. Total, so it cannot
 /// refuse such a sequence; an application that wants one refused checks it with `walk_context`
-/// (docs/reference/ui.md#a-broken-chain-is-absent).
+/// (ui/docs/ui.md#a-broken-chain-is-absent).
 inline Scene resolve(const std::vector<Element>& elements, Viewport viewport) {
     enum : unsigned char { kTodo = 0, kWorking = 1, kDone = 2, kUnplaceable = 3 };
 

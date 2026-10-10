@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_GUESTS_HPP
 
 // Who may connect to this Workshop, and what each may then say: the guests file and the admission
-// policy it becomes (docs/workshop/external-host.md). No file, no listener. Not an identity system,
+// policy it becomes (external-host/docs/external-host.md). No file, no listener. Not an identity system,
 // not network security (loopback only), and no grant of anything a row does not name; a row's
 // `observe` list is what the relay beside the door lets it follow, and no power implies it. The
 // file names its version, absent being 1: version 2 adds the `build` power and the file's `host`,

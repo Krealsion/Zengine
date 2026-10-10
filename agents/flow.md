@@ -2,10 +2,10 @@
 
 Routed behind [AGENTS.md](../AGENTS.md). For `flow/`, also read the maker and operator owners:
 [maker](maker.md), [operators](operators.md), and [packaging](packaging.md).
-Public contracts: [Flow reference](../docs/reference/flow.md),
-[standalone workbench](../docs/guides/flow.md), and
-[Workshop authoring](../docs/workshop/flow.md). For `flow-host/`, read
-[host integration](flow-host.md); for `flow-pane/`, also read [panes](panes.md) and
+Public contracts: [Flow reference](../flow/docs/flow-reference.md),
+[standalone workbench](../flow/docs/flow-guide.md), and
+[Workshop authoring](../flow/docs/flow.md). For `flow/flow-host/`, read
+[host integration](flow-host.md); for `flow/flow-pane/`, also read [panes](panes.md) and
 [message drafts](message-drafts.md).
 
 - Definitions, schemas, admission and graph meaning retain their existing owners. Keep the
@@ -73,7 +73,7 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   value and no operator out.
 - The pane consumes the shared canvas seam and host-manager messages. It owns no private
   catalog, fallback primitives, nested host, native-code loading policy or bus pumping.
-- The pane finds powers through the discovery door (`flow-pane/find.hpp`) and never through
+- The pane finds powers through the discovery door (`flow/flow-pane/find.hpp`) and never through
   `FlowCatalog`, which supplies the graph's port signatures alone. It asks only for offered
   powers, so a participant's own trigger body is never Flow's to offer, and with a port selected
   only for what yields the port's type in Loom's spelling. It shows rows as the door answered

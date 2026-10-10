@@ -10,7 +10,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
-#include "flow-pane/vocabulary.hpp"
+#include "flow/flow-pane/vocabulary.hpp"
 
 namespace {
 

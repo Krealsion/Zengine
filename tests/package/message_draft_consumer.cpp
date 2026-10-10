@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Joshua DeMoss
 #include "message-draft/transfer.hpp"
 #include "flow/workspace.hpp"
-#include "flow-host/vocabulary.hpp"
-#include "flow-pane/vocabulary.hpp"
+#include "flow/flow-host/vocabulary.hpp"
+#include "flow/flow-pane/vocabulary.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include <iostream>
 

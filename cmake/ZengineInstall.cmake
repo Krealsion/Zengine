@@ -146,7 +146,7 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
                                       workshop/presenter_vocabulary.hpp
                                       workshop/guest_seam_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
-set(zengine_public_headers_neovim-editor neovim-editor/vocabulary.hpp)
+set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
 
 set(zengine_public_headers_maker maker/definition.hpp maker/files.hpp maker/write.hpp
     maker/runtime.hpp maker/weave.hpp maker/vocabulary.hpp maker/succession.hpp)
@@ -155,16 +155,16 @@ set(zengine_public_headers_flow flow/native_abi.h flow/native.hpp flow/compiled.
     flow/graph_edit.hpp flow/workspace.hpp flow/shape.hpp)
 set(zengine_public_headers_message-draft message-draft/draft.hpp message-draft/library.hpp message-draft/transfer.hpp)
 set(zengine_public_headers_inventory inventory/codec.hpp inventory/vocabulary.hpp inventory/grant.hpp)
-install(FILES inventory-pane/vocabulary.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/inventory-pane)
-set(zengine_public_headers_source-transfer source-transfer/vocabulary.hpp)
-set(zengine_public_headers_flow-host flow-host/vocabulary.hpp)
-set(zengine_public_headers_flow-pane flow-pane/vocabulary.hpp)
+install(FILES inventory/inventory-pane/vocabulary.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/inventory/inventory-pane)
+set(zengine_public_headers_editor/source-transfer editor/source-transfer/vocabulary.hpp)
+set(zengine_public_headers_flow/flow-host flow/flow-host/vocabulary.hpp)
+set(zengine_public_headers_flow/flow-pane flow/flow-pane/vocabulary.hpp)
 if(TARGET zengine-flow-tool)
     install(TARGETS zengine-flow-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 install(TARGETS zengine-inventory-read RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-foreach(pkg IN ITEMS maker flow flow-host flow-pane message-draft inventory source-transfer activation timer surface input ui component operator workshop neovim-editor)
+foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory editor/source-transfer activation timer surface input ui component operator workshop editor/neovim-editor)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
 endforeach()
