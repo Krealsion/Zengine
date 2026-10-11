@@ -186,8 +186,9 @@ Pass extra CTest flags through with `-DZEN_CTEST_ARGS=-V`.
 proves; on a 12-core desktop it takes the Linux lane from about a minute to under ten seconds, and
 CI runs every build job at `-j4`. An entry that cannot share the machine runs alone after the
 rest when `-DZEN_CTEST_APART=<entry>;...` names it. Every CI build job names `workshop_journey`
-until its first ask waits for Workshop's plan (#185), and the Windows jobs name `timer` too; each
-is an open failure under load, so its repair is proved on a local parallel lane.
+until its first ask waits for Workshop's plan (#185), the Linux jobs name `audit_probes` (#192)
+and the Windows jobs `timer` (#191); each is an open failure under load, so its repair is proved
+on a local parallel lane.
 What made parallel unsafe everywhere for a while was the
 compile-judged entries: each of them proves its point by trying to build a fixture, and they
 used to build it in this build tree — so eight tests that have nothing to do with each other
