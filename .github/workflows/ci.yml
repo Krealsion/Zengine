@@ -5,7 +5,8 @@ on:
   push:
     branches:
       - main
-  # A nightly run on `main` keeps the compiler caches it writes from expiring while `main` is quiet.
+  # A nightly run on `main` keeps the compiler caches it writes from expiring while `main` is quiet,
+  # and is the run in which the MSVC stranger builds with nothing added (its job says why).
   schedule:
     - cron: '17 9 * * *'
 
@@ -514,8 +515,9 @@ jobs:
       # Linux and the Neovim-gated ones are absent (this runner has no Neovim). That
       # difference is declared in tests/test_population.txt, not absorbed into a slack floor,
       # so a green here means the same thing; the numbers live in that file and nowhere else.
+      # Four entries at a time, as on Linux (VM-LANE-11).
       - name: Verify the repository-owned population
-        run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
+        run: cmake -DZEN_BUILD_DIR=build-win -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake
 
       - name: Keep only what this run used
         if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
@@ -536,15 +538,23 @@ jobs:
   # not the maintainers' daily build, so a red here cannot yet be proven or repaired locally as a
   # matter of course -- `continue-on-error` stays until it can. The same shape as the MinGW
   # job: Zengine carries NO MSVC-specific compile option. Loom's macro surface needs
-  # /Zc:preprocessor and `loom::core` exports it, so a green here with nothing added is the
-  # evidence the package owns that law; a flag this job needs belongs in Loom.
+  # /Zc:preprocessor and `loom::core` exports it, so a green with nothing added is the evidence
+  # the package owns that law; a flag this job needs belongs in Loom.
+  # TWO RUNS OF ONE JOB. The nightly run on `main` is that stranger: nothing added, and its
+  # verdict heads the run's summary. Every other run is a stranger who adds two things on the
+  # configure line, and only there: ccache as the launcher, and each object's debug information
+  # embedded (CMP0141's /Z7), the one format ccache can keep for MSVC. Neither names a symbol, a
+  # definition or a `/Zc` switch, so neither can stand in for what Loom exports. The cache's rules
+  # are the other jobs' (VM-LANE-23), in a store of this job's own (VM-LANE-24, VM-LANE-25).
   zengine-windows-msvc-stranger:
-    name: Zengine / Windows / MSVC Loom stranger (advisory -- the released toolchain, not the maintainers' local build)
+    name: ${{ github.event_name == 'schedule' && 'Zengine / Windows / MSVC Loom stranger, nothing added (advisory -- the released toolchain, not the maintainers'' local build)' || 'Zengine / Windows / MSVC Loom stranger (advisory -- the released toolchain, not the maintainers'' local build)' }}
     needs: [zengine-change-kind, resolve-loom]
     if: ${{ !cancelled() && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
     runs-on: windows-2025
     continue-on-error: true
     timeout-minutes: 60
+    env:
+      ZEN_MSVC_BARE: ${{ github.event_name == 'schedule' }}
     steps:
       - name: Check out Zengine
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -599,7 +609,39 @@ jobs:
           cmake --build $loomBuild
           cmake --install $loomBuild --prefix $loomPrefix
 
-      - name: Configure and build Zengine as a stranger with MSVC
+      # The compiler cache as in the MinGW-w64 job, in a store of this job's own; not in the
+      # nightly run, which adds nothing.
+      - name: Fetch pinned ccache 4.13.6
+        id: ccache
+        if: ${{ env.ZEN_MSVC_BARE != 'true' }}
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'ccache.zip'
+          $bin = Join-Path $env:RUNNER_TEMP 'ccache-bin'
+          Invoke-WebRequest -UseBasicParsing -OutFile $zip `
+            -Uri https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-windows-x86_64.zip
+          $sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
+          if ($sha -ne '3d7cebb05850ad704e197b3f1d3f0f924ab6c9fdfc561578e146184fe9d89380') {
+            throw "ccache archive checksum $sha does not match the pin"
+          }
+          Expand-Archive -LiteralPath $zip -DestinationPath $bin
+          $exe = (Get-ChildItem -LiteralPath $bin -Recurse -Filter ccache.exe | Select-Object -First 1).FullName
+          & $exe --version | Select-Object -First 1
+          "ZEN_CCACHE=$($exe -replace '\\', '/')" >> $env:GITHUB_ENV
+          "ZEN_CCACHE_SINCE=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" >> $env:GITHUB_ENV
+          "CCACHE_DIR=$(Join-Path $env:RUNNER_TEMP 'ccache')" >> $env:GITHUB_ENV
+          "CCACHE_MAXSIZE=3G" >> $env:GITHUB_ENV
+          "image=$env:ImageOS-$env:ImageVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Restore the compiler cache
+        if: ${{ env.ZEN_MSVC_BARE != 'true' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-msvc-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-msvc-debug-${{ steps.ccache.outputs.image }}-
+
+      - name: Configure Zengine as a stranger with MSVC
         shell: pwsh
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -607,13 +649,38 @@ jobs:
           Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
           Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
           $loomPrefix = Join-Path $env:RUNNER_TEMP 'loom-prefix-msvc'
+          $added = @()
+          if ($env:ZEN_MSVC_BARE -ne 'true') {
+            $added = @(
+              '-DCMAKE_POLICY_DEFAULT_CMP0141=NEW',
+              '-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded',
+              "-DCMAKE_C_COMPILER_LAUNCHER=$env:ZEN_CCACHE",
+              "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:ZEN_CCACHE")
+          }
+          "Added to the configure line: $(if ($added) { $added -join ' ' } else { 'nothing' })"
           cmake -S . -B build-msvc -G Ninja `
             -DCMAKE_BUILD_TYPE=Debug `
             "-DCMAKE_PREFIX_PATH=$loomPrefix" `
             -DZEN_LOOM_DEV=OFF `
             -DBUILD_TESTING=ON `
-            -DZENGINE_SDL_SKIN=OFF
+            -DZENGINE_SDL_SKIN=OFF `
+            @added
+
+      - name: Build Zengine
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
+          if ($env:ZEN_CCACHE) { & $env:ZEN_CCACHE --zero-stats }
           cmake --build build-msvc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($env:ZEN_CCACHE) {
+            "## Zengine / Windows / MSVC Loom stranger: the compiler cache`n`n``````text" >> $env:GITHUB_STEP_SUMMARY
+            & $env:ZEN_CCACHE --show-stats --verbose >> $env:GITHUB_STEP_SUMMARY
+            '```' >> $env:GITHUB_STEP_SUMMARY
+          }
 
       # THIS STEP NEEDS THE DEV SHELL, the only verify step that does: the compile-negative
       # entries compile AT TEST TIME -- ctest starts a nested build that runs `cl.exe`, which
@@ -621,6 +688,8 @@ jobs:
       # MinGW job names g++ by absolute path, which carries its own roots). Without it the
       # compile entries fail as `C1083: Cannot open include file: 'cstdint'` -- an unset
       # variable that reads like a broken repository, in a lane whose run-only suites pass.
+      # Four entries at a time, as on Linux (VM-LANE-11). The verdict heads the run's summary,
+      # saying which of the two runs this was.
       - name: Verify the repository-owned population
         shell: pwsh
         run: |
@@ -628,7 +697,12 @@ jobs:
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
           Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
-          cmake -DZEN_BUILD_DIR=build-msvc -P tests/verify.cmake
+          cmake -DZEN_BUILD_DIR=build-msvc -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake
+          $rc = $LASTEXITCODE
+          $kind = if ($env:ZEN_MSVC_BARE -eq 'true') { 'nothing added' } else { 'the compiler cache and embedded debug information added' }
+          $outcome = if ($rc -eq 0) { 'passed' } else { 'failed' }
+          "## Zengine / Windows / MSVC Loom stranger, $kind`n`n**Verification:** $outcome (exit $rc)`n" >> $env:GITHUB_STEP_SUMMARY
+          exit $rc
 
       # The installed-package witness on MSVC. Same command as the Linux job, and it has to
       # be: the package's claim is that an unrelated project needs nothing but a prefix, and a
@@ -644,3 +718,18 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
           $work = Join-Path $env:RUNNER_TEMP 'zengine-package'
           cmake -DZEN_BUILD_DIR=build-msvc "-DZEN_WORK=$work" -P tests/package/run.cmake
+
+      - name: Keep only what this run used
+        if: ${{ !cancelled() && env.ZEN_MSVC_BARE != 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        shell: pwsh
+        run: |
+          $age = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]$env:ZEN_CCACHE_SINCE + 60
+          & $env:ZEN_CCACHE --evict-older-than "${age}s"
+          & $env:ZEN_CCACHE --show-stats
+
+      - name: Save the compiler cache
+        if: ${{ !cancelled() && env.ZEN_MSVC_BARE != 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-msvc-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
