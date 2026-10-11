@@ -1,0 +1,175 @@
+{
+ "format": "zengine-setup",
+ "format_version": "1",
+ "title": "Build your first pane",
+ "summary": "Files and the Builder over a project holding one source file, tally.cpp, and its recipe.",
+ "task": "Build a small pane from one source file, put it in the project, and open it in Workshop.",
+ "choose": "you have never built anything in Workshop: this is the Builder's first tutorial.",
+ "prepares": [
+  "a project holding tally.cpp and a recipe that builds it, against your installed Zengine",
+  "the Builder and Files on the desk"
+ ],
+ "guide": "README.md",
+ "guide_files": [
+  "images"
+ ],
+ "first_task": {
+  "do": "In the Builder, press o, type example.tally, press Return, then press f.",
+  "expect": "The realize row says realized, and the Pane Manager lists Tally."
+ },
+ "variations": [
+  "Change the words in tally.cpp and build again with load after build on: Tally reloads and keeps its count"
+ ],
+ "limits": [
+  "Reset puts the desk back; it does not remove Tally from the project's plan or delete what was built"
+ ],
+ "reset": {
+  "scope": "the layout of the desk",
+  "keeps": "tally.cpp, the recipe file, the plan row you wrote and what was built"
+ },
+ "medium": {
+  "supports": [
+   "sdl",
+   "tui"
+  ],
+  "viewport": [
+   120,
+   56
+  ]
+ },
+ "requires": {
+  "inputs": {
+   "zengine_prefix": "an installed Zengine prefix; the tally recipe builds against it"
+  },
+  "notes": [
+   "the recipe borrows the --build tree's C++ toolchain (toolchain_from)",
+   "where built programs need a toolchain's runtime libraries (MinGW on Windows), --toolchain-bin puts that directory on PATH"
+  ]
+ },
+ "authority": {
+  "may": [
+   "input",
+   "capture",
+   "demo",
+   "build"
+  ],
+  "observe": [
+   {
+    "producer": "zengine.builder",
+    "shape": "BuildAsked",
+    "version": "1"
+   },
+   {
+    "producer": "zengine.builder",
+    "shape": "BuildStatus",
+    "version": "4"
+   }
+  ]
+ },
+ "desk": "desk.json",
+ "project": {
+  "files": {
+   "tally.cpp": "../../../../examples/tally-pane/tally.cpp"
+  },
+  "recipes": "setup-recipes.json"
+ },
+ "walks": {
+  "tutorial": {
+   "about": "the tutorial, step by step: the recipe, the plan row, the build and load, Tally opened and counting",
+   "steps": [
+    {
+     "expect": [
+      "zengine.builder-pane",
+      "builder",
+      "tally -> tally"
+     ],
+     "seconds": 30
+    },
+    {
+     "picture": "step-1"
+    },
+    {
+     "into": [
+      "zengine.builder-pane",
+      "builder",
+      "BUILDER"
+     ]
+    },
+    {
+     "press": "o"
+    },
+    {
+     "expect": [
+      "zengine.builder-pane",
+      "builder",
+      "role for tally"
+     ],
+     "seconds": 10
+    },
+    {
+     "type": "example.tally"
+    },
+    {
+     "picture": "step-2"
+    },
+    {
+     "press": "return"
+    },
+    {
+     "expect": [
+      "zengine.builder-pane",
+      "builder",
+      "waiting tally"
+     ],
+     "seconds": 20
+    },
+    {
+     "picture": "step-3"
+    },
+    {
+     "press": "f"
+    },
+    {
+     "expect": [
+      "zengine.builder-pane",
+      "builder",
+      "realized"
+     ],
+     "seconds": 300
+    },
+    {
+     "picture": "step-4"
+    },
+    {
+     "open": "pane:example.tally/tally"
+    },
+    {
+     "expect": [
+      "example.tally",
+      "tally",
+      "Tally: 0"
+     ],
+     "seconds": 20
+    },
+    {
+     "picture": "step-5"
+    },
+    {
+     "press": "space",
+     "repeat": 3
+    },
+    {
+     "expect": [
+      "example.tally",
+      "tally",
+      "Tally: 3"
+     ],
+     "seconds": 10
+    },
+    {
+     "picture": "step-6"
+    }
+   ]
+  }
+ }
+}

@@ -331,7 +331,7 @@ succeeded. Put the message back, save, and build again. (A field added to what t
 
 A reload you never promoted is gone when Workshop quits. [Edit a running
 pane](../../builder/docs/edit-a-running-pane.md#every-time-point-change-build-reload) walks through promote and revert
-step by step; [the Builder](../../builder/docs/builder.md#load-after-build-and-reload-in-place) is their reference.
+step by step; [loading what you built](load-plans.md#when-a-built-artifact-is-loaded-again) is their reference.
 
 ## Which panes
 
@@ -383,7 +383,7 @@ the rest from there; `m` marks it for the next time.
 | `FAILED`, and `l` reads `CMake Error: The source directory "…" does not exist.` | the build tree's checkout moved or is gone | the same |
 | `did not start … the configured CMake build tree … has no …` | the build tree is not where the catalog says | the same |
 | the Editor refuses the file: `… holds a byte outside plain ASCII …` | the Editor edits plain ASCII only, and a shipped pane source is kept that way; a file you open from Files may not be | edit that file elsewhere |
-| `recipe … is a cmake_target recipe with no editing entry` | a catalog whose recipe names no entry — every catalog written before entries existed | use the development catalog, or give the recipe an `entry` ([the Builder](../../builder/docs/builder.md#an-existing-cmake-target)) |
+| `recipe … is a cmake_target recipe with no editing entry` | a catalog whose recipe names no entry — every catalog written before entries existed | use the development catalog, or give the recipe an `entry` ([the recipe file](../../builder/docs/recipes.md#an-existing-cmake-target)) |
 | the reload is refused with a changed shape | the rebuild changed what the pane keeps or answers to | put the shape back; replacing a shape is not something Workshop drives yet |
 
 **A setup does not follow a move.** The development catalog names the checkout and the build tree
@@ -414,6 +414,6 @@ was written for.
 - **It does not search.** The Editor holds one file and has no find or go-to-line; the reach to a
   line far down a pane's source is the wheel.
 
-The pieces, each in depth: [the Builder](../../builder/docs/builder.md) (recipes and their entries, load after build,
+The pieces, each in depth: [the Builder pane](../../builder/docs/zengine.builder-pane.md) (recipes and their entries, load after build,
 reload, promote, revert), [the Editor](../../editor/docs/editor.md), [Files](../../files/docs/files.md), and the Builder package's
-[reference](../../builder/docs/builder-reference.md) for the build output a build keeps.
+[manual](../../builder/docs/zengine.builder.md) for the build output a build keeps.

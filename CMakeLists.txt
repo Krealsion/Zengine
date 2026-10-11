@@ -107,8 +107,13 @@ endif()
 # go through this function, so the contract is a law here, not a convention.
 function(zengine_weave target source)
     # ARGN, so a weave may carry more than its one .cpp (a generated source, an embedded
-    # typeface); the first source is the one file that is the weave.
-    add_library(${target} SHARED ${source} ${ARGN})
+    # typeface); the first source is the one file that is the weave. `MANUAL <page>` names the
+    # weave's manual, which it carries compiled in (cmake/ZengineManual.cmake).
+    cmake_parse_arguments(PARSE_ARGV 2 zengine_weave "" "MANUAL" "")
+    add_library(${target} SHARED ${source} ${zengine_weave_UNPARSED_ARGUMENTS})
+    if(zengine_weave_MANUAL)
+        zengine_manual(${target} PRIVATE "${zengine_weave_MANUAL}")
+    endif()
     target_link_libraries(${target} PRIVATE loom::core loom::switchboard zengine-warnings
                                             zengine-sanitize)
     loom_weave_build_contract(${target})
@@ -142,6 +147,10 @@ function(zengine_provider target source)
     loom_weave_build_contract(${target})
     set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
 endfunction()
+
+# ---- a weave's manual, carried compiled in ---------------------------------------------
+# zengine_manual() and the one page grammar the documentation lane's manual check reads with.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineManual.cmake)
 
 # ---- the SDL dependency, acquired once for every package that needs it -----------------
 # The window Skin and the SDL Input reader must share one SDL, or the reader polls a queue the
@@ -249,6 +258,7 @@ endfunction()
 # does not constrain the order; `if(TARGET ...)` and `$<TARGET_FILE:...>` are answered when read.
 
 add_subdirectory(activation)
+add_subdirectory(manual)
 add_subdirectory(operator)
 add_subdirectory(maker)
 add_subdirectory(message-draft)

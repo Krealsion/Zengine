@@ -14,6 +14,7 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-voca
                                                             zengine-ui-vocabulary
                                                             zengine-component
                                                             zengine-builder-vocabulary
+                                                            zengine-manual
                                                             zengine-operator
                                                             loom::core
                                                             loom::terminal)

@@ -6,7 +6,7 @@ live definition is edited. The header-only package is exported as `zengine::make
 
 What sets a maker weave apart is what the weaver authors and how it reaches the bus. A compiled
 weave — a shape for its state, a class for its handlers — reaches the bus through a build, the
-[Builder](../../builder/docs/builder-reference.md)'s job. A definition reaches it through admission, so what the weaver makes
+[Builder](../../builder/docs/zengine.builder.md)'s job. A definition reaches it through admission, so what the weaver makes
 is **data**, an edit is a swap or a succession, never a build, and the maker package is the
 interpreter that registers one Loom weave per definition and runs it as any native weave runs.
 

@@ -175,13 +175,13 @@ Its law, pages and suites: [`attention/AGENTS.md`](../../attention/AGENTS.md).
 Its law, pages and suites: [`builder/AGENTS.md`](../../builder/AGENTS.md).
 
 - **A build succeeded when it exited zero and its named artifact exists**, judged in that order.
-  [A process exiting zero is not an artifact](../../builder/docs/builder-reference.md#a-process-exiting-zero-is-not-an-artifact)
+  [A process exiting zero is not an artifact](../../builder/docs/recipes.md#where-the-artifact-lands-and-how-a-build-is-judged)
 - **A recipe names inputs, never a program.**
-  [A recipe can name no program](../../builder/docs/builder-reference.md#a-recipe-is-authored-knowledge-and-it-can-name-no-program)
+  [A recipe can name no program](../../builder/docs/recipes.md#what-a-recipe-cannot-do)
 - **A reload in place keeps the running weave's shapes**; anything else is refused before the
-  weave is touched. [Load after build](../../builder/docs/builder.md#load-after-build-and-reload-in-place)
+  weave is touched. [Load after build](../../workshop/docs/load-plans.md#when-a-built-artifact-is-loaded-again)
 - **An observer follows a press by the request it caused**, never by the first status to arrive.
-  [What an observer is told](../../builder/docs/builder.md#what-an-observer-is-told)
+  [What an observer is told](../../builder/docs/zengine.builder.md#follow)
 - **Two builds at once in one case take two build trees.**
   [VM-LANE-21](../../agents/verification/lanes.md#vm-lane-21--one-owner-per-build-tree-holds-inside-one-process-too)
 

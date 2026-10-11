@@ -157,7 +157,7 @@ leaving the catalog exactly as it was.
 | identity | what it answers | whose state |
 |---|---|---|
 | `zengine.project.anchor` | the project-relative semantic anchor this Workshop was launched into, as `zengine.ProjectAnchor` | the host's own launch capture |
-| `zengine.recipes.catalog` | which authored [recipe](../../builder/docs/builder-reference.md) catalog is currently in force and how many completed recipes it holds, as `zengine.RecipeCatalog` | the session's current recipe owner |
+| `zengine.recipes.catalog` | which authored [recipe](../../builder/docs/recipes.md) catalog is currently in force and how many completed recipes it holds, as `zengine.RecipeCatalog` | the session's current recipe owner |
 
 Both **read their owner at the moment of the sample**, which is the whole difference between
 a route and a copy: choose a different recipe catalog while Workshop is running and the next

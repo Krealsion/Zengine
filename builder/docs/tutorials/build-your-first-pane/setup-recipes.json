@@ -1,0 +1,35 @@
+{
+ "zen": 1,
+ "schema": "WorkshopRecipeFile",
+ "version": 2,
+ "content_id": "0x086f454f863d90ea",
+ "fields": {
+  "format": "zengine-build-recipes",
+  "format_version": "2",
+  "recipes": [
+   {
+    "recipe": "tally",
+    "artifact": "tally",
+    "artifact_dir": "",
+    "cmake_target": [],
+    "single_source": [
+     {
+      "source": "tally.cpp",
+      "packages": [
+       "${zengine_prefix}",
+       "${loom_prefix}"
+      ],
+      "links": [
+       "zengine::pane",
+       "zengine::activation",
+       "zengine::input",
+       "loom::switchboard"
+      ],
+      "toolchain_from": "${build}",
+      "workspace": "${root}/project-build"
+     }
+    ]
+   }
+  ]
+ }
+}

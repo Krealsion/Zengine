@@ -13,6 +13,9 @@
 
 #include "builder/recipe.hpp"
 #include "builder/vocabulary.hpp"
+#include "manual/vocabulary.hpp"
+
+#include "manuals/zengine.builder.hpp" // this office's manual, compiled in from its page
 
 #include <zen/weave.hpp>
 
@@ -243,9 +246,11 @@ class BuilderWeave
                              loom::Accept<BuildRequested, StatusRequested, BuildStatusRequested,
                                           BuildStarted, BuildOutput, BuildFinished,
                                           BuildNotStarted, ArtifactRealized, ArtifactPromoted,
-                                          BuildOutputRequested>,
+                                          BuildOutputRequested,
+                                          manual::ShapeDocumentRequested>,
                              loom::Emit<RunBuild, BuildStatus, BuildAsked, RecipeCatalog,
-                                        OfferArtifact, BuildOutputSaid>> {
+                                        OfferArtifact, BuildOutputSaid,
+                                        manual::ShapeDocumentShown>> {
 public:
     /// The recipe views and the file they came from are read from their owner, the host
     /// (`CurrentRecipes`), never copied and never state: a poke that could write an artifact
@@ -279,6 +284,13 @@ public:
     /// published to nobody -- the baseline an observer that came late or came back joins
     /// (vocabulary.hpp, `BuildStatusRequested`). Read-only: it moves no build and no counter.
     void on(const BuildStatusRequested&, loom::Mail& mail) { (void)mail.answer(status()); }
+
+    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it, said against the
+    /// content id the asker holds. The gate's own list says which shapes are mine to describe.
+    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
+                                                 manual::pages::zengine_builder::kManual));
+    }
 
     /// Build the recipe you know by this name. A name this tool does not hold is refused, which
     /// is why a `BuildRequested` from anywhere cannot widen what this program builds.

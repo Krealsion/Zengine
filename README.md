@@ -193,6 +193,7 @@ the Pane Manager, Hotkeys and the menus; its pane protocol is exported as `zengi
 | [`operator/`](operator/README.md) | typed reusable rules, supplied by artifacts | `zengine::operator`, `zengine::operator-consumer` |
 | [`maker/`](maker/README.md) | a weave built from a weaver's definition — state, triggers and emits as data, edited live | `zengine::maker` |
 | [`message-draft/`](message-draft/README.md) | typed value forms, unfinished drafts and named presets | `zengine::message-draft` |
+| [`manual/`](manual/README.md) | a weave's manual, compiled into the weave and answered on ask by its pane or office | not exported |
 
 **Examples** — [`examples/`](examples/README.md): worked examples, among them `snake/`, a game
 whose parts are separate weaves.

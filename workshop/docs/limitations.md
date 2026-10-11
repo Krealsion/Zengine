@@ -172,7 +172,7 @@ Two smaller edges, in both media:
 | | today |
 |---|---|
 | Which surfaces can be read past? | **none, any more.** It worked only where Workshop itself cut a value it still held: the Info pane's object and property rows, and before them the Files pane's location and names. Both are loaded panes now, and a pane sends text it has already cut — so Workshop never receives the longer value and has nothing to reveal |
-| The notice row, and the Builder's realize row | **not readable past** — a long refusal is cut in both, and a load the Loom refuses is longer than either. Launch with `--log <path>` and the whole sentence is kept in that journal ([Builder](../../builder/docs/builder.md#using-it)) |
+| The notice row, and the Builder's realize row | **not readable past** — a long refusal is cut in both, and a load the Loom refuses is longer than either. Launch with `--log <path>` and the whole sentence is kept in that journal ([the Builder](../../builder/docs/zengine.builder.md#files)) |
 | Could the pane protocol be widened to ask for the longer text? | **it will not be.** A pane is a participant, not a store the host reaches into; asking one for a value it chose not to send is the shape this project refuses. Widen the pane or the window instead |
 
 ### Builder builds what an authored file says, and no more
@@ -201,7 +201,7 @@ participation for that artifact: a waiting row is realized, and a row that is al
 changed shape is refused before the running weave is touched, and the refusal names the change;
 replacing it is the Loom's prepared replacement with an authored migration, which Workshop does
 not host yet. No automatic build-on-missing and no reload on a file appearing: a weaver presses a
-key. Detail in [Builder](../../builder/docs/builder.md).
+key. Detail in [loading what you built](load-plans.md#when-a-built-artifact-is-loaded-again).
 
 **A build's own words are read in the Builder, from memory.** `l` shows what a build said, bound
 to that build. The build tool keeps only its last few operations, and of a long build the
@@ -209,7 +209,7 @@ beginning and the end with the middle counted; nothing is written to a file, sea
 across a restart, and a row shows what a canvas can draw of a compiler's characters, counted. On
 Windows, Ninja has already re-encoded a compiler's non-ASCII characters by the time Workshop reads
 them, so its quotes read as `?`.
-[Reading what a build said](../../builder/docs/builder.md#reading-what-a-build-said).
+[Reading what a build said](../../builder/docs/zengine.builder-pane.md#builderoutput).
 
 **Workshop's own panes are changed from inside Workshop only through a development setup** — a
 development catalog and a runtime copied from one configured Zengine build tree
