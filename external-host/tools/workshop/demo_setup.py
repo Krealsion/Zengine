@@ -481,6 +481,9 @@ def reset(ctx):
 
 
 def status(ctx):
+    from workshop_steps import plan_at_rest
+    # Asked before the plan is at rest, the demo's control may not be declared yet.
+    plan_at_rest(ctx, ctx.inputs["link"])
     if ctx.inputs.get("wait", False):
         result = ctx.ask(ROLE, "DemoReadyRequested", {"generation": 1}, via=ctx.inputs["link"],
                          timeout=float(ctx.inputs.get("seconds", 600)))
