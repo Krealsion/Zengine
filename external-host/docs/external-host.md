@@ -247,7 +247,7 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   untouched -- and after `:w` whether it saved the planned text, which the file must equal too),
   `workshop/place` (a pane's place and size written through Info, one field at a time, each
   row chosen by the name Info gives it),
-  `workshop/builder` (the [Builder](../../builder/docs/builder.md)'s keys, each followed to its owner's answer: a
+  `workshop/builder` (the [Builder pane](../../builder/docs/zengine.builder-pane.md)'s keys, each followed to its owner's answer: a
   build to its operation's ending on `last` and, when it asked for one, that operation's
   realization ending on `realize` -- two answers kept apart; the ask and operation are kept to
   the end, so another build's ending is SUPERSEDED rather than taken for this one; a wait that
@@ -539,7 +539,7 @@ names — one entry per office, shape and version, the version written as Zen's 
   `BuildAsked` its own press caused, keeps that ask's number and follows `BuildStatus` for it to
   the build's ending and, separately, the realization's. A status about a later ask before its
   ending is SUPERSEDED, never taken for it. From the press on, the pane may be covered, closed or
-  resized. The Builder's words: [builder](../../builder/docs/builder.md#what-an-observer-is-told).
+  resized. The Builder's words: [the Builder](../../builder/docs/zengine.builder.md#follow).
 - **Promote and revert are the realization owner's to answer** (`zengine.realization`). Their
   press causes `RealizationAsked` — the owner's word that it took the ask as number N, or refused
   it and why — and the answer names N: `ArtifactPromoted` in the same delivery, `ArtifactRealized`

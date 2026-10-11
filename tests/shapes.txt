@@ -258,6 +258,9 @@ PaneContent v2 0xb92aa7a635dc8407
 PaneContent v3 0xb9e99c2022e10871
 PaneContent v4 0xc16deb8795ee9660
 PaneCover v1 0xa709fceb604560a1
+PaneDocumentRequested v1 0x3379dd0cb0156dca
+PaneDocumentSection v1 0x03759014adf99768
+PaneDocumentShown v1 0xa762ea40fcb2601f
 PaneDragged v1 0xd5f4c66bd4c09364
 PaneDrop v1 0xa650744bd2dea469
 PaneEscapeUnspent v1 0xb9ee2d9589543191
@@ -391,6 +394,8 @@ SavedView v1 0x16bedef2a254852f
 SchemaIdentity v1 0xd6ff55096a9d98d2
 ScoreState v1 0x2a0e436c6672fb9d
 SetupApplyRequested v1 0xdbed9509ec8b868a
+ShapeDocumentRequested v1 0x6a2a97debe09af6e
+ShapeDocumentShown v1 0x5444c736d8fefe30
 ShownBinding v1 0xc482f65a8cbfef9d
 ShownCandidate v1 0x8ad594ca04e169db
 ShownEntry v2 0x5daa79b13f1620ff

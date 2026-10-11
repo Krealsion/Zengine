@@ -1,0 +1,84 @@
+{
+ "zen": 1,
+ "schema": "WorkshopSetup",
+ "version": 4,
+ "fields": {
+  "format": "zengine-workshop-setup",
+  "format_version": "4",
+  "name": "Build your first pane",
+  "panes": [
+   {
+    "provider": "zengine.builder-pane",
+    "pane": "builder",
+    "place": {
+     "mode": "pixels",
+     "x": "12",
+     "y": "0"
+    },
+    "width": {
+     "mode": "pixels",
+     "amount": "792"
+    },
+    "height": {
+     "mode": "pixels",
+     "amount": "300"
+    },
+    "front": "0"
+   },
+   {
+    "provider": "zengine.files",
+    "pane": "project-files",
+    "place": {
+     "mode": "pixels",
+     "x": "12",
+     "y": "312"
+    },
+    "width": {
+     "mode": "pixels",
+     "amount": "792"
+    },
+    "height": {
+     "mode": "pixels",
+     "amount": "168"
+    },
+    "front": "1"
+   },
+   {
+    "provider": "zengine.demo",
+    "pane": "controls",
+    "place": {
+     "mode": "pixels",
+     "x": "1140",
+     "y": "420"
+    },
+    "width": {
+     "mode": "pixels",
+     "amount": "288"
+    },
+    "height": {
+     "mode": "pixels",
+     "amount": "120"
+    },
+    "front": "2"
+   },
+   {
+    "provider": "zengine.workshop",
+    "pane": "layouts",
+    "place": {
+     "mode": "default",
+     "x": "0",
+     "y": "0"
+    },
+    "width": {
+     "mode": "default",
+     "amount": "0"
+    },
+    "height": {
+     "mode": "default",
+     "amount": "0"
+    },
+    "front": "3"
+   }
+  ]
+ }
+}

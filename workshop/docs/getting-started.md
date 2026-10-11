@@ -48,7 +48,7 @@ See [load plans](load-plans.md).
 | `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | presentation preferences Workshop writes when you state one (pane titles, `t`) |
 | `--isolated` | off | this run reads and writes **none** of your per-user config or session state — for tests, scratch experiments and clean-start diagnosis |
 | `--load-plan <path>` | `workshop-plan.json` in the directory you launched from when there is one, else `default-load-plan.json` beside the binary | which artifacts this run is made of |
-| `--recipes <path>` | `build-recipes.json` in the directory you launched from when there is one, else `default-build-recipes.json` beside the binary | what this run can build ([Builder](../../builder/docs/builder.md)) |
+| `--recipes <path>` | `build-recipes.json` in the directory you launched from when there is one, else `default-build-recipes.json` beside the binary | what this run can build ([the recipe file](../../builder/docs/recipes.md)) |
 | `--log <path>` | none | a durable journal of selected facts, appended as they happen; outlives the process |
 | `--dump <path>` | none | what the volatile recorder still held when Workshop quit |
 | `--document <path>` | `workshop.json` in the project, when there is one | an object document from before the object canvas retired: named once at startup and left exactly as it is |
@@ -235,7 +235,7 @@ how to open one: `^t terminal | ^p panes | ^k hotkeys`.
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | layouts | `s` save · `r` restore · `=` new · `.` `,` next / previous · `Ctrl`+`w` remove ([setups](setups.md)) — the **last** session needs neither |
 | quit | `q` · `Ctrl`+`c` where nothing takes text |
-| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter` `Tab`, the [Builder](../../builder/docs/builder.md)'s `b` `c` `f` `o`, the [browser](../../files/docs/files.md)'s `u` `m` `a`, [Attention](../../attention/docs/attention.md)'s `↑` `↓` `d`, the [Terminal](../../terminal/docs/terminal.md)'s `Enter` `Tab` `↑` `↓` `Esc` and `Ctrl`+`↑` `Ctrl`+`↓` `Ctrl`+`Home` `Ctrl`+`End` |
+| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter` `Tab`, the [Builder](../../builder/docs/zengine.builder-pane.md)'s `b` `c` `f` `o`, the [browser](../../files/docs/files.md)'s `u` `m` `a`, [Attention](../../attention/docs/attention.md)'s `↑` `↓` `d`, the [Terminal](../../terminal/docs/terminal.md)'s `Enter` `Tab` `↑` `↓` `Esc` and `Ctrl`+`↑` `Ctrl`+`↓` `Ctrl`+`Home` `Ctrl`+`End` |
 | leaving a pane | `Esc`: the pane first lets go of what you chose in it (a row in Loaded or Powers), Compose leaves its form and the [Terminal](../../terminal/docs/terminal.md) sheds its list and its line; the next `Esc` puts the pane down. Or a press elsewhere. Both editors keep every `Esc`; a press elsewhere is the way out of those |
 
 These are the defaults; every binding can be remapped through the keymap file, and the
@@ -264,7 +264,7 @@ Neither is a degraded version of the other, and the same published intent produc
   inspector, and a pane of your own: a view, made in the View Builder.
 - [Setups](setups.md) — saving an arrangement, and what does not come back.
 - [Load plans](load-plans.md) — choosing what a run is made of.
-- [Builder](../../builder/docs/builder.md) — what it builds today.
+- [Builder](../../builder/docs/zengine.builder-pane.md) — what it builds today.
 - [The source editor](../../editor/docs/editor.md) — edit the file a recipe names, without leaving.
 - [Edit a running pane](../../builder/docs/edit-a-running-pane.md), and [develop Workshop](develop-workshop.md) —
   change a pane while it runs: one of your own, or one Workshop ships, the desktop included.

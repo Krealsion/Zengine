@@ -23,6 +23,7 @@ input             library
 introspection     feature
 inventory         feature
 maker             library
+manual            library
 message-draft     library
 operator          library
 quarry            quarry

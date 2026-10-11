@@ -19,6 +19,7 @@
 #include "flow/workspace.hpp"
 #include "inventory/inventory-pane/toolbox_file.hpp"
 #include "inventory/vocabulary.hpp"
+#include "manual/vocabulary.hpp"
 #include "examples/snake/play_state.hpp"
 #include "editor/source-transfer/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -38,6 +39,7 @@
 #include "workshop/opening.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_doors.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_door.hpp"
@@ -201,6 +203,11 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::setup_persist::v4::WorkshopSetupPane>(), // WorkshopSetupPane v4
         shape<::zengine::workshop::setup_persist::WorkshopSetupPane>(), // WorkshopSetupPane v5
         shape<::zengine::workshop::PaneSettingsDeclared>(), // PaneSettingsDeclared v1
+        shape<::zengine::workshop::PaneDocumentRequested>(), // PaneDocumentRequested v1
+        shape<::zengine::workshop::PaneDocumentShown>(), // PaneDocumentShown v1
+        shape<::zengine::workshop::PaneDocumentSection>(), // PaneDocumentSection v1
+        shape<::zengine::manual::ShapeDocumentRequested>(), // ShapeDocumentRequested v1
+        shape<::zengine::manual::ShapeDocumentShown>(), // ShapeDocumentShown v1
         shape<::zengine::workshop::PaneSettings>(), // PaneSettings v1
         shape<::zengine::workshop::TerminalCaptureFacts>(), // TerminalCaptureFacts v1
         shape<::zengine::workshop::PictureFence>(), // PictureFence v1

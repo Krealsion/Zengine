@@ -15,6 +15,7 @@
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -31,6 +32,8 @@
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+
+#include "manuals/zengine.builder-pane.hpp" // this pane's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -196,8 +199,9 @@ class BuilderPaneWeave
                        SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
-                       PaneMenuAnswered, ws::PaneOperationAnswered>,
-          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
+                       PaneMenuAnswered, ws::PaneOperationAnswered, ws::PaneDocumentRequested>,
+          loom::Emit<PaneOffered, PaneActions, ws::PaneDocumentShown, ws::v4::PaneContent,
+                     ws::v5::PaneCanvasContent,
                      ws::PaneCaret, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
@@ -211,6 +215,13 @@ public:
             return;
         }
         announce(mail);
+    }
+
+    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
+    /// reloaded image answers its own words.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(ws::pane_document(ask, pane::kBuilderPane,
+                                            zengine::manual::pages::zengine_builder_pane::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {

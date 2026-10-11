@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# The single-source build witness (builder/docs/builder-reference.md): install Zengine into a scratch
+# The single-source build witness (builder/docs/recipes.md): install Zengine into a scratch
 # prefix under ZEN_WORK, outside both repositories; build and realize a one-file weave written
 # there through the real Builder (tests/build/witness.cpp); then break the package so its
 # canaries fire. A lane, not a CTest entry, for tests/package/run.cmake's reason.
