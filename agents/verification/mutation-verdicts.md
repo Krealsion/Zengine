@@ -10,14 +10,12 @@ at compile time — and what to do with each. The harness mechanics are in
 METHOD — Predict how many cases a mutation should redden before running it; a mismatch is a broken mutation, never a finding about coverage.
 BECAUSE — a canary meant to remove occlusion entirely disabled one branch of three and came back
 a clean red on exactly one case; only reading which case failed said the mutation under-applied.
-SEEN — nowhere yet
 
 ## VM-MUT-03 — A green canary is believed
 
 METHOD — A green canary is believed: investigate the pin, not the harness, and make exactly one term able to decide.
 BECAUSE — it may be saying the pin passes for a reason its author did not intend, a second check
 masking the one under test; equalize the other variables so one term is the only barrier left.
-SEEN — nowhere yet
 
 ## VM-MUT-11 — A CAUGHT names the assertion that moved
 
@@ -25,7 +23,6 @@ METHOD — A CAUGHT names the assertion that moved, never the suite; split the l
 BECAUSE — four of fifteen verdicts once named suites the mutation had not touched and one row's
 evidence was entirely the previous row's; a mutation to one header whose evidence is a surface
 assertion is visibly absurd, a wrong row is not.
-SEEN — nowhere yet
 
 ## VM-MUT-12 — A static_assert that refuses a mutant is a catch of a different kind
 
@@ -33,7 +30,6 @@ METHOD — A `static_assert` that refuses a mutant is a catch of a different kin
 BECAUSE — four of fourteen mutations were refused by three assertions written to pin a
 composition; relaxing one and mutating again changed the claim from the type system alone to the
 type system and a case, and only that run could tell.
-SEEN — nowhere yet
 
 ## VM-MUT-13 — Express the behaviour, not the deletion of a line
 
@@ -41,14 +37,12 @@ METHOD — Express the BEHAVIOUR, not the deletion of a line: an inserted branch
 BECAUSE — an inserted branch whose memo was never assigned compiled, applied and changed
 nothing, caught only by a source tripwire noticing a keyword; a wrong index survived because the
 clamp two lines later put it back onto the right answer.
-SEEN — nowhere yet
 
 ## VM-MUT-14 — MASKED is not a hole
 
 METHOD — MASKED is not a hole: cut both halves in one mutation to show the pair is load-bearing; a paired cut that stays green means more than two layers — count and name every layer.
 BECAUSE — one capture rule survived a single and a double cut because three mechanisms were
 refusing; a report names every layer or it reports a load-bearing term as dead.
-SEEN — nowhere yet
 
 ## VM-MUT-15 — UNWATCHED is not redundant
 
@@ -56,7 +50,6 @@ METHOD — UNWATCHED is not redundant: before calling a surviving term redundant
 BECAUSE — an aliveness check survived deletion because every case killed and revived before
 pumping, so the generation check always got there first; a guard's deletion passed because its
 assertions sat behind a full socket where it could not act.
-SEEN — nowhere yet
 
 ## VM-MUT-16 — A mask is usually a hole in an older suite
 
@@ -64,7 +57,6 @@ METHOD — A mask is usually a hole in an OLDER suite: close it by arranging the
 BECAUSE — three of seventeen masks each closed an older suite's three-quarters-proven claim at
 one case and one re-run apiece; one such case went red on the pristine tree and found a real
 normalization defect.
-SEEN — nowhere yet
 
 ## VM-MUT-27 — The third verdict is respelled at the property
 
@@ -72,7 +64,6 @@ METHOD — A mutation that removes redundancy rather than a property is a third 
 BECAUSE — deleting a belt whose door is another function left mutant and pristine
 indistinguishable, so no arrangement could decide it; respelled at the property the belt guards,
 the same target became a measurement again.
-SEEN — nowhere yet
 
 ## VM-MUT-17 — A case on a handler's deliberate false path proves nothing about the handler
 
@@ -80,7 +71,6 @@ METHOD — A case that lands on a handler's deliberate `false` path proves nothi
 BECAUSE — the cell the case pressed was a row the handler declines by design, so the press fell
 through and the mutant hoisting the arms back was invisible; the declining paths are exactly the
 ones a comment explains.
-SEEN — nowhere yet
 
 ## VM-MUT-18 — Check which suite the row aimed at before calling a green a hole
 
@@ -88,7 +78,6 @@ METHOD — Before calling a green mutation a hole, check which suite the row aim
 BECAUSE — two greens of fourteen: one a genuine hole closed by a case, one a multiply pointed at
 a suite whose fixture never reaches it; the diagnosis turned up a third mutation nobody had
 written, because the multiply beside it had none.
-SEEN — nowhere yet
 
 ## VM-MUT-29 — Put the defect back, and name which cases are retargeted rather than kept
 
@@ -96,10 +85,6 @@ METHOD — Mutating a fix back on the finished tree measures a CASE'S SENSITIVIT
 BECAUSE — a green suite cannot tell a repair from a surrender: it agreed with the defect first,
 and eight cases had been rewritten to a narrowed law the weaver had not accepted. A case written
 for a choice the weaver then rejected stayed green and changed nothing about the disposition.
-SEEN — `tests/test_workshop_panes_editor.cpp` case `"^s is the Editor's save while it holds the
-keys, and the host answers ^s nowhere"`, case `"an opening that cannot be shown opens
-nothing, and the requester is told why"`, case `"a resize after the commitment is an
-ordinary presentation change"`.
 
 ## VM-MUT-28 — A forgery case is vacuous until the forger holds the grant
 
@@ -107,9 +92,6 @@ METHOD — A case that forges a message proves the guard only when the forging w
 BECAUSE — two forgery cases of a twelve-mutation matrix stayed green under their mutants: the
 asker's grant lacked the forged shape, so the bus refused the forgery before the host ever saw
 it; with the grant added both went red, and one gained an in-flight forgery on the way.
-SEEN — `tests/test_workshop_panes_editor.cpp` `mount_asker` (the grants), case `"a reveal from
-an office that offered no such pane is dropped"`, case `"a forged quit answer moves nothing --
-only Loom's answer to the host's ask decides"`.
 
 ## VM-MUT-23 — A crashing mutation needs a separate semantic pin
 
@@ -117,7 +99,6 @@ METHOD — A crashing mutation needs a separate semantic pin — the focused sui
 BECAUSE — a mutation that truncated the whole-binary run at ninety-two of five hundred and
 fifty-six cases proved nothing about the red path; the focused suite failed without a crash and
 the sanitizer named the use-after-free, and both were reported.
-SEEN — nowhere yet
 
 ## VM-MUT-30 — A forgery guards nothing unless it arrives while its ask is outstanding
 
@@ -125,8 +106,6 @@ METHOD — Deliver a forged or stale notice while the ask it names is still unan
 BECAUSE — a forged lookup refusal queued once the tap saw the lookup delivered sat behind the
 door's same-delivery answer and reached the Builder after it; the case stayed green with its
 guard out of play, and only a probe of the delivery order showed it.
-SEEN — `tests/test_workshop_panes_builder.cpp` `HeldLookupOffice`, case `"a forged refusal
-naming the pane's own live attempt settles nothing at either stage, and the open completes"`.
 
 ## VM-MUT-31 — A refusal case names which of three facts it witnesses
 
@@ -134,6 +113,60 @@ METHOD — Say whether a refusal case witnesses an enqueue that queued nothing, 
 BECAUSE — a case titled for dispatch refusal removed the only office declaring the lookup's
 shape, so nothing was queued; its lookup half was an enqueue refusal, and the pane's handling
 of a queued lookup refused later had no witness until a killed office refused one.
-SEEN — `tests/test_workshop_panes_builder.cpp` case `"a lookup queued to the project office and
-refused at dispatch -- the office gone before delivery -- is said by that exact attempt at the
-lookup stage, opens nothing, and a fresh e takes once the office is back"`.
+
+## Seen
+
+### VM-MUT-02
+nowhere yet
+
+### VM-MUT-03
+nowhere yet
+
+### VM-MUT-11
+nowhere yet
+
+### VM-MUT-12
+nowhere yet
+
+### VM-MUT-13
+nowhere yet
+
+### VM-MUT-14
+nowhere yet
+
+### VM-MUT-15
+nowhere yet
+
+### VM-MUT-16
+nowhere yet
+
+### VM-MUT-27
+nowhere yet
+
+### VM-MUT-17
+nowhere yet
+
+### VM-MUT-18
+nowhere yet
+
+### VM-MUT-29
+`tests/test_workshop_panes_editor.cpp` "^s is the Editor's save while it holds the keys, and the
+host answers ^s nowhere" "an opening that cannot be shown opens nothing, and the requester is told
+why" "a resize after the commitment is an ordinary presentation change"
+
+### VM-MUT-28
+`tests/test_workshop_panes_editor.cpp` mount_asker (the grants) "a reveal from an office that
+offered no such pane is dropped" "a forged quit answer moves nothing -- only Loom's answer to the
+host's ask decides"
+
+### VM-MUT-23
+nowhere yet
+
+### VM-MUT-30
+`tests/test_workshop_panes_builder.cpp` HeldLookupOffice "a forged refusal naming the pane's own
+live attempt settles nothing at either stage, and the open completes"
+
+### VM-MUT-31
+`tests/test_workshop_panes_builder.cpp` "a lookup queued to the project office and refused at
+dispatch -- the office gone before delivery -- is said by that exact attempt at the lookup stage,
+opens nothing, and a fresh e takes once the office is back"

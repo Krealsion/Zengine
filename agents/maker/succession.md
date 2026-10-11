@@ -15,11 +15,6 @@ MEANS
 DOES NOT MEAN
 - that anything in the Loom changed: every call is one the handoff garden already makes.
 
-PROVEN BY — `maker/succession.hpp` `begin_schema_edit`, `Begun`, `Coordinator`;
-`maker/runtime.hpp` `Runtime::adopt`; `maker/vocabulary.hpp` `Quiesce`, `Quiesced`, `Adopt`,
-`Adopted`; `tests/test_maker.cpp` case `"a schema edit is a succession -- v2 authored with its
-conversion, prepared, adopted, committed; the role moves, high is still 7, label reads high water,
-the predecessor is gone"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-SUCC-02 — Four positions, never lost
@@ -30,10 +25,6 @@ MEANS
 - the boundary is `Quiesce`, an ordinary message; the final value is exact, nothing moves it;
 - `Resume` un-quiesces an incumbent whose edit aborted.
 
-PROVEN BY — `maker/runtime.hpp` `Runtime::handle`, `Runtime::refused_after_boundary`,
-`Runtime::quiescing`; `maker/vocabulary.hpp` `Quiesce`, `Resume`; `tests/test_maker.cpp` case
-`"a hw.Sample is handled before the boundary, refused by name after it while the incumbent holds
-the role, and handled by the successor after the role moves -- never lost"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-SUCC-03 — The conversion is data in the successor, mounted as an edge
@@ -47,11 +38,6 @@ MEANS
 DOES NOT MEAN
 - that the migrator is a weave or the candidate's code: a catalog identity, versioned with v2.
 
-PROVEN BY — `maker/weave.hpp` `definitions_of`; `maker/succession.hpp`
-`Succession::on_quiesced`; `maker/definition.hpp` `Conversion`, `conversion_schema`;
-`tests/test_maker.cpp` case `"a schema edit is a succession -- v2 authored with its conversion,
-prepared, adopted, committed; the role moves, high is still 7, label reads high water, the
-predecessor is gone"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-SUCC-04 — What the write refuses, and a refused conversion reaches no candidate
@@ -62,20 +48,12 @@ MEANS
 - the schema half is planned at admission; the value half waits for the edge;
 - a refused edge aborts, sends `Resume`, records the reason, and asks nothing of the candidate;
 
-PROVEN BY — `maker/write.hpp` `plan_fields`, `write_fields`, `FieldSource`, `Written`;
-`maker/succession.hpp` `Succession::on_quiesced`; `tests/test_maker.cpp` case `"the field-wise
-write refuses a target with no source, a source the schema lacks, a kind mismatch, two sources, a
-constant of a non-scalar kind, and a predecessor field neither copied nor dropped"`, case `"a
-conversion the write refuses reaches no candidate -- the transaction aborts,
-the incumbent is resumed and is still the service"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-SUCC-05 — An aborted succession discards the candidate and resumes the incumbent
 
 LAW — `abort_schema_edit` aborts the transaction, which discards the sealed candidate and its bodies with it, and sends `Resume` to a quiesced incumbent, which is the service again with its state.
 
-PROVEN BY — `maker/succession.hpp` `abort_schema_edit`; `tests/test_maker.cpp` case `"an aborted
-succession discards the sealed candidate and leaves the incumbent the service with its state"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-SUCC-06 — The coordinator is one host weave, generic over definitions
@@ -88,10 +66,6 @@ MEANS
 DOES NOT MEAN
 - that the coordinator commits: readiness commits nothing; a handle going out of scope, nothing.
 
-PROVEN BY — `maker/succession.hpp` `Succession`, `register_succession`, `Succession::begin`;
-`maker/vocabulary.hpp` `Quiesced`, `Adopted`; `tests/test_maker.cpp` case `"a schema edit is a
-succession -- v2 authored with its conversion, prepared, adopted, committed; the role moves, high
-is still 7, label reads high water, the predecessor is gone"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## Do not assume
@@ -101,3 +75,47 @@ WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
   are.
 - That the predecessor leaves on commit (MW-SUCC-01): the host retires it, and its bodies leave
   the catalog with it.
+
+## Proven by
+
+### MW-SUCC-01
+`maker/succession.hpp` begin_schema_edit Begun Coordinator
+`maker/runtime.hpp` Runtime::adopt
+`maker/vocabulary.hpp` Quiesce Quiesced Adopt Adopted
+`tests/test_maker.cpp` "a schema edit is a succession -- v2 authored with its conversion, prepared,
+adopted, committed; the role moves, high is still 7, label reads high water, the predecessor is
+gone"
+
+### MW-SUCC-02
+`maker/runtime.hpp` Runtime::handle Runtime::refused_after_boundary Runtime::quiescing
+`maker/vocabulary.hpp` Quiesce Resume
+`tests/test_maker.cpp` "a hw.Sample is handled before the boundary, refused by name after it while
+the incumbent holds the role, and handled by the successor after the role moves -- never lost"
+
+### MW-SUCC-03
+`maker/weave.hpp` definitions_of
+`maker/succession.hpp` Succession::on_quiesced
+`maker/definition.hpp` Conversion conversion_schema
+`tests/test_maker.cpp` "a schema edit is a succession -- v2 authored with its conversion, prepared,
+adopted, committed; the role moves, high is still 7, label reads high water, the predecessor is
+gone"
+
+### MW-SUCC-04
+`maker/write.hpp` plan_fields write_fields FieldSource Written
+`maker/succession.hpp` Succession::on_quiesced
+`tests/test_maker.cpp` "the field-wise write refuses a target with no source, a source the schema
+lacks, a kind mismatch, two sources, a constant of a non-scalar kind, and a predecessor field
+neither copied nor dropped" "a conversion the write refuses reaches no candidate -- the transaction
+aborts, the incumbent is resumed and is still the service"
+
+### MW-SUCC-05
+`maker/succession.hpp` abort_schema_edit
+`tests/test_maker.cpp` "an aborted succession discards the sealed candidate and leaves the incumbent
+the service with its state"
+
+### MW-SUCC-06
+`maker/succession.hpp` Succession register_succession Succession::begin
+`maker/vocabulary.hpp` Quiesced Adopted
+`tests/test_maker.cpp` "a schema edit is a succession -- v2 authored with its conversion, prepared,
+adopted, committed; the role moves, high is still 7, label reads high water, the predecessor is
+gone"

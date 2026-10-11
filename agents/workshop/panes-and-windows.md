@@ -18,13 +18,6 @@ MEANS
 DOES NOT MEAN
 - that two panes may not stand in one place — a desk that says so gets what it asked for.
 
-PROVEN BY — `workshop/panes.hpp` `kSideRegion`, `kOverlayStack`,
-`kTopBand`, `kinds_placed_in`, `placement`, `kBuiltinPanes`, `placement_of`;
-`workshop/screen_chrome.cpp` `project_pane`; `workshop/screen_reveal.cpp`
-`paint_pane_affordances`; `workshop/weave_arrange.cpp` `take_pane_hold`;
-`tests/test_workshop_host.cpp` case `"a pane kind declares its place, and the place resolves to
-bounds"`; `tests/test_workshop_screen.cpp` case `"authored geometry moves the Layouts pane, and
-the tabs with it"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-PANE-03 — No room rations the stack: a spent column begins again at its top
@@ -36,15 +29,6 @@ MEANS
 - a pane taller than the room stands at the column's top;
 - a launch, a reveal and a managed open seat their pane in front, the newest by rank.
 
-PROVEN BY — `workshop/setup.hpp` `seat_panes`, `StackCapacity`, `Seating`;
-`workshop/screen_chrome.cpp` `bounds_of`; `workshop/screen.hpp` `stack_slots_that_fit`;
-`workshop/weave_desktop.cpp` `launch_pane`; `workshop/weave_seam.cpp` `on(PaneRevealRequested)`;
-`workshop/weave_managed.cpp` `trial_room`; `tests/test_workshop_panes_window.cpp` case `"an
-authored place spends no room in the stack's column, and a spent column begins again at its
-top"`; `tests/test_workshop_panes_seam.cpp` case `"an oversubscribed authored setup seats every
-reference, the column beginning again at its top"`, case `"a pane launched when the stack's
-column is spent lands at the column's top, in front"`; `tests/test_workshop_panes_canvas.cpp`
-case `"a view run when the stack's column is spent is shown at the column's top, in front"`.
 WHY — `agents/decisions/the-stack-begins-again.md`
 
 ## WL-PANE-04 — A wider room is shared by the pane and the weaver
@@ -55,10 +39,6 @@ MEANS
 - at 79 columns the surplus is one and the odd column stays the weaver's;
 - a width edit never buys a slot: `stack_slots_that_fit` reads `y` and `h` only.
 
-PROVEN BY — `workshop/screen.hpp` `placement_bounds`, `kStackW`, `stack_slots_that_fit`;
-`tests/test_workshop_host.cpp` case `"the right column keeps its width and the stack
-takes half the surplus"`, case `"the half-share pays at the bottom of the range too, and
-buys no slot"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-05 — Every cell a slot gains is paint and pointer alike
@@ -69,12 +49,6 @@ MEANS
 - a press on a pane begins nothing, so a hand that leaves it drags nothing;
 - `room_w > kStackW` implies `x + w < room_w`: columns of the pane's rows stay reachable.
 
-PROVEN BY — `workshop/screen_pane_state.cpp` `paint_pane_frame`; `workshop/screen_chrome.cpp`
-`occupied_at`; `workshop/screen.hpp` `kNoKind`, `Occupancy::what`; `workshop/weave_pointer.cpp`
-`on(PointerMoved)`; `tests/test_workshop_screen.cpp` case `"the columns the pane took are its
-own, and the band is the weaver's"`, case `"a press that lands on a pane begins nothing,
-so a hand that leaves it drags nothing"`, case `"a visible pane occupies the pointer space it
-covers"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-06 — An external pane's room follows its slot
@@ -85,12 +59,6 @@ MEANS
 - a dragged edge, a widened room and a hidden title all reach the provider by this one door;
 - what a grant carries, and that an unchanged capacity sends none, is the protocol's law.
 
-PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_external`;
-`workshop/screen.hpp` `kExternalHeaderRows`; `workshop/weave_external.cpp`
-`refresh_external_rooms`; `surface/region.hpp` `fit_region`; `workshop/panes.hpp` `ExternalPane`;
-`tests/test_workshop_panes_seam.cpp` case `"an external grant follows the widened body through
-fit_region"`, case `"opening an external pane grants exactly the fit_region room, authored
-as Workshop"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-07 — `panes.open` is never reordered
@@ -101,11 +69,6 @@ MEANS
 - that is the whole of "raising a pane cannot move it";
 - ordering changes paint order and nothing else.
 
-PROVEN BY — `workshop/setup.hpp` `seat_panes`, `reconcile`, `Reconciled`, `Setup`, `add_pane`,
-`Seating`; `workshop/screen_chrome.cpp` `bounds_of`; `workshop/panes.hpp` `Panes::open`;
-`tests/test_workshop_panes_window.cpp` case `"ordering changes paint order and NOTHING else"`;
-`tests/test_workshop_persistence.cpp` case `"reconciling opens what the setup names, in
-the setup's order"`.
 WHY — `agents/decisions/front-is-a-permutation.md`
 
 ## WL-PANE-08 — The override is spent in every place, and the refusals are blind
@@ -119,12 +82,6 @@ MEANS
 DOES NOT MEAN
 - that a refusal cannot be reached at all: a captured subject can be made unreachable after it.
 
-PROVEN BY — `workshop/screen_chrome.cpp` `project_pane`; `workshop/screen.hpp` `PaneProjection`;
-`workshop/screen_pane_subject.cpp` `pane_geometry_typeable`;
-`workshop/weave_arrange.cpp` `arrange_geometry_ready`;
-`tests/test_workshop_screen.cpp` case `"every pane a weaver can point at can be arranged, and the
-refusals are blind"`; `tests/test_workshop_panes_window.cpp`
-case `"a wholly off-room pane is off-room, recoverable, and painted by nobody"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-PANE-09 — The host clips and never rewrites
@@ -136,15 +93,6 @@ MEANS
 - a wholly off-room pane is painted by nobody and its intent is not rewritten;
 - a launch or a reveal of one keeps its place and says so on the band, with the two ways back.
 
-PROVEN BY — `workshop/screen_chrome.cpp` `bounds_of`; `workshop/screen.hpp` `PaneBounds`,
-`PaneBounds::rect`, `PaneProjection`; `workshop/weave.hpp` `off_this_screen`;
-`workshop/weave_desktop.cpp` `off_this_screen`, `on(PaneLaunchRequested)`;
-`workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `tests/test_workshop_panes_window.cpp` case
-`"a partly off-room pane is clipped, and its intent is not rewritten"`, case `"a wholly off-room
-pane is off-room, recoverable, and painted by nobody"`; `tests/test_workshop_panes_seam.cpp` case
-`"a pane launched where its own place stands off this screen stays there, and the band says so
-and how to bring it back"`; `tests/test_workshop_panes_canvas.cpp` case `"a view shown where its
-own place stands off this screen stays there, and the band says so and how to bring it back"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-10 — Five states, one classifier, one precedence
@@ -156,13 +104,6 @@ MEANS
 - every resolved row is seated, so one with no visible cell is `off-room`;
 - two panes that each cover half of a third leave nothing of it showing.
 
-PROVEN BY — `workshop/screen_pane_state.cpp` `pane_state_of`, `pane_state_word`,
-`pane_state_remedy`, `pane_is_covered`; `workshop/screen.hpp` `pane_state`,
-`PaneProjection`; `workshop/weave_session.cpp` `unresolved_note`;
-`tests/test_workshop_panes_window.cpp` case `"every setup-named pane
-has exactly one management row, in every state"`, case `"two panes that each cover HALF of a
-third leave nothing of it showing"`, case `"coverage is the UNION of what is in front,
-not containment by one pane"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-11 — An authored place is measured from the room, and each axis is independent
@@ -173,15 +114,6 @@ MEANS
 - what writes, shows or takes a place agrees: a drag, an arrow, Info's `X`, `Y` and `Window`;
 - a pane above the room (Layouts, in its band) placed by one axis comes down to the room's top.
 
-PROVEN BY — `workshop/setup.hpp` `author_pane_place`, `author_pane_size`, `author_pane_window`,
-`PanePlace`; `workshop/screen.hpp` `canvas_of_room`, `room_of_canvas`;
-`workshop/screen_chrome.cpp` `project_pane`; `workshop/screen_pane_subject.cpp`
-`pane_window_base`;
-`tests/test_workshop_panes_window.cpp` case `"an authored place is measured from the room's
-top-left, not an offset from the default"`, case `"each axis is independent -- a place edit
-freezes no size, and back"`, case `"a default width still takes half the surplus after a place
-edit"`; `tests/test_workshop_host.cpp` case `"a typed value that is not admissible is refused,
-and the authored row is untouched"`.
 WHY — `agents/decisions/the-whole-pixel.md`
 
 ## WL-PANE-12 — Presence is the desk's, through two doors, and arrangement never touches it
@@ -192,11 +124,6 @@ MEANS
 - an unresolved row carries `kNoPaneKind`, so nothing can present it as the Builder;
 - arrangement binds no toggle, adds nothing and offers nothing.
 
-PROVEN BY — `workshop/setup.hpp` `inventory_rows`, `CatalogRow`; `workshop/weave_desktop.cpp`
-`launch_pane`, `close_pane`; `workshop/weave_arrange.cpp` `arrangeable`; `workshop/panes.hpp`
-`kNoPaneKind`; `tests/test_workshop_screen.cpp` case `"the close door can reach and remove an
-unresolved row"`; `tests/test_workshop_panes_window.cpp` case `"participation stays the
-doors'; arrangement does not add or offer"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-13 — An open pane is a kind and nothing else, and a kind has one instance
@@ -207,11 +134,6 @@ MEANS
 - a second copy of a tool's status in each instance would need a policy about several instances;
 - removing a pane touches nothing behind it: no message reaches the office.
 
-PROVEN BY — `workshop/panes.hpp` `OpenPane`, `Panes::has`, `open_kind`, `close_kind`;
-`tests/test_workshop_host.cpp` case `"a built-in pane needs no weave, and opening one speaks to
-no office"`; `tests/test_workshop_panes_actions.cpp` case `"WL-DESK-12: a close takes a pane off
-the desk and leaves its provider holding; a close of a pane that is not there is refused and
-opens nothing"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-16 — A pane with a room and no answer says waiting, never unavailable
@@ -222,13 +144,6 @@ MEANS
 - silence proves no fate: Loom gives Workshop no participant-visible unload notification;
 - an unload is said as waiting, and a reload recovers the view.
 
-PROVEN BY — `workshop/screen.hpp` `kExternalWaiting`; `tests/test_workshop_panes_seam.cpp` case
-`"silence is waiting, and Workshop never says unavailable"`; `tests/test_workshop_screen.cpp` case
-`"unload and reload -- waiting is said, and a reload recovers the view"`;
-`tests/test_workshop_panes_seam.cpp` case `"a refusal stands until ACCEPTED CONTENT replaces it, a
-new room included"`; `tests/test_workshop_panes_canvas.cpp` case `"a canvas picture refused for
-what it holds is said in its pane and in Attention until a picture of the pane is admitted, and one
-that came late is answered to its pane alone"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## Do not assume
@@ -249,14 +164,139 @@ MEANS
 - a first accepted offer fixes the runtime preference; refresh cannot resize it;
 - the column spends the default height a pane is drawn at; old providers keep their fallback.
 
-PROVEN BY — `workshop/setup.hpp` `preferred_extent`, `admit_pane_offer`,
-`PaneBody`; `workshop/pane_vocabulary.hpp` `kMaxPaneBodyPx`; `workshop/screen.hpp`
-`stack_capacity`; `workshop/screen_chrome.cpp` `project_pane`, `bounds_of`; `view/view.hpp`
-`offered`; `tests/test_workshop_demo.cpp` case
-`"pane comfort budgets body text with chrome in both real medium metrics"`,
-case `"pane comfort survives offer refresh and rejects malformed preferences"`,
-case `"pane comfort: the column spends each pane's preferred height, and begins again at its top
-when spent"`;
-`tests/test_workshop_panes_canvas.cpp` case `"a view asks for its size in pixels and its pane
-grants exactly that room: to the pixel in a window, to the cells that hold it in a terminal"`.
 WHY — `agents/decisions/preferred-pane-space.md`
+
+## Proven by
+
+### WL-PANE-01
+`workshop/panes.hpp` kSideRegion kOverlayStack kTopBand kinds_placed_in placement kBuiltinPanes
+placement_of
+`workshop/screen_chrome.cpp` project_pane
+`workshop/screen_reveal.cpp` paint_pane_affordances
+`workshop/weave_arrange.cpp` take_pane_hold
+`tests/test_workshop_host.cpp` "a pane kind declares its place, and the place resolves to bounds"
+`tests/test_workshop_screen.cpp` "authored geometry moves the Layouts pane, and the tabs with it"
+
+### WL-PANE-03
+`workshop/setup.hpp` seat_panes StackCapacity Seating
+`workshop/screen_chrome.cpp` bounds_of
+`workshop/screen.hpp` stack_slots_that_fit
+`workshop/weave_desktop.cpp` launch_pane
+`workshop/weave_seam.cpp` on(PaneRevealRequested)
+`workshop/weave_managed.cpp` trial_room
+`tests/test_workshop_panes_window.cpp` "an authored place spends no room in the stack's column, and
+a spent column begins again at its top"
+`tests/test_workshop_panes_seam.cpp` "an oversubscribed authored setup seats every reference, the
+column beginning again at its top" "a pane launched when the stack's column is spent lands at the
+column's top, in front"
+`tests/test_workshop_panes_canvas.cpp` "a view run when the stack's column is spent is shown at the
+column's top, in front"
+
+### WL-PANE-04
+`workshop/screen.hpp` placement_bounds kStackW stack_slots_that_fit
+`tests/test_workshop_host.cpp` "the right column keeps its width and the stack takes half the
+surplus" "the half-share pays at the bottom of the range too, and buys no slot"
+
+### WL-PANE-05
+`workshop/screen_pane_state.cpp` paint_pane_frame
+`workshop/screen_chrome.cpp` occupied_at
+`workshop/screen.hpp` kNoKind Occupancy::what
+`workshop/weave_pointer.cpp` on(PointerMoved)
+`tests/test_workshop_screen.cpp` "the columns the pane took are its own, and the band is the
+weaver's" "a press that lands on a pane begins nothing, so a hand that leaves it drags nothing" "a
+visible pane occupies the pointer space it covers"
+
+### WL-PANE-06
+`workshop/screen_external.cpp` external_body_place paint_external
+`workshop/screen.hpp` kExternalHeaderRows
+`workshop/weave_external.cpp` refresh_external_rooms
+`surface/region.hpp` fit_region
+`workshop/panes.hpp` ExternalPane
+`tests/test_workshop_panes_seam.cpp` "an external grant follows the widened body through fit_region"
+"opening an external pane grants exactly the fit_region room, authored as Workshop"
+
+### WL-PANE-07
+`workshop/setup.hpp` seat_panes reconcile Reconciled Setup add_pane Seating
+`workshop/screen_chrome.cpp` bounds_of
+`workshop/panes.hpp` Panes::open
+`tests/test_workshop_panes_window.cpp` "ordering changes paint order and NOTHING else"
+`tests/test_workshop_persistence.cpp` "reconciling opens what the setup names, in the setup's order"
+
+### WL-PANE-08
+`workshop/screen_chrome.cpp` project_pane
+`workshop/screen.hpp` PaneProjection
+`workshop/screen_pane_subject.cpp` pane_geometry_typeable
+`workshop/weave_arrange.cpp` arrange_geometry_ready
+`tests/test_workshop_screen.cpp` "every pane a weaver can point at can be arranged, and the refusals
+are blind"
+`tests/test_workshop_panes_window.cpp` "a wholly off-room pane is off-room, recoverable, and painted
+by nobody"
+
+### WL-PANE-09
+`workshop/screen_chrome.cpp` bounds_of
+`workshop/screen.hpp` PaneBounds PaneBounds::rect PaneProjection
+`workshop/weave.hpp` off_this_screen
+`workshop/weave_desktop.cpp` off_this_screen on(PaneLaunchRequested)
+`workshop/weave_seam.cpp` on(PaneRevealRequested)
+`tests/test_workshop_panes_window.cpp` "a partly off-room pane is clipped, and its intent is not
+rewritten" "a wholly off-room pane is off-room, recoverable, and painted by nobody"
+`tests/test_workshop_panes_seam.cpp` "a pane launched where its own place stands off this screen
+stays there, and the band says so and how to bring it back"
+`tests/test_workshop_panes_canvas.cpp` "a view shown where its own place stands off this screen
+stays there, and the band says so and how to bring it back"
+
+### WL-PANE-10
+`workshop/screen_pane_state.cpp` pane_state_of pane_state_word pane_state_remedy pane_is_covered
+`workshop/screen.hpp` pane_state PaneProjection
+`workshop/weave_session.cpp` unresolved_note
+`tests/test_workshop_panes_window.cpp` "every setup-named pane has exactly one management row, in
+every state" "two panes that each cover HALF of a third leave nothing of it showing" "coverage is
+the UNION of what is in front, not containment by one pane"
+
+### WL-PANE-11
+`workshop/setup.hpp` author_pane_place author_pane_size author_pane_window PanePlace
+`workshop/screen.hpp` canvas_of_room room_of_canvas
+`workshop/screen_chrome.cpp` project_pane
+`workshop/screen_pane_subject.cpp` pane_window_base
+`tests/test_workshop_panes_window.cpp` "an authored place is measured from the room's top-left, not
+an offset from the default" "each axis is independent -- a place edit freezes no size, and back" "a
+default width still takes half the surplus after a place edit"
+`tests/test_workshop_host.cpp` "a typed value that is not admissible is refused, and the authored
+row is untouched"
+
+### WL-PANE-12
+`workshop/setup.hpp` inventory_rows CatalogRow
+`workshop/weave_desktop.cpp` launch_pane close_pane
+`workshop/weave_arrange.cpp` arrangeable
+`workshop/panes.hpp` kNoPaneKind
+`tests/test_workshop_screen.cpp` "the close door can reach and remove an unresolved row"
+`tests/test_workshop_panes_window.cpp` "participation stays the doors'; arrangement does not add or
+offer"
+
+### WL-PANE-13
+`workshop/panes.hpp` OpenPane Panes::has open_kind close_kind
+`tests/test_workshop_host.cpp` "a built-in pane needs no weave, and opening one speaks to no office"
+`tests/test_workshop_panes_actions.cpp` "WL-DESK-12: a close takes a pane off the desk and leaves
+its provider holding; a close of a pane that is not there is refused and opens nothing"
+
+### WL-PANE-16
+`workshop/screen.hpp` kExternalWaiting
+`tests/test_workshop_panes_seam.cpp` "silence is waiting, and Workshop never says unavailable" "a
+refusal stands until ACCEPTED CONTENT replaces it, a new room included"
+`tests/test_workshop_screen.cpp` "unload and reload -- waiting is said, and a reload recovers the
+view"
+`tests/test_workshop_panes_canvas.cpp` "a canvas picture refused for what it holds is said in its
+pane and in Attention until a picture of the pane is admitted, and one that came late is answered to
+its pane alone"
+
+### WL-PANE-17
+`workshop/setup.hpp` preferred_extent admit_pane_offer PaneBody
+`workshop/pane_vocabulary.hpp` kMaxPaneBodyPx
+`workshop/screen.hpp` stack_capacity
+`workshop/screen_chrome.cpp` project_pane bounds_of
+`view/view.hpp` offered
+`tests/test_workshop_demo.cpp` "pane comfort budgets body text with chrome in both real medium
+metrics" "pane comfort survives offer refresh and rejects malformed preferences" "pane comfort: the
+column spends each pane's preferred height, and begins again at its top when spent"
+`tests/test_workshop_panes_canvas.cpp` "a view asks for its size in pixels and its pane grants
+exactly that room: to the pixel in a window, to the cells that hold it in a terminal"

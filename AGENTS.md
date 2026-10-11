@@ -70,8 +70,10 @@ of the public documentation index and out of the installed package.
 
 **The register rules** (`law_register` enforces form and names; the router, procedure).
 **a** a claim lives in LAW, MEANS or DOES NOT MEAN, never the heading. **b** what a weaver types
-or sees is a spelling, not an identifier. **c** PROVEN BY names functions, types, constants and
-members under their declaring file. **d** a residue claim is LAW when it is the invariant, else
+or sees is a spelling, not an identifier. **c** a law's proof stands under `### <id>` in its
+register's appendix, `## Proven by`, at the file's end (a method's under `## Seen`): a line per file, the
+file in backticks, then its functions, types, constants and members bare and its cases quoted, a note
+in parentheses. **d** a residue claim is LAW when it is the invariant, else
 DOES NOT MEAN. **e** what a change left alone is a change note, not a law. **f** LAW text in a
 table escapes `|`. **g** no phase code in a case name or a current-facing document, no step
 label opening a case name; every case a document cites, and every law a comment or document names, exists.
@@ -82,7 +84,7 @@ header links a register file only where that file declares a law the record list
 supported is generated from WHY lines: edit the WHY; a record no law supports moves to `docs/history/`. **l** a
 record over ten laws is suspected of being two.
 **m** an owner identifier is a whole token in the named file's code, comments stripped.
-**n** a `// WL-` or `// MW-` pointer is PROVEN BY inverted: every law on it names the declaration beneath.
+**n** a `// WL-` or `// MW-` pointer is a proof inverted: every law on it names the declaration beneath.
 **o** a mass edit is sheet → applier → proof, regenerated from the start commit. **p** after a
 compaction, re-measure the report's claims. **q** a tree-reading check self-tests; an empty
 population is red. **r** a tree-reading check quotes its filesystem with its wall clock. **s** a

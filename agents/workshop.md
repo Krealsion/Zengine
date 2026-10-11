@@ -47,19 +47,21 @@ consumer-specific behavior of its extracted panes.
 `workshop/weave_<subject>.cpp` compile the bodies once. A `// WL-` pointer belongs beside the
 body, never its prototype.
 
-**Where a case goes.** A register's PROVEN BY names its cases; the folder's `AGENTS.md` names
+**Where a case goes.** A register's proofs name its cases; the folder's `AGENTS.md` names
 its suites.
 
 ## Ongoing rules
 
 1. Routed law documents are registers in the `timer-laws` form: one law per `##`, LAW one line,
-   MEANS at most <!-- value ZEN_LAW_MEANS_MAX -->3<!-- /value -->, DOES NOT MEAN at most <!-- value ZEN_LAW_DNM_MAX -->2<!-- /value -->, PROVEN BY naming owner identifiers and exact witness
-   cases, WHY naming one decision record. Each register at most <!-- value ZEN_LAW_REGISTER_BYTES KiB -->16<!-- /value --> KB; this router at most <!-- value ZEN_LAW_ROUTER_BYTES KiB -->8<!-- /value --> KB.
+   MEANS at most <!-- value ZEN_LAW_MEANS_MAX -->3<!-- /value -->, DOES NOT MEAN at most <!-- value ZEN_LAW_DNM_MAX -->2<!-- /value -->, WHY naming one decision record, and the law's
+   proof, naming owner identifiers and exact witness cases, under `### <id>` in the appendix that ends
+   the register, `## Proven by`. Each register's laws at most <!-- value ZEN_LAW_REGISTER_BYTES KiB -->16<!-- /value --> KB and its appendix at
+   most <!-- value ZEN_LAW_APPENDIX_BYTES KiB -->8<!-- /value --> KB; this router at most <!-- value ZEN_LAW_ROUTER_BYTES KiB -->12<!-- /value --> KB.
 2. A new law is a new entry under its owner. Never a bullet appended to a neighbouring entry.
 3. Law text lives in the register only; source carries the pointer
    `// WL-… -- agents/workshop/<file>`. Other comments meet
    [the standard](../docs/contributing/repository-conventions.md#source-comment-conventions).
-4. A change that edits a `TEST_CASE` named in any PROVEN BY re-verifies every law naming it, in
+4. A change that edits a `TEST_CASE` named in any proof re-verifies every law naming it, in
    the same commit, and lists the ids re-verified in the commit message.
 5. Trace both intended contract and observed behavior when they disagree. Code, test, or register
    may need correction; never weaken a law merely to match a passing test. Apply the architectural
@@ -67,7 +69,7 @@ its suites.
 6. Law ids are permanent: a retired id stands on its register's one `Retired:` line, and is
    never declared or cited again.
 7. `witness: none` is written where it is true and repeated under the register's `## Do not
-   assume`; a law witnessed except one clause writes `UNWITNESSED — <clause>` after PROVEN BY,
+   assume`; a law witnessed except one clause writes `UNWITNESSED — <clause>` last in its proof,
    and that debt is counted, repeated and reciprocated the same way. Lowering the count of
    witnessed laws to make a deletion pass is the thing this rule forbids.
 

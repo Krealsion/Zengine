@@ -14,20 +14,12 @@ MEANS
 - `HostContext::interaction_now` is the one clock reading: steady, never persisted, never wired;
 - the interval is a product constant, not a preference: one gesture means one thing everywhere.
 
-PROVEN BY — `workshop/interaction_time.hpp` `interaction_now_ms`; `workshop/screen.hpp`
-`kDoubleClickMs`, `TabClickMemory`, `Session::tab_click`; `workshop/screen_arrange.cpp`
-`doubles_a_tab_click`; `workshop/weave.hpp` `HostContext::interaction_now`;
-`tests/test_workshop_screen.cpp` case `"what makes two presses on a tab one double-click, and
-what does not"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
 ## WL-PTR-09 — The terminal cannot report a hover
 
 LAW — The terminal medium asks for button-event tracking (`1002`), so an idle pointer reaches nobody there; it is a documented medium fact, not a defect to repair with `1003`.
 
-PROVEN BY — `surface/skin_tui.hpp` `kTuiPointerOn`; `workshop/docs/limitations.md` `hover`;
-`tests/test_surface.cpp` case `"the Skin's terminal claim includes pointer reporting, and leave
-undoes enter"`.
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-10 — `on(PointerWheel)` is Workshop's one wheel router
@@ -41,16 +33,37 @@ MEANS
 DOES NOT MEAN
 - that there is a scroll framework, a scrollbar, a global offset map or a persisted position.
 
-PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerWheel)`; `workshop/weave_external.cpp`
-`external_wheel`; `workshop/weave_canvas.cpp` `canvas_wheel`; `editor/editor-pane/pane.cpp`
-`wheel`; `tests/test_workshop_panes_editor.cpp` case `"the wheel scrolls the body, moves
-no caret, and elsewhere reaches nothing"`; `tests/test_workshop_panes_input.cpp` case `"a wheel
-over an external pane's body crosses unchanged, follows the pointer, and the header sends
-nothing"`; `tests/test_workshop_panes_canvas.cpp` case `"pane canvas resize loses capture and
-wheel names a local point in the latest picture"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## Do not assume
 
 - That "… N more" is unreachable — the wheel reaches it wherever a cursor is
   (WL-PTR-10).
+
+## Proven by
+
+### WL-PTR-01
+`workshop/interaction_time.hpp` interaction_now_ms
+`workshop/screen.hpp` kDoubleClickMs TabClickMemory Session::tab_click
+`workshop/screen_arrange.cpp` doubles_a_tab_click
+`workshop/weave.hpp` HostContext::interaction_now
+`tests/test_workshop_screen.cpp` "what makes two presses on a tab one double-click, and what does
+not"
+
+### WL-PTR-09
+`surface/skin_tui.hpp` kTuiPointerOn
+`workshop/docs/limitations.md` hover
+`tests/test_surface.cpp` "the Skin's terminal claim includes pointer reporting, and leave undoes
+enter"
+
+### WL-PTR-10
+`workshop/weave_pointer.cpp` on(PointerWheel)
+`workshop/weave_external.cpp` external_wheel
+`workshop/weave_canvas.cpp` canvas_wheel
+`editor/editor-pane/pane.cpp` wheel
+`tests/test_workshop_panes_editor.cpp` "the wheel scrolls the body, moves no caret, and elsewhere
+reaches nothing"
+`tests/test_workshop_panes_input.cpp` "a wheel over an external pane's body crosses unchanged,
+follows the pointer, and the header sends nothing"
+`tests/test_workshop_panes_canvas.cpp` "pane canvas resize loses capture and wheel names a local
+point in the latest picture"

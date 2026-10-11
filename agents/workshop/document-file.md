@@ -15,11 +15,6 @@ MEANS
 - `pending_path` is the safe write's staging name; every durable artifact shares the doors;
 - the bound is the caller's (`read_file`'s `most`), and the refusal names what the file claims.
 
-PROVEN BY — `workshop/persist.hpp` `read_file`, `write_file`, `pending_path`, `FileText`;
-`tests/test_workshop_persistence.cpp` case `"a missing file is an ordinary refusal, not a crash
-and not an empty file"`, case `"a detected write failure leaves the last good save readable and
-unchanged"`, case `"a save into a place that does not exist refuses before it writes anything"`,
-case `"a file too large to be what it claims is refused before it is read"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-22 — An old object document is said once and left exactly as it is
@@ -33,19 +28,34 @@ MEANS
 DOES NOT MEAN
 - a conversion: nothing of an object document becomes a pane, a desk or a layout.
 
-PROVEN BY — `workshop/weave.hpp` `HostContext::retired_document`; `workshop/persist.hpp`
-`kRetiredDocumentName`; `workshop/weave_handlers.cpp` `retired_document`;
-`workshop/workshop.cpp` `retired_document`, `kRetiredDocumentName`;
-`tests/test_workshop_persistence.cpp` case `"an old object document is left exactly as it is: a
-launch names it once, and nothing reads, rewrites or deletes it"`, case `"an old object
-document's file and the setup's file cannot be mistaken for each other"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-23 — The status line names the live layout and its panes, and claims no file
 
 LAW — The status slot says the live layout's name and how many panes its desk names; it names no document file and claims no saved state, which is the layout band's to say.
 
-PROVEN BY — `workshop/weave_document.cpp` `status_line`; `surface/vocabulary.hpp` `kSlotStatus`;
-`tests/test_workshop_document.cpp` case `"the status line names the live layout and its panes,
-and claims no file"`.
 WHY — `agents/decisions/the-document-model.md`
+
+## Proven by
+
+### WL-DOC-15
+`workshop/persist.hpp` read_file write_file pending_path FileText
+`tests/test_workshop_persistence.cpp` "a missing file is an ordinary refusal, not a crash and not an
+empty file" "a detected write failure leaves the last good save readable and unchanged" "a save into
+a place that does not exist refuses before it writes anything" "a file too large to be what it
+claims is refused before it is read"
+
+### WL-DOC-22
+`workshop/weave.hpp` HostContext::retired_document
+`workshop/persist.hpp` kRetiredDocumentName
+`workshop/weave_handlers.cpp` retired_document
+`workshop/workshop.cpp` retired_document kRetiredDocumentName
+`tests/test_workshop_persistence.cpp` "an old object document is left exactly as it is: a launch
+names it once, and nothing reads, rewrites or deletes it" "an old object document's file and the
+setup's file cannot be mistaken for each other"
+
+### WL-DOC-23
+`workshop/weave_document.cpp` status_line
+`surface/vocabulary.hpp` kSlotStatus
+`tests/test_workshop_document.cpp` "the status line names the live layout and its panes, and claims
+no file"
