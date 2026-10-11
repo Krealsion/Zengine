@@ -43,9 +43,9 @@ SEEN — `.github/workflows/ci.yml` `continue-on-error`.
 
 ## VM-LANE-06 — CI runs on pull requests and on main
 
-METHOD — CI runs on pull requests and on pushes to `main`; a branch push alone gets no run, so a claim of "CI green" names the pull request or the merge that ran it.
-BECAUSE — the workflow's trigger is `pull_request` and `push` to `main` and nothing else; a
-green quoted from a branch push is a green that never ran.
+METHOD — CI runs on pull requests, on pushes to `main` and nightly on `main`; a branch push alone gets no run, so a claim of "CI green" names the pull request or the merge that ran it.
+BECAUSE — the workflow's triggers are `pull_request`, `push` to `main` and a `schedule`, which runs
+on `main`, and nothing else; a green quoted from a branch push is a green that never ran.
 SEEN — `.github/workflows/ci.yml`.
 
 ## VM-LANE-07 — The sanitizer lane is a second kind of evidence
@@ -84,7 +84,8 @@ METHOD — The lane may run in parallel on Linux/GCC with `-DZEN_CTEST_ARGS=-j<n
 BECAUSE — no CTest entry writes this build tree, so the entries cannot race it; the `timer`
 failure is measured at the same rate before and after the compile-test repair (two of six runs
 after, four of six before), so it is a separate defect.
-SEEN — `tests/verify.cmake` `ZEN_CTEST_ARGS`; `AGENTS.md`.
+SEEN — `tests/verify.cmake` `ZEN_CTEST_ARGS`; `.github/workflows/ci.yml` `ZEN_CTEST_ARGS`, both Linux
+jobs at `-j4`; `AGENTS.md`.
 
 ## VM-LANE-12 — The filesystem decides parallel safety
 
@@ -168,3 +169,11 @@ METHOD — Ask who ran CMake over the shared tree (`ctest -V`: Re-running CMake,
 BECAUSE — the locked version was green in twenty seconds and had been six hundred once, from
 inheriting a cold dependency population; same code, same lock, two orders of magnitude apart.
 SEEN — nowhere yet
+
+## VM-LANE-23 — CI's compiler cache is written by `main` alone
+
+METHOD — CI's compiler cache holds intermediates only, and only a run on `main` saves it: every run restores it, a pull request's run never saves, and nothing installed, tested or loaded is taken from it.
+BECAUSE — a store a pull request could save would put unmerged code's objects into `main`'s next
+build; ccache keys an object by the compiler, its command line and every byte the source read, and
+the object only feeds a link, so a hit is never provenance.
+SEEN — `.github/workflows/ci.yml` `ZEN_CCACHE`.

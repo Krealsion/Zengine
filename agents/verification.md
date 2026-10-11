@@ -29,10 +29,10 @@ that can falsify its behavioral claims. Both judgments matter.
    and named, never assumed.
 5. **The mutation matrix** — the evidence that a case would have complained; canary first.
 
-CI runs on pull requests and on pushes to `main`, and a run is read job by job, because a job
-under `continue-on-error` is red only in the jobs list. Windows is two standard libraries:
-MinGW-w64/libstdc++ is REQUIRED, MSVC's STL is ADVISORY, and a Windows claim names the one it was
-measured on.
+CI runs on pull requests, on pushes to `main` and nightly on `main`, and a run is read job by
+job, because a job under `continue-on-error` is red only in the jobs list. Windows is two standard
+libraries: MinGW-w64/libstdc++ is REQUIRED, MSVC's STL is ADVISORY, and a Windows claim names the
+one it was measured on.
 
 ## What a green means
 
