@@ -177,3 +177,17 @@ BECAUSE — a store a pull request could save would put unmerged code's objects 
 build; ccache keys an object by the compiler, its command line and every byte the source read, and
 the object only feeds a link, so a hit is never provenance.
 SEEN — `.github/workflows/ci.yml` `ZEN_CCACHE`.
+
+## VM-LANE-24 — The compiler cache comes in on CI's configure line alone
+
+METHOD — CI's compiler cache reaches a build through the job's configure line alone, never Zengine's CMake files; for MSVC that line adds the launcher and CMP0141's `Embedded` debug information.
+BECAUSE — ccache keeps an MSVC object only when its debug information is in the object; an option
+in Zengine's files would be every stranger's, and the MSVC stranger's proof is that it needs none.
+SEEN — `.github/workflows/ci.yml` `CMAKE_MSVC_DEBUG_INFORMATION_FORMAT`.
+
+## VM-LANE-25 — The bare MSVC stranger is the nightly run's
+
+METHOD — The MSVC stranger builds with nothing added only in the nightly run on `main`, so a claim that the package carries MSVC's law names a nightly run.
+BECAUSE — every other run's MSVC job adds the compiler cache and embedded debug information on its
+configure line; neither can stand in for a Loom export, but neither is nothing.
+SEEN — `.github/workflows/ci.yml` `ZEN_MSVC_BARE`.
