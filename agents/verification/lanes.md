@@ -81,9 +81,9 @@ SEEN — `tests/package/run.cmake`; `agents/packaging.md`.
 ## VM-LANE-11 — The lane may run in parallel, Windows included
 
 METHOD — The lane may run in parallel with `-DZEN_CTEST_ARGS=-j<n>`, same proofs, on Linux/GCC and on both Windows libraries; an entry that cannot share the machine runs alone, named in `-DZEN_CTEST_APART`.
-BECAUSE — no CTest entry writes this build tree, so the entries cannot race it; `workshop_journey`'s
-inventory check can ask the session host before its guest vocabulary loads, and it did with four
-entries at a time on a Windows runner, so the Windows jobs keep it apart.
+BECAUSE — no CTest entry writes this build tree, so the entries cannot race it; `timer`'s real-clock
+replacement and `workshop_journey`'s inventory check each failed with four entries at a time on a
+Windows runner, two open defects, so the Windows jobs keep both apart.
 SEEN — `tests/verify.cmake` `ZEN_CTEST_ARGS`, `ZEN_CTEST_APART`; `.github/workflows/ci.yml`
 `ZEN_CTEST_APART`, every build job at `-j4`; `AGENTS.md`.
 
