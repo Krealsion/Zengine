@@ -36,6 +36,22 @@ void WorkshopWeave::open_context_at(const PointedAt& at) {
     session_.context = next;
 }
 
+// WL-CHROME-09 -- agents/workshop/chrome.md
+void WorkshopWeave::press_settings(std::int64_t kind, const PointedAt& at) {
+    // THE HOST'S OWN MENU OF HOW WORKSHOP LOOKS, beside the press, about the pressed pane: its
+    // rows are the catalog's settings, the same on every pane.
+    ContextMenu next;
+    next.open = true;
+    next.anchored = at.understood;
+    next.anchor_x = at.px.x;
+    next.anchor_y = at.px.y;
+    next.subject = context_subject::kSettings;
+    if (const RuntimePane* row = session_.panes.runtime.of_kind(kind)) {
+        next.pane = PaneRef{row->provider, row->pane};
+    }
+    session_.context = next;
+}
+
 // WL-TAB-12 -- agents/workshop/tab-run.md
 void WorkshopWeave::open_context_on_layout(const PointedAt& at, std::size_t layout) {
     ContextMenu next;
@@ -162,6 +178,10 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     case Act::kSetupSave: save_setup(); break;
     case Act::kSetupRestore: restore_setup(mail); break;
     case Act::kManageResetOrder: reset_front_order(); break;
+    // -- the presentation, from a pane's Settings ---------------------------------
+    case Act::kPaneTitles:
+    case Act::kBandKeys:
+    case Act::kHotkeysKeys: state_presentation(a); break;
     default: break;
     }
 }
@@ -485,6 +505,23 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         if (drop_carry(here.kind, aimed, mail, -1, at)) {
             repaint(mail);
             return;
+        }
+        // A PANE'S `?` AND ITS GEAR are the host's marks on its chrome: a press on one is spent on
+        // it, and moves neither the selection nor the keys (WL-CHROME-09).
+        if (here.occupied && is_runtime_kind(here.kind)) {
+            const std::int64_t mark =
+                chrome_mark_at(session_.panes, session_.setup.active, screen_of(session_),
+                               here.kind, session_.pane_titles, b.space, b.x, b.y);
+            if (mark == chrome_mark::kManual) {
+                press_manual(here.kind, mail);
+                repaint(mail);
+                return;
+            }
+            if (mark == chrome_mark::kSettings) {
+                press_settings(here.kind, at);
+                repaint(mail);
+                return;
+            }
         }
         const bool canvas_sent = here.occupied && is_runtime_kind(here.kind) &&
             canvas_press(here.kind, b, typing_before == here.kind, mail);

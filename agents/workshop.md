@@ -24,7 +24,7 @@ consumer-specific behavior of its extracted panes.
 | local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
 | a pane's labelled controls, its picture number, a mode a hand can leave, its parts' names | [pane-controls](workshop/pane-controls.md) · [pane-parts](workshop/pane-parts.md) `WL-HAND` |
-| a hotkey, the keymap, an edit | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
+| a key, the keymap, an edit | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) · [spelling](workshop/key-spelling.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
 | Info's body, its subject, its grounds, the desk row naming it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
 | semantic text in a pane, the Builder's rows, the foot band | [regions](workshop/regions.md) `WL-RGN` |

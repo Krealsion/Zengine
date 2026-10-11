@@ -27,6 +27,7 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <regex>
 #include <set>
 
 namespace {
@@ -152,10 +153,10 @@ struct BuilderRig {
     /// `with_manager` mounts the opening manager (WL-OPEN-01) and `with_project_door` the
     /// read-only project office, each left out a door that reaches nobody -- the
     /// refusal-at-dispatch cases' subject. `with_presenter` puts the shipped presenter in the plan,
-    /// as a plan row.
+    /// as a plan row, and `with_desktop` the shipped desktop, whose Manual a pane's `?` shows.
     void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false,
               bool with_manager = true, bool with_project_door = true,
-              bool with_presenter = false) {
+              bool with_presenter = false, bool with_desktop = false) {
         r.host.managed_pane = PaneRef{"zengine.editor", "editor"};
         r.mount_workshop();
         if (with_manager) {
@@ -178,6 +179,12 @@ struct BuilderRig {
             presenter.stem = "zengine-menu-presenter";
             presenter.weave = load::WeaveIntent{kPresenterRole};
             plan.artifacts.push_back(presenter);
+        }
+        if (with_desktop) {
+            load::ArtifactIntent desktop;
+            desktop.stem = zengine::desktop_pane::kDesktopStem;
+            desktop.weave = load::WeaveIntent{kDesktopRole};
+            plan.artifacts.push_back(desktop);
         }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
@@ -3476,6 +3483,17 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, and th
             census.push_back(census_line(kDesktopRole, "desk", a.id, a.gesture.scancode,
                                          a.gesture.modifiers, a.label));
         }
+        // ...AND THE MANUAL'S, the pane a `?` shows, which a page names the keys of.
+        const RuntimePane* manual =
+            r.session().panes.runtime.find(kDesktopRole, zengine::desktop_pane::kManualPane);
+        REQUIRE(manual != nullptr);
+        const PaneRows* rows = r.session().keymap.pane_rows(manual->kind);
+        REQUIRE(rows != nullptr);
+        REQUIRE_FALSE(rows->rows.empty());
+        for (const PaneRow& a : rows->rows) {
+            census.push_back(census_line(kDesktopRole, "read", a.id, a.gesture.scancode,
+                                         a.gesture.modifiers, a.label));
+        }
     }
     // WRITTEN BESIDE THE BUILD AS IT STANDS, ready to diff, and held to the pinned file line by line.
     std::ofstream now(ZENGINE_ACTIONS_NOW, std::ios::binary);
@@ -3581,4 +3599,351 @@ TEST_CASE("a Builder reloaded in place with other words answers only the new one
     // NOTHING OF THE OLD PAGE IS ANSWERED: its commands' sections went with its image.
     CHECK(reader.ask(pane::kBuilderPane, pane::kActionBuild).refusal ==
           "the manual of zengine.builder-pane has no section `builder.build`");
+}
+
+// ---- The `?`: a pane's manual shown by the desktop's Manual, with the keys in force -----------
+
+namespace {
+
+namespace dp = zengine::desktop_pane;
+
+/// THE BUILDER'S HEADER ROW AS PAINTED, and the cells its `?` and gear stand in.
+struct HeaderMarks {
+    std::string row;
+    std::int64_t manual_x = 0, gear_x = 0, y = 0;
+};
+HeaderMarks header_marks(BuilderRig& b, std::int64_t kind) {
+    const ui::Rect rect = external_body_rect(b.r.session(), kind);
+    HeaderMarks out;
+    out.y = rect.y;
+    out.manual_x = rect.x + rect.w - 1;
+    out.gear_x = rect.x + rect.w - 3;
+    const std::vector<std::string> rows = external_region_rows(b.r.last_canvas(), rect);
+    out.row = rows.empty() ? std::string() : rows.front();
+    return out;
+}
+
+std::int64_t manual_kind(BuilderRig& b) {
+    const RuntimePane* row = b.r.session().panes.runtime.find(kDesktopRole, dp::kManualPane);
+    return row == nullptr ? kNoPaneKind : row->kind;
+}
+
+bool on_desk(BuilderRig& b, std::int64_t kind) {
+    for (const OpenPane& p : b.r.session().panes.open) {
+        if (p.kind == kind) return true;
+    }
+    return false;
+}
+
+std::vector<std::string> manual_shown(BuilderRig& b) {
+    const ExternalPane* pane = b.r.session().panes.external_pane(manual_kind(b));
+    REQUIRE(pane != nullptr);
+    return held_row_texts(*pane);
+}
+
+bool more_below(const std::vector<std::string>& rows) {
+    return !rows.empty() && rows.back().find("more lines below") != std::string::npos;
+}
+
+/// PRESS INTO THE MANUAL, so its keys are the ones a key reaches.
+void focus_manual(BuilderRig& b) {
+    const std::int64_t kind = manual_kind(b);
+    REQUIRE(kind != kNoPaneKind);
+    if (b.r.session().panes.keyboard != kind) {
+        const ui::Rect rect = external_body_rect(b.r.session(), kind);
+        b.r.press_cell(rect.x, rect.y);
+        REQUIRE(b.r.session().panes.keyboard == kind);
+    }
+}
+
+/// THE MANUAL'S WHOLE TEXT, AS ITS PANE SHOWS IT: the pane pressed into, its window taken to the
+/// top, then walked a line at a time with its own key, each new last line kept.
+std::vector<std::string> read_manual(BuilderRig& b) {
+    focus_manual(b);
+    b.r.key(input::scan::kHome);
+    std::vector<std::string> rows = manual_shown(b);
+    REQUIRE(rows.size() >= 2);
+    std::vector<std::string> lines(rows.begin() + 1, rows.end() - (more_below(rows) ? 1 : 0));
+    for (int guard = 0; more_below(rows) && guard < 4000; ++guard) {
+        b.r.key(input::scan::kDown);
+        rows = manual_shown(b);
+        REQUIRE(rows.size() >= 2);
+        lines.push_back(rows[rows.size() - (more_below(rows) ? 2 : 1)]);
+    }
+    CHECK_FALSE(more_below(rows));
+    return lines;
+}
+
+bool has_line(const std::vector<std::string>& lines, const std::string& line) {
+    return std::find(lines.begin(), lines.end(), line) != lines.end();
+}
+
+/// The lines of one command's section in the shown manual: from its heading to the next heading,
+/// a command's (`<id> -- <keys>`) or a group's (`Commands ...`).
+std::string section_of(const std::vector<std::string>& lines, const std::string& id) {
+    static const std::regex heading("^([a-z][a-z0-9-]*\\.[a-z0-9.-]+ -- |Commands)");
+    std::string out;
+    bool in = false;
+    for (const std::string& line : lines) {
+        if (line.rfind(id + " -- ", 0) == 0) {
+            in = true;
+            continue;
+        }
+        if (in && std::regex_search(line, heading)) break;
+        if (in) out += line + "\n";
+    }
+    return out;
+}
+
+/// THE BUILDER'S COMMANDS AS THE CENSUS PINS THEM: each id with every default key it declares.
+std::map<std::string, std::set<std::string>> builder_census() {
+    std::map<std::string, std::set<std::string>> out;
+    for (const std::string& line : census_pinned()) {
+        std::istringstream in(line);
+        std::string office, mode, id, key;
+        in >> office >> mode >> id >> key;
+        if (office == pane::kBuilderPaneRole) out[id].insert(key);
+    }
+    return out;
+}
+
+std::string joined_pairs(const std::vector<std::string>& pairs) {
+    std::string out;
+    for (const std::string& pair : pairs) out += pair + " | ";
+    return out;
+}
+
+/// CHOOSE ONE ROW OF THE HOST'S OPEN MENU, by its action id, with the menu's own keys.
+void choose_context(BuilderRig& b, const std::string& id) {
+    const std::vector<ContextEntry> rows = context_population(b.r.session().context);
+    std::size_t at = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (!rows[i].is_group && rows[i].row != nullptr && id == rows[i].row->id) at = i;
+    }
+    REQUIRE(at < rows.size());
+    for (std::size_t i = b.r.session().context.cursor; i < at; ++i) b.r.key(input::scan::kDown);
+    REQUIRE(b.r.session().context.cursor == at);
+    b.r.key(input::scan::kReturn);
+}
+
+} // namespace
+
+TEST_CASE("WL-CHROME-09: a pane whose holder answers its manual wears a `?` and a gear at its top "
+          "right; one that does not, or a desk with no row to show one, wears neither") {
+    // THE ROW THE HOST DRAWS THE `?` FOR is the one the desktop declares, spelled in both.
+    CHECK(std::string(kManualAction) == dp::kActionManual);
+    {
+        BuilderRig b("bld-help-marks");
+        b.tool->catalog = catalog_of({{"tally", "tally"}});
+        b.open(160, 48, false, true, true, false, /*with_desktop=*/true);
+        const HeaderMarks marks = header_marks(b, b.kind);
+        CHECK(b.r.session().panes.external_pane(b.kind)->manual);
+        REQUIRE(marks.row.size() >= 3);
+        CHECK(marks.row.substr(marks.row.size() - 3) == kChromeMarks);
+        // THE DESKTOP'S OWN PANES ANSWER NO MANUAL, so the Pane Manager wears neither mark.
+        b.unfocus();
+        b.r.key(input::scan::kP, input::mod::kCtrl);
+        const RuntimePane* manager =
+            b.r.session().panes.runtime.find(kDesktopRole, dp::kLauncherPane);
+        REQUIRE(manager != nullptr);
+        REQUIRE(on_desk(b, manager->kind));
+        CHECK_FALSE(b.r.session().panes.external_pane(manager->kind)->manual);
+        const HeaderMarks bare = header_marks(b, manager->kind);
+        CHECK(bare.row.find(kChromeMarks) == std::string::npos);
+        CHECK(chrome_mark_at(b.r.session().panes, b.r.session().setup.active,
+                             screen_of(b.r.session()), manager->kind, b.r.session().pane_titles,
+                             input::space::kCells, bare.manual_x, bare.y) == chrome_mark::kNone);
+    }
+    {
+        // WITH NO DESKTOP THERE IS NO ROW THAT SHOWS A MANUAL, so the Builder wears no `?`.
+        BuilderRig b("bld-help-no-desk");
+        b.tool->catalog = catalog_of({{"tally", "tally"}});
+        b.open();
+        CHECK_FALSE(b.r.session().panes.external_pane(b.kind)->manual);
+        CHECK(header_marks(b, b.kind).row.find(kChromeMarks) == std::string::npos);
+    }
+}
+
+TEST_CASE("WL-DESK-17: the Builder's `?` shows About, Use and every command it declares in every "
+          "mode, each beside the key it answers to, the census's default where nothing moved it") {
+    BuilderRig b("bld-help-shown");
+    b.tool->catalog = catalog_of({{"tally", "tally"}});
+    b.open(160, 48, false, true, true, false, /*with_desktop=*/true);
+    const HeaderMarks marks = header_marks(b, b.kind);
+    b.r.press_cell(marks.manual_x, marks.y);
+    REQUIRE(manual_kind(b) != kNoPaneKind);
+    REQUIRE(on_desk(b, manual_kind(b)));
+    const std::vector<std::string> head = manual_shown(b);
+    REQUIRE_FALSE(head.empty());
+    CHECK(head[0] == "MANUAL -- zengine.builder-pane/builder");
+
+    const std::vector<std::string> lines = read_manual(b);
+    const auto about = std::find(lines.begin(), lines.end(), "About");
+    const auto use = std::find(lines.begin(), lines.end(), "Use");
+    const auto commands = std::find(lines.begin(), lines.end(), "Commands");
+    REQUIRE(about != lines.end());
+    REQUIRE(use != lines.end());
+    REQUIRE(commands != lines.end());
+    CHECK(about < use);
+    CHECK(use < commands);
+    // EVERY ID THE CENSUS HOLDS FOR THE BUILDER, in every mode, under its own heading with its key.
+    const auto census = builder_census();
+    REQUIRE(census.size() >= 29);
+    for (const auto& [id, keys] : census) {
+        INFO("command ", id);
+        bool headed = false;
+        for (const std::string& line : lines) {
+            if (line.rfind(id + " -- ", 0) != 0) continue;
+            headed = true;
+            for (const std::string& key : keys) {
+                if (key != "unbound") { // a mode where the command has no key adds none
+                    CHECK(line.find(key) != std::string::npos);
+                }
+            }
+        }
+        CHECK(headed);
+    }
+    // THE KEY MARKERS SHOW KEYS, never the markers: no `<!--` reaches the weaver.
+    for (const std::string& line : lines) {
+        CHECK(line.find("<!--") == std::string::npos);
+    }
+    CHECK(section_of(lines, pane::kActionBuild).find("press `b`") != std::string::npos);
+}
+
+TEST_CASE("WL-DESK-17: a key the weaver moved in a keymap file shows in place of the marked "
+          "default, beside the heading and in the words, for a command in force and one in "
+          "another mode") {
+    BuilderRig b("bld-help-moved");
+    const std::string path = (b.root / "keymap.json").generic_string();
+    write_keymap_file(path, keymap_file_text("default", {{pane::kActionBuild, "g"},
+                                                         {"builder.output-older", "9"}}));
+    b.r.host.keymap_path = path;
+    b.tool->catalog = catalog_of({{"tally", "tally"}});
+    b.open(160, 48, false, true, true, false, /*with_desktop=*/true);
+    const HeaderMarks marks = header_marks(b, b.kind);
+    b.r.press_cell(marks.manual_x, marks.y);
+    const std::vector<std::string> lines = read_manual(b);
+    CHECK(has_line(lines, "builder.build -- g"));
+    const std::string build = section_of(lines, pane::kActionBuild);
+    CHECK(build.find("press `g`") != std::string::npos);
+    CHECK(build.find("`b`") == std::string::npos);
+    // ...AND FOR A COMMAND OF THE OUTPUT READER, which is not in force while the pane browses.
+    CHECK(has_line(lines, "builder.output-older -- 9"));
+    CHECK(section_of(lines, "builder.output-older").find("`9`") != std::string::npos);
+}
+
+TEST_CASE("WL-KEY-16: the band's spelling and the Hotkeys view's are set apart from a pane's gear, "
+          "each changing only its own surface, the `?` spelling as the Hotkeys view does") {
+    BuilderRig b("bld-help-spelling");
+    b.r.host.prefs_path = (b.root / "workshop-prefs.json").generic_string();
+    b.tool->catalog = catalog_of({{"tally", "tally"}});
+    b.open(160, 48, false, true, true, false, /*with_desktop=*/true);
+    const auto band = [&] {
+        return joined_pairs(help_pairs(b.r.session().keymap, b.r.session().band_keys,
+                                       KeyContext::kPane, b.kind));
+    };
+    const auto hotkeys = [&] {
+        for (const ShownBinding& row :
+             keymap_shown(b.r.session(), std::string(), std::string()).rows) {
+            if (row.id == pane::kActionBuildRealize) return row.shown;
+        }
+        return std::string();
+    };
+    const auto manual_heading = [&] {
+        for (const std::string& line : manual_shown(b)) {
+            if (line.rfind("builder.build-realize -- ", 0) == 0) return line;
+        }
+        return std::string();
+    };
+    // THE DEFAULTS, AS THEY WERE: the band short, the Hotkeys view and the `?` full.
+    CHECK(band().find("B load after build") != std::string::npos);
+    CHECK(hotkeys() == "shift+b");
+    const HeaderMarks marks = header_marks(b, b.kind);
+    b.r.press_cell(marks.manual_x, marks.y);
+    focus_manual(b);
+    for (int i = 0; i < 400 && manual_heading().empty() && more_below(manual_shown(b)); ++i) {
+        b.r.key(input::scan::kDown);
+    }
+    CHECK(manual_heading() == "builder.build-realize -- shift+b");
+
+    // THE GEAR OPENS THE HOST'S OWN MENU OF SETTINGS, ABOUT THAT PANE, and only them.
+    b.focus();
+    b.r.press_cell(marks.gear_x, marks.y);
+    REQUIRE(b.r.session().context.open);
+    CHECK(b.r.session().context.subject == context_subject::kSettings);
+    CHECK(b.r.session().context.pane == PaneRef{pane::kBuilderPaneRole, pane::kBuilderPane});
+    std::vector<std::string> settings;
+    for (const ContextEntry& e : context_population(b.r.session().context)) {
+        settings.push_back(e.row != nullptr ? e.row->id : e.group);
+    }
+    CHECK(settings == std::vector<std::string>{"workshop.pane-titles", "workshop.band-keys",
+                                               "workshop.hotkeys-keys"});
+    choose_context(b, "workshop.band-keys");
+    CHECK(b.r.session().band_keys == KeySpelling::kFull);
+    b.focus();
+    CHECK(band().find("shift+b load after build") != std::string::npos);
+    CHECK(hotkeys() == "shift+b");                                  // the Hotkeys view is its own
+    CHECK(manual_heading() == "builder.build-realize -- shift+b"); // ...and the `?` follows it
+
+    b.r.press_cell(marks.gear_x, marks.y);
+    choose_context(b, "workshop.hotkeys-keys");
+    CHECK(b.r.session().hotkeys_keys == KeySpelling::kShort);
+    b.focus();
+    CHECK(hotkeys() == "B");
+    CHECK(manual_heading() == "builder.build-realize -- B");
+    CHECK(band().find("shift+b load after build") != std::string::npos); // the band kept its own
+
+    // BOTH ARE THE WEAVER'S STATED PREFERENCES, saved apart.
+    const std::string saved = slurp(b.r.host.prefs_path);
+    CHECK(saved.find("\"band_keys\":\"full\"") != std::string::npos);
+    CHECK(saved.find("\"hotkeys_keys\":\"short\"") != std::string::npos);
+}
+
+TEST_CASE("WL-DESK-17: the manual key asks for the manual of the pane holding the keys; the Manual "
+          "keeps no words once closed, and a pane reloaded in place shows its new words at the "
+          "next `?`") {
+    BuilderRig b("bld-help-reload");
+    b.tool->catalog = catalog_of({{"tally", "tally"}});
+    b.open(160, 48, false, true, true, false, /*with_desktop=*/true);
+    // THE KEY, while the Builder holds the keys: a chord above every mode, which the pane does not
+    // keep as it keeps the keys it did not declare.
+    b.r.key(input::scan::kF, input::mod::kCtrl);
+    REQUIRE(manual_kind(b) != kNoPaneKind);
+    std::vector<std::string> lines = read_manual(b);
+    CHECK(has_line(lines, "builder.build -- b"));
+
+    // CLOSED WITH ITS OWN KEY, then put back on the desk by the host, no `?` pressed: it shows no
+    // word of the Builder's, because nothing kept them.
+    b.r.key(input::scan::kEscape);
+    CHECK_FALSE(on_desk(b, manual_kind(b)));
+    b.r.pick(PaneRef{kDesktopRole, dp::kManualPane});
+    REQUIRE(on_desk(b, manual_kind(b)));
+    std::vector<std::string> shown = manual_shown(b);
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown[0].rfind("MANUAL -- press the ?", 0) == 0);
+    for (const std::string& line : shown) {
+        CHECK(line.find("builder") == std::string::npos);
+    }
+    // ...and the key with no pane holding the keys names none, and says so.
+    b.unfocus();
+    b.r.key(input::scan::kF, input::mod::kCtrl);
+    shown = manual_shown(b);
+    REQUIRE(shown.size() >= 2);
+    CHECK(shown[1].find("no pane was named") != std::string::npos);
+
+    // THE BUILDER RELOADED IN PLACE WITH OTHER WORDS: its next `?` shows only those.
+    b.r.enqueue_reload(pane::kBuilderPaneStem, WORKSHOP_SO_BUILDER_PANE_REWORDED);
+    b.r.bus.drain_until_idle();
+    REQUIRE(b.r.load_refusals.empty());
+    b.r.extent(160, 48);
+    const HeaderMarks marks = header_marks(b, b.kind);
+    REQUIRE(marks.row.find(kChromeMarks) != std::string::npos);
+    b.r.press_cell(marks.manual_x, marks.y);
+    lines = read_manual(b);
+    bool reworded = false;
+    for (const std::string& line : lines) {
+        reworded = reworded || line.find("reworded") != std::string::npos;
+        CHECK(line.rfind("builder.build -- ", 0) != 0);
+    }
+    CHECK(reworded);
 }

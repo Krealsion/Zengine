@@ -128,7 +128,9 @@ void WorkshopWeave::load_prefs() {
                       loaded.outcome.refusal, surface::role::kAlert, std::string()});
         return;
     }
-    session_.pane_titles = loaded.titles_shown;
+    session_.pane_titles = loaded.prefs.titles_shown;
+    session_.band_keys = loaded.prefs.band_keys;
+    session_.hotkeys_keys = loaded.prefs.hotkeys_keys;
 }
 
 // WL-ATTN-02 -- agents/workshop/attention.md

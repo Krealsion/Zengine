@@ -17,8 +17,8 @@ namespace zengine::manual {
 
 // ---- The bounds a page is judged by --------------------------------------------------------
 //
-// The splitter reads these by name from this file, so a page the build accepts is one Workshop
-// admits; Workshop judges a declared document by the same constants.
+// The splitter reads these by name from this file, so the bounds a page is built under are the ones
+// the code states.
 
 /// The longest section key: an action id's bound, or a shape's name.
 inline constexpr std::size_t kMaxManualKeyBytes = 64;
@@ -30,16 +30,29 @@ inline constexpr std::size_t kMaxManualFollowBytes = 1024;
 inline constexpr std::size_t kMaxManualHeardBytes = 512;
 /// The most sections one page holds.
 inline constexpr std::size_t kMaxManualSections = 128;
-/// The longest page, in bytes, and so the most words one declaration carries.
+/// The longest page, in bytes, and so the most words one answer carries.
 inline constexpr std::size_t kMaxManualBytes = 65536;
+
+/// ONE KEY MARKER IN A SECTION'S TEXT, as the build found it: the action id it names, the byte
+/// offset and length of the whole marker in the text, and the default key written inside it (a view
+/// into that text). A reader puts a weaver's own key in the marker's place from these alone.
+struct KeyMark {
+    std::string_view id;
+    std::size_t at = 0;
+    std::size_t length = 0;
+    std::string_view key;
+};
 
 /// ONE SECTION OF A PAGE: its key (`about`, `use`, `follow`, a command id, a shape's name, a row's
 /// key, or the slug of a group heading for the words that open that group), the `##` heading it
-/// stands under (empty for the lead), and its Markdown text without its heading.
+/// stands under (empty for the lead), its Markdown text without its heading, and the key markers in
+/// that text, in order.
 struct Section {
     std::string_view key;
     std::string_view group;
     std::string_view text;
+    const KeyMark* marks = nullptr;
+    std::size_t mark_count = 0;
 };
 
 /// A PAGE AS A WEAVE CARRIES IT: the office its title names, the name a weaver sees, the page's

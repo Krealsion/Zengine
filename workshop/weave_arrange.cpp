@@ -437,11 +437,10 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
     // -- the reset prompt -----------------------------------------------------------
     case Act::kManageReset:
         a.resetting = true;
-        say("reset -- " + hotkey_text(session_.keymap, Act::kManageResetPlace) +
-                " place, " + hotkey_text(session_.keymap, Act::kManageResetWidth) +
-                " width, " + hotkey_text(session_.keymap, Act::kManageResetHeight) +
-                " height, " + hotkey_text(session_.keymap, Act::kManageResetOrder) +
-                " order, " + hotkey_text(session_.keymap, Act::kManageDone) + " back",
+        say("reset -- " + hotkey(Act::kManageResetPlace) + " place, " +
+                hotkey(Act::kManageResetWidth) + " width, " + hotkey(Act::kManageResetHeight) +
+                " height, " + hotkey(Act::kManageResetOrder) + " order, " +
+                hotkey(Act::kManageDone) + " back",
             false);
         break;
     // The prompt closes exactly when the reset reached its operation: a refusal for want of an

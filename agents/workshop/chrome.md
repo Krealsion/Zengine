@@ -123,6 +123,29 @@ PROVEN BY — `workshop/screen.hpp` `kPaneChrome`, `kPaneChromeSelected`, `kTran
 stays over the pane it covers, selected or not"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
+## WL-CHROME-09 — A pane whose holder answers its manual wears a `?` and a gear at its top right
+
+LAW — A pane's header ends in a gear and a `?` exactly while its holder takes `PaneDocumentRequested` and the application declares the row that shows a manual; each is read again before every paint.
+
+MEANS
+- a press on the `?` asks that row about the pane, as the press's act; on the gear, Workshop's own menu of its settings opens;
+- a press on either is spent there and moves neither the selection nor the keys;
+- a header too narrow for its title's mark and both, or a pane wearing no header, wears neither.
+
+DOES NOT MEAN
+- that Workshop shows or keeps the manual: the application's row shows it, and nothing is held.
+
+PROVEN BY — `workshop/panes.hpp` `ExternalPane::manual`; `workshop/weave_external.cpp`
+`WorkshopWeave::note_manuals`, `WorkshopWeave::press_manual`; `workshop/weave_pointer.cpp`
+`WorkshopWeave::press_settings`; `workshop/screen.hpp` `kChromeMarks`, `external_header_row`,
+`chrome_mark_at`; `workshop/screen_external.cpp` `external_header_row`, `chrome_mark_at`;
+`workshop/desktop_seam_vocabulary.hpp` `kManualAction`; `workshop/context.hpp` `kSettings`, `kOnSettings`;
+`tests/test_workshop_panes_builder.cpp` case `"WL-CHROME-09: a pane whose holder answers its manual
+wears a `?` and a gear at its top right; one that does not, or a desk with no row to show one, wears
+neither"`, case `"WL-KEY-16: the band's spelling and the Hotkeys view's are set apart from a pane's
+gear, each changing only its own surface, the `?` spelling as the Hotkeys view does"`.
+WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`
+
 ## Do not assume
 
 - That the interior is always the outer rectangle less one cell — it is less one unit of the

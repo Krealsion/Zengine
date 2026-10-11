@@ -10,15 +10,15 @@ namespace zengine::workshop {
 
 // ---- THE SETUP LINE: which arrangement this is, and whether it is written down -----------
 
-std::string setup_name_hint(const Keymap& k) {
-    return "  " + hotkey_text(k, Act::kNamingCommit) + " renames  " +
-           hotkey_text(k, Act::kNamingCancel) + " cancels";
+std::string setup_name_hint(const Keymap& k, KeySpelling spelling) {
+    return "  " + hotkey_text(k, spelling, Act::kNamingCommit) + " renames  " +
+           hotkey_text(k, spelling, Act::kNamingCancel) + " cancels";
 }
 
 // WL-KEY-02 -- agents/workshop/keyboard.md
-std::string setup_hints(const Keymap& k) {
-    return hotkey_text(k, Act::kSetupSave) + " save  " +
-           hotkey_text(k, Act::kSetupRestore) + " restore";
+std::string setup_hints(const Keymap& k, KeySpelling spelling) {
+    return hotkey_text(k, spelling, Act::kSetupSave) + " save  " +
+           hotkey_text(k, spelling, Act::kSetupRestore) + " restore";
 }
 
 // WL-TAB-01, WL-TAB-05 -- agents/workshop/tab-run.md
@@ -36,7 +36,7 @@ ExternalBodyPlace layouts_body(const Session& s, const Screen& sc) {
 std::int64_t setup_name_columns(const Session& s, const Screen& sc) {
     const std::int64_t chrome =
         static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt)) +
-        static_cast<std::int64_t>(setup_name_hint(s.keymap).size()) + 1;
+        static_cast<std::int64_t>(setup_name_hint(s.keymap, s.band_keys).size()) + 1;
     const std::int64_t room = layouts_body(s, sc).columns - chrome;
     return room > kSetupNameMinCols ? room : kSetupNameMinCols;
 }
@@ -59,7 +59,7 @@ std::string setup_link_text(const SetupState& setup, std::int64_t path_columns) 
 
 // WL-TAB-03 -- agents/workshop/tab-run.md
 std::string setup_rest_text(const SetupState& setup, const Panes& panes,
-                            const Keymap& keymap) {
+                            const Keymap& keymap, KeySpelling spelling) {
     std::string line;
     // The session's whole resolution table is asked: a pane a weaver can see must never be counted
     // unresolved on the row beneath it.
@@ -71,7 +71,7 @@ std::string setup_rest_text(const SetupState& setup, const Panes& panes,
         line += kStatusJoin + std::to_string(waiting.size()) + " unresolved";
     }
     line += kStatusJoin;
-    line += setup_hints(keymap);
+    line += setup_hints(keymap, spelling);
     return line;
 }
 
@@ -221,7 +221,7 @@ BandStatus band_status(const Session& s, const ExternalBodyPlace& place) {
     out.before = run.before;
     out.after = run.after;
     const std::int64_t left = static_cast<std::int64_t>(run.text.size());
-    std::string rest = setup_rest_text(s.setup, s.panes, s.keymap);
+    std::string rest = setup_rest_text(s.setup, s.panes, s.keymap, s.band_keys);
     // The workspace fact folds in where the top band has no second row for it, into the cuttable
     // half: a room's size is the one fact here a weaver can also read off their window.
     if (place.rows < 2) {
@@ -344,7 +344,7 @@ void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRe
             sel_end = prompt + vis.end;
         }
         identity = detail::fit(std::string(kSetupNamePrompt) + shown +
-                                   setup_name_hint(s.keymap),
+                                   setup_name_hint(s.keymap, s.band_keys),
                                columns);
     } else {
         // THE LAYOUT TABS AND THE STATUS ARE ONE COMPOSITION, and the painter takes

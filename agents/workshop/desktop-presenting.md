@@ -117,3 +117,27 @@ having no key"`; `tests/test_workshop_document.cpp` case `"the effective keymap 
 a key is answered, and marks the text box's keys as nobody's to move"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
+## WL-DESK-17 — The Manual shows a pane's manual with the keys in force, and keeps it only while open
+
+LAW — The desktop's Manual asks the pane a `?` or the manual key names for its whole manual and shows `About`, `Use` and each command beside its keys now; its words go when its pane leaves the desk.
+
+MEANS
+- a marker's place in the words is the build's data; its key is a row in force, else the weaver's file, else the page's default;
+- keys are spelled as the Hotkeys view spells them; only the answer to its latest ask is shown;
+- the manual key is above every mode: a pane keeps the keys it did not declare, so a chord.
+
+DOES NOT MEAN
+- that Workshop holds or relays a manual: the desktop asks the pane's office, and nothing keeps it.
+
+PROVEN BY — `workshop/desktop-pane/manual_reader.hpp` `keys_of`, `with_keys`, `manual_lines`;
+`workshop/desktop-pane/vocabulary.hpp` `kManualPane`, `kActionManual`;
+`workshop/desktop-pane/pane.cpp` `DesktopWeave`; `workshop/desktop_seam_vocabulary.hpp`
+`AppActionRequested`, `KeymapShown`; `workshop/pane_document.hpp` `PaneDocumentKey`;
+`cmake/ZengineManual.cmake` `zengine_manual_marks`; `tests/test_workshop_panes_builder.cpp` case
+`"WL-DESK-17: the Builder's `?` shows About, Use and every command it declares in every mode, each
+beside the key it answers to, the census's default where nothing moved it"`, case `"WL-DESK-17: a
+key the weaver moved in a keymap file shows in place of the marked default, beside the heading and
+in the words, for a command in force and one in another mode"`, case `"WL-DESK-17: the manual key
+asks for the manual of the pane holding the keys; the Manual keeps no words once closed, and a pane
+reloaded in place shows its new words at the next `?`"`.
+WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`

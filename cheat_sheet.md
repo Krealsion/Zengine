@@ -538,6 +538,7 @@ edit, rebuild, remap or switch off), answered even while you type in a pane:
 | `a` | context menu — what can I do here (right-click: with what you point at) |
 | `w` | arrange the desk |
 | `t` | show / hide pane titles (a pane holding the keyboard keeps its own) |
+| `Ctrl`+`f` | the manual of the pane holding your keys, as its `?` shows it (its gear: Settings) |
 | `s` | save the current layout to the setup file |
 | `r` | restore the setup file into the current layout |
 | `.` / `,` | the next / previous layout |

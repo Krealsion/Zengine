@@ -866,7 +866,7 @@ TEST_CASE("the hotkeys guide's keymap example is a file Workshop reads and appli
     REQUIRE(loaded.outcome.accepted);
     REQUIRE(loaded.keymap.authored.size() == 4);
     CHECK(loaded.keymap.authored[0].action == "desktop.terminal");
-    CHECK(loaded.keymap.authored[0].gesture == "ctrl+f");
+    CHECK(loaded.keymap.authored[0].gesture == "ctrl+q");
     CHECK(loaded.keymap.authored[3].action == "layout.next");
     CHECK(loaded.keymap.authored[3].gesture == "ctrl+n");
     // COPIED, IT IS APPLIED: the load says so with its count, and its keys answer.
@@ -1092,7 +1092,7 @@ TEST_CASE("an action with no default gesture answers to no key, and says so") {
     }
     // The band's legend carries no pair for them: its scarcest resource is columns, and a
     // pair whose gesture half is a non-key spends them saying nothing.
-    for (const std::string& pair : help_pairs(k, KeyContext::kCommand)) {
+    for (const std::string& pair : help_pairs(k, KeySpelling::kShort, KeyContext::kCommand)) {
         CAPTURE(pair);
         CHECK(pair.find("unbound") == std::string::npos);
         CHECK(pair.find("rename layout") == std::string::npos);
@@ -1520,7 +1520,8 @@ TEST_CASE("pane titles are one action, one binding truth, one dispatch") {
     CHECK(t.notice() == "pane titles shown");
 
     // THE BAND'S PAIR IS THE CATALOG'S, so the claim follows the effective binding.
-    const std::vector<std::string> pairs = help_pairs(t.session().keymap, KeyContext::kCommand);
+    const std::vector<std::string> pairs =
+        help_pairs(t.session().keymap, KeySpelling::kShort, KeyContext::kCommand);
     bool spelled = false;
     for (const std::string& pair : pairs) {
         spelled = spelled || pair == "t titles";
@@ -1540,7 +1541,8 @@ TEST_CASE("the titles action remaps and collides like every other row") {
     CHECK(t.session().pane_titles);
     t.key(input::scan::kE, input::mod::kCtrl);
     CHECK_FALSE(t.session().pane_titles);
-    const std::vector<std::string> pairs = help_pairs(t.session().keymap, KeyContext::kCommand);
+    const std::vector<std::string> pairs =
+        help_pairs(t.session().keymap, KeySpelling::kShort, KeyContext::kCommand);
     bool old_spelling = false;
     bool new_spelling = false;
     for (const std::string& pair : pairs) {

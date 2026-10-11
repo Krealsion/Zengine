@@ -24,6 +24,12 @@ namespace zengine::workshop {
 /// and the one durable name a replacement desktop claims.
 inline constexpr const char* kDesktopRole = "zengine.desktop";
 
+/// THE APPLICATION ROW THAT SHOWS A PANE'S MANUAL, as the desktop declares it: a pane's `?` asks
+/// it about that pane, and the `?` is drawn only while some row by this id is declared. Spelled in
+/// the host too, for that reason, and a suite pins the two spellings against each other.
+// WL-CHROME-09 -- agents/workshop/chrome.md
+inline constexpr const char* kManualAction = "desktop.manual";
+
 // ---- Application actions -------------------------------------------------------------------
 
 /// Where in the routing chain an application row is answered: exactly two places (WL-DESK-07).
@@ -56,10 +62,14 @@ struct AppActions {
 };
 
 /// A weaver pressed the gesture a declared application row answers to: the resolved id, sent
-/// instead of that keystroke, its character swallowed.
+/// instead of that keystroke, its character swallowed. `office` and `pane` name the pane the act
+/// was performed on -- the pane holding the keys when a key asked it, the pane whose `?` was
+/// pressed -- and are both empty when it was performed on none.
 struct AppActionRequested {
     std::string id; ///< one of the ids this office declared, as it declared it
-    ZEN_SHAPE(AppActionRequested, 1, ZEN_FIELD(id));
+    std::string office;
+    std::string pane;
+    ZEN_SHAPE(AppActionRequested, 2, ZEN_FIELD(id), ZEN_FIELD(office), ZEN_FIELD(pane));
 };
 
 // ---- Launching -----------------------------------------------------------------------------
@@ -208,26 +218,33 @@ struct PaneInventoryRequested {
 // ---- The effective keymap, said out loud ----------------------------------------------------
 
 /// One binding as it is in force: action, label, gesture in the keymap file's spelling (empty for
-/// none) and where it is answered. `remappable` is false only for the text box's own keys.
+/// none), the same gesture as the weaver chose to see keys spelled in the Hotkeys view, and where
+/// it is answered. `remappable` is false only for the text box's own keys.
 struct ShownBinding {
     std::string group;   ///< where it is answered: "above every mode", a mode's name, a pane
     std::string id;      ///< the durable id a keymap file names
     std::string label;
     std::string gesture; ///< e.g. `ctrl+t`; empty when the row answers to no key
+    std::string shown;   ///< ...as the Hotkeys view spells it, `ctrl+t` or `^t`; empty with it
     bool authored = false;
     bool remappable = true;
-    ZEN_SHAPE(ShownBinding, 1, ZEN_FIELD(group), ZEN_FIELD(id), ZEN_FIELD(label),
-              ZEN_FIELD(gesture), ZEN_FIELD(authored), ZEN_FIELD(remappable));
+    ZEN_SHAPE(ShownBinding, 2, ZEN_FIELD(group), ZEN_FIELD(id), ZEN_FIELD(label),
+              ZEN_FIELD(gesture), ZEN_FIELD(shown), ZEN_FIELD(authored), ZEN_FIELD(remappable));
 };
 
 /// The one binding truth as a value, projected for a presenter, which keeps no catalog of its own:
 /// a floor printing a declared default would go on printing it after the weaver moved the row.
-/// Published when it changes and answered on request, like `PaneInventory`.
+/// Published when it changes and answered on request, like `PaneInventory`. `moved` is each key
+/// the weaver's file names for an id no row in force answers to (a pane's other mode, a pane not
+/// open), `gesture` empty for `none`; `spelling` says how every `shown` spells, `full` or `short`.
 struct KeymapShown {
     std::vector<ShownBinding> rows;
     std::string file;
     std::string word;
-    ZEN_SHAPE(KeymapShown, 1, ZEN_FIELD(rows), ZEN_FIELD(file), ZEN_FIELD(word));
+    std::vector<ShownBinding> moved;
+    std::string spelling;
+    ZEN_SHAPE(KeymapShown, 2, ZEN_FIELD(rows), ZEN_FIELD(file), ZEN_FIELD(word),
+              ZEN_FIELD(moved), ZEN_FIELD(spelling));
 };
 
 /// Ask for the keymap as it is now.

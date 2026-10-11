@@ -76,7 +76,7 @@ std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
 } // namespace detail
 
 // WL-KEY-09 -- agents/workshop/keyboard.md; WL-RGN-03 -- agents/workshop/regions.md
-std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
+std::vector<std::string> help_rows(const Keymap& k, KeySpelling spelling, KeyContext ctx,
                                    std::int64_t width, std::size_t rows, std::int64_t pane) {
     std::vector<std::string> out;
     if (rows == 0) {
@@ -95,7 +95,7 @@ std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
                 !k.app_row_active(app, ctx, pane)) {
                 continue;
             }
-            const std::string pair = gesture_text(app.gesture) + " " + app.label;
+            const std::string pair = spell_gesture(app.gesture, spelling) + " " + app.label;
             row = row.empty() ? pair : row + " | " + pair;
         }
         if (!row.empty()) {
@@ -103,7 +103,7 @@ std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
         }
         return out;
     }
-    const std::vector<std::string> pairs = help_pairs(k, ctx, pane);
+    const std::vector<std::string> pairs = help_pairs(k, spelling, ctx, pane);
     std::string row;
     std::size_t taken = 0;
     for (const std::string& pair : pairs) {

@@ -2,14 +2,47 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // `WorkshopWeave`'s external panes: the room grant, the forwarded press, key, wheel and text, the
-// second button, and a pane's own menu.
-// Workshop law: agents/workshop/focus.md (+4 registers; agents/workshop.md routes)
+// second button, a pane's own menu, and the `?` it wears.
+// Workshop law: agents/workshop/focus.md (+5 registers; agents/workshop.md routes)
 
+#include "pane_document.hpp"
 #include "weave.hpp"
 
 namespace zengine::workshop {
 
 // ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+
+// WL-CHROME-09 -- agents/workshop/chrome.md
+void WorkshopWeave::note_manuals() {
+    // THE APPLICATION SHOWS A MANUAL while it declares the row that does; a pane's holder answers
+    // one while it takes the door. Both asked now, of the live keymap and the live holder.
+    bool shown = false;
+    for (const AppRow& app : session_.keymap.app) {
+        shown = shown || app.id == kManualAction;
+    }
+    for (const OpenPane& p : session_.panes.open) {
+        if (!is_runtime_kind(p.kind)) {
+            continue;
+        }
+        ExternalPane* pane = session_.panes.external_pane(p.kind);
+        const RuntimePane* row = session_.panes.runtime.of_kind(p.kind);
+        if (pane == nullptr) {
+            continue;
+        }
+        pane->manual = shown && row != nullptr && host_->holder_accepts &&
+                       host_->holder_accepts(row->provider,
+                                             *loom::schema_of<PaneDocumentRequested>());
+    }
+}
+
+// WL-CHROME-09 -- agents/workshop/chrome.md
+void WorkshopWeave::press_manual(std::int64_t kind, loom::Mail& mail) {
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
+    if (row == nullptr) {
+        return;
+    }
+    request_app_action(kManualAction, mail, hand(), row);
+}
 
 // WL-SETTING-04 -- agents/workshop/settings.md
 void WorkshopWeave::hand_settings(loom::Mail& mail) {

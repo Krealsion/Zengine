@@ -636,7 +636,7 @@ TEST_CASE("a persisted mark is admitted, never re-based, and never quietly dropp
 
     // A FILE THAT SAYS IT IS SOMETHING ELSE IS REFUSED WHOLE, by its own claim, before its
     // rows are judged -- the family's law, and a different answer from a bad row.
-    put_file(root / "wrong.json", prefs_persist::to_text(true));
+    put_file(root / "wrong.json", prefs_persist::to_text(prefs_persist::Presentation{}));
     CHECK_FALSE(
         marks_persist::load_file((root / "wrong.json").generic_string()).outcome.accepted);
 

@@ -803,6 +803,11 @@ struct Session {
     /// WHETHER THE ARRANGEABLE PANES PAINT THEIR TITLE ROWS -- a presentation preference.
     // WL-FOCUS-11 -- agents/workshop/focus.md
     bool pane_titles = true;
+    /// HOW THE BAND AND THE HOTKEYS VIEW EACH SPELL A KEY -- two presentation preferences, chosen
+    /// apart; the manual a pane's `?` shows spells as the Hotkeys view does.
+    // WL-KEY-16 -- agents/workshop/key-spelling.md
+    KeySpelling band_keys = KeySpelling::kShort;
+    KeySpelling hotkeys_keys = KeySpelling::kFull;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -831,19 +836,20 @@ bool default_row_context(KeyContext c);
 
 // ---- Spelling the effective bindings -----------------------------------------------------
 
-/// The effective gesture of one action, in the screen's compact voice (`^s`, `shift+h`,
-/// `enter`). The one call every claim site makes.
-std::string hotkey_text(const Keymap& k, Act a);
+/// The effective gesture of one action, in the band's spelling (`^s` or `ctrl+s`). The one call
+/// every claim site makes.
+std::string hotkey_text(const Keymap& k, KeySpelling spelling, Act a);
 
 /// Four direction actions said as one word when true: `arrows` while all four sit on their arrow
 /// defaults, their own spellings otherwise.
-std::string arrows_text(const Keymap& k, Act left, Act right, Act up, Act down);
+std::string arrows_text(const Keymap& k, KeySpelling spelling, Act left, Act right, Act up,
+                        Act down);
 
 /// The `gesture label` pairs requestable in this context, in the order the band spends room on
 /// them: the context's own rows (for `kPane`, the keyboard pane's declared ones), then what is
 /// answered above the mode chain.
 // WL-KEY-15 -- agents/workshop/keyboard.md
-std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx,
+std::vector<std::string> help_pairs(const Keymap& k, KeySpelling spelling, KeyContext ctx,
                                     std::int64_t pane = kNoPaneKind);
 
 // The band's legend rows are packed from `help_pairs` by `help_rows`, into however many rows the
@@ -894,7 +900,7 @@ std::int64_t minus(std::int64_t a, std::int64_t b) noexcept;
 
 /// The band's legend rows, as the legend projects them, budget-composed. `pane` is the
 /// keyboard pane's handle when `ctx` is `kPane`, so its declared rows are packed too.
-std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
+std::vector<std::string> help_rows(const Keymap& k, KeySpelling spelling, KeyContext ctx,
                                           std::int64_t width, std::size_t rows,
                                           std::int64_t pane = kNoPaneKind);
 
@@ -1348,6 +1354,34 @@ inline constexpr const char* kTypingElsewhere = "  ";
 /// neither echoed raw -- and whether typing goes here, said by a mark that costs no columns.
 std::string external_header(const RuntimePane& row, bool typing);
 
+/// A PANE'S `?` AND ITS GEAR, at the right end of its header row: the gear two cells before the
+/// `?`, which takes the last cell. Printable ASCII, which every face draws, and no glyph a
+/// terminal's border is drawn with.
+// WL-CHROME-09 -- agents/workshop/chrome.md
+inline constexpr const char* kChromeMarks = "= ?";
+/// The fewest header columns that keep the title's mark and a few of its letters beside them.
+inline constexpr std::int64_t kChromeMarksMinColumns = 12;
+
+/// WHICH MARK A PRESS IN A HEADER ROW LANDED ON.
+namespace chrome_mark {
+inline constexpr std::int64_t kNone = 0;
+inline constexpr std::int64_t kManual = 1;   ///< the `?`
+inline constexpr std::int64_t kSettings = 2; ///< the gear
+} // namespace chrome_mark
+
+/// THE HEADER ROW AS PAINTED, `prefix` before the title: the title fitted to `columns`, and the
+/// pane's `?` and gear at its right end when it wears them and the row has room.
+// WL-CHROME-09 -- agents/workshop/chrome.md
+std::string external_header_row(const RuntimePane& row, bool typing, bool marks,
+                                std::int64_t columns, const std::string& prefix = std::string());
+
+/// WHICH OF A PANE'S MARKS A PRESS LANDED ON, from the place the painter used; `kNone` off them,
+/// or on a pane that does not wear them.
+// WL-CHROME-09 -- agents/workshop/chrome.md
+std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen& sc,
+                            std::int64_t kind, bool titles, std::int64_t space, std::int64_t x,
+                            std::int64_t y);
+
 /// ONE EXTERNAL PANE: Workshop's backdrop, Workshop's header, and ONE region carrying
 /// whatever that office last validly said inside the room it was granted.
 void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
@@ -1382,10 +1416,10 @@ inline void on_own_layer(surface::SurfaceCanvas& c, Paint&& paint_it) {
 /// What the one-line name editor puts before and after the name a weaver is typing. The
 /// hint is spelled from the effective keymap, like every other gesture claim.
 inline constexpr const char* kSetupNamePrompt = "layout name> ";
-std::string setup_name_hint(const Keymap& k);
+std::string setup_name_hint(const Keymap& k, KeySpelling spelling);
 
 /// The two gestures the setup line advertises, on the line the thing they act on is on.
-std::string setup_hints(const Keymap& k);
+std::string setup_hints(const Keymap& k, KeySpelling spelling);
 
 /// The fewest columns the name editor will claim for the name itself, so that a surface
 /// narrow enough for the chrome to exceed it still shows some of what is being typed.
@@ -1440,7 +1474,7 @@ std::string setup_link_text(const SetupState& setup, std::int64_t path_columns);
 
 /// WHAT THE ROW SAYS AFTER THE ASSOCIATION: the unresolved count, then the two gestures.
 std::string setup_rest_text(const SetupState& setup, const Panes& panes,
-                                   const Keymap& keymap);
+                                   const Keymap& keymap, KeySpelling spelling);
 
 /// The workspace's extent as the band states it: a status fact, beside the setup identity.
 std::string workspace_text(const Session& s);
