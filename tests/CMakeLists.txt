@@ -1296,6 +1296,21 @@ if(LOOM_SESSION_TOOLS)
             --work ${CMAKE_BINARY_DIR}/story-journey-work
             --evidence ${CMAKE_BINARY_DIR}/story-journey.json)
         set_tests_properties(story_journey PROPERTIES TIMEOUT 600)
+        # EVERY TUTORIAL'S `tutorial` WALK, replayed as a weaver plays it: this build installed into
+        # the entry's own prefix, each tutorial started from the copy that install made and walked
+        # in a terminal Workshop of its own (tests/session/tutorial_walks.py).
+        get_filename_component(zengine_loom_prefix "${LOOM_HOST_PROGRAM}" DIRECTORY)
+        get_filename_component(zengine_loom_prefix "${zengine_loom_prefix}" DIRECTORY)
+        zengine_program_test(tutorial_walks Python3::Interpreter
+            ${CMAKE_CURRENT_SOURCE_DIR}/session/tutorial_walks.py
+            --repo ${CMAKE_SOURCE_DIR}
+            --build ${CMAKE_BINARY_DIR}
+            --cmake ${CMAKE_COMMAND}
+            --config $<CONFIG>
+            --loom-prefix ${zengine_loom_prefix}
+            --work ${CMAKE_BINARY_DIR}/tutorial-walks-work
+            --evidence ${CMAKE_BINARY_DIR}/tutorial-walks-work/tutorial-walks.json)
+        set_tests_properties(tutorial_walks PROPERTIES TIMEOUT 900)
         set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "session")
         # `workshop/nvim-edit` AGAINST A REAL NEOVIM needs both halves: this session tooling and
         # the Neovim the `neovim` gate names. The two together are one gate of their own,

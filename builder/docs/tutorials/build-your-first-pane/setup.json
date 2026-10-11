@@ -6,7 +6,7 @@
  "task": "Build a small pane from one source file, put it in the project, and open it in Workshop.",
  "choose": "you have never built anything in Workshop: this is the Builder's first tutorial.",
  "prepares": [
-  "a project holding tally.cpp and a recipe that builds it, against your installed Zengine",
+  "a project holding tally.cpp and a recipe that builds it, against your installed Zengine, and a development runtime of this build for Workshop to run from",
   "the Builder and Files on the desk"
  ],
  "guide": "README.md",
@@ -68,6 +68,7 @@
  },
  "desk": "desk.json",
  "project": {
+  "runtime": "development",
   "files": {
    "tally.cpp": "../../../../examples/tally-pane/tally.cpp"
   },
@@ -75,7 +76,7 @@
  },
  "walks": {
   "tutorial": {
-   "about": "the tutorial, step by step: the recipe, the plan row, the build and load, Tally opened and counting",
+   "about": "the tutorial, step by step: the recipe, the plan row, the build and load, Tally opened from the Pane Manager and counting",
    "steps": [
     {
      "expect": [
@@ -141,7 +142,17 @@
      "picture": "step-4"
     },
     {
-     "open": "pane:example.tally/tally"
+     "press": "ctrl+p"
+    },
+    {
+     "select": [
+      "zengine.desktop",
+      "launcher",
+      "pane:example.tally/tally"
+     ]
+    },
+    {
+     "press": "return"
     },
     {
      "expect": [
@@ -153,6 +164,16 @@
     },
     {
      "picture": "step-5"
+    },
+    {
+     "press": "ctrl+p"
+    },
+    {
+     "absent": [
+      "zengine.desktop",
+      "launcher",
+      "PANES"
+     ]
     },
     {
      "press": "space",

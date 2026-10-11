@@ -21,6 +21,9 @@ HERE = Path(__file__).resolve().parent
 PACKAGE = HERE / "tools" / "workshop"
 DESK_PACKAGE = HERE / "tools" / "desk"  # the reader, `desk/read`: the desk said whole
 EXAMPLES = HERE.parent / "examples"
+# Where a checkout's setups are found beside the tool package's own: each example's, and each
+# feature's tutorials (`<feature>/docs/tutorials/<name>/`), which an install gathers into the package.
+ROOTS = [EXAMPLES] + sorted(HERE.parent.glob("*/docs/tutorials"))
 sys.path.insert(0, str(PACKAGE))
 import setups as described  # noqa: E402
 from demo_setup import save_json  # noqa: E402
@@ -30,7 +33,7 @@ EXE, LIB = (".exe", ".dll") if os.name == "nt" else ("", ".so")
 
 
 def find(where):
-    return described.load(where, extra=[EXAMPLES])
+    return described.load(where, extra=ROOTS)
 
 
 def runtime(prefix):
@@ -400,7 +403,7 @@ def main():
     started = time.monotonic()
     if args.action == "list":
         rows = []
-        for name, directory in described.collection([EXAMPLES]).items():
+        for name, directory in described.collection(ROOTS).items():
             try:
                 setup = described.Setup(directory)
                 rows.append(setup.summary() if args.json else {"name": name, "title": setup.get("title"),

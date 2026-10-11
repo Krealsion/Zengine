@@ -223,6 +223,40 @@ if(TARGET zengine-guest-vocabulary)
             DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/loom-tools
             PATTERN "__pycache__" EXCLUDE
             PATTERN "*.pyc" EXCLUDE)
+    # Each feature's tutorials (`<feature>/docs/tutorials/<name>/`) join the package's `setups/`, so
+    # one starts from a prefix as a shipped setup does. A tutorial names shared files outside its
+    # folder, so it is gathered by the setup's own export, which places and rewrites each of them.
+    file(GLOB zengine_tutorial_setups CONFIGURE_DEPENDS
+         "${CMAKE_SOURCE_DIR}/*/docs/tutorials/*/setup.json")
+    set(zengine_tutorials "")
+    foreach(zengine_tutorial_setup IN LISTS zengine_tutorial_setups)
+        get_filename_component(zengine_tutorial "${zengine_tutorial_setup}" DIRECTORY)
+        list(APPEND zengine_tutorials "${zengine_tutorial}")
+    endforeach()
+    if(zengine_tutorials)
+        find_package(Python3 3.8 COMPONENTS Interpreter)
+        if(NOT Python3_Interpreter_FOUND)
+            message(STATUS "zengine: no Python 3.8 or newer was found to export the tutorials, so "
+                           "the tool package will carry none (Python3_EXECUTABLE names one)")
+            set(zengine_tutorials "")
+        endif()
+    endif()
+    foreach(zengine_tutorial IN LISTS zengine_tutorials)
+        get_filename_component(zengine_tutorial_name "${zengine_tutorial}" NAME)
+        install(CODE "
+            set(zengine_setup \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/zengine/loom-tools/workshop/setups/${zengine_tutorial_name}\")
+            message(STATUS \"Installing: \${zengine_setup}\")
+            file(REMOVE_RECURSE \"\${zengine_setup}\")
+            execute_process(COMMAND \"${Python3_EXECUTABLE}\" -B
+                \"${CMAKE_SOURCE_DIR}/external-host/demo.py\" export --setup \"${zengine_tutorial}\"
+                --to \"\${zengine_setup}\" OUTPUT_QUIET RESULT_VARIABLE zengine_exported)
+            if(NOT zengine_exported EQUAL 0)
+                message(FATAL_ERROR \"zengine: the tutorial ${zengine_tutorial_name} was not exported \"
+                    \"into the package (exit \${zengine_exported})\")
+            endif()
+            file(GLOB_RECURSE zengine_setup_files \"\${zengine_setup}/*\")
+            list(APPEND CMAKE_INSTALL_MANIFEST_FILES \${zengine_setup_files})")
+    endforeach()
 endif()
 
 # ---- The package files -------------------------------------------------------------------

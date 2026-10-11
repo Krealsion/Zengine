@@ -345,7 +345,7 @@ class Recipes(unittest.TestCase):
 
     def test_every_shipped_desk_shows_layouts_and_readiness_asks_its_providers_alone(self):
         # Workshop applies a desk as written, so a desk that leaves Layouts out opens without it.
-        found = described.collection([REPO / "examples"])
+        found = described.collection(launcher.ROOTS)
         for name, directory in found.items():
             rows = described.Setup(directory).desk()["fields"]["panes"]
             self.assertIn(("zengine.workshop", "layouts"), [(r["provider"], r["pane"]) for r in rows], name)
@@ -360,9 +360,9 @@ class Recipes(unittest.TestCase):
 
     # ---- descriptions ---------------------------------------------------------------------------
     def test_every_shipped_setup_is_usable_and_says_how_to_use_it(self):
-        found = described.collection([REPO / "examples"])
+        found = described.collection(launcher.ROOTS)
         self.assertTrue({"values", "commands", "presets", "workbench", "folders", "editor-materials",
-                         "tower-defense"} <= set(found))
+                         "tower-defense", "build-your-first-pane"} <= set(found))
         for name, directory in found.items():
             setup = described.Setup(directory)
             text = setup.describe()
@@ -372,11 +372,24 @@ class Recipes(unittest.TestCase):
             self.assertNotIn("credential", summary, name)
             self.assertTrue(Path(setup.summary()["guide_path"]).is_file(), name)
 
+    def test_every_setup_name_names_one_setup_across_its_roots(self):
+        # An install gathers each tutorial into the package's setups/ by its name, and a name finds
+        # the first root holding it, so no two roots may hold one name.
+        seen = {}
+        for root in described.roots(launcher.ROOTS):
+            for child in sorted(root.iterdir()) if root.is_dir() else []:
+                if (child / "setup.json").is_file():
+                    self.assertNotIn(child.name, seen, "%s and %s" % (seen.get(child.name), child))
+                    seen[child.name] = child
+        self.assertIn("build-your-first-pane", seen)
+        self.assertEqual(described.find("build-your-first-pane", launcher.ROOTS),
+                         (REPO / "builder/docs/tutorials/build-your-first-pane").resolve())
+
     def test_every_shipped_guide_works_from_a_copy_outside_the_repository(self):
         # `start` prepares from an export of the setup (demo.py), so a copy out of the tree is what
         # a weaver opens: its pictures and local links must be in the copy, and every other page of
         # this repository must be a published link to a file and heading that exist here.
-        found = described.collection([REPO / "examples"])
+        found = described.collection(launcher.ROOTS)
         checked = 0
         for name, directory in found.items():
             copy = described.Setup(directory).export(Path(self.tmp) / "copies" / name)
@@ -586,7 +599,7 @@ class Recipes(unittest.TestCase):
 
     def test_every_shipped_walk_names_one_of_acts_verbs_per_step(self):
         verbs, walked = act_module().VERBS, set()
-        for name, directory in described.collection([REPO / "examples"]).items():
+        for name, directory in described.collection(launcher.ROOTS).items():
             setup = described.Setup(directory)
             for walk, described_walk in setup.walks().items():
                 walked.add(name + "/" + walk)
@@ -594,7 +607,8 @@ class Recipes(unittest.TestCase):
                     self.assertEqual(len([v for v in verbs if v in step]), 1, "%s %s step %d" % (name, walk, i))
             if setup.walks():
                 self.assertIn("Walks (demo.py walk", setup.describe(), name)
-        self.assertTrue({"values/layouts", "presets/escape", "editor-materials/escape"} <= walked, walked)
+        self.assertTrue({"values/layouts", "presets/escape", "editor-materials/escape",
+                         "build-your-first-pane/tutorial"} <= walked, walked)
 
     def test_a_walk_replays_through_act_and_keeps_what_it_made_in_the_folder_named(self):
         root = make(self.tmp, "walked", walks={"look": {"about": "a look", "steps": [
