@@ -721,8 +721,10 @@ int main(int argc, char** argv) {
     // ---- The guest door: other hosts, admitted deliberately (workshop/guest_door.hpp) -----------
     // Only with a `--guests` file: without one this Workshop cannot be connected to, the honest
     // default for a bridge with no transport security. The file's rows are the policy. Mounted
-    // before the plan runs, so the Timer's beat finds it.
+    // before the plan runs, so the Timer's beat finds it: listening says the door is open, not that
+    // the plan is realized, which the door answers once the realization owner is wired below.
     std::string guests_listen;
+    GuestDoor* guest_door = nullptr;
     if (!args.guests.empty()) {
         guests::GuestsFile file;
         std::string complaint;
@@ -754,6 +756,7 @@ int main(int argc, char** argv) {
         }
         auto door = std::make_unique<GuestDoor>(bus, listener, guests_listen, file);
         GuestDoor* raw_door = door.get();
+        guest_door = raw_door;
         const loom::WeaveId door_id = bus.register_weave(std::move(door), guest_door_grant(),
                                                          std::string(kGuestsRole));
         raw_door->zen_set_self(door_id);
@@ -985,6 +988,24 @@ int main(int argc, char** argv) {
         now.blocked = executor.behind();
         return now;
     };
+
+    // ---- ...and where it is, told to the guest door: a guest admitted while rows are still to come
+    // asks it, so a shape not declared yet is not taken for one this run will never know.
+    if (guest_door != nullptr) {
+        guest_door->reads_plan([&executor] {
+            // The owner's own outcome: complete, waiting on a named row, refused, or none yet.
+            const load::Executed now = executor.outcome();
+            GuestPlanSaid said;
+            said.state = now.ok                    ? kPlanComplete
+                         : !now.waiting_on.empty() ? kPlanWaiting
+                         : !now.refusal.empty()    ? kPlanRefused
+                                                   : kPlanLoading;
+            said.at_rest = said.state != kPlanLoading;
+            said.waiting_on = now.waiting_on;
+            said.unavailable = now.unavailable_stems;
+            return said;
+        });
+    }
 
     // ---- What stands behind an office's running code --------------------------------------------
     // Three owners read at the ask (`provenance.hpp`): the bus, the realization owner and the

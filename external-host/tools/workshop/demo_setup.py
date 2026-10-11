@@ -433,10 +433,15 @@ def failure_note(error, state):
 
 
 def serve(ctx):
+    from workshop_steps import plan_at_rest
     link = ctx.inputs["link"]
     setup = described.load(ctx.inputs["setup"])
     state = {"setup": setup.name, "directory": str(setup.root), "digest": setup.digest(),
              "fixtures": [], "samples": []}
+    # The demo's control is a plan row: asked before the plan is at rest, its shapes may not be
+    # declared yet.
+    ctx.step("waiting for Workshop's plan")
+    plan_at_rest(ctx, link)
     ctx.ask(ROLE, "DemoServiceOpened", {"name": setup.get("title")[:64]}, via=link)
     ctx.on_cleanup(lambda: ctx.ask(ROLE, "DemoServiceClosed", {}, via=link, timeout=10),
                    "detach the reset service")
@@ -476,6 +481,9 @@ def reset(ctx):
 
 
 def status(ctx):
+    from workshop_steps import plan_at_rest
+    # Asked before the plan is at rest, the demo's control may not be declared yet.
+    plan_at_rest(ctx, ctx.inputs["link"])
     if ctx.inputs.get("wait", False):
         result = ctx.ask(ROLE, "DemoReadyRequested", {"generation": 1}, via=ctx.inputs["link"],
                          timeout=float(ctx.inputs.get("seconds", 600)))

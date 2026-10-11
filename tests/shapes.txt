@@ -131,6 +131,8 @@ GuestConnectionsRequested v1 0xc4ff99356b7b4054
 GuestConnectionsRequested v2 0xb1f9da8da4ba8917
 GuestDoorState v1 0x6b3cb41abf5fe4ce
 GuestObserve v1 0xa2bb1484d3dd0533
+GuestPlanRequested v1 0x6482b7a79d02e085
+GuestPlanSaid v1 0x4bf8b2d39c233f69
 GuestRowDescribed v1 0x0eb95a51a171e13e
 GuestRowDescribedRequested v1 0x0bcc886d17401cad
 GuestVocabularyState v1 0x3f20502e8bc320e5
