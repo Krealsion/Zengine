@@ -89,8 +89,9 @@ std::vector<StandingCondition> standing_conditions(const Session& s,
         if (!c.action.empty()) {
             for (const ActionRow& row : kActionCatalog) {
                 if (c.action == row.id) {
-                    said.suggestion =
-                        "try: " + gesture_text(s.keymap.row_gesture(row)) + " " + row.label;
+                    said.suggestion = "try: " +
+                                      spell_gesture(s.keymap.row_gesture(row), s.band_keys) +
+                                      " " + row.label;
                     break;
                 }
             }
@@ -163,7 +164,7 @@ std::string context_annotation(const Session& s, const ContextEntry& entry) {
         s.context.layout != s.setup.active_at) {
         return std::string();
     }
-    return hotkey_text(s.keymap, entry.row->act);
+    return hotkey_text(s.keymap, s.band_keys, entry.row->act);
 }
 
 std::string context_row_text(const Session& s, const ContextEntry& entry,

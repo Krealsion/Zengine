@@ -51,6 +51,7 @@ with its files); the case that pins a law is a grep over the register, and the s
 | [guests](../agents/workshop/guests.md) | `workshop_panes` (guests, builder), `workshop_guests`, `workshop_host` |
 | [keyboard](../agents/workshop/keyboard.md) | `workshop_document`, `workshop_panes` (actions, editor), `workshop_screen` |
 | [keymap-edit](../agents/workshop/keymap-edit.md) | `workshop_panes` (desktop) |
+| [key-spelling](../agents/workshop/key-spelling.md) | `workshop_document`, `workshop_panes` (actions, builder), `workshop_persistence` |
 | [layouts](../agents/workshop/layouts.md) | `workshop_screen`, `workshop_persistence`, `workshop_host` |
 | [maker-pane](../agents/workshop/maker-pane.md) | `workshop_panes` (actions), `workshop_host` |
 | [migration](../agents/workshop/migration.md) | `workshop_persistence`, `workshop_load` |

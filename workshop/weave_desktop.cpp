@@ -147,13 +147,26 @@ void WorkshopWeave::request_app_action(const std::string& id, loom::Mail& mail) 
 
 // WL-DESK-02 -- agents/workshop/desktop.md
 void WorkshopWeave::request_app_action(const std::string& id, loom::Mail& mail, Hand& by) {
+    // THE PANE HOLDING THE KEYS is the one a key's act is performed on, or none.
+    const std::int64_t typing = keyboard_pane();
+    request_app_action(id, mail, by,
+                       typing == kNoPaneKind ? nullptr : session_.panes.runtime.of_kind(typing));
+}
+
+// WL-DESK-02 -- agents/workshop/desktop.md
+void WorkshopWeave::request_app_action(const std::string& id, loom::Mail& mail, Hand& by,
+                                       const RuntimePane* on) {
     // THIS KEYSTROKE'S OWN NUMBER, minted here and nowhere else. Monotonic from one, so zero
     // is never an ask: an answer that echoes nothing answers nothing (`gesture_asks_`'s rule,
     // one owner over).
     const std::uint64_t answering = ++app_asks_;
     by.app_asked = AppAsked{by.latest, answering};
-    (void)mail.as_role(kWorkshopProvider)
-        .send_to_role(kDesktopRole, AppActionRequested{id}, answering);
+    AppActionRequested asked{id, std::string(), std::string()};
+    if (on != nullptr) {
+        asked.office = on->provider;
+        asked.pane = on->pane;
+    }
+    (void)mail.as_role(kWorkshopProvider).send_to_role(kDesktopRole, asked, answering);
 }
 
 // WL-DESK-02 -- agents/workshop/desktop.md
@@ -777,19 +790,25 @@ void WorkshopWeave::publish_inventory(loom::Mail& mail) {
 
 namespace {
 
-bool same_keymap(const KeymapShown& a, const KeymapShown& b) {
-    if (a.file != b.file || a.word != b.word || a.rows.size() != b.rows.size()) {
+bool same_bindings(const std::vector<ShownBinding>& a, const std::vector<ShownBinding>& b) {
+    if (a.size() != b.size()) {
         return false;
     }
-    for (std::size_t i = 0; i < a.rows.size(); ++i) {
-        const ShownBinding& x = a.rows[i];
-        const ShownBinding& y = b.rows[i];
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        const ShownBinding& x = a[i];
+        const ShownBinding& y = b[i];
         if (x.group != y.group || x.id != y.id || x.label != y.label || x.gesture != y.gesture ||
-            x.authored != y.authored || x.remappable != y.remappable) {
+            x.shown != y.shown || x.authored != y.authored || x.remappable != y.remappable) {
             return false;
         }
     }
     return true;
+}
+
+bool same_keymap(const KeymapShown& a, const KeymapShown& b) {
+    return a.file == b.file && a.word == b.word && a.spelling == b.spelling &&
+           same_bindings(a.rows, b.rows) &&
+           same_bindings(a.moved, b.moved);
 }
 
 } // namespace

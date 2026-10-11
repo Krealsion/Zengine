@@ -42,3 +42,9 @@ zengine.desktop desk desktop.terminal ctrl+t terminal
 zengine.desktop desk desktop.panes ctrl+p panes
 zengine.desktop desk desktop.hotkeys ctrl+k hotkeys
 zengine.desktop desk desktop.deselect escape put down
+zengine.desktop desk desktop.manual ctrl+f manual
+zengine.desktop read manual.up up line up
+zengine.desktop read manual.down down line down
+zengine.desktop read manual.top home top
+zengine.desktop read manual.bottom end bottom
+zengine.desktop read manual.close escape close

@@ -204,12 +204,71 @@ void WorkshopWeave::submit_terminal_line(const std::string& line) {
                      "weave, @office for whoever holds a role, or * for everyone");
 }
 
+// The presentation preferences, each one session value the repaint spends: pane titles
+// (`refresh_external_rooms` re-grants the rooms whose capacity moved) and how the band and the
+// Hotkeys view spell a key. A toggle states one, so it is written to the prefs file then, under
+// three walls: no path is live-only, a refused file is never overwritten (`prefs_bad_`), and a
+// failed write says so.
+// WL-KEY-16 -- agents/workshop/key-spelling.md
+void WorkshopWeave::state_presentation(Act a) {
+    const char* what = a == Act::kPaneTitles ? "pane titles were not toggled"
+                       : a == Act::kBandKeys ? "the band's keys were not respelled"
+                                             : "the Hotkeys view's keys were not respelled";
+    // The toggle is saved as it is stated, so it is a file write, judged for the hand.
+    if (const std::string refused = judge_classes(input_actor_, {scope::kWrite}, {});
+        !refused.empty()) {
+        say(std::string(what) + " -- " + refused, true);
+        return;
+    }
+    load_prefs(); // a toggle before any surface exists still toggles the truth
+    const auto other = [](KeySpelling s) {
+        return s == KeySpelling::kFull ? KeySpelling::kShort : KeySpelling::kFull;
+    };
+    std::string note;
+    if (a == Act::kPaneTitles) {
+        session_.pane_titles = !session_.pane_titles;
+        note = session_.pane_titles
+                   ? "pane titles shown"
+                   : "pane titles hidden -- a pane holding the keyboard still shows its own";
+    } else if (a == Act::kBandKeys) {
+        session_.band_keys = other(session_.band_keys);
+        note = session_.band_keys == KeySpelling::kFull
+                   ? "the band spells keys in full, as a keymap file writes them"
+                   : "the band spells keys short";
+    } else {
+        session_.hotkeys_keys = other(session_.hotkeys_keys);
+        note = session_.hotkeys_keys == KeySpelling::kFull
+                   ? "the Hotkeys view and a pane's manual spell keys in full, as a keymap file "
+                     "writes them"
+                   : "the Hotkeys view and a pane's manual spell keys short";
+    }
+    bool bad = false;
+    if (!host_->prefs_path.empty()) {
+        if (prefs_bad_) {
+            note += "; not saved: " + host_->prefs_path +
+                    " could not be read and will not be overwritten";
+            bad = true;
+        } else {
+            const Written wrote = prefs_persist::save_file(
+                host_->prefs_path, prefs_persist::Presentation{session_.pane_titles,
+                                                               session_.band_keys,
+                                                               session_.hotkeys_keys});
+            if (!wrote.accepted) {
+                note += "; not saved: " + wrote.refusal;
+                bad = true;
+            }
+        }
+    }
+    say(note, bad);
+}
+
 // WL-KEY-01 -- agents/workshop/keyboard.md
 // WL-GUEST-09 -- agents/workshop/guests.md
 void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // Each arm calls one operation. A weaver's keymap row naming a retired id is kept byte for byte
     // and said at load (`kRetiredActions`); nothing here answers it.
-    switch (session_.keymap.action_for(KeyContext::kCommand, k.scancode, k.modifiers)) {
+    const Act a = session_.keymap.action_for(KeyContext::kCommand, k.scancode, k.modifiers);
+    switch (a) {
     // The two setup gestures, ordinary commands: `s` writes the setup file and `r` reads it;
     // naming a layout is `layout.rename`'s.
     case Act::kSetupSave: save_setup(); break;
@@ -233,41 +292,9 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     // WHAT CAN I DO WITH THIS? -- the contextual-action surface, on the subject
     // command mode can truthfully name.
     case Act::kContextOpen: open_context_ambient(); break;
-    // Pane titles are a presentation preference with a key: one session bit, which the repaint
-    // spends (`refresh_external_rooms` re-grants the rooms whose capacity moved). A toggle states
-    // it, so it is written to the prefs file then, under three walls: no path is live-only, a
-    // refused file is never overwritten (`prefs_bad_`), and a failed write says so.
-    case Act::kPaneTitles: {
-        // The toggle is saved as it is stated, so it is a file write, judged for the hand.
-        if (const std::string refused = judge_classes(input_actor_, {scope::kWrite}, {});
-            !refused.empty()) {
-            say("pane titles were not toggled -- " + refused, true);
-            break;
-        }
-        load_prefs(); // a toggle before any surface exists still toggles the truth
-        session_.pane_titles = !session_.pane_titles;
-        std::string note =
-            session_.pane_titles
-                ? "pane titles shown"
-                : "pane titles hidden -- a pane holding the keyboard still shows its own";
-        bool bad = false;
-        if (!host_->prefs_path.empty()) {
-            if (prefs_bad_) {
-                note += "; not saved: " + host_->prefs_path +
-                        " could not be read and will not be overwritten";
-                bad = true;
-            } else {
-                const Written wrote =
-                    prefs_persist::save_file(host_->prefs_path, session_.pane_titles);
-                if (!wrote.accepted) {
-                    note += "; not saved: " + wrote.refusal;
-                    bad = true;
-                }
-            }
-        }
-        say(note, bad);
-        break;
-    }
+    case Act::kPaneTitles:
+    case Act::kBandKeys:
+    case Act::kHotkeysKeys: state_presentation(a); break;
     case Act::kQuit: quit(mail); break;
     // EDIT CODE BOUND TO A KEY NAMES NO PANE, so it acts on none. Command mode's subject is the
     // selected object or the room (`open_context_ambient`), never a pane, and guessing one --
