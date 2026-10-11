@@ -273,7 +273,7 @@ struct OutputRig {
         const RuntimePane* seat =
             r.session().panes.runtime.find(bpane::kBuilderPaneRole, bpane::kBuilderPane);
         REQUIRE(seat != nullptr);
-        for (const v2::PaneActionRow& a : seat->actions) {
+        for (const v3::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);
         }
         return ids;

@@ -39,6 +39,11 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   told says `waiting`. An intent is published as the participant, by shape: whoever accepts it
   hears it, and the view claims no exclusive audience. A refusal is shown only when Loom attests
   it answers the view's own delivery (`answers_ask()`); the correlation then says which intent.
+- A view's buttons are its pane's actions (`view::actions_of`): one per intent, its id the
+  button's, its cause the intent's shape and no default key, declared from the description so
+  the two cannot disagree, re-declared when a change applies in place, and asked by
+  `PaneActionRequested` as a press asks (WL-CAUSE-01). Such a button's part is `control:<id>`;
+  every other element's is `element:<id>`.
 - A running view asks its pane for its size in canvas pixels, never past
   `workshop::kMaxPaneBodyPx`, with its notice rows of text beneath (`view::offered`), and draws
   in its size and notice rows within the room it is granted; a pane smaller than that cuts it.

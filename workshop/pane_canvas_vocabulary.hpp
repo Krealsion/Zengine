@@ -151,16 +151,67 @@ struct PaneCanvasContent {
 
 } // namespace v5
 
+namespace v2 {
+
+/// A PART THAT SAYS WHETHER ITS OPERATION APPLIES NOW: v1's part and `available`, as
+/// `v2::PaneRowPart`'s.
+struct PaneCanvasPart {
+    std::string name;
+    std::int64_t x = 0, y = 0, w = 0, h = 0;
+    bool available = true;
+    ZEN_SHAPE(PaneCanvasPart, 2, ZEN_FIELD(name), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w),
+              ZEN_FIELD(h), ZEN_FIELD(available));
+};
+
+} // namespace v2
+
+namespace v6 {
+
+/// A PICTURE WHOSE PARTS SAY THEIR AVAILABILITY: v5's picture, its parts `v2::PaneCanvasPart`.
+/// Judged and refused as v5's.
+struct PaneCanvasContent {
+    std::string pane;
+    std::int64_t grant = 0, picture = 0;
+    std::vector<PaneCanvasRect> rects;
+    std::vector<PaneCanvasLabel> labels;
+    std::vector<v2::PaneCanvasText> texts = {};
+    std::vector<v2::PaneCanvasPart> parts = {};
+    ZEN_SHAPE(PaneCanvasContent, 6, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
+              ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts), ZEN_FIELD(parts));
+};
+
+} // namespace v6
+
 /// A run of an earlier picture as the current form says it: padded, as every earlier run is.
 inline v2::PaneCanvasText canvas_text_of(const PaneCanvasText& t) {
     return v2::PaneCanvasText{t.x, t.y, t.text, t.role, t.caret_col, t.sel_begin_col,
                               t.sel_end_col, true, surface::role::kNone};
 }
 
+/// An earlier part as the current form says it: available, as every earlier part is read.
+inline v2::PaneCanvasPart canvas_part_of(const PaneCanvasPart& p) {
+    return v2::PaneCanvasPart{p.name, p.x, p.y, p.w, p.h, true};
+}
+
+/// Earlier parts as the current form says them.
+inline std::vector<v2::PaneCanvasPart> canvas_parts_of(const std::vector<PaneCanvasPart>& parts) {
+    std::vector<v2::PaneCanvasPart> out;
+    out.reserve(parts.size());
+    for (const PaneCanvasPart& p : parts) out.push_back(canvas_part_of(p));
+    return out;
+}
+
+/// The fifth version's picture as the current form says it.
+inline v6::PaneCanvasContent canvas_content_of(const v5::PaneCanvasContent& c) {
+    return v6::PaneCanvasContent{c.pane,  c.grant, c.picture, c.rects,
+                                 c.labels, c.texts, canvas_parts_of(c.parts)};
+}
+
 /// An earlier picture as the current form says it, naming `parts` (none for v3's).
-inline v5::PaneCanvasContent canvas_content_of(const PaneCanvasContent& c,
-                                               std::vector<PaneCanvasPart> parts = {}) {
-    v5::PaneCanvasContent out{c.pane, c.grant, c.picture, c.rects, c.labels, {}, std::move(parts)};
+inline v6::PaneCanvasContent canvas_content_of(const PaneCanvasContent& c,
+                                               const std::vector<PaneCanvasPart>& parts = {}) {
+    v6::PaneCanvasContent out{c.pane, c.grant, c.picture, c.rects, c.labels, {},
+                              canvas_parts_of(parts)};
     out.texts.reserve(c.texts.size());
     for (const PaneCanvasText& t : c.texts) out.texts.push_back(canvas_text_of(t));
     return out;

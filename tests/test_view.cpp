@@ -8,6 +8,7 @@
 #include "workshop/pane_canvas.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -68,8 +69,8 @@ public:
     std::vector<loom::Message> heard;
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::PaneContent>(),
-                loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::v4::PaneCanvasContent>(),
-                loom::schema_of<ws::PaneEscapeUnspent>(),
+                loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::v6::PaneCanvasContent>(),
+                loom::schema_of<ws::v3::PaneActions>(), loom::schema_of<ws::PaneEscapeUnspent>(),
                 loom::schema_of<ws::PanePassRequested>(), loom::schema_of<ws::PaneRevealRequested>()};
     }
     void handle(const loom::Message& in, loom::Bus&) override { heard.push_back(in); }
@@ -165,30 +166,41 @@ struct Rig {
         tell(office, r);
     }
     /// The latest picture a view said, as its parts name it (none for a picture naming nothing).
-    const ws::v4::PaneCanvasContent* latest_named(const std::string& office) const {
-        static ws::v4::PaneCanvasContent kept;
+    const ws::v6::PaneCanvasContent* latest_named(const std::string& office) const {
+        static ws::v6::PaneCanvasContent kept;
         for (auto it = desk->heard.rbegin(); it != desk->heard.rend(); ++it) {
             if (it->provenance.authored_role() != office) continue;
-            if (loom::same_identity(it->payload.schema(), *loom::schema_of<ws::v4::PaneCanvasContent>())) {
-                kept = loom::from_value<ws::v4::PaneCanvasContent>(it->payload);
+            if (loom::same_identity(it->payload.schema(), *loom::schema_of<ws::v6::PaneCanvasContent>())) {
+                kept = loom::from_value<ws::v6::PaneCanvasContent>(it->payload);
                 return &kept;
             }
             if (loom::same_identity(it->payload.schema(), *loom::schema_of<ws::PaneCanvasContent>())) {
-                const auto said = loom::from_value<ws::PaneCanvasContent>(it->payload);
-                kept = ws::v4::PaneCanvasContent{said.pane, said.grant, said.picture, said.rects,
-                                                 said.labels, said.texts, {}};
+                kept = ws::canvas_content_of(loom::from_value<ws::PaneCanvasContent>(it->payload));
                 return &kept;
             }
         }
         return nullptr;
     }
+    /// ...its texts as the first version said them, padded.
     const ws::PaneCanvasContent* latest(const std::string& office) const {
         static ws::PaneCanvasContent kept;
         const auto* named = latest_named(office);
         if (named == nullptr) return nullptr;
         kept = ws::PaneCanvasContent{named->pane, named->grant, named->picture, named->rects,
-                                     named->labels, named->texts};
+                                     named->labels, {}};
+        for (const auto& t : named->texts)
+            kept.texts.push_back(ws::PaneCanvasText{t.x, t.y, t.text, t.role, t.caret_col,
+                                                    t.sel_begin_col, t.sel_end_col});
         return &kept;
+    }
+    /// The latest actions a view declared, or none.
+    std::optional<ws::v3::PaneActions> declared(const std::string& office) const {
+        for (auto it = desk->heard.rbegin(); it != desk->heard.rend(); ++it) {
+            if (it->provenance.authored_role() == office &&
+                loom::same_identity(it->payload.schema(), *loom::schema_of<ws::v3::PaneActions>()))
+                return loom::from_value<ws::v3::PaneActions>(it->payload);
+        }
+        return std::nullopt;
     }
     /// Every line of the latest picture, as a weaver reads it: its characters without the blanks
     /// after the last (where a caret after a value stands), each closed by `|`.
@@ -566,7 +578,7 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
     CHECK(has(rig.words("tally.panel"), "Total: 18|"));
 }
 
-TEST_CASE("WL-HAND-06: a running view names each element by its id over the place a press on it lands, and a press there uses it") {
+TEST_CASE("WL-HAND-06: a running view names each element by its id over the place a press on it lands, a button saying an intent as the action it performs, and a press there uses it") {
     Rig rig;
     const auto d = panel();
     REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(d)}).ok);
@@ -574,30 +586,66 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
     const auto* p = rig.latest_named("tally.panel");
     REQUIRE(p != nullptr);
     REQUIRE(p->parts.size() == d.elements.size());
+    const auto name_of = [&d](const view::Element& e) {
+        return (d.intent(e.id) ? "control:" : "element:") + e.id;
+    };
     for (const auto& e : d.elements) {
         CAPTURE(e.id);
         const auto part = std::find_if(p->parts.begin(), p->parts.end(),
-                                       [&](const auto& q) { return q.name == "element:" + e.id; });
+                                       [&](const auto& q) { return q.name == name_of(e); });
         REQUIRE(part != p->parts.end());
         CHECK(part->x == e.x);
         CHECK(part->y == e.y);
         CHECK(part->w == e.w);
         CHECK(part->h == e.h);
+        CHECK(part->available);
     }
     // ...LISTED AS THE VIEW DRAWS THEM, which is how it reads a press: where two lie over one
     // place, the later is listed after and takes the press.
     for (std::size_t i = 0; i < d.elements.size(); ++i) {
         CAPTURE(i);
-        CHECK(p->parts[i].name == "element:" + d.elements[i].id);
+        CHECK(p->parts[i].name == name_of(d.elements[i]));
     }
     // PRESSED AT THE MIDDLE OF THE PLACE ITS NAME GIVES, the button says its intent.
     const auto count = std::find_if(p->parts.begin(), p->parts.end(),
-                                    [](const auto& q) { return q.name == "element:count"; });
+                                    [](const auto& q) { return q.name == "control:count"; });
     REQUIRE(count != p->parts.end());
     rig.tell("tally.panel", ws::PaneCanvasPointer{view::kPane, p->grant, p->picture, 1,
                                                   ws::canvas_pointer::kPress, 1,
                                                   count->x + count->w / 2, count->y + count->h / 2});
     CHECK(rig.total() == 45);
+}
+
+TEST_CASE("a view declares one action per intent -- its button's id, no default key, causing the intent's shape -- and a PaneActionRequested naming it says the intent as a press does") {
+    Rig rig;
+    const auto d = panel();
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(d)}).ok);
+    rig.room("tally.panel");
+    const auto declared = rig.declared("tally.panel");
+    REQUIRE(declared.has_value());
+    CHECK(declared->pane == view::kPane);
+    CHECK(declared->mode.empty());
+    CHECK(declared->elsewhere.empty());
+    REQUIRE(declared->rows.size() == d.intents.size());
+    const auto& row = declared->rows[0];
+    CHECK(row.id == "count");
+    CHECK(row.label == "Count");
+    CHECK(row.scancode == zengine::input::scan::kUnknown);
+    REQUIRE(row.causes.size() == 1);
+    CHECK(row.causes[0].shape == count_shape()->name());
+    CHECK(row.causes[0].version == static_cast<std::int64_t>(count_shape()->version()));
+    CHECK(row.causes[0].subject.empty());
+    CHECK(ws::pane_declaration_problem(*declared).empty());
+    // ASKED BY ITS ID, AS WORKSHOP ASKS A KEYED ACTION: the intent is said as a press says it.
+    rig.tell("tally.panel", ws::PaneActionRequested{view::kPane, "count"});
+    CHECK(rig.total() == 45);
+    // ...AND AN ID THE VIEW DID NOT DECLARE, OR ANOTHER PANE'S, SAYS NOTHING.
+    rig.tell("tally.panel", ws::PaneActionRequested{view::kPane, "total"});
+    rig.tell("tally.panel", ws::PaneActionRequested{"other", "count"});
+    CHECK(rig.total() == 45);
+    // A DECLARATION WORKSHOP REFUSES IS SAID on the notice row.
+    rig.tell("tally.panel", ws::ActionsJudged{view::kPane, false, 0, "a reason in Workshop's words"});
+    CHECK(has(rig.said("tally.panel"), "no key can name these buttons: a reason in Workshop's words"));
 }
 
 TEST_CASE("a refusal answered to a view shows on its notice row, and what it was told stays") {

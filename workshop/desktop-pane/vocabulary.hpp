@@ -105,6 +105,18 @@ inline constexpr const char* kActionManualTop = "manual.top";
 inline constexpr const char* kActionManualBottom = "manual.bottom";
 inline constexpr const char* kActionManualClose = "manual.close";
 
+/// THE MODES EACH PANE DECLARES ITS ROWS IN, by the names the action census and a manual use: the
+/// Pane Manager's one list; the Hotkeys pane's table, a key being captured, and a spelling being
+/// typed; the Manual's reading.
+inline constexpr const char* kLauncherMode = "list";
+inline constexpr const char* kKeysTableMode = "table";
+inline constexpr const char* kKeysCaptureMode = "capture";
+inline constexpr const char* kKeysSpellMode = "spell";
+inline constexpr const char* kManualMode = "read";
+
+/// WHAT A PANE MANAGER ROW'S PART IS NAMED BY: this, then the row's pane as `<office>/<pane>`.
+inline constexpr const char* kLauncherRowPrefix = "pane:";
+
 /// THE ROWS THE PANE MANAGER OFFERS ON A ROW'S MENU, and the ones the Hotkeys pane offers on a
 /// binding's -- ids in this weave's own namespace, what a `PaneMenuAnswered` carries back.
 inline constexpr const char* kMenuManage = "launcher.manage";

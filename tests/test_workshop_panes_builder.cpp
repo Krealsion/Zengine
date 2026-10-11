@@ -335,7 +335,7 @@ struct BuilderRig {
         std::vector<std::string> ids;
         const RuntimePane* seat = row();
         REQUIRE(seat != nullptr);
-        for (const v2::PaneActionRow& a : seat->actions) {
+        for (const v3::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);
         }
         return ids;
@@ -506,7 +506,7 @@ TEST_CASE("the pane declares the nine ids a weaver's keymap file already names")
     const RuntimePane* seat = b.row();
     REQUIRE(seat != nullptr);
     std::vector<std::string> declared;
-    for (const v2::PaneActionRow& row : seat->actions) {
+    for (const v3::PaneActionRow& row : seat->actions) {
         declared.push_back(row.id);
     }
     for (const std::string& want : kBrowsingIds) {
@@ -3384,12 +3384,95 @@ void each_builder_mode(BuilderRig& b, const std::function<void(const char*)>& at
     REQUIRE(declares(pane::kActionBuild));
 }
 
-/// ONE CENSUS LINE: `<office> <mode> <id> <default key, as a keymap file spells it> <label>`.
-std::string census_line(const std::string& office, const char* mode, const std::string& id,
-                        std::int64_t scancode, std::int64_t modifiers, const std::string& label) {
+/// ONE CAUSE AS THE CENSUS SPELLS IT: `<shape>/<version>`, then its subject -- `@<prefix>` for the
+/// part a press lands on, `><office>/<pane>` for one pane.
+std::string census_cause(const ActionCause& c) {
+    std::string out = c.shape + "/" + std::to_string(c.version);
+    if (c.subject.rfind(kCauseOnPart, 0) == 0) out += "@" + c.subject.substr(kCauseOnPart.size());
+    if (c.subject.rfind(kCauseToPane, 0) == 0) out += ">" + c.subject.substr(kCauseToPane.size());
+    return out;
+}
+
+/// ...AND A ROW'S CAUSES: each, `,`-joined, in the order declared; `-` for none.
+std::string census_causes(const std::vector<ActionCause>& causes) {
+    std::string out;
+    for (const ActionCause& c : causes) out += (out.empty() ? "" : ",") + census_cause(c);
+    return out.empty() ? std::string("-") : out;
+}
+
+/// ONE CENSUS LINE: `<office> <mode> <id> <default key, as a keymap file spells it> <causes>
+/// <enters> <label>`.
+std::string census_line(const std::string& office, const std::string& mode, const std::string& id,
+                        std::int64_t scancode, std::int64_t modifiers,
+                        const std::vector<ActionCause>& causes, const std::string& enters,
+                        const std::string& label) {
     const Gesture g{scancode, modifiers};
     return office + " " + mode + " " + id + " " +
-           (is_bound(g) ? gesture_word(g) : std::string("unbound")) + " " + label;
+           (is_bound(g) ? gesture_word(g) : std::string("unbound")) + " " +
+           census_causes(causes) + " " + (enters.empty() ? std::string("-") : enters) + " " +
+           label;
+}
+
+/// ...A HELD ROW'S, read from what Workshop holds of the declaration.
+std::string census_line(const std::string& office, const std::string& mode,
+                        const v3::PaneActionRow& a) {
+    return census_line(office, mode, a.id, a.scancode, a.modifiers, a.causes, a.enters, a.label);
+}
+
+/// EACH MODE'S CAUSES AS THE CENSUS LINES SAY THEM: of `lines` for `office`, by mode, every cause
+/// token once.
+std::map<std::string, std::set<std::string>> census_causes_by_mode(
+    const std::vector<std::string>& lines, const std::string& office) {
+    std::map<std::string, std::set<std::string>> out;
+    for (const std::string& line : lines) {
+        std::istringstream in(line);
+        std::string who, mode, id, key, causes;
+        in >> who >> mode >> id >> key >> causes;
+        if (who != office) continue;
+        std::set<std::string>& into = out[mode];
+        if (causes == "-") continue;
+        std::size_t from = 0;
+        while (from <= causes.size()) {
+            const std::size_t comma = causes.find(',', from);
+            into.insert(causes.substr(from, comma == std::string::npos ? std::string::npos
+                                                                        : comma - from));
+            if (comma == std::string::npos) break;
+            from = comma + 1;
+        }
+    }
+    return out;
+}
+
+/// WHAT EACH MODE SAID OF THE OTHERS, AGAINST THE CENSUS: in every mode a pane was driven into, its
+/// `elsewhere` names exactly the other modes driven, each with the union of that mode's census
+/// causes, and its declared mode is the one the census names.
+void check_elsewhere(const std::string& office,
+                     const std::map<std::string, std::vector<ModeCauses>>& said,
+                     const std::vector<std::string>& census) {
+    const auto by_mode = census_causes_by_mode(census, office);
+    for (const auto& [mode, elsewhere] : said) {
+        std::set<std::string> named;
+        for (const ModeCauses& other : elsewhere) {
+            named.insert(other.mode);
+            const auto expected = by_mode.find(other.mode);
+            REQUIRE_MESSAGE(expected != by_mode.end(),
+                            office << " in `" << mode << "` names the mode `" << other.mode
+                                   << "`, which the census never drove");
+            std::set<std::string> causes;
+            for (const ActionCause& c : other.causes) causes.insert(census_cause(c));
+            CHECK_MESSAGE(causes == expected->second,
+                          office << " in `" << mode << "` says `" << other.mode
+                                 << "` causes other than its census rows do");
+        }
+        for (const auto& [other, causes] : by_mode) {
+            (void)causes;
+            if (other != mode) {
+                CHECK_MESSAGE(named.count(other) == 1,
+                              office << " in `" << mode << "` does not say what `" << other
+                                     << "` may cause");
+            }
+        }
+    }
 }
 
 /// A READER OF A PANE'S MANUAL: it asks the pane's office and keeps each answer with Loom's word
@@ -3456,17 +3539,20 @@ std::vector<std::string> census_pinned() {
 
 } // namespace
 
-TEST_CASE("the action census: the rows the Builder declares in each mode, and the desk's, are "
-          "tests/actions.txt") {
+TEST_CASE("the action census: the rows the Builder declares in each mode, with what each press "
+          "causes and the mode it enters, and the desk's, are tests/actions.txt") {
     std::vector<std::string> census;
+    std::map<std::string, std::vector<ModeCauses>> builder_elsewhere;
     {
         BuilderRig b("bld-census");
         b.tool->catalog = catalog_of({{"tally", "tally"}});
         b.open();
         each_builder_mode(b, [&](const char* mode) {
-            for (const v2::PaneActionRow& a : b.row()->actions) {
-                census.push_back(census_line(pane::kBuilderPaneRole, mode, a.id, a.scancode,
-                                             a.modifiers, a.label));
+            const RuntimePane* held = b.row();
+            CHECK(held->mode == mode); // the mode the pane says is the one the census names
+            builder_elsewhere[mode] = held->elsewhere;
+            for (const v3::PaneActionRow& a : held->actions) {
+                census.push_back(census_line(pane::kBuilderPaneRole, mode, a));
             }
         });
     }
@@ -3481,18 +3567,19 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, and th
         REQUIRE_FALSE(r.session().keymap.app.empty());
         for (const AppRow& a : r.session().keymap.app) {
             census.push_back(census_line(kDesktopRole, "desk", a.id, a.gesture.scancode,
-                                         a.gesture.modifiers, a.label));
+                                         a.gesture.modifiers, a.causes, std::string(), a.label));
         }
-        // ...AND THE MANUAL'S, the pane a `?` shows, which a page names the keys of.
-        const RuntimePane* manual =
-            r.session().panes.runtime.find(kDesktopRole, zengine::desktop_pane::kManualPane);
-        REQUIRE(manual != nullptr);
-        const PaneRows* rows = r.session().keymap.pane_rows(manual->kind);
-        REQUIRE(rows != nullptr);
-        REQUIRE_FALSE(rows->rows.empty());
-        for (const PaneRow& a : rows->rows) {
-            census.push_back(census_line(kDesktopRole, "read", a.id, a.gesture.scancode,
-                                         a.gesture.modifiers, a.label));
+        // ...THE PANE MANAGER'S, the route to every other pane, and the Manual's, the pane a `?`
+        // shows, which a page names the keys of: each in the one mode it has.
+        for (const char* key : {zengine::desktop_pane::kLauncherPane,
+                                zengine::desktop_pane::kManualPane}) {
+            const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, key);
+            REQUIRE(held != nullptr);
+            REQUIRE_FALSE(held->actions.empty());
+            CHECK(held->elsewhere.empty());
+            for (const v3::PaneActionRow& a : held->actions) {
+                census.push_back(census_line(kDesktopRole, held->mode, a));
+            }
         }
     }
     // WRITTEN BESIDE THE BUILD AS IT STANDS, ready to diff, and held to the pinned file line by line.
@@ -3512,6 +3599,333 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, and th
                       "in tests/actions.txt and declared by no shipped pane: `" << line << "`");
     }
     CHECK(census == pinned);
+    // ...AND WHAT EACH MODE SAID OF THE OTHERS IS WHAT THEIR ROWS HERE CAUSE.
+    check_elsewhere(pane::kBuilderPaneRole, builder_elsewhere, pinned);
+}
+
+// ============================================================================
+// The press witness: each declared action, pressed, sends nothing its row does not declare
+// ============================================================================
+
+namespace {
+
+/// THE PANE PROTOCOL, by name in every version: what a pane says to Workshop about itself -- its
+/// offer, rows, content, caret, menus, its answer to a manual's ask, and the approval it asks
+/// before an act. A press's causes are every other send.
+bool pane_protocol(const std::string& shape) {
+    static const std::set<std::string> kSaid{
+        PaneOffered::zen_name,           PaneActions::zen_name,
+        PaneContent::zen_name,           PaneCanvasContent::zen_name,
+        PaneCaret::zen_name,             PaneMenuRequested::zen_name,
+        PanePassRequested::zen_name,     PaneKeyboardRequested::zen_name,
+        PaneEscapeUnspent::zen_name,     PaneRevealRequested::zen_name,
+        PaneManageRequested::zen_name,   PaneOperationRequested::zen_name,
+        PaneDocumentShown::zen_name,     PaneSettingsDeclared::zen_name};
+    return kSaid.count(shape) == 1;
+}
+
+/// EVERY SEND ONE PARTICIPANT MAKES OUTSIDE THE PANE PROTOCOL while this is held, as
+/// `<shape>/<version>`: delivered or refused, to an office, a weave or anyone.
+class SendsOf {
+public:
+    SendsOf(loom::Switchboard& bus, loom::WeaveId who) : bus_(bus) {
+        tap_ = bus_.add_observer([this, who](const loom::BusEvent& ev) {
+            if ((ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused) &&
+                ev.sender == who && !pane_protocol(ev.schema_name)) {
+                sent.insert(ev.schema_name + "/" + std::to_string(ev.schema_version));
+            }
+        });
+    }
+    ~SendsOf() { bus_.remove_observer(tap_); }
+    SendsOf(const SendsOf&) = delete;
+    SendsOf& operator=(const SendsOf&) = delete;
+    std::set<std::string> sent;
+
+private:
+    loom::Switchboard& bus_;
+    loom::ObserverId tap_ = 0;
+};
+
+/// WHAT A ROW DECLARES, AS A SEND IS SEEN: each cause's shape and version.
+std::set<std::string> declared_sends(const std::vector<ActionCause>& causes) {
+    std::set<std::string> out;
+    for (const ActionCause& c : causes) out.insert(c.shape + "/" + std::to_string(c.version));
+    return out;
+}
+
+/// WHAT ONE PRESS SENT THAT ITS ROW DOES NOT DECLARE -- the witness's red -- and what it declares
+/// that this press did not send, kept to be listed.
+struct Pressed {
+    std::set<std::string> undeclared;
+};
+Pressed judge_press(const std::set<std::string>& sent, const std::vector<ActionCause>& causes,
+                    std::set<std::string>& reached) {
+    Pressed out;
+    const std::set<std::string> declared = declared_sends(causes);
+    for (const std::string& s : sent) {
+        if (declared.count(s) == 0) out.undeclared.insert(s);
+        reached.insert(s);
+    }
+    return out;
+}
+
+/// LIST WHAT NO DRIVEN STATE SENT: a declared cause the suite never reached, said and written beside
+/// the build, never failed -- "may" is what a row declares.
+void list_unreached(const std::map<std::string, std::vector<ActionCause>>& declared,
+                    const std::map<std::string, std::set<std::string>>& reached,
+                    const std::string& title) {
+    std::string path = ZENGINE_ACTIONS_NOW;
+    const std::size_t at = path.find("actions-now");
+    if (at != std::string::npos) path.replace(at, std::string("actions-now").size(), title);
+    std::ofstream out(path, std::ios::binary);
+    for (const auto& [key, causes] : declared) {
+        const auto got = reached.find(key);
+        for (const std::string& s : declared_sends(causes)) {
+            if (got == reached.end() || got->second.count(s) == 0) {
+                out << key << " " << s << "\n";
+                MESSAGE("declared and not sent by any driven state: " << key << " " << s);
+            }
+        }
+    }
+}
+
+/// THE STATE A BUILDER IS DRIVEN INTO BEFORE A PRESS: a build waiting to be loaded, or a
+/// realization standing, with the project waiting on its artifact.
+enum class Standing { kBuilt, kRealized };
+
+/// ONE BUILDER IN `mode`, its room tall enough for every control, standing as `standing` says: the
+/// rows it then declares are the ones a press is judged against.
+void builder_in(BuilderRig& b, const std::string& mode, Standing standing) {
+    b.tool->catalog = catalog_of({{"tally", "tally"}});
+    b.frontier = ProjectFrontier{true, "tally", 0};
+    b.next_source.source = (b.root / "tally.cpp").generic_string();
+    b.open();
+    b.author_height(40, 160, 48);
+    b.tool->next.recipe = "tally";
+    b.tool->next.artifact = "tally";
+    b.tool->next.op = 1;
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = standing == Standing::kRealized ? bld::realization::kRealized
+                                                               : bld::realization::kNotAsked;
+    b.tool_says();
+    if (mode == pane::kModeRecipes) {
+        b.r.key(input::scan::kReturn);
+    } else if (mode == pane::kModeOutput) {
+        b.letter(input::scan::kL, "l");
+    } else if (mode == pane::kModeRole) {
+        b.letter(input::scan::kO, "o");
+        b.r.text("example.tally");
+    }
+    REQUIRE(b.row()->mode == mode);
+}
+
+/// PRESS ONE DECLARED ACTION AS A WEAVER DOES: its default key, else the control the pane draws
+/// for it. False when it has neither -- an action the witness cannot drive.
+bool press_action(BuilderRig& b, const v3::PaneActionRow& row) {
+    if (is_bound(Gesture{row.scancode, row.modifiers})) {
+        b.r.key(row.scancode, row.modifiers);
+        return true;
+    }
+    const auto parts = held_parts(b.r.session(), b.kind);
+    const auto control = parts.find("control:" + row.id);
+    if (control == parts.end()) return false;
+    press_pane(b.r, b.kind, control->second.row, control->second.column);
+    return true;
+}
+
+} // namespace
+
+TEST_CASE("the press witness: each action the Builder declares, pressed in each mode it is driven "
+          "into, sends nothing beside the pane protocol that its row does not declare") {
+    std::map<std::string, std::vector<ActionCause>> declared;
+    std::map<std::string, std::set<std::string>> reached;
+    struct Drive {
+        const char* mode;
+        Standing standing;
+    };
+    const Drive drives[] = {{pane::kModeBrowse, Standing::kBuilt},
+                            {pane::kModeBrowse, Standing::kRealized},
+                            {pane::kModeRecipes, Standing::kRealized},
+                            {pane::kModeOutput, Standing::kRealized},
+                            {pane::kModeRole, Standing::kRealized}};
+    for (const Drive& drive : drives) {
+        std::size_t rows = 0;
+        {
+            BuilderRig count("bld-press");
+            builder_in(count, drive.mode, drive.standing);
+            rows = count.row()->actions.size();
+        }
+        REQUIRE(rows > 0);
+        // A PANE OF ITS OWN FOR EVERY PRESS, so no press is judged by what an earlier one left.
+        for (std::size_t i = 0; i < rows; ++i) {
+            BuilderRig b("bld-press");
+            builder_in(b, drive.mode, drive.standing);
+            const v3::PaneActionRow row = b.row()->actions[i];
+            const std::string key = std::string(drive.mode) + " " + row.id;
+            declared[key] = row.causes;
+            CAPTURE(key);
+            SendsOf sends(b.r.bus, b.r.bus.role_holder(pane::kBuilderPaneRole));
+            REQUIRE_MESSAGE(press_action(b, row), "`" << row.id << "` has no key and no control");
+            const Pressed judged = judge_press(sends.sent, row.causes, reached[key]);
+            for (const std::string& s : judged.undeclared) {
+                CHECK_MESSAGE(false, "`" << row.id << "` in `" << std::string(drive.mode) << "` sent " << s
+                                         << ", which its row does not declare");
+            }
+        }
+    }
+    list_unreached(declared, reached, "causes-unsent-builder");
+}
+
+TEST_CASE("the press witness: each row the desktop declares, pressed, sends nothing beside the pane "
+          "protocol that the row does not declare -- the application's, the Pane Manager's and the "
+          "Manual's") {
+    namespace dp = zengine::desktop_pane;
+    std::map<std::string, std::vector<ActionCause>> declared;
+    std::map<std::string, std::set<std::string>> reached;
+    const auto rig = [](PaneRig& r) {
+        r.mount_workshop();
+        r.ready();
+        r.extent(160, 48);
+        REQUIRE(r.load(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE, kDesktopRole).valid());
+    };
+    const auto judge = [&](PaneRig& r, const std::string& key, std::int64_t sc,
+                           std::int64_t mods, const std::vector<ActionCause>& causes) {
+        declared[key] = causes;
+        CAPTURE(key);
+        SendsOf sends(r.bus, r.bus.role_holder(kDesktopRole));
+        REQUIRE(is_bound(Gesture{sc, mods}));
+        r.key(sc, mods);
+        for (const std::string& s : judge_press(sends.sent, causes, reached[key]).undeclared) {
+            CHECK_MESSAGE(false, "`" << key << "` sent " << s << ", which its row does not declare");
+        }
+    };
+    std::size_t app_rows = 0;
+    {
+        PaneRig r;
+        rig(r);
+        app_rows = r.session().keymap.app.size();
+    }
+    REQUIRE(app_rows > 0);
+    for (std::size_t i = 0; i < app_rows; ++i) {
+        PaneRig r;
+        rig(r);
+        const AppRow row = r.session().keymap.app[i];
+        judge(r, "desk " + row.id, row.gesture.scancode, row.gesture.modifiers, row.causes);
+    }
+    // ...EACH PANE'S ROWS WITH THAT PANE SHOWN AND HOLDING THE KEYS, brought there by its own row.
+    struct Shown {
+        const char* pane;
+        std::int64_t scancode;
+        std::int64_t modifiers;
+    };
+    for (const Shown& shown : {Shown{dp::kLauncherPane, input::scan::kP, input::mod::kCtrl},
+                               Shown{dp::kManualPane, input::scan::kF, input::mod::kCtrl}}) {
+        std::size_t rows = 0;
+        {
+            PaneRig r;
+            rig(r);
+            const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, shown.pane);
+            REQUIRE(held != nullptr);
+            rows = held->actions.size();
+        }
+        REQUIRE(rows > 0);
+        for (std::size_t i = 0; i < rows; ++i) {
+            PaneRig r;
+            rig(r);
+            r.key(shown.scancode, shown.modifiers);
+            const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, shown.pane);
+            REQUIRE(held != nullptr);
+            REQUIRE(r.session().panes.keyboard == held->kind);
+            const v3::PaneActionRow row = held->actions[i];
+            judge(r, held->mode + " " + row.id, row.scancode, row.modifiers, row.causes);
+        }
+    }
+    list_unreached(declared, reached, "causes-unsent-desktop");
+}
+
+// ============================================================================
+// Availability on the wire: a part says what its face draws
+// ============================================================================
+
+namespace {
+
+/// A READER OF ONE PANE'S PARTS, as any participant asks Workshop: the sixth version's reading.
+struct ViewAskerState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(ViewAskerState, 1, ZEN_FIELD(heard));
+};
+class ViewAsker
+    : public loom::WeaveBase<ViewAsker, ViewAskerState, loom::Accept<v6::PaneView, loom::Refused>,
+                             loom::Emit<v6::PaneViewRequested>> {
+public:
+    void on(const v6::PaneView& view, loom::Mail&) { views.push_back(view); }
+    void on(const loom::Refused& refused, loom::Mail&) { refusals.push_back(refused.reason); }
+    std::vector<v6::PaneView> views;
+    std::vector<std::string> refusals;
+};
+
+/// THE BUILDER'S READING AS WORKSHOP SAYS IT: its named parts, each with its availability.
+v6::PaneView builder_view(BuilderRig& b) {
+    auto held = std::make_unique<ViewAsker>();
+    ViewAsker* asker = held.get();
+    loom::Grant grant;
+    grant.allow_to_role(v6::PaneViewRequested::zen_name, v6::PaneViewRequested::zen_version,
+                        kWorkshopProvider);
+    const loom::WeaveId id = b.r.bus.register_weave(std::move(held), std::move(grant));
+    asker->zen_set_self(id);
+    (void)b.r.bus.send_as_to_role(
+        id, kWorkshopProvider,
+        loom::Message(loom::to_value(v6::PaneViewRequested{pane::kBuilderPaneRole,
+                                                           pane::kBuilderPane, 0, {}}),
+                      id, loom::WeaveId{}, 0));
+    b.r.bus.drain_until_idle();
+    REQUIRE_MESSAGE(asker->refusals.empty(), asker->refusals.front());
+    REQUIRE(asker->views.size() == 1);
+    v6::PaneView out = asker->views.front();
+    b.r.bus.unregister_weave(id);
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("WL-CAUSE-03: a control the Builder draws in brackets reads available in its reading, "
+          "and one drawn in parentheses reads unavailable -- the pane's word, not the drawing") {
+    BuilderRig b("bld-available");
+    b.tool->catalog = catalog_of({{"tally", "tally"}});
+    b.open();
+    const v6::PaneView view = builder_view(b);
+    REQUIRE_FALSE(view.in_flight);
+    std::string names;
+    for (const v2::PanePart& p : view.parts) names += p.name + " ";
+    INFO("parts: ", names, " covered by: ", view.covered.by.size());
+    const auto part = [&view](const std::string& name) -> const v2::PanePart* {
+        for (const v2::PanePart& p : view.parts) {
+            if (p.name == name) return &p;
+        }
+        return nullptr;
+    };
+    // A RECIPE IS CHOSEN AND NOTHING STANDS: `[build]` applies, `(promote the loaded image)` does
+    // not, and each part says so beside its words.
+    const v2::PanePart* build = part("control:builder.build");
+    REQUIRE_MESSAGE(build != nullptr, b.text());
+    CHECK(build->text == "[build]");
+    CHECK(build->available);
+    const v2::PanePart* promote = part("control:builder.promote");
+    REQUIRE_MESSAGE(promote != nullptr, b.text());
+    CHECK(promote->text.rfind("(promote", 0) == 0);
+    CHECK_FALSE(promote->available);
+    // ...AND EVERY CONTROL'S WORD AND FACE AGREE, in a picture holding both kinds.
+    std::size_t controls = 0;
+    for (const v2::PanePart& p : view.parts) {
+        if (p.name.rfind("control:", 0) != 0 || p.text.empty()) continue;
+        ++controls;
+        CAPTURE(p.name);
+        CHECK(p.available == (p.text.front() == '['));
+    }
+    CHECK(controls > 2);
+    // ...AND A RECIPE'S ROW, WHICH PERFORMS NOTHING, IS AVAILABLE.
+    const v2::PanePart* recipe = part("recipe:tally");
+    if (recipe != nullptr) CHECK(recipe->available);
 }
 
 TEST_CASE("the manual the Builder answers is the page its build embedded, and names exactly the "
@@ -3536,7 +3950,7 @@ TEST_CASE("the manual the Builder answers is the page its build embedded, and na
     // EVERY ID THE PANE DECLARES, IN EVERY MODE, IS ANSWERED BY ITS OWN SECTION...
     std::set<std::string> declared;
     each_builder_mode(b, [&](const char* mode) {
-        for (const v2::PaneActionRow& a : b.row()->actions) {
+        for (const v3::PaneActionRow& a : b.row()->actions) {
             declared.insert(a.id);
             const PaneDocumentShown one = reader.ask(pane::kBuilderPane, a.id);
             INFO("mode ", mode, ", id ", a.id);

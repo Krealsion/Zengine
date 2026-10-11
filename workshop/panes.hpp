@@ -229,9 +229,14 @@ struct RuntimePane {
     std::string summary;                   ///< one line, beside the name
     /// The actions this pane declared, as admitted; what is in force is `Keymap::panes`.
     // WL-KEY-15 -- agents/workshop/keyboard.md
-    /// Held as v2 whichever version was declared: a v1 row is widened at the door, so admission,
-    /// legends and dispatch read one population.
-    std::vector<v2::PaneActionRow> actions;
+    /// Held as v3 whichever version was declared: a v1 or v2 row is widened at the door with no
+    /// causes, so admission, legends, dispatch and every reader read one population.
+    std::vector<v3::PaneActionRow> actions;
+    /// THE MODE THOSE ROWS ARE IN FORCE FOR, AND WHAT EACH OTHER MODE MAY CAUSE, as declared with
+    /// them and replaced with them; empty for a declaration that names none.
+    // WL-CAUSE-02 -- agents/workshop/action-causes.md
+    std::string mode = {};
+    std::vector<ModeCauses> elsewhere = {};
     /// WORKSHOP'S NUMBER FOR THE DECLARATION IN `actions` (`ActionsJudged::declaration`), or 0
     /// when nothing this office declared for the pane is in force. An `ActionsWithdrawn` names it.
     // WL-DESK-06 -- agents/workshop/desktop.md
@@ -350,8 +355,9 @@ struct ExternalPane {
     /// new room asked for is told from one made before it; 0 when none.
     std::int64_t refused_grant = 0;
     std::vector<surface::SurfaceTextRow> shown;
-    /// The parts of those rows the pane names, admitted with them and gone with them.
-    std::vector<PaneRowPart> parts;
+    /// The parts of those rows the pane names, admitted with them and gone with them, each saying
+    /// whether its operation applies now (true for a part said in an earlier version).
+    std::vector<v2::PaneRowPart> parts;
 
     /// Where the pane said its caret is, in the body lattice it was granted, and its selection.
     /// Workshop adds its header offset when it merges these; nothing here is a cell or a pixel.
@@ -399,7 +405,7 @@ struct ExternalPane {
         /// gives it under them, so a pane that moved keeps nothing.
         std::int64_t title_rows = 0;
         /// The picture last admitted, in the current form, with the parts it names.
-        v5::PaneCanvasContent content;
+        v6::PaneCanvasContent content;
     } canvas;
     /// A re-offer (a reloaded image numbers its pictures afresh) or a close: no earlier number
     /// may stamp a press.
@@ -460,9 +466,10 @@ inline std::int64_t picture_fingerprint(const ExternalPane& pane) {
             }
         }
         f.number(static_cast<std::int64_t>(c.content.parts.size()));
-        for (const PaneCanvasPart& p : c.content.parts) {
+        for (const v2::PaneCanvasPart& p : c.content.parts) {
             f.bytes(p.name);
             for (const std::int64_t n : {p.x, p.y, p.w, p.h}) f.number(n);
+            f.number(p.available ? 1 : 0);
         }
     } else {
         f.number(static_cast<std::int64_t>(pane.shown.size()));
@@ -472,9 +479,10 @@ inline std::int64_t picture_fingerprint(const ExternalPane& pane) {
             f.number(row.background);
         }
         f.number(static_cast<std::int64_t>(pane.parts.size()));
-        for (const PaneRowPart& p : pane.parts) {
+        for (const v2::PaneRowPart& p : pane.parts) {
             f.bytes(p.name);
             for (const std::int64_t n : {p.row, p.column, p.columns}) f.number(n);
+            f.number(p.available ? 1 : 0);
         }
         for (const std::int64_t n : {pane.caret_row, pane.caret_col, pane.sel_begin_row,
                                      pane.sel_begin_col, pane.sel_end_row, pane.sel_end_col}) {

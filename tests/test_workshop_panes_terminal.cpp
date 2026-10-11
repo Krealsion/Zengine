@@ -258,7 +258,7 @@ struct TerminalRig {
         const RuntimePane* one = row();
         REQUIRE(one != nullptr);
         std::vector<std::string> ids;
-        for (const v2::PaneActionRow& a : one->actions) {
+        for (const v3::PaneActionRow& a : one->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -309,7 +309,7 @@ TEST_CASE("the five keys are the pane's rows, on the built-in's own spellings") 
     const RuntimePane* row = t.row();
     REQUIRE(row != nullptr);
     const auto gesture_of = [row](const char* id) {
-        for (const v2::PaneActionRow& a : row->actions) {
+        for (const v3::PaneActionRow& a : row->actions) {
             if (a.id == id) {
                 return std::pair<std::int64_t, std::int64_t>{a.scancode, a.modifiers};
             }

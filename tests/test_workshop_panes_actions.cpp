@@ -83,7 +83,7 @@ void redeclare(PaneRig& r, ProviderSeat* seat, const char* pane,
     });
 }
 
-const std::vector<v2::PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
+const std::vector<v3::PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
     const RuntimePane* row = r.session().panes.runtime.of_kind(kind);
     REQUIRE(row != nullptr);
     return row->actions;
@@ -195,6 +195,136 @@ TEST_CASE("a pane's actions are three shapes: rows of id, label and two numbers;
 // ============================================================================
 // The join, over a value
 // ============================================================================
+
+TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: what a declaration says beside its keys is judged by its form "
+          "-- each cause, the mode in force, the other modes and the mode a row enters") {
+    const auto with = [](std::vector<ActionCause> causes, std::string enters = {}) {
+        v3::PaneActions d{"p", "browse", {}, {ModeCauses{"list", {}}}};
+        d.rows.push_back(v3::PaneActionRow{"p.go", "go", input::scan::kG, input::mod::kNone, {},
+                                           std::move(causes), std::move(enters)});
+        return d;
+    };
+    // IN FORM: no cause, a cause about the pane's own state, about the part pressed, about one pane.
+    CHECK(pane_declaration_problem(with({})).empty());
+    CHECK(pane_declaration_problem(
+              with({cause_of<PaneLaunchRequested>(), cause_of<PaneCloseRequested>(on_part("pane:")),
+                    cause_of<PaneToggleRequested>(to_pane("zengine.desktop", "launcher"))},
+                   "list"))
+              .empty());
+    // ...AND EVERY WAY OUT OF IT, each refused in words naming the row.
+    const auto refused = [&with](std::vector<ActionCause> causes, const std::string& words,
+                                 std::string enters = {}) {
+        const std::string said =
+            pane_declaration_problem(with(std::move(causes), std::move(enters)));
+        CHECK_MESSAGE(said.find(words) != std::string::npos, said);
+    };
+    refused({ActionCause{"", 1, ""}}, "names a shape by 1 to");
+    refused({ActionCause{"Build Requested", 1, ""}}, "names a shape by 1 to");
+    refused({ActionCause{"BuildRequested", 0, ""}}, "version is 1 or more");
+    refused({ActionCause{"BuildRequested", 1, "at pane:"}}, "subject is empty, `on <prefix>`");
+    refused({ActionCause{"BuildRequested", 1, "on "}}, "`on` names the opening of a part's name");
+    refused({ActionCause{"BuildRequested", 1, "to zengine.desktop"}}, "`to` names one pane");
+    refused({ActionCause{"BuildRequested", 1, "to a/b/c"}}, "`to` names one pane");
+    refused({cause_of<PaneLaunchRequested>(), cause_of<PaneLaunchRequested>()}, "twice");
+    refused(std::vector<ActionCause>(kMaxActionCauses + 1, cause_of<PaneLaunchRequested>()),
+            "more than");
+    refused({}, "enters `table`, a mode this declaration does not name", "table");
+    // THE MODES: named in form, each other mode once and never the mode in force, and a pane naming
+    // other modes names its own.
+    v3::PaneActions modes = with({});
+    modes.mode = "Browse";
+    CHECK(pane_declaration_problem(modes).find("lowercase letters") != std::string::npos);
+    modes = with({});
+    modes.mode.clear();
+    CHECK(pane_declaration_problem(modes).find("names the mode its rows are in force for") !=
+          std::string::npos);
+    modes = with({});
+    modes.elsewhere.push_back(ModeCauses{"browse", {}});
+    CHECK(pane_declaration_problem(modes).find("is the mode in force") != std::string::npos);
+    modes = with({});
+    modes.elsewhere.push_back(ModeCauses{"list", {}});
+    CHECK(pane_declaration_problem(modes).find("names the mode `list` twice") != std::string::npos);
+    modes = with({});
+    modes.elsewhere[0].causes = {ActionCause{"BuildRequested", 0, ""}};
+    CHECK(pane_declaration_problem(modes).find("mode `list`:") != std::string::npos);
+    // A PANE WITH ONE MODE NAMES NONE, OR ITS ONE.
+    CHECK(pane_declaration_problem(v3::PaneActions{"p", "", {}, {}}).empty());
+}
+
+TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: Workshop holds a declaration's causes, its mode and what the "
+          "other modes cause with its rows, widens an earlier version with none, and refuses a "
+          "malformed one whole, the rows in force standing") {
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    const auto declared = [&](const v3::PaneActions& d) {
+        r.drive(seat, [d](ProviderSeat& s, loom::Mail& m) { s.declare_v3(m, d); });
+    };
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const RuntimePane* row = r.session().panes.runtime.find(kHelloOffice, kHelloPane);
+    REQUIRE(row != nullptr);
+    v3::PaneActions good{kHelloPane, "browse", {},
+                         {ModeCauses{"list", {cause_of<PaneCloseRequested>()}}}};
+    good.rows.push_back(v3::PaneActionRow{"hello.go", "go", input::scan::kUnknown,
+                                          input::mod::kNone, {},
+                                          {cause_of<PaneLaunchRequested>(on_part("pane:"))},
+                                          "list"});
+    declared(good);
+    REQUIRE(row->actions.size() == 1);
+    CHECK(row->mode == "browse");
+    REQUIRE(row->elsewhere.size() == 1);
+    CHECK(row->elsewhere[0].mode == "list");
+    REQUIRE(row->actions[0].causes.size() == 1);
+    CHECK(row->actions[0].causes[0].shape == PaneLaunchRequested::zen_name);
+    CHECK(row->actions[0].causes[0].subject == "on pane:");
+    CHECK(row->actions[0].enters == "list");
+    // ...SAID WITH THE KEYS: the keymap names each row's address and its causes, and the modes.
+    bool shown = false;
+    const KeymapShown keys = keymap_shown(r.session(), std::string(), std::string());
+    for (const ShownBinding& b : keys.rows) {
+        if (b.id != "hello.go") continue;
+        shown = true;
+        CHECK(b.office == kHelloOffice);
+        CHECK(b.pane == kHelloPane);
+        CHECK(b.enters == "list");
+        REQUIRE(b.causes.size() == 1);
+        CHECK(b.causes[0].subject == "on pane:");
+    }
+    CHECK(shown);
+    bool modes = false;
+    for (const ShownModes& m : keys.modes) {
+        if (m.office != kHelloOffice || m.pane != kHelloPane) continue;
+        modes = true;
+        CHECK(m.mode == "browse");
+        REQUIRE(m.elsewhere.size() == 1);
+        CHECK(m.elsewhere[0].mode == "list");
+    }
+    CHECK(modes);
+    // A MALFORMED CAUSE REFUSES THE WHOLE DECLARATION, and the rows, causes and modes in force stand.
+    v3::PaneActions bad = good;
+    bad.rows[0].id = "hello.other";
+    bad.rows[0].causes = {ActionCause{"BuildRequested", 0, ""}};
+    declared(bad);
+    REQUIRE(row->actions.size() == 1);
+    CHECK(row->actions[0].id == "hello.go");
+    CHECK(row->mode == "browse");
+    CHECK_MESSAGE(r.last_notice().find("version is 1 or more") != std::string::npos,
+                  r.last_notice());
+    // ...AND AN EARLIER VERSION IS WIDENED WITH NONE: no causes, no mode, no other modes.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.declare_v2(m, v2::PaneActions{kHelloPane, {v2::PaneActionRow{"hello.up", "up",
+                                                                        input::scan::kUp,
+                                                                        input::mod::kNone, ""}}});
+    });
+    REQUIRE(row->actions.size() == 1);
+    CHECK(row->actions[0].id == "hello.up");
+    CHECK(row->actions[0].causes.empty());
+    CHECK(row->actions[0].enters.empty());
+    CHECK(row->mode.empty());
+    CHECK(row->elsewhere.empty());
+}
 
 TEST_CASE("the join judges a declaration whole, in order, and a refusal writes nothing") {
     Keymap k;
@@ -1053,7 +1183,7 @@ TEST_CASE("a pane provider built as its own image against the published protocol
         zengine::editor_pane::kEditorPaneRole, zengine::editor_pane::kEditorPane);
     REQUIRE_MESSAGE(editor != nullptr, "the Editor image's offer was not admitted");
     bool owns = false;
-    for (const v2::PaneActionRow& row : editor->actions) {
+    for (const v3::PaneActionRow& row : editor->actions) {
         owns = owns || row.supersedes == kOwnableDocumentSave;
     }
     CHECK(owns); // the version-two declaration, admitted in the same session

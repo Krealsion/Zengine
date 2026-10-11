@@ -205,7 +205,7 @@ struct DeskMenu {
     std::int64_t picture = 0;
     DeskRect place;
     std::vector<PaneWord> lines;
-    std::vector<PanePart> parts;
+    std::vector<zengine::workshop::PanePart> parts;
     ZEN_SHAPE(DeskMenu, 2, ZEN_FIELD(open), ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(picture),
               ZEN_FIELD(place), ZEN_FIELD(lines), ZEN_FIELD(parts));
 };
@@ -379,7 +379,49 @@ struct DeskRead {
     ZEN_SHAPE(DeskRead, 2, ZEN_FIELD(desk), ZEN_FIELD(stamps), ZEN_FIELD(panes));
 };
 
+/// A NAMED PART AND WHETHER ITS OPERATION APPLIES NOW: the first version's part and `available`,
+/// as its pane said it (`v2::PaneRowPart`, `v2::PaneCanvasPart`; true for a part said before parts
+/// said it), never read from the words drawn.
+struct PanePart {
+    std::string name, text;
+    DeskRect place;
+    std::int64_t x = 0, y = 0, space = 0;
+    bool available = true;
+    ZEN_SHAPE(PanePart, 2, ZEN_FIELD(name), ZEN_FIELD(text), ZEN_FIELD(place), ZEN_FIELD(x),
+              ZEN_FIELD(y), ZEN_FIELD(space), ZEN_FIELD(available));
+};
+
 } // namespace v2
+
+namespace v6 {
+
+/// A PAGE OF ONE PANE'S READING, ITS PARTS SAYING THEIR AVAILABILITY, asked as the fifth version
+/// is asked.
+struct PaneViewRequested {
+    std::string provider, pane;
+    std::int64_t from = 0;
+    v2::PaneStamp stamp;
+    ZEN_SHAPE(PaneViewRequested, 6, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(from),
+              ZEN_FIELD(stamp));
+};
+/// The fifth version's reading, its parts `v2::PanePart`.
+struct PaneView {
+    std::string provider, pane;
+    std::int64_t picture = 0;
+    bool canvas = false;
+    std::vector<PaneWord> words;
+    std::vector<v2::PanePart> parts;
+    std::int64_t holder = 0, incarnation = 0, grant = 0, fingerprint = 0;
+    PaneCover covered;
+    bool in_flight = false;
+    std::int64_t from = 0, total = 0;
+    ZEN_SHAPE(PaneView, 6, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture),
+              ZEN_FIELD(canvas), ZEN_FIELD(words), ZEN_FIELD(parts), ZEN_FIELD(holder),
+              ZEN_FIELD(incarnation), ZEN_FIELD(grant), ZEN_FIELD(fingerprint),
+              ZEN_FIELD(covered), ZEN_FIELD(in_flight), ZEN_FIELD(from), ZEN_FIELD(total));
+};
+
+} // namespace v6
 
 /// THE DESK MOVED: its number and every presented pane's stamp front to back, as a desk read would
 /// say them now. Workshop publishes it at the end of a delivery that moved either, so the newest

@@ -218,7 +218,7 @@ struct InfoRig {
         const RuntimePane* seat = row();
         REQUIRE(seat != nullptr);
         std::vector<std::string> ids;
-        for (const v2::PaneActionRow& a : seat->actions) {
+        for (const v3::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -685,7 +685,7 @@ TEST_CASE("WL-HAND-06: Info names its panes by reference and its properties by l
     }
     // A PRESS WHERE `Width` IS NAMED PUTS THE CURSOR THERE, and the name stays on its row.
     REQUIRE(parts.count("property:Width") == 1);
-    const PaneRowPart width = parts.at("property:Width");
+    const v2::PaneRowPart width = parts.at("property:Width");
     press_pane(f.r, f.kind, width.row, width.column + 3);
     CHECK(f.property_row("Width").rfind(">", 0) == 0);
     parts = held_parts(f.r.session(), f.kind);

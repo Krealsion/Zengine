@@ -46,10 +46,11 @@ inline PixelRect canvas_clip_rect(const PaneCanvasRect& r, std::int64_t width,
         ? PixelRect{left, top, right - left, bottom - top} : PixelRect{};
 }
 
-inline void paint_pane_canvas(surface::SurfaceLayer& layer, const PixelRect& body,
-                              const v5::PaneCanvasContent& content,
-                              std::int64_t text_advance_px = 0, std::int64_t text_line_px = 0,
-                              std::int64_t grain = kPaneCanvasUnit) {
+/// A picture of the fifth version or later, painted: its parts are not drawn, only read.
+template <class Content>
+void paint_pane_canvas(surface::SurfaceLayer& layer, const PixelRect& body, const Content& content,
+                       std::int64_t text_advance_px = 0, std::int64_t text_line_px = 0,
+                       std::int64_t grain = kPaneCanvasUnit) {
     if (body.empty()) return;
     for (const auto& rect : content.rects) {
         auto clipped = canvas_clip_rect(rect, body.w, body.h);

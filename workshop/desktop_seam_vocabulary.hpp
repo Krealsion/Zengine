@@ -11,6 +11,7 @@
 // leave.
 
 #include "surface/vocabulary.hpp"
+#include "workshop/pane_vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>
 
@@ -60,6 +61,28 @@ struct AppActions {
     std::vector<AppActionRow> rows;
     ZEN_SHAPE(AppActions, 1, ZEN_FIELD(rows));
 };
+
+/// Version 2 of the application's declaration says what each press may cause, as a pane's row
+/// does (`v3::PaneActionRow::causes`); Workshop widens v1 with none and holds them with the rows.
+namespace v2 {
+
+struct AppActionRow {
+    std::string id;
+    std::string label;
+    std::int64_t scancode = 0;
+    std::int64_t modifiers = 0;
+    std::int64_t precedence = app_precedence::kAboveModes;
+    std::vector<ActionCause> causes = {}; ///< at most `kMaxActionCauses`, none twice
+    ZEN_SHAPE(AppActionRow, 2, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(scancode),
+              ZEN_FIELD(modifiers), ZEN_FIELD(precedence), ZEN_FIELD(causes));
+};
+
+struct AppActions {
+    std::vector<AppActionRow> rows;
+    ZEN_SHAPE(AppActions, 2, ZEN_FIELD(rows));
+};
+
+} // namespace v2
 
 /// A weaver pressed the gesture a declared application row answers to: the resolved id, sent
 /// instead of that keystroke, its character swallowed. `office` and `pane` name the pane the act
@@ -217,34 +240,54 @@ struct PaneInventoryRequested {
 
 // ---- The effective keymap, said out loud ----------------------------------------------------
 
-/// One binding as it is in force: action, label, gesture in the keymap file's spelling (empty for
-/// none), the same gesture as the weaver chose to see keys spelled in the Hotkeys view, and where
-/// it is answered. `remappable` is false only for the text box's own keys.
+/// One binding as it is in force: where it is answered, whose it is, its action and label, its
+/// gesture in the keymap file's spelling (empty for none) and as the Hotkeys view spells it, and
+/// what a press of it may cause. `office`, `pane` and `id` are its address: a pane's row names its
+/// office and pane, an application row its office and no pane, Workshop's own row Workshop's office;
+/// the text box's own keys name neither. `remappable` is false only for the text box's own keys.
 struct ShownBinding {
     std::string group;   ///< where it is answered: "above every mode", a mode's name, a pane
+    std::string office;  ///< the office that declared it; empty for the text box's keys
+    std::string pane;    ///< the pane, for a pane's row; empty otherwise
     std::string id;      ///< the durable id a keymap file names
     std::string label;
     std::string gesture; ///< e.g. `ctrl+t`; empty when the row answers to no key
     std::string shown;   ///< ...as the Hotkeys view spells it, `ctrl+t` or `^t`; empty with it
     bool authored = false;
     bool remappable = true;
-    ZEN_SHAPE(ShownBinding, 2, ZEN_FIELD(group), ZEN_FIELD(id), ZEN_FIELD(label),
-              ZEN_FIELD(gesture), ZEN_FIELD(shown), ZEN_FIELD(authored), ZEN_FIELD(remappable));
+    std::vector<ActionCause> causes = {}; ///< as its declarer declared them
+    std::string enters = {};              ///< the mode a press leaves its pane in, or empty
+    ZEN_SHAPE(ShownBinding, 3, ZEN_FIELD(group), ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(id),
+              ZEN_FIELD(label), ZEN_FIELD(gesture), ZEN_FIELD(shown), ZEN_FIELD(authored),
+              ZEN_FIELD(remappable), ZEN_FIELD(causes), ZEN_FIELD(enters));
+};
+
+/// One pane's modes as its declaration in force says them: the mode its rows are in force for,
+/// and what each other mode's rows may cause.
+struct ShownModes {
+    std::string office;
+    std::string pane;
+    std::string mode;
+    std::vector<ModeCauses> elsewhere;
+    ZEN_SHAPE(ShownModes, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(mode),
+              ZEN_FIELD(elsewhere));
 };
 
 /// The one binding truth as a value, projected for a presenter, which keeps no catalog of its own:
 /// a floor printing a declared default would go on printing it after the weaver moved the row.
 /// Published when it changes and answered on request, like `PaneInventory`. `moved` is each key
 /// the weaver's file names for an id no row in force answers to (a pane's other mode, a pane not
-/// open), `gesture` empty for `none`; `spelling` says how every `shown` spells, `full` or `short`.
+/// open), `gesture` empty for `none`, its address the id alone; `spelling` says how every `shown`
+/// spells, `full` or `short`; `modes` is each pane's modes, for every pane that declared one.
 struct KeymapShown {
     std::vector<ShownBinding> rows;
     std::string file;
     std::string word;
     std::vector<ShownBinding> moved;
     std::string spelling;
-    ZEN_SHAPE(KeymapShown, 2, ZEN_FIELD(rows), ZEN_FIELD(file), ZEN_FIELD(word),
-              ZEN_FIELD(moved), ZEN_FIELD(spelling));
+    std::vector<ShownModes> modes = {};
+    ZEN_SHAPE(KeymapShown, 3, ZEN_FIELD(rows), ZEN_FIELD(file), ZEN_FIELD(word),
+              ZEN_FIELD(moved), ZEN_FIELD(spelling), ZEN_FIELD(modes));
 };
 
 /// Ask for the keymap as it is now.

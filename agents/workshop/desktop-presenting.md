@@ -101,12 +101,13 @@ LAW — The host publishes every binding in force, grouped by where it is answer
 
 MEANS
 - a moved row prints where it moved, a disabled one as having no key, `*` marking the weaver's;
+- each binding says its address -- office, pane, id -- and what a press causes, and each pane its modes (WL-CAUSE-01);
 - the key list is the desktop's Hotkeys pane, launched by `desktop.hotkeys`; the host paints none.
 
 DOES NOT MEAN
 - that a presenter rebinds anything: a key moves through the host's edit door or the file.
 
-PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `ShownBinding`, `KeymapShown`,
+PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `ShownBinding`, `ShownModes`, `KeymapShown`,
 `KeymapRequested`; `workshop/screen.hpp` `keymap_shown`; `workshop/screen_hotkeys.cpp`
 `keymap_shown`, `keyboard_context_name`; `workshop/weave.hpp` `publish_keymap`,
 `on(KeymapRequested)`; `workshop/weave_desktop.cpp` `publish_keymap`, `on(KeymapRequested)`;
@@ -114,7 +115,10 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `ShownBinding`, `KeymapShow
 `kActionHotkeys`; `tests/test_workshop_panes_actions.cpp` case `"the band and the Hotkeys pane
 teach the application's keys as they are in force: a moved row where it moved, a disabled one as
 having no key"`; `tests/test_workshop_document.cpp` case `"the effective keymap lists every place
-a key is answered, and marks the text box's keys as nobody's to move"`.
+a key is answered, and marks the text box's keys as nobody's to move"`;
+`tests/test_workshop_panes_canvas.cpp` case `"a weaver keys a described view's button by naming its
+id in their keymap file: the key says the button's intent, the keymap says what it causes, and its
+part is the action's"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-17 — The Manual shows a pane's manual with the keys in force, and keeps it only while open

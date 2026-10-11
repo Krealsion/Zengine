@@ -2153,7 +2153,7 @@ class ProviderSeat
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                                           PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
                              loom::Emit<PaneOffered, PaneContent, v4::PaneContent, PanePressed,
-                                        PaneActions, v2::PaneActions, PaneCaret,
+                                        PaneActions, v2::PaneActions, v3::PaneActions, PaneCaret,
                                         PaneEscapeUnspent, PaneCanvasPointer>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
@@ -2284,6 +2284,10 @@ public:
     /// The SECOND published version of the declaration -- the one that can name an action this
     /// pane owns. A provider built before it existed sends the shape above.
     void declare_v2(loom::Mail& mail, const v2::PaneActions& a) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
+    }
+    /// ...and the THIRD, which says what each press may cause and the modes.
+    void declare_v3(loom::Mail& mail, const v3::PaneActions& a) {
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
     }
     /// FORGE A PRESS AT SOMEBODY ELSE'S PANE -- deliberately authored, and deliberately by an
@@ -2424,7 +2428,8 @@ private:
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
                              loom::Accept<PaneOffered, v2::PaneOffered, PaneContent, v3::PaneContent,
-                                          v4::PaneContent, v5::PaneCanvasContent, SeatDo>,
+                                          v4::PaneContent, v5::PaneContent, v5::PaneCanvasContent,
+                                          v6::PaneCanvasContent, SeatDo>,
                              loom::Emit<PaneCatalogRequested, PaneRoom, PaneWheel, PanePressed,
                                         v2::PanePressed, v3::PanePressed, PaneCanvasRoom,
                                         PaneCanvasPointer>> {
@@ -2452,6 +2457,17 @@ public:
     /// ...AND A PANE THAT NAMES ITS PARTS, the same rows and number beside them.
     void on(const v4::PaneContent& c, loom::Mail& mail) {
         on(v3::PaneContent{c.pane, c.rows, c.generation, c.picture}, mail);
+    }
+    void on(const v5::PaneContent& c, loom::Mail& mail) {
+        on(v3::PaneContent{c.pane, c.rows, c.generation, c.picture}, mail);
+    }
+    /// ...AND ONE WHOSE PARTS SAY THEIR AVAILABILITY, read as the fifth version is.
+    void on(const v6::PaneCanvasContent& c, loom::Mail& mail) {
+        v5::PaneCanvasContent fifth{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts, {}};
+        for (const v2::PaneCanvasPart& p : c.parts) {
+            fifth.parts.push_back(PaneCanvasPart{p.name, p.x, p.y, p.w, p.h});
+        }
+        on(fifth, mail);
     }
     /// ...AND A PANE DRAWING ITS ROWS ON ITS CANVAS: its runs read back to rows of the lattice
     /// of the room this watcher granted, so a case written against `content` reads it unchanged.
@@ -2822,6 +2838,7 @@ struct PaneRig {
         grant.allow_to_any(v4::PaneContent::zen_name, v4::PaneContent::zen_version);
         grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
         grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
+        grant.allow_to_any(v3::PaneActions::zen_name, v3::PaneActions::zen_version);
         grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);
         // ...and that an Escape it was sent was unspent, which is how a pane asks to be put down.
         grant.allow_to_any(PaneEscapeUnspent::zen_name, PaneEscapeUnspent::zen_version);
@@ -3806,29 +3823,41 @@ inline std::vector<std::string> held_row_texts(const ExternalPane& pane) {
     return out;
 }
 
+/// A HELD PICTURE AS ITS FIFTH VERSION SAYS IT, for a holder that speaks that version: its parts'
+/// availability left out.
+inline v5::PaneCanvasContent fifth_picture(const v6::PaneCanvasContent& c) {
+    v5::PaneCanvasContent out{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts, {}};
+    for (const v2::PaneCanvasPart& p : c.parts) {
+        out.parts.push_back(PaneCanvasPart{p.name, p.x, p.y, p.w, p.h});
+    }
+    return out;
+}
+
 /// THE PARTS A PANE NAMED in what Workshop holds for it now, by name: a text pane's as it said
 /// them, a canvas pane's read back to the row and columns of its lattice they cover.
-inline std::map<std::string, PaneRowPart> held_parts(const Session& s, std::int64_t kind) {
-    std::map<std::string, PaneRowPart> out;
+/// Each says whether its operation applies now, as its pane said it.
+inline std::map<std::string, v2::PaneRowPart> held_parts(const Session& s, std::int64_t kind) {
+    std::map<std::string, v2::PaneRowPart> out;
     const ExternalPane* pane = s.panes.external_pane(kind);
     if (pane == nullptr) return out;
     if (shows_canvas(*pane)) {
         const CanvasRows lattice = held_canvas_rows(*pane);
         if (lattice.empty()) return out;
-        for (const PaneCanvasPart& part : pane->canvas.content.parts) {
+        for (const v2::PaneCanvasPart& part : pane->canvas.content.parts) {
             const RowCell at = row_cell_at(lattice, part.x, part.y);
-            out.emplace(part.name, PaneRowPart{part.name, at.row, at.column, part.w / lattice.advance});
+            out.emplace(part.name, v2::PaneRowPart{part.name, at.row, at.column,
+                                                   part.w / lattice.advance, part.available});
         }
         return out;
     }
-    for (const PaneRowPart& part : pane->parts) {
+    for (const v2::PaneRowPart& part : pane->parts) {
         out.emplace(part.name, part);
     }
     return out;
 }
 
 /// ...and what the named part's columns of its row say, as the pane wrote them.
-inline std::string held_part_text(const Session& s, std::int64_t kind, const PaneRowPart& part) {
+inline std::string held_part_text(const Session& s, std::int64_t kind, const v2::PaneRowPart& part) {
     const ExternalPane* pane = s.panes.external_pane(kind);
     if (pane == nullptr || part.row < 0) return std::string();
     std::string row;

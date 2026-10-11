@@ -38,7 +38,8 @@ MEANS
 
 PROVEN BY — `workshop/pane_view.hpp` `PaneStamp`, `v4::PaneViewRequested`, `v4::PaneView`;
 `workshop/weave.hpp` `HostContext::incarnation_of`; `workshop/weave_inspection.cpp`
-`pane_reading`, `stamp_of`, `on(PaneViewRequested)`, `page_of`; `workshop/reply_bytes.hpp`
+`pane_reading`, `stamp_of`, `on(PaneViewRequested)`, `answer_page`, `page_of`;
+`workshop/reply_bytes.hpp`
 `kReplyByteBudget`; `tests/test_workshop_desk.cpp` case `"a
 stamp names holder, incarnation, room and picture: a reading after t or a reload in place is stale
 even at an equal picture number"`, case `"a pane whose newest picture is in flight is read as in

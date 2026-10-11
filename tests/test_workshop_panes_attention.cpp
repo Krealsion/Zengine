@@ -193,7 +193,7 @@ TEST_CASE("the pane declares the three ids a weaver's keymap file already names"
     const RuntimePane* seat = f.row();
     REQUIRE(seat != nullptr);
     std::vector<std::string> declared;
-    for (const v2::PaneActionRow& row : seat->actions) {
+    for (const v3::PaneActionRow& row : seat->actions) {
         declared.push_back(row.id);
     }
     std::sort(declared.begin(), declared.end());
