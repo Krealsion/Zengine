@@ -17,15 +17,6 @@ MEANS
 - `TextForm<T>` is written once per type: canonical out, nothing but that type in;
 - `Row::commit_text` is the one write door; a draft is the inspector's own (WL-INFO-15).
 
-PROVEN BY — `workshop/property.hpp` `Row`, `Commit`, `Written`, `TextForm`, `Property`,
-`TextForm::format`, `TextForm::expected`, `Row::show`, `Row::commit_text`;
-`tests/test_workshop_document.cpp` case `"a successful commit writes through the semantic
-setter"`, case `"unparseable text leaves the property untouched and says so"`, case `"a
-parseable value the property refuses is a DIFFERENT outcome, with its reason"`, case
-`"unparseable text writes nothing even where a default WOULD be accepted"`, case `"reuse: two
-properties of one type share every line of conversion"`, case `"a shown row cannot be edited,
-because it has nothing to write to"`, case `"the whole-number text form: canonical out, and
-nothing but a whole number in"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## Do not assume
@@ -34,3 +25,15 @@ WHY — `agents/decisions/the-document-model.md`
   desk, the window, the keymap and the prefs are what a launch reads (WL-SESSION-01).
 - That nothing holds a commit to its subject: a named subject, a refusal before any row is read
   and a picture said only when it changed are Info's, over a pane (WL-INFO-14, WL-INFO-15).
+
+## Proven by
+
+### WL-DOC-02
+`workshop/property.hpp` Row Commit Written TextForm Property TextForm::format TextForm::expected
+Row::show Row::commit_text
+`tests/test_workshop_document.cpp` "a successful commit writes through the semantic setter"
+"unparseable text leaves the property untouched and says so" "a parseable value the property refuses
+is a DIFFERENT outcome, with its reason" "unparseable text writes nothing even where a default WOULD
+be accepted" "reuse: two properties of one type share every line of conversion" "a shown row cannot
+be edited, because it has nothing to write to" "the whole-number text form: canonical out, and
+nothing but a whole number in"

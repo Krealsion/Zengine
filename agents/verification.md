@@ -2,9 +2,10 @@
 
 Routed behind [`../AGENTS.md`](../AGENTS.md): how this repository is verified. The method lives
 in the registers under [`verification/`](verification/): one method per `##`, a `VM-<AREA>-<NN>`
-id that is permanent, a `METHOD` of one line, a `BECAUSE` of at most three, and a `SEEN` naming
-where the method is applied in this tree — a test file and case, a script, a lane step — or
-`SEEN — nowhere yet`, a debt of the same kind as an unwitnessed law. The lane commands are in
+id that is permanent, a `METHOD` of one line, a `BECAUSE` of at most three, and, under `### <id>` in
+the appendix that ends the register, `## Seen`, where the method is applied in this tree — a test
+file and case, a script, a lane step — or `nowhere yet`, a debt of the same kind as an unwitnessed
+law. The lane commands are in
 [`../AGENTS.md`](../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom); the public
 reference is [`../docs/contributing/build-and-test.md`](../docs/contributing/build-and-test.md).
 
@@ -102,7 +103,7 @@ self-test before they answer:
 | MinGW, MSVC, the COFF ceilings, a 9p mount, two CMakes, the UTF-8 code page | [platforms](verification/platforms.md) `VM-PLAT` |
 | judging a dependency, a package option, a toolchain | [dependencies](verification/dependencies.md) `VM-DEP` |
 
-A register's PROVEN BY names its witnesses by exact case; the router of the folder it serves, that
+A register's proofs name their witnesses by exact case; the router of the folder it serves, that
 folder's `AGENTS.md`, names the folder's suites. The working harnesses for the live
 witness and the mutation matrix are kept outside this repository (VM-WIT-24); a register
 restates the method, never the program.

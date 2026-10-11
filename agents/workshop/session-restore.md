@@ -15,12 +15,6 @@ MEANS
 - an empty path is the absence with exactly one spelling; `link_in` refuses the half-association;
 - an association remembers a whole desk, not a hash; a restore never re-reads what it refers to.
 
-PROVEN BY — `workshop/session_persist.hpp` `WorkshopSession::layouts`,
-`WorkshopSession::active`, `kFormatVersion`, `WorkshopLayout`, `WorkshopSetupLink`, `link_in`,
-`layouts_in`, `WorkshopSession`, `to_link`, `in_layout`, `half_a_link`;
-`tests/test_workshop_persistence.cpp` case `"a whole layout run round-trips exactly, active in the
-middle"`, case `"every position and every association combination round-trips"`,
-case `"a current-version session with half an association is refused"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-SESSION-06 — The run's own admission is four questions plus the link
@@ -32,13 +26,6 @@ MEANS
 - a session this build writes is never one it refuses to read;
 - in decoded cells too: `kMaxPaneSettingsPerDesk` keeps a full one inside Loom's `kMaxDecodedCells`.
 
-PROVEN BY — `workshop/session_persist.hpp` `WorkshopSession::active`, `link_in`, `layouts_in`,
-`kMaxSessionBytes`, `kMaxLinkPathBytes`, `kMaxLayouts`, `no_layouts`; `workshop/setup_persist.hpp`
-`setup_in`, `kMaxSetupBytes`, `kMaxPaneSettingSpelledBytes`; `workshop/setup.hpp`
-`kMaxPaneSettingsPerDesk`; `tests/test_workshop_persistence.cpp` case `"a current run this
-Workshop could not have made is refused as CURRENT data"`, case `"a maximal legal session
-is still one this build can read back"`, case `"a session may hold as much as it may
-hold, and be read back"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-SESSION-07 — The viewport is one level above the desk, and is declined, never clamped
@@ -50,12 +37,6 @@ MEANS
 - a restored window is the weaver's chosen size, to the pixel;
 - whether a size fits the current display is not a question Workshop can put to anybody.
 
-PROVEN BY — `workshop/session_persist.hpp` `WorkshopLayout::desk`, `viewport_honoured`,
-`WorkshopViewport`, `LoadedSession`; `workshop/screen.hpp` `kScreenMinW`, `kScreenMaxW`,
-`kScreenMinH`, `kScreenMaxH`; `tests/test_workshop_persistence.cpp` case `"a hostile room is
-declined, and the desk still comes back"`, case `"the band a room is honoured in is the one the
-screen is honest at"`, case `"a session file holds the desk and the room,
-and nothing runtime"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-08 — The desktop placement is remembered opaque and judged by the medium
@@ -67,16 +48,6 @@ MEANS
 - a maximized restore repositions, re-grows, then re-maximizes: the medium's ordering;
 - desktop placement is not canvas geometry: no desktop unit enters authored intent.
 
-PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`, `SurfacePlacement`;
-`workshop/weave_handlers.cpp` `on(SurfacePlacement)`; `surface/vocabulary.hpp` `SurfacePlacement`,
-`SurfacePlacementRemembered`; `surface/skin_sdl_plan.hpp` `placement_within`;
-`workshop/session_persist.hpp` `kPlacementNone`, `WorkshopPlacement`, `Placement`;
-`workshop/screen.hpp` `Session::placement_known`, `Session::place_x`, `Session::place_y`,
-`Session::place_maximized`; `tests/test_workshop_persistence.cpp` case `"a session with a
-placement round-trips byte-identically"`, case `"the placement's words are judged; its coordinates
-are not"`, case `"the desk remembers where its window sat, and offers it back"`, case
-`"a run whose medium reports no placement RETAINS the remembered one"`;
-`tests/test_surface.cpp` case `"placement is reported BEFORE the extent, at every door"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-09 — The saved viewport is the normal window's
@@ -86,11 +57,6 @@ LAW — `Session::normal_w/h` tracks the screen except while this run's medium s
 MEANS
 - a maximized flag merely restored from the file never gates a placement-less run's tracking.
 
-PROVEN BY — `workshop/screen.hpp` `Session::normal_w`; `workshop/weave_handlers.cpp` `normal_w`,
-`on(SurfacePlacement)`; `workshop/weave.hpp` `WorkshopWeave::medium_placed_`;
-`tests/test_workshop_persistence.cpp` case `"a maximized close remembers the NORMAL room beside
-the maximized state"`, case `"unmaximizing reopens the gate, and the normal room tracks
-again"`, case `"a restored maximized flag alone does not gate this run's viewport"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-11 — The first picture of a run is Workshop's floor
@@ -100,10 +66,6 @@ LAW — The SDL medium makes a run's first picture the window's minimum, once, s
 MEANS
 - seeding the extent before the first canvas would leave a weaver unable to shrink the window.
 
-PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/weave_run.cpp`
-`repaint`; `surface/skin_sdl.cpp` `SDL_SetWindowMinimumSize`;
-`tests/test_workshop_persistence.cpp` case `"the FIRST picture of a run is the floor, and the room
-is the second"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-14 — The restore runs once per process, and answers four things
@@ -115,25 +77,12 @@ MEANS
 - `load_file` asks `exists` first, so a first launch is not an error and stays silent;
 - its sentence takes the unit the first `SurfaceExtent` names, unless another was said since.
 
-PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`, `restore_notice_text`,
-`respell_restore_notice`; `workshop/weave.hpp`
-`WorkshopWeave::restored_`; `workshop/session_persist.hpp` `LoadedSession::present`,
-`LoadedSession::outcome`, `LoadedSession`, `load_file`, `LoadedSession::honoured`,
-`LoadedSession::declined`; `surface/vocabulary.hpp` `SurfaceReady`;
-`tests/test_workshop_persistence.cpp` case `"the room is taken back only ONCE, however often a
-surface says hello"`, case `"a first launch is not an error, and needs no file to exist"`,
-case `"a malformed session costs the desk and nothing else"`, case `"the restore notice says the
-room in the unit the medium names: pixels in a window, cells in a terminal"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-16 — Neither direction opens a setup file
 
 LAW — Closing writes a session and leaves the standalone artifact byte-identical; restoring reads no setup file; the session carries the associations without reading what they refer to.
 
-PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`, `save_last_session`;
-`tests/test_workshop_persistence.cpp` case `"an automatic save never touches the file a weaver
-named"`, case `"a restored session never touches the file a weaver named, either"`,
-case `"the whole run and every association come back after a restart"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-17 — A restore returns the desks and the room, not what a weaver was doing
@@ -143,8 +92,80 @@ LAW — Selection, keyboard focus, the document and every other Workshop-global 
 MEANS
 - a loaded pane's own state is its own: this file remembers the reference and its settings, never the pane's state.
 
-PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`;
-`tests/test_workshop_persistence.cpp` case `"a session file holds the desk and the room, and
-nothing runtime"`, case `"the position that comes back is the one the weaver stood on"`, case
-`"the weaver is told once, in the pane's own durable names"`.
 WHY — `agents/decisions/three-ownership-domains.md`
+
+## Proven by
+
+### WL-SESSION-05
+`workshop/session_persist.hpp` WorkshopSession::layouts WorkshopSession::active kFormatVersion
+WorkshopLayout WorkshopSetupLink link_in layouts_in WorkshopSession to_link in_layout half_a_link
+`tests/test_workshop_persistence.cpp` "a whole layout run round-trips exactly, active in the middle"
+"every position and every association combination round-trips" "a current-version session with half
+an association is refused"
+
+### WL-SESSION-06
+`workshop/session_persist.hpp` WorkshopSession::active link_in layouts_in kMaxSessionBytes
+kMaxLinkPathBytes kMaxLayouts no_layouts
+`workshop/setup_persist.hpp` setup_in kMaxSetupBytes kMaxPaneSettingSpelledBytes
+`workshop/setup.hpp` kMaxPaneSettingsPerDesk
+`tests/test_workshop_persistence.cpp` "a current run this Workshop could not have made is refused as
+CURRENT data" "a maximal legal session is still one this build can read back" "a session may hold as
+much as it may hold, and be read back"
+
+### WL-SESSION-07
+`workshop/session_persist.hpp` WorkshopLayout::desk viewport_honoured WorkshopViewport LoadedSession
+`workshop/screen.hpp` kScreenMinW kScreenMaxW kScreenMinH kScreenMaxH
+`tests/test_workshop_persistence.cpp` "a hostile room is declined, and the desk still comes back"
+"the band a room is honoured in is the one the screen is honest at" "a session file holds the desk
+and the room, and nothing runtime"
+
+### WL-SESSION-08
+`workshop/weave.hpp` SurfacePlacementRemembered SurfacePlacement
+`workshop/weave_handlers.cpp` on(SurfacePlacement)
+`surface/vocabulary.hpp` SurfacePlacement SurfacePlacementRemembered
+`surface/skin_sdl_plan.hpp` placement_within
+`workshop/session_persist.hpp` kPlacementNone WorkshopPlacement Placement
+`workshop/screen.hpp` Session::placement_known Session::place_x Session::place_y
+Session::place_maximized
+`tests/test_workshop_persistence.cpp` "a session with a placement round-trips byte-identically" "the
+placement's words are judged; its coordinates are not" "the desk remembers where its window sat, and
+offers it back" "a run whose medium reports no placement RETAINS the remembered one"
+`tests/test_surface.cpp` "placement is reported BEFORE the extent, at every door"
+
+### WL-SESSION-09
+`workshop/screen.hpp` Session::normal_w
+`workshop/weave_handlers.cpp` normal_w on(SurfacePlacement)
+`workshop/weave.hpp` WorkshopWeave::medium_placed_
+`tests/test_workshop_persistence.cpp` "a maximized close remembers the NORMAL room beside the
+maximized state" "unmaximizing reopens the gate, and the normal room tracks again" "a restored
+maximized flag alone does not gate this run's viewport"
+
+### WL-SESSION-11
+`workshop/weave_session.cpp` restore_last_session
+`workshop/weave_run.cpp` repaint
+`surface/skin_sdl.cpp` SDL_SetWindowMinimumSize
+`tests/test_workshop_persistence.cpp` "the FIRST picture of a run is the floor, and the room is the
+second"
+
+### WL-SESSION-14
+`workshop/weave_session.cpp` restore_last_session restore_notice_text respell_restore_notice
+`workshop/weave.hpp` WorkshopWeave::restored_
+`workshop/session_persist.hpp` LoadedSession::present LoadedSession::outcome LoadedSession load_file
+LoadedSession::honoured LoadedSession::declined
+`surface/vocabulary.hpp` SurfaceReady
+`tests/test_workshop_persistence.cpp` "the room is taken back only ONCE, however often a surface
+says hello" "a first launch is not an error, and needs no file to exist" "a malformed session costs
+the desk and nothing else" "the restore notice says the room in the unit the medium names: pixels in
+a window, cells in a terminal"
+
+### WL-SESSION-16
+`workshop/weave_session.cpp` restore_last_session save_last_session
+`tests/test_workshop_persistence.cpp` "an automatic save never touches the file a weaver named" "a
+restored session never touches the file a weaver named, either" "the whole run and every association
+come back after a restart"
+
+### WL-SESSION-17
+`workshop/weave_session.cpp` restore_last_session
+`tests/test_workshop_persistence.cpp` "a session file holds the desk and the room, and nothing
+runtime" "the position that comes back is the one the weaver stood on" "the weaver is told once, in
+the pane's own durable names"

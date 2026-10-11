@@ -16,12 +16,6 @@ MEANS
 - `build` grants no shape: no guest is granted `BuildRequested`, a realization ask or a build door;
 - the file is read once, at launch: a changed row applies at the next.
 
-PROVEN BY — `workshop/guests.cpp` `read_guests_file`, `grant_for`; `workshop/guests.hpp`
-`kGuestsFileVersion`, `kPowerBuild`, `kHostWeaver`, `kHostDevelopment`, `GuestsFile::version`,
-`GuestsFile::host`; `tests/test_workshop_guests.cpp` case `"guests file: a file names its
-version, version 2 adds build and the host, and a word of a later version is refused"`,
-case `"guests file: build grants no shape -- no guest is granted BuildRequested, a realization
-ask or a build door"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
 ## WL-GUEST-02 — Admission records the row it admitted, per connection
@@ -31,12 +25,8 @@ LAW — Admission records the row whose credential a connection presented, at ad
 MEANS
 - two rows of one name stay two: each session holds the row its credential named;
 - observation reads the same record;
-- a session whose connection has gone keeps its row: an ask on its way is still that guest's.
+- a session whose connection has gone keeps its row: an ask on its way is judged as that guest's.
 
-PROVEN BY — `workshop/guests.hpp` `AdmittedRows`; `workshop/guests.cpp` `admission_of`,
-`observation_of`; `workshop/guest_door.hpp` `GuestDoor::row_index`, `GuestDoor::facts`,
-`mount_observation`; `tests/test_workshop_guests.cpp` case `"door: in a file with two rows of one
-name, each session holds the row its own credential admitted"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
 ## WL-GUEST-03 — An act of a class is approved against its hand's row and the host
@@ -52,20 +42,6 @@ DOES NOT MEAN
 - that a class is a grant: judged at the ask, it lets no guest say a shape it lacks;
 - that the weaver's hand, or a participant no guest door admitted, is narrowed by any class.
 
-PROVEN BY — `workshop/actor_scope.hpp` `judge`, `judge_all`, `GuestRowFacts`, `HostFact`;
-`workshop/pane_operation.hpp` `PaneOperationRequested`; `workshop/weave_operation.cpp`
-`approve_gesture`, `judge_classes`, `on(PaneOperationRequested)`; `workshop/weave.hpp`
-`HostContext::guest_row`, `HostContext::host_fact`; `tests/test_workshop_guests.cpp` case `"action
-classes: a guest builds only with build, writes nothing and opens no guests file on a weaver's
-host, and no class narrows a participant no door admitted"`;
-`tests/test_workshop_panes_builder.cpp` case `"a guest without build is refused b, B, f and
-load-built in words on either host, and the Builder asks for nothing"`, case `"a guest with build
-builds the catalog in force, and on a weaver's host is refused the role line's commit before any
-row is written"`, case `"the weaver's f, and the role line's commit then build, stand with a key
-typed between the two beats"`; `tests/test_workshop_panes_files.cpp` case `"on a weaver's host a
-guest is refused u, a mark and a written recipe before any write, and still lists names"`, case `"on
-a weaver's host a guest opening the guests file through Files is refused, and another file
-opens"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
 ## WL-GUEST-04 — A door past the dispatch asks about its sender
@@ -77,15 +53,6 @@ MEANS
 - the toolbox save sent to the Inventory pane asks it; a refusal answers the sender in words;
 - a send a pane relays as its own office is judged at its approval, as the classes its shape is.
 
-PROVEN BY — `workshop/pane_operation.hpp` `ActorScopeRequested`, `ActorScopeJudged`;
-`workshop/weave_operation.cpp` `on(ActorScopeRequested)`, `approve_gesture`;
-`workshop/actor_scope.hpp` `classes_of_send`, `judge_send`; `inventory/inventory-pane/toolbox.hpp`
-`Toolbox::begin_sent_save`; `tests/test_workshop_panes_guests.cpp` case `"on a weaver's host a
-guest's toolbox save sent to the Inventory pane is refused through ActorScopeRequested, and no file
-is written"`, case `"on a weaver's host a guest's Submit of a toolbox save in the Composer is
-refused, and no file is written"`; `tests/test_workshop_guests.cpp` case `"action classes: a
-guest's send is its shape's classes -- a toolbox save and a quit write, and an open shows no
-path"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
 ## WL-GUEST-05 — Each hand keeps its own gestures
@@ -100,17 +67,6 @@ MEANS
 DOES NOT MEAN
 - that the keys, the selection or a held press are per hand: one desk holds one of each.
 
-PROVEN BY — `workshop/weave.hpp` `WorkshopWeave::Hand`, `hand_of`, `count_gesture`, `keep_act`,
-`drop_kept`; `workshop/weave_operation.cpp` `hand_of`, `find_hand`, `latest_of`, `keep_act`,
-`drop_kept`, `count_gesture`, `hand_of_act`, `approve_gesture`, `accept_carry`;
-`workshop/weave_external.cpp` `forward_menu_input`; `tests/test_workshop_panes_builder.cpp` case
-`"the weaver's b stands when a guest's injected key lands before the Builder's approval"`, case
-`"the weaver's b stands when the weaver's own next key lands before the Builder's approval"`, case
-`"a guest's choice in a menu the weaver opened is judged for the guest, whatever the guest pressed
-since"`; `tests/test_workshop_panes_files.cpp` case `"the weaver's u stands when a guest's
-files.open reaches Files before Workshop answers it"`; `tests/test_workshop_panes_button.cpp` case
-`"a release forwarded to an open menu carries its own press's number when another hand acts between,
-and chooses the row its press armed"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
 ## WL-GUEST-06 — On a weaver's host the editor, the Terminal, typing and carrying answer only the weaver
@@ -122,21 +78,6 @@ MEANS
 - no buffer, field or line holds a guest's typed text or carried item for the weaver to commit as the weaver's own;
 - on a development host a guest's hand reaches them as the weaver's does.
 
-PROVEN BY — `workshop/weave_operation.cpp` `refused_toward`, `drop_carry`, `accept_carry`;
-`workshop/actor_scope.hpp` `refuse_toward`, `refuse_text`, `refuse_carry`; `workshop/weave_external.cpp` `external_key`;
-`workshop/weave_pointer.cpp` `on(TextEntered)`, `on(PointerButton)`, `on(PointerWheel)`;
-`workshop/pane_seam_vocabulary.hpp` `kEditorRole`, `kTerminalRole`, `kHotkeysPane`;
-`tests/test_workshop_panes_guests.cpp` case `"on a weaver's host a guest's keys, text, save and
-presses toward the Editor are refused at the dispatch, and the file is unchanged"`, case `"on a
-weaver's host a guest's keys and presses toward the Terminal are refused, and no line is sent and
-no editor switch asked"`, case `"on a weaver's host a guest's text toward Info, the Composer,
-Layouts' naming line and a Flow dialog field is refused, and the weaver's commit carries none of
-it"`, case `"on a development host the same guest types into the Editor and saves, types a Terminal
-line, and toggles titles"`, case `"on a weaver's host a guest's carried item rests in no pane: its carry
-is refused in words before it begins, so nothing it drops on Info or the Composer lands, and the
-weaver's own carry does"`, case `"on a development host the same guest's carried item lands on Info and
-on the Composer as a draft"`; `tests/test_workshop_editor_transfers.cpp` case `"on a weaver's host a
-guest's wheel and value drop toward the Editor are refused, and the Editor hears neither"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
 ## WL-GUEST-07 — A guest learns its own row's powers and no other's
@@ -147,10 +88,6 @@ MEANS
 - a guest hears every connection as version 1 says it, with no other row's powers;
 - no guest observes the version-2 inventory through the relay, whatever its row lists.
 
-PROVEN BY — `workshop/guest_seam_vocabulary.hpp` `GuestConnection`, `GuestConnections`;
-`workshop/guest_door.hpp` `on(GuestConnectionsRequested)`, `inventory_v2`, `guest_session`;
-`workshop/guests.cpp` `observation_of`; `tests/test_workshop_guests.cpp` case `"door: version 2's
-inventory tells a guest its own row's powers and losses alone, and this host every row's"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
 ## WL-GUEST-08 — What a row's powers do not reach is said beside it
@@ -161,12 +98,6 @@ MEANS
 - the losses are one function's: no `build`, and on a weaver's host each refusal above;
 - conditions are keyed by the row's place in the file, never its name.
 
-PROVEN BY — `workshop/guests.cpp` `losses_of`; `workshop/attention.hpp` `development_host`,
-`guest_row_losses`; `external-host/connections-pane/pane.cpp` `version_text`; `tests/test_workshop_guests.cpp`
-case `"guests file: a row's losses are what its powers do not reach on its file's host"`;
-`tests/test_workshop_host.cpp` case `"a development host and each row's losses stand as
-conditions on Attention"`; `tests/test_workshop_panes_attention.cpp` case `"the Connections pane
-says a row's version and its losses beneath its connection"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
 ## WL-GUEST-09 — Workshop's own writes and openings judge the hand that asked
@@ -176,12 +107,6 @@ LAW — Workshop's own `s`, `t` and quit are class `write`, and Edit Code class 
 MEANS
 - on a weaver's host a guest's setup save, titles toggle and quit write nothing, said in words.
 
-PROVEN BY — `workshop/weave_session.cpp` `save_setup`; `workshop/weave_terminal.cpp` `command`;
-`workshop/weave_run.cpp` `quit`, `on(WorkshopQuitRequested)`; `workshop/weave_code.cpp`
-`edit_code`; `tests/test_workshop_panes_guests.cpp` case `"on a weaver's host a guest's s, t and
-quit are refused, and nothing is written"`; `tests/test_workshop_panes_code.cpp` case `"Edit Code
-asks class open for the guest's hand: a recipe whose source is the guests file is refused on a
-weaver's host"`.
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
 ## WL-GUEST-10 — A session reads its own row, and nothing of another
@@ -192,10 +117,6 @@ MEANS
 - every row may ask, whatever its powers: its grant is its own to read;
 - a session the door never admitted is refused in words.
 
-PROVEN BY — `workshop/guest_seam_vocabulary.hpp` `GuestRowDescribedRequested`, `GuestRowDescribed`,
-`GuestObserve`; `workshop/guest_door.hpp` `on(GuestRowDescribedRequested)`, `described`;
-`workshop/guests.cpp` `grant_for`; `tests/test_workshop_guests.cpp` case `"door: a session asks its
-own row and hears its name, powers, observe list and host, and nothing of another row"`.
 WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 
 ## WL-GUEST-11 — A row observes and reads only what its powers read, and a widening is said
@@ -204,30 +125,17 @@ LAW — A row without `capture` is refused, in words, every observed publication
 
 MEANS
 - the desk's words and picture are `SurfaceCanvas`, `SurfaceText`, `TranscriptShown`, `PaneSubjectShown`, `PaneInventory`, `KeymapShown` and `StandingConditions`, from any producer;
-- `capture` reads the desk said whole, the inventory and the keymap, said at launch and on Attention;
+- `capture` reads the desk said whole, the inventory and the keymap; it is said at launch and on Attention;
 - `DeskStamps`, the notice that the desk moved, says no word but follows them, so needs `capture` too.
 
 DOES NOT MEAN
 - that `ClipboardCopy` is anyone's yet: it needs `clipboard`, which no file of this version grants.
 
-PROVEN BY — `workshop/guests.cpp` `observation_of`, `carries_the_desk`, `follows_the_desk`, `gains_of`, `grant_for`;
-`workshop/attention.hpp` `guest_row_gains`; `tests/test_workshop_guests.cpp` case `"observation: the
-desk's words and pictures need capture, every row is refused ClipboardCopy, and capture observes
-StandingConditions"`, case `"door: of two rows of one name, the session admitted under the one
-without capture is refused a capture read and observation"`, case `"guests file: capture's
-widening is said as a gain"`, case `"observation: DeskStamps needs capture, and a capture row
-listing it is told the notices, the newest standing for what its window held back"`;
-`tests/test_workshop_host.cpp` case `"a development host and each row's losses stand as conditions
-on Attention"`.
 WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 
 ## WL-GUEST-12 — A guest may wait for the plan at rest
 
 LAW — The port file says the door listens, not that the plan is realized; `GuestPlanRequested` says where it is, held by `wait` until at rest, naming rows only to `capture` or `inspect`.
-
-PROVEN BY — `workshop/guest_door.hpp` `on(GuestPlanRequested)`, `plan_for`;
-`tests/test_workshop_guests.cpp` case `"door: a guest admitted while the plan loads waits for it at
-rest, then its first ask is answered"`.
 
 ## Do not assume
 
@@ -238,3 +146,129 @@ rest, then its first ask is answered"`.
 - That a guest's motion is refused: its drag still moves a press the weaver holds.
 - That every classed act sent straight to its owner asks about its sender: `FlowEdit` and
   `ViewEdit` write, but no guest's grant names them, so ask nothing.
+
+## Proven by
+
+### WL-GUEST-01
+`workshop/guests.cpp` read_guests_file grant_for
+`workshop/guests.hpp` kGuestsFileVersion kPowerBuild kHostWeaver kHostDevelopment
+GuestsFile::version GuestsFile::host
+`tests/test_workshop_guests.cpp` "guests file: a file names its version, version 2 adds build and
+the host, and a word of a later version is refused" "guests file: build grants no shape -- no guest
+is granted BuildRequested, a realization ask or a build door"
+
+### WL-GUEST-02
+`workshop/guests.hpp` AdmittedRows
+`workshop/guests.cpp` admission_of observation_of
+`workshop/guest_door.hpp` GuestDoor::row_index GuestDoor::facts mount_observation
+`tests/test_workshop_guests.cpp` "door: in a file with two rows of one name, each session holds the
+row its own credential admitted"
+
+### WL-GUEST-03
+`workshop/actor_scope.hpp` judge judge_all GuestRowFacts HostFact
+`workshop/pane_operation.hpp` PaneOperationRequested
+`workshop/weave_operation.cpp` approve_gesture judge_classes on(PaneOperationRequested)
+`workshop/weave.hpp` HostContext::guest_row HostContext::host_fact
+`tests/test_workshop_guests.cpp` "action classes: a guest builds only with build, writes nothing and
+opens no guests file on a weaver's host, and no class narrows a participant no door admitted"
+`tests/test_workshop_panes_builder.cpp` "a guest without build is refused b, B, f and load-built in
+words on either host, and the Builder asks for nothing" "a guest with build builds the catalog in
+force, and on a weaver's host is refused the role line's commit before any row is written" "the
+weaver's f, and the role line's commit then build, stand with a key typed between the two beats"
+`tests/test_workshop_panes_files.cpp` "on a weaver's host a guest is refused u, a mark and a written
+recipe before any write, and still lists names" "on a weaver's host a guest opening the guests file
+through Files is refused, and another file opens"
+
+### WL-GUEST-04
+`workshop/pane_operation.hpp` ActorScopeRequested ActorScopeJudged
+`workshop/weave_operation.cpp` on(ActorScopeRequested) approve_gesture
+`workshop/actor_scope.hpp` classes_of_send judge_send
+`inventory/inventory-pane/toolbox.hpp` Toolbox::begin_sent_save
+`tests/test_workshop_panes_guests.cpp` "on a weaver's host a guest's toolbox save sent to the
+Inventory pane is refused through ActorScopeRequested, and no file is written" "on a weaver's host a
+guest's Submit of a toolbox save in the Composer is refused, and no file is written"
+`tests/test_workshop_guests.cpp` "action classes: a guest's send is its shape's classes -- a toolbox
+save and a quit write, and an open shows no path"
+
+### WL-GUEST-05
+`workshop/weave.hpp` WorkshopWeave::Hand hand_of count_gesture keep_act drop_kept
+`workshop/weave_operation.cpp` hand_of find_hand latest_of keep_act drop_kept count_gesture
+hand_of_act approve_gesture accept_carry
+`workshop/weave_external.cpp` forward_menu_input
+`tests/test_workshop_panes_builder.cpp` "the weaver's b stands when a guest's injected key lands
+before the Builder's approval" "the weaver's b stands when the weaver's own next key lands before
+the Builder's approval" "a guest's choice in a menu the weaver opened is judged for the guest,
+whatever the guest pressed since"
+`tests/test_workshop_panes_files.cpp` "the weaver's u stands when a guest's files.open reaches Files
+before Workshop answers it"
+`tests/test_workshop_panes_button.cpp` "a release forwarded to an open menu carries its own press's
+number when another hand acts between, and chooses the row its press armed"
+
+### WL-GUEST-06
+`workshop/weave_operation.cpp` refused_toward drop_carry accept_carry
+`workshop/actor_scope.hpp` refuse_toward refuse_text refuse_carry
+`workshop/weave_external.cpp` external_key
+`workshop/weave_pointer.cpp` on(TextEntered) on(PointerButton) on(PointerWheel)
+`workshop/pane_seam_vocabulary.hpp` kEditorRole kTerminalRole kHotkeysPane
+`tests/test_workshop_panes_guests.cpp` "on a weaver's host a guest's keys, text, save and presses
+toward the Editor are refused at the dispatch, and the file is unchanged" "on a weaver's host a
+guest's keys and presses toward the Terminal are refused, and no line is sent and no editor switch
+asked" "on a weaver's host a guest's text toward Info, the Composer, Layouts' naming line and a Flow
+dialog field is refused, and the weaver's commit carries none of it" "on a development host the same
+guest types into the Editor and saves, types a Terminal line, and toggles titles" "on a weaver's
+host a guest's carried item rests in no pane: its carry is refused in words before it begins, so
+nothing it drops on Info or the Composer lands, and the weaver's own carry does" "on a development
+host the same guest's carried item lands on Info and on the Composer as a draft"
+`tests/test_workshop_editor_transfers.cpp` "on a weaver's host a guest's wheel and value drop toward
+the Editor are refused, and the Editor hears neither"
+
+### WL-GUEST-07
+`workshop/guest_seam_vocabulary.hpp` GuestConnection GuestConnections
+`workshop/guest_door.hpp` on(GuestConnectionsRequested) inventory_v2 guest_session
+`workshop/guests.cpp` observation_of
+`tests/test_workshop_guests.cpp` "door: version 2's inventory tells a guest its own row's powers and
+losses alone, and this host every row's"
+
+### WL-GUEST-08
+`workshop/guests.cpp` losses_of
+`workshop/attention.hpp` development_host guest_row_losses
+`external-host/connections-pane/pane.cpp` version_text
+`tests/test_workshop_guests.cpp` "guests file: a row's losses are what its powers do not reach on
+its file's host"
+`tests/test_workshop_host.cpp` "a development host and each row's losses stand as conditions on
+Attention"
+`tests/test_workshop_panes_attention.cpp` "the Connections pane says a row's version and its losses
+beneath its connection"
+
+### WL-GUEST-09
+`workshop/weave_session.cpp` save_setup
+`workshop/weave_terminal.cpp` command
+`workshop/weave_run.cpp` quit on(WorkshopQuitRequested)
+`workshop/weave_code.cpp` edit_code
+`tests/test_workshop_panes_guests.cpp` "on a weaver's host a guest's s, t and quit are refused, and
+nothing is written"
+`tests/test_workshop_panes_code.cpp` "Edit Code asks class open for the guest's hand: a recipe whose
+source is the guests file is refused on a weaver's host"
+
+### WL-GUEST-10
+`workshop/guest_seam_vocabulary.hpp` GuestRowDescribedRequested GuestRowDescribed GuestObserve
+`workshop/guest_door.hpp` on(GuestRowDescribedRequested) described
+`workshop/guests.cpp` grant_for
+`tests/test_workshop_guests.cpp` "door: a session asks its own row and hears its name, powers,
+observe list and host, and nothing of another row"
+
+### WL-GUEST-11
+`workshop/guests.cpp` observation_of carries_the_desk follows_the_desk gains_of grant_for
+`workshop/attention.hpp` guest_row_gains
+`tests/test_workshop_guests.cpp` "observation: the desk's words and pictures need capture, every row
+is refused ClipboardCopy, and capture observes StandingConditions" "door: of two rows of one name,
+the session admitted under the one without capture is refused a capture read and observation"
+"guests file: capture's widening is said as a gain" "observation: DeskStamps needs capture, and a
+capture row listing it is told the notices, the newest standing for what its window held back"
+`tests/test_workshop_host.cpp` "a development host and each row's losses stand as conditions on
+Attention"
+
+### WL-GUEST-12
+`workshop/guest_door.hpp` on(GuestPlanRequested) plan_for
+`tests/test_workshop_guests.cpp` "door: a guest admitted while the plan loads waits for it at rest,
+then its first ask is answered"

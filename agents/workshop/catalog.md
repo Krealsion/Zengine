@@ -13,10 +13,6 @@ MEANS
 - `is_runtime_kind` is the one test that tells a session-local handle from a compile-time kind;
 - the kinds are deliberately unalike, and nothing in the vocabulary tells the built-ins apart.
 
-PROVEN BY — `workshop/panes.hpp` `pane_kind`, `kBuiltinPanes`, `kBuiltinPaneCount`,
-`kFirstRuntimeKind`, `is_runtime_kind`; `tests/test_workshop_panes_seam.cpp` case `"the runtime
-catalog is beside the compile-time one and never inside it"`, case `"an unknown runtime reference
-never becomes the Builder"`.
 WHY — `agents/decisions/the-catalog-is-one-list.md`
 
 ## WL-CAT-02 — A descriptor's prose is judged whole, in bytes, before it is kept
@@ -27,9 +23,6 @@ MEANS
 - a name that rendered as nothing would leave a list row a weaver cannot tell from a blank line;
 - nothing here counts a code point, a grapheme or a cell.
 
-PROVEN BY — `workshop/setup.hpp` `check_pane_text`, `kMaxPaneNameLen`, `kMaxPaneSummaryLen`;
-`tests/test_workshop_panes_seam.cpp` case `"a descriptor's name and summary are bounded, and a
-refusal keeps nothing"`.
 WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
 
 ## WL-CAT-03 — Admission is atomic both ways, and a built-in cannot be shadowed
@@ -41,12 +34,6 @@ MEANS
 - two offices offering one pane key are two panes and two handles, and neither can move the other;
 - an offer with no stamped office is refused and retains nothing.
 
-PROVEN BY — `workshop/setup.hpp` `admit_pane_offer`, `Admission`;
-`tests/test_workshop_panes_seam.cpp` case `"a valid offer is admitted under the office that
-stamped it"`, case `"an offer with no stamped office is refused, and retains nothing"`, case `"a
-runtime offer cannot shadow a built-in pane"`, case `"re-offering one reference refreshes it in
-place and grows nothing"`, case `"two offices offering one pane key stay two panes, and neither
-can move the other"`.
 WHY — `agents/decisions/the-catalog-is-one-list.md`
 
 ## WL-CAT-04 — The catalog holds at most `kMaxPaneCatalogEntries` panes, built-ins included
@@ -57,8 +44,6 @@ MEANS
 - the bound is a runtime-catalog policy and deliberately not an alias of `kMaxSetupPanes`;
 - it bounds what a chatty or malicious provider can make this session retain.
 
-PROVEN BY — `workshop/panes.hpp` `kMaxPaneCatalogEntries`; `tests/test_workshop_panes_seam.cpp`
-case `"the combined catalog stops at its bound, built-ins included"`.
 WHY — `agents/decisions/the-catalog-is-one-list.md`
 
 ## WL-CAT-05 — Runtime rows keep first-accepted-offer order, and nothing points into them
@@ -69,9 +54,33 @@ MEANS
 - a provider cannot buy the top of the list by choosing a name;
 - a later offer may grow the vector, so a row is looked up by handle or by reference when needed.
 
-PROVEN BY — `workshop/panes.hpp` `RuntimeCatalog`, `RuntimeCatalog::entries`,
-`RuntimeCatalog::next_kind`; `workshop/setup.hpp` `combined_catalog`;
-`tests/test_workshop_panes_seam.cpp` case `"the runtime catalog is beside the compile-time one
-and never inside it"`, case `"re-offering one reference refreshes it in place and grows
-nothing"`.
 WHY — `agents/decisions/the-catalog-is-one-list.md`
+
+## Proven by
+
+### WL-CAT-01
+`workshop/panes.hpp` pane_kind kBuiltinPanes kBuiltinPaneCount kFirstRuntimeKind is_runtime_kind
+`tests/test_workshop_panes_seam.cpp` "the runtime catalog is beside the compile-time one and never
+inside it" "an unknown runtime reference never becomes the Builder"
+
+### WL-CAT-02
+`workshop/setup.hpp` check_pane_text kMaxPaneNameLen kMaxPaneSummaryLen
+`tests/test_workshop_panes_seam.cpp` "a descriptor's name and summary are bounded, and a refusal
+keeps nothing"
+
+### WL-CAT-03
+`workshop/setup.hpp` admit_pane_offer Admission
+`tests/test_workshop_panes_seam.cpp` "a valid offer is admitted under the office that stamped it"
+"an offer with no stamped office is refused, and retains nothing" "a runtime offer cannot shadow a
+built-in pane" "re-offering one reference refreshes it in place and grows nothing" "two offices
+offering one pane key stay two panes, and neither can move the other"
+
+### WL-CAT-04
+`workshop/panes.hpp` kMaxPaneCatalogEntries
+`tests/test_workshop_panes_seam.cpp` "the combined catalog stops at its bound, built-ins included"
+
+### WL-CAT-05
+`workshop/panes.hpp` RuntimeCatalog RuntimeCatalog::entries RuntimeCatalog::next_kind
+`workshop/setup.hpp` combined_catalog
+`tests/test_workshop_panes_seam.cpp` "the runtime catalog is beside the compile-time one and never
+inside it" "re-offering one reference refreshes it in place and grows nothing"

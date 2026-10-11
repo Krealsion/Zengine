@@ -11,11 +11,6 @@ MEANS
 - empty is the designed absence, said on the banner; there is no `--project`;
 - two roads reach the absence (no reportable directory, or one this build cannot carry): one fact.
 
-PROVEN BY — `workshop/weave.hpp` `HostContext::project_dir`, `HostContext::dir`;
-`workshop/path_admission.hpp` `launch_project_dir`; `workshop/workshop.cpp` `launch_project_dir`;
-`tests/test_workshop_files.cpp` case `"the launch capture is the working directory, when it can be
-said"`, case `"a launch directory this Workshop cannot say is an absence, not an exit"`,
-case `"zengine.project.anchor answers the owner's anchor, absence included"`.
 WHY — `agents/decisions/project-is-several-mechanisms.md`
 
 ## WL-PROJ-02 — A relative source is the project's file, in the editor and in the build
@@ -26,13 +21,6 @@ MEANS
 - completion never rewrites the recipe file; only a weaver's own act appends a row (WL-AUTH-01);
 - the falsifier: the project and the workspace both hold `src/example.cpp` with different bytes.
 
-PROVEN BY — `workshop/recipe_persist.hpp` `WorkshopRecipe::artifact_dir`,
-`WorkshopSingleSource::workspace`, `complete_recipes`; `workshop/recipes.hpp` `complete_recipes`,
-`install_recipes`; `workshop/weave.hpp` `RecipeSource`, `HostContext::recipe_source`;
-`workshop/persist.hpp` `resolved_against`;
-`tests/test_workshop_files.cpp` case `"a relative recipe source is the PROJECT's file, in the
-editor and in the build"`, case `"the project door names the file that recipe's build would
-compile"`, case `"a catalog's own directory is not a source base"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-03 — The completed catalog has one session owner, and every consumer reads it
@@ -47,12 +35,6 @@ MEANS
 DOES NOT MEAN
 - that a running build re-aims when the catalog changes — it resolved its artifact at accept (no witness yet).
 
-PROVEN BY — `workshop/recipes.hpp` `CurrentRecipes`, `RecipeView`, `CurrentRecipes::hold`;
-`workshop/workshop.cpp` `BuildRunnerWeave`, `BuilderWeave`; `builder/weave.hpp`
-`BuilderWeave::path_`, `BuilderWeave::before_`; `workshop/load_execute.hpp` `AwaitingBuild`;
-`tests/test_workshop_files.cpp` case `"the owner derives the tool's view from the recipes it is
-holding"`, case `"holding a new catalog replaces the contents, never the object"`,
-case `"the host's edit-source answer is asked of the owner, not of a copy"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-04 — `install_recipes` is the one seam that turns a file into the answer
@@ -67,13 +49,6 @@ MEANS
 DOES NOT MEAN
 - that a catalog has another road in — `install_recipes` is the one seam, at startup and live.
 
-PROVEN BY — `workshop/recipes.hpp` `install_recipes`, `CurrentRecipes::hold`;
-`workshop/weave.hpp` `HostContext::use_recipes`; `workshop/workshop.cpp` `install_recipes`,
-`use_recipes`, `Arguments::recipes`; `workshop/recipe_persist.hpp` `from_text`;
-`tests/test_workshop_files.cpp` case `"one completed catalog, installed through one seam"`, case
-`"installing a catalog moves its source, its rows and its views together"`,
-case `"a candidate that cannot be read installs nothing at all"`, case `"a valid EMPTY
-catalog is a replacement, not a failure"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-05 — A live catalog choice is one door, and the authoring one spends it
@@ -85,15 +60,6 @@ MEANS
 - a dirty Editor buffer is neither consumed nor auto-saved; no Builder pane need be loaded;
 - a foreign catalog's relative `single_source` still names a file under the active project.
 
-PROVEN BY — `workshop/pane_doors.hpp` `RecipesDoor`; `workshop/pane_seam_vocabulary.hpp`
-`RecipeUseRequested`, `RecipeOutcome`; `workshop/weave.hpp` `HostContext::use_recipes`,
-`RecipeSwap`;
-`tests/test_workshop_files.cpp` case `"a weaver chooses a catalog in Files and every consumer
-moves with it"`, case `"selecting the catalog already in force is a reload, not a
-no-op"`, case `"the chooser needs no Builder pane loaded at all"`, case `"an external
-catalog is chosen live, and the project still owns relative sources"`;
-`tests/test_workshop_panes_editor.cpp` case `"recipes come from the saved file, never from an
-unsaved Editor buffer"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-07 — Standing Builder intent survives by recipe identity, never by row position
@@ -104,11 +70,6 @@ MEANS
 - the name is the pane's durable state, so a reload keeps a choice an index would have lost;
 - `picked` is a name too: a reordering keeps it, and a catalog without its recipe releases it.
 
-PROVEN BY — `builder/builder-pane/vocabulary.hpp` `BuilderPaneState::chosen`; `builder/builder-pane/pane.cpp`
-`named_row`, `cursor_row`; `tests/test_workshop_panes_builder.cpp`
-case `"the choice follows its RECIPE to a new row, not its index"`, case
-`"a choice whose recipe is gone is released, not inherited"`, case
-`"an empty catalog is said plainly, and `b` asks for nothing"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-09 — Which catalog is in force is the owner's answer, and nobody keeps a copy
@@ -119,13 +80,6 @@ MEANS
 - a refused swap answers with the catalog STILL running, which is the half a weaver needs;
 - the Builder pane names it again, from `RecipeCatalog` v2's `source`, on the owner's word;
 
-PROVEN BY — `workshop/workshop.cpp` `use_recipes`; `workshop/weave.hpp` `RecipeSwap`;
-`files/files.hpp` `catalog_taken_words`, `catalog_refused_words`; `builder/vocabulary.hpp`
-`RecipeCatalog`; `tests/test_files.cpp` case
-`"a refusal says what went wrong AND what is still running, in that order"`;
-`tests/test_workshop_files.cpp` case `"a live catalog choice is this session's and is written
-nowhere"`; `tests/test_workshop_panes_builder.cpp` case `"the pane names the catalog in
-force, from RecipeCatalog v2"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-10 — A path is not a sentence
@@ -136,9 +90,6 @@ MEANS
 - a sentence front-loads its meaning and a path back-loads it: they are cut at opposite ends;
 - it changes no stored identity, and no pane widens to avoid a cut.
 
-PROVEN BY — `workshop/screen_bindings.cpp` `fit_path`, `path_root_cue`;
-`workshop/screen_layouts.cpp` `fit_path`; `tests/test_workshop_files.cpp` case
-`"fitting a path keeps the end that says which file it is"`.
 WHY — `agents/decisions/a-path-is-not-a-sentence.md`
 
 ## WL-PROJ-11 — The Builder pane announces only what it watched
@@ -153,15 +104,6 @@ MEANS
 DOES NOT MEAN
 - that a build ask refused at dispatch, or refused while a plain build runs, leaves a load armed.
 
-PROVEN BY — `builder/builder-pane/pane.cpp` `on(builder::BuildStatus)`, `send_build`, `build_words`,
-`realize_words`; `builder/builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder/vocabulary.hpp`
-`still_going`; `tests/test_workshop_panes_builder.cpp` case
-`"the pane asks the tool what it is on its own room grant, and shows it"`, case
-`"after a plain build that worked, `B` is the button"`, case
-`"closing the pane forgets its copy; the TOOL keeps its own count"`, case
-`"a build-and-load is said twice: the build's ending, then the load's answer"`, case
-`"a build-and-load refused at dispatch is said with the office and Loom's reason, and nothing stays
-armed"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-12 — The tool's status is kept only while a pane presents it
@@ -172,9 +114,6 @@ MEANS
 - a copy kept against a later opening makes a presentation a second owner of somebody's facts;
 - closing reaches no tool: it retracts no offer, sends no unload and changes nothing.
 
-PROVEN BY — `builder/builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder/builder-pane/pane.cpp`
-`on(PaneRoom)`, `ask_status`; `tests/test_workshop_panes_builder.cpp` case
-`"closing the pane forgets its copy; the TOOL keeps its own count"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-13 — A build is asked for by the tool's name, with the realize intention beside it
@@ -185,12 +124,6 @@ MEANS
 - the row is the PANE's and acts only while it holds the keyboard: elsewhere it reaches nobody;
 - everything after the send belongs to the tool, the runner and the realization owner.
 
-PROVEN BY — `builder/builder-pane/pane.cpp` `build_now`, `send_build`, `has_recipe`;
-`builder/builder-pane/vocabulary.hpp` `kActionBuild`; `tests/test_workshop_panes_builder.cpp` case
-`"`b` builds only after the weaver has pressed into the pane"`, case
-`"`b` builds the recipe the weaver chose, by name"`, case
-`"an empty catalog is said plainly, and `b` asks for nothing"`, case
-`"`B` before a build is the toggle, and `b` reads it"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-14 — The frontier build is one comparison, and never chooses for the weaver
@@ -202,15 +135,6 @@ MEANS
 - `picked` names the recipe `c` chose, and stands only while that recipe is still the choice;
 - no second build path, no direct load: one class ask, carried from its first beat to the send.
 
-PROVEN BY — `builder/builder-pane/pane.cpp` `begin_frontier_build`, `finish_frontier_build`,
-`choose_recipe`; `workshop/pane_doors.hpp` `ProjectDoor`; `workshop/builder_seam_vocabulary.hpp`
-`ProjectFrontierRequested`, `ProjectFrontierSaid`; `tests/test_workshop_panes_builder.cpp` case
-`"the frontier row comes from the host's read-only door"`, case
-`"`f` builds and realizes the one recipe that makes the frontier"`, case
-`"`f` refuses in words, and never chooses between recipes"`, case
-`"the recipe `f` took as the one producer carries no pick of another recipe"`, case
-`"`o` and the frontier action asked of a project office nobody holds are each refused at dispatch,
-in words"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-15 — The shipped catalog is staged beside the executable
@@ -221,13 +145,6 @@ MEANS
 - `recipes_in_force` is `plan_in_force`'s twin, decided by the host's one probe, never a default;
 - an absent shipped default is "nothing to build"; an absent named file is a refusal.
 
-PROVEN BY — `workshop/recipe_persist.hpp` `kDefaultRecipesName`, `recipes_in_force`;
-`workshop/workshop.cpp` `exe_dir`, `Arguments::recipes`; `workshop/CMakeLists.txt`
-`zengine_workshop_dir`; `tests/test_workshop_files.cpp` case `"the shipped catalog is staged
-beside the executable, under the name the launch resolves"`, case `"the launch resolves the
-catalog by one rule: --recipes, else the project catalog at the root, else the shipped default
-beside the executable"`, case `"the project catalog at the captured root is the catalog in
-force when no --recipes is given"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-16 — A live weave-only row reloads in place from an image off the loaded path
@@ -243,20 +160,133 @@ DOES NOT MEAN
 - that a changed shape is replaced or migrated — the kernel refuses it and the words say so;
 - that a provider+weave row is reloaded — refused until unmount-and-remount exists.
 
-PROVEN BY — `workshop/recipe_persist.hpp` `complete_recipes`; `workshop/staging.hpp` `stage`,
-`promote`, `copy_fresh`; `workshop/load_execute.hpp` `PlanExecutor::reload`,
-`PlanExecutor::promote`,
-`PlanExecutor::revert`, `reload_refusal_words`; `builder/builder-pane/pane.cpp` `build_realize`,
-`promote_image`, `revert_image`; `builder/builder-pane/vocabulary.hpp` `BuilderPaneState::arm`;
-`tests/test_workshop_files.cpp` case
-`"a single-source recipe's product lands in its workspace, never on the loaded path"`;
-`tests/test_workshop_load.cpp` case `"a live weave-only row reloads in place -- same WeaveId,
-state kept, Ack settles it"`, case `"a reload's copy is a file nothing wrote before, and
-a name another process took is passed over"`, case `"promote writes the running image into the
-plan's file, sibling then rename, and revert reloads the image before the last reload"`;
-`tests/test_workshop_panes_builder.cpp` case
-`"`B` before a build is the toggle, and `b` reads it"`, case
-`"after a plain build that worked, `B` is the button"`, case
-`"`P` and `R` are one offer each, about the built artifact"`.
 WHY — `agents/decisions/a-reload-lands-off-the-loaded-path.md`
 
+## Proven by
+
+### WL-PROJ-01
+`workshop/weave.hpp` HostContext::project_dir HostContext::dir
+`workshop/path_admission.hpp` launch_project_dir
+`workshop/workshop.cpp` launch_project_dir
+`tests/test_workshop_files.cpp` "the launch capture is the working directory, when it can be said"
+"a launch directory this Workshop cannot say is an absence, not an exit" "zengine.project.anchor
+answers the owner's anchor, absence included"
+
+### WL-PROJ-02
+`workshop/recipe_persist.hpp` WorkshopRecipe::artifact_dir WorkshopSingleSource::workspace
+complete_recipes
+`workshop/recipes.hpp` complete_recipes install_recipes
+`workshop/weave.hpp` RecipeSource HostContext::recipe_source
+`workshop/persist.hpp` resolved_against
+`tests/test_workshop_files.cpp` "a relative recipe source is the PROJECT's file, in the editor and
+in the build" "the project door names the file that recipe's build would compile" "a catalog's own
+directory is not a source base"
+
+### WL-PROJ-03
+`workshop/recipes.hpp` CurrentRecipes RecipeView CurrentRecipes::hold
+`workshop/workshop.cpp` BuildRunnerWeave BuilderWeave
+`builder/weave.hpp` BuilderWeave::path_ BuilderWeave::before_
+`workshop/load_execute.hpp` AwaitingBuild
+`tests/test_workshop_files.cpp` "the owner derives the tool's view from the recipes it is holding"
+"holding a new catalog replaces the contents, never the object" "the host's edit-source answer is
+asked of the owner, not of a copy"
+
+### WL-PROJ-04
+`workshop/recipes.hpp` install_recipes CurrentRecipes::hold
+`workshop/weave.hpp` HostContext::use_recipes
+`workshop/workshop.cpp` install_recipes use_recipes Arguments::recipes
+`workshop/recipe_persist.hpp` from_text
+`tests/test_workshop_files.cpp` "one completed catalog, installed through one seam" "installing a
+catalog moves its source, its rows and its views together" "a candidate that cannot be read installs
+nothing at all" "a valid EMPTY catalog is a replacement, not a failure"
+
+### WL-PROJ-05
+`workshop/pane_doors.hpp` RecipesDoor
+`workshop/pane_seam_vocabulary.hpp` RecipeUseRequested RecipeOutcome
+`workshop/weave.hpp` HostContext::use_recipes RecipeSwap
+`tests/test_workshop_files.cpp` "a weaver chooses a catalog in Files and every consumer moves with
+it" "selecting the catalog already in force is a reload, not a no-op" "the chooser needs no Builder
+pane loaded at all" "an external catalog is chosen live, and the project still owns relative
+sources"
+`tests/test_workshop_panes_editor.cpp` "recipes come from the saved file, never from an unsaved
+Editor buffer"
+
+### WL-PROJ-07
+`builder/builder-pane/vocabulary.hpp` BuilderPaneState::chosen
+`builder/builder-pane/pane.cpp` named_row cursor_row
+`tests/test_workshop_panes_builder.cpp` "the choice follows its RECIPE to a new row, not its index"
+"a choice whose recipe is gone is released, not inherited" "an empty catalog is said plainly, and
+`b` asks for nothing"
+
+### WL-PROJ-09
+`workshop/workshop.cpp` use_recipes
+`workshop/weave.hpp` RecipeSwap
+`files/files.hpp` catalog_taken_words catalog_refused_words
+`builder/vocabulary.hpp` RecipeCatalog
+`tests/test_files.cpp` "a refusal says what went wrong AND what is still running, in that order"
+`tests/test_workshop_files.cpp` "a live catalog choice is this session's and is written nowhere"
+`tests/test_workshop_panes_builder.cpp` "the pane names the catalog in force, from RecipeCatalog v2"
+
+### WL-PROJ-10
+`workshop/screen_bindings.cpp` fit_path path_root_cue
+`workshop/screen_layouts.cpp` fit_path
+`tests/test_workshop_files.cpp` "fitting a path keeps the end that says which file it is"
+
+### WL-PROJ-11
+`builder/builder-pane/pane.cpp` on(builder::BuildStatus) send_build build_words realize_words
+`builder/builder-pane/vocabulary.hpp` BuilderPaneState
+`builder/vocabulary.hpp` still_going
+`tests/test_workshop_panes_builder.cpp` "the pane asks the tool what it is on its own room grant,
+and shows it" "after a plain build that worked, `B` is the button" "closing the pane forgets its
+copy; the TOOL keeps its own count" "a build-and-load is said twice: the build's ending, then the
+load's answer" "a build-and-load refused at dispatch is said with the office and Loom's reason, and
+nothing stays armed"
+
+### WL-PROJ-12
+`builder/builder-pane/vocabulary.hpp` BuilderPaneState
+`builder/builder-pane/pane.cpp` on(PaneRoom) ask_status
+`tests/test_workshop_panes_builder.cpp` "closing the pane forgets its copy; the TOOL keeps its own
+count"
+
+### WL-PROJ-13
+`builder/builder-pane/pane.cpp` build_now send_build has_recipe
+`builder/builder-pane/vocabulary.hpp` kActionBuild
+`tests/test_workshop_panes_builder.cpp` "`b` builds only after the weaver has pressed into the pane"
+"`b` builds the recipe the weaver chose, by name" "an empty catalog is said plainly, and `b` asks
+for nothing" "`B` before a build is the toggle, and `b` reads it"
+
+### WL-PROJ-14
+`builder/builder-pane/pane.cpp` begin_frontier_build finish_frontier_build choose_recipe
+`workshop/pane_doors.hpp` ProjectDoor
+`workshop/builder_seam_vocabulary.hpp` ProjectFrontierRequested ProjectFrontierSaid
+`tests/test_workshop_panes_builder.cpp` "the frontier row comes from the host's read-only door" "`f`
+builds and realizes the one recipe that makes the frontier" "`f` refuses in words, and never chooses
+between recipes" "the recipe `f` took as the one producer carries no pick of another recipe" "`o`
+and the frontier action asked of a project office nobody holds are each refused at dispatch, in
+words"
+
+### WL-PROJ-15
+`workshop/recipe_persist.hpp` kDefaultRecipesName recipes_in_force
+`workshop/workshop.cpp` exe_dir Arguments::recipes
+`workshop/CMakeLists.txt` zengine_workshop_dir
+`tests/test_workshop_files.cpp` "the shipped catalog is staged beside the executable, under the name
+the launch resolves" "the launch resolves the catalog by one rule: --recipes, else the project
+catalog at the root, else the shipped default beside the executable" "the project catalog at the
+captured root is the catalog in force when no --recipes is given"
+
+### WL-PROJ-16
+`workshop/recipe_persist.hpp` complete_recipes
+`workshop/staging.hpp` stage promote copy_fresh
+`workshop/load_execute.hpp` PlanExecutor::reload PlanExecutor::promote PlanExecutor::revert
+reload_refusal_words
+`builder/builder-pane/pane.cpp` build_realize promote_image revert_image
+`builder/builder-pane/vocabulary.hpp` BuilderPaneState::arm
+`tests/test_workshop_files.cpp` "a single-source recipe's product lands in its workspace, never on
+the loaded path"
+`tests/test_workshop_load.cpp` "a live weave-only row reloads in place -- same WeaveId, state kept,
+Ack settles it" "a reload's copy is a file nothing wrote before, and a name another process took is
+passed over" "promote writes the running image into the plan's file, sibling then rename, and revert
+reloads the image before the last reload"
+`tests/test_workshop_panes_builder.cpp` "`B` before a build is the toggle, and `b` reads it" "after
+a plain build that worked, `B` is the button" "`P` and `R` are one offer each, about the built
+artifact"

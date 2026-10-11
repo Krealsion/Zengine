@@ -3,8 +3,9 @@
 Routed behind [`../AGENTS.md`](../AGENTS.md), for tasks touching `maker/`: a Loom weave built from
 a weaver's definition rather than from a class. The law lives in the registers under
 [`maker/`](maker/): one law per `##`, an `MW-<AREA>-<NN>` id that is permanent, a `LAW` of one
-line, `MEANS`, `DOES NOT MEAN`, a `PROVEN BY` naming the owner identifiers and the exact witness
-cases, and a `WHY` naming one decision record under `decisions/`. Disagreements follow
+line, `MEANS`, `DOES NOT MEAN` and a `WHY` naming one decision record under `decisions/`, and its
+proof, naming the owner identifiers and the exact witness cases, under `### <id>` in the appendix
+that ends the register, `## Proven by`. Disagreements follow
 [intent, evidence, and architectural fit](../AGENTS.md#intent-evidence-and-architectural-fit),
 not an automatic ranking of tests over law. The whole of the law in one screen is
 `grep -h '^LAW' agents/maker/*.md`.

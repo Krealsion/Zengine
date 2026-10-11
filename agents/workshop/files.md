@@ -17,10 +17,6 @@ MEANS
 - the browser never judges contents — the Editor's door does;
 - a same-shape reload keeps two fields: the location, and the cursor.
 
-PROVEN BY — `files/files.hpp` `FileRow`; `files/vocabulary.hpp` `FilesState`;
-`files/files.cpp` `open`; `tests/test_files.cpp` case `"a FilesState is a shape a same-shape
-reload keeps"`; `tests/test_workshop_panes_files.cpp` case `"Return on a source opens it in the
-Editor, through the one door"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-02 — Four facts coincide at launch and are not the same fact
@@ -32,21 +28,12 @@ MEANS
 - origin is generated once, never persisted, never moved, and not renamed "the project";
 - the pane cannot READ the project: it asks `zengine.project` and is answered a value.
 
-PROVEN BY — `workshop/weave.hpp` `HostContext::project_dir`; `files/files.cpp`
-`ask_project_root`; `files/marks.hpp` `LocationMarks::origin`, `LocationMarks::settled`;
-`files/vocabulary.hpp` `FilesState::current_dir`; `tests/test_workshop_files.cpp` case
-`"the project door answers the weave that asked, and nobody else"`, case `"an external
-catalog is chosen live, and the project still owns relative sources"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-03 — Parent is lexical and stops at the filesystem, not at the project
 
 LAW — `parent_path()` until the fixed point `p.parent_path() == p`, which POSIX `/`, a drive root and `//server/` all answer; `has_parent_path()` is not a root test, and nothing canonicalizes.
 
-PROVEN BY — `files/marks.hpp` `parent_location`, `parent_path`, `at_filesystem_root`;
-`files/files.cpp` `parent`; `tests/test_files.cpp` case `"parent is lexical and stops where a path
-stops, not where a project does"`; `tests/test_workshop_panes_files.cpp` case
-`"Return walks into a directory, Backspace walks out"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-04 — A linked directory is marked and enterable
@@ -58,12 +45,6 @@ MEANS
 - libstdc++ on Windows cannot see a reparse point unfollowed, which is why the host is asked;
 - the mark says "leaves the tree", not symbolic link versus junction, and does not spread.
 
-PROVEN BY — `files/os.cpp` `leaves_the_tree`, `GetFileAttributesW`, `symlink_status`;
-`files/files.hpp` `FileRow::linked`; `files/files.cpp` `row_text`, `open`;
-`tests/test_workshop_panes_files.cpp` case `"a linked directory is marked, entered through its
-own spelling, and left the way it came"`.
-UNWITNESSED — a dangling junction on libstdc++/Windows lists as a linked directory row, and
-what `open` says when a weaver enters it was not measured.
 WHY — `agents/decisions/the-host-says-what-leaves-the-tree.md`
 
 ## WL-FILES-05 — A location mark is a destination and nothing else
@@ -73,20 +54,12 @@ LAW — One `LocationMarks` owner holds every stop, with three provenances as fl
 MEANS
 - it lives inside the weave, so nothing in the host can read or write a weaver's places.
 
-PROVEN BY — `files/marks.hpp` `LocationMarks`; `files/files.cpp` `mark`, `jump_mark`;
-`tests/test_files.cpp` case `"the marks owner is session truth, and Files is only its first
-reader"`; `tests/test_workshop_panes_files.cpp` case `"a marked place is the pane's own
-file, written by the pane"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-06 — The traversal set is built at the gesture and held nowhere
 
 LAW — Origin, the weaver's marks sorted bytewise, then `host_filesystem_roots()` asked fresh; one address is one stop, and there is no standing selected mark — the cycle starts where the browser is.
 
-PROVEN BY — `files/marks.hpp` `LocationMarks::somewhere_to_go`, `LocationMarks::destinations`;
-`files/os.cpp` `host_filesystem_roots`; `files/files.cpp` `jump_mark`; `tests/test_files.cpp`
-case `"one address is one traversal stop, however many ways it is known"`, case
-`"the host's filesystem roots are asked for, never invented"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-07 — Roots are host-reported, asked at the gesture, and never on the paint path
@@ -98,9 +71,6 @@ MEANS
 - the residual — no origin and no marks leaves the pane nowhere to jump — is named;
 - the keyboard readiness test this law used to constrain is gone: every runtime pane takes it.
 
-PROVEN BY — `files/os.cpp` `host_filesystem_roots`, `GetLogicalDrives`; `files/marks.hpp`
-`LocationMarks::provenance`; `files/files.cpp` `say_where`, `where`; `tests/test_files.cpp` case
-`"the host's filesystem roots are asked for, never invented"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-08 — The weaver's marks are durable, ride the machine-local root, and refuse by row
@@ -112,21 +82,12 @@ MEANS
 - "unusable" is a spelling test, never an existence test: a gone directory is kept;
 - WHERE the file lives is the host's answer; the file is the pane's.
 
-PROVEN BY — `files/marks_persist.hpp` `kFormatVersion`, `from_text`, `WorkshopMark`;
-`workshop/pane_seam_vocabulary.hpp` `kDefaultMarksFileName`; `files/files.cpp` `load_marks`,
-`save_marks`, `marks_refused_`; `tests/test_files.cpp` case `"a persisted mark is admitted, never
-re-based, and never quietly dropped"`; `tests/test_workshop_panes_files.cpp`
-case `"a marked place is the pane's own file, written by the pane"`, case `"a marks file this run
-could not read keeps its bytes when the weaver marks a place"`.
 WHY — `agents/decisions/the-marks-file-is-state.md`
 
 ## WL-FILES-09 — A durable spelling coming back in is a conversion too
 
 LAW — Every write to `current_dir` and every persisted mark goes through `admit_location`, so "absolute, lexically normal, carriable" holds after the seed, an enter, a parent and a jump.
 
-PROVEN BY — `workshop/path_admission.hpp` `admit_location`; `files/files.cpp` `admit_location`;
-`files/marks.hpp` `admit_location`; `tests/test_files.cpp` case `"a location is one absolute
-spelling, admitted the same way every time"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-10 — Filenames are `std::string` everywhere, so admission is a path law
@@ -136,10 +97,6 @@ LAW — Names are `u8string()` bytes: an exact UTF-8 name with no ASCII control 
 DOES NOT MEAN
 - that a file-type registry or extension list exists: a `.png` meets the refusal that knows why.
 
-PROVEN BY — `files/files.hpp` `carried_name`, `narrow_paths_are_utf8`, `FileRow::openable`, `shown_name`;
-`workshop/path_admission.hpp` `admit_filename`; `files/files.cpp` `row_text`, `open`;
-`tests/test_files.cpp` case `"a name beyond ASCII is carried exactly and opens, drawn as the
-screen spells it"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-11 — Asking for a path's bytes can throw, and one header is allowed to ask
@@ -151,11 +108,6 @@ MEANS
 - a second `generic_string()` anywhere is a second way for the process to die;
 - the header is shared by include path and no link edge, so both halves keep one custody law.
 
-PROVEN BY — `workshop/path_admission.hpp` `AdmittedPath::carried`, `AdmittedName::exact`,
-`admit_path`, `admit_filename`, `launch_project_dir`, `u8string`; `files/files.cpp` `open`,
-`use_recipes`; `tests/test_files.cpp` case `"an ordinary path and an ordinary name are carried
-exactly as they were"`, case `"a name this platform will not spell is one inert row, not
-the end of it"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-12 — A listing is not a per-paint population
@@ -166,11 +118,6 @@ MEANS
 - the room grant is the pane's own beat: the walk happens there, never inside anything that draws;
 - a walk nobody asked for, a grant or a build, keeps the selected entry by name (`relist`).
 
-PROVEN BY — `files/files.cpp` `refresh`, `relist`; `files/vocabulary.hpp` `kActionRefresh`;
-`workshop/docs/limitations.md` `listing`; `tests/test_workshop_panes_files.cpp` case
-`"the pane lists the place this run began, asked of the host"`, case `"with pane
-titles hidden, a first press on the row painted gamma selects gamma once every delivery it caused
-has settled, and a later press opens gamma"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-13 — Bounds and order
@@ -180,9 +127,6 @@ LAW — `kMaxListedEntries` stops the walk and the header says `stopped counting
 MEANS
 - no locale, no natural sort, no extension grouping, no configuration.
 
-PROVEN BY — `files/files.hpp` `kMaxListedEntries`, `row_before`; `tests/test_files.cpp` case
-`"a listing is directories first, then files, bytewise inside each"`, case `"a directory
-that cannot be listed is a refusal, not an empty listing"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-14 — A failed listing has no rows, and an unclassifiable entry is a file
@@ -192,8 +136,6 @@ LAW — A directory that is missing, unreadable or replaced lists as a refusal a
 MEANS
 - every failure is an ordinary refusal through the iterator's `error_code` forms: nothing throws.
 
-PROVEN BY — `files/files.hpp` `enumerate_directory`, `Listing`; `tests/test_files.cpp` case
-`"a directory that cannot be listed is a refusal, not an empty listing"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-15 — `pick buildable` hands over a place, and Files still knows no recipe
@@ -205,10 +147,6 @@ MEANS
 - the chooser and the line are rows in the pane's room: no popup, no pane, no second surface;
 - what a weaver types is a DRAFT; the host composes, checks and installs it (WL-AUTH-01).
 
-PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `pick_buildable`,
-`chooser_choose`, `authoring_commit`; `workshop/pane_seam_vocabulary.hpp`
-`RecipeAuthorRequested`; `tests/test_workshop_panes_files.cpp` case `"a weaver authors a recipe
-row in-pane, and the host writes it"`.
 WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 
 ## WL-FILES-16 — A pane's rows are its mode's, and an id is one operation
@@ -220,15 +158,6 @@ MEANS
 - an id not in the rows in force is no act; one still there (up, down, cancel) keeps its meaning;
 - while the line has the keys only two rows are declared, so Backspace still deletes.
 
-PROVEN BY — `files/files.cpp` `declare`, `action_rows`, `answers`; `files/vocabulary.hpp`
-`kActionOpen`, `kActionChoose`, `kActionCommitField`; `workshop/keymap.hpp` `join_pane_rows`;
-`tests/test_workshop_panes_files.cpp` case `"the pane declares its rows with the ids a weaver's
-keymap already knows"`, case `"the authoring line takes raw keys, and Escape abandons it
-whole"`, case `"an id Files does not declare in the mode it is in is no act: an
-unknown one, a browsing id while the authoring line is open, and a second cancel resolved in the
-same poll leave the notice standing through a new room, and a declared id that moves nothing still
-spends it"`, case `"an id Files resolved in one mode is no act in the next"`, case `"each Files
-mode's Return is its own id, and a keymap moves each alone"`.
 WHY — `agents/decisions/files-is-a-weave.md`
 
 ## WL-FILES-17 — Three doors, and what crosses them is a value
@@ -240,15 +169,6 @@ MEANS
 - a door answers an OFFICE, refuses speech with no author, and answers the asker alone;
 - knowledge is not authority: hearing where the project is permits reading nothing under it.
 
-PROVEN BY — `workshop/pane_seam_vocabulary.hpp` `ProjectRootRequested`, `ProjectRoot`,
-`RecipeUseRequested`, `RecipeAuthorRequested`, `RecipeOutcome`, `OpenSourceRequested`,
-`SourceOpened`, `kEditorRole`; `workshop/pane_doors.hpp` `ProjectDoor`, `RecipesDoor`;
-`editor/editor-pane/pane.cpp` `on(OpenSourceRequested)`; `tests/test_workshop_files.cpp` case
-`"the project door answers the weave that asked, and nobody else"`, case `"a door
-answers an office, and refuses speech with no author"`, case `"the recipes door spends this
-host's one writer and re-words nothing"`;
-`tests/test_workshop_panes_editor.cpp` case `"the door refuses speech with no author,
-and answers nobody"`.
 WHY — `agents/decisions/files-is-a-weave.md`
 
 ## Do not assume
@@ -262,3 +182,128 @@ WHY — `agents/decisions/files-is-a-weave.md`
 - That this host can present the browser, or knows anything about it — it holds three doors and
   the plan row that loads it (WL-FILES-17).
 - That a pane's declared rows are fixed for its life (WL-FILES-16).
+
+## Proven by
+
+### WL-FILES-01
+`files/files.hpp` FileRow
+`files/vocabulary.hpp` FilesState
+`files/files.cpp` open
+`tests/test_files.cpp` "a FilesState is a shape a same-shape reload keeps"
+`tests/test_workshop_panes_files.cpp` "Return on a source opens it in the Editor, through the one
+door"
+
+### WL-FILES-02
+`workshop/weave.hpp` HostContext::project_dir
+`files/files.cpp` ask_project_root
+`files/marks.hpp` LocationMarks::origin LocationMarks::settled
+`files/vocabulary.hpp` FilesState::current_dir
+`tests/test_workshop_files.cpp` "the project door answers the weave that asked, and nobody else" "an
+external catalog is chosen live, and the project still owns relative sources"
+
+### WL-FILES-03
+`files/marks.hpp` parent_location parent_path at_filesystem_root
+`files/files.cpp` parent
+`tests/test_files.cpp` "parent is lexical and stops where a path stops, not where a project does"
+`tests/test_workshop_panes_files.cpp` "Return walks into a directory, Backspace walks out"
+
+### WL-FILES-04
+`files/os.cpp` leaves_the_tree GetFileAttributesW symlink_status
+`files/files.hpp` FileRow::linked
+`files/files.cpp` row_text open
+`tests/test_workshop_panes_files.cpp` "a linked directory is marked, entered through its own
+spelling, and left the way it came"
+UNWITNESSED — a dangling junction on libstdc++/Windows lists as a linked directory row, and what
+`open` says when a weaver enters it was not measured.
+
+### WL-FILES-05
+`files/marks.hpp` LocationMarks
+`files/files.cpp` mark jump_mark
+`tests/test_files.cpp` "the marks owner is session truth, and Files is only its first reader"
+`tests/test_workshop_panes_files.cpp` "a marked place is the pane's own file, written by the pane"
+
+### WL-FILES-06
+`files/marks.hpp` LocationMarks::somewhere_to_go LocationMarks::destinations
+`files/os.cpp` host_filesystem_roots
+`files/files.cpp` jump_mark
+`tests/test_files.cpp` "one address is one traversal stop, however many ways it is known" "the
+host's filesystem roots are asked for, never invented"
+
+### WL-FILES-07
+`files/os.cpp` host_filesystem_roots GetLogicalDrives
+`files/marks.hpp` LocationMarks::provenance
+`files/files.cpp` say_where where
+`tests/test_files.cpp` "the host's filesystem roots are asked for, never invented"
+
+### WL-FILES-08
+`files/marks_persist.hpp` kFormatVersion from_text WorkshopMark
+`workshop/pane_seam_vocabulary.hpp` kDefaultMarksFileName
+`files/files.cpp` load_marks save_marks marks_refused_
+`tests/test_files.cpp` "a persisted mark is admitted, never re-based, and never quietly dropped"
+`tests/test_workshop_panes_files.cpp` "a marked place is the pane's own file, written by the pane"
+"a marks file this run could not read keeps its bytes when the weaver marks a place"
+
+### WL-FILES-09
+`workshop/path_admission.hpp` admit_location
+`files/files.cpp` admit_location
+`files/marks.hpp` admit_location
+`tests/test_files.cpp` "a location is one absolute spelling, admitted the same way every time"
+
+### WL-FILES-10
+`files/files.hpp` carried_name narrow_paths_are_utf8 FileRow::openable shown_name
+`workshop/path_admission.hpp` admit_filename
+`files/files.cpp` row_text open
+`tests/test_files.cpp` "a name beyond ASCII is carried exactly and opens, drawn as the screen spells
+it"
+
+### WL-FILES-11
+`workshop/path_admission.hpp` AdmittedPath::carried AdmittedName::exact admit_path admit_filename
+launch_project_dir u8string
+`files/files.cpp` open use_recipes
+`tests/test_files.cpp` "an ordinary path and an ordinary name are carried exactly as they were" "a
+name this platform will not spell is one inert row, not the end of it"
+
+### WL-FILES-12
+`files/files.cpp` refresh relist
+`files/vocabulary.hpp` kActionRefresh
+`workshop/docs/limitations.md` listing
+`tests/test_workshop_panes_files.cpp` "the pane lists the place this run began, asked of the host"
+"with pane titles hidden, a first press on the row painted gamma selects gamma once every delivery
+it caused has settled, and a later press opens gamma"
+
+### WL-FILES-13
+`files/files.hpp` kMaxListedEntries row_before
+`tests/test_files.cpp` "a listing is directories first, then files, bytewise inside each" "a
+directory that cannot be listed is a refusal, not an empty listing"
+
+### WL-FILES-14
+`files/files.hpp` enumerate_directory Listing
+`tests/test_files.cpp` "a directory that cannot be listed is a refusal, not an empty listing"
+
+### WL-FILES-15
+`files/vocabulary.hpp` kActionPickBuildable
+`files/files.cpp` pick_buildable chooser_choose authoring_commit
+`workshop/pane_seam_vocabulary.hpp` RecipeAuthorRequested
+`tests/test_workshop_panes_files.cpp` "a weaver authors a recipe row in-pane, and the host writes
+it"
+
+### WL-FILES-16
+`files/files.cpp` declare action_rows answers
+`files/vocabulary.hpp` kActionOpen kActionChoose kActionCommitField
+`workshop/keymap.hpp` join_pane_rows
+`tests/test_workshop_panes_files.cpp` "the pane declares its rows with the ids a weaver's keymap
+already knows" "the authoring line takes raw keys, and Escape abandons it whole" "an id Files does
+not declare in the mode it is in is no act: an unknown one, a browsing id while the authoring line
+is open, and a second cancel resolved in the same poll leave the notice standing through a new room,
+and a declared id that moves nothing still spends it" "an id Files resolved in one mode is no act in
+the next" "each Files mode's Return is its own id, and a keymap moves each alone"
+
+### WL-FILES-17
+`workshop/pane_seam_vocabulary.hpp` ProjectRootRequested ProjectRoot RecipeUseRequested
+RecipeAuthorRequested RecipeOutcome OpenSourceRequested SourceOpened kEditorRole
+`workshop/pane_doors.hpp` ProjectDoor RecipesDoor
+`editor/editor-pane/pane.cpp` on(OpenSourceRequested)
+`tests/test_workshop_files.cpp` "the project door answers the weave that asked, and nobody else" "a
+door answers an office, and refuses speech with no author" "the recipes door spends this host's one
+writer and re-words nothing"
+`tests/test_workshop_panes_editor.cpp` "the door refuses speech with no author, and answers nobody"

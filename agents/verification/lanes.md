@@ -10,65 +10,54 @@ METHOD — Quote `tests/verify.cmake`, never a bare `ctest`, whenever a result i
 BECAUSE — a bare `ctest` accepts a selector that matched nothing and prints a full pass over it;
 the lane checks the inventory, the floors and the empty-population refusal before it believes a
 pass.
-SEEN — `tests/verify.cmake`; `AGENTS.md`.
 
 ## VM-LANE-02 — Stranger-by-default is deliberate
 
 METHOD — Stranger-by-default (`ZEN_LOOM_DEV=OFF`) is deliberate: an unexported-surface mistake must fail on every machine, not only in CI.
 BECAUSE — a sibling checkout puts every Loom header on the include path, so a use of an
 unexported surface compiles there and lands on the first stranger.
-SEEN — `CMakeLists.txt` `ZEN_LOOM_DEV`; `.github/workflows/ci.yml` `ZEN_LOOM_DEV`.
 
 ## VM-LANE-03 — A green names its repository, configuration and compiler
 
 METHOD — A green names the repository, the configuration and the compiler; Zengine's lane never re-runs Loom's suite, so "green" never silently means green in one of two.
 BECAUSE — a dependency's proof rides its version: even under the sibling override this
 repository's entries are its own, so a bare "green" cannot say which repository it is about.
-SEEN — `.github/workflows/ci.yml`; `AGENTS.md`.
 
 ## VM-LANE-04 — Windows is two standard libraries
 
 METHOD — Windows is two standard libraries and a Windows claim names the one it was measured on: MinGW-w64/libstdc++ is REQUIRED, MSVC's STL is ADVISORY, and neither is evidence for the other.
 BECAUSE — measured on the Files browser, libstdc++ reports a directory junction as a directory
 unfollowed and MSVC's STL reports the junction; the MinGW lane was red on exactly that difference.
-SEEN — `.github/workflows/ci.yml` `continue-on-error`; `tests/test_workshop_files.cpp`, the
-comment on the WL-FILES-14 second-clause case.
 
 ## VM-LANE-05 — A job under continue-on-error is red only in the jobs list
 
 METHOD — A job under `continue-on-error` is red only in the run's jobs list, never in its conclusion: read a CI run job by job before quoting it.
 BECAUSE — a lane was red for every run after the Files browser began marking junctions, and the
 run's conclusion stayed green throughout; a red that cannot fail the run is not a lane.
-SEEN — `.github/workflows/ci.yml` `continue-on-error`.
 
 ## VM-LANE-06 — CI runs on pull requests and on main
 
 METHOD — CI runs on pull requests, on pushes to `main` and nightly on `main`; a branch push alone gets no run, so a claim of "CI green" names the pull request or the merge that ran it.
 BECAUSE — the workflow's triggers are `pull_request`, `push` to `main` and a `schedule`, which runs
 on `main`, and nothing else; a green quoted from a branch push is a green that never ran.
-SEEN — `.github/workflows/ci.yml`.
 
 ## VM-LANE-07 — The sanitizer lane is a second kind of evidence
 
 METHOD — The sanitizer lane is a second KIND of evidence: the same full population under ASan+UBSan, for defects whose symptom is that no answer changes; it never replaces the ordinary lane.
 BECAUSE — a bound into a temporary scene and an unguarded extent overflow both passed the
 ordinary lane green and were named only under instrumentation.
-SEEN — `CMakeLists.txt` `ZENGINE_SANITIZE`; `.github/workflows/ci.yml` `ZENGINE_SANITIZE`.
 
 ## VM-LANE-08 — A new target lists zengine-sanitize beside zengine-warnings
 
 METHOD — A new target lists `zengine-sanitize` beside `zengine-warnings`; omitting it fails nothing and silently drops the target out of the sanitizer witness, which is the one way that lane degrades.
 BECAUSE — the interface target carries the instrumentation flags; a target that does not link it
 builds uninstrumented and green, so the lane shrinks without a red.
-SEEN — `CMakeLists.txt` `zengine-sanitize`, `zengine-warnings`; `workshop/CMakeLists.txt`
-`zengine-sanitize`.
 
 ## VM-LANE-09 — The sanitizer lane runs the full population
 
 METHOD — The sanitizer lane runs the full population, SDL gate included (`gates active: always;sdl`); never lower a floor or drop a gate to buy instrumentation.
 BECAUSE — the `sdl` gate opens the embedded typeface through SDL_ttf and FreeType against a real
 renderer, so this lane is where a leak or a misuse in that lifetime would be named.
-SEEN — `tests/verify.cmake`; `tests/check_population.cmake`.
 
 ## VM-LANE-10 — The package witness is a third kind
 
@@ -76,7 +65,6 @@ METHOD — The package witness is a third kind: both lanes reach Zengine through
 BECAUSE — in the build tree every header is on the include path and every artifact is staged;
 the witness installs, builds an unrelated project outside the tree, repeats against a moved
 prefix, then deletes a header to prove it read the prefix.
-SEEN — `tests/package/run.cmake`; `agents/packaging.md`.
 
 ## VM-LANE-11 — The lane may run in parallel, Windows included
 
@@ -84,8 +72,6 @@ METHOD — The lane may run in parallel with `-DZEN_CTEST_ARGS=-j<n>`, same proo
 BECAUSE — no CTest entry writes what this build tree builds (`tutorial_walks`'s install leaves only CMake's install
 manifest there), so the entries cannot race it; until each repair, the Linux jobs keep `audit_probes` apart (#192) and
 the Windows jobs `timer` (#191), each seen to fail under load where it is kept apart.
-SEEN — `tests/verify.cmake` `ZEN_CTEST_ARGS`, `ZEN_CTEST_APART`; `.github/workflows/ci.yml`
-`ZEN_CTEST_APART`, every build job at `-j4`; `AGENTS.md`.
 
 ## VM-LANE-12 — The filesystem decides parallel safety
 
@@ -93,35 +79,30 @@ METHOD — What decides parallel safety is the build tree's FILESYSTEM, not the 
 BECAUSE — the same `timer` assertion fails the parallel sanitizer lane four of four on a
 9p-mounted tree and zero of three on an ext4 tree built from the same source; serial is green on
 both, and it is load-sensitive.
-SEEN — nowhere yet
 
 ## VM-LANE-13 — A parallel lane's floor is its longest entry
 
 METHOD — A parallel lane's floor is its LONGEST ENTRY, not its total, and one case can be the floor: ask CTest which entry is longest and doctest which case, before optimizing anything.
 BECAUSE — the lane took as long as its one longest entry whatever the job count, and inside that
 entry one property sweep was most of the time; nothing else moved the number.
-SEEN — nowhere yet
 
 ## VM-LANE-14 — A speedup is not adopted until the full lane has run under it
 
 METHOD — A speedup is not adopted until the FULL lane has run under it, on a named repository, configuration and compiler; the attractive ones are the ones that cost proof.
 BECAUSE — a faster linker cut the inner loop and segfaulted the weave suites; parallel CTest
 passed every single run and failed three of three once a regeneration was pending.
-SEEN — nowhere yet
 
 ## VM-LANE-15 — One parallel run is not evidence of parallel safety
 
 METHOD — One run of a parallel lane is not evidence that the lane is parallel-safe: repeat it, and repeat it under the condition that makes it fail (a CMake regeneration owed).
 BECAUSE — the compile-judged entries raced the shared tree only when CMake owed it a
 regeneration, which a warm tree never does; the single-shot green was true and meaningless.
-SEEN — nowhere yet
 
 ## VM-LANE-16 — A verdict is the check's own exit code
 
 METHOD — A verdict is the check's own exit code, written to a file and tested, never read through a pipe; the rule covers every lane whose verdict is quoted, not only harnesses.
 BECAUSE — a lane's exit read zero through a pipe while the verifier was failing on a missing
 directory; a pipe reports the last command and lets the FAILED line scroll past.
-SEEN — `tests/verify.cmake` `RESULT_VARIABLE`; `.github/workflows/ci.yml` `PIPESTATUS`.
 
 ## VM-LANE-17 — A test that builds is a writer of the tree it names
 
@@ -129,7 +110,6 @@ METHOD — A test whose evidence is a build is a WRITER of the tree it names; gi
 BECAUSE — a build command first brings the tree's build system up to date, unbounded work the
 entry then owns; eight entries naming the shared tree failed five to seven of twenty-two under a
 parallel run, three of three.
-SEEN — `tests/CMakeLists.txt` `compile-fixtures`; `CMakeLists.txt` `zengine_compile_test`.
 
 ## VM-LANE-18 — The fixture tree is this same project
 
@@ -137,22 +117,18 @@ METHOD — The fixture tree is this same project entered under `ZENGINE_COMPILE_
 BECAUSE — one warnings target, one sanitizer target, one vocabulary per package, and the
 compiler, its launcher, the flags, the build type and the resolved Loom all pass through; a second
 copy of a contract is a second answer.
-SEEN — `tests/CMakeLists.txt` `ZENGINE_COMPILE_FIXTURES`; `CMakeLists.txt`
-`ZENGINE_COMPILE_FIXTURES`.
 
 ## VM-LANE-19 — The private tree and the lock protect different halves
 
 METHOD — The fixture tree has no FetchContent, cannot re-run CMake, and takes one writer at a time; the private tree and the lock protect different halves, and a lock alone leaves the ownership.
 BECAUSE — a lock alone went green three of three while all eight entries still re-checked the
 shared tree and one still ran CMake; a lock that makes a race serial has not moved the custody.
-SEEN — `tests/CMakeLists.txt` `CMAKE_SUPPRESS_REGENERATION`; `CMakeLists.txt` `RESOURCE_LOCK`.
 
 ## VM-LANE-20 — The fixture tree is prepared at configure
 
 METHOD — The fixture tree is prepared at configure, not as a build step, because this lane has no target a build-time dependency could hang from.
 BECAUSE — configure, build one suite, run a compile test: a build-time preparation leaves that
 sequence failing on a directory that does not exist.
-SEEN — `tests/CMakeLists.txt` `ZENGINE_COMPILE_FIXTURES`.
 
 ## VM-LANE-21 — One owner per build tree holds inside one process too
 
@@ -160,15 +136,12 @@ METHOD — One owner per build tree holds inside one test process too: a case th
 BECAUSE — Ninja recompacts its log through one fixed temp name per directory, so two builds
 entered at once in one tree collide; measured nine of forty over the threshold, two of four
 hundred on a settled log, none with a tree each, none under Makefiles.
-SEEN — `tests/CMakeLists.txt` `build-fixture-b`; `tests/test_builder.cpp` case `"output is
-attributed to its own operation, and two can run at once"`.
 
 ## VM-LANE-22 — Ask who ran CMake over the shared tree
 
 METHOD — Ask who ran CMake over the shared tree (`ctest -V`: Re-running CMake, Configuring done), not whether it went red; a green on a warm dependency tree says nothing about the cold one.
 BECAUSE — the locked version was green in twenty seconds and had been six hundred once, from
 inheriting a cold dependency population; same code, same lock, two orders of magnitude apart.
-SEEN — nowhere yet
 
 ## VM-LANE-23 — CI's compiler cache is written by `main` alone
 
@@ -176,18 +149,107 @@ METHOD — CI's compiler cache holds intermediates only, and only a run on `main
 BECAUSE — a store a pull request could save would put unmerged code's objects into `main`'s next
 build; ccache keys an object by the compiler, its command line and every byte the source read, and
 the object only feeds a link, so a hit is never provenance.
-SEEN — `.github/workflows/ci.yml` `ZEN_CCACHE`.
 
 ## VM-LANE-24 — The compiler cache comes in on CI's configure line alone
 
 METHOD — CI's compiler cache reaches a build through the job's configure line alone, never Zengine's CMake files; for MSVC that line adds the launcher and CMP0141's `Embedded` debug information.
 BECAUSE — ccache keeps an MSVC object only when its debug information is in the object; an option
 in Zengine's files would be every stranger's, and the MSVC stranger's proof is that it needs none.
-SEEN — `.github/workflows/ci.yml` `CMAKE_MSVC_DEBUG_INFORMATION_FORMAT`.
 
 ## VM-LANE-25 — The bare MSVC stranger is the nightly run's
 
 METHOD — The MSVC stranger builds with nothing added only in the nightly run on `main`, so a claim that the package carries MSVC's law names a nightly run.
 BECAUSE — every other run's MSVC job adds the compiler cache and embedded debug information on its
 configure line; neither can stand in for a Loom export, but neither is nothing.
-SEEN — `.github/workflows/ci.yml` `ZEN_MSVC_BARE`.
+
+## Seen
+
+### VM-LANE-01
+`tests/verify.cmake`
+`AGENTS.md`
+
+### VM-LANE-02
+`CMakeLists.txt` ZEN_LOOM_DEV
+`.github/workflows/ci.yml` ZEN_LOOM_DEV
+
+### VM-LANE-03
+`.github/workflows/ci.yml`
+`AGENTS.md`
+
+### VM-LANE-04
+`.github/workflows/ci.yml` continue-on-error
+`tests/test_workshop_files.cpp` (the comment on the WL-FILES-14 second-clause case)
+
+### VM-LANE-05
+`.github/workflows/ci.yml` continue-on-error
+
+### VM-LANE-06
+`.github/workflows/ci.yml`
+
+### VM-LANE-07
+`CMakeLists.txt` ZENGINE_SANITIZE
+`.github/workflows/ci.yml` ZENGINE_SANITIZE
+
+### VM-LANE-08
+`CMakeLists.txt` zengine-sanitize zengine-warnings
+`workshop/CMakeLists.txt` zengine-sanitize
+
+### VM-LANE-09
+`tests/verify.cmake`
+`tests/check_population.cmake`
+
+### VM-LANE-10
+`tests/package/run.cmake`
+`agents/packaging.md`
+
+### VM-LANE-11
+`tests/verify.cmake` ZEN_CTEST_ARGS ZEN_CTEST_APART
+`.github/workflows/ci.yml` ZEN_CTEST_APART (every build job at `-j4`)
+`AGENTS.md`
+
+### VM-LANE-12
+nowhere yet
+
+### VM-LANE-13
+nowhere yet
+
+### VM-LANE-14
+nowhere yet
+
+### VM-LANE-15
+nowhere yet
+
+### VM-LANE-16
+`tests/verify.cmake` RESULT_VARIABLE
+`.github/workflows/ci.yml` PIPESTATUS
+
+### VM-LANE-17
+`tests/CMakeLists.txt` compile-fixtures
+`CMakeLists.txt` zengine_compile_test
+
+### VM-LANE-18
+`tests/CMakeLists.txt` ZENGINE_COMPILE_FIXTURES
+`CMakeLists.txt` ZENGINE_COMPILE_FIXTURES
+
+### VM-LANE-19
+`tests/CMakeLists.txt` CMAKE_SUPPRESS_REGENERATION
+`CMakeLists.txt` RESOURCE_LOCK
+
+### VM-LANE-20
+`tests/CMakeLists.txt` ZENGINE_COMPILE_FIXTURES
+
+### VM-LANE-21
+`tests/CMakeLists.txt` build-fixture-b
+`tests/test_builder.cpp` "output is attributed to its own operation, and two can run at once"
+
+### VM-LANE-22
+nowhere yet
+
+### VM-LANE-23
+`.github/workflows/ci.yml` ZEN_CCACHE
+
+### VM-LANE-24
+`.github/workflows/ci.yml` CMAKE_MSVC_DEBUG_INFORMATION_FORMAT
+
+### VM-LANE-25
+`.github/workflows/ci.yml` ZEN_MSVC_BARE

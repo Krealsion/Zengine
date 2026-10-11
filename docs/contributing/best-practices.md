@@ -99,7 +99,7 @@ can move into its surface's own document.
 
 The host, `workshop/`, and the panes that reach it. Workshop's law is in the registers
 [its router](../../agents/workshop.md#where-the-law-is) lists, what crosses the pane seam is
-[the pane protocol's](../../agents/panes.md), a register's PROVEN BY names the cases that pin its
+[the pane protocol's](../../agents/panes.md), a register's proofs name the cases that pin its
 law, and the router of each folder, its `AGENTS.md`, names the suites. The Workshop entry
 `workshop_<subject>` runs `build/tests/zengine-workshop-<subject>-tests`.
 
