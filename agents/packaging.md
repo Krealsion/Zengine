@@ -51,7 +51,9 @@ starts one), `zengine-operators-basic`, and `zengine-guest-vocabulary` (booted b
 Loom host, a session, to speak Workshop's guest shapes). They install as FILES, not as
 exported targets — an artifact is opened by path and never linked, and an imported target would
 offer a link line that must never be written. Beside them, as data, the Workshop tool packages
-for a Loom session's run manager: `share/zengine/loom-tools/workshop`, the journeys, and
+for a Loom session's run manager: `share/zengine/loom-tools/workshop`, the journeys and their
+setups, each feature's tutorials (`<feature>/docs/tutorials/<name>/`) among them, exported whole by
+`demo.py export` so the files a tutorial shares from elsewhere in the tree travel with it; and
 `share/zengine/loom-tools/desk`, the agent's desk reader, a package of its own because `workshop`
 holds as many tools as Loom lets one package hold. The generic
 `zengine-inventory-read` executable installs to `bin` and reads those tools' saved pairs.

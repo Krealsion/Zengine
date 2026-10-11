@@ -40,6 +40,7 @@ guest_journey                     program           always
 demo_recipes                      program           session
 workshop_journey                  program           session
 story_journey                     program           session
+tutorial_walks                    program           session
 neovim_journey                    program           session-neovim
 
 # A case in this suite reads the keymap example in workshop/docs/hotkeys.md, as a weaver copies it.

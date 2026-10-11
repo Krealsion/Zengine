@@ -14,6 +14,7 @@ its Python service for the whole instance. Your normal Workshop and its saved fi
 | `folders` | Inventory, three Info views, Demo | The [organized workbench](../../inventory/docs/inventory-folders.md#the-organized-workbench), restored by its story |
 | `editor-materials` | Editor, Inventory, Files, Terminal, Demo | Carry a selection, a Terminal command and a file place into named folders, save a toolbox, and bring them back in another Workshop ([carrying](../../editor/docs/editor.md#carrying-text-commands-and-file-places)) |
 | `tower-defense` | Editor, Files, Builder, the game, Inventory, a hotkey row, Demo | The [tower defense example](../../examples/tower-defense/README.md#a-ready-development-desk) built and loaded; **Alt+1..Alt+5** run its game commands |
+| `build-your-first-pane` | Builder, Files, Demo | The Builder's first [tutorial](../../builder/docs/tutorials/build-your-first-pane/README.md): build Tally from one source file and open it |
 
 Every starting desk also has the Layouts row along the top, which you can take off and bring
 back as on any desk.
@@ -227,6 +228,7 @@ when the two differ. The shipped walks:
 | `values` | `layouts` | the Layouts row taken off the desk from the Pane Manager and brought back, as Info lists it |
 | `presets` | `escape` | Escape in Inventory, Loaded, Compose, Info and the Demo controls: a selection let go first, then the pane put down |
 | `editor-materials` | `escape` | Escape in Files and the Terminal puts each down; the Editor keeps Escape for itself |
+| `build-your-first-pane` | `tutorial` | the tutorial's every step, its pictures the page's; `tutorial_walks` replays each tutorial's `tutorial` walk from an installed prefix |
 
 ![The values setup's layouts walk replayed in a window: its three pictures, the Layouts row on, taken off and back](images/walk-values-layouts.png)
 
@@ -265,7 +267,9 @@ A setup is a directory. Adding one is adding a directory -- no launcher or servi
 
 Ordinary setups live in the tool package's `setups/` directory (`external-host/tools/workshop/setups/`,
 installed with the package); an example's setup lives beside the example (`examples/<name>/setup.json`);
-`--setup` also takes any directory holding `setup.json`. [`workbench`](../../external-host/tools/workshop/setups/workbench/setup.json)
+a tutorial is a setup in its feature's `docs/tutorials/<name>/`, and an install exports each one into
+the package's `setups/`, so a setup's name is one setup across all of them. `--setup` also takes any
+directory holding `setup.json`. [`workbench`](../../external-host/tools/workshop/setups/workbench/setup.json)
 and [`tower-defense`](../../examples/tower-defense/setup.json) are the two complete examples.
 
 `setup.json` (`format` `zengine-setup`, `format_version` `1`) says, for a reader: `title`,

@@ -139,3 +139,4 @@ accepted list, so the page describes exactly the shapes the gate lets in.
 | the press witness | official | a declared action that, pressed in a mode its suite drives, sends a shape beside the pane protocol its row does not declare; a declared cause no driven state sent is listed beside the build, not refused |
 | the manual witnesses | official | a pane whose answered manual lacks a command it declares; an office whose accepted shapes its page does not describe |
 | `doc_links` | documentation | a broken link or anchor |
+| `tutorial_walks` | official, `session` gate | a tutorial whose `tutorial` walk no longer plays from an installed prefix: a key that moved, a part renamed, a step that no longer leads where the page says, named at its step |

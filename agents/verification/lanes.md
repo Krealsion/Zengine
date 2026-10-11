@@ -81,9 +81,9 @@ SEEN — `tests/package/run.cmake`; `agents/packaging.md`.
 ## VM-LANE-11 — The lane may run in parallel, Windows included
 
 METHOD — The lane may run in parallel with `-DZEN_CTEST_ARGS=-j<n>`, same proofs, on Linux/GCC and on both Windows libraries; an entry that cannot share the machine runs alone, named in `-DZEN_CTEST_APART`.
-BECAUSE — no CTest entry writes this build tree, so the entries cannot race it; until each repair,
-every build job keeps `workshop_journey` apart (#185), the Linux jobs `audit_probes` (#192) and the
-Windows jobs `timer` (#191), each seen to fail under load where it is kept apart.
+BECAUSE — no CTest entry writes what this build tree builds (`tutorial_walks`'s install leaves only CMake's install
+manifest there), so the entries cannot race it; until each repair, every build job keeps `workshop_journey` apart (#185),
+the Linux jobs `audit_probes` (#192) and the Windows jobs `timer` (#191), each seen to fail under load where it is kept apart.
 SEEN — `tests/verify.cmake` `ZEN_CTEST_ARGS`, `ZEN_CTEST_APART`; `.github/workflows/ci.yml`
 `ZEN_CTEST_APART`, every build job at `-j4`; `AGENTS.md`.
 
