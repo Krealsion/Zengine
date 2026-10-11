@@ -8,7 +8,7 @@
 // far answer, and encodes a Python tool's JSON request, against shapes its own registry resolves
 // (the Loom's bridge reference page); a Python tool is no participant there, so this weave declares
 // them: Input's session shapes, the Skin's picture, the desk read whole, the pane inventory, the
-// keymap, the door's inventory and the asker's own row, the managed opening and the Builder's read.
+// keymap, the door's inventory, the asker's row, the plan, the managed opening, the Builder's read.
 // Reference: external-host/docs/external-host.md.
 
 // Declared through Loom's agreement wall (`Emit<...>`: a declared shape resolves while its
@@ -36,7 +36,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 90; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 92; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -83,6 +83,8 @@ class GuestVocabulary final
                      // The asker's own row, which any admitted session may ask for.
                      zengine::workshop::GuestRowDescribedRequested,
                      zengine::workshop::GuestRowDescribed,
+                     // Where Workshop's plan is, which any admitted session may ask.
+                     zengine::workshop::GuestPlanRequested, zengine::workshop::GuestPlanSaid,
                      zengine::inventory::InventorySet, zengine::inventory::InventoryGet,
                      zengine::inventory::InventoryState, zengine::inventory::InventoryCaptured,
                      zengine::inventory::InventoryCaptureDescribe,

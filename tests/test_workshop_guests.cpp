@@ -534,15 +534,20 @@ TEST_CASE("toolbox file access is an explicit power separate from inventory inpu
     }
 }
 
-TEST_CASE("guests file: each power is exactly its grant, and a row with none may ask only for its own row") {
+TEST_CASE("guests file: each power is exactly its grant, and a row with none may ask only for its own row and where the plan is") {
     guests::GuestRow row;
     row.name = "agent";
     row.credential = "x";
     const loom::Grant none = guests::grant_for(row);
     CHECK_FALSE(none.permits_role(input::InputSessionRequested::zen_name, 1, input::kInputRole));
-    // EVERY ROW MAY ASK THE DOOR FOR ITSELF, and for nothing else of the door's or Workshop's.
+    // EVERY ROW MAY ASK THE DOOR FOR ITSELF AND WHERE THE PLAN IS, and for nothing else of the
+    // door's or Workshop's.
     CHECK(none.permits_role(ws::GuestRowDescribedRequested::zen_name,
                             ws::GuestRowDescribedRequested::zen_version, ws::kGuestsRole));
+    CHECK(none.permits_role(ws::GuestPlanRequested::zen_name, ws::GuestPlanRequested::zen_version,
+                            ws::kGuestsRole));
+    CHECK_FALSE(none.permits_role(ws::GuestPlanRequested::zen_name,
+                                  ws::GuestPlanRequested::zen_version, "zengine.workshop"));
     CHECK_FALSE(none.permits_role(ws::GuestRowDescribedRequested::zen_name,
                                   ws::GuestRowDescribedRequested::zen_version, "zengine.workshop"));
     CHECK_FALSE(none.permits_role(ws::GuestConnectionsRequested::zen_name, 1, ws::kGuestsRole));
@@ -611,10 +616,12 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK_FALSE(stow.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
     CHECK_FALSE(stow.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
     CHECK_FALSE(stow.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
-    // ...and whatever its powers, a row may ask for its own.
+    // ...and whatever its powers, a row may ask for its own, and where the plan is.
     for (const loom::Grant& any : {none, in, cap, look, stow}) {
         CHECK(any.permits_role(ws::GuestRowDescribedRequested::zen_name,
                                ws::GuestRowDescribedRequested::zen_version, ws::kGuestsRole));
+        CHECK(any.permits_role(ws::GuestPlanRequested::zen_name,
+                               ws::GuestPlanRequested::zen_version, ws::kGuestsRole));
     }
 }
 
@@ -1225,7 +1232,7 @@ TEST_CASE("observe: through the real door, a guest observes only what its row li
 // The file's versions, the host fact, and the action classes
 // =============================================================================
 
-TEST_CASE("guests file: a file names its version, version 2 adds build and the host, and a word its version does not know is refused") {
+TEST_CASE("guests file: a file names its version, version 2 adds build and the host, and a word of a later version is refused") {
     Scratch f("versions");
     guests::GuestsFile file;
     std::string why;
@@ -1395,7 +1402,7 @@ TEST_CASE("guests file: capture's widening is said as a gain") {
     CHECK(guests::gains_of(row, file).empty());
 }
 
-TEST_CASE("action classes: a send on a guest's behalf is the classes its shape is -- a toolbox save and a quit write, and an open shows no path") {
+TEST_CASE("action classes: a guest's send is its shape's classes -- a toolbox save and a quit write, and an open shows no path") {
     namespace scope = zengine::workshop::scope;
     // THE NAMES ARE THE OWNERS' OWN SHAPES, so a renamed shape is a red here, not a send unjudged.
     CHECK(scope::classes_of_send(zengine::inventory_pane::InventoryToolboxSave::zen_name) ==
@@ -1619,7 +1626,7 @@ private:
 
 } // namespace
 
-TEST_CASE("door: a session asks its own row and hears its name, powers, observe list and the file's host, and nothing of another row") {
+TEST_CASE("door: a session asks its own row and hears its name, powers, observe list and host, and nothing of another row") {
     Scratch f("described");
     f.write(R"({"version":"2","host":"development","guests":[)"
             R"({"name":"agent","credential":"one","may":["input"],"observe":[)"
@@ -1673,7 +1680,7 @@ TEST_CASE("door: a session asks its own row and hears its name, powers, observe 
           std::vector<std::string>{"only a session this door admitted has a row to describe"});
 }
 
-TEST_CASE("door: in a file with two rows of one name, the session admitted under the row without capture is refused a capture read and a capture observation") {
+TEST_CASE("door: of two rows of one name, the session admitted under the one without capture is refused a capture read and observation") {
     const std::string canvas = std::string(R"({"producer":"zengine.workshop","shape":")") +
                                surface::SurfaceCanvas::zen_name + R"(","version":")" +
                                std::to_string(surface::SurfaceCanvas::zen_version) + R"("})";
@@ -1744,7 +1751,7 @@ TEST_CASE("door: in a file with two rows of one name, the session admitted under
     CHECK(relay->active() == 1);
 }
 
-TEST_CASE("observation: a row without capture is refused the desk's words and pictures, every row is refused ClipboardCopy, and a capture row may observe StandingConditions") {
+TEST_CASE("observation: the desk's words and pictures need capture, every row is refused ClipboardCopy, and capture observes StandingConditions") {
     struct Asked {
         std::string producer, shape;
         std::int64_t version;
@@ -1857,7 +1864,7 @@ public:
 
 } // namespace
 
-TEST_CASE("observation: an observe row naming DeskStamps without capture is refused in words, and a capture row listing it is told the notices, the newest standing for those its window held back") {
+TEST_CASE("observation: DeskStamps needs capture, and a capture row listing it is told the notices, the newest standing for what its window held back") {
     const std::string notices = std::string(R"({"producer":"zengine.workshop","shape":")") +
                                 ws::DeskStamps::zen_name + R"(","version":")" +
                                 std::to_string(ws::DeskStamps::zen_version) + R"("})";
@@ -1946,6 +1953,257 @@ TEST_CASE("observation: an observe row naming DeskStamps without capture is refu
     CHECK(desk_of(told[1].second) == 5);
     hands.poll();
     CHECK(hands.said_as<ob::Observed>().empty());
+}
+
+// =============================================================================
+// Where the plan is: not loaded yet, told apart from never known
+// =============================================================================
+
+namespace {
+
+/// A PLAN THAT REALIZES LATE, as the door reads it: the host's reading of its realization owner,
+/// moved by the case where the owner's own walk would move it.
+struct LatePlan {
+    std::string state = ws::kPlanLoading;
+    std::string waiting_on;
+    std::vector<std::string> unavailable;
+
+    ws::GuestDoor::PlanReading reading() {
+        return [this] {
+            ws::GuestPlanSaid said;
+            said.state = state;
+            said.at_rest = state != ws::kPlanLoading;
+            said.waiting_on = waiting_on;
+            said.unavailable = unavailable;
+            return said;
+        };
+    }
+};
+
+/// THE ROW STILL TO COME: the one participant declaring `InventoryCaptureDescribe`, in the office a
+/// guest asks it of, mounted only when the case realizes it.
+class LateInventory
+    : public loom::WeaveBase<LateInventory, EarsState, loom::Accept<inv::InventoryCaptureDescribe>,
+                             loom::Emit<loom::Ack>> {
+public:
+    void on(const inv::InventoryCaptureDescribe&, loom::Mail& mail) { (void)mail.answer(loom::Ack{}); }
+};
+
+void realize_late_inventory(loom::Switchboard& bus) {
+    auto made = std::make_unique<LateInventory>();
+    LateInventory* raw = made.get();
+    loom::Grant grant = loom::emit_default_grant(*raw);
+    raw->zen_set_self(bus.register_weave(std::move(made), std::move(grant),
+                                         std::string(inv::kInventoryRole)));
+}
+
+/// THE DOOR HAS HEARD EVERY ASK THIS GUEST SENT BEFORE: one connection's asks reach the door in
+/// order, so its answer to an ask without `wait`, sent after them, comes only once they have.
+void heard_all(Rig& r, Guest& g, std::uint64_t correlation) {
+    g.ask(ws::kGuestsRole, correlation, ws::GuestPlanRequested{false});
+    REQUIRE(r.beat_until([&] {
+        g.poll();
+        return g.answered<ws::GuestPlanSaid>(correlation).has_value();
+    }));
+}
+
+guests::GuestsFile plan_guests() {
+    Scratch f("plan");
+    f.write(R"({"version":"2","host":"development","guests":[)"
+            R"({"name":"agent","credential":"one","may":["inventory","capture"]},)"
+            R"({"name":"plain","credential":"two","may":["inventory"]}]})");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    return file;
+}
+
+} // namespace
+
+TEST_CASE("door: a guest admitted while the plan loads waits for it at rest, then its first ask is answered") {
+    Rig r(plan_guests());
+    LatePlan plan;
+    plan.unavailable = {"zengine-optional-tool"};
+    r.door->reads_plan(plan.reading());
+    Guest agent(r.port, "agent", "one");
+    Guest plain(r.port, "plain", "two");
+    REQUIRE(r.beat_until([&] {
+        agent.poll();
+        plain.poll();
+        return agent.client->admitted() && plain.client->admitted();
+    }));
+    // ADMITTED BEFORE THE ROW THAT DECLARES THE SHAPE: asked now, the far bus cannot resolve it, and
+    // the words are those it says of a shape it will never know.
+    agent.ask(inv::kInventoryRole, 9, inv::InventoryCaptureDescribe{"zengine.input"});
+    REQUIRE(r.beat_until([&] {
+        agent.poll();
+        return agent.last(loom::BridgeEvent::Kind::SendRefused) != nullptr;
+    }));
+    CHECK(agent.last(loom::BridgeEvent::Kind::SendRefused)->reason.find("unknown schema: InventoryCaptureDescribe v1") !=
+          std::string::npos);
+    // WHAT TELLS THEM APART: asked without `wait`, the plan is said to be loading, at once.
+    agent.ask(ws::kGuestsRole, 2, ws::GuestPlanRequested{false});
+    REQUIRE(r.beat_until([&] {
+        agent.poll();
+        return agent.answered<ws::GuestPlanSaid>(2).has_value();
+    }));
+    CHECK(agent.answered<ws::GuestPlanSaid>(2)->state == ws::kPlanLoading);
+    CHECK_FALSE(agent.answered<ws::GuestPlanSaid>(2)->at_rest);
+    // ...and with `wait`, nothing is answered while the plan loads, once the door has heard it.
+    agent.ask(ws::kGuestsRole, 1, ws::GuestPlanRequested{true});
+    plain.ask(ws::kGuestsRole, 1, ws::GuestPlanRequested{true});
+    heard_all(r, agent, 4);
+    heard_all(r, plain, 4);
+    for (int i = 0; i < 20; ++i) {
+        r.beat();
+    }
+    agent.poll();
+    plain.poll();
+    CHECK_FALSE(agent.answered<ws::GuestPlanSaid>(1).has_value());
+    CHECK_FALSE(plain.answered<ws::GuestPlanSaid>(1).has_value());
+    // THE ROW STILL TO COME IS REALIZED, and the plan comes to rest: both held asks are answered.
+    realize_late_inventory(r.bus);
+    plan.state = ws::kPlanComplete;
+    REQUIRE(r.beat_until([&] {
+        agent.poll();
+        plain.poll();
+        return agent.answered<ws::GuestPlanSaid>(1).has_value() &&
+               plain.answered<ws::GuestPlanSaid>(1).has_value();
+    }));
+    const ws::GuestPlanSaid told = *agent.answered<ws::GuestPlanSaid>(1);
+    CHECK(told.state == ws::kPlanComplete);
+    CHECK(told.at_rest);
+    // The rows it names reach the row that already reads the desk, and not the one that does not.
+    CHECK(told.unavailable == std::vector<std::string>{"zengine-optional-tool"});
+    const ws::GuestPlanSaid plain_told = *plain.answered<ws::GuestPlanSaid>(1);
+    CHECK(plain_told.state == ws::kPlanComplete);
+    CHECK(plain_told.at_rest);
+    CHECK(plain_told.unavailable.empty());
+    // THE FIRST ASK AFTER THE FACT IS ANSWERED by the row that was still to come.
+    agent.ask(inv::kInventoryRole, 3, inv::InventoryCaptureDescribe{"zengine.input"});
+    REQUIRE(r.beat_until([&] {
+        agent.poll();
+        return agent.answered<loom::Ack>(3).has_value();
+    }));
+    CHECK(agent.index_of(loom::BridgeEvent::Kind::SendRefused, 3) == agent.events.size());
+}
+
+TEST_CASE("door: a plan waiting or refused answers held asks, naming rows only to capture or inspect") {
+    Rig r(plan_guests());
+    LatePlan plan;
+    r.door->reads_plan(plan.reading());
+    Guest agent(r.port, "agent", "one");
+    Guest plain(r.port, "plain", "two");
+    REQUIRE(r.beat_until([&] {
+        agent.poll();
+        plain.poll();
+        return agent.client->admitted() && plain.client->admitted();
+    }));
+    agent.ask(ws::kGuestsRole, 1, ws::GuestPlanRequested{true});
+    plain.ask(ws::kGuestsRole, 1, ws::GuestPlanRequested{true});
+    heard_all(r, agent, 4);
+    heard_all(r, plain, 4);
+    agent.poll();
+    plain.poll();
+    REQUIRE_FALSE(agent.answered<ws::GuestPlanSaid>(1).has_value());
+    REQUIRE_FALSE(plain.answered<ws::GuestPlanSaid>(1).has_value());
+    // A ROW WAITING ON THE WEAVER IS AT REST: it does not keep a guest out until somebody builds.
+    plan.state = ws::kPlanWaiting;
+    plan.waiting_on = "zengine-inventory";
+    REQUIRE(r.beat_until([&] {
+        agent.poll();
+        plain.poll();
+        return agent.answered<ws::GuestPlanSaid>(1).has_value() &&
+               plain.answered<ws::GuestPlanSaid>(1).has_value();
+    }));
+    CHECK(agent.answered<ws::GuestPlanSaid>(1)->state == ws::kPlanWaiting);
+    CHECK(agent.answered<ws::GuestPlanSaid>(1)->at_rest);
+    CHECK(agent.answered<ws::GuestPlanSaid>(1)->waiting_on == "zengine-inventory");
+    CHECK(plain.answered<ws::GuestPlanSaid>(1)->state == ws::kPlanWaiting);
+    CHECK(plain.answered<ws::GuestPlanSaid>(1)->waiting_on.empty());
+    // ...nor does a plan that refused: asked with `wait`, it is answered at once.
+    plan.state = ws::kPlanRefused;
+    plan.waiting_on.clear();
+    plain.ask(ws::kGuestsRole, 2, ws::GuestPlanRequested{true});
+    REQUIRE(r.beat_until([&] {
+        plain.poll();
+        return plain.answered<ws::GuestPlanSaid>(2).has_value();
+    }));
+    CHECK(plain.answered<ws::GuestPlanSaid>(2)->state == ws::kPlanRefused);
+    CHECK(plain.answered<ws::GuestPlanSaid>(2)->at_rest);
+    // EACH ASK IS ANSWERED ONCE: the beats after rest answer nothing again.
+    for (int i = 0; i < 5; ++i) {
+        r.beat();
+    }
+    agent.poll();
+    CHECK(agent.said_as<ws::GuestPlanSaid>().size() == 2); // its held ask, and the one that synced
+}
+
+TEST_CASE("door: held plan asks are bounded, a gone guest's are let go, and no reading is refused") {
+    {
+        // NO READING WIRED: nothing to say, and that is said.
+        Rig r(plan_guests());
+        Guest agent(r.port, "agent", "one");
+        REQUIRE(r.beat_until([&] {
+            agent.poll();
+            return agent.client->admitted();
+        }));
+        agent.ask(ws::kGuestsRole, 1, ws::GuestPlanRequested{true});
+        REQUIRE(r.beat_until([&] {
+            agent.poll();
+            return agent.answered<loom::Refused>(1).has_value();
+        }));
+        CHECK(agent.answered<loom::Refused>(1)->reason ==
+              "this host wired no reading of its load plan");
+    }
+    Rig r(plan_guests());
+    LatePlan plan;
+    r.door->reads_plan(plan.reading());
+    Guest agent(r.port, "agent", "one");
+    REQUIRE(r.beat_until([&] {
+        agent.poll();
+        return agent.client->admitted();
+    }));
+    for (std::uint64_t i = 1; i <= ws::kGuestPlanHeld; ++i) {
+        agent.ask(ws::kGuestsRole, i, ws::GuestPlanRequested{true});
+    }
+    const std::uint64_t over = ws::kGuestPlanHeld + 1;
+    agent.ask(ws::kGuestsRole, over, ws::GuestPlanRequested{true});
+    REQUIRE(r.beat_until([&] {
+        agent.poll();
+        return agent.answered<loom::Refused>(over).has_value();
+    }));
+    CHECK(agent.answered<loom::Refused>(over)->reason.find("already holds") != std::string::npos);
+    CHECK(agent.said_as<ws::GuestPlanSaid>().empty());
+    // THE GUEST GOES, and its held asks with it: a new guest is held as many again, none refused,
+    // and each is answered at rest.
+    agent.client.reset();
+    REQUIRE(r.beat_until([&] {
+        const ws::GuestConnections now = r.door->inventory();
+        for (const ws::GuestConnection& c : now.rows) {
+            if (c.state == "admitted") return false;
+        }
+        return true;
+    }));
+    Guest next(r.port, "agent", "one");
+    REQUIRE(r.beat_until([&] {
+        next.poll();
+        return next.client->admitted();
+    }));
+    for (std::uint64_t i = 1; i <= ws::kGuestPlanHeld; ++i) {
+        next.ask(ws::kGuestsRole, i, ws::GuestPlanRequested{true});
+    }
+    const std::uint64_t synced = ws::kGuestPlanHeld + 1;
+    heard_all(r, next, synced);
+    next.poll();
+    CHECK(next.said_as<ws::GuestPlanSaid>().size() == 1); // only the one that synced
+    CHECK(next.said_as<loom::Refused>().empty());
+    plan.state = ws::kPlanComplete;
+    REQUIRE(r.beat_until([&] {
+        next.poll();
+        return next.said_as<ws::GuestPlanSaid>().size() == ws::kGuestPlanHeld + 1;
+    }));
+    CHECK(next.said_as<loom::Refused>().empty());
 }
 
 TEST_SUITE_END();

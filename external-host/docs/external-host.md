@@ -139,6 +139,20 @@ of another row. Two rows of one name stay apart: the answer is the row that sess
 A session the door never admitted is refused in words. The file is read once, at launch: a changed
 row applies at the next launch.
 
+**Listening is not loaded.** Workshop opens its door, and writes the port it listens on to the
+file's `port_file` when the file names one, before its load plan is realized. A guest can therefore
+be admitted while rows that declare shapes are still loading, and a shape asked of such a row is
+refused `unknown schema: <name> v<n>`, the words a shape this run never declares is refused in too.
+What tells the two apart is Workshop's own word: any admitted session may ask the door
+`GuestPlanRequested` (`{"wait": true}`), answered by `GuestPlanSaid` once the plan is at rest --
+its `state` `complete` (every row settled: a shape still unknown is unknown for this run),
+`waiting` (on a row the weaver has to build) or `refused` -- and with `wait` false at once, its
+`state` `loading` while rows are still to come. The rows it names, `waiting_on` and the optional
+rows stepped over (`unavailable`), are said only to a row with `capture` or `inspect`, which
+already read other rows' names; to any other row they are empty. The door holds a bounded number
+of asks, and refuses one past the bound in words. `workshop/connections` asks it from a Loom
+session with `wait_plan`, and the demo service asks it before its first ask.
+
 ```json
 {
   "version": "2",
@@ -217,10 +231,11 @@ ships what such a session needs to speak to Workshop, and nothing of the session
 - **`zengine-guest-vocabulary`**, installed in `lib/zengine/`: a weave the session host boots.
   It declares Workshop's guest shapes there — input sessions and injection, captures and their
   chunks, the desk and each pane's words, the pane inventory and the keymap, the connection
-  inventory and the asker's own row — so a tool's asks are encoded and Workshop's answers
-  re-admitted by identity. It accepts nothing and says nothing.
+  inventory, the asker's own row and where the plan is — so a tool's asks are encoded and
+  Workshop's answers re-admitted by identity. It accepts nothing and says nothing.
 - **The `workshop` tool package**, installed at `share/zengine/loom-tools/workshop`:
-  `workshop/connections` (the connection inventory, and this session's own row),
+  `workshop/connections` (the connection inventory, and this session's own row; with `wait_plan`,
+  first where Workshop's load plan came to rest),
   `workshop/inspect-capture`
   (the journey below as a tool: inspect, open an input session, click and/or press a chord with
   settlement — optionally clearing a field first and typing into it, or repeating a chord
