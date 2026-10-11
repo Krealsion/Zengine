@@ -142,7 +142,7 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
             c.grain == grain && c.graphical == graphical &&
             c.text_advance_px == sc.text_advance_px && c.text_line_px == sc.text_line_px &&
             c.legacy == legacy;
-        v5::PaneCanvasContent previous;
+        v6::PaneCanvasContent previous;
         if (preview) previous = std::move(c.content);
         c = ExternalPane::Canvas{};
         pane.forget_pictures();
@@ -195,11 +195,17 @@ void WorkshopWeave::on(const v4::PaneCanvasContent& content, loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const v5::PaneCanvasContent& content, loom::Mail& mail) {
+    admit_canvas_content(canvas_content_of(content), mail);
+}
+
+// A picture whose parts say whether their operation applies now.
+// WL-CAUSE-03 -- agents/workshop/action-causes.md
+void WorkshopWeave::on(const v6::PaneCanvasContent& content, loom::Mail& mail) {
     admit_canvas_content(content, mail);
 }
 
 // WL-ATTN-04 -- agents/workshop/attention.md
-void WorkshopWeave::admit_canvas_content(const v5::PaneCanvasContent& content, loom::Mail& mail,
+void WorkshopWeave::admit_canvas_content(const v6::PaneCanvasContent& content, loom::Mail& mail,
                                          std::string_view said) {
     const auto* row = session_.panes.runtime.find(mail.authored_role(), content.pane);
     if (!row || mail.authored_role().empty()) return;

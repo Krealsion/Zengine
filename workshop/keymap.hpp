@@ -735,6 +735,9 @@ struct AppRow {
     std::string label;
     Gesture gesture;
     std::int64_t precedence = 0; ///< `app_precedence::kAboveModes` / `kDefault`
+    /// What a press may cause, as the declarer said it (`v2::AppActionRow::causes`).
+    // WL-CAUSE-01 -- agents/workshop/action-causes.md
+    std::vector<ActionCause> causes = {};
 };
 
 /// How many application rows one declaration may carry. The rows are a weaver's own shortcuts
@@ -748,10 +751,6 @@ inline constexpr std::size_t kMaxAppActionRows = 1024;
 // WL-KEY-15 -- agents/workshop/keyboard.md
 inline constexpr std::size_t kMaxPaneActionRows = 1024;
 
-/// THE BOUNDS ON ONE ROW'S TWO STRINGS, in BYTES -- an id is spelled in the keymap file
-/// and a label on the band, and neither is a place for a paragraph.
-inline constexpr std::size_t kMaxPaneActionIdLen = 64;
-inline constexpr std::size_t kMaxPaneActionLabelLen = 32;
 static_assert(kMaxPaneActionIdLen == kMaxPaneMenuIdLen,
               "a menu row's id meets a declared action's id law, published in the pane protocol");
 
@@ -1337,10 +1336,11 @@ inline bool superseded_here(const std::vector<PaneRow>& rows, const std::string&
 /// with no bus. In order: the row count; each id and label; each default gesture (an unbound row
 /// carries `kUnknown`); no id twice and none of Workshop's own; then the weaver's overrides by id;
 /// then the collision law against the host rows active while a pane holds the keys and this
-/// pane's own rows. Atomic: a refusal writes nothing, so the previous rows stand.
+/// pane's own rows. Atomic: a refusal writes nothing, so the previous rows stand. It reads a row's
+/// keys alone; what a press causes is judged beside it (`pane_declaration_problem`).
 // WL-KEY-15 -- agents/workshop/keyboard.md
 inline Written join_pane_rows(Keymap& k, std::int64_t pane,
-                              const std::vector<v2::PaneActionRow>& declared) {
+                              const std::vector<v3::PaneActionRow>& declared) {
     if (declared.size() > kMaxPaneActionRows) {
         return Written::no("a pane declares at most " + std::to_string(kMaxPaneActionRows) +
                            " actions -- this one declared " + std::to_string(declared.size()));
@@ -1348,7 +1348,7 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
     constexpr std::int64_t kKnownModifiers = mod::kCtrl | mod::kShift | mod::kAlt | mod::kSuper;
     std::vector<PaneRow> rows;
     rows.reserve(declared.size());
-    for (const v2::PaneActionRow& d : declared) {
+    for (const v3::PaneActionRow& d : declared) {
         const Written id = check_pane_action_text(d.id, "id", kMaxPaneActionIdLen, false);
         if (!id.accepted) {
             return id;
@@ -1487,6 +1487,19 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
     }
     k.panes.push_back(PaneRows{pane, std::move(rows)});
     return Written::ok();
+}
+
+/// The same join over second-version rows, widened with no causes.
+// WL-KEY-15 -- agents/workshop/keyboard.md
+inline Written join_pane_rows(Keymap& k, std::int64_t pane,
+                              const std::vector<v2::PaneActionRow>& declared) {
+    std::vector<v3::PaneActionRow> widened;
+    widened.reserve(declared.size());
+    for (const v2::PaneActionRow& d : declared) {
+        widened.push_back(
+            v3::PaneActionRow{d.id, d.label, d.scancode, d.modifiers, d.supersedes, {}, {}});
+    }
+    return join_pane_rows(k, pane, widened);
 }
 
 /// Join the application rows one participating owner declared (WL-DESK-07): `join_pane_rows` one

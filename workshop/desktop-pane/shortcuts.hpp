@@ -4,6 +4,7 @@
 #define ZENGINE_DESKTOP_SHORTCUTS_HPP
 #include "workshop/pane_shortcuts.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
+#include "workshop/pane_causes.hpp"
 #include <zen/weave.hpp>
 #include <map>
 #include <optional>
@@ -21,16 +22,19 @@ class Shortcuts {
     static std::string id(const std::string& office, const std::string& local) {
         return "shortcut." + std::to_string(office.size()) + "." + office + "." + local;
     }
-    static void append(std::vector<workshop::AppActionRow>& result, const Owners& owners) {
+    /// Each shortcut's row causes what `invoke` sends: the act asked of the pane it names.
+    static void append(std::vector<workshop::v2::AppActionRow>& result, const Owners& owners) {
         for (const auto& [office, owner] : owners) for (const auto& row : owner.rows)
             result.push_back({id(office, row.id), row.label, row.scancode, row.modifiers,
-                              workshop::app_precedence::kAboveModes});
+                              workshop::app_precedence::kAboveModes,
+                              {workshop::cause_of<workshop::PaneShortcutInvoked>(
+                                  workshop::to_pane(office, row.pane))}});
     }
 public:
     bool pending() const { return pending_.has_value(); }
-    void append(std::vector<workshop::AppActionRow>& result) const { append(result, owners_); }
+    void append(std::vector<workshop::v2::AppActionRow>& result) const { append(result, owners_); }
     bool propose(const workshop::PaneShortcuts& request, loom::Mail& mail,
-                 std::vector<workshop::AppActionRow> base, std::uint64_t attempt) {
+                 std::vector<workshop::v2::AppActionRow> base, std::uint64_t attempt) {
         const auto refuse = [&](std::string reason) {
             (void)mail.answer(workshop::PaneShortcutsAnswered{false, std::move(reason)}); return false;
         };
@@ -52,7 +56,7 @@ public:
         if (!due.valid()) return refuse("This registration cannot retain its answer");
         pending_.emplace(Pending{std::move(candidate), std::move(due), attempt, {}});
         const auto sent = mail.as_role(workshop::kDesktopRole).send_to_role("zengine.workshop",
-            workshop::AppActions{std::move(base)}, attempt);
+            workshop::v2::AppActions{std::move(base)}, attempt);
         pending_->ticket = sent;
         if (!sent.valid()) finish(false, "Application shortcut declaration could not be queued", mail);
         return true;
@@ -63,7 +67,8 @@ public:
     }
     bool refused(const loom::DispatchRefused& refusal, loom::Mail& mail) {
         if (!pending_ || !mail.dispatch_refused() || refusal.refused_attempt().seq != pending_->ticket.seq ||
-            refusal.shape != workshop::AppActions::zen_name || refusal.version != 1 ||
+            refusal.shape != workshop::v2::AppActions::zen_name ||
+            refusal.version != workshop::v2::AppActions::zen_version ||
             refusal.role != "zengine.workshop" || !refusal.target.empty()) return false;
         finish(false, "Shortcut declaration was not delivered: " + refusal.reason, mail); return true;
     }

@@ -73,8 +73,9 @@ load-after-build on or off, as [`builder.arm`](#builderarm).
 
 - **Takes:** the build finished and unloaded, or the switch. Default key
   <!-- key builder.build-realize -->`shift+b`<!-- /key -->; no control of its own.
-- **Answers:** as [`builder.load-built`](#builderload-built) when a build waits to be loaded; as
-  [`builder.arm`](#builderarm) otherwise.
+- **Answers:** as [`builder.load-built`](#builderload-built) when a build waits to be loaded,
+  sending [`BuildRequested`](zengine.builder.md#buildrequested); as [`builder.arm`](#builderarm)
+  otherwise.
 - **Refuses:** only as a load: `` `tally` was not loaded -- it is not what is built and waiting now
   `` when another build finished between your aim and your press, and the refusals every act shares.
   It never refuses as the switch: it changes meaning instead.
@@ -90,9 +91,10 @@ this writes the running image over it, keeping the bytes it wrote over for a rev
 - **Takes:** the artifact standing: the one the last realization is about, realized or refused, not
   the chosen recipe. Default key <!-- key builder.promote -->`shift+p`<!-- /key -->; the control
   `[promote tally]`.
-- **Answers:** publishes `PromoteArtifact`. The notice says `` asked to promote `tally` -- the file a
-  restart loads takes the running image ``, and the `realize` row then shows the owner's answer:
-  `promoted: the next launch runs the image weave #25 is running now`, or its refusal.
+- **Answers:** publishes [`PromoteArtifact`](../vocabulary.hpp). The notice says `` asked to promote
+  `tally` -- the file a restart loads takes the running image ``, and the `realize` row then shows
+  the owner's answer: `promoted: the next launch runs the image weave #25 is running now`, or its
+  refusal.
 - **Refuses:** `nothing this Builder realized is standing -- nothing to promote`; `` `tally` was not
   promoted -- it is not what is standing now ``; the owner's refusals on the `realize` row, such as
   `artifact 'tally' already runs from the file a restart loads; there is nothing to promote`.
@@ -105,10 +107,10 @@ state kept, your saved source unchanged.
 
 - **Takes:** the artifact standing. Default key <!-- key builder.revert -->`shift+r`<!-- /key -->; the
   control `[revert tally]`.
-- **Answers:** publishes `RevertArtifact`. The notice says `` asked to revert `tally`: the previous
-  image runs, state kept; saved source unchanged ``, and the `realize` row shows the owner's answer
-  when the reload settles: `reverted: weave #25 runs the image before the last reload again, and
-  keeps its id and its state`.
+- **Answers:** publishes [`RevertArtifact`](../vocabulary.hpp). The notice says `` asked to revert
+  `tally`: the previous image runs, state kept; saved source unchanged ``, and the `realize` row
+  shows the owner's answer when the reload settles: `reverted: weave #25 runs the image before the
+  last reload again, and keeps its id and its state`.
 - **Refuses:** `nothing this Builder realized is standing -- nothing to revert`; `` `tally` was not
   reverted -- it is not what is standing now ``; the owner's refusals on the `realize` row, such as
   `artifact 'tally' has no previous image to revert to: it has not been reloaded in this run, or a
@@ -123,8 +125,9 @@ The project's *plan* says what runs and as what; this adds one row to it.
 - **Takes:** the chosen recipe's artifact, then the role, typed on a line the pane opens
   ([commands on the role line](#commands-on-the-role-line)). Default key
   <!-- key builder.load -->`o`<!-- /key -->; the control `[add to the load plan...]`.
-- **Answers:** asks the project whether its plan already names the artifact; when it does not, the
-  role line opens, `role for tally> `. What the line's commit then does is
+- **Answers:** asks the project whether its plan already names the artifact
+  ([`PlanNamesRequested`](../../workshop/builder_seam_vocabulary.hpp)); when it does not, the role
+  line opens, `role for tally> `. What the line's commit then does is
   [`authoring.commit`](#authoringcommit).
 - **Refuses:** `` `tally` is already in this project's plan -- build-and-load it instead ``; `this
   project has no build recipes -- nothing to load`; `` `tally`: nothing was added to the plan -- ``
@@ -161,11 +164,12 @@ plan whose artifact is not built, and a recipe can build it, the project waits t
 
 - **Takes:** what the project is waiting on, read when you press; the recipe that makes it. Default
   key <!-- key builder.frontier -->`f`<!-- /key -->; the control `[build what is waited on]`.
-- **Answers:** chooses the recipe that makes the waited-on artifact, visibly, and sends
-  [`BuildRequested`](zengine.builder.md#buildrequested) with the load aboard; the notice says
-  `` asked the Builder for `tally` and to realize it -- Workshop stays live while it builds ``, then
-  the build's outcome and the project's answer, as [`builder.build`](#builderbuild). It does not
-  turn load-after-build on.
+- **Answers:** asks the project what it is waiting on
+  ([`ProjectFrontierRequested`](../../workshop/builder_seam_vocabulary.hpp)), chooses the recipe
+  that makes that artifact, visibly, and sends [`BuildRequested`](zengine.builder.md#buildrequested)
+  with the load aboard; the notice says `` asked the Builder for `tally` and to realize it --
+  Workshop stays live while it builds ``, then the build's outcome and the project's answer, as
+  [`builder.build`](#builderbuild). It does not turn load-after-build on.
 - **Refuses:** `this project is not waiting on any artifact -- nothing was asked for`; `` no authored
   recipe produces `tally` -- nothing was asked for ``; when several recipes make it, it names them
   and asks you to choose one first, with [`builder.recipe`](#builderrecipe) or the list.
@@ -180,8 +184,10 @@ Opens the chosen recipe's source in the Editor: a one-file recipe's `.cpp`, or a
 - **Takes:** the chosen recipe; in the recipe list, the row under the cursor, without changing your
   choice. Default key <!-- key builder.edit-source -->`e`<!-- /key -->; the controls `[edit source]`
   and, in the list, `[edit this recipe's source]`.
-- **Answers:** asks the project which file the recipe names, then asks the opening office to open it;
-  the Editor shows it, and the pane says nothing when it worked.
+- **Answers:** asks the project which file the recipe names
+  ([`RecipeSourceRequested`](../../workshop/builder_seam_vocabulary.hpp)), then asks the opening
+  office to open it ([`OpenSourceRequested`](../../workshop/pane_seam_vocabulary.hpp)); the Editor
+  shows it, and the pane says nothing when it worked.
 - **Refuses:** `` `skin-tui-block` is a cmake_target recipe -- it names no source file or editing
   entry to open ``; `` this project's recipes do not hold `tally` -- nothing was opened ``; `this host
   resolves no recipe sources -- nothing was opened`; `` `tally`: the source was not opened -- `` and
@@ -241,8 +247,8 @@ project. It stays where you leave it until Workshop quits, and through a reload 
 - **Takes:** the switch. No default key; the control `[turn load-after-build on]` or `[turn
   load-after-build off]`.
 - **Answers:** `load after build: on -- the next build is offered to the running project when it
-  works`, or `load after build: off -- the next build is a plain build`; while nothing is offered yet,
-  the `realize` row reads `[x] load after build`.
+  works`, or `load after build: off -- the next build is a plain build`; while nothing is offered
+  yet, the `realize` row reads `[x] load after build`.
 - **Refuses:** `` `tally` is built and waiting -- load it, or build again to arm the next one ``,
   while a finished build waits to be loaded.
 - **Example:** press the control `[turn load-after-build on]`, then
@@ -257,9 +263,9 @@ date.
 - **Takes:** the finished, unloaded build the `realize` row names. No default key; the control
   `[load built tally]`.
 - **Answers:** sends [`BuildRequested`](zengine.builder.md#buildrequested) for that build's recipe
-  with the load aboard; the notice says `` loading the built `tally` now -- Workshop stays live while
-  the incremental build confirms it ``, then the outcome, `already up to date`, and the project's
-  answer, as [`builder.build`](#builderbuild).
+  with the load aboard; the notice says `` loading the built `tally` now -- Workshop stays live
+  while the incremental build confirms it ``, then the outcome, `already up to date`, and the
+  project's answer, as [`builder.build`](#builderbuild).
 - **Refuses:** `nothing built is waiting to be loaded`; `load after build is already on -- the next
   build is offered`; `` `tally` was not loaded -- it is not what is built and waiting now `` when
   another build finished between your aim and your press; and the refusals every act shares.
@@ -276,8 +282,9 @@ One line up.
 
 - **Takes:** the reader. Default key <!-- key builder.output-up -->`up`<!-- /key -->; the wheel moves
   three lines a notch; the control `[up]`.
-- **Answers:** the page moves; moving up into lines the Builder did not keep lands on the line before
-  them.
+- **Answers:** the page moves, asked again of the Builder office
+  ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)); moving up into lines the
+  Builder did not keep lands on the line before them.
 - **Refuses:** nothing; at the first line nothing moves.
 - **Example:** <!-- key builder.output-up -->`up`<!-- /key -->.
 
@@ -287,7 +294,9 @@ One line down.
 
 - **Takes:** the reader. Default key <!-- key builder.output-down -->`down`<!-- /key -->; the control
   `[down]`.
-- **Answers:** the page moves; moving down into lines the Builder did not keep lands after them.
+- **Answers:** the page moves, asked again of the Builder office
+  ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)); moving down into lines the
+  Builder did not keep lands after them.
 - **Refuses:** nothing; at the last line nothing moves.
 - **Example:** <!-- key builder.output-down -->`down`<!-- /key -->.
 
@@ -297,7 +306,8 @@ The first line.
 
 - **Takes:** the reader. Default key <!-- key builder.output-first -->`home`<!-- /key -->; the control
   `[first line]`.
-- **Answers:** the page from line 1.
+- **Answers:** the page from line 1, asked of the Builder office
+  ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)).
 - **Refuses:** nothing.
 - **Example:** <!-- key builder.output-first -->`home`<!-- /key -->.
 
@@ -307,7 +317,8 @@ The last lines; the reader follows new ones while the build is still writing.
 
 - **Takes:** the reader. Default key <!-- key builder.output-last -->`end`<!-- /key -->; the control
   `[last lines]`.
-- **Answers:** the page that ends at the last line.
+- **Answers:** the page that ends at the last line, asked of the Builder office
+  ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)).
 - **Refuses:** nothing.
 - **Example:** <!-- key builder.output-last -->`end`<!-- /key -->.
 
@@ -337,7 +348,8 @@ Reads the build before this one, among the builds the Builder still keeps (its l
 
 - **Takes:** the reader. Default key <!-- key builder.output-older -->`[`<!-- /key -->; the control
   `[older build]`.
-- **Answers:** the reader binds to that build.
+- **Answers:** the reader binds to that build and asks for its page
+  ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)).
 - **Refuses:** `no older build's output is kept`.
 - **Example:** <!-- key builder.output-older -->`[`<!-- /key -->.
 
@@ -347,7 +359,8 @@ Reads the build after this one.
 
 - **Takes:** the reader. Default key <!-- key builder.output-newer -->`]`<!-- /key -->; the control
   `[newer build]`.
-- **Answers:** the reader binds to that build.
+- **Answers:** the reader binds to that build and asks for its page
+  ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)).
 - **Refuses:** `no newer build's output is kept`.
 - **Example:** <!-- key builder.output-newer -->`]`<!-- /key -->.
 
@@ -417,10 +430,15 @@ project waits on and the artifact is already built, it loads it now.
 
 - **Takes:** the role typed. Default key <!-- key authoring.commit -->`return`<!-- /key -->; the
   control `[load it with this role]`.
-- **Answers:** the project's answer and where the row was written: `` loaded `tally` as example.tally
-  -- pending -- the project is waiting on it; nothing is built yet -- the frontier action builds and
-  loads it ``, then [`builder.frontier`](#builderfrontier) builds it. When it loads a built artifact,
-  the notice then follows that build and its load, as [`builder.build`](#builderbuild).
+- **Answers:** asks the plan office to write the row
+  ([`PlanRowRequested`](../../workshop/builder_seam_vocabulary.hpp)), and once it is written asks
+  the project what it is waiting on
+  ([`ProjectFrontierRequested`](../../workshop/builder_seam_vocabulary.hpp)). The notice is the
+  project's answer and where the row was written: `` loaded `tally` as example.tally -- pending --
+  the project is waiting on it; nothing is built yet -- the frontier action builds and loads it ``,
+  then [`builder.frontier`](#builderfrontier) builds it. When it loads a built artifact, it sends
+  [`BuildRequested`](zengine.builder.md#buildrequested), and the notice follows that build and its
+  load, as [`builder.build`](#builderbuild).
 - **Refuses:** `a weave declaration needs a role -- nothing was loaded`; the project's refusals, as
   `not loaded: realization is not between rows: it is still performing the authored plan`. A row
   the project refuses is not written.

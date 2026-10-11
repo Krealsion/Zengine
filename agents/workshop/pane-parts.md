@@ -61,7 +61,8 @@ by its name and its two controls by what they do"`; `tests/test_workshop_panes_e
 `"WL-HAND-06: the Editor names its status row and each document line by its number, wherever the
 window stands"`; `tests/test_workshop_neovim.cpp` case `"WL-HAND-06: the Neovim editor names its
 own status row, and nothing of Neovim's screen"`; `tests/test_view.cpp` case `"WL-HAND-06: a running
-view names each element by its id over the place a press on it lands, and a press there uses it"`;
+view names each element by its id over the place a press on it lands, a button saying an intent as
+the action it performs, and a press there uses it"`;
 `tests/test_view_builder.cpp` case `"WL-HAND-06: the View Builder names its controls, kinds, boxes,
 list rows, elements and handles, an element by its id"`; `tests/test_flow_pane.cpp` case
 `"WL-HAND-06: Flow names its controls, its nodes and ports by their place, and every place a press

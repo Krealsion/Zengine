@@ -44,8 +44,35 @@ void WorkshopWeave::say_withdrawn(const std::string& office, ActionsWithdrawn wi
 
 // ---- The application's declared defaults --------------------------------------------------
 
+/// A declaration from a desktop built before causes existed, widened with none.
 // WL-DESK-07 -- agents/workshop/desktop.md
 void WorkshopWeave::on(const AppActions& actions, loom::Mail& mail) {
+    v2::AppActions widened;
+    widened.rows.reserve(actions.rows.size());
+    for (const AppActionRow& d : actions.rows) {
+        widened.rows.push_back(
+            v2::AppActionRow{d.id, d.label, d.scancode, d.modifiers, d.precedence, {}});
+    }
+    on(widened, mail);
+}
+
+namespace {
+
+/// The declared application rows as the keymap holds them: keys, precedence and causes.
+std::vector<AppRow> app_rows_of(const std::vector<v2::AppActionRow>& declared) {
+    std::vector<AppRow> rows;
+    rows.reserve(declared.size());
+    for (const v2::AppActionRow& d : declared) {
+        rows.push_back(
+            AppRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.precedence, d.causes});
+    }
+    return rows;
+}
+
+} // namespace
+
+// WL-DESK-07 -- agents/workshop/desktop.md; WL-CAUSE-01 -- agents/workshop/action-causes.md
+void WorkshopWeave::on(const v2::AppActions& actions, loom::Mail& mail) {
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
         return; // personal speech declares nothing -- the offer's rule, one seam over
@@ -75,15 +102,18 @@ void WorkshopWeave::on(const AppActions& actions, loom::Mail& mail) {
         repaint(mail);
         return;
     }
-    std::vector<AppRow> rows;
-    rows.reserve(actions.rows.size());
-    for (const AppActionRow& d : actions.rows) {
-        rows.push_back(AppRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.precedence});
-    }
+    const std::vector<AppRow> rows = app_rows_of(actions.rows);
     // JUDGED INTO A COPY, so a refusal anywhere leaves the rows in force exactly as they
-    // were -- `declare_pane_actions`' discipline, one scope out.
+    // were -- `declare_pane_actions`' discipline, one scope out -- and what each press may
+    // cause judged beside the keys.
     Keymap candidate = session_.keymap;
-    const Written joined = join_app_rows(candidate, rows);
+    Written joined = join_app_rows(candidate, rows);
+    for (const v2::AppActionRow& d : actions.rows) {
+        if (!joined.accepted) break;
+        if (std::string wrong = action_causes_problem(d.causes, kMaxActionCauses); !wrong.empty()) {
+            joined = Written::no("`" + d.id + "`: " + wrong);
+        }
+    }
     if (!joined.accepted) {
         answer_declaration(std::string(office),
                            ActionsJudged{std::string(), false, 0, joined.refusal}, mail);
@@ -113,11 +143,7 @@ void WorkshopWeave::rejoin_app_rows(std::string& refusals, loom::Mail& mail) {
     if (app_actions_.empty()) {
         return;
     }
-    std::vector<AppRow> rows;
-    rows.reserve(app_actions_.size());
-    for (const AppActionRow& d : app_actions_) {
-        rows.push_back(AppRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.precedence});
-    }
+    const std::vector<AppRow> rows = app_rows_of(app_actions_);
     Keymap candidate = session_.keymap;
     const Written joined = join_app_rows(candidate, rows);
     if (joined.accepted) {
@@ -430,7 +456,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
         known = true;
     }
     if (!known) {
-        for (const AppActionRow& d : app_actions_) {
+        for (const v2::AppActionRow& d : app_actions_) {
             if (d.id == asked.action) {
                 declared = Gesture{d.scancode, d.modifiers};
                 known = true;
@@ -440,7 +466,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
     }
     if (!known) {
         for (const RuntimePane& row : session_.panes.runtime.entries) {
-            for (const v2::PaneActionRow& d : row.actions) {
+            for (const v3::PaneActionRow& d : row.actions) {
                 if (d.id == asked.action) {
                     declared = Gesture{d.scancode, d.modifiers};
                     known = true;
@@ -578,11 +604,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
         return;
     }
     if (!app_actions_.empty()) {
-        std::vector<AppRow> app;
-        for (const AppActionRow& d : app_actions_) {
-            app.push_back(AppRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.precedence});
-        }
-        const Written joined = join_app_rows(candidate, app);
+        const Written joined = join_app_rows(candidate, app_rows_of(app_actions_));
         if (!joined.accepted) {
             refuse("the application's keys: " + joined.refusal);
             return;
@@ -790,6 +812,19 @@ void WorkshopWeave::publish_inventory(loom::Mail& mail) {
 
 namespace {
 
+bool same_causes(const std::vector<ActionCause>& a, const std::vector<ActionCause>& b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (a[i].shape != b[i].shape || a[i].version != b[i].version ||
+            a[i].subject != b[i].subject) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool same_bindings(const std::vector<ShownBinding>& a, const std::vector<ShownBinding>& b) {
     if (a.size() != b.size()) {
         return false;
@@ -797,9 +832,30 @@ bool same_bindings(const std::vector<ShownBinding>& a, const std::vector<ShownBi
     for (std::size_t i = 0; i < a.size(); ++i) {
         const ShownBinding& x = a[i];
         const ShownBinding& y = b[i];
-        if (x.group != y.group || x.id != y.id || x.label != y.label || x.gesture != y.gesture ||
-            x.shown != y.shown || x.authored != y.authored || x.remappable != y.remappable) {
+        if (x.group != y.group || x.office != y.office || x.pane != y.pane || x.id != y.id ||
+            x.label != y.label || x.gesture != y.gesture || x.shown != y.shown ||
+            x.authored != y.authored || x.remappable != y.remappable || x.enters != y.enters ||
+            !same_causes(x.causes, y.causes)) {
             return false;
+        }
+    }
+    return true;
+}
+
+bool same_modes(const std::vector<ShownModes>& a, const std::vector<ShownModes>& b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (a[i].office != b[i].office || a[i].pane != b[i].pane || a[i].mode != b[i].mode ||
+            a[i].elsewhere.size() != b[i].elsewhere.size()) {
+            return false;
+        }
+        for (std::size_t j = 0; j < a[i].elsewhere.size(); ++j) {
+            if (a[i].elsewhere[j].mode != b[i].elsewhere[j].mode ||
+                !same_causes(a[i].elsewhere[j].causes, b[i].elsewhere[j].causes)) {
+                return false;
+            }
         }
     }
     return true;
@@ -807,8 +863,8 @@ bool same_bindings(const std::vector<ShownBinding>& a, const std::vector<ShownBi
 
 bool same_keymap(const KeymapShown& a, const KeymapShown& b) {
     return a.file == b.file && a.word == b.word && a.spelling == b.spelling &&
-           same_bindings(a.rows, b.rows) &&
-           same_bindings(a.moved, b.moved);
+           same_bindings(a.rows, b.rows) && same_bindings(a.moved, b.moved) &&
+           same_modes(a.modes, b.modes);
 }
 
 } // namespace

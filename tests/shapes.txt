@@ -1,13 +1,16 @@
 # The census of shapes (tests/test_shapes_census.cpp): every shape this tree publishes, nested
 # ones included, as `<name> v<version> <content id>`. A changed shape is a new version, and so is
 # every shape enclosing it; the census as it stands is written beside the build to diff against.
+ActionCause v1 0x0e8ac43167eee1f6
 ActionsJudged v1 0xeb0998f48ba3335b
 ActionsWithdrawn v1 0x7aaceb7e61c4a2df
 ActorScopeJudged v1 0x44b57fa39b52a9fb
 ActorScopeRequested v1 0x5275db1a5f42d659
 AppActionRequested v2 0x9a8ee79545fc2ddf
 AppActionRow v1 0x22b5f069b3060f7a
+AppActionRow v2 0xc22ff4c6b4f5b155
 AppActions v1 0x8ed795b4ebd1f55e
+AppActions v2 0xaa9bfdae36d5f9ed
 ArrangementDoorState v2 0x84aaa708082f869a
 ArrangementRequested v1 0xca9ff6cf8858363a
 ArtifactParticipation v2 0x8c3f74a89c37e92d
@@ -199,7 +202,7 @@ KeyReleased v2 0x383cfe55dcb0d80c
 KeymapEditAnswered v1 0xc4076e9e76909fd3
 KeymapEditRequested v1 0xb039709485b92a21
 KeymapRequested v1 0x1f9fa150659359e4
-KeymapShown v2 0xdc57ed7396dacde1
+KeymapShown v3 0x864ccb540c579b17
 LoadedSelected v1 0x014167e0a0600f00
 LookAtBuilds v1 0x6c73869dadfb0a65
 ManagedOpenProgress v1 0x2bca6433e225c0dd
@@ -211,6 +214,7 @@ MenuReturned v1 0x2ebe17f3ee281c8e
 MenuShown v1 0x8880f6fd5475e230
 MenuShown v2 0xfafad45e5093a833
 MenuWithdrawn v1 0x5d4547eeb3e57fbe
+ModeCauses v1 0xf0a98b0403aadda4
 NeovimEditorState v1 0x5de22f665f5bb6d1
 NeovimStartRequested v1 0x88b541cccf223cbc
 NeovimStatusRequested v1 0x6e604950c0890f1b
@@ -223,18 +227,22 @@ OperatorState v1 0x5a9910fc3c9efdce
 PaneActionRequested v1 0xbb7e7caf6998a112
 PaneActionRow v1 0x446fc3f42046e34e
 PaneActionRow v2 0x3377929ec8b56418
+PaneActionRow v3 0xb8cd2ff5d3127534
 PaneActions v1 0x91f2c7c16ff8c0a7
 PaneActions v2 0xade8c18a16534a96
+PaneActions v3 0x5b471468822f5e16
 PaneButton v1 0x68bd7930cbd7aa05
 PaneCanvasContent v2 0xa8888ec781ad1ebb
 PaneCanvasContent v3 0x98174a74b33827a4
 PaneCanvasContent v4 0xe347f30fdf3bb793
 PaneCanvasContent v5 0x6b8fd8e2abaabdb5
+PaneCanvasContent v6 0x57612af66b0c3c93
 PaneCanvasDrop v1 0xa2433c24f71e23ec
 PaneCanvasHover v1 0x27195870bc8113b1
 PaneCanvasHover v2 0xaf32b3cd5382c686
 PaneCanvasLabel v1 0x4047703a53b5f02f
 PaneCanvasPart v1 0x26d1ff6aa7cda21a
+PaneCanvasPart v2 0xdb227ec77c1203f6
 PaneCanvasPointer v1 0x221d04b3201dcf9a
 PaneCanvasPointer v2 0x64c3dac87b1d2f5b
 PaneCanvasRect v1 0x1eee99d759fe55b8
@@ -257,6 +265,7 @@ PaneContent v1 0x4065ed3dd66ee13c
 PaneContent v2 0xb92aa7a635dc8407
 PaneContent v3 0xb9e99c2022e10871
 PaneContent v4 0xc16deb8795ee9660
+PaneContent v5 0xbb6d38781122f82d
 PaneCover v1 0xa709fceb604560a1
 PaneDocumentKey v1 0x18a927742894903f
 PaneDocumentRequested v1 0x3379dd0cb0156dca
@@ -286,6 +295,7 @@ PaneOperationAnswered v1 0x445fdc32f738c767
 PaneOperationRequested v1 0x1d1e32577a3c4b28
 PaneOperationRequested v2 0x58bac8ed37b3f1bf
 PanePart v1 0x6933389f16efa613
+PanePart v2 0xa8ade8ccf7e880e7
 PanePassRequested v1 0x09078704f67cc99e
 PanePoint v1 0xdc77c79cfc6ba9e0
 PanePoint v2 0xac1cbc9ddc1f52d0
@@ -303,6 +313,7 @@ PaneRevealAnswered v1 0xc9433fec66580502
 PaneRevealRequested v1 0x6f6ea82ad0525e00
 PaneRoom v1 0xf59705a5786e0884
 PaneRowPart v1 0xc2090f5a6cc1cb72
+PaneRowPart v2 0x39fef02f9583ec28
 PaneSetting v1 0x734b46a0def3b4c5
 PaneSettingRow v1 0x08e89ae1903ffd5a
 PaneSettings v1 0xf6c2d4b5c1a9609f
@@ -331,11 +342,13 @@ PaneView v2 0x93ac25999ff7241c
 PaneView v3 0xab767a42f8d07360
 PaneView v4 0x0cf856ded90b8b69
 PaneView v5 0x757c223119d9b5e5
+PaneView v6 0xf10026bd9ae113d0
 PaneViewRequested v1 0x62bcd16da2a5278b
 PaneViewRequested v2 0x01c57ef5bf599e3c
 PaneViewRequested v3 0x7a8da580eff88599
 PaneViewRequested v4 0x9fd1231619554842
 PaneViewRequested v5 0xe9077a48ea7ee2c5
+PaneViewRequested v6 0x95887eb4e9bbae4c
 PaneViewRow v1 0x173cf318433ad948
 PaneWheel v1 0xf6d1debe710aafeb
 PaneWord v1 0x821f0e413965418f
@@ -397,9 +410,10 @@ ScoreState v1 0x2a0e436c6672fb9d
 SetupApplyRequested v1 0xdbed9509ec8b868a
 ShapeDocumentRequested v1 0x6a2a97debe09af6e
 ShapeDocumentShown v1 0x5444c736d8fefe30
-ShownBinding v2 0x02557b56db70677a
+ShownBinding v3 0x211da3c4793b0de4
 ShownCandidate v1 0x8ad594ca04e169db
 ShownEntry v2 0x5daa79b13f1620ff
+ShownModes v1 0xf2b326854977a7bc
 ShownProperty v1 0x33d6e471c262cd06
 SkinState v1 0x75193458bf021f5c
 SlotBinding v1 0xaf9a009465b017d9

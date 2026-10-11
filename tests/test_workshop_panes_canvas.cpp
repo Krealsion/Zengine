@@ -10,6 +10,7 @@
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/screen_canvas.hpp"
 #include "view/host.hpp"
+#include "flow/shape.hpp"
 #include <limits>
 
 namespace {
@@ -1222,6 +1223,98 @@ TEST_CASE("a described view of the greatest size its rules allow asks for a pane
     for (const auto& t : pane->canvas.content.texts) words += t.text + "|";
     CHECK(words.find("Near|") != std::string::npos);
     CHECK(words.find("Far|") == std::string::npos); // past the pane, cut
+}
+
+namespace {
+/// Hears one shape, whoever says it: a described view's intent, as its accepter would.
+class Hears final : public loom::Weave {
+public:
+    explicit Hears(std::shared_ptr<const loom::Schema> shape) : shape_(std::move(shape)) {}
+    std::vector<loom::Message> heard;
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override { return {shape_}; }
+    void handle(const loom::Message& in, loom::Bus&) override { heard.push_back(in); }
+    loom::Value snapshot() const override { return loom::Value(loom::make_schema("canvastest.Hears", 1, {})); }
+    loom::Value policy() const override {
+        loom::Value v(loom::lifecycle_policy_schema());
+        v.set("max_reloads", loom::Cell::integer(0));
+        v.set("revive_from_last_good", loom::Cell::boolean(false));
+        return v;
+    }
+    void revive(const loom::Value&) override {}
+
+private:
+    std::shared_ptr<const loom::Schema> shape_;
+};
+}
+
+TEST_CASE("a weaver keys a described view's button by naming its id in their keymap file: the key "
+          "says the button's intent, the keymap says what it causes, and its part is the action's") {
+    namespace view = zengine::view;
+    TempDir dir("view-key");
+    const std::string path = (dir.path() / "keymap.json").generic_string();
+    write_keymap_file(path, keymap_file_text("default", {{"go", "g"}}));
+    PaneRig r;
+    r.host.keymap_path = path;
+    r.mount_workshop();
+    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.ready();
+    r.extent(160, 90, 8, 18, surface::kCanvasCellPx);
+    view::Host views(r.bus);
+    views.mount();
+    auto asker = std::make_unique<ViewAsker>();
+    auto* client = asker.get();
+    loom::Grant asking;
+    view::allow_view_requests(asking);
+    const auto client_id = r.bus.register_weave(std::move(asker), std::move(asking));
+    client->zen_set_self(client_id);
+    const auto said = zengine::flow::shape::make(zengine::flow::shape::qualified("keyed.panel", "Go"));
+    auto hears = std::make_unique<Hears>(said);
+    auto* heard = hears.get();
+    (void)r.bus.register_weave(std::move(hears), loom::Grant{});
+
+    view::Description d;
+    d.name = "keyed.panel";
+    d.width = 240;
+    d.height = 96;
+    d.elements = {{"go", view::Kind::button, "Go", 0, 0, 96, 24, ""},
+                  {"note", view::Kind::label, "Note", 0, 28, 96, 24, ""}};
+    d.intents = {{"go", said, {}}};
+    const auto bytes = view::description_bytes(d);
+    (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
+        loom::Message(loom::to_value(view::ViewRun{"builder", loom::Bytes(bytes.begin(), bytes.end())}), client_id, {}, 1));
+    r.bus.drain_until_idle();
+    REQUIRE_FALSE(client->answers.empty());
+    REQUIRE_MESSAGE(client->answers.back().ok, client->answers.back().reason);
+    const auto* row = r.session().panes.runtime.find("keyed.panel", view::kPane);
+    REQUIRE(row);
+    REQUIRE(r.session().panes.has(row->kind));
+    // DECLARED AND HELD: one row, the button's id, causing the intent's shape.
+    REQUIRE(row->actions.size() == 1);
+    CHECK(row->actions[0].id == "go");
+    REQUIRE(row->actions[0].causes.size() == 1);
+    CHECK(row->actions[0].causes[0].shape == "keyed.panel.Go");
+    // ...ITS PART THE ACTION'S, AND AVAILABLE.
+    const auto parts = held_parts(r.session(), row->kind);
+    REQUIRE(parts.count("control:go") == 1);
+    CHECK(parts.at("control:go").available);
+    CHECK(parts.count("element:note") == 1);
+    // ...AND THE KEYMAP SAYS IT WHERE A READER LOOKS: its address and its cause.
+    bool shown = false;
+    for (const ShownBinding& b : keymap_shown(r.session(), std::string(), std::string()).rows) {
+        if (b.office != "keyed.panel" || b.id != "go") continue;
+        shown = true;
+        CHECK(b.pane == view::kPane);
+        CHECK(b.gesture == "g");
+        REQUIRE(b.causes.size() == 1);
+        CHECK(b.causes[0].shape == "keyed.panel.Go");
+    }
+    CHECK(shown);
+    // THE WEAVER'S KEY, WITH THE VIEW HOLDING THE KEYS, SAYS THE INTENT.
+    press_body(r, row->kind);
+    REQUIRE(r.session().panes.keyboard == row->kind);
+    r.key(input::scan::kG);
+    REQUIRE(heard->heard.size() == 1);
+    CHECK(heard->heard[0].provenance.authored_role().empty()); // said as the view, by publication
 }
 
 TEST_CASE("a view asks for its size in pixels and its pane grants exactly that room: to the pixel in a window, to the cells that hold it in a terminal") {

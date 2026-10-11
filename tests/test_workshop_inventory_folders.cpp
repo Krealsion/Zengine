@@ -134,10 +134,10 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
         for (const auto& [name, part] : held_parts(s.r.session(), s.source)) {
             if (name.rfind(prefix, 0) == 0 && name.size() >= suffix.size() &&
                 name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
-                return std::optional<PaneRowPart>(part);
+                return std::optional<v2::PaneRowPart>(part);
             }
         }
-        return std::optional<PaneRowPart>();
+        return std::optional<v2::PaneRowPart>();
     };
     // THE FOLDER'S ROW BY ITS IDENTITY, and every entry's by its reference.
     const auto folder = named("folder:", ":" + workbench);

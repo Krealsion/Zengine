@@ -74,7 +74,7 @@ struct MenuShown {
     std::int64_t menu = 0;
     std::int64_t picture = 0;
     std::vector<surface::SurfaceTextRow> lines;
-    std::vector<PaneRowPart> parts;
+    std::vector<zengine::workshop::PaneRowPart> parts;
     ZEN_SHAPE(MenuShown, 2, ZEN_FIELD(menu), ZEN_FIELD(picture), ZEN_FIELD(lines),
               ZEN_FIELD(parts));
 };

@@ -2,10 +2,9 @@
 
 Routed behind [`../workshop/AGENTS.md`](../workshop/AGENTS.md); each folder's router links the
 registers here that serve it. Behavioral ownership follows the component when its code moves.
-Workshop's law lives in the registers under [`workshop/`](workshop/): one law per `##`, a
-`WL-<AREA>-<NN>` id that is permanent, a `LAW` of one line, `MEANS`, `DOES NOT MEAN`, a
-`PROVEN BY` naming the owner identifiers and the exact witness cases, and a `WHY` naming one
-decision record under `decisions/`. Disagreements follow
+Workshop's law lives in the registers under [`workshop/`](workshop/), each law under a permanent
+`WL-<AREA>-<NN>` id in the form rule 1 below gives, its `WHY` a record under `decisions/`.
+Disagreements follow
 [intent, evidence, and architectural fit](../AGENTS.md#intent-evidence-and-architectural-fit)
 (rule 5 below). The whole law is
 `grep -h '^LAW' agents/workshop/*.md`.
@@ -24,7 +23,7 @@ consumer-specific behavior of its extracted panes.
 | local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
 | a pane's labelled controls, its picture number, a mode a hand can leave, its parts' names | [pane-controls](workshop/pane-controls.md) · [pane-parts](workshop/pane-parts.md) `WL-HAND` |
-| a key, the keymap, an edit | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) · [spelling](workshop/key-spelling.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
+| a key, the keymap, an edit, a press's causes | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) · [spelling](workshop/key-spelling.md) `WL-KEY` · [causes](workshop/action-causes.md) `WL-CAUSE` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
 | Info's body, its subject, its grounds, the desk row naming it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
 | semantic text in a pane, the Builder's rows, the foot band | [regions](workshop/regions.md) `WL-RGN` |

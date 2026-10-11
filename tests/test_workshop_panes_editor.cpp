@@ -821,7 +821,7 @@ struct EditorRig {
         const RuntimePane* one = row();
         REQUIRE(one != nullptr);
         std::vector<std::string> ids;
-        for (const v2::PaneActionRow& a : one->actions) {
+        for (const v3::PaneActionRow& a : one->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());

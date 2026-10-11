@@ -165,6 +165,12 @@ struct PaneWheel {
 inline constexpr const char* kOwnableDocumentSave = "document.save";
 inline constexpr const char* kOwnableDocumentOpen = "document.open";
 
+/// THE BOUNDS ON ONE ROW'S TWO STRINGS, in BYTES -- an id is spelled in the keymap file and a
+/// label on the band, and neither is a place for a paragraph. Workshop refuses a declaration past
+/// either; they are published here so a pane can judge its own rows before it declares them.
+inline constexpr std::size_t kMaxPaneActionIdLen = 64;
+inline constexpr std::size_t kMaxPaneActionLabelLen = 32;
+
 /// One action a pane declares: an id in its own namespace -- the spelling a weaver's keymap file
 /// names, so renaming it breaks their overrides -- a label, and a default gesture as `PaneKey`'s
 /// two numbers (`kUnknown` = none). A default must be one the keymap file can spell, or admission
@@ -215,6 +221,67 @@ struct PaneActions {
 };
 
 } // namespace v2
+
+// ---- What a press may cause ----------------------------------------------------------------
+
+/// ONE SHAPE A PRESS OF AN ACTION MAY SEND, to anyone, directly or after an answer it waits on,
+/// beside the pane protocol a pane speaks to Workshop about itself (its offer, rows, content,
+/// caret, menus and the approval it asks before an act). `subject` says what the send is about:
+/// empty, the pane's own state; `on <prefix>`, the part a press lands on, named `<prefix><s>`;
+/// `to <office>/<pane>`, always that one pane. No field of the message is declared.
+struct ActionCause {
+    std::string shape;        ///< the shape's name, as Loom knows it
+    std::int64_t version = 0; ///< its version, 1 or more
+    std::string subject;      ///< "", "on <prefix>" or "to <office>/<pane>"
+    ZEN_SHAPE(ActionCause, 1, ZEN_FIELD(shape), ZEN_FIELD(version), ZEN_FIELD(subject));
+};
+
+/// What the rows of ONE OTHER MODE of a pane may cause: never its rows, which only the mode in
+/// force declares, so a reader can tell "another mode can" from "nothing here can".
+struct ModeCauses {
+    std::string mode; ///< the mode's name, as the pane's census and manual name it
+    std::vector<ActionCause> causes;
+    ZEN_SHAPE(ModeCauses, 1, ZEN_FIELD(mode), ZEN_FIELD(causes));
+};
+
+/// The most causes one row may declare, and one other mode's entry; the most other modes; the
+/// longest mode name and shape name (a subject's bound is `kMaxCauseSubjectLen`, beside the parts).
+inline constexpr std::size_t kMaxActionCauses = 16;
+inline constexpr std::size_t kMaxModeCauses = 64;
+inline constexpr std::size_t kMaxPaneModes = 16;
+inline constexpr std::size_t kMaxPaneModeLen = 32;
+inline constexpr std::size_t kMaxCauseShapeLen = 128;
+
+/// Version 3 of the declaration says what each press may cause, and the modes: the mode these rows
+/// are in force for, the mode a row's press leaves the pane in, and what each other mode's rows may
+/// cause. Workshop widens v1 and v2 with none of them and holds the three where it holds the rows.
+namespace v3 {
+
+/// `PaneActionRow` v2's five fields, the shapes a press may send, and the mode it enters.
+struct PaneActionRow {
+    std::string id;             ///< the durable action id, in the PANE's own namespace
+    std::string label;          ///< what a legend prints beside the key
+    std::int64_t scancode = 0;  ///< `zengine::input::scan`'s space; `kUnknown` = no default
+    std::int64_t modifiers = 0; ///< `zengine::input::mod`'s bitmask
+    std::string supersedes = {};               ///< as v2's
+    std::vector<ActionCause> causes = {};      ///< at most `kMaxActionCauses`, none twice
+    std::string enters = {};                   ///< a mode `elsewhere` names, or empty: no change
+    ZEN_SHAPE(PaneActionRow, 3, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(scancode),
+              ZEN_FIELD(modifiers), ZEN_FIELD(supersedes), ZEN_FIELD(causes), ZEN_FIELD(enters));
+};
+
+/// The rows of the mode in force, its name, and each other mode's causes, judged whole by the laws
+/// of v1 and v2 and replaced whole.
+struct PaneActions {
+    std::string pane;
+    std::string mode;                       ///< the mode these rows are in force for; may be empty
+    std::vector<PaneActionRow> rows;
+    std::vector<ModeCauses> elsewhere = {}; ///< at most `kMaxPaneModes`, each mode once
+    ZEN_SHAPE(PaneActions, 3, ZEN_FIELD(pane), ZEN_FIELD(mode), ZEN_FIELD(rows),
+              ZEN_FIELD(elsewhere));
+};
+
+} // namespace v3
 
 /// Workshop -> provider: its verdict on one action declaration, as Loom's answer to that
 /// delivery, so it reaches only the incarnation that declared (Loom ANS-03). `declaration`
@@ -478,6 +545,8 @@ struct PanePressed {
 /// The most parts one picture may list, and the longest a name may be.
 inline constexpr std::size_t kMaxPaneParts = 2048;
 inline constexpr std::size_t kMaxPanePartNameLen = 256;
+/// The longest subject a cause may name: `on ` or `to ` and a part's prefix, or a pane.
+inline constexpr std::size_t kMaxCauseSubjectLen = 3 + kMaxPanePartNameLen;
 
 /// ONE PART OF A PANE'S ROWS: `columns` columns of row `row` from `column`, in `PaneRoom`'s
 /// lattice -- a row entire, or a control inside one -- and the pane's name for it. The same shape
@@ -509,6 +578,44 @@ struct PaneContent {
 };
 
 } // namespace v4
+
+namespace v2 {
+
+/// A PART THAT SAYS WHETHER ITS OPERATION APPLIES NOW: v1's part, and `available`, which a pane
+/// draws `[label]` when true and `(label)` when false. A hint, as the drawing is: the pane judges
+/// the press again when it arrives. A part that performs nothing, a row, says true.
+struct PaneRowPart {
+    std::string name;
+    std::int64_t row = 0;
+    std::int64_t column = 0;
+    std::int64_t columns = 0;
+    bool available = true;
+    ZEN_SHAPE(PaneRowPart, 2, ZEN_FIELD(name), ZEN_FIELD(row), ZEN_FIELD(column),
+              ZEN_FIELD(columns), ZEN_FIELD(available));
+};
+
+} // namespace v2
+
+/// An earlier part as the current form says it: available, as every earlier part is read.
+inline v2::PaneRowPart row_part_of(const PaneRowPart& p) {
+    return v2::PaneRowPart{p.name, p.row, p.column, p.columns, true};
+}
+
+namespace v5 {
+
+/// CONTENT WHOSE PARTS SAY THEIR AVAILABILITY: v4's content, its parts `v2::PaneRowPart`, judged
+/// and refused as v4's.
+struct PaneContent {
+    std::string pane;
+    std::vector<surface::SurfaceTextRow> rows;
+    std::int64_t generation = 0;
+    std::int64_t picture = 0;
+    std::vector<v2::PaneRowPart> parts = {};
+    ZEN_SHAPE(PaneContent, 5, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(generation),
+              ZEN_FIELD(picture), ZEN_FIELD(parts));
+};
+
+} // namespace v5
 
 } // namespace zengine::workshop
 

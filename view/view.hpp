@@ -15,6 +15,7 @@
 #include "surface/pointing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -261,15 +262,42 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     return out;
 }
 
-/// THE PICTURE AS IT IS SAID, each element named by its id, `element:<id>`, over the place a press
-/// on it lands: the name the weaver gave the element in the View Builder.
-inline ws::v4::PaneCanvasContent named(const Picture& p) {
-    ws::PartNames<ws::PaneCanvasPart> parts;
+/// THE PICTURE AS IT IS SAID, each element named by its id over the place a press on it lands: a
+/// button whose intent the view declares as an action is `control:<id>`, the action it performs;
+/// every other element is `element:<id>`, the name the weaver gave it in the View Builder.
+inline ws::v6::PaneCanvasContent named(const Description& d, const Picture& p) {
+    ws::PartNames<ws::v2::PaneCanvasPart> parts;
     for (const Hit& hit : p.hits) {
-        (void)parts.add(ws::PaneCanvasPart{"element:" + hit.element, hit.x, hit.y, hit.w, hit.h});
+        const bool control = d.intent(hit.element) != nullptr;
+        (void)parts.add(ws::v2::PaneCanvasPart{(control ? "control:" : "element:") + hit.element,
+                                               hit.x, hit.y, hit.w, hit.h, true});
     }
     const auto& c = p.content;
-    return ws::v4::PaneCanvasContent{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts, parts.take()};
+    ws::v6::PaneCanvasContent out = ws::canvas_content_of(c);
+    out.parts = parts.take();
+    return out;
+}
+
+/// THE ACTIONS A VIEW DECLARES: one per intent, its id the button's element id, its label the
+/// button's (cut to what a row holds, its id where it has none), no default key, and what a press
+/// causes the intent's shape -- read from the description, so the declaration and the view cannot
+/// disagree. A weaver keys one by naming its id in their keymap file.
+inline ws::v3::PaneActions actions_of(const Description& d) {
+    ws::v3::PaneActions out;
+    out.pane = kPane;
+    for (const Intent& intent : d.intents) {
+        const Element* button = d.element(intent.control);
+        if (!button) continue;
+        std::string label = button->label.empty() ? button->id : button->label;
+        if (label.size() > ws::kMaxPaneActionLabelLen) label.resize(ws::kMaxPaneActionLabelLen);
+        if (label.find_first_not_of(' ') == std::string::npos) label = button->id;
+        out.rows.push_back(ws::v3::PaneActionRow{
+            button->id, std::move(label), input::scan::kUnknown, input::mod::kNone, {},
+            {ws::ActionCause{intent.shape->name(), static_cast<std::int64_t>(intent.shape->version()),
+                             std::string()}},
+            {}});
+    }
+    return out;
 }
 
 /// The picture a stopped view leaves: no element, and the sentence that it stopped.
@@ -304,7 +332,8 @@ inline loom::Grant view_grant(const Description& d) {
     to_workshop(ws::v3::PaneOffered::zen_name, ws::v3::PaneOffered::zen_version);
     to_workshop(ws::PaneContent::zen_name, ws::PaneContent::zen_version);
     to_workshop(ws::PaneCanvasContent::zen_name, ws::PaneCanvasContent::zen_version);
-    to_workshop(ws::v4::PaneCanvasContent::zen_name, ws::v4::PaneCanvasContent::zen_version);
+    to_workshop(ws::v6::PaneCanvasContent::zen_name, ws::v6::PaneCanvasContent::zen_version);
+    to_workshop(ws::v3::PaneActions::zen_name, ws::v3::PaneActions::zen_version);
     to_workshop(ws::PaneEscapeUnspent::zen_name, ws::PaneEscapeUnspent::zen_version);
     to_workshop(ws::PanePassRequested::zen_name, ws::PanePassRequested::zen_version);
     to_workshop(ws::PaneRevealRequested::zen_name, ws::PaneRevealRequested::zen_version);
@@ -353,7 +382,8 @@ public:
                        loom::schema_of<ws::PaneCatalogRequested>(), loom::schema_of<ws::PaneRoom>(),
                        loom::schema_of<ws::PaneCanvasRoom>(), loom::schema_of<ws::PaneCanvasPointer>(),
                        loom::schema_of<ws::PaneCanvasRejected>(), loom::schema_of<ws::PaneKey>(),
-                       loom::schema_of<ws::PaneTextInput>(), loom::schema_of<ws::PaneRevealAnswered>()})
+                       loom::schema_of<ws::PaneTextInput>(), loom::schema_of<ws::PaneRevealAnswered>(),
+                       loom::schema_of<ws::PaneActionRequested>(), loom::schema_of<ws::ActionsJudged>()})
             out.push_back(std::move(s));
         return out;
     }
@@ -361,7 +391,8 @@ public:
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
         auto out = description_.says();
         for (auto s : {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::PaneContent>(),
-                       loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::v4::PaneCanvasContent>(),
+                       loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::v6::PaneCanvasContent>(),
+                       loom::schema_of<ws::v3::PaneActions>(),
                        loom::schema_of<ws::PaneEscapeUnspent>(),
                        loom::schema_of<ws::PanePassRequested>(), loom::schema_of<ws::PaneRevealRequested>()})
             out.push_back(std::move(s));
@@ -380,7 +411,9 @@ public:
             return;
         }
         if (is(loom::schema_of<detail::ViewRedraw>())) {
-            if (host) show(bus);
+            if (!host) return;
+            declare(bus); // a change in place may name other buttons
+            show(bus);
             return;
         }
         if (is(loom::schema_of<loom::Refused>())) {
@@ -437,6 +470,22 @@ public:
             pointer(loom::from_value<ws::PaneCanvasPointer>(in.payload), in, bus);
         } else if (is(loom::schema_of<ws::PaneKey>())) {
             key(loom::from_value<ws::PaneKey>(in.payload), in, bus);
+        } else if (is(loom::schema_of<ws::PaneActionRequested>())) {
+            // A BUTTON ASKED FOR BY ITS ID -- a weaver's key bound to it, or an act by address --
+            // used as a press on it is.
+            const auto asked = loom::from_value<ws::PaneActionRequested>(in.payload);
+            const Element* button = asked.pane == kPane && description_.intent(asked.id)
+                                        ? description_.element(asked.id) : nullptr;
+            if (!button) return;
+            use(*button, bus);
+            show(bus);
+        } else if (is(loom::schema_of<ws::ActionsJudged>())) {
+            // A REFUSED DECLARATION IS SAID: the buttons still answer a press, and no key reaches one.
+            const auto judged = loom::from_value<ws::ActionsJudged>(in.payload);
+            if (judged.pane != kPane || judged.accepted) return;
+            presentation_.notice = "no key can name these buttons: " + judged.refusal;
+            presentation_.alert = true;
+            show(bus);
         } else if (is(loom::schema_of<ws::PaneTextInput>())) {
             const auto typed = loom::from_value<ws::PaneTextInput>(in.payload);
             if (typed.pane != kPane || !presentation_.focus) return;
@@ -473,7 +522,13 @@ private:
                                       loom::Message(loom::to_value(value), self_, {}, correlation));
     }
 
-    void offer(loom::Bus& bus) { say(bus, offered(description_)); }
+    void offer(loom::Bus& bus) {
+        say(bus, offered(description_));
+        declare(bus);
+    }
+
+    /// WHAT ITS BUTTONS DO, said to Workshop as the pane's actions (`actions_of`).
+    void declare(loom::Bus& bus) { say(bus, actions_of(description_)); }
 
     component::TextBox& field(const std::string& id) {
         const auto found = presentation_.fields.find(id);
@@ -485,7 +540,7 @@ private:
     void show(loom::Bus& bus) {
         if (room_.grant > 0 && room_.width > 0 && room_.height > 0) {
             auto current = picture(description_, told_, presentation_, room_, ++picture_number_);
-            say(bus, named(current));
+            say(bus, named(description_, current));
             pictures_.push_back(std::move(current));
             while (pictures_.size() > 8) pictures_.pop_front();
         } else if (rows_ > 0 && columns_ > 0) {

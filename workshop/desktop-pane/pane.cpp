@@ -27,6 +27,7 @@
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_escape.hpp"
 #include "workshop/pane_parts.hpp"
@@ -67,8 +68,8 @@ namespace pane_menu = zengine::workshop::pane_menu;
 using ws::ActionsJudged;
 using ws::ActionsWithdrawn;
 using ws::AppActionRequested;
-using ws::AppActionRow;
-using ws::AppActions;
+using ws::v2::AppActionRow;
+using ws::v2::AppActions;
 using ws::DeselectRequested;
 using ws::InspectPaneRequested;
 using ws::InventoryPane;
@@ -77,8 +78,8 @@ using ws::KeymapEditRequested;
 using ws::KeymapRequested;
 using ws::KeymapShown;
 using ws::PaneActionRequested;
-using ws::PaneActionRow;
-using ws::PaneActions;
+using ws::v3::PaneActionRow;
+using ws::v3::PaneActions;
 using ws::PaneCatalogRequested;
 using ws::PaneCloseAnswered;
 using ws::PaneCloseRequested;
@@ -859,7 +860,7 @@ private:
         (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, KeymapRequested{});
     }
 
-    /// THE APPLICATION ROWS, AND WHY EACH GESTURE.
+    /// THE APPLICATION ROWS, WHY EACH GESTURE, AND WHAT A PRESS CAUSES (`on(AppActionRequested)`).
     /// `Ctrl+t` -- the Terminal's own chord, restored as an application row.
     /// `Ctrl+p` -- the launcher: a plain ctrl+letter, which is what the POSIX wire can say.
     /// `Escape` -- in the DEFAULT class, which is what keeps every pane's own Escape its own.
@@ -868,55 +869,82 @@ private:
     static std::vector<AppActionRow> app_rows() {
         return {
             AppActionRow{pane::kActionTerminal, "terminal", input::scan::kT, input::mod::kCtrl,
-                         ws::app_precedence::kAboveModes},
+                         ws::app_precedence::kAboveModes,
+                         {ws::cause_of<PaneLaunchRequested>(
+                             ws::to_pane(kTerminalOffice, kTerminalPane))}},
             AppActionRow{pane::kActionPanes, "panes", input::scan::kP, input::mod::kCtrl,
-                         ws::app_precedence::kAboveModes},
+                         ws::app_precedence::kAboveModes,
+                         {ws::cause_of<PaneToggleRequested>(
+                             ws::to_pane(pane::kDesktopRole, pane::kLauncherPane))}},
             AppActionRow{pane::kActionHotkeys, "hotkeys", input::scan::kK, input::mod::kCtrl,
-                         ws::app_precedence::kAboveModes},
+                         ws::app_precedence::kAboveModes,
+                         {ws::cause_of<PaneLaunchRequested>(
+                             ws::to_pane(pane::kDesktopRole, pane::kHotkeysPane))}},
             AppActionRow{pane::kActionDeselect, "put down", input::scan::kEscape,
-                         input::mod::kNone, ws::app_precedence::kDefault},
+                         input::mod::kNone, ws::app_precedence::kDefault,
+                         {ws::cause_of<DeselectRequested>()}},
+            // THE MANUAL OF THE PANE THE ACT WAS PERFORMED ON, asked of its office, and the
+            // Manual shown: the ask's subject is the act's own pane, which the request names.
             AppActionRow{pane::kActionManual, "manual", input::scan::kF, input::mod::kCtrl,
-                         ws::app_precedence::kAboveModes}};
+                         ws::app_precedence::kAboveModes,
+                         {ws::cause_of<ws::PaneDocumentRequested>(),
+                          ws::cause_of<PaneLaunchRequested>(
+                              ws::to_pane(pane::kDesktopRole, pane::kManualPane))}}};
     }
 
     /// The Pane Manager's own rows, bare keys all. `x` closes, and is not Return's second meaning:
     /// Return only opens or focuses. `m` offers the row's menu. `n` shows the View Builder, where a
     /// pane of the weaver's own is made.
+    /// Return and `x` act on the row a press lands on, `pane:<office>/<pane>` (`launcher_part`).
     std::vector<PaneActionRow> pane_rows() const {
+        const std::string row = ws::on_part(pane::kLauncherRowPrefix);
         return {PaneActionRow{pane::kActionUp, "row up", input::scan::kUp, input::mod::kNone},
                 PaneActionRow{pane::kActionDown, "row down", input::scan::kDown,
                               input::mod::kNone},
                 PaneActionRow{pane::kActionLaunch, "show or focus", input::scan::kReturn,
-                              input::mod::kNone},
-                PaneActionRow{pane::kActionClose, "hide", input::scan::kX, input::mod::kNone},
+                              input::mod::kNone, {}, {ws::cause_of<PaneLaunchRequested>(row)}},
+                PaneActionRow{pane::kActionClose, "hide", input::scan::kX, input::mod::kNone, {},
+                              {ws::cause_of<PaneCloseRequested>(row)}},
                 PaneActionRow{pane::kActionMenu, "row menu", input::scan::kM, input::mod::kNone},
-                PaneActionRow{pane::kActionNew, "new pane", input::scan::kN, input::mod::kNone}};
+                PaneActionRow{pane::kActionNew, "new pane", input::scan::kN, input::mod::kNone, {},
+                              {ws::cause_of<PaneLaunchRequested>(
+                                  ws::to_pane(kViewBuilderOffice, kViewBuilderPane))}}};
     }
 
     /// DECLARE THE PANE MANAGER'S ROWS, under a new attempt number, so the verdict that comes
-    /// back is read against this declaration and no older one.
+    /// back is read against this declaration and no older one. It has one mode, its list.
     void declare_manager(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kLauncherPane;
+        actions.mode = pane::kLauncherMode;
         actions.rows = pane_rows();
         pane_rows_.attempt = ++attempts_;
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, actions, pane_rows_.attempt);
     }
 
+    /// THE HOTKEYS PANE'S MODE, as its declaration names it.
+    const char* keys_mode() const {
+        return capture_.active  ? pane::kKeysCaptureMode
+               : typing_.active ? pane::kKeysSpellMode
+                                : pane::kKeysTableMode;
+    }
+
     /// THE HOTKEYS PANE'S ROWS, BY MODE. Reading: a row cursor, its two ends, and the menu key.
     /// Capturing a key: ONLY cancel, so every other key arrives as a key -- the one being
-    /// captured. Taking a spelling: commit and cancel, and every other key reaches the line.
-    std::vector<PaneActionRow> keys_rows() const {
-        if (capture_.active) {
+    /// captured. Taking a spelling: commit and cancel, and every other key reaches the line. The
+    /// captured key itself is not a row: it reaches the pane as a key.
+    static std::vector<PaneActionRow> keys_rows(const std::string& mode) {
+        if (mode == pane::kKeysCaptureMode) {
             return {PaneActionRow{pane::kActionKeysCancel, "cancel", input::scan::kEscape,
-                                  input::mod::kNone}};
+                                  input::mod::kNone, {}, {}, pane::kKeysTableMode}};
         }
-        if (typing_.active) {
+        if (mode == pane::kKeysSpellMode) {
             return {PaneActionRow{pane::kActionKeysCommit, "use this spelling",
-                                  input::scan::kReturn, input::mod::kNone},
+                                  input::scan::kReturn, input::mod::kNone, {},
+                                  {ws::cause_of<KeymapEditRequested>()}, pane::kKeysTableMode},
                     PaneActionRow{pane::kActionKeysCancel, "cancel", input::scan::kEscape,
-                                  input::mod::kNone}};
+                                  input::mod::kNone, {}, {}, pane::kKeysTableMode}};
         }
         return {PaneActionRow{pane::kActionKeysUp, "row up", input::scan::kUp, input::mod::kNone},
                 PaneActionRow{pane::kActionKeysDown, "row down", input::scan::kDown,
@@ -931,7 +959,11 @@ private:
     void declare_keys(loom::Mail& mail) {
         PaneActions keys;
         keys.pane = pane::kHotkeysPane;
-        keys.rows = keys_rows();
+        keys.mode = keys_mode();
+        keys.rows = keys_rows(keys.mode);
+        keys.elsewhere = ws::causes_elsewhere(
+            {pane::kKeysTableMode, pane::kKeysCaptureMode, pane::kKeysSpellMode}, keys.mode,
+            [](const std::string& m) { return keys_rows(m); });
         keys_rows_.attempt = ++attempts_;
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, keys, keys_rows_.attempt);
@@ -947,12 +979,15 @@ private:
                 PaneActionRow{pane::kActionManualBottom, "bottom", input::scan::kEnd,
                               input::mod::kNone},
                 PaneActionRow{pane::kActionManualClose, "close", input::scan::kEscape,
-                              input::mod::kNone}};
+                              input::mod::kNone, {},
+                              {ws::cause_of<PaneCloseRequested>(
+                                  ws::to_pane(pane::kDesktopRole, pane::kManualPane))}}};
     }
 
     void declare_manual(loom::Mail& mail) {
         PaneActions rows;
         rows.pane = pane::kManualPane;
+        rows.mode = pane::kManualMode;
         rows.rows = manual_rows();
         manual_rows_.attempt = ++attempts_;
         (void)mail.as_role(pane::kDesktopRole)
@@ -1081,7 +1116,7 @@ private:
                               ws::rows_picture(manual_canvas_.room,
                                                manual_canvas_.pictures.next(manual_canvas_.room,
                                                                             meaning),
-                                               rows, {}, {}));
+                                               rows, std::vector<ws::PaneRowPart>{}, {}));
             return;
         }
         ws::v4::PaneContent said;
@@ -1497,7 +1532,7 @@ private:
         }
         const std::string ref = known_[m.index].office + "/" + known_[m.index].pane;
         if (m.kind == launcher_row::kName) {
-            return "pane:" + ref;
+            return pane::kLauncherRowPrefix + ref;
         }
         return m.kind == launcher_row::kMark ? "mark:" + ref : std::string();
     }

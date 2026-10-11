@@ -63,7 +63,7 @@
         "PaneInventoryRequested v1",
         "PaneInventory v2",
         "KeymapRequested v1",
-        "KeymapShown v2"
+        "KeymapShown v3"
       ],
       "terms": [
         "desk",
@@ -152,7 +152,7 @@
         "PaneInventoryRequested v1",
         "PaneInventory v2",
         "KeymapRequested v1",
-        "KeymapShown v2",
+        "KeymapShown v3",
         "DeskStamps v1",
         "loom.observe.Subscribe v1",
         "loom.observe.Subscribed v1",
