@@ -17,13 +17,29 @@ gh issue view <n> --comments
 gh issue view <n> --json closedByPullRequestsReferences     # a pull request that already fixes it
 ```
 
-A `ready` issue has four parts, and each one binds:
+A `ready` issue has five parts, and each one binds:
 
-- **What is wrong**: the defect, and how it was reproduced.
+- **What is wrong**: the defect, and where it shows.
 - **Done when**: the outcome and the evidence that shows it. The pull request answers each line.
 - **Fences**: what the change must not do or reach. They bind as firmly as the outcome. Work
   beyond them belongs to another issue, raised in a comment, never to a wider change.
-- **Checked against**: the commit the issue was reproduced on.
+- **Folders**: the bounded area the change stays inside, as a fenced block, one repository path a
+  line. A path ending in `/` is that folder whole, `*` matches within one folder and `**` across
+  folders, and a line beginning `!` names a path the change must not touch. Four files this
+  repository's own rules make a change touch lie inside every issue's folders without being named:
+  `tests/test_population.txt`, `tests/code_values.txt`, `tests/shapes.txt` and `tests/actions.txt`.
+  A change that needs any other path is a change of scope, raised in a comment as a fence is.
+- **Checked against**: the commit the issue was last checked on, how far that check went
+  (reproduced, read in the source, or reasoned from it), and what it did not cover.
+
+````markdown
+## Folders
+```
+composer/
+tests/test_workshop_panes_input.cpp
+agents/panes.md
+```
+````
 
 One issue is one branch and one pull request. Terms for contributions from outside the project
 are in [CONTRIBUTING.md](../../CONTRIBUTING.md#code-contributions).
@@ -52,10 +68,10 @@ git switch -c <area>/<what> origin/main
 ```
 
 Reproduce the issue on that commit before changing anything: *checked against* may name an older
-one. If it no longer reproduces, nothing needs repairing; say so on the issue, naming the commit
-you checked, and stop. If it rests on work that has not merged, say which, and build on it only
-as the issue says. Name the branch for its area and its outcome, as `desk/pane-identity` or
-`workshop/desk-read-bytes`.
+one, and says what its check did not cover. If it no longer reproduces, nothing needs repairing;
+say so on the issue, naming the commit you checked, and stop. If it rests on work that has not
+merged, say which, and build on it only as the issue says. Name the branch for its area and its
+outcome, as `desk/pane-identity` or `workshop/desk-read-bytes`.
 
 Without push access to this repository, fork it with `gh repo fork --remote`, which makes the
 fork `origin` and this repository `upstream`. Then read `origin/main` below as `upstream/main`,
@@ -145,8 +161,8 @@ check that fails on it.
 ## 7. The change
 
 Before building it, the issue gets its `Proposed idea` comment, with the approach (step 1).
-Then the smallest change that meets *done when* inside the fences. Everything it writes meets the
-repository's standards for documents, comments, names, values and tests;
+Then the smallest change that meets *done when* inside the fences and the folders. Everything it
+writes meets the repository's standards for documents, comments, names, values and tests;
 [best practices](best-practices.md) routes each to its owner.
 
 ## 8. The checks whose green counts
@@ -179,10 +195,11 @@ cmake -P tests/check_commit_attribution.cmake
 git diff origin/main...HEAD
 ```
 
-Read the whole diff, every file, as review will read it. What that read finds is fixed and
-verified again before the push. A green you report names the repository, the configuration and
-the compiler ([what a green means](build-and-test.md#what-a-green-means)), and quotes the lane,
-never a bare `ctest` ([run the lane](build-and-test.md#run-testsverifycmake-not-a-bare-ctest)).
+Read the whole diff, every file, as review will read it, each one inside the issue's folders. What
+that read finds is fixed and verified again before the push. A green you report names the
+repository, the configuration and the compiler
+([what a green means](build-and-test.md#what-a-green-means)), and quotes the lane, never a bare
+`ctest` ([run the lane](build-and-test.md#run-testsverifycmake-not-a-bare-ctest)).
 
 ## 9. The pull request
 
