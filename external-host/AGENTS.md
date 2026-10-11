@@ -31,12 +31,14 @@ No register of its own. Workshop's side is in `agents/workshop/guests.md` (a gue
 ## Suites
 
 - `demo_recipes` — setups and their preparation, no window (`tests/session/demo_recipes.py`)
+- `tutorial_walks` — every tutorial's `tutorial` walk replayed from an installed prefix
+  (`tests/session/tutorial_walks.py`)
 - `guest_journey` — a real Workshop admitting this program as a guest (`tests/guest_journey.cpp`)
 - `guest_vocabulary` — the weave's shapes resolve by identity (`tests/test_guest_vocabulary.cpp`)
 - `workshop_journey` — a Loom session runs the tools (`tests/session/workshop_journey.py`)
 
-`demo_recipes` and `workshop_journey` need the `session` gate; the journey also runs the
-`workshop_*_checks.py` and `desk_*_checks.py` beside it. Its parts' cases in shared suites:
+`demo_recipes`, `tutorial_walks` and `workshop_journey` need the `session` gate; the journey also
+runs the `workshop_*_checks.py` and `desk_*_checks.py` beside it. Its parts' cases in shared suites:
 `workshop_panes` (`tests/test_workshop_panes_attention.cpp`, the Connections pane;
 `tests/test_workshop_demo.cpp`, the demo controls); the Connections pane's stem and source in
 `workshop_load` and `workshop_files`. The guest door is `workshop_guests`
@@ -53,7 +55,8 @@ No register of its own. Workshop's side is in `agents/workshop/guests.md` (a gue
 - Seam vocabulary: `workshop/guest_seam_vocabulary.hpp` (`GuestConnections`, asked of
   `zengine.guests`); setup preparation's owner doors: `workshop/setup_control.hpp`.
 - Installed by `cmake/ZengineInstall.cmake` (the weave, both tool packages under
-  `share/zengine/loom-tools`); the public setups page: `workshop/docs/demo-setups.md`.
+  `share/zengine/loom-tools`, each feature's tutorials exported into `workshop/setups/`); the public
+  setups page: `workshop/docs/demo-setups.md`.
 
 ## Pages
 

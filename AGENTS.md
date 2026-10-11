@@ -126,7 +126,7 @@ cmake -P tests/documentation_lane.cmake
   population that ran is the population this repository meant to run.
 - **The lane runs in parallel**: add `-DZEN_CTEST_ARGS=-j<n>` (measured on Linux 56.2 s →
   9.4 s at `-j24`). Same proofs. It is safe because no CTest entry writes
-  this build tree — the compile-judged ones build their fixtures in a tree of their own
+  what this build tree builds — the compile-judged ones build their fixtures in a tree of their own
   ([agents/verification.md](agents/verification.md)); an entry that took custody of
   `${CMAKE_BINARY_DIR}` would put that back, and the registration helper refuses one that tries.
   What sets the floor now is the longest single entry, so a suite that grows past its
