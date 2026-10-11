@@ -87,6 +87,10 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
 /// and a suite that pins what a power reaches agree by construction.
 loom::Grant grant_for(const GuestRow& row);
 
+/// WHETHER THIS ROW ALREADY SHOWS OTHER ROWS' NAMES: the desk (`capture`) or the door's
+/// inventory (`inspect`). Only such a row is told which plan rows an answer names.
+bool reads_row_names(const GuestRow& row);
+
 /// One row as the action classes read it (`actor_scope.hpp`): its name, powers and the file's
 /// version, for a session the door admitted under it.
 scope::GuestRowFacts facts_of(const GuestRow& row, const GuestsFile& file);

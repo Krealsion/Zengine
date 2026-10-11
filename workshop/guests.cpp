@@ -251,8 +251,15 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
     return true;
 }
 
+bool reads_row_names(const GuestRow& row) {
+    return row_may(row, kPowerCapture) || row_may(row, kPowerInspect);
+}
+
 loom::Grant grant_for(const GuestRow& row) {
     loom::Grant g;
+    // EVERY ROW MAY ASK WHERE THE PLAN IS, whatever its powers: a shape not known yet and one never
+    // known read alike, and only the plan's owner can tell them apart.
+    g.allow_to_role(GuestPlanRequested::zen_name, GuestPlanRequested::zen_version, kGuestsRole);
     // EVERY ROW MAY ASK FOR ITSELF, whatever its powers: the door answers with the row it admitted
     // the asking session under, and nothing of another's.
     g.allow_to_role(GuestRowDescribedRequested::zen_name, GuestRowDescribedRequested::zen_version,

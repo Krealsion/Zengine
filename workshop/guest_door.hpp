@@ -34,6 +34,8 @@ namespace zengine::workshop {
 /// The beat the door services the crossing on: `kGuestsRole`'s own, so a successor inherits it.
 inline constexpr const char* kGuestBeatId = "zengine.guests.service";
 inline constexpr std::int64_t kGuestBeatMs = 10;
+/// How many asks for the plan at rest the door holds at once.
+inline constexpr std::size_t kGuestPlanHeld = 32;
 
 /// Two honest counters, poke-inspectable like any state.
 struct GuestDoorState {
@@ -47,9 +49,10 @@ class GuestDoor final
     : public zengine::timer::TimedWeave<GuestDoor, GuestDoorState,
                                         loom::Accept<GuestConnectionsRequested,
                                                      v2::GuestConnectionsRequested,
-                                                     GuestRowDescribedRequested>,
+                                                     GuestRowDescribedRequested,
+                                                     GuestPlanRequested>,
                                         loom::Emit<GuestConnections, v2::GuestConnections,
-                                                   GuestRowDescribed, loom::Refused,
+                                                   GuestRowDescribed, GuestPlanSaid, loom::Refused,
                                                    input::InputSessionClosed>> {
 public:
     /// `listener` is a listening socket the host opened (bridge_listen_tcp); `listen` is how
@@ -69,9 +72,10 @@ public:
     using zengine::timer::TimedWeave<GuestDoor, GuestDoorState,
                                      loom::Accept<GuestConnectionsRequested,
                                                   v2::GuestConnectionsRequested,
-                                                  GuestRowDescribedRequested>,
+                                                  GuestRowDescribedRequested,
+                                                  GuestPlanRequested>,
                                      loom::Emit<GuestConnections, v2::GuestConnections,
-                                                GuestRowDescribed, loom::Refused,
+                                                GuestRowDescribed, GuestPlanSaid, loom::Refused,
                                                 input::InputSessionClosed>>::on;
 
     /// A presenter that just arrived asks; it is answered with the inventory as it stands.
@@ -98,6 +102,41 @@ public:
         }
         (void)mail.answer(described(file_.rows[*row]));
     }
+
+    /// WHERE THE PLAN IS, from the reading the host wired: at once, or with `wait` held until the
+    /// plan is at rest and answered on the door's beat. The rows the answer names reach a guest only
+    /// when its row already shows rows' names. Held asks are bounded; past the bound, refused.
+    // WL-GUEST-12 -- agents/workshop/guests.md
+    void on(const GuestPlanRequested& asked, loom::Mail& mail) {
+        if (!plan_) {
+            (void)mail.answer(loom::Refused{"this host wired no reading of its load plan"});
+            return;
+        }
+        const GuestPlanSaid now = plan_();
+        if (!asked.wait || now.at_rest) {
+            (void)mail.answer(plan_for(mail.sender(), now));
+            return;
+        }
+        if (held_.size() >= kGuestPlanHeld) {
+            (void)mail.answer(loom::Refused{
+                "the guest door already holds " + std::to_string(kGuestPlanHeld) +
+                " asks for the plan at rest; ask again without wait, or once one is answered"});
+            return;
+        }
+        loom::DeferredAnswer reply = mail.defer_answer();
+        if (!reply.valid()) {
+            // Loom kept the answer that could not be held: say so with it.
+            (void)mail.answer(loom::Refused{"the bus could not hold this ask for the plan at rest; "
+                                            "ask again without wait"});
+            return;
+        }
+        held_.push_back(HeldPlanAsk{mail.sender(), std::move(reply)});
+    }
+
+    /// The host's reading of its realization owner, read at every ask and on every beat that
+    /// holds an ask; it keeps no copy of the plan.
+    using PlanReading = std::function<GuestPlanSaid()>;
+    void reads_plan(PlanReading reading) { plan_ = std::move(reading); }
 
     /// THE DECISION SEAM, after the fact: a connection the policy deferred is admitted or
     /// refused here. Called by the host (a console command, a suite, tomorrow a popup).
@@ -189,6 +228,23 @@ public:
     }
 
 private:
+    /// One ask for the plan at rest, held until it is.
+    struct HeldPlanAsk {
+        loom::WeaveId asker;
+        loom::DeferredAnswer reply;
+    };
+
+    /// The plan as `asker` is told it: the rows named only to a guest whose row already shows
+    /// rows' names, and to this host's own participants.
+    GuestPlanSaid plan_for(loom::WeaveId asker, GuestPlanSaid said) const {
+        const std::optional<std::size_t> row = row_index(asker);
+        if (row && (*row >= file_.rows.size() || !guests::reads_row_names(file_.rows[*row]))) {
+            said.waiting_on.clear();
+            said.unavailable.clear();
+        }
+        return said;
+    }
+
     /// One row as its session is told it: its name, powers and observe list, and the file's
     /// `host`; never its credential.
     GuestRowDescribed described(const guests::GuestRow& row) const {
@@ -278,8 +334,28 @@ private:
             if (when_gone_) {
                 when_gone_(session);
             }
+            // ITS HELD ASK FOR THE PLAN IS LET GO: there is nobody left to answer.
+            for (auto it = held_.begin(); it != held_.end();) {
+                if (it->asker == session) {
+                    loom::release_deferred(it->reply, mail);
+                    it = held_.erase(it);
+                } else {
+                    ++it;
+                }
+            }
         }
         gone_.clear();
+        // THE PLAN AT REST ANSWERS EVERY ASK HELD FOR IT, from this delivery: a deferred answer is
+        // spent by the incarnation that deferred it.
+        if (!held_.empty() && plan_) {
+            const GuestPlanSaid now = plan_();
+            if (now.at_rest) {
+                for (const HeldPlanAsk& held : held_) {
+                    (void)loom::answer_deferred(held.reply, mail, plan_for(held.asker, now));
+                }
+                held_.clear();
+            }
+        }
         if (dirty_) {
             dirty_ = false;
             ++this->state_.said;
@@ -299,9 +375,10 @@ private:
     typename zengine::timer::TimedWeave<GuestDoor, GuestDoorState,
                                         loom::Accept<GuestConnectionsRequested,
                                                      v2::GuestConnectionsRequested,
-                                                     GuestRowDescribedRequested>,
+                                                     GuestRowDescribedRequested,
+                                                     GuestPlanRequested>,
                                         loom::Emit<GuestConnections, v2::GuestConnections,
-                                                   GuestRowDescribed, loom::Refused,
+                                                   GuestRowDescribed, GuestPlanSaid, loom::Refused,
                                                    input::InputSessionClosed>>::Handle
         beat_;
     bool dirty_ = true; ///< the first beat says the inventory once, empty or not
@@ -314,10 +391,12 @@ private:
     /// never as no guest's, and forgetting one would make it no guest's. One entry per session a
     /// credential admitted; no session's id is ever another's.
     std::map<std::uint64_t, std::size_t> sessions_;
+    PlanReading plan_;
+    std::vector<HeldPlanAsk> held_; ///< asks for the plan at rest, at most `kGuestPlanHeld`
 };
 
-/// THE DOOR'S GRANT: its beat, its inventory, an asker's own row or its refusal, and one word to
-/// the Input office. Nothing else.
+/// THE DOOR'S GRANT: its beat, its inventory, an asker's own row, where the plan is, a refusal,
+/// and one word to the Input office. Nothing else.
 inline loom::Grant guest_door_grant() {
     loom::Grant g;
     g.allow_to_role(zengine::timer::EnsureRoleTimer::zen_name,
@@ -329,6 +408,7 @@ inline loom::Grant guest_door_grant() {
     g.allow_to_any(GuestConnections::zen_name, GuestConnections::zen_version);
     g.allow_to_any(v2::GuestConnections::zen_name, v2::GuestConnections::zen_version);
     g.allow_to_any(GuestRowDescribed::zen_name, GuestRowDescribed::zen_version);
+    g.allow_to_any(GuestPlanSaid::zen_name, GuestPlanSaid::zen_version);
     g.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
     g.allow_to_role(input::InputSessionClosed::zen_name, input::InputSessionClosed::zen_version,
                     input::kInputRole);

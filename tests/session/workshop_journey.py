@@ -266,6 +266,14 @@ def main():
               (links["workshop"]["far_session"], links["workshop2"]["far_session"]))
         note("far_sessions", [links["workshop"]["far_session"], links["workshop2"]["far_session"]])
 
+        # Workshop listens before its plan is realized, so a row still to come may yet declare the
+        # shape the first ask names: that ask waits for Workshop's own word that the plan is at rest.
+        s.start("workshop/connections", "plan", {"wait_plan": True})
+        plan = s.wait("plan", timeout=60)
+        if not check("S3 Workshop says its plan came to rest, complete, before the first ask",
+                     plan["state"] == "passed" and plan["summary"].startswith(
+                         "Workshop's plan is complete"), plan["failure"] or plan["summary"]):
+            return 1
         s.start("workshop/inventory-capture", "inventory-pair", {"target_role": "zengine.input"})
         captured = s.wait("inventory-pair", timeout=60)
         if not check("I1 the inventory tool captures and confirms its own pair",

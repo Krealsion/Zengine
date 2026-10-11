@@ -6,20 +6,30 @@
     {
       "name": "connections",
       "script": "connections.py",
-      "summary": "Ask Workshop's guest door who is connected, and find this session's own row.",
-      "description": "Asks the link which far session it holds and under which name Workshop admitted it, then asks Workshop's guest door (zengine.guests) for its connection inventory and checks that the row for that far session is admitted under that name. Writes the inventory as JSON. Changes nothing in Workshop.",
+      "summary": "Ask Workshop's guest door who is connected and find this session's own row, after waiting, if asked, until its load plan is at rest.",
+      "description": "Asks the link which far session it holds and under which name Workshop admitted it, then asks Workshop's guest door (zengine.guests) for its connection inventory and checks that the row for that far session is admitted under that name. With wait_plan it first asks the door where Workshop's load plan is and waits until it is at rest (complete, waiting on a row the weaver has to build, or refused): the door listens before the plan is realized, so a shape a row still to come declares is refused as unknown until then. Writes the inventory, and the plan's answer, as JSON. Changes nothing in Workshop.",
       "inputs": [
         {
           "name": "link",
           "type": "text",
           "default": "workshop",
           "help": "the external host's link to the Workshop (its asks below name link 'workshop')"
+        },
+        {
+          "name": "wait_plan",
+          "type": "bool",
+          "default": false,
+          "help": "first wait until Workshop says its load plan is at rest, and say where it came to rest"
         }
       ],
       "outputs": [
         {
           "name": "connections.json",
           "help": "the guest door's inventory, as answered"
+        },
+        {
+          "name": "plan.json",
+          "help": "with wait_plan, the door's answer about the plan: state, at_rest, and the rows it names to this row"
         }
       ],
       "requires": [
@@ -34,17 +44,21 @@
       "vocabulary": [
         "loom.link.Status v1",
         "GuestConnectionsRequested v1",
-        "GuestConnections v1"
+        "GuestConnections v1",
+        "GuestPlanRequested v1",
+        "GuestPlanSaid v1"
       ],
       "terms": [
         "inspect",
         "guests",
         "connections",
         "inventory",
-        "workshop"
+        "workshop",
+        "plan",
+        "loaded"
       ],
       "example": "loom-session run <dir> workshop/connections --name who",
-      "recovery": "'unlinked' means the link has no far session (the Workshop is not running or refused this host: see loom-session status). A dispatch refusal from Workshop means its guests file does not let this host 'inspect'."
+      "recovery": "'unlinked' means the link has no far session (the Workshop is not running or refused this host: see loom-session status). A dispatch refusal from Workshop means its guests file does not let this host 'inspect'. With wait_plan, 'waiting' names the row the weaver has to build and 'refused' means the plan stopped; a shape still unknown once the plan is complete is unknown for this run."
     },
     {
       "name": "inspect-capture",
@@ -664,6 +678,8 @@
         }
       ],
       "vocabulary": [
+        "GuestPlanRequested v1",
+        "GuestPlanSaid v1",
         "DemoServiceOpened v1",
         "DemoServiceClosed v1",
         "DemoWorkRequested v1",

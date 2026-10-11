@@ -112,6 +112,38 @@ struct GuestRowDescribed {
               ZEN_FIELD(host));
 };
 
+/// `GuestPlanSaid::state`'s words: where this Workshop's load plan is. The door listens before the
+/// plan begins, so a guest can be admitted while rows that declare shapes are still to come.
+/// `loading`: a shape nothing here declares may yet be declared by a row still to come.
+inline constexpr const char* kPlanLoading = "loading";
+/// `complete`: every row settled, an optional one perhaps stepped over; a shape still unknown is
+/// unknown for this run.
+inline constexpr const char* kPlanComplete = "complete";
+/// `waiting`: stopped at a row waiting on the weaver to build it; that row and the rows after it
+/// come only once it is built.
+inline constexpr const char* kPlanWaiting = "waiting";
+/// `refused`: a row refused, and realization stopped there.
+inline constexpr const char* kPlanRefused = "refused";
+
+/// WHERE IS THIS WORKSHOP'S PLAN? Any session may ask. `wait` holds the answer until the plan is at
+/// rest -- `complete`, `waiting` or `refused` -- and an ask without it is answered at once.
+struct GuestPlanRequested {
+    bool wait = false;
+    ZEN_SHAPE(GuestPlanRequested, 1, ZEN_FIELD(wait));
+};
+
+/// The realization owner's own answer, read when it is said. `waiting_on` (the row it waits on) and
+/// `unavailable` (the optional rows stepped over) name rows, so a guest hears them only when its row
+/// may read the desk (`capture`) or the door's inventory (`inspect`); to anyone else they are empty.
+struct GuestPlanSaid {
+    std::string state = kPlanLoading;
+    bool at_rest = false;
+    std::string waiting_on;
+    std::vector<std::string> unavailable;
+    ZEN_SHAPE(GuestPlanSaid, 1, ZEN_FIELD(state), ZEN_FIELD(at_rest), ZEN_FIELD(waiting_on),
+              ZEN_FIELD(unavailable));
+};
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_GUEST_SEAM_VOCABULARY_HPP

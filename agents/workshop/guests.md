@@ -2,8 +2,8 @@
 
 Register `WL-GUEST`: who a guest is to this Workshop and what its hand may do beside its grant --
 the file's version and host, each session's admitting row, the classes an owner asks for, what
-only the weaver's hand reaches on a weaver's host, each hand's gestures and a row's
-losses. The file's form and powers are public in [Drive Workshop from another
+only the weaver's hand reaches on a weaver's host, each hand's gestures, a row's losses, and where
+the plan is. The file's form and powers are public in [Drive Workshop from another
 host](../../external-host/docs/external-host.md). One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
@@ -220,6 +220,14 @@ listing it is told the notices, the newest standing for what its window held bac
 `tests/test_workshop_host.cpp` case `"a development host and each row's losses stand as conditions
 on Attention"`.
 WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
+
+## WL-GUEST-12 — A guest may wait for the plan at rest
+
+LAW — The port file says the door listens, not that the plan is realized; `GuestPlanRequested` says where it is, held by `wait` until at rest, naming rows only to `capture` or `inspect`.
+
+PROVEN BY — `workshop/guest_door.hpp` `on(GuestPlanRequested)`, `plan_for`;
+`tests/test_workshop_guests.cpp` case `"door: a guest admitted while the plan loads waits for it at
+rest, then its first ask is answered"`.
 
 ## Do not assume
 
