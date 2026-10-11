@@ -453,7 +453,7 @@ class Recipes(unittest.TestCase):
         """What Workshop's own reader makes of a file, one fact a line."""
         self.assertIsNotNone(FILE_READER, "run with --file-reader <zengine-workshop-file-read>, "
                                           "as tests/CMakeLists.txt does")
-        done = subprocess.run([FILE_READER, kind, str(path)], capture_output=True, text=True)
+        done = subprocess.run([FILE_READER, kind, str(path)], capture_output=True, encoding="utf-8", text=True)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         return done.stdout.splitlines()
 
