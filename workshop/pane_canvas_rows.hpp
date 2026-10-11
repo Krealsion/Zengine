@@ -153,6 +153,25 @@ inline v5::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64
     return out;
 }
 
+/// THE SAME PICTURE, ITS PARTS SAYING WHETHER THEIR OPERATION APPLIES NOW, each as its row part says.
+inline v6::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64_t picture,
+                                          const std::vector<surface::SurfaceTextRow>& rows,
+                                          const std::vector<v2::PaneRowPart>& parts,
+                                          const RowsCaret& caret = {}) {
+    v6::PaneCanvasContent out =
+        canvas_content_of(rows_picture(room, picture, rows, std::vector<PaneRowPart>{}, caret));
+    const CanvasRows lattice = canvas_rows(room);
+    if (room.width <= 0 || room.height <= 0 || lattice.empty()) return out;
+    for (const v2::PaneRowPart& part : parts) {
+        if (part.row < 0 || part.row >= lattice.rows || part.columns <= 0) continue;
+        out.parts.push_back(v2::PaneCanvasPart{part.name, lattice.column_x(part.column),
+                                               lattice.row_y(part.row),
+                                               surface::mul_px(part.columns, lattice.advance),
+                                               lattice.line, part.available});
+    }
+    return out;
+}
+
 /// WHICH PICTURE A PRESS WAS AIMED AT, by what its rows meant. The canvas numbers every picture a
 /// pane sends afresh within its room's grant; a pane that numbers its composition by what its
 /// rows mean (`component::RowMap`) keeps one number while that stands still. A press is current

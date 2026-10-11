@@ -27,13 +27,13 @@ The pane protocol's law is `agents/panes.md`, which the root routes.
 ## Law
 
 Each register routed here, with the suites its PROVEN BY cites, most-cited first (`workshop_panes`
-with its files); the case that pins a law is a grep over the register, and the subjects are in the
-[WL router](../agents/workshop.md#where-the-law-is).
+with its files); the subjects are in the [WL router](../agents/workshop.md#where-the-law-is).
 
 | register | witnessed by |
 |---|---|
 | [workshop](../agents/workshop.md) | the WL router: every register by subject |
 | [realization](../agents/realization.md) | no PROVEN BY: the one test its prose names is `tests/test_operator_provider.cpp` (`operator`) |
+| [action-causes](../agents/workshop/action-causes.md) | `workshop_panes` (actions, builder) |
 | [arrangement](../agents/workshop/arrangement.md) | `workshop_panes` (window, input), `workshop_screen`, `workshop_host` |
 | [arrangement-snap](../agents/workshop/arrangement-snap.md) | `workshop_screen` |
 | [canvas](../agents/workshop/canvas.md) | `workshop_panes` (canvas, inventory_info), `flow_pane`, `surface` |

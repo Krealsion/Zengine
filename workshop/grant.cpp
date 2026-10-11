@@ -31,6 +31,7 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(DeskRead::zen_name, DeskRead::zen_version);
     speak.allow_to_any(v5::PaneView::zen_name, v5::PaneView::zen_version);
     speak.allow_to_any(v2::DeskRead::zen_name, v2::DeskRead::zen_version);
+    speak.allow_to_any(v6::PaneView::zen_name, v6::PaneView::zen_version);
     // ...and the notice that the desk moved, published to whoever follows it, a relay's listener
     // among them, which holds no office.
     speak.allow_to_any(DeskStamps::zen_name, DeskStamps::zen_version);

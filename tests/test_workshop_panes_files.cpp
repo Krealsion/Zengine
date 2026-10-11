@@ -428,7 +428,7 @@ struct FilesRig {
         std::vector<std::string> ids;
         const RuntimePane* seat = row();
         REQUIRE(seat != nullptr);
-        for (const v2::PaneActionRow& a : seat->actions) {
+        for (const v3::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -617,10 +617,10 @@ TEST_CASE("the pane declares its rows with the ids a weaver's keymap already kno
     FilesRig f("files-actions");
     f.open();
     REQUIRE(f.row() != nullptr);
-    const std::vector<v2::PaneActionRow>& declared = f.row()->actions;
+    const std::vector<v3::PaneActionRow>& declared = f.row()->actions;
     REQUIRE_MESSAGE(!declared.empty(), "the pane declared no actions at all");
     std::vector<std::string> ids;
-    for (const v2::PaneActionRow& row : declared) {
+    for (const v3::PaneActionRow& row : declared) {
         ids.push_back(row.id);
     }
     for (const char* id : {files::kActionUp, files::kActionDown, files::kActionOpen,
@@ -771,7 +771,7 @@ TEST_CASE("WL-HAND-06: Files names its entries by name and its controls by opera
     auto parts = held_parts(f.r.session(), f.kind);
     REQUIRE(parts.count("entry:zulu.cpp") == 1);
     CHECK(parts.count("entry:src") + parts.count("entry:src/") == 1);
-    const PaneRowPart zulu = parts.at("entry:zulu.cpp");
+    const v2::PaneRowPart zulu = parts.at("entry:zulu.cpp");
     CHECK(f.shown()[static_cast<std::size_t>(zulu.row)].find("zulu.cpp") != std::string::npos);
     std::size_t controls = 0;
     for (const auto& [name, part] : parts) {

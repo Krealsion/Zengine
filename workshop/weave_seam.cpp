@@ -92,27 +92,37 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
 
 /// A declaration from a pane built before ownership existed: `PaneActions` v1 is unchanged, and
 /// its rows are widened here into the host's own type with an empty `supersedes` (it stands in
-/// for nothing), so everything below reads one population.
+/// for nothing) and no causes, so everything below reads one population.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
-    std::vector<v2::PaneActionRow> widened;
-    widened.reserve(actions.rows.size());
+    v3::PaneActions widened{actions.pane, std::string(), {}, {}};
+    widened.rows.reserve(actions.rows.size());
     for (const PaneActionRow& row : actions.rows) {
-        widened.push_back(
-            v2::PaneActionRow{row.id, row.label, row.scancode, row.modifiers, std::string()});
+        widened.rows.push_back(action_row_of(row));
     }
-    declare_pane_actions(actions.pane, widened, mail);
+    declare_pane_actions(widened, mail);
 }
 
+/// ...and from a pane built before causes existed: its rows cause nothing a reader can know.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const v2::PaneActions& actions, loom::Mail& mail) {
-    declare_pane_actions(actions.pane, actions.rows, mail);
+    v3::PaneActions widened{actions.pane, std::string(), {}, {}};
+    widened.rows.reserve(actions.rows.size());
+    for (const v2::PaneActionRow& row : actions.rows) {
+        widened.rows.push_back(action_row_of(row));
+    }
+    declare_pane_actions(widened, mail);
 }
 
-// WL-KEY-15 -- agents/workshop/keyboard.md
-void WorkshopWeave::declare_pane_actions(const std::string& pane,
-                                         const std::vector<v2::PaneActionRow>& rows,
-                                         loom::Mail& mail) {
+// WL-CAUSE-01 -- agents/workshop/action-causes.md
+void WorkshopWeave::on(const v3::PaneActions& actions, loom::Mail& mail) {
+    declare_pane_actions(actions, mail);
+}
+
+// WL-KEY-15 -- agents/workshop/keyboard.md; WL-CAUSE-01 -- agents/workshop/action-causes.md
+void WorkshopWeave::declare_pane_actions(const v3::PaneActions& declared, loom::Mail& mail) {
+    const std::string& pane = declared.pane;
+    const std::vector<v3::PaneActionRow>& rows = declared.rows;
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
         return; // personal speech: no rows, no notice, no catalog change (the offer's rule)
@@ -131,7 +141,14 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
         return;
     }
     Keymap candidate = session_.keymap;
-    const Written joined = join_pane_rows(candidate, admitted.kind, rows);
+    Written joined = join_pane_rows(candidate, admitted.kind, rows);
+    // ...AND WHAT EACH PRESS MAY CAUSE, AND THE MODES, judged beside the keys and refused with
+    // them: a declaration is admitted whole or not at all.
+    if (joined.accepted) {
+        if (std::string wrong = pane_declaration_problem(declared); !wrong.empty()) {
+            joined = Written::no(std::move(wrong));
+        }
+    }
     if (!joined.accepted) {
         const RuntimePane* row = session_.panes.runtime.of_kind(admitted.kind);
         answer_declaration(std::string(office),
@@ -150,6 +167,8 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
     for (RuntimePane& row : session_.panes.runtime.entries) {
         if (row.kind == admitted.kind) {
             row.actions = rows;
+            row.mode = declared.mode;
+            row.elsewhere = declared.elsewhere;
             row.declaration = declaration;
         }
     }
@@ -190,6 +209,8 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
         // ...AND THE DECLARATION IS NOT KEPT. It left the keymap, and a declaration kept here
         // would come back into force at the next re-join without its declarer being told.
         row.actions.clear();
+        row.mode.clear();
+        row.elsewhere.clear();
         row.declaration = 0;
     }
     // A re-join that drops a pane's rows is a withdrawal the provider cannot see coming. It is not
@@ -245,8 +266,21 @@ void WorkshopWeave::on(const v3::PaneContent& content, loom::Mail& mail) {
                   content.picture, mail);
 }
 
-// Content naming its parts: v3's admission, and its names judged with its rows.
+// Content naming its parts: v3's admission, and its names judged with its rows, each part read as
+// available.
 void WorkshopWeave::on(const v4::PaneContent& content, loom::Mail& mail) {
+    std::vector<v2::PaneRowPart> parts;
+    parts.reserve(content.parts.size());
+    for (const PaneRowPart& p : content.parts) parts.push_back(row_part_of(p));
+    admit_content(mail.authored_role(), content.pane, content.rows,
+                  content.generation > 0 ? std::optional<std::int64_t>(content.generation)
+                                         : std::nullopt,
+                  content.picture, mail, &parts);
+}
+
+// ...and parts that say whether their operation applies now.
+// WL-CAUSE-03 -- agents/workshop/action-causes.md
+void WorkshopWeave::on(const v5::PaneContent& content, loom::Mail& mail) {
     admit_content(mail.authored_role(), content.pane, content.rows,
                   content.generation > 0 ? std::optional<std::int64_t>(content.generation)
                                          : std::nullopt,
@@ -315,7 +349,7 @@ void WorkshopWeave::admit_content(std::string_view office, const std::string& pa
                                   const std::vector<surface::SurfaceTextRow>& rows,
                                   std::optional<std::int64_t> generation,
                                   std::optional<std::int64_t> picture, loom::Mail& mail,
-                                  const std::vector<PaneRowPart>* parts) {
+                                  const std::vector<v2::PaneRowPart>* parts) {
     if (office.empty()) {
         return; // personal speech: no cache, no notice, no catalog change
     }
@@ -370,7 +404,7 @@ void WorkshopWeave::admit_content(std::string_view office, const std::string& pa
         return;
     }
     pane->shown = content.rows; // only the validated rows, and only now
-    pane->parts = parts != nullptr ? *parts : std::vector<PaneRowPart>{};
+    pane->parts = parts != nullptr ? *parts : std::vector<v2::PaneRowPart>{};
     pane->heard = true;
     pane->awaiting = false;
     pane->clear_refusal();

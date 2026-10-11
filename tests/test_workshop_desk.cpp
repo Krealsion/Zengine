@@ -373,7 +373,7 @@ class SketchSeat : public loom::WeaveBase<SketchSeat, SeatState,
     loom::Accept<PaneCatalogRequested, PaneRoom, PaneCanvasRoom, PaneCanvasPointer,
                  PaneCanvasHover, PaneCanvasRejected, SeatDo>,
     loom::Emit<v3::PaneOffered, PaneCanvasContent, v4::PaneCanvasContent,
-               v5::PaneCanvasContent>> {
+               v5::PaneCanvasContent, v6::PaneCanvasContent>> {
 public:
     std::vector<PaneCanvasRoom> rooms;
     std::vector<PaneRoom> prose_rooms;
@@ -400,6 +400,7 @@ loom::Grant sketch_grant() {
     grant.allow_to_any(PaneCanvasContent::zen_name, PaneCanvasContent::zen_version);
     grant.allow_to_any(v4::PaneCanvasContent::zen_name, v4::PaneCanvasContent::zen_version);
     grant.allow_to_any(v5::PaneCanvasContent::zen_name, v5::PaneCanvasContent::zen_version);
+    grant.allow_to_any(v6::PaneCanvasContent::zen_name, v6::PaneCanvasContent::zen_version);
     return grant;
 }
 
@@ -2096,7 +2097,8 @@ const PaneCanvasPart* reached(const std::vector<PaneCanvasPart>& parts, const Pa
 }
 
 /// A picture a shipped canvas pane drew, sent as the sketch pane's, for the room last granted.
-void draw_as_sketch(SketchRig& d, v4::PaneCanvasContent named) {
+template <class Content>
+void draw_as_sketch(SketchRig& d, Content named) {
     named.pane = kCanvasPane;
     d.drive([named](SketchSeat&, loom::Mail& m) {
         (void)m.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, named);
@@ -2163,7 +2165,7 @@ TEST_CASE("two overlapping buttons in a running view are each pressed where the 
         REQUIRE(view::problem(v).empty());
         const view::Picture drawn =
             view::picture(v, {}, view::Presentation{}, d.sketch->rooms.back(), ++d.number);
-        draw_as_sketch(d, view::named(drawn));
+        draw_as_sketch(d, view::named(v, drawn));
         REQUIRE(d.sketch->rejected.empty());
         v3::PaneView said;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, said).empty());

@@ -226,7 +226,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
                     external_header_row(*row, typing, marks, body.columns, mark + " ");
                 if (refused) region.rows[0].role = surface::role::kAlert;
             } else {
-                v5::PaneCanvasContent notice;
+                v6::PaneCanvasContent notice;
                 notice.texts.push_back(refused ? refused_mark_run()
                                                : v2::PaneCanvasText{0, 0, mark, surface::role::kAlert});
                 paint_pane_canvas(layer, canvas, notice, sc.text_advance_px,

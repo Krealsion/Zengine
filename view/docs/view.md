@@ -54,7 +54,7 @@ asker's grant or from the host's trust in its plan artifacts.
 ## The view renderer
 
 `view::View` is the participant's behaviour. It accepts the shapes its labels show, `zen.Refused`
-and the pane conversation; it emits its intents and that conversation.
+and the pane conversation; it emits its intents and that conversation, its actions among it.
 
 - It offers one pane, `view`, as its office, asking for its size in canvas pixels, never more
   than `workshop::kMaxPaneBodyPx` of either, and its notice rows of text beneath
@@ -75,6 +75,14 @@ and the pane conversation; it emits its intents and that conversation.
 - Using a button publishes its intent as this participant, each field read from its number
   field; a field holding no whole number is said on the notice row and nothing is published.
   Publication is by shape: every participant accepting the intent hears it.
+- Each button that says an intent is an action of its pane (`view::actions_of`): its id the
+  button's, its label the button's, no default key, and what a press causes the intent's shape
+  ([what a press may cause](../../workshop/docs/workshop-panes.md#what-a-press-may-cause)). The
+  view declares them when it offers its pane and again when a change applies in place, and a
+  `PaneActionRequested` naming one uses the button as a press does -- so a weaver keys a button by
+  naming its id in their keymap file. Its picture names that button `control:<id>`, available,
+  and every other element `element:<id>`; a declaration Workshop refuses is said on the notice
+  row, and the buttons still answer a press.
 - Until a shape it shows has been told, its labels say `waiting` and so does its notice. A
   `zen.Refused` that Loom attests answers one of its own intents (`answers_ask()`, with that
   intent's correlation) is shown on its notice row; what it was told stays as it was. Anyone

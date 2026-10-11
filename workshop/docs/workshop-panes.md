@@ -1375,8 +1375,10 @@ they name:
 ```text
 v4::PaneContent         provider  -> Workshop   v3's rows and picture + `parts`, each
                                                 PaneRowPart{name, row, column, columns}
+v5::PaneContent         provider  -> Workshop   v4's, each part a v2::PaneRowPart + `available`
 v4::PaneCanvasContent   provider  -> Workshop   v3's picture + `parts`, each
                                                 PaneCanvasPart{name, x, y, w, h}
+v6::PaneCanvasContent   provider  -> Workshop   v5's, each part a v2::PaneCanvasPart + `available`
 v2::MenuShown           presenter -> Workshop   MenuShown's lines + `parts`, each line by the id
                                                 of the row it shows
 ```
@@ -1404,6 +1406,12 @@ v2::MenuShown           presenter -> Workshop   MenuShown's lines + `parts`, eac
   for a pane to ask of its parts before it sends them.
 - **A pane moving its rows onto the canvas names the same parts in its picture.** A name says what
   a part means, not how it is drawn, so a walk written against the rows still holds.
+- **A part says whether its operation applies now** (`available`): true where the pane draws its
+  face `[label]`, false where it draws `(label)` (`component/control_strip.hpp`). A part that
+  performs nothing, a row, says true, and so does every part of an earlier version. It is a hint,
+  as the face is: the pane judges the press again when it arrives. `row_parts(map, columns,
+  name_of, available_of)` names a row map's parts with it, and `rows_picture` carries it onto a
+  canvas.
 
 Workshop answers each part beside the pane's words, and a menu's named lines beside its lines:
 
@@ -1411,6 +1419,7 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
 |---|---|
 | `v3::PaneViewRequested{provider, pane}` | A pane's words and the parts it names |
 | `v3::PaneView{provider, pane, picture, canvas, words, parts}` | `v2::PaneView`'s words, and every part the body shows |
+| `v6::PaneViewRequested`, `v6::PaneView` | The page `v5::PaneView` is ([below](#the-desk-said-whole)), each part a `v2::PanePart` saying `available` as its pane said it |
 | `PanePart{name, text, place, x, y, space}` | One part: its name as the pane said it; the characters it covers -- for a canvas part, the characters drawn wholly inside it, each word's joined to the next word's by a space, so a part a word crosses says the characters on its side; the place covering it where the medium draws it; and its point, or none |
 | `v2::DeskViewRequested{}` | The desk now, its menu's lines named |
 | `v2::DeskView{width, height, cell_px, space, room, panes, arranging, menu}` | `DeskView`, its menu a `v2::DeskMenu{open, office, pane, picture, place, lines, parts}` |
@@ -1435,6 +1444,48 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
 - **A pane naming nothing still reads as words**, and `v2::PaneView` and `DeskView` are still
   answered, without parts. A press on a part is ordinary input at its point: no message presses
   one. The guest `capture` power grants these queries too.
+
+### What a press may cause
+
+A pane says, on each action it declares, what a press of it may send, so a reader finds the
+control that sends a message -- or the one in another mode that leads to it -- without reading the
+pane's code or its manual's words:
+
+```text
+v3::PaneActions     provider -> Workshop   {pane, mode, rows, elsewhere}
+v3::PaneActionRow                          v2's {id, label, scancode, modifiers, supersedes}
+                                           + causes: [ActionCause{shape, version, subject}]
+                                           + enters: the mode a press leaves the pane in, or ""
+ModeCauses                                 {mode, causes}: what another mode's rows may cause
+v2::AppActions      desktop  -> Workshop   v2::AppActionRow: AppActionRow's fields + causes
+```
+
+- **A cause is a shape a press may send, to anyone, beside the pane protocol** -- the pane's offer,
+  rows, content, caret, menus, its answer to a manual's ask and the approval it asks before an act.
+  A send that waits on an answer is the press's: `builder.load` asks whether the plan names the
+  artifact. One that waits on another gesture, a menu's choice, is not. "May": a press in another
+  state sends less, or nothing.
+- **A subject says what the send is about**: empty for the pane's own state (the chosen recipe);
+  `on <prefix>` for the part a press lands on, named `<prefix>` and its subject (the Pane
+  Manager's `launcher.open`, `on pane:`); `to <office>/<pane>` for one pane always (`desktop.panes`).
+  No field of the message is declared.
+- **The modes.** `mode` names the mode the rows are in force for, a row's `enters` the mode its
+  press leaves the pane in, and `elsewhere` each other mode with what its rows may cause -- never
+  those rows, which only the mode in force declares and Workshop dispatches. A pane with one mode
+  may name none.
+- **Judged with the keys, and whole**: at most `kMaxActionCauses` causes a row and
+  `kMaxPaneModes` other modes of `kMaxModeCauses` causes each; a mode named in lowercase letters,
+  digits and `-`, at most `kMaxPaneModeLen` bytes. A cause twice, a version below 1, a subject in
+  another form, an `enters` naming no mode `elsewhere` names, or another mode named twice or as the
+  one in force refuses the declaration, and the rows in force stand. An earlier version is read
+  with no causes and no modes.
+- **The helpers are installed beside the protocol** (`workshop/pane_causes.hpp`):
+  `cause_of<Shape>(subject)` names a cause by its shape's own name and version, `on_part` and
+  `to_pane` spell a subject, `causes_elsewhere(modes, mode, rows_of)` says `elsewhere` from the
+  function that declares each mode's rows, and `pane_declaration_problem` is the judge's words.
+- **Workshop says them with the keys.** `KeymapShown` gives each binding its address -- `office`,
+  `pane`, `id` -- its `causes` and `enters`, and `modes` each pane's mode and `elsewhere`. Workshop
+  resolves nothing: a reader joins them with the desk and the parts' availability.
 
 ### The desk, said whole
 

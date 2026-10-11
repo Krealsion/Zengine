@@ -35,6 +35,7 @@
 #include "pane_carry.hpp"
 #include "pane_view.hpp"
 #include "pane_parts.hpp" // the form a pane's names are admitted in
+#include "pane_causes.hpp" // the form a declaration's causes and modes are admitted in
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "surface/vocabulary.hpp"
 
@@ -292,7 +293,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, v4::PaneViewRequested, v5::PaneViewRequested, DeskReadRequested, v2::DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, v4::PaneViewRequested, v5::PaneViewRequested, v6::PaneViewRequested, DeskReadRequested, v2::DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::workshop::v6::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -309,6 +310,7 @@ class WorkshopWeave
                                           zengine::workshop::WorkshopQuitRequested,
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::v2::PaneActions,
+                                          zengine::workshop::v3::PaneActions,
                                           zengine::workshop::PaneSettingsDeclared,
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::PaneCaret,
@@ -316,6 +318,7 @@ class WorkshopWeave
                                           zengine::workshop::v2::PaneCaret,
                                           zengine::workshop::v3::PaneContent,
                                           zengine::workshop::v4::PaneContent,
+                                          zengine::workshop::v5::PaneContent,
                                           zengine::workshop::PaneRevealRequested,
                                           zengine::workshop::PaneEscapeUnspent,
                                           // the second button's continuations: a press
@@ -335,6 +338,7 @@ class WorkshopWeave
                                           // default behaviour: what it declares, and what
                                           // it asks this host to open or focus
                                           zengine::workshop::AppActions,
+                                          zengine::workshop::v2::AppActions,
                                           zengine::workshop::PaneLaunchRequested,
                                           zengine::workshop::PaneCloseRequested,
                                           zengine::workshop::PaneToggleRequested,
@@ -367,7 +371,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, DeskRead, v2::DeskRead, DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, v6::PaneView, DeskRead, v2::DeskRead, DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::v1::PaneCanvasPointer,
@@ -501,8 +505,8 @@ public:
     void on(const v3::PanePointRequested& asked, loom::Mail& mail);
     /// The parts a visible body's pane names, each where the medium draws it: a text part over the
     /// cells that show its columns, a canvas part as the body shows it with the `words` inside it.
-    std::vector<PanePart> visible_parts(const VisibleBody& visible,
-                                        const std::vector<PaneWord>& words) const;
+    std::vector<v2::PanePart> visible_parts(const VisibleBody& visible,
+                                            const std::vector<PaneWord>& words) const;
     void on(const v3::PaneViewRequested& asked, loom::Mail& mail);
     ExternalPressAt cell_point(const VisibleBody& visible, std::int64_t row, std::int64_t cell,
                                std::int64_t& x, std::int64_t& y, std::int64_t& space) const;
@@ -519,9 +523,9 @@ public:
     /// what covers it, its stamp, and whether its picture is in flight: by what it shows, or for
     /// the fourth version by numbers.
     std::string pane_reading(const std::string& provider, const std::string& pane,
-                             v5::PaneView& out, bool by_numbers = false) const;
+                             v6::PaneView& out, bool by_numbers = false) const;
     /// THE PANE WORKSHOP PRESENTS ITSELF, Layouts, read as it is painted, its tabs named parts.
-    std::string layouts_reading(v5::PaneView& out) const;
+    std::string layouts_reading(v6::PaneView& out) const;
     /// What covers a presented pane's `rect`, each by the name a reading says it with.
     struct Cover {
         std::string by;
@@ -533,6 +537,11 @@ public:
                        std::int64_t picture) const;
     void on(const v4::PaneViewRequested& asked, loom::Mail& mail);
     void on(const v5::PaneViewRequested& asked, loom::Mail& mail);
+    void on(const v6::PaneViewRequested& asked, loom::Mail& mail);
+    /// ONE PAGE OF A PANE'S READING under a stamp by fingerprint, said in the version `fill` makes.
+    template <class View, class Fill>
+    void answer_page(const std::string& provider, const std::string& pane, std::int64_t from,
+                     const v2::PaneStamp& stamp, Fill fill, loom::Mail& mail) const;
     void on(const DeskReadRequested& asked, loom::Mail& mail);
     void on(const v2::DeskReadRequested& asked, loom::Mail& mail);
     /// Every presented pane, front to back: the order a desk read and a notice say stamps in.
@@ -701,10 +710,13 @@ public:
     // WL-KEY-15 -- agents/workshop/keyboard.md
     void on(const v2::PaneActions& actions, loom::Mail& mail);
 
-    /// THE ONE BODY BOTH VERSIONS SPEND, over the host's own row type.
+    /// ...and in the version that says what each press may cause, and the modes.
+    void on(const v3::PaneActions& actions, loom::Mail& mail);
+
+    /// THE ONE BODY EVERY VERSION SPENDS, over the host's own row type: the rows, their causes and
+    /// the modes, judged whole and held together.
     // WL-KEY-15 -- agents/workshop/keyboard.md
-    void declare_pane_actions(const std::string& pane,
-                              const std::vector<v2::PaneActionRow>& rows, loom::Mail& mail);
+    void declare_pane_actions(const v3::PaneActions& declared, loom::Mail& mail);
 
     /// Re-join every pane's retained declaration into the keymap now in force: the file may arrive
     /// after a pane did, and its overrides are owed to that pane's rows too.
@@ -724,6 +736,9 @@ public:
     /// The desktop declares what the application answers to, judged whole by `join_app_rows`; the
     /// verdict is said on the band and answered to the declaration (`ActionsJudged`).
     void on(const AppActions& actions, loom::Mail& mail);
+
+    /// ...and in the version that says what each press may cause, held with the rows.
+    void on(const v2::AppActions& actions, loom::Mail& mail);
 
     /// A PRESENTER THAT HAS JUST ARRIVED ASKS FOR THE INVENTORY AS IT IS NOW, and is answered
     /// with it -- the reading `publish_inventory` says when it changes, said to one asker.
@@ -890,11 +905,12 @@ public:
     void on(const v4::PaneCanvasContent& content, loom::Mail& mail);
     /// A picture whose runs may stand on the room's text lattice: admitted as v4's is.
     void on(const v5::PaneCanvasContent& content, loom::Mail& mail);
+    void on(const v6::PaneCanvasContent& content, loom::Mail& mail);
     /// Every version is admitted in the current form, its names judged beside it (an earlier
     /// door that names nothing names none). `said` is a problem the picture had under the doors
     /// it was drawn for, judged before it was converted; empty for a picture in this door's own
     /// pixels.
-    void admit_canvas_content(const v5::PaneCanvasContent& content, loom::Mail& mail,
+    void admit_canvas_content(const v6::PaneCanvasContent& content, loom::Mail& mail,
                               std::string_view said = {});
     /// One pointer moment to a canvas holder, in the version its room was granted in.
     loom::Ticket send_canvas_pointer(loom::WeaveId owner, const PaneCanvasPointer& event, bool legacy,
@@ -930,6 +946,8 @@ public:
     void on(const v3::PaneContent& content, loom::Mail& mail);
     /// Content naming its parts: admitted under v3's rule, its names judged with its rows.
     void on(const v4::PaneContent& content, loom::Mail& mail);
+    /// ...and its parts saying whether their operation applies now.
+    void on(const v5::PaneContent& content, loom::Mail& mail);
     /// THE HOST'S OWN FENCE, COMING ROUND: the first hop sends it round once more, the second
     /// makes every picture handed out before it the one a press is stamped with.
     void on(const PictureFence& fence, loom::Mail& mail);
@@ -1040,7 +1058,7 @@ private:
                        const std::vector<surface::SurfaceTextRow>& rows,
                        std::optional<std::int64_t> generation,
                        std::optional<std::int64_t> picture, loom::Mail& mail,
-                       const std::vector<PaneRowPart>* parts = nullptr);
+                       const std::vector<v2::PaneRowPart>* parts = nullptr);
     void admit_caret(std::string_view office, const PaneCaret& caret,
                      std::optional<std::int64_t> generation, loom::Mail& mail);
 
@@ -1759,7 +1777,7 @@ private:
     std::string keymap_word_;
     /// The application rows the desktop last declared, retained so a keymap file read later applies
     /// the weaver's overrides to them too (WL-DESK-07); `app_declaration_` numbers them (0: none).
-    std::vector<AppActionRow> app_actions_;
+    std::vector<v2::AppActionRow> app_actions_;
     std::int64_t app_declaration_ = 0;
     /// THE MINT FOR DECLARATION NUMBERS, pane and application alike: from one, never reused.
     std::int64_t declarations_ = 0;

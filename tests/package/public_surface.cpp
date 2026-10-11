@@ -49,6 +49,7 @@
 
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_parts.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/setup_control.hpp"
 
@@ -256,7 +257,7 @@ void pane_surface() {
     check(parts.size() == 1 && parts[0].name == "row:count" && parts[0].columns == 20,
           "a row map's parts are named by what they mean");
     check(ws::row_parts_problem(parts, 1, 20).empty() &&
-              !ws::row_parts_problem({parts[0], parts[0]}, 1, 20).empty(),
+              !ws::row_parts_problem(std::vector<ws::PaneRowPart>{parts[0], parts[0]}, 1, 20).empty(),
           "and judged as Workshop judges them: a name once");
     // ...listed as a press reads them: a control recorded before its row comes after it, the last
     // of the parts that hold its place, as it is what the map answers there.
@@ -292,6 +293,23 @@ void pane_surface() {
     actions.rows.push_back(
         ws::PaneActionRow{"tally.add", "add one", zengine::input::scan::kSpace, 0});
     check(actions.rows.front().id == "tally.add", "a declared action is an id a keymap can move");
+
+    // ...and in its third version, what a press of it may cause and the modes, judged by the
+    // installed judge before it is sent; a part says whether its operation applies now.
+    ws::v3::PaneActions said_causes{offer.pane, "count", {}, {}};
+    said_causes.rows.push_back(ws::v3::PaneActionRow{
+        "tally.add", "add one", zengine::input::scan::kSpace, 0, {},
+        {ws::cause_of<zengine::timer::StartTimer>(ws::to_pane("tally.office", "tally"))}, {}});
+    check(ws::pane_declaration_problem(said_causes).empty(),
+          "a press's causes are said beside its keys, in the form Workshop admits");
+    said_causes.rows.front().causes.push_back(ws::ActionCause{"Bad Name", 1, ""});
+    check(!ws::pane_declaration_problem(said_causes).empty(),
+          "and a cause out of form is refused before it is sent");
+    const std::vector<ws::v2::PaneRowPart> available = ws::row_parts(
+        map, 20, [](const std::string& m) { return "row:" + m; },
+        [](const std::string& m) { return m != "save"; });
+    check(available.size() == 2 && available[0].available && !available[1].available,
+          "a part says whether its operation applies now, from what it means");
 
     // A pane declares the settings it takes, judged by the installed judge before it is sent, and
     // reads what it is handed by the same words a refusal uses.

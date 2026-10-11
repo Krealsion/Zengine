@@ -197,8 +197,8 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
         const auto parts = held_parts(d.r.session(), d.launcher);
         REQUIRE(parts.count("pane:" + ref) == 1);
         REQUIRE(parts.count("mark:" + ref) == 1);
-        const PaneRowPart row = parts.at("pane:" + ref);
-        const PaneRowPart mark = parts.at("mark:" + ref);
+        const v2::PaneRowPart row = parts.at("pane:" + ref);
+        const v2::PaneRowPart mark = parts.at("mark:" + ref);
         CHECK(row.column == 0);
         CHECK(mark.row == row.row);
         CHECK(held_part_text(d.r.session(), d.launcher, mark) == "[    ]");
@@ -212,7 +212,7 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
     }
     // A NAME CHOOSES BY ITS PLACE, wherever the marker stands.
     const auto parts = held_parts(d.r.session(), d.launcher);
-    const PaneRowPart beta = parts.at("pane:zengine.test.tools/beta");
+    const v2::PaneRowPart beta = parts.at("pane:zengine.test.tools/beta");
     d.press(beta.row, kNameCol);
     CHECK(marked(d.rows()).find("Beta") != std::string::npos);
     CHECK(held_parts(d.r.session(), d.launcher).at("pane:zengine.test.tools/beta").row == beta.row);
@@ -778,7 +778,7 @@ TEST_CASE("WL-HAND-06: Hotkeys names each binding's row by its identity") {
     const std::int64_t terminal = k.row_of("desktop.terminal");
     REQUIRE(terminal >= 0);
     const auto parts = held_parts(k.r.session(), k.hotkeys);
-    const PaneRowPart* named = nullptr;
+    const v2::PaneRowPart* named = nullptr;
     std::size_t bindings = 0;
     for (const auto& [name, part] : parts) {
         if (name.rfind("binding:", 0) != 0) continue;
