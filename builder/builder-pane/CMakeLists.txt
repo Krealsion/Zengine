@@ -14,7 +14,7 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-# Its manual is compiled in, and declared to Workshop beside its offer.
+# Its manual is compiled in, and answered to whoever asks for it.
 zengine_weave(zengine-builder-pane pane.cpp MANUAL ../docs/zengine.builder-pane.md)
 target_link_libraries(zengine-builder-pane PRIVATE zengine-workshop-vocabulary
                                                    zengine-builder-vocabulary

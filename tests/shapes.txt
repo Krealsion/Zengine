@@ -258,8 +258,9 @@ PaneContent v2 0xb92aa7a635dc8407
 PaneContent v3 0xb9e99c2022e10871
 PaneContent v4 0xc16deb8795ee9660
 PaneCover v1 0xa709fceb604560a1
-PaneDocumentDeclared v1 0x95ff487d1ebd6494
+PaneDocumentRequested v1 0x3379dd0cb0156dca
 PaneDocumentSection v1 0x03759014adf99768
+PaneDocumentShown v1 0xa762ea40fcb2601f
 PaneDragged v1 0xd5f4c66bd4c09364
 PaneDrop v1 0xa650744bd2dea469
 PaneEscapeUnspent v1 0xb9ee2d9589543191

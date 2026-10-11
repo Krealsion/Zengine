@@ -17,25 +17,23 @@ and `zengine_manual()` call at configure time and `tests/check_manual.cmake` inc
 ## Law
 
 No register of its own under `agents/`. Its contract is its reference,
-[a weave's manual](docs/manual.md). What Workshop holds of a pane's declaration is WL-DESK-06, in
-the desktop's register, routed by [workshop/AGENTS.md](../workshop/AGENTS.md).
+[a weave's manual](docs/manual.md). Workshop keeps no pane's manual, so no Workshop register
+holds one.
 
 ## Suites
 
 No CTest entry of its own. Its cases in shared suites: `workshop_panes`
-(`tests/test_workshop_panes_manual.cpp`: a declaration judged whole, refused aloud, counted while
-its sender holds the office and dropped at a re-offer; `tests/test_workshop_panes_builder.cpp`: the
-action census, the Builder's held manual against its declared ids in every mode, a reload in place
-with other words) and `builder` (`tests/test_builder.cpp`: the office's answer by content id, and
-its page against its accepted shapes). The page form and the key markers are the `manual` text
-check's, routed by the root.
+(`tests/test_workshop_panes_builder.cpp`: the action census, the Builder's answered manual against
+its declared ids in every mode, a section or a pane it does not have refused, a reload in place with
+other words) and `builder` (`tests/test_builder.cpp`: the office's answer by content id, and its page
+against its accepted shapes). The page form and the key markers are the `manual` text check's,
+routed by the root.
 
 ## Host side
 
-`workshop/pane_document.hpp` is the pane protocol's side: `PaneDocumentDeclared`, its judgment and
-`pane_document_of`. Workshop holds a declaration in `workshop/panes.hpp` (`RuntimePane::document`)
-through `workshop/weave_seam.cpp` and `workshop/setup.hpp` `admit_pane_document`; it grants the
-Builder office its answer in `workshop/workshop.cpp`.
+`workshop/pane_document.hpp` is the pane protocol's side: `PaneDocumentRequested`,
+`PaneDocumentShown` and `pane_document`, the answer a pane gives. Workshop holds none of it; it grants
+the Builder office its answer in `workshop/workshop.cpp`.
 
 ## Pages
 

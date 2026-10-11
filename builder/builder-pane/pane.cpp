@@ -199,8 +199,8 @@ class BuilderPaneWeave
                        SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
-                       PaneMenuAnswered, ws::PaneOperationAnswered>,
-          loom::Emit<PaneOffered, PaneActions, ws::PaneDocumentDeclared, ws::v4::PaneContent,
+                       PaneMenuAnswered, ws::PaneOperationAnswered, ws::PaneDocumentRequested>,
+          loom::Emit<PaneOffered, PaneActions, ws::PaneDocumentShown, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent,
                      ws::PaneCaret, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
@@ -215,6 +215,13 @@ public:
             return;
         }
         announce(mail);
+    }
+
+    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
+    /// reloaded image answers its own words.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(ws::pane_document(ask, pane::kBuilderPane,
+                                            zengine::manual::pages::zengine_builder_pane::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
@@ -1325,11 +1332,6 @@ private:
             .send_to_role(kWorkshopRole, PaneOffered{pane::kBuilderPane, pane::kBuilderPaneName,
                                                      pane::kBuilderPaneSummary, 14, 70});
         declare(mail);
-        // ...AND ITS MANUAL, every section of the page this image was built with: Workshop holds
-        // it while this weave holds the office, so the words it shows are this image's own.
-        const zengine::manual::Manual& page = zengine::manual::pages::zengine_builder_pane::kManual;
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(kWorkshopRole, ws::pane_document_of(pane::kBuilderPane, page));
     }
 
     /// What this pane answers to right now, re-declared whenever the mode changes. A pane is one

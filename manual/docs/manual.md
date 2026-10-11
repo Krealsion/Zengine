@@ -2,9 +2,9 @@
 
 **Reference.** A manual is the primary reference for one weave: one Markdown page, named by the
 weave's office, with one section per command. The weave carries it compiled in, so the words a
-running weave says are the words of the page at the commit it was built from; a pane declares its
-manual to Workshop beside its offer, and an office answers a shape's section when asked. The same
-bytes are what a reader of the repository reads on GitHub.
+running weave says are the words of the page at the commit it was built from. A pane answers its
+manual when asked, and an office a shape's section; nothing keeps a copy. The same bytes are what a
+reader of the repository reads on GitHub.
 
 Source: [`manual/manual.hpp`](../manual.hpp) · [`manual/vocabulary.hpp`](../vocabulary.hpp) ·
 [`cmake/ZengineManual.cmake`](../../cmake/ZengineManual.cmake) ·
@@ -84,20 +84,25 @@ An edit to a manual is therefore an edit to the weave that carries it: the docum
 change check calls a page `<folder>/docs/<office>.md` compiled, by its name and place, and the
 official lane verifies it.
 
-## A pane declares its manual
+## A pane answers its manual
 
-A pane sends `PaneDocumentDeclared` v1 to Workshop beside its offer, as its office: the pane's key,
-the page's content id, and every section, `PaneDocumentSection` v1 `{key, group, text}`, in page
-order. `workshop::pane_document_of(pane, kManual)` builds it from the carried page.
+A pane answers `PaneDocumentRequested` v1 `{pane, section}`, sent to its office, to the asker alone
+with `PaneDocumentShown` v1: the pane's key and the section asked, the page's content id, and the
+sections, `PaneDocumentSection` v1 `{key, group, text}`, in page order -- the one under `section`, or
+the whole page when `section` is empty. `workshop::pane_document(ask, pane, kManual)` is the whole
+answer, so a pane answers in one line:
 
-- Workshop judges it whole under the office stamp: a pane the office offered, a content id of
-  sixty-four lowercase hex digits, each key declared once and each section within its bound and
-  printable. A declaration out of bounds is refused aloud on the band, naming the pane, and the
-  document in force stands; a later accepted one replaces it whole.
-- Workshop holds it only while the weave that sent it holds the office, and drops it when the pane
-  is offered again, which is how a reloaded image arrives: a reloaded pane is held with its own
-  words, or none, never its predecessor's.
-- Nothing waits on it, and nothing is answered: the words describe and decide nothing.
+```cpp
+void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+    (void)mail.answer(ws::pane_document(ask, kMyPane, manual::pages::my_office::kManual));
+}
+```
+
+- A pane the office does not offer, or a section its page does not have, is refused in `refusal`,
+  naming what is missing, with no sections.
+- Nothing holds the answer: not Workshop, not the host. An image answers from the page it was built
+  with, so a pane reloaded in place answers its new words, and none of its predecessor's.
+- The words describe and decide nothing: they are not a grant, and nothing waits on them.
 
 ## An office answers for a shape
 
@@ -119,5 +124,5 @@ accepted list, so the page describes exactly the shapes the gate lets in.
 | the build itself | official | a page out of form: the title, the order of its headings, a command without its four lines, a section past its bound, a key twice |
 | `manual` ([`tests/check_manual.cmake`](../../tests/check_manual.cmake)) | documentation | the same form; a manual named other than its office, or carried by no target; a pane's manual whose commands are not exactly the ids the action census holds for its office; a key marker, in a manual or a tutorial, whose key is not a default the census holds for its id |
 | the action census (`tests/actions.txt`) | official | a shipped pane whose declared rows, in every mode its suite drives, differ from the committed census; the census as it stands is written beside the build to diff |
-| the manual witnesses | official | a pane whose held manual lacks a command it declares; an office whose accepted shapes its page does not describe |
+| the manual witnesses | official | a pane whose answered manual lacks a command it declares; an office whose accepted shapes its page does not describe |
 | `doc_links` | documentation | a broken link or anchor |
