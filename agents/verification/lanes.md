@@ -78,14 +78,14 @@ the witness installs, builds an unrelated project outside the tree, repeats agai
 prefix, then deletes a header to prove it read the prefix.
 SEEN — `tests/package/run.cmake`; `agents/packaging.md`.
 
-## VM-LANE-11 — The lane may run in parallel on Linux/GCC
+## VM-LANE-11 — The lane may run in parallel, Windows included
 
-METHOD — The lane may run in parallel on Linux/GCC with `-DZEN_CTEST_ARGS=-j<n>`, same proofs; Windows stays serial because `timer` fails there under `-j` on a weave-load assertion, an open defect.
-BECAUSE — no CTest entry writes this build tree, so the entries cannot race it; the `timer`
-failure is measured at the same rate before and after the compile-test repair (two of six runs
-after, four of six before), so it is a separate defect.
-SEEN — `tests/verify.cmake` `ZEN_CTEST_ARGS`; `.github/workflows/ci.yml` `ZEN_CTEST_ARGS`, both Linux
-jobs at `-j4`; `AGENTS.md`.
+METHOD — The lane may run in parallel with `-DZEN_CTEST_ARGS=-j<n>`, same proofs, on Linux/GCC and on both Windows libraries; an entry that cannot share the machine runs alone, named in `-DZEN_CTEST_APART`.
+BECAUSE — no CTest entry writes this build tree, so the entries cannot race it; `workshop_journey`'s
+inventory check can ask the session host before its guest vocabulary loads, and it did with four
+entries at a time on a Windows runner, so the Windows jobs keep it apart.
+SEEN — `tests/verify.cmake` `ZEN_CTEST_ARGS`, `ZEN_CTEST_APART`; `.github/workflows/ci.yml`
+`ZEN_CTEST_APART`, every build job at `-j4`; `AGENTS.md`.
 
 ## VM-LANE-12 — The filesystem decides parallel safety
 

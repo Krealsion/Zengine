@@ -124,16 +124,15 @@ cmake -P tests/documentation_lane.cmake
 
 - **Quote `tests/verify.cmake`, never a bare `ctest`** — a bare run cannot say whether the
   population that ran is the population this repository meant to run.
-- **The lane runs in parallel on Linux/GCC**: add `-DZEN_CTEST_ARGS=-j<n>` (measured 56.2 s →
+- **The lane runs in parallel**: add `-DZEN_CTEST_ARGS=-j<n>` (measured on Linux 56.2 s →
   9.4 s at `-j24`). Same proofs. It is safe because no CTest entry writes
   this build tree — the compile-judged ones build their fixtures in a tree of their own
   ([agents/verification.md](agents/verification.md)); an entry that took custody of
   `${CMAKE_BINARY_DIR}` would put that back, and the registration helper refuses one that tries.
   What sets the floor now is the longest single entry, so a suite that grows past its
-  neighbours is the thing to watch, not the suite count.
-  **Not yet on Windows/MSVC**: `timer` fails there under `-j16` about a third to two thirds of
-  runs on a weave-load assertion, measured at the same rate before this was true of the compile
-  tests, so it is a separate open defect and not this seam. Windows stays serial.
+  neighbours is the thing to watch, not the suite count. Both Windows libraries run it in
+  parallel too, and CI runs every build job at `-j4`; an entry that cannot share the machine runs
+  alone after the rest, named in `-DZEN_CTEST_APART=<entry>` (VM-LANE-11).
 - **Stranger-by-default is deliberate** (`ZEN_LOOM_DEV=OFF`): an unexported-surface mistake
   must fail on every machine, not only in CI. `-DZEN_LOOM_DEV=ON` is the sibling override.
 - **Per-repo green:** Zengine's lane never re-runs Loom's suite — state which repo's green you

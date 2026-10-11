@@ -515,9 +515,11 @@ jobs:
       # Linux and the Neovim-gated ones are absent (this runner has no Neovim). That
       # difference is declared in tests/test_population.txt, not absorbed into a slack floor,
       # so a green here means the same thing; the numbers live in that file and nowhere else.
-      # Four entries at a time, as on Linux (VM-LANE-11).
+      # Four entries at a time, as in every build job (VM-LANE-11), but `workshop_journey`, which
+      # runs alone after the rest: its inventory check can ask the session host before the host's
+      # guest vocabulary has loaded, and with four entries sharing the runner it was seen to.
       - name: Verify the repository-owned population
-        run: cmake -DZEN_BUILD_DIR=build-win -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake
+        run: cmake -DZEN_BUILD_DIR=build-win -DZEN_CTEST_ARGS=-j4 -DZEN_CTEST_APART=workshop_journey -P tests/verify.cmake
 
       - name: Keep only what this run used
         if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
@@ -545,7 +547,8 @@ jobs:
   # configure line, and only there: ccache as the launcher, and each object's debug information
   # embedded (CMP0141's /Z7), the one format ccache can keep for MSVC. Neither names a symbol, a
   # definition or a `/Zc` switch, so neither can stand in for what Loom exports. The cache's rules
-  # are the other jobs' (VM-LANE-23), in a store of this job's own (VM-LANE-24, VM-LANE-25).
+  # are the other jobs' (VM-LANE-23, VM-LANE-24), in a store of this job's own; the nightly run's
+  # place is VM-LANE-25's.
   zengine-windows-msvc-stranger:
     name: ${{ github.event_name == 'schedule' && 'Zengine / Windows / MSVC Loom stranger, nothing added (advisory -- the released toolchain, not the maintainers'' local build)' || 'Zengine / Windows / MSVC Loom stranger (advisory -- the released toolchain, not the maintainers'' local build)' }}
     needs: [zengine-change-kind, resolve-loom]
@@ -688,8 +691,9 @@ jobs:
       # MinGW job names g++ by absolute path, which carries its own roots). Without it the
       # compile entries fail as `C1083: Cannot open include file: 'cstdint'` -- an unset
       # variable that reads like a broken repository, in a lane whose run-only suites pass.
-      # Four entries at a time, as on Linux (VM-LANE-11). The verdict heads the run's summary,
-      # saying which of the two runs this was.
+      # Four entries at a time, as in every build job (VM-LANE-11), but `workshop_journey`, kept
+      # apart as in the MinGW-w64 job. The verdict heads the run's summary, saying which of the two
+      # runs this was.
       - name: Verify the repository-owned population
         shell: pwsh
         run: |
@@ -697,7 +701,7 @@ jobs:
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
           Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
-          cmake -DZEN_BUILD_DIR=build-msvc -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake
+          cmake -DZEN_BUILD_DIR=build-msvc -DZEN_CTEST_ARGS=-j4 -DZEN_CTEST_APART=workshop_journey -P tests/verify.cmake
           $rc = $LASTEXITCODE
           $kind = if ($env:ZEN_MSVC_BARE -eq 'true') { 'nothing added' } else { 'the compiler cache and embedded debug information added' }
           $outcome = if ($rc -eq 0) { 'passed' } else { 'failed' }
