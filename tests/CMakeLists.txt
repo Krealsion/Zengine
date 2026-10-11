@@ -1002,7 +1002,6 @@ zengine_workshop_suite(panes
             test_workshop_info_views.cpp
             test_workshop_panes_terminal.cpp
             test_workshop_panes_settings.cpp
-            test_workshop_panes_manual.cpp
             test_workshop_panes_legend.cpp
             test_workshop_panes_editor.cpp
             test_workshop_editor_transfers.cpp
@@ -1053,7 +1052,7 @@ zengine_workshop_suite(panes
                 # ...and the golden the C++ generator must write for a saved EnsureTimer, which a
                 # drop on a C++ document inserts (the `source_transfer` suite pins the same bytes).
                 "SOURCE_TRANSFER_GOLDEN_FOR_PANES=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_ensure_timer.generated.hpp\"")
-# ...and the Builder pane's page as its build embeds it, which the held declaration is compared to.
+# ...and the Builder pane's page as its build embeds it, which the pane's answer is compared to.
 zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/builder/docs/zengine.builder-pane.md)
 
 zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp

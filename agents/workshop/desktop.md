@@ -110,22 +110,14 @@ LAW — Workshop answers each action declaration it judges with its verdict, num
 
 MEANS
 - the verdict is Loom's answer: it echoes the declaration's correlation, to its incarnation only;
-- a keymap file that displaces a pane's or the application's declaration withdraws it whole; only a holder whose office accepts the shape is told, and the band says a refusal either way;
-- a pane's manual is judged whole and refused aloud, counts while its sender holds the office, and goes at a re-offer.
+- a keymap file that displaces a pane's or the application's declaration withdraws it whole;
+- only a holder whose office accepts the shape is told; the band says a refusal either way.
 
 DOES NOT MEAN
 - that silence is a verdict: an answer can be refused at the gate or dropped with its asker;
-- that anything is mandated: nothing is retried, no draft, mode or binding is chosen, and a manual's words decide nothing.
+- that anything is mandated: nothing is retried, and no draft, mode or binding is chosen for it.
 
-PROVEN BY — `workshop/pane_document.hpp` `PaneDocumentDeclared`, `pane_document_declared_problem`;
-`workshop/setup.hpp` `admit_pane_document`; `workshop/weave.hpp` `on(PaneDocumentDeclared)`;
-`workshop/weave_seam.cpp` `on(PaneDocumentDeclared)`, `counted_document`; `workshop/panes.hpp`
-`RuntimePane::document`; `tests/test_workshop_panes_manual.cpp` case `"a pane's manual is judged
-whole under the office stamp, refused aloud, and replaced"`, case `"a pane's manual counts only while
-the weave that sent it holds the office, and an offer made again drops it"`;
-`tests/test_workshop_panes_builder.cpp` case `"a Builder reloaded in place with other words is held
-with only the new ones"`;
-`workshop/pane_vocabulary.hpp` `ActionsJudged`, `ActionsWithdrawn`;
+PROVEN BY — `workshop/pane_vocabulary.hpp` `ActionsJudged`, `ActionsWithdrawn`;
 `workshop/weave.hpp` `answer_declaration`, `say_withdrawn`, `rejoin_app_rows`;
 `workshop/weave_desktop.cpp` `answer_declaration`, `say_withdrawn`, `rejoin_app_rows`;
 `workshop/weave_seam.cpp` `declare_pane_actions`, `rejoin_pane_rows`; `workshop/panes.hpp`

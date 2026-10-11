@@ -618,41 +618,6 @@ inline Admission admit_pane_settings(const RuntimeCatalog& runtime, std::string_
     return out;
 }
 
-/// WHICH ADMITTED PANE A `PaneDocumentDeclared` IS ABOUT, under the office Loom stamped on it, and
-/// whether its sections are sound: the declaration judged whole. An office that never offered the
-/// key is refused by name. Nothing is written here; the caller writes the document or nothing.
-// WL-DESK-06 -- agents/workshop/desktop.md
-inline Admission admit_pane_document(const RuntimeCatalog& runtime, std::string_view stamped_office,
-                                     const PaneDocumentDeclared& declared) {
-    Admission out;
-    const Written office = check_pane_key(stamped_office, "provider");
-    if (!office.accepted) {
-        out.written = office;
-        return out;
-    }
-    const Written key = check_pane_key(declared.pane, "pane key");
-    if (!key.accepted) {
-        out.written = key;
-        return out;
-    }
-    const RuntimePane* row = runtime.find(stamped_office, declared.pane);
-    if (row == nullptr) {
-        out.written = Written::no("`" + ref_text(PaneRef{std::string(stamped_office),
-                                                         declared.pane}) +
-                                  "` is not a pane that office has offered -- its document "
-                                  "was not taken");
-        return out;
-    }
-    const std::string wrong = pane_document_declared_problem(declared);
-    if (!wrong.empty()) {
-        out.written = Written::no(row->name + " @" + row->provider + ": its document was not "
-                                  "taken -- " + wrong);
-        return out;
-    }
-    out.kind = row->kind;
-    return out;
-}
-
 /// SETTINGS AS A SENTENCE LISTS THEM: `legend off, step 3`.
 inline std::string settings_said(const std::vector<PaneSetting>& settings) {
     std::string out;

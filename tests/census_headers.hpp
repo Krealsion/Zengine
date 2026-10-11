@@ -203,7 +203,8 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::setup_persist::v4::WorkshopSetupPane>(), // WorkshopSetupPane v4
         shape<::zengine::workshop::setup_persist::WorkshopSetupPane>(), // WorkshopSetupPane v5
         shape<::zengine::workshop::PaneSettingsDeclared>(), // PaneSettingsDeclared v1
-        shape<::zengine::workshop::PaneDocumentDeclared>(), // PaneDocumentDeclared v1
+        shape<::zengine::workshop::PaneDocumentRequested>(), // PaneDocumentRequested v1
+        shape<::zengine::workshop::PaneDocumentShown>(), // PaneDocumentShown v1
         shape<::zengine::workshop::PaneDocumentSection>(), // PaneDocumentSection v1
         shape<::zengine::manual::ShapeDocumentRequested>(), // ShapeDocumentRequested v1
         shape<::zengine::manual::ShapeDocumentShown>(), // ShapeDocumentShown v1

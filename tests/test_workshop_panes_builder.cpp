@@ -16,6 +16,7 @@
 #include "builder/builder-pane/vocabulary.hpp"
 #include "workshop/authoring.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_doors.hpp"
 #include "workshop/pane_migration.hpp"
@@ -3384,6 +3385,52 @@ std::string census_line(const std::string& office, const char* mode, const std::
            (is_bound(g) ? gesture_word(g) : std::string("unbound")) + " " + label;
 }
 
+/// A READER OF A PANE'S MANUAL: it asks the pane's office and keeps each answer with Loom's word
+/// on whether it answered this asker.
+struct ManualAskerState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(ManualAskerState, 1, ZEN_FIELD(heard));
+};
+class ManualAsker
+    : public loom::WeaveBase<ManualAsker, ManualAskerState, loom::Accept<PaneDocumentShown>,
+                             loom::Emit<PaneDocumentRequested>> {
+public:
+    void on(const PaneDocumentShown& shown, loom::Mail& mail) {
+        heard.push_back(shown);
+        answers.push_back(mail.answers_ask());
+    }
+    std::vector<PaneDocumentShown> heard;
+    std::vector<bool> answers;
+};
+
+/// ASK THE BUILDER PANE FOR ITS MANUAL, as a weave would, and return its one answer.
+struct ManualReader {
+    PaneRig& r;
+    ManualAsker* asker = nullptr;
+    loom::WeaveId id{};
+    explicit ManualReader(PaneRig& rig) : r(rig) {
+        auto held = std::make_unique<ManualAsker>();
+        asker = held.get();
+        loom::Grant grant;
+        grant.allow_to_role(PaneDocumentRequested::zen_name, PaneDocumentRequested::zen_version,
+                            pane::kBuilderPaneRole);
+        id = r.bus.register_weave(std::move(held), std::move(grant));
+        asker->zen_set_self(id);
+    }
+    PaneDocumentShown ask(const std::string& pane_key, const std::string& section) {
+        asker->heard.clear();
+        asker->answers.clear();
+        (void)r.bus.send_as_to_role(id, pane::kBuilderPaneRole,
+                                    loom::Message(loom::to_value(PaneDocumentRequested{pane_key,
+                                                                                       section}),
+                                                  id, loom::WeaveId{}, 9));
+        r.bus.drain_until_idle();
+        REQUIRE(asker->heard.size() == 1);
+        CHECK(asker->answers[0]); // the answer to this asker's own ask, and to it alone
+        return asker->heard[0];
+    }
+};
+
 std::vector<std::string> census_pinned() {
     std::vector<std::string> out;
     std::ifstream in(ZENGINE_ACTIONS);
@@ -3449,39 +3496,41 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, and th
     CHECK(census == pinned);
 }
 
-TEST_CASE("the manual Workshop holds for the Builder is the page its build embedded, and names "
-          "exactly the commands it declares in each mode") {
+TEST_CASE("the manual the Builder answers is the page its build embedded, and names exactly the "
+          "commands it declares in each mode") {
     namespace manual = zengine::manual;
     const manual::Manual& page = manual::pages::zengine_builder_pane::kManual;
-    BuilderRig b("bld-manual-held");
+    BuilderRig b("bld-manual-asked");
     b.tool->catalog = catalog_of({{"tally", "tally"}});
     b.open();
+    ManualReader reader(b.r);
 
-    const PaneDocumentDeclared* held = b.r.w->counted_document(*b.row());
-    REQUIRE(held != nullptr);
-    CHECK(held->content_id == std::string(page.content_id));
-    REQUIRE(held->sections.size() == page.count);
+    // THE WHOLE PAGE, ASKED WITH NO SECTION: the page this tree's build embedded, in order.
+    const PaneDocumentShown whole = reader.ask(pane::kBuilderPane, "");
+    CHECK(whole.refusal.empty());
+    CHECK(whole.content_id == std::string(page.content_id));
+    REQUIRE(whole.sections.size() == page.count);
     for (std::size_t i = 0; i < page.count; ++i) {
-        CHECK(held->sections[i].key == std::string(page.sections[i].key));
-        CHECK(held->sections[i].text == std::string(page.sections[i].text));
+        CHECK(whole.sections[i].key == std::string(page.sections[i].key));
+        CHECK(whole.sections[i].text == std::string(page.sections[i].text));
     }
 
-    // EVERY ID THE PANE DECLARES, IN EVERY MODE, HAS ITS SECTION IN WHAT WORKSHOP HOLDS...
+    // EVERY ID THE PANE DECLARES, IN EVERY MODE, IS ANSWERED BY ITS OWN SECTION...
     std::set<std::string> declared;
     each_builder_mode(b, [&](const char* mode) {
-        const PaneDocumentDeclared* now = b.r.w->counted_document(*b.row());
-        REQUIRE(now != nullptr);
         for (const v2::PaneActionRow& a : b.row()->actions) {
             declared.insert(a.id);
-            const PaneDocumentSection* section = find_pane_document_section(*now, a.id);
+            const PaneDocumentShown one = reader.ask(pane::kBuilderPane, a.id);
             INFO("mode ", mode, ", id ", a.id);
-            REQUIRE(section != nullptr);
-            CHECK(manual::is_command_group(section->group));
+            CHECK(one.refusal.empty());
+            REQUIRE(one.sections.size() == 1);
+            CHECK(one.sections[0].key == a.id);
+            CHECK(manual::is_command_group(one.sections[0].group));
         }
     });
-    // ...AND THE HELD COMMANDS ARE EXACTLY THOSE: no section for an id the pane never declares.
+    // ...AND THE PAGE'S COMMANDS ARE EXACTLY THOSE: no section for an id the pane never declares.
     std::set<std::string> commands;
-    for (const PaneDocumentSection& s : held->sections) {
+    for (const PaneDocumentSection& s : whole.sections) {
         if (manual::is_command_group(s.group) && s.key != "commands" &&
             s.key.rfind("commands-", 0) != 0) {
             commands.insert(s.key);
@@ -3491,27 +3540,45 @@ TEST_CASE("the manual Workshop holds for the Builder is the page its build embed
     CHECK(declared.size() >= 29);
 }
 
-TEST_CASE("a Builder reloaded in place with other words is held with only the new ones") {
+TEST_CASE("a section or a pane the Builder does not have is refused, naming what is missing") {
+    BuilderRig b("bld-manual-refused");
+    b.tool->catalog = catalog_of({{"tally", "tally"}});
+    b.open();
+    ManualReader reader(b.r);
+
+    const PaneDocumentShown section = reader.ask(pane::kBuilderPane, "builder.fly");
+    CHECK(section.refusal == "the manual of zengine.builder-pane has no section `builder.fly`");
+    CHECK(section.sections.empty());
+    CHECK(section.section == "builder.fly");
+
+    const PaneDocumentShown other = reader.ask("elsewhere", "");
+    CHECK(other.refusal == "zengine.builder-pane offers no pane `elsewhere`");
+    CHECK(other.sections.empty());
+    CHECK(other.content_id.empty());
+}
+
+TEST_CASE("a Builder reloaded in place with other words answers only the new ones") {
     BuilderRig b("bld-manual-reload");
     b.tool->catalog = catalog_of({{"tally", "tally"}});
     b.open();
-    const PaneDocumentDeclared* before = b.r.w->counted_document(*b.row());
-    REQUIRE(before != nullptr);
-    const std::string old_id = before->content_id;
-    REQUIRE(find_pane_document_section(*before, pane::kActionBuild) != nullptr);
+    ManualReader reader(b.r);
+    const PaneDocumentShown before = reader.ask(pane::kBuilderPane, "");
+    REQUIRE(before.refusal.empty());
+    REQUIRE(reader.ask(pane::kBuilderPane, pane::kActionBuild).refusal.empty());
 
     // THE SAME OFFICE, ITS SAME SOURCE, BUILT WITH ANOTHER PAGE, reloaded in place through the
     // real control door: the same weave id and its state, a new image, and its own words.
     b.r.enqueue_reload(pane::kBuilderPaneStem, WORKSHOP_SO_BUILDER_PANE_REWORDED);
     b.r.bus.drain_until_idle();
     REQUIRE(b.r.load_refusals.empty());
-    const PaneDocumentDeclared* after = b.r.w->counted_document(*b.row());
-    REQUIRE(after != nullptr);
-    CHECK(after->content_id != old_id);
-    const PaneDocumentSection* about = find_pane_document_section(*after, "about");
-    REQUIRE(about != nullptr);
-    CHECK(about->text.find("reworded") != std::string::npos);
-    // NOTHING OF THE OLD PAGE IS HELD: its commands' sections went with it.
-    CHECK(find_pane_document_section(*after, pane::kActionBuild) == nullptr);
-    CHECK(after->sections.size() < 10);
+    const PaneDocumentShown after = reader.ask(pane::kBuilderPane, "");
+    REQUIRE(after.refusal.empty());
+    CHECK(after.content_id != before.content_id);
+    CHECK(after.sections.size() < 10);
+    const PaneDocumentShown about = reader.ask(pane::kBuilderPane, "about");
+    REQUIRE(about.sections.size() == 1);
+    CHECK(about.sections[0].text.find("reworded") != std::string::npos);
+    // NOTHING OF THE OLD PAGE IS ANSWERED: its commands' sections went with its image.
+    CHECK(reader.ask(pane::kBuilderPane, pane::kActionBuild).refusal ==
+          "the manual of zengine.builder-pane has no section `builder.build`");
 }

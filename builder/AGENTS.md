@@ -59,7 +59,7 @@ Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_builder
 ## Pages
 
 - [The Builder pane](docs/zengine.builder-pane.md), a manual, compiled into the pane
-  (`MANUAL` in `builder-pane/CMakeLists.txt`) and declared beside its offer
+  (`MANUAL` in `builder-pane/CMakeLists.txt`) and answered on ask (`PaneDocumentRequested`)
 - [The Builder](docs/zengine.builder.md), a manual, compiled into whatever mounts the office
   (`zengine_manual` in `CMakeLists.txt`); the office answers a shape's section from it
 - [The recipe file](docs/recipes.md)

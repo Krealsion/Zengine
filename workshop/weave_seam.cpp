@@ -48,14 +48,6 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
         // A re-offer is a correction: the descriptor was updated in place, and the presentation's
         // copy is cleared so the repaint grants the current room again. Nothing closes and no
         // catalog position moves.
-        // ...AND THE MANUAL IT DECLARED IS DROPPED: a re-offer is how a reloaded image arrives, at
-        // the same weave id, and that image says its own words or none (WL-DESK-06).
-        for (RuntimePane& row : session_.panes.runtime.entries) {
-            if (row.kind == admitted.kind) {
-                row.document = PaneDocumentDeclared{};
-                row.document_from = loom::WeaveId{};
-            }
-        }
         if (ExternalPane* pane = session_.panes.external_pane(admitted.kind)) {
             pane->shown.clear();
             pane->parts.clear();
@@ -229,37 +221,6 @@ void WorkshopWeave::on(const PaneSettingsDeclared& declared, loom::Mail& mail) {
         }
     }
     repaint(mail);
-}
-
-// WL-DESK-06 -- agents/workshop/desktop.md
-void WorkshopWeave::on(const PaneDocumentDeclared& declared, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
-        return; // personal speech declares nothing (the offer's rule)
-    }
-    const Admission admitted = admit_pane_document(session_.panes.runtime, office, declared);
-    if (!admitted.written.accepted) {
-        // REFUSED ALOUD, AND THE DOCUMENT IN FORCE STANDS: only an accepted declaration replaces.
-        say(admitted.written.refusal, true);
-        repaint(mail);
-        return;
-    }
-    // JUDGED WHOLE; ONLY NOW IS ANYTHING WRITTEN, beside the weave that sent it.
-    for (RuntimePane& row : session_.panes.runtime.entries) {
-        if (row.kind == admitted.kind) {
-            row.document = declared;
-            row.document_from = mail.sender();
-        }
-    }
-}
-
-// WL-DESK-06 -- agents/workshop/desktop.md
-const PaneDocumentDeclared* WorkshopWeave::counted_document(const RuntimePane& row) const {
-    if (!row.document_from.valid() || !host_->role_holder ||
-        host_->role_holder(row.provider) != row.document_from) {
-        return nullptr;
-    }
-    return &row.document;
 }
 
 // WL-SETTING-03 -- agents/workshop/settings.md

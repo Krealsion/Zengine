@@ -2,8 +2,8 @@
 
 **A weave carries its manual: one Markdown page, named by the weave's office, with a section for
 each command it takes. The build compiles the page into the weave, so a running weave's words are
-always its own; a pane declares them to Workshop beside its offer, and an office answers what a
-shape it accepts does when asked.**
+always its own. A pane answers its manual when asked, and an office answers what a shape it accepts
+does; nothing keeps a copy.**
 
 It is a small header-only library and a CMake function. A weave in this repository names its page
 with `zengine_weave(<target> <source> MANUAL <page>)`.
