@@ -336,12 +336,18 @@ public:
     Hush() {
         std::fflush(stdout);
 #if defined(_WIN32)
+        // _dup2 on descriptor 1 also points the Windows standard handle at its new handle, which a
+        // weave loading meanwhile keeps as its own stdout under the MSVC ABI: so the hush hands it
+        // a NUL handle never closed, and gives back one a catcher holds.
+        const HANDLE entry = ::GetStdHandle(STD_OUTPUT_HANDLE);
+        pinned_ = entry != reinterpret_cast<HANDLE>(::_get_osfhandle(1)) ? entry : nullptr;
         saved_ = ::_dup(1);
         const int nul = ::_open("NUL", _O_WRONLY);
         if (nul >= 0) {
             ::_dup2(nul, 1);
             ::_close(nul);
         }
+        ::SetStdHandle(STD_OUTPUT_HANDLE, process_nul());
 #else
         saved_ = ::dup(STDOUT_FILENO);
         const int nul = ::open("/dev/null", O_WRONLY | O_CLOEXEC);
@@ -357,6 +363,9 @@ public:
 #if defined(_WIN32)
             ::_dup2(saved_, 1);
             ::_close(saved_);
+            if (pinned_ != nullptr) {
+                ::SetStdHandle(STD_OUTPUT_HANDLE, pinned_);
+            }
 #else
             ::dup2(saved_, STDOUT_FILENO);
             ::close(saved_);
@@ -367,6 +376,16 @@ public:
     Hush& operator=(const Hush&) = delete;
 
 private:
+#if defined(_WIN32)
+    /// One NUL handle for the process, opened once and never closed.
+    static HANDLE process_nul() {
+        static const HANDLE nul =
+            ::CreateFileA("NUL", GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                          OPEN_EXISTING, 0, nullptr);
+        return nul;
+    }
+    HANDLE pinned_ = nullptr;
+#endif
     int saved_ = -1;
 };
 

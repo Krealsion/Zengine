@@ -30,12 +30,24 @@
 #if defined(_WIN32)
 #include <fcntl.h>
 #include <io.h>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef NOGDI
+#define NOGDI
+#endif
+#include <windows.h>
 #else
 #include <fcntl.h>
 #include <unistd.h>
 #endif
 
 #include <cstdint>
+#include <exception>
+#include <iostream>
 #include <map>
 #include <string>
 #include <vector>
@@ -111,12 +123,18 @@ public:
     Hush() {
         std::fflush(stdout);
 #if defined(_WIN32)
+        // _dup2 on descriptor 1 also points the Windows standard handle at its new handle, which a
+        // weave loading meanwhile keeps as its own stdout under the MSVC ABI: so the hush hands it
+        // a NUL handle never closed, and gives back one a catcher holds.
+        const HANDLE entry = ::GetStdHandle(STD_OUTPUT_HANDLE);
+        pinned_ = entry != reinterpret_cast<HANDLE>(::_get_osfhandle(1)) ? entry : nullptr;
         saved_ = ::_dup(1);
         const int nul = ::_open("NUL", _O_WRONLY);
         if (nul >= 0) {
             ::_dup2(nul, 1);
             ::_close(nul);
         }
+        ::SetStdHandle(STD_OUTPUT_HANDLE, process_nul());
 #else
         saved_ = ::dup(STDOUT_FILENO);
         const int nul = ::open("/dev/null", O_WRONLY | O_CLOEXEC);
@@ -132,6 +150,9 @@ public:
 #if defined(_WIN32)
             ::_dup2(saved_, 1);
             ::_close(saved_);
+            if (pinned_ != nullptr) {
+                ::SetStdHandle(STD_OUTPUT_HANDLE, pinned_);
+            }
 #else
             ::dup2(saved_, STDOUT_FILENO);
             ::close(saved_);
@@ -142,6 +163,16 @@ public:
     Hush& operator=(const Hush&) = delete;
 
 private:
+#if defined(_WIN32)
+    /// One NUL handle for the process, opened once and never closed.
+    static HANDLE process_nul() {
+        static const HANDLE nul =
+            ::CreateFileA("NUL", GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                          OPEN_EXISTING, 0, nullptr);
+        return nul;
+    }
+    HANDLE pinned_ = nullptr;
+#endif
     int saved_ = -1;
 };
 
@@ -207,6 +238,15 @@ struct Rig {
         const Recorded::Answer a = command(loom::LoadWeave{name, path, role});
         REQUIRE_MESSAGE(a.kind == 0, "load refused: ", a.text);
         return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(a.text))};
+    }
+
+    /// A load by the kernel itself, pumped raw, so no Hush is around it: under the MSVC ABI a
+    /// weave keeps the stdout it loaded with, and a catcher must be what it loaded with.
+    loom::WeaveId load_unhushed(const char* name, const char* path, const char* role) {
+        const loom::LoadResult loaded = kernel.load(name, path, role);
+        REQUIRE_MESSAGE(loaded.ok, "load refused: ", loaded.error);
+        bus.drain_until_idle();
+        return loaded.id;
     }
 };
 
@@ -728,12 +768,15 @@ TEST_CASE("the substrate's own reset door starts a new game") {
 
 namespace {
 
-/// fd-1 catcher: like Hush, but the bytes land in a file the test can weigh.
-/// The zero it measures is only a measurement because the same catcher then
-/// weighs a SKINNED run and finds paint — a meter proven live, not assumed.
+/// fd-1 catcher: like Hush, but the bytes land in a file the test can weigh; a zero is a
+/// measurement only because the same catcher finds a SKINNED run's paint. Under the MSVC ABI a
+/// weave's own C runtime takes as its stdout the Windows standard handle it loads with, which
+/// _dup2 on descriptor 1 points at the file: so a catcher is made before the weaves it weighs
+/// load, and outlives them. What it caught is copied to stderr when a check throws inside it.
 class CatchStdout {
 public:
-    explicit CatchStdout(const char* path) {
+    explicit CatchStdout(const char* path)
+        : path_(path), unwinding_(std::uncaught_exceptions()) {
         std::fflush(stdout);
 #if defined(_WIN32)
         saved_ = ::_dup(1);
@@ -762,11 +805,17 @@ public:
             ::close(saved_);
 #endif
         }
+        if (std::uncaught_exceptions() > unwinding_) {
+            std::ifstream in(path_, std::ios::binary);
+            std::cerr << in.rdbuf() << std::flush;
+        }
     }
     CatchStdout(const CatchStdout&) = delete;
     CatchStdout& operator=(const CatchStdout&) = delete;
 
 private:
+    std::string path_;
+    int unwinding_ = 0;
     int saved_ = -1;
 };
 
@@ -784,30 +833,36 @@ long file_size_then_remove(const char* path) {
 } // namespace
 
 TEST_CASE("snake publishes, never paints: a skinless game writes zero bytes to stdout") {
-    Rig r;
-    const loom::WeaveId score = r.load("snake-score", SNAKE_SO_SCORE, "");
-    r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-
     // A stretch of real life with NO skin anywhere in the process: ticks,
     // a witnessed meal, a spoken tally — every one of them intent on the bus,
     // none of them bytes on stdout. Raw pumps on purpose: the catcher, not
-    // the Hush, must be the observer.
+    // the Hush, must be the observer. Each catcher is made before its rig, and
+    // the rig's weaves load inside it, unhushed, and leave before it closes.
+    std::string eaten;
     {
         CatchStdout catcher("snake_no_paint.tmp");
+        Rig r;
+        const loom::WeaveId score = r.load_unhushed("snake-score", SNAKE_SO_SCORE, "");
+        r.load_unhushed("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
         for (int i = 0; i < 6; ++i) {
             r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
             r.bus.drain_until_idle();
         }
         r.bus.send(score, loom::Message(loom::to_value(FoodEaten{})));
         r.bus.drain_until_idle();
+        eaten = r.poke(score, loom::PokeRead{"eaten"}).text;
     }
     CHECK(file_size_then_remove("snake_no_paint.tmp") == 0);
-    CHECK(r.poke(score, loom::PokeRead{"eaten"}).text == "1"); // the game DID run
+    CHECK(eaten == "1"); // the game DID run
 
-    // The negative control: the same meter, a skin on the surface — paint.
-    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
+    // The negative control: the same meter, the same game, a skin on the surface — paint.
     {
         CatchStdout catcher("snake_painted.tmp");
+        Rig r;
+        r.load_unhushed("snake-score", SNAKE_SO_SCORE, "");
+        r.load_unhushed("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
+        r.load_unhushed("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
+                        zengine::surface::kSkinRole);
         r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
         r.bus.drain_until_idle();
     }
