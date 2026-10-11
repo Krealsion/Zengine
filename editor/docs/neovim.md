@@ -279,8 +279,9 @@ from a **second terminal**, so `loom-host` keeps its console.
    }
    ```
 
-   On Windows the files end in `.dll`, and a MinGW build finds its C++ runtime the way a MinGW
-   `loom-host.exe` does: with the toolchain's `bin` directory on `PATH`.
+   On Windows the files end in `.dll`, and each carries its own C++ runtime, linked in by Loom's
+   weave build contract; `loom-host.exe` from a MinGW build finds its own with the toolchain's
+   `bin` directory on `PATH`.
 2. Start `loom-host` in the directory your files are in. Both are refused until you approve them,
    and the Neovim editor's beat needs the Timer to speak, so decide all of it at once:
 
