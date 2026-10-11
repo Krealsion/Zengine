@@ -1225,7 +1225,7 @@ TEST_CASE("observe: through the real door, a guest observes only what its row li
 // The file's versions, the host fact, and the action classes
 // =============================================================================
 
-TEST_CASE("guests file: a file names its version, version 2 adds build and the host, and a word its version does not know is refused") {
+TEST_CASE("guests file: a file names its version, version 2 adds build and the host, and a word of a later version is refused") {
     Scratch f("versions");
     guests::GuestsFile file;
     std::string why;
@@ -1395,7 +1395,7 @@ TEST_CASE("guests file: capture's widening is said as a gain") {
     CHECK(guests::gains_of(row, file).empty());
 }
 
-TEST_CASE("action classes: a send on a guest's behalf is the classes its shape is -- a toolbox save and a quit write, and an open shows no path") {
+TEST_CASE("action classes: a guest's send is its shape's classes -- a toolbox save and a quit write, and an open shows no path") {
     namespace scope = zengine::workshop::scope;
     // THE NAMES ARE THE OWNERS' OWN SHAPES, so a renamed shape is a red here, not a send unjudged.
     CHECK(scope::classes_of_send(zengine::inventory_pane::InventoryToolboxSave::zen_name) ==
@@ -1619,7 +1619,7 @@ private:
 
 } // namespace
 
-TEST_CASE("door: a session asks its own row and hears its name, powers, observe list and the file's host, and nothing of another row") {
+TEST_CASE("door: a session asks its own row and hears its name, powers, observe list and host, and nothing of another row") {
     Scratch f("described");
     f.write(R"({"version":"2","host":"development","guests":[)"
             R"({"name":"agent","credential":"one","may":["input"],"observe":[)"
@@ -1673,7 +1673,7 @@ TEST_CASE("door: a session asks its own row and hears its name, powers, observe 
           std::vector<std::string>{"only a session this door admitted has a row to describe"});
 }
 
-TEST_CASE("door: in a file with two rows of one name, the session admitted under the row without capture is refused a capture read and a capture observation") {
+TEST_CASE("door: of two rows of one name, the session admitted under the one without capture is refused a capture read and observation") {
     const std::string canvas = std::string(R"({"producer":"zengine.workshop","shape":")") +
                                surface::SurfaceCanvas::zen_name + R"(","version":")" +
                                std::to_string(surface::SurfaceCanvas::zen_version) + R"("})";
@@ -1744,7 +1744,7 @@ TEST_CASE("door: in a file with two rows of one name, the session admitted under
     CHECK(relay->active() == 1);
 }
 
-TEST_CASE("observation: a row without capture is refused the desk's words and pictures, every row is refused ClipboardCopy, and a capture row may observe StandingConditions") {
+TEST_CASE("observation: the desk's words and pictures need capture, every row is refused ClipboardCopy, and capture observes StandingConditions") {
     struct Asked {
         std::string producer, shape;
         std::int64_t version;
@@ -1857,7 +1857,7 @@ public:
 
 } // namespace
 
-TEST_CASE("observation: an observe row naming DeskStamps without capture is refused in words, and a capture row listing it is told the notices, the newest standing for those its window held back") {
+TEST_CASE("observation: DeskStamps needs capture, and a capture row listing it is told the notices, the newest standing for what its window held back") {
     const std::string notices = std::string(R"({"producer":"zengine.workshop","shape":")") +
                                 ws::DeskStamps::zen_name + R"(","version":")" +
                                 std::to_string(ws::DeskStamps::zen_version) + R"("})";
