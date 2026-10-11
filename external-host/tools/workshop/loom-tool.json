@@ -807,6 +807,8 @@
         }
       ],
       "vocabulary": [
+        "GuestPlanRequested v1",
+        "GuestPlanSaid v1",
         "DemoStatusRequested v1",
         "DemoReadyRequested v1",
         "DemoStatus v1"
