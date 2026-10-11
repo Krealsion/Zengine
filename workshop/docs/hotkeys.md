@@ -77,8 +77,9 @@ owns the terminal by then, so the condition row is where it is said.
 `Ctrl`+`k` opens the **Hotkeys** pane, or puts you in it: the desktop's list of every key as it
 is **in force right now** — a heading for each place a key is answered (command mode, the
 arranging scopes, the contextual menu, the name line, each pane that declared rows, the keys
-above every mode), and under it each row: the key as your keymap file would spell it, what it
-does, and the id a file names it by. A `*` marks a key your own file moved or switched off.
+above every mode), and under it each row: the key, spelled as your keymap file spells it unless you
+chose the short spelling ([how keys are spelled](#how-keys-are-spelled)), what it does, and the id
+a file names it by. A `*` marks a key your own file moved or switched off.
 Beneath the list it names the keymap file this run reads and what reading it came to; a character
 the pane cannot draw there -- an `é` in your profile's folder, say -- is shown as `?`.
 `↑` `↓` `Home` `End` scroll it.
@@ -91,7 +92,7 @@ It is an ordinary pane: arrange it, cover it, hide it, and `Ctrl`+`k` brings it 
 a mode — reading it takes no keyboard away from anything, and every key it lists works while it
 is open. What it shows is what Workshop tells it: the effective keymap, re-told whenever your
 file, a pane's declaration, the desktop's own rows or an edit change it. It is a table — the key
-as your file would spell it, the label, the id, and `*` for a row your file moved — with a row
+in the spelling you chose for it, the label, the id, and `*` for a row your file moved — with a row
 cursor: `↑` `↓` walk it, `Home` `End` jump, the wheel walks it too, and a click chooses a row.
 An action with several keys is listed once per key. Inside any text field, the text
 box's own editing keys — copy, cut, paste, select, word movement, undo — are shown for discovery
@@ -107,7 +108,7 @@ small menu opens beside it:
 | row | does |
 |---|---|
 | `Modify (press a key)` | the next key you press becomes the action's only key |
-| `Modify (type a spelling)` | type the key as the file spells it (`ctrl+f`, `shift+h`, `[`), then `Enter`; a spelling is plain ASCII on one line, so text typed or pasted holding anything else is not typed, and the pane says so |
+| `Modify (type a spelling)` | type the key as the file spells it (`ctrl+q`, `shift+h`, `[`), then `Enter`; a spelling is plain ASCII on one line, so text typed or pasted holding anything else is not typed, and the pane says so |
 | `Add a key (press)` / `Add a key (type)` | the action keeps its keys and gains this one |
 | `` Remove `key` `` | this row's key stops requesting the action; removing the last one **disables** it, and the notice says so — nothing falls back to the default you just removed |
 | `Disable` | no key requests the action (the file says `none`) |
@@ -173,6 +174,24 @@ its shape, and no binding is unbound by choosing not to look at the legend. Wher
 rows cannot carry every pair, the cut is marked and the Hotkeys pane remains the complete list,
 one keystroke away in every mode.
 
+## How keys are spelled
+
+One key can be written two ways. **Short** is how the band has always written a key: `B` for
+Shift and `b`, `^p` for Ctrl and `p`, `enter`. **Full** is how a keymap file writes it:
+`shift+b`, `ctrl+p`, `return`. You choose, apart, how two places write keys:
+
+| setting | where it shows | starts as |
+|---|---|---|
+| **band key spelling** | the band, and every hint and notice Workshop writes on the screen | short |
+| **Hotkeys key spelling** | the Hotkeys pane, and a pane's manual (its `?`) | full |
+
+Both are in the **Settings** a pane's gear opens ([Panes](panes.md#a-panes-manual-and-its-gear)),
+and you can bind a key to either in your keymap file (`workshop.band-keys`,
+`workshop.hotkeys-keys`). Choosing one switches that spelling and says so; changing one never changes the other. Each is saved with your
+preferences, beside pane titles, and comes back the next time you start Workshop. A spelling only
+changes how a key is written down: what a key does, your keymap file, and how you write a key in
+that file are all unchanged.
+
 ## The keymap file
 
 Overrides live in one JSON file, `workshop-keymap.json` in your per-user config
@@ -187,7 +206,7 @@ Hotkeys pane's edits or by your hand:
   "format":"zengine-workshop-keymap","format_version":"2",
   "legend":"default",
   "overrides":[
-    {"action":"desktop.terminal","gesture":"ctrl+f"},
+    {"action":"desktop.terminal","gesture":"ctrl+q"},
     {"action":"layout.new","gesture":"n"},
     {"action":"layout.next","gesture":"."},
     {"action":"layout.next","gesture":"ctrl+n"}

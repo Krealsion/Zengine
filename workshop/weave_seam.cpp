@@ -612,7 +612,9 @@ bool WorkshopWeave::same_keystroke(const std::string& text, const std::string& o
     return a >= 'a' && a <= 'z' && a == lower(owed[0]);
 }
 
-std::string WorkshopWeave::hotkey(Act a) const { return hotkey_text(session_.keymap, a); }
+std::string WorkshopWeave::hotkey(Act a) const {
+    return hotkey_text(session_.keymap, session_.band_keys, a);
+}
 
 // WL-TEXT-09 -- agents/workshop/text-box.md
 component::TextBox* WorkshopWeave::naming_line() {

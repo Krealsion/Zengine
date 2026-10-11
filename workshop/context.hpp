@@ -26,6 +26,9 @@ inline constexpr std::int64_t kRoot = 0;   ///< the empty room / Workshop itself
 inline constexpr std::int64_t kPane = 1;   ///< an arrangeable pane, by durable `PaneRef`
 // 2 is not reused: a subject kind is a bit in every row's declaration.
 inline constexpr std::int64_t kLayout = 3; ///< a painted layout tab, by weaver position
+/// The presentation a pane's gear opens: what a weaver may change about how Workshop looks.
+// WL-CHROME-09 -- agents/workshop/chrome.md
+inline constexpr std::int64_t kSettings = 4;
 } // namespace context_subject
 
 /// One subject kind as a declaration bit, so a row can be meaningful for several kinds
@@ -37,6 +40,7 @@ inline constexpr std::int64_t context_bit(std::int64_t subject) noexcept {
 inline constexpr std::int64_t kOnRoot = context_bit(context_subject::kRoot);
 inline constexpr std::int64_t kOnPane = context_bit(context_subject::kPane);
 inline constexpr std::int64_t kOnLayout = context_bit(context_subject::kLayout);
+inline constexpr std::int64_t kOnSettings = context_bit(context_subject::kSettings);
 
 /// The surface's own state: open, a captured subject, which group level is showing, and a cursor.
 // WL-CTX-01, WL-CTX-03 -- agents/workshop/contextual.md
@@ -141,6 +145,10 @@ inline constexpr ContextRow kContextCatalog[] = {
     {"layout.move-left", kOnLayout, "Order"},
     {"layout.move-right", kOnLayout, "Order"},
     {"layout.remove", kOnLayout, ""},
+    // -- a pane's gear: how Workshop looks --------------------------------------------
+    {"workshop.pane-titles", kOnSettings, ""},
+    {"workshop.band-keys", kOnSettings, ""},
+    {"workshop.hotkeys-keys", kOnSettings, ""},
 };
 
 inline constexpr std::size_t kContextCatalogCount =

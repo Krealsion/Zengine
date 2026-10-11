@@ -377,6 +377,11 @@ struct ExternalPane {
     // WL-SETTING-04 -- agents/workshop/settings.md
     std::optional<std::vector<PaneSetting>> settings_heard;
     loom::WeaveId settings_holder{};
+    /// WHETHER THIS PANE WEARS ITS `?` AND ITS GEAR: its holder takes `PaneDocumentRequested` now,
+    /// and the application declares the row that shows a manual. Read again before every paint,
+    /// so it is the live holder's answer; nothing of the manual is kept.
+    // WL-CHROME-09 -- agents/workshop/chrome.md
+    bool manual = false;
     struct Canvas {
         loom::WeaveId owner{};
         std::int64_t grant = 0, x = 0, y = 0, width = 0, height = 0, grain = 0;

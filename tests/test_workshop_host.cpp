@@ -2341,7 +2341,7 @@ TEST_CASE("a tab's context menu acts on THAT tab") {
         if (!row.is_group && row.row != nullptr &&
             std::string(row.row->id) == "layout.remove") {
             CHECK(context_annotation(t.session(), row) ==
-                  hotkey_text(t.session().keymap, Act::kLayoutRemove));
+                  hotkey_text(t.session().keymap, KeySpelling::kShort, Act::kLayoutRemove));
         }
     }
     t.key(input::scan::kEscape);

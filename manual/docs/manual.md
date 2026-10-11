@@ -61,8 +61,9 @@ Each section, the page and the number of sections are bounded by the constants
 
 **A key is written in a key marker, and only there**: `<!-- key builder.build -->`b`<!-- /key -->`,
 which GitHub shows as `b`. The key is spelled as a weaver's keymap file spells it (`shift+b`,
-`return`, `ctrl+p`), and the marker holds the default the pane declares; a pane's own `?` can show
-a weaver's own key in its place. Tutorials write keys the same way.
+`return`, `ctrl+p`), and the marker holds the default the pane declares; a pane's `?` shows a
+weaver's own key in its place ([Panes](../../workshop/docs/panes.md#a-panes-manual-and-its-gear)).
+Tutorials write keys the same way.
 
 **What a page never writes**: a field's type, a version beyond a shape's own `Name vN`, or a count
 the code owns; a fact another page owns, which it links instead.
@@ -77,8 +78,10 @@ a page out of form with every reason and its line, and write `manuals/<office>.h
 build, rewritten when the page changes. It defines `zengine::manual::pages::<office>::kManual`
 (`zengine_builder_pane` for `zengine.builder-pane`), a `zengine::manual::Manual`: the office, the
 name, the page's content id (the SHA-256 of its bytes with line endings as LF) and its sections,
-each a key, the `##` heading it stands under and its words. The words are compiled in as numbers,
-so no character of the page meets a compiler's source encoding.
+each a key, the `##` heading it stands under, its words, and where each key marker stands in them:
+the one grammar finds the markers when it splits the page, so a reader of the words puts a key in a
+marker's place without reading the page again. The words are compiled in as numbers, so no
+character of the page meets a compiler's source encoding.
 
 An edit to a manual is therefore an edit to the weave that carries it: the documentation lane's
 change check calls a page `<folder>/docs/<office>.md` compiled, by its name and place, and the
@@ -87,10 +90,12 @@ official lane verifies it.
 ## A pane answers its manual
 
 A pane answers `PaneDocumentRequested` v1 `{pane, section}`, sent to its office, to the asker alone
-with `PaneDocumentShown` v1: the pane's key and the section asked, the page's content id, and the
-sections, `PaneDocumentSection` v1 `{key, group, text}`, in page order -- the one under `section`, or
-the whole page when `section` is empty. `workshop::pane_document(ask, pane, kManual)` is the whole
-answer, so a pane answers in one line:
+with `PaneDocumentShown` v2: the pane's key and the section asked, the page's content id, and the
+sections, `PaneDocumentSection` v2 `{key, group, text, keys}`, in page order -- the one under
+`section`, or the whole page when `section` is empty. Each of a section's `keys` is a
+`PaneDocumentKey` v1 `{id, at, length, written}`: the action a marker names, the byte offset and
+length of the whole marker in `text`, and the default written in it.
+`workshop::pane_document(ask, pane, kManual)` is the whole answer, so a pane answers in one line:
 
 ```cpp
 void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {

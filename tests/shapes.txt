@@ -5,7 +5,7 @@ ActionsJudged v1 0xeb0998f48ba3335b
 ActionsWithdrawn v1 0x7aaceb7e61c4a2df
 ActorScopeJudged v1 0x44b57fa39b52a9fb
 ActorScopeRequested v1 0x5275db1a5f42d659
-AppActionRequested v1 0xbcf77ddd7334feae
+AppActionRequested v2 0x9a8ee79545fc2ddf
 AppActionRow v1 0x22b5f069b3060f7a
 AppActions v1 0x8ed795b4ebd1f55e
 ArrangementDoorState v2 0x84aaa708082f869a
@@ -199,7 +199,7 @@ KeyReleased v2 0x383cfe55dcb0d80c
 KeymapEditAnswered v1 0xc4076e9e76909fd3
 KeymapEditRequested v1 0xb039709485b92a21
 KeymapRequested v1 0x1f9fa150659359e4
-KeymapShown v1 0xa70f7ca1929f5864
+KeymapShown v2 0xdc57ed7396dacde1
 LoadedSelected v1 0x014167e0a0600f00
 LookAtBuilds v1 0x6c73869dadfb0a65
 ManagedOpenProgress v1 0x2bca6433e225c0dd
@@ -258,9 +258,10 @@ PaneContent v2 0xb92aa7a635dc8407
 PaneContent v3 0xb9e99c2022e10871
 PaneContent v4 0xc16deb8795ee9660
 PaneCover v1 0xa709fceb604560a1
+PaneDocumentKey v1 0x18a927742894903f
 PaneDocumentRequested v1 0x3379dd0cb0156dca
-PaneDocumentSection v1 0x03759014adf99768
-PaneDocumentShown v1 0xa762ea40fcb2601f
+PaneDocumentSection v2 0x73a1bfba06643211
+PaneDocumentShown v2 0x6a4d2bf023540b65
 PaneDragged v1 0xd5f4c66bd4c09364
 PaneDrop v1 0xa650744bd2dea469
 PaneEscapeUnspent v1 0xb9ee2d9589543191
@@ -396,7 +397,7 @@ ScoreState v1 0x2a0e436c6672fb9d
 SetupApplyRequested v1 0xdbed9509ec8b868a
 ShapeDocumentRequested v1 0x6a2a97debe09af6e
 ShapeDocumentShown v1 0x5444c736d8fefe30
-ShownBinding v1 0xc482f65a8cbfef9d
+ShownBinding v2 0x02557b56db70677a
 ShownCandidate v1 0x8ad594ca04e169db
 ShownEntry v2 0x5daa79b13f1620ff
 ShownProperty v1 0x33d6e471c262cd06
@@ -499,6 +500,7 @@ WorkshopPaneSize v2 0x587dc15963ed3a6e
 WorkshopPaneSize v3 0xca8a00e4b5a69d3f
 WorkshopPlacement v1 0x13de57bfd0689eb1
 WorkshopPrefs v1 0x0573adcad1d48236
+WorkshopPrefs v2 0x25041d12ed2a3b72
 WorkshopQuitRequested v1 0x939c86b9dedbb979
 WorkshopRecipe v1 0xd8c1a512233b91bc
 WorkshopRecipe v2 0xb74a467d96dc1a4e

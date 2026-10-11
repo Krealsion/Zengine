@@ -50,6 +50,12 @@ bool authored_for(const Keymap& k, const std::string& id) {
 
 std::string spelled(const Gesture& g) { return is_bound(g) ? gesture_word(g) : std::string(); }
 
+/// ...and as the Hotkeys view shows it, in the spelling the weaver chose for it.
+// WL-KEY-16 -- agents/workshop/key-spelling.md
+std::string shown_as(const Gesture& g, KeySpelling spelling) {
+    return is_bound(g) ? spell_gesture(g, spelling) : std::string();
+}
+
 } // namespace
 
 // WL-DESK-11 -- agents/workshop/desktop-presenting.md
@@ -58,10 +64,12 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
     KeymapShown out;
     out.file = file;
     out.word = word;
-    const auto add = [&out](std::string group, std::string id, std::string label,
-                            std::string gesture, bool authored, bool remappable) {
+    const KeySpelling spelling = s.hotkeys_keys;
+    out.spelling = spelling_word(spelling);
+    const auto add = [&out, spelling](std::string group, std::string id, std::string label,
+                                      const Gesture& g, bool authored, bool remappable) {
         out.rows.push_back(ShownBinding{std::move(group), std::move(id), std::move(label),
-                                        std::move(gesture), authored, remappable});
+                                        spelled(g), shown_as(g, spelling), authored, remappable});
     };
     // THE APPLICATION'S ROWS FIRST, because they are what a weaver reaches for from anywhere:
     // the launches above every mode, and the default rows asked where nothing else took the key.
@@ -73,7 +81,7 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
             add(precedence == app_precedence::kAboveModes
                     ? "above every mode -- the application's"
                     : "last, where nothing more specific took the key -- the application's",
-                row.id, row.label, spelled(row.gesture), authored_for(k, row.id), true);
+                row.id, row.label, row.gesture, authored_for(k, row.id), true);
         }
     }
     // ...THEN THE HOST'S OWN, grouped by where each is answered, in the catalog's order. An
@@ -100,7 +108,7 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
             // ...ONE LINE PER KEY: an action with several keys in force is listed once per key,
             // in the authored order, so the pane can offer each key for removal on its own.
             for (const Gesture& g : k.row_gestures(row)) {
-                add(keyboard_context_name(s, ctx), row.id, row.label, spelled(g),
+                add(keyboard_context_name(s, ctx), row.id, row.label, g,
                     k.override_for(row.act) != nullptr, true);
             }
         }
@@ -111,13 +119,40 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
         const std::string group =
             named != nullptr ? "pane " + named->name + " @" + named->provider : "a pane";
         for (const PaneRow& row : p.rows) {
-            add(group, row.id, row.label, spelled(row.gesture), authored_for(k, row.id), true);
+            add(group, row.id, row.label, row.gesture, authored_for(k, row.id), true);
         }
     }
     // ...AND THE TEXT BOX'S OWN KEYS, listed for discovery and marked: no file moves them.
     for (const component::EditingGesture& g : component::kEditingVocabulary) {
-        add("the text box's own keys", std::string(), g.label,
-            gesture_word(Gesture{g.scancode, g.modifiers}), false, false);
+        add("the text box's own keys", std::string(), g.label, Gesture{g.scancode, g.modifiers},
+            false, false);
+    }
+    // ...AND WHAT THE WEAVER'S FILE SAYS OF IDS NO ROW ABOVE ANSWERS TO: a pane's other mode, a
+    // pane not open. Each key it names, in the file's order, judged as the rows in force are; an
+    // id the file names unreadably is left out, as its rows would be.
+    std::vector<std::string> seen;
+    for (const ShownBinding& row : out.rows) {
+        seen.push_back(row.id);
+    }
+    for (const AuthoredOverride& o : k.authored) {
+        const char* now = renamed_to(o.action);
+        const std::string id = now != nullptr ? std::string(now) : o.action;
+        bool listed = false;
+        for (const std::string& already : seen) {
+            listed = listed || already == id;
+        }
+        if (listed) {
+            continue;
+        }
+        seen.push_back(id);
+        const AuthoredGestures set = authored_gestures_for(k.authored, id, true);
+        if (!set.outcome.accepted) {
+            continue;
+        }
+        for (const Gesture& g : set.gestures) {
+            out.moved.push_back(ShownBinding{"the weaver's keymap file", id, std::string(),
+                                             spelled(g), shown_as(g, spelling), true, true});
+        }
     }
     return out;
 }

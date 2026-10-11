@@ -493,7 +493,8 @@ TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {
         unresolved_panes(f.r.session().setup.active, f.r.session().panes);
     REQUIRE(waiting.size() == 1);
     CHECK(waiting[0] == pane_info_ref());
-    CHECK(setup_rest_text(f.r.session().setup, f.r.session().panes, f.r.session().keymap)
+    CHECK(setup_rest_text(f.r.session().setup, f.r.session().panes, f.r.session().keymap,
+                          KeySpelling::kShort)
               .find("1 unresolved") != std::string::npos);
 
     // ...AND NOTHING IS INSPECTED: the host holds a subject only when an inspector names one.
