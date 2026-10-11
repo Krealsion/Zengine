@@ -19,8 +19,8 @@ that can falsify its behavioral claims. Both judgments matter.
 ## The lanes, in order
 
 1. **The ordinary lane** — `cmake -DZEN_BUILD_DIR=<build> -P tests/verify.cmake`, never a bare
-   `ctest`. Parallel on Linux/GCC with `-DZEN_CTEST_ARGS=-j<n>` on a fast filesystem; serial on
-   Windows.
+   `ctest`. Parallel with `-DZEN_CTEST_ARGS=-j<n>` on a fast filesystem, on Linux and Windows
+   alike.
 2. **The sanitizer lane** — the same population under ASan + UBSan (`-DZENGINE_SANITIZE=ON`): a
    second kind of evidence, for defects whose symptom is that no answer changes.
 3. **The package witness** — `tests/package/run.cmake`, not a CTest entry: after any public

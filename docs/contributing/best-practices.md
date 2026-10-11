@@ -396,7 +396,7 @@ Its law, pages and suites: [`timer/AGENTS.md`](../../timer/AGENTS.md) and
   [VM-WALL-04](../../agents/verification/walls.md#vm-wall-04--one-compile-negative-case-per-reachable-path-with-its-control)
 - **An activation's provenance is asked before its lineage.**
   [Two questions, in this order](../../activation/docs/activation.md#two-questions-in-this-order)
-- **The lane stays serial on Windows.**
+- **The lane runs in parallel on Windows too.**
   [Build / test](../../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom)
 
 ## Operators (`operator/`)
