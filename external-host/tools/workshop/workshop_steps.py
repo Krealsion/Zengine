@@ -219,6 +219,16 @@ def own_row(ctx, link, status):
     return inv, row
 
 
+def plan_at_rest(ctx, link, seconds=600.0):
+    """Workshop's own word that its load plan is at rest, waited for: its guest door listens before
+    the plan is realized, so a shape a row still to come declares reads as unknown until then.
+    ``state`` is ``complete``, ``waiting`` (on a row the weaver has to build) or ``refused``."""
+    said = ctx.ask("zengine.guests", "GuestPlanRequested", {"wait": True}, via=link,
+                   timeout=float(seconds))
+    ctx.check(said["at_rest"], "Workshop says its plan is %s, not at rest" % said["state"])
+    return said
+
+
 def fetch_picture(ctx, link, captured):
     """Every byte of one retained picture, each chunk checked to continue it."""
     total = captured["bytes"]

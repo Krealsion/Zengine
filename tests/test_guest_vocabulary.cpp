@@ -79,6 +79,8 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             // The asker's own row, and the observe entries it carries.
             loom::schema_of<ws::GuestRowDescribedRequested>(),
             loom::schema_of<ws::GuestRowDescribed>(), loom::schema_of<ws::GuestObserve>(),
+            // Where Workshop's plan is, which any admitted session may ask.
+            loom::schema_of<ws::GuestPlanRequested>(), loom::schema_of<ws::GuestPlanSaid>(),
             // Named folders: the organization doors and the nested folder shapes they carry.
             loom::schema_of<zengine::inventory::InventoryFile>(), loom::schema_of<zengine::inventory::InventoryFolderCreate>(),
             loom::schema_of<zengine::inventory::InventoryFolderMove>(), loom::schema_of<zengine::inventory::InventoryFolderRemove>(),
