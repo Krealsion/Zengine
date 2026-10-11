@@ -2706,45 +2706,87 @@ TEST_CASE("the host resolves the weaver's files through the one precedence") {
 // ---- The prefs file ------------------------------------------------------------------
 
 TEST_CASE("prefs round-trip, and the words are a closed set") {
-    const std::string hidden = prefs_persist::to_text(false);
+    using prefs_persist::Presentation;
+    const auto swap = [](std::string text, const std::string& was, const std::string& now) {
+        const std::size_t at = text.find(was);
+        REQUIRE(at != std::string::npos);
+        text.replace(at, was.size(), now);
+        return text;
+    };
+    const std::string hidden = prefs_persist::to_text(Presentation{false});
     CHECK(hidden.find("\"format\":\"zengine-workshop-prefs\"") != std::string::npos);
     CHECK(hidden.find("\"titles\":\"hidden\"") != std::string::npos);
     prefs_persist::LoadedPrefs read = prefs_persist::from_text(hidden);
     REQUIRE(read.outcome.accepted);
-    CHECK_FALSE(read.titles_shown);
-    read = prefs_persist::from_text(prefs_persist::to_text(true));
+    CHECK_FALSE(read.prefs.titles_shown);
+    read = prefs_persist::from_text(prefs_persist::to_text(Presentation{}));
     REQUIRE(read.outcome.accepted);
-    CHECK(read.titles_shown);
+    CHECK(read.prefs.titles_shown);
 
-    // `default` is the hand-author's word for the code's answer.
-    std::string authored = prefs_persist::to_text(true);
-    const std::size_t at = authored.find("\"titles\":\"shown\"");
-    REQUIRE(at != std::string::npos);
-    authored.replace(at, std::string("\"titles\":\"shown\"").size(), "\"titles\":\"default\"");
+    // THE TWO SPELLINGS ARE SAVED APART, each in its own word, and read back apart.
+    const std::string spelled = prefs_persist::to_text(
+        Presentation{true, KeySpelling::kFull, KeySpelling::kShort});
+    CHECK(spelled.find("\"band_keys\":\"full\"") != std::string::npos);
+    CHECK(spelled.find("\"hotkeys_keys\":\"short\"") != std::string::npos);
+    read = prefs_persist::from_text(spelled);
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.prefs.band_keys == KeySpelling::kFull);
+    CHECK(read.prefs.hotkeys_keys == KeySpelling::kShort);
+
+    // `default` is the hand-author's word for the code's answer, for each word.
+    std::string authored = swap(prefs_persist::to_text(Presentation{}), "\"titles\":\"shown\"",
+                                "\"titles\":\"default\"");
+    authored = swap(authored, "\"band_keys\":\"short\"", "\"band_keys\":\"default\"");
+    authored = swap(authored, "\"hotkeys_keys\":\"full\"", "\"hotkeys_keys\":\"default\"");
     read = prefs_persist::from_text(authored);
     REQUIRE(read.outcome.accepted);
-    CHECK(read.titles_shown == prefs_persist::kTitlesDefaultValue);
+    CHECK(read.prefs.titles_shown == prefs_persist::kTitlesDefaultValue);
+    CHECK(read.prefs.band_keys == prefs_persist::kBandKeysDefaultValue);
+    CHECK(read.prefs.hotkeys_keys == prefs_persist::kHotkeysKeysDefaultValue);
 
     // A word outside the closed set is refused naming what was found and what works.
-    authored = prefs_persist::to_text(true);
-    authored.replace(authored.find("\"titles\":\"shown\""),
-                     std::string("\"titles\":\"shown\"").size(), "\"titles\":\"visible\"");
-    read = prefs_persist::from_text(authored);
+    read = prefs_persist::from_text(swap(prefs_persist::to_text(Presentation{}),
+                                         "\"titles\":\"shown\"", "\"titles\":\"visible\""));
     CHECK_FALSE(read.outcome.accepted);
     CHECK(read.outcome.refusal.find("`visible`") != std::string::npos);
     CHECK(read.outcome.refusal.find("default, shown or hidden") != std::string::npos);
+    read = prefs_persist::from_text(swap(prefs_persist::to_text(Presentation{}),
+                                         "\"band_keys\":\"short\"", "\"band_keys\":\"tiny\""));
+    CHECK_FALSE(read.outcome.accepted);
+    CHECK(read.outcome.refusal.find("`tiny`") != std::string::npos);
+    CHECK(read.outcome.refusal.find("default, short or full") != std::string::npos);
 
     // A foreign version is refused by ITS number, on the claim.
-    std::string future = prefs_persist::to_text(true);
-    future.replace(future.find("\"version\":1"), std::string("\"version\":1").size(),
-                   "\"version\":9");
+    const std::string future =
+        swap(prefs_persist::to_text(Presentation{}), "\"version\":2", "\"version\":9");
     read = prefs_persist::from_text(future);
     CHECK_FALSE(read.outcome.accepted);
-    CHECK(read.outcome.refusal == "prefs version 9 -- this Workshop reads version 1");
+    CHECK(read.outcome.refusal == "prefs version 9 -- this Workshop reads versions 1 and 2");
 
     // The family's format identity: the other files' bytes are refused by name.
     read = prefs_persist::from_text(keymap_persist::to_text(Keymap{}));
     CHECK_FALSE(read.outcome.accepted);
+}
+
+TEST_CASE("a prefs file of the version that held the titles alone is read, its spellings the "
+          "defaults") {
+    // The file a weaver's Workshop wrote before the spellings existed: read as it says, never
+    // refused for the words it could not have held, and never rewritten by the reading.
+    const prefs_persist::v1::WorkshopPrefs old{prefs_persist::kFormat,
+                                               prefs_persist::kTitlesOnlyVersion, "hidden"};
+    const std::string text = loom::compat::serialize(loom::to_value(old));
+    REQUIRE(text.find("\"version\":1") != std::string::npos);
+    const prefs_persist::LoadedPrefs read = prefs_persist::from_text(text);
+    REQUIRE(read.outcome.accepted);
+    CHECK_FALSE(read.prefs.titles_shown);
+    CHECK(read.prefs.band_keys == KeySpelling::kShort);
+    CHECK(read.prefs.hotkeys_keys == KeySpelling::kFull);
+
+    // ...and its own number is still its own: a version-1 file saying it is version 2 is refused.
+    prefs_persist::v1::WorkshopPrefs lying = old;
+    lying.format_version = prefs_persist::kFormatVersion;
+    CHECK_FALSE(prefs_persist::from_text(loom::compat::serialize(loom::to_value(lying)))
+                    .outcome.accepted);
 }
 
 TEST_CASE("a toggle writes the preference, and a reopened Workshop wears it") {
@@ -2784,7 +2826,7 @@ TEST_CASE("a restored hidden-titles preference still shows which pane holds the 
     // pane has the keys.
     TempDir dir("wux3-prefs-focus");
     const std::string prefs = dir.file("workshop-prefs.json");
-    REQUIRE(prefs_persist::save_file(prefs, false).accepted);
+    REQUIRE(prefs_persist::save_file(prefs, prefs_persist::Presentation{false}).accepted);
 
     PaneRig r;
     r.host.prefs_path = prefs;

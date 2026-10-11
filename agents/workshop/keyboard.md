@@ -193,36 +193,6 @@ eats only the trigger's own character, never a different one"`, case `"a shift+l
 binding swallows the capital its keystroke produced"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
-## WL-KEY-13 — A row may answer to no key at all
-
-LAW — A row may declare no default gesture — rename, duplicate, move left and move right of a layout do — and one bound-or-not test guards dispatch, admission and every spelling.
-
-MEANS
-- `gesture_text` answers `unbound`, so no surface teaches a key that does not exist;
-- a weaver may still bind any of them, and then every surface spells it.
-
-PROVEN BY — `workshop/keymap.hpp` `layout.duplicate`, `layout.move-left`, `layout.move-right`,
-`kNoGesture`, `scan::kUnknown`, `is_bound`, `gesture_text`, `layout.rename`;
-`tests/test_workshop_document.cpp` case `"an action with no default gesture answers to no key, and
-says so"`; `tests/test_workshop_screen.cpp` case `"shortcut annotations teach only
-truthful surrounding bindings"`.
-WHY — `agents/decisions/one-binding-truth.md`
-
-## WL-KEY-14 — A written gesture is modifier words joined to one key name with `+`
-
-LAW — A written gesture is modifier words `ctrl`, `shift`, `alt`, `super` joined to a named key by `+`; the writer spells them in that order, the parser takes any order and refuses a duplicate.
-
-MEANS
-- key names are the named scan set and nothing else; punctuation is named by its own character;
-- an unknown modifier or key is refused by name, never guessed.
-
-PROVEN BY — `workshop/keymap.hpp` `gesture_word`, `parse_gesture`, `key_name_of`,
-`scancode_of_name`; `tests/test_workshop_document.cpp` case `"a written gesture is modifier
-words in one order out, any order in, and never twice"`, case `"a known backend gap is accepted
-and said, never silently rewritten"`, case `"a shift+letter binding swallows the capital
-its keystroke produced"`.
-WHY — `agents/decisions/one-binding-truth.md`
-
 ## WL-KEY-15 — A pane declares its actions, and the host joins them at admission
 
 LAW — A pane declares rows beside its offer, in either published version; Workshop judges them whole under the office stamp, joins them under the collision law, and dispatches the resolved id.

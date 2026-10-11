@@ -576,8 +576,9 @@ Workshop without the View Builder says so when you press `n`, in the launch's ow
 Every loaded pane carries a one-row title — `name @provider` — reserved out of the room its
 provider is granted. Press **`t`** (`workshop.pane-titles`, remappable like every binding) to
 hide the titles and return that row to each provider's content; press it again to bring them
-back. The choice is presentation only — no pane's identity, geometry or saved setup changes —
-and it lasts for the current run.
+back, or choose **titles** in a pane's [Settings](#a-panes-manual-and-its-gear). The choice is
+presentation only — no pane's identity, geometry or saved setup changes — and it is saved with
+your preferences, so the next Workshop you start wears it too.
 
 **One exception, and it is the law rather than a leftover:** the pane currently holding the
 keyboard wears its title, mark and all. The `> ` mark names the pane your keys go back to —
@@ -586,6 +587,44 @@ while it is open — and hiding chrome may never hide that, so with titles off, 
 title while the focus holds. When a press you hold on a pane that draws its own picture brings it
 the keys, the title appears at the release, and until then the pane keeps the room the press was
 aimed at -- unless the pane itself moves, which gives it its new room at once and ends the press.
+
+## A pane's manual, and its gear
+
+A pane that comes with a manual wears two marks at the right end of its title: a **`?`**, and
+beside it a gear, drawn `=`. Workshop draws them on a pane that can answer for its manual, and
+only while the desk's own tools are loaded; a pane with no manual wears neither.
+
+**Press the `?`** and the **Manual** pane opens, about that pane: what it is (`About`), how to use
+it (`Use`), then each of its commands under its own name, beside the key that runs it **for you,
+now**. A key you moved in your [keymap file](hotkeys.md#the-keymap-file) shows as you moved it,
+in the heading and in the words, and keys are spelled the way the Hotkeys pane spells them. The
+Manual asks the pane for its words each time you press: a pane you reload with new code shows its
+new words at your next `?`, and nothing keeps the words once the Manual closes.
+
+![The Builder in a terminal, its gear and `?` at the right of its title; below, its manual after Ctrl+f, at the Builder's first command](images/pane-manual-terminal.png)
+
+![The same in a window: the Builder above, its manual below it](images/pane-manual-window.png)
+
+Without a mouse, press <!-- key desktop.manual -->`ctrl+f`<!-- /key --> while a pane holds your
+keys, even while you are typing: the Manual shows that pane's manual. In the
+Manual, <!-- key manual.up -->`up`<!-- /key --> and <!-- key manual.down -->`down`<!-- /key -->
+move a line, <!-- key manual.top -->`home`<!-- /key --> and
+<!-- key manual.bottom -->`end`<!-- /key --> go to the first and the last, the wheel scrolls, and
+<!-- key manual.close -->`escape`<!-- /key --> closes it. On a terminal, a click on a mark reaches
+Workshop where the terminal passes clicks through; the key works everywhere.
+
+**Press the gear** and Workshop's own menu of **Settings** opens beside it, the things about how
+Workshop looks that you can change there:
+
+- **titles** — show or hide pane titles, as [`t`](#pane-titles) does;
+- **band key spelling** — how the band writes a key: short (`B`, `^p`, `enter`) to begin with, or
+  in full;
+- **Hotkeys key spelling** — how the Hotkeys pane and a pane's manual write a key: in full
+  (`shift+b`, `ctrl+p`, `return`) to begin with, or short.
+
+Choosing a row switches that setting, says what it is now, and saves it with your preferences.
+The two spellings are chosen apart: changing one never changes the other
+([how keys are spelled](hotkeys.md#how-keys-are-spelled)).
 
 ## Panes as an author
 

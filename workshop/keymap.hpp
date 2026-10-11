@@ -97,14 +97,14 @@ struct Gesture {
 };
 
 /// IS THIS A GESTURE A WEAVER CAN PRESS?
-// WL-CTX-06 -- agents/workshop/contextual.md; WL-KEY-13 -- agents/workshop/keyboard.md
+// WL-CTX-06 -- agents/workshop/contextual.md; WL-KEY-13 -- agents/workshop/key-spelling.md
 inline constexpr bool is_bound(const Gesture& g) noexcept {
     return g.scancode != input::scan::kUnknown;
 }
 
 /// The declaration a row makes when the action is reachable from a surface that names it
 /// and from no key at all.
-// WL-KEY-13 -- agents/workshop/keyboard.md
+// WL-KEY-13 -- agents/workshop/key-spelling.md
 inline constexpr Gesture kNoGesture{input::scan::kUnknown, input::mod::kNone};
 
 /// THE ACTION IDENTITIES, as the code spells them.
@@ -126,6 +126,8 @@ enum class Act : std::uint8_t {
     kLayoutMoveRight,
     kArrangeDesk,
     kPaneTitles,
+    kBandKeys,
+    kHotkeysKeys,
     kEditCode,
     // -- the setup-name editor's controls ----------------------------------------------
     kNamingCommit,
@@ -231,6 +233,11 @@ inline constexpr ActionRow kActionCatalog[] = {
     // packs in order and an occasional toggle must not displace constant gestures.
     {Act::kPaneTitles, "workshop.pane-titles", "titles", KeyContext::kCommand,
      {scan::kT, mod::kNone}},
+    // ...and how the band and the Hotkeys view each spell a key: two more presentation
+    // preferences, toggled from a pane's Settings, and from command mode once a weaver binds them.
+    {Act::kBandKeys, "workshop.band-keys", "band key spelling", KeyContext::kCommand, kNoGesture},
+    {Act::kHotkeysKeys, "workshop.hotkeys-keys", "Hotkeys key spelling", KeyContext::kCommand,
+     kNoGesture},
     // -- the layout-name editor's controls ---------------------------------------------
     // The ids are the old ones (`naming.commit` still finishes it); the editor now renames the
     // layout and writes nothing.
@@ -353,7 +360,7 @@ inline constexpr std::size_t kActionCatalogCount = sizeof(kActionCatalog) / size
 // super; parsed in any order, with duplicates refused.
 
 /// The written name of a named scancode, or nullptr for a value this grammar cannot say.
-// WL-KEY-14 -- agents/workshop/keyboard.md
+// WL-KEY-14 -- agents/workshop/key-spelling.md
 inline constexpr const char* key_name_of(std::int64_t scancode) noexcept {
     switch (scancode) {
     case scan::kA: return "a";
@@ -420,7 +427,7 @@ inline constexpr const char* key_name_of(std::int64_t scancode) noexcept {
 }
 
 /// The scancode a written key name means, or 0 for a name outside the grammar.
-// WL-KEY-14 -- agents/workshop/keyboard.md
+// WL-KEY-14 -- agents/workshop/key-spelling.md
 inline std::int64_t scancode_of_name(std::string_view name) noexcept {
     for (std::int64_t sc = 1; sc < 128; ++sc) {
         const char* word = key_name_of(sc);
@@ -433,7 +440,7 @@ inline std::int64_t scancode_of_name(std::string_view name) noexcept {
 
 /// A gesture as the file spells it (`ctrl+shift+z`); total over every nameable scancode, and
 /// admission refuses the rest on the way in.
-// WL-KEY-14 -- agents/workshop/keyboard.md
+// WL-KEY-14 -- agents/workshop/key-spelling.md
 inline std::string gesture_word(const Gesture& g) {
     std::string out;
     if ((g.modifiers & mod::kCtrl) != 0) {
@@ -459,7 +466,7 @@ inline constexpr bool is_letter_scan(std::int64_t sc) noexcept {
 }
 
 /// A gesture as the SCREEN spells it -- the band's own compact voice.
-// WL-KEY-02, WL-KEY-13 -- agents/workshop/keyboard.md
+// WL-KEY-02 -- agents/workshop/keyboard.md; WL-KEY-13 -- agents/workshop/key-spelling.md
 inline std::string gesture_text(const Gesture& g) {
     // An action that answers to no key says so: `?` would read as a key a weaver cannot find, and
     // `-` is a real binding.
@@ -499,6 +506,34 @@ inline std::string gesture_text(const Gesture& g) {
     return out;
 }
 
+/// HOW A SURFACE SPELLS A KEY, the weaver's to choose for each surface apart: short, the band's
+/// compact voice (`B`, `^p`, `enter`), or full, as a keymap file writes it (`shift+b`, `ctrl+p`,
+/// `return`).
+// WL-KEY-16 -- agents/workshop/key-spelling.md
+enum class KeySpelling : std::uint8_t { kShort, kFull };
+
+/// The two spellings' words, as a preferences file and `KeymapShown` write them.
+inline constexpr const char* kSpelledShort = "short";
+inline constexpr const char* kSpelledFull = "full";
+
+inline const char* spelling_word(KeySpelling spelling) {
+    return spelling == KeySpelling::kFull ? kSpelledFull : kSpelledShort;
+}
+
+/// ...and the spelling a word names, `kFull` for any word but `short`.
+inline KeySpelling spelling_of(std::string_view word) {
+    return word == kSpelledShort ? KeySpelling::kShort : KeySpelling::kFull;
+}
+
+/// A gesture in the spelling chosen: `gesture_text` or `gesture_word`, and `unbound` for no key.
+// WL-KEY-16 -- agents/workshop/key-spelling.md
+inline std::string spell_gesture(const Gesture& g, KeySpelling spelling) {
+    if (spelling == KeySpelling::kShort || !is_bound(g)) {
+        return gesture_text(g);
+    }
+    return gesture_word(g);
+}
+
 /// What parsing a written gesture produced: the gesture, or a refusal naming what was found and
 /// what would have worked.
 struct ParsedGesture {
@@ -507,7 +542,7 @@ struct ParsedGesture {
     std::string refusal;
 };
 
-// WL-KEY-14 -- agents/workshop/keyboard.md
+// WL-KEY-14 -- agents/workshop/key-spelling.md
 // WL-DESK-08 -- agents/workshop/desktop.md
 inline ParsedGesture parse_gesture(std::string_view text) {
     ParsedGesture out;

@@ -13,18 +13,36 @@
 #include <zen/weave/shape.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace zengine::workshop {
 
-/// ONE SECTION OF A PANE'S MANUAL: its key, the heading it stands under, and its words.
+/// ONE KEY MARKER IN A SECTION'S WORDS, as the build found it (`manual::KeyMark`): the action id it
+/// names, where the whole marker stands in `text` (its byte offset and length), and the default key
+/// written in it. A reader shows a weaver's own key in the marker's place from these alone.
+struct PaneDocumentKey {
+    std::string id;
+    std::int64_t at = 0;
+    std::int64_t length = 0;
+    std::string written;
+    ZEN_SHAPE(PaneDocumentKey, 1, ZEN_FIELD(id), ZEN_FIELD(at), ZEN_FIELD(length),
+              ZEN_FIELD(written));
+    friend bool operator==(const PaneDocumentKey&, const PaneDocumentKey&) = default;
+};
+
+/// ONE SECTION OF A PANE'S MANUAL: its key, the heading it stands under, its words, and the key
+/// markers in them, in order.
 struct PaneDocumentSection {
     std::string key;
     std::string group;
     std::string text;
-    ZEN_SHAPE(PaneDocumentSection, 1, ZEN_FIELD(key), ZEN_FIELD(group), ZEN_FIELD(text));
+    std::vector<PaneDocumentKey> keys;
+    ZEN_SHAPE(PaneDocumentSection, 2, ZEN_FIELD(key), ZEN_FIELD(group), ZEN_FIELD(text),
+              ZEN_FIELD(keys));
     friend bool operator==(const PaneDocumentSection&, const PaneDocumentSection&) = default;
 };
 
@@ -44,7 +62,7 @@ struct PaneDocumentShown {
     std::string content_id;
     std::vector<PaneDocumentSection> sections;
     std::string refusal;
-    ZEN_SHAPE(PaneDocumentShown, 1, ZEN_FIELD(pane), ZEN_FIELD(section), ZEN_FIELD(content_id),
+    ZEN_SHAPE(PaneDocumentShown, 2, ZEN_FIELD(pane), ZEN_FIELD(section), ZEN_FIELD(content_id),
               ZEN_FIELD(sections), ZEN_FIELD(refusal));
 };
 
@@ -63,8 +81,16 @@ inline PaneDocumentShown pane_document(const PaneDocumentRequested& ask, std::st
     for (std::size_t i = 0; i < page.count; ++i) {
         const manual::Section& s = page.sections[i];
         if (ask.section.empty() || s.key == ask.section) {
-            out.sections.push_back(
-                PaneDocumentSection{std::string(s.key), std::string(s.group), std::string(s.text)});
+            PaneDocumentSection said{std::string(s.key), std::string(s.group),
+                                     std::string(s.text), {}};
+            for (std::size_t m = 0; m < s.mark_count; ++m) {
+                const manual::KeyMark& mark = s.marks[m];
+                said.keys.push_back(PaneDocumentKey{std::string(mark.id),
+                                                    static_cast<std::int64_t>(mark.at),
+                                                    static_cast<std::int64_t>(mark.length),
+                                                    std::string(mark.key)});
+            }
+            out.sections.push_back(std::move(said));
         }
     }
     if (out.sections.empty()) {

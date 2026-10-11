@@ -1,7 +1,7 @@
 # One binding truth
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [keyboard](../workshop/keyboard.md).
+supports is in [keyboard](../workshop/keyboard.md) and [key-spelling](../workshop/key-spelling.md).
 
 **Context.** Gesture claims were string literals — measured drifting in six places — beside
 two hand-kept mirror predicates and two hand-copied routing chains; the subset aliases let Ctrl+N
@@ -49,5 +49,5 @@ legend rows reclaim no geometry and unbind nothing.
 [WL-KEY-05](../workshop/keyboard.md), [WL-KEY-06](../workshop/keyboard.md),
 [WL-KEY-07](../workshop/keyboard.md), [WL-KEY-08](../workshop/keyboard.md),
 [WL-KEY-09](../workshop/keyboard.md), [WL-KEY-12](../workshop/keyboard.md),
-[WL-KEY-13](../workshop/keyboard.md), [WL-KEY-14](../workshop/keyboard.md),
+[WL-KEY-13](../workshop/key-spelling.md), [WL-KEY-14](../workshop/key-spelling.md),
 [WL-KEY-17](../workshop/keymap-edit.md), [WL-KEY-18](../workshop/keymap-edit.md).

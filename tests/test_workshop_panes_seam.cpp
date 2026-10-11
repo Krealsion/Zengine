@@ -679,7 +679,7 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     // is a weave and no office has offered it in this rig.
     CHECK(unresolved_panes(r.session().setup.active, r.session().panes).size() == 2);
     CHECK(setup_rest_text(r.session().setup, r.session().panes,
-                            r.session().keymap)
+                            r.session().keymap, KeySpelling::kShort)
               .find("2 unresolved") != std::string::npos);
     CHECK_FALSE(r.session().panes.has(kFirstRuntimeKind));
 
@@ -695,7 +695,7 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     // AND A PANE A WEAVER CAN SEE IS NOT COUNTED AS UNRESOLVED BENEATH IT: the count went from
     // two to one, and the one that remains is the shipped desk's Info row.
     CHECK(setup_rest_text(r.session().setup, r.session().panes,
-                            r.session().keymap)
+                            r.session().keymap, KeySpelling::kShort)
               .find("1 unresolved") != std::string::npos);
     // THE SETUP IS STILL SAVED: resolving is not an edit.
     CHECK((live_status(r.session().setup) == setup_link::kCurrent));
@@ -725,7 +725,7 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
     CHECK(fresh.session().setup.active.panes.size() == 2);
     CHECK(fresh.session().setup.active.panes[1].ref == hello_ref());
     CHECK(setup_rest_text(fresh.session().setup, fresh.session().panes,
-                            fresh.session().keymap)
+                            fresh.session().keymap, KeySpelling::kShort)
               .find("unavailable") == std::string::npos);
 }
 
@@ -1649,7 +1649,7 @@ TEST_CASE("silence is waiting, and Workshop never says unavailable") {
     }
     CHECK(stack_text(r.last_canvas()).find("unavailable") == std::string::npos);
     CHECK(setup_rest_text(r.session().setup, r.session().panes,
-                            r.session().keymap)
+                            r.session().keymap, KeySpelling::kShort)
               .find("unavailable") == std::string::npos);
 }
 

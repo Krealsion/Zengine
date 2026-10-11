@@ -11,11 +11,12 @@ namespace zengine::workshop {
 // ---- Spelling the effective bindings -----------------------------------------------------
 
 // WL-KEY-02 -- agents/workshop/keyboard.md
-std::string hotkey_text(const Keymap& k, Act a) {
-    return gesture_text(k.gesture_of(a));
+std::string hotkey_text(const Keymap& k, KeySpelling spelling, Act a) {
+    return spell_gesture(k.gesture_of(a), spelling);
 }
 
-std::string arrows_text(const Keymap& k, Act left, Act right, Act up, Act down) {
+std::string arrows_text(const Keymap& k, KeySpelling spelling, Act left, Act right, Act up,
+                        Act down) {
     const bool folded = k.gesture_of(left) == Gesture{input::scan::kLeft, input::mod::kNone} &&
                         k.gesture_of(right) ==
                             Gesture{input::scan::kRight, input::mod::kNone} &&
@@ -24,12 +25,13 @@ std::string arrows_text(const Keymap& k, Act left, Act right, Act up, Act down) 
     if (folded) {
         return "arrows";
     }
-    return hotkey_text(k, left) + "/" + hotkey_text(k, right) + "/" + hotkey_text(k, up) +
-           "/" + hotkey_text(k, down);
+    return hotkey_text(k, spelling, left) + "/" + hotkey_text(k, spelling, right) + "/" +
+           hotkey_text(k, spelling, up) + "/" + hotkey_text(k, spelling, down);
 }
 
 // WL-KEY-09, WL-KEY-15 -- agents/workshop/keyboard.md
-std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_t pane) {
+std::vector<std::string> help_pairs(const Keymap& k, KeySpelling spelling, KeyContext ctx,
+                                    std::int64_t pane) {
     std::vector<std::string> out;
     // The application's rows above every mode, as they are in force (WL-DESK-07): a moved launch
     // is taught where it moved, and a disabled one not at all. WHERE NO PANE HOLDS THE KEYS THEY
@@ -38,7 +40,7 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
     std::vector<std::string> launches;
     for (const AppRow& row : k.app) {
         if (row.precedence == app_precedence::kAboveModes && k.app_row_active(row, ctx, pane)) {
-            launches.push_back(gesture_text(row.gesture) + " " + row.label);
+            launches.push_back(spell_gesture(row.gesture, spelling) + " " + row.label);
         }
     }
     if (ctx != KeyContext::kPane) {
@@ -54,7 +56,7 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
                 if (!is_bound(row.gesture)) {
                     continue;
                 }
-                out.push_back(gesture_text(row.gesture) + " " + row.label);
+                out.push_back(spell_gesture(row.gesture, spelling) + " " + row.label);
             }
         }
     }
@@ -74,7 +76,7 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
             if (!is_bound(k.row_gesture(row))) {
                 continue;
             }
-            std::string pair = gesture_text(k.row_gesture(row));
+            std::string pair = spell_gesture(k.row_gesture(row), spelling);
             pair += " ";
             pair += row.label;
             // TWO ROWS OF ONE ACTION CAN COME TO ONE SPELLING (an override moves them

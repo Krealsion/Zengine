@@ -1124,7 +1124,8 @@ TEST_CASE("the opening gestures are claimed by the band's own truth") {
     Session s; // the minimum screen, which is where every hint is tightest
     REQUIRE(screen_of(s).w == kScreenMinW);
     REQUIRE(screen_of(s).h == kScreenMinH);
-    const std::vector<std::string> pairs = help_pairs(s.keymap, KeyContext::kCommand);
+    const std::vector<std::string> pairs =
+        help_pairs(s.keymap, KeySpelling::kShort, KeyContext::kCommand);
     const auto has_pair = [&pairs](const std::string& want) {
         for (const std::string& pair : pairs) {
             if (pair == want) {
@@ -1151,7 +1152,8 @@ TEST_CASE("the opening gestures are claimed by the band's own truth") {
                 .accepted);
     bool taught = false;
     bool panes = false;
-    for (const std::string& pair : help_pairs(with_desktop, KeyContext::kCommand)) {
+    for (const std::string& pair :
+         help_pairs(with_desktop, KeySpelling::kShort, KeyContext::kCommand)) {
         taught = taught || pair == "^k hotkeys";
         panes = panes || pair == "^p panes";
     }
@@ -3206,7 +3208,8 @@ TEST_CASE("manage.remove speaks through the keymap's own claim surfaces") {
     // declared -- generated, never hand-kept -- and its spelling is the effective
     // binding's.
     const Keymap defaults;
-    const std::vector<std::string> pairs = help_pairs(defaults, KeyContext::kArrangePane);
+    const std::vector<std::string> pairs =
+        help_pairs(defaults, KeySpelling::kShort, KeyContext::kArrangePane);
     bool said = false;
     for (const std::string& pair : pairs) {
         if (pair == "d hide pane") {

@@ -161,7 +161,8 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PaneRevealAnswered>(), // PaneRevealAnswered v1
         shape<::zengine::workshop::PaneRevealRequested>(), // PaneRevealRequested v1
         shape<::zengine::workshop::PowersDoorState>(), // PowersDoorState v1
-        shape<::zengine::workshop::prefs_persist::WorkshopPrefs>(), // WorkshopPrefs v1
+        shape<::zengine::workshop::prefs_persist::WorkshopPrefs>(), // WorkshopPrefs v2
+        shape<::zengine::workshop::prefs_persist::v1::WorkshopPrefs>(), // WorkshopPrefs v1
         shape<::zengine::workshop::QuitDeliveryRefusalNoted>(), // QuitDeliveryRefusalNoted v1
         shape<::zengine::workshop::recipe_persist::v1::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v1
         shape<::zengine::workshop::recipe_persist::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v2
@@ -204,8 +205,9 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::setup_persist::WorkshopSetupPane>(), // WorkshopSetupPane v5
         shape<::zengine::workshop::PaneSettingsDeclared>(), // PaneSettingsDeclared v1
         shape<::zengine::workshop::PaneDocumentRequested>(), // PaneDocumentRequested v1
-        shape<::zengine::workshop::PaneDocumentShown>(), // PaneDocumentShown v1
-        shape<::zengine::workshop::PaneDocumentSection>(), // PaneDocumentSection v1
+        shape<::zengine::workshop::PaneDocumentShown>(), // PaneDocumentShown v2
+        shape<::zengine::workshop::PaneDocumentSection>(), // PaneDocumentSection v2
+        shape<::zengine::workshop::PaneDocumentKey>(), // PaneDocumentKey v1
         shape<::zengine::manual::ShapeDocumentRequested>(), // ShapeDocumentRequested v1
         shape<::zengine::manual::ShapeDocumentShown>(), // ShapeDocumentShown v1
         shape<::zengine::workshop::PaneSettings>(), // PaneSettings v1

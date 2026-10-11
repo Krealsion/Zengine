@@ -38,6 +38,13 @@ inline constexpr const char* kHotkeysPane = "hotkeys";
 inline constexpr const char* kHotkeysName = "Hotkeys";
 inline constexpr const char* kHotkeysSummary = "every key in force, and how to move one";
 
+/// THE THIRD PANE: the manual of the pane whose `?` a weaver pressed -- `About`, `Use`, then each
+/// command with the key it answers to now. It asks that pane for its words when it is shown and
+/// keeps them only while it is open.
+inline constexpr const char* kManualPane = "manual";
+inline constexpr const char* kManualName = "Manual";
+inline constexpr const char* kManualSummary = "the manual of the pane whose ? you pressed";
+
 /// THE LIBRARY STEM A HOST BOOTS. Not part of any protocol and not durable the way the office
 /// is -- it is a file name, here because the host's boot plan and the suite's loader must agree.
 inline constexpr const char* kDesktopStem = "zengine-desktop-pane";
@@ -60,6 +67,12 @@ inline constexpr const char* kActionDeselect = "desktop.deselect";
 /// OPEN OR FOCUS THE HOTKEYS PANE. `Ctrl+k`, the key the host's own overlay answered to, so the
 /// hand goes where it went; `workshop.hotkeys` in a weaver's file is read as this id.
 inline constexpr const char* kActionHotkeys = "desktop.hotkeys";
+
+/// SHOW A PANE'S MANUAL: what its `?` asks, and a chord above every mode, asked about the pane
+/// holding the keys. Spelled in the host too
+/// (`workshop/desktop_seam_vocabulary.hpp`'s `kManualAction`), which draws the `?` while it is
+/// declared, and a suite pins the two spellings against each other.
+inline constexpr const char* kActionManual = "desktop.manual";
 
 // ---- The actions its own pane declares (`PaneActions`) -------------------------------------
 
@@ -84,6 +97,13 @@ inline constexpr const char* kActionKeysMenu = "hotkeys.menu";
 /// key reaches the pane as a key (a capture) or as text (a spelling).
 inline constexpr const char* kActionKeysCancel = "hotkeys.cancel";
 inline constexpr const char* kActionKeysCommit = "hotkeys.commit";
+
+/// ...AND THE MANUAL PANE'S: the lines up and down, its two ends, and close.
+inline constexpr const char* kActionManualUp = "manual.up";
+inline constexpr const char* kActionManualDown = "manual.down";
+inline constexpr const char* kActionManualTop = "manual.top";
+inline constexpr const char* kActionManualBottom = "manual.bottom";
+inline constexpr const char* kActionManualClose = "manual.close";
 
 /// THE ROWS THE PANE MANAGER OFFERS ON A ROW'S MENU, and the ones the Hotkeys pane offers on a
 /// binding's -- ids in this weave's own namespace, what a `PaneMenuAnswered` carries back.

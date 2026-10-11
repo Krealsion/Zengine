@@ -29,6 +29,7 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
         take_host_conditions();
     }
     refresh_setup_name(); // a name editor's window is only true against the room it has now
+    note_manuals();       // ...and which panes wear a `?`, against the holders there are now
     refresh_external_rooms(mail); // ...and an external pane's room, against the same one
     // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
     // pure projection of what it is handed, and what it is handed is this repaint's

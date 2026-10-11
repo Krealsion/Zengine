@@ -4,8 +4,9 @@
 // The Desktop: a loadable weave that owns what this application does by default -- which
 // gestures open or focus which tool, what a key nothing more specific claimed means, and what is
 // said about a tool that is not there. It offers the Pane Manager (launch, focus and close, and
-// `n` for the View Builder, where a weaver makes a pane of their own) and the Hotkeys pane. None
-// of it is a fact about room, focus, realization or roots, the host's four.
+// `n` for the View Builder, where a weaver makes a pane of their own), the Hotkeys pane, and the
+// Manual a pane's `?` shows. None of it is a fact about room, focus, realization or roots, the
+// host's four.
 // Workshop law: agents/workshop/desktop.md
 
 // It is not privileged: it cannot open a pane the host's inventory does not hold, cause an
@@ -19,6 +20,7 @@
 // (`workshop/pane_menu.hpp`). A press names the picture it was aimed at, and a press about an
 // older picture is refused in words rather than acted on against whatever moved into its place.
 
+#include "workshop/desktop-pane/manual_reader.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "workshop/desktop-pane/shortcuts.hpp"
 
@@ -48,6 +50,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -263,7 +266,7 @@ class DesktopWeave
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        PaneMenuAnswered, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       surface::ClipboardText, ws::PaneDocumentShown>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, AppActions,
@@ -271,7 +274,7 @@ class DesktopWeave
                      DeselectRequested, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
-                     ws::PaneEscapeUnspent,
+                     ws::PaneEscapeUnspent, ws::PaneDocumentRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -288,7 +291,7 @@ public:
         announce(mail);
     }
 
-    /// WORKSHOP GRANTS ONE OF THIS WEAVE'S TWO PANES ITS PROSE ROOM: kept for a host that grants
+    /// WORKSHOP GRANTS ONE OF THIS WEAVE'S THREE PANES ITS PROSE ROOM: kept for a host that grants
     /// no canvas, and the room composed for only while the pane holds no canvas room.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
@@ -306,6 +309,12 @@ public:
             keys_granted_ = true;
             fit_rooms();
             say_keys(mail);
+        } else if (room.pane == pane::kManualPane) {
+            manual_canvas_.prose_rows = room.rows;
+            manual_canvas_.prose_columns = room.columns;
+            manual_granted_ = true;
+            fit_rooms();
+            say_manual(mail);
         }
     }
 
@@ -325,6 +334,11 @@ public:
             keys_granted_ = true;
             fit_rooms();
             say_keys(mail);
+        } else if (room.pane == pane::kManualPane) {
+            manual_canvas_.room = room;
+            manual_granted_ = true;
+            fit_rooms();
+            say_manual(mail);
         }
     }
 
@@ -363,6 +377,10 @@ public:
             launch(mail, pane::kDesktopRole, pane::kHotkeysPane);
             return;
         }
+        if (asked.id == pane::kActionManual) {
+            show_manual(asked.office, asked.pane, mail);
+            return;
+        }
         if (asked.id == pane::kActionDeselect) {
             (void)mail.as_role(pane::kDesktopRole)
                 .send_to_role(kWorkshopRole, DeselectRequested{}, mail.correlation());
@@ -378,6 +396,10 @@ public:
         }
         if (asked.pane == pane::kHotkeysPane) {
             keys_action(asked.id, mail);
+            return;
+        }
+        if (asked.pane == pane::kManualPane) {
+            manual_action(asked.id, mail);
             return;
         }
         if (asked.pane != pane::kLauncherPane) {
@@ -479,6 +501,16 @@ public:
             edit_ = Edit{};
             keys_notice_ = "edit not delivered -- nothing changed (" + refused.reason + ")";
             say_keys(mail);
+            return;
+        }
+        // ...AND A MANUAL ASKED OF AN OFFICE THAT COULD NOT BE REACHED: said, not waited on.
+        if (refused_ask(manual_.asked != 0, manual_.sent, manual_.asked, refused, mail,
+                        ws::PaneDocumentRequested::zen_name,
+                        ws::PaneDocumentRequested::zen_version, manual_.office.c_str())) {
+            manual_.asked = 0;
+            manual_.word =
+                "the manual of " + manual_.office + " could not be asked (" + refused.reason + ")";
+            say_manual(mail);
         }
     }
 
@@ -492,6 +524,16 @@ public:
         heard_ = true;
         find_cursor();
         say(mail);
+        // ...AND THE MANUAL'S WORDS GO WHEN ITS PANE LEAVES THE DESK: nothing keeps a pane's manual
+        // past the `?` that showed it.
+        bool open = false;
+        for (const InventoryPane& p : known_) {
+            open = open ||
+                   (p.office == pane::kDesktopRole && p.pane == pane::kManualPane && p.open);
+        }
+        if (!open) {
+            forget_manual();
+        }
     }
 
     /// THE KEYMAP IN FORCE, AS THE HOST RESOLVED IT -- the one binding truth, published when it
@@ -504,6 +546,26 @@ public:
         keymap_ = said;
         keys_heard_ = true;
         say_keys(mail);
+        say_manual(mail); // a key the weaver moved, or a spelling, shows in the manual at once
+    }
+
+    /// THE MANUAL A PANE ANSWERED, to this image's latest ask and no older one: a weaver who
+    /// pressed another `?` since is shown that pane's, and this answer is about one no longer
+    /// asked about.
+    void on(const ws::PaneDocumentShown& shown, loom::Mail& mail) {
+        if (!mail.answers_ask() || manual_.asked == 0 || mail.correlation() != manual_.asked) {
+            return;
+        }
+        manual_.asked = 0;
+        manual_.first = 0;
+        if (!shown.refusal.empty()) {
+            manual_.word = shown.refusal;
+            manual_.words.reset();
+        } else {
+            manual_.word.clear();
+            manual_.words = shown;
+        }
+        say_manual(mail);
     }
 
     /// WHAT A LAUNCH CAME TO -- Loom's answer to this image's latest launch, and no older one:
@@ -592,6 +654,7 @@ public:
         }
         PaneCanvas* canvas = event.pane == pane::kLauncherPane ? &launcher_canvas_
                              : event.pane == pane::kHotkeysPane ? &keys_canvas_
+                             : event.pane == pane::kManualPane  ? &manual_canvas_
                                                                  : nullptr;
         if (canvas == nullptr || !canvas->on() || event.grant != canvas->room.grant) {
             return;
@@ -606,7 +669,7 @@ public:
         } else if (event.button == 1 && at.shown) {
             if (event.pane == pane::kLauncherPane) {
                 launcher_press(press, mail);
-            } else {
+            } else if (event.pane == pane::kHotkeysPane) {
                 keys_press(press, mail);
             }
         } else if (event.button == 3) {
@@ -637,6 +700,12 @@ private:
             if (notches != 0) {
                 keys_step(-notches);
                 say_keys(mail);
+            }
+        } else if (pane_key == pane::kManualPane) {
+            const std::int64_t notches = take_notches(manual_.wheel, dy);
+            if (notches != 0) {
+                manual_scroll(-notches);
+                say_manual(mail);
             }
         }
     }
@@ -680,6 +749,11 @@ private:
                 return;
             }
             (void)pane_menu::pass_back(mail, pane::kDesktopRole, pane::kHotkeysPane);
+            return;
+        }
+        // The Manual offers no menu of its own: a right press there is the host's.
+        if (b.pane == pane::kManualPane) {
+            (void)pane_menu::pass_back(mail, pane::kDesktopRole, pane::kManualPane);
         }
     }
 
@@ -737,6 +811,9 @@ private:
         if (pane_key.empty()) {
             return app_;
         }
+        if (pane_key == pane::kManualPane) {
+            return manual_rows_;
+        }
         return pane_key == pane::kHotkeysPane ? keys_rows_ : pane_rows_;
     }
 
@@ -759,6 +836,10 @@ private:
             .send_to_role(kWorkshopRole, PaneOffered{pane::kHotkeysPane, pane::kHotkeysName,
                                                      pane::kHotkeysSummary, 10, 68});
         declare_keys(mail);
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, PaneOffered{pane::kManualPane, pane::kManualName,
+                                                     pane::kManualSummary, 16, 72});
+        declare_manual(mail);
         // ...AND THE APPLICATION'S OWN ROWS, WHICH ARE NOT THE PANE'S. The pane's rows act
         // only while a weaver has pressed into the launcher; these act wherever the weaver is
         // standing (WL-DESK-07).
@@ -778,11 +859,12 @@ private:
         (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, KeymapRequested{});
     }
 
-    /// THE THREE APPLICATION ROWS, AND WHY EACH GESTURE.
-    ///
+    /// THE APPLICATION ROWS, AND WHY EACH GESTURE.
     /// `Ctrl+t` -- the Terminal's own chord, restored as an application row.
     /// `Ctrl+p` -- the launcher: a plain ctrl+letter, which is what the POSIX wire can say.
     /// `Escape` -- in the DEFAULT class, which is what keeps every pane's own Escape its own.
+    /// `Ctrl+f` -- a pane's manual, above every mode: a pane keeps every key it did not declare,
+    /// so only a chord reaches past it, and a terminal delivers `?` as no key.
     static std::vector<AppActionRow> app_rows() {
         return {
             AppActionRow{pane::kActionTerminal, "terminal", input::scan::kT, input::mod::kCtrl,
@@ -792,7 +874,9 @@ private:
             AppActionRow{pane::kActionHotkeys, "hotkeys", input::scan::kK, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes},
             AppActionRow{pane::kActionDeselect, "put down", input::scan::kEscape,
-                         input::mod::kNone, ws::app_precedence::kDefault}};
+                         input::mod::kNone, ws::app_precedence::kDefault},
+            AppActionRow{pane::kActionManual, "manual", input::scan::kF, input::mod::kCtrl,
+                         ws::app_precedence::kAboveModes}};
     }
 
     /// The Pane Manager's own rows, bare keys all. `x` closes, and is not Return's second meaning:
@@ -851,6 +935,160 @@ private:
         keys_rows_.attempt = ++attempts_;
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, keys, keys_rows_.attempt);
+    }
+
+    /// THE MANUAL'S ROWS: the lines up and down, its two ends, and Escape, which closes it.
+    static std::vector<PaneActionRow> manual_rows() {
+        return {PaneActionRow{pane::kActionManualUp, "line up", input::scan::kUp,
+                              input::mod::kNone},
+                PaneActionRow{pane::kActionManualDown, "line down", input::scan::kDown,
+                              input::mod::kNone},
+                PaneActionRow{pane::kActionManualTop, "top", input::scan::kHome, input::mod::kNone},
+                PaneActionRow{pane::kActionManualBottom, "bottom", input::scan::kEnd,
+                              input::mod::kNone},
+                PaneActionRow{pane::kActionManualClose, "close", input::scan::kEscape,
+                              input::mod::kNone}};
+    }
+
+    void declare_manual(loom::Mail& mail) {
+        PaneActions rows;
+        rows.pane = pane::kManualPane;
+        rows.rows = manual_rows();
+        manual_rows_.attempt = ++attempts_;
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, rows, manual_rows_.attempt);
+    }
+
+    // ---- The Manual ---------------------------------------------------------------------------
+
+    /// A PANE'S `?`, or the manual key while a pane holds the keys: the Manual is shown (or
+    /// focused) and that pane is asked for its whole manual, under a number of this image's own,
+    /// so only its answer is shown. The keys come from the keymap the host last said.
+    void show_manual(const std::string& office, const std::string& pane_key, loom::Mail& mail) {
+        const bool itself = office == pane::kDesktopRole && pane_key == pane::kManualPane;
+        if (!itself) {
+            manual_ = ManualShown{};
+            manual_.office = office;
+            manual_.pane = pane_key;
+            if (office.empty()) {
+                manual_.word = "no pane was named: press the ? at the top right of a pane, or "
+                               "the manual key while a pane holds your keys";
+            } else {
+                manual_.word = "asking " + office + " for its manual";
+                const std::uint64_t asked = ++manual_asks_;
+                const loom::Ticket sent =
+                    mail.as_role(pane::kDesktopRole)
+                        .send_to_role(office, ws::PaneDocumentRequested{pane_key, std::string()},
+                                      asked);
+                if (sent.valid()) {
+                    manual_.asked = asked;
+                    manual_.sent = sent;
+                } else {
+                    manual_.word = "the ask for the manual of " + office + " was not sent";
+                }
+            }
+        }
+        launch(mail, pane::kDesktopRole, pane::kManualPane);
+        say_manual(mail);
+    }
+
+    /// ...AND ITS WORDS GONE, when its pane leaves the desk.
+    void forget_manual() { manual_ = ManualShown{}; }
+
+    void manual_action(const std::string& id, loom::Mail& mail) {
+        if (id == pane::kActionManualUp) {
+            manual_scroll(-1);
+        } else if (id == pane::kActionManualDown) {
+            manual_scroll(+1);
+        } else if (id == pane::kActionManualTop) {
+            manual_.first = 0;
+        } else if (id == pane::kActionManualBottom) {
+            manual_scroll(static_cast<std::int64_t>(manual_.lines));
+        } else if (id == pane::kActionManualClose) {
+            close(mail, pane::kDesktopRole, pane::kManualPane);
+            return;
+        } else {
+            return;
+        }
+        say_manual(mail);
+    }
+
+    /// THE WINDOW'S LINES: the room less the heading and the line that says what is below.
+    std::size_t manual_window() const {
+        return static_cast<std::size_t>(std::max<std::int64_t>(manual_room_rows_ - 2, 1));
+    }
+
+    /// THE WINDOW MOVES BY `by` LINES, held inside the manual's lines.
+    void manual_scroll(std::int64_t by) {
+        const std::int64_t last = std::max<std::int64_t>(
+            static_cast<std::int64_t>(manual_.lines) - static_cast<std::int64_t>(manual_window()),
+            0);
+        manual_.first = static_cast<std::size_t>(
+            std::clamp<std::int64_t>(static_cast<std::int64_t>(manual_.first) + by, 0, last));
+    }
+
+    /// THE MANUAL AS ITS PANE SHOWS IT: which pane it is about, then its lines from the window's
+    /// first, and a line that says how many more there are below.
+    void say_manual(loom::Mail& mail) {
+        if (!manual_granted_ || manual_room_rows_ <= 0 || manual_room_columns_ <= 0) {
+            return;
+        }
+        std::vector<surface::SurfaceTextRow> out;
+        const auto push = [&out, this](std::string text, std::int64_t role) {
+            if (static_cast<std::int64_t>(out.size()) < manual_room_rows_) {
+                out.push_back(
+                    surface::SurfaceTextRow{fit(std::move(text), manual_room_columns_), role});
+            }
+        };
+        if (manual_.office.empty() && manual_.word.empty()) {
+            push("MANUAL -- press the ? at the top right of a pane to read its manual here",
+                 surface::role::kMuted);
+            publish_manual(mail, std::move(out));
+            return;
+        }
+        push("MANUAL -- " + manual_.office + (manual_.pane.empty() ? "" : "/" + manual_.pane),
+             surface::role::kAccent);
+        if (!manual_.words || !keys_heard_) {
+            push(manual_.words ? std::string("waiting for the keys in force") : manual_.word,
+                 manual_.asked != 0 || manual_.words ? surface::role::kMuted
+                                                     : surface::role::kAlert);
+            publish_manual(mail, std::move(out));
+            return;
+        }
+        const std::vector<surface::SurfaceTextRow> lines = zengine::desktop_pane::manual_reader::
+            manual_lines(*manual_.words, keymap_, manual_room_columns_);
+        manual_.lines = lines.size();
+        manual_scroll(0);
+        const std::size_t end = std::min(lines.size(), manual_.first + manual_window());
+        for (std::size_t i = manual_.first; i < end; ++i) {
+            push(lines[i].text, lines[i].role);
+        }
+        if (end < lines.size()) {
+            push("  v " + std::to_string(lines.size() - end) + " more lines below",
+                 surface::role::kMuted);
+        }
+        publish_manual(mail, std::move(out));
+    }
+
+    /// The Manual's picture, or its rows on a host that grants it no canvas. A press there means
+    /// nothing, so its picture's number moves only with its first composition.
+    void publish_manual(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows) {
+        manual_map_.begin();
+        const std::int64_t meaning = manual_map_.settle();
+        if (manual_canvas_.on()) {
+            (void)mail.as_role(pane::kDesktopRole)
+                .send_to_role(kWorkshopRole,
+                              ws::rows_picture(manual_canvas_.room,
+                                               manual_canvas_.pictures.next(manual_canvas_.room,
+                                                                            meaning),
+                                               rows, {}, {}));
+            return;
+        }
+        ws::v4::PaneContent said;
+        said.pane = pane::kManualPane;
+        said.rows = std::move(rows);
+        said.picture = meaning;
+        (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, said);
     }
 
     // ---- The Hotkeys pane's spelling line ------------------------------------------------------
@@ -1447,7 +1685,7 @@ private:
         offer.row(pane::kMenuAddPress, "Add a key (press)");
         offer.row(pane::kMenuAddType, "Add a key (type)");
         if (!b.gesture.empty()) {
-            offer.row(pane::kMenuRemove, "Remove `" + b.gesture + "`");
+            offer.row(pane::kMenuRemove, "Remove `" + b.shown + "`");
         }
         offer.row(pane::kMenuDisable, "Disable");
         offer.row(pane::kMenuReset, "Reset to default");
@@ -1596,7 +1834,7 @@ private:
         if (!keymap_.word.empty()) {
             footer.push_back("  " + drawable(keymap_.word));
         }
-        footer.push_back("or write {\"action\": \"<id>\", \"gesture\": \"ctrl+f\"} in the file; "
+        footer.push_back("or write {\"action\": \"<id>\", \"gesture\": \"ctrl+q\"} in the file; "
                          "\"none\" disables; read at launch");
         std::int64_t budget = keys_room_rows_ - 1 - (typing_.active ? 1 : 0);
         // AS MANY FOOTER ROWS AS THE ROOM ALLOWS while three list rows stay -- the notice first,
@@ -1620,7 +1858,7 @@ private:
         }();
         const std::vector<component::Column> asks = {
             component::Column{component::widest(keymap_.rows, [](const ShownBinding& b) {
-                                  return b.gesture.empty() ? std::string("(no key)") : b.gesture;
+                                  return b.shown.empty() ? std::string("(no key)") : b.shown;
                               }),
                               6},
             component::Column{component::widest(keymap_.rows,
@@ -1652,7 +1890,7 @@ private:
             const ShownBinding& b = keymap_.rows[line.shown];
             const bool here = i == keys_choice_.at;
             const std::string cells = component::table_line(
-                {b.gesture.empty() ? std::string("(no key)") : b.gesture, b.label, b.id,
+                {b.shown.empty() ? std::string("(no key)") : b.shown, b.label, b.id,
                  marks_of(b)},
                 widths, [](const std::string& text, std::int64_t width) { return fit(text, width); },
                 [](std::string text, std::size_t width) { return pad(std::move(text), width); });
@@ -1733,6 +1971,9 @@ private:
         const ws::CanvasRows keys = ws::canvas_rows(keys_canvas_.room);
         keys_room_rows_ = keys_canvas_.on() ? keys.rows : keys_canvas_.prose_rows;
         keys_room_columns_ = keys_canvas_.on() ? keys.columns : keys_canvas_.prose_columns;
+        const ws::CanvasRows manual = ws::canvas_rows(manual_canvas_.room);
+        manual_room_rows_ = manual_canvas_.on() ? manual.rows : manual_canvas_.prose_rows;
+        manual_room_columns_ = manual_canvas_.on() ? manual.columns : manual_canvas_.prose_columns;
     }
 
     /// WHAT A HOTKEYS PART IS CALLED: a binding's row by its identity,
@@ -1798,6 +2039,27 @@ private:
     double keys_wheel_ = 0.0;
     std::string keys_notice_;
     std::string refind_id_;
+    /// THE MANUAL: the pane it is about, the ask it waits on, the words that pane answered and
+    /// where its window stands -- all of it gone when its pane leaves the desk, and none of it in
+    /// `DesktopState`, so a reloaded image shows no words it did not ask for.
+    struct ManualShown {
+        std::string office, pane;
+        std::uint64_t asked = 0;  ///< the number of the ask not yet answered; 0 when none
+        loom::Ticket sent{};      ///< ...and its queued attempt, which a refusal names
+        std::optional<ws::PaneDocumentShown> words;
+        std::string word;         ///< what it says where it has no words: asking, or a refusal
+        std::size_t first = 0;    ///< the window's first line
+        std::size_t lines = 0;    ///< ...and how many lines it last composed
+        double wheel = 0.0;
+    };
+    ManualShown manual_;
+    std::uint64_t manual_asks_ = 0;
+    std::int64_t manual_room_rows_ = 0;
+    std::int64_t manual_room_columns_ = 0;
+    bool manual_granted_ = false;
+    PaneCanvas manual_canvas_;
+    component::RowMap<std::int64_t> manual_map_;
+    Declared manual_rows_;
     struct Capture {
         bool active = false;
         std::string id;

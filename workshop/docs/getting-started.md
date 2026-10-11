@@ -166,7 +166,9 @@ right now: the notice, then the legend rows advertising the current context's ge
 one of those hints is a projection of the effective keymap — remap a binding and the screen
 spells the new one — and `Ctrl`+`k` opens the **Hotkeys** pane, the complete list of every key
 as it is in force. So the keys are on screen; this page is the fuller version, not the only
-source. See [hotkeys and the keymap](hotkeys.md).
+source. See [hotkeys and the keymap](hotkeys.md). A pane that comes with a manual wears a `?` at
+the right of its title: press it to read what the pane is and every command it has, with your keys
+([a pane's manual](panes.md#a-panes-manual-and-its-gear)).
 
 ## Your first five minutes
 
@@ -231,7 +233,7 @@ how to open one: `^t terminal | ^p panes | ^k hotkeys`.
 |---|---|
 | anywhere | `Ctrl`+`p` the Pane Manager · `Ctrl`+`t` the Terminal · `Ctrl`+`k` the Hotkeys pane — even inside a pane ([hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)) |
 | the Pane Manager | `↑` `↓` choose · `Enter` show or go to · `x` hide · `n` make a pane of your own in the View Builder ([a view](panes.md#a-pane-of-your-own--a-view)) |
-| panes | `w` arrange desk · `t` pane titles · `Esc` put the selected pane down |
+| panes | `w` arrange desk · `t` pane titles · `Esc` put the selected pane down · `Ctrl`+`f` the manual of the pane holding your keys, or its `?` ([a pane's manual](panes.md#a-panes-manual-and-its-gear)) |
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | layouts | `s` save · `r` restore · `=` new · `.` `,` next / previous · `Ctrl`+`w` remove ([setups](setups.md)) — the **last** session needs neither |
 | quit | `q` · `Ctrl`+`c` where nothing takes text |

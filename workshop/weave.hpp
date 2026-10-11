@@ -440,6 +440,10 @@ public:
     /// READ THE WEAVER'S PRESENTATION PREFERENCES, OR STAND ON THE DEFAULTS.
     void load_prefs();
 
+    /// STATE ONE PRESENTATION PREFERENCE -- titles, the band's keys or the Hotkeys view's -- as the
+    /// toggle `a` names, and save the three.
+    void state_presentation(Act a);
+
     /// Say once what the startup file work DID, on the first surface that can show it --
     /// after the session restore, deliberately, so the sentence that survives on the one
     /// notice line is the one about this launch.
@@ -1704,8 +1708,17 @@ private:
         f(weaver_hand_);
         for (Hand& h : guest_hands_) f(h);
     }
-    /// Ask the desktop for one of its rows on behalf of `by`, whose keystroke raised it.
+    /// Ask the desktop for one of its rows on behalf of `by`, whose keystroke raised it, performed
+    /// on the pane holding that hand's keys; or on the pane `on` names (none when null).
     void request_app_action(const std::string& id, loom::Mail& mail, Hand& by);
+    void request_app_action(const std::string& id, loom::Mail& mail, Hand& by,
+                            const RuntimePane* on);
+    /// WHICH PANES WEAR A `?` AND A GEAR, asked of the live holders before a paint.
+    void note_manuals();
+    /// A PANE'S `?` PRESSED: ask the desktop's manual row about that pane, as the press's act.
+    void press_manual(std::int64_t kind, loom::Mail& mail);
+    /// ...AND ITS GEAR: Workshop's own menu, open at Settings on that pane, beside the press.
+    void press_settings(std::int64_t kind, const PointedAt& at);
     /// Monotonic from one: zero is never a gesture's number, and no record matches another kind's.
     std::uint64_t gesture_asks_ = 0;
     /// The quit in flight: its ask, the answers still owed, the refusals, the gestures held.

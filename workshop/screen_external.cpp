@@ -114,6 +114,56 @@ std::string external_header(const RuntimePane& row, bool typing) {
            row.provider;
 }
 
+namespace {
+
+/// Does a header row this wide wear the marks?
+bool marks_fit(bool marks, std::int64_t columns) noexcept {
+    return marks && columns >= kChromeMarksMinColumns;
+}
+
+} // namespace
+
+// WL-CHROME-09 -- agents/workshop/chrome.md
+std::string external_header_row(const RuntimePane& row, bool typing, bool marks,
+                                std::int64_t columns, const std::string& prefix) {
+    const std::string title = prefix + external_header(row, typing);
+    if (!marks_fit(marks, columns)) {
+        return detail::fit(title, columns);
+    }
+    const std::int64_t room =
+        columns - static_cast<std::int64_t>(std::char_traits<char>::length(kChromeMarks)) - 1;
+    return detail::pad(detail::fit(title, room), static_cast<std::size_t>(room)) + " " +
+           kChromeMarks;
+}
+
+// WL-CHROME-09 -- agents/workshop/chrome.md
+std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen& sc,
+                            std::int64_t kind, bool titles, std::int64_t space, std::int64_t x,
+                            std::int64_t y) {
+    const ExternalPane* pane = panes.external_pane(kind);
+    const PaneBounds where = bounds_of(panes, setup, kind, sc);
+    if (pane == nullptr || !where.open) {
+        return chrome_mark::kNone;
+    }
+    const ExternalBodyPlace body =
+        external_body_place(where.rect, sc, external_title_rows(panes, kind, titles));
+    if (body.header_rows <= 0 || !marks_fit(pane->manual, body.columns)) {
+        return chrome_mark::kNone;
+    }
+    const ProseAt at = prose_at(space, x, y, body.fit);
+    if (!at.understood || at.row != 0) {
+        return chrome_mark::kNone;
+    }
+    // The cells `external_header_row` put them in: the `?` last, the gear two before it.
+    if (at.column == body.columns - 1) {
+        return chrome_mark::kManual;
+    }
+    if (at.column == body.columns - 3) {
+        return chrome_mark::kSettings;
+    }
+    return chrome_mark::kNone;
+}
+
 // WL-FOCUS-10 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
                     const PixelRect& b, const Screen& sc, bool titles,
@@ -136,10 +186,12 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
     // Workshop's header is the region's first row, fitted to its columns, and exists exactly when
     // the resolution reserved one: hidden titles return it to the provider, but the keyboard pane
     // keeps its title and its `> ` mark (`external_title_rows`).
+    const ExternalPane* pane = panes.external_pane(kind);
+    const bool typing = keyboard_pane(panes) == kind;
+    const bool marks = pane != nullptr && pane->manual;
     if (body.header_rows > 0) {
         region.rows.push_back(surface::SurfaceTextRow{
-            detail::fit(external_header(*row, keyboard_pane(panes) == kind), body.columns),
-            surface::role::kAccent});
+            external_header_row(*row, typing, marks, body.columns), surface::role::kAccent});
     }
     // A pane with room for the header and nothing else still says whose it is: `present` is asked
     // after the header is written.
@@ -149,7 +201,6 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         }
         return; // no room under the heading: the heading, and no invented room
     }
-    const ExternalPane* pane = panes.external_pane(kind);
     if (pane == nullptr) {
         if (!region.rows.empty()) {
             layer.texts.push_back(std::move(region));
@@ -171,7 +222,8 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         if (refused || pane->canvas.preview) {
             const std::string mark = refused ? kExternalRefusedMark : "(updating)";
             if (!region.rows.empty()) {
-                region.rows[0].text = detail::fit(mark + " " + region.rows[0].text, body.columns);
+                region.rows[0].text =
+                    external_header_row(*row, typing, marks, body.columns, mark + " ");
                 if (refused) region.rows[0].role = surface::role::kAlert;
             } else {
                 v5::PaneCanvasContent notice;
