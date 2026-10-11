@@ -216,13 +216,14 @@ jobs:
       # its case floor, and that each of them still refuse an empty population. No
       # expected counts live in this file -- they live in the manifest, which keeps them
       # out of reach of an edit that deletes a registration. Four entries at a time
-      # (VM-LANE-11), but `workshop_journey`, which runs alone after the rest in every build
-      # job until its first ask waits for the plan (#185): its inventory check can ask
-      # Workshop before the inventory weave has loaded.
+      # (VM-LANE-11), but two that run alone after the rest until their repairs merge:
+      # `workshop_journey`, in every build job, whose inventory check can ask Workshop before
+      # the inventory weave has loaded (#185), and `audit_probes`, in both Linux jobs, whose
+      # probe D gives a late-loaded clock a fixed real-clock window to begin (#192).
       - name: Verify the repository-owned population
         run: |
           set +e
-          cmake -DZEN_BUILD_DIR=build -DZEN_CTEST_ARGS=-j4 -DZEN_CTEST_APART=workshop_journey -P tests/verify.cmake 2>&1 | tee verify.log
+          cmake -DZEN_BUILD_DIR=build -DZEN_CTEST_ARGS=-j4 "-DZEN_CTEST_APART=audit_probes;workshop_journey" -P tests/verify.cmake 2>&1 | tee verify.log
           verify_rc="${PIPESTATUS[0]}"
           verify_outcome=failed
           if (( verify_rc == 0 )); then verify_outcome=passed; fi
@@ -369,11 +370,11 @@ jobs:
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # `workshop_journey` alone after the rest, as in the stranger lane (#185).
+      # `audit_probes` and `workshop_journey` alone after the rest, as in the stranger lane.
       - name: Verify the repository-owned population under ASan + UBSan
         run: |
           set +e
-          cmake -DZEN_BUILD_DIR=build-san -DZEN_CTEST_ARGS=-j4 -DZEN_CTEST_APART=workshop_journey -P tests/verify.cmake 2>&1 | tee verify.log
+          cmake -DZEN_BUILD_DIR=build-san -DZEN_CTEST_ARGS=-j4 "-DZEN_CTEST_APART=audit_probes;workshop_journey" -P tests/verify.cmake 2>&1 | tee verify.log
           verify_rc="${PIPESTATUS[0]}"
           verify_outcome=failed
           if (( verify_rc == 0 )); then verify_outcome=passed; fi
@@ -521,8 +522,8 @@ jobs:
       # so a green here means the same thing; the numbers live in that file and nowhere else.
       # Four entries at a time, as in every build job (VM-LANE-11), but two that run alone after the
       # rest, each seen to fail with four entries sharing a Windows runner: `timer`, whose
-      # real-clock replacement can miss its window under load, and `workshop_journey`, kept apart
-      # in every build job until #185's repair, as the stranger lane says.
+      # real-clock replacement can miss its window under load (#191), and `workshop_journey`,
+      # kept apart in every build job until #185's repair, as the stranger lane says.
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -DZEN_CTEST_ARGS=-j4 "-DZEN_CTEST_APART=timer;workshop_journey" -P tests/verify.cmake
 
