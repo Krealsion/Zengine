@@ -307,6 +307,8 @@ loom::Grant grant_for(const GuestRow& row) {
                             "zengine.workshop");
             g.allow_to_role(v5::PaneViewRequested::zen_name, v5::PaneViewRequested::zen_version,
                             "zengine.workshop");
+            g.allow_to_role(v6::PaneViewRequested::zen_name, v6::PaneViewRequested::zen_version,
+                            "zengine.workshop");
             g.allow_to_role(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version,
                             "zengine.workshop");
             g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version,

@@ -486,7 +486,7 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
             c.text_advance_px = trial_.room.text_advance_px;
             c.text_line_px = trial_.room.text_line_px;
             c.heard = true;
-            c.content = trial_.picture;
+            c.content = canvas_content_of(trial_.picture);
             pane->forget_pictures();
             pane->shown.clear();
             pane->clear_caret();

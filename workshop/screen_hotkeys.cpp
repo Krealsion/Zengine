@@ -6,6 +6,9 @@
 
 #include "screen.hpp"
 
+#include <map>
+#include <string_view>
+
 namespace zengine::workshop {
 
 // WL-DESK-11 -- agents/workshop/desktop-presenting.md
@@ -66,10 +69,17 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
     out.word = word;
     const KeySpelling spelling = s.hotkeys_keys;
     out.spelling = spelling_word(spelling);
-    const auto add = [&out, spelling](std::string group, std::string id, std::string label,
-                                      const Gesture& g, bool authored, bool remappable) {
-        out.rows.push_back(ShownBinding{std::move(group), std::move(id), std::move(label),
-                                        spelled(g), shown_as(g, spelling), authored, remappable});
+    // EACH ROW WITH ITS ADDRESS -- the office that declared it, the pane for a pane's row, the id --
+    // and what a press of it may cause, as its declarer said it.
+    const auto add = [&out, spelling](std::string group, std::string office, std::string pane,
+                                      std::string id, std::string label, const Gesture& g,
+                                      bool authored, bool remappable,
+                                      std::vector<ActionCause> causes = {},
+                                      std::string enters = {}) {
+        out.rows.push_back(ShownBinding{std::move(group), std::move(office), std::move(pane),
+                                        std::move(id), std::move(label), spelled(g),
+                                        shown_as(g, spelling), authored, remappable,
+                                        std::move(causes), std::move(enters)});
     };
     // THE APPLICATION'S ROWS FIRST, because they are what a weaver reaches for from anywhere:
     // the launches above every mode, and the default rows asked where nothing else took the key.
@@ -81,7 +91,8 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
             add(precedence == app_precedence::kAboveModes
                     ? "above every mode -- the application's"
                     : "last, where nothing more specific took the key -- the application's",
-                row.id, row.label, row.gesture, authored_for(k, row.id), true);
+                kDesktopRole, std::string(), row.id, row.label, row.gesture,
+                authored_for(k, row.id), true, row.causes);
         }
     }
     // ...THEN THE HOST'S OWN, grouped by where each is answered, in the catalog's order. An
@@ -108,24 +119,38 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
             // ...ONE LINE PER KEY: an action with several keys in force is listed once per key,
             // in the authored order, so the pane can offer each key for removal on its own.
             for (const Gesture& g : k.row_gestures(row)) {
-                add(keyboard_context_name(s, ctx), row.id, row.label, g,
-                    k.override_for(row.act) != nullptr, true);
+                add(keyboard_context_name(s, ctx), kWorkshopProvider, std::string(), row.id,
+                    row.label, g, k.override_for(row.act) != nullptr, true);
             }
         }
     }
-    // ...THEN EVERY PANE'S ROWS IN FORCE, under the name its office offered it by.
+    // ...THEN EVERY PANE'S ROWS IN FORCE, under the name its office offered it by, each with the
+    // causes its declaration gave it, and each pane's modes.
     for (const PaneRows& p : k.panes) {
         const RuntimePane* named = s.panes.runtime.of_kind(p.pane);
         const std::string group =
             named != nullptr ? "pane " + named->name + " @" + named->provider : "a pane";
+        const std::string office = named != nullptr ? named->provider : std::string();
+        const std::string pane = named != nullptr ? named->pane : std::string();
+        std::map<std::string_view, const v3::PaneActionRow*> by_id;
+        if (named != nullptr) {
+            for (const v3::PaneActionRow& d : named->actions) by_id.emplace(d.id, &d);
+        }
         for (const PaneRow& row : p.rows) {
-            add(group, row.id, row.label, row.gesture, authored_for(k, row.id), true);
+            const auto found = by_id.find(row.id);
+            const v3::PaneActionRow* declared = found != by_id.end() ? found->second : nullptr;
+            add(group, office, pane, row.id, row.label, row.gesture, authored_for(k, row.id),
+                true, declared != nullptr ? declared->causes : std::vector<ActionCause>{},
+                declared != nullptr ? declared->enters : std::string());
+        }
+        if (named != nullptr && !named->mode.empty()) {
+            out.modes.push_back(ShownModes{office, pane, named->mode, named->elsewhere});
         }
     }
     // ...AND THE TEXT BOX'S OWN KEYS, listed for discovery and marked: no file moves them.
     for (const component::EditingGesture& g : component::kEditingVocabulary) {
-        add("the text box's own keys", std::string(), g.label, Gesture{g.scancode, g.modifiers},
-            false, false);
+        add("the text box's own keys", std::string(), std::string(), std::string(), g.label,
+            Gesture{g.scancode, g.modifiers}, false, false);
     }
     // ...AND WHAT THE WEAVER'S FILE SAYS OF IDS NO ROW ABOVE ANSWERS TO: a pane's other mode, a
     // pane not open. Each key it names, in the file's order, judged as the rows in force are; an
@@ -150,8 +175,9 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
             continue;
         }
         for (const Gesture& g : set.gestures) {
-            out.moved.push_back(ShownBinding{"the weaver's keymap file", id, std::string(),
-                                             spelled(g), shown_as(g, spelling), true, true});
+            out.moved.push_back(ShownBinding{"the weaver's keymap file", std::string(),
+                                             std::string(), id, std::string(), spelled(g),
+                                             shown_as(g, spelling), true, true, {}, {}});
         }
     }
     return out;

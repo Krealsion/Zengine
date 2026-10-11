@@ -15,6 +15,7 @@
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
@@ -60,8 +61,8 @@ namespace builder = zengine::builder;
 namespace pane_menu = zengine::workshop::pane_menu;
 
 using ws::PaneActionRequested;
-using ws::PaneActionRow;
-using ws::PaneActions;
+using ws::v3::PaneActionRow;
+using ws::v3::PaneActions;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::PaneKey;
@@ -179,10 +180,11 @@ struct BuilderMeaning {
     std::string id;      ///< a control's operation id; empty for the other kinds
     std::string subject; ///< the recipe a list row names; empty where a row names none
     std::int64_t op = 0; ///< the build operation `subject` was true of; 0 where none applies
+    bool available = true; ///< a control drawn `[label]`; false drawn `(label)`
 
     bool operator==(const BuilderMeaning& o) const {
         return kind == o.kind && index == o.index && id == o.id && subject == o.subject &&
-               op == o.op;
+               op == o.op && available == o.available;
     }
 };
 
@@ -200,8 +202,8 @@ class BuilderPaneWeave
                        surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        PaneMenuAnswered, ws::PaneOperationAnswered, ws::PaneDocumentRequested>,
-          loom::Emit<PaneOffered, PaneActions, ws::PaneDocumentShown, ws::v4::PaneContent,
-                     ws::v5::PaneCanvasContent,
+          loom::Emit<PaneOffered, PaneActions, ws::PaneDocumentShown, ws::v5::PaneContent,
+                     ws::v6::PaneCanvasContent,
                      ws::PaneCaret, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
@@ -1342,74 +1344,118 @@ private:
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kBuilderPane;
-        actions.rows = action_rows();
+        actions.mode = mode();
+        actions.rows = rows_of(actions.mode);
+        actions.elsewhere = ws::causes_elsewhere(
+            {pane::kModeBrowse, pane::kModeRecipes, pane::kModeOutput, pane::kModeRole},
+            actions.mode, [](const std::string& m) { return rows_of(m); });
         (void)mail.as_role(pane::kBuilderPaneRole).send_to_role(kWorkshopRole, actions);
+    }
+
+    /// THE MODE THIS PANE IS IN: the role line, the output reader, the recipe list, or browsing.
+    const char* mode() const {
+        return role_.open      ? pane::kModeRole
+               : output_.open  ? pane::kModeOutput
+               : choosing_.open ? pane::kModeRecipes
+                                : pane::kModeBrowse;
     }
 
     /// THE ROWS OF THE MODE THIS PANE IS IN -- what `declare` tells Workshop, and what `answers`
     /// reads, so what the pane acts on and what it said it acts on are one list.
-    std::vector<PaneActionRow> action_rows() const {
+    std::vector<PaneActionRow> action_rows() const { return rows_of(mode()); }
+
+    /// THE ROWS OF ONE MODE, each with what its press may send beside the pane protocol and the
+    /// mode it leaves the pane in, read from `perform` and the asks it spends: a send that waits on
+    /// an answer is still this press's (the role line's commit writes the row, then builds and asks
+    /// the frontier again); one that waits on another gesture, a menu's choice, is not.
+    static std::vector<PaneActionRow> rows_of(const std::string& in) {
+        using builder::BuildOutputRequested;
+        using builder::BuildRequested;
         std::vector<PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
-                                 std::int64_t mods = input::mod::kNone) {
-            rows.push_back(PaneActionRow{id, label, sc, mods});
+                                 std::int64_t mods = input::mod::kNone,
+                                 std::vector<ws::ActionCause> causes = {},
+                                 const char* enters = "") {
+            rows.push_back(PaneActionRow{id, label, sc, mods, {}, std::move(causes), enters});
         };
-        if (role_.open) {
-            row(pane::kActionCommit, "load it", input::scan::kReturn);
+        const std::vector<ws::ActionCause> build{ws::cause_of<BuildRequested>()};
+        const std::vector<ws::ActionCause> page{ws::cause_of<BuildOutputRequested>()};
+        const std::vector<ws::ActionCause> source{ws::cause_of<RecipeSourceRequested>(),
+                                                  ws::cause_of<OpenSourceRequested>()};
+        if (in == pane::kModeRole) {
+            row(pane::kActionCommit, "load it", input::scan::kReturn, input::mod::kNone,
+                {ws::cause_of<PlanRowRequested>(), ws::cause_of<BuildRequested>(),
+                 ws::cause_of<ProjectFrontierRequested>()},
+                pane::kModeBrowse);
             // And the menu declares no default key while the role line is open: Workshop resolves
             // a key transition before the character it produced arrives, so `Shift+M` would open
             // the menu and lose the `M` of `Main`. The `[menu]` control, first in every strip, and
             // the second button stay the route; a weaver who wants a key names `builder.menu`.
             row(pane::kActionMenu, "this pane's menu", input::scan::kUnknown);
-            row(pane::kActionCancel, "cancel", input::scan::kEscape);
+            row(pane::kActionCancel, "cancel", input::scan::kEscape, input::mod::kNone, {},
+                pane::kModeBrowse);
             return rows;
         }
-        if (output_.open) {
-            row(pane::kActionOutputUp, "line up", input::scan::kUp);
-            row(pane::kActionOutputDown, "line down", input::scan::kDown);
-            row(pane::kActionOutputFirst, "first line", input::scan::kHome);
-            row(pane::kActionOutputLast, "last lines", input::scan::kEnd);
+        if (in == pane::kModeOutput) {
+            row(pane::kActionOutputUp, "line up", input::scan::kUp, input::mod::kNone, page);
+            row(pane::kActionOutputDown, "line down", input::scan::kDown, input::mod::kNone, page);
+            row(pane::kActionOutputFirst, "first line", input::scan::kHome, input::mod::kNone,
+                page);
+            row(pane::kActionOutputLast, "last lines", input::scan::kEnd, input::mod::kNone, page);
             row(pane::kActionOutputLeft, "pan left", input::scan::kLeft);
             row(pane::kActionOutputRight, "pan right", input::scan::kRight);
-            row(pane::kActionOutputOlder, "older build", input::scan::kLeftBracket);
-            row(pane::kActionOutputNewer, "newer build", input::scan::kRightBracket);
+            row(pane::kActionOutputOlder, "older build", input::scan::kLeftBracket,
+                input::mod::kNone, page);
+            row(pane::kActionOutputNewer, "newer build", input::scan::kRightBracket,
+                input::mod::kNone, page);
             row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
-            row(pane::kActionOutputClose, "close output", input::scan::kEscape);
+            row(pane::kActionOutputClose, "close output", input::scan::kEscape, input::mod::kNone,
+                {}, pane::kModeBrowse);
             return rows;
         }
         // ---- The recipe list: the two arrows, the take, the menu and the way out ---------
-        if (choosing_.open) {
+        if (in == pane::kModeRecipes) {
             row(pane::kActionRecipesUp, "row up", input::scan::kUp);
             row(pane::kActionRecipesDown, "row down", input::scan::kDown);
-            row(pane::kActionRecipeChoose, "choose this recipe", input::scan::kReturn);
+            row(pane::kActionRecipeChoose, "choose this recipe", input::scan::kReturn,
+                input::mod::kNone, {}, pane::kModeBrowse);
             // THE SAME ID THE BROWSING MODE BINDS TO THE SAME KEY, because it is the same
             // operation: open the source of the recipe under the cursor. Which recipe THAT is
             // is the mode's answer, not the id's (`edit_source`).
-            row(pane::kActionEditSource, "edit source", input::scan::kE);
+            row(pane::kActionEditSource, "edit source", input::scan::kE, input::mod::kNone, source);
             row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
-            row(pane::kActionRecipesClose, "close the list", input::scan::kEscape);
+            row(pane::kActionRecipesClose, "close the list", input::scan::kEscape,
+                input::mod::kNone, {}, pane::kModeBrowse);
             return rows;
         }
         // ---- Browsing: the ids and default keys a weaver's keymap already names ----------
-        row(pane::kActionBuild, "build", input::scan::kB);
-        row(pane::kActionBuildRealize, "load after build", input::scan::kB, input::mod::kShift);
-        row(pane::kActionPromote, "promote image", input::scan::kP, input::mod::kShift);
-        row(pane::kActionRevert, "revert image", input::scan::kR, input::mod::kShift);
-        row(pane::kActionLoadIt, "load it", input::scan::kO);
+        row(pane::kActionBuild, "build", input::scan::kB, input::mod::kNone, build);
+        row(pane::kActionBuildRealize, "load after build", input::scan::kB, input::mod::kShift,
+            build);
+        row(pane::kActionPromote, "promote image", input::scan::kP, input::mod::kShift,
+            {ws::cause_of<builder::PromoteArtifact>()});
+        row(pane::kActionRevert, "revert image", input::scan::kR, input::mod::kShift,
+            {ws::cause_of<builder::RevertArtifact>()});
+        row(pane::kActionLoadIt, "load it", input::scan::kO, input::mod::kNone,
+            {ws::cause_of<PlanNamesRequested>()}, pane::kModeRole);
         row(pane::kActionRecipeNext, "recipe", input::scan::kC);
         row(pane::kActionRecipeBack, "recipe back", input::scan::kC, input::mod::kShift);
-        row(pane::kActionFrontier, "frontier", input::scan::kF);
-        row(pane::kActionEditSource, "edit source", input::scan::kE);
-        row(pane::kActionOutput, "read output", input::scan::kL);
+        row(pane::kActionFrontier, "frontier", input::scan::kF, input::mod::kNone,
+            {ws::cause_of<ProjectFrontierRequested>(), ws::cause_of<BuildRequested>()});
+        row(pane::kActionEditSource, "edit source", input::scan::kE, input::mod::kNone, source);
+        row(pane::kActionOutput, "read output", input::scan::kL, input::mod::kNone, page,
+            pane::kModeOutput);
         // ---- And the rows that came with the controls: Return, unclaimed while browsing,
         // opens the list, since a pane whose whole subject is one choice should open it there.
-        row(pane::kActionRecipes, "choose a recipe...", input::scan::kReturn);
+        row(pane::kActionRecipes, "choose a recipe...", input::scan::kReturn, input::mod::kNone,
+            {}, pane::kModeRecipes);
         row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
         // THE TWO HALVES OF `builder.build-realize`, each reachable on its own terms and
         // neither bound by default (WL-KEY-13): the shipped key keeps both meanings, and a
         // weaver who wants one of them alone names its id.
         row(pane::kActionArm, "turn load-after-build on or off", input::scan::kUnknown);
-        row(pane::kActionLoadBuilt, "load what was built", input::scan::kUnknown);
+        row(pane::kActionLoadBuilt, "load what was built", input::scan::kUnknown,
+            input::mod::kNone, build);
         return rows;
     }
 
@@ -2294,8 +2340,9 @@ private:
         }
         ++published_;
         const std::int64_t picture = map_.settle();
-        std::vector<ws::PaneRowPart> parts =
-            ws::row_parts(map_, columns_, [](const BuilderMeaning& m) { return part_name(m); });
+        std::vector<ws::v2::PaneRowPart> parts =
+            ws::row_parts(map_, columns_, [](const BuilderMeaning& m) { return part_name(m); },
+                          [](const BuilderMeaning& m) { return m.available; });
         if (on_canvas()) {
             ws::RowsCaret caret;
             caret.row = caret_row_;
@@ -2306,7 +2353,7 @@ private:
             composing_.clear();
             return;
         }
-        ws::v4::PaneContent said;
+        ws::v5::PaneContent said;
         said.pane = pane::kBuilderPane;
         said.rows = std::move(composing_);
         composing_.clear();
@@ -2501,7 +2548,8 @@ private:
                 map_.span(row, placed.first, placed.width, solid,
                           BuilderMeaning{builder_row::kControl, 0, controls[placed.index].id,
                                          controls[placed.index].subject,
-                                         controls[placed.index].subject_op});
+                                         controls[placed.index].subject_op,
+                                         controls[placed.index].available});
             }
         }
     }

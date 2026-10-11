@@ -62,10 +62,11 @@ std::string part_names_problem(const std::vector<Part>& parts) {
 
 /// WHAT IS WRONG WITH THE PARTS OF `rows` ROWS IN A ROOM `columns` WIDE, or "": the names, and
 /// each part a run of at least one column of a row said, inside the room.
-inline std::string row_parts_problem(const std::vector<PaneRowPart>& parts, std::int64_t rows,
-                                     std::int64_t columns) {
+template <class Part>
+std::string row_parts_problem(const std::vector<Part>& parts, std::int64_t rows,
+                              std::int64_t columns) {
     if (std::string wrong = detail::part_names_problem(parts); !wrong.empty()) return wrong;
-    for (const PaneRowPart& part : parts) {
+    for (const Part& part : parts) {
         if (part.row < 0 || part.row >= rows) {
             return "names `" + part.name + "` on a row its content does not say";
         }
@@ -78,9 +79,10 @@ inline std::string row_parts_problem(const std::vector<PaneRowPart>& parts, std:
 }
 
 /// WHAT IS WRONG WITH A PICTURE'S PARTS, or "": the names, and each part a positive rectangle.
-inline std::string canvas_parts_problem(const std::vector<PaneCanvasPart>& parts) {
+template <class Part>
+std::string canvas_parts_problem(const std::vector<Part>& parts) {
     if (std::string wrong = detail::part_names_problem(parts); !wrong.empty()) return wrong;
-    for (const PaneCanvasPart& part : parts) {
+    for (const Part& part : parts) {
         if (part.w <= 0 || part.h <= 0) {
             return "names `" + part.name + "` on a rectangle with no extent";
         }
@@ -136,6 +138,23 @@ std::vector<PaneRowPart> row_parts(const component::RowMap<Meaning>& map, std::i
         const bool whole = span.last == component::RowMap<Meaning>::kWholeRow;
         (void)out.add(PaneRowPart{name_of(span.meaning), span.row, whole ? 0 : span.first,
                                   whole ? columns : span.last - span.first + 1});
+    }
+    return out.take();
+}
+
+/// ...AND EACH PART SAYING WHETHER ITS OPERATION APPLIES NOW, as `available_of(meaning)` says: the
+/// same fact the pane draws as `[label]` or `(label)`, read from the same meaning.
+template <class Meaning, class NameOf, class AvailableOf>
+std::vector<v2::PaneRowPart> row_parts(const component::RowMap<Meaning>& map, std::int64_t columns,
+                                       NameOf&& name_of, AvailableOf&& available_of) {
+    PartNames<v2::PaneRowPart> out;
+    const auto& spans = map.spans();
+    for (const std::size_t at : map.press_order()) {
+        const auto& span = spans[at];
+        const bool whole = span.last == component::RowMap<Meaning>::kWholeRow;
+        (void)out.add(v2::PaneRowPart{name_of(span.meaning), span.row, whole ? 0 : span.first,
+                                      whole ? columns : span.last - span.first + 1,
+                                      available_of(span.meaning)});
     }
     return out.take();
 }

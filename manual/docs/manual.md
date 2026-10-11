@@ -65,6 +65,13 @@ which GitHub shows as `b`. The key is spelled as a weaver's keymap file spells i
 weaver's own key in its place ([Panes](../../workshop/docs/panes.md#a-panes-manual-and-its-gear)).
 Tutorials write keys the same way.
 
+**A command's Answers line links each shape a press of it may send**, as its rows declare them
+(their `causes`, [the pane protocol](../../workshop/docs/workshop-panes.md#what-a-press-may-cause)):
+a link whose words are the shape's name in backticks, to its office's manual or the header
+declaring it, as the Builder pane's `builder.build` sends
+[`BuildRequested`](../../builder/docs/zengine.builder.md#buildrequested). It links no other
+shape: the words around a link are the page's, and the check reads only which shapes it links.
+
 **What a page never writes**: a field's type, a version beyond a shape's own `Name vN`, or a count
 the code owns; a fact another page owns, which it links instead.
 
@@ -127,7 +134,8 @@ accepted list, so the page describes exactly the shapes the gate lets in.
 | check | lane | refuses |
 |---|---|---|
 | the build itself | official | a page out of form: the title, the order of its headings, a command without its four lines, a section past its bound, a key twice |
-| `manual` ([`tests/check_manual.cmake`](../../tests/check_manual.cmake)) | documentation | the same form; a manual named other than its office, or carried by no target; a pane's manual whose commands are not exactly the ids the action census holds for its office; a key marker, in a manual or a tutorial, whose key is not a default the census holds for its id |
-| the action census (`tests/actions.txt`) | official | a shipped pane whose declared rows, in every mode its suite drives, differ from the committed census; the census as it stands is written beside the build to diff |
+| `manual` ([`tests/check_manual.cmake`](../../tests/check_manual.cmake)) | documentation | the same form; a manual named other than its office, or carried by no target; a pane's manual whose commands are not exactly the ids the action census holds for its office; a command whose Answers line links a shape its rows do not declare a press causes, or leaves out one they do; a key marker, in a manual or a tutorial, whose key is not a default the census holds for its id |
+| the action census (`tests/actions.txt`) | official | a shipped pane whose declared rows -- their keys, causes and the mode each enters -- in every mode its suite drives, differ from the committed census, or a mode whose word of the other modes' causes is not theirs there; the census as it stands is written beside the build to diff |
+| the press witness | official | a declared action that, pressed in a mode its suite drives, sends a shape beside the pane protocol its row does not declare; a declared cause no driven state sent is listed beside the build, not refused |
 | the manual witnesses | official | a pane whose answered manual lacks a command it declares; an office whose accepted shapes its page does not describe |
 | `doc_links` | documentation | a broken link or anchor |

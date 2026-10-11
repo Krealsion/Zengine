@@ -630,6 +630,16 @@ Measured, with an ordinary Registry, as `SchemaConflict`. Workshop accepts both 
 them into one admitted row set; a v1 declaration means what it always meant — this pane owns no
 host action — and nothing reinterprets old bytes.
 
+**And a third, beside both**: `v3::PaneActions v3` `{pane, mode, rows, elsewhere}` of
+`v3::PaneActionRow v3`, v2's five fields plus `causes` and `enters` — the shapes a press may send
+beside the pane protocol, and the mode it leaves the pane in — with the mode the rows are in force
+for and what each other mode may cause (`ModeCauses`), never those rows. The application's rows
+say causes too (`v2::AppActions`). Workshop judges them with the keys, holds them with the rows
+and widens v1 and v2 with none; a v2 row means what it always meant, and says nothing of what its
+press sends. The host's side is [`workshop/action-causes.md`](workshop/action-causes.md)
+(WL-CAUSE-01, WL-CAUSE-02); the shapes, the subjects and the helpers are the
+[pane protocol's reference](../workshop/docs/workshop-panes.md#what-a-press-may-cause).
+
 - **A v2 row may say it STANDS IN FOR one of Workshop's own actions** (`supersedes`),
   and only for the ones Workshop declares ownable — today `document.save`. While that pane OWNS
   input the host's row is not requestable and no legend spells it, and the pane's rows may take

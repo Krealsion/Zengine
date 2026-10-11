@@ -113,6 +113,16 @@ inline constexpr const char* kActionRecipesClose = "builder.recipes-close";
 /// offers, so the mouse and the keyboard reach one list of operations (WL-CTX-09).
 inline constexpr const char* kActionMenu = "builder.menu";
 
+// ---- The modes the pane declares its rows in ---------------------------------------------
+//
+// By the names the action census and the manual use: browsing, the recipe list, the output
+// reader and the role line. The pane declares the rows of the mode it is in, and what each other
+// mode's rows may cause.
+inline constexpr const char* kModeBrowse = "browse";
+inline constexpr const char* kModeRecipes = "recipes";
+inline constexpr const char* kModeOutput = "output";
+inline constexpr const char* kModeRole = "role";
+
 // ---- The ids the pane's own menu rows carry ---------------------------------------------
 //
 // NOT ACTION IDS. A menu row's id crosses to the presenter and comes back in

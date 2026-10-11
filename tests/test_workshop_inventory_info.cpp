@@ -925,7 +925,7 @@ TEST_CASE("a reference placed on the mark a refused picture wears is not placed 
     // INFO'S NEXT PICTURE REFUSED for what it holds, said as its holder says its pictures.
     const ExternalPane& info = *s.r.session().panes.external_pane(s.info);
     REQUIRE(info.canvas.heard);
-    v5::PaneCanvasContent refused = info.canvas.content;
+    v5::PaneCanvasContent refused = fifth_picture(info.canvas.content);
     refused.picture = info.picture + 1;
     refused.labels.push_back(PaneCanvasLabel{0, 0, "caf\xC3\xA9", surface::role::kFill});
     const loom::WeaveId holder = s.r.bus.role_holder("zengine.info");
@@ -1539,7 +1539,7 @@ TEST_CASE("a value released on the mark a refused picture wears is not placed th
     // FLOW'S NEXT PICTURE REFUSED for what it holds, said as its holder says its pictures.
     const ExternalPane& flow = *s.r.session().panes.external_pane(s.flow);
     REQUIRE(flow.canvas.heard);
-    v5::PaneCanvasContent refused = flow.canvas.content;
+    v5::PaneCanvasContent refused = fifth_picture(flow.canvas.content);
     refused.picture = flow.picture + 1;
     refused.labels.push_back(PaneCanvasLabel{0, 0, "caf\xC3\xA9", surface::role::kFill});
     const auto* row = s.r.session().panes.runtime.of_kind(s.flow);

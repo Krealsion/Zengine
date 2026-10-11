@@ -29,6 +29,7 @@
 #include "view/host.hpp"
 #include "view/view.hpp"
 #include "workshop/arrangement.hpp"
+#include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/editor_switch.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/guest_door.hpp"
@@ -41,6 +42,7 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_doors.hpp"
+#include "workshop/pane_view.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_door.hpp"
 #include "workshop/prefs_persist.hpp"
@@ -215,6 +217,13 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PictureFence>(), // PictureFence v1
         shape<::zengine::workshop::WithdrawalFence>(), // WithdrawalFence v1
         shape<::zengine::workshop::WorkshopState>(), // WorkshopState v1
+        // ...the declarations only Workshop still accepts, from a desktop built before causes, and
+        // the reading whose parts say their availability, which only Workshop speaks.
+        shape<::zengine::workshop::AppActionRow>(), // AppActionRow v1
+        shape<::zengine::workshop::AppActions>(), // AppActions v1
+        shape<::zengine::workshop::v2::PanePart>(), // PanePart v2
+        shape<::zengine::workshop::v6::PaneView>(), // PaneView v6
+        shape<::zengine::workshop::v6::PaneViewRequested>(), // PaneViewRequested v6
         shape<::zengine::composer::ComposerCommandContext>(), // ComposerCommandContext v1
         shape<::zengine::snake::OperatorState>(), // OperatorState v1
         // Declared by the SDL skin alone, which a build without SDL has no manifest of.
