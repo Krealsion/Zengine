@@ -36,7 +36,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 92; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 93; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 

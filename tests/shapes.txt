@@ -65,6 +65,7 @@ DeskReadRequested v1 0x4ad4d957c4c27340
 DeskReadRequested v2 0x37cf1aaffe01bc03
 DeskRect v1 0xf1f559e7658c5f6d
 DeskStamps v1 0xde75f1d1da54c352
+DeskStamps v2 0xd51c2c559ae24c20
 DeskView v1 0x4e83e42f40866b15
 DeskView v2 0xf275e7575d93098e
 DeskView v3 0xf6a8009114039b81
