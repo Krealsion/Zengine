@@ -16,12 +16,6 @@ MEANS
 DOES NOT MEAN
 - that an old object document is read: `--document` names one to be said and left (WL-DOC-22).
 
-PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/weave.hpp`
-`HostContext::retired_document`, `HostContext::setup_path`, `HostContext::session_path`,
-`HostContext::keymap_path`, `HostContext::prefs_path`; `workshop/workshop.cpp` `Arguments`;
-`tests/test_workshop_persistence.cpp` case `"the two Windows roots are the platform's own
-conventions"`, case `"the two XDG roots, and their home fallbacks"`, case `"the host
-resolves the weaver's files through the one precedence"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-02 — The precedence is pinned and has one spelling
@@ -32,10 +26,6 @@ MEANS
 - `--isolated` is the flag every witness harness and executor live run must carry;
 - an environment with no resolvable root is the same absence, said once on the banner.
 
-PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/workshop.cpp`
-`Arguments::session`; `tests/test_workshop_persistence.cpp` case `"one precedence -- explicit
-path, then isolation, then the default"`, case `"the host resolves the weaver's files
-through the one precedence"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-03 — The legacy transition is one rule and converges by existence
@@ -45,12 +35,6 @@ LAW — `import_legacy_file`: a per-user default whose file does not exist, besi
 MEANS
 - an existing user-root file always wins; the legacy file is never deleted, moved or rewritten.
 
-PROVEN BY — `workshop/user_paths.hpp` `import_legacy_file`, `LegacyImport`;
-`workshop/workshop.cpp` `import_legacy_file`; `workshop/weave.hpp` `HostContext::transition_note`;
-`tests/test_workshop_persistence.cpp` case `"a legacy-only file is imported once, and the original
-is left in place"`, case `"an existing user-root file always wins over a legacy file"`,
-case `"repeated launches converge -- the import can never fire twice"`, case
-`"no legacy file, no destination -- the import does nothing, silently"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-04 — One representation of a desk, two files
@@ -61,12 +45,6 @@ MEANS
 - a desk cannot be legal in one file and illegal in the other;
 - the three files are three formats, and each refuses the others.
 
-PROVEN BY — `workshop/session_persist.hpp` `WorkshopSession`, `setup_in`;
-`workshop/setup_persist.hpp` `WorkshopSetup`, `setup_in`; `workshop/weave.hpp`
-`HostContext::session_path`; `tests/test_workshop_persistence.cpp` case `"an automatic save never
-touches the file a weaver named"`, case `"a restored session never touches the file a
-weaver named, either"`, case `"the three files are three formats, and each
-refuses the others"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-13 — One door writes the session, and only on an orderly close
@@ -78,28 +56,12 @@ MEANS
 - `finish_quit` is the one place the desk is written and the bus stopped;
 - a guest's `WorkshopQuitRequested` is that quit too, answered `Ack` or the refusal's words (WL-GUEST-09).
 
-PROVEN BY — `workshop/weave_run.cpp` `quit`, `finish_quit`, `on(WorkshopQuitRequested)`,
-`answer_quit_ask`; `workshop/setup_control.hpp` `WorkshopQuitRequested`;
-`workshop/weave_session.cpp` `save_last_session`;
-`workshop/weave_handlers.cpp` `on(SurfaceCloseRequested)`; `workshop/weave.hpp`
-`HostContext::session_path`; `workshop/persist.hpp` `write_file`; `surface/vocabulary.hpp`
-`SurfaceCloseRequested`; `workshop/session_persist.hpp` `save_file`;
-`tests/test_workshop_panes_editor.cpp` case `"a guest's quit is answered in the words of what kept
-Workshop open, and Ack once it ends"`; `tests/test_workshop_persistence.cpp` case `"the second
-session replaces the first, room and desk both"`, case `"a write that fails leaves the last good
-session where it was"`;
-`tests/test_workshop_document.cpp` case `"the native close request reaches the quit policy `q`
-already had"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-15 — A session this run could not read is never written over
 
 LAW — A session this run could not read is never written over: the save checks the refusal first; a declined viewport is not a refusal; the standing consequence is a condition, true all run, with an action.
 
-PROVEN BY — `workshop/weave.hpp` `WorkshopWeave::session_refused_`; `workshop/weave_session.cpp`
-`save_last_session`, `kSessionWallKey`; `tests/test_workshop_persistence.cpp` case `"a session
-this run could not read is never written over"`, case `"the file survives the run that
-could not read it, and opens later"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-18 — Roots are made on the first write, and a project directory is never invented
@@ -110,10 +72,6 @@ MEANS
 - the session's close, the prefs toggle and the legacy import write through the making door;
 - `--document` and `--setup` paths do not: a missing directory there is a weaver's typo.
 
-PROVEN BY — `workshop/persist.hpp` `write_file_making_room`;
-`tests/test_workshop_persistence.cpp` case `"a first launch is not an error, and needs no file to
-exist"`, case `"a save into a place that does not exist refuses before it writes
-anything"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-19 — A quit Loom could not deliver to a participant is refused at once
@@ -129,26 +87,6 @@ DOES NOT MEAN
 - that a delivered question nobody answers, a handler that failed or an exception ends a quit;
 - that `zen.DispatchRefused` reaches a publication's author: it does not, so the host watches.
 
-PROVEN BY — `workshop/quit_delivery.hpp` `QuitDeliveryWatch`, `UndeliveredQuits`,
-`UndeliveredQuit`, `QuitDeliveryRefusalNoted`; `workshop/quit_delivery.cpp` `QuitDeliveryWatch`,
-`undelivered_quit_words`; `workshop/weave_run.cpp` `on(QuitDeliveryRefusalNoted)`,
-`refuse_quit`; `workshop/weave.hpp` `HostContext::undelivered_quits`; `workshop/workshop.cpp`
-`quit_watch`; `tests/test_workshop_panes_editor.cpp` case `"a quit the held Editor cannot be
-asked is refused at once in its office's words, the weaver's keys and the repair work, and a quit
-after the reload ends the run"`, case `"gestures queued behind a quit the held Editor cannot be
-asked are replayed in order once it is refused, and a burst past the hold is counted in its
-words"`, case `"a participant with no pane on the desk that stops running after the quit is asked
-refuses it by office and reason, and another participant's owed answer is not waited for"`, case
-`"a delivered question nobody answers keeps the quit waiting, and a forged wake-up, a stranger's
-quit question or Workshop's refused answer of another shape -- each carrying the live ask's own
-number -- ends nothing"`, case `"a refusal or an answer that belongs to a quit already ended
-cannot decrement, refuse or complete the quit asked after it"`, case `"once the host's watch is
-gone a refused quit delivery writes nothing and wakes nobody, and a Workshop not quitting discards
-what the book holds"`, case `"a Workshop that does not hold its office says so and starts no
-quit, and the refusal Loom records for that authorship is not made a participant's"`, case `"the
-close box and the interrupt chord meet the same refusal as q when the held Editor cannot be
-asked"`, case `"the shipped host mounts the quit watch from Workshop's own mount, after the bus
-and the HostContext whose book it writes"`.
 WHY — `agents/decisions/a-quit-that-cannot-be-asked-is-refused.md`
 
 ## Do not assume
@@ -160,3 +98,87 @@ WHY — `agents/decisions/a-quit-that-cannot-be-asked-is-refused.md`
 - That a quit waits on a participant Loom would not deliver the question to: it is refused
   (WL-SESSION-19). A participant that is delivered the question and never answers still holds
   it open, named rather than timed out.
+
+## Proven by
+
+### WL-SESSION-01
+`workshop/user_paths.hpp` resolve_durable_path
+`workshop/weave.hpp` HostContext::retired_document HostContext::setup_path HostContext::session_path
+HostContext::keymap_path HostContext::prefs_path
+`workshop/workshop.cpp` Arguments
+`tests/test_workshop_persistence.cpp` "the two Windows roots are the platform's own conventions"
+"the two XDG roots, and their home fallbacks" "the host resolves the weaver's files through the one
+precedence"
+
+### WL-SESSION-02
+`workshop/user_paths.hpp` resolve_durable_path
+`workshop/workshop.cpp` Arguments::session
+`tests/test_workshop_persistence.cpp` "one precedence -- explicit path, then isolation, then the
+default" "the host resolves the weaver's files through the one precedence"
+
+### WL-SESSION-03
+`workshop/user_paths.hpp` import_legacy_file LegacyImport
+`workshop/workshop.cpp` import_legacy_file
+`workshop/weave.hpp` HostContext::transition_note
+`tests/test_workshop_persistence.cpp` "a legacy-only file is imported once, and the original is left
+in place" "an existing user-root file always wins over a legacy file" "repeated launches converge --
+the import can never fire twice" "no legacy file, no destination -- the import does nothing,
+silently"
+
+### WL-SESSION-04
+`workshop/session_persist.hpp` WorkshopSession setup_in
+`workshop/setup_persist.hpp` WorkshopSetup setup_in
+`workshop/weave.hpp` HostContext::session_path
+`tests/test_workshop_persistence.cpp` "an automatic save never touches the file a weaver named" "a
+restored session never touches the file a weaver named, either" "the three files are three formats,
+and each refuses the others"
+
+### WL-SESSION-13
+`workshop/weave_run.cpp` quit finish_quit on(WorkshopQuitRequested) answer_quit_ask
+`workshop/setup_control.hpp` WorkshopQuitRequested
+`workshop/weave_session.cpp` save_last_session
+`workshop/weave_handlers.cpp` on(SurfaceCloseRequested)
+`workshop/weave.hpp` HostContext::session_path
+`workshop/persist.hpp` write_file
+`surface/vocabulary.hpp` SurfaceCloseRequested
+`workshop/session_persist.hpp` save_file
+`tests/test_workshop_panes_editor.cpp` "a guest's quit is answered in the words of what kept
+Workshop open, and Ack once it ends"
+`tests/test_workshop_persistence.cpp` "the second session replaces the first, room and desk both" "a
+write that fails leaves the last good session where it was"
+`tests/test_workshop_document.cpp` "the native close request reaches the quit policy `q` already
+had"
+
+### WL-SESSION-15
+`workshop/weave.hpp` WorkshopWeave::session_refused_
+`workshop/weave_session.cpp` save_last_session kSessionWallKey
+`tests/test_workshop_persistence.cpp` "a session this run could not read is never written over" "the
+file survives the run that could not read it, and opens later"
+
+### WL-SESSION-18
+`workshop/persist.hpp` write_file_making_room
+`tests/test_workshop_persistence.cpp` "a first launch is not an error, and needs no file to exist"
+"a save into a place that does not exist refuses before it writes anything"
+
+### WL-SESSION-19
+`workshop/quit_delivery.hpp` QuitDeliveryWatch UndeliveredQuits UndeliveredQuit
+QuitDeliveryRefusalNoted
+`workshop/quit_delivery.cpp` QuitDeliveryWatch undelivered_quit_words
+`workshop/weave_run.cpp` on(QuitDeliveryRefusalNoted) refuse_quit
+`workshop/weave.hpp` HostContext::undelivered_quits
+`workshop/workshop.cpp` quit_watch
+`tests/test_workshop_panes_editor.cpp` "a quit the held Editor cannot be asked is refused at once in
+its office's words, the weaver's keys and the repair work, and a quit after the reload ends the run"
+"gestures queued behind a quit the held Editor cannot be asked are replayed in order once it is
+refused, and a burst past the hold is counted in its words" "a participant with no pane on the desk
+that stops running after the quit is asked refuses it by office and reason, and another
+participant's owed answer is not waited for" "a delivered question nobody answers keeps the quit
+waiting, and a forged wake-up, a stranger's quit question or Workshop's refused answer of another
+shape -- each carrying the live ask's own number -- ends nothing" "a refusal or an answer that
+belongs to a quit already ended cannot decrement, refuse or complete the quit asked after it" "once
+the host's watch is gone a refused quit delivery writes nothing and wakes nobody, and a Workshop not
+quitting discards what the book holds" "a Workshop that does not hold its office says so and starts
+no quit, and the refusal Loom records for that authorship is not made a participant's" "the close
+box and the interrupt chord meet the same refusal as q when the held Editor cannot be asked" "the
+shipped host mounts the quit watch from Workshop's own mount, after the bus and the HostContext
+whose book it writes"

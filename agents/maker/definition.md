@@ -16,13 +16,6 @@ DOES NOT MEAN
 - that either file is JSON; the compat codec is never written and is refused on read;
 - that a definition is converted: v1 is read as written, and nothing rewrites it on disk.
 
-PROVEN BY — `maker/definition.hpp` `kFormat`, `kFormatVersion`, `kDefinitionSchemaVersion`,
-`definition_schema`, `definition_v1_schema`, `definition_bytes`, `read_definition`;
-`maker/files.hpp` `read_file`, `write_file`; `tests/test_maker.cpp` case `"a definition claiming
-another version is refused by its number, and one whose own version field disagrees with its
-envelope is a forgery"`, case `"a definition of version 1 still reads and runs, and is written
-again at the current version"`, case `"the definition and the state are two native files written
-by one process, and a fresh process reads them back with high == 7"`.
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-02 — The name namespaces the state
@@ -33,10 +26,6 @@ MEANS
 - two maker weaves' `State v1` cannot collide at the registry's claim, because neither is `State`;
 - a maker weave names its accepted and emitted shapes, and may accept another weave's shape.
 
-PROVEN BY — `maker/definition.hpp` `admit_definition`, `Definition`; `tests/test_maker.cpp`
-case `"a state schema outside the definition's namespace is refused, naming the prefix it
-needed"`, case `"the state schema is built from data, the registry resolves it by name, and its
-content id is the descriptor's"`.
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-03 — The seven kinds close the maker path
@@ -50,9 +39,6 @@ MEANS
 DOES NOT MEAN
 - that a kind may be appended free: an older reader refuses a kind out of range.
 
-PROVEN BY — `maker/definition.hpp` `encode_definition`, `admit_definition`; `maker/write.hpp`
-`default_value`, `default_cell`; `tests/test_maker.cpp` case `"a definition whose state nests a
-message and a list decodes through its referenced section -- the seven kinds, closed"`.
 WHY — `agents/decisions/the-seven-kinds-close-the-maker-path.md`
 
 ## MW-DEF-04 — Required is the default; optional only where no trigger binds it
@@ -63,9 +49,6 @@ MEANS
 - a bound optional field would refuse at spend as `no input named`; admission refuses it first;
 - the pack keeps each field's `required` bit, so an absent optional field packs as absent.
 
-PROVEN BY — `maker/definition.hpp` `admit_definition`; `maker/write.hpp` `default_value`,
-`pack`; `tests/test_maker.cpp` case `"an optional state field bound by a trigger is refused at
-admission; an unbound optional field is admitted and absent in the default state"`.
 WHY — `agents/decisions/the-seven-kinds-close-the-maker-path.md`
 
 ## MW-DEF-05 — No author field
@@ -75,8 +58,6 @@ LAW — The definition schema carries no author, signature or provenance field o
 MEANS
 - a declared, unsigned name would be a claim nothing verifies, so the format carries no identity.
 
-PROVEN BY — `maker/definition.hpp` `definition_schema`; `tests/test_maker.cpp` case `"the
-definition schema carries no author field, and the file says so"`.
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-06 — Admission refuses by name
@@ -87,10 +68,6 @@ MEANS
 - the conversion is planned against its own `from`; the value half waits for the edge;
 - a body's operators are not resolved at admission: the catalog is asked at spend (MW-WEAVE-05).
 
-PROVEN BY — `maker/definition.hpp` `admit_definition`; `maker/write.hpp` `plan_fields`;
-`tests/test_maker.cpp` case `"a definition is refused when an on names an unaccepted message, an
-unknown output field, or an emit field with no source"`, case `"the pack is state then message,
-and a field name both carry is refused at admission"`.
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-07 — Reload is shape-only
@@ -103,8 +80,6 @@ MEANS
 DOES NOT MEAN
 - that the edge is absent: a registered successor's edge resolves, and the reader still refuses.
 
-PROVEN BY — `maker/definition.hpp` `read_state`; `tests/test_maker.cpp` case `"a state file of
-another version is refused by name at load, and nothing converts it"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-DEF-08 — Emits are namespaced too
@@ -115,9 +90,6 @@ MEANS
 - every maker weave accepts `Quiesce`, `Resume` and `Adopt`; an emit of one would reach them all;
 - a weave listens to what others say: an accepted shape may be anyone's.
 
-PROVEN BY — `maker/definition.hpp` `admit_definition`; `tests/test_maker.cpp` case `"before the
-merge: a definition whose emits lie outside its namespace is refused, and so a definition cannot
-emit the ceremony shapes"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## Do not assume
@@ -126,3 +98,53 @@ WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
   must begin `<name>.`, because only the state is claimed by the registration alone.
 - That `read_definition` converts anything (MW-DEF-01): it reads v1 as written and names any
   other number and stops; the next save writes v2.
+
+## Proven by
+
+### MW-DEF-01
+`maker/definition.hpp` kFormat kFormatVersion kDefinitionSchemaVersion definition_schema
+definition_v1_schema definition_bytes read_definition
+`maker/files.hpp` read_file write_file
+`tests/test_maker.cpp` "a definition claiming another version is refused by its number, and one
+whose own version field disagrees with its envelope is a forgery" "a definition of version 1 still
+reads and runs, and is written again at the current version" "the definition and the state are two
+native files written by one process, and a fresh process reads them back with high == 7"
+
+### MW-DEF-02
+`maker/definition.hpp` admit_definition Definition
+`tests/test_maker.cpp` "a state schema outside the definition's namespace is refused, naming the
+prefix it needed" "the state schema is built from data, the registry resolves it by name, and its
+content id is the descriptor's"
+
+### MW-DEF-03
+`maker/definition.hpp` encode_definition admit_definition
+`maker/write.hpp` default_value default_cell
+`tests/test_maker.cpp` "a definition whose state nests a message and a list decodes through its
+referenced section -- the seven kinds, closed"
+
+### MW-DEF-04
+`maker/definition.hpp` admit_definition
+`maker/write.hpp` default_value pack
+`tests/test_maker.cpp` "an optional state field bound by a trigger is refused at admission; an
+unbound optional field is admitted and absent in the default state"
+
+### MW-DEF-05
+`maker/definition.hpp` definition_schema
+`tests/test_maker.cpp` "the definition schema carries no author field, and the file says so"
+
+### MW-DEF-06
+`maker/definition.hpp` admit_definition
+`maker/write.hpp` plan_fields
+`tests/test_maker.cpp` "a definition is refused when an on names an unaccepted message, an unknown
+output field, or an emit field with no source" "the pack is state then message, and a field name
+both carry is refused at admission"
+
+### MW-DEF-07
+`maker/definition.hpp` read_state
+`tests/test_maker.cpp` "a state file of another version is refused by name at load, and nothing
+converts it"
+
+### MW-DEF-08
+`maker/definition.hpp` admit_definition
+`tests/test_maker.cpp` "before the merge: a definition whose emits lie outside its namespace is
+refused, and so a definition cannot emit the ceremony shapes"

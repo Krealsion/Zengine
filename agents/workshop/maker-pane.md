@@ -17,10 +17,6 @@ MEANS
 DOES NOT MEAN
 - that Workshop runs views: the view host runs them, granted what each description implies.
 
-PROVEN BY — `workshop/desktop-pane/vocabulary.hpp` `kActionNew`; `workshop/desktop-pane/pane.cpp` `pane_rows`,
-`kViewBuilderOffice`, `kViewBuilderPane`, `launch`; `tests/test_workshop_panes_actions.cpp` case
-`"WL-MAKER-11: the shipped Pane Manager's `n` shows the View Builder through the host's launch
-door, and a Workshop without one says so in the door's words"`.
 WHY — `agents/decisions/a-pane-made-from-data-is-a-view.md`
 
 ## WL-MAKER-12 — A pane's interior is a capture
@@ -30,12 +26,22 @@ LAW — Every pane subject's interior is one read-only row: a code-backed captur
 DOES NOT MEAN
 - that anything is decompiled or inferred: no controls, no pretence.
 
-PROVEN BY — `workshop/screen_pane_subject.cpp` `interior_capture_text`, `pane_subject_rows`;
-`tests/test_workshop_host.cpp` case `"a code-backed subject's interior is a read-only capture,
-and an unresolved one is nothing to inspect"`.
 WHY — `agents/decisions/a-pane-made-from-data-is-a-view.md`
 
 ## Do not assume
 
 - That a pane made from data is Workshop's: it is a view the view host runs in the office its
   description names, and Workshop seats it as it seats any provider's pane (WL-MAKER-11).
+
+## Proven by
+
+### WL-MAKER-11
+`workshop/desktop-pane/vocabulary.hpp` kActionNew
+`workshop/desktop-pane/pane.cpp` pane_rows kViewBuilderOffice kViewBuilderPane launch
+`tests/test_workshop_panes_actions.cpp` "WL-MAKER-11: the shipped Pane Manager's `n` shows the View
+Builder through the host's launch door, and a Workshop without one says so in the door's words"
+
+### WL-MAKER-12
+`workshop/screen_pane_subject.cpp` interior_capture_text pane_subject_rows
+`tests/test_workshop_host.cpp` "a code-backed subject's interior is a read-only capture, and an
+unresolved one is nothing to inspect"

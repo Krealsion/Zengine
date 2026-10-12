@@ -11,11 +11,6 @@ LAW — `say` publishes Info’s body: one composition of both lists in the pane
 MEANS
 - one pass composes rows and their press map.
 
-PROVEN BY — `info/pane.cpp` `say`, `finish`, `lead`; `info/vocabulary.hpp`
-`InfoPaneState`; `workshop/pane_vocabulary.hpp` `PaneRoom`, `PaneContent`;
-`tests/test_workshop_panes_info.cpp` case `"the two headings and both lists are the pane's rows,
-over the host's inventory and subject"`, case `"a room too short for the body invents
-none of it"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-02 — Nothing in the pane multiplies a font metric
@@ -25,10 +20,6 @@ LAW — The pane counts in ROWS and COLUMNS: its canvas room's lattice, or the r
 MEANS
 - 25 cells of body is 16 rows of an 18-pixel face and 25 rows of a cell medium, one grant.
 
-PROVEN BY — `info/pane.cpp` `rows_`, `columns_`, `granted_`, `fit_room`;
-`workshop/pane_canvas_rows.hpp` `canvas_rows`; `workshop/pane_vocabulary.hpp` `PaneRoom::rows`,
-`PaneRoom::columns`; `workshop/weave_external.cpp` `refresh_external_rooms`;
-`tests/test_workshop_panes_info.cpp` case `"a room too short for the body invents none of it"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-03 — The vertical window is `list_window`
@@ -38,10 +29,6 @@ LAW — `list_window`: a population that fits is shown whole, the focused row is
 MEANS
 - there is no scroll offset, no pane state field and no scroll gesture on either list.
 
-PROVEN BY — `info/pane.cpp` `list_window`, `ListWindow`, `say_panes`, `say_properties`;
-`workshop/screen_gestures.cpp` `list_window`, `omitted_text`; `workshop/screen.hpp` `ListWindow`;
-`tests/test_workshop_panes_info.cpp` case `"what the body cannot show, it counts -- on the side it
-left it out"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-04 — The row maps are inverses, and a press names a row and not a cell
@@ -52,11 +39,6 @@ MEANS
 - a press is read back to the pane's OWN row and column, in the room it was aimed at;
 - a heading, a section, a marker or a blank row means nothing.
 
-PROVEN BY — `info/pane.cpp` `placed`, `Placed`, `composed_`, `lead`, `say_properties`,
-`press`; `workshop/pane_canvas_rows.hpp` `row_cell_at`;
-`tests/test_workshop_panes_info.cpp` case `"a press on a pane row inspects it, through the host's
-own door"`, case `"a press on an Info row while a notice stands names the row painted
-there, and a full room keeps its last row under the notice"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-05 — A resting value is fitted and a live draft is windowed
@@ -66,12 +48,6 @@ LAW — A resting value is fitted with a mark where it was cut, because a commit
 MEANS
 - at most one row is ever editing, and its caret and selection stand in it, moving no character.
 
-PROVEN BY — `info/pane.cpp` `say_properties`, `begin_draft`, `close_draft`;
-`workshop/pane_text.hpp` `fit`, `pad`; `component/text_box.hpp` `TextBox::visible`,
-`TextBox::keep_caret_visible`; `tests/test_workshop_panes_info.cpp` case `"a draft on a value the
-weaver owns is written to the desk"`, case `"Info draws its lists on its canvas on the medium's own
-ground, and a draft's caret and selection stand in its row where the weaver types, moving no
-character, and go with it"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-06 — A new room must not drop a live draft, and rows named anew must
@@ -86,13 +62,6 @@ MEANS
 DOES NOT MEAN
 - that a commit already sent is recalled — the host writes it only while its name holds.
 
-PROVEN BY — `info/pane.cpp` `on(PaneSubjectShown)`, `on(PaneRoom)`, `shows_draft_subject`,
-`end_draft`, `close_draft`, `Draft::subject`, `draft_`; `workshop/inspection_seam_vocabulary.hpp`
-`PaneSubjectShown::subject`; `tests/test_workshop_panes_info.cpp` case `"a picture that names
-other rows abandons the Info draft and says so, even where they have the same property on the same
-row, and writes nothing into either desk"`, case `"an Info commit queued behind a restore of the
-desk from its file is refused, and a refused restore keeps the draft"`, case `"an Info draft
-outlives a new room and its pane's window moving, and its commit is written"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-07 — `share_body_rows` is max-min fair sharing
@@ -102,9 +71,6 @@ LAW — `share_body_rows` is max-min fair: each list gets what it needs, spare s
 MEANS
 - growing the pane never shrinks either list.
 
-PROVEN BY — `info/pane.cpp` `share_body_rows`, `BodyShare`;
-`tests/test_workshop_panes_info.cpp` case `"what the body cannot show, it counts -- on the side it
-left it out"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-08 — The headings are reserved before either list is offered anything
@@ -114,10 +80,6 @@ LAW — The two headings and a front sentence are subtracted from the granted ro
 MEANS
 - the press inverse is measured from the same lead, so a sentence cannot move a press off its row.
 
-PROVEN BY — `info/pane.cpp` `say`, `lead`, `finish`, `front_sentence`; `workshop/weave.hpp`
-`WorkshopWeave::judge_content`; `tests/test_workshop_panes_info.cpp` case `"a room too short for
-the body invents none of it"`, case `"a press on an Info row while a notice stands names
-the row painted there, and a full room keeps its last row under the notice"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-09 — A pane row names the pane, and a press on it asks the host to inspect it
@@ -129,14 +91,6 @@ MEANS
 - the list cursor is an identity, reloads too: a pane that left is said; Return inspects nothing;
 - another subject takes a draft's rows, so a live draft refuses the press before asking.
 
-PROVEN BY — `info/pane.cpp` `say_panes`, `ask_inspect`, `inspect_cursor`,
-`find_list_cursor`, `hold_list`, `pane_property_press`, `press_placed`, `kFinishTheEdit`;
-`workshop/pane_text.hpp` `drawable`; `tests/test_workshop_panes_info.cpp` case `"a press on a pane
-row inspects it, through the host's own door"`, case `"a live draft holds another
-subject back, and the reason is the weaver's"`, case `"a press on a pane while an
-Info draft is live is refused, keeping the draft, its text, the subject and the desk through a new
-room, and inspecting resumes once the draft ends"`, case `"Info's lost list choice survives its
-own reload: Return inspects nothing until a row is chosen"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-10 — An empty list says it is empty, whatever its share
@@ -147,9 +101,6 @@ MEANS
 - blankness cannot distinguish empty from broken;
 - the granted room is still the wall: `finish` truncates and cannot be talked past.
 
-PROVEN BY — `info/pane.cpp` `say_panes`, `say_properties`, `finish`, `kNoSubject`;
-`tests/test_workshop_panes_info.cpp` case `"with nothing inspected, the properties say so and say
-what to do next"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-11 — The desk names this pane, and an office that does not offer leaves the row
@@ -160,10 +111,6 @@ MEANS
 - the desk's row is the INTENT and an office's offer is what resolves it;
 - a plan row whose artifact is missing is the realization's to say (`agents/realization.md`).
 
-PROVEN BY — `workshop/setup.hpp` `default_setup`, `unresolved_panes`; `workshop/panes.hpp`
-`kInfoPaneProvider`, `kInfoPaneKey`; `workshop/screen_layouts.cpp` `setup_rest_text`;
-`tests/test_workshop_panes_info.cpp` case `"a Workshop with no Info OFFICE keeps the row
-and says so"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-12 — An answer is read against the ask, the draft and the text that asked
@@ -178,18 +125,6 @@ MEANS
 DOES NOT MEAN
 - that closing a draft retracts a write, or that a delivered unanswered commit ends.
 
-PROVEN BY — `info/pane.cpp` `on(PaneSubjectActed)`, `act`, `answered_commit`, `ask_commit`,
-`end_draft`, `Asked`, `SentCommit`, `SentCommit::draft`, `SentCommit::text`,
-`SentCommit::promise`, `acting_`, `committing_`, `kCommitNotSent`; `component/text_box.hpp`
-`TextBox::draft_epoch`; `tests/test_workshop_panes_info.cpp` case `"a commit and a cancel resolved
-in one poll: the cancel says the commit was already sent, the answer's account takes that
-sentence's place, and no row says nothing was written over a write"`, case `"an inspect asked
-before an Info draft opened, and answered while it is open, closes nothing"`, case `"a second Info
-commit in the same poll as the first is not sent: the pane says so, keeps the text typed between
-them, sends that text once the first is answered, and a cancel after the write and a refused retry
-claims no write away"`, case `"text typed after an Info commit was sent outlives that commit's
-answer: the draft stays open with its history, the write is told apart from the unsent text, a
-refusal is not said of the newer text, and the newer text commits normally"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-INFO-13 — An ask Loom says never arrived is released, and silence still waits
@@ -204,15 +139,6 @@ MEANS
 DOES NOT MEAN
 - that a delivered, unanswered ask is released: no timeout, retry, cancellation or polling.
 
-PROVEN BY — `info/pane.cpp` `on(DispatchRefused)`, `refused_ask`, `undelivered_commit`,
-`ask_inspect`, `ask_commit`, `Asked::attempt`, `kCommitNotQueued`, `kCommitUndelivered`;
-`tests/test_workshop_panes_info.cpp` case `"an Info commit Loom refuses at dispatch is released:
-the draft and its text stand, the next Return is written, and a cancel's promise is replaced"`,
-case `"an Info commit a doorless office refuses at dispatch: the draft stands, the next commit
-tries again, and it is written once the door is back"`,
-case `"a refusal notice anyone could send,
-naming the Info pane's outstanding commit exactly, settles nothing"`, case `"an Info inspect Loom
-refuses at dispatch releases its own record, and the next press inspects"`.
 WHY — `agents/decisions/an-undelivered-ask-is-released.md`
 
 ## WL-INFO-14 — The subject is a pane Info names, and nothing else moves it
@@ -227,18 +153,6 @@ MEANS
 DOES NOT MEAN
 - that two inspectors each hold a subject: there is one slot, and an office that asks moves it.
 
-PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `InspectPaneRequested`,
-`PaneSubjectRequested`, `PaneSubjectShown`; `workshop/screen.hpp` `InspectedPane`,
-`pane_subject_rows`, `pane_subject_shown`; `workshop/screen_pane_subject.cpp`
-`pane_subject_shown`, `pane_subject_rows`; `workshop/setup.hpp` `SetupState::put_live`;
-`workshop/weave_inspection.cpp` `refresh_inspected`, `on(InspectPaneRequested)`,
-`on(PaneSubjectRequested)`, `publish_pane_subject`; `tests/test_workshop_panes_info.cpp` case
-`"the subject is Info's to name: the keys leaving, Escape and a press elsewhere leave it
-standing"`, case `"Info may inspect itself, and an edit to its own place is written by the
-desk, reseats it and keeps the subject"`, case `"a subject naming a pane in neither this
-build's vocabulary nor this desk is refused in words with nothing moved, and an inspector that
-arrives is answered the picture as it is now"`; `tests/test_workshop_panes_settings.cpp` case
-`"the subject is named anew when its pane's row leaves the desk, and again when it comes back"`.
 WHY — `agents/decisions/an-inspector-names-its-subject.md`
 
 ## WL-INFO-15 — A property edit is the owner's write, through a door the desk already has
@@ -253,12 +167,135 @@ MEANS
 DOES NOT MEAN
 - inventory-entry edits: live saves use owner identity/revision; a copy first adds an entry.
 
-PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `PaneCommitRequested`, `PaneSubjectActed`;
-`workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `workshop/weave.hpp`
-`kPaneCommitSubjectGone`; `workshop/screen_pane_subject.cpp` `write_pane_axis`,
-`write_pane_setting`; `tests/test_workshop_panes_info.cpp` case `"a draft on a value the weaver
-owns is written to the desk"`, case `"an Info commit queued behind another desk put live, or another and
-back, is refused: neither desk is written and the pane says why"`, case `"an Info commit whose
-image was replaced before its answer is not the successor's: the successor holds no draft and says
-nothing of it, the subject stands, and the write shows as the owner's rows"`.
 WHY — `agents/decisions/an-inspector-names-its-subject.md`
+
+## Proven by
+
+### WL-INFO-01
+`info/pane.cpp` say finish lead
+`info/vocabulary.hpp` InfoPaneState
+`workshop/pane_vocabulary.hpp` PaneRoom PaneContent
+`tests/test_workshop_panes_info.cpp` "the two headings and both lists are the pane's rows, over the
+host's inventory and subject" "a room too short for the body invents none of it"
+
+### WL-INFO-02
+`info/pane.cpp` rows_ columns_ granted_ fit_room
+`workshop/pane_canvas_rows.hpp` canvas_rows
+`workshop/pane_vocabulary.hpp` PaneRoom::rows PaneRoom::columns
+`workshop/weave_external.cpp` refresh_external_rooms
+`tests/test_workshop_panes_info.cpp` "a room too short for the body invents none of it"
+
+### WL-INFO-03
+`info/pane.cpp` list_window ListWindow say_panes say_properties
+`workshop/screen_gestures.cpp` list_window omitted_text
+`workshop/screen.hpp` ListWindow
+`tests/test_workshop_panes_info.cpp` "what the body cannot show, it counts -- on the side it left it
+out"
+
+### WL-INFO-04
+`info/pane.cpp` placed Placed composed_ lead say_properties press
+`workshop/pane_canvas_rows.hpp` row_cell_at
+`tests/test_workshop_panes_info.cpp` "a press on a pane row inspects it, through the host's own
+door" "a press on an Info row while a notice stands names the row painted there, and a full room
+keeps its last row under the notice"
+
+### WL-INFO-05
+`info/pane.cpp` say_properties begin_draft close_draft
+`workshop/pane_text.hpp` fit pad
+`component/text_box.hpp` TextBox::visible TextBox::keep_caret_visible
+`tests/test_workshop_panes_info.cpp` "a draft on a value the weaver owns is written to the desk"
+"Info draws its lists on its canvas on the medium's own ground, and a draft's caret and selection
+stand in its row where the weaver types, moving no character, and go with it"
+
+### WL-INFO-06
+`info/pane.cpp` on(PaneSubjectShown) on(PaneRoom) shows_draft_subject end_draft close_draft
+Draft::subject draft_
+`workshop/inspection_seam_vocabulary.hpp` PaneSubjectShown::subject
+`tests/test_workshop_panes_info.cpp` "a picture that names other rows abandons the Info draft and
+says so, even where they have the same property on the same row, and writes nothing into either
+desk" "an Info commit queued behind a restore of the desk from its file is refused, and a refused
+restore keeps the draft" "an Info draft outlives a new room and its pane's window moving, and its
+commit is written"
+
+### WL-INFO-07
+`info/pane.cpp` share_body_rows BodyShare
+`tests/test_workshop_panes_info.cpp` "what the body cannot show, it counts -- on the side it left it
+out"
+
+### WL-INFO-08
+`info/pane.cpp` say lead finish front_sentence
+`workshop/weave.hpp` WorkshopWeave::judge_content
+`tests/test_workshop_panes_info.cpp` "a room too short for the body invents none of it" "a press on
+an Info row while a notice stands names the row painted there, and a full room keeps its last row
+under the notice"
+
+### WL-INFO-09
+`info/pane.cpp` say_panes ask_inspect inspect_cursor find_list_cursor hold_list pane_property_press
+press_placed kFinishTheEdit
+`workshop/pane_text.hpp` drawable
+`tests/test_workshop_panes_info.cpp` "a press on a pane row inspects it, through the host's own
+door" "a live draft holds another subject back, and the reason is the weaver's" "a press on a pane
+while an Info draft is live is refused, keeping the draft, its text, the subject and the desk
+through a new room, and inspecting resumes once the draft ends" "Info's lost list choice survives
+its own reload: Return inspects nothing until a row is chosen"
+
+### WL-INFO-10
+`info/pane.cpp` say_panes say_properties finish kNoSubject
+`tests/test_workshop_panes_info.cpp` "with nothing inspected, the properties say so and say what to
+do next"
+
+### WL-INFO-11
+`workshop/setup.hpp` default_setup unresolved_panes
+`workshop/panes.hpp` kInfoPaneProvider kInfoPaneKey
+`workshop/screen_layouts.cpp` setup_rest_text
+`tests/test_workshop_panes_info.cpp` "a Workshop with no Info OFFICE keeps the row and says so"
+
+### WL-INFO-12
+`info/pane.cpp` on(PaneSubjectActed) act answered_commit ask_commit end_draft Asked SentCommit
+SentCommit::draft SentCommit::text SentCommit::promise acting_ committing_ kCommitNotSent
+`component/text_box.hpp` TextBox::draft_epoch
+`tests/test_workshop_panes_info.cpp` "a commit and a cancel resolved in one poll: the cancel says
+the commit was already sent, the answer's account takes that sentence's place, and no row says
+nothing was written over a write" "an inspect asked before an Info draft opened, and answered while
+it is open, closes nothing" "a second Info commit in the same poll as the first is not sent: the
+pane says so, keeps the text typed between them, sends that text once the first is answered, and a
+cancel after the write and a refused retry claims no write away" "text typed after an Info commit
+was sent outlives that commit's answer: the draft stays open with its history, the write is told
+apart from the unsent text, a refusal is not said of the newer text, and the newer text commits
+normally"
+
+### WL-INFO-13
+`info/pane.cpp` on(DispatchRefused) refused_ask undelivered_commit ask_inspect ask_commit
+Asked::attempt kCommitNotQueued kCommitUndelivered
+`tests/test_workshop_panes_info.cpp` "an Info commit Loom refuses at dispatch is released: the draft
+and its text stand, the next Return is written, and a cancel's promise is replaced" "an Info commit
+a doorless office refuses at dispatch: the draft stands, the next commit tries again, and it is
+written once the door is back" "a refusal notice anyone could send, naming the Info pane's
+outstanding commit exactly, settles nothing" "an Info inspect Loom refuses at dispatch releases its
+own record, and the next press inspects"
+
+### WL-INFO-14
+`workshop/inspection_seam_vocabulary.hpp` InspectPaneRequested PaneSubjectRequested PaneSubjectShown
+`workshop/screen.hpp` InspectedPane pane_subject_rows pane_subject_shown
+`workshop/screen_pane_subject.cpp` pane_subject_shown pane_subject_rows
+`workshop/setup.hpp` SetupState::put_live
+`workshop/weave_inspection.cpp` refresh_inspected on(InspectPaneRequested) on(PaneSubjectRequested)
+publish_pane_subject
+`tests/test_workshop_panes_info.cpp` "the subject is Info's to name: the keys leaving, Escape and a
+press elsewhere leave it standing" "Info may inspect itself, and an edit to its own place is written
+by the desk, reseats it and keeps the subject" "a subject naming a pane in neither this build's
+vocabulary nor this desk is refused in words with nothing moved, and an inspector that arrives is
+answered the picture as it is now"
+`tests/test_workshop_panes_settings.cpp` "the subject is named anew when its pane's row leaves the
+desk, and again when it comes back"
+
+### WL-INFO-15
+`workshop/inspection_seam_vocabulary.hpp` PaneCommitRequested PaneSubjectActed
+`workshop/weave_inspection.cpp` on(PaneCommitRequested)
+`workshop/weave.hpp` kPaneCommitSubjectGone
+`workshop/screen_pane_subject.cpp` write_pane_axis write_pane_setting
+`tests/test_workshop_panes_info.cpp` "a draft on a value the weaver owns is written to the desk" "an
+Info commit queued behind another desk put live, or another and back, is refused: neither desk is
+written and the pane says why" "an Info commit whose image was replaced before its answer is not the
+successor's: the successor holds no draft and says nothing of it, the subject stands, and the write
+shows as the owner's rows"

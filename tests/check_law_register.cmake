@@ -92,9 +92,14 @@ set(ZEN_LAW_UNBUDGETED agents/operators.md agents/panes.md agents/realization.md
 
 # The budgets, in bytes, the stricter reading (an em dash is three). Line width is held in
 # registers, routers and decision records, a table row excepted: a line past ZEN_LAW_LINE_BYTES
-# wraps, and short of it a line breaks where its writer judges (rule i).
+# wraps, and short of it a line breaks where its writer judges (rule i). A register's proofs stand
+# in an appendix at its end, under the heading below, one `### <id>` each: the laws above it are
+# held to ZEN_LAW_REGISTER_BYTES and the whole file, laws and appendix, to ZEN_LAW_FILE_BYTES.
 set(ZEN_LAW_REGISTER_BYTES 16384)
-set(ZEN_LAW_ROUTER_BYTES 8192)
+set(ZEN_LAW_FILE_BYTES 24576)
+set(ZEN_LAW_APPENDIX_HEADING "## Proven by")
+set(ZEN_VM_APPENDIX_HEADING "## Seen")
+set(ZEN_LAW_ROUTER_BYTES 12288)
 set(ZEN_LAW_CORE_BYTES 20480)
 set(ZEN_LAW_LAW_BYTES 210)
 set(ZEN_LAW_LINE_BYTES 196)
@@ -125,8 +130,8 @@ set(ZEN_LAW_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx)
 # excluded quarry, and a root file no glob names. Each is read as a document; a missing one fails.
 set(ZEN_PLAN_EXTRA_DOCUMENTS quarry/QUARRY-CATALOG.md .gitattributes)
 
-# A backticked token in PROVEN BY is a path when it ends in one of these; otherwise it is
-# an identifier checked against the path named before it.
+# A token in a proof is a path when it ends in one of these; otherwise it is an identifier checked
+# against the path named before it.
 set(ZEN_LAW_PATH_RE "^[A-Za-z0-9_./-]+\\.(hpp|cpp|h|ipp|cc|cxx|c|md|txt|cmake|json|in|yml|yaml|py|sh|tsv)$")
 
 # ---- reading a file without letting its punctuation reshape a CMake list ---------------
@@ -158,7 +163,7 @@ endfunction()
 
 # The transformed text of a file, read once. A GLOBAL property rather than a variable: a
 # function cannot write its caller's scope, and the same source file is named by dozens of
-# PROVEN BY lines.
+# proofs.
 function(zen_law_text rel out)
     string(MAKE_C_IDENTIFIER "${rel}" key)
     get_property(cached GLOBAL PROPERTY "zen_law_text_${key}" SET)
@@ -199,7 +204,56 @@ endfunction()
 
 # ---- the predicates, each in one place so the self-test exercises the real one ---------
 
-# A PROVEN BY identifier is one token, a qualified spelling `Scope::member` (any depth), or
+# THE PROOF GRAMMAR. A proof is a run of lines under `### <id>`, read as one line: its quoted cases
+# come out first, then word by word a backticked path names the file the words after it are read
+# against, and a bare word -- or a backticked one, for an identifier no bare word can spell -- is
+# an identifier. A word opening with `(` begins a note that runs until its parentheses close; in a
+# note only backticked tokens are read. Sets ${out} to the tokens in order, backticks dropped, and
+# ${out_bad} to the bare words outside a note that cannot open an identifier.
+function(zen_law_proof_tokens rest out out_bad)
+    string(REGEX REPLACE "[ \t\n]+" ";" words "${rest}")
+    set(tokens "")
+    set(bad "")
+    set(depth 0)
+    foreach(w IN LISTS words)
+        if(w STREQUAL "")
+            continue()
+        endif()
+        if(depth EQUAL 0 AND NOT w MATCHES "^\\(")
+            if(w MATCHES "^`([^`]*)`$")
+                string(STRIP "${CMAKE_MATCH_1}" t)
+                if(NOT t STREQUAL "")
+                    list(APPEND tokens "${t}")
+                endif()
+            elseif(w MATCHES "^[A-Za-z_~]")
+                list(APPEND tokens "${w}")
+            else()
+                list(APPEND bad "${w}")
+            endif()
+            continue()
+        endif()
+        string(REGEX MATCHALL "\\(" opens "${w}")
+        string(REGEX MATCHALL "\\)" closes "${w}")
+        list(LENGTH opens o)
+        list(LENGTH closes c)
+        math(EXPR depth "${depth} + ${o} - ${c}")
+        if(depth LESS 0)
+            set(depth 0)
+        endif()
+        string(REGEX MATCHALL "`[^`]*`" ticks "${w}")
+        foreach(t IN LISTS ticks)
+            string(REGEX REPLACE "^`|`$" "" t "${t}")
+            string(STRIP "${t}" t)
+            if(NOT t STREQUAL "")
+                list(APPEND tokens "${t}")
+            endif()
+        endforeach()
+    endforeach()
+    set(${out} "${tokens}" PARENT_SCOPE)
+    set(${out_bad} "${bad}" PARENT_SCOPE)
+endfunction()
+
+# A proof's identifier is one token, a qualified spelling `Scope::member` (any depth), or
 # an overload spelling `name(Type)` -- and its PARTS are what the file is asked for.
 # `Row::section` asks for `Row` and `section`; `on(PointerWheel)` asks for `on` and
 # `PointerWheel`. The check reads the parts and not their relation: a member spelled under
@@ -752,6 +806,13 @@ function(zen_law_cited_cases rel text out)
     set(word "(^|[^A-Za-z])(case|subcase|cases)[ \t\n]+`?\"[^\"]*\"")
     if(rel MATCHES "^agents/")
         set(grammar "`\"[^\"]*\"`|${word}")
+        # A register's appendix is read by the proof grammar, its cases resolved there.
+        foreach(heading IN ITEMS "${ZEN_LAW_APPENDIX_HEADING}" "${ZEN_VM_APPENDIX_HEADING}")
+            string(FIND "${text}" "\n${heading}\n" at)
+            if(NOT at EQUAL -1)
+                string(SUBSTRING "${text}" 0 ${at} text)
+            endif()
+        endforeach()
     else()
         set(grammar "${word}")
     endif()
@@ -811,8 +872,8 @@ function(zen_law_text_ids text out)
 endfunction()
 
 # ---- witness debts: `witness: none`, `UNWITNESSED -- <clause>`, and their echoes ------------
-# A law with no witness writes `witness: none` in its PROVEN BY, one witnessed but for a clause
-# writes `UNWITNESSED -- <clause>` on the line after, and either debt is repeated under its
+# A law with no witness writes `witness: none` as its proof, one witnessed but for a clause
+# writes `UNWITNESSED -- <clause>` last in its proof, and either debt is repeated under its
 # register's `## Do not assume` in a bullet saying the same word. The predicates take the marker
 # word, so the two debts are one mechanism and one self-test.
 
@@ -888,6 +949,27 @@ endfunction()
 function(zen_law_unmarked text out)
     string(REGEX REPLACE "<!-- value [^>]*-->|<!-- /value -->" "" bare "${text}")
     set(${out} "${bare}" PARENT_SCOPE)
+endfunction()
+# A register's two budgets: its laws, everything before the appendix heading, and the whole file.
+# Sets ${out} to the problems, empty when both fit.
+function(zen_law_budget_problems rel text heading out)
+    set(problems "")
+    string(FIND "${text}" "\n${heading}\n" at)
+    if(at EQUAL -1)
+        set(laws "${text}")
+    else()
+        math(EXPR cut "${at} + 1")
+        string(SUBSTRING "${text}" 0 ${cut} laws)
+    endif()
+    string(LENGTH "${laws}" law_bytes)
+    string(LENGTH "${text}" file_bytes)
+    if(law_bytes GREATER ZEN_LAW_REGISTER_BYTES)
+        list(APPEND problems "${rel} is ${law_bytes} bytes above its appendix (a register's laws are at most ${ZEN_LAW_REGISTER_BYTES})")
+    endif()
+    if(file_bytes GREATER ZEN_LAW_FILE_BYTES)
+        list(APPEND problems "${rel} is ${file_bytes} bytes with its appendix (a register's whole file is at most ${ZEN_LAW_FILE_BYTES})")
+    endif()
+    set(${out} "${problems}" PARENT_SCOPE)
 endfunction()
 function(zen_law_count_lines text out)
     string(REGEX MATCHALL "\n" nl "${text}")
@@ -1509,26 +1591,8 @@ endmacro()
 # on GLOBAL properties keyed by its id; the structural rules are applied at the flush.
 macro(zen_law_flush_entry)
     if(NOT id STREQUAL "")
-        zen_law_proven_owes("${proven_text}" owes)
-        if(owes)
-            set_property(GLOBAL APPEND PROPERTY "zen_law_nowitness_${relkey}" "${id}")
-            if(proven_text MATCHES "\"")
-                zen_law_fail("${rel} ${id} PROVEN BY says witness: none and also cites a witness")
-            endif()
-        endif()
-        if(NOT unwitnessed_text STREQUAL "")
-            set_property(GLOBAL APPEND PROPERTY "zen_law_partial_${relkey}" "${id}")
-            if(owes)
-                zen_law_fail("${rel} ${id} writes both witness: none and UNWITNESSED; a law with no witness at all writes the first alone")
-            elseif(NOT proven_text MATCHES "\"")
-                zen_law_fail("${rel} ${id} writes UNWITNESSED and its PROVEN BY cites no witness; a law with none writes witness: none")
-            endif()
-        endif()
         if(NOT law)
             zen_law_fail("${rel} ${id} has no LAW line")
-        endif()
-        if(NOT proven)
-            zen_law_fail("${rel} ${id} has no PROVEN BY line")
         endif()
         if(lawlines GREATER 1)
             zen_law_fail("${rel} ${id} LAW wraps onto ${lawlines} lines (must be one)")
@@ -1543,22 +1607,55 @@ macro(zen_law_flush_entry)
             zen_law_fail("${rel} ${id} has ${why_count} WHY lines (at most one)")
         endif()
         set_property(GLOBAL PROPERTY "zen_law_file_${id}" "${rel}")
-        set_property(GLOBAL PROPERTY "zen_law_proven_${id}" "${proven_text}")
         set_property(GLOBAL PROPERTY "zen_law_why_${id}" "${why_target}")
         set_property(GLOBAL APPEND PROPERTY zen_law_ids "${id}")
         set_property(GLOBAL APPEND PROPERTY "zen_law_ids_of_${relkey}" "${id}")
+        list(APPEND file_ids "${id}")
     endif()
     set(id "")
     set(law 0)
-    set(proven 0)
     set(lawlines 0)
     set(means 0)
     set(dnm 0)
     set(section "")
-    set(proven_text "")
-    set(unwitnessed_text "")
     set(why_count 0)
     set(why_target "")
+endmacro()
+
+# One proof of the appendix, judged whole: it is the proof of a law above it, its only one, and
+# says what it proves -- its citations, or `witness: none` -- and either debt it owes.
+macro(zen_law_flush_proof)
+    if(NOT proof_id STREQUAL "")
+        if(proof_id IN_LIST proved_ids)
+            zen_law_fail("${rel} ${proof_id} has a second proof in the appendix")
+        elseif(NOT proof_id IN_LIST file_ids)
+            zen_law_fail("${rel} ${proof_id} has a proof in the appendix and no law above it")
+        else()
+            list(APPEND proved_ids "${proof_id}")
+            zen_law_proven_owes("${proven_text}" owes)
+            if(owes)
+                set_property(GLOBAL APPEND PROPERTY "zen_law_nowitness_${relkey}" "${proof_id}")
+                if(proven_text MATCHES "\"")
+                    zen_law_fail("${rel} ${proof_id} proof says witness: none and also cites a witness")
+                endif()
+            elseif(proven_text MATCHES "^[ ]*$")
+                zen_law_fail("${rel} ${proof_id} proof is empty; a law with no witness writes witness: none")
+            endif()
+            if(NOT unwitnessed_text STREQUAL "")
+                set_property(GLOBAL APPEND PROPERTY "zen_law_partial_${relkey}" "${proof_id}")
+                if(owes)
+                    zen_law_fail("${rel} ${proof_id} writes both witness: none and UNWITNESSED; a law with no witness at all writes the first alone")
+                elseif(NOT proven_text MATCHES "\"")
+                    zen_law_fail("${rel} ${proof_id} writes UNWITNESSED and its proof cites no witness; a law with none writes witness: none")
+                endif()
+            endif()
+            set_property(GLOBAL PROPERTY "zen_law_proven_${proof_id}" "${proven_text}")
+        endif()
+    endif()
+    set(proof_id "")
+    set(proven_text "")
+    set(unwitnessed_text "")
+    set(proof_section "")
 endmacro()
 
 # One register (or router), walked over its text -- handed in, so the self-test can walk a
@@ -1568,8 +1665,13 @@ function(zen_law_walk_text rel content is_router)
     string(MAKE_C_IDENTIFIER "${rel}" relkey)
     zen_law_family_of_path("${rel}" family)
     string(REPLACE "\n" ";" lines "${content}")
+    set(file_ids "")
+    set(proved_ids "")
     set(id "")
     zen_law_flush_entry()
+    set(proof_id "")
+    zen_law_flush_proof()
+    set(in_appendix 0)
     set(dna 0)
     set(in_dna 0)
     set(bullet "")
@@ -1585,6 +1687,49 @@ function(zen_law_walk_text rel content is_router)
         endif()
         if(line MATCHES "^SINCE")
             zen_law_fail("${rel}:${n} has a SINCE line; phase codes are retired, provenance is the WHY line's record")
+        endif()
+        # The appendix, from its heading to the file's end: under each `### <id>` the proof of the
+        # law above it -- its citations in the proof grammar, or `witness: none` -- and an
+        # `UNWITNESSED — <clause>` last, when the law owes one clause.
+        if(in_appendix)
+            if(line MATCHES "^## ")
+                zen_law_fail("${rel}:${n} is a heading after '${ZEN_LAW_APPENDIX_HEADING}'; the appendix is the register's end")
+            elseif(line MATCHES "^### (.*)$")
+                set(heading_id "${CMAKE_MATCH_1}")
+                zen_law_flush_proof()
+                set(proof_section "stray")
+                if(heading_id MATCHES "^${ZEN_LAW_ID_RE}$")
+                    set(proof_id "${heading_id}")
+                    set(proof_section "proof")
+                else()
+                    zen_law_show("${line}" shown)
+                    zen_law_fail("${rel}:${n} appendix heading names no law id: ${shown}")
+                endif()
+            elseif(line MATCHES "^[ \t]*$")
+            elseif(proof_section STREQUAL "")
+                zen_law_fail("${rel}:${n} stands in the appendix before its first proof")
+            elseif(line MATCHES "^UNWITNESSED")
+                zen_law_unwitnessed_clause("${line}" clause)
+                if(clause STREQUAL "")
+                    zen_law_fail("${rel}:${n} ${proof_id} UNWITNESSED names no clause (the form is `UNWITNESSED — <clause>`)")
+                endif()
+                string(APPEND unwitnessed_text " ${clause}")
+                string(STRIP "${unwitnessed_text}" unwitnessed_text)
+                set(proof_section "unwitnessed")
+            elseif(proof_section STREQUAL "unwitnessed")
+                string(APPEND unwitnessed_text " ${line}")
+            else()
+                string(APPEND proven_text " ${line}")
+            endif()
+            continue()
+        endif()
+        if(NOT is_router AND line STREQUAL "${ZEN_LAW_APPENDIX_HEADING}")
+            set(headed 1)
+            zen_law_flush_entry()
+            zen_law_flush_bullet()
+            set(in_dna 0)
+            set(in_appendix 1)
+            continue()
         endif()
         # The one `Retired:` line, in the preamble: the ids of the laws this register no longer
         # holds, each never declared again and never cited (agents/workshop.md, rule 6).
@@ -1687,10 +1832,9 @@ function(zen_law_walk_text rel content is_router)
             set(section "dnm")
             continue()
         endif()
-        if(line MATCHES "^PROVEN BY (—|--) ")
-            set(proven 1)
-            set(section "proven")
-            set(proven_text "${line}")
+        if(line MATCHES "^(PROVEN BY|UNWITNESSED)")
+            zen_law_fail("${rel}:${n} ${id} has a ${CMAKE_MATCH_1} line among its laws; its proof stands under '### ${id}' in the appendix, '${ZEN_LAW_APPENDIX_HEADING}'")
+            set(section "")
             continue()
         endif()
         if(line MATCHES "^WHY (—|--) ")
@@ -1703,30 +1847,10 @@ function(zen_law_walk_text rel content is_router)
             endif()
             continue()
         endif()
-        if(line MATCHES "^UNWITNESSED")
-            zen_law_unwitnessed_clause("${line}" clause)
-            if(clause STREQUAL "")
-                zen_law_fail("${rel}:${n} ${id} UNWITNESSED names no clause (the form is `UNWITNESSED — <clause>`)")
-            elseif(NOT proven)
-                zen_law_fail("${rel}:${n} ${id} UNWITNESSED comes before PROVEN BY; it is the line after it")
-            endif()
-            string(APPEND unwitnessed_text " ${clause}")
-            string(STRIP "${unwitnessed_text}" unwitnessed_text)
-            set(section "unwitnessed")
-            continue()
-        endif()
         if(line MATCHES "^[ \t]*$")
-            if(section STREQUAL "law" OR section STREQUAL "proven" OR section STREQUAL "unwitnessed")
+            if(section STREQUAL "law")
                 set(section "")
             endif()
-            continue()
-        endif()
-        if(section STREQUAL "proven")
-            string(APPEND proven_text " ${line}")
-            continue()
-        endif()
-        if(section STREQUAL "unwitnessed")
-            string(APPEND unwitnessed_text " ${line}")
             continue()
         endif()
         if(line MATCHES "^- ")
@@ -1745,6 +1869,12 @@ function(zen_law_walk_text rel content is_router)
     endforeach()
     zen_law_flush_entry()
     zen_law_flush_bullet()
+    zen_law_flush_proof()
+    foreach(law_id IN LISTS file_ids)
+        if(NOT law_id IN_LIST proved_ids)
+            zen_law_fail("${rel} ${law_id} has no proof; it stands under '### ${law_id}' in the appendix, '${ZEN_LAW_APPENDIX_HEADING}'")
+        endif()
+    endforeach()
 endfunction()
 
 function(zen_law_walk_register rel is_router)
@@ -1764,7 +1894,7 @@ list(APPEND ZEN_LAW_FAMILIES QQ)
 set(ZEN_LAW_DIR_QQ agents/qq-selftest)
 set(ZEN_LAW_ROUTER_QQ agents/qq-selftest.md)
 zen_law_families_derive()
-set(law_misfiled "## WL-ZZZ-01 — A law in its own family's directory\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\n## QQ-ZZZ-01 — A law of the second family, misfiled here\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\n## QX-ZZZ-01 — A law of a family the table does not name\n\nLAW — One line.\n\nPROVEN BY — witness: none\n")
+set(law_misfiled "## WL-ZZZ-01 — A law in its own family's directory\n\nLAW — One line.\n\n## QQ-ZZZ-01 — A law of the second family, misfiled here\n\nLAW — One line.\n\n## QX-ZZZ-01 — A law of a family the table does not name\n\nLAW — One line.\n\n## Proven by\n\n### WL-ZZZ-01\nwitness: none\n")
 zen_law_walk_text("${ZEN_LAW_DIR_WL}/selftest-misfiled.md" "${law_misfiled}" 0)
 get_property(law_misfiled_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "")
@@ -1773,7 +1903,7 @@ set(law_long "- ${law_long}end.")
 math(EXPR law_over "${ZEN_LAW_LINE_BYTES} + 1")
 math(EXPR law_over_fill "${law_over} - 2")
 string(REPEAT "w" ${law_over_fill} law_wide)
-set(law_filed "## QQ-ZZZ-02 — A law of the second family in its own directory\n\nLAW — One line.\n\nMEANS\n${law_long}\n- ${law_wide}\n\nPROVEN BY — witness: none\n")
+set(law_filed "## QQ-ZZZ-02 — A law of the second family in its own directory\n\nLAW — One line.\n\nMEANS\n${law_long}\n- ${law_wide}\n\n## Proven by\n\n### QQ-ZZZ-02\nwitness: none\n")
 zen_law_walk_text("agents/qq-selftest/selftest-filed.md" "${law_filed}" 0)
 get_property(law_filed_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "${law_saved_problems}")
@@ -1799,8 +1929,8 @@ zen_law_count_lines("${law_filed_problems}" law_filed_count)
 if(NOT law_filed_count EQUAL 1
    OR NOT law_filed_problems MATCHES "selftest-filed.md:7 is ${law_over} bytes"
    OR NOT law_misfiled_count EQUAL 2
-   OR NOT law_misfiled_problems MATCHES "selftest-misfiled.md:7 QQ-ZZZ-01 is a QQ entry filed under ${ZEN_LAW_DIR_WL}/, the WL family's directory"
-   OR NOT law_misfiled_problems MATCHES "selftest-misfiled.md:13 heading is neither an entry of a family the table names")
+   OR NOT law_misfiled_problems MATCHES "selftest-misfiled.md:5 QQ-ZZZ-01 is a QQ entry filed under ${ZEN_LAW_DIR_WL}/, the WL family's directory"
+   OR NOT law_misfiled_problems MATCHES "selftest-misfiled.md:9 heading is neither an entry of a family the table names")
     message(FATAL_ERROR
         "law-register: SELF-TEST FAILED -- the law walker raised '${law_filed_problems}' on a "
         "second-family register in its own directory, whose one line past the line budget is its "
@@ -1815,7 +1945,7 @@ endif()
 # is refused (one). Everything the walks record is dropped again, so nothing reaches the real walk.
 get_property(law_saved_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "")
-set(law_retired_text "Retired: WL-ZZZ-07\n\n## WL-ZZZ-08 — RETIRED: a heading so marked\n\nWHY — `x`\n\n## WL-ZZZ-09 — A law\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\nRetired: WL-ZZZ-10\n")
+set(law_retired_text "Retired: WL-ZZZ-07\n\n## WL-ZZZ-08 — RETIRED: a heading so marked\n\nWHY — `x`\n\n## WL-ZZZ-09 — A law\n\nLAW — One line.\n\nRetired: WL-ZZZ-10\n\n## Proven by\n\n### WL-ZZZ-09\nwitness: none\n")
 zen_law_walk_text("${ZEN_LAW_DIR_WL}/selftest-retired.md" "${law_retired_text}" 0)
 get_property(law_retired_problems GLOBAL PROPERTY zen_law_problems)
 get_property(law_retired_recorded GLOBAL PROPERTY zen_law_retired_ids)
@@ -1841,7 +1971,7 @@ zen_law_count_lines("${law_retired_problems}" law_retired_count)
 zen_law_count_lines("${law_retired_family_problems}" law_retired_family_count)
 if(NOT law_retired_recorded STREQUAL "WL-ZZZ-07" OR NOT law_retired_count EQUAL 2
    OR NOT law_retired_problems MATCHES "selftest-retired.md:3 WL-ZZZ-08 is a heading marked RETIRED"
-   OR NOT law_retired_problems MATCHES "selftest-retired.md:13 `Retired:` stands after a heading"
+   OR NOT law_retired_problems MATCHES "selftest-retired.md:11 `Retired:` stands after a heading"
    OR NOT law_retired_family_count EQUAL 1 OR NOT law_retired_family_problems MATCHES "MW-ZZZ-11")
     message(FATAL_ERROR
         "law-register: SELF-TEST FAILED -- the walker recorded '${law_retired_recorded}' as retired "
@@ -1851,12 +1981,73 @@ if(NOT law_retired_recorded STREQUAL "WL-ZZZ-07" OR NOT law_retired_count EQUAL 
         "heading, or its id escape the line that retires it.")
 endif()
 
+# The appendix, walked: a law without its proof, a proof without its law, a PROVEN BY left among
+# the laws and a heading after the appendix are refused, four problems, and a register whose every
+# law has its one proof raises none. The budgets: laws a byte past theirs is one problem, a whole
+# file a byte past its own another, and laws and file both at their budgets none.
+get_property(law_saved_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+set(law_pairs "## WL-ZZZ-21 — A law with its proof\n\nLAW — One line.\n\n## WL-ZZZ-22 — A law without its proof\n\nLAW — One line.\n\n## WL-ZZZ-23 — A law whose proof stands among the laws\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\n## Proven by\n\n### WL-ZZZ-21\nwitness: none\n\n### WL-ZZZ-23\nwitness: none\n\n### WL-ZZZ-24\nwitness: none\n\n## Do not assume\n")
+zen_law_walk_text("${ZEN_LAW_DIR_WL}/selftest-pairs.md" "${law_pairs}" 0)
+get_property(law_pairs_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+set(law_paired "## WL-ZZZ-25 — A law with its proof\n\nLAW — One line.\n\n## Do not assume\n\n## Proven by\n\n### WL-ZZZ-25\n`a.hpp` x\n")
+zen_law_walk_text("${ZEN_LAW_DIR_WL}/selftest-paired.md" "${law_paired}" 0)
+get_property(law_paired_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "${law_saved_problems}")
+foreach(synthetic WL-ZZZ-21 WL-ZZZ-22 WL-ZZZ-23 WL-ZZZ-24 WL-ZZZ-25)
+    foreach(facet file proven why)
+        set_property(GLOBAL PROPERTY "zen_law_${facet}_${synthetic}")
+    endforeach()
+endforeach()
+foreach(synthetic_rel ${ZEN_LAW_DIR_WL}/selftest-pairs.md ${ZEN_LAW_DIR_WL}/selftest-paired.md)
+    string(MAKE_C_IDENTIFIER "${synthetic_rel}" synthetic_key)
+    foreach(facet ids_of nowitness partial debts partial_echo)
+        set_property(GLOBAL PROPERTY "zen_law_${facet}_${synthetic_key}")
+    endforeach()
+endforeach()
+set_property(GLOBAL PROPERTY zen_law_ids "")
+zen_law_count_lines("${law_pairs_problems}" law_pairs_count)
+set(budget_heading "${ZEN_LAW_APPENDIX_HEADING}")
+string(REPEAT "x" ${ZEN_LAW_REGISTER_BYTES} budget_laws_over)
+zen_law_budget_problems("selftest-laws.md" "${budget_laws_over}\n${budget_heading}\nz\n" "${budget_heading}" budget_laws)
+string(SUBSTRING "${budget_laws_over}" 1 -1 budget_laws_at)
+string(LENGTH "${budget_heading}\n" budget_head)
+math(EXPR budget_fill "${ZEN_LAW_FILE_BYTES} - ${ZEN_LAW_REGISTER_BYTES} - ${budget_head}")
+string(REPEAT "y" ${budget_fill} budget_proofs_at)
+zen_law_budget_problems("selftest-file.md" "${budget_laws_at}\n${budget_heading}\n${budget_proofs_at}y" "${budget_heading}" budget_file)
+zen_law_budget_problems("selftest-at.md" "${budget_laws_at}\n${budget_heading}\n${budget_proofs_at}" "${budget_heading}" budget_at)
+list(LENGTH budget_laws budget_laws_count)
+list(LENGTH budget_file budget_file_count)
+math(EXPR budget_laws_bytes "${ZEN_LAW_REGISTER_BYTES} + 1")
+math(EXPR budget_file_bytes "${ZEN_LAW_FILE_BYTES} + 1")
+if(NOT law_pairs_count EQUAL 4
+   OR NOT law_pairs_problems MATCHES "selftest-pairs.md WL-ZZZ-22 has no proof"
+   OR NOT law_pairs_problems MATCHES "selftest-pairs.md WL-ZZZ-24 has a proof in the appendix and no law above it"
+   OR NOT law_pairs_problems MATCHES "selftest-pairs.md:13 WL-ZZZ-23 has a PROVEN BY line among its laws"
+   OR NOT law_pairs_problems MATCHES "selftest-pairs.md:26 is a heading after"
+   OR NOT law_paired_problems STREQUAL ""
+   OR NOT budget_laws_count EQUAL 1
+   OR NOT budget_laws MATCHES "selftest-laws.md is ${budget_laws_bytes} bytes above its appendix"
+   OR NOT budget_file_count EQUAL 1
+   OR NOT budget_file MATCHES "selftest-file.md is ${budget_file_bytes} bytes with its appendix"
+   OR NOT budget_at STREQUAL "")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the appendix walk raised ${law_pairs_count} problem(s) on "
+        "a register with a law without its proof, a proof without its law, a PROVEN BY among the "
+        "laws and a heading after the appendix:\n${law_pairs_problems}\n'${law_paired_problems}' on "
+        "one whose law has its proof, and the budgets said '${budget_laws}' of laws a byte past "
+        "theirs, '${budget_file}' of a file a byte past its own and '${budget_at}' at both. A law "
+        "could then stand without its proof, or a proof outlive its law, or the laws or the file "
+        "grow past their budget.")
+endif()
+
 # ---- the VM form: a method register ---------------------------------------------------------
-# `## VM-<AREA>-NN — <title>`, `METHOD — <one sentence>`, `BECAUSE — <at most three lines>`, and
-# `SEEN — nowhere yet` or `SEEN — <paths, identifiers, witnesses>`, resolved by the PROVEN BY
-# walk below. One heading may be no entry (ZEN_VM_TABLE_HEADING, free text), and no line carries
-# a phase tag: a method is keyed by its lesson. The walker takes the text, so the self-test can
-# hand it a synthetic register.
+# `## VM-<AREA>-NN — <title>`, `METHOD — <one sentence>`, `BECAUSE — <at most three lines>`; under
+# `## Seen`, the register's end, `### VM-<AREA>-NN` and `nowhere yet` or what the proof grammar
+# reads, resolved by the proof walk below. One heading may be no entry (ZEN_VM_TABLE_HEADING), and
+# no line carries a phase tag: a method is keyed by its lesson. The walker takes the text, so the
+# self-test can hand it a synthetic register.
 macro(zen_vm_flush_entry)
     if(NOT id STREQUAL "")
         if(method EQUAL 0)
@@ -1867,31 +2058,51 @@ macro(zen_vm_flush_entry)
         elseif(because_lines GREATER ZEN_VM_BECAUSE_MAX)
             zen_law_fail("${rel} ${id} BECAUSE is ${because_lines} lines (at most ${ZEN_VM_BECAUSE_MAX})")
         endif()
-        if(NOT seen)
-            zen_law_fail("${rel} ${id} has no SEEN line")
-        elseif(seen_text STREQUAL "nowhere yet")
-            set_property(GLOBAL APPEND PROPERTY zen_vm_nowhere "${id}")
-            set(seen_text "")
-        elseif(NOT seen_text MATCHES "`")
-            zen_law_fail("${rel} ${id} SEEN names nothing in backticks and is not `nowhere yet`")
-        endif()
         set_property(GLOBAL PROPERTY "zen_law_file_${id}" "${rel}")
-        set_property(GLOBAL PROPERTY "zen_law_proven_${id}" "${seen_text}")
         set_property(GLOBAL PROPERTY "zen_law_word_${id}" "SEEN")
         set_property(GLOBAL APPEND PROPERTY zen_vm_ids "${id}")
+        list(APPEND file_ids "${id}")
     endif()
     set(id "")
     set(method 0)
     set(because_lines 0)
-    set(seen 0)
-    set(seen_text "")
     set(section "")
+endmacro()
+
+# One SEEN of the appendix: the SEEN of a method above it, its only one, `nowhere yet` or naming
+# something in backticks.
+macro(zen_vm_flush_seen)
+    if(NOT seen_id STREQUAL "")
+        string(STRIP "${seen_text}" seen_text)
+        if(seen_id IN_LIST seen_ids)
+            zen_law_fail("${rel} ${seen_id} has a second SEEN in the appendix")
+        elseif(NOT seen_id IN_LIST file_ids)
+            zen_law_fail("${rel} ${seen_id} has a SEEN in the appendix and no method above it")
+        else()
+            list(APPEND seen_ids "${seen_id}")
+            if(seen_text STREQUAL "nowhere yet")
+                set_property(GLOBAL APPEND PROPERTY zen_vm_nowhere "${seen_id}")
+                set(seen_text "")
+            elseif(NOT seen_text MATCHES "`")
+                zen_law_fail("${rel} ${seen_id} SEEN names nothing in backticks and is not `nowhere yet`")
+            endif()
+            set_property(GLOBAL PROPERTY "zen_law_proven_${seen_id}" "${seen_text}")
+        endif()
+    endif()
+    set(seen_id "")
+    set(seen_text "")
+    set(seen_section "")
 endmacro()
 
 function(zen_vm_walk_text rel content)
     string(REPLACE "\n" ";" lines "${content}")
+    set(file_ids "")
+    set(seen_ids "")
     set(id "")
     zen_vm_flush_entry()
+    set(seen_id "")
+    zen_vm_flush_seen()
+    set(in_appendix 0)
     set(tables 0)
     set(in_table 0)
     set(n 0)
@@ -1904,6 +2115,36 @@ function(zen_vm_walk_text rel content)
         endif()
         if(line MATCHES "^SINCE")
             zen_law_fail("${rel}:${n} has a SINCE line; phase codes are retired")
+        endif()
+        if(in_appendix)
+            if(line MATCHES "^## ")
+                zen_law_fail("${rel}:${n} is a heading after '${ZEN_VM_APPENDIX_HEADING}'; the appendix is the register's end")
+            elseif(line MATCHES "^### (VM-[A-Z]+-[0-9]+)$")
+                set(heading_id "${CMAKE_MATCH_1}")
+                zen_vm_flush_seen()
+                set(seen_id "${heading_id}")
+                set(seen_section "seen")
+            elseif(line MATCHES "^### ")
+                zen_vm_flush_seen()
+                set(seen_section "stray")
+                zen_law_show("${line}" shown)
+                zen_law_fail("${rel}:${n} appendix heading names no method id: ${shown}")
+            elseif(line MATCHES "^[ \t]*$")
+            elseif(seen_section STREQUAL "")
+                zen_law_fail("${rel}:${n} stands in the appendix before its first SEEN")
+            else()
+                zen_vm_phase_tag("${line}" tag)
+                if(NOT tag STREQUAL "")
+                    zen_law_fail("${rel}:${n} ${seen_id} carries a phase tag ${tag}; a method is keyed by the lesson")
+                endif()
+                string(APPEND seen_text " ${line}")
+            endif()
+            continue()
+        endif()
+        if(line STREQUAL "${ZEN_VM_APPENDIX_HEADING}")
+            zen_vm_flush_entry()
+            set(in_appendix 1)
+            continue()
         endif()
         if(line MATCHES "^## ")
             zen_vm_flush_entry()
@@ -1919,7 +2160,7 @@ function(zen_vm_walk_text rel content)
             zen_vm_entry_heading("${line}" id)
             if(id STREQUAL "")
                 zen_law_show("${line}" shown)
-                zen_law_fail("${rel}:${n} heading is neither a VM entry nor '${ZEN_VM_TABLE_HEADING}': ${shown}")
+                zen_law_fail("${rel}:${n} heading is neither a VM entry, '${ZEN_VM_TABLE_HEADING}' nor '${ZEN_VM_APPENDIX_HEADING}': ${shown}")
                 continue()
             endif()
             get_property(known GLOBAL PROPERTY "zen_law_file_${id}" SET)
@@ -1959,10 +2200,9 @@ function(zen_vm_walk_text rel content)
             set(section "because")
             continue()
         endif()
-        if(line MATCHES "^SEEN (—|--) (.*)$")
-            set(seen 1)
-            string(STRIP "${CMAKE_MATCH_2}" seen_text)
-            set(section "seen")
+        if(line MATCHES "^SEEN (—|--) ")
+            zen_law_fail("${rel}:${n} ${id} has a SEEN line among its methods; it stands under '### ${id}' in the appendix, '${ZEN_VM_APPENDIX_HEADING}'")
+            set(section "")
             continue()
         endif()
         if(line MATCHES "^[ \t]*$")
@@ -1973,14 +2213,18 @@ function(zen_vm_walk_text rel content)
             zen_law_fail("${rel}:${n} ${id} METHOD wraps onto a second line (it is one line)")
         elseif(section STREQUAL "because")
             math(EXPR because_lines "${because_lines} + 1")
-        elseif(section STREQUAL "seen")
-            string(APPEND seen_text " ${line}")
         else()
             zen_law_show("${line}" shown)
-            zen_law_fail("${rel}:${n} ${id} has a line outside METHOD, BECAUSE and SEEN: ${shown}")
+            zen_law_fail("${rel}:${n} ${id} has a line outside METHOD and BECAUSE: ${shown}")
         endif()
     endforeach()
     zen_vm_flush_entry()
+    zen_vm_flush_seen()
+    foreach(method_id IN LISTS file_ids)
+        if(NOT method_id IN_LIST seen_ids)
+            zen_law_fail("${rel} ${method_id} has no SEEN; it stands under '### ${method_id}' in the appendix, '${ZEN_VM_APPENDIX_HEADING}'")
+        endif()
+    endforeach()
 endfunction()
 
 function(zen_vm_walk_register rel)
@@ -1994,25 +2238,35 @@ endfunction()
 # are dropped, so nothing here reaches the real walk.
 get_property(vm_saved_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "")
-set(vm_good "## VM-ZZZ-01 — A well-formed method\n\nMETHOD — One sentence.\nBECAUSE — one line,\nand a second.\nSEEN — nowhere yet\n\n## Where a case goes\n\n| a | b |\n")
+set(vm_good "## VM-ZZZ-01 — A well-formed method\n\nMETHOD — One sentence.\nBECAUSE — one line,\nand a second.\n\n## Where a case goes\n\n| a | b |\n\n## Seen\n\n### VM-ZZZ-01\nnowhere yet\n")
 zen_vm_walk_text("selftest-good.md" "${vm_good}")
 get_property(vm_good_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "")
 string(REPEAT "x" 211 vm_long)
-set(vm_bad "## VM-ZZZ-02 — A long method\n\nMETHOD — ${vm_long}\nBECAUSE — one,\ntwo,\nthree,\nfour.\nSEEN — nowhere yet\n\n## VM-ZZZ-03 — A tagged method\n\nMETHOD — Short.\nBECAUSE — measured (QR-13) once.\nSEEN — nowhere yet\n\n## Not an entry\n")
+set(vm_bad "## VM-ZZZ-02 — A long method\n\nMETHOD — ${vm_long}\nBECAUSE — one,\ntwo,\nthree,\nfour.\n\n## VM-ZZZ-03 — A tagged method\n\nMETHOD — Short.\nBECAUSE — measured (QR-13) once.\n\n## Not an entry\n\n## Seen\n\n### VM-ZZZ-02\nnowhere yet\n\n### VM-ZZZ-03\nnowhere yet\n")
 zen_vm_walk_text("selftest-bad.md" "${vm_bad}")
 get_property(vm_bad_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+set(vm_pairs "## VM-ZZZ-04 — A method without its SEEN\n\nMETHOD — Short.\nBECAUSE — once.\n\n## VM-ZZZ-05 — A method whose SEEN stands above\n\nMETHOD — Short.\nBECAUSE — once.\nSEEN — nowhere yet\n\n## Seen\n\n### VM-ZZZ-05\nnowhere yet\n\n### VM-ZZZ-06\nnowhere yet\n")
+zen_vm_walk_text("selftest-pairs.md" "${vm_pairs}")
+get_property(vm_pairs_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "${vm_saved_problems}")
 set_property(GLOBAL PROPERTY zen_vm_ids "")
 set_property(GLOBAL PROPERTY zen_vm_nowhere "")
 zen_law_count_lines("${vm_bad_problems}" vm_bad_count)
+zen_law_count_lines("${vm_pairs_problems}" vm_pairs_count)
 if(NOT vm_good_problems STREQUAL "" OR NOT vm_bad_count EQUAL 4
+   OR NOT vm_pairs_count EQUAL 3 OR NOT vm_pairs_problems MATCHES "VM-ZZZ-04 has no SEEN"
+   OR NOT vm_pairs_problems MATCHES "VM-ZZZ-06 has a SEEN in the appendix and no method above it"
+   OR NOT vm_pairs_problems MATCHES "selftest-pairs.md:10 VM-ZZZ-05 has a SEEN line among its methods"
    OR NOT vm_bad_problems MATCHES "METHOD is 211 bytes" OR NOT vm_bad_problems MATCHES "BECAUSE is 4 lines"
    OR NOT vm_bad_problems MATCHES "phase tag \\(QR-13\\)" OR NOT vm_bad_problems MATCHES "heading is neither")
     message(FATAL_ERROR
         "law-register: SELF-TEST FAILED -- the method-register walker raised '${vm_good_problems}' "
         "on a well-formed register and ${vm_bad_count} problem(s) on one with four defects:\n"
-        "${vm_bad_problems}\nEvery VM entry below would then be judged by a walker that cannot say no.")
+        "${vm_bad_problems}\nand ${vm_pairs_count} on one with a method without its SEEN, a SEEN "
+        "without its method and a SEEN among the methods:\n${vm_pairs_problems}\nEvery VM entry "
+        "below would then be judged by a walker that cannot say no.")
 endif()
 
 foreach(rel IN LISTS register_files)
@@ -2067,9 +2321,9 @@ endif()
 # ---- the budgets: every *.md under agents/ -----------------------------------------------------
 #
 # A file's bytes are counted without its value markers or carriage returns. A router is one named
-# in ZEN_LAW_ROUTERS or ZEN_VM_ROUTERS; every other file under agents/ -- a register, a routed
-# document, a decision record -- has the register budget, except the documents ZEN_LAW_UNBUDGETED
-# names, which must stay over it while they are listed. A record over the flag size is counted.
+# in ZEN_LAW_ROUTERS or ZEN_VM_ROUTERS; a register's laws have a budget, and its whole file one;
+# every other file under agents/ has the register budget, except the documents ZEN_LAW_UNBUDGETED
+# names, which must stay over it while listed. A record over the flag size is counted.
 
 file(GLOB_RECURSE agents_md RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${ZEN_LAW_AGENTS_DIR}/*.md")
 list(SORT agents_md)
@@ -2093,6 +2347,16 @@ foreach(rel IN LISTS agents_md)
         else()
             zen_law_fail("${rel} is ${bytes} bytes, within the register budget, and is still named in ZEN_LAW_UNBUDGETED; remove it there")
         endif()
+    elseif(rel IN_LIST register_files OR rel IN_LIST vm_register_files)
+        if(rel IN_LIST register_files)
+            set(heading "${ZEN_LAW_APPENDIX_HEADING}")
+        else()
+            set(heading "${ZEN_VM_APPENDIX_HEADING}")
+        endif()
+        zen_law_budget_problems("${rel}" "${budget_text}" "${heading}" budget_problems)
+        foreach(p IN LISTS budget_problems)
+            zen_law_fail("${p}")
+        endforeach()
     else()
         if(bytes GREATER ZEN_LAW_REGISTER_BYTES)
             zen_law_fail("${rel} is ${bytes} bytes (a file under ${ZEN_LAW_AGENTS_DIR}/ is at most ${ZEN_LAW_REGISTER_BYTES}; a router ${ZEN_LAW_ROUTER_BYTES})")
@@ -2116,7 +2380,7 @@ endif()
 
 # ---- witness debts are written in both places or in neither -------------------------------
 #
-# Per register and per marker: every entry whose PROVEN BY says `witness: none`, and every
+# Per register and per marker: every entry whose proof says `witness: none`, and every
 # entry that writes `UNWITNESSED -- <clause>`, is named by a Do-not-assume bullet that says
 # the same word, and every id such a bullet names is an entry of that register that writes
 # that debt. Zero on both sides is the goal, not an empty population.
@@ -2202,11 +2466,11 @@ foreach(rel IN LISTS agents_md)
     endif()
 endforeach()
 
-# ---- population 3: PROVEN BY and SEEN -- paths, identifiers, witnesses ------------------------
-# The paragraph is one line here. Quoted witnesses come out first, so a case name holding
-# backticks sheds nothing into the identifier walk; what remains in backticks is a path (which
-# sets the file later identifiers are checked against) or an identifier. A SEEN is the same
-# paragraph under another word, through the same predicates.
+# ---- population 3: the appendices' proofs and SEENs -- paths, identifiers, witnesses ------------
+# A proof is one line here, read in the proof grammar (zen_law_proof_tokens). Quoted witnesses
+# come out first, so a case name holding backticks sheds nothing into the identifier walk; what
+# remains is a path (which sets the file later identifiers are checked against) or an identifier.
+# A SEEN is the same grammar under another word, through the same predicates.
 
 set(path_count 0)
 set(ident_count 0)
@@ -2217,7 +2481,7 @@ foreach(id IN LISTS all_ids vm_ids)
     get_property(para GLOBAL PROPERTY "zen_law_proven_${id}")
     get_property(word GLOBAL PROPERTY "zen_law_word_${id}")
     if(word STREQUAL "")
-        set(word "PROVEN BY")
+        set(word "proof")
     endif()
     if(para STREQUAL "")
         continue()
@@ -2231,15 +2495,15 @@ foreach(id IN LISTS all_ids vm_ids)
             zen_law_fail("${rel} ${id} ${word} witness is not a TEST_CASE/SUBCASE literal under ${ZEN_LAW_WITNESS_DIR}/: ${shown}")
         endif()
     endforeach()
-    string(REGEX REPLACE "\"[^\"]*\"" "" rest "${para}")
-    string(REGEX MATCHALL "`[^`]*`" tokens "${rest}")
+    string(REGEX REPLACE "\"[^\"]*\"" " " rest "${para}")
+    string(REPLACE "witness: none" " " rest "${rest}")
+    zen_law_proof_tokens("${rest}" tokens strays)
+    foreach(stray IN LISTS strays)
+        zen_law_show("${stray}" shown)
+        zen_law_fail("${rel} ${id} ${word} has a word that is no path, identifier or case, and stands in no note: ${shown}")
+    endforeach()
     set(cur "")
     foreach(tok IN LISTS tokens)
-        string(REGEX REPLACE "^`|`$" "" tok "${tok}")
-        string(STRIP "${tok}" tok)
-        if(tok STREQUAL "")
-            continue()
-        endif()
         if(tok MATCHES "${ZEN_LAW_PATH_RE}")
             math(EXPR path_count "${path_count} + 1")
             set(cur "${tok}")
@@ -2608,7 +2872,7 @@ endif()
 # ---- population 6: case names' law ids, and every current-facing document ---------------------
 # The case names were read for codes with the witnesses; a law id one opens with must be a law a
 # register declares. Then every current-facing Markdown file is read whole: every case it cites by
-# name must be a TEST_CASE or SUBCASE under tests/, wherever the citation stands -- a PROVEN BY, a
+# name must be a TEST_CASE or SUBCASE under tests/, wherever the citation stands -- a proof, a
 # decision record's alternative, a router's prose -- and a file that holds a phase id is read line
 # by line, to say where.
 
@@ -2708,7 +2972,7 @@ endforeach()
 if(cite_count EQUAL 0)
     message(FATAL_ERROR
         "law-register: ${plan_document_count} current-facing documents cite ZERO cases by name. The "
-        "registers' PROVEN BY lines alone cite hundreds, so the citation grammar has stopped "
+        "registers' own prose and the routers cite dozens, so the citation grammar has stopped "
         "reading; an empty population is a failure here and not a quiet pass.")
 endif()
 message(STATUS
@@ -2743,7 +3007,7 @@ message(STATUS "law-register: ${vm_register_count} method registers, ${vm_entry_
 message(STATUS "law-register: ${agents_md_count} files under ${ZEN_LAW_AGENTS_DIR}/ within budget; "
                "unbudgeted, still over:${unbudgeted_report}; records over "
                "${ZEN_LAW_RECORD_FLAG_BYTES} bytes: ${records_flagged}")
-message(STATUS "law-register: ${path_count} PROVEN BY paths, ${ident_count} identifiers, "
+message(STATUS "law-register: ${path_count} proof paths, ${ident_count} identifiers, "
                "${witness_checked} witnesses checked against ${witness_count} TEST_CASE/SUBCASE "
                "literals in ${witness_file_count} files")
 message(STATUS "law-register: ${pointer_files} source files carry pointers -- ${pointer_lines} "

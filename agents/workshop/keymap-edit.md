@@ -18,23 +18,6 @@ DOES NOT MEAN
 - that a presenter rebinds: the Hotkeys pane offers, captures or takes a spelling, and asks;
 - that an edit begun from a menu grabs the keys: it asks on the choice's terms (WL-CTX-09).
 
-PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `KeymapEditRequested`,
-`KeymapEditAnswered`; `workshop/weave.hpp` `on(KeymapEditRequested)`;
-`workshop/weave_desktop.cpp` `on(KeymapEditRequested)`, `authored_spelling`;
-`workshop/keymap.hpp` `apply_overrides`, `join_app_rows`, `join_pane_rows`;
-`workshop/pane_menu.hpp` `take_keyboard`; `workshop/desktop-pane/pane.cpp` `ask_edit`, `keys_chose`,
-`keys_key`, `keys_action`, `Capture`, `Typing`; `workshop/desktop-pane/vocabulary.hpp` `kMenuModifyPress`,
-`kMenuModifyType`, `kMenuAddPress`, `kMenuAddType`, `kMenuRemove`, `kMenuDisable`, `kMenuReset`;
-`tests/test_workshop_panes_desktop.cpp` case `"WL-KEY-17: Modify on an UNFOCUSED Hotkeys pane
-takes the keyboard through the guarded transition and captures the key"`, case `"WL-KEY-17: a
-mouse choice and its own release take the keyboard for an UNFOCUSED Hotkeys edit -- batched or
-separated, capture or typed spelling; a newer act still defeats it"`, case `"WL-KEY-17:
-right-click a binding, Modify (press a key): the change is live at once, written to the file and
-listed in the table; the keys stayed where they were"`, case `"WL-KEY-17: Add a key, Remove one,
-remove the last (disabled, aloud), Reset -- by menu and by the same door from the keyboard; two
-consecutive writes; the table lists every key"`, case `"WL-KEY-17: a collision refuses the edit
-in the collision law's own words, and nothing changes -- not the live map, not the file, not the
-rows"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-18 — A write is judged against the bytes this host read, and a live change is said
@@ -46,18 +29,42 @@ MEANS
 - a file refused at load refuses every edit: no write over a file the weaver has not repaired;
 - rows are written as values in authored order; unknown and retired rows are kept.
 
-PROVEN BY — `workshop/weave.hpp` `keymap_bytes_`, `keymap_file_present_`, `keymap_bad_`;
-`workshop/weave_handlers.cpp` `load_keymap`; `workshop/weave_desktop.cpp`
-`on(KeymapEditRequested)`; `workshop/screen.hpp` `kKeymapUnwrittenKey`; `workshop/persist.hpp`
-`write_file`, `read_file`; `workshop/keymap_persist.hpp` `to_text`;
-`tests/test_workshop_panes_desktop.cpp` case `"WL-KEY-18: persistence -- an isolated run applies
-live and says nothing was written; a file changed by another hand is not overwritten; a file
-refused at launch refuses every edit"`, case `"WL-KEY-18: a version-1 file is imported
-explicitly, unrelated and unknown rows are preserved as values in order, and the next write is
-version 2"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## Do not assume
 
 - That the JSON's layout is preserved: the values and their order are; the file is rewritten
   in the serializer's own form, and the guide says so.
+
+## Proven by
+
+### WL-KEY-17
+`workshop/desktop_seam_vocabulary.hpp` KeymapEditRequested KeymapEditAnswered
+`workshop/weave.hpp` on(KeymapEditRequested)
+`workshop/weave_desktop.cpp` on(KeymapEditRequested) authored_spelling
+`workshop/keymap.hpp` apply_overrides join_app_rows join_pane_rows
+`workshop/pane_menu.hpp` take_keyboard
+`workshop/desktop-pane/pane.cpp` ask_edit keys_chose keys_key keys_action Capture Typing
+`workshop/desktop-pane/vocabulary.hpp` kMenuModifyPress kMenuModifyType kMenuAddPress kMenuAddType
+kMenuRemove kMenuDisable kMenuReset
+`tests/test_workshop_panes_desktop.cpp` "WL-KEY-17: Modify on an UNFOCUSED Hotkeys pane takes the
+keyboard through the guarded transition and captures the key" "WL-KEY-17: a mouse choice and its own
+release take the keyboard for an UNFOCUSED Hotkeys edit -- batched or separated, capture or typed
+spelling; a newer act still defeats it" "WL-KEY-17: right-click a binding, Modify (press a key): the
+change is live at once, written to the file and listed in the table; the keys stayed where they
+were" "WL-KEY-17: Add a key, Remove one, remove the last (disabled, aloud), Reset -- by menu and by
+the same door from the keyboard; two consecutive writes; the table lists every key" "WL-KEY-17: a
+collision refuses the edit in the collision law's own words, and nothing changes -- not the live
+map, not the file, not the rows"
+
+### WL-KEY-18
+`workshop/weave.hpp` keymap_bytes_ keymap_file_present_ keymap_bad_
+`workshop/weave_handlers.cpp` load_keymap
+`workshop/weave_desktop.cpp` on(KeymapEditRequested)
+`workshop/screen.hpp` kKeymapUnwrittenKey
+`workshop/persist.hpp` write_file read_file
+`workshop/keymap_persist.hpp` to_text
+`tests/test_workshop_panes_desktop.cpp` "WL-KEY-18: persistence -- an isolated run applies live and
+says nothing was written; a file changed by another hand is not overwritten; a file refused at
+launch refuses every edit" "WL-KEY-18: a version-1 file is imported explicitly, unrelated and
+unknown rows are preserved as values in order, and the next write is version 2"

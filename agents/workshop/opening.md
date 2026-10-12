@@ -19,15 +19,6 @@ DOES NOT MEAN
 - that ordinary panes acquire this ceremony: a pane's reveal is still its own ask;
 - that the manager judges a hand: it is actor-blind; Files, the Builder and Edit Code ask class `open` first (WL-GUEST-03), and the editors answer only the weaver on a weaver's host.
 
-PROVEN BY — `workshop/opening.hpp` `OpeningManager`, `OpeningState`;
-`workshop/open_seam_vocabulary.hpp` `kOpeningRole`, `PresentationTrialRequested`,
-`PrepareSourceRequested`, `PresentationAdmitRequested`; `workshop/weave_opening.cpp` `ask`,
-`answers_flight`;
-`workshop/workshop.cpp` `mount_in_office`; `files/files.cpp` `open`;
-`tests/test_workshop_panes_editor.cpp` case `"a managed open has one commitment -- the published
-claims, the pane's reads, its snapshot and the desk agree at it, and A is current before it"`;
-`tests/test_workshop_panes_files.cpp` case `"Return on a source opens it in
-the Editor, through the one door"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-02 — Publication and application are two facts, and `accepted` is both
@@ -39,14 +30,6 @@ MEANS
 - after publication a failed application rolls nothing back and claims nothing preserved;
 - Declined is a functioning owner's answer; Failed holds the owner until reloaded or removed.
 
-PROVEN BY — `workshop/weave_opening.cpp` `on(PresentationAdmitted)`, `on(JointApplied)`,
-`settle`, `unapplied_words`; `workshop/weave_managed.cpp` `on_claim_published`;
-`editor/editor-pane/pane.cpp` `on_claim_published`, `activate`; `tests/test_workshop_panes_editor.cpp`
-case `"a loaded owner that cannot apply the published claim is held, named, and reloaded"`, case
-`"the real desk, shown a presentation it holds no trial for, answers that it did
-not apply it -- Declined, not held, named, and re-claiming its own truth"`, case `"the real
-Editor, held behind a publication its image could not apply, is reloaded
-into the normal image -- the successor keeps A, and the record says B was never applied"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-03 — Before the commitment A is current, and admitted input invalidates B
@@ -61,14 +44,6 @@ MEANS
 DOES NOT MEAN
 - that the 256-gesture hold returns under a larger cap: there is no hold.
 
-PROVEN BY — `workshop/weave_managed.cpp` `note_routed`, `derive_presentation`,
-`mirror_presentation`; `workshop/weave_external.cpp` `external_key`, `external_text`;
-`editor/editor-pane/pane.cpp` `claim_document`, `after_delivery`, `judge_source`;
-`tests/test_workshop_panes_editor.cpp` case `"legitimate A input while B is being arranged is
-admitted to A, and B is refused without moving the desk"`, case `"more than 256
-ordinary events across an opening, from three producers, are admitted in order with nothing held
-and nothing dropped"`, case `"a clipboard answer refuses the open wherever it lands,
-and A keeps its paste"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-04 — One live opening; a newer request supersedes a preparation, never a commitment
@@ -79,13 +54,6 @@ MEANS
 - there is no queue of intents and no retry: the refused requester asks again;
 - a change of the pane's rows, the setup's panes, places, sizes or ranks, or the owner before the commitment aborts it at the bus; a canvas moved alone is refused at the admission (WL-EDIT-13).
 
-PROVEN BY — `workshop/weave_opening.cpp` `on(OpenSourceRequested)`, `on(JointEnded)`,
-`refusal_of`; `tests/test_workshop_panes_editor.cpp` case `"a competing open through the OLD door
-while B is being arranged supersedes it, the stale preparation cannot commit, and a later setup
-change survives"`, case `"room lost before the commitment refuses the
-open, and nothing is authored or moved"`, case `"a real reload or removal
-of the Editor at queued intervals of an open cannot commit a stale preparation, keeps custody, and
-reclaims what the operation held"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-05 — Delivered silence stays pending, bounded and inspectable
@@ -100,17 +68,6 @@ MEANS
 DOES NOT MEAN
 - that a refusal meanwhile moves the live operation's fields: they describe the live flight alone.
 
-PROVEN BY — `workshop/opening.hpp` `OpeningState::stage`, `OpeningState::awaiting`,
-`OpeningState::attempt`, `OpeningState::last_path`, `OpeningState::last_requester`,
-`OpeningState::last_op`; `workshop/weave_opening.cpp` `progress`, `refuse_request`;
-`workshop/weave_managed.cpp` `on(ManagedOpenProgress)`; `tests/test_workshop_panes_editor.cpp`
-case `"a silent or failed preparation stays pending and inspectable, a lost terminal answer undoes
-nothing, and no forged authority or attempt decides anything"`;
-`tests/test_workshop_panes_opening.cpp` case `"the latest terminal result names the request it
-answers -- a refusal before any operation existed names its own path and requester and no
-operation, and the other operator's records and the next valid open are untouched"`, case `"a
-request refused while a published commitment is still applying becomes the latest terminal
-result, and the live operation keeps its own identity until it settles"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-06 — Records are released when consumed; at most one Failed record is retained
@@ -122,13 +79,6 @@ MEANS
 - releasing a record does not lift the claimant's hold and does not repair it;
 - a repair issues no second terminal answer to the old requester.
 
-PROVEN BY — `workshop/opening.hpp` `OpeningState::retained`; `workshop/weave_opening.cpp`
-`settle`, `retire`, `release_retained`, `on(JointApplied)`;
-`tests/test_workshop_panes_opening.cpp` case `"a newer immediate refusal retires the older
-retained repair record -- the repair's late word cannot overwrite it, the claimant's hold is
-untouched, and the freed slot lets the next open take"`;
-`tests/test_workshop_panes_editor.cpp` case `"the real manager's outcome survives an unrelated
-coordination begun on the same bus before its application notice was consumed"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-07 — A refusal is Loom's word about an exact attempt, or the manager's immediate one
@@ -144,21 +94,6 @@ DOES NOT MEAN
 - that handler failure or delivered silence is a dispatch refusal;
 - that a shape a pane declares can go unqueued for want of a registrar (Loom ABI v9): it resolves.
 
-PROVEN BY — `files/files.cpp` `on(DispatchRefused)`, `Ask::attempt`; `builder/builder-pane/pane.cpp`
-`on(DispatchRefused)`, `edit_source`; `editor/editor-pane/pane.cpp` `on(DispatchRefused)`, `Relay`;
-`workshop/weave_opening.cpp` `on(DispatchRefused)`; `tests/test_workshop_panes_files.cpp`
-case `"an open refused at dispatch is said by that exact attempt, and a fresh attempt takes once
-an opening office is present"`, case `"a forged refusal naming the pane's own
-live attempt settles nothing, and the open completes"`;
-`tests/test_workshop_panes_builder.cpp` case `"a lookup queued to a project office nobody holds
-and an open queued to an opening office nobody holds are each refused at dispatch by that attempt,
-in words, and a fresh e takes once each office is present"`, case
-`"a lookup queued to the project office and refused at dispatch -- the office gone before delivery
--- is said by that exact attempt at the lookup stage, opens nothing, and a fresh e takes once the
-office is back"`, case `"a forged refusal naming the pane's own live attempt settles nothing at
-either stage, and the open completes"`;
-`tests/test_workshop_panes_editor.cpp` case `"the old door still opens and shows, or refuses
-truthfully, by a kept answer right"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-08 — The authority is the host's, minted for the manager's exact incarnation
@@ -169,10 +104,6 @@ MEANS
 - no operation id, role spelling, correlation or payload is authority;
 - manager hot reload is not supported; the obligation is stated for a host that ever does.
 
-PROVEN BY — `workshop/workshop.cpp` `mint_joint_authority`, `kOpeningRole`;
-`workshop/opening.hpp` `OpeningManager::set_authority`; `tests/test_workshop_panes_opening.cpp`
-case `"the manager's authority names its exact incarnation -- a swapped manager's retained
-capability is refused in words, and the host authorizes the successor by minting again"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-09 — A native showing failure is captured where it is thrown, not at the pump
@@ -188,11 +119,6 @@ DOES NOT MEAN
 - that a failure becomes recoverable: the owner stays held until it is reloaded or removed;
 - that a loaded owner's words reach the book: its showing answers across its ABI as a status.
 
-PROVEN BY — `workshop/host_pump.hpp` `contain_showing`, `ShowingFailures`, `ServedTurn`;
-`workshop/host_pump.cpp` `serve_until_idle`; `workshop/weave.hpp` `HostContext::showings`;
-`workshop/weave_managed.cpp` `on_claim_published`; `tests/test_workshop_panes_opening.cpp`
-case `"a native owner's failed showing is told in the words its own boundary captured, and every
-exception that reaches the host's turn propagates as it came"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-10 — The opening carries the pane's picture where it draws one
@@ -207,26 +133,6 @@ MEANS
 DOES NOT MEAN — that Workshop draws for the pane: the picture is the Editor's own, admitted as any
 picture is.
 
-PROVEN BY — `workshop/open_seam_vocabulary.hpp` `v2::PresentationTrial`,
-`v2::PrepareSourceRequested`, `v2::SourcePrepared`, `v2::PresentationAdmitRequested`;
-`workshop/weave_managed.cpp` `on(PresentationTrialRequested)`,
-`on(v2::PresentationAdmitRequested)`, `show_presentation`, `after_delivery`;
-`workshop/weave_opening.cpp` `trialled`, `prepared`; `workshop/weave_canvas.cpp` `canvas_takes_press`;
-`workshop/weave_inspection.cpp` `visible_words`, `visible_parts`; `editor/editor-pane/pane.cpp`
-`on(v2::PrepareSourceRequested)`, `prepare`, `activate`; `tests/test_workshop_panes_opening.cpp`
-case `"an open through the managed door shows the opened document's picture at the commitment, in
-a room reserved for it, and a picture of the document it replaced, arriving after, is refused"`,
-case `"a holder that draws nothing after the commitment still shows the picture it prepared,
-numbered none, its words read at once and a cell's point read again until it draws its own"`,
-case `"the picture a managed opening shows says its words and its named part with no point, and their
-points return with the holder's own picture, where a press reaches it"`,
-case `"a picture prepared for a room the trial did not reserve is refused at its admission, and the
-document shown stays"`, case `"a canvas room that moves while the document is prepared refuses
-its admission, though its rows and columns stand"`;
-`tests/test_workshop_panes_editor.cpp` case `"a managed open has one commitment -- the published
-claims, the pane's reads, its snapshot and the desk agree at it, and A is current before it"`,
-case `"a host that grants the Editor no canvas is shown its rows and caret as prose, its presses
-reach nothing there, and its keys still edit"`.
 WHY — `agents/decisions/the-opening-carries-a-picture.md`
 
 ## Do not assume
@@ -235,3 +141,122 @@ WHY — `agents/decisions/the-opening-carries-a-picture.md`
   relay is refused in words or answered by the manager (WL-OPEN-07).
 - That a live SDL or terminal run was measured for every law here; the register's witnesses
   are model rigs over the real weaves, and none of them drives a live medium.
+
+## Proven by
+
+### WL-OPEN-01
+`workshop/opening.hpp` OpeningManager OpeningState
+`workshop/open_seam_vocabulary.hpp` kOpeningRole PresentationTrialRequested PrepareSourceRequested
+PresentationAdmitRequested
+`workshop/weave_opening.cpp` ask answers_flight
+`workshop/workshop.cpp` mount_in_office
+`files/files.cpp` open
+`tests/test_workshop_panes_editor.cpp` "a managed open has one commitment -- the published claims,
+the pane's reads, its snapshot and the desk agree at it, and A is current before it"
+`tests/test_workshop_panes_files.cpp` "Return on a source opens it in the Editor, through the one
+door"
+
+### WL-OPEN-02
+`workshop/weave_opening.cpp` on(PresentationAdmitted) on(JointApplied) settle unapplied_words
+`workshop/weave_managed.cpp` on_claim_published
+`editor/editor-pane/pane.cpp` on_claim_published activate
+`tests/test_workshop_panes_editor.cpp` "a loaded owner that cannot apply the published claim is
+held, named, and reloaded" "the real desk, shown a presentation it holds no trial for, answers that
+it did not apply it -- Declined, not held, named, and re-claiming its own truth" "the real Editor,
+held behind a publication its image could not apply, is reloaded into the normal image -- the
+successor keeps A, and the record says B was never applied"
+
+### WL-OPEN-03
+`workshop/weave_managed.cpp` note_routed derive_presentation mirror_presentation
+`workshop/weave_external.cpp` external_key external_text
+`editor/editor-pane/pane.cpp` claim_document after_delivery judge_source
+`tests/test_workshop_panes_editor.cpp` "legitimate A input while B is being arranged is admitted to
+A, and B is refused without moving the desk" "more than 256 ordinary events across an opening, from
+three producers, are admitted in order with nothing held and nothing dropped" "a clipboard answer
+refuses the open wherever it lands, and A keeps its paste"
+
+### WL-OPEN-04
+`workshop/weave_opening.cpp` on(OpenSourceRequested) on(JointEnded) refusal_of
+`tests/test_workshop_panes_editor.cpp` "a competing open through the OLD door while B is being
+arranged supersedes it, the stale preparation cannot commit, and a later setup change survives"
+"room lost before the commitment refuses the open, and nothing is authored or moved" "a real reload
+or removal of the Editor at queued intervals of an open cannot commit a stale preparation, keeps
+custody, and reclaims what the operation held"
+
+### WL-OPEN-05
+`workshop/opening.hpp` OpeningState::stage OpeningState::awaiting OpeningState::attempt
+OpeningState::last_path OpeningState::last_requester OpeningState::last_op
+`workshop/weave_opening.cpp` progress refuse_request
+`workshop/weave_managed.cpp` on(ManagedOpenProgress)
+`tests/test_workshop_panes_editor.cpp` "a silent or failed preparation stays pending and
+inspectable, a lost terminal answer undoes nothing, and no forged authority or attempt decides
+anything"
+`tests/test_workshop_panes_opening.cpp` "the latest terminal result names the request it answers --
+a refusal before any operation existed names its own path and requester and no operation, and the
+other operator's records and the next valid open are untouched" "a request refused while a published
+commitment is still applying becomes the latest terminal result, and the live operation keeps its
+own identity until it settles"
+
+### WL-OPEN-06
+`workshop/opening.hpp` OpeningState::retained
+`workshop/weave_opening.cpp` settle retire release_retained on(JointApplied)
+`tests/test_workshop_panes_opening.cpp` "a newer immediate refusal retires the older retained repair
+record -- the repair's late word cannot overwrite it, the claimant's hold is untouched, and the
+freed slot lets the next open take"
+`tests/test_workshop_panes_editor.cpp` "the real manager's outcome survives an unrelated
+coordination begun on the same bus before its application notice was consumed"
+
+### WL-OPEN-07
+`files/files.cpp` on(DispatchRefused) Ask::attempt
+`builder/builder-pane/pane.cpp` on(DispatchRefused) edit_source
+`editor/editor-pane/pane.cpp` on(DispatchRefused) Relay
+`workshop/weave_opening.cpp` on(DispatchRefused)
+`tests/test_workshop_panes_files.cpp` "an open refused at dispatch is said by that exact attempt,
+and a fresh attempt takes once an opening office is present" "a forged refusal naming the pane's own
+live attempt settles nothing, and the open completes"
+`tests/test_workshop_panes_builder.cpp` "a lookup queued to a project office nobody holds and an
+open queued to an opening office nobody holds are each refused at dispatch by that attempt, in
+words, and a fresh e takes once each office is present" "a lookup queued to the project office and
+refused at dispatch -- the office gone before delivery -- is said by that exact attempt at the
+lookup stage, opens nothing, and a fresh e takes once the office is back" "a forged refusal naming
+the pane's own live attempt settles nothing at either stage, and the open completes"
+`tests/test_workshop_panes_editor.cpp` "the old door still opens and shows, or refuses truthfully,
+by a kept answer right"
+
+### WL-OPEN-08
+`workshop/workshop.cpp` mint_joint_authority kOpeningRole
+`workshop/opening.hpp` OpeningManager::set_authority
+`tests/test_workshop_panes_opening.cpp` "the manager's authority names its exact incarnation -- a
+swapped manager's retained capability is refused in words, and the host authorizes the successor by
+minting again"
+
+### WL-OPEN-09
+`workshop/host_pump.hpp` contain_showing ShowingFailures ServedTurn
+`workshop/host_pump.cpp` serve_until_idle
+`workshop/weave.hpp` HostContext::showings
+`workshop/weave_managed.cpp` on_claim_published
+`tests/test_workshop_panes_opening.cpp` "a native owner's failed showing is told in the words its
+own boundary captured, and every exception that reaches the host's turn propagates as it came"
+
+### WL-OPEN-10
+`workshop/open_seam_vocabulary.hpp` v2::PresentationTrial v2::PrepareSourceRequested
+v2::SourcePrepared v2::PresentationAdmitRequested
+`workshop/weave_managed.cpp` on(PresentationTrialRequested) on(v2::PresentationAdmitRequested)
+show_presentation after_delivery
+`workshop/weave_opening.cpp` trialled prepared
+`workshop/weave_canvas.cpp` canvas_takes_press
+`workshop/weave_inspection.cpp` visible_words visible_parts
+`editor/editor-pane/pane.cpp` on(v2::PrepareSourceRequested) prepare activate
+`tests/test_workshop_panes_opening.cpp` "an open through the managed door shows the opened
+document's picture at the commitment, in a room reserved for it, and a picture of the document it
+replaced, arriving after, is refused" "a holder that draws nothing after the commitment still shows
+the picture it prepared, numbered none, its words read at once and a cell's point read again until
+it draws its own" "the picture a managed opening shows says its words and its named part with no
+point, and their points return with the holder's own picture, where a press reaches it" "a picture
+prepared for a room the trial did not reserve is refused at its admission, and the document shown
+stays" "a canvas room that moves while the document is prepared refuses its admission, though its
+rows and columns stand"
+`tests/test_workshop_panes_editor.cpp` "a managed open has one commitment -- the published claims,
+the pane's reads, its snapshot and the desk agree at it, and A is current before it" "a host that
+grants the Editor no canvas is shown its rows and caret as prose, its presses reach nothing there,
+and its keys still edit"
