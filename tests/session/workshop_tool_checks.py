@@ -787,7 +787,7 @@ class CanvasWorkshop(Context):
         return part
 
     def observe(self, producer, shapes, **options):
-        if producer == "zengine.workshop" and ("DeskStamps", 1) in [tuple(x) for x in shapes]:
+        if producer == "zengine.workshop" and ("DeskStamps", 2) in [tuple(x) for x in shapes]:
             return Moving(self)
         return Quiet()
 
@@ -895,6 +895,78 @@ class FollowedSub:
 
     def release(self, timeout=15.0):
         self.workshop.released = True
+
+
+class AimedSub:
+    """Workshop's notices as the second version says them for one canvas pane and one beside it:
+    each wait is told the next of `notices` -- "other", the other pane's aimed picture moved; "aim",
+    this pane's newest picture is aimed at, its stamp kept, as a picture looking like the last keeps
+    it -- or nothing, after the wait asked, once none is left."""
+    subscription, relay, holder, incarnation, window = 4, "R", 5, 1, 8
+    ended = None
+
+    def __init__(self, workshop):
+        self.workshop = workshop
+        self.other = 1
+
+    def next(self, timeout=None):
+        w = self.workshop
+        if not w.notices:
+            time.sleep(timeout or 0.0)
+            return None
+        told = w.notices.pop(0)
+        if told == "aim":
+            w.aimed = w.picture
+        else:
+            self.other += 1
+        stamp = {"holder": 1, "incarnation": 1, "grant": 0, "fingerprint": 7}
+        return SimpleNamespace(kind="observed", coalesced=0, fields={"desk": 1, "panes": [
+            dict(stamp, provider="zengine.editor", pane="editor"),
+            dict(stamp, provider="zengine.info", pane="info")], "aimed": [w.aimed, self.other]})
+
+    def drain(self):
+        return []
+
+    def release(self, timeout=15.0):
+        pass
+
+
+class AimingWorkshop(Context):
+    """A run context whose Workshop shows one canvas pane, `zengine.editor/editor`, whose newest
+    picture, `picture`, is read by number only once it is aimed at: until then its words are
+    refused as a picture not yet settled, as Workshop refuses them. Its notices are `AimedSub`'s,
+    second version, while `versions` holds 2; a row naming only the first version is followed by a
+    subscription that tells nothing. Every pane read is counted in `reads`."""
+
+    def __init__(self, steps, notices, versions=(2, 1), act_steps=()):
+        Context.__init__(self, steps)
+        self.inputs["steps"] = json.dumps(list(act_steps))
+        self.notices, self.versions = list(notices), versions
+        self.picture, self.aimed, self.reads, self.observed, self.kept = 9, 8, 0, [], {}
+
+    def produce(self, name, data):
+        self.kept[name] = data
+
+    def observe(self, producer, shapes, **options):
+        from loom_session.tool import Refused
+        version = tuple(shapes[0])[1]
+        self.observed.append((version, options.get("window")))
+        if version not in self.versions:
+            raise Refused("guest 'agent' may not observe DeskStamps v%d from zengine.workshop: its "
+                          "row's observe list does not name it" % version)
+        return AimedSub(self) if version == 2 else Quiet()
+
+    def ask(self, office, shape, fields, **options):
+        from loom_session.tool import Refused
+        if shape == "PaneViewRequested":
+            self.reads += 1
+            if self.aimed != self.picture:
+                raise Refused("pane view unavailable: no settled picture")
+            return {"provider": "zengine.editor", "pane": "editor", "picture": self.picture,
+                    "canvas": True, "parts": [],
+                    "words": [{"word": 0, "text": "ready", "x": 3, "y": 4, "space": 2,
+                               "place": {"x": 0, "y": 0, "w": 50, "h": 12}}]}
+        return Context.ask(self, office, shape, fields, **options)
 
 
 class ActWorkshop(Context):
@@ -1538,10 +1610,10 @@ def run_checks(tools, runtime):
             finally:
                 held.close()
             self.assertEqual([w["text"] for w in words], ["two"])
-            # SUBSCRIBED AT THE FIRST WAIT, whole state, a window of one.
-            self.assertEqual(ctx.observed[0][:2], ("zengine.workshop", [("DeskStamps", 1)]))
+            # SUBSCRIBED AT THE FIRST WAIT, the second version, whole state, a window of eight.
+            self.assertEqual(ctx.observed[0][:2], ("zengine.workshop", [("DeskStamps", 2)]))
             self.assertEqual((ctx.observed[0][2]["latest"], ctx.observed[0][2]["window"]),
-                             (["DeskStamps"], 1))
+                             (["DeskStamps"], hand.NOTICE_WINDOW))
             # ...READ: before it, under it, at the first notice taken, and at the Terminal's own --
             # never at the second Files notice, and never on a clock.
             self.assertEqual(reads, ["terminal"] * 4)
@@ -1586,13 +1658,67 @@ def run_checks(tools, runtime):
                 held.close()
             self.assertEqual(slept, [])
 
+        def test_a_picture_not_yet_aimed_at_is_read_again_when_its_aimed_number_moves_never_on_a_clock(self):
+            # THE NEWEST PICTURE LOOKS LIKE THE LAST, so its stamp holds: only its aimed number,
+            # which the second version names, moves when the pane's reading by number settles.
+            ctx = AimingWorkshop(steps, ["other", "other", "aim"])
+            held = hand.Hand(ctx, "workshop")
+            slept = []
+
+            def sleep(seconds):  # time passing aims the picture too, as it does in Workshop
+                slept.append(seconds)
+                ctx.aimed = ctx.picture
+            try:
+                with patch.object(hand.time, "sleep", side_effect=sleep):
+                    view = held.pressing("zengine.editor", "editor", seconds=5)
+            finally:
+                held.close()
+            self.assertEqual(view["words"][0]["text"], "ready")
+            self.assertEqual(slept, [])
+            # ...READ: refused, again under the new subscription, again at the first notice taken,
+            # never at the other pane's next, and at its own aimed number moving.
+            self.assertEqual(ctx.reads, 4)
+            self.assertEqual(ctx.observed, [(2, hand.NOTICE_WINDOW)])
+            self.assertEqual(held.clock_waits(), 0)
+            self.assertIsNone(held.waits_said())
+
+        def test_a_step_waiting_on_a_picture_not_yet_aimed_at_reads_at_the_notice_and_its_record_says_no_clock(self):
+            ctx = AimingWorkshop(steps, ["aim"], act_steps=[
+                {"expect": ["zengine.editor", "editor", "ready"], "seconds": 5}])
+            slept = []
+
+            def sleep(seconds):  # time passing aims the picture too, as it does in Workshop
+                slept.append(seconds)
+                ctx.aimed = ctx.picture
+            with patch.object(hand.time, "sleep", side_effect=sleep),                     patch.object(act.time, "sleep", side_effect=sleep):
+                said = act.run(ctx)
+            self.assertEqual(slept, [])
+            self.assertEqual([r["clock_waits"] for r in json.loads(ctx.kept["steps.json"])], [0])
+            self.assertNotIn("not at Workshop's notice", said)
+
+        def test_a_row_following_only_the_first_notice_reads_an_unsettled_picture_on_a_clock_and_says_so(self):
+            ctx = AimingWorkshop(steps, [], versions=(1,), act_steps=[
+                {"expect": ["zengine.editor", "editor", "ready"], "seconds": 5}])
+            slept = []
+
+            def sleep(seconds):
+                slept.append(seconds)
+                ctx.aimed = ctx.picture  # Workshop aims at the picture while the hand waits
+            with patch.object(hand.time, "sleep", side_effect=sleep):
+                said = act.run(ctx)
+            self.assertEqual([v for v, _ in ctx.observed], [2, 1])
+            self.assertEqual(slept, [hand.FALLBACK_PACE])
+            self.assertEqual([r["clock_waits"] for r in json.loads(ctx.kept["steps.json"])], [1])
+            self.assertIn("1 of its waits read again every 0.2 s, not at Workshop's notice: the row "
+                          "follows DeskStamps 1, which names no aimed picture", said)
+
         def test_a_row_that_may_not_follow_the_desk_reads_on_a_clock_and_the_run_says_so(self):
             ctx = ActWorkshop(steps, [{"expect": ["zengine.terminal-pane", "terminal", "two"],
                                        "seconds": 5}], self.INFO_ROWS, panes={"terminal": ["one"]})
 
             def refused(producer, shapes, **options):
-                raise Refused("guest 'agent' may not observe DeskStamps v1 from zengine.workshop: "
-                              "its row's observe list does not name it")
+                raise Refused("guest 'agent' may not observe DeskStamps v%d from zengine.workshop: "
+                              "its row's observe list does not name it" % tuple(shapes[0])[1])
             ctx.observe = refused
             slept = []
 
@@ -1602,9 +1728,10 @@ def run_checks(tools, runtime):
             with patch.object(hand.time, "sleep", side_effect=sleep):
                 said = act.run(ctx)
             self.assertEqual(slept, [hand.FALLBACK_PACE])
-            self.assertIn("its waits read again every 0.2 s, not at Workshop's notice: Workshop's "
-                          "notice could not be followed: guest 'agent' may not observe DeskStamps "
-                          "v1", said)
+            self.assertEqual([r["clock_waits"] for r in ctx.done()], [1])
+            self.assertIn("1 of its waits read again every 0.2 s, not at Workshop's notice: "
+                          "Workshop's notice could not be followed: guest 'agent' may not observe "
+                          "DeskStamps v2", said)
 
         def test_the_reset_button_is_pressed_by_its_name_in_the_picture_the_controls_draw(self):
             controls = CanvasControls()

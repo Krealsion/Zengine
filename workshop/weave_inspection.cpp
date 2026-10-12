@@ -1469,20 +1469,48 @@ void WorkshopWeave::on(const v2::DeskReadRequested&, loom::Mail& mail) {
     publish_desk_stamps(mail, &out.desk);
 }
 
-// THE DESK MOVED: its number and every presented pane's stamp, published as the office when either
-// differs from what was last published, so the desk number never moves without a notice and an
-// unchanged desk sends none.
+// THE PICTURE A PRESS ON A PANE IS STAMPED WITH NOW, by its own number: what a reading by number
+// reads, and 0 where none is aimed at yet or the pane is Workshop's own.
+// WL-READ-06 -- agents/workshop/desk-read.md
+std::int64_t WorkshopWeave::aimed_now(const PaneRef& ref) const {
+    const RuntimePane* row = session_.panes.runtime.find(ref.provider, ref.pane);
+    const ExternalPane* content = row == nullptr ? nullptr : session_.panes.external_pane(row->kind);
+    return content == nullptr ? 0 : content->stamp.aimed;
+}
+
+namespace {
+
+bool same_stamps(const std::vector<v2::PaneStamp>& a, const std::vector<v2::PaneStamp>& b) {
+    return std::equal(a.begin(), a.end(), b.begin(), b.end(),
+                      [](const v2::PaneStamp& x, const v2::PaneStamp& y) { return same_stamp(x, y); });
+}
+
+} // namespace
+
+// THE DESK MOVED: its number, every presented pane's stamp and the picture each is aimed at,
+// published as the office when any differs from what was last published, so the desk number never
+// moves without a notice and an unchanged desk sends none; the first version, naming no aimed
+// picture, only when its number or a stamp moved.
 // WL-READ-06 -- agents/workshop/desk-read.md
 void WorkshopWeave::publish_desk_stamps(loom::Mail& mail, const v3::DeskView* known) {
-    DeskStamps now;
+    v2::DeskStamps now;
     now.desk = known != nullptr ? known->desk : desk_owed_ ? desk_view_v3().desk : desk_number_;
     desk_owed_ = false;
-    for (const PaneRef& ref : presented_refs()) now.panes.push_back(stamp_now(ref));
+    for (const PaneRef& ref : presented_refs()) {
+        now.panes.push_back(stamp_now(ref));
+        now.aimed.push_back(aimed_now(ref));
+    }
     if (stamps_published_ && now.desk == stamps_said_.desk &&
-        std::equal(now.panes.begin(), now.panes.end(), stamps_said_.panes.begin(),
-                   stamps_said_.panes.end(),
-                   [](const v2::PaneStamp& a, const v2::PaneStamp& b) { return same_stamp(a, b); })) {
+        same_stamps(now.panes, stamps_said_.panes) && now.aimed == stamps_said_.aimed) {
         return;
+    }
+    if (!numbered_published_ || now.desk != numbered_said_.desk ||
+        !same_stamps(now.panes, numbered_said_.panes)) {
+        DeskStamps numbered{now.desk, now.panes};
+        if (mail.as_role(kWorkshopProvider).publish(numbered).authored) {
+            numbered_said_ = std::move(numbered);
+            numbered_published_ = true;
+        }
     }
     if (!mail.as_role(kWorkshopProvider).publish(now).authored) return;
     stamps_said_ = std::move(now);

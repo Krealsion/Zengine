@@ -122,7 +122,7 @@ the `workshop` package where your session's catalog holds it.
   into `changes.txt`, keeping the reading files current: Workshop says when the desk moved, and
   the watch reads again only what moved. `panes` (a JSON list of `["<office>", "<pane>"]`) watches
   those panes alone, writing their changes and files only. It needs your row's `capture` and an
-  `observe` entry naming `zengine.workshop` `DeskStamps` 1.
+  `observe` entry naming `zengine.workshop` `DeskStamps` 2 (or 1).
 - `workshop/act`, `workshop/inspect-capture`: press, type and check, where your row may.
 - `workshop/observe`: follow what an office publishes, as your row's `observe` lists.
 
@@ -196,8 +196,9 @@ by message, without a hand, is not answered by this Workshop: absent here."""
 FOLLOW = """Follow the desk with `desk/watch`: Workshop says when the desk moved -- its number, or a
 pane's stamp -- and the watch reads again only what moved, writing each change into `changes.txt`
 as the smaller of its changed lines and the lines as they now stand. It needs `capture` and an
-`observe` entry naming `zengine.workshop` `DeskStamps` 1 (section 1 lists your row's). Follow what
-any other office publishes with `workshop/observe`, for the shapes your row's `observe` lists."""
+`observe` entry naming `zengine.workshop` `DeskStamps` 2 or 1 (section 1 lists your row's).
+Follow what any other office publishes with `workshop/observe`, for the shapes your row's `observe`
+lists."""
 
 SHAPES = """Absent from this reading: a shape's structure is answered under `inspect`
 (`DescribeAccepted`); no office's own document of its shapes is answered yet."""
