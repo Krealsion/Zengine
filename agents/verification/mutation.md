@@ -48,6 +48,13 @@ METHOD — Hash the artifact the mutation lands in, not the binary that runs; re
 BECAUSE — a weave library is loaded, so the test binary is byte-identical across its mutations;
 an editor that could not write on a 9p mount printed a verdict for every row in nine seconds.
 
+## VM-MUT-32 — A file the case reads at runtime is the artifact
+
+METHOD — Where the owning case reads the mutated file at runtime, that file is VM-MUT-09's artifact: take its path from the build, hash it changed, and run the case red, then green on the restored bytes.
+BECAUSE — a tripwire reading the host's source went red on a host that winds the clock while its
+binary stayed byte-identical, which a hash of the binary alone refuses; the same edit to the
+checkout the tree's ext4 copy came from, and a rewrite of the same bytes, both stayed green.
+
 ## VM-MUT-10 — Rebuild after the restore, inside the harness
 
 METHOD — Rebuild after the restore inside the harness and re-run the owning case, printing the restored green: a restored source is not a restored tree, and the next lane inherits the mutant otherwise.
@@ -119,6 +126,9 @@ nowhere yet
 nowhere yet
 
 ### VM-MUT-09
+nowhere yet
+
+### VM-MUT-32
 nowhere yet
 
 ### VM-MUT-10
