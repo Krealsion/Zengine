@@ -76,18 +76,19 @@ Ninja 1.13.1, MSYS2's `mingw32-make` 4.4.1 and ccache 4.11.3:
 
 | the path | what carries it | measured |
 |---|---|---|
-| the build directory | Ninja or MinGW Makefiles, with or without ccache; GCC's assembler and linker, given each object relative to it | **builds**, the code-page manifest's resource step included, while the source and every prefix lie elsewhere |
-| the source directory | the GCC driver and compiler, given each source by its absolute path | **builds** under Ninja |
-| the source directory | MinGW Makefiles | **fails**: `CMake Error: Target DependInfo.cmake file not found` |
+| the build directory | Ninja; GCC's assembler and linker, given each object relative to it | **builds**, with or without ccache, the code-page manifest's resource step included, and a changed header rebuilds what includes it, while the source and every prefix lie elsewhere |
+| the build directory | MinGW Makefiles | builds, but its dependency step prints `CMake Error: Target DependInfo.cmake file not found` and keeps no header dependency: a changed header rebuilds nothing, and the build exits 0 with the stale program |
+| the source directory | the GCC driver and compiler, given each source by its absolute path | **builds** under Ninja, a changed header tracked |
+| the source directory | MinGW Makefiles | **fails**: `No rule to make target '<source>'` |
 | the source directory | ccache as the compiler launcher | **fails** on the first compile: `filesystem error: Cannot convert character sequence: Illegal byte sequence` |
 | a dependency prefix (`CMAKE_PREFIX_PATH`) | the compiler, for its headers; the linker, for its libraries by absolute path | headers read; the link **fails**: `ld.exe: cannot find <path>: Invalid argument`, the path printed mangled |
 | any file GCC's assembler (`as`) or linker (`ld`) is given by an absolute path | binutils, reading the command line in the system code page | **fails**; the same file named relative to the working directory is read |
 | a running program's paths: `argv`, the environment, files it opens | the program | read as themselves, on both toolchains ([above](#every-program-runs-in-the-utf-8-code-page)) |
 
-So the route, where the source path holds such a letter: generate with **Ninja** and build
-**without a compiler launcher** (leave `CMAKE_CXX_COMPILER_LAUNCHER` unset). Wherever the build
-happens, install the **Loom prefix**, and every other dependency prefix, under a path the system
-code page can spell. A build directory holding the letter is no obstacle.
+So the route, where any path holds such a letter: generate with **Ninja**, and build **without a
+compiler launcher** (leave `CMAKE_CXX_COMPILER_LAUNCHER` unset) while the source path holds it.
+Install the **Loom prefix**, and every other dependency prefix, under a path the system code page
+can spell. Under Ninja, a build directory holding the letter is no obstacle.
 
 Only the tools and versions named above were measured, on one machine. Other ccache
 and binutils releases, the Visual Studio generators, MSVC's compiler and linker in such a
