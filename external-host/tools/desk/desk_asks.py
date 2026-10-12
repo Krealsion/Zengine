@@ -142,9 +142,12 @@ def items_of(view):
 class Asker(object):
     """The run's asks through one link, each answered or said in words, and counted."""
 
-    def __init__(self, ctx, link):
+    def __init__(self, ctx, link, view_version=5):
         self.ctx, self.link = ctx, link
         self.asks = 0
+        #: The page version `page` asks: 5, as a desk read carries its readings, or 6, each part
+        #: with whether its operation applies now (`available`).
+        self.view_version = view_version
 
     def ask(self, office, shape, version, fields):
         """``(fields, None)`` for an answer, ``(None, words)`` for anything else."""
@@ -157,7 +160,7 @@ class Asker(object):
         return fields_of(answer), None
 
     def page(self, provider, pane, start, stamp):
-        return self.ask(WORKSHOP, "PaneViewRequested", 5,
+        return self.ask(WORKSHOP, "PaneViewRequested", self.view_version,
                         {"provider": provider, "pane": pane, "from": start,
                          "stamp": dict(stamp or EMPTY_STAMP)})
 

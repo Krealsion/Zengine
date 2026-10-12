@@ -39,6 +39,10 @@ inline constexpr std::int64_t kGround = 4; ///< opaque, empty material beneath c
 /// -- a window's own background, a terminal's default one, light or dark. A ground and never an
 /// ink: a rectangle or a row's background names it, and text drawn in it paints as `kFill`.
 inline constexpr std::int64_t kMediumGround = 5;
+/// Drawn at a guest's ask, never Workshop's own voice: a guide mark a guest set on a control for
+/// the weaver to see. Every guest-caused mark shares it, so the weaver tells it from the desk's
+/// own emphasis by role, in every medium.
+inline constexpr std::int64_t kGuide = 6;
 
 /// No role at all: the absence of a background, not an ink role. Negative, so it cannot collide
 /// with a role a later vocabulary adds (which an older Skin would silently paint as `kFill`).

@@ -44,6 +44,11 @@ that ground in either; the window keeps its palette. The SDL plan marks a row th
 (`PlanTextRow::grounded`), so a `kGroundBeneath` row naming it is still a strip where its colour
 equals the region's.
 
+**`role::kGuide` is drawn at a guest's ask**, never a publisher's own voice: a guest's guide mark
+on a control. In TUI it is bright magenta (`sgr_for_role`), a colour and no attribute, as every
+ink is, so it never runs on past its cells, with its own glyph, `+`, for a rectangle; in SDL its own
+ink (`ink_for_role`). A Skin that does not know it paints it as `kFill`, as any unknown role.
+
 ## A region may have a caret, and it is said in PROSE
 
 `SurfaceTextRegion` carries `caret_row`/`caret_col` — a row and a column into the rows the

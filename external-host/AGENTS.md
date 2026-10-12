@@ -36,6 +36,8 @@ No register of its own. Workshop's side is in `agents/workshop/guests.md` (a gue
 - `guest_journey` — a real Workshop admitting this program as a guest (`tests/guest_journey.cpp`)
 - `guest_vocabulary` — the weave's shapes resolve by identity (`tests/test_guest_vocabulary.cpp`)
 - `workshop_journey` — a Loom session runs the tools (`tests/session/workshop_journey.py`)
+- `tutor_walk` — a Tutor resolves and marks while the weaver presses, in a terminal Workshop whose
+  weaver is a pseudo-terminal (`tests/session/tutor_walk.py`), behind the `session-pty` gate
 
 `demo_recipes`, `tutorial_walks` and `workshop_journey` need the `session` gate; the journey also
 runs the `workshop_*_checks.py` and `desk_*_checks.py` beside it. Its parts' cases in shared suites:

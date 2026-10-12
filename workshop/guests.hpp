@@ -5,11 +5,10 @@
 #define ZENGINE_WORKSHOP_GUESTS_HPP
 
 // Who may connect to this Workshop, and what each may then say: the guests file and the admission
-// policy it becomes (external-host/docs/external-host.md). No file, no listener. Not an identity system,
-// not network security (loopback only), and no grant of anything a row does not name; a row's
-// `observe` list is what the relay beside the door lets it follow, and no power implies it. The
-// file names its version, absent being 1: version 2 adds the `build` power and the file's `host`,
-// and a weaver's host keeps writes, typing, the editor, the Terminal and Hotkeys for the weaver.
+// policy it becomes (external-host/docs/external-host.md). No file, no listener. Not an identity
+// system, not network security (loopback only), and no grant of anything a row does not name. Its
+// versions' words and what each row reaches are the law's: agents/workshop/guests.md (WL-GUEST)
+// and agents/workshop/guide.md (WL-GUIDE).
 
 #include "actor_scope.hpp"
 #include "attention.hpp"
@@ -40,8 +39,39 @@ inline constexpr const char* kPowerOpen = "open";
 /// never granted as a shape: no guest is granted `BuildRequested`. A version-2 word.
 inline constexpr const char* kPowerBuild = "build";
 
+/// A mark the weaver sees on one control or part (`GuideRequested`), within the row's `guide` doors,
+/// and nothing else: a pointer, never a press. A version-3 word.
+inline constexpr const char* kPowerGuide = "guide";
+/// Hearing the weaver's input as it happens: an `observe` entry naming `AttributedInput`,
+/// `KeyPressed` or `TextEntered`, from any office, needs it. It grants nothing to say. A version-3
+/// word.
+inline constexpr const char* kPowerKeystrokes = "keystrokes";
+
 /// The newest version of the guests file this Workshop reads; a file names its own in `version`.
-inline constexpr std::int64_t kGuestsFileVersion = 2;
+inline constexpr std::int64_t kGuestsFileVersion = 3;
+/// The version whose rows read and point by door: from it, `capture` reads only the panes the row's
+/// `capture` field names, and `guide` marks only within its `guide` field.
+inline constexpr std::int64_t kDoorsVersion = 3;
+
+/// THE ROW WORD FOR EVERY PANE, in a `capture` or `guide` field: written, never assumed.
+inline constexpr const char* kEveryPane = "*";
+
+/// A ROLE, a version-3 word: a bundle of powers written once here and named by a row, which may add
+/// powers of its own (`may`) and sets its scopes (`capture`, `guide`). Expanded at launch; the row's
+/// reach is said in full beside it. A role's bundle never changes under a file of its version.
+struct RoleBundle {
+    const char* name;
+    std::vector<const char*> may;
+};
+
+/// The Tutor: reads the panes its lesson is about and points; never presses, types, opens, writes
+/// or hears the weaver's keys.
+inline const std::vector<RoleBundle>& role_bundles() {
+    static const std::vector<RoleBundle> bundles = {
+        {"tutor", {"capture", "guide"}},
+    };
+    return bundles;
+}
 
 /// The file's `host`, a version-2 word: whose machine this Workshop runs on. A weaver's host, the
 /// default, keeps its file writes, typed text, editor, Terminal and Hotkeys pane for the weaver's
@@ -63,9 +93,20 @@ struct ObserveScope {
 struct GuestRow {
     std::string name;
     std::string credential;
-    std::vector<std::string> may;
+    std::vector<std::string> may;      ///< the row's powers, its role's expanded among them
     std::vector<ObserveScope> observe; ///< what it may observe; empty: nothing
     bool ask = false; ///< admitted only when the host decides (`"admit": "ask"`)
+    std::string role;                  ///< the role it names, a version-3 word; empty: none
+    /// WHETHER IT READS AND POINTS BY DOOR, a row of version 3 or later: then `capture` reads only
+    /// the panes `capture` names and `guide` marks only within `guide`; a row of an earlier version
+    /// reads the desk whole and points nowhere.
+    bool by_door = false;
+    std::vector<std::string> capture;  ///< `<office>/<pane>`, an office's every pane, or `*` alone
+    std::vector<std::string> guide;    ///< the same, each within `capture`
+
+    /// Reads by door and not every pane: judged pane by pane, refused the reads that carry every pane.
+    bool reads_by_pane() const { return by_door && !(capture.size() == 1 && capture[0] == kEveryPane); }
+    bool guides_by_pane() const { return by_door && !(guide.size() == 1 && guide[0] == kEveryPane); }
 };
 
 struct GuestsFile {
@@ -108,6 +149,11 @@ std::vector<std::string> losses_of(const GuestRow& row, const GuestsFile& file);
 /// the row's losses. `capture` reads the desk whole, its words, the pane inventory and the keymap
 /// included. Empty when no power of the row is widened.
 std::vector<std::string> gains_of(const GuestRow& row, const GuestsFile& file);
+
+/// WHAT A ROW READS AND POINTS AT, AND ITS ROLE, in words to stand beside it: the role and the
+/// powers it expanded to, the `capture` doors it reads, the `guide` doors it points within. Empty
+/// for a row of an earlier version that names no role.
+std::vector<std::string> scopes_of(const GuestRow& row);
 
 /// WHAT THE FILE STANDS AS ON ATTENTION for the whole run: a development host, and each row whose
 /// powers do not reach everything here, keyed by its place in the file.

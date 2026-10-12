@@ -887,7 +887,17 @@ void WorkshopWeave::on(const KeymapRequested&, loom::Mail& mail) {
     if (mail.authored_role().empty() && !capture_guest(mail.sender())) {
         return; // an office asks, or a guest session holding `capture`
     }
-    (void)mail.answer(keymap_shown(session_, host_->keymap_path, keymap_standing_));
+    KeymapShown said = keymap_shown(session_, host_->keymap_path, keymap_standing_);
+    // A ROW THAT READS BY PANE hears the rows above every pane and its own panes' rows and modes:
+    // what a press of a control it may read could cause, and no other pane's (WL-GUIDE-02).
+    if (reads_by_pane(mail.sender())) {
+        const auto withheld = [&](const std::string& office, const std::string& pane) {
+            return !pane.empty() && !read_withheld(mail, mail.sender(), office, pane).empty();
+        };
+        std::erase_if(said.rows, [&](const ShownBinding& b) { return withheld(b.office, b.pane); });
+        std::erase_if(said.modes, [&](const ShownModes& m) { return withheld(m.office, m.pane); });
+    }
+    (void)mail.answer(said);
 }
 
 } // namespace zengine::workshop

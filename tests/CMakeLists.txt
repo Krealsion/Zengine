@@ -981,7 +981,7 @@ zengine_workshop_suite(shapes SOURCES test_workshop_shapes.cpp test_shapes_censu
 # (VM-WALL-11): Workshop's `main()` claims a terminal, and a source read keeps a claim every
 # case rests on from quietly going false.
 zengine_workshop_suite(panes
-    LINKS loom::history zengine-view
+    LINKS loom::history zengine-view zengine-workshop-guests
     SOURCES test_workshop_demo.cpp
             test_workshop_panes_seam.cpp
             test_workshop_panes_window.cpp
@@ -1009,6 +1009,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_code.cpp
             test_workshop_panes_output.cpp
             test_workshop_panes_guests.cpp
+            test_workshop_panes_guide.cpp
     NEEDS zengine-composer zengine-inventory zengine-inventory-pane zengine-builder-pane-reworded
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
                 # The action census: what every shipped pane declares, pinned, and the census
@@ -1312,6 +1313,24 @@ if(LOOM_SESSION_TOOLS)
             --evidence ${CMAKE_BINARY_DIR}/tutorial-walks-work/tutorial-walks.json)
         set_tests_properties(tutorial_walks PROPERTIES TIMEOUT 900)
         set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "session")
+        # THE TUTOR'S WALK, LIVE (tests/session/tutor_walk.py): a terminal Workshop on a weaver's
+        # host whose weaver is the pseudo-terminal this driver holds, and a guest that resolves and
+        # marks. A pseudo-terminal is POSIX's, so the walk is a gate of its own, `session-pty`.
+        if(NOT WIN32)
+            zengine_program_test(tutor_walk Python3::Interpreter
+                ${CMAKE_CURRENT_SOURCE_DIR}/session/tutor_walk.py
+                --workshop $<TARGET_FILE:zengine-workshop>
+                --plan $<TARGET_FILE_DIR:zengine-workshop>/default-load-plan.json
+                --loom-host ${LOOM_HOST_PROGRAM}
+                --loom-runs ${LOOM_RUNS_ARTIFACT}
+                --loom-runtime ${LOOM_SESSION_RUNTIME}
+                --vocabulary $<TARGET_FILE:zengine-guest-vocabulary>
+                --tools ${CMAKE_SOURCE_DIR}/external-host/tools
+                --work ${CMAKE_BINARY_DIR}/tutor-walk-work
+                --evidence ${CMAKE_BINARY_DIR}/tutor-walk.json)
+            set_tests_properties(tutor_walk PROPERTIES TIMEOUT 600)
+            set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "session-pty")
+        endif()
         # `workshop/nvim-edit` AGAINST A REAL NEOVIM needs both halves: this session tooling and
         # the Neovim the `neovim` gate names. The two together are one gate of their own,
         # `session-neovim`, so a lane with only one of them declares this entry absent rather

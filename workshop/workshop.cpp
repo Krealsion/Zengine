@@ -702,7 +702,7 @@ int main(int argc, char** argv) {
     };
     host.input_authority = [&bus](loom::WeaveId actor) {
         return bus.alive(actor)
-            ? loom::host_grant_authority(bus, actor, loom::LiveAuthority::nothing())
+            ? loom::host_describe_only_authority(bus, actor)
             : loom::GrantAuthority{};
     };
     host.holder_accepts = [&bus](std::string_view role, const loom::Schema& shape) {
@@ -791,6 +791,14 @@ int main(int argc, char** argv) {
             for (const std::string& gain : gains) said += (said.empty() ? "" : "; ") + gain;
             std::printf("zengine-workshop - guests: '%s' (version %s) also reaches here: %s\n",
                         file.rows[i].name.c_str(), std::to_string(file.version).c_str(), said.c_str());
+        }
+        for (std::size_t i = 0; i < file.rows.size(); ++i) {
+            const std::vector<std::string> scopes = guests::scopes_of(file.rows[i]);
+            if (scopes.empty()) continue;
+            std::string said;
+            for (const std::string& scope : scopes) said += (said.empty() ? "" : "; ") + scope;
+            std::printf("zengine-workshop - guests: '%s' (version %s) %s\n", file.rows[i].name.c_str(),
+                        std::to_string(file.version).c_str(), said.c_str());
         }
         ++host.conditions_generation;
         // ---- THE OBSERVATION RELAY, beside the door (workshop/guest_door.hpp says how) --------

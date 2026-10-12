@@ -25,7 +25,7 @@ the painter being replaced mid-game).
 ordered list of `SurfaceLayer{rects, labels, texts}` — each one a complete plane of filled
 `SurfaceRect`s in painter's (list) order, `SurfaceLabel` text runs over them, and bounded text
 regions over those. Each
-element carries a semantic **role** — `kFill`/`kAccent`/`kMuted`/`kAlert`/`kGround`/`kMediumGround` — never a colour, so
+element carries a semantic **role** — `kFill`/`kAccent`/`kMuted`/`kAlert`/`kGround`/`kMediumGround`/`kGuide` — never a colour, so
 the terminal media pick an SGR *and a glyph* per role (colour alone would be a lie on a
 monochrome terminal) while the SDL medium picks RGB, from one unchanged publisher. Every
 coordinate and extent is a whole **canvas pixel**, `kCanvasCellPx` (<!-- value kCanvasCellPx -->12<!-- /value -->) to a cell: the window

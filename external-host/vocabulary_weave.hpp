@@ -26,6 +26,8 @@
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
+#include "workshop/guide_vocabulary.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/setup_control.hpp"
 #include "external-host/demo-control/vocabulary.hpp"
 
@@ -36,7 +38,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 93; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 103; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -67,6 +69,11 @@ class GuestVocabulary final
                      zengine::workshop::v2::DeskReadRequested, zengine::workshop::v2::DeskRead,
                      zengine::workshop::v5::PaneViewRequested, zengine::workshop::v5::PaneView,
                      zengine::workshop::DeskStamps, zengine::workshop::v2::DeskStamps,
+                     // ...each part's availability, a guide mark on a control and its answer, and a
+                     // pane's manual, asked of the pane's own office.
+                     zengine::workshop::v6::PaneViewRequested, zengine::workshop::v6::PaneView,
+                     zengine::workshop::GuideRequested, zengine::workshop::GuideAnswered,
+                     zengine::workshop::PaneDocumentRequested, zengine::workshop::PaneDocumentShown,
                      zengine::workshop::PaneInventoryRequested, zengine::workshop::PaneInventory,
                      zengine::workshop::KeymapRequested, zengine::workshop::KeymapShown,
                      zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,
@@ -80,9 +87,14 @@ class GuestVocabulary final
                      // The door's inventory with each row's powers, version and losses.
                      zengine::workshop::v2::GuestConnectionsRequested,
                      zengine::workshop::v2::GuestConnections,
+                     // ...and at version 3, with each row's role and scopes.
+                     zengine::workshop::v3::GuestConnectionsRequested,
+                     zengine::workshop::v3::GuestConnections,
                      // The asker's own row, which any admitted session may ask for.
                      zengine::workshop::GuestRowDescribedRequested,
                      zengine::workshop::GuestRowDescribed,
+                     zengine::workshop::v2::GuestRowDescribedRequested,
+                     zengine::workshop::v2::GuestRowDescribed,
                      // Where Workshop's plan is, which any admitted session may ask.
                      zengine::workshop::GuestPlanRequested, zengine::workshop::GuestPlanSaid,
                      zengine::inventory::InventorySet, zengine::inventory::InventoryGet,

@@ -104,8 +104,8 @@ and those the setup names -- to run in its dedicated host (`any-revision` trust)
 exactly the powers its description lists, on its own Workshop -- for most setups `input`,
 `capture`, `inspect`, `inventory`, `toolbox`, `demo` and `open`, and `build` where the setup
 builds (`tower-defense`). Its guests file, at version
-<!-- value guests::kGuestsFileVersion,workshop_formats.GUESTS_VERSION -->2<!-- /value -->, names
-that Workshop a development host, so the guest
+<!-- value guests::kGuestsFileVersion,workshop_formats.GUESTS_VERSION -->3<!-- /value -->, names
+that Workshop a development host and lets the guest read every pane (`"capture": ["*"]`), so the guest
 writes files, types into panes and reaches the editor and the Terminal there as a weaver would
 ([whose host this is](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
 It approves nothing on another Workshop. Local package edits run as trusted code, not in a sandbox. For a weaver-controlled
