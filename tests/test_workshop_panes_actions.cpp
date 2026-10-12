@@ -939,16 +939,20 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
 // The first consumer: the real Powers pane acts on the id
 // ============================================================================
 
-TEST_CASE("Powers declares four actions, acts on the resolved id, and its typing still crosses raw") {
+TEST_CASE("Powers declares its actions, acts on the resolved id, and its typing still crosses raw") {
     PaneRig r;
     const std::int64_t kind = open_powers(r);
     make_taller(r, intro::kPowersPane, 18);
 
-    // DECLARED BESIDE THE OFFER, and joined: four rows, the pane's own ids, on their
-    // shipped defaults -- and the two read-only panes declared nothing.
-    REQUIRE(retained(r, kind).size() == 4);
-    CHECK(retained(r, kind)[0].id == intro::kPowersActionView);
-    CHECK(retained(r, kind)[3].id == intro::kPowersActionSample);
+    // DECLARED BESIDE THE OFFER, and joined: the pane's own ids, its keys' four on their shipped
+    // defaults and its controls' three with none -- and the two read-only panes declared nothing.
+    const std::vector<std::string> ids{intro::kPowersActionView,    intro::kPowersActionUp,
+                                       intro::kPowersActionDown,    intro::kPowersActionSample,
+                                       intro::kPowersActionSources, intro::kPowersActionOperators,
+                                       intro::kPowersActionComposite};
+    std::vector<std::string> declared;
+    for (const v3::PaneActionRow& row : retained(r, kind)) declared.push_back(row.id);
+    CHECK(declared == ids);
     for (const char* pane : {intro::kLoadedPane, intro::kArrangementPane}) {
         const RuntimePane* row = intro_row(r, pane);
         REQUIRE(row != nullptr);
@@ -957,11 +961,17 @@ TEST_CASE("Powers declares four actions, acts on the resolved id, and its typing
     }
     const PaneRows* rows = r.session().keymap.pane_rows(kind);
     REQUIRE(rows != nullptr);
-    REQUIRE(rows->rows.size() == 4);
+    std::vector<std::string> joined;
+    for (const PaneRow& row : rows->rows) joined.push_back(row.id);
+    REQUIRE(joined == ids);
     CHECK(rows->rows[0].gesture == Gesture{input::scan::kTab, input::mod::kNone});
     CHECK(rows->rows[1].gesture == Gesture{input::scan::kUp, input::mod::kNone});
     CHECK(rows->rows[2].gesture == Gesture{input::scan::kDown, input::mod::kNone});
     CHECK(rows->rows[3].gesture == Gesture{input::scan::kReturn, input::mod::kNone});
+    for (std::size_t i = 4; i < rows->rows.size(); ++i) {
+        CAPTURE(rows->rows[i].id);
+        CHECK(rows->rows[i].gesture == Gesture{});
+    }
 
     focus_pane(r, kind);
     REQUIRE(pane_rows(r, kind).at(0).find("[Sources]") != std::string::npos);

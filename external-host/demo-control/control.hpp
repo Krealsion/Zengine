@@ -4,6 +4,7 @@
 #define ZENGINE_DEMO_CONTROL_CONTROL_HPP
 #include "vocabulary.hpp"
 #include "activation/activation.hpp"
+#include "input/vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -14,10 +15,10 @@ namespace zengine::demo {
 namespace ws = zengine::workshop;
 class Control final : public loom::WeaveBase<Control, DemoStatus,
     loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
-                 ws::PaneCanvasPointer, ws::PaneCanvasRejected,
+                 ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneActionRequested,
                  DemoServiceOpened, DemoServiceClosed, DemoWorkRequested, DemoWorkFinished,
                  DemoResetRequested, DemoStatusRequested, DemoReadyRequested>,
-    loom::Emit<ws::v2::PaneOffered, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
+    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
                ws::PanePassRequested, DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
 public:
     void on(const loom::Activated& a, loom::Mail& m) {
@@ -49,6 +50,10 @@ public:
         }
         const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(room_), p.x, p.y);
         if (p.button == 1 && at.shown && at.row == 1) reset(m, false);
+    }
+    /// ITS ONE ACTION, `reset`: what a primary press on the reset row does.
+    void on(const ws::PaneActionRequested& a, loom::Mail& m) {
+        if (m.authored_from_role("zengine.workshop") && a.pane == "controls" && a.id == "reset") reset(m, false);
     }
     /// A refused picture leaves the last good one showing; a later paint draws again.
     void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
@@ -125,6 +130,9 @@ private:
     void offer(loom::Mail& m) {
         m.as_role(kRole).send_to_role("zengine.workshop",
             ws::v2::PaneOffered{"controls", "Demo", "Repeat this demo through its attached ELH recipe", 4, 56});
+        // ...and the reset its row performs, with no key: the row's part is `control:reset`.
+        m.as_role(kRole).send_to_role("zengine.workshop",
+            ws::PaneActions{"controls", {{"reset", "reset the demo", input::scan::kUnknown, input::mod::kNone}}});
     }
     void paint(loom::Mail& m) {
         if (state_.state == "ready" || state_.state == "failed") {
@@ -146,7 +154,7 @@ private:
             if (static_cast<std::int64_t>(rows.size()) == budget) break;
             rows.push_back({ws::pane_text::drawable(ws::pane_text::fit(text, columns)), surface::role::kFill});
         }
-        // THE RESET ROW IS NAMED `control:reset`, and the state beneath it `status`.
+        // THE RESET ROW IS NAMED `control:reset`, by its action, and the state beneath it `status`.
         std::vector<ws::PaneRowPart> parts;
         if (rows.size() > 1) parts.push_back(ws::PaneRowPart{"control:reset", 1, 0, columns});
         if (rows.size() > 2) parts.push_back(ws::PaneRowPart{"status", 2, 0, columns});

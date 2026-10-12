@@ -12,6 +12,7 @@
 // because the fixtures assert.
 
 #include "doctest.h"
+#include "control_parts.hpp"
 
 #include "workshop/persist.hpp"
 #include "workshop/property.hpp"
@@ -3833,13 +3834,38 @@ inline v5::PaneCanvasContent fifth_picture(const v6::PaneCanvasContent& c) {
     return out;
 }
 
+/// THE ADDRESS LAW AGAINST WHAT WORKSHOP HOLDS for a pane now (`control_parts_problem`,
+/// tests/control_parts.hpp): the parts of its picture, and the rows its keymap has in force for it.
+inline std::string held_control_parts_problem(const Session& s, std::int64_t kind) {
+    const ExternalPane* pane = s.panes.external_pane(kind);
+    if (pane == nullptr) return std::string();
+    std::vector<std::string> names;
+    if (shows_canvas(*pane)) {
+        for (const v2::PaneCanvasPart& part : pane->canvas.content.parts) names.push_back(part.name);
+    } else {
+        for (const v2::PaneRowPart& part : pane->parts) names.push_back(part.name);
+    }
+    std::vector<std::string> rows;
+    for (const PaneRows& declared : s.keymap.panes) {
+        if (declared.pane != kind) continue;
+        for (const PaneRow& row : declared.rows) rows.push_back(row.id);
+    }
+    const RuntimePane* offered = s.panes.runtime.of_kind(kind);
+    return control_parts_problem(offered ? offered->provider + "/" + offered->pane
+                                         : "pane " + std::to_string(kind),
+                                 names, rows);
+}
+
 /// THE PARTS A PANE NAMED in what Workshop holds for it now, by name: a text pane's as it said
 /// them, a canvas pane's read back to the row and columns of its lattice they cover.
-/// Each says whether its operation applies now, as its pane said it.
+/// Each says whether its operation applies now, as its pane said it. Every read holds the
+/// picture to the address law (`held_control_parts_problem`).
 inline std::map<std::string, v2::PaneRowPart> held_parts(const Session& s, std::int64_t kind) {
     std::map<std::string, v2::PaneRowPart> out;
     const ExternalPane* pane = s.panes.external_pane(kind);
     if (pane == nullptr) return out;
+    const std::string problem = held_control_parts_problem(s, kind);
+    CHECK_MESSAGE(problem.empty(), problem);
     if (shows_canvas(*pane)) {
         const CanvasRows lattice = held_canvas_rows(*pane);
         if (lattice.empty()) return out;

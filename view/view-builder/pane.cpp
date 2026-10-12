@@ -184,6 +184,7 @@ public:
             return;
         }
         if (action.id == "save") ask_save(mail);
+        else if (action.id == "choices") more_choices();
         else perform(action.id, {}, mail);
         show(mail);
     }
@@ -889,7 +890,23 @@ private:
             workshop_role, ws::PaneActions{vb::kPane,
                                            {{"save", "Save the view", input::scan::kS, input::mod::kCtrl},
                                             {"open", "Open a view", input::scan::kO, input::mod::kCtrl},
-                                            {"run", "Run the view", input::scan::kR, input::mod::kCtrl}}});
+                                            {"run", "Run the view", input::scan::kR, input::mod::kCtrl},
+                                            {"new", "Start a new view", input::scan::kUnknown, input::mod::kNone},
+                                            {"apply", "Apply to the running view", input::scan::kUnknown,
+                                             input::mod::kNone},
+                                            {"stop", "Stop the running view", input::scan::kUnknown, input::mod::kNone},
+                                            {"choices", "More field choices", input::scan::kUnknown,
+                                             input::mod::kNone}}});
+    }
+    /// MORE'S ACTION: the next field choices, as a press on `[More]` in the picture shown turns
+    /// them; nothing while that picture shows no More.
+    void more_choices() {
+        if (pictures_.empty()) return;
+        for (const auto& hit : pictures_.back().hits)
+            if (hit.action == "choices" && !hit.args.empty()) {
+                shown_.choices_from = std::stoul(hit.args[0]);
+                return;
+            }
     }
     static std::string identifier_of(const std::string& label) {
         std::string out;

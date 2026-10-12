@@ -674,8 +674,8 @@ press sends. The host's side is [`workshop/action-causes.md`](workshop/action-ca
   raw scancodes has made its declaration decorative, and its weaver's override reaches nothing.
 - **Declaring is not wanting.** Rows point no keyboard at a pane and hold none: a press into its
   room is still the only way it gets the keys, and a pane that declared nothing is unchanged.
-  The Powers pane declares four (`introspection/vocabulary.hpp`) and the Composer five
-  (`composer/composer.cpp`); `loaded` and `arrangement` declare none.
+  The Powers pane's rows are the ids in `introspection/vocabulary.hpp` and the Composer's are
+  declared in `composer/composer.cpp`; `loaded` and `arrangement` declare none.
 - **A PANE'S NOTICE STANDS UNTIL THE WEAVER'S NEXT ACT, never until it has been said once.**
   A built-in wrote its sentence on the band; a pane has only its own room, so the sentence is a
   row it publishes — and ONE gesture produces SEVERAL publications in one drain (write the

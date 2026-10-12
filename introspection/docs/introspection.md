@@ -245,7 +245,10 @@ on either word in the chrome row.
 | `Return`, or a press on `[ Sample ]` | sample the selected **Source** |
 
 - **`Tab`, `Up`, `Down` and `Return` are the pane's declared actions** — `powers.view`,
-  `powers.up`, `powers.down` and `powers.sample`, declared beside its offer. Workshop lists them
+  `powers.up`, `powers.down` and `powers.sample`, declared beside its offer, with
+  `powers.sources`, `powers.operators` and `powers.composite`, what the three controls do, which
+  have no key until a keymap file gives them one. Each control's part is `control:<id>`, the
+  action it performs. Workshop lists them
   in the band's legend and the hotkey view while the pane holds the keys, a keymap file moves
   them by id exactly as it moves Workshop's own rows, and the pane is sent the resolved id, never
   the key. Typing is not among them: the query field's editing is the component's own.

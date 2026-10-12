@@ -3551,6 +3551,9 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, with w
             const RuntimePane* held = b.row();
             CHECK(held->mode == mode); // the mode the pane says is the one the census names
             builder_elsewhere[mode] = held->elsewhere;
+            // ...AND EVERY CONTROL IT DRAWS IN THE MODE NAMES ONE OF THE MODE'S ROWS (WL-HAND-07).
+            const std::string unnamed = held_control_parts_problem(b.r.session(), b.kind);
+            CHECK_MESSAGE(unnamed.empty(), "in `" << std::string(mode) << "`: " << unnamed);
             for (const v3::PaneActionRow& a : held->actions) {
                 census.push_back(census_line(pane::kBuilderPaneRole, mode, a));
             }

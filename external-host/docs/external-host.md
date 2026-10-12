@@ -963,8 +963,10 @@ Info refuses an amount typed in the other unit.
 
 **The names each shipped pane gives its parts.** A walk names a part as its pane does: a name says
 what the part means, never where it is drawn, and a pane keeps it wherever a redraw puts it, in a
-window and in a terminal alike. A place a pane names nothing is still pressed as the pane reads a
-press there, and is never said.
+window and in a terminal alike. A control is named `control:<id>`, the id of the action it
+performs, which the pane declares beside its picture, so a part pressed by its name and an action
+asked by its id are the same control. A place a pane names nothing is still pressed as the pane
+reads a press there, and is never said.
 
 | Pane | Office and pane | Its parts | It names nothing on |
 |---|---|---|---|
@@ -972,7 +974,7 @@ press there, and is never said.
 | Hotkeys | `zengine.desktop` `hotkeys` | `binding:<group>/<id>/<key>`, a binding's row (`binding:<group>/<id>` where it has no key), and `line`, the spelling line while one is open | the heading, a group's heading, the markers, the footer, a binding's key cell |
 | Loaded | `zengine.introspection` `loaded` | `weave:<library>`, a loaded weave's row | the heading, the omission marker, the caveat, the source line |
 | Project | `zengine.introspection` `arrangement` | none: nothing in it is acted on | everything |
-| Powers | `zengine.introspection` `powers` | `control:sources`, `control:operators`, `control:composite`, `control:sample`, and `power:<identity>`, a power's row | the `find:` field, the markers, the detail, a retained sample, the census |
+| Powers | `zengine.introspection` `powers` | `control:powers.sources`, `control:powers.operators`, `control:powers.composite`, `control:powers.sample`, and `power:<identity>`, a power's row | the `find:` field, the markers, the detail, a retained sample, the census |
 | Attention | `zengine.attention` `attention` | `condition:<key>`, a condition's row | the glance, the notice, a condition's explanation |
 | Connections | `zengine.connections` `connections` | none: nothing in it is acted on | everything |
 | Demo | `zengine.demo` `controls` | `control:reset`, the reset row, and `status`, the state beneath it | the setup's name |
@@ -980,10 +982,10 @@ press there, and is never said.
 | An Info view | `zengine.info` `info.2` to `info.4` | `control:<id>`, a control, and `field:<path>`, a field (`field:meta[<n>].<path>` for a capture's metadata) | the title, the state and detail rows, a notice, the markers, a hint, the line being typed and its label |
 | Files | `zengine.files` `project-files` | `entry:<name>`, `candidate:<name>`, `field:<name>`, `control:<id>` | the headers, a notice, the markers and the `more fields` row, an empty listing or its refusal, a strip's gaps and `+N in menu` |
 | Builder | `zengine.builder-pane` `builder` | `recipe:<name>`, `control:<id>`, `line` | the header, a notice, the facts it reports but the recipe row, the list's heading and markers, the `loads` row, the reader's header and every output line, a strip's gaps and `+N in menu` |
-| Inventory | `zengine.inventory-pane` `inventory` | `entry:<owner>:<entry>`, `folder:<owner>:<id>`, `crumb:<owner>:<id>`, `control:up`, `control:here` | the heading; on the location row `(Up)` at the root, the separators, an elided crumb and the count in views; the markers, a notice or hint, the line being typed and its label |
+| Inventory | `zengine.inventory-pane` `inventory` | `entry:<owner>:<entry>`, `folder:<owner>:<id>`, `crumb:<owner>:<id>`, `control:inventory.parent`, `control:inventory.move.here` | the heading; the two controls while a name is being edited; on the location row `(Up)` at the root, the separators, an elided crumb and the count in views; the markers, a notice or hint, the line being typed and its label |
 | An Inventory view | `zengine.inventory-pane` `inventory.<n>` | `entry:<owner>:<entry>`, a box holding an entry | the heading, the boxes' borders and an empty box, the selected label, the counts, a notice or hint, the line being typed and its label, `Resize` where no box fits |
 | Terminal | `zengine.terminal` `terminal` | `entry:<observation>`, `line`, `newest`, `candidate:<what it says>`, and `legend`, the legend row where its layout shows it | a notice, the heading, the marker above the view, an entry carrying no value, the list's heading, the history row |
-| Composer | `zengine.composer` `compose` | `message:<name> v<version>`, `field:<name>`, `control:submit`, `control:back` | the rows naming nothing |
+| Composer | `zengine.composer` `compose` | `message:<name> v<version>`, `field:<name>`, `control:compose.submit`, `control:compose.back` | the rows naming nothing |
 | Editor | `zengine.editor` `editor` | `status`, and `line:<n>`, a document line | |
 | Neovim's Editor | `zengine.editor` `editor` | `status` | Neovim's own screen |
 | A running view | its own office, `view` | `element:<id>` | |
