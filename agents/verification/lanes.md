@@ -70,8 +70,8 @@ prefix, then deletes a header to prove it read the prefix.
 
 METHOD — The lane may run in parallel with `-DZEN_CTEST_ARGS=-j<n>`, same proofs, on Linux/GCC and on both Windows libraries; an entry that cannot share the machine runs alone, named in `-DZEN_CTEST_APART`.
 BECAUSE — no CTest entry writes what this build tree builds (`tutorial_walks`'s install leaves only CMake's install
-manifest there), so the entries cannot race it; until each repair, the Linux jobs keep `audit_probes` apart (#192) and
-the Windows jobs `timer` (#191), each seen to fail under load where it is kept apart.
+manifest there), so the entries cannot race it; every build job runs every entry in the one pool, and an entry seen to fail
+under load is kept apart only until its repair merges, its witness a loaded parallel lane.
 
 ## VM-LANE-12 — The filesystem decides parallel safety
 
@@ -204,7 +204,7 @@ configure line; neither can stand in for a Loom export, but neither is nothing.
 
 ### VM-LANE-11
 `tests/verify.cmake` ZEN_CTEST_ARGS ZEN_CTEST_APART
-`.github/workflows/ci.yml` ZEN_CTEST_APART (every build job at `-j4`)
+`.github/workflows/ci.yml` ZEN_CTEST_ARGS (every build job at `-j4`)
 `AGENTS.md`
 
 ### VM-LANE-12
