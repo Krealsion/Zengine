@@ -185,6 +185,36 @@ Drained drain(RunningRecipe& process,
     return out;
 }
 
+/// What a wait for work a case started saw: whether the work ended before the wait's patience
+/// ran out, and how many steps and how long it took. The steps are an observation, never a bound.
+struct Waited {
+    bool finished = false;
+    std::int64_t steps = 0;
+    std::chrono::steady_clock::duration took{};
+};
+
+/// Take `step` until `over` holds or `patience` has passed -- a clock, for the reason a drain's
+/// patience is one: the same work outlasts any count of steps on a machine fast enough.
+template <class Over, class Step>
+Waited wait_until(Over over, Step step, std::chrono::milliseconds patience = kDrainPatience) {
+    Waited out;
+    const auto start = std::chrono::steady_clock::now();
+    while (!(out.finished = over()) && std::chrono::steady_clock::now() - start < patience) {
+        step();
+        ++out.steps;
+    }
+    out.took = std::chrono::steady_clock::now() - start;
+    return out;
+}
+
+/// A wait that ran out fails its case, naming the work that had not ended, so no check after it
+/// reads unfinished work as finished.
+void require_ended(const Waited& waited, const char* work) {
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(waited.took).count();
+    REQUIRE_MESSAGE(waited.finished, std::string(work) << " had not ended after " << ms
+                                                       << " ms and " << waited.steps << " steps");
+}
+
 /// Anything on this bus that accepts a BuildStatus. The Builder pane is one
 /// such thing; this is another, and the tool cannot tell them apart, which is
 /// the property that makes the pane a presentation rather than an owner.
@@ -569,14 +599,11 @@ struct Bench {
         bus.drain_until_idle();
     }
 
-    /// Beat until nothing is held any more.
-    std::int64_t beat_until_idle(int guard = 2000000) {
-        std::int64_t beats = 0;
-        while (guard-- > 0 && runner->live() > 0) {
-            beat();
-            ++beats;
-        }
-        return beats;
+    /// Beat until nothing is held any more; the answer is how many beats that took.
+    std::int64_t beat_until_idle() {
+        const Waited waited = wait_until([&] { return runner->live() == 0; }, [&] { beat(); });
+        require_ended(waited, "the builds the runner holds");
+        return waited.steps;
     }
 };
 
@@ -635,18 +662,25 @@ struct Live {
 
     void beat() { tell_runner(timer::TimerFired{std::string(kLookTimerId)}); }
 
+    /// Beat until the runner holds nothing any more.
+    void beat_until_idle() {
+        require_ended(wait_until([&] { return runner->live() == 0; }, [&] { beat(); }),
+                      "the builds the runner holds");
+    }
+
     /// ORDINARY LIFE, CARRIED. Unrelated traffic and the runner's beat, over and
     /// over, until the tool says the build is over -- and the answer is how many
     /// unrelated deliveries were carried while it was not.
-    std::int64_t carry_until_over(int guard = 2000000) {
+    std::int64_t carry_until_over() {
         const std::int64_t before = bystander->seen();
-        while (guard-- > 0 && still_going(tool->known().outcome)) {
+        const Waited waited = wait_until([&] { return !still_going(tool->known().outcome); }, [&] {
             (void)bus.send(bystander_id, loom::Message(loom::to_value(loom::Ack{})));
             (void)bus.send_to_role(
                 kBuildRunnerRole,
                 loom::Message(loom::to_value(timer::TimerFired{std::string(kLookTimerId)})));
             bus.drain_until_idle();
-        }
+        });
+        require_ended(waited, "the build the tool follows");
         return bystander->seen() - before;
     }
 };
@@ -1021,12 +1055,21 @@ TEST_CASE("the direct door looks at what is held, and cannot start anything") {
     REQUIRE(bench.runner->live() == 1);
 
     const std::int64_t looks_before = bench.runner->looks();
-    int guard = 2000000;
-    while (guard-- > 0 && bench.runner->live() > 0) {
+    const auto idle = [&] { return bench.runner->live() == 0; };
+    const auto look = [&] {
         (void)bench.bus.send_to_role(kBuildRunnerRole,
                                      loom::Message(loom::to_value(LookAtBuilds{})));
         bench.bus.drain_until_idle();
-    }
+    };
+    // A WAIT ENDS BY THE CLOCK, NOT BY A COUNT OF LOOKS: looking for less time than the build's
+    // own pauses ends with the build still held and says so, however many looks that was; looking
+    // on follows it to its end.
+    const std::chrono::milliseconds brief{20};
+    const Waited glance = wait_until(idle, look, brief);
+    CHECK_FALSE(glance.finished);
+    CHECK(glance.took >= brief);
+    CHECK(bench.runner->live() == 1);
+    require_ended(wait_until(idle, look), "the build the direct door looks at");
     CHECK(bench.runner->looks() > looks_before);
     REQUIRE(bench.foreman->finished.size() == 1);
 
@@ -1607,9 +1650,7 @@ TEST_CASE("an ask for a recipe the tool does not hold, heard while a build runs,
     CHECK(live.tool->known().builds == 1);
     CHECK(live.runner->ran() == 1);
 
-    for (int guard = 0; guard < 2000000 && live.runner->live() > 0; ++guard) {
-        live.beat();
-    }
+    live.beat_until_idle();
     CHECK(live.runner->live() == 0);
     // BUILD #1 IS STILL THE ONE FOLLOWED: its ending is judged, nothing it said is stray, and the
     // realization it asked for is offered, once.
@@ -1642,9 +1683,7 @@ TEST_CASE("an ask for a recipe the tool does not hold, heard before the build it
     CHECK(live.tool->known().builds == 1);
     CHECK(live.runner->ran() == 1);
 
-    for (int guard = 0; guard < 2000000 && live.runner->live() > 0; ++guard) {
-        live.beat();
-    }
+    live.beat_until_idle();
     CHECK(live.runner->live() == 0);
     CHECK(live.tool->known().recipe == "alpha");
     CHECK(live.tool->known().outcome == outcome::kSucceeded);
