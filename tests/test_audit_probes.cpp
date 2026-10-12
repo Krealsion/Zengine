@@ -58,6 +58,8 @@ struct Seen {
     std::string stop_id;
     std::int64_t stop_count = 1;
     std::int64_t stop_seen = 0;
+    /// Stop the bus at the world's next visual: a lever that ends a pump on the evidence.
+    bool stop_on_visual = false;
     /// The rig's live delivered-Drive counter, so an answer can stamp itself.
     const std::int64_t* drives_now = nullptr;
 
@@ -94,7 +96,12 @@ public:
         }
     }
     void on(const TimerReady&, loom::Mail&) { ++seen_->ready; }
-    void on(const zengine::snake::SnakeVisual& v, loom::Mail&) { seen_->visuals.push_back(v); }
+    void on(const zengine::snake::SnakeVisual& v, loom::Mail&) {
+        seen_->visuals.push_back(v);
+        if (seen_->stop_on_visual) {
+            seen_->bus->stop();
+        }
+    }
 
 private:
     void note(loom::Mail& mail, int kind, std::string text) {
@@ -227,6 +234,14 @@ struct Rig {
         ask(service, StartTimer{"probe.stopwatch", ms, false});
         bus.drain_until_idle();
         seen.stop_id.clear();
+    }
+
+    /// Run the live chain until the world draws, at most `max_beats` delivered Drives: the
+    /// visual as the lever, the beat watchdog as the bound.
+    void pump_until_visual(std::int64_t max_beats) {
+        seen.stop_on_visual = true;
+        pump_beats(max_beats);
+        seen.stop_on_visual = false;
     }
 
     /// DELIVERED DRIVES AS OF THE LAST `poke_int` ANSWER (VM-PROBE-01, VM-PROBE-02). `poke_int`
@@ -548,9 +563,13 @@ TEST_CASE("probe D: a consumer loaded LONG AFTER time started begins anyway — 
     const std::int64_t hellos_before = r.seen.ready;
 
     // The latecomer, loaded after TimerReady was spent: its own activation must make it ask for
-    // a tick timer, with no new TimerReady to rescue it.
+    // a tick timer, with no new TimerReady to rescue it. The pump ends on the evidence, the
+    // world's first visual, which only the clock's tick can cause; its bound is ten tick periods
+    // counted in the Timer's own beats, which the load's own time does not spend and a loaded
+    // machine stretches but never shortens.
     const std::uint64_t corr = r.command(loom::LoadWeave{"snake-clock", SNAKE_CLOCK_SO, ""});
-    r.pump_for(timer_so, 400); // load answers within the first beats; then ~3 tick periods
+    const std::int64_t bound = 10 * zengine::snake::kTickMs / kBeatCapMs;
+    r.pump_until_visual(bound);
     const Seen::Answer* loaded = r.seen.find(corr);
     REQUIRE(loaded != nullptr);
     REQUIRE_MESSAGE(loaded->kind == 0, "late load refused: ", loaded->text);
@@ -559,8 +578,9 @@ TEST_CASE("probe D: a consumer loaded LONG AFTER time started begins anyway — 
     // IT BEGAN. Its own activation made it ask, the ticks are positive, and the
     // world moved — visuals arrived at the witness with nobody sending a
     // SnakeTick.
-    CHECK(r.poke_int(timer_so, clock_so, "ticks") > 0);
-    CHECK_FALSE(r.seen.visuals.empty());
+    CHECK_MESSAGE(r.poke_int(timer_so, clock_so, "ticks") > 0, "the late clock never ticked in ",
+                  bound, " beats");
+    CHECK_MESSAGE(!r.seen.visuals.empty(), "the world never drew in ", bound, " beats");
 
     // AND NOTHING WAS REPUBLISHED TO RESCUE IT. This is the half that makes the
     // proof about activation rather than about a lucky notice: the Timer's
