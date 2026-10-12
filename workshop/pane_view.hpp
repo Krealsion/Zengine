@@ -432,5 +432,20 @@ struct DeskStamps {
     ZEN_SHAPE(DeskStamps, 1, ZEN_FIELD(desk), ZEN_FIELD(panes));
 };
 
+namespace v2 {
+
+/// THE DESK MOVED, AND THE PICTURE EACH PANE TAKES A PRESS ON: the first version's number and
+/// stamps, and each presented pane's aimed picture by its own number, in `panes`' order (0 for
+/// none) -- the number a press is stamped with and a reading by number reads, so a picture that
+/// looks like the last, which keeps its stamp, still moves it once it is aimed at.
+struct DeskStamps {
+    std::int64_t desk = 0;
+    std::vector<PaneStamp> panes;
+    std::vector<std::int64_t> aimed;
+    ZEN_SHAPE(DeskStamps, 2, ZEN_FIELD(desk), ZEN_FIELD(panes), ZEN_FIELD(aimed));
+};
+
+} // namespace v2
+
 } // namespace zengine::workshop
 #endif

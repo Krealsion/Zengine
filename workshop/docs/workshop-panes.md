@@ -1507,6 +1507,7 @@ sent and holds, never its number.
 | `v2::PaneStamp{provider, pane, holder, incarnation, grant, fingerprint}` | The first `PaneStamp`, its picture named by the fingerprint of what the pane sent and holds for the picture aimed at: the same picture sent again keeps it, whatever it was numbered; 0 for a canvas picture no press is stamped with yet |
 | `v5::PaneViewRequested{provider, pane, from, stamp}`, `v5::PaneView{..., grant, fingerprint, covered, in_flight, from, total}` | Version 4's page under a `v2::PaneStamp`; the reading's `fingerprint` beside `picture`, the pane's own number for the picture aimed at, which a point is asked under |
 | `DeskStamps{desk, panes}` | Published by Workshop's office to whoever follows it: the desk number and every presented pane's `v2::PaneStamp`, from the front back, as a `v2::DeskRead` would say them now |
+| `v2::DeskStamps{desk, panes, aimed}` | The first `DeskStamps` and, in `panes`' order, each pane's aimed picture by its own number: the number a press is stamped with and a reading by number reads, 0 where none is aimed at yet and for Layouts. A picture looking like the last keeps its stamp and moves this |
 | `v3::DeskView{desk, width, height, cell_px, space, room, panes, arranging, menu, words, slots}` | `v2::DeskView` and Workshop's own words: the band's notice and legend as `PaneWord`s with their places and no point, since the band takes no press; the status slot as a `surface::SurfaceText{slot, text}`, a word with no place, as the medium is handed it; and `desk`, a number that moves when anything it says moves |
 
 - **One value, then a page at a time.** A `DeskRead` stays inside one decoded value: Loom's
@@ -1554,12 +1555,14 @@ sent and holds, never its number.
 - **The desk number.** `desk` moves whenever the `v3::DeskView` Workshop says differs from the last
   one it said, and holds while nothing does, so a reader knows whether the geometry it read still
   stands. Consistency is per pane: each reading stands on its own stamp.
-- **A notice when the desk moved.** Workshop publishes `DeskStamps` as its office at the end of each
-  delivery that moved the desk number or a presented pane's stamp -- one notice for every repaint
-  that delivery made, and one when a picture's fence comes round -- and a `DeskRead` that finds the
-  number moved without one publishes it. A repaint that moved nothing and a picture sent again
-  unchanged publish nothing. The notice is the whole state, so a relay may keep only the newest
-  (`latest`): the newest stands for every one before it. Its `cause` is best effort.
+- **A notice when the desk moved.** Workshop publishes `DeskStamps` v2 as its office at the end of
+  each delivery that moved the desk number, a presented pane's stamp or the picture it is aimed at
+  -- one notice for every repaint that delivery made, and one when a picture's fence comes round --
+  and a `DeskRead` that finds the number moved without one publishes it; the first version, which
+  names no aimed picture, beside it when the number or a stamp moved. A repaint that moved nothing
+  publishes nothing, and a picture sent again unchanged only the second version, once aimed at.
+  The notice is the whole state, so a relay may keep only the newest (`latest`): the newest stands
+  for every one before it. Its `cause` is best effort.
 - **Layouts reads as Workshop paints it.** Asked as `zengine.workshop` `layouts`, by version 4 or
   in a `DeskRead` alone, its rows are words and its tabs are parts Workshop names, as it names its
   menu's lines: `layout:<name>` for a layout's tab -- each byte of the name outside printable
@@ -1573,8 +1576,8 @@ sent and holds, never its number.
   holds `capture` too, to it alone; other personal speech is still answered by nobody.
 - **The earlier versions are unchanged**, and versions 1 to 3 still refuse a covered pane whole.
   The guest `capture` power grants `DeskReadRequested` (versions 1 and 2) and `PaneViewRequested`
-  (versions 4 and 5), each to `zengine.workshop`, and a row naming `DeskStamps` in its `observe`
-  follows the notice only with `capture`.
+  (versions 4 and 5), each to `zengine.workshop`, and a row naming `DeskStamps` (version 2, or 1)
+  in its `observe` follows the notice only with `capture`.
 
 ## Attributed value origins and delegated shortcuts
 

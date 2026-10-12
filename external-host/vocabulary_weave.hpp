@@ -66,7 +66,7 @@ class GuestVocabulary final
                      // notice that the desk moved, which a `capture` row may observe.
                      zengine::workshop::v2::DeskReadRequested, zengine::workshop::v2::DeskRead,
                      zengine::workshop::v5::PaneViewRequested, zengine::workshop::v5::PaneView,
-                     zengine::workshop::DeskStamps,
+                     zengine::workshop::DeskStamps, zengine::workshop::v2::DeskStamps,
                      zengine::workshop::PaneInventoryRequested, zengine::workshop::PaneInventory,
                      zengine::workshop::KeymapRequested, zengine::workshop::KeymapShown,
                      zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,

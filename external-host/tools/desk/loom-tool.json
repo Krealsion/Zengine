@@ -134,7 +134,7 @@
         }
       ],
       "requires": [
-        "the `capture` power, and an `observe` entry naming zengine.workshop DeskStamps 1 in the guest row",
+        "the `capture` power, and an `observe` entry naming zengine.workshop DeskStamps 2 (or 1) in the guest row",
         "zengine-guest-vocabulary booted in this Loom session, declaring the shapes below",
         "a Workshop publishing DeskStamps and answering DeskRead version 2, PaneView version 5 and GuestRowDescribed",
         "an `out` directory outside every source checkout"
@@ -153,6 +153,7 @@
         "PaneInventory v2",
         "KeymapRequested v1",
         "KeymapShown v3",
+        "DeskStamps v2",
         "DeskStamps v1",
         "loom.observe.Subscribe v1",
         "loom.observe.Subscribed v1",
@@ -171,7 +172,7 @@
         "capture"
       ],
       "example": "loom-session run <dir> desk/watch --name watch-1 --input out=C:/agent/desk --input seconds=300",
-      "recovery": "A refused `out` names why, as desk/read's does. 'refused: this row may not follow the desk' names the relay's words: the row needs `capture` and an `observe` entry naming zengine.workshop DeskStamps 1. Otherwise the run passes and says what it saw: notices, changes written, gaps read again whole, and why it ended; a pane or a desk read Workshop refused is written in its words in the readings, as desk/read writes it."
+      "recovery": "A refused `out` names why, as desk/read's does. 'refused: this row may not follow the desk' names the relay's words: the row needs `capture` and an `observe` entry naming zengine.workshop DeskStamps 2. Otherwise the run passes and says what it saw: notices, changes written, gaps read again whole, and why it ended; a pane or a desk read Workshop refused is written in its words in the readings, as desk/read writes it."
     }
   ]
 }

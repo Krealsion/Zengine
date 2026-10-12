@@ -76,12 +76,15 @@ struct NoticeEarState {
     ZEN_SHAPE(NoticeEarState, 1);
 };
 
-/// WHO FOLLOWS THE DESK: an ordinary weave declaring the notice that the desk moved, keeping every
-/// one it is told, asking nothing.
-class NoticeEar : public loom::WeaveBase<NoticeEar, NoticeEarState, loom::Accept<DeskStamps>> {
+/// WHO FOLLOWS THE DESK: an ordinary weave declaring both versions of the notice that the desk
+/// moved, keeping every one it is told, asking nothing.
+class NoticeEar
+    : public loom::WeaveBase<NoticeEar, NoticeEarState, loom::Accept<DeskStamps, v2::DeskStamps>> {
 public:
     std::vector<DeskStamps> heard;
+    std::vector<v2::DeskStamps> heard_aimed;
     void on(const DeskStamps& d, loom::Mail&) { heard.push_back(d); }
+    void on(const v2::DeskStamps& d, loom::Mail&) { heard_aimed.push_back(d); }
 };
 
 /// A PROVIDER THAT DRAWS A PICTURE, keeping each room Workshop grants it and each picture refused.
@@ -1154,6 +1157,17 @@ PaneStamp number_stamp_for(const std::vector<PaneStamp>& stamps, const std::stri
     return {};
 }
 
+/// The picture the second notice names `office`'s `pane` aimed at; a case requires it is there.
+std::int64_t aimed_for(const v2::DeskStamps& notice, const std::string& office,
+                       const std::string& pane = kReadPane) {
+    REQUIRE(notice.aimed.size() == notice.panes.size());
+    for (std::size_t i = 0; i < notice.panes.size(); ++i) {
+        if (notice.panes[i].provider == office && notice.panes[i].pane == pane) return notice.aimed[i];
+    }
+    FAIL("no aimed picture for " << office << "/" << pane);
+    return 0;
+}
+
 /// A LINE A PANE TYPED: `text` on its first row, and a caret after it when `caret`.
 v4::PaneCanvasContent typed(const std::string& text, bool caret) {
     v4::PaneCanvasContent p;
@@ -1428,11 +1442,14 @@ TEST_CASE("a notice names a picture only once it is aimed at: it is told after t
     d.ear->heard.clear();
     // EVERY FENCE DELIVERED, COUNTED, AND AT EACH NOTICE THE COUNT SO FAR.
     std::int64_t fences = 0;
-    std::vector<std::int64_t> fences_at_notice;
+    std::vector<std::int64_t> fences_at_notice, fences_at_aimed_notice;
     const loom::ObserverId watching = d.r.bus.add_observer([&](const loom::BusEvent& e) {
         if (e.kind != loom::EventKind::Delivered) return;
         if (e.schema_name == PictureFence::zen_name) ++fences;
-        if (e.schema_name == DeskStamps::zen_name) fences_at_notice.push_back(fences);
+        if (e.schema_name == DeskStamps::zen_name) {
+            (e.schema_version == DeskStamps::zen_version ? fences_at_notice : fences_at_aimed_notice)
+                .push_back(fences);
+        }
     });
     d.draw(at, saying("second"));
     d.r.bus.remove_observer(watching);
@@ -1441,6 +1458,39 @@ TEST_CASE("a notice names a picture only once it is aimed at: it is told after t
           stamp_for(was.stamps, kTypingOffice).fingerprint);
     REQUIRE(fences_at_notice.size() == 1);
     CHECK(fences_at_notice[0] == 2);
+    REQUIRE(fences_at_aimed_notice.size() == 1);
+    CHECK(fences_at_aimed_notice[0] == 2);
+}
+
+TEST_CASE("the second notice names each pane's aimed picture: a picture looking like the last moves it once aimed at, while its stamp and the first notice hold") {
+    ReadRig d;
+    const std::size_t at = d.open_canvas(kTypingOffice, 30, 6);
+    d.place(at, 2, 2, 30, 6);
+    d.reseat();
+    d.draw(at, saying("same"));
+    REQUIRE_FALSE(d.ear->heard_aimed.empty());
+    const v2::DeskStamps was = d.ear->heard_aimed.back();
+    DeskRead numbered;
+    REQUIRE(d.read(numbered).empty());
+    CHECK(aimed_for(was, kTypingOffice) == number_stamp_for(numbered.stamps, kTypingOffice).picture);
+    d.ear->heard.clear();
+    d.ear->heard_aimed.clear();
+    d.draw(at, saying("same"));
+    CHECK(d.ear->heard.empty());
+    REQUIRE(d.ear->heard_aimed.size() == 1);
+    const v2::DeskStamps now = d.ear->heard_aimed.back();
+    CHECK(now.desk == was.desk);
+    CHECK(same_stamp(stamp_for(now.panes, kTypingOffice), stamp_for(was.panes, kTypingOffice)));
+    CHECK(aimed_for(now, kTypingOffice) != aimed_for(was, kTypingOffice));
+    // ...THE NUMBER A READING BY NUMBER NOW READS, which it refused until this notice.
+    DeskRead again;
+    REQUIRE(d.read(again).empty());
+    CHECK(aimed_for(now, kTypingOffice) == number_stamp_for(again.stamps, kTypingOffice).picture);
+    // AND NOTHING MOVED, NOTHING IS TOLD: a desk read finding the desk as told says no notice.
+    d.ear->heard_aimed.clear();
+    v2::DeskRead quiet;
+    REQUIRE(d.read(quiet).empty());
+    CHECK(d.ear->heard_aimed.empty());
 }
 
 TEST_CASE("a page under a stamp naming its picture by fingerprint is stale only when the holder, the incarnation, the room or what the pane shows moved: the same picture sent again keeps it") {
