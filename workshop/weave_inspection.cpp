@@ -1474,7 +1474,8 @@ void WorkshopWeave::on(const v2::DeskReadRequested&, loom::Mail& mail) {
 // WL-READ-06 -- agents/workshop/desk-read.md
 std::int64_t WorkshopWeave::aimed_now(const PaneRef& ref) const {
     const RuntimePane* row = session_.panes.runtime.find(ref.provider, ref.pane);
-    const ExternalPane* content = row == nullptr ? nullptr : session_.panes.external_pane(row->kind);
+    const ExternalPane* content =
+        row == nullptr ? nullptr : session_.panes.external_pane(row->kind);
     return content == nullptr ? 0 : content->stamp.aimed;
 }
 
@@ -1482,7 +1483,9 @@ namespace {
 
 bool same_stamps(const std::vector<v2::PaneStamp>& a, const std::vector<v2::PaneStamp>& b) {
     return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-                      [](const v2::PaneStamp& x, const v2::PaneStamp& y) { return same_stamp(x, y); });
+                      [](const v2::PaneStamp& x, const v2::PaneStamp& y) {
+                          return same_stamp(x, y);
+                      });
 }
 
 bool same_panes(const std::vector<v2::StampedPane>& a, const std::vector<v2::StampedPane>& b) {
@@ -1509,7 +1512,8 @@ void WorkshopWeave::publish_desk_stamps(loom::Mail& mail, const v3::DeskView* kn
         numbered.panes.push_back(now.panes.back().stamp);
     }
     numbered.desk = now.desk;
-    if (stamps_published_ && now.desk == stamps_said_.desk && same_panes(now.panes, stamps_said_.panes)) {
+    if (stamps_published_ && now.desk == stamps_said_.desk &&
+        same_panes(now.panes, stamps_said_.panes)) {
         return;
     }
     if (!numbered_published_ || now.desk != numbered_said_.desk ||
