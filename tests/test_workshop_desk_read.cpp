@@ -1009,7 +1009,7 @@ TEST_CASE("a capture guest reads a picture at the canvas text limit whole over t
 
     // WORKSHOP'S OWN DOOR on the rig's bus, a row of the guests file holding `capture`.
     guests::GuestsFile file;
-    file.rows.push_back(guests::GuestRow{"agent", "desk-key", {"capture"}, {}, false});
+    file.rows.push_back(guests::GuestRow{"agent", "desk-key", {"capture"}, {}, false, "", false, {}, {}});
     std::string err;
     REQUIRE(loom::bridge_net_init(&err));
     const loom::socket_t listener = loom::bridge_listen_tcp(0, &err);

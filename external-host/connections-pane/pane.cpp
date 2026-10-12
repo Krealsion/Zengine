@@ -36,9 +36,9 @@ namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::connections_pane;
 
-using ws::v2::GuestConnection;
-using ws::v2::GuestConnections;
-using ws::v2::GuestConnectionsRequested;
+using ws::v3::GuestConnection;
+using ws::v3::GuestConnections;
+using ws::v3::GuestConnectionsRequested;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::v2::PaneOffered;
@@ -135,7 +135,7 @@ private:
     }
 
     /// A presenter that just arrived asks the door once, so it need not wait for a change, and
-    /// at version 2, so each row's powers and losses come with it.
+    /// at version 3, so each row's powers, losses, role and scopes come with it.
     void ask(loom::Mail& mail) {
         (void)mail.as_role(pane::kConnectionsPaneRole)
             .send_to_role(ws::kGuestsRole, GuestConnectionsRequested{});
@@ -175,11 +175,12 @@ private:
                 push("  nobody is connected", surface::role::kMuted);
             }
             // A CONNECTION IS SAID WHOLE OR COUNTED: one a guests-file row admitted brings its
-            // version line, and the two stand together or not at all.
+            // version line, and its reach line when it names a role or doors; they stand together
+            // or not at all.
             std::size_t shown = 0; // connections said
             std::size_t used = 0;  // the lines they and the count took
             for (const GuestConnection& c : known_.rows) {
-                const std::size_t need = c.version > 0 ? 2 : 1;
+                const std::size_t need = 1u + (c.version > 0 ? 1u : 0u) + (c.scopes.empty() ? 0u : 1u);
                 const bool last = known_.rows.size() - shown == 1;
                 if (last ? used + need > budget : used + need >= budget) {
                     push("  " + omitted_text(known_.rows.size() - shown, "more"),
@@ -190,6 +191,9 @@ private:
                 push("  " + row_text(c), role_of(c));
                 if (c.version > 0) {
                     push("    " + version_text(c), role_of(c));
+                }
+                if (!c.scopes.empty()) {
+                    push("    " + scopes_text(c), role_of(c));
                 }
                 used += need;
                 ++shown;
@@ -251,6 +255,13 @@ private:
         for (std::size_t i = 0; i < c.losses.size(); ++i) {
             s += (i == 0 ? "" : "; ") + c.losses[i];
         }
+        return s;
+    }
+
+    /// ...AND WHERE IT READS AND POINTS, its role and doors, in the door's own words.
+    static std::string scopes_text(const GuestConnection& c) {
+        std::string s;
+        for (const std::string& scope : c.scopes) s += (s.empty() ? "" : "; ") + scope;
         return s;
     }
 

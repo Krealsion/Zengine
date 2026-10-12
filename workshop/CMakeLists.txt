@@ -77,6 +77,8 @@ add_library(zengine-workshop-logic STATIC
     weave_operation.cpp
     weave_handlers.cpp
     weave_inspection.cpp
+    weave_guest_read.cpp
+    weave_guide.cpp
     weave_pointer.cpp
     weave_run.cpp
     weave_seam.cpp

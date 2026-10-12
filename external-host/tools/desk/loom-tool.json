@@ -173,6 +173,154 @@
       ],
       "example": "loom-session run <dir> desk/watch --name watch-1 --input out=C:/agent/desk --input seconds=300",
       "recovery": "A refused `out` names why, as desk/read's does. 'refused: this row may not follow the desk' names the relay's words: the row needs `capture` and an `observe` entry naming zengine.workshop DeskStamps 2. Otherwise the run passes and says what it saw: notices, changes written, gaps read again whole, and why it ended; a pane or a desk read Workshop refused is written in its words in the readings, as desk/read writes it."
+    },
+    {
+      "name": "guide",
+      "script": "guide.py",
+      "summary": "Mark one control of a running Workshop's desk for the weaver to see, by the address a press names; an empty control clears this session's mark.",
+      "description": "Asks Workshop (zengine.workshop), through the link, GuideRequested version 1: the pane as <office>/<pane>, the control by its action id (the pane draws it as the part control:<id>) or part:<name> for a subject part, and at most 60 bytes of printable ASCII shown beside the guest's own row name. Workshop judges the row's `guide` and `capture` doors first, then whether the part shows now in a settled picture; it draws one mark a session, inside the pane's body, in the guide role, and says whether its label found a free row. A control with no part is answered not shown, with the weaver's key. The weaver's own press inside the mark ends it, and so do its part leaving the picture, its pane's holder changing, a newer mark of this session and the session's end. Never on Connections, the Hotkeys pane, or a part whose press opens either. Presses nothing and changes nothing else.",
+      "inputs": [
+        {
+          "name": "pane",
+          "type": "text",
+          "default": "",
+          "help": "the pane, <office>/<pane>, as a reading names it"
+        },
+        {
+          "name": "control",
+          "type": "text",
+          "default": "",
+          "help": "the control's action id, or part:<name> for a subject part; empty clears this session's mark"
+        },
+        {
+          "name": "words",
+          "type": "text",
+          "default": "",
+          "help": "what the mark says beside the guest's name"
+        },
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        }
+      ],
+      "outputs": [],
+      "requires": [
+        "the `guide` power, a guests file of version 3: a row that may guide within its `guide` doors",
+        "zengine-guest-vocabulary booted in this Loom session, declaring GuideRequested and GuideAnswered"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "GuideRequested v1",
+        "GuideAnswered v1"
+      ],
+      "terms": [
+        "guide",
+        "highlight",
+        "mark",
+        "point",
+        "tutor"
+      ],
+      "example": "loom-session run <dir> desk/guide --name guide-1 --input pane=zengine.builder-pane/builder --input control=builder.build --input words=\"build this one\"",
+      "recovery": "A refusal names why: the row lacks `guide`, the pane is outside its doors, the pane is one only the weaver's hand reaches, another guest marks it, the part shows nowhere now, or the desk holds 16 marks. 'not shown' with a key names a control drawn as no part: say the key in words."
+    },
+    {
+      "name": "resolve",
+      "script": "resolve.py",
+      "summary": "The controls on a running Workshop's desk whose press may cause a message, resolved from what this row may read; marks one when exactly one is shown and usable.",
+      "description": "Asks, through the link, the guest door for this session's own row (GuestRowDescribed version 2: its `capture` doors), and Workshop for the keymap (KeymapShown version 3: every row in force with its address, the weaver's key and what a press may cause, and each pane's other modes), the desk (DeskRead version 2), the pane inventory and, for each pane a candidate stands in, its parts (PaneView version 6, each with whether its operation applies now). Says every control that may cause the message: its address, the part that draws it, whether it shows and is usable now, the weaver's key and where its pane is; and when none is shown and usable, the steps that would bring one, nearest first: a row in force entering the pane's other mode, and showing the pane, itself a message resolved the same way, at most 3 steps deep, never through Connections or the Hotkeys pane. When no control this row may read causes it: the panes outside its read, or, for a row that reads every pane, the case for a tool as four claims, filed nowhere. With `mark` on, marks the one control shown and usable, else the nearest step's one, through GuideRequested. Presses nothing.",
+      "inputs": [
+        {
+          "name": "shape",
+          "type": "text",
+          "default": "",
+          "help": "the message the weaver should cause, by name"
+        },
+        {
+          "name": "version",
+          "type": "text",
+          "default": "0",
+          "help": "its version, or 0 for any"
+        },
+        {
+          "name": "subject",
+          "type": "text",
+          "default": "",
+          "help": "what it is about, <office>/<pane>, for a message about a subject"
+        },
+        {
+          "name": "mark",
+          "type": "text",
+          "default": "",
+          "help": "yes: mark the control when exactly one is shown and usable, else the nearest step's"
+        },
+        {
+          "name": "words",
+          "type": "text",
+          "default": "",
+          "help": "what the mark says"
+        },
+        {
+          "name": "why",
+          "type": "text",
+          "default": "",
+          "help": "for the case for a tool: the lesson's sentence saying why the weaver needs it"
+        },
+        {
+          "name": "office",
+          "type": "text",
+          "default": "",
+          "help": "for the case for a tool: the office that would take the message"
+        },
+        {
+          "name": "pane",
+          "type": "text",
+          "default": "",
+          "help": "for the case for a tool: the pane it belongs in"
+        },
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        }
+      ],
+      "outputs": [],
+      "requires": [
+        "the `capture` power: the keymap, the desk and the parts are answered under the row's `capture` doors",
+        "the `guide` power for `mark`",
+        "zengine-guest-vocabulary booted in this Loom session, declaring the shapes below"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "GuestRowDescribedRequested v2",
+        "GuestRowDescribed v2",
+        "KeymapRequested v1",
+        "KeymapShown v3",
+        "DeskReadRequested v2",
+        "DeskRead v2",
+        "PaneInventoryRequested v1",
+        "PaneInventory v2",
+        "PaneViewRequested v6",
+        "PaneView v6",
+        "GuideRequested v1",
+        "GuideAnswered v1"
+      ],
+      "terms": [
+        "resolve",
+        "control",
+        "cause",
+        "route",
+        "guide",
+        "tutor"
+      ],
+      "example": "loom-session run <dir> desk/resolve --name resolve-1 --input shape=BuildRequested --input mark=yes --input words=\"build this one\"",
+      "recovery": "'not resolved' names the refused read. A control 'outside this row's read' or the panes named outside its read are the row's doors: ask the weaver. 'a case for a tool' is a draft: file nothing on a weaver's desk before the weaver says yes."
     }
   ]
 }

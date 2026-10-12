@@ -134,6 +134,7 @@ inline const char* sgr_for_role(int role) noexcept {
     case 2: return "\x1b[90m";    // kMuted  — bright black: present, quiet
     case 3: return "\x1b[31;1m";  // kAlert  — bold red: must be seen
     case 4: return "\x1b[30m";    // kGround — black: opaque empty material
+    case 6: return "\x1b[95m";    // kGuide — bright magenta: a guest's mark
     default: return "\x1b[39m";   // kFill, kMediumGround (no ink) and anything unknown — plain ink
     }
 }
@@ -144,7 +145,7 @@ inline const char* sgr_for_role(int role) noexcept {
 /// terminal as on a dark one. `ground` is `role::kNone` where the terminal's own shows.
 inline const char* sgr_for_cell(int role, int ground) noexcept {
     switch (role) {
-    case 1: case 2: case 3: case 4: return sgr_for_role(role);
+    case 1: case 2: case 3: case 4: case 6: return sgr_for_role(role);
     default: return ground < 0 ? sgr_for_role(role) : "\x1b[37m";
     }
 }
@@ -159,6 +160,7 @@ inline const char* sgr_bg_for_role(int role) noexcept {
     case 3: return "\x1b[41m";  // kAlert  — red ground
     case 4: return "\x1b[40m";  // kGround — black ground
     case 5: return "\x1b[49m";  // kMediumGround — whatever the terminal is wearing
+    case 6: return "\x1b[45m";  // kGuide — magenta ground
     default: return "\x1b[47m"; // kFill and anything unknown — plain ground
     }
 }
@@ -172,6 +174,7 @@ inline char glyph_for_role(int role) noexcept {
     case 3: return '!'; // kAlert
     case 4: return ' '; // kGround
     case 5: return ' '; // kMediumGround
+    case 6: return '+'; // kGuide
     default: return '#'; // kFill and anything unknown
     }
 }

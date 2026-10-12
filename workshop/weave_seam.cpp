@@ -337,6 +337,9 @@ void WorkshopWeave::on(const PictureFence& fence, loom::Mail& mail) {
     // Nothing is repainted: what a press is stamped with is not something a weaver sees. A reading
     // stands on the picture aimed at, so a notice may be owed.
     stamps_owed_ = true;
+    // ...BUT A GUIDE MARK IS JUDGED ON THE PICTURE AIMED AT, which has just moved: a mark that now
+    // stands otherwise is drawn again, or ends.
+    if (guide_marks_moved()) repaint(mail);
 }
 
 // Content naming its generation (WL-OPEN-03).

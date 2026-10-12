@@ -120,6 +120,11 @@ bool WorkshopWeave::cell_center(const VisibleBody& visible, std::int64_t row, st
 }
 
 void WorkshopWeave::on(const PaneViewRequested& asked, loom::Mail& mail) {
+    if (const std::string withheld = read_withheld(mail, mail.sender(), asked.provider, asked.pane);
+        !withheld.empty()) {
+        (void)mail.answer(loom::Refused{"pane view withheld: " + withheld});
+        return;
+    }
     VisibleBody visible;
     if (const auto why = visible_text_body(asked.provider, asked.pane, visible); !why.empty()) {
         (void)mail.answer(loom::Refused{why}); return;
@@ -143,6 +148,11 @@ void WorkshopWeave::on(const PaneViewRequested& asked, loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const PanePointRequested& asked, loom::Mail& mail) {
+    if (const std::string withheld = read_withheld(mail, mail.sender(), asked.provider, asked.pane);
+        !withheld.empty()) {
+        (void)mail.answer(loom::Refused{"pane view withheld: " + withheld});
+        return;
+    }
     VisibleBody visible;
     if (const auto why = visible_text_body(asked.provider, asked.pane, visible); !why.empty()) {
         (void)mail.answer(loom::Refused{why}); return;
@@ -729,6 +739,11 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
 }
 
 void WorkshopWeave::on(const v2::PaneViewRequested& asked, loom::Mail& mail) {
+    if (const std::string withheld = read_withheld(mail, mail.sender(), asked.provider, asked.pane);
+        !withheld.empty()) {
+        (void)mail.answer(loom::Refused{"pane view withheld: " + withheld});
+        return;
+    }
     VisibleBody visible;
     if (const auto why = visible_body(asked.provider, asked.pane, visible, true); !why.empty()) {
         (void)mail.answer(loom::Refused{why});
@@ -789,6 +804,11 @@ std::vector<v2::PanePart> WorkshopWeave::visible_parts(const VisibleBody& visibl
 }
 
 void WorkshopWeave::on(const v3::PaneViewRequested& asked, loom::Mail& mail) {
+    if (const std::string withheld = read_withheld(mail, mail.sender(), asked.provider, asked.pane);
+        !withheld.empty()) {
+        (void)mail.answer(loom::Refused{"pane view withheld: " + withheld});
+        return;
+    }
     VisibleBody visible;
     if (const auto why = visible_body(asked.provider, asked.pane, visible, true); !why.empty()) {
         (void)mail.answer(loom::Refused{why});
@@ -1254,6 +1274,11 @@ v3::DeskView WorkshopWeave::desk_view_v3() const {
 // a picture in flight is said so at any page.
 // WL-READ-02 -- agents/workshop/desk-read.md
 void WorkshopWeave::on(const v4::PaneViewRequested& asked, loom::Mail& mail) {
+    if (const std::string withheld = read_withheld(mail, mail.sender(), asked.provider, asked.pane);
+        !withheld.empty()) {
+        (void)mail.answer(loom::Refused{"pane view withheld: " + withheld});
+        return;
+    }
     v6::PaneView whole;
     if (const std::string why = pane_reading(asked.provider, asked.pane, whole, true); !why.empty()) {
         (void)mail.answer(loom::Refused{why});
@@ -1293,6 +1318,11 @@ template <class View, class Fill>
 void WorkshopWeave::answer_page(const std::string& provider, const std::string& pane,
                                 std::int64_t from, const v2::PaneStamp& stamp, Fill fill,
                                 loom::Mail& mail) const {
+    if (const std::string withheld = read_withheld(mail, mail.sender(), provider, pane);
+        !withheld.empty()) {
+        (void)mail.answer(loom::Refused{"pane view withheld: " + withheld});
+        return;
+    }
     v6::PaneView reading;
     if (const std::string why = pane_reading(provider, pane, reading); !why.empty()) {
         (void)mail.answer(loom::Refused{why});
@@ -1407,10 +1437,15 @@ void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
     }
     DeskRead out;
     out.desk = desk_view_v3();
+    if (reads_by_pane(mail.sender())) withhold_desk(out.desk);
     std::vector<std::optional<v4::PaneView>> readings;
     for (const PaneRef& ref : presented_refs()) {
         v6::PaneView reading;
-        if (pane_reading(ref.provider, ref.pane, reading, true).empty()) {
+        if (!read_withheld(mail, mail.sender(), ref.provider, ref.pane).empty()) {
+            const v2::PaneStamp w = withheld_stamp(ref);
+            out.stamps.push_back(PaneStamp{w.provider, w.pane, w.holder, 0, 0, 0});
+            readings.emplace_back(std::nullopt);
+        } else if (pane_reading(ref.provider, ref.pane, reading, true).empty()) {
             out.stamps.push_back(stamp_from(reading));
             readings.emplace_back(fourth_version(reading));
         } else {
@@ -1445,8 +1480,15 @@ void WorkshopWeave::on(const v2::DeskReadRequested&, loom::Mail& mail) {
     }
     v2::DeskRead out;
     out.desk = desk_view_v3();
+    if (reads_by_pane(mail.sender())) withhold_desk(out.desk);
     std::vector<std::optional<v5::PaneView>> readings;
     for (const PaneRef& ref : presented_refs()) {
+        // A PANE THE ASKER MAY NOT READ is said by its place, name and holder alone.
+        if (!read_withheld(mail, mail.sender(), ref.provider, ref.pane).empty()) {
+            out.stamps.push_back(withheld_stamp(ref));
+            readings.emplace_back(std::nullopt);
+            continue;
+        }
         out.stamps.push_back(stamp_now(ref));
         v6::PaneView reading;
         if (pane_reading(ref.provider, ref.pane, reading).empty()) readings.emplace_back(fifth_version(reading));
@@ -1531,6 +1573,11 @@ void WorkshopWeave::publish_desk_stamps(loom::Mail& mail, const v3::DeskView* kn
 // WHERE ONE CHARACTER OF ONE WORD IS NOW, measured as the word was and checked by resolving it: a
 // text row through the press measurer, a canvas word against the body its press lands in.
 void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
+    if (const std::string withheld = read_withheld(mail, mail.sender(), asked.provider, asked.pane);
+        !withheld.empty()) {
+        (void)mail.answer(loom::Refused{"pane view withheld: " + withheld});
+        return;
+    }
     VisibleBody visible;
     if (const auto why = visible_body(asked.provider, asked.pane, visible, true); !why.empty()) {
         (void)mail.answer(loom::Refused{why});
@@ -1579,6 +1626,11 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
 // answers, or a canvas pane's cell of the lattice its room's text stands on, wherever the picture
 // draws or leaves it blank -- checked by reading the point back to that cell of the room it lands in.
 void WorkshopWeave::on(const v3::PanePointRequested& asked, loom::Mail& mail) {
+    if (const std::string withheld = read_withheld(mail, mail.sender(), asked.provider, asked.pane);
+        !withheld.empty()) {
+        (void)mail.answer(loom::Refused{"pane view withheld: " + withheld});
+        return;
+    }
     VisibleBody visible;
     if (const auto why = visible_body(asked.provider, asked.pane, visible, true); !why.empty()) {
         (void)mail.answer(loom::Refused{why});

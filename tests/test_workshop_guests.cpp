@@ -16,6 +16,8 @@
 #include "workshop/guest_door.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/guests.hpp"
+#include "workshop/pane_document.hpp"
+#include "workshop/guide_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
@@ -34,11 +36,13 @@
 
 #include <zen/bridge/client.hpp>
 #include <zen/serialize.hpp>
+#include <zen/switchboard/door.hpp>
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 #include <zen/weave/describe.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -1127,8 +1131,9 @@ TEST_CASE("order: through the real door, a settle-requested injection is told Se
 TEST_CASE("observe: through the real door, a guest observes only what its row lists, marked with its "
           "own send, until the host revokes it or its socket ends") {
     Scratch f("relay");
-    f.write(R"({"listen":"127.0.0.1:0","guests":[)"
-            R"({"name":"agent","credential":"a-cred","may":["input"],"observe":[)"
+    // THE WEAVER'S KEYS ARE HEARD ONLY WITH `keystrokes`, a word of the file's version 3.
+    f.write(R"({"version":"3","listen":"127.0.0.1:0","guests":[)"
+            R"({"name":"agent","credential":"a-cred","may":["input","keystrokes"],"observe":[)"
             R"({"producer":"zengine.input","shape":"KeyPressed","version":")" +
             std::to_string(input::KeyPressed::zen_version) + R"("}]},)"
             R"({"name":"hands","credential":"h-cred","may":["input"]}]})");
@@ -1258,10 +1263,11 @@ TEST_CASE("guests file: a file names its version, version 2 adds build and the h
         CHECK(file.host == guests::kHostWeaver);
     }
     SUBCASE("a version this Workshop does not read refuses the file, naming the versions it reads") {
-        f.write(R"({"version":"3","guests":[{"name":"a","credential":"x"}]})");
+        const std::string next = std::to_string(guests::kGuestsFileVersion + 1);
+        f.write(R"({"version":")" + next + R"(","guests":[{"name":"a","credential":"x"}]})");
         CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
-        CHECK(why.find("names version 3") != std::string::npos);
-        CHECK(why.find("versions 1 to 2") != std::string::npos);
+        CHECK(why.find("names version " + next) != std::string::npos);
+        CHECK(why.find("versions 1 to " + std::to_string(guests::kGuestsFileVersion)) != std::string::npos);
     }
     SUBCASE("build is a version-2 power: a file naming no version may not grant it") {
         f.write(R"({"guests":[{"name":"a","credential":"x","may":["input","build"]}]})");
@@ -1290,6 +1296,260 @@ TEST_CASE("guests file: a file names its version, version 2 adds build and the h
         f.write(R"({"version":2,"guests":[{"name":"a","credential":"x"}]})");
         CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
     }
+}
+
+// =============================================================================
+// Version 3: guide, keystrokes, a role, and reading and pointing by door
+// =============================================================================
+
+TEST_CASE("guests file: version 3 adds guide, keystrokes, a role and the capture and guide doors, and a file of an earlier version saying one is refused") {
+    Scratch f("version-3");
+    guests::GuestsFile file;
+    std::string why;
+    SUBCASE("version 3 reads every word") {
+        f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","may":["capture","guide","keystrokes"],)"
+                R"("capture":["zengine.builder-pane/)" R"(*","zengine.desktop/launcher"],"guide":["zengine.builder-pane/builder"]}]})");
+        REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+        REQUIRE(file.rows.size() == 1);
+        const guests::GuestRow& row = file.rows[0];
+        CHECK(row.by_door);
+        CHECK(row.capture == std::vector<std::string>{"zengine.builder-pane/" "*", "zengine.desktop/launcher"});
+        CHECK(row.guide == std::vector<std::string>{"zengine.builder-pane/builder"});
+        CHECK(row.reads_by_pane());
+        CHECK(row.guides_by_pane());
+    }
+    for (const char* word : {R"("may":["guide"])", R"("may":["keystrokes"])", R"("role":"tutor")",
+                             R"("may":["capture"],"capture":["*"])", R"("may":["capture","guide"],"guide":["*"])"}) {
+        CAPTURE(word);
+        f.write(std::string(R"({"version":"2","guests":[{"name":"t","credential":"x",)") + word + "}]}");
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+        CHECK_MESSAGE(why.find("a word of the file's version 3") != std::string::npos, why);
+        CHECK_MESSAGE(why.find(R"((name "version": "3"))") != std::string::npos, why);
+    }
+    SUBCASE("an earlier row reads the desk whole and points nowhere") {
+        f.write(R"({"version":"2","guests":[{"name":"a","credential":"x","may":["capture"]}]})");
+        REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+        CHECK_FALSE(file.rows[0].by_door);
+        CHECK_FALSE(file.rows[0].reads_by_pane());
+    }
+    SUBCASE("a power without its field reaches no pane, and is said") {
+        f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","may":["capture","guide"]}]})");
+        REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+        CHECK(file.rows[0].reads_by_pane());
+        CHECK(file.rows[0].capture.empty());
+        const std::vector<std::string> scopes = guests::scopes_of(file.rows[0]);
+        CHECK(std::find(scopes.begin(), scopes.end(),
+                        "reads no pane: the row names no `capture` doors") != scopes.end());
+        CHECK(std::find(scopes.begin(), scopes.end(),
+                        "points nowhere: the row names no `guide` doors") != scopes.end());
+    }
+    SUBCASE("every pane is written, never assumed") {
+        f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","may":["capture","guide"],"capture":["*"],"guide":["*"]}]})");
+        REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+        CHECK_FALSE(file.rows[0].reads_by_pane());
+        CHECK_FALSE(file.rows[0].guides_by_pane());
+    }
+}
+
+TEST_CASE("guests file: a door names a pane, a guide door lies within a capture door, every pane stands alone, and no door names a pane only the weaver's hand reads") {
+    Scratch f("doors");
+    guests::GuestsFile file;
+    std::string why;
+    const auto refused = [&](const std::string& fields, const std::string& words) {
+        f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","may":["capture","guide"],)" + fields + "}]}");
+        CAPTURE(fields);
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+        CHECK_MESSAGE(why.find(words) != std::string::npos, why);
+    };
+    refused(R"("capture":["zengine.builder-pane/builder:builder.build"])", "names a control");
+    refused(R"("capture":["arrange:review"])", "is a root's door");
+    refused(R"("capture":["zengine.files*"])", "is not a door");
+    refused(R"("capture":["*","zengine.files/)" R"(*"])", "names '*', every pane, beside other doors");
+    refused(R"("capture":["zengine.connections/connections"])", "names a pane only the weaver's hand reads");
+    refused(R"("capture":["zengine.connections/)" R"(*"])", "names a pane only the weaver's hand reads");
+    refused(R"("capture":["zengine.desktop/hotkeys"])", "names a pane only the weaver's hand reads");
+    refused(R"("capture":["zengine.builder-pane/builder"],"guide":["zengine.desktop/launcher"])",
+            "lies outside every `capture` door: a row points only where it reads");
+    refused(R"("capture":["zengine.builder-pane/builder"],"guide":["zengine.builder-pane/)" R"(*"])",
+            "lies outside every `capture` door");
+    // A FIELD WITHOUT ITS POWER is refused: a scope names where a power reaches.
+    f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","may":["capture"],"capture":["*"],"guide":["*"]}]})");
+    CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+    CHECK_MESSAGE(why.find("names `guide` doors but may not guide") != std::string::npos, why);
+    // AN OFFICE-WIDE DOOR THAT HOLDS A WEAVER-ONLY PANE stands: Workshop withholds that pane itself.
+    f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","may":["capture","guide"],)"
+            R"("capture":["zengine.desktop/)" R"(*"],"guide":["zengine.desktop/launcher"]}]})");
+    CHECK_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+}
+
+TEST_CASE("guests file: the tutor role is capture and guide, a row adds to it, and its reach is said in full beside it") {
+    Scratch f("role");
+    guests::GuestsFile file;
+    std::string why;
+    f.write(R"({"version":"3","guests":[{"name":"tutor","credential":"x","role":"tutor",)"
+            R"("capture":["zengine.builder-pane/)" R"(*","zengine.desktop/launcher"],)"
+            R"("guide":["zengine.builder-pane/)" R"(*","zengine.desktop/launcher"]}]})");
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    const guests::GuestRow& row = file.rows[0];
+    CHECK(row.role == "tutor");
+    CHECK(row.may == std::vector<std::string>{"capture", "guide"});
+    CHECK(row.observe.empty());
+    // NOTHING THE ROLE LEAVES OUT IS GRANTED: no input, no press, no keys heard.
+    const loom::Grant g = guests::grant_for(row);
+    CHECK_FALSE(g.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK_FALSE(g.permits_role(input::InputSessionRequested::zen_name, 1, input::kInputRole));
+    // ITS REACH, said: the role and what it expanded to, what it reads and where it points.
+    const std::vector<std::string> scopes = guests::scopes_of(row);
+    REQUIRE(scopes.size() == 3);
+    CHECK(scopes[0] == "role tutor: may capture, guide");
+    CHECK(scopes[1] == "reads zengine.builder-pane/" "*, zengine.desktop/launcher");
+    CHECK(scopes[2] == "points within zengine.builder-pane/" "*, zengine.desktop/launcher");
+    bool on_attention = false;
+    for (const ws::Condition& c : guests::conditions_of(file)) {
+        on_attention = on_attention || (c.key == "guests.scope/0" && c.detail.find("role tutor") != std::string::npos);
+    }
+    CHECK(on_attention);
+    // A ROW ADDS TO ITS ROLE, and an unknown role is refused in words.
+    f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","role":"tutor","may":["inspect"],"capture":["*"],"guide":["*"]}]})");
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    CHECK(file.rows[0].may == std::vector<std::string>{"capture", "guide", "inspect"});
+    f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","role":"teacher"}]})");
+    CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+    CHECK_MESSAGE(why.find("names the role 'teacher', which this host does not know (tutor)") != std::string::npos, why);
+}
+
+TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keymap, the inventory and its doors' manuals as Loom door rules, and never the older reads or the Skin's picture") {
+    guests::GuestRow row;
+    row.name = "tutor";
+    row.credential = "x";
+    row.may = {guests::kPowerCapture, guests::kPowerGuide};
+    row.by_door = true;
+    row.capture = {"zengine.builder-pane/" "*", "zengine.desktop/launcher"};
+    row.guide = {"zengine.builder-pane/builder"};
+    const loom::Grant g = guests::grant_for(row);
+    const auto door = [](const char* text) { return *loom::Door::parse(text); };
+    // THE READS IT KEEPS, door-less, so they are delivered...
+    CHECK(g.permits_role(ws::v2::DeskReadRequested::zen_name, 2, "zengine.workshop"));
+    CHECK(g.permits_role(ws::v5::PaneViewRequested::zen_name, 5, "zengine.workshop"));
+    CHECK(g.permits_role(ws::v6::PaneViewRequested::zen_name, 6, "zengine.workshop"));
+    CHECK(g.permits_role(ws::KeymapRequested::zen_name, 1, "zengine.workshop"));
+    CHECK(g.permits_role(ws::PaneInventoryRequested::zen_name, 1, "zengine.workshop"));
+    CHECK(g.permits_role(ws::GuideRequested::zen_name, 1, "zengine.workshop"));
+    // ...THE DOORS WORKSHOP ASKS LOOM ABOUT, by containment...
+    const loom::LiveAuthority live = g.live();
+    CHECK(live.permits_role(ws::v2::DeskReadRequested::zen_name, 2, "zengine.workshop",
+                            door("zengine.builder-pane/builder")));
+    CHECK(live.permits_role(ws::v2::DeskReadRequested::zen_name, 2, "zengine.workshop",
+                            door("zengine.desktop/launcher")));
+    CHECK_FALSE(live.permits_role(ws::v2::DeskReadRequested::zen_name, 2, "zengine.workshop",
+                                  door("zengine.desktop/hotkeys")));
+    CHECK_FALSE(live.permits_role(ws::v2::DeskReadRequested::zen_name, 2, "zengine.workshop",
+                                  door("zengine.editor/editor")));
+    CHECK(live.permits_role(ws::GuideRequested::zen_name, 1, "zengine.workshop",
+                            door("zengine.builder-pane/builder")));
+    CHECK_FALSE(live.permits_role(ws::GuideRequested::zen_name, 1, "zengine.workshop",
+                                  door("zengine.desktop/launcher")));
+    // ...THE MANUALS OF THE OFFICES ITS DOORS NAME, and no other...
+    CHECK(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.builder-pane"));
+    CHECK(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.desktop"));
+    CHECK_FALSE(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
+    // ...AND NONE OF WHAT CARRIES EVERY PANE: the older reads and the Skin's picture.
+    for (const std::pair<const char*, std::uint32_t>& old :
+         std::vector<std::pair<const char*, std::uint32_t>>{
+             {ws::PaneViewRequested::zen_name, ws::PaneViewRequested::zen_version},
+             {ws::v2::PaneViewRequested::zen_name, ws::v2::PaneViewRequested::zen_version},
+             {ws::v3::PaneViewRequested::zen_name, ws::v3::PaneViewRequested::zen_version},
+             {ws::v4::PaneViewRequested::zen_name, ws::v4::PaneViewRequested::zen_version},
+             {ws::PanePointRequested::zen_name, ws::PanePointRequested::zen_version},
+             {ws::v2::PanePointRequested::zen_name, ws::v2::PanePointRequested::zen_version},
+             {ws::v3::PanePointRequested::zen_name, ws::v3::PanePointRequested::zen_version},
+             {ws::DeskViewRequested::zen_name, ws::DeskViewRequested::zen_version},
+             {ws::v2::DeskViewRequested::zen_name, ws::v2::DeskViewRequested::zen_version},
+             {ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version}}) {
+        CAPTURE(old.first);
+        CAPTURE(old.second);
+        CHECK_FALSE(g.permits_role(old.first, old.second, "zengine.workshop"));
+    }
+    CHECK_FALSE(g.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
+    // A ROW THAT READS EVERY PANE keeps the whole desk, the picture, and every pane's manual.
+    row.capture = {"*"};
+    row.guide = {"*"};
+    const loom::Grant whole = guests::grant_for(row);
+    CHECK(whole.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
+    CHECK(whole.permits_role(ws::DeskReadRequested::zen_name, 1, "zengine.workshop"));
+    CHECK(whole.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
+}
+
+TEST_CASE("observation: the weaver's input is heard only with keystrokes, no guest observes the connections, and a row that reads by pane is refused what carries every pane") {
+    guests::GuestsFile file;
+    file.version = 3;
+    guests::GuestRow keys;
+    keys.name = "keys";
+    keys.may = {guests::kPowerInput};
+    keys.by_door = true;
+    guests::GuestRow tutor;
+    tutor.name = "tutor";
+    tutor.may = {guests::kPowerCapture, guests::kPowerGuide};
+    tutor.by_door = true;
+    tutor.capture = {"zengine.builder-pane/" "*"};
+    guests::GuestRow whole = tutor;
+    whole.name = "whole";
+    whole.capture = {"*"};
+    for (guests::GuestRow* row : {&keys, &tutor, &whole}) {
+        for (const char* shape : {input::AttributedInput::zen_name, input::KeyPressed::zen_name,
+                                  input::TextEntered::zen_name}) {
+            row->observe.push_back({input::kInputRole, shape, 1});
+        }
+        for (const char* shape : {surface::SurfaceCanvas::zen_name, ws::KeymapShown::zen_name,
+                                  ws::StandingConditions::zen_name, ws::DeskStamps::zen_name}) {
+            row->observe.push_back({"zengine.workshop", shape, 1});
+        }
+        row->observe.push_back({"zengine.workshop", ws::v2::DeskStamps::zen_name, ws::v2::DeskStamps::zen_version});
+        row->observe.push_back({ws::kGuestsRole, ws::GuestConnections::zen_name, 1});
+        file.rows.push_back(*row);
+    }
+    std::size_t asking = 0;
+    const auto policy =
+        guests::observation_of(file, [&](loom::WeaveId) -> std::optional<std::size_t> { return asking; });
+    const auto ask = [&](std::size_t row, const char* producer, const char* shape, std::int64_t version) {
+        asking = row;
+        return policy(loom::observe::ObserveRequest{loom::WeaveId{5}, producer, {{shape, version}}, "suite"});
+    };
+    // THE WEAVER'S INPUT, from whichever office says it: refused without `keystrokes`...
+    for (const char* shape : {input::AttributedInput::zen_name, input::KeyPressed::zen_name,
+                              input::TextEntered::zen_name}) {
+        CAPTURE(shape);
+        const auto said = ask(0, input::kInputRole, shape, 1);
+        CHECK_FALSE(said.allowed);
+        CHECK(said.reason.find("which a row hears only with `keystrokes`") != std::string::npos);
+        CHECK_FALSE(ask(0, "zengine.somewhere-else", shape, 1).allowed);
+    }
+    // ...AND HEARD WITH IT.
+    file.rows[0].may.push_back(guests::kPowerKeystrokes);
+    const auto heard =
+        guests::observation_of(file, [&](loom::WeaveId) -> std::optional<std::size_t> { return 0; });
+    CHECK(heard(loom::observe::ObserveRequest{loom::WeaveId{5}, input::kInputRole,
+                                              {{input::AttributedInput::zen_name, 1}}, "suite"})
+              .allowed);
+    // THE CONNECTIONS, at every version, to no guest.
+    for (std::size_t row = 0; row < 3; ++row) {
+        CHECK_FALSE(ask(row, ws::kGuestsRole, ws::GuestConnections::zen_name, 1).allowed);
+    }
+    // WHAT CARRIES EVERY PANE, and the notice that any moved: refused to the row that reads by
+    // pane, observed by the whole reader.
+    for (const char* shape : {surface::SurfaceCanvas::zen_name, ws::KeymapShown::zen_name,
+                              ws::StandingConditions::zen_name, ws::DeskStamps::zen_name}) {
+        CAPTURE(shape);
+        const auto scoped = ask(1, "zengine.workshop", shape, 1);
+        CHECK_FALSE(scoped.allowed);
+        CHECK(scoped.reason.find("the row reads only the panes its `capture` names") != std::string::npos);
+        CHECK(ask(2, "zengine.workshop", shape, 1).allowed);
+    }
+    // ...THE NOTICE AT EVERY VERSION: the second, each pane's aimed picture beside its stamp, too.
+    const auto scoped = ask(1, "zengine.workshop", ws::v2::DeskStamps::zen_name, ws::v2::DeskStamps::zen_version);
+    CHECK_FALSE(scoped.allowed);
+    CHECK(scoped.reason.find("the row reads only the panes its `capture` names") != std::string::npos);
+    CHECK(ask(2, "zengine.workshop", ws::v2::DeskStamps::zen_name, ws::v2::DeskStamps::zen_version).allowed);
 }
 
 TEST_CASE("guests file: build grants no shape -- no guest is granted BuildRequested, a realization ask or a build door") {
@@ -1383,7 +1643,9 @@ TEST_CASE("guests file: capture's widening is said as a gain") {
     row.may = {guests::kPowerCapture};
     const std::vector<std::string> gains = guests::gains_of(row, file);
     CHECK(gains == std::vector<std::string>{"the desk read whole: `capture` also reads the desk's "
-                                            "words, the pane inventory and the keymap"});
+                                            "words, the pane inventory and the keymap",
+                                            "every pane's manual: `capture` reads the page of each "
+                                            "pane the desk offers"});
     // ...in a file of any version, on either host, beside any other power.
     file.version = 2;
     file.host = guests::kHostDevelopment;
@@ -1395,6 +1657,13 @@ TEST_CASE("guests file: capture's widening is said as a gain") {
     const std::vector<std::string> losses = guests::losses_of(row, file);
     REQUIRE_FALSE(losses.empty());
     for (const std::string& loss : losses) CHECK(loss.find("`capture`") == std::string::npos);
+    // A ROW THAT READS BY PANE gains neither: it reads only the panes its doors name.
+    row.may = {guests::kPowerCapture};
+    row.by_door = true;
+    row.capture = {"zengine.builder-pane/" "*"};
+    CHECK(guests::gains_of(row, file).empty());
+    row.by_door = false;
+    row.capture.clear();
     // ...and a row without `capture` gains nothing, whatever else it may do.
     row.may = {guests::kPowerInput,   guests::kPowerInspect, guests::kPowerInventory,
                guests::kPowerToolbox, guests::kPowerDemo,    guests::kPowerOpen,
@@ -1561,13 +1830,14 @@ TEST_CASE("door: version 2's inventory tells a guest its own row's powers and lo
     watching.rows[0].observe = {{ws::kGuestsRole, ws::v2::GuestConnections::zen_name, 2},
                                 {ws::kGuestsRole, ws::GuestConnections::zen_name, 1}};
     const auto policy = guests::observation_of(watching, [](loom::WeaveId) -> std::optional<std::size_t> { return 0; });
-    const auto v2 = policy(loom::observe::ObserveRequest{loom::WeaveId{5}, ws::kGuestsRole,
-                                                         {{ws::v2::GuestConnections::zen_name, 2}}, "suite"});
-    CHECK_FALSE(v2.allowed);
-    CHECK(v2.reason.find("it says every row's powers") != std::string::npos);
-    CHECK(policy(loom::observe::ObserveRequest{loom::WeaveId{5}, ws::kGuestsRole,
-                                               {{ws::GuestConnections::zen_name, 1}}, "suite"})
-              .allowed);
+    // ...AT EVERY VERSION: the first says every connection to this host.
+    for (const std::int64_t version : {std::int64_t{1}, std::int64_t{2}}) {
+        CAPTURE(version);
+        const auto said = policy(loom::observe::ObserveRequest{
+            loom::WeaveId{5}, ws::kGuestsRole, {{ws::v2::GuestConnections::zen_name, version}}, "suite"});
+        CHECK_FALSE(said.allowed);
+        CHECK(said.reason.find("it says every connection to this host") != std::string::npos);
+    }
 }
 
 // =============================================================================
@@ -1625,6 +1895,55 @@ private:
 };
 
 } // namespace
+
+TEST_CASE("door: through the real door, a session of version 3 hears its own role and doors, and the inventory says each row's beside it") {
+    Scratch f("described-3");
+    f.write(R"({"version":"3","guests":[)"
+            R"({"name":"tutor","credential":"one","role":"tutor","capture":["zengine.builder-pane/builder"],)"
+            R"("guide":["zengine.builder-pane/builder"]},)"
+            R"({"name":"keeper","credential":"two","may":["inspect"]}]})");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    Rig r(file);
+    Guest one(r.port, "tutor", "one");
+    Guest two(r.port, "keeper", "two");
+    REQUIRE(r.beat_until([&] {
+        one.poll();
+        two.poll();
+        return one.client->admitted() && two.client->admitted();
+    }));
+    one.ask(ws::kGuestsRole, 1, ws::v2::GuestRowDescribedRequested{});
+    two.ask(ws::kGuestsRole, 2, ws::v3::GuestConnectionsRequested{});
+    REQUIRE(r.beat_until([&] {
+        one.poll();
+        two.poll();
+        return one.answered<ws::v2::GuestRowDescribed>(1).has_value() &&
+               two.answered<ws::v3::GuestConnections>(2).has_value();
+    }));
+    const ws::v2::GuestRowDescribed mine = *one.answered<ws::v2::GuestRowDescribed>(1);
+    CHECK(mine.name == "tutor");
+    CHECK(mine.version == 3);
+    CHECK(mine.role == "tutor");
+    CHECK(mine.by_door);
+    CHECK(mine.may == std::vector<std::string>{"capture", "guide"});
+    CHECK(mine.capture == std::vector<std::string>{"zengine.builder-pane/builder"});
+    CHECK(mine.guide == std::vector<std::string>{"zengine.builder-pane/builder"});
+    // THE INVENTORY TO A GUEST: every connection, and its own row's reach alone.
+    const ws::v3::GuestConnections said = *two.answered<ws::v3::GuestConnections>(2);
+    REQUIRE(said.rows.size() == 2);
+    for (const ws::v3::GuestConnection& c : said.rows) {
+        if (c.established == "keeper") CHECK(c.scopes.empty());
+        else CHECK(c.role.empty());
+    }
+    // ...AND TO THIS HOST, every row's role and doors.
+    bool tutor_said = false;
+    for (const ws::v3::GuestConnection& c : r.door->inventory_v3().rows) {
+        if (c.established != "tutor") continue;
+        tutor_said = c.role == "tutor" && !c.scopes.empty() && c.scopes[0] == "role tutor: may capture, guide";
+    }
+    CHECK(tutor_said);
+}
 
 TEST_CASE("door: a session asks its own row and hears its name, powers, observe list and host, and nothing of another row") {
     Scratch f("described");

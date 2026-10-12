@@ -12,6 +12,8 @@
 // expression and MSVC then has no way to print a shared_ptr, which is a compile error there.
 
 #include "external-host/vocabulary_weave.hpp"
+#include "workshop/guide_vocabulary.hpp"
+#include "workshop/pane_document.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
@@ -67,6 +69,11 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<ws::PaneInventoryRequested>(), loom::schema_of<ws::PaneInventory>(),
             loom::schema_of<ws::InventoryPane>(), loom::schema_of<ws::KeymapRequested>(),
             loom::schema_of<ws::KeymapShown>(), loom::schema_of<ws::ShownBinding>(),
+            // Each part's availability, a guide mark and its answer, and a pane's manual.
+            loom::schema_of<ws::v6::PaneViewRequested>(), loom::schema_of<ws::v6::PaneView>(),
+            loom::schema_of<ws::v2::PanePart>(), loom::schema_of<ws::GuideRequested>(),
+            loom::schema_of<ws::GuideAnswered>(), loom::schema_of<ws::PaneDocumentRequested>(),
+            loom::schema_of<ws::PaneDocumentShown>(), loom::schema_of<ws::PaneDocumentSection>(),
             loom::schema_of<in::InjectInput>(),           loom::schema_of<in::InjectedEvent>(),
             loom::schema_of<in::InputInjected>(),         loom::schema_of<in::InputSessionClosed>(),
             loom::schema_of<su::SurfaceCaptureRequested>(), loom::schema_of<su::SurfaceCaptured>(),
@@ -77,9 +84,13 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             // ...and at version 2: each row's powers, the file's host and version, and its losses.
             loom::schema_of<ws::v2::GuestConnectionsRequested>(), loom::schema_of<ws::v2::GuestConnections>(),
             loom::schema_of<ws::v2::GuestConnection>(),
+            loom::schema_of<ws::v3::GuestConnectionsRequested>(),
+            loom::schema_of<ws::v3::GuestConnections>(), loom::schema_of<ws::v3::GuestConnection>(),
             // The asker's own row, and the observe entries it carries.
             loom::schema_of<ws::GuestRowDescribedRequested>(),
             loom::schema_of<ws::GuestRowDescribed>(), loom::schema_of<ws::GuestObserve>(),
+            loom::schema_of<ws::v2::GuestRowDescribedRequested>(),
+            loom::schema_of<ws::v2::GuestRowDescribed>(),
             // Where Workshop's plan is, which any admitted session may ask.
             loom::schema_of<ws::GuestPlanRequested>(), loom::schema_of<ws::GuestPlanSaid>(),
             // Named folders: the organization doors and the nested folder shapes they carry.

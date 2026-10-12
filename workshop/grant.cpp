@@ -89,6 +89,10 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
     speak.allow_to_any(TerminalValueAnswered::zen_name, TerminalValueAnswered::zen_version);
     speak.allow_to_any(TerminalCompletionOffered::zen_name, TerminalCompletionOffered::zen_version);
+    // A GUIDE MARK'S ANSWER, to the guest that asked for it, at the ask and when the mark ends.
+    speak.allow_to_any(GuideAnswered::zen_name, GuideAnswered::zen_version);
+    // THE EDITOR'S DOCUMENT, read to refuse a guest the words of the guests file.
+    speak.allow_observe(EditorDocument::zen_name, EditorDocument::zen_version);
     return speak;
 }
 }

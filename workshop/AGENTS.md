@@ -49,6 +49,7 @@ with its files); the subjects are in the [WL router](../agents/workshop.md#where
 | [focus](../agents/workshop/focus.md) | `workshop_panes` (input, files), `workshop_desk`, `workshop_document` |
 | [geometry](../agents/workshop/geometry.md) | `workshop_screen`, `workshop_desk`, `workshop_panes` (window, opening) |
 | [guests](../agents/workshop/guests.md) | `workshop_panes` (guests, builder), `workshop_guests`, `workshop_host` |
+| [guide](../agents/workshop/guide.md) | `workshop_panes` (guide, attention), `workshop_guests` |
 | [keyboard](../agents/workshop/keyboard.md) | `workshop_document`, `workshop_panes` (actions, editor), `workshop_screen` |
 | [keymap-edit](../agents/workshop/keymap-edit.md) | `workshop_panes` (desktop) |
 | [key-spelling](../agents/workshop/key-spelling.md) | `workshop_document`, `workshop_panes` (actions, builder), `workshop_persistence` |

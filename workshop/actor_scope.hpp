@@ -9,6 +9,9 @@
 // facts, this says yes or the refusal in words. An actor no guest door admitted is the weaver's own
 // participant, and no class narrows it.
 
+#include "desktop_seam_vocabulary.hpp"
+#include "pane_seam_vocabulary.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
@@ -37,11 +40,27 @@ struct GuestRowFacts {
     std::string name;
     std::vector<std::string> powers;
     std::int64_t version = 0;
+    std::string role;              ///< the role the row names; empty: none
+    /// WHETHER WORKSHOP JUDGES ITS READS AND MARKS PANE BY PANE: a row of the doors' version whose
+    /// `capture` (`guide`) is not every pane. Which panes it holds is Loom's, asked at the read.
+    bool reads_by_pane = false;
+    bool guides_by_pane = false;
+    std::vector<std::string> capture; ///< its `capture` doors as written, for saying beside it
+    std::vector<std::string> guide;   ///< its `guide` doors as written
 
     bool may(std::string_view power) const {
         return std::find(powers.begin(), powers.end(), power) != powers.end();
     }
 };
+
+/// THE PANES ONLY THE WEAVER'S HAND READS OR POINTS AT, on every host: Connections, which says
+/// every row's powers and waiting asks, and the Hotkeys pane, which edits the keymap. Empty when a
+/// guest may; else what the pane is, for the refusal.
+inline std::string weaver_only_pane(std::string_view office, std::string_view pane) {
+    if (office == kConnectionsRole) return "Connections says who is connected and what each may do";
+    if (office == kDesktopRole && pane == kHotkeysPane) return "the Hotkeys pane edits the weaver's keymap";
+    return {};
+}
 
 /// WHOSE HOST THIS IS, the guests file's `host`: on a weaver's host a guest writes no file, types
 /// into no pane and reaches none of the editor office, the Terminal and the Hotkeys pane; on a

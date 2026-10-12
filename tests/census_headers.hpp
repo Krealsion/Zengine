@@ -33,6 +33,7 @@
 #include "workshop/editor_switch.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/guest_door.hpp"
+#include "workshop/guide_vocabulary.hpp"
 #include "workshop/keymap_persist.hpp"
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
