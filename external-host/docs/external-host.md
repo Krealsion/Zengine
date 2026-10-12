@@ -173,7 +173,7 @@ zengine-workshop --load-plan <workshop dir>/graphical-load-plan.json --guests gu
 ```text
 zengine-workshop - guests: listening on 127.0.0.1:7654 for 1 guest(s) named in guests.json (door: weave #12; the Connections pane lists them)
 zengine-workshop - guests: the file is version 2, and this is a development host: guests may write and build here
-zengine-workshop - guests: 'agent' (version 2) also reaches here: the desk read whole: `capture` also reads the desk's words, the pane inventory and the keymap
+zengine-workshop - guests: 'agent' (version 2) also reaches here: the desk read whole: `capture` also reads the desk's words, the pane inventory and the keymap; every pane's manual: `capture` reads the page of each pane the desk offers
 ```
 
 Its row reaches every power it names there, so no loss is said; its `capture` reaches further than
@@ -183,7 +183,59 @@ the power's name once did, and that is said. The version-1 file of
 ```text
 zengine-workshop - guests: the file is version 1, and this is a weaver's host: a guest writes no file, types into no pane, carries nothing and reaches none of the editor, the Terminal and the Hotkeys pane
 zengine-workshop - guests: 'agent' (version 1) does not reach here: the Builder's builds and loads: `build` is a version-2 power; file writes: this is a weaver's host; the editor, the Terminal and the Hotkeys pane: they answer only the weaver's hand here; typed text: a guest's text rests in no pane here; opening the guests file
-zengine-workshop - guests: 'agent' (version 1) also reaches here: the desk read whole: `capture` also reads the desk's words, the pane inventory and the keymap
+zengine-workshop - guests: 'agent' (version 1) also reaches here: the desk read whole: `capture` also reads the desk's words, the pane inventory and the keymap; every pane's manual: `capture` reads the page of each pane the desk offers
+```
+
+### Reading and pointing by pane: version 3
+
+A file of **version 3** adds four words, so a guest on a weaver's desk can teach -- read the panes a
+lesson is about and point at the control the weaver should press -- without reading the rest:
+
+- **`capture`**, a field of the row beside the power: the panes the row reads, each
+  `<office>/<pane>` or `<office>/*` (every pane that office offers), or `*` alone for every pane.
+  From version 3 a row reads no pane its field does not name, and `"capture": ["*"]` is written,
+  never assumed. A row that reads by pane is answered the desk read, each of its panes' pages, the
+  pane inventory, the keymap rows of its own panes and the rows above every pane, and the manual of
+  each office its doors name; any other pane is said by its place, its name and its holder, with no
+  word, part or fingerprint, and the desk is said to it with no band, status or desk number, which
+  move with every pane's words. It is refused the older reads, the Skin's picture, the
+  publications that carry every pane at once, and `DeskStamps`, which names every pane's picture:
+  it follows its panes by reading them.
+- **`guide`**, a power and a field: a mark the weaver sees on one control, asked as
+  `GuideRequested` (`desk/guide`, [below](#the-desk-written-as-text-for-an-agent)), within the
+  row's `guide` doors, each lying within one of its `capture` doors. Workshop draws one mark a
+  session, inside the pane's body, named with the row's name, in a role of its own; the weaver's
+  press inside it ends it, and so does its part leaving the pane. No mark stands on Connections,
+  the Hotkeys pane or a part whose press opens either.
+- **`keystrokes`**, a power: hearing the weaver's input as it happens. An `observe` entry naming
+  `AttributedInput`, `KeyPressed` or `TextEntered`, from any office, needs it; a row of an earlier
+  version cannot hold it, so such an entry there is refused.
+- **`role`**, a row's bundle of powers. `tutor` is `capture` and `guide`; a row may add powers of
+  its own in `may`, and sets its own doors. The role, what it expanded to and the doors are said at launch, on Attention and
+  to the row's own session (`GuestRowDescribed` version 2).
+
+![The Builder in a window with a guest's mark: a magenta outline one pixel wide around the [build] control, and above it, on a row of the pane that held no words, the label tutor: "build this one"](images/guide-mark-window.png)
+
+![The same mark in a terminal: the [build] control's own cells and the label on the free row above it drawn in magenta, every other cell of the pane in its own colours](images/guide-mark-terminal.png)
+
+The doors are Loom's: each compiles to a door rule on the row's grant, which Workshop asks at every
+read and mark, so a later grant widens what a row reads with no relaunch. On every host and every
+version, no guest reads the words of Connections, the Hotkeys pane or an editor showing the guests
+file, and none observes the connections.
+
+```json
+{
+  "version": "3",
+  "guests": [
+    { "name": "tutor", "credential": "open-sesame", "role": "tutor",
+      "capture": ["zengine.builder-pane/*", "zengine.desktop/launcher"],
+      "guide": ["zengine.builder-pane/*", "zengine.desktop/launcher"] }
+  ]
+}
+```
+
+```text
+zengine-workshop - guests: 'tutor' (version 3) role tutor: may capture, guide; reads zengine.builder-pane/*, zengine.desktop/launcher; points within zengine.builder-pane/*, zengine.desktop/launcher
 ```
 
 Open the **Connections** pane from the Pane Manager (`Ctrl+P`). It says `nobody is connected`,
@@ -607,7 +659,12 @@ and `nvim-edit`'s confirmation among them, and `desk/read`'s against a scripted 
 (`tests/session/desk_read_checks.py`): `AGENTS.md` written first, each word and part where its
 reading says, and an `out` inside a checkout refused with nothing written; and `desk/watch`'s
 against a scripted desk that moves between notices (`tests/session/desk_watch_checks.py`): only
-what moved read again, the ring bounded, two watches of different panes each writing their own. Beside it, `tests/session/story_journey.py` holds [the
+what moved read again, the ring bounded, two watches of different panes each writing their own;
+and `desk/resolve`'s against a scripted desk (`tests/session/desk_resolve_checks.py`): the route
+through the Pane Manager, another mode, the case for a tool only for a row reading every pane.
+`tests/session/tutor_walk.py`, behind `session-pty` (the session tooling and a POSIX
+pseudo-terminal), walks a Tutor through a terminal Workshop on a weaver's host whose weaver is the
+pseudo-terminal it holds. Beside it, `tests/session/story_journey.py` holds [the
 tower defense story](../../examples/tower-defense/README.md)'s own custody to the same processes
 -- runs its wait gave up on, a Workshop and session host it must see end, and a watcher's session
 it reuses while it runs and replaces only once it is seen to end -- and
@@ -1140,3 +1197,33 @@ loom-session run work desk/watch --name watch-1 --input out=/home/me/agent-desk 
   `glance.txt` rather than leave them stale beside what it keeps current.
 - **It ends** when its `seconds` pass, after `changes` changes are written, or when its
   subscription ends, and its result says which, with the notices it took and the changes it wrote.
+
+**Pointing at a control, and finding it.** `desk/guide` marks one control for the weaver to see,
+and `desk/resolve` finds the controls whose press may cause a message the agent wants the weaver to
+cause. Neither presses anything: the weaver does.
+
+```sh
+loom-session run work desk/resolve --name resolve-1 --input shape=BuildRequested --input mark=yes --input "words=build this one"
+loom-session run work desk/guide --name guide-1 --input pane=zengine.builder-pane/builder --input control=builder.build --input "words=build this one"
+```
+
+- **What they need.** `guide` and `capture`, a row of version 3
+  ([above](#reading-and-pointing-by-pane-version-3)); a mark stands only within the row's `guide`
+  doors, and `desk/resolve` reads only within its `capture` doors.
+- **`desk/guide` names what a press names**: the pane as `<office>/<pane>` and the control by its
+  action id, which the pane draws as the part `control:<id>`, or `part:<name>` for a subject part (a
+  Pane Manager row is `part:pane:<office>/<pane>`); an empty `control` clears the mark. Its result is
+  Workshop's answer: where the mark stands and whether its label found room, the weaver's key for a
+  control drawn as no part, or why not. A mark ends when the weaver presses inside it, when its part
+  leaves the pane, when the pane's holder changes, at a newer mark, and when the session ends.
+- **`desk/resolve` answers every control that may cause the message**, from the keymap's
+  declarations (what a press of each row may cause, and what each pane's other modes may): its
+  address, the part that draws it, whether it shows and is usable now, the weaver's key and where
+  its pane is. When none is shown and usable it names the steps that would bring one, nearest
+  first: the row in force that enters the pane's other mode, and showing the pane, which is itself
+  a message resolved the same way, never through Connections or the Hotkeys pane. With `mark` on it
+  marks the one control shown and usable, else the one of the nearest step. When no control the row
+  may read causes the message, it names the panes outside the row's read; for a row that reads
+  every pane, it drafts the case for a tool -- four claims with their evidence -- and files nothing:
+  a case is the agent's own to propose, unlabelled, and on a weaver's desk only after the weaver
+  says yes.

@@ -89,6 +89,46 @@ struct GuestConnectionsRequested {
 };
 } // namespace v2
 
+namespace v3 {
+/// ONE CONNECTION, ITS ROW, AND WHERE THAT ROW READS AND POINTS: version 2's words, then the role
+/// the row names and its scopes in words -- the role and the powers it expanded to, the `capture`
+/// doors it reads and the `guide` doors it points within -- as they are said at launch.
+struct GuestConnection {
+    std::int64_t connection = 0;
+    std::string state;
+    std::string claimed;
+    std::string established;
+    std::string peer;
+    std::int64_t session = 0;
+    std::string refusal;
+    std::vector<std::string> powers;
+    std::string host;
+    std::int64_t version = 0;
+    std::vector<std::string> losses;
+    std::string role;                ///< the role the row names; empty: none
+    std::vector<std::string> scopes; ///< its reach in words, beside its losses
+    ZEN_SHAPE(GuestConnection, 3, ZEN_FIELD(connection), ZEN_FIELD(state), ZEN_FIELD(claimed),
+              ZEN_FIELD(established), ZEN_FIELD(peer), ZEN_FIELD(session), ZEN_FIELD(refusal),
+              ZEN_FIELD(powers), ZEN_FIELD(host), ZEN_FIELD(version), ZEN_FIELD(losses),
+              ZEN_FIELD(role), ZEN_FIELD(scopes));
+};
+
+/// THE INVENTORY WITH EACH ROW'S REACH: version 2's rule, each row's role and scopes beside.
+struct GuestConnections {
+    std::string listen;
+    std::vector<GuestConnection> rows;
+    std::int64_t refused = 0;
+    std::int64_t shed = 0;
+    ZEN_SHAPE(GuestConnections, 3, ZEN_FIELD(listen), ZEN_FIELD(rows), ZEN_FIELD(refused),
+              ZEN_FIELD(shed));
+};
+
+/// ASK FOR THE INVENTORY AT VERSION 3.
+struct GuestConnectionsRequested {
+    ZEN_SHAPE(GuestConnectionsRequested, 3);
+};
+} // namespace v3
+
 /// ONE THING A ROW MAY OBSERVE, as its guests file names it: publications of `shape` at `version`
 /// by whoever holds `producer`.
 struct GuestObserve {
@@ -111,6 +151,29 @@ struct GuestRowDescribed {
     ZEN_SHAPE(GuestRowDescribed, 1, ZEN_FIELD(name), ZEN_FIELD(may), ZEN_FIELD(observe),
               ZEN_FIELD(host));
 };
+
+namespace v2 {
+/// THE ASKER'S OWN ROW AT VERSION 2: version 1's words, the guests file's version, and the row's
+/// role and doors -- the `capture` doors it reads and the `guide` doors it points within, as the
+/// file wrote them, `*` for every pane -- so a session knows which panes it reads.
+struct GuestRowDescribedRequested {
+    ZEN_SHAPE(GuestRowDescribedRequested, 2);
+};
+struct GuestRowDescribed {
+    std::string name;
+    std::vector<std::string> may;
+    std::vector<GuestObserve> observe;
+    std::string host;
+    std::int64_t version = 0;
+    std::string role;
+    bool by_door = false;              ///< reads and points by door; false: the desk whole
+    std::vector<std::string> capture;
+    std::vector<std::string> guide;
+    ZEN_SHAPE(GuestRowDescribed, 2, ZEN_FIELD(name), ZEN_FIELD(may), ZEN_FIELD(observe),
+              ZEN_FIELD(host), ZEN_FIELD(version), ZEN_FIELD(role), ZEN_FIELD(by_door),
+              ZEN_FIELD(capture), ZEN_FIELD(guide));
+};
+} // namespace v2
 
 /// `GuestPlanSaid::state`'s words: where this Workshop's load plan is. The door listens before the
 /// plan begins, so a guest can be admitted while rows that declare shapes are still to come.

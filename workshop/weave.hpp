@@ -34,6 +34,7 @@
 #include "pane_shortcuts.hpp"
 #include "pane_carry.hpp"
 #include "pane_view.hpp"
+#include "guide_vocabulary.hpp" // a guest's mark on one control, for the weaver to see
 #include "pane_parts.hpp" // the form a pane's names are admitted in
 #include "pane_causes.hpp" // the form a declaration's causes and modes are admitted in
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
@@ -320,6 +321,7 @@ class WorkshopWeave
                                           zengine::workshop::v4::PaneContent,
                                           zengine::workshop::v5::PaneContent,
                                           zengine::workshop::PaneRevealRequested,
+                                          zengine::workshop::GuideRequested,
                                           zengine::workshop::PaneEscapeUnspent,
                                           // the second button's continuations: a press
                                           // handed back, a menu asked for, a subject to manage
@@ -371,7 +373,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, v6::PaneView, DeskRead, v2::DeskRead, DeskStamps, v2::DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, v6::PaneView, DeskRead, v2::DeskRead, DeskStamps, v2::DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::v1::PaneCanvasPointer,
@@ -557,6 +559,18 @@ public:
     /// Whether `who` is a guest session whose admitted row holds `capture`: the one personal asker
     /// the desk's offers and keymap answer.
     bool capture_guest(loom::WeaveId who) const;
+    /// Whether `asker` is a guest whose row reads by pane: its reads are judged pane by pane against
+    /// its `capture` doors, and the desk is said to it without the words that move with every pane.
+    bool reads_by_pane(loom::WeaveId asker) const;
+    /// Whether `asker` may read the words of `office`/`pane`: empty when it may, else why not --
+    /// a pane only the weaver's hand reads, an editor showing the guests file, or a pane outside a
+    /// by-pane row's `capture` doors, asked of Loom now. Never whether the pane shows anything.
+    std::string read_withheld(loom::Mail& mail, loom::WeaveId asker, const std::string& office,
+                              const std::string& pane) const;
+    /// A pane the asker may not read, as a stamp: its office, pane and holder, nothing that moves.
+    v2::PaneStamp withheld_stamp(const PaneRef& ref) const;
+    /// The desk said to a row that reads by pane: no band, status or desk number.
+    void withhold_desk(v3::DeskView& desk) const;
     /// Whether `asker` may read the desk once more now, or the refusal in words: a rate per asker.
     std::string take_desk_read(loom::WeaveId asker);
     void on(const PaneShortcutInvoked& asked, loom::Mail& mail);
@@ -571,6 +585,9 @@ public:
     void on(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const v2::PaneOperationRequested& asked, loom::Mail& mail);
     void on(const ActorScopeRequested& asked, loom::Mail& mail);
+    /// A guest's mark on one control or part, for the weaver to see: judged against the row's
+    /// `guide` and `capture` doors, then the part as the pane shows it now.
+    void on(const GuideRequested& asked, loom::Mail& mail);
     /// The action classes `classes` judged for `actor`: empty when each is its own, else the refusal.
     std::string judge_classes(const InputActor& actor, const std::vector<std::string>& classes,
                               const std::string& subject) const;
@@ -1495,6 +1512,38 @@ private:
     /// EACH ASKER'S DESK READS IN THE LAST SECOND, bounded by the rate; an asker with none is
     /// forgotten at the next read.
     std::map<std::uint64_t, std::vector<std::int64_t>> desk_reads_;
+    /// ONE GUIDE MARK A GUEST SESSION, keyed by its WeaveId: the pane and the part it names, its
+    /// words and the guest's row name, the pane's holder and incarnation when it was made, and
+    /// where it was last drawn (empty while its part shows nowhere).
+    struct GuideMark {
+        std::string office, pane, part, words, who;
+        std::int64_t holder = 0;
+        std::int64_t incarnation = 0;
+        PixelRect drawn{};
+        bool labelled = false; ///< whether its label found room, last drawn
+    };
+    std::map<std::uint64_t, GuideMark> guide_marks_;
+    /// What one mark draws now: its rects and label in the guide role, inside its pane's body, and
+    /// whether its part shows (`shown`) in a settled picture (`settled`).
+    struct GuideDrawing {
+        bool settled = false;
+        bool shown = false;
+        bool labelled = false;
+        PixelRect drawn{};
+        std::vector<surface::SurfaceRect> rects;
+        std::vector<surface::SurfaceLabel> labels;
+    };
+    GuideDrawing guide_drawing(const GuideMark& mark) const;
+    /// The marks as one layer above the panes, each judged again against what the desk shows now:
+    /// a mark whose session, holder or part is gone ends, and its guest is told.
+    surface::SurfaceLayer guide_layer(loom::Mail& mail);
+    /// Whether any mark would stand otherwise than it was last drawn: its part gone from a settled
+    /// picture, or drawn elsewhere.
+    bool guide_marks_moved() const;
+    /// End one mark and tell its guest why.
+    void end_guide(loom::Mail& mail, std::uint64_t session, const std::string& why);
+    /// The weaver's own press ends every mark it lands inside.
+    void guide_pressed(loom::Mail& mail, const PointedAt& at);
 
     void repaint(loom::Mail& mail);
     /// A NUMBERED PICTURE THE CANVAS JUST HANDED THE MEDIUM is recorded as in flight, and one

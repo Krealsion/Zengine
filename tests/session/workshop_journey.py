@@ -145,6 +145,12 @@ def main():
                  desk_watch_checks.run_checks(os.path.join(os.path.dirname(args.tools), "desk"),
                                               runtime)):
         return 1
+    import desk_resolve_checks
+    if not check("T5 desk/resolve finds the controls that may cause a message, the steps to one, and "
+                 "the case for a tool only where the row reads every pane",
+                 desk_resolve_checks.run_checks(os.path.join(os.path.dirname(args.tools), "desk"),
+                                                runtime)):
+        return 1
 
     work = args.work
     shutil.rmtree(work, ignore_errors=True)

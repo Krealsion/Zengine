@@ -64,6 +64,11 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
             surface::SurfaceLabel{rect.x, rect.y, "[value]", surface::role::kFill});
         canvas.layers.push_back(std::move(overlay));
     }
+    // EVERY GUEST'S GUIDE MARK, above the picture, each judged against what shows now.
+    if (!guide_marks_.empty()) {
+        surface::SurfaceLayer marks = guide_layer(mail);
+        if (!marks.rects.empty() || !marks.labels.empty()) canvas.layers.push_back(std::move(marks));
+    }
     mail.publish(std::move(canvas));
     // ...and behind the canvas, the fence that makes a newly shown picture the one a press is
     // stamped with, queued after it so no delivery comes between them.

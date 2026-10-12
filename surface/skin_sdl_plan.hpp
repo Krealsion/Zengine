@@ -120,6 +120,7 @@ inline constexpr PlanInk ink_for_role(std::int64_t role) noexcept {
     case role::kAlert: return PlanInk{232, 72, 72};
     case role::kGround: return PlanInk{0, 0, 0};
     case role::kMediumGround: return kCanvasBackground;
+    case role::kGuide: return PlanInk{236, 120, 236};
     default: return PlanInk{176, 176, 188};
     }
 }

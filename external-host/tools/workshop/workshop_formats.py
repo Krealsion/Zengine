@@ -11,12 +11,14 @@ SETUP_VERSION before anything is written around it: a version-4 desk keeps every
 each row's settings, none; another version is refused, naming what to do.
 
 GUESTS_VERSION is the guests file's `kGuestsFileVersion` (workshop/guests.hpp), tied to it the same
-way: the version a launcher writes into the guests file of the Workshop it starts."""
+way: the version a launcher writes into the guests file of the Workshop it starts. From version 3 a
+row reads only the panes its `capture` field names and points only within its `guide` field, so a
+launcher's row that may capture or guide names every pane, `*`, written and never assumed."""
 import copy
 
 SETUP_VERSION = 5
 SESSION_VERSION = 8
-GUESTS_VERSION = 2
+GUESTS_VERSION = 3
 
 # The guests file's `host`: a weaver's, where a guest writes no file, types into no pane and
 # reaches none of the editor, the Terminal and the Hotkeys pane; or a development host, an
@@ -79,13 +81,22 @@ def following_the_desk(row):
     return row
 
 
+def every_pane(row, power):
+    """`row` reading or pointing at every pane, `*`, when it may `power` and names no doors of it."""
+    if power in (row.get("may") or []) and power not in row:
+        return dict(row, **{power: ["*"]})
+    return row
+
+
 def guests(rows, host, listen="127.0.0.1:0", port_file=None):
     """A guests file at GUESTS_VERSION for `host` (WEAVER_HOST or DEVELOPMENT_HOST), its rows as
-    given. Its `version` is written as the file writes every Int, a base-10 string."""
+    given, each that may capture or guide and names no doors of it reaching every pane. Its `version` is
+    written as the file writes every Int, a base-10 string."""
     if host not in (WEAVER_HOST, DEVELOPMENT_HOST):
         raise ValueError("a guests file's host is %r or %r, not %r"
                          % (WEAVER_HOST, DEVELOPMENT_HOST, host))
-    out = {"version": str(GUESTS_VERSION), "host": host, "listen": listen, "guests": list(rows)}
+    rows = [every_pane(every_pane(r, "capture"), "guide") for r in rows]
+    out = {"version": str(GUESTS_VERSION), "host": host, "listen": listen, "guests": rows}
     if port_file is not None:
         out["port_file"] = str(port_file)
     return out

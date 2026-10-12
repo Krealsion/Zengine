@@ -49,10 +49,13 @@ class GuestDoor final
     : public zengine::timer::TimedWeave<GuestDoor, GuestDoorState,
                                         loom::Accept<GuestConnectionsRequested,
                                                      v2::GuestConnectionsRequested,
+                                                     v3::GuestConnectionsRequested,
                                                      GuestRowDescribedRequested,
+                                                     v2::GuestRowDescribedRequested,
                                                      GuestPlanRequested>,
-                                        loom::Emit<GuestConnections, v2::GuestConnections,
-                                                   GuestRowDescribed, GuestPlanSaid, loom::Refused,
+                                        loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections,
+                                                   GuestRowDescribed, v2::GuestRowDescribed,
+                                                   GuestPlanSaid, loom::Refused,
                                                    input::InputSessionClosed>> {
 public:
     /// `listener` is a listening socket the host opened (bridge_listen_tcp); `listen` is how
@@ -72,10 +75,13 @@ public:
     using zengine::timer::TimedWeave<GuestDoor, GuestDoorState,
                                      loom::Accept<GuestConnectionsRequested,
                                                   v2::GuestConnectionsRequested,
+                                                  v3::GuestConnectionsRequested,
                                                   GuestRowDescribedRequested,
+                                                  v2::GuestRowDescribedRequested,
                                                   GuestPlanRequested>,
-                                     loom::Emit<GuestConnections, v2::GuestConnections,
-                                                GuestRowDescribed, GuestPlanSaid, loom::Refused,
+                                     loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections,
+                                                GuestRowDescribed, v2::GuestRowDescribed,
+                                                GuestPlanSaid, loom::Refused,
                                                 input::InputSessionClosed>>::on;
 
     /// A presenter that just arrived asks; it is answered with the inventory as it stands.
@@ -90,6 +96,12 @@ public:
         (void)mail.answer(inventory_v2(guest_session(mail.sender()) ? mail.sender() : loom::WeaveId{}));
     }
 
+    /// ...AT VERSION 3, each row's role and scopes beside its powers and losses, by the same rule.
+    // WL-GUIDE-01 -- agents/workshop/guide.md
+    void on(const v3::GuestConnectionsRequested&, loom::Mail& mail) {
+        (void)mail.answer(inventory_v3(guest_session(mail.sender()) ? mail.sender() : loom::WeaveId{}));
+    }
+
     /// THE ASKER'S OWN ROW, read from the record this door kept as it admitted the session -- never
     /// a row found by name -- and nothing of another. A sender it never admitted is refused.
     // WL-GUEST-10 -- agents/workshop/guests.md
@@ -101,6 +113,30 @@ public:
             return;
         }
         (void)mail.answer(described(file_.rows[*row]));
+    }
+
+    /// ...AT VERSION 2, with the file's version and the row's role and doors.
+    // WL-GUIDE-01 -- agents/workshop/guide.md
+    void on(const v2::GuestRowDescribedRequested&, loom::Mail& mail) {
+        const std::optional<std::size_t> row = row_index(mail.sender());
+        if (!row || *row >= file_.rows.size()) {
+            (void)mail.answer(
+                loom::Refused{"only a session this door admitted has a row to describe"});
+            return;
+        }
+        const guests::GuestRow& r = file_.rows[*row];
+        const GuestRowDescribed first = described(r);
+        v2::GuestRowDescribed said;
+        said.name = first.name;
+        said.may = first.may;
+        said.observe = first.observe;
+        said.host = first.host;
+        said.version = file_.version;
+        said.role = r.role;
+        said.by_door = r.by_door;
+        said.capture = r.capture;
+        said.guide = r.guide;
+        (void)mail.answer(said);
     }
 
     /// WHERE THE PLAN IS, from the reading the host wired: at once, or with `wait` held until the
@@ -210,6 +246,32 @@ public:
         for (const loom::Connection& c : ended_) {
             said.rows.push_back(row_v2_of(c, only));
         }
+        return said;
+    }
+
+    /// The inventory at version 3: version 2's, each row's role and scopes beside.
+    v3::GuestConnections inventory_v3(loom::WeaveId only = {}) const {
+        const v2::GuestConnections second = inventory_v2(only);
+        v3::GuestConnections said;
+        said.listen = second.listen;
+        said.refused = second.refused;
+        said.shed = second.shed;
+        std::size_t i = 0;
+        const auto add = [&](const loom::Connection& c) {
+            const v2::GuestConnection& was = second.rows[i++];
+            v3::GuestConnection row{was.connection, was.state,  was.claimed, was.established,
+                                    was.peer,       was.session, was.refusal, was.powers,
+                                    was.host,       was.version, was.losses,  {},
+                                    {}};
+            const std::optional<std::size_t> index = admitted_->row_of(c.connection);
+            if (index && *index < file_.rows.size() && (!only.valid() || c.session == only)) {
+                row.role = file_.rows[*index].role;
+                row.scopes = guests::scopes_of(file_.rows[*index]);
+            }
+            said.rows.push_back(std::move(row));
+        };
+        for (const loom::Connection& c : server_->connections()) add(c);
+        for (const loom::Connection& c : ended_) add(c);
         return said;
     }
 
@@ -361,6 +423,7 @@ private:
             ++this->state_.said;
             (void)mail.as_role(kGuestsRole).publish(inventory());
             (void)mail.as_role(kGuestsRole).publish(inventory_v2());
+            (void)mail.as_role(kGuestsRole).publish(inventory_v3());
             ended_.clear(); // said once
         }
         // A CONNECTION THE SERVER LET GO HOLDS NO ROW: the record keeps only the live ones.
@@ -375,10 +438,13 @@ private:
     typename zengine::timer::TimedWeave<GuestDoor, GuestDoorState,
                                         loom::Accept<GuestConnectionsRequested,
                                                      v2::GuestConnectionsRequested,
+                                                     v3::GuestConnectionsRequested,
                                                      GuestRowDescribedRequested,
+                                                     v2::GuestRowDescribedRequested,
                                                      GuestPlanRequested>,
-                                        loom::Emit<GuestConnections, v2::GuestConnections,
-                                                   GuestRowDescribed, GuestPlanSaid, loom::Refused,
+                                        loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections,
+                                                   GuestRowDescribed, v2::GuestRowDescribed,
+                                                   GuestPlanSaid, loom::Refused,
                                                    input::InputSessionClosed>>::Handle
         beat_;
     bool dirty_ = true; ///< the first beat says the inventory once, empty or not
@@ -407,7 +473,9 @@ inline loom::Grant guest_door_grant() {
                     zengine::timer::kTimerRole);
     g.allow_to_any(GuestConnections::zen_name, GuestConnections::zen_version);
     g.allow_to_any(v2::GuestConnections::zen_name, v2::GuestConnections::zen_version);
+    g.allow_to_any(v3::GuestConnections::zen_name, v3::GuestConnections::zen_version);
     g.allow_to_any(GuestRowDescribed::zen_name, GuestRowDescribed::zen_version);
+    g.allow_to_any(v2::GuestRowDescribed::zen_name, v2::GuestRowDescribed::zen_version);
     g.allow_to_any(GuestPlanSaid::zen_name, GuestPlanSaid::zen_version);
     g.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
     g.allow_to_role(input::InputSessionClosed::zen_name, input::InputSessionClosed::zen_version,

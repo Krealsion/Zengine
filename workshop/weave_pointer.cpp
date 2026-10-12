@@ -330,6 +330,10 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     // wheel still does (WL-PRESS-06).
     if (b.pressed) {
         count_gesture();
+        // THE WEAVER'S OWN PRESS ENDS A GUIDE MARK IT LANDS IN; a guest's does not.
+        if (!guide_marks_.empty() && (!input_actor_.known || input_actor_.local)) {
+            guide_pressed(mail, canvas_point_of(b.space, b.x, b.y));
+        }
     }
     // Arrangement is a mode and owns the pointer while open: every press is about a pane. A
     // secondary press leaves the arrangement (any scope, the reset prompt included) and is consumed
