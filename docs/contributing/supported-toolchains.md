@@ -65,6 +65,52 @@ Windows lanes test the narrow strings that ship. The console keeps its own code 
 terminal Skin sets its output to UTF-8 while it draws, and a line printed to a console before
 that is shown in the console's page.
 
+### The paths the build tools carry
+
+The manifest above is Zengine's programs' own: it does not change how the build tools read a
+path. Under MinGW-w64 several of them read their command line, or convert a path, in the system's
+code page, so a letter outside that page in a path they are given can stop a build that the same
+letter in a running program's path does not. Measured on Windows 11 with the system code page
+1252, a folder named `Zoë Ж` (`Ж` is outside 1252), MSYS2's GCC 15.2 and binutils 2.45, CMake 4.1,
+Ninja 1.13.1, MSYS2's `mingw32-make` 4.4.1 and ccache 4.11.3:
+
+| the path | what carries it | measured |
+|---|---|---|
+| the build directory | Ninja or MinGW Makefiles, with or without ccache; GCC's assembler and linker, given each object relative to it | **builds**, the code-page manifest's resource step included, while the source and every prefix lie elsewhere |
+| the source directory | the GCC driver and compiler, given each source by its absolute path | **builds** under Ninja |
+| the source directory | MinGW Makefiles | **fails**: `CMake Error: Target DependInfo.cmake file not found` |
+| the source directory | ccache as the compiler launcher | **fails** on the first compile: `filesystem error: Cannot convert character sequence: Illegal byte sequence` |
+| a dependency prefix (`CMAKE_PREFIX_PATH`) | the compiler, for its headers; the linker, for its libraries by absolute path | headers read; the link **fails**: `ld.exe: cannot find <path>: Invalid argument`, the path printed mangled |
+| any file GCC's assembler (`as`) or linker (`ld`) is given by an absolute path | binutils, reading the command line in the system code page | **fails**; the same file named relative to the working directory is read |
+| a running program's paths: `argv`, the environment, files it opens | the program | read as themselves, on both toolchains ([above](#every-program-runs-in-the-utf-8-code-page)) |
+
+So the route, where the source path holds such a letter: generate with **Ninja** and build
+**without a compiler launcher** (leave `CMAKE_CXX_COMPILER_LAUNCHER` unset). Wherever the build
+happens, install the **Loom prefix**, and every other dependency prefix, under a path the system
+code page can spell. A build directory holding the letter is no obstacle.
+
+Only the tools and versions named above were measured, on one machine. Other ccache
+and binutils releases, the Visual Studio generators, MSVC's compiler and linker in such a
+directory, and a system whose code page is UTF-8 are unverified, neither working nor failing.
+
+The reproducer, from Git Bash with MSYS2's `mingw64/bin` first on `PATH`; each failing line
+prints the error quoted in the table, and the Ninja build and the relative link are its controls:
+
+```sh
+mkdir -p "Zoë Ж/src" && cd "Zoë Ж"
+printf 'cmake_minimum_required(VERSION 3.20)\nproject(paths CXX)\nadd_executable(paths main.cpp)\n' > src/CMakeLists.txt
+echo 'int main() { return 0; }' > src/main.cpp
+cmake -S src -B ninja -G Ninja && cmake --build ninja; echo "ninja: $?"
+cmake -S src -B make -G "MinGW Makefiles" && cmake --build make; echo "make: $?"
+cmake -S src -B ccache -G Ninja -DCMAKE_CXX_COMPILER_LAUNCHER=ccache && cmake --build ccache; echo "ccache: $?"
+g++ -c src/main.cpp -o main.o && g++ main.o -o relative.exe; echo "relative: $?"
+g++ "$PWD/main.o" -o absolute.exe; echo "absolute: $?"
+```
+
+It prints `ninja: 0`, `make: 2`, `ccache: 3`, `relative: 0` and `absolute: 1`. A dependency
+prefix fails the same way as the last line: a library installed under `Zoë Ж/prefix` and found
+through `CMAKE_PREFIX_PATH` reaches the linker by its absolute path.
+
 ### MSVC
 
 ```powershell
