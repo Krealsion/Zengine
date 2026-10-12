@@ -52,11 +52,12 @@ BECAUSE — the console window call returns success and does nothing under the d
 then fails with an invalid parameter once the buffer moved; the pseudoconsole attribute was
 accepted while the child still inherited the parent's handles.
 
-## VM-PLAT-08 — Windows narrows a wall-clock margin
+## VM-PLAT-08 — On Windows a short sleep lasts a scheduler tick
 
-METHOD — Windows narrows a wall-clock margin: a <!-- value kBeatCapMs -->10<!-- /value --> ms beat against the default ~15.6 ms timer granularity fits fewer beats than Linux, so each stray beat is a larger share of any tolerance.
-BECAUSE — the default timer granularity fits about eight ten-millisecond beats where Linux fits
-eleven, so a wall-clock probe green locally has been tested on the wrong machine.
+METHOD — On Windows `Sleep` and `sleep_for` wait a scheduler tick (~15.6 ms) for any shorter period; the shipped Timer naps on a high-resolution timer instead, and a case judges what a nap asks, never how long it took.
+BECAUSE — `Sleep(1)` and a 1 ms `sleep_for` each took 15.5 ms on Windows 11 where a
+high-resolution waitable timer took 1.5, and `GetTickCount64` steps 15 or 16 ms; a busy machine
+lengthens every wait but cannot coarsen a reading or change what a nap asked.
 
 ## VM-PLAT-09 — A stale MinGW build tree can crash at startup
 
@@ -139,7 +140,9 @@ nowhere yet
 `surface/terminal_size.hpp` native_terminal_size
 
 ### VM-PLAT-08
-`tests/test_audit_probes.cpp`
+`timer/os_clock.hpp` MonotonicClock MonotonicClock::now_ms MonotonicClock::nap_ms
+`tests/test_timer.cpp` "the shipped clock reads in single milliseconds, not in the scheduler's tick" "the shipped
+clock's nap asks Windows for the period it names, on a high-resolution timer"
 
 ### VM-PLAT-09
 nowhere yet
