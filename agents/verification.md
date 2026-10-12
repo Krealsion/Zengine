@@ -69,8 +69,8 @@ self-test before they answer:
   directory) and `agents/verification/` (the VM form): ids unique under `agents/`, every path,
   identifier and witness resolving, every record reciprocal with the WHY lines that name it,
   every `// WL-` or `// MW-` pointer naming the declaration beneath it, every file under
-  `agents/` within its byte budget — a register 16,384, a router 8,192, `AGENTS.md` 20,480 —
-  no plan code or step label in a case name, a law id a name opens with declared, every case a
+  `agents/` within its byte budget — a register's laws <!-- value ZEN_LAW_REGISTER_BYTES grouped -->16,384<!-- /value --> and its whole file
+  <!-- value ZEN_LAW_FILE_BYTES grouped -->24,576<!-- /value -->, a router <!-- value ZEN_LAW_ROUTER_BYTES grouped -->12,288<!-- /value -->, `AGENTS.md` <!-- value ZEN_LAW_CORE_BYTES grouped -->20,480<!-- /value --> — no plan code or step label in a case name, a law id a name opens with declared, every case a
   current-facing document cites by name existing wherever the citation stands, every WL, MW or VM
   id a source comment names declared, and no development-phase id in a current-facing Markdown
   file.
