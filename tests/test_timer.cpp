@@ -13,6 +13,7 @@
 #include "doctest.h"
 
 #include "timer/binding.hpp"
+#include "timer/os_clock.hpp"
 #include "timer/timer_weave.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -29,6 +30,8 @@
 #include "examples/snake/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
+#include <algorithm>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -1467,6 +1470,46 @@ TEST_CASE("a root ask has no one to answer: dropped, not misdelivered") {
 // ============================================================================
 // Tier 3 — the real library through the real Kernel, on the real clock
 // ============================================================================
+
+// The shipped clock judged by what it reads and what it asks, never by how long a nap took: a
+// busy machine lengthens every wait but cannot make a reading coarser or an ask different.
+TEST_CASE("the shipped clock reads in single milliseconds, not in the scheduler's tick") {
+    MonotonicClock clock;
+    std::int64_t finest = std::numeric_limits<std::int64_t>::max();
+    int steps = 0;
+    std::int64_t last = clock.now_ms();
+    const auto give_up = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (steps < 50 && std::chrono::steady_clock::now() < give_up) {
+        const std::int64_t now = clock.now_ms();
+        if (now != last) {
+            finest = std::min(finest, now - last);
+            last = now;
+            ++steps;
+        }
+    }
+    INFO("readings that moved: " << steps << ", the smallest step: " << finest << " ms");
+    REQUIRE(steps > 0);
+    CHECK(finest == 1);
+}
+
+#if defined(_WIN32)
+TEST_CASE("the shipped clock's nap asks Windows for the period it names, on a high-resolution "
+          "timer") {
+    MonotonicClock clock;
+    clock.nap_ms(3);
+    CHECK(clock.last_nap().high_resolution);
+    CHECK(clock.last_nap().due_100ns == 3 * 10000);
+    clock.nap_ms(1);
+    CHECK(clock.last_nap().high_resolution);
+    CHECK(clock.last_nap().due_100ns == 1 * 10000);
+    clock.nap_ms(0); // something already due: the nap declines and asks nothing
+    CHECK(clock.last_nap().due_100ns == 1 * 10000);
+    MonotonicClock moved(std::move(clock)); // the service holds its clock by value
+    moved.nap_ms(2);
+    CHECK(moved.last_nap().high_resolution);
+    CHECK(moved.last_nap().due_100ns == 2 * 10000);
+}
+#endif
 
 TEST_CASE("the timer .so authors its chain from its own activation — no wind, ever") {
     Rig r;

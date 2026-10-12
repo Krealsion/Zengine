@@ -11,7 +11,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `binding.hpp` | `TimedWeave`, `TimerBindings`, `TimerHandle`: a declared rhythm; installed |
 | `normalize.hpp` | `timer.normalize_delay`, the delay rule as an operator; `DelayAuthority` |
 | `timer_weave.hpp` | `TimerServiceT<Clock>`, the service over an injected clock |
-| `timer.cpp` | the OS clock and nap; exports `TimerService` and the `zengine.timer` provider |
+| `os_clock.hpp` | the OS clock and nap; on Windows the performance counter and a high-resolution waitable timer |
+| `timer.cpp` | binds the OS clock; exports `TimerService` and the `zengine.timer` provider |
 | `CMakeLists.txt` | `zengine-timer-vocabulary` and the `zengine-timer` weave |
 | `docs/` | the pages below |
 
@@ -29,7 +30,8 @@ routes; its compile walls are in `agents/verification/walls.md`, which the root 
 - `audit_probes` — what the substrate does to a live beat chain when the Timer is swapped,
   reloaded, driven twice or joined late (probes A-D); `tests/test_audit_probes.cpp`
 - `timer` — the contract by content-id, every schedule over a fake clock, the activation law,
-  the real library on the real clock, load order, continuity over a virtual clock;
+  the shipped clock's grain and what its nap asks of Windows, the real library on the real clock,
+  load order, continuity over a virtual clock;
   `tests/test_timer.cpp`, `tests/weavelib/timer_virtual.cpp`, `tests/weavelib/oneshot_probe.cpp`
 - `timer_activation_hook_compiles` — the control: a `TimedWeave` using `on_timed_activation`
   builds; `tests/compile_negative/activation_collision.cpp`, case 2
