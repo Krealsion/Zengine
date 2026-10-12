@@ -25,8 +25,9 @@ WEAVER_HOST = "weaver"
 DEVELOPMENT_HOST = "development"
 
 # WORKSHOP'S NOTICE THAT ITS DESK MOVED, as a row's `observe` names it: what `desk/watch` follows
-# and the walk tools wait on (hand.py), observed only by a row holding `capture`.
-DESK_NOTICE = {"producer": "zengine.workshop", "shape": "DeskStamps", "version": "1"}
+# and the walk tools wait on (hand.py), observed only by a row holding `capture`. The second
+# version names each pane's aimed picture too; a row naming only the first is followed by it.
+DESK_NOTICE = {"producer": "zengine.workshop", "shape": "DeskStamps", "version": "2"}
 
 # The setup version a desk is lifted from: version 4, whose rows hold every field of the current
 # ones but the settings (`setup_persist::v4` in workshop/setup_persist.hpp).

@@ -546,7 +546,8 @@ names — one entry per office, shape and version, the version written as Zen's 
   office publishes it -- is refused, in words, to a row without `capture`, whatever its `observe`
   list names; a row with `capture` still observes only what that list names. So is `DeskStamps`,
   Workshop's notice that the desk moved (below), which says no word but follows what `capture`
-  reads: a row follows it by naming `zengine.workshop` `DeskStamps` `1` beside `capture`.
+  reads: a row follows it by naming `zengine.workshop` `DeskStamps` `2` beside `capture` (`1`
+  follows the first version, which names no aimed picture).
   `ClipboardCopy`, the weaver's copied text, is refused to every row: it needs a power of its own,
   `clipboard`, which no guests file grants yet.
 - **Subscribe before you press, and press with settlement.** A publication the press set in
@@ -862,11 +863,14 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   standing, or the picture a new room asked for -- and one not yet drawn for its room and waiting
   for its provider are refused in words. Layouts reads here too, as `zengine.workshop` `layouts`,
   its tabs parts Workshop names (the table below).
-- **The desk's notice that it moved.** Workshop publishes `DeskStamps`, `{desk, panes}` -- the desk
-  number and every presented pane's stamp from the front back, as a desk read would say them now
-  -- at the end of each delivery that moved either; a repaint that moved nothing, and a picture sent
-  again unchanged, publish nothing. Each notice is the whole state, so follow it as `latest`: the
-  relay may keep only the newest while you are behind, and the newest stands for every one before
+- **The desk's notice that it moved.** Workshop publishes `DeskStamps` v2, `{desk, panes}` -- the
+  desk number and every presented pane from the front back, each `{stamp, aimed}`: its stamp, as a
+  desk read would say it now, and the picture it is aimed at by its own number -- at the end of
+  each delivery that moved any of them; a repaint that moved nothing publishes nothing, and a
+  picture sent again unchanged moves only its aimed number, once aimed at. Version 1, `{desk,
+  panes}` with each pane's stamp alone, is published beside it when the number or a stamp moved.
+  Each notice is the whole state, so follow it as `latest`: the relay may keep only the newest
+  while you are behind, and the newest stands for every one before
   it. A row follows it with `capture` and the `observe` entry above; on it, read again what moved
   -- the desk, when its number moved, or each pane whose stamp moved. A notice published inside
   the fence of your own settled send carries that send's `cause` until a later one replaces it, so
@@ -938,10 +942,12 @@ opening shows, until its pane draws its own, or one its office's holder no longe
 words and parts with no point, and every helper that presses reads the pane again until one does
 (`hand.pressing`), for at most ten seconds. **A helper waiting for a pane waits for the desk to
 move** (`hand.wait`): it follows Workshop's notice from its first wait and reads the pane again
-when that pane's stamp or the desk number moved, never on a clock; a picture whose number is not
-yet aimed at is read again a tenth of a second later, Workshop's own two hops, which no notice
-marks. A row that may not follow the notice -- no `capture`, or no `DeskStamps` in its `observe` --
-reads again every 0.2 seconds, and `workshop/act` says so in its result.
+when that pane's stamp, its aimed picture or the desk number moved, never on a clock -- a picture
+whose number is not yet aimed at too, which its aimed number moving marks. A row following only
+`DeskStamps` 1 reads such a picture again every 0.2 seconds, and a row that may not follow the
+notice -- no `capture`, or no `DeskStamps` in its `observe` -- reads again every 0.2 seconds at
+every wait; `workshop/act` says either in its result and counts each step's `clock_waits` in
+`steps.json`.
 `workshop/act` steps on them: `at` presses one cell of a pane's text lattice the same way
 (`{"at": ["td.game", "td", 5, 17]}`); `desk` checks a
 pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
@@ -1101,7 +1107,7 @@ loom-session run work desk/watch --name watch-1 --input out=/home/me/agent-desk 
 ```
 
 - **What it needs**, beyond `desk/read`'s: an `observe` entry naming `zengine.workshop`
-  `DeskStamps` `1` beside `capture`. A row the relay refuses fails the run, in the relay's words,
+  `DeskStamps` `2` (or `1`) beside `capture`. A row the relay refuses fails the run, in the relay's words,
   with `AGENTS.md` written and nothing asked.
 - **It asks nothing until it is told.** It follows the notice before its first read, with a window
   of one notice, so while it reads the relay holds only the newest; then it reads the desk whole.

@@ -56,10 +56,10 @@ WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 
 ## WL-READ-06 — The desk says when it moved
 
-LAW — Workshop publishes `DeskStamps`, the desk number and every presented pane's stamp front to back, at the end of each delivery that moved either, so the newest notice stands for each earlier one.
+LAW — Workshop publishes `DeskStamps` v2, the desk number and each presented pane's stamp and aimed picture front to back, at the end of a delivery that moved any, so the newest stands for each earlier one.
 
 MEANS
-- a repaint that moved nothing and a picture sent again unchanged publish nothing; a desk read finding the number moved without a notice publishes one;
+- an unchanged repaint publishes nothing, a same picture sent again v2 alone once aimed at, v1 `{desk, panes}` only on a number or stamp moving; a desk read finding the number moved publishes;
 - it is the office's own, to any listener: a guest follows it through the relay as `latest`, with `capture` (WL-GUEST-11);
 - a notice's `cause` stands only until a later notice replaces it.
 
@@ -75,7 +75,7 @@ LAW — A second-version stamp names a pane's picture by the fingerprint Worksho
 
 MEANS
 - a canvas picture no press is stamped with -- a room not drawn, a preview, a managed opening's -- is named none, so the first taking a press, or refused, moves the stamp;
-- a pane's own numbers stay where a press needs them: `PaneView` v5's `picture`, which may move while the stamp holds;
+- a pane's own numbers stay where a press needs them: `PaneView` v5's `picture`, which may move while the stamp holds, and each `DeskStamps` v2 entry's `aimed`, which a reading by number waits on;
 - the first `PaneStamp` and `PaneView` v4 still name the number, and say a picture in flight until its number is aimed at.
 
 DOES NOT MEAN
@@ -143,6 +143,10 @@ the picture, a press on it reaches no provider and a right press opens Workshop'
 picture beside it takes a press as before, a press held or not"
 
 ### WL-READ-06
+`workshop/pane_view.hpp` v2::DeskStamps v2::StampedPane
+`workshop/weave_inspection.cpp` publish_desk_stamps aimed_now
+`tests/test_workshop_desk_read.cpp` "the second notice names each pane's aimed picture: a picture
+looking like the last moves it once aimed at, while its stamp and the first notice hold"
 `workshop/pane_view.hpp` DeskStamps
 `workshop/weave_inspection.cpp` publish_desk_stamps presented_refs
 `workshop/weave_managed.cpp` after_delivery

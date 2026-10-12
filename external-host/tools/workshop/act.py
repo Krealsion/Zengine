@@ -71,11 +71,12 @@ def run(ctx):
         for i, step in enumerate(steps):
             verb = [v for v in VERBS if v in step][0]
             ctx.step("step %d of %d: %s" % (i + 1, len(steps), verb))
-            started = time.monotonic()
+            started, clock_waits = time.monotonic(), hand.clock_waits()
             record = {"index": i, "verb": verb, "args": step[verb]}
             hand.unsettled = False  # a step's waits judge its own reads, never a last step's
             record.update(act(ctx, hand, verb, step) or {})
             record["elapsed_ms"] = round((time.monotonic() - started) * 1000, 1)
+            record["clock_waits"] = hand.clock_waits() - clock_waits
             done.append(record)
             if pace and verb in GESTURES:
                 time.sleep(pace)
@@ -83,8 +84,8 @@ def run(ctx):
         ctx.produce("steps.json", json.dumps(done, indent=1).encode())
     said = "%d step(s) done: %s" % (len(done), " ".join(r["verb"] for r in done))
     if hand.waits_said():
-        said += "; its waits read again every %g s, not at Workshop's notice: %s" % (
-            FALLBACK_PACE, hand.waits_said())
+        said += "; %d of its waits read again every %g s, not at Workshop's notice: %s" % (
+            hand.clock_waits(), FALLBACK_PACE, hand.waits_said())
     return said
 
 
@@ -104,16 +105,12 @@ def words_now(hand, provider, pane):
 
 
 def pause(hand, end, pane=None):
-    """Until what a wait waits on may have moved, or `end`: a picture not yet aimed at is read again
-    a tenth of a second later, Workshop's own two hops, which no notice marks; anything else, at the
-    desk's next move for `pane` (office, pane), or for the desk (`hand.wait`)."""
+    """Until what a wait waits on may have moved, or `end`: at the desk's next move for `pane`
+    (office, pane), or for the desk (`hand.wait`) -- for a picture not yet aimed at, at its aimed
+    number moving."""
     left = end - time.monotonic()
-    if left <= 0:
-        return
-    if hand.unsettled:
-        time.sleep(min(0.1, left))
-    else:
-        hand.wait(left, pane)
+    if left > 0:
+        hand.wait(left, pane, unsettled=hand.unsettled)
 
 
 def texts(view):

@@ -35,6 +35,7 @@ loom::Grant workshop_grant() {
     // ...and the notice that the desk moved, published to whoever follows it, a relay's listener
     // among them, which holds no office.
     speak.allow_to_any(DeskStamps::zen_name, DeskStamps::zen_version);
+    speak.allow_to_any(v2::DeskStamps::zen_name, v2::DeskStamps::zen_version);
     speak.allow_to_any(PaneObservationAnswered::zen_name, PaneObservationAnswered::zen_version);
     speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
     speak.allow_to_any(ActorScopeJudged::zen_name, ActorScopeJudged::zen_version);
