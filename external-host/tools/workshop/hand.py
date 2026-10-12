@@ -122,12 +122,14 @@ class Notices:
 
     def moved(self, notice, pane):
         """Whether `notice` moved what a wait for `pane` waits on since the last one taken: the
-        desk number, or `pane`'s stamp and aimed picture (every pane's, for a wait for the desk)."""
-        stamps = notice.get("panes") or []
-        aimed = list(notice.get("aimed") or []) + [None] * len(stamps)
-        said = dict(((s.get("provider", ""), s.get("pane", "")),
-                     (s.get("holder"), s.get("incarnation"), s.get("grant"), s.get("fingerprint"),
-                      at)) for s, at in zip(stamps, aimed))
+        desk number, or `pane`'s stamp and aimed picture (every pane's, for a wait for the desk).
+        A second-version entry is `{stamp, aimed}`; a first-version one, the stamp alone."""
+        said = {}
+        for entry in notice.get("panes") or []:
+            s = entry.get("stamp", entry)
+            said[(s.get("provider", ""), s.get("pane", ""))] = (
+                s.get("holder"), s.get("incarnation"), s.get("grant"), s.get("fingerprint"),
+                entry.get("aimed"))
         before, self.seen = self.seen, (notice.get("desk", 0), said)
         if before is None or before[0] != self.seen[0]:
             return True

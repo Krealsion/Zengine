@@ -1157,15 +1157,15 @@ PaneStamp number_stamp_for(const std::vector<PaneStamp>& stamps, const std::stri
     return {};
 }
 
-/// The picture the second notice names `office`'s `pane` aimed at; a case requires it is there.
-std::int64_t aimed_for(const v2::DeskStamps& notice, const std::string& office,
-                       const std::string& pane = kReadPane) {
-    REQUIRE(notice.aimed.size() == notice.panes.size());
-    for (std::size_t i = 0; i < notice.panes.size(); ++i) {
-        if (notice.panes[i].provider == office && notice.panes[i].pane == pane) return notice.aimed[i];
+/// The second notice's entry for `office`'s `pane`: its stamp and aimed picture; a case requires
+/// it is there.
+v2::StampedPane entry_for(const v2::DeskStamps& notice, const std::string& office,
+                          const std::string& pane = kReadPane) {
+    for (const v2::StampedPane& p : notice.panes) {
+        if (p.stamp.provider == office && p.stamp.pane == pane) return p;
     }
-    FAIL("no aimed picture for " << office << "/" << pane);
-    return 0;
+    FAIL("no entry for " << office << "/" << pane);
+    return {};
 }
 
 /// A LINE A PANE TYPED: `text` on its first row, and a caret after it when `caret`.
@@ -1472,7 +1472,7 @@ TEST_CASE("the second notice names each pane's aimed picture: a picture looking 
     const v2::DeskStamps was = d.ear->heard_aimed.back();
     DeskRead numbered;
     REQUIRE(d.read(numbered).empty());
-    CHECK(aimed_for(was, kTypingOffice) == number_stamp_for(numbered.stamps, kTypingOffice).picture);
+    CHECK(entry_for(was, kTypingOffice).aimed == number_stamp_for(numbered.stamps, kTypingOffice).picture);
     d.ear->heard.clear();
     d.ear->heard_aimed.clear();
     d.draw(at, saying("same"));
@@ -1480,12 +1480,12 @@ TEST_CASE("the second notice names each pane's aimed picture: a picture looking 
     REQUIRE(d.ear->heard_aimed.size() == 1);
     const v2::DeskStamps now = d.ear->heard_aimed.back();
     CHECK(now.desk == was.desk);
-    CHECK(same_stamp(stamp_for(now.panes, kTypingOffice), stamp_for(was.panes, kTypingOffice)));
-    CHECK(aimed_for(now, kTypingOffice) != aimed_for(was, kTypingOffice));
+    CHECK(same_stamp(entry_for(now, kTypingOffice).stamp, entry_for(was, kTypingOffice).stamp));
+    CHECK(entry_for(now, kTypingOffice).aimed != entry_for(was, kTypingOffice).aimed);
     // ...THE NUMBER A READING BY NUMBER NOW READS, which it refused until this notice.
     DeskRead again;
     REQUIRE(d.read(again).empty());
-    CHECK(aimed_for(now, kTypingOffice) == number_stamp_for(again.stamps, kTypingOffice).picture);
+    CHECK(entry_for(now, kTypingOffice).aimed == number_stamp_for(again.stamps, kTypingOffice).picture);
     // AND NOTHING MOVED, NOTHING IS TOLD: a desk read finding the desk as told says no notice.
     d.ear->heard_aimed.clear();
     v2::DeskRead quiet;

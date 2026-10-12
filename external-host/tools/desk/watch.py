@@ -85,6 +85,12 @@ def stamps_of(reading):
     return out
 
 
+def notice_stamps(notice):
+    """Each pane's stamp a notice names: a second-version entry's `stamp`, a first-version entry
+    itself."""
+    return [entry.get("stamp", entry) for entry in notice.get("panes") or []]
+
+
 def moved(reading, notice):
     """What a notice says moved since `reading`: (whether the desk moved, [(office, pane)] whose
     stamp moved). Nothing, for a notice the reading already stands on or one older than it."""
@@ -95,7 +101,7 @@ def moved(reading, notice):
     if told < number:
         return False, []
     known = stamps_of(reading)
-    said = dict(((s.get("provider", ""), s.get("pane", "")), s) for s in notice.get("panes") or [])
+    said = dict(((s.get("provider", ""), s.get("pane", "")), s) for s in notice_stamps(notice))
     if told != number or set(said) != set(known):
         return True, []
     return False, [ref for ref, s in said.items() if not desk_asks.same_stamp(s, known[ref])]
@@ -129,8 +135,7 @@ class Watch(object):
         against."""
         out = dict(reading)
         panes = dict(reading.get("panes") or {})
-        said = dict(((s.get("provider", ""), s.get("pane", "")), s)
-                    for s in notice.get("panes") or [])
+        said = dict(((s.get("provider", ""), s.get("pane", "")), s) for s in notice_stamps(notice))
         for ref in refs:
             key = desk_asks.key(*ref)
             again = desk_asks.read_pane(self.asker, ref[0], ref[1])

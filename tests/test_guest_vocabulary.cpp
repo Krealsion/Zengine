@@ -63,7 +63,7 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<ws::v2::DeskReadRequested>(), loom::schema_of<ws::v2::DeskRead>(),
             loom::schema_of<ws::v2::PaneStamp>(), loom::schema_of<ws::v5::PaneViewRequested>(),
             loom::schema_of<ws::v5::PaneView>(), loom::schema_of<ws::DeskStamps>(),
-            loom::schema_of<ws::v2::DeskStamps>(),
+            loom::schema_of<ws::v2::DeskStamps>(), loom::schema_of<ws::v2::StampedPane>(),
             loom::schema_of<ws::PaneInventoryRequested>(), loom::schema_of<ws::PaneInventory>(),
             loom::schema_of<ws::InventoryPane>(), loom::schema_of<ws::KeymapRequested>(),
             loom::schema_of<ws::KeymapShown>(), loom::schema_of<ws::ShownBinding>(),
