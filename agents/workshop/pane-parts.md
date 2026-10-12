@@ -19,6 +19,21 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-pane-names-its-parts.md`
 
+## WL-HAND-07 — A control is named by the action it performs, and that action is in force
+
+LAW — A part that performs an action its pane declares is named `control:<id>`, the id as declared, and a part named `control:<x>` names an action `x` the pane has in force when the picture is drawn.
+
+MEANS
+- a control whose press performs no declared action has one declared, with no key, so a part pressed by its name and an action asked by its id are one control;
+- a control drawn while its action is not in force, a press on it doing nothing, is named nothing;
+- the suites hold it: each picture a case reads is judged against the rows its pane has in force then.
+
+DOES NOT MEAN
+- that Workshop reads a part's name, or finds an action from a part (WL-HAND-06);
+- that a declared action has a key: a row a control performs needs none until a keymap file gives one.
+
+WHY — `agents/decisions/a-pane-names-its-parts.md`
+
 ## Proven by
 
 ### WL-HAND-06
@@ -107,3 +122,25 @@ press on it lands, a button saying an intent as the action it performs, and a pr
 rows, elements and handles, an element by its id"
 `tests/test_flow_pane.cpp` "WL-HAND-06: Flow names its controls, its nodes and ports by their place,
 and every place a press means something"
+
+### WL-HAND-07
+`tests/control_parts.hpp` control_parts_problem
+`tests/workshop_support.hpp` held_control_parts_problem held_parts
+`composer/view.hpp` part_name
+`introspection/vocabulary.hpp` kPowersActionSources kPowersActionOperators kPowersActionComposite
+`introspection/introspection.cpp` powers_parts show_view toggle_composite
+`inventory/inventory-pane/pane.cpp` part_name
+`flow/flow-pane/pane.cpp` declare
+`view/view-builder/picture.hpp` part_name
+`view/view-builder/pane.cpp` more_choices
+`external-host/demo-control/control.hpp` offer
+`tests/test_workshop_panes_builder.cpp` "the action census: the rows the Builder declares in each
+mode, with what each press causes and the mode it enters, and the desk's, are tests/actions.txt"
+`tests/test_workshop_panes_actions.cpp` "Powers declares its actions, acts on the resolved id, and
+its typing still crosses raw"
+`tests/test_flow_pane.cpp` "loaded Flow pane authors runs edits and reopens a graphical project with
+reusable examples"
+`tests/test_view_builder.cpp` "every field a label could show can be chosen: the choice wraps within
+its column, and what the rows cannot hold is reached by More"
+`tests/test_workshop_demo.cpp` "WL-HAND-06: the demo controls name their reset row and the state
+beneath it"

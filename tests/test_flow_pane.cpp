@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
+#include "control_parts.hpp"
 #include "flow/flow-pane/view.hpp" // `unit` -- Flow's authored grid, which a drag lands in
 #include "flow/flow-pane/vocabulary.hpp"
 #include "flow/flow-host/runtime.hpp"
@@ -43,6 +44,7 @@ public:
     std::vector<loom::Message> messages;
     std::vector<ws::PaneCanvasContent> pictures;
     std::vector<ws::v4::PaneCanvasContent> named; ///< ...as said, with the parts each names
+    std::vector<std::string> rows; ///< the ids of the rows last declared, the ones in force
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
             loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
@@ -61,10 +63,19 @@ public:
             REQUIRE(message.provenance.authored_from_role(fp::kRole));
             pictures.push_back(loom::from_value<ws::PaneCanvasContent>(message.payload));
         }
+        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PaneActions>())) {
+            rows.clear();
+            for (const auto& row : loom::from_value<ws::PaneActions>(message.payload).rows) rows.push_back(row.id);
+        }
         if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::v4::PaneCanvasContent>())) {
             REQUIRE(message.provenance.authored_from_role(fp::kRole));
             named.push_back(loom::from_value<ws::v4::PaneCanvasContent>(message.payload));
             const auto& c = named.back();
+            // EVERY PICTURE FLOW DRAWS NAMES ONLY CONTROLS ITS ROWS IN FORCE DECLARE (WL-HAND-07).
+            std::vector<std::string> names;
+            for (const auto& part : c.parts) names.push_back(part.name);
+            const std::string problem = control_parts_problem("zengine.flow/flow", names, rows);
+            CHECK_MESSAGE(problem.empty(), problem);
             pictures.push_back(ws::PaneCanvasContent{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts});
         }
         messages.push_back(message);

@@ -63,8 +63,11 @@ using zengine::introspection::kIntrospectionRole;
 using zengine::introspection::kLoadedPane;
 using zengine::introspection::kLoadedPaneName;
 using zengine::introspection::kLoadedPaneSummary;
+using zengine::introspection::kPowersActionComposite;
 using zengine::introspection::kPowersActionDown;
+using zengine::introspection::kPowersActionOperators;
 using zengine::introspection::kPowersActionSample;
+using zengine::introspection::kPowersActionSources;
 using zengine::introspection::kPowersActionUp;
 using zengine::introspection::kPowersActionView;
 using zengine::introspection::kPowersPane;
@@ -450,6 +453,14 @@ public:
             if (powers_ui_.selected() != was) {
                 ask_described(mail);
             }
+        } else if (asked.id == kPowersActionSources || asked.id == kPowersActionOperators) {
+            if (!show_view(asked.id == kPowersActionSources ? intro::powers_view::kSources
+                                                            : intro::powers_view::kOperators,
+                           mail)) {
+                return;
+            }
+        } else if (asked.id == kPowersActionComposite) {
+            toggle_composite(mail);
         } else if (asked.id == kPowersActionSample) {
             // The one evaluation gesture; `sampleable` is empty for anything but a selected
             // Source, so the Operators view has no invocation path.
@@ -603,7 +614,7 @@ private:
         offer(mail, PaneOffered{kArrangementPane, kArrangementPaneName,
                                 kArrangementPaneSummary, 9, 64});
         offer(mail, PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary, 8, 58});
-        // ...and the Powers pane's four actions with their shipped defaults (`input::scan` and
+        // ...and the Powers pane's actions with their shipped defaults (`input::scan` and
         // `input::mod` numbers); applying a weaver's keymap is Workshop's.
         PaneActions rows;
         rows.pane = kPowersPane;
@@ -615,6 +626,12 @@ private:
             PaneActionRow{kPowersActionDown, "row down", input::scan::kDown, input::mod::kNone});
         rows.rows.push_back(PaneActionRow{kPowersActionSample, "sample", input::scan::kReturn,
                                           input::mod::kNone});
+        rows.rows.push_back(PaneActionRow{kPowersActionSources, "show sources",
+                                          input::scan::kUnknown, input::mod::kNone});
+        rows.rows.push_back(PaneActionRow{kPowersActionOperators, "show operators",
+                                          input::scan::kUnknown, input::mod::kNone});
+        rows.rows.push_back(PaneActionRow{kPowersActionComposite, "composite only, on or off",
+                                          input::scan::kUnknown, input::mod::kNone});
         (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, rows);
     }
 
@@ -726,17 +743,18 @@ private:
         return named.take();
     }
 
-    /// WHAT POWERS CALLS ITS PARTS: a power's row by its identity, `power:<identity>`, and its
-    /// controls `control:sources`, `control:operators`, `control:composite` and `control:sample`.
+    /// WHAT POWERS CALLS ITS PARTS: a power's row by its identity, `power:<identity>`, and each
+    /// control by the action it performs, `control:<id>`.
     std::vector<zengine::workshop::PaneRowPart> powers_parts() const {
         zengine::workshop::PartNames<zengine::workshop::PaneRowPart> named;
+        const auto control = [](const char* action) { return std::string("control:") + action; };
         for (const intro::PowersSpan& span : powers_shown_.spans) {
             std::string name;
             switch (span.control) {
-            case intro::powers_control::kSources: name = "control:sources"; break;
-            case intro::powers_control::kOperators: name = "control:operators"; break;
-            case intro::powers_control::kComposite: name = "control:composite"; break;
-            case intro::powers_control::kSample: name = "control:sample"; break;
+            case intro::powers_control::kSources: name = control(kPowersActionSources); break;
+            case intro::powers_control::kOperators: name = control(kPowersActionOperators); break;
+            case intro::powers_control::kComposite: name = control(kPowersActionComposite); break;
+            case intro::powers_control::kSample: name = control(kPowersActionSample); break;
             case intro::powers_control::kEntry: name = "power:" + span.identity; break;
             default: break;
             }
@@ -775,6 +793,24 @@ private:
         say_rows(mail, kPowersPane, powers_shown_.rows, powers_parts(), caret);
     }
 
+    /// SHOW ONE VIEW, Sources or Operators, as its control and its action ask: false when it is
+    /// shown already, which asks nothing.
+    bool show_view(std::int64_t want, loom::Mail& mail) {
+        if (powers_ui_.view == want) {
+            return false;
+        }
+        powers_ui_.view = want;
+        ask_powers(mail);
+        ask_described(mail);
+        return true;
+    }
+
+    /// ...AND TURN THE COMPOSITE FILTER over, as its control and its action ask.
+    void toggle_composite(loom::Mail& mail) {
+        powers_ui_.composite_only = !powers_ui_.composite_only;
+        ask_powers(mail);
+    }
+
     /// A press in Powers, resolved against what is on screen through the spans the projection
     /// returned. A row selects and never samples, so a cold pane's first press is one act; a
     /// press that changes nothing republishes nothing.
@@ -783,21 +819,16 @@ private:
             intro::target_at(powers_shown_, pressed_row, pressed_column);
         switch (hit.control) {
         case intro::powers_control::kSources:
-        case intro::powers_control::kOperators: {
-            const std::int64_t want = hit.control == intro::powers_control::kSources
-                                          ? intro::powers_view::kSources
-                                          : intro::powers_view::kOperators;
-            if (powers_ui_.view == want) {
+        case intro::powers_control::kOperators:
+            if (!show_view(hit.control == intro::powers_control::kSources
+                               ? intro::powers_view::kSources
+                               : intro::powers_view::kOperators,
+                           mail)) {
                 return;
             }
-            powers_ui_.view = want;
-            ask_powers(mail);
-            ask_described(mail);
             break;
-        }
         case intro::powers_control::kComposite:
-            powers_ui_.composite_only = !powers_ui_.composite_only;
-            ask_powers(mail);
+            toggle_composite(mail);
             break;
         case intro::powers_control::kEntry:
             // A press on a power may become a drag carrying its reference: held until the hand

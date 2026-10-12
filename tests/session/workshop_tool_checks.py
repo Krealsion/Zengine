@@ -563,13 +563,14 @@ class CanvasInfo(CanvasPane):
 
 class CanvasInventory(CanvasPane):
     """Inventory drawing its rows on its canvas while it browses its folders: its heading; its
-    location -- `(Up) Root` at the root, else `[Up]` named `control:up`, then each folder from the
-    root a crumb named `crumb:o:<id>`, and `+1 in views` after Samples, a folder a portable view
-    holds a member of -- the folders and then the entries of the folder shown, each named
-    `folder:o:<id>` or `entry:o:<id>`, `> ` before the one a press chose; and a notice. A press on
-    a crumb or on `[Up]` shows that folder, on a row chooses it, and on the folder's row a press
-    chose opens it; Alt+Home shows the root. An entry pressed and released on `[Up]` is filed in
-    its folder's parent. Each press is kept as the part it lands on, and the keys as they come."""
+    location -- `(Up) Root` at the root, else `[Up]` named `control:inventory.parent`, then each
+    folder from the root a crumb named `crumb:o:<id>`, and `+1 in views` after Samples, a folder a
+    portable view holds a member of -- the folders and then the entries of the folder shown, each
+    named `folder:o:<id>` or `entry:o:<id>`, `> ` before the one a press chose; and a notice. A
+    press on a crumb or on `[Up]` shows that folder, on a row chooses it, and on the folder's row a
+    press chose opens it; Alt+Home shows the root. An entry pressed and released on `[Up]` is
+    filed in its folder's parent. Each press is kept as the part it lands on, and the keys as they
+    come."""
     FOLDERS = {"f1": ("Workbench", ""), "f2": ("Samples", "f1"), "f3": ("Commands", "f1"),
                "f4": ("Drafts", "f3")}
     ENTRIES = {"e1": ("Workbench sample", "f2"), "e2": ("Workbench note", "f2"),
@@ -586,7 +587,7 @@ class CanvasInventory(CanvasPane):
             chain.insert(0, at)
             at = self.folders[at][1]
         text = "[Up]" if self.here else "(Up)"
-        parts = [("control:up", 0, 4)] if self.here else []
+        parts = [("control:inventory.parent", 0, 4)] if self.here else []
         for i, (folder, name) in enumerate([("", "Root")] + [(f, self.folders[f][0]) for f in chain]):
             text += " > " if i else " "
             parts.append(("crumb:o:" + folder, len(text), len(name)))
@@ -612,7 +613,7 @@ class CanvasInventory(CanvasPane):
     def pressed(self, x, y):
         _, name = self.under(x, y)
         self.presses.append(name)
-        if name == "control:up":
+        if name == "control:inventory.parent":
             self.show(self.folders[self.here][1])
         elif name and name.startswith("crumb:o:"):
             self.show(name[len("crumb:o:"):])
@@ -623,7 +624,7 @@ class CanvasInventory(CanvasPane):
 
     def released(self, x, y):
         _, name = self.under(x, y)
-        if name == "control:up" and self.chose and self.chose.startswith("entry:o:"):
+        if name == "control:inventory.parent" and self.chose and self.chose.startswith("entry:o:"):
             entry, parent = self.chose[len("entry:o:"):], self.folders[self.here][1]
             label = self.entries[entry][0]
             self.entries[entry] = (label, parent)

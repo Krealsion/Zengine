@@ -12,17 +12,19 @@ namespace demo = zengine::demo;
 struct DemoTestPump { ZEN_SHAPE(DemoTestPump, 1); };
 class DemoHand final : public loom::WeaveBase<DemoHand, DemoTestPump,
     loom::Accept<DemoTestPump, loom::Ack, loom::Refused, demo::DemoWork, demo::DemoStatus,
-                 v4::PaneContent, v5::PaneCanvasContent, PanePassRequested>,
+                 v4::PaneContent, v5::PaneCanvasContent, PanePassRequested, PaneActions,
+                 v2::PaneOffered>,
     loom::Emit<demo::DemoServiceOpened, demo::DemoServiceClosed, demo::DemoWorkRequested,
                demo::DemoWorkFinished, demo::DemoResetRequested, demo::DemoReadyRequested,
                PanePressed, PaneRoom, PaneCanvasRoom, PaneCanvasPointer, SetupApplyRequested,
-               v2::PaneOffered>> {
+               v2::PaneOffered, PaneActionRequested, PaneCatalogRequested>> {
 public:
     std::function<void(loom::Mail&)> action;
     std::vector<demo::DemoWork> work;
     std::vector<demo::DemoStatus> status;
     std::vector<v4::PaneContent> painted;
     std::vector<v5::PaneCanvasContent> pictures;
+    std::vector<std::string> rows; ///< the ids of the rows last declared, the ones in force
     std::vector<std::string> refused;
     int passed = 0;
     int acks = 0;
@@ -31,8 +33,26 @@ public:
     void on(const loom::Refused& r, loom::Mail&) { refused.push_back(r.reason); }
     void on(const demo::DemoWork& w, loom::Mail& m) { CHECK(m.answers_ask()); work.push_back(w); }
     void on(const demo::DemoStatus& s, loom::Mail& m) { CHECK(m.answers_ask()); status.push_back(s); }
-    void on(const v4::PaneContent& c, loom::Mail&) { painted.push_back(c); }
-    void on(const v5::PaneCanvasContent& c, loom::Mail&) { pictures.push_back(c); }
+    void on(const v2::PaneOffered&, loom::Mail&) {}
+    void on(const PaneActions& a, loom::Mail&) {
+        rows.clear();
+        for (const PaneActionRow& row : a.rows) rows.push_back(row.id);
+    }
+    // EVERY PICTURE THE CONTROLS DRAW NAMES ONLY CONTROLS THEIR ROWS IN FORCE DECLARE (WL-HAND-07).
+    void on(const v4::PaneContent& c, loom::Mail&) {
+        held_to_rows(c.parts);
+        painted.push_back(c);
+    }
+    void on(const v5::PaneCanvasContent& c, loom::Mail&) {
+        held_to_rows(c.parts);
+        pictures.push_back(c);
+    }
+    template <class Parts> void held_to_rows(const Parts& parts) {
+        std::vector<std::string> names;
+        for (const auto& part : parts) names.push_back(part.name);
+        const std::string problem = control_parts_problem("zengine.demo/controls", names, rows);
+        CHECK_MESSAGE(problem.empty(), problem);
+    }
     void on(const PanePassRequested&, loom::Mail&) { ++passed; }
 };
 struct DemoActor {
@@ -61,6 +81,8 @@ struct DemoRig {
         auto w = std::make_unique<demo::Control>(); auto* raw = w.get();
         auto grant = loom::emit_default_grant(*w);
         raw->zen_set_self(bus.register_weave(std::move(w), std::move(grant), demo::kRole));
+        // WORKSHOP ASKS FOR THE OFFER FIRST, as a desk does, so the controls' rows are in force.
+        desk.say(demo::kRole, PaneCatalogRequested{}, "zengine.workshop");
     }
     void ready() {
         worker.say(demo::kRole, demo::DemoServiceOpened{"Example"});
@@ -144,6 +166,14 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
     CHECK(run_at(drawn.parts[0]).find("Reset demo") != std::string::npos);
     CHECK(drawn.parts[1].name == "status");
     CHECK(run_at(drawn.parts[1]).rfind("ready", 0) == 0);
+    // ...THE RESET ROW'S NAME IS ITS ACTION'S: asked by Workshop, `reset` resets as the press does,
+    // and asked by anyone else it does nothing.
+    r.worker.say(demo::kRole, demo::DemoWorkRequested{});
+    REQUIRE(r.worker.hand->work.size() == 1);
+    r.visitor.say(demo::kRole, PaneActionRequested{"controls", "reset"});
+    CHECK(r.worker.hand->work.size() == 1);
+    r.desk.say(demo::kRole, PaneActionRequested{"controls", "reset"}, "zengine.workshop");
+    CHECK(r.worker.hand->work.size() == 2);
     // ...AND AS PROSE to a host that grants no canvas, under the same names.
     DemoRig prose; prose.ready();
     prose.desk.say(demo::kRole, PaneRoom{"controls", 4, 56}, "zengine.workshop");
