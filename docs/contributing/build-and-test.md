@@ -139,12 +139,23 @@ What it asks, in order:
 | find `ZengineCodePage.cmake` and its manifest beside the package config | a package that lost what `zengine_code_page()` needs |
 | read the generated package files | an absolute path to the machine that built it |
 | read the installed public material | a header assuming this project's development environment |
-| configure the copied project | a public dependency the config does not resolve |
+| configure and build the copied project against the prefix and the Loom this build consumed | a public dependency the config does not resolve, or an artifact the package advertises in `ZENGINE_RUNTIME_ARTIFACTS` that is not in `ZENGINE_ARTIFACT_DIR` |
 | on Windows, read every program the copy built | a program built without `zengine_code_page()`, which runs in the system's code page |
+| build a copy of [`examples/workshop-probe/`](../../examples/workshop-probe/CMakeLists.txt) the same way | a header the Workshop probe needs that is not installed, or a probe that builds no loadable weave |
 | run `witness-surfaces` | an exported target whose headers are not self-contained |
+| run `witness-message-drafts` | a draft library, Flow workspace or pane-canvas helper that loses what it carries when used from the installed headers |
+| run `witness-pane-menu` | the pane menu, the presenter seam or the list helpers failing a live exchange on the stranger's own bus, a forged answer included |
+| run `witness-pane-settings` | a pane's declared settings not judged and handed to it on the stranger's bus, or settings a forger hands it taken |
 | run `kitchen-host` | a loadable artifact a consumer cannot find or load |
-| rebuild against a **moved** prefix | a package that only works where it was installed |
+| run `flow-host` on the Flow weave the copy authored and compiled | Flow authoring, generation, loading or a live operator overlay that works only inside this repository |
+| run the installed `zengine-flow --help`, and the installed `zengine-inventory-read` with no file | an installed program that does not start; the reader must answer with its usage and exit 2 |
+| run `kitchen-host --no-timer` | diagnostics that stopped working: without the Timer service its order is refused, and the failure must name the order's shape and office |
+| rebuild against a **moved** prefix, and run `kitchen-host` and `flow-host` from it | a package that only works where it was installed |
 | **canary**: delete one installed header | a consumer secretly reading the source tree |
+
+The two `kitchen-host` runs are one witness: the first passes only if no refusal is reported,
+which diagnostics that had stopped working would also satisfy, so the second fails for real and
+must still be reported. Together they tell a quieter runtime from a blinder one.
 
 The last row is what makes the rest mean anything. Zengine's checkout is fully present and
 readable throughout, so if the stranger still builds with `timer/vocabulary.hpp` removed from
