@@ -518,8 +518,8 @@ TEST_CASE("WL-HAND-06: the Composer names a message by its identity, a field by 
     const cmp::ComposerView v = cmp::project(form, 20, 60);
     names.clear();
     for (const auto& row : v.rows) names.push_back(cmp::part_name(form, row.meaning));
-    for (const char* want : {"field:id", "field:delay_ms", "field:repeat", "control:submit",
-                             "control:back"}) {
+    for (const char* want : {"field:id", "field:delay_ms", "field:repeat", "control:compose.submit",
+                             "control:compose.back"}) {
         CAPTURE(want);
         CHECK(std::count(names.begin(), names.end(), std::string(want)) == 1);
     }

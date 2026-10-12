@@ -680,12 +680,12 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
     return out;
 }
 
-/// WHAT THE BUILDER CALLS A PLACE IT ANSWERS A PRESS AT: the bar's controls by what they do,
-/// `control:<action>`; a kind to make, `kind:<kind>`; the view's own values, `box:<field>`, and an
-/// element's, `box:<id>.<field>`; an element's row in the list, `list:<id>`, and the element on the
-/// design canvas, `element:<id>`, with its handles `handle:<id>.<sx>,<sy>`; the view's size handles
-/// `size:<sx>,<sy>` and the canvas `canvas`; and the selected element's controls by what they do
-/// and which element, `<action>:<id>`. An element is named by its id, the weaver's name for it.
+/// WHAT THE BUILDER CALLS A PLACE IT ANSWERS A PRESS AT: the bar's controls and a label's More by
+/// the action each performs, `control:<action>`; a kind, `kind:<kind>`; the view's values,
+/// `box:<field>`, an element's, `box:<id>.<field>`; an element's list row, `list:<id>`, and on the
+/// design canvas `element:<id>`, its handles `handle:<id>.<sx>,<sy>`; the view's size handles
+/// `size:<sx>,<sy>`, the canvas `canvas`; the selected element's controls by what they do and which
+/// element, `<action>:<id>`. An element is named by its id, the weaver's name for it.
 inline std::string part_name(const Hit& hit, const view::Description& d) {
     const auto element = [&](std::size_t at) -> std::string {
         if (at >= hit.args.size()) return {};
@@ -696,9 +696,9 @@ inline std::string part_name(const Hit& hit, const view::Description& d) {
         return d.elements[i].id;
     };
     const std::string& a = hit.action;
-    if (a == "new" || a == "open" || a == "save" || a == "run" || a == "apply" || a == "stop")
+    if (a == "new" || a == "open" || a == "save" || a == "run" || a == "apply" || a == "stop" ||
+        a == "choices")
         return "control:" + a;
-    if (a == "choices") return "control:more";
     if (a == "canvas") return "canvas";
     if (a == "kind" && !hit.args.empty()) return "kind:" + hit.args[0];
     if (a == "size" && hit.args.size() == 2) return "size:" + hit.args[0] + "," + hit.args[1];

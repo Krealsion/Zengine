@@ -151,7 +151,7 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
     // INSIDE IT: the way up and the crumb naming where the weaver stands.
     s.key(input::scan::kReturn);
     REQUIRE_MESSAGE(s.row_of(s.source, "[Up] Root > Workbench") == 1, s.shown(s.source));
-    const auto up = named("control:up", "control:up");
+    const auto up = named("control:inventory.parent", "control:inventory.parent");
     REQUIRE(up.has_value());
     CHECK(held_part_text(s.r.session(), s.source, *up) == "[Up]");
     const auto crumb = named("crumb:", ":" + workbench);

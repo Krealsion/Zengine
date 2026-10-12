@@ -148,6 +148,7 @@ public:
             else if (a.id == "compose.submit") submit(mail);
             else if (a.id == "compose.store") store(mail);
             else if (a.id == "compose.preset") store(mail, true);
+            else if (a.id == "compose.back") back_to_catalog(mail);
             else if (a.id == "compose.unset" && !busy()) {
                 if (auto* field = field_under_cursor()) {
                     *field = {}; ++draft_generation_;
@@ -851,7 +852,8 @@ private:
             {"compose.submit", "submit", input::scan::kReturn, input::mod::kCtrl},
             {"compose.store", "store command", input::scan::kS, input::mod::kCtrl},
             {"compose.preset", "store preset (may be incomplete)", input::scan::kB, input::mod::kCtrl},
-            {"compose.unset", "unset field and discard value", input::scan::kU, input::mod::kCtrl}}});
+            {"compose.unset", "unset field and discard value", input::scan::kU, input::mod::kCtrl},
+            {"compose.back", "back to the catalog", input::scan::kUnknown, input::mod::kNone}}});
     }
 
     /// WHAT A PRESS OR A DROP ON EACH ROW WOULD MEAN, spelled: the target, the form, and every

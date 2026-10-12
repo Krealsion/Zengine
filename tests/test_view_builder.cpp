@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
+#include "control_parts.hpp"
 #include "flow/shape.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/codec.hpp"
@@ -386,6 +387,7 @@ class Desk final : public loom::Weave {
 public:
     std::vector<loom::Message> heard;
     std::vector<ws::PaneCanvasContent> pictures;
+    std::vector<std::string> rows; ///< the ids of the rows the builder last declared, in force
     bool allow = true;
     loom::WeaveId self{};
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
@@ -409,6 +411,16 @@ public:
             in.provenance.authored_role() == vb::kRole) {
             const auto c = loom::from_value<ws::v4::PaneCanvasContent>(in.payload);
             pictures.push_back(ws::PaneCanvasContent{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts});
+            // ...EVERY ONE NAMING ONLY CONTROLS ITS ROWS IN FORCE DECLARE (WL-HAND-07).
+            std::vector<std::string> names;
+            for (const auto& part : c.parts) names.push_back(part.name);
+            const std::string problem = control_parts_problem("zengine.view.builder/view-builder", names, rows);
+            CHECK_MESSAGE(problem.empty(), problem);
+        }
+        if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneActions>()) &&
+            in.provenance.authored_role() == vb::kRole) {
+            rows.clear();
+            for (const auto& row : loom::from_value<ws::PaneActions>(in.payload).rows) rows.push_back(row.id);
         }
         heard.push_back(in);
     }
@@ -1531,7 +1543,8 @@ TEST_CASE("every field a label could show can be chosen: the choice wraps within
     room = window_room(++rig.grant);
     rig.host(room);
 
-    // MORE FIELDS THAN THE ROWS HOLD: More pages through them, and the last one is chosen.
+    // MORE FIELDS THAN THE ROWS HOLD: More pages through them, pressed and by its action,
+    // `choices`, which turns the page as the press does; and the last one is chosen.
     loom::SchemaBuilder many("tally.Many", 1);
     std::vector<std::string> fields;
     for (int i = 0; i < 40; ++i) {
@@ -1540,12 +1553,23 @@ TEST_CASE("every field a label could show can be chosen: the choice wraps within
     }
     rig.drop(loom::encode_schema(*many.build()), "> total  label");
     REQUIRE(rig.text("show which field of tally.Many?") != nullptr);
+    const auto first_offered = [&] {
+        for (const auto& f : fields)
+            if (offered(f)) return f;
+        return std::string();
+    };
     std::set<std::string> seen;
     for (int page = 0; page < 40 && !offered(fields.back()); ++page) {
         for (const auto& f : fields)
             if (offered(f)) seen.insert(f);
         REQUIRE(offered("More") != nullptr);
-        choose("More");
+        if (page % 2 == 0) {
+            choose("More");
+        } else {
+            const std::string before = first_offered();
+            rig.host(ws::PaneActionRequested{vb::kPane, "choices"});
+            CHECK(first_offered() != before);
+        }
     }
     for (const auto& f : fields)
         if (offered(f)) seen.insert(f);
