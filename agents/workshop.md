@@ -55,8 +55,8 @@ its suites.
 1. Routed law documents are registers in the `timer-laws` form: one law per `##`, LAW one line,
    MEANS at most <!-- value ZEN_LAW_MEANS_MAX -->3<!-- /value -->, DOES NOT MEAN at most <!-- value ZEN_LAW_DNM_MAX -->2<!-- /value -->, WHY naming one decision record, and the law's
    proof, naming owner identifiers and exact witness cases, under `### <id>` in the appendix that ends
-   the register, `## Proven by`. Each register's laws at most <!-- value ZEN_LAW_REGISTER_BYTES KiB -->16<!-- /value --> KB and its appendix at
-   most <!-- value ZEN_LAW_APPENDIX_BYTES KiB -->8<!-- /value --> KB; this router at most <!-- value ZEN_LAW_ROUTER_BYTES KiB -->12<!-- /value --> KB.
+   the register, `## Proven by`. Each register's laws at most <!-- value ZEN_LAW_REGISTER_BYTES KiB -->16<!-- /value --> KB and its whole
+   file, appendix included, at most <!-- value ZEN_LAW_FILE_BYTES KiB -->24<!-- /value --> KB; this router at most <!-- value ZEN_LAW_ROUTER_BYTES KiB -->12<!-- /value --> KB.
 2. A new law is a new entry under its owner. Never a bullet appended to a neighbouring entry.
 3. Law text lives in the register only; source carries the pointer
    `// WL-… -- agents/workshop/<file>`. Other comments meet
