@@ -2,13 +2,15 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The TimerService weave library: time's only door to the OS. Scheduling lives in
-// timer_weave.hpp (pinned over a fake clock); this is the real Clock -- the monotonic read and
-// the nap -- here because this weave's whole purpose is time and no host winds it (TIMER-02). It
-// also decides which operator truth this instance spends: its constructor takes the host's offer
-// inside `create()`, the only window a scoped offer leaves open (operator/docs/operator-host.md).
+// timer_weave.hpp (pinned over a fake clock); the real Clock -- the monotonic read and the nap --
+// is os_clock.hpp's, bound here because this weave's whole purpose is time and no host winds it
+// (TIMER-02). It also decides which operator truth this instance spends: its constructor takes
+// the host's offer inside `create()`, the only window a scoped offer leaves open
+// (operator/docs/operator-host.md).
 // Timer law: timer/docs/timer-laws.md
 
 #include "normalize.hpp"
+#include "os_clock.hpp"
 #include "timer_weave.hpp"
 #include "vocabulary.hpp"
 
@@ -22,48 +24,9 @@
 #include <exception>
 #include <vector>
 
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#else
-#include <time.h>
-#endif
-
 namespace {
 
-/// The real clock: monotonic milliseconds and a genuine nap. The one place
-/// in the running system that sleeps — the beat's nap is what paces the
-/// whole bus, and it sits behind a replaceable role rather than in a host.
-struct MonotonicClock {
-    std::int64_t now_ms() {
-#if defined(_WIN32)
-        return static_cast<std::int64_t>(::GetTickCount64());
-#else
-        timespec ts{};
-        ::clock_gettime(CLOCK_MONOTONIC, &ts);
-        return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-#endif
-    }
-
-    void nap_ms(std::int64_t ms) {
-        if (ms <= 0) {
-            return; // something is already due: fire now, sleep later
-        }
-#if defined(_WIN32)
-        ::Sleep(static_cast<DWORD>(ms));
-#else
-        timespec nap{};
-        nap.tv_sec = static_cast<time_t>(ms / 1000);
-        nap.tv_nsec = static_cast<long>((ms % 1000) * 1000000);
-        ::nanosleep(&nap, nullptr);
-#endif
-    }
-};
+using zengine::timer::MonotonicClock;
 
 /// The shipped Timer: the service over the real clock, spending whatever authority this load was
 /// offered -- a constructor and nothing else, since `ZEN_EXPORT_WEAVE` builds with `new S()`. It
