@@ -132,8 +132,9 @@ class Subscription(object):
     would -- a notice of the whole state, a gap, an ending -- in order, numbered. Past the script,
     a wait runs out."""
 
-    def __init__(self, tool_items, desk, script, clock):
+    def __init__(self, tool_items, desk, script, clock, version=2):
         self.items, self.desk, self.script, self.clock = tool_items, desk, list(script), clock
+        self.version = version  # the notice's version subscribed: v2's panes are {stamp, aimed}
         self.seq = 0
         self.ended = None
         self.released = False
@@ -142,7 +143,10 @@ class Subscription(object):
     def say(self, kind, **given):
         self.seq += 1
         if kind == "observed":
-            return self.items.Observation("DeskStamps", 1, copy.deepcopy(self.desk.stamps()),
+            told = copy.deepcopy(self.desk.stamps())
+            if self.version == 2:
+                told["panes"] = [{"stamp": s, "aimed": 1} for s in told["panes"]]
+            return self.items.Observation("DeskStamps", self.version, told,
                                           {"seq": self.seq}, 0.0)
         if kind == "gap":
             return self.items.Gap(self.seq, given.get("lost", 1), "lost on the way", True)
@@ -179,7 +183,7 @@ class Workshop(object):
     name = "desk-watch-check"
 
     def __init__(self, tool, items, clock, out, script, desk=None, seconds=60, changes=0, panes="",
-                 refuse=None):
+                 refuse=None, refused_versions=None):
         self.tool, self.items, self.clock = tool, items, clock
         self.desk = desk or Desk()
         self.script = script
@@ -190,6 +194,7 @@ class Workshop(object):
         self.observed = []
         self.at_first_contact = None
         self.refuse = refuse
+        self.refused_versions = refused_versions  # the notice's versions refused; None, every one
         self.sub = None
         self.cleanups = []
 
@@ -218,9 +223,11 @@ class Workshop(object):
                 timeout=30.0):
         self.contact()
         self.observed.append((producer, list(shapes), via, list(latest), len(self.asked)))
-        if self.refuse:
+        if self.refuse and (self.refused_versions is None or
+                            any(tuple(s)[1] in self.refused_versions for s in shapes)):
             raise self.tool.Refused(self.refuse)
-        self.sub = Subscription(self.items, self.desk, self.script, self.clock)
+        self.sub = Subscription(self.items, self.desk, self.script, self.clock,
+                                version=tuple(shapes[0])[1])
         return self.sub
 
     def ask(self, office, shape, fields=None, version=1, via=None, settle=False, timeout=60.0):
@@ -378,7 +385,7 @@ def run_checks(tools, runtime):
             producer, shapes, via, latest, asked_before = ctx.observed[0][:5]
             self.assertEqual((producer, via, latest, asked_before),
                              ("zengine.workshop", "workshop", ["DeskStamps"], 0))
-            self.assertEqual(shapes, [("DeskStamps", 1)])
+            self.assertEqual(shapes, [("DeskStamps", 2)])
             entries = self.entries()
             self.assertEqual(len(entries), 2, self.file("changes.txt"))
             self.assertTrue(entries[0].startswith("== change 1 -- notice 1: desk 5"))
@@ -624,11 +631,19 @@ def run_checks(tools, runtime):
                 self.watch([], refuse="guest 'watcher' may not observe DeskStamps v1: it says "
                                       "when the desk's words or its picture moved")
             self.assertIn("refused: this row may not follow the desk", str(raised.exception))
-            self.assertIn("observe` entry naming zengine.workshop DeskStamps 1",
+            self.assertIn("observe` entry naming zengine.workshop DeskStamps 2",
                           str(raised.exception))
             self.assertEqual(sorted(os.listdir(self.out)), ["AGENTS.md", "panes"])  # unheld
             self.assertEqual(os.listdir(os.path.join(self.out, "panes")), [])
             self.assertEqual(len(raised.exception.args), 1)
+
+        def test_a_row_naming_only_the_first_notice_is_followed_by_it(self):
+            ctx, summary = self.watch([words_of(INFO, ["PANES -- 3", "info changed"])],
+                                      refuse="guest 'watcher' may not observe DeskStamps v2: its "
+                                             "row's observe list does not name it",
+                                      refused_versions=(2,))
+            self.assertEqual([o[1] for o in ctx.observed], [[("DeskStamps", 2)], [("DeskStamps", 1)]])
+            self.assertTrue(self.entries()[0].startswith("== change 1 -- notice 1: desk 5"))
 
         def test_panes_not_a_list_of_pairs_is_refused_before_anything(self):
             with self.assertRaises(loom_tool.ToolFailed) as raised:

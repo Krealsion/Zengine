@@ -197,7 +197,7 @@ and says a covered pane's visible words with the cover named, a point only where
 (WL-READ-05); desk reads are at most `kDeskReadsPerSecond` a second, each asker (WL-READ-03).
 Version 2's stamps, and `PaneView` version 5's, name a picture by the fingerprint of what the pane
 sent, so a pane does nothing for it (WL-READ-07), and Workshop publishes `DeskStamps` at the end of
-each delivery that moved the desk number or a stamp (WL-READ-06). A guest session whose row holds `capture`
+each delivery that moved the desk number, a stamp or a picture aimed at (WL-READ-06). A guest session whose row holds `capture`
 is answered these, `PaneInventoryRequested` and `KeymapRequested` (WL-DESK-09, WL-DESK-11,
 WL-GUEST-11). The shapes: [the desk, said whole](../workshop/docs/workshop-panes.md#the-desk-said-whole).
 

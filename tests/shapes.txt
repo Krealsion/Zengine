@@ -65,6 +65,7 @@ DeskReadRequested v1 0x4ad4d957c4c27340
 DeskReadRequested v2 0x37cf1aaffe01bc03
 DeskRect v1 0xf1f559e7658c5f6d
 DeskStamps v1 0xde75f1d1da54c352
+DeskStamps v2 0x5c02eed4eafb5937
 DeskView v1 0x4e83e42f40866b15
 DeskView v2 0xf275e7575d93098e
 DeskView v3 0xf6a8009114039b81
@@ -434,6 +435,7 @@ SourcePrepared v2 0x2d2236678ab5a85f
 SourceSampled v1 0x3ade3edfe4f9c815
 SourceSelection v1 0xbcb27a5d9f6c509c
 SourceText v1 0xc8eac939a45d0903
+StampedPane v1 0x4c9f7b03328f41e6
 StandingCondition v1 0x318f07cbb7cce10b
 StandingConditions v1 0x6451bdfec6f7afbf
 StartRoleTimer v1 0xbe574ea83f97353a

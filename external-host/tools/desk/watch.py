@@ -43,7 +43,9 @@ import desk_changes as changes
 import desk_words as words
 import read
 
-NOTICE = ("DeskStamps", 1)
+NOTICE = ("DeskStamps", 2)
+#: ...and the first version, followed where a row names only it: the stamps are the same.
+NOTICE_V1 = ("DeskStamps", 1)
 #: How long a watch follows the desk, in seconds, by default and at most.
 DEFAULT_SECONDS = 60.0
 MAX_SECONDS = 3600.0
@@ -83,6 +85,12 @@ def stamps_of(reading):
     return out
 
 
+def notice_stamps(notice):
+    """Each pane's stamp a notice names: a second-version entry's `stamp`, a first-version entry
+    itself."""
+    return [entry.get("stamp", entry) for entry in notice.get("panes") or []]
+
+
 def moved(reading, notice):
     """What a notice says moved since `reading`: (whether the desk moved, [(office, pane)] whose
     stamp moved). Nothing, for a notice the reading already stands on or one older than it."""
@@ -93,7 +101,7 @@ def moved(reading, notice):
     if told < number:
         return False, []
     known = stamps_of(reading)
-    said = dict(((s.get("provider", ""), s.get("pane", "")), s) for s in notice.get("panes") or [])
+    said = dict(((s.get("provider", ""), s.get("pane", "")), s) for s in notice_stamps(notice))
     if told != number or set(said) != set(known):
         return True, []
     return False, [ref for ref, s in said.items() if not desk_asks.same_stamp(s, known[ref])]
@@ -127,8 +135,7 @@ class Watch(object):
         against."""
         out = dict(reading)
         panes = dict(reading.get("panes") or {})
-        said = dict(((s.get("provider", ""), s.get("pane", "")), s)
-                    for s in notice.get("panes") or [])
+        said = dict(((s.get("provider", ""), s.get("pane", "")), s) for s in notice_stamps(notice))
         for ref in refs:
             key = desk_asks.key(*ref)
             again = desk_asks.read_pane(self.asker, ref[0], ref[1])
@@ -202,13 +209,18 @@ def run(ctx):
     agents = os.path.join(out, "AGENTS.md")
     read.write(agents, words.AGENTS_MD)  # first, and before any ask: the reader's own words only
     ctx.step("follow")
-    try:
-        sub = ctx.observe(desk_asks.WORKSHOP, [NOTICE], via=link, latest=[NOTICE[0]], window=1,
-                          label="desk/watch (run %s)" % ctx.name)
-    except (Refused, DispatchRefused, SendRefused, LinkOutcome) as err:
+    sub, refused = None, []
+    for notice in (NOTICE, NOTICE_V1):
+        try:
+            sub = ctx.observe(desk_asks.WORKSHOP, [notice], via=link, latest=[notice[0]],
+                              window=1, label="desk/watch (run %s)" % ctx.name)
+            break
+        except (Refused, DispatchRefused, SendRefused, LinkOutcome) as err:
+            refused.append(err)
+    if sub is None:
         ctx.fail("refused: this row may not follow the desk: %s. A row follows it with `capture` "
-                 "and an `observe` entry naming zengine.workshop DeskStamps 1"
-                 % desk_asks.refusal_words(err))
+                 "and an `observe` entry naming zengine.workshop DeskStamps 2"
+                 % desk_asks.refusal_words(refused[0]))
     ctx.step("read")
     watch = Watch(ctx, link)
     reading = desk_asks.read_all(ctx, link)

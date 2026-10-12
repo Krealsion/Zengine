@@ -371,7 +371,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, v6::PaneView, DeskRead, v2::DeskRead, DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, v6::PaneView, DeskRead, v2::DeskRead, DeskStamps, v2::DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::v1::PaneCanvasPointer,
@@ -548,8 +548,11 @@ public:
     std::vector<PaneRef> presented_refs() const;
     /// The stamp `ref` stands on now, its picture named by the fingerprint of what it shows.
     v2::PaneStamp stamp_now(const PaneRef& ref) const;
-    /// `DeskStamps`, published when the desk number or a presented pane's stamp moved since the
-    /// last one; `known`, a desk computed already.
+    /// The picture number a press on `ref` is stamped with now; 0 for none, and for Layouts.
+    std::int64_t aimed_now(const PaneRef& ref) const;
+    /// `DeskStamps` v2, published when the desk number, a presented pane's stamp or its aimed
+    /// picture moved since the last one, and v1 when its number or a stamp did; `known`, a desk
+    /// computed already.
     void publish_desk_stamps(loom::Mail& mail, const v3::DeskView* known = nullptr);
     /// Whether `who` is a guest session whose admitted row holds `capture`: the one personal asker
     /// the desk's offers and keymap answer.
@@ -1480,8 +1483,11 @@ private:
     mutable std::string layouts_said_;
     /// THE LAST NOTICE PUBLISHED, a host keeping a notice is judged against, and whether the desk
     /// may have moved since: a repaint, a picture aimed at or a notice said owes one look.
-    DeskStamps stamps_said_;
+    v2::DeskStamps stamps_said_;
     bool stamps_published_ = false;
+    /// ...and the last first-version notice, which names no aimed picture.
+    DeskStamps numbered_said_;
+    bool numbered_published_ = false;
     bool stamps_owed_ = false;
     /// ...and whether what the desk says may have moved, so its number is computed again; a
     /// picture aimed at moves stamps only.
