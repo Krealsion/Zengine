@@ -4420,6 +4420,12 @@ TEST_CASE("keystone pilot: the SHIPPED real-clock Timer crosses a prepared repla
           "schedule it hands over is measured in real milliseconds") {
     Keystone k(TIMER_SO, /*with_probe=*/false);
 
+    // A second real artifact from the same shipped library, sealed and its transaction begun
+    // before the schedule exists: a library load takes what the machine gives it, and none of
+    // that is the one-shot's time.
+    const loom::WeaveId candidate = k.seal("zengine-timer-real-v2", TIMER_SO);
+    REQUIRE(k.begin(candidate).ok);
+
     // A 400ms one-shot, then roughly half of it spent on the real clock.
     k.r.ask_role(EnsureTimer{"pilot.oneshot", 400, false, kRestartDelay, ""});
     k.r.pump_for(k.incumbent, 20);
@@ -4427,43 +4433,66 @@ TEST_CASE("keystone pilot: the SHIPPED real-clock Timer crosses a prepared repla
     CHECK(k.r.seen.receipts.back().id == "pilot.oneshot");
     CHECK(k.r.seen.receipts.back().resolved == kResolutionRestarted);
     k.r.pump_for(k.incumbent, 200);
-    CHECK(k.r.seen.fired.size() ==
-          std::count(k.r.seen.fired.begin(), k.r.seen.fired.end(), "suite.stopwatch"));
 
-    // The same crossing, through the same coordinator: a second real artifact
-    // from the same shipped library, sealed, prepared, and admitted.
-    const loom::WeaveId candidate = k.seal("zengine-timer-real-v2", TIMER_SO);
-    REQUIRE(k.begin(candidate).ok);
+    // The crossing, through the same coordinator. The re-ask preferring preservation is ordered at
+    // the boundary -- the candidate has answered, nobody has committed -- so it reaches the
+    // admitted candidate, which holds it through the restoration and answers it from what the
+    // letter carried before any beat of its own can run.
+    const std::size_t receipts_before = k.r.seen.receipts.size();
     k.ask(kInheritFromIncumbent);
+    k.r.pump_until(PrepareTimerHandover::zen_name);
+    k.r.ask_role(EnsureTimer{"pilot.oneshot", 400, false, kPreserveRemaining, ""});
     k.r.pump_until(TimerReady::zen_name);
     REQUIRE(k.prep.commits.size() == 1);
     REQUIRE(k.prep.commits.back().ok);
     REQUIRE(k.prep.relayed == 1);
     CHECK(k.r.bus.role_holder(kTimerRole) == candidate);
 
-    // WHAT CROSSED IS A REAL MEASUREMENT: some of the 400ms is gone, and what is
-    // left is neither zero nor the whole delay. A restarted schedule would read
-    // 400; a stale snapshot taken at transaction begin would read more than what
-    // the clock actually had left.
+    std::vector<std::string> answered;
+    for (std::size_t i = receipts_before; i < k.r.seen.receipts.size(); ++i) {
+        if (k.r.seen.receipts[i].id == "pilot.oneshot") {
+            answered.push_back(k.r.seen.receipts[i].resolved);
+        }
+    }
+    REQUIRE(answered.size() == 1);
+    const auto fired = [&k] {
+        return std::count(k.r.seen.fired.begin(), k.r.seen.fired.end(), "pilot.oneshot");
+    };
+
+    // OWED OR PAID, NEVER BOTH AND NEVER NEITHER: the one-shot is in the letter exactly when it
+    // has not fired, since the incumbent fires only on its beats and its chain ends at the commit.
     const std::vector<TimerHandoffEntry> crossed = k.last_handoff();
     const TimerHandoffEntry* shot = k.crossed(crossed, "pilot.oneshot");
-    REQUIRE(shot != nullptr);
+    if (shot == nullptr) {
+        // PAID: the machine held the incumbent past the whole 400ms before the letter. It fired
+        // once, where it was always going to, and the re-ask finds nothing to preserve -- refused,
+        // with no fallback, so nothing is created and nothing fires again.
+        MESSAGE("the one-shot fired on the incumbent before its letter was written");
+        CHECK(fired() == 1);
+        CHECK(answered.front() == kResolutionRefused);
+        k.r.pump_for(candidate, 500);
+        CHECK(fired() == 1);
+        return;
+    }
+
+    // OWED, AND WHAT CROSSED IS A REAL MEASUREMENT: some of the 400ms is gone, and what is left is
+    // less than the whole delay. A restarted schedule would read 400; a snapshot taken at the
+    // transaction's begin would not hold the one-shot at all. Zero is an honest reading when the
+    // machine spent the rest before the letter.
+    CHECK(fired() == 0);
     CHECK(shot->delay_ms == 400);
-    CHECK(shot->remaining_ms > 0);
+    CHECK(shot->remaining_ms >= 0);
     CHECK(shot->remaining_ms < 400);
 
-    // AND THE NEW SERVICE KEPT IT. An ordered re-ask preferring preservation is
-    // answered `preserved_remaining` — the receipt, not an inference.
-    k.r.ask_role(EnsureTimer{"pilot.oneshot", 400, false, kPreserveRemaining, ""});
-    k.r.pump_for(candidate, 20);
-    REQUIRE_FALSE(k.r.seen.receipts.empty());
-    CHECK(k.r.seen.receipts.back().id == "pilot.oneshot");
-    CHECK(k.r.seen.receipts.back().resolved == kResolutionPreserved);
+    // AND THE NEW SERVICE KEPT IT: the re-ask is answered `preserved_remaining` -- the receipt,
+    // not an inference.
+    CHECK(answered.front() == kResolutionPreserved);
 
-    // ...and it fires ONCE, inside the time that was actually left, which a
-    // schedule re-anchored at the commit would still be waiting out.
+    // ...and it fires ONCE, inside the time that was actually left, which a schedule re-anchored
+    // at the commit would still be waiting out. The window is a stopwatch on the same service and
+    // the same clock, due after the one-shot, so a beat that fires the stopwatch has fired it too.
     k.r.pump_for(candidate, shot->remaining_ms + 100);
-    CHECK(std::count(k.r.seen.fired.begin(), k.r.seen.fired.end(), "pilot.oneshot") == 1);
+    CHECK(fired() == 1);
     k.r.pump_for(candidate, 100);
-    CHECK(std::count(k.r.seen.fired.begin(), k.r.seen.fired.end(), "pilot.oneshot") == 1);
+    CHECK(fired() == 1);
 }
