@@ -17,6 +17,7 @@
 # ---- the law register's budgets
 ZEN_LAW_CORE_BYTES              tests/check_law_register.cmake            ZEN_LAW_CORE_BYTES
 ZEN_LAW_REGISTER_BYTES          tests/check_law_register.cmake            ZEN_LAW_REGISTER_BYTES
+ZEN_LAW_FILE_BYTES              tests/check_law_register.cmake            ZEN_LAW_FILE_BYTES
 ZEN_LAW_ROUTER_BYTES            tests/check_law_register.cmake            ZEN_LAW_ROUTER_BYTES
 ZEN_LAW_LINE_BYTES              tests/check_law_register.cmake            ZEN_LAW_LINE_BYTES
 ZEN_LAW_RECORD_FLAG_BYTES       tests/check_law_register.cmake            ZEN_LAW_RECORD_FLAG_BYTES

@@ -19,12 +19,6 @@ MEANS
 DOES NOT MEAN
 - that a drawn face is permission: the operation asks its own question again at the spend.
 
-PROVEN BY — `component/control_strip.hpp` `Control`, `PlacedControl`, `ControlStrip`,
-`control_face`, `pack_controls`; `files/files.cpp` `browser_controls`, `say_controls`,
-`strip_budget`; `builder/builder-pane/pane.cpp` `builder_controls`, `say_controls`, `strip_budget`;
-`tests/test_workshop_panes_files.cpp` case `"every control the browser draws is a target, and
-pressing it performs that operation"`, case `"in a room too short for every control the strip
-says how many are in the menu, and the menu keeps them"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-02 — The strip's rows come out of the body's budget, before the body is laid out
@@ -36,12 +30,6 @@ MEANS
 - a marker is said only where the window RESERVED a row for it (`ListWindow::markers`);
 - a room too small for one strip row leaves the right press, which opens the same rows.
 
-PROVEN BY — `component/list_window.hpp` `ListWindow::markers`, `cursor_window`;
-`files/files.cpp` `body_budget`, `say_entries`, `strip_budget`; `builder/builder-pane/pane.cpp`
-`publish`, `output_body_rows`, `strip_budget`; `tests/test_workshop_panes_files.cpp` case `"in a
-room too short for every control the strip says how many are in the menu, and the menu keeps
-them"`; `tests/test_workshop_panes_output.cpp` case `"WL-OUT-04: a build's own words are opened,
-stepped, panned and closed by hand"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-03 — A press is answered from the picture it was aimed at, or refused in words
@@ -53,15 +41,6 @@ MEANS
 - a listing window that moves by the least it can is what keeps an ordinary double-click working;
 - zero is only current before a numbered picture is established; it is not a legacy bypass.
 
-PROVEN BY — `component/row_map.hpp` `RowMap::begin`, `RowMap::settle`, `RowMap::picture`,
-`RowMap::current`; `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
-`workshop/pane_canvas_rows.hpp` `CanvasPictures`; `files/files.cpp` `kMovedSentence`, `pressed`,
-`say_entries`; `builder/builder-pane/pane.cpp` `kMovedSentence`; `tests/test_workshop_panes_canvas.cpp`
-case `"a pane's canvas pictures fence a press by the meaning each was drawn under"`;
-`tests/test_workshop_panes_files.cpp` case `"two queued presses on the row
-painted as one entry open THAT entry"`, case `"a press that names a picture Files has
-replaced is refused in words and spends nothing"`; `tests/test_workshop_panes_builder.cpp` case
-`"a press that names a picture the Builder has replaced is refused in words"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-04 — A face or row that names a subject keeps that name, and is refused when it moves
@@ -78,24 +57,6 @@ DOES NOT MEAN
 `RowMap::current` refuses it first (WL-HAND-03);
 - that the artifact name alone is the promise: `target_op_of` checks the operation beside it too.
 
-PROVEN BY — `builder/builder-pane/vocabulary.hpp` `kActionArm`, `kActionLoadBuilt`;
-`builder/builder-pane/pane.cpp` `BuilderMeaning::op`, `target_of`, `target_op_of`, `perform_on`,
-`offered_as`, `Offered`, `load_built`, `arm_only`, `ready_to_load`, `standing`,
-`builder_controls`, `list_controls`, `offer_menu`, `say_controls`;
-`tests/test_workshop_panes_builder.cpp` case `"the control that loads what was built names the
-BUILT recipe, not the choice"`, case `"while an artifact stands built, arming the next
-build is a different answer and says so"`, case `"an open menu row naming an
-artifact loads THAT artifact or refuses"`, case `"a numbered control naming an artifact
-is refused once that artifact is not what is standing"`, case `"the face drawn where
-the older one was is the one a press spends"`,
-case `"the list's own double-click still takes the row it was aimed at"`,
-case `"a held load menu cannot switch recipes sharing an artifact stem"`,
-case `"a numbered load control preserves the build behind a shared artifact stem"`,
-case `"rebuilding the same recipe replaces an offered load, and settling again does not"`, case
-`"the promote control acts on the image it names once a newer build makes it the one
-standing"`, case `"the promote and revert controls refuse a stale
-press across a shared artifact stem"`, case `"a held promote or revert menu row
-cannot switch images sharing an artifact stem"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-05 — A mode a hand can enter is a mode a hand can leave
@@ -111,27 +72,6 @@ DOES NOT MEAN
 - that a mode keeps a printable menu key: one whose line takes text declares none, and `[menu]`
 and the second button are its routes.
 
-PROVEN BY — `files/files.cpp` `chooser_controls`, `authoring_controls`, `edit_field`,
-`write_recipe`, `next_field`, `offer_field`, `say_authoring`; `builder/builder-pane/pane.cpp`
-`list_controls`, `role_controls`, `output_controls`, `offer_menu`; `files/vocabulary.hpp`
-`kActionWriteRecipe`, `kActionNextField`, `kActionMenu`, `menu_edit_field`;
-`builder/builder-pane/vocabulary.hpp` `kActionRecipes`, `kActionRecipesClose`, `kActionMenu`,
-`kMenuOutputOlder`, `kMenuOutputRight`; `tests/test_workshop_panes_files.cpp` case `"a weaver
-authors a recipe with the mouse alone: the chooser, every field, and the write"`, case `"the
-unavailable `(next field)` control refuses in its own words and writes no recipe"`, case `"a
-short Files pane keeps the authoring field being typed into on the screen, and the menu names
-the rest"`, case `"every control each Files mode draws has a row in that mode's own menu"`
-(subcase `"the authoring line, on its last field"`, added when the promise held for every field
-but the last one, the review's follow-up finding -- `tests/test_workshop_panes_files.cpp` case
-`"the authoring menu offers next-field on the last field too, and its refusal writes no recipe"`
-is that finding's own reproduction);
-`tests/test_workshop_panes_builder.cpp` case `"the recipe list chooses by hand, and looking is not
-choosing"`, case `"every control each Builder mode draws has a row in that mode's
-own menu"`, case `"a reader waiting on its first page still offers its whole list in a
-narrow room"`, case `"`edit source` in the recipe list opens the row the list is
-standing on, and leaves the choice alone"`;
-`tests/test_workshop_panes_output.cpp` case `"WL-OUT-04: in a room too small for its strip the
-reader's whole list is in its own menu, and every row of it acts"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## Do not assume
@@ -144,3 +84,74 @@ WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
   which carries the mode's whole list, and `[menu]` is never dropped (WL-HAND-01, WL-HAND-05).
 - That a field left behind is abandoned: pressing its row stands the line on it again, keeping
   what it holds, and the mode's menu names every field the room cannot draw (WL-HAND-05).
+
+## Proven by
+
+### WL-HAND-01
+`component/control_strip.hpp` Control PlacedControl ControlStrip control_face pack_controls
+`files/files.cpp` browser_controls say_controls strip_budget
+`builder/builder-pane/pane.cpp` builder_controls say_controls strip_budget
+`tests/test_workshop_panes_files.cpp` "every control the browser draws is a target, and pressing it
+performs that operation" "in a room too short for every control the strip says how many are in the
+menu, and the menu keeps them"
+
+### WL-HAND-02
+`component/list_window.hpp` ListWindow::markers cursor_window
+`files/files.cpp` body_budget say_entries strip_budget
+`builder/builder-pane/pane.cpp` publish output_body_rows strip_budget
+`tests/test_workshop_panes_files.cpp` "in a room too short for every control the strip says how many
+are in the menu, and the menu keeps them"
+`tests/test_workshop_panes_output.cpp` "WL-OUT-04: a build's own words are opened, stepped, panned
+and closed by hand"
+
+### WL-HAND-03
+`component/row_map.hpp` RowMap::begin RowMap::settle RowMap::picture RowMap::current
+`workshop/pane_vocabulary.hpp` v3::PaneContent v3::PanePressed
+`workshop/pane_canvas_rows.hpp` CanvasPictures
+`files/files.cpp` kMovedSentence pressed say_entries
+`builder/builder-pane/pane.cpp` kMovedSentence
+`tests/test_workshop_panes_canvas.cpp` "a pane's canvas pictures fence a press by the meaning each
+was drawn under"
+`tests/test_workshop_panes_files.cpp` "two queued presses on the row painted as one entry open THAT
+entry" "a press that names a picture Files has replaced is refused in words and spends nothing"
+`tests/test_workshop_panes_builder.cpp` "a press that names a picture the Builder has replaced is
+refused in words"
+
+### WL-HAND-04
+`builder/builder-pane/vocabulary.hpp` kActionArm kActionLoadBuilt
+`builder/builder-pane/pane.cpp` BuilderMeaning::op target_of target_op_of perform_on offered_as
+Offered load_built arm_only ready_to_load standing builder_controls list_controls offer_menu
+say_controls
+`tests/test_workshop_panes_builder.cpp` "the control that loads what was built names the BUILT
+recipe, not the choice" "while an artifact stands built, arming the next build is a different answer
+and says so" "an open menu row naming an artifact loads THAT artifact or refuses" "a numbered
+control naming an artifact is refused once that artifact is not what is standing" "the face drawn
+where the older one was is the one a press spends" "the list's own double-click still takes the row
+it was aimed at" "a held load menu cannot switch recipes sharing an artifact stem" "a numbered load
+control preserves the build behind a shared artifact stem" "rebuilding the same recipe replaces an
+offered load, and settling again does not" "the promote control acts on the image it names once a
+newer build makes it the one standing" "the promote and revert controls refuse a stale press across
+a shared artifact stem" "a held promote or revert menu row cannot switch images sharing an artifact
+stem"
+
+### WL-HAND-05
+`files/files.cpp` chooser_controls authoring_controls edit_field write_recipe next_field offer_field
+say_authoring
+`builder/builder-pane/pane.cpp` list_controls role_controls output_controls offer_menu
+`files/vocabulary.hpp` kActionWriteRecipe kActionNextField kActionMenu menu_edit_field
+`builder/builder-pane/vocabulary.hpp` kActionRecipes kActionRecipesClose kActionMenu
+kMenuOutputOlder kMenuOutputRight
+`tests/test_workshop_panes_files.cpp` "a weaver authors a recipe with the mouse alone: the chooser,
+every field, and the write" "the unavailable `(next field)` control refuses in its own words and
+writes no recipe" "a short Files pane keeps the authoring field being typed into on the screen, and
+the menu names the rest" "every control each Files mode draws has a row in that mode's own menu"
+(subcase "the authoring line, on its last field" , added when the promise held for every field but
+the last one, the review's follow-up finding -- `tests/test_workshop_panes_files.cpp` case "the
+authoring menu offers next-field on the last field too, and its refusal writes no recipe" is that
+finding's own reproduction)
+`tests/test_workshop_panes_builder.cpp` "the recipe list chooses by hand, and looking is not
+choosing" "every control each Builder mode draws has a row in that mode's own menu" "a reader
+waiting on its first page still offers its whole list in a narrow room" "`edit source` in the recipe
+list opens the row the list is standing on, and leaves the choice alone"
+`tests/test_workshop_panes_output.cpp` "WL-OUT-04: in a room too small for its strip the reader's
+whole list is in its own menu, and every row of it acts"

@@ -21,21 +21,12 @@ DOES NOT MEAN — that a pane asked for anything. There is no blink, shape, widt
 visibility, scroll request or claim on the keyboard: a pane said where, inside rows it
 already sent, the insertion point of text it already wrote is.
 
-PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneCaret`; `workshop/panes.hpp`
-`ExternalPane::caret_row`, `ExternalPane::caret_col`, `ExternalPane::sel_begin_row`;
-`workshop/weave_seam.cpp` `on(PaneCaret)`; `workshop/screen_external.cpp` `paint_external`;
-`tests/test_workshop_panes_seam.cpp` case `"a caret is judged against the CONTENT, and merged with
-the header's offset"`, case `"a caret spoken personally, or about somebody else's
-pane, is nothing"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-CARET-02 — A pane's caret is one door, and no caret is one call
 
 LAW — `ExternalPane::clear_caret` is the only way a pane's caret and its selection are un-said, so "refused whole" is one call rather than six assignments somebody can write five of.
 
-PROVEN BY — `workshop/panes.hpp` `ExternalPane::clear_caret`; `workshop/weave_seam.cpp`
-`on(PaneCaret)`, `on(PaneContent)`; `tests/test_workshop_panes_seam.cpp` case `"`kNoCaret` is a
-sentence, and shorter content drops a caret it outgrew"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-CARET-03 — A caret is judged against the content, and refused whole
@@ -50,8 +41,26 @@ MEANS
 DOES NOT MEAN — that a stale caret is kept the way stale `PaneActions` rows are. Rows are
 still a set of rows; a position that is wrong is read as a fact about where the weaver is typing.
 
-PROVEN BY — `workshop/weave.hpp` `judge_caret`; `workshop/weave_seam.cpp` `judge_caret`,
-`on(PaneCaret)`; `tests/test_workshop_panes_seam.cpp` case `"a caret naming a row the content does
-not have is refused WHOLE"`, case `"`kNoCaret` is a sentence, and shorter content
-drops a caret it outgrew"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
+
+## Proven by
+
+### WL-CARET-01
+`workshop/pane_vocabulary.hpp` PaneCaret
+`workshop/panes.hpp` ExternalPane::caret_row ExternalPane::caret_col ExternalPane::sel_begin_row
+`workshop/weave_seam.cpp` on(PaneCaret)
+`workshop/screen_external.cpp` paint_external
+`tests/test_workshop_panes_seam.cpp` "a caret is judged against the CONTENT, and merged with the
+header's offset" "a caret spoken personally, or about somebody else's pane, is nothing"
+
+### WL-CARET-02
+`workshop/panes.hpp` ExternalPane::clear_caret
+`workshop/weave_seam.cpp` on(PaneCaret) on(PaneContent)
+`tests/test_workshop_panes_seam.cpp` "`kNoCaret` is a sentence, and shorter content drops a caret it
+outgrew"
+
+### WL-CARET-03
+`workshop/weave.hpp` judge_caret
+`workshop/weave_seam.cpp` judge_caret on(PaneCaret)
+`tests/test_workshop_panes_seam.cpp` "a caret naming a row the content does not have is refused
+WHOLE" "`kNoCaret` is a sentence, and shorter content drops a caret it outgrew"
