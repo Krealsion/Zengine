@@ -132,8 +132,9 @@ class Subscription(object):
     would -- a notice of the whole state, a gap, an ending -- in order, numbered. Past the script,
     a wait runs out."""
 
-    def __init__(self, tool_items, desk, script, clock):
+    def __init__(self, tool_items, desk, script, clock, version=2):
         self.items, self.desk, self.script, self.clock = tool_items, desk, list(script), clock
+        self.version = version  # the notice's version subscribed: v2's panes are {stamp, aimed}
         self.seq = 0
         self.ended = None
         self.released = False
@@ -142,7 +143,10 @@ class Subscription(object):
     def say(self, kind, **given):
         self.seq += 1
         if kind == "observed":
-            return self.items.Observation("DeskStamps", 2, copy.deepcopy(self.desk.stamps()),
+            told = copy.deepcopy(self.desk.stamps())
+            if self.version == 2:
+                told["panes"] = [{"stamp": s, "aimed": 1} for s in told["panes"]]
+            return self.items.Observation("DeskStamps", self.version, told,
                                           {"seq": self.seq}, 0.0)
         if kind == "gap":
             return self.items.Gap(self.seq, given.get("lost", 1), "lost on the way", True)
@@ -222,7 +226,8 @@ class Workshop(object):
         if self.refuse and (self.refused_versions is None or
                             any(tuple(s)[1] in self.refused_versions for s in shapes)):
             raise self.tool.Refused(self.refuse)
-        self.sub = Subscription(self.items, self.desk, self.script, self.clock)
+        self.sub = Subscription(self.items, self.desk, self.script, self.clock,
+                                version=tuple(shapes[0])[1])
         return self.sub
 
     def ask(self, office, shape, fields=None, version=1, via=None, settle=False, timeout=60.0):

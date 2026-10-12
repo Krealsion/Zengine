@@ -921,8 +921,8 @@ class AimedSub:
             self.other += 1
         stamp = {"holder": 1, "incarnation": 1, "grant": 0, "fingerprint": 7}
         return SimpleNamespace(kind="observed", coalesced=0, fields={"desk": 1, "panes": [
-            dict(stamp, provider="zengine.editor", pane="editor"),
-            dict(stamp, provider="zengine.info", pane="info")], "aimed": [w.aimed, self.other]})
+            {"stamp": dict(stamp, provider="zengine.editor", pane="editor"), "aimed": w.aimed},
+            {"stamp": dict(stamp, provider="zengine.info", pane="info"), "aimed": self.other}]})
 
     def drain(self):
         return []
@@ -1690,7 +1690,8 @@ def run_checks(tools, runtime):
             def sleep(seconds):  # time passing aims the picture too, as it does in Workshop
                 slept.append(seconds)
                 ctx.aimed = ctx.picture
-            with patch.object(hand.time, "sleep", side_effect=sleep),                     patch.object(act.time, "sleep", side_effect=sleep):
+            with patch.object(hand.time, "sleep", side_effect=sleep), \
+                    patch.object(act.time, "sleep", side_effect=sleep):
                 said = act.run(ctx)
             self.assertEqual(slept, [])
             self.assertEqual([r["clock_waits"] for r in json.loads(ctx.kept["steps.json"])], [0])

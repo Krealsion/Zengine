@@ -863,13 +863,14 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   standing, or the picture a new room asked for -- and one not yet drawn for its room and waiting
   for its provider are refused in words. Layouts reads here too, as `zengine.workshop` `layouts`,
   its tabs parts Workshop names (the table below).
-- **The desk's notice that it moved.** Workshop publishes `DeskStamps` v2, `{desk, panes, aimed}`
-  -- the desk number, every presented pane's stamp from the front back, as a desk read would say
-  them now, and the picture each is aimed at by its own number -- at the end of each delivery that
-  moved any of them; a repaint that moved nothing publishes nothing, and a picture sent again
-  unchanged moves only its aimed number, once aimed at. Version 1, `{desk, panes}`, is published
-  beside it when the number or a stamp moved. Each notice is the whole state, so follow it as `latest`: the
-  relay may keep only the newest while you are behind, and the newest stands for every one before
+- **The desk's notice that it moved.** Workshop publishes `DeskStamps` v2, `{desk, panes}` -- the
+  desk number and every presented pane from the front back, each `{stamp, aimed}`: its stamp, as a
+  desk read would say it now, and the picture it is aimed at by its own number -- at the end of
+  each delivery that moved any of them; a repaint that moved nothing publishes nothing, and a
+  picture sent again unchanged moves only its aimed number, once aimed at. Version 1, `{desk,
+  panes}` with each pane's stamp alone, is published beside it when the number or a stamp moved.
+  Each notice is the whole state, so follow it as `latest`: the relay may keep only the newest
+  while you are behind, and the newest stands for every one before
   it. A row follows it with `capture` and the `observe` entry above; on it, read again what moved
   -- the desk, when its number moved, or each pane whose stamp moved. A notice published inside
   the fence of your own settled send carries that send's `cause` until a later one replaces it, so

@@ -75,7 +75,7 @@ LAW — A second-version stamp names a pane's picture by the fingerprint Worksho
 
 MEANS
 - a canvas picture no press is stamped with -- a room not drawn, a preview, a managed opening's -- is named none, so the first taking a press, or refused, moves the stamp;
-- a pane's own numbers stay where a press needs them: `PaneView` v5's `picture`, which may move while the stamp holds, and `DeskStamps` v2's `aimed`, which a reading by number waits on;
+- a pane's own numbers stay where a press needs them: `PaneView` v5's `picture`, which may move while the stamp holds, and each `DeskStamps` v2 entry's `aimed`, which a reading by number waits on;
 - the first `PaneStamp` and `PaneView` v4 still name the number, and say a picture in flight until its number is aimed at.
 
 DOES NOT MEAN
@@ -143,7 +143,7 @@ the picture, a press on it reaches no provider and a right press opens Workshop'
 picture beside it takes a press as before, a press held or not"
 
 ### WL-READ-06
-`workshop/pane_view.hpp` v2::DeskStamps
+`workshop/pane_view.hpp` v2::DeskStamps v2::StampedPane
 `workshop/weave_inspection.cpp` publish_desk_stamps aimed_now
 `tests/test_workshop_desk_read.cpp` "the second notice names each pane's aimed picture: a picture
 looking like the last moves it once aimed at, while its stamp and the first notice hold"
