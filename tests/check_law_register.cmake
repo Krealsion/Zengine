@@ -94,9 +94,9 @@ set(ZEN_LAW_UNBUDGETED agents/operators.md agents/panes.md agents/realization.md
 # registers, routers and decision records, a table row excepted: a line past ZEN_LAW_LINE_BYTES
 # wraps, and short of it a line breaks where its writer judges (rule i). A register's proofs stand
 # in an appendix at its end, under the heading below, one `### <id>` each: the laws above it are
-# held to ZEN_LAW_REGISTER_BYTES and the appendix, from its heading on, to ZEN_LAW_APPENDIX_BYTES.
+# held to ZEN_LAW_REGISTER_BYTES and the whole file, laws and appendix, to ZEN_LAW_FILE_BYTES.
 set(ZEN_LAW_REGISTER_BYTES 16384)
-set(ZEN_LAW_APPENDIX_BYTES 8192)
+set(ZEN_LAW_FILE_BYTES 24576)
 set(ZEN_LAW_APPENDIX_HEADING "## Proven by")
 set(ZEN_VM_APPENDIX_HEADING "## Seen")
 set(ZEN_LAW_ROUTER_BYTES 12288)
@@ -950,26 +950,24 @@ function(zen_law_unmarked text out)
     string(REGEX REPLACE "<!-- value [^>]*-->|<!-- /value -->" "" bare "${text}")
     set(${out} "${bare}" PARENT_SCOPE)
 endfunction()
-# A register's two budgets: its laws, everything before the appendix heading, and the appendix,
-# from that heading to the file's end. Sets ${out} to the problems, empty when both fit.
+# A register's two budgets: its laws, everything before the appendix heading, and the whole file.
+# Sets ${out} to the problems, empty when both fit.
 function(zen_law_budget_problems rel text heading out)
     set(problems "")
     string(FIND "${text}" "\n${heading}\n" at)
     if(at EQUAL -1)
         set(laws "${text}")
-        set(appendix "")
     else()
         math(EXPR cut "${at} + 1")
         string(SUBSTRING "${text}" 0 ${cut} laws)
-        string(SUBSTRING "${text}" ${cut} -1 appendix)
     endif()
     string(LENGTH "${laws}" law_bytes)
-    string(LENGTH "${appendix}" appendix_bytes)
+    string(LENGTH "${text}" file_bytes)
     if(law_bytes GREATER ZEN_LAW_REGISTER_BYTES)
         list(APPEND problems "${rel} is ${law_bytes} bytes above its appendix (a register's laws are at most ${ZEN_LAW_REGISTER_BYTES})")
     endif()
-    if(appendix_bytes GREATER ZEN_LAW_APPENDIX_BYTES)
-        list(APPEND problems "${rel} has an appendix of ${appendix_bytes} bytes (at most ${ZEN_LAW_APPENDIX_BYTES})")
+    if(file_bytes GREATER ZEN_LAW_FILE_BYTES)
+        list(APPEND problems "${rel} is ${file_bytes} bytes with its appendix (a register's whole file is at most ${ZEN_LAW_FILE_BYTES})")
     endif()
     set(${out} "${problems}" PARENT_SCOPE)
 endfunction()
@@ -1985,8 +1983,8 @@ endif()
 
 # The appendix, walked: a law without its proof, a proof without its law, a PROVEN BY left among
 # the laws and a heading after the appendix are refused, four problems, and a register whose every
-# law has its one proof raises none. The budgets, read apart: laws a byte past theirs and an
-# appendix a byte past its own are two problems, and both at their budgets none.
+# law has its one proof raises none. The budgets: laws a byte past theirs is one problem, a whole
+# file a byte past its own another, and laws and file both at their budgets none.
 get_property(law_saved_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "")
 set(law_pairs "## WL-ZZZ-21 — A law with its proof\n\nLAW — One line.\n\n## WL-ZZZ-22 — A law without its proof\n\nLAW — One line.\n\n## WL-ZZZ-23 — A law whose proof stands among the laws\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\n## Proven by\n\n### WL-ZZZ-21\nwitness: none\n\n### WL-ZZZ-23\nwitness: none\n\n### WL-ZZZ-24\nwitness: none\n\n## Do not assume\n")
@@ -2010,34 +2008,38 @@ foreach(synthetic_rel ${ZEN_LAW_DIR_WL}/selftest-pairs.md ${ZEN_LAW_DIR_WL}/self
 endforeach()
 set_property(GLOBAL PROPERTY zen_law_ids "")
 zen_law_count_lines("${law_pairs_problems}" law_pairs_count)
-string(REPEAT "x" ${ZEN_LAW_REGISTER_BYTES} budget_laws)
-string(LENGTH "${ZEN_LAW_APPENDIX_HEADING}\n" budget_head)
-math(EXPR budget_fill "${ZEN_LAW_APPENDIX_BYTES} - ${budget_head} + 1")
-string(REPEAT "y" ${budget_fill} budget_proofs)
-zen_law_budget_problems("selftest-over.md" "${budget_laws}\n${ZEN_LAW_APPENDIX_HEADING}\n${budget_proofs}" "${ZEN_LAW_APPENDIX_HEADING}" budget_over)
-string(SUBSTRING "${budget_laws}" 1 -1 budget_laws)
-string(SUBSTRING "${budget_proofs}" 1 -1 budget_proofs)
-zen_law_budget_problems("selftest-at.md" "${budget_laws}\n${ZEN_LAW_APPENDIX_HEADING}\n${budget_proofs}" "${ZEN_LAW_APPENDIX_HEADING}" budget_at)
-list(LENGTH budget_over budget_over_count)
-math(EXPR budget_laws_over "${ZEN_LAW_REGISTER_BYTES} + 1")
-math(EXPR budget_proofs_over "${ZEN_LAW_APPENDIX_BYTES} + 1")
+set(budget_heading "${ZEN_LAW_APPENDIX_HEADING}")
+string(REPEAT "x" ${ZEN_LAW_REGISTER_BYTES} budget_laws_over)
+zen_law_budget_problems("selftest-laws.md" "${budget_laws_over}\n${budget_heading}\nz\n" "${budget_heading}" budget_laws)
+string(SUBSTRING "${budget_laws_over}" 1 -1 budget_laws_at)
+string(LENGTH "${budget_heading}\n" budget_head)
+math(EXPR budget_fill "${ZEN_LAW_FILE_BYTES} - ${ZEN_LAW_REGISTER_BYTES} - ${budget_head}")
+string(REPEAT "y" ${budget_fill} budget_proofs_at)
+zen_law_budget_problems("selftest-file.md" "${budget_laws_at}\n${budget_heading}\n${budget_proofs_at}y" "${budget_heading}" budget_file)
+zen_law_budget_problems("selftest-at.md" "${budget_laws_at}\n${budget_heading}\n${budget_proofs_at}" "${budget_heading}" budget_at)
+list(LENGTH budget_laws budget_laws_count)
+list(LENGTH budget_file budget_file_count)
+math(EXPR budget_laws_bytes "${ZEN_LAW_REGISTER_BYTES} + 1")
+math(EXPR budget_file_bytes "${ZEN_LAW_FILE_BYTES} + 1")
 if(NOT law_pairs_count EQUAL 4
    OR NOT law_pairs_problems MATCHES "selftest-pairs.md WL-ZZZ-22 has no proof"
    OR NOT law_pairs_problems MATCHES "selftest-pairs.md WL-ZZZ-24 has a proof in the appendix and no law above it"
    OR NOT law_pairs_problems MATCHES "selftest-pairs.md:13 WL-ZZZ-23 has a PROVEN BY line among its laws"
    OR NOT law_pairs_problems MATCHES "selftest-pairs.md:26 is a heading after"
    OR NOT law_paired_problems STREQUAL ""
-   OR NOT budget_over_count EQUAL 2
-   OR NOT budget_over MATCHES "selftest-over.md is ${budget_laws_over} bytes above its appendix"
-   OR NOT budget_over MATCHES "selftest-over.md has an appendix of ${budget_proofs_over} bytes"
+   OR NOT budget_laws_count EQUAL 1
+   OR NOT budget_laws MATCHES "selftest-laws.md is ${budget_laws_bytes} bytes above its appendix"
+   OR NOT budget_file_count EQUAL 1
+   OR NOT budget_file MATCHES "selftest-file.md is ${budget_file_bytes} bytes with its appendix"
    OR NOT budget_at STREQUAL "")
     message(FATAL_ERROR
         "law-register: SELF-TEST FAILED -- the appendix walk raised ${law_pairs_count} problem(s) on "
         "a register with a law without its proof, a proof without its law, a PROVEN BY among the "
         "laws and a heading after the appendix:\n${law_pairs_problems}\n'${law_paired_problems}' on "
-        "one whose law has its proof, and the budgets said '${budget_over}' a byte past both and "
-        "'${budget_at}' at both. A law could then stand without its proof, or a proof outlive its "
-        "law, or either part grow past its budget.")
+        "one whose law has its proof, and the budgets said '${budget_laws}' of laws a byte past "
+        "theirs, '${budget_file}' of a file a byte past its own and '${budget_at}' at both. A law "
+        "could then stand without its proof, or a proof outlive its law, or the laws or the file "
+        "grow past their budget.")
 endif()
 
 # ---- the VM form: a method register ---------------------------------------------------------
@@ -2319,7 +2321,7 @@ endif()
 # ---- the budgets: every *.md under agents/ -----------------------------------------------------
 #
 # A file's bytes are counted without its value markers or carriage returns. A router is one named
-# in ZEN_LAW_ROUTERS or ZEN_VM_ROUTERS; a register's laws and its appendix have a budget each;
+# in ZEN_LAW_ROUTERS or ZEN_VM_ROUTERS; a register's laws have a budget, and its whole file one;
 # every other file under agents/ has the register budget, except the documents ZEN_LAW_UNBUDGETED
 # names, which must stay over it while listed. A record over the flag size is counted.
 
