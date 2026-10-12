@@ -237,8 +237,8 @@ losses alone, and this host every row's"
 its file's host"
 `tests/test_workshop_host.cpp` "a development host and each row's losses stand as conditions on
 Attention"
-`tests/test_workshop_panes_attention.cpp` "the Connections pane says a row's version and its losses
-beneath its connection"
+`tests/test_workshop_panes_attention.cpp` "the Connections pane says a row's version, its losses and
+its role and doors beneath its connection"
 
 ### WL-GUEST-09
 `workshop/weave_session.cpp` save_setup

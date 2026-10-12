@@ -78,6 +78,19 @@ inline Condition guest_row_gains(std::size_t row, const std::string& name, std::
                      "also: " + detail, surface::role::kAccent, ""};
 }
 
+/// WHAT ONE ROW READS AND POINTS AT, AND ITS ROLE, keyed by its place in the file: a row's reach is
+/// said in full beside it, never implied by a role's name.
+// WL-GUIDE-01 -- agents/workshop/guide.md
+inline Condition guest_row_scopes(std::size_t row, const std::string& name, std::int64_t version,
+                                  const std::vector<std::string>& scopes) {
+    std::string detail;
+    for (const std::string& scope : scopes) detail += (detail.empty() ? "" : "; ") + scope;
+    return Condition{"guests.scope/" + std::to_string(row),
+                     "guest '" + name + "' (version " + std::to_string(version) + ") reads and points "
+                         "only where its row says",
+                     detail, surface::role::kMuted, ""};
+}
+
 /// HOW LOUD, AS AN ORDER.
 // WL-ATTN-07 -- agents/workshop/attention.md
 inline int attention_rank(std::int64_t role) noexcept {

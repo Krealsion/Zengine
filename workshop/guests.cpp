@@ -11,8 +11,11 @@
 #include "inspection_seam_vocabulary.hpp"
 #include "open_seam_vocabulary.hpp"
 #include "pane_seam_vocabulary.hpp"
+#include "pane_menu.hpp" // kWorkshopRole, the office Workshop holds
 #include "pane_view.hpp"
 #include "pane_carry.hpp"
+#include "pane_document.hpp"
+#include "guide_vocabulary.hpp"
 #include "terminal_seam_vocabulary.hpp"
 #include "setup_control.hpp"
 #include "external-host/demo-control/vocabulary.hpp"
@@ -29,9 +32,12 @@
 #include <zen/weave/describe.hpp>
 #include <zen/weave/poke.hpp>
 
+#include <zen/switchboard/door.hpp>
+
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <system_error>
 #include <utility>
@@ -57,6 +63,9 @@ std::shared_ptr<const loom::Schema> row_schema() {
                               .field("admit", loom::Kind::Text, /*required=*/false)
                               .list("observe", loom::type_message(scope_schema()),
                                     /*required=*/false)
+                              .field("role", loom::Kind::Text, /*required=*/false)
+                              .list("capture", loom::type_of(loom::Kind::Text), /*required=*/false)
+                              .list("guide", loom::type_of(loom::Kind::Text), /*required=*/false)
                               .build();
     return s;
 }
@@ -98,6 +107,59 @@ bool carries_the_desk(const std::string& shape) {
 // ...AND WHAT FOLLOWS THEM: a notice that the desk moved names every pane's picture as a reading
 // does, so it is observed under the same power.
 bool follows_the_desk(const std::string& shape) { return shape == DeskStamps::zen_name; }
+
+// THE WEAVER'S INPUT AS IT HAPPENS, from whichever office says it: every key, typed text and press,
+// heard only with `keystrokes`.
+bool carries_the_keys(const std::string& shape) {
+    for (const char* name : {input::AttributedInput::zen_name, input::KeyPressed::zen_name,
+                             input::TextEntered::zen_name}) {
+        if (shape == name) return true;
+    }
+    return false;
+}
+
+const RoleBundle* role_named(const std::string& name) {
+    for (const RoleBundle& b : role_bundles()) {
+        if (name == b.name) return &b;
+    }
+    return nullptr;
+}
+
+// ONE `capture` OR `guide` ENTRY, judged: `*` (every pane, alone), an office's every pane, or
+// `<office>/<pane>` as Loom parses a door, never a control's or a root's, and never a pane only the
+// weaver's hand reads. Empty when it stands; else why not.
+std::string door_problem(const std::string& entry) {
+    if (entry == kEveryPane) return {};
+    std::string why;
+    const std::optional<loom::Door> door = loom::Door::parse(entry, &why);
+    if (!door) return why;
+    const std::size_t slash = entry.find('/');
+    if (slash == std::string::npos) {
+        return "'" + entry + "' is a root's door; a read and a mark name a pane, <office>/<pane> or <office>/" "*";
+    }
+    const std::string office = entry.substr(0, slash);
+    const std::string pane = entry.substr(slash + 1);
+    if (pane.find(':') != std::string::npos) {
+        return "'" + entry + "' names a control; a read and a mark name a pane, <office>/<pane> or <office>/" "*";
+    }
+    if (std::string only = scope::weaver_only_pane(office, pane == "*" ? std::string() : pane);
+        !only.empty() && (pane != "*" || office == kConnectionsRole)) {
+        return "'" + entry + "' names a pane only the weaver's hand reads: " + only;
+    }
+    return {};
+}
+
+// WHETHER `inner` LIES WITHIN ONE OF `outer`, by Loom's containment: every pane within `*`.
+bool within(const std::string& inner, const std::vector<std::string>& outer) {
+    for (const std::string& o : outer) {
+        if (o == kEveryPane) return true;
+        if (inner == kEveryPane) continue;
+        const std::optional<loom::Door> od = loom::Door::parse(o);
+        const std::optional<loom::Door> id = loom::Door::parse(inner);
+        if (od && id && od->contains(*id)) return true;
+    }
+    return false;
+}
 
 } // namespace
 
@@ -203,6 +265,33 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
                 return false;
             }
         }
+        const std::string who = "guests file '" + path + "': guest '" + row.name + "'";
+        // WHAT A FILE OF AN EARLIER VERSION IS TOLD when a row says version 3's word.
+        const std::string read_as_3 = out->version >= 2
+            ? "it names version " + std::to_string(out->version) + " (name \"version\": \"3\")"
+            : (v.get("version") != nullptr ? "it names version 1 (name \"version\": \"3\")"
+                                           : "it names no version, so it is read as version 1 "
+                                             "(add \"version\": \"3\")");
+        const auto version_3 = [&](const std::string& word) {
+            *error = who + " says '" + word + "', a word of the file's version 3; " + read_as_3;
+            return false;
+        };
+        // THE ROLE FIRST: its bundle's powers, then the row's own beside them.
+        if (const loom::Cell* role = r.get("role")) {
+            if (out->version < kDoorsVersion) return version_3("role");
+            row.role = role->as_text();
+            const RoleBundle* bundle = role_named(row.role);
+            if (bundle == nullptr) {
+                std::string names;
+                for (const RoleBundle& b : role_bundles()) {
+                    names += (names.empty() ? "" : ", ") + std::string(b.name);
+                }
+                *error = who + " names the role '" + row.role + "', which this host does not know (" +
+                         names + ")";
+                return false;
+            }
+            for (const char* power : bundle->may) row.may.push_back(power);
+        }
         if (const loom::Cell* may = r.get("may")) {
             for (const loom::Cell& p : may->as_list()) {
                 const std::string power = p.as_text();
@@ -211,15 +300,54 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
                              "', a power of the file's version 2; " + read_as;
                     return false;
                 }
+                if ((power == kPowerGuide || power == kPowerKeystrokes) && out->version < kDoorsVersion) {
+                    return version_3(power);
+                }
                 if (power != kPowerInput && power != kPowerCapture && power != kPowerInspect &&
                     power != kPowerInventory && power != kPowerToolbox && power != kPowerDemo &&
-                    power != kPowerOpen && power != kPowerBuild) {
+                    power != kPowerOpen && power != kPowerBuild && power != kPowerGuide &&
+                    power != kPowerKeystrokes) {
                     *error = "guests file '" + path + "': guest '" + row.name +
                              "' may '" + power + "', which is not a power this host grants "
-                             "(input, capture, inspect, inventory, toolbox, demo, open, build)";
+                             "(input, capture, inspect, inventory, toolbox, demo, open, build, guide, "
+                             "keystrokes)";
                     return false;
                 }
-                row.may.push_back(power);
+                if (std::find(row.may.begin(), row.may.end(), power) == row.may.end()) row.may.push_back(power);
+            }
+        }
+        // THE SCOPES, named after their powers: a field without its power, an entry that is not a
+        // pane's door, `*` beside another entry, or a `guide` door outside every `capture` door is
+        // refused. A power without its field reaches no pane.
+        row.by_door = out->version >= kDoorsVersion;
+        for (const char* field : {kPowerCapture, kPowerGuide}) {
+            const loom::Cell* doors = r.get(field);
+            if (doors == nullptr) continue;
+            if (out->version < kDoorsVersion) return version_3(field);
+            if (!row_may(row, field)) {
+                *error = who + " names `" + field + "` doors but may not " + field +
+                         ": add it to `may`, or name a role that holds it";
+                return false;
+            }
+            std::vector<std::string>& into = std::string(field) == kPowerCapture ? row.capture : row.guide;
+            for (const loom::Cell& d : doors->as_list()) {
+                const std::string entry = d.as_text();
+                if (std::string why = door_problem(entry); !why.empty()) {
+                    *error = who + "'s `" + field + "` entry " + why;
+                    return false;
+                }
+                into.push_back(entry);
+            }
+            if (into.size() > 1 && std::find(into.begin(), into.end(), kEveryPane) != into.end()) {
+                *error = who + "'s `" + field + "` names '*', every pane, beside other doors: write it alone";
+                return false;
+            }
+        }
+        for (const std::string& g : row.guide) {
+            if (!within(g, row.capture)) {
+                *error = who + "'s `guide` door '" + g + "' lies outside every `capture` door: a row "
+                         "points only where it reads";
+                return false;
             }
         }
         if (const loom::Cell* observe = r.get("observe")) {
@@ -264,6 +392,8 @@ loom::Grant grant_for(const GuestRow& row) {
     // the asking session under, and nothing of another's.
     g.allow_to_role(GuestRowDescribedRequested::zen_name, GuestRowDescribedRequested::zen_version,
                     kGuestsRole);
+    g.allow_to_role(v2::GuestRowDescribedRequested::zen_name,
+                    v2::GuestRowDescribedRequested::zen_version, kGuestsRole);
     if (!row.observe.empty()) {
         // THE RIGHT TO ASK THE RELAY, and only that: whether an ask is answered yes is the
         // relay's policy (`observation_of`), which reads this row's list again at every ask.
@@ -295,7 +425,36 @@ loom::Grant grant_for(const GuestRow& row) {
                             input::kInputRole);
             g.allow_to_role(input::InputSessionClosed::zen_name,
                             input::InputSessionClosed::zen_version, input::kInputRole);
+        } else if (power == kPowerCapture && row.reads_by_pane()) {
+            // A READ BY PANE: the desk said whole and a pane's page at their newest versions, the
+            // inventory and the keymap, each answered over the panes Loom says the row may read --
+            // one door rule on `DeskReadRequested` v2 for each door -- and a pane's manual from the
+            // offices those doors name. No older read, no Skin picture: those carry every pane.
+            g.allow_to_role(v2::DeskReadRequested::zen_name, v2::DeskReadRequested::zen_version,
+                            pane_menu::kWorkshopRole);
+            g.allow_to_role(v5::PaneViewRequested::zen_name, v5::PaneViewRequested::zen_version,
+                            pane_menu::kWorkshopRole);
+            g.allow_to_role(v6::PaneViewRequested::zen_name, v6::PaneViewRequested::zen_version,
+                            pane_menu::kWorkshopRole);
+            g.allow_to_role(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version,
+                            pane_menu::kWorkshopRole);
+            g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version, pane_menu::kWorkshopRole);
+            std::vector<std::string> offices;
+            for (const std::string& entry : row.capture) {
+                if (std::optional<loom::Door> door = loom::Door::parse(entry)) {
+                    g.allow_to_role(v2::DeskReadRequested::zen_name, v2::DeskReadRequested::zen_version,
+                                    pane_menu::kWorkshopRole, *door);
+                }
+                const std::string office = entry.substr(0, entry.find('/'));
+                if (std::find(offices.begin(), offices.end(), office) == offices.end()) {
+                    offices.push_back(office);
+                    g.allow_to_role(PaneDocumentRequested::zen_name, PaneDocumentRequested::zen_version,
+                                    office);
+                }
+            }
         } else if (power == kPowerCapture) {
+            // EVERY PANE'S MANUAL, from whichever office answers it: the desk read whole reads them all.
+            g.allow_to_any(PaneDocumentRequested::zen_name, PaneDocumentRequested::zen_version);
             g.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version, "zengine.workshop");
             g.allow_to_role(PanePointRequested::zen_name, PanePointRequested::zen_version, "zengine.workshop");
             g.allow_to_role(DeskViewRequested::zen_name, DeskViewRequested::zen_version, "zengine.workshop");
@@ -333,6 +492,8 @@ loom::Grant grant_for(const GuestRow& row) {
                             GuestConnectionsRequested::zen_version, kGuestsRole);
             g.allow_to_role(v2::GuestConnectionsRequested::zen_name,
                             v2::GuestConnectionsRequested::zen_version, kGuestsRole);
+            g.allow_to_role(v3::GuestConnectionsRequested::zen_name,
+                            v3::GuestConnectionsRequested::zen_version, kGuestsRole);
         } else if (power == kPowerDemo) {
             for (const char* shape : {"DemoServiceOpened", "DemoServiceClosed", "DemoWorkRequested",
                                       "DemoWorkFinished", "DemoResetRequested", "DemoStatusRequested", "DemoReadyRequested"})
@@ -344,6 +505,21 @@ loom::Grant grant_for(const GuestRow& row) {
         } else if (power == kPowerOpen) {
             // THE MANAGED OPENING, and nothing beside it: no document door, no save, no build.
             g.allow_to_role(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version, kOpeningRole);
+        } else if (power == kPowerGuide && row.by_door) {
+            // A MARK FOR THE WEAVER TO SEE, asked of Workshop, and for a row that points by pane one
+            // door rule a `guide` door, which Workshop asks Loom about at the mark.
+            g.allow_to_role(GuideRequested::zen_name, GuideRequested::zen_version, pane_menu::kWorkshopRole);
+            if (row.guides_by_pane()) {
+                for (const std::string& entry : row.guide) {
+                    if (std::optional<loom::Door> door = loom::Door::parse(entry)) {
+                        g.allow_to_role(GuideRequested::zen_name, GuideRequested::zen_version,
+                                        pane_menu::kWorkshopRole, *door);
+                    }
+                }
+            }
+        } else if (power == kPowerKeystrokes) {
+            // NOTHING TO SAY: hearing the weaver's input is an observation the relay judges
+            // (`observation_of`), never a shape a guest sends.
         } else if (power == kPowerBuild) {
             // NOTHING TO SAY: `build` is an action class the Builder asks for a gesture's actor
             // (`actor_scope.hpp`), never a shape a guest sends.
@@ -398,6 +574,11 @@ scope::GuestRowFacts facts_of(const GuestRow& row, const GuestsFile& file) {
     f.name = row.name;
     f.powers = row.may;
     f.version = file.version;
+    f.role = row.role;
+    f.reads_by_pane = row.reads_by_pane();
+    f.guides_by_pane = row.guides_by_pane();
+    f.capture = row.capture;
+    f.guide = row.guide;
     return f;
 }
 
@@ -437,13 +618,37 @@ std::vector<std::string> losses_of(const GuestRow& row, const GuestsFile& file) 
     return out;
 }
 
+// WL-GUIDE-01 -- agents/workshop/guide.md
+std::vector<std::string> scopes_of(const GuestRow& row) {
+    std::vector<std::string> out;
+    const auto doors = [](const std::vector<std::string>& d) {
+        std::string text;
+        for (const std::string& e : d) {
+            text += (text.empty() ? "" : ", ") + (e == kEveryPane ? std::string("every pane") : e);
+        }
+        return text;
+    };
+    if (!row.role.empty()) out.push_back("role " + row.role + ": may " + doors(row.may));
+    if (!row.by_door) return out;
+    if (row_may(row, kPowerCapture)) {
+        out.push_back(row.capture.empty() ? "reads no pane: the row names no `capture` doors"
+                                          : "reads " + doors(row.capture));
+    }
+    if (row_may(row, kPowerGuide)) {
+        out.push_back(row.guide.empty() ? "points nowhere: the row names no `guide` doors"
+                                        : "points within " + doors(row.guide));
+    }
+    return out;
+}
+
 // WL-GUEST-11 -- agents/workshop/guests.md
 std::vector<std::string> gains_of(const GuestRow& row, const GuestsFile& file) {
     const scope::GuestRowFacts f = facts_of(row, file);
     std::vector<std::string> out;
-    if (f.may(kPowerCapture)) {
+    if (f.may(kPowerCapture) && !f.reads_by_pane) {
         out.push_back("the desk read whole: `capture` also reads the desk's words, the pane "
                       "inventory and the keymap");
+        out.push_back("every pane's manual: `capture` reads the page of each pane the desk offers");
     }
     return out;
 }
@@ -456,6 +661,8 @@ std::vector<Condition> conditions_of(const GuestsFile& file) {
         if (!losses.empty()) out.push_back(guest_row_losses(i, file.rows[i].name, file.version, losses));
         const std::vector<std::string> gains = gains_of(file.rows[i], file);
         if (!gains.empty()) out.push_back(guest_row_gains(i, file.rows[i].name, file.version, gains));
+        const std::vector<std::string> scopes = scopes_of(file.rows[i]);
+        if (!scopes.empty()) out.push_back(guest_row_scopes(i, file.rows[i].name, file.version, scopes));
     }
     return out;
 }
@@ -502,14 +709,31 @@ loom::observe::ObservePolicy observation_of(
                 "is not one");
         }
         for (const loom::observe::ShapeRef& asked : r.shapes) {
-            // THE INVENTORY THAT SAYS EVERY ROW'S POWERS is this host's own: a guest asks for its own
-            // row's, and observes the inventory only as version 1 says it.
-            if (r.producer == kGuestsRole && asked.name == v2::GuestConnections::zen_name &&
-                asked.version >= v2::GuestConnections::zen_version) {
+            // THE INVENTORY OF CONNECTIONS is this host's own, at every version: it names every
+            // connection, and from version 2 every row's powers. A guest asks for its own row.
+            if (r.producer == kGuestsRole && asked.name == v2::GuestConnections::zen_name) {
                 return loom::observe::ObserveVerdict::refuse(
                     "guest '" + row->name + "' may not observe " + asked.name + " v" +
-                    std::to_string(asked.version) + ": it says every row's powers; ask for your own "
-                    "with GuestConnectionsRequested v2");
+                    std::to_string(asked.version) + ": it says every connection to this host; ask for "
+                    "your own row with GuestRowDescribedRequested");
+            }
+            // THE WEAVER'S INPUT AS IT HAPPENS -- every key, typed text and press -- is heard only
+            // with `keystrokes`, from whichever office says it.
+            if (carries_the_keys(asked.name) && !row_may(*row, kPowerKeystrokes)) {
+                return loom::observe::ObserveVerdict::refuse(
+                    "guest '" + row->name + "' may not observe " + asked.name + " v" +
+                    std::to_string(asked.version) + " from " + r.producer +
+                    ": it carries the weaver's input as it happens, which a row hears only with "
+                    "`keystrokes`");
+            }
+            // A ROW THAT READS BY PANE is refused what carries every pane at once, and the notice
+            // that any of them moved: it reads its own panes by asking, judged pane by pane.
+            if ((carries_the_desk(asked.name) || follows_the_desk(asked.name)) && row->reads_by_pane()) {
+                return loom::observe::ObserveVerdict::refuse(
+                    "guest '" + row->name + "' may not observe " + asked.name + " v" +
+                    std::to_string(asked.version) + " from " + r.producer +
+                    ": it carries or follows every pane at once, and the row reads only the panes "
+                    "its `capture` names; it asks for them");
             }
             // THE DESK'S WORDS AND ITS PICTURE are observed only under `capture`, from whichever
             // office publishes them; the weaver's copied text needs a power of its own.
