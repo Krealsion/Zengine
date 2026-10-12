@@ -1644,7 +1644,8 @@ TEST_CASE("WL-HAND-06: Loaded names each loaded weave's row, and Powers its cont
     focus_pane(r, powers);
     r.key(input::scan::kTab);
     const auto parts = held_parts(r.session(), powers);
-    for (const char* control : {"control:sources", "control:operators", "control:composite"}) {
+    for (const char* control : {"control:powers.sources", "control:powers.operators",
+                                "control:powers.composite"}) {
         CAPTURE(control);
         REQUIRE(parts.count(control) == 1);
         const std::string face = held_part_text(r.session(), powers, parts.at(control));

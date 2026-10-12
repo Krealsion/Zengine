@@ -813,10 +813,12 @@ private:
                                 "author and exercise message-driven graphs", 704, 396, 0});
     declare(mail, true);
   }
-  /// THE ROWS IN FORCE FOLLOW THE DIALOG: while one is open, Return is also declared as its
-  /// confirm, so the confirm arrives as an action under a gesture Workshop can approve; Tab,
-  /// Escape and a field's own keys still arrive as keys. The offer declares first; after it,
-  /// declared again when the dialog opens or closes, or when `again` asks.
+  /// THE ROWS IN FORCE FOLLOW THE DIALOG: while one is open, Return is also its confirm, so the
+  /// confirm arrives as an action under a gesture Workshop can approve, beside its cancel; Tab,
+  /// Escape and a field's own keys still arrive as keys. Every other control Flow draws with no
+  /// argument is a keyless row, so its `control:<action>` names an action in force (WL-HAND-07).
+  /// The offer declares first; after it, declared again when the dialog opens or closes, or when
+  /// `again` asks.
   void declare(loom::Mail &mail, bool again = false) {
     const bool dialog = model_.dialog.has_value();
     if (!again && (!declared_ || *declared_ == dialog))
@@ -828,8 +830,45 @@ private:
         {"run", "Run Flow", input::scan::kR, input::mod::kCtrl},
         {"ask-generate", "Generate native C++", input::scan::kG, input::mod::kCtrl},
         {"ask-discard", "Discard unsaved marker", 0, 0}};
-    if (dialog)
+    static constexpr std::pair<const char *, const char *> kControls[] = {
+        {"ask-new", "New Flow workspace"},
+        {"ask-import", "Import a Flow definition"},
+        {"ask-export", "Export the Flow definition"},
+        {"apply", "Apply to the running graph"},
+        {"stop", "Stop the running graph"},
+        {"inspect", "Inspect the running graph"},
+        {"catalog", "Read the catalog"},
+        {"page-graph", "Show the graph"},
+        {"page-state", "Show the state"},
+        {"page-messages", "Show the messages"},
+        {"page-library", "Show the library"},
+        {"page-events", "Show the events"},
+        {"fit", "Reset the view"},
+        {"zoom-in", "Zoom in"},
+        {"zoom-out", "Zoom out"},
+        {"ask-trigger", "Add a trigger"},
+        {"ask-emit", "Add an emit"},
+        {"add-fold", "Add the form shown"},
+        {"ask-state-field", "Add a state field"},
+        {"keep-state", "Keep the state"},
+        {"ask-message", "New message"},
+        {"ask-message-field", "Add a message field"},
+        {"ask-emitted-message", "New emitted message"},
+        {"ask-emitted-field", "Add an emitted field"},
+        {"ask-library-open", "Import into the library"},
+        {"ask-library-save", "Export the library"},
+        {"ask-preset", "Save the example"},
+        {"send", "Send the example"},
+        {"drop-send", "Send the dropped value"},
+        {"drop-accept", "Declare it as accepted"},
+        {"drop-emit", "Declare it as emitted"},
+        {"drop-cancel", "Put the dropped value down"}};
+    for (const auto &[id, label] : kControls)
+      rows.push_back({id, label, 0, 0});
+    if (dialog) {
       rows.push_back({"dialog-confirm", "Confirm the dialog", input::scan::kReturn, 0});
+      rows.push_back({"dialog-cancel", "Cancel the dialog", 0, 0});
+    }
     (void)mail.as_role(pane::kRole)
         .send_to_role(workshop_role, ws::PaneActions{pane::kPane, std::move(rows)});
   }

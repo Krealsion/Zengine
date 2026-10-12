@@ -915,7 +915,8 @@ private:
             if(const auto said=sent_.find(id); said!=sent_.end() && said->second.picture==picture &&
                 same_rows(said->second.rows,rows) && same_caret(said->second.caret,caret)) continue;
             sent_[id]=Sent{rows,picture,caret};
-            auto parts=ws::row_parts(v.map,v.columns,[](const std::string& meaning) { return part_name(meaning); });
+            const bool editing=editing_!=Editing::none;
+            auto parts=ws::row_parts(v.map,v.columns,[editing](const std::string& meaning) { return part_name(meaning,editing); });
             if(auto& c=canvases_[id]; c.on()) {
                 m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
                     ws::rows_picture(c.room,c.pictures.next(c.room,picture),rows,parts,caret));
@@ -934,10 +935,14 @@ private:
         v.map.clear(); sent_.erase(id);
     }
     /// WHAT INVENTORY CALLS ITS PARTS: an entry by its reference, `entry:<owner>:<entry>`; a folder,
-    /// `folder:<owner>:<id>`; a crumb of the path, `crumb:<owner>:<id>`; and `control:up`,
-    /// `control:here`.
-    static std::string part_name(const std::string& meaning) {
-        if (meaning.rfind("ctl:", 0) == 0) return "control:" + meaning.substr(4);
+    /// `folder:<owner>:<id>`; a crumb of the path, `crumb:<owner>:<id>`; and its two controls by the
+    /// action each performs, `control:inventory.parent` and `control:inventory.move.here`. While a
+    /// name is being edited those actions are not in force and a press on them does nothing, so the
+    /// controls are named nothing.
+    static std::string part_name(const std::string& meaning,bool editing) {
+        if (meaning==slots::kUpControl) return editing?std::string():"control:inventory.parent";
+        if (meaning==slots::kMoveHereControl) return editing?std::string():"control:inventory.move.here";
+        if (meaning.rfind("ctl:", 0) == 0) return std::string();
         if (meaning.rfind("dir:", 0) == 0) return "folder:" + meaning.substr(4);
         if (meaning.rfind("crumb:", 0) == 0) return meaning;
         return meaning.empty() ? std::string() : "entry:" + meaning;

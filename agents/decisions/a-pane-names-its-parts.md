@@ -36,4 +36,5 @@ sought over all of it, and a part with none is said with no point.
 part with no point. A pane moving its rows onto the canvas names the same parts in its picture,
 and a name an agent wrote still holds.
 
-**Laws supported.** [WL-HAND-06](../workshop/pane-parts.md).
+**Laws supported.** [WL-HAND-06](../workshop/pane-parts.md),
+[WL-HAND-07](../workshop/pane-parts.md).

@@ -291,7 +291,8 @@ inline RowMeaning meaning_at_row(const ComposerView& view, std::int64_t row) {
 
 /// WHAT THE COMPOSER CALLS A ROW, by what it means: an accepted message by its identity,
 /// `message:<name> v<version>`; a draft's field by its name, `field:<name>`; and its two
-/// controls, `control:submit` and `control:back`. "" for a row that means nothing.
+/// controls by the action each performs, `control:compose.submit` and `control:compose.back`.
+/// "" for a row that means nothing.
 inline std::string part_name(const Composing& c, const RowMeaning& m) {
     if (m.what == meaning::kMessage && m.which >= 0 &&
         m.which < static_cast<std::int64_t>(c.snapshot.roots.size())) {
@@ -302,8 +303,8 @@ inline std::string part_name(const Composing& c, const RowMeaning& m) {
         m.which < static_cast<std::int64_t>(c.draft.size())) {
         return "field:" + c.draft.field(static_cast<std::size_t>(m.which)).name;
     }
-    if (m.what == meaning::kSubmit) return "control:submit";
-    if (m.what == meaning::kBack) return "control:back";
+    if (m.what == meaning::kSubmit) return "control:compose.submit";
+    if (m.what == meaning::kBack) return "control:compose.back";
     return std::string();
 }
 
