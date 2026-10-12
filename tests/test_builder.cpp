@@ -2443,10 +2443,54 @@ Recipe one_source(const std::string& workspace, const std::string& source) {
     return r;
 }
 
+/// Every item a generated project forbids itself: an include directory, a compile option, a
+/// compiler, a flag, a link option or a named library file.
+constexpr const char* kNotInAProject[] = {"include_directories", "target_compile_options", "-I",
+                                          "-l", "g++", "clang++", "cl.exe", ".so", ".dll",
+                                          "CMAKE_CXX_FLAGS"};
+
+/// What a generated project SAYS: its lines with the comments dropped, and each path the recipe
+/// handed the generator taken out where the project quotes it. A path is where the project
+/// lives, never one of its options, so a folder named `windows-lanes` is not a `-l`.
+std::string commands_of(const std::string& project, const Recipe& r) {
+    std::string code;
+    for (std::size_t at = 0; at < project.size();) {
+        const std::size_t end = project.find('\n', at);
+        const std::string line = project.substr(at, end == std::string::npos ? end : end - at);
+        if (line.find_first_not_of(" \t") != std::string::npos &&
+            line[line.find_first_not_of(" \t")] != '#') {
+            code += line;
+            code += '\n';
+        }
+        if (end == std::string::npos) {
+            break;
+        }
+        at = end + 1;
+    }
+    for (const std::string& path : {r.single_source->source, r.artifact_dir}) {
+        const std::string quoted = "\"" + cmake_quoted(path) + "\"";
+        for (std::size_t at = code.find(quoted); at != std::string::npos;
+             at = code.find(quoted, at)) {
+            code.replace(at, quoted.size(), "\"\"");
+        }
+    }
+    return code;
+}
+
+/// A path under `root` holding every item a project forbids itself, one folder apiece.
+std::string forbidden_folders(std::string root) {
+    for (const char* item : kNotInAProject) {
+        root += '/';
+        root += item;
+    }
+    return root;
+}
+
 } // namespace
 
 TEST_CASE("the generated project consumes the PACKAGE and nothing private") {
-    const std::string text = generated_project(one_source("/tmp/ws", "/tmp/oven.cpp"));
+    const Recipe recipe = one_source("/tmp/ws", "/tmp/oven.cpp");
+    const std::string text = generated_project(recipe);
 
     // THE WHOLE PURITY CLAIM, IN ONE LINE OF THE GENERATED FILE.
     CHECK(text.find("find_package(zengine 0.1 CONFIG REQUIRED)") != std::string::npos);
@@ -2459,23 +2503,21 @@ TEST_CASE("the generated project consumes the PACKAGE and nothing private") {
     // reads `load_execute.hpp` the same way): the generated file EXPLAINS in a comment that it
     // names no `.so` or `.dll`, and a scan that could not tell a comment from a command would
     // fail on that sentence.
-    std::string code;
-    for (std::size_t at = 0; at < text.size();) {
-        const std::size_t end = text.find('\n', at);
-        const std::string line = text.substr(at, end == std::string::npos ? end : end - at);
-        if (line.find_first_not_of(" \t") != std::string::npos &&
-            line[line.find_first_not_of(" \t")] != '#') {
-            code += line;
-            code += '\n';
-        }
-        if (end == std::string::npos) {
-            break;
-        }
-        at = end + 1;
+    const std::string code = commands_of(text, recipe);
+    for (const char* forbidden : kNotInAProject) {
+        CHECK_MESSAGE(code.find(forbidden) == std::string::npos, std::string(forbidden));
     }
-    for (const char* forbidden : {"include_directories", "target_compile_options", "-I", "-l",
-                                  "g++", "clang++", "cl.exe", ".so", ".dll", "CMAKE_CXX_FLAGS"}) {
-        CHECK(code.find(forbidden) == std::string::npos);
+
+    // A PATH IS NOT AN OPTION: the project generated where each path it is handed holds every
+    // forbidden item, a folder apiece, says no more than the one above.
+    Recipe elsewhere = one_source("/tmp/ws", forbidden_folders("/tmp/src") + "/oven.cpp");
+    elsewhere.artifact_dir = forbidden_folders("C:/work/windows-lanes/build");
+    const std::string there = generated_project(elsewhere);
+    REQUIRE(there.find(elsewhere.single_source->source) != std::string::npos);
+    REQUIRE(there.find(elsewhere.artifact_dir) != std::string::npos);
+    const std::string there_code = commands_of(there, elsewhere);
+    for (const char* forbidden : kNotInAProject) {
+        CHECK_MESSAGE(there_code.find(forbidden) == std::string::npos, std::string(forbidden));
     }
 
     // ONLY WHAT WAS AUTHORED IS LINKED.
