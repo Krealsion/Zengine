@@ -578,7 +578,13 @@ provider is granted. Press **`t`** (`workshop.pane-titles`, remappable like ever
 hide the titles and return that row to each provider's content; press it again to bring them
 back, or choose **titles** in a pane's [Settings](#a-panes-manual-and-its-gear). The choice is
 presentation only — no pane's identity, geometry or saved setup changes — and it is saved with
-your preferences, so the next Workshop you start wears it too.
+your preferences, so the next Workshop you start wears it too. Your preferences live in
+`workshop-prefs.json` in your per-user config folder, or in the file `--prefs` names
+([arguments](getting-started.md#arguments)), and Workshop's startup line `prefs:` says which.
+Started with `--isolated` and no `--prefs`, or where no per-user folder can be found, Workshop
+reads and writes no preference, and the choice lasts the run. A preference file Workshop cannot
+read is said as a standing condition, the default (titles shown) stands, and a choice made then
+lasts the run: that file is never overwritten.
 
 **One exception, and it is the law rather than a leftover:** the pane currently holding the
 keyboard wears its title, mark and all. The `> ` mark names the pane your keys go back to —
