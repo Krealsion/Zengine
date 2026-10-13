@@ -103,8 +103,9 @@ a drawer never calls `show`. An optional `on_room` runs when the window or its i
 changed, where an element the window does not hold is said again (`canvas().holds`). A drawer that
 presents elements emits `ElementPut` and `ElementChange` itself and accepts the presses it wants.
 Over the Timer, a drawer derives
-`DrawingWeave<Self, State, Accept<...>, Emit<...>, zengine::timer::TimedWeave>`. A drawer that keeps a handshake of its own derives `loom::WeaveBase` and draws with a `Canvas`; one
-that defines its own `after_delivery` is refused at build time, since nothing it drew would show.
+`DrawingWeave<Self, State, Accept<...>, Emit<...>, zengine::timer::TimedWeave>`. A drawer that
+keeps a handshake of its own derives `loom::WeaveBase` and draws with a `Canvas`; one that defines
+its own `after_delivery` is refused at build time, since nothing it drew would show.
 
 ## An element of your own
 
@@ -190,8 +191,8 @@ never an introduction a look would have to change after -- and the window answer
 introduction with the owner's room. The directory says again whatever changes: a skin chosen, an
 area placed elsewhere, a window that offers itself again, an owner that asks its room. A window
 started afresh is told every element code, then its areas, in that order. An area given another
-owner starts empty. A directory started afresh says `GraphicsReady`, and everyone offers, places and
-chooses again; an owner that hears the same room again draws nothing.
+owner starts empty. A directory started afresh says `GraphicsReady`, and everyone offers, places
+and chooses again; an owner that hears the same room again draws nothing.
 
 ## What it costs
 

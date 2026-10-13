@@ -575,6 +575,19 @@ TEST_CASE("a drawer that never calls show still shows once a beat, its nodes bef
     CHECK(after.rows[2] == "|oO |");
 }
 
+TEST_CASE("a drawing weave takes a room only from the window it names") {
+    Drawing d;
+    const std::size_t mark = d.r.log.size();
+    // A room from a sender that holds no window's office: not taken.
+    d.r.to_role(kDrawer, gfx::AreaRoom{kDrawer, "elsewhere", 99, 0, 0, {}});
+    d.r.drain();
+    const std::int64_t showings = d.r.shown().showings;
+    d.beat();
+    CHECK(d.r.shown().showings == showings + 1); // the beat still shows in its own window
+    CHECK(d.r.shown().rows[0] == "beats 1");
+    CHECK(d.r.count(mark, "ElementPut", kDrawer) == 0);
+}
+
 TEST_CASE("an area given another owner starts empty, its room naming none of the last owner's") {
     Bounded b;
     b.put(0);
