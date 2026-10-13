@@ -354,6 +354,23 @@ TEST_CASE("the classic and the block skin paint the snake's board, each in its o
     CHECK(block[10].substr(0, 14) == "=   %      ##@");
 }
 
+TEST_CASE("an element said again starts over: drawn whole from its new data, nothing of it left") {
+    Snake s;
+    Rig& r = s.r;
+    for (int t = 0; t < 4; ++t) {
+        r.tick(); // the seed, and three steps right
+    }
+    CHECK(s.r.shown().rows[10].substr(0, 17) == "|   *         ooO");
+
+    // The substrate's reset door: a state that remembers presenting nothing, so the next tick
+    // seeds a new game and says the board again, whole.
+    const std::size_t mark = r.log.size();
+    r.to_role(snake::kWorldRole, loom::PokeResetState{});
+    r.tick();
+    CHECK(r.count(mark, "ElementPut", snake::kWorldRole) == 1);
+    CHECK(r.shown().rows[10] == "|   *      ooO           |"); // the new seed, and nothing else
+}
+
 TEST_CASE("a skin chosen mid-game: the window paints again, and nothing is drawn on the bus") {
     Snake s;
     Rig& r = s.r;

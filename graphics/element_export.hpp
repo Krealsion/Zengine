@@ -94,8 +94,9 @@ int act(const std::uint8_t* event, std::size_t event_len, ZenByteSink outcome,
             }
             state = *s;
         }
+        const bool changing = e->kind == event::kChange || e->kind == event::kPress;
         Sketch before;
-        if (had && e->kind != event::kRedraw) {
+        if (had && changing) {
             E::draw(state, before, e->path);
         }
         ElementOutcome out;
@@ -122,8 +123,14 @@ int act(const std::uint8_t* event, std::size_t event_len, ZenByteSink outcome,
         }
         Sketch after;
         E::draw(state, after, e->path);
-        out.drawn = difference(before, after);
-        out.drawn.whole = !had || e->kind == event::kRedraw || e->kind == event::kPut;
+        if (had && changing) {
+            out.drawn = difference(before, after);
+        } else {
+            // Started, or started over: the whole element, in place of whatever it drew before.
+            out.drawn.whole = true;
+            out.drawn.put = after.nodes();
+            out.drawn.said = after.records();
+        }
         out.state = loom::bequeath_item(state);
         const loom::Bytes b = loom::bequeath_item(out);
         outcome.write(outcome.ctx, b.data(), b.size());
