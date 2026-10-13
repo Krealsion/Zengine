@@ -35,10 +35,10 @@ Source: [`examples/snake/`](world.cpp) — world, board, score, host.
 
 Run it from the build tree, in a terminal: keys are `wasd` or the arrows to steer; `1` chooses the
 other skin, classic or block (painter code the window opens mid-game; nothing is drawn again on the
-bus); `2` loads the score weave; `3` grows the world (graceful v1→v2 migration); `4` says the SDL
-window waits on a later stage; `r` reloads the world in place; `n` starts a new game through the
-poke-reset door; `l` lists; `q` quits. Pressing `[ new game ]` with the pointer starts one too,
-sent to the board as a change.
+bus); `2` loads the score weave; `3` grows the world (graceful v1→v2 migration); `4` asks for an OS
+window, and says no window weave draws one: the snake's window is the terminal; `r` reloads the
+world in place; `n` starts a new game through the poke-reset door; `l` lists; `q` quits. Pressing
+`[ new game ]` with the pointer starts one too, sent to the board as a change.
 
 How the drawing works is [the Graphics package](../../graphics/docs/graphics.md). This package is
 the **hosting consumer** that pulled `loom::kernel` onto the Loom's export surface. The snake
