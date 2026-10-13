@@ -1,48 +1,46 @@
 # snake — a worked example
 
-**Reference / example.** A playable game whose parts are genuinely separate, independently
-replaceable weaves. It is the best short answer to "what does an application made of weaves
-actually look like?", and it is what the `zengine-snake-tests` suite proves headless.
+**Reference / example.** A playable game whose parts are separate, independently replaceable
+weaves where each earns it: one world holding the whole game, a window that shows it, a directory
+that introduces the two, and a score weave loaded late. It is the best short answer to "what does
+an application made of weaves actually look like?", and the `snake` suite proves it headless.
 
-Source: [`examples/snake/`](world.cpp) — world, score, controls, clock, host.
+Source: [`examples/snake/`](world.cpp) — world, board, score, host.
 
-**Snake contains no drawing code at all** — the suite pins a skinless game at zero stdout bytes.
+- **World** (`snake-world-v1`/`-v2`, one source) is the whole game: its rules
+  ([`logic.hpp`](logic.hpp)), its keys and its beat. It holds `SnakeWorldState` -- the game, its
+  bindings (whether its keys steer and which four, its pace), and where it presented its board --
+  and publishes its news, `SnakeVisual`, `FoodEaten` and `SnakeDied`, for anyone. It draws its frame
+  (the score, a death notice, a new-game button) as nodes into the terminal window that shows its
+  area, and its board as an element of the game's own: said once, then each step as a change.
+  Both versions converse (`zen.PrepareShutdown` → a letter); v2 is additionally an heir -- it
+  claims by role on first wake and folds a v1 inheritance through `migrate()`.
+- **Its doors stay open.** `SnakeTick` and `SnakeTurn`, sent by role to whoever holds
+  `snake.world`, drive and steer the world from anyone. That open door, not an adapter weave, is
+  what a pilot, a replay or a stepper needs: a pilot writes the world's `keys` false and steers by
+  `SnakeTurn`; a replay writes `beat_ms` 0 and feeds `SnakeTick`; a faster game writes `beat_ms`
+  and needs no rebuild. Nobody writing the field means two drivers at once.
+- **Board** (`snake-board`) is the board's code, opened by the window as it opens a skin
+  ([`board.hpp`](board.hpp), [`board.cpp`](board.cpp)): an outline and a node a filled cell, the
+  head in the accent, the body in the fill, the food in the alert. It draws what it is told; the
+  rules stay the world's, and a press on the board reaches the world.
+- **Score** (`snake-score`) is the late-load demonstration and nothing more: it counts the
+  `FoodEaten` it witnesses -- loaded after two meals it reads 0 while the world reads 2 -- and draws
+  its tally in an area of its own.
+- **Host** (`zengine-snake`) owns the boot list and nothing else: the directory, the terminal
+  window, the world and the Timer service, whose loading is what starts time. Its operator weave
+  is the window's arranger -- it places the areas, offers the two skins and the board's code from
+  the host's own build, chooses the skin -- and speaks the status line in an area of its own. The
+  window gives every key to the world and the operator alike.
 
-- **World** (`snake-world-v1`/`-v2`, one source) owns the simulation and holds
-  `SnakeWorldState`; it publishes `SnakeVisual`/`FoodEaten`/`SnakeDied` and never knows its
-  consumers. Both versions converse (`zen.PrepareShutdown` → a letter); v2 is additionally an
-  heir — it claims by role on first wake and folds a v1 inheritance through `migrate()`.
-  Untouched by the Surface migration — the whole ceremony reduction was consumer-side.
-- **Score** (`snake-score`) accepts only `FoodEaten` and counts what it *witnesses* — loaded
-  late into a live game, its count honestly differs from the world's. It publishes its tally
-  as `SurfaceText` (and re-publishes on a skin's hello) instead of painting a row.
-- **Controls** (`snake-controls`) is snake's input binding: it accepts the Input package's
-  `KeyPressed` and turns WASD/arrows into `SnakeTurn`, sent to the world **by role** so
-  steering survives the world being swapped mid-game. The binding is a weave, so it is
-  replaceable like everything else (a remap, an AI pilot, a replay feeder).
-- **Clock** (`snake-clock`) is snake's time binding — the controls move, pointed at time: it
-  asks the Timer package for the 120ms repeating beat (`snake.tick`, the cadence the host
-  used to hard-code, now living where the pace belongs) and turns each `TimerFired` into
-  `SnakeTick`, sent to the world **by role** so time survives the world being swapped. The
-  world never learns where ticks come from; only the source of time moved.
-- **Host** (`zengine-snake`) owns the boot list — nothing else. It reads no keys (the Input
-  weave produces them), owns no screen (the skin claims it at load), and since the Timer
-  package keeps no clock, never sleeps, and pumps nobody. It contributes nothing to time
-  either: it queues the boot list and `drain_until_idle()` IS the game — this host has nothing
-  of its own to do between turns, so "run until the world stops" is exactly its program.
-  Loading the timer service is what starts the clock — the control door activates it and it
-  authors its own chain — so there is no wind, and no boot-drain-then-wind ceremony to order
-  correctly. The loop ends when the
-  operator's quit key stops the bus (or, honestly, when the bus goes quiet because no clock is
-  deployed, or because activation could not establish time).
-  Its status line is published intent like everything else, spoken by the granted operator
-  weave that also sends every lifecycle command through the Weave Manager. Run it under WSL
-  from the build tree; keys: wasd steer, `1` swap the TUI skin, `2` load score, `3` grow the
-  world (graceful v1→v2 migration), `4` swap to the SDL skin (where deployed), `r` reload in
-  place, `n` new game, `l` list, `q` quit.
+Run it from the build tree, in a terminal: keys are `wasd` or the arrows to steer; `1` chooses the
+other skin, classic or block (painter code the window opens mid-game; nothing is drawn again on the
+bus); `2` loads the score weave; `3` grows the world (graceful v1→v2 migration); `4` asks for an OS
+window, and says no window weave draws one: the snake's window is the terminal; `r` reloads the
+world in place; `n` starts a new game through the poke-reset door; `l` lists; `q` quits. Pressing
+`[ new game ]` with the pointer starts one too, sent to the board as a change.
 
-This package is the **hosting consumer** that pulled `loom::kernel` onto the Loom's export
-surface, and whose nested shapes surfaced (and pulled the completion of) the manifest's
-documented-but-unbuilt `referenced` section (`zen.Manifest` v3). The snake targets gate on
-`if(TARGET loom::kernel)`, so a Windows Loom install still configures — the package simply
-skips.
+How the drawing works is [the Graphics package](../../graphics/docs/graphics.md). This package is
+the **hosting consumer** that pulled `loom::kernel` onto the Loom's export surface. The snake
+targets gate on `if(TARGET loom::kernel)`, so a Windows Loom install still configures -- the package
+simply skips.

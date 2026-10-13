@@ -246,7 +246,7 @@ loom::WeaveId mount_into_role(loom::Switchboard& bus, std::string role, Args&&..
 /// The kernel lane's hand and ears: holds the manager reach, hears the
 /// standard answers, and accepts SnakeVisual so the world's motion is
 /// observable. Deliberately does NOT accept the input shapes — the lane's
-/// recipient-count assertions mean "the controls adapter, and nobody else".
+/// recipient-count assertions mean "the world, and nobody else".
 class Witness
     : public loom::WeaveBase<Witness, WitnessState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused,
@@ -1612,11 +1612,10 @@ TEST_CASE("the input .so loads into its role and answers its pump, honestly idle
     CHECK(a.text == "0");
 }
 
-TEST_CASE("keys become turns: KeyPressed steers the real world through the real adapter") {
+TEST_CASE("keys become turns: KeyPressed steers the real world through its own keys") {
     using namespace zengine::snake;
     Rig r;
-    (void)r.load("snake-world-v1", WORLD_V1_SO, kWorldRole);
-    const loom::WeaveId controls = r.load("snake-controls", CONTROLS_SO, "");
+    const loom::WeaveId world = r.load("snake-world-v1", WORLD_V1_SO, kWorldRole);
 
     // First tick seeds: head centered at (12,8) on the 24x16 board, heading
     // right (the snake suite's own seed pin).
@@ -1629,13 +1628,13 @@ TEST_CASE("keys become turns: KeyPressed steers the real world through the real 
     // W arrives as a published message — the producer's stand-in is the root,
     // speaking the exact shape the input weave publishes (tier 3 pinned that
     // emission; the pty run drives the whole chain live). Exactly ONE accepter
-    // exists: the controls adapter. The world turns up on the next tick.
+    // exists: the world, whose keys are its own. It turns up on the next tick.
     CHECK(r.publish_root(loom::to_value(KeyPressed{scan::kW, "W"})) == 1);
     r.tick();
     CHECK(r.seen.visuals.back().snake.front().x == 12);
     CHECK(r.seen.visuals.back().snake.front().y == 7);
 
-    // A non-steering key is delivered (the adapter accepts all KeyPressed)
+    // A non-steering key is delivered (the world accepts every KeyPressed)
     // and correctly does nothing: still climbing.
     CHECK(r.publish_root(loom::to_value(KeyPressed{scan::kX, "X"})) == 1);
     r.tick();
@@ -1650,10 +1649,11 @@ TEST_CASE("keys become turns: KeyPressed steers the real world through the real 
     CHECK(r.publish_root(loom::to_value(PointerButton{1, true, 3, 4, space::kCells})) == 0);
     CHECK(r.publish_root(loom::to_value(PointerWheel{0.0, 1.0, 3, 4, space::kCells})) == 0);
 
-    // The adapter's own honest counter: one steering key became one turn.
-    const Seen::Answer a = r.poke(controls, loom::PokeRead{"turns"});
+    // The world's own state: the one steering key turned it up, and its keys still steer.
+    const Seen::Answer a = r.poke(world, loom::PokeRead{"direction"});
     CHECK(a.kind == 0);
-    CHECK(a.text == "1");
+    CHECK(a.text == std::to_string(kUp));
+    CHECK(r.poke(world, loom::PokeRead{"keys"}).text == "true");
 }
 
 // ============================================================================

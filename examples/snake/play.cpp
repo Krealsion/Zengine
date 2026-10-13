@@ -1,26 +1,28 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// zengine-snake, the playable host: it owns the boot list and nothing else -- it draws nothing,
-// owns no screen, knows no snake rules, reads no keys, keeps no clock and pumps nobody. Keys go
-// to the Input weave and the controls adapter (`SnakeTurn`), time to the Timer and the clock
-// adapter (`SnakeTick`), drawing to the active Skin, and operating to the operator weave
-// (`zen.LoadWeave`, `SwapWeave`, `ReloadWeave`, `ListLoaded`) (examples/snake/README.md).
+// zengine-snake, the playable host: it owns the boot list and nothing else -- it draws nothing of
+// the game, knows no snake rules, reads no keys, keeps no clock and pumps nobody. The world keeps
+// its own rules, keys and beat; the terminal window reads the terminal and shows what owners draw;
+// the directory introduces the two; and the operator weave arranges the window, chooses its skins,
+// speaks the status line and sends every lifecycle command (examples/snake/README.md).
 
-// The moments are keys: 1 swaps the skin (hard: painting code unloaded mid-game), 2 loads the
-// score weave into the running game, 3 grows the world (a graceful swap: the v1 world writes its
-// letter and the v2 heir migrates it), 4 swaps to the SDL skin where deployed; r reloads the
-// world in place, n starts a new game through the poke-reset door, l lists, q quits.
+// The moments are keys, which the window gives the world and the operator alike: 1 chooses the
+// other skin (painter code the window opens mid-game; nothing is drawn again on the bus), 2 loads
+// the score weave into the running game, 3 grows the world (a graceful swap: the v1 world writes
+// its letter and the v2 heir migrates it), 4 says no window weave draws an OS window; r reloads
+// the world in place, n starts a new game through the poke-reset door, l lists, q quits.
 
 #include "play_state.hpp"
 #include "vocabulary.hpp"
 
+#include "graphics/canvas.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
-#include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
+#include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
@@ -43,82 +45,78 @@
 #include <cstdio>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 
 namespace {
 
 using namespace zengine::snake;
+namespace gfx = zengine::graphics;
 namespace input = zengine::input;
 namespace scan = zengine::input::scan;
-namespace surface = zengine::surface;
 namespace timer = zengine::timer;
 
 // ---- the operator ------------------------------------------------------------
 
-/// The skins the operator can put on the surface. Index doubles as the
-/// tracker value, so a successful swap knows what it swapped to.
+/// The operator's office, the owner of the status line's area.
+constexpr const char* kOperatorRole = "snake.operator";
+constexpr const char* kStatusArea = "snake.operator";
+constexpr const char* kWindowRole = "zengine.window.terminal";
+
+/// The skins the operator can choose: painter code the window opens.
 struct SkinChoice {
     const char* stem;
     const char* label;
 };
 constexpr SkinChoice kSkins[] = {
-    {"zengine-skin-tui-classic", "classic"},
-    {"zengine-skin-tui-block", "block"},
-    {"zengine-skin-sdl", "sdl window"},
+    {"zengine-paint-classic", "classic"},
+    {"zengine-paint-block", "block"},
 };
-constexpr int kSkinClassic = 0;
-constexpr int kSkinBlock = 1;
-constexpr int kSkinSdl = 2;
 
-/// What the host remembers about a command in flight, so an answer can be
-/// reported in the words of the question, and so a success can flip the
-/// operator's own trackers (which skin paints, which world generation runs).
+/// What the host remembers about a command in flight, so an answer can be reported in the words
+/// of the question, and so a success can flip the operator's own trackers.
 struct Pending {
     std::string label;
-    int action = 0; // 0 none, 2 world-migrated, 10+i skin i swapped in
+    int action = 0; // 0 none, 2 world migrated, 3 score loaded
 };
+constexpr int kWorldGrown = 2;
+constexpr int kScoreLoaded = 3;
 
 struct OperatorContext {
     std::map<std::uint64_t, Pending> pending;
     std::uint64_t next_corr = 1;
-    bool quit = false;        ///< the q key; the loop reads it after the pump returns
-    int skin = kSkinClassic;  ///< which skin holds the surface right now
-    bool world_is_v2 = false; ///< which world generation holds the role
-    std::string last_status;  ///< re-published whenever a skin says hello
+    bool quit = false;         ///< the q key; the loop reads it after the pump returns
+    int skin = 0;              ///< which skin paints the window's areas
+    bool world_is_v2 = false;  ///< which world generation holds the role
+    bool score_loaded = false; ///< whether the score weave has an area
+    std::string status;        ///< the status line, drawn again in a window started afresh
     loom::WeaveId manager{};
-    std::string dir; ///< where the host resolves loadable weaves (beside itself)
+    std::string dir; ///< where the host resolves loadable weaves and code (beside itself)
 
-    /// The host's stop lever, handed to the operator: with time inside the
-    /// bus, drain_until_idle() runs the whole game and returns only when told to
-    /// stop — so the quit key must stop the bus, not just set a flag for a loop
-    /// body that would otherwise never come around.
+    /// The host's stop lever: with time inside the bus, drain_until_idle() returns only when told
+    /// to stop, so the quit key must stop the bus, not just set a flag.
     std::function<void()> request_stop;
 
     std::string so(const char* stem) const;
 };
 
-using zengine::snake::OperatorState;
-
-/// The host's hand on the bus: it holds the reach (the manager, target-scoped -- the dangerous
-/// grant -- and the world's poke-reset door by role), issues every lifecycle command and hears
-/// every answer. It listens as snake does (command keys arrive as published `KeyPressed`) and
-/// speaks its status as `SurfaceText` on the "status" slot, re-published on a fresh Skin's
-/// `SurfaceReady`. Answers are matched against its own outstanding correlations; others are noise.
+/// The host's hand on the bus and the window's arranger: it places the areas, offers the skins
+/// and the board's code, chooses the skins, draws the status line, holds the reach (the manager,
+/// target-scoped, and the world's poke-reset door by role), and hears every answer.
 class OperatorWeave
-    : public loom::WeaveBase<OperatorWeave, OperatorState,
-                             loom::Accept<loom::Result, loom::Ack, loom::Refused,
-                                          input::KeyPressed, surface::SurfaceReady>,
-                             loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave,
-                                        loom::ListLoaded, loom::PokeResetState,
-                                        surface::SurfaceText>> {
+    : public loom::WeaveBase<
+          OperatorWeave, OperatorState,
+          loom::Accept<loom::Result, loom::Ack, loom::Refused, input::KeyPressed,
+                       gfx::GraphicsReady, gfx::AreaRoom, gfx::DrawnRefused>,
+          loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave, loom::ListLoaded,
+                     loom::PokeResetState, gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
+                     gfx::ElementCodeOffered, gfx::Drawn>> {
 public:
     explicit OperatorWeave(OperatorContext& ctx) : ctx_(&ctx) {}
 
-    // The three standard answers. Refusal-ness is carried as a FLAG from the
-    // handler that knows it by TYPE — the shape is the fact, and re-deriving
-    // it downstream by looking for "refused" in prose would be inventing a
-    // second, weaker authority for something already certain here.
+    // The three standard answers. Refusal-ness is carried as a FLAG from the handler that knows
+    // it by TYPE: the shape is the fact.
     void on(const loom::Result& r, loom::Mail& mail) {
         answered(mail, "-> " + r.value, /*refused=*/false);
     }
@@ -127,32 +125,43 @@ public:
         answered(mail, "-> refused: " + r.reason, /*refused=*/true);
     }
 
-    /// A skin claimed the surface and said hello: give it the current status
-    /// line so the operator's row survives the painter being replaced.
-    void on(const surface::SurfaceReady&, loom::Mail& mail) {
-        if (!ctx_->last_status.empty()) {
-            mail.publish(surface::SurfaceText{surface::kSlotStatus, ctx_->last_status});
+    /// A directory started: the window arranged again, from what the operator knows.
+    void on(const gfx::GraphicsReady&, loom::Mail& mail) {
+        if (mail.authored_from_role(gfx::kGraphicsRole)) {
+            arrange(mail);
         }
     }
 
-    /// The command keys. Steering is not here — the snake-controls adapter
-    /// owns it — and unknown keys are nobody's error.
-    void on(const input::KeyPressed& k, loom::Mail& mail) {
-        switch (k.scancode) {
-        case scan::k1: {
-            const int next = ctx_->skin == kSkinClassic ? kSkinBlock : kSkinClassic;
-            swap_skin(mail, next);
-            break;
+    /// The status line's window: drawn whole when the window is new or started again.
+    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
+        if (mail.authored_from_role(gfx::kGraphicsRole) && r.area == kStatusArea &&
+            canvas_.set_window(r.window, r.epoch)) {
+            speak(mail);
         }
+    }
+
+    void on(const gfx::DrawnRefused&, loom::Mail&) {}
+
+    /// The command keys. Steering is the world's, and unknown keys are nobody's error.
+    void on(const input::KeyPressed& k, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWindowRole)) {
+            return;
+        }
+        switch (k.scancode) {
+        case scan::k1:
+            ctx_->skin = 1 - ctx_->skin;
+            choose_skins(mail);
+            status(mail, std::string("skin -> ") + kSkins[ctx_->skin].label);
+            break;
         case scan::k4:
-            swap_skin(mail, kSkinSdl);
+            status(mail, "no window weave draws an OS window: this one is the terminal");
             break;
         case scan::k2:
-            command(mail, "load score weave (late)", 0,
-                    loom::LoadWeave{"snake-score", ctx_->so("snake-score"), ""});
+            command(mail, "load score weave (late)", kScoreLoaded,
+                    loom::LoadWeave{"snake-score", ctx_->so("snake-score"), kScoreRole});
             break;
         case scan::k3:
-            command(mail, "grow the world (graceful v1->v2)", 2,
+            command(mail, "grow the world (graceful v1->v2)", kWorldGrown,
                     loom::SwapWeave{kWorldRole, "snake-world-v2", ctx_->so("snake-world-v2"),
                                     /*graceful=*/true});
             break;
@@ -176,12 +185,8 @@ public:
             quit();
             break;
         case scan::kC:
-            // Ctrl is MEASURED here, not inferred from a name. Without a
-            // modifier vocabulary Ctrl+C could only survive as a dressed
-            // convenience `name`, which would make this host trust a courtesy
-            // the Input contract explicitly refuses to make authoritative. The
-            // modifier is carried on the transition it was held for, and a name
-            // is nothing but a name (input/docs/input.md).
+            // Ctrl is measured, not inferred from a name: the modifier rides the transition it
+            // was held for (input/docs/input.md).
             if ((k.modifiers & input::mod::kCtrl) != 0) {
                 quit();
             }
@@ -191,11 +196,41 @@ public:
     }
 
 private:
-    void swap_skin(loom::Mail& mail, int next) {
-        const SkinChoice& s = kSkins[next];
-        command(mail, std::string("swap skin -> ") + s.label, 10 + next,
-                loom::SwapWeave{surface::kSkinRole, s.stem, ctx_->so(s.stem),
-                                /*graceful=*/false});
+    /// The window as the operator arranges it: the skins and the board's code offered, the status
+    /// line across the top, the world beneath it, the score beside it once loaded; every area
+    /// hears the keys, and each wears the chosen skin.
+    void arrange(loom::Mail& mail) {
+        const auto to_directory = [&](const auto& m) {
+            (void)mail.as_role(kOperatorRole).send_to_role(gfx::kGraphicsRole, m);
+        };
+        for (const SkinChoice& s : kSkins) {
+            to_directory(gfx::SkinOffered{s.label, ctx_->so(s.stem)});
+        }
+        to_directory(gfx::ElementCodeOffered{"SnakeBoardData", ctx_->so("snake-board")});
+        const std::int64_t c = gfx::kCellPx;
+        to_directory(gfx::AreaPlaced{kStatusArea, gfx::kTerminalWindow, kOperatorRole, 0,
+                                     0, 200 * c, c, 1, true});
+        to_directory(gfx::AreaPlaced{kWorldArea, gfx::kTerminalWindow, kWorldRole, 0, c,
+                                     50 * c, 28 * c, 0, true});
+        if (ctx_->score_loaded) {
+            place_score(mail);
+        }
+        choose_skins(mail);
+    }
+
+    void place_score(loom::Mail& mail) {
+        const std::int64_t c = gfx::kCellPx;
+        (void)mail.as_role(kOperatorRole)
+            .send_to_role(gfx::kGraphicsRole,
+                          gfx::AreaPlaced{kScoreRole, gfx::kTerminalWindow, kScoreRole,
+                                          52 * c, c, 50 * c, c, 0, false});
+    }
+
+    void choose_skins(loom::Mail& mail) {
+        for (const char* area : {kStatusArea, kWorldArea, kScoreRole}) {
+            (void)mail.as_role(kOperatorRole)
+                .send_to_role(gfx::kGraphicsRole, gfx::SkinChosen{area, kSkins[ctx_->skin].label});
+        }
     }
 
     template <class Cmd>
@@ -206,13 +241,19 @@ private:
         status(mail, label + " ...");
     }
 
-    /// The status line, spoken as intent. ASCII only (the house charset rule)
-    /// and PLAIN — how it looks is the skin's business.
+    /// The status line, plain ASCII: how it looks is the skin's business.
     void status(loom::Mail& mail, const std::string& text) {
-        ctx_->last_status = "[zen] " + text +
-                            "   (wasd steer | 1 skin | 2 score | 3 grow | 4 sdl | "
-                            "r reload | n new | l list | q quit)";
-        mail.publish(surface::SurfaceText{surface::kSlotStatus, ctx_->last_status});
+        ctx_->status = "[zen] " + text +
+                       "   (wasd | 1 skin | 2 score | 3 grow | 4 sdl | r reload | n new | l list | "
+                       "q quit)";
+        speak(mail);
+    }
+
+    void speak(loom::Mail& mail) {
+        gfx::Sketch f;
+        f.text("status", 0, 0, ctx_->status, gfx::by_role(gfx::role::kFill));
+        canvas_.draw(f);
+        canvas_.show(mail);
     }
 
     void answered(loom::Mail& mail, const std::string& outcome, bool refused) {
@@ -223,22 +264,22 @@ private:
                              " " + outcome);
             return;
         }
-        // A successful moment flips the trackers here, in the answer's own
-        // handler — the answer, not the wish, is what flips them.
+        // A successful moment flips the trackers here, in the answer's own handler: the answer,
+        // not the wish, is what flips them.
         if (!refused) {
-            const int action = it->second.action;
-            if (action >= 10) {
-                ctx_->skin = action - 10;
-            } else if (action == 2) {
+            if (it->second.action == kWorldGrown) {
                 ctx_->world_is_v2 = true;
+            } else if (it->second.action == kScoreLoaded) {
+                ctx_->score_loaded = true;
+                place_score(mail);
+                choose_skins(mail);
             }
         }
         status(mail, it->second.label + " " + outcome);
         ctx_->pending.erase(it);
     }
 
-    /// The one exit: mark the wish for the loop and stop the bus so the loop
-    /// gets to read it.
+    /// The one exit: mark the wish for the loop and stop the bus so the loop gets to read it.
     void quit() {
         ctx_->quit = true;
         if (ctx_->request_stop) {
@@ -247,6 +288,7 @@ private:
     }
 
     OperatorContext* ctx_;
+    gfx::Canvas canvas_{kOperatorRole, kStatusArea};
 };
 
 std::string exe_dir() {
@@ -284,7 +326,7 @@ std::string exe_dir() {
 #endif
 }
 
-/// The platform's loadable-weave suffix. One spelling, used for every stem.
+/// The platform's loadable-library suffix. One spelling, used for every stem.
 constexpr const char* kWeaveSuffix =
 #if defined(_WIN32)
     ".dll";
@@ -297,16 +339,14 @@ std::string OperatorContext::so(const char* stem) const { return dir + "/" + ste
 } // namespace
 
 int main() {
-    // The honest line, in plain scrollback (the host owns no screen to put it
-    // anywhere else — and it should outlive the session anyway): this host
-    // isolates nothing anywhere, and on Windows it is the explicit
-    // development/demo backend.
+    // The honest line, in plain scrollback before the window takes the terminal: this host
+    // isolates nothing anywhere, and on Windows it is the explicit development/demo backend.
     std::printf("zengine-snake - containment: %s\n", loom::Kernel::containment_note());
     std::fflush(stdout);
 
     loom::Switchboard bus;
-    // The demo loads exactly the artifacts its own build just produced, so it says
-    // so rather than relying on a default the Loom no longer has.
+    // The demo loads exactly the artifacts its own build just produced, so it says so rather than
+    // relying on a default the Loom no longer has.
     loom::Kernel kernel(
         bus, loom::trust_every_artifact("the snake demo loads only its own build output"));
     const loom::WeaveId control = loom::mount_control(kernel, bus);
@@ -321,50 +361,44 @@ int main() {
     reach.allow(loom::SwapWeave::zen_name, loom::SwapWeave::zen_version, manager);
     reach.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
     reach.allow(loom::ListLoaded::zen_name, loom::ListLoaded::zen_version, manager);
-    // ...plus the world's reset door, by role (the n key)...
+    // ...the world's reset door, by role (the n key)...
     reach.allow_to_role(loom::PokeResetState::zen_name, loom::PokeResetState::zen_version,
                         kWorldRole);
-    // ...plus the right to SPEAK: the status line is a published intent now,
-    // and a publish is authorized per-recipient against the sender's grant —
-    // an operator that may command the steward but not talk to a skin would
-    // have a working game and a permanently blank status row (the live pty
-    // run found exactly that; the suite pins this recipe now). Any-target on
-    // purpose: the operator addresses no skin, it speaks to whoever listens.
-    reach.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
-    const loom::WeaveId op = loom::mount_granted<OperatorWeave>(bus, std::move(reach), ctx);
+    // ...the directory, as the window's arranger, and the window, for the status line.
+    reach.allow_to_role(gfx::AreaPlaced::zen_name, gfx::AreaPlaced::zen_version,
+                        gfx::kGraphicsRole);
+    reach.allow_to_role(gfx::SkinOffered::zen_name, gfx::SkinOffered::zen_version,
+                        gfx::kGraphicsRole);
+    reach.allow_to_role(gfx::SkinChosen::zen_name, gfx::SkinChosen::zen_version,
+                        gfx::kGraphicsRole);
+    reach.allow_to_role(gfx::ElementCodeOffered::zen_name, gfx::ElementCodeOffered::zen_version,
+                        gfx::kGraphicsRole);
+    reach.allow_to_role(gfx::Drawn::zen_name, gfx::Drawn::zen_version, kWindowRole);
+    auto weave = std::make_unique<OperatorWeave>(ctx);
+    OperatorWeave* raw = weave.get();
+    const loom::WeaveId op = bus.register_weave(std::move(weave), std::move(reach), kOperatorRole);
+    raw->zen_set_self(op);
 
-    // Startup commands are sent AS the operator (send_as stamps it and
-    // authorizes against ITS grant — the host holds root but spends a real
-    // capability), with the same in-flight bookkeeping its key commands use.
+    // Startup commands are sent AS the operator, with the same bookkeeping its key commands use.
     const auto boot = [&](std::string label, const auto& cmd) {
         const std::uint64_t corr = ctx.next_corr++;
         ctx.pending[corr] = Pending{std::move(label), 0};
         bus.send_as(op, manager, loom::Message(loom::to_value(cmd), op, op, corr));
     };
 
-    // Birth of the game: the same gesture as everything else — ask the steward.
-    // The SKIN is first (loading it claims the screen; everything after paints
-    // through it). The ORDER of the rest is now taste, not necessity: each
-    // weave arranges its own time on its own activation, and the ones loaded
-    // before the timer service retry on its TimerReady. Nothing here is timed
-    // against a wind, because there is no wind.
-    boot("claim surface (classic skin)",
-         loom::LoadWeave{kSkins[kSkinClassic].stem, ctx.so(kSkins[kSkinClassic].stem),
-                         surface::kSkinRole});
+    // Birth of the game: the directory first (its hello is what has the operator arrange the
+    // window), then the window that takes the terminal, the world, and the timer service, whose
+    // loading is what starts time: every weave arranges its own beat on its own activation.
+    boot("load directory", loom::LoadWeave{"zengine-graphics", ctx.so("zengine-graphics"),
+                                           gfx::kGraphicsRole});
+    boot("load terminal window", loom::LoadWeave{"zengine-window-terminal",
+                                                 ctx.so("zengine-window-terminal"), kWindowRole});
     boot("load world v1", loom::LoadWeave{"snake-world-v1", ctx.so("snake-world-v1"), kWorldRole});
-    boot("load snake controls", loom::LoadWeave{"snake-controls", ctx.so("snake-controls"), ""});
-    boot("load input weave",
-         loom::LoadWeave{"zengine-input", ctx.so("zengine-input"), input::kInputRole});
     boot("load timer service",
          loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), timer::kTimerRole});
-    boot("load snake clock", loom::LoadWeave{"snake-clock", ctx.so("snake-clock"), ""});
 
-    // The host does not wind the clock: loading the timer service is what starts time (the
-    // Loom's control door activates it, and it authors its own beat chain), and every package
-    // arranges its own time on its own activation, so load order decides nothing. The whole game
-    // runs inside `drain_until_idle()`, which returns only on quit while the chain lives; a drain
-    // that comes back idle means nothing here will ever speak again (no timer service, or none
-    // that could establish time), so the host says so and leaves.
+    // The whole game runs inside `drain_until_idle()`, which returns only on quit while the beat
+    // chain lives; a drain that comes back idle means nothing here will ever speak again.
     while (!ctx.quit) {
         bus.drain_until_idle();
         if (!ctx.quit && bus.pending() == 0) {

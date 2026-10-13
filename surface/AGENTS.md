@@ -11,8 +11,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `region.hpp`, `cells.hpp` | the shared arithmetic: `fit_region`, cell projection, selections |
 | `pointing.hpp` | a pointer on the canvas: [pointer spaces](../workshop/docs/pointer-spaces.md) |
 | `terminal_size.hpp` | the one place a terminal's size is asked of the operating system |
+| `tui_terminal.hpp` | `TuiTerminal`, the terminal's claimed output side; its modes; each role's ink |
 | `skin.hpp` | `SkinT`, the Skin weave shell over an injected Medium |
-| `skin_tui.hpp` | the terminal medium: `ClassicStyle`, `BlockStyle`, `TuiMedium`, `TuiTerminal` |
+| `skin_tui.hpp` | the terminal medium: `TuiMedium` |
 | `skin_tui_classic.cpp` | loadable weave `zengine-skin-tui-classic` |
 | `skin_tui_block.cpp` | loadable weave `zengine-skin-tui-block` |
 | `skin_sdl.cpp` | loadable weave `zengine-skin-sdl`, where SDL is built |
@@ -30,14 +31,14 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   `tests/test_surface.cpp`
 
 The SDL Skin's cases in `surface` run under the `sdl` gate. Other suites load the real Skins:
-`snake` (`tests/test_snake.cpp`) and `timer` (`tests/test_timer.cpp`) the terminal pair, and
-`input` (`tests/test_input.cpp`) the SDL Skin beside the SDL reader.
+`snake` (`tests/test_snake.cpp`, a picture's meter) and `timer` (`tests/test_timer.cpp`) the
+terminal pair, and `input` (`tests/test_input.cpp`) the SDL Skin beside the SDL reader.
 `tests/package/public_surface.cpp` includes the installed headers as a consumer would.
 
 ## Host side
 
 - Staging: `workshop/CMakeLists.txt` stages `zengine-skin-tui-classic`, and `zengine-skin-sdl`
-  where built; `examples/snake/CMakeLists.txt` builds all three beside the snake host.
+  where built.
 - Loading: `workshop/default-load-plan.json` loads `zengine-skin-tui-classic` as `zengine.skin`;
   `workshop/graphical-load-plan.json` loads `zengine-skin-sdl` in that role.
 - Grants: `workshop/grant.cpp` (canvas, text, clipboard, placement), `workshop/workshop.cpp`
@@ -47,7 +48,8 @@ The SDL Skin's cases in `surface` run under the `sdl` gate. Other suites load th
   back a remembered placement.
 - Beyond Workshop: `cmake/ZengineSdl.cmake` shares one SDL with `input/input_sdl.cpp`;
   `cmake/EmbedBinary.cmake` embeds the font; `cmake/ZengineInstall.cmake` installs the headers
-  and the terminal pair.
+  and the terminal pair; the terminal window (`graphics/window/window.cpp`) claims its terminal
+  with `tui_terminal.hpp`.
 
 ## Pages
 

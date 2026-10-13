@@ -271,6 +271,6 @@ reloaded pane still refuses the quit"
 
 ### VM-FIX-25
 `input/input_weave.hpp` InputWeaveT::pump
-`input/input.cpp` TerminalReader ConsoleReader
+`input/terminal_reader.hpp` TerminalReader ConsoleReader
 `tests/test_workshop_panes_terminal.cpp` "a completion answer about a line that is gone is neither
 shown nor taken"

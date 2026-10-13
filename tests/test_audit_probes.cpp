@@ -556,29 +556,29 @@ TEST_CASE("probe D: a consumer loaded LONG AFTER time started begins anyway — 
           "activation is its first breath, and nothing was republished to rescue it") {
     Rig r;
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    (void)r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
 
     r.pump_for(timer_so, 60); // time has been running for a while already
     CHECK(r.seen.ready == 1);
     const std::int64_t hellos_before = r.seen.ready;
 
-    // The latecomer, loaded after TimerReady was spent: its own activation must make it ask for
-    // a tick timer, with no new TimerReady to rescue it. The pump ends on the evidence, the
-    // world's first visual, which only the clock's tick can cause; its bound is ten tick periods
-    // counted in the Timer's own beats, which the load's own time does not spend and a loaded
-    // machine stretches but never shortens.
-    const std::uint64_t corr = r.command(loom::LoadWeave{"snake-clock", SNAKE_CLOCK_SO, ""});
+    // The latecomer, loaded after TimerReady was spent: the world, whose own activation must make
+    // it ask for its beat, with no new TimerReady to rescue it. The pump ends on the evidence, the
+    // world's first visual, which only its beat can cause; its bound is ten tick periods counted
+    // in the Timer's own beats, which the load's own time does not spend and a loaded machine
+    // stretches but never shortens.
+    const std::uint64_t corr = r.command(
+        loom::LoadWeave{"snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole});
     const std::int64_t bound = 10 * zengine::snake::kTickMs / kBeatCapMs;
     r.pump_until_visual(bound);
     const Seen::Answer* loaded = r.seen.find(corr);
     REQUIRE(loaded != nullptr);
     REQUIRE_MESSAGE(loaded->kind == 0, "late load refused: ", loaded->text);
-    const loom::WeaveId clock_so{static_cast<std::uint64_t>(std::stoll(loaded->text))};
+    const loom::WeaveId world_so{static_cast<std::uint64_t>(std::stoll(loaded->text))};
 
     // IT BEGAN. Its own activation made it ask, the ticks are positive, and the
     // world moved — visuals arrived at the witness with nobody sending a
     // SnakeTick.
-    CHECK_MESSAGE(r.poke_int(timer_so, clock_so, "ticks") > 0, "the late clock never ticked in ",
+    CHECK_MESSAGE(r.poke_int(timer_so, world_so, "ticks") > 0, "the late world never ticked in ",
                   bound, " beats");
     CHECK_MESSAGE(!r.seen.visuals.empty(), "the world never drew in ", bound, " beats");
 

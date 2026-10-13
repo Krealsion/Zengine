@@ -43,6 +43,7 @@ consumer-specific behavior of its extracted panes.
 | a guest's hand: the guests file's host, its row, action classes, what a weaver's host refuses, each hand's gestures | [guests](workshop/guests.md) `WL-GUEST` |
 | a guest that reads and points by door: the file's version 3, a role, a by-pane read, a guide mark | [guide](workshop/guide.md) `WL-GUIDE` |
 | a pane's caret and selection, and the refusals that judge one | [pane-caret](workshop/pane-caret.md) `WL-CARET` |
+| whether a piece is a participant of its own or a library of another | [participants](workshop/participants.md) `WL-PART` |
 
 **Where the code is.** Headers declare; `workshop/screen_<subject>.cpp` and
 `workshop/weave_<subject>.cpp` compile the bodies once. A `// WL-` pointer belongs beside the

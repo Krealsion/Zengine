@@ -11,7 +11,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `translate.hpp` | POSIX terminal and Win32 console events to moments, as pure code |
 | `translate_sdl.hpp` | SDL events to moments, pure; the one file using the Surface vocabulary |
 | `input_weave.hpp` | the weave over an injected reader: publish, own beat, sessions, timed motion |
-| `input.cpp` | the terminal and console reader; loadable weave `zengine-input` |
+| `terminal_reader.hpp` | the terminal and console readers, the platform's input edge |
+| `input.cpp` | loadable weave `zengine-input` over the platform's reader |
 | `input_sdl.cpp` | the SDL queue's one reader; loadable weave `zengine-input-sdl`, where SDL is |
 | `CMakeLists.txt` | `zengine-input-vocabulary` (header-only, alias `zengine::input`), both weaves |
 | `docs/input.md` | the reference page |
@@ -41,7 +42,9 @@ is Workshop's side, a press and a key reaching a pane.
   `workshop/keymap.hpp`, `workshop/pane_escape.hpp` and `workshop/screen.hpp` read the vocabulary.
 - Beyond Workshop: `surface/skin_tui.hpp` turns terminal pointer reporting on;
   `cmake/ZengineSdl.cmake` shares one SDL with the window Skin; `cmake/ZengineInstall.cmake`
-  installs the headers and `zengine-input`; `examples/snake/controls.cpp` consumes the keys.
+  installs the headers and `zengine-input`; `input/terminal_reader.hpp`'s readers are the
+  terminal window's input edge too (`graphics/window/window.cpp`), and the snake's world consumes
+  the keys it is given (`examples/snake/world.cpp`).
 
 ## Pages
 
