@@ -265,6 +265,9 @@ between two planes     the complete earlier plane, then the complete later one o
   clipping tree, no layer identity/name/handle/key, no numeric z or depth, no sorting, no ties,
   no epochs, no accumulating counter, no hit testing, no window-manager behaviour. A layer is a
   position in a vector; the publisher supplies an already-ordered list and the Skin executes it.
+  The compositor is a window's, above its medium, in Graphics: [graphics](graphics.md), whose
+  window composes areas, keeps what it painted and writes runs of changed cells, colour by role
+  or by exact value beside one, and pixels as bytes.
 - **There is no canvas-root primitive list and no canvas-wide projection.** No
   `SurfaceCanvas::rects`/`labels`/`texts`, no implicit base layer beside the explicit ones, and
   no `project_text_regions(const SurfaceCanvas&)` — a canvas-wide projection IS a flattener

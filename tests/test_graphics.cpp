@@ -1,0 +1,606 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
+// The graphics package proven headless, in two tiers: the vocabulary, the canvas, the terminal
+// painter and the seams as pure arithmetic; and the terminal window, the directory, the two skins
+// and the snake's board through the real kernel -- what is said once, what crosses a tick, what a
+// skin chosen or a participant replaced costs on the bus, where a press goes, and every bound
+// refused in words. The window's terminal is the suite's own where a press must be typed.
+
+// main() and the framework live in doctest_main.cpp -- the shared one that refuses a run selecting
+// zero cases.
+#include "doctest.h"
+
+#include "graphics_rig.hpp"
+#include "lifecycle_door.hpp"
+
+#include "board.hpp"
+
+#include "graphics/canvas.hpp"
+#include "graphics/implied.hpp"
+#include "graphics/ops.hpp"
+#include "graphics/painting.hpp"
+#include "graphics/term_paint.hpp"
+#include "graphics/vocabulary.hpp"
+#include "graphics/window/window.hpp"
+#include "input/translate.hpp"
+
+#include <zen/switchboard.hpp>
+#include <zen/weave.hpp>
+
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+namespace gfx = zengine::graphics;
+namespace snake = zengine::snake;
+using zengine::testing::graphics_rig::Rig;
+using zengine::testing::graphics_rig::window_office;
+
+namespace {
+
+constexpr const char* kArea = "snake.world";
+
+/// The cells one node paints for a medium of characters, as text rows from the area's 0,0.
+std::vector<std::string> painted(const gfx::Sketch& s, const gfx::term::Look& look) {
+    gfx::PaintTask task;
+    std::int64_t rank = 1;
+    for (const gfx::Node& n : s.nodes()) {
+        task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args});
+    }
+    std::vector<std::string> rows;
+    for (const gfx::NodePaint& np : gfx::term::paint_task(task, look).nodes) {
+        for (const gfx::term::Cell& c : gfx::term::unpack(np.cells)) {
+            while (rows.size() <= static_cast<std::size_t>(c.row)) {
+                rows.emplace_back();
+            }
+            std::string& row = rows[static_cast<std::size_t>(c.row)];
+            if (row.size() <= static_cast<std::size_t>(c.col)) {
+                row.resize(static_cast<std::size_t>(c.col) + 1, ' ');
+            }
+            row[static_cast<std::size_t>(c.col)] = c.glyph;
+        }
+    }
+    return rows;
+}
+
+gfx::term::Look plain_look() {
+    gfx::term::Look l;
+    l.fill = {{gfx::role::kFill, '#'}, {gfx::role::kAccent, '@'}};
+    return l;
+}
+
+} // namespace
+
+// ============================================================================
+// Tier 1 -- the vocabulary, the canvas and the painter, as arithmetic
+// ============================================================================
+
+TEST_CASE("an operand's shape is implied by its operator: a body alone, read back by the gate") {
+    const gfx::RectArgs r{1, 2, 3, 4, gfx::by_role(gfx::role::kAccent), gfx::no_paint()};
+    const loom::Bytes body = gfx::body_of(r);
+    const loom::Bytes whole = loom::bequeath_item(r);
+    CHECK(body.size() < whole.size()); // the envelope is left off
+    const auto back = gfx::from_body<gfx::RectArgs>(body);
+    REQUIRE(back.has_value());
+    CHECK(back->w == 3);
+    CHECK(back->fill.role == gfx::role::kAccent);
+    // Another shape's body is not this one's: the gate refuses it.
+    CHECK_FALSE(gfx::from_body<gfx::TextArgs>(gfx::body_of(gfx::LineArgs{})).has_value());
+}
+
+TEST_CASE("a canvas sends the whole picture to a new window, then only what changed") {
+    gfx::Canvas canvas("test.owner", "test.area");
+    gfx::Sketch first;
+    first.text("score", 0, 0, "score 0", gfx::by_role(gfx::role::kMuted));
+    first.fill_rect("head", 12, 12, 12, 12, gfx::by_role(gfx::role::kAccent));
+    // No window shows the area yet: nothing is queued.
+    canvas.draw(first);
+    CHECK(canvas.window().empty());
+
+    CHECK(canvas.set_window("terminal", 7));
+    CHECK_FALSE(canvas.set_window("terminal", 7)); // the same window, the same incarnation
+    gfx::Sketch again = first;
+    canvas.draw(again);
+    gfx::Sketch moved;
+    moved.text("score", 0, 0, "score 0", gfx::by_role(gfx::role::kMuted));
+    moved.fill_rect("head", 24, 12, 12, 12, gfx::by_role(gfx::role::kAccent));
+    const gfx::Drawn d = gfx::difference(again, moved);
+    REQUIRE(d.put.size() == 1);
+    CHECK(d.put[0].path == "head");
+    CHECK(d.removed.empty());
+
+    // A window started again holds nothing this canvas sent: the next drawing goes whole.
+    CHECK(canvas.set_window("terminal", 8));
+}
+
+TEST_CASE("the terminal painter draws all seven operators, each by its fallback") {
+    gfx::Sketch s;
+    s.group("g", 12, 0);
+    s.rect("g/r", 0, 0, 36, 24, gfx::no_paint(), gfx::by_role(gfx::role::kFill));
+    const gfx::term::Look look = plain_look();
+    const auto rect = painted(s, look);
+    REQUIRE(rect.size() == 2);
+    CHECK(rect[0] == " +-+");
+    CHECK(rect[1] == " +-+");
+
+    gfx::Sketch t;
+    t.text("t", 0, 0, "hi\xC3\xA9!", gfx::by_role(gfx::role::kFill));
+    CHECK(painted(t, look)[0] == "hi?!"); // one cell a character; outside ASCII, one '?'
+
+    gfx::Sketch l;
+    l.line("l", 0, 0, 36, 0, gfx::by_role(gfx::role::kFill));
+    CHECK(painted(l, look)[0] == "----");
+
+    gfx::Sketch e;
+    e.ellipse("e", 0, 0, 36, 36, gfx::by_role(gfx::role::kAccent));
+    const auto ellipse = painted(e, look);
+    REQUIRE(ellipse.size() >= 2);
+    CHECK(ellipse[1].find('@') != std::string::npos);
+
+    gfx::Sketch p;
+    p.path("p", "M 0 0 L 36 0 L 36 36 L 0 36 Z", gfx::by_role(gfx::role::kFill));
+    const auto path = painted(p, look);
+    REQUIRE(path.size() == 3);
+    CHECK(path[1] == "###");
+
+    gfx::Sketch i;
+    i.image("i", 0, 0, 12, 12, 1, 1, loom::Bytes{255, 255, 255, 255});
+    CHECK(painted(i, look)[0] == "@"); // white, opaque: the ramp's brightest
+
+    gfx::Sketch u;
+    u.put("u", "sparkle", gfx::RectArgs{});
+    CHECK(painted(u, look)[0] == "?sparkle"); // an operator this medium does not know, named
+}
+
+TEST_CASE("a group offsets and clips its children") {
+    gfx::Sketch s;
+    s.group("g", 24, 12, 24, 12);
+    s.fill_rect("g/r", 0, 0, 120, 120, gfx::by_role(gfx::role::kFill));
+    const auto rows = painted(s, plain_look());
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].empty());
+    CHECK(rows[1] == "  ##"); // two cells wide, one tall: the clip
+}
+
+// ============================================================================
+// Tier 2 -- the window, the directory, the skins and the board, through the real kernel
+// ============================================================================
+
+namespace {
+
+/// The snake in a terminal window, arranged as a host's arranger arranges it.
+struct Snake {
+    Rig r;
+    Snake() {
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+        REQUIRE(r.load("snake-world-v1", WORLD_V1_SO, snake::kWorldRole).valid());
+        r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kArea, snake::kWorldRole,
+                  "classic");
+    }
+};
+
+bool any_whole(const std::vector<gfx::Drawn>& drawn) {
+    for (const gfx::Drawn& d : drawn) {
+        if (d.whole) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// A terminal the suite types into and reads: what the window writes, kept; what it reads, the
+/// bytes the suite queued, parsed by Zengine's own parser as a terminal's are.
+struct TermLog {
+    std::string typed;
+    std::string written;
+};
+
+class FakeTerminal {
+public:
+    FakeTerminal() = default;
+    explicit FakeTerminal(TermLog* log) : log_(log) {}
+    void claim() {}
+    zengine::surface::TerminalSize size() const { return {80, 30}; }
+    void write(std::string_view bytes) {
+        if (log_ != nullptr) {
+            log_->written += bytes;
+        }
+    }
+    std::vector<zengine::input::InputEvent> poll() {
+        if (log_ == nullptr || log_->typed.empty()) {
+            return {};
+        }
+        const std::string bytes = std::move(log_->typed);
+        log_->typed.clear();
+        return zengine::input::terminal_bytes_to_events(
+            reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size());
+    }
+
+private:
+    TermLog* log_ = nullptr;
+};
+
+using FakeWindow = gfx::window::WindowT<FakeTerminal>;
+
+/// The snake in a window whose terminal is the suite's: the window mounted in process at its
+/// office and activated as Loom's control door activates.
+struct Typed {
+    Rig r;
+    TermLog term;
+    loom::WeaveId window;
+    Typed() {
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        auto w = std::make_unique<FakeWindow>(FakeTerminal{&term});
+        FakeWindow* raw = w.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        window = r.bus.register_weave(std::move(w), std::move(g), window_office());
+        raw->zen_set_self(window);
+        const loom::WeaveId door = zengine::testing::mount_door(r.bus);
+        zengine::testing::order_activation(r.bus, door, window, 1);
+        r.drain();
+        REQUIRE(r.load("snake-world-v1", WORLD_V1_SO, snake::kWorldRole).valid());
+        r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kArea, snake::kWorldRole,
+                  "classic");
+    }
+    /// The window reads what was typed, on its own beat.
+    void type(const std::string& bytes) {
+        term.typed += bytes;
+        r.bus.send(window, loom::Message(loom::to_value(zengine::timer::TimerFired{
+                               gfx::window::kPumpTimerId})));
+        r.drain();
+    }
+    /// A left press at a cell of the terminal, 0-based, as an SGR report.
+    void press(int col, int row) {
+        type("\x1b[<0;" + std::to_string(col + 1) + ";" + std::to_string(row + 1) + "M");
+    }
+};
+
+/// An owner the suite speaks for: it holds its office, and keeps what the window says to it.
+struct OwnerHeard {
+    std::vector<std::string> refused;
+};
+
+struct GraphicsTestOwner {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(GraphicsTestOwner, 1, ZEN_FIELD(heard));
+};
+
+class Owner : public loom::WeaveBase<Owner, GraphicsTestOwner,
+                                     loom::Accept<gfx::DrawnRefused, gfx::AreaRoom>,
+                                     loom::Emit<gfx::Drawn, gfx::ElementPut, gfx::ElementChange>> {
+public:
+    explicit Owner(OwnerHeard& heard) : heard_(&heard) {}
+    void on(const gfx::DrawnRefused& r, loom::Mail&) { heard_->refused.push_back(r.reason); }
+    void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
+
+private:
+    OwnerHeard* heard_;
+};
+
+constexpr const char* kOwner = "test.owner";
+
+struct Bounded {
+    Rig r;
+    OwnerHeard heard;
+    loom::WeaveId owner;
+    Bounded() {
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+        auto o = std::make_unique<Owner>(heard);
+        Owner* raw = o.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        owner = r.bus.register_weave(std::move(o), std::move(g), kOwner);
+        raw->zen_set_self(owner);
+        r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kOwner, kOwner, "classic");
+    }
+    template <class T>
+    void say(const T& msg) {
+        r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+                                     loom::Message(loom::to_value(msg)));
+        r.drain();
+    }
+    void put(std::int64_t i) {
+        say(gfx::ElementPut{kOwner, "e" + std::to_string(i), "SnakeBoardData", i + 1,
+                            loom::bequeath_item(snake::SnakeBoardData{1, 1, 12, {}, -1}), false});
+    }
+};
+
+} // namespace
+
+TEST_CASE("the board is said once, then a tick is the beat and one change of the board, shown once") {
+    Snake s;
+    Rig& r = s.r;
+    r.tick(); // seeds: a new game, sent to the board said at its room
+    CHECK(r.count(0, "ElementPut", snake::kWorldRole) == 1);
+
+    std::int64_t showings = r.shown().showings;
+    std::int64_t score = r.heard.visuals.back().score;
+    for (int t = 0; t < 5; ++t) {
+        const std::size_t mark = r.log.size();
+        r.tick();
+        const bool ate = r.heard.visuals.back().score != score;
+        score = r.heard.visuals.back().score;
+        CHECK(r.count(mark, "SnakeTick") == 1);                         // the beat
+        CHECK(r.count(mark, "ElementChange", snake::kWorldRole) == 1);  // one change of the board
+        CHECK(r.count(mark, "ElementPut", snake::kWorldRole) == 0);     // never said again
+        CHECK(r.count(mark, "Drawn", snake::kWorldRole) == (ate ? 1U : 0U)); // its frame, if it changed
+        const std::int64_t now = r.shown().showings;
+        CHECK(now == showings + 1); // shown once
+        showings = now;
+    }
+}
+
+TEST_CASE("the classic and the block skin paint the snake's board, each in its own glyphs") {
+    Snake s;
+    s.r.tick();
+    const std::vector<std::string> classic = s.r.shown().rows;
+    // The frame: the score on the area's first row, the board's border on the next.
+    REQUIRE(classic.size() >= 20);
+    CHECK(classic[0] == "score 0");
+    CHECK(classic[1] == "+------------------------+");
+    CHECK(classic[10].substr(0, 14) == "|   *      ooO"); // the seed, (10,8) to (12,8), and its food
+    CHECK(classic[18] == "+------------------------+");
+    CHECK(classic[19] == "[ new game ]");
+
+    s.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{kArea, "block"});
+    s.r.drain();
+    const std::vector<std::string> block = s.r.shown().rows;
+    CHECK(block[1] == "==========================");
+    CHECK(block[10].substr(0, 14) == "=   %      ##@");
+}
+
+TEST_CASE("a skin chosen mid-game: the window paints again, and nothing is drawn on the bus") {
+    Snake s;
+    Rig& r = s.r;
+    r.tick();
+    const std::int64_t calls = r.shown().painter_calls;
+    const std::size_t mark = r.log.size();
+    r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{kArea, "block"});
+    r.drain();
+    CHECK(r.count(mark, "Drawn") == 0);
+    CHECK(r.count(mark, "ElementPut") == 0);
+    CHECK(r.count(mark, "ElementChange") == 0);
+    CHECK(r.count(mark, "AreaIntroduced") == 1); // the directory's word, to the window alone
+    CHECK(r.shown().painter_calls == calls + 1);  // painted once, by the other code
+}
+
+TEST_CASE("the directory replaced mid-game: nothing is drawn") {
+    Snake s;
+    Rig& r = s.r;
+    r.tick();
+    const std::string before = r.screen();
+    const std::size_t mark = r.log.size();
+    const auto swapped = r.command(
+        loom::SwapWeave{gfx::kGraphicsRole, "zengine-graphics", GRAPHICS_SO, /*graceful=*/false});
+    REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
+    // The new directory knows nothing: the window offers itself again on its hello, and the
+    // arranger arranges again.
+    r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kArea, snake::kWorldRole,
+              "classic");
+    CHECK(r.count(mark, "GraphicsReady") >= 1);
+    CHECK(r.count(mark, "AreaRoom") >= 1); // the world told its room again...
+    CHECK(r.count(mark, "Drawn", snake::kWorldRole) == 0); // ...and drew nothing
+    CHECK(r.count(mark, "ElementPut", snake::kWorldRole) == 0);
+    CHECK(r.screen() == before);
+}
+
+TEST_CASE("the window reloaded: nothing is drawn, and it shows what it kept") {
+    Snake s;
+    Rig& r = s.r;
+    r.tick();
+    const gfx::WindowShown before = r.shown();
+    const std::size_t mark = r.log.size();
+    const auto reloaded =
+        r.command(loom::ReloadWeave{"zengine-window-terminal", WINDOW_SO});
+    REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
+    CHECK(r.count(mark, "Drawn", snake::kWorldRole) == 0);
+    CHECK(r.count(mark, "ElementPut", snake::kWorldRole) == 0);
+    const gfx::WindowShown after = r.shown();
+    CHECK(after.epoch == before.epoch); // the same incarnation, carried by its state
+    CHECK(after.rows == before.rows);
+
+    r.tick(); // and the game goes on in it, one change a tick
+    CHECK(r.count(mark, "ElementPut", snake::kWorldRole) == 0);
+}
+
+TEST_CASE("the window replaced: the frame drawn whole once and the board said once") {
+    Snake s;
+    Rig& r = s.r;
+    r.tick();
+    const gfx::WindowShown before = r.shown();
+    const std::size_t mark = r.log.size();
+    const auto swapped = r.command(loom::SwapWeave{window_office(), "zengine-window-terminal",
+                                                   WINDOW_SO, /*graceful=*/false});
+    REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
+    const auto drawn = r.read<gfx::Drawn>(mark, snake::kWorldRole);
+    CHECK(drawn.size() == 1);
+    CHECK(any_whole(drawn));
+    CHECK(r.count(mark, "ElementPut", snake::kWorldRole) == 1);
+    const gfx::WindowShown after = r.shown();
+    CHECK(after.epoch != before.epoch);
+    CHECK(after.rows == before.rows);
+}
+
+TEST_CASE("the world reloaded: its room asked, its frame drawn whole once, its board not said again") {
+    Snake s;
+    Rig& r = s.r;
+    r.tick();
+    r.tick();
+    const std::vector<std::string> before = r.shown().rows;
+    const std::size_t mark = r.log.size();
+    const auto reloaded = r.command(loom::ReloadWeave{"snake-world-v1", WORLD_V1_SO});
+    REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
+    CHECK(r.count(mark, "RoomAsked", snake::kWorldRole) == 1);
+    const auto drawn = r.read<gfx::Drawn>(mark, snake::kWorldRole);
+    CHECK(drawn.size() == 1);
+    CHECK(any_whole(drawn));
+    CHECK(r.count(mark, "ElementPut", snake::kWorldRole) == 0);
+    CHECK(r.shown().rows == before);
+
+    const std::size_t next = r.log.size();
+    r.tick(); // the reloaded world steps its board by a change
+    CHECK(r.count(next, "ElementChange", snake::kWorldRole) == 1);
+}
+
+TEST_CASE("a press the board does not take reaches the world that drew it") {
+    Typed t;
+    t.r.tick();
+    const std::size_t mark = t.r.log.size();
+    t.press(13, 10); // the head's cell: board cell (12,8), one cell in from the border, below row 0
+    const auto pressed = t.r.read<gfx::ElementPressed>(mark);
+    REQUIRE(pressed.size() == 1);
+    CHECK(pressed[0].area == kArea);
+    CHECK(pressed[0].element == "board/grid");
+    CHECK(pressed[0].path == "board/grid/c." + std::to_string(8 * 24 + 12));
+    CHECK(t.r.log[t.r.log.size() - 1].addressed_role == snake::kWorldRole);
+}
+
+TEST_CASE("the new-game button is the world's action, and a new game reaches the board as a change") {
+    Typed t;
+    for (int i = 0; i < 4; ++i) {
+        t.r.tick();
+    }
+    const std::size_t mark = t.r.log.size();
+    t.press(3, 19); // "[ new game ]"
+    const auto issued = t.r.read<gfx::ActionIssued>(mark);
+    REQUIRE(issued.size() == 1);
+    CHECK(issued[0].action == "new-game");
+    const auto changes = t.r.read<gfx::ElementChange>(mark, snake::kWorldRole);
+    REQUIRE(changes.size() == 1);
+    CHECK(changes[0].kind == 1); // SnakeNewGame, the board's second change
+    CHECK(t.r.count(mark, "ElementPut", snake::kWorldRole) == 0);
+    CHECK(t.r.heard.visuals.back().snake.front().x == 12); // seeded afresh
+}
+
+TEST_CASE("keys go from the window to the owner of each area placed to hear them") {
+    Typed t;
+    t.r.tick();
+    t.type("w"); // the world's own up key
+    t.r.tick();
+    CHECK(t.r.heard.visuals.back().snake.front().y == 7);
+}
+
+TEST_CASE("an area at its element bound still takes a change, and a record said again is itself") {
+    Bounded b;
+    for (std::int64_t i = 0; i < static_cast<std::int64_t>(gfx::kMaxElementsPerArea); ++i) {
+        b.put(i);
+    }
+    REQUIRE(b.heard.refused.empty());
+    CHECK(b.r.shown().elements == static_cast<std::int64_t>(gfx::kMaxElementsPerArea));
+    b.say(gfx::ElementChange{8, 0, gfx::body_of(snake::SnakeStep{0, -1, -1, false}), false});
+    CHECK(b.heard.refused.empty());
+
+    // Records: the area's bound, met, and one said again at its own path.
+    gfx::Drawn d;
+    d.area = kOwner;
+    for (std::size_t i = 0; i < gfx::kMaxElementsPerArea; ++i) {
+        d.put.push_back(gfx::Node{"r" + std::to_string(i), gfx::op::kGroup, gfx::body_of(gfx::GroupArgs{})});
+        d.said.push_back(gfx::ElementRecord{"r" + std::to_string(i), {}, {}, "act"});
+    }
+    b.say(d);
+    REQUIRE(b.heard.refused.empty());
+    gfx::Drawn again;
+    again.area = kOwner;
+    again.said.push_back(gfx::ElementRecord{"r5", {}, {}, "another"});
+    b.say(again);
+    CHECK(b.heard.refused.empty());
+}
+
+TEST_CASE("a bound reached is refused to its drawer, in words") {
+    Bounded b;
+    for (std::int64_t i = 0; i < static_cast<std::int64_t>(gfx::kMaxElementsPerArea); ++i) {
+        b.put(i);
+    }
+    REQUIRE(b.heard.refused.empty());
+    b.put(static_cast<std::int64_t>(gfx::kMaxElementsPerArea));
+    REQUIRE(b.heard.refused.size() == 1);
+    CHECK(b.heard.refused[0].find("presents 1024 elements already") != std::string::npos);
+
+    gfx::Drawn d;
+    d.area = kOwner;
+    for (std::size_t i = 0; i <= gfx::kMaxElementsPerArea; ++i) {
+        d.put.push_back(gfx::Node{"r" + std::to_string(i), gfx::op::kGroup, gfx::body_of(gfx::GroupArgs{})});
+        d.said.push_back(gfx::ElementRecord{"r" + std::to_string(i), {}, {}, "act"});
+    }
+    b.say(d);
+    REQUIRE(b.heard.refused.size() == 2);
+    CHECK(b.heard.refused[1].find("would hold more than 1024 elements") != std::string::npos);
+}
+
+TEST_CASE("an element whose data does not read is refused to its drawer, in words") {
+    Bounded b;
+    b.say(gfx::ElementPut{kOwner, "e", "SnakeBoardData", 1,
+                          loom::bequeath_item(snake::SnakeStep{}), false});
+    REQUIRE(b.heard.refused.size() == 1);
+    CHECK(b.heard.refused[0].find("its data does not read as SnakeBoardData") != std::string::npos);
+    CHECK(b.r.shown().elements == 0); // nothing of it stays
+
+    b.say(gfx::ElementPut{kOwner, "f", "SnakeLadderData", 2, {}, false});
+    REQUIRE(b.heard.refused.size() == 2);
+    CHECK(b.heard.refused[1].find("no code offered presents 'SnakeLadderData'") != std::string::npos);
+}
+
+TEST_CASE("a library that is no skin is refused in words, and paints nothing") {
+    Snake s;
+    s.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"board", SNAKE_SO_BOARD});
+    s.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{kArea, "board"});
+    s.r.drain();
+    s.r.tick();
+    const gfx::WindowShown shown = s.r.shown();
+    CHECK(shown.last_refusal.find("exports no skin") != std::string::npos);
+}
+
+TEST_CASE("a tick that changes the board and the score is shown once") {
+    Snake s;
+    Rig& r = s.r;
+    r.tick();
+    for (int t = 0; t < 400; ++t) {
+        const snake::SnakeVisual v = r.heard.visuals.back();
+        REQUIRE(v.alive);
+        // The way the snake heads, from its head and neck; a turn toward the food, never back.
+        const snake::Pos h = v.snake[0], n = v.snake[1];
+        const std::int64_t heading = h.x > n.x ? snake::kRight
+                                     : h.x < n.x ? snake::kLeft
+                                     : h.y > n.y ? snake::kDown
+                                                 : snake::kUp;
+        // Greedy: a way that closes on the food, never back and never into a wall.
+        const auto viable = [&](std::int64_t d) {
+            if ((heading + 2) % 4 == d) {
+                return false;
+            }
+            const std::int64_t x = h.x + (d == snake::kRight) - (d == snake::kLeft);
+            const std::int64_t y = h.y + (d == snake::kDown) - (d == snake::kUp);
+            return x >= 0 && x < v.width && y >= 0 && y < v.height;
+        };
+        std::int64_t want = viable(heading) ? heading : -1;
+        for (const auto& [closer, d] :
+             {std::pair{v.food.x > h.x, snake::kRight}, std::pair{v.food.x < h.x, snake::kLeft},
+              std::pair{v.food.y > h.y, snake::kDown}, std::pair{v.food.y < h.y, snake::kUp}}) {
+            if (closer && viable(d)) {
+                want = d;
+                break;
+            }
+        }
+        for (std::int64_t d = 0; want < 0 && d < 4; ++d) {
+            if (viable(d)) {
+                want = d;
+            }
+        }
+        r.to_role(snake::kWorldRole, snake::SnakeTurn{want});
+        const std::int64_t before = r.shown().showings;
+        const std::size_t mark = r.log.size();
+        r.tick();
+        if (r.heard.visuals.back().score > v.score) {
+            CHECK(r.count(mark, "Drawn", snake::kWorldRole) == 1);         // the score
+            CHECK(r.count(mark, "ElementChange", snake::kWorldRole) == 1); // the board
+            CHECK(r.shown().showings == before + 1);                       // one showing
+            return;
+        }
+    }
+    FAIL("the snake never ate");
+}

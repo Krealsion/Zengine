@@ -1,7 +1,6 @@
-# The snake package: the first game -- a World, a Score weave and a Controls adapter (each a .so
-# the kernel loads, unloads and swaps), and the playable host that drives the live-evolution
-# moments. It draws nothing: the world publishes `SnakeVisual`, the score and the operator
-# publish `SurfaceText`, and the Surface package's Skins paint (examples/snake/README.md).
+# The snake package: the first game -- a World that keeps its own rules, keys and beat and draws
+# into a terminal window, its board as the game's own element code, a late-loaded Score weave, and
+# the playable host that drives the live-evolution moments (examples/snake/README.md).
 
 # Everything here needs a Loom that can host .so weaves, which is to say one exporting
 # loom::kernel: Linux does; Windows does only with the development backend enabled.
@@ -16,43 +15,30 @@ endif()
 zengine_weave(snake-world-v1 world.cpp)
 zengine_weave(snake-world-v2 world.cpp)
 target_compile_definitions(snake-world-v2 PRIVATE SNAKE_WORLD_V2)
+foreach(world snake-world-v1 snake-world-v2)
+    target_link_libraries(${world} PRIVATE zengine-graphics-vocabulary zengine-input-vocabulary
+                                           zengine-timer-vocabulary zengine-activation)
+endforeach()
 zengine_weave(snake-score score.cpp)
-target_link_libraries(snake-score PRIVATE zengine-surface-vocabulary)
+target_link_libraries(snake-score PRIVATE zengine-graphics-vocabulary zengine-input-vocabulary
+                                          zengine-activation)
 
-# The controls adapter: snake's own input binding — it accepts the Input
-# package's KeyPressed and speaks the world's SnakeTurn. The one place where
-# "which keys steer" lives; the world stays a keyboard-ignorant rule machine.
-zengine_weave(snake-controls controls.cpp)
-target_link_libraries(snake-controls PRIVATE zengine-input-vocabulary)
+# The board's code: element code a window opens, not a weave -- no participant lives in it.
+zengine_provider(snake-board board.cpp)
+target_link_libraries(snake-board PRIVATE zengine-graphics-vocabulary)
 
-# The clock adapter: snake's own time binding — the controls move, pointed at
-# time. It asks the Timer package for the 120ms beat and speaks the world's
-# SnakeTick; the one place where "how fast the world runs" lives, and the
-# world stays a clock-ignorant rule machine.
-zengine_weave(snake-clock clock.cpp)
-target_link_libraries(snake-clock PRIVATE zengine-timer-vocabulary zengine-activation)
-
-# The playable host. It resolves the .so files beside its own binary, so every
-# weave it loads — the package's own, the Input producer, and the Surface
-# skins — is pinned to the host's runtime directory (deployment is the host's
-# concern: those packages do not know who plays them).
+# The playable host. It resolves every library beside its own binary, so every weave and every
+# piece of code it names -- the package's own, the window, the directory, the skins and the Timer
+# -- is pinned to the host's runtime directory (deployment is the host's concern: those packages
+# do not know who plays them).
 add_executable(zengine-snake play.cpp)
 target_link_libraries(zengine-snake
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-input-vocabulary
-            zengine-surface-vocabulary zengine-timer-vocabulary zengine-warnings
-            zengine-sanitize)
-set(zengine_snake_runtime zengine-snake snake-world-v1 snake-world-v2 snake-score
-    snake-controls snake-clock zengine-input zengine-timer
-    zengine-skin-tui-classic zengine-skin-tui-block)
-if(TARGET zengine-skin-sdl)
-    list(APPEND zengine_snake_runtime zengine-skin-sdl)
-endif()
+    PRIVATE loom::kernel loom::switchboard loom::core zengine-graphics-vocabulary
+            zengine-input-vocabulary zengine-timer-vocabulary zengine-warnings zengine-sanitize)
+set(zengine_snake_runtime zengine-snake snake-world-v1 snake-world-v2 snake-score snake-board
+    zengine-graphics zengine-window-terminal zengine-paint-classic zengine-paint-block
+    zengine-timer)
 set_target_properties(${zengine_snake_runtime}
     PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-# The SDL skin links a SHARED SDL3 (two weaves must share one event queue —
-# cmake/ZengineSdl.cmake), so the library has to be findable beside this host too.
-# Snake keeps its own terminal reader; it gains no SDL input and no new weave.
-zengine_stage_sdl(zengine-snake)

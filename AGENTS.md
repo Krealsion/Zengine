@@ -28,6 +28,8 @@ real consumers, not speculative abstractions. Required checks still have to pass
 by messages. Split it until a piece is too small to be useful alone; that piece becomes an
 operator other weaves compose. Code that grows inside the host where a weave could hold it is the
 mistake to refuse; a problem that arises inside Loom's architecture is the one worth solving.
+When a piece earns being a participant, and when it is a library of another, is
+[a decision record](agents/decisions/a-participant-earns-its-place.md) and its law, WL-PART-01.
 
 ## Read this, then route
 

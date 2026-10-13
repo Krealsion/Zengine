@@ -51,7 +51,7 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 not"
 
 ### WL-PTR-09
-`surface/skin_tui.hpp` kTuiPointerOn
+`surface/tui_terminal.hpp` kTuiPointerOn
 `workshop/docs/limitations.md` hover
 `tests/test_surface.cpp` "the Skin's terminal claim includes pointer reporting, and leave undoes
 enter"

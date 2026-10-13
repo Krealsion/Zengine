@@ -216,6 +216,7 @@ target_compile_definitions(zengine-editor-pane-losing PRIVATE ZENGINE_EDITOR_TES
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
 target_link_libraries(zengine-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-surface-vocabulary
+            zengine-graphics-vocabulary zengine-input-vocabulary zengine-timer-vocabulary
             zengine-warnings zengine-sanitize)
 target_include_directories(zengine-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
@@ -227,14 +228,20 @@ target_compile_definitions(zengine-tests PRIVATE
     "SNAKE_SO_WORLD_V1=\"$<TARGET_FILE:snake-world-v1>\""
     "SNAKE_SO_WORLD_V2=\"$<TARGET_FILE:snake-world-v2>\""
     "SNAKE_SO_SCORE=\"$<TARGET_FILE:snake-score>\""
+    "SNAKE_SO_BOARD=\"$<TARGET_FILE:snake-board>\""
     "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
-    "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\""
+    "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
+    "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
+    "PAINT_CLASSIC_SO=\"$<TARGET_FILE:zengine-paint-classic>\""
+    "PAINT_BLOCK_SO=\"$<TARGET_FILE:zengine-paint-block>\""
+    # The world's beat, over virtual time: a pace is a claim about durations.
+    "TIMER_VIRTUAL_SO=\"$<TARGET_FILE:zengine-timer-virtual>\""
     # The host's source, for the tripwire that no privileged wind returns: a root Drive is
     # inert, so only reading the file can catch one (VM-WALL-11).
     "HOST_PLAY_CPP=\"${CMAKE_SOURCE_DIR}/examples/snake/play.cpp\""
-    # The clock adapter's source, for the binding tripwire: hand-written ceremony and the
-    # binding behave identically, so only the file tells which is there (VM-WALL-11).
-    "CLOCK_CPP=\"${CMAKE_SOURCE_DIR}/examples/snake/clock.cpp\"")
+    # The world's source, for the binding tripwire: hand-written ceremony and the binding behave
+    # identically, so only the file tells which is there (VM-WALL-11).
+    "WORLD_CPP=\"${CMAKE_SOURCE_DIR}/examples/snake/world.cpp\"")
 
 zengine_doctest_test(snake zengine-tests)
 
@@ -252,7 +259,6 @@ target_include_directories(zengine-timer-tests PRIVATE
 
 target_compile_definitions(zengine-timer-tests PRIVATE
     "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
-    "SNAKE_CLOCK_SO=\"$<TARGET_FILE:snake-clock>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
     "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
@@ -367,7 +373,6 @@ target_include_directories(zengine-input-tests PRIVATE
 
 target_compile_definitions(zengine-input-tests PRIVATE
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
-    "CONTROLS_SO=\"$<TARGET_FILE:snake-controls>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
     # The SDL reader's own sources, for the tripwire that it never touches the clipboard: a
     # claim about what code does not contain holds on every lane, those without SDL included,
@@ -446,7 +451,6 @@ target_include_directories(zengine-surface-tests PRIVATE
 
 target_compile_definitions(zengine-surface-tests PRIVATE
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
-    "SCORE_SO=\"$<TARGET_FILE:snake-score>\""
     "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
     "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\"")
 zengine_doctest_test(surface zengine-surface-tests)
@@ -1389,10 +1393,30 @@ target_include_directories(zengine-audit-probes PRIVATE
 
 target_compile_definitions(zengine-audit-probes PRIVATE
     "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
-    "SNAKE_CLOCK_SO=\"$<TARGET_FILE:snake-clock>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\"")
 
 zengine_doctest_test(audit_probes zengine-audit-probes)
+
+# The Graphics suite: the vocabulary, the canvas, the terminal painter and the seams as pure
+# arithmetic, and the window, the directory, the skins and the snake's board through the real
+# kernel -- what is drawn once, what crosses a tick, what a replacement costs, and every bound
+# refused in words.
+add_executable(zengine-graphics-tests test_graphics.cpp doctest_main.cpp)
+target_link_libraries(zengine-graphics-tests
+    PRIVATE loom::kernel loom::switchboard loom::core zengine-graphics-vocabulary
+            zengine-input-vocabulary zengine-timer-vocabulary zengine-activation
+            zengine-operator zengine-warnings zengine-sanitize)
+target_include_directories(zengine-graphics-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+    ${CMAKE_SOURCE_DIR}/examples/snake)
+target_compile_definitions(zengine-graphics-tests PRIVATE
+    "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
+    "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
+    "PAINT_CLASSIC_SO=\"$<TARGET_FILE:zengine-paint-classic>\""
+    "PAINT_BLOCK_SO=\"$<TARGET_FILE:zengine-paint-block>\""
+    "SNAKE_SO_BOARD=\"$<TARGET_FILE:snake-board>\""
+    "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\"")
+zengine_doctest_test(graphics zengine-graphics-tests)
 
 # ---- the source-tree checks ------------------------------------------------------------
 # Six entries read the source tree rather than a build -- doc_links, package_vocabulary, law_register,
