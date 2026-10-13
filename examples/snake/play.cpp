@@ -250,8 +250,8 @@ private:
         ++state_.answers;
         const auto it = ctx_->pending.find(mail.correlation());
         if (it == ctx_->pending.end()) {
-            status("unsolicited answer from weave " + std::to_string(mail.sender().value) +
-                             " " + outcome);
+            status("unsolicited answer from weave " + std::to_string(mail.sender().value) + " " +
+                   outcome);
             return;
         }
         // A successful moment flips the trackers here, in the answer's own handler: the answer,

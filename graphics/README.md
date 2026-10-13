@@ -5,8 +5,9 @@ operator and its operands -- or says an element once and sends only its changes;
 shows its area keeps the picture, paints it with the area's skin, and writes only what changed.**
 
 A program spells the messages with `#include "graphics/vocabulary.hpp"` and draws with
-`graphics/drawing.hpp` or `graphics/canvas.hpp`, linking `zengine::graphics`. The snake (`examples/snake/`) is the worked
-example: its frame drawn as nodes, its board an element of the game's own.
+`graphics/drawing.hpp` or `graphics/canvas.hpp`, linking `zengine::graphics`. The snake
+(`examples/snake/`) is the worked example: its frame drawn as nodes, its board an element of the
+game's own.
 
 ## Pages
 
