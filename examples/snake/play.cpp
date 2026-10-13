@@ -10,7 +10,7 @@
 // The moments are keys, which the window gives the world and the operator alike: 1 chooses the
 // other skin (painter code the window opens mid-game; nothing is drawn again on the bus), 2 loads
 // the score weave into the running game, 3 grows the world (a graceful swap: the v1 world writes
-// its letter and the v2 heir migrates it), 4 says the SDL window waits on a later stage; r reloads
+// its letter and the v2 heir migrates it), 4 says no window weave draws an OS window; r reloads
 // the world in place, n starts a new game through the poke-reset door, l lists, q quits.
 
 #include "play_state.hpp"
@@ -154,7 +154,7 @@ public:
             status(mail, std::string("skin -> ") + kSkins[ctx_->skin].label);
             break;
         case scan::k4:
-            status(mail, "the SDL window waits on a later stage; this one is the terminal");
+            status(mail, "no window weave draws an OS window: this one is the terminal");
             break;
         case scan::k2:
             command(mail, "load score weave (late)", kScoreLoaded,
