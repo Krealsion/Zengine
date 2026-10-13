@@ -12,6 +12,10 @@ directory (`zengine-graphics`), and two skins (`zengine-paint-classic`, `zengine
 snake (`examples/snake/`) is the worked example: it draws its frame as nodes and its board as an
 element of its own.
 
+![The snake in a terminal window under the classic skin: the operator's status line, the world's score and board, and the score weave's own area beside it](images/snake-classic.png)
+
+![The same window after 1 chose the block skin mid-game: the window opened the other painter code and painted what it keeps, and nothing was drawn again on the bus](images/snake-block.png)
+
 ## Who says what
 
 ```text

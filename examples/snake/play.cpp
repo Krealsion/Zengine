@@ -209,7 +209,7 @@ private:
         to_directory(gfx::ElementCodeOffered{"SnakeBoardData", ctx_->so("snake-board")});
         const std::int64_t c = gfx::kCellPx;
         to_directory(gfx::AreaPlaced{kStatusArea, gfx::kTerminalWindow, kOperatorRole, 0,
-                                     0, 120 * c, c, 1, true});
+                                     0, 200 * c, c, 1, true});
         to_directory(gfx::AreaPlaced{kWorldArea, gfx::kTerminalWindow, kWorldRole, 0, c,
                                      50 * c, 28 * c, 0, true});
         if (ctx_->score_loaded) {
@@ -244,8 +244,8 @@ private:
     /// The status line, plain ASCII: how it looks is the skin's business.
     void status(loom::Mail& mail, const std::string& text) {
         ctx_->status = "[zen] " + text +
-                       "   (wasd steer | 1 skin | 2 score | 3 grow | 4 sdl | r reload | n new | "
-                       "l list | q quit)";
+                       "   (wasd | 1 skin | 2 score | 3 grow | 4 sdl | r reload | n new | l list | "
+                       "q quit)";
         speak(mail);
     }
 
