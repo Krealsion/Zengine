@@ -5,7 +5,7 @@ operator and its operands -- or says an element once and sends only its changes;
 shows its area keeps the picture, paints it with the area's skin, and writes only what changed.**
 
 A program spells the messages with `#include "graphics/vocabulary.hpp"` and draws with
-`graphics/canvas.hpp`, linking `zengine::graphics`. The snake (`examples/snake/`) is the worked
+`graphics/drawing.hpp` or `graphics/canvas.hpp`, linking `zengine::graphics`. The snake (`examples/snake/`) is the worked
 example: its frame drawn as nodes, its board an element of the game's own.
 
 ## Pages
@@ -22,6 +22,7 @@ example: its frame drawn as nodes, its board an element of the game's own.
 | `ops.hpp` | the seven operators and their operands, and a `Paint` |
 | `implied.hpp` | a value's body without its envelope, where an operator or a type implies its shape |
 | `canvas.hpp` | what an owner draws with: a `Sketch`, a `Canvas`, `difference` |
+| `drawing.hpp` | a drawing weave: the room's handshake and the showing, so a drawer writes its picture |
 | `painting.hpp` | what crosses the two seams: a paint task and its result, an element's event and its outcome |
 | `painter_abi.h`, `painter_export.hpp`, `term_paint.hpp` | the skin seam, its export, and the painter for a medium of characters |
 | `element_abi.h`, `element_export.hpp` | the element seam and its export |

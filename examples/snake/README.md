@@ -8,11 +8,12 @@ an application made of weaves actually look like?", and the `snake` suite proves
 Source: [`examples/snake/`](world.cpp) — world, board, score, host.
 
 - **World** (`snake-world-v1`/`-v2`, one source) is the whole game: its rules
-  ([`logic.hpp`](logic.hpp)), its keys and its beat. It holds `SnakeWorldState` -- the game, its
-  bindings (whether its keys steer and which four, its pace), and where it presented its board --
-  and publishes its news, `SnakeVisual`, `FoodEaten` and `SnakeDied`, for anyone. It draws its frame
-  (the score, a death notice, a new-game button) as nodes into the terminal window that shows its
-  area, and its board as an element of the game's own: said once, then each step as a change.
+  ([`logic.hpp`](logic.hpp)), its keys and its beat. It holds `SnakeWorldState` -- the game and
+  its bindings (whether its keys steer and which four, its pace) -- and publishes its news,
+  `SnakeVisual`, `FoodEaten` and `SnakeDied`, for anyone. It draws its frame (the score, a death
+  notice, a new-game button) as nodes into the terminal window that shows its area, and its board
+  as an element of the game's own: said once, then each step as a change. Its state names no
+  window: the window's room says whether it still holds the board.
   Both versions converse (`zen.PrepareShutdown` → a letter); v2 is additionally an heir -- it
   claims by role on first wake and folds a v1 inheritance through `migrate()`.
 - **Its doors stay open.** `SnakeTick` and `SnakeTurn`, sent by role to whoever holds

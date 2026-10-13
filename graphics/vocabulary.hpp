@@ -197,7 +197,8 @@ struct ElementCodeOffered {
 };
 
 /// The directory -> a window: this area is yours, drawn by `owner`, here, painted by the skin in
-/// `library`. Said again whenever any of it changes, and to a window that offers itself again.
+/// `library`. Said again whenever any of it changes, to a window that offers itself again, and
+/// when the owner asks its room; the window answers each with the owner's room.
 struct AreaIntroduced {
     std::string area;
     std::string owner;
@@ -217,19 +218,22 @@ struct AreaWithdrawn {
     ZEN_SHAPE(AreaWithdrawn, 1, ZEN_FIELD(area));
 };
 
-/// The directory -> the owner of an area: draw into this window, as of this incarnation, in this
-/// room. An owner draws whole only when the window or its incarnation changed.
+/// A window -> the owner of an area it was introduced, as the window's office: draw into this
+/// window, as of this incarnation, in this room; `elements` are the references of the owner's
+/// elements the window still presents there. An owner draws whole only when the window or its
+/// incarnation changed, and says again only an element the window does not hold.
 struct AreaRoom {
     std::string area;
     std::string window;
     std::int64_t epoch = 0;
     std::int64_t w = 0, h = 0;
-    ZEN_SHAPE(AreaRoom, 1, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
-              ZEN_FIELD(h));
+    std::vector<std::int64_t> elements;
+    ZEN_SHAPE(AreaRoom, 2, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
+              ZEN_FIELD(h), ZEN_FIELD(elements));
 };
 
-/// An owner that starts again -> the directory, as its office: my room in this area. Answered with
-/// `AreaRoom` once a window shows the area.
+/// An owner that starts again -> the directory, as its office: my room in this area. Answered by
+/// the window that shows the area, once one does.
 struct RoomAsked {
     std::string area;
     ZEN_SHAPE(RoomAsked, 1, ZEN_FIELD(area));

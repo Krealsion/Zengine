@@ -3,8 +3,9 @@
 
 // The loadable weave `zengine-graphics`, the directory: which windows exist, where each area
 // stands and who draws in it, which skin paints it, and which code presents each element type. It
-// introduces an area to its window once the window and the area's skin are known, and tells the
-// owner its room; it is told again of every change, and it stays off the path a picture takes.
+// introduces an area to its window once the window and the area's skin are known, and the window
+// tells the owner its room; it is told again of every change, and it stays off the path a picture
+// takes.
 // Reference: graphics/docs/graphics.md, "The directory".
 
 #include "graphics/vocabulary.hpp"
@@ -44,12 +45,12 @@ class Directory
           Directory, DirectoryState,
           loom::Accept<gfx::WindowOffered, gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
                        gfx::ElementCodeOffered, gfx::RoomAsked, loom::Activated>,
-          loom::Emit<gfx::AreaIntroduced, gfx::AreaWithdrawn, gfx::AreaRoom,
-                     gfx::ElementCodeOffered, gfx::GraphicsReady>> {
+          loom::Emit<gfx::AreaIntroduced, gfx::AreaWithdrawn, gfx::ElementCodeOffered,
+                     gfx::GraphicsReady>> {
 public:
-    /// A window, as its own office: every code offered, then each of its areas introduced, then
-    /// each owner told its room -- in that order, so an element a fresh window is asked to present
-    /// finds its code there.
+    /// A window, as its own office: every code offered, then each of its areas introduced, which
+    /// the window answers with each owner's room -- in that order, so an element a fresh window is
+    /// asked to present finds its code there.
     void on(const gfx::WindowOffered& w, loom::Mail& mail) {
         if (!mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + w.window)) {
             return;
@@ -130,11 +131,12 @@ public:
         }
     }
 
-    /// An owner that started again, as its office: its room, once a window shows the area.
+    /// An owner that started again, as its office: the area introduced again, so the window that
+    /// shows it answers with the room.
     void on(const gfx::RoomAsked& r, loom::Mail& mail) {
         const DirectoryArea* a = find(r.area);
         if (a != nullptr && mail.authored_from_role(a->placed.owner)) {
-            room(mail, *a);
+            introduce(mail, *a);
         }
     }
 
@@ -177,8 +179,8 @@ private:
         return nullptr;
     }
 
-    /// The area to its window, once the window and the area's skin are known, and its room to
-    /// its owner: never an introduction a look would have to be changed after.
+    /// The area to its window, once the window and the area's skin are known: never an
+    /// introduction a look would have to be changed after.
     void introduce(loom::Mail& mail, const DirectoryArea& a) {
         const gfx::SkinOffered* skin = skin_of(a.skin);
         if (window_of(a.placed.window) == nullptr || skin == nullptr) {
@@ -189,17 +191,6 @@ private:
             .send_to_role(office_of(p.window),
                           gfx::AreaIntroduced{p.area, p.owner, p.x, p.y, p.w, p.h, p.order,
                                               p.keys, skin->skin, skin->library});
-        room(mail, a);
-    }
-
-    void room(loom::Mail& mail, const DirectoryArea& a) {
-        const gfx::WindowOffered* w = window_of(a.placed.window);
-        if (w == nullptr || skin_of(a.skin) == nullptr || a.placed.owner.empty()) {
-            return;
-        }
-        (void)mail.as_role(gfx::kGraphicsRole)
-            .send_to_role(a.placed.owner, gfx::AreaRoom{a.placed.area, w->window, w->epoch,
-                                                        a.placed.w, a.placed.h});
     }
 
     zengine::ActivationCursor activation_;

@@ -14,7 +14,7 @@ AppActions v1 0x8ed795b4ebd1f55e
 AppActions v2 0xaa9bfdae36d5f9ed
 AreaIntroduced v1 0x63687eb5ae251d58
 AreaPlaced v1 0xeb0e9cdd7a484845
-AreaRoom v1 0xf9452ceddb3db1c6
+AreaRoom v2 0x3fc97c2c6fbb468c
 AreaWithdrawn v1 0x124e9db05dd3b253
 ArrangementDoorState v2 0x84aaa708082f869a
 ArrangementRequested v1 0xca9ff6cf8858363a
@@ -469,8 +469,8 @@ SnakeStep v1 0x07679341002595f9
 SnakeTick v1 0xe26b16eea91e0b26
 SnakeTurn v1 0x0cee47a3070956a8
 SnakeVisual v1 0x8893c0db8d58420c
-SnakeWorldState v3 0x31113ca1dda6b4da
-SnakeWorldState v4 0x6a1adf670c476200
+SnakeWorldState v5 0x236b1cce2020ff06
+SnakeWorldState v6 0xdfd893b520c70284
 SourceLocation v1 0x47372595bb69f14b
 SourceLocationContext v1 0xe8a9a8b7eaee5d39
 SourceOpened v1 0xee05fd82d327bc19

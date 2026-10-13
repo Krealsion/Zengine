@@ -17,6 +17,7 @@
 #include "board.hpp"
 
 #include "graphics/canvas.hpp"
+#include "graphics/drawing.hpp"
 #include "graphics/implied.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
@@ -101,8 +102,11 @@ TEST_CASE("a canvas sends the whole picture to a new window, then only what chan
     canvas.draw(first);
     CHECK(canvas.window().empty());
 
-    CHECK(canvas.set_window("terminal", 7));
-    CHECK_FALSE(canvas.set_window("terminal", 7)); // the same window, the same incarnation
+    CHECK(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 0, 0, {3}}));
+    // The same window, the same incarnation: nothing to draw again.
+    CHECK_FALSE(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 0, 0, {}}));
+    CHECK(canvas.holds(3)); // the element the room named
+    CHECK_FALSE(canvas.holds(4));
     gfx::Sketch again = first;
     canvas.draw(again);
     gfx::Sketch moved;
@@ -113,8 +117,10 @@ TEST_CASE("a canvas sends the whole picture to a new window, then only what chan
     CHECK(d.put[0].path == "head");
     CHECK(d.removed.empty());
 
-    // A window started again holds nothing this canvas sent: the next drawing goes whole.
-    CHECK(canvas.set_window("terminal", 8));
+    // A window started again holds nothing this canvas sent: the next drawing goes whole, and of
+    // its elements only those its room names.
+    CHECK(canvas.room(gfx::AreaRoom{"test.area", "terminal", 8, 0, 0, {}}));
+    CHECK_FALSE(canvas.holds(3));
 }
 
 TEST_CASE("the terminal painter draws all seven operators, each by its fallback") {
@@ -283,6 +289,64 @@ private:
 };
 
 constexpr const char* kOwner = "test.owner";
+constexpr const char* kDrawer = "test.drawer";
+
+struct GraphicsTestBeat {
+    ZEN_SHAPE(GraphicsTestBeat, 1);
+};
+
+struct GraphicsTestDrawer {
+    std::int64_t beats = 0;
+    ZEN_SHAPE(GraphicsTestDrawer, 1, ZEN_FIELD(beats));
+};
+
+/// A drawer on the drawing weave, as a stranger writes one: its picture, a board it presents
+/// where the window does not hold it, and a change of it each beat. It never calls `show`.
+class BeatDrawer
+    : public gfx::DrawingWeave<BeatDrawer, GraphicsTestDrawer, loom::Accept<GraphicsTestBeat>,
+                               loom::Emit<gfx::ElementPut, gfx::ElementChange>> {
+public:
+    using DrawingWeave::on;
+
+    BeatDrawer() : DrawingWeave(kDrawer) {}
+
+    void on(const GraphicsTestBeat&, loom::Mail&) {
+        ++state_.beats;
+        canvas().change<snake::SnakeBoardChanges>(1, snake::SnakeStep{state_.beats % 3, -1, -1,
+                                                                      false});
+    }
+
+    void picture(gfx::Sketch& f) const {
+        f.text("beats", 0, 0, "beats " + std::to_string(state_.beats),
+               gfx::by_role(gfx::role::kFill));
+        f.group("board", 0, gfx::kCellPx);
+    }
+
+    void on_room(const gfx::AreaRoom&, loom::Mail&) {
+        if (!canvas().holds(1)) {
+            canvas().present("board/grid", 1, snake::SnakeBoardData{3, 1, gfx::kCellPx, {0}, -1});
+        }
+    }
+};
+
+struct Drawing {
+    Rig r;
+    loom::WeaveId drawer;
+    Drawing() {
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+        auto d = std::make_unique<BeatDrawer>();
+        BeatDrawer* raw = d.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        drawer = r.bus.register_weave(std::move(d), std::move(g), kDrawer);
+        raw->zen_set_self(drawer);
+        r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kDrawer, kDrawer, "classic");
+    }
+    void beat() {
+        r.to_role(kDrawer, GraphicsTestBeat{});
+        r.drain();
+    }
+};
 
 struct Bounded {
     Rig r;
@@ -355,6 +419,17 @@ TEST_CASE("the classic and the block skin paint the snake's board, each in its o
 }
 
 TEST_CASE("an element said again starts over: drawn whole from its new data, nothing of it left") {
+    Bounded b;
+    b.say(gfx::ElementPut{kOwner, "e", "SnakeBoardData", 1,
+                          loom::bequeath_item(snake::SnakeBoardData{3, 1, 12, {0}, -1}), false});
+    CHECK(b.r.shown().rows[1] == "|O  |");
+    b.say(gfx::ElementPut{kOwner, "e", "SnakeBoardData", 1,
+                          loom::bequeath_item(snake::SnakeBoardData{3, 1, 12, {2}, -1}), false});
+    CHECK(b.r.shown().rows[1] == "|  O|"); // the new data, and nothing of the old
+    CHECK(b.heard.refused.empty());
+}
+
+TEST_CASE("a new game through the reset door reaches the board as a change: the window holds it") {
     Snake s;
     Rig& r = s.r;
     for (int t = 0; t < 4; ++t) {
@@ -362,12 +437,15 @@ TEST_CASE("an element said again starts over: drawn whole from its new data, not
     }
     CHECK(s.r.shown().rows[10].substr(0, 17) == "|   *         ooO");
 
-    // The substrate's reset door: a state that remembers presenting nothing, so the next tick
-    // seeds a new game and says the board again, whole.
+    // The substrate's reset door: the whole state its defaults. The world's state names no window,
+    // so the board the window holds is told the new game, never said again.
     const std::size_t mark = r.log.size();
     r.to_role(snake::kWorldRole, loom::PokeResetState{});
     r.tick();
-    CHECK(r.count(mark, "ElementPut", snake::kWorldRole) == 1);
+    CHECK(r.count(mark, "ElementPut", snake::kWorldRole) == 0);
+    const auto changes = r.read<gfx::ElementChange>(mark, snake::kWorldRole);
+    REQUIRE(changes.size() == 1);
+    CHECK(changes[0].kind == 1);                                  // SnakeNewGame
     CHECK(r.shown().rows[10] == "|   *      ooO           |"); // the new seed, and nothing else
 }
 
@@ -453,6 +531,17 @@ TEST_CASE("the world reloaded: its room asked, its frame drawn whole once, its b
     const auto reloaded = r.command(loom::ReloadWeave{"snake-world-v1", WORLD_V1_SO});
     REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
     CHECK(r.count(mark, "RoomAsked", snake::kWorldRole) == 1);
+    // The window's answer names the board it still presents; the world's state names no window.
+    const auto rooms = r.read<gfx::AreaRoom>(mark, window_office());
+    REQUIRE(rooms.size() == 1);
+    CHECK(rooms[0].elements == std::vector<std::int64_t>{snake::kBoardRef});
+    for (const auto* schema : {loom::schema_of<snake::v1::SnakeWorldState>().get(),
+                               loom::schema_of<snake::v2::SnakeWorldState>().get()}) {
+        for (const loom::Field& f : schema->fields()) {
+            CHECK_MESSAGE(f.name.find("window") == std::string::npos, f.name);
+            CHECK_MESSAGE(f.name.find("epoch") == std::string::npos, f.name);
+        }
+    }
     const auto drawn = r.read<gfx::Drawn>(mark, snake::kWorldRole);
     CHECK(drawn.size() == 1);
     CHECK(any_whole(drawn));
@@ -462,6 +551,49 @@ TEST_CASE("the world reloaded: its room asked, its frame drawn whole once, its b
     const std::size_t next = r.log.size();
     r.tick(); // the reloaded world steps its board by a change
     CHECK(r.count(next, "ElementChange", snake::kWorldRole) == 1);
+}
+
+TEST_CASE("a drawer that never calls show still shows once a beat, its nodes before its elements") {
+    Drawing d;
+    // Its room: its picture whole and its board said, shown.
+    REQUIRE(d.r.shown().rows.size() >= 4);
+    CHECK(d.r.shown().rows[0] == "beats 0");
+    CHECK(d.r.shown().rows[2] == "|O  |");
+
+    const std::int64_t showings = d.r.shown().showings;
+    const std::size_t mark = d.r.log.size();
+    d.beat();
+    const auto drawn = d.r.read<gfx::Drawn>(mark, kDrawer);
+    const auto changes = d.r.read<gfx::ElementChange>(mark, kDrawer);
+    REQUIRE(drawn.size() == 1);
+    REQUIRE(changes.size() == 1);
+    CHECK(drawn[0].more);         // the beat's nodes first, more to follow
+    CHECK_FALSE(changes[0].more); // its element last: the beat's drawing is whole
+    const gfx::WindowShown after = d.r.shown();
+    CHECK(after.showings == showings + 1); // shown once
+    CHECK(after.rows[0] == "beats 1");
+    CHECK(after.rows[2] == "|oO |");
+}
+
+TEST_CASE("an area given another owner starts empty, its room naming none of the last owner's") {
+    Bounded b;
+    b.put(0);
+    REQUIRE(b.r.shown().elements == 1);
+    OwnerHeard heir_heard;
+    auto heir = std::make_unique<Owner>(heir_heard);
+    Owner* raw = heir.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    raw->zen_set_self(b.r.bus.register_weave(std::move(heir), std::move(g), "test.heir"));
+
+    const std::size_t mark = b.r.log.size();
+    b.r.to_role(gfx::kGraphicsRole,
+                gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, "test.heir", 0, 0,
+                                50 * gfx::kCellPx, 22 * gfx::kCellPx, 0, true});
+    b.r.drain();
+    const auto rooms = b.r.read<gfx::AreaRoom>(mark, window_office());
+    REQUIRE(rooms.size() == 1);
+    CHECK(rooms[0].elements.empty());
+    CHECK(b.r.shown().elements == 0);
 }
 
 TEST_CASE("a press the board does not take reaches the world that drew it") {

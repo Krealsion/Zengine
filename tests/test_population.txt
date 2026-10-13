@@ -17,7 +17,7 @@ input                             doctest           always  50
 input                             doctest           sdl     3
 surface                           doctest           always  111
 surface                           doctest           sdl     7
-graphics                          doctest           always  20
+graphics                          doctest           always  23
 ui                                doctest           always  22
 component                         doctest           always  45
 editor                            doctest           always  20
@@ -77,6 +77,9 @@ timer_cursor_bypass_refused       compile-negative  always  (discards|loses) qua
 ui_authored_extent_required       compile-negative  always  a resolvable dimension must be an authored Extent
 ui_resolved_geometry_refused      compile-negative  always  no resolved rectangle may live on an authored element
 ui_authored_element_compiles      compile-positive  always
+graphics_change_outside_list_refused compile-negative always is not one of the element's changes
+graphics_own_after_delivery_refused compile-negative always defines its own after_delivery
+graphics_drawer_compiles          compile-positive  always
 # The scripts read the source tree, not a build: every configuration runs them, and a deleted
 # registration is a red because its row is here.
 doc_links                         script            always

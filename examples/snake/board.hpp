@@ -45,7 +45,8 @@ struct SnakeNewGame {
     ZEN_SHAPE(SnakeNewGame, 1, ZEN_FIELD(body), ZEN_FIELD(food));
 };
 
-/// The changes the board's code takes, in the order its drawer names them by.
+/// The changes the board's code takes. A change travels as its index here, so the order is a wire
+/// contract: the list only grows at its end.
 using SnakeBoardChanges = std::tuple<SnakeStep, SnakeNewGame>;
 
 /// What a window keeps of the board for its code.
