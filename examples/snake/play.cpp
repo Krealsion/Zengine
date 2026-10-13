@@ -16,7 +16,7 @@
 #include "play_state.hpp"
 #include "vocabulary.hpp"
 
-#include "graphics/canvas.hpp"
+#include "graphics/drawing.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
@@ -105,15 +105,18 @@ struct OperatorContext {
 /// and the board's code, chooses the skins, draws the status line, holds the reach (the manager,
 /// target-scoped, and the world's poke-reset door by role), and hears every answer.
 class OperatorWeave
-    : public loom::WeaveBase<
+    : public gfx::DrawingWeave<
           OperatorWeave, OperatorState,
           loom::Accept<loom::Result, loom::Ack, loom::Refused, input::KeyPressed,
-                       gfx::GraphicsReady, gfx::AreaRoom, gfx::DrawnRefused>,
+                       gfx::GraphicsReady>,
           loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave, loom::ListLoaded,
                      loom::PokeResetState, gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
-                     gfx::ElementCodeOffered, gfx::Drawn>> {
+                     gfx::ElementCodeOffered>> {
 public:
-    explicit OperatorWeave(OperatorContext& ctx) : ctx_(&ctx) {}
+    using DrawingWeave::on;
+
+    explicit OperatorWeave(OperatorContext& ctx)
+        : DrawingWeave(kOperatorRole, kStatusArea), ctx_(&ctx) {}
 
     // The three standard answers. Refusal-ness is carried as a FLAG from the handler that knows
     // it by TYPE: the shape is the fact.
@@ -132,16 +135,6 @@ public:
         }
     }
 
-    /// The status line's window: drawn whole when the window is new or started again.
-    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
-        if (mail.authored_from_role(gfx::kGraphicsRole) && r.area == kStatusArea &&
-            canvas_.set_window(r.window, r.epoch)) {
-            speak(mail);
-        }
-    }
-
-    void on(const gfx::DrawnRefused&, loom::Mail&) {}
-
     /// The command keys. Steering is the world's, and unknown keys are nobody's error.
     void on(const input::KeyPressed& k, loom::Mail& mail) {
         if (!mail.authored_from_role(kWindowRole)) {
@@ -151,10 +144,10 @@ public:
         case scan::k1:
             ctx_->skin = 1 - ctx_->skin;
             choose_skins(mail);
-            status(mail, std::string("skin -> ") + kSkins[ctx_->skin].label);
+            status(std::string("skin -> ") + kSkins[ctx_->skin].label);
             break;
         case scan::k4:
-            status(mail, "no window weave draws an OS window: this one is the terminal");
+            status("no window weave draws an OS window: this one is the terminal");
             break;
         case scan::k2:
             command(mail, "load score weave (late)", kScoreLoaded,
@@ -178,7 +171,7 @@ public:
             const std::uint64_t corr = ctx_->next_corr++;
             ctx_->pending[corr] = Pending{"new game (poke reset)", 0};
             mail.send_to_role(kWorldRole, loom::PokeResetState{}, corr);
-            status(mail, "new game (poke reset) ...");
+            status("new game (poke reset) ...");
             break;
         }
         case scan::kQ:
@@ -193,6 +186,11 @@ public:
             break;
         default: break;
         }
+    }
+
+    /// The status line, plain ASCII: how it looks is the skin's business.
+    void picture(gfx::Sketch& f) const {
+        f.text("status", 0, 0, ctx_->status, gfx::by_role(gfx::role::kFill));
     }
 
 private:
@@ -238,29 +236,21 @@ private:
         const std::uint64_t corr = ctx_->next_corr++;
         ctx_->pending[corr] = Pending{label, action};
         mail.send(ctx_->manager, cmd, corr);
-        status(mail, label + " ...");
+        status(label + " ...");
     }
 
-    /// The status line, plain ASCII: how it looks is the skin's business.
-    void status(loom::Mail& mail, const std::string& text) {
+    /// The status line's words, drawn at the end of the delivery that said them.
+    void status(const std::string& text) {
         ctx_->status = "[zen] " + text +
                        "   (wasd | 1 skin | 2 score | 3 grow | 4 sdl | r reload | n new | l list | "
                        "q quit)";
-        speak(mail);
-    }
-
-    void speak(loom::Mail& mail) {
-        gfx::Sketch f;
-        f.text("status", 0, 0, ctx_->status, gfx::by_role(gfx::role::kFill));
-        canvas_.draw(f);
-        canvas_.show(mail);
     }
 
     void answered(loom::Mail& mail, const std::string& outcome, bool refused) {
         ++state_.answers;
         const auto it = ctx_->pending.find(mail.correlation());
         if (it == ctx_->pending.end()) {
-            status(mail, "unsolicited answer from weave " + std::to_string(mail.sender().value) +
+            status("unsolicited answer from weave " + std::to_string(mail.sender().value) +
                              " " + outcome);
             return;
         }
@@ -275,7 +265,7 @@ private:
                 choose_skins(mail);
             }
         }
-        status(mail, it->second.label + " " + outcome);
+        status(it->second.label + " " + outcome);
         ctx_->pending.erase(it);
     }
 
@@ -288,7 +278,6 @@ private:
     }
 
     OperatorContext* ctx_;
-    gfx::Canvas canvas_{kOperatorRole, kStatusArea};
 };
 
 std::string exe_dir() {
@@ -364,7 +353,8 @@ int main() {
     // ...the world's reset door, by role (the n key)...
     reach.allow_to_role(loom::PokeResetState::zen_name, loom::PokeResetState::zen_version,
                         kWorldRole);
-    // ...the directory, as the window's arranger, and the window, for the status line.
+    // ...the directory, as the window's arranger and as a drawer asking its room, and the window,
+    // for the status line.
     reach.allow_to_role(gfx::AreaPlaced::zen_name, gfx::AreaPlaced::zen_version,
                         gfx::kGraphicsRole);
     reach.allow_to_role(gfx::SkinOffered::zen_name, gfx::SkinOffered::zen_version,
@@ -373,6 +363,7 @@ int main() {
                         gfx::kGraphicsRole);
     reach.allow_to_role(gfx::ElementCodeOffered::zen_name, gfx::ElementCodeOffered::zen_version,
                         gfx::kGraphicsRole);
+    reach.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
     reach.allow_to_role(gfx::Drawn::zen_name, gfx::Drawn::zen_version, kWindowRole);
     auto weave = std::make_unique<OperatorWeave>(ctx);
     OperatorWeave* raw = weave.get();

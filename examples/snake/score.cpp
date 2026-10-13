@@ -9,14 +9,11 @@
 
 #include "vocabulary.hpp"
 
-#include "graphics/canvas.hpp"
+#include "graphics/drawing.hpp"
 #include "graphics/vocabulary.hpp"
-
-#include "activation/activation.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
-#include <zen/weave/standard_shapes.hpp>
 
 #include <string>
 
@@ -32,44 +29,19 @@ struct ScoreState {
 };
 
 class ScoreWeave
-    : public loom::WeaveBase<ScoreWeave, ScoreState,
-                             loom::Accept<FoodEaten, gfx::AreaRoom, gfx::DrawnRefused,
-                                          loom::Activated>,
-                             loom::Emit<gfx::Drawn, gfx::RoomAsked>> {
+    : public gfx::DrawingWeave<ScoreWeave, ScoreState, loom::Accept<FoodEaten>> {
 public:
-    void on(const FoodEaten&, loom::Mail& mail) {
-        ++state_.eaten;
-        speak(mail);
-    }
+    using DrawingWeave::on;
 
-    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
-        if (mail.authored_from_role(gfx::kGraphicsRole) && r.area == kScoreRole &&
-            canvas_.set_window(r.window, r.epoch)) {
-            speak(mail);
-        }
-    }
+    ScoreWeave() : DrawingWeave(kScoreRole) {}
 
-    void on(const gfx::DrawnRefused&, loom::Mail&) {}
+    void on(const FoodEaten&, loom::Mail&) { ++state_.eaten; }
 
-    void on(const loom::Activated& a, loom::Mail& mail) {
-        if (activation_.accept(mail, a)) {
-            (void)mail.as_role(kScoreRole)
-                .send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{kScoreRole});
-        }
-    }
-
-private:
-    void speak(loom::Mail& mail) {
-        gfx::Sketch f;
+    void picture(gfx::Sketch& f) const {
         f.text("eaten", 0, 0,
                "[score weave] eaten since I joined: " + std::to_string(state_.eaten),
                gfx::by_role(gfx::role::kFill));
-        canvas_.draw(f);
-        canvas_.show(mail);
     }
-
-    gfx::Canvas canvas_{kScoreRole};
-    zengine::ActivationCursor activation_;
 };
 
 } // namespace

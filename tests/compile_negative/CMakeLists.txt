@@ -38,3 +38,20 @@ foreach(case_name case_id IN ZIP_LISTS ZENGINE_UI_CN_NAMES ZENGINE_UI_CN_IDS)
     target_include_directories(zengine-cn-ui-${case_name} PRIVATE ${CMAKE_SOURCE_DIR})
     target_compile_definitions(zengine-cn-ui-${case_name} PRIVATE ZENGINE_CN_CASE=${case_id})
 endforeach()
+
+# ---- The drawing weave's and the canvas's walls (owned by the Graphics suite) -------------
+#
+# The Timer pattern again: two refusals and their control, from one source
+# (`compile_negative/drawing_walls.cpp`).
+set(ZENGINE_GRAPHICS_CN_NAMES change-outside after-delivery drawer-ok)
+set(ZENGINE_GRAPHICS_CN_IDS 1 2 3)
+foreach(case_name case_id IN ZIP_LISTS ZENGINE_GRAPHICS_CN_NAMES ZENGINE_GRAPHICS_CN_IDS)
+    add_executable(zengine-cn-graphics-${case_name} EXCLUDE_FROM_ALL
+        drawing_walls.cpp)
+    target_link_libraries(zengine-cn-graphics-${case_name}
+        PRIVATE loom::switchboard loom::core zengine-graphics-vocabulary zengine-warnings
+                zengine-sanitize)
+    target_include_directories(zengine-cn-graphics-${case_name} PRIVATE ${CMAKE_SOURCE_DIR})
+    target_compile_definitions(zengine-cn-graphics-${case_name}
+        PRIVATE ZENGINE_CN_CASE=${case_id})
+endforeach()
