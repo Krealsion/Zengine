@@ -21,8 +21,6 @@
 
 #include "lifecycle_door.hpp"
 
-#include "examples/snake/vocabulary.hpp"
-
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -54,8 +52,6 @@
 #include <vector>
 
 using namespace zengine::surface;
-using zengine::snake::Pos;
-using zengine::snake::SnakeVisual;
 using loom::schema_of;
 
 namespace {
@@ -121,15 +117,13 @@ struct StringSink {
     TerminalSize size() const { return room; }
 };
 
-SnakeVisual small_visual() {
-    SnakeVisual v;
-    v.width = 4;
-    v.height = 3;
-    v.snake = {Pos{1, 1}, Pos{0, 1}};
-    v.food = Pos{3, 0};
-    v.alive = true;
-    v.score = 7;
-    return v;
+/// A small picture: a canvas four cells wide and three tall, one rectangle on it.
+SurfaceCanvas small_canvas() {
+    SurfaceCanvas c;
+    c.width = cells_px(4);
+    c.height = cells_px(3);
+    plane(c).rects.push_back(cell_rect(0, 0, 1, 1, role::kFill));
+    return c;
 }
 
 // ---- tier 3 rig ----------------------------------------------------------------
@@ -138,9 +132,6 @@ SnakeVisual small_visual() {
 /// a window, this one does to a log.
 struct FakeMedium {
     std::vector<std::string>* log = nullptr;
-    void frame(const SnakeVisual& v, bool first) {
-        log->push_back("frame w=" + std::to_string(v.width) + " first=" + (first ? "1" : "0"));
-    }
     void canvas(const SurfaceCanvas& c, bool first) {
         std::size_t rects = 0;
         std::size_t labels = 0;
@@ -438,9 +429,9 @@ struct Rig {
         return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(a.text))};
     }
 
-    void tick() {
-        bus.send_to_role(zengine::snake::kWorldRole,
-                         loom::Message(loom::to_value(zengine::snake::SnakeTick{})));
+    /// A picture, sent to whoever holds the Skin's role.
+    void paint() {
+        bus.send_to_role(kSkinRole, loom::Message(loom::to_value(small_canvas())));
         drain();
     }
 
@@ -580,65 +571,30 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
 // Tier 2 — the terminal medium as golden bytes
 // ============================================================================
 
-TEST_CASE("golden: the classic style paints the exact frame, first and steady") {
-    TuiMedium<ClassicStyle, StringSink> m;
-    const SnakeVisual v = small_visual();
-
-    m.frame(v, /*first=*/true);
-    CHECK(m.sink().out ==
-          "\x1b[3;1H\x1b[0J"
-          "+----+\r\n"
-          "|   *|\r\n"
-          "|oO  |\r\n"
-          "|    |\r\n"
-          "+----+\r\n"
-          "\x1b[2K  classic skin - score 7 - alive\r\n");
-
-    m.sink().out.clear();
-    m.frame(v, /*first=*/false);
-    CHECK(m.sink().out ==
-          "\x1b[3;1H"
-          "+----+\r\n"
-          "|   *|\r\n"
-          "|oO  |\r\n"
-          "|    |\r\n"
-          "+----+\r\n"
-          "\x1b[2K  classic skin - score 7 - alive\r\n");
-
-    m.sink().out.clear();
-    SnakeVisual dead = v;
-    dead.alive = false;
-    m.frame(dead, /*first=*/false);
-    CHECK(m.sink().out.find(" - DEAD (n = new game)\r\n") != std::string::npos);
+TEST_CASE("a Skin takes no snake board: the board is drawn by the terminal window") {
+    // The snake's board is drawn by the terminal window, its classic look painter code
+    // (`zengine-paint-classic`, pinned by the graphics suite); a Skin's manifest takes no board.
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    const loom::WeaveId skin = loom::mount<SkinT<FakeMedium>>(bus, FakeMedium{&log});
+    bool accepts_board = false;
+    for (const auto& schema : SkinT<FakeMedium>{FakeMedium{&log}}.accepted_schemas()) {
+        accepts_board = accepts_board || schema->name() == "SnakeVisual";
+    }
+    CHECK_FALSE(accepts_board);
+    (void)skin;
 }
 
-TEST_CASE("golden: the block style paints the exact frame, and death changes the banner") {
-    TuiMedium<BlockStyle, StringSink> m;
-    SnakeVisual v;
-    v.width = 2;
-    v.height = 1;
-    v.snake = {Pos{0, 0}};
-    v.food = Pos{1, 0};
-    v.alive = true;
-    v.score = 0;
-
-    m.frame(v, /*first=*/true);
-    CHECK(m.sink().out ==
-          "\x1b[3;1H\x1b[0J"
-          "\x1b[2K\x1b[7m BLOCK SKIN \x1b[0m  score 0\r\n"
-          "\x1b[36m====\x1b[0m\r\n"
-          "\x1b[2K\x1b[32;7m@@\x1b[0m\x1b[33;7m()\x1b[0m\r\n"
-          "\x1b[36m====\x1b[0m\r\n");
-
-    m.sink().out.clear();
-    v.alive = false;
-    m.frame(v, /*first=*/false);
-    CHECK(m.sink().out.find("  \x1b[31;7m DEAD - n starts over \x1b[0m\r\n") !=
-          std::string::npos);
+TEST_CASE("a Skin paints a canvas and nothing else: the block look is the graphics package's") {
+    // The block look of the snake's board is painter code (`zengine-paint-block`, pinned by the
+    // graphics suite); what a terminal Skin paints is a canvas, whichever library holds it.
+    TuiMedium<StringSink> m;
+    m.canvas(small_canvas(), /*first=*/true);
+    CHECK(m.sink().out.rfind("\x1b[3;1H\x1b[0J", 0) == 0);
 }
 
 TEST_CASE("golden: text slots land on their rows; unknown slots are dropped") {
-    TuiMedium<ClassicStyle, StringSink> m;
+    TuiMedium<StringSink> m;
 
     m.note(kSlotStatus, "hello there");
     CHECK(m.sink().out == "\x1b[1;1H\x1b[2K hello there");
@@ -662,7 +618,7 @@ TEST_CASE("golden: a canvas rasterizes to exact bytes -- roles, paint order, lab
     // A label wins over every rect it crosses.
     plane(c).labels.push_back(cell_label(2, 1, "ab", role::kAlert));
 
-    TuiMedium<ClassicStyle, StringSink> m;
+    TuiMedium<StringSink> m;
     m.canvas(c, /*first=*/true);
     // One SGR per RUN, not per cell: the ink changes only where the role does
     // (`ab` is one run of two characters), and a row ends by putting the terminal
@@ -703,7 +659,7 @@ TEST_CASE("golden: a text region rasterizes to cells, over everything, bounded")
     r.rows.push_back(SurfaceTextRow{"never", role::kAlert}); // past the region's height
     plane(c).texts.push_back(r);
 
-    TuiMedium<ClassicStyle, StringSink> m;
+    TuiMedium<StringSink> m;
     m.canvas(c, /*first=*/true);
     CHECK(m.sink().out ==
           "\x1b[3;1H\x1b[0J"
@@ -749,7 +705,7 @@ TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a 
     // sanitizer lane would have nothing to catch either.
     plane(c).rects.push_back(cell_rect(0, 2, 2, 3, role::kAlert));
 
-    TuiMedium<ClassicStyle, StringSink> m;
+    TuiMedium<StringSink> m;
     m.canvas(c, /*first=*/false);
     CHECK(m.sink().out ==
           "\x1b[3;1H"
@@ -765,7 +721,7 @@ TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a 
     // An extent of nothing produces no rows at all -- and does not crash, which
     // is the half of this case that matters.
     SurfaceCanvas empty;
-    TuiMedium<ClassicStyle, StringSink> m2;
+    TuiMedium<StringSink> m2;
     m2.canvas(empty, /*first=*/false);
     CHECK(m2.sink().out == "\x1b[3;1H");
 
@@ -775,7 +731,7 @@ TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a 
     SurfaceCanvas blank;
     blank.width = cells_px(2);
     blank.height = cells_px(1);
-    TuiMedium<ClassicStyle, StringSink> m3;
+    TuiMedium<StringSink> m3;
     m3.canvas(blank, /*first=*/false);
     CHECK(m3.sink().out == "\x1b[3;1H\x1b[2K\x1b[0m  \r\n");
 }
@@ -787,7 +743,7 @@ TEST_CASE("golden: a canvas that shrank gives back the rows it stopped using") {
     SurfaceCanvas tall;
     tall.width = cells_px(2);
     tall.height = cells_px(3);
-    TuiMedium<ClassicStyle, StringSink> m;
+    TuiMedium<StringSink> m;
     m.canvas(tall, /*first=*/true);
     // The first frame CLAIMS the area below row 3.
     CHECK(m.sink().out ==
@@ -842,7 +798,7 @@ TEST_CASE("canvas: an unknown role paints as kFill rather than vanishing") {
     c.height = cells_px(1);
     plane(c).rects.push_back(cell_rect(0, 0, 2, 1, 99)); // a role no Skin knows
 
-    TuiMedium<ClassicStyle, StringSink> m;
+    TuiMedium<StringSink> m;
     m.canvas(c, /*first=*/false);
     // Drawn, in kFill's ink and glyph: vocabulary.hpp's stated fallback, and the
     // opposite resolution from an unknown text slot (which has no row to go to).
@@ -982,51 +938,16 @@ TEST_CASE("canvas: a terminal's plain text is the terminal's own text colour on 
 // Tier 2b — the SDL plan as pure math (every lane, SDL built or not)
 // ============================================================================
 
-TEST_CASE("plan: geometry follows the board, painter's order holds, colors are the plan's") {
-    const SnakeVisual v = small_visual();
-    const PlanSize win = window_size_of(v);
-    CHECK(win.w == 120);
-    CHECK(win.h == 96);
-
-    const std::vector<PlanRect> rects = plan_frame(v);
-    REQUIRE(rects.size() == 4);
-
-    // Background first, the whole window, near-black while alive.
-    CHECK(rects[0].x == 0);
-    CHECK(rects[0].y == 0);
-    CHECK(rects[0].w == 120);
-    CHECK(rects[0].h == 96);
-    CHECK(rects[0].r == 18);
-    CHECK(rects[0].g == 18);
-    CHECK(rects[0].b == 24);
-
-    // Food next, inset deeper than the snake.
-    CHECK(rects[1].x == 90);
-    CHECK(rects[1].y == 18);
-    CHECK(rects[1].w == 12);
-    CHECK(rects[1].h == 12);
-    CHECK(rects[1].r == 232);
-
-    // Body before head; head drawn last and brighter.
-    CHECK(rects[2].x == 13);
-    CHECK(rects[2].y == 37);
-    CHECK(rects[2].w == 22);
-    CHECK(rects[2].g == 168);
-    CHECK(rects[3].x == 37);
-    CHECK(rects[3].y == 37);
-    CHECK(rects[3].g == 232);
+TEST_CASE("plan: a window sizes to its canvas alone; the board is the graphics package's") {
+    // The SDL Skin plans canvases only: the snake's board, its colours and its death tint, wait on
+    // the graphics package's SDL window, a later stage.
+    const SurfaceCanvas c = small_canvas();
+    const PlanSize win = canvas_window_size(c);
+    CHECK(win.w == c.width);
+    CHECK(win.h == c.height);
 }
 
-TEST_CASE("plan: death tints the window, the food sentinel plans no food, the title projects") {
-    SnakeVisual v = small_visual();
-    v.alive = false;
-    v.food = Pos{-1, -1}; // the off-board sentinel: nothing to plan
-    const std::vector<PlanRect> rects = plan_frame(v);
-    REQUIRE(rects.size() == 3); // background + body + head, no food
-    CHECK(rects[0].r == 88);
-    CHECK(rects[0].g == 16);
-    CHECK(rects[0].b == 16);
-
+TEST_CASE("plan: the title projects the two slots") {
     CHECK(title_of("", "") == "zengine [sdl skin]");
     CHECK(title_of("paused", "") == "zengine [sdl skin] | paused");
     CHECK(title_of("running", "eaten: 2") == "zengine [sdl skin] | running | eaten: 2");
@@ -2227,20 +2148,20 @@ TEST_CASE("the shell says hello exactly once, and delegates every intent") {
     (void)loom::mount<ReadyEars>(bus, hellos);
 
     // Nothing accepts a slot nobody holds: publishing into silence is legal.
-    CHECK(bus.publish(loom::Message(loom::to_value(zengine::snake::FoodEaten{}))) == 0);
+    CHECK(bus.publish(loom::Message(loom::to_value(ClipboardText{}))) == 0);
 
-    bus.send(skin, loom::Message(loom::to_value(small_visual())));
+    bus.send(skin, loom::Message(loom::to_value(small_canvas())));
     bus.drain_until_idle();
     REQUIRE(log.size() == 1);
-    CHECK(log[0] == "frame w=4 first=1");
+    CHECK(log[0] == "canvas w=48 rects=1 labels=0 first=1");
     CHECK(hellos == 1);
 
     bus.send(skin, loom::Message(loom::to_value(SurfaceText{"status", "up"})));
-    bus.send(skin, loom::Message(loom::to_value(small_visual())));
+    bus.send(skin, loom::Message(loom::to_value(small_canvas())));
     bus.drain_until_idle();
     REQUIRE(log.size() == 3);
     CHECK(log[1] == "note status=up");
-    CHECK(log[2] == "frame w=4 first=0");
+    CHECK(log[2] == "canvas w=48 rects=1 labels=0 first=0");
     CHECK(hellos == 1); // once per incarnation, not per message
 }
 
@@ -2406,7 +2327,7 @@ TEST_CASE("a terminal of this size has room for this canvas, and the arithmetic 
 TEST_CASE("the terminal medium takes its room from its sink, and says nothing without one") {
     // A Sink holding a std::string has no terminal, so the medium has no opinion -- which keeps a
     // redirected, piped or headless run silent about its size; every golden above rests on it.
-    TuiMedium<ClassicStyle, StringSink> medium;
+    TuiMedium<StringSink> medium;
     CHECK(medium.extent().width == 0);
     CHECK(medium.extent().height == 0);
     CHECK(medium.extent().text_advance_px == 0);
@@ -2471,7 +2392,7 @@ TEST_CASE("asking this machine for a terminal size is honest whatever this machi
 TEST_CASE("a terminal skin publishes the room it measured, on change and only on change") {
     // The publication contract, driven end to end through the real shell with a fake terminal
     // on the far end of the sink.
-    using Tui = SkinT<TuiMedium<ClassicStyle, StringSink>>;
+    using Tui = SkinT<TuiMedium<StringSink>>;
     loom::Switchboard bus;
     std::vector<SurfaceExtent> heard;
     loom::WeaveId skin{};
@@ -2563,13 +2484,13 @@ TEST_CASE("a terminal skin publishes the room it measured, on change and only on
 }
 
 TEST_CASE("a terminal medium says nothing when a suite's sink has no terminal") {
-    TuiMedium<ClassicStyle, StringSink> medium;
+    TuiMedium<StringSink> medium;
     CHECK(medium.extent().width == 0);
     CHECK(medium.extent().height == 0);
 
     loom::Switchboard bus;
     std::vector<SurfaceExtent> heard;
-    const loom::WeaveId skin = loom::mount<SkinT<TuiMedium<ClassicStyle, StringSink>>>(bus);
+    const loom::WeaveId skin = loom::mount<SkinT<TuiMedium<StringSink>>>(bus);
     (void)loom::mount<RoomEars>(bus, heard);
 
     SurfaceCanvas c;
@@ -2600,16 +2521,15 @@ TEST_CASE("a canvas is a frame: same hello, same first-flag, same counter") {
     bus.drain_until_idle();
     REQUIRE(log.size() == 1);
     CHECK(log[0] == "canvas w=96 rects=1 labels=1 first=1");
-    CHECK(hellos == 1); // a canvas claims the surface exactly as a board does
+    CHECK(hellos == 1); // a canvas claims the surface
 
-    // The SAME counter: a second painted thing is not a first one, whichever
-    // intent produced it. This is what makes `frames == 0` a usable
-    // claim-the-surface signal for a medium that sees both.
-    bus.send(skin, loom::Message(loom::to_value(small_visual())));
+    // The SAME counter: a second painted thing is not a first one, whichever canvas it is. This
+    // is what makes `frames == 0` a usable claim-the-surface signal.
+    bus.send(skin, loom::Message(loom::to_value(small_canvas())));
     bus.send(skin, loom::Message(loom::to_value(c)));
     bus.drain_until_idle();
     REQUIRE(log.size() == 3);
-    CHECK(log[1] == "frame w=4 first=0");
+    CHECK(log[1] == "canvas w=48 rects=1 labels=0 first=0");
     CHECK(log[2] == "canvas w=96 rects=1 labels=1 first=0");
     CHECK(hellos == 1);
 }
@@ -2702,13 +2622,12 @@ TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on Time
 // Tier 4 — the real libraries through the real kernel
 // ============================================================================
 
-TEST_CASE("a skin .so claims the role and paints the world's real intent") {
+TEST_CASE("a skin .so claims the role and paints a publisher's real intent") {
     Rig r;
-    r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
     const loom::WeaveId skin = r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
                                       kSkinRole);
 
-    r.tick(); // the world seeds and publishes; the skin paints
+    r.paint();
     CHECK(r.poke(skin, loom::PokeRead{"frames"}).text == "1");
     CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "0");
 
@@ -2719,36 +2638,6 @@ TEST_CASE("a skin .so claims the role and paints the world's real intent") {
     r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
     r.drain();
     CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "1");
-}
-
-TEST_CASE("the tally survives the painter being replaced (the hello handshake)") {
-    Rig r;
-    r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
-    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, kSkinRole);
-    const loom::WeaveId score = r.load("snake-score", SCORE_SO, "");
-
-    // The score weave witnesses one meal and speaks its tally once.
-    r.intent(score, zengine::snake::FoodEaten{});
-    CHECK(r.poke(score, loom::PokeRead{"eaten"}).text == "1");
-
-    // Replace the painter mid-game: different code takes the surface.
-    const Recorded::Answer swapped = r.command(loom::SwapWeave{
-        kSkinRole, "zengine-skin-tui-block", SKIN_SO_TUI_BLOCK, /*graceful=*/false});
-    REQUIRE(swapped.kind == 0);
-    const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped.text))};
-    CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "0"); // nothing painted yet
-
-    // AND THE TALLY IS ALREADY THERE. The successor does not wait for a frame to wake it: its
-    // own activation is its first breath, so it announced at load, the score weave heard the
-    // hello and re-published, and the line was on screen before anything was drawn.
-    CHECK(r.poke(block, loom::PokeRead{"texts"}).text == "1");
-
-    // The next real frame paints — and the tally is still one meal, because no
-    // meal happened; the line survived the painter, not the score.
-    r.tick();
-    CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "1");
-    CHECK(r.poke(block, loom::PokeRead{"texts"}).text == "1");
-    CHECK(r.poke(score, loom::PokeRead{"eaten"}).text == "1"); // no meal happened
 }
 
 namespace {
@@ -2775,6 +2664,32 @@ private:
 };
 
 } // namespace
+
+TEST_CASE("a status line survives the painter being replaced (the hello handshake)") {
+    Rig r;
+    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, kSkinRole);
+    int spoke = 0;
+    loom::Grant reach;
+    reach.allow_to_any(SurfaceText::zen_name, SurfaceText::zen_version);
+    (void)loom::mount_granted<Speaker>(r.bus, std::move(reach), spoke);
+
+    // Replace the painter: different code takes the surface.
+    const Recorded::Answer swapped = r.command(loom::SwapWeave{
+        kSkinRole, "zengine-skin-tui-block", SKIN_SO_TUI_BLOCK, /*graceful=*/false});
+    REQUIRE(swapped.kind == 0);
+    const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped.text))};
+    CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "0"); // nothing painted yet
+
+    // AND THE LINE IS ALREADY THERE. The successor announced at its own activation, the speaker
+    // heard the hello and spoke again, and the line was on screen before anything was drawn.
+    CHECK(spoke == 1);
+    CHECK(r.poke(block, loom::PokeRead{"texts"}).text == "1");
+
+    // The next picture paints, and the line is still the one line.
+    r.paint();
+    CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "1");
+    CHECK(r.poke(block, loom::PokeRead{"texts"}).text == "1");
+}
 
 TEST_CASE("a granted operator can speak to the surface (the host's grant recipe)") {
     // The host's operator holds a RESTRICTIVE grant (manager commands, target-scoped) and
@@ -2827,22 +2742,22 @@ TEST_CASE("the surface has one owner: a second skin is refused the held role") {
 }
 
 // The unload-reload linkage pins, riding the skin pair -- weave libraries sharing TWO packages'
-// vocabulary headers (surface + snake). Without -fno-gnu-unique on the weave targets, the
+// vocabulary headers (surface + timer). Without -fno-gnu-unique on the weave targets, the
 // second library's schema statics would silently alias the first one's DESTROYED statics
 // through glibc's program-wide unique-symbol table (the top-level CMakeLists); these hold the
 // law across every load-after-unload shape the demo uses.
 
 TEST_CASE("linkage pin: a later skin is whole when its sibling never loaded") {
     Rig r;
-    r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
+    r.load("snake-world-v1", WORLD_V1_SO, "snake.world");
     const loom::WeaveId block = r.load("zengine-skin-tui-block", SKIN_SO_TUI_BLOCK, kSkinRole);
-    r.tick();
+    r.paint();
     CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "1");
 }
 
 TEST_CASE("linkage pin: load-unload-load across shared vocabulary, third library resident") {
     Rig r;
-    r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
+    r.load("snake-world-v1", WORLD_V1_SO, "snake.world");
     r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, kSkinRole);
     const Recorded::Answer u = r.command(loom::SwapWeave{kSkinRole, "zengine-skin-tui-block",
                                                          SKIN_SO_TUI_BLOCK, false});
@@ -3604,11 +3519,10 @@ TEST_CASE("the same intent drives the SDL skin - a window medium, zero new field
     ::setenv("SDL_VIDEODRIVER", "dummy", 1);
 #endif
     Rig r;
-    r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
     const loom::WeaveId skin = r.load("zengine-skin-sdl", SKIN_SO_SDL, kSkinRole);
 
-    r.tick();
-    r.tick();
+    r.paint();
+    r.paint();
     CHECK(r.poke(skin, loom::PokeRead{"frames"}).text == "2");
 
     r.intent(skin, SurfaceText{kSlotScore, "eaten: 1"});
@@ -3637,9 +3551,8 @@ TEST_CASE("the SDL skin services its own window and takes nothing off the queue"
     ::setenv("SDL_VIDEODRIVER", "dummy", 1);
 #endif
     Rig r;
-    r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
     const loom::WeaveId skin = r.load("zengine-skin-sdl", SKIN_SO_SDL, kSkinRole);
-    r.tick(); // the window is created on the first frame, and pump() has one to service
+    r.paint(); // the window is created on the first picture, and pump() has one to service
 
     // Put events on THE queue -- one SDL, shared between this process and the weave library.
     // Enough of them that a queue nobody drains is a measurement and not a coincidence.
@@ -4335,7 +4248,7 @@ TEST_CASE("a terminal medium offers a copy as OSC 52, base64 and all") {
     CHECK(tui_clipboard_sequence("hi") == "\x1b]52;c;aGk=\x07");
 
     // ...and the medium writes exactly that to the stream it already owns.
-    TuiMedium<ClassicStyle, StringSink> m;
+    TuiMedium<StringSink> m;
     m.clipboard_copy("hi");
     CHECK(m.sink().out == "\x1b]52;c;aGk=\x07");
 }
@@ -4460,7 +4373,7 @@ TEST_CASE("the terminal medium answers a clipboard read with its standing truth"
     // No truthful terminal route reads a system clipboard, and the medium says so rather
     // than guessing — the asker's fallback (what this process itself last copied) is the
     // strongest paste a terminal honestly has.
-    TuiMedium<ClassicStyle, StringSink> m;
+    TuiMedium<StringSink> m;
     CHECK(!m.clipboard_text().has_value());
     // ...and writing a copy does not manufacture a readback: the offer went to the
     // terminal (OSC 52), not into a mirror this medium could later present as a read.
@@ -5145,7 +5058,7 @@ TEST_CASE("the terminal says the same semantic fact on its own row") {
     // THE OTHER MEDIUM'S HONEST ANSWER. The slot is the same slot and the fact is the same
     // fact; what differs is the appearance, which is the medium's. Row 2 is where this
     // medium has always put the score slot, and nothing about that moved.
-    TuiMedium<ClassicStyle, StringSink> m;
+    TuiMedium<StringSink> m;
     m.note(kSlotScore, "keymap refused -- default bindings stand (+1 more)");
     CHECK(m.sink().out == "\x1b[2;1H\x1b[2K keymap refused -- default bindings stand (+1 more)");
 
@@ -5369,7 +5282,7 @@ TEST_CASE("capture: `after_frame` defers the answer to the paint that passes it,
 }
 
 TEST_CASE("capture: a terminal medium hands back the cells it painted, one row per line") {
-    using Tui = SkinT<TuiMedium<ClassicStyle, StringSink>>;
+    using Tui = SkinT<TuiMedium<StringSink>>;
     loom::Switchboard bus;
     loom::WeaveId skin{};
     Tui* raw = nullptr;

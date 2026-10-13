@@ -10,8 +10,8 @@ them and their practices are. It states no law. The repository's own rules are t
 |---|---|
 | `snake/` | the snake game, built only where `loom::kernel` exists |
 | `snake/world.cpp` | loadable weaves `snake-world-v1` and `snake-world-v2` (`SNAKE_WORLD_V2`) |
-| `snake/score.cpp` | loadable weave `snake-score`; `controls.cpp`: `snake-controls` |
-| `snake/clock.cpp` | loadable weave `snake-clock` |
+| `snake/board.cpp` | element code `snake-board` (a provider library), presenting `board.hpp`'s `SnakeBoardData` |
+| `snake/score.cpp` | loadable weave `snake-score`, role `snake.score` |
 | `snake/play.cpp` | executable `zengine-snake`, the playable host; state: `play_state.hpp` |
 | `snake/vocabulary.hpp` | snake's shapes and role `snake.world`; `logic.hpp`: the pure simulation |
 | `tally-pane/tally.cpp` | loadable weave `zengine-example-tally`, role `example.tally` |
@@ -30,8 +30,9 @@ root routes; the presenter's half of a pane's menu is `agents/workshop/pane-menu
 ## Suites
 
 - `snake` — the game headless: the content-id contract, simulation and migration as math, live
-  swaps through the real kernel, zero stdout bytes without a Skin
-  (`tests/test_snake.cpp`; it reads `play.cpp` and `clock.cpp` as text)
+  swaps through the real kernel, a skin chosen mid-game, the world's doors beside its own keys
+  and beat, zero stdout bytes with no terminal (`tests/test_snake.cpp`; it reads `play.cpp` and
+  `world.cpp` as text)
 - `story_journey` — `tower-defense/story.py`'s custody of the Workshop and Loom-host
   processes it starts (`tests/session/story_journey.py`; the `session` gate)
 - `workshop_probe` — the probe weave on one bus behind a scripted link: when it may say
@@ -39,8 +40,9 @@ root routes; the presenter's half of a pane's menu is `agents/workshop/pane-menu
 
 Its cases in shared suites: `workshop_panes` loads Tally, Guard and the numbered presenter
 (`tests/test_workshop_panes_button.cpp`, `_code.cpp`, `_desktop.cpp`, `_introspection.cpp`);
-snake's weaves ride `input` (`tests/test_input.cpp`), `timer` (`tests/test_timer.cpp`),
-`audit_probes` (`tests/test_audit_probes.cpp`) and `surface` (`tests/test_surface.cpp`);
+snake's weaves ride `graphics` (`tests/test_graphics.cpp`), `input` (`tests/test_input.cpp`),
+`timer` (`tests/test_timer.cpp`), `audit_probes` (`tests/test_audit_probes.cpp`) and `surface`
+(`tests/test_surface.cpp`);
 `neovim_journey` (`tests/session/neovim_journey.py`) also runs `story.py`. The installed-package
 witness, `tests/package/run.cmake` (not a CTest entry), builds `workshop-probe/` as a stranger.
 
@@ -54,8 +56,8 @@ witness, `tests/package/run.cmake` (not a CTest entry), builds `workshop-probe/`
 - The probe's seam vocabulary: `workshop/guest_seam_vocabulary.hpp`; the guest door:
   `workshop/guest_door.hpp`.
 - `external-host/demo.py` reads `tower-defense/setup.json` (`workshop/docs/demo-setups.md`).
-- `surface/skin.hpp` and `surface/skin_sdl_plan.hpp` include `examples/snake/vocabulary.hpp`
-  (the Skins accept `SnakeVisual`); `cmake/ZengineInstall.cmake` installs nothing from here.
+- The snake draws through `graphics/`: `snake/play.cpp` loads the directory and the terminal
+  window and arranges them; `cmake/ZengineInstall.cmake` installs nothing from here.
 
 ## Pages
 

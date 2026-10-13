@@ -7,8 +7,8 @@
 smoke                             program           always
 neovim                            doctest           always  22
 neovim_live                       doctest           neovim  21
-# Tripwires in this suite read examples/snake/play.cpp and examples/snake/clock.cpp as text (VM-WALL-11).
-snake                             doctest           always  22
+# Tripwires in this suite read examples/snake/play.cpp and examples/snake/world.cpp as text (VM-WALL-11).
+snake                             doctest           always  26
 timer                             doctest           always  82
 # Tripwires in this suite read input/input_sdl.cpp and input/translate_sdl.hpp as text (VM-WALL-11).
 input                             doctest           always  50
@@ -17,6 +17,7 @@ input                             doctest           always  50
 input                             doctest           sdl     3
 surface                           doctest           always  111
 surface                           doctest           sdl     7
+graphics                          doctest           always  20
 ui                                doctest           always  22
 component                         doctest           always  45
 editor                            doctest           always  20

@@ -62,6 +62,7 @@ with its files); the subjects are in the [WL router](../agents/workshop.md#where
 | [pane-manager](../agents/workshop/pane-manager.md) | `workshop_host`, `workshop_panes` (settings) |
 | [pane-menu](../agents/workshop/pane-menu.md) | `workshop_panes` (button, desktop) |
 | [pane-parts](../agents/workshop/pane-parts.md) | `workshop_desk`, `workshop_panes` (desktop, canvas), `composer` |
+| [participants](../agents/workshop/participants.md) | `snake` |
 | [panes-and-windows](../agents/workshop/panes-and-windows.md) | `workshop_panes` (window, seam), `workshop_screen`, `workshop_host` |
 | [planes](../agents/workshop/planes.md) | `workshop_screen`, `workshop_panes` (window, seam), `workshop_document` |
 | [pointer](../agents/workshop/pointer.md) | `workshop_panes` (editor, input), `workshop_screen`, `surface` |

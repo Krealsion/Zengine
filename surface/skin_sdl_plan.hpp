@@ -4,16 +4,15 @@
 #ifndef ZENGINE_SURFACE_SKIN_SDL_PLAN_HPP
 #define ZENGINE_SURFACE_SKIN_SDL_PLAN_HPP
 
-// The SDL Skin's plan, SDL-free: a canvas or a SnakeVisual becomes window geometry, opaque
-// quads and real-face text regions, as pure arithmetic every lane pins, SDL built or not. The
-// SDL edge (skin_sdl.cpp) executes the plan, so the order between planes and the split between
-// quads and type are decided here, and plumbing is all the edge can get wrong.
+// The SDL Skin's plan, SDL-free: a canvas becomes window geometry, opaque quads and real-face
+// text regions, as pure arithmetic every lane pins, SDL built or not. The SDL edge
+// (skin_sdl.cpp) executes the plan, so the order between planes and the split between quads and
+// type are decided here, and plumbing is all the edge can get wrong.
 // Surface law: agents/surface.md
 
 #include "cells.hpp"
 #include "region.hpp"
 #include "skin_sdl_glyphs.hpp"
-#include "examples/snake/vocabulary.hpp"
 #include "vocabulary.hpp"
 
 #include <cstdint>
@@ -42,60 +41,6 @@ struct PlanSize {
     std::int64_t w = 0;
     std::int64_t h = 0;
 };
-
-inline constexpr std::int64_t kCellPx = 24;  ///< one grid cell, square
-inline constexpr std::int64_t kMarginPx = 12; ///< board inset from the window edge
-inline constexpr std::int64_t kCellGapPx = 1; ///< breathing room inside a cell
-
-/// The window sized to the board: the visual's grid dictates geometry, the
-/// medium never dictates the visual (a growth mid-game is a window resize).
-inline PlanSize window_size_of(const zengine::snake::SnakeVisual& v) {
-    return PlanSize{v.width * kCellPx + 2 * kMarginPx, v.height * kCellPx + 2 * kMarginPx};
-}
-
-/// The frame as rectangles in painter's order: the background (dark red once the run has died,
-/// so the whole window is the death banner), the food inset deeper than the snake, the body,
-/// then the head. Food off the board (kNoFood) plans nothing.
-inline std::vector<PlanRect> plan_frame(const zengine::snake::SnakeVisual& v) {
-    std::vector<PlanRect> out;
-    out.reserve(v.snake.size() + 2);
-    const PlanSize win = window_size_of(v);
-
-    if (v.alive) {
-        out.push_back(PlanRect{0, 0, win.w, win.h, 18, 18, 24});
-    } else {
-        out.push_back(PlanRect{0, 0, win.w, win.h, 88, 16, 16});
-    }
-
-    const auto cell = [](std::int64_t cx, std::int64_t cy, std::int64_t inset) {
-        return PlanRect{kMarginPx + cx * kCellPx + inset, kMarginPx + cy * kCellPx + inset,
-                        kCellPx - 2 * inset, kCellPx - 2 * inset, 0, 0, 0};
-    };
-
-    if (v.food.x >= 0 && v.food.x < v.width && v.food.y >= 0 && v.food.y < v.height) {
-        PlanRect f = cell(v.food.x, v.food.y, kCellPx / 4);
-        f.r = 232;
-        f.g = 196;
-        f.b = 64;
-        out.push_back(f);
-    }
-
-    for (std::size_t i = v.snake.size(); i > 1; --i) {
-        PlanRect s = cell(v.snake[i - 1].x, v.snake[i - 1].y, kCellGapPx);
-        s.r = 64;
-        s.g = 168;
-        s.b = 80;
-        out.push_back(s);
-    }
-    if (!v.snake.empty()) {
-        PlanRect h = cell(v.snake.front().x, v.snake.front().y, kCellGapPx);
-        h.r = 112;
-        h.g = 232;
-        h.b = 128;
-        out.push_back(h);
-    }
-    return out;
-}
 
 // ---- The general canvas -----------------------------------------------------------
 

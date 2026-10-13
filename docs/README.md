@@ -47,6 +47,7 @@ weavers, with the Pane Manager, Hotkeys and the menus.
 | [timer/](../timer/README.md) | the clock, the only sleep, one beat chain per activation; the Timer laws |
 | [input/](../input/README.md) | the sole producer of key, text and pointer moments |
 | [surface/](../surface/README.md) | drawing intent, and the skins that paint it |
+| [graphics/](../graphics/README.md) | drawing into a window: nodes, elements, the terminal window and its skins |
 | [ui/](../ui/README.md) | authored placement and extent, resolved against a viewport |
 | [component/](../component/README.md) | reusable pieces of a tool: text editing, list and table arithmetic, a control strip, motion sampling |
 | [activation/](../activation/README.md) | reading your own activation, once, without replay |

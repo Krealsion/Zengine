@@ -834,7 +834,6 @@ namespace {
 struct WidthMedium {
     std::int64_t width = 0;
     std::int64_t painted = 0;
-    void frame(const zengine::snake::SnakeVisual&, bool) {}
     void canvas(const surface::SurfaceCanvas& c, bool) {
         width = c.width;
         ++painted;

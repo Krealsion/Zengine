@@ -93,6 +93,14 @@ kRootContext                    ui/vocabulary.hpp                         kRootC
 view_builder::kSnapReach        view/view-builder/picture.hpp                  kSnapReach
 view_builder::kMaxGrid          view/view-builder/picture.hpp                  kMaxGrid
 
+# ---- graphics
+kCellPx                         graphics/vocabulary.hpp                   kCellPx
+kMaxNodesPerArea                graphics/vocabulary.hpp                   kMaxNodesPerArea
+kMaxElementsPerArea             graphics/vocabulary.hpp                   kMaxElementsPerArea
+kMaxPathBytes                   graphics/vocabulary.hpp                   kMaxPathBytes
+kMaxPathDepth                   graphics/vocabulary.hpp                   kMaxPathDepth
+window::kPumpBeatMs             graphics/window/window.hpp                kPumpBeatMs
+
 # ---- the Timer
 kPreparedClaimBeats             timer/vocabulary.hpp                      kPreparedClaimBeats
 kMaxHandoffEntries              timer/vocabulary.hpp                      kMaxHandoffEntries
