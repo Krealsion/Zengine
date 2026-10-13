@@ -4,10 +4,9 @@
 #ifndef ZENGINE_SURFACE_SKIN_TUI_HPP
 #define ZENGINE_SURFACE_SKIN_TUI_HPP
 
-// The terminal medium, whole and pinnable headless: ClassicStyle and BlockStyle turn a
-// SnakeVisual into a frame's exact bytes; TuiMedium lays rows 1-2 out as the status
-// and score slots and the canvas from row 3; TuiTerminal is the real Sink. A Sink has
-// `write(std::string_view)` and `TerminalSize size() const`, required rather than detected: a
+// The terminal medium, whole and pinnable headless: TuiMedium lays rows 1-2 out as the status and
+// score slots and the canvas from row 3; TuiTerminal (tui_terminal.hpp) is the real Sink. A Sink
+// has `write(std::string_view)` and `TerminalSize size() const`, required rather than detected: a
 // Sink lacking `size()` would look exactly like an unmeasurable terminal, on every lane.
 // Surface law: agents/surface.md
 
@@ -16,6 +15,7 @@
 #include "region.hpp"
 #include "skin.hpp"
 #include "terminal_size.hpp"
+#include "tui_terminal.hpp"
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -36,108 +36,6 @@
 #include <vector>
 
 namespace zengine::surface {
-
-/// The classic look: one character per cell, an ASCII border, monochrome, banner underneath;
-/// the cursor-home prefix is the medium's, not the style's.
-struct ClassicStyle {
-    static std::string board(const zengine::snake::SnakeVisual& v) {
-        std::string out;
-        out.reserve(static_cast<std::size_t>((v.width + 4) * (v.height + 6)));
-        out += "+";
-        out.append(static_cast<std::size_t>(v.width), '-');
-        out += "+\r\n";
-        for (std::int64_t y = 0; y < v.height; ++y) {
-            out += '|';
-            for (std::int64_t x = 0; x < v.width; ++x) {
-                out += glyph(v, x, y);
-            }
-            out += "|\r\n";
-        }
-        out += "+";
-        out.append(static_cast<std::size_t>(v.width), '-');
-        out += "+\r\n";
-        out += "\x1b[2K  classic skin - score " + std::to_string(v.score);
-        out += v.alive ? " - alive" : " - DEAD (n = new game)";
-        out += "\r\n";
-        return out;
-    }
-
-private:
-    static char glyph(const zengine::snake::SnakeVisual& v, std::int64_t x, std::int64_t y) {
-        if (!v.snake.empty() && v.snake.front().x == x && v.snake.front().y == y) {
-            return 'O';
-        }
-        for (std::size_t i = 1; i < v.snake.size(); ++i) {
-            if (v.snake[i].x == x && v.snake[i].y == y) {
-                return 'o';
-            }
-        }
-        if (v.food.x == x && v.food.y == y) {
-            return '*';
-        }
-        return ' ';
-    }
-};
-
-/// The block look: double-width cells, no border (colored rules instead), SGR
-/// color and inverse video, banner ABOVE the board — deliberately different
-/// code so a live swap is unmistakable.
-struct BlockStyle {
-    static std::string board(const zengine::snake::SnakeVisual& v) {
-        const std::size_t cols = static_cast<std::size_t>(v.width) * 2;
-        std::string out;
-        out.reserve(cols * static_cast<std::size_t>(v.height + 6) * 2);
-        out += "\x1b[2K\x1b[7m BLOCK SKIN \x1b[0m  score ";
-        out += std::to_string(v.score);
-        if (!v.alive) {
-            out += "  \x1b[31;7m DEAD - n starts over \x1b[0m";
-        }
-        out += "\r\n\x1b[36m";
-        out.append(cols, '=');
-        out += "\x1b[0m\r\n";
-        for (std::int64_t y = 0; y < v.height; ++y) {
-            out += "\x1b[2K";
-            for (std::int64_t x = 0; x < v.width; ++x) {
-                out += cell(v, x, y);
-            }
-            out += "\r\n";
-        }
-        out += "\x1b[36m";
-        out.append(cols, '=');
-        out += "\x1b[0m\r\n";
-        return out;
-    }
-
-private:
-    static std::string cell(const zengine::snake::SnakeVisual& v, std::int64_t x, std::int64_t y) {
-        if (!v.snake.empty() && v.snake.front().x == x && v.snake.front().y == y) {
-            return "\x1b[32;7m@@\x1b[0m";
-        }
-        for (std::size_t i = 1; i < v.snake.size(); ++i) {
-            if (v.snake[i].x == x && v.snake[i].y == y) {
-                return "\x1b[32m##\x1b[0m";
-            }
-        }
-        if (v.food.x == x && v.food.y == y) {
-            return "\x1b[33;7m()\x1b[0m";
-        }
-        return "  ";
-    }
-};
-
-/// This medium's ink for each canvas role; an unknown role paints as `kFill`. Plain ink is the
-/// terminal's own text colour, as its own ground is no ground byte, so plain text reads on
-/// whatever the terminal wears, light or dark, and reverse video swaps the two.
-inline const char* sgr_for_role(int role) noexcept {
-    switch (role) {
-    case 1: return "\x1b[36m";    // kAccent — cyan: the thing being pointed at
-    case 2: return "\x1b[90m";    // kMuted  — bright black: present, quiet
-    case 3: return "\x1b[31;1m";  // kAlert  — bold red: must be seen
-    case 4: return "\x1b[30m";    // kGround — black: opaque empty material
-    case 6: return "\x1b[95m";    // kGuide — bright magenta: a guest's mark
-    default: return "\x1b[39m";   // kFill, kMediumGround (no ink) and anything unknown — plain ink
-    }
-}
 
 /// This medium's ink for a cell: its role's, except plain ink on a ground the canvas painted,
 /// which is the palette's white. That ground is the palette's own colour and the terminal's
@@ -460,24 +358,13 @@ inline std::string tui_clipboard_sequence(const std::string& text) {
 /// rows 1 and 2 are the "status" and "score" slots, the canvas starts at row
 /// 3 and claims everything below it on the Skin's first frame. Slots the
 /// layout has no row for are dropped (see vocabulary.hpp).
-template <class Style, class Sink>
+template <class Sink>
 class TuiMedium {
 public:
     TuiMedium() = default;
     explicit TuiMedium(Sink sink) : sink_(std::move(sink)) {}
 
-    void frame(const zengine::snake::SnakeVisual& v, bool first) {
-        std::string out = "\x1b[3;1H";
-        if (first) {
-            out += "\x1b[0J";
-        }
-        out += Style::board(v);
-        sink_.write(out);
-    }
-
-    /// A canvas lands in exactly the same place a board does — the canvas rows
-    /// from row 3 down, claimed on the first frame. Same layout convention, one
-    /// different body.
+    /// A canvas lands from row 3 down, claiming everything below it on the first frame.
     void canvas(const zengine::surface::SurfaceCanvas& c, bool first) {
         // The rows the picture covers, in this medium's cells.
         const std::int64_t rows = c.height > 0 ? zengine::surface::cell_of_pixel(c.height) : 0;
@@ -567,121 +454,6 @@ private:
     /// The last canvas painted, kept for `capture`: a terminal cannot be read back, so the
     /// medium keeps what it drew. Per incarnation, never state.
     std::optional<zengine::surface::SurfaceCanvas> last_canvas_;
-};
-
-/// The terminal modes a TUI Skin claims, as bytes a suite can read. Pointer reporting is asked
-/// for on the output stream, the Skin's, so it lives and dies with the alternate screen and
-/// Input need not be told: it parses an SGR report whenever one arrives (on POSIX, no pointer
-/// without a TUI Skin). `1002` reports presses, releases and drags, never idle motion; `1006`
-/// is SGR coordinates, the only encoding past column 223. A SIGKILLed process restores nothing.
-// WL-PTR-09 -- agents/workshop/pointer.md
-inline constexpr const char* kTuiPointerOn = "\x1b[?1002h\x1b[?1006h";
-inline constexpr const char* kTuiPointerOff = "\x1b[?1006l\x1b[?1002l";
-
-/// What a TUI Skin writes when it takes the terminal. `pointer` is false on a
-/// backend whose pointer arrives some other way — the Win32 console delivers
-/// mouse INPUT_RECORDs to the Input weave's own reader, so asking it for
-/// in-band reports would be asking twice for one thing.
-inline std::string tui_enter_sequence(bool pointer) {
-    std::string s = "\x1b[?1049h\x1b[?25l\x1b[2J";
-    if (pointer) {
-        s += kTuiPointerOn;
-    }
-    return s;
-}
-
-/// What it writes when it gives the terminal back: everything `enter` claimed,
-/// released in the opposite order.
-inline std::string tui_leave_sequence(bool pointer) {
-    std::string s;
-    if (pointer) {
-        s += kTuiPointerOff;
-    }
-    s += "\x1b[?25h\x1b[?1049l";
-    return s;
-}
-
-/// Whether this build's terminal delivers its pointer in band. POSIX: yes, as
-/// SGR reports on stdin. Win32 console: no — the console hands the Input
-/// weave's reader real MOUSE_EVENT records instead.
-inline constexpr bool kTuiPointerIsInBand =
-#if defined(_WIN32)
-    false;
-#else
-    true;
-#endif
-
-/// The terminal's output side, claimed for exactly the Skin's lifetime -- alternate screen,
-/// hidden cursor, in-band pointer reporting, and on Windows VT processing and the UTF-8
-/// codepage -- and restored whole on destruction. With no console (redirected, headless) the
-/// claim is skipped and frames still go to stdout. The input side stays the Input weave's.
-class TuiTerminal {
-public:
-#if defined(_WIN32)
-    TuiTerminal() {
-        out_ = ::GetStdHandle(STD_OUTPUT_HANDLE);
-        ok_ = out_ != INVALID_HANDLE_VALUE && ::GetConsoleMode(out_, &saved_out_) != 0;
-        if (!ok_) {
-            return;
-        }
-        ::SetConsoleMode(out_, saved_out_ | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-        saved_cp_ = ::GetConsoleOutputCP();
-        ::SetConsoleOutputCP(CP_UTF8);
-        enter();
-    }
-    ~TuiTerminal() {
-        if (!ok_) {
-            return;
-        }
-        leave();
-        if (saved_cp_ != 0) {
-            ::SetConsoleOutputCP(saved_cp_);
-        }
-        ::SetConsoleMode(out_, saved_out_);
-    }
-#else
-    TuiTerminal() {
-        ok_ = ::isatty(STDOUT_FILENO) == 1;
-        if (ok_) {
-            enter();
-        }
-    }
-    ~TuiTerminal() {
-        if (ok_) {
-            leave();
-        }
-    }
-#endif
-    TuiTerminal(const TuiTerminal&) = delete;
-    TuiTerminal& operator=(const TuiTerminal&) = delete;
-
-    void write(std::string_view s) {
-        std::fwrite(s.data(), 1, s.size(), stdout);
-        std::fflush(stdout);
-    }
-
-    /// How big the terminal is now, gated on the same `ok_` as the claim, so a run that found
-    /// no terminal to take has none to measure. The OS question is `native_terminal_size()`'s.
-    TerminalSize size() const { return ok_ ? native_terminal_size() : TerminalSize{}; }
-
-private:
-    static void enter() {
-        const std::string s = tui_enter_sequence(kTuiPointerIsInBand);
-        std::fwrite(s.data(), 1, s.size(), stdout);
-        std::fflush(stdout);
-    }
-    static void leave() {
-        const std::string s = tui_leave_sequence(kTuiPointerIsInBand);
-        std::fwrite(s.data(), 1, s.size(), stdout);
-        std::fflush(stdout);
-    }
-
-#if defined(_WIN32)
-    HANDLE out_ = nullptr;
-    DWORD saved_out_ = 0;
-    UINT saved_cp_ = 0;
-#endif
-    bool ok_ = false;
 };
 
 } // namespace zengine::surface

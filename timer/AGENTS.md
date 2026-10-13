@@ -57,7 +57,8 @@ Outside CTest, the package witness builds `tests/package/oven.cpp` against `zeng
 - Grants: `workshop/workshop.cpp` grants the build runner `EnsureTimer` and `CancelTimer` to
   `kTimerRole`; `workshop/editor_switch.hpp` and `workshop/guest_door.hpp` are `TimedWeave`s.
 - No seam vocabulary. `cmake/ZengineInstall.cmake` installs the headers and the weave;
-  `input/`, `builder/`, `flow/flow-host/` and `examples/snake/` hold `TimedWeave`s too.
+  `input/`, `builder/`, `flow/flow-host/`, `graphics/window/` and `examples/snake/` (the world)
+  hold `TimedWeave`s too.
 
 ## Pages
 

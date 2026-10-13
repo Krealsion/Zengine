@@ -6,7 +6,7 @@
 
 // The Skin weave shell over an injected Medium: it counts, delegates, says hello once per
 // incarnation, reports the Medium's extent and placement, and keeps the one captured picture;
-// everything visual is the Medium's. A Medium provides `frame`, `canvas`, `note`, `pump`,
+// everything visual is the Medium's. A Medium provides `canvas`, `note`, `pump`,
 // `extent`, `placement`, `place`, `capture`, `clipboard_copy` and `clipboard_text`, each
 // required rather than detected: a Medium quietly lacking one would look exactly like an honest
 // medium that cannot, on every lane. A real Medium claims its surface RAII-style.
@@ -15,7 +15,6 @@
 #include "vocabulary.hpp"
 
 #include "activation/activation.hpp" // the skin arranges its own time from its activation
-#include "examples/snake/vocabulary.hpp" // the snake frame the Skins still accept
 #include "timer/vocabulary.hpp"      // the skin asks for its own beat now
 
 #include <zen/weave.hpp>
@@ -28,9 +27,9 @@
 
 namespace zengine::surface {
 
-/// Honest counters, poke-inspectable: frames painted (a SnakeVisual or a canvas, the same act),
-/// text notes delivered, pumps. `frames == 0` tells a Medium the frame it is handed is the
-/// first, and its surface still has to be claimed.
+/// Honest counters, poke-inspectable: frames painted (each a canvas), text notes delivered,
+/// pumps. `frames == 0` tells a Medium the frame it is handed is the first, and its surface still
+/// has to be claimed.
 struct SkinState {
     std::int64_t frames = 0;
     std::int64_t texts = 0;
@@ -41,8 +40,7 @@ struct SkinState {
 
 template <class Medium>
 class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
-                                     loom::Accept<zengine::snake::SnakeVisual, SurfaceCanvas,
-                                                  SurfaceText, ClipboardCopy,
+                                     loom::Accept<SurfaceCanvas, SurfaceText, ClipboardCopy,
                                                   ClipboardTextRequested,
                                                   SurfacePlacementRemembered, PumpSurface,
                                                   SurfaceCaptureRequested,
@@ -58,16 +56,7 @@ public:
     SkinT() = default;
     explicit SkinT(Medium medium) : medium_(std::move(medium)) {}
 
-    void on(const zengine::snake::SnakeVisual& v, loom::Mail& mail) {
-        announce_surface_once(mail);
-        medium_.frame(v, this->state_.frames == 0);
-        ++this->state_.frames;
-        report_placement(mail);
-        report_extent(mail); // the first frame is what brings a window into existence
-        capture_if_due(mail);
-    }
-
-    /// The general canvas: the same act as a frame, handled identically.
+    /// A picture: the first one is what brings a window into existence.
     void on(const SurfaceCanvas& c, loom::Mail& mail) {
         announce_surface_once(mail);
         medium_.canvas(c, this->state_.frames == 0);

@@ -18,6 +18,7 @@ examples          examples
 external-host     feature
 files             feature
 flow              feature
+graphics          library
 info              feature
 input             library
 introspection     feature

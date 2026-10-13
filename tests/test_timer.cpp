@@ -1606,10 +1606,10 @@ TEST_CASE("a root Drive establishes nothing: the boot ordering hazard is gone wi
 TEST_CASE("world time comes from the timer path: ticks with nobody sending SnakeTick") {
     Rig r;
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    (void)r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
-    const loom::WeaveId clock_so = r.load("snake-clock", SNAKE_CLOCK_SO, "");
+    const loom::WeaveId world_so =
+        r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
 
-    r.pump_for(timer_so, 400); // ~3 ticks of the adapter's 120ms ask
+    r.pump_for(timer_so, 400); // ~3 ticks of the world's own 120ms beat
 
     // The world seeded and MOVED — and no test code ever sent a SnakeTick.
     REQUIRE(r.seen.visuals.size() >= 2);
@@ -1617,7 +1617,7 @@ TEST_CASE("world time comes from the timer path: ticks with nobody sending Snake
     CHECK(r.seen.visuals.front().snake.front().y == 8);
     CHECK(r.seen.visuals.back().snake.front().x > 12); // heading right, on time
 
-    const Seen::Answer a = r.poke_timed(timer_so, clock_so, loom::PokeRead{"ticks"});
+    const Seen::Answer a = r.poke_timed(timer_so, world_so, loom::PokeRead{"ticks"});
     CHECK(a.kind == 0);
     CHECK(std::stoll(a.text) >= 2);
 }

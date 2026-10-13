@@ -78,4 +78,4 @@ nowhere yet
 nowhere yet
 
 ### VM-WIT-22
-`surface/skin_tui.hpp` kTuiPointerOn
+`surface/tui_terminal.hpp` kTuiPointerOn

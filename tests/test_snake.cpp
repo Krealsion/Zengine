@@ -2,11 +2,11 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The snake game proven headless, in three tiers: the ZEN_SHAPE spellings derive the locked
-// contract's schemas by content id; the simulation and the migration are pure math; and three
+// contract's schemas by content id; the simulation and the migration are pure math; and the
 // moments run end to end through the real kernel, manager and bus. That tier steers by LOCKSTEP
 // -- a local State through the same logic.hpp, the published SnakeVisual equal to its projection
-// every tick -- so determinism is pinned, not assumed. A skin's part is read from its poked frame
-// counter, never its pixels, whose suite is test_surface.cpp.
+// every tick -- so determinism is pinned, not assumed. What the world draws, and what its window
+// shows, is the graphics suite's (test_graphics.cpp); here the window is read as rows of text.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -15,7 +15,10 @@
 #include "logic.hpp"
 #include "vocabulary.hpp"
 
-#include "surface/vocabulary.hpp" // the skin role: drawing's address
+#include "graphics_rig.hpp"
+
+#include "surface/vocabulary.hpp" // a Skin's role: the negative control that does paint stdout
+#include "timer/vocabulary.hpp"
 
 #include <fstream>
 #include <iterator>
@@ -358,7 +361,7 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
     CHECK(schema_of<SnakeDied>()->content_id() ==
           SchemaBuilder("SnakeDied", 1).build()->content_id());
 
-    const auto world = SchemaBuilder("SnakeWorldState", 1)
+    const auto world = SchemaBuilder("SnakeWorldState", 3)
                            .field("width", Kind::Int)
                            .field("height", Kind::Int)
                            .list("snake", loom::type_message(pos))
@@ -366,6 +369,15 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
                            .field("direction", Kind::Int)
                            .field("alive", Kind::Bool)
                            .field("score", Kind::Int)
+                           .field("keys", Kind::Bool)
+                           .field("key_up", Kind::Int)
+                           .field("key_right", Kind::Int)
+                           .field("key_down", Kind::Int)
+                           .field("key_left", Kind::Int)
+                           .field("beat_ms", Kind::Int)
+                           .field("ticks", Kind::Int)
+                           .field("board_window", Kind::Text)
+                           .field("board_epoch", Kind::Int)
                            .build();
     CHECK(schema_of<v1::SnakeWorldState>()->content_id() == world->content_id());
 }
@@ -374,8 +386,8 @@ TEST_CASE("contract: v2 state is a genuinely different identity") {
     CHECK(schema_of<v1::SnakeWorldState>()->content_id() !=
           schema_of<v2::SnakeWorldState>()->content_id());
     CHECK(schema_of<v1::SnakeWorldState>()->name() == schema_of<v2::SnakeWorldState>()->name());
-    CHECK(schema_of<v1::SnakeWorldState>()->version() == 1);
-    CHECK(schema_of<v2::SnakeWorldState>()->version() == 2);
+    CHECK(schema_of<v1::SnakeWorldState>()->version() == 3);
+    CHECK(schema_of<v2::SnakeWorldState>()->version() == 4);
 }
 
 // ============================================================================
@@ -567,48 +579,43 @@ TEST_CASE("migration: a dead world migrates dead, and the food sentinel is prese
 // Tier 3 — the three moments, end to end (real .so, real kernel, real steward)
 // ============================================================================
 
-TEST_CASE("moment 1: the drawing code is replaced while the game continues") {
-    Rig r;
-    r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    const loom::WeaveId classic = r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
-                                         zengine::surface::kSkinRole);
+TEST_CASE("moment 1: another skin is chosen while the game continues, and nothing is drawn again") {
+    namespace rig = zengine::testing::graphics_rig;
+    rig::Rig r;
+    REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, zengine::graphics::kGraphicsRole).valid());
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, rig::window_office()).valid());
+    REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
+    r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kWorldArea, kWorldRole, "classic");
 
-    r.tick(); // seeds, and both the classic skin and the probe hear the frame
+    r.tick(); // seeds: the window shows the classic head
     v1::SnakeWorldState local;
     seed(local);
-    CHECK(r.poke(classic, loom::PokeRead{"frames"}).text == "1");
-    REQUIRE(r.rec.visuals.size() == 1);
-    REQUIRE(same_visual(r.rec.visuals.back(), visual_of(local)));
+    REQUIRE(r.heard.visuals.size() == 1);
+    REQUIRE(same_visual(r.heard.visuals.back(), visual_of(local)));
+    CHECK(r.screen().find('O') != std::string::npos);
 
-    // The swap: hard, mid-game. The classic skin is unloaded (its code leaves
-    // the process, its claim on the surface released in its destructor);
-    // different painting code takes the surface.
-    const Recorded::Answer swapped =
-        r.command(loom::SwapWeave{zengine::surface::kSkinRole, "zengine-skin-tui-block",
-                                  SKIN_SO_TUI_BLOCK, /*graceful=*/false});
-    REQUIRE(swapped.kind == 0);
-    const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped.text))};
-    CHECK(block.value != classic.value);
+    // The choice: mid-game, through the directory. The window opens the other painter code and
+    // paints what it keeps; the world draws nothing.
+    const std::size_t mark = r.log.size();
+    r.to_role(zengine::graphics::kGraphicsRole, zengine::graphics::SkinChosen{kWorldArea, "block"});
+    r.drain();
+    CHECK(r.count(mark, "Drawn", kWorldRole) == 0);
+    CHECK(r.count(mark, "ElementPut", kWorldRole) == 0);
+    CHECK(r.count(mark, "ElementChange", kWorldRole) == 0);
+    const std::string block = r.screen();
+    CHECK(block.find('@') != std::string::npos);
+    CHECK(block.find('O') == std::string::npos);
 
-    const Recorded::Answer listed = r.command(loom::ListLoaded{});
-    CHECK(listed.text.find("zengine-skin-tui-block@zengine.skin") != std::string::npos);
-    CHECK(listed.text.find("classic") == std::string::npos);
-    CHECK(listed.text.find("snake-world-v1@snake.world") != std::string::npos);
-
-    // The world never stopped: the next tick advances the SAME run (the
-    // lockstep mirror is the proof — whatever this tick did, eat or move, the
-    // world did it too), and the NEW skin receives the frame.
+    // The world never stopped: the next tick advances the SAME run.
     r.tick();
     (void)step(local);
-    CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "1");
-    REQUIRE(r.rec.visuals.size() == 2);
-    CHECK(same_visual(r.rec.visuals.back(), visual_of(local)));
+    REQUIRE(r.heard.visuals.size() == 2);
+    CHECK(same_visual(r.heard.visuals.back(), visual_of(local)));
 }
 
 TEST_CASE("moment 2: a score weave loaded late counts only what it witnesses") {
     Rig r;
     r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
 
     r.tick(); // seed
     v1::SnakeWorldState local;
@@ -623,7 +630,7 @@ TEST_CASE("moment 2: a score weave loaded late counts only what it witnesses") {
     CHECK(before.text.find("snake-score") == std::string::npos);
 
     // The late arrival, into a live game.
-    const loom::WeaveId score = r.load("snake-score", SNAKE_SO_SCORE, "");
+    const loom::WeaveId score = r.load("snake-score", SNAKE_SO_SCORE, kScoreRole);
     CHECK(r.poke(score, loom::PokeRead{"eaten"}).text == "0");
 
     // Second food: now it is witnessed.
@@ -636,7 +643,6 @@ TEST_CASE("moment 2: a score weave loaded late counts only what it witnesses") {
 TEST_CASE("moment 3: the world grows - graceful swap, the letter, the migration") {
     Rig r;
     const loom::WeaveId world_v1 = r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
 
     r.tick();
     v1::SnakeWorldState local;
@@ -702,7 +708,6 @@ TEST_CASE("moment 3: the world grows - graceful swap, the letter, the migration"
 TEST_CASE("snapshot/revive: an in-place reload carries the state through the gate") {
     Rig r;
     r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
     r.tick();
     v1::SnakeWorldState local;
     seed(local);
@@ -725,7 +730,6 @@ TEST_CASE("snapshot/revive: an in-place reload carries the state through the gat
 TEST_CASE("the closed door: reload across a state-schema version change refuses cleanly") {
     Rig r;
     r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
     r.tick();
     v1::SnakeWorldState local;
     seed(local);
@@ -746,7 +750,6 @@ TEST_CASE("the closed door: reload across a state-schema version change refuses 
 TEST_CASE("the substrate's own reset door starts a new game") {
     Rig r;
     const loom::WeaveId world = r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
     r.tick();
     v1::SnakeWorldState local;
     seed(local);
@@ -832,38 +835,52 @@ long file_size_then_remove(const char* path) {
 
 } // namespace
 
-TEST_CASE("snake publishes, never paints: a skinless game writes zero bytes to stdout") {
-    // A stretch of real life with NO skin anywhere in the process: ticks,
-    // a witnessed meal, a spoken tally — every one of them intent on the bus,
-    // none of them bytes on stdout. Raw pumps on purpose: the catcher, not
-    // the Hush, must be the observer. Each catcher is made before its rig, and
-    // the rig's weaves load inside it, unhushed, and leave before it closes.
+TEST_CASE("snake draws into its window, never onto the terminal: with no terminal, zero bytes") {
+    // A stretch of real life -- ticks, a witnessed meal, a spoken tally, the window keeping and
+    // composing the picture -- in a process whose standard output is no terminal: every one of
+    // them a message on the bus, none of them bytes on stdout. Raw pumps on purpose: the catcher,
+    // not the Hush, must be the observer. Each catcher is made before its rig, and the rig's
+    // weaves load inside it, unhushed, and leave before it closes.
     std::string eaten;
+    std::int64_t showings = 0;
     {
         CatchStdout catcher("snake_no_paint.tmp");
-        Rig r;
-        const loom::WeaveId score = r.load_unhushed("snake-score", SNAKE_SO_SCORE, "");
-        r.load_unhushed("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
+        namespace rig = zengine::testing::graphics_rig;
+        rig::Rig r;
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, zengine::graphics::kGraphicsRole).valid());
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, rig::window_office()).valid());
+        const loom::WeaveId score = r.load("snake-score", SNAKE_SO_SCORE, kScoreRole);
+        REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
+        r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kWorldArea, kWorldRole,
+                  "classic");
         for (int i = 0; i < 6; ++i) {
-            r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
-            r.bus.drain_until_idle();
+            r.tick();
         }
         r.bus.send(score, loom::Message(loom::to_value(FoodEaten{})));
-        r.bus.drain_until_idle();
-        eaten = r.poke(score, loom::PokeRead{"eaten"}).text;
+        r.drain();
+        const loom::Value read = loom::to_value(loom::PokeRead{"eaten"});
+        const std::uint64_t corr = r.next_corr++;
+        r.bus.send(score, loom::Message(read, loom::WeaveId{}, r.ears, corr));
+        r.drain();
+        eaten = r.heard.find(corr) != nullptr ? r.heard.find(corr)->text : "";
+        showings = r.shown().showings;
     }
     CHECK(file_size_then_remove("snake_no_paint.tmp") == 0);
-    CHECK(eaten == "1"); // the game DID run
+    CHECK(eaten == "1");    // the game DID run
+    CHECK(showings >= 6);   // and its window DID compose the picture, every tick
 
-    // The negative control: the same meter, the same game, a skin on the surface — paint.
+    // The negative control: the same meter, a Skin holding a picture -- paint.
     {
         CatchStdout catcher("snake_painted.tmp");
         Rig r;
-        r.load_unhushed("snake-score", SNAKE_SO_SCORE, "");
-        r.load_unhushed("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
         r.load_unhushed("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
                         zengine::surface::kSkinRole);
-        r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
+        zengine::surface::SurfaceCanvas c;
+        c.width = 48;
+        c.height = 12;
+        c.layers.emplace_back();
+        c.layers[0].rects.push_back(zengine::surface::SurfaceRect{0, 0, 12, 12, 0});
+        r.bus.send_to_role(zengine::surface::kSkinRole, loom::Message(loom::to_value(c)));
         r.bus.drain_until_idle();
     }
     CHECK(file_size_then_remove("snake_painted.tmp") > 0);
@@ -892,17 +909,17 @@ TEST_CASE("the playable host sends no Drive: time is the composition's, not the 
     CHECK(source.find("timer::kTimerRole") != std::string::npos);
 }
 
-TEST_CASE("the clock adapter uses the timer binding, not hand-written ceremony") {
+TEST_CASE("the world's beat uses the timer binding, not hand-written ceremony") {
     // WHY THIS READS THE SOURCE: the binding and a hand-written ceremony behave IDENTICALLY --
     // that is the point, and why no black-box test can tell them apart. The claim at risk is
     // "ordinary authors do not write Timer lifecycle", and only the file can witness it; like
     // the no-wind tripwire above, it keeps the claim from quietly becoming false, it does not
     // make the ceremony unwritable.
-    std::ifstream clock(CLOCK_CPP);
-    REQUIRE_MESSAGE(clock.is_open(), "cannot read the clock source: " CLOCK_CPP);
-    const std::string source((std::istreambuf_iterator<char>(clock)),
+    std::ifstream world(WORLD_CPP);
+    REQUIRE_MESSAGE(world.is_open(), "cannot read the world source: " WORLD_CPP);
+    const std::string source((std::istreambuf_iterator<char>(world)),
                              std::istreambuf_iterator<char>());
-    REQUIRE(source.size() > 500); // we really read the adapter, not an empty path
+    REQUIRE(source.size() > 2000); // we really read the world, not an empty path
 
     // It declares a binding...
     CHECK(source.find("TimedWeave") != std::string::npos);
@@ -912,14 +929,179 @@ TEST_CASE("the clock adapter uses the timer binding, not hand-written ceremony")
     // HANDLER SIGNATURE, not the bare shape name: the file may say "TimerReady" in a comment,
     // and a tripwire that could not tell prose from code would train authors to stop explaining
     // themselves.
-    CHECK(source.find("on(const loom::Activated") == std::string::npos);
-    CHECK(source.find("on(const timer::TimerReady") == std::string::npos);
-    CHECK(source.find("on(const timer::TimerFired") == std::string::npos);
+    CHECK(source.find("void on(const loom::Activated") == std::string::npos);
+    CHECK(source.find("void on(const timer::TimerReady") == std::string::npos);
+    CHECK(source.find("void on(const timer::TimerFired") == std::string::npos);
     CHECK(source.find("ActivationCursor") == std::string::npos);
 
-    // The adapter itself IS a weave, and not by accident: the time-to-world policy is
-    // replaceable (a pause driver, a slow-motion clock, a replay feeder). Only the ceremony is
-    // the binding's.
-    CHECK(source.find("SnakeTick") != std::string::npos);
-    CHECK(source.find("ZEN_EXPORT_WEAVE") != std::string::npos);
+    // And its doors stay open beside the beat: world time and steering from anyone.
+    CHECK(source.find("on(const SnakeTick&") != std::string::npos);
+    CHECK(source.find("on(const SnakeTurn&") != std::string::npos);
+}
+
+// ============================================================================
+// What the world's doors keep: a pilot, a replay, a pace, a reload
+// ============================================================================
+
+namespace {
+
+/// The world with its own beat, over the virtual Timer: time moves only while a pump waits for
+/// it, so a pace is a count of the world's beats in a stated span.
+struct Timed {
+    Rig r;
+    loom::WeaveId world;
+    std::int64_t drives = 0;
+    std::int64_t stop_after = -1;
+    std::uint64_t stop_on = 0; ///< a correlation whose answer ends the pump
+    loom::ObserverId tap = r.bus.add_observer([this](const loom::BusEvent& e) {
+        if (e.kind != loom::EventKind::Delivered) {
+            return;
+        }
+        if ((e.schema_name == "Drive" && ++drives == stop_after) ||
+            (stop_on != 0 && e.correlation == stop_on && e.target == r.probe)) {
+            r.bus.stop();
+        }
+    });
+
+    Timed() {
+        world = r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
+        // Loaded through the steward, which activates it: from here the beat chain never idles,
+        // so every pump is bounded by the Timer's own beats.
+        const std::uint64_t corr = r.next_corr++;
+        r.bus.send_as(r.probe, r.manager,
+                      loom::Message(loom::to_value(loom::LoadWeave{"zengine-timer-virtual",
+                                                                   TIMER_VIRTUAL_SO,
+                                                                   zengine::timer::kTimerRole}),
+                                    r.probe, r.probe, corr));
+        pump_until(corr);
+        const Recorded::Answer* loaded = r.rec.find(corr);
+        REQUIRE(loaded != nullptr);
+        REQUIRE_MESSAGE(loaded->kind == 0, "timer load refused: ", loaded->text);
+    }
+    Timed(const Timed&) = delete;
+    Timed& operator=(const Timed&) = delete;
+    ~Timed() { r.bus.remove_observer(tap); }
+
+    /// A stretch of virtual time: each beat of the virtual Timer is `kBeatCapMs` of it.
+    void pump_for(std::int64_t ms) {
+        stop_after = drives + ms / zengine::timer::kBeatCapMs;
+        Hush hush;
+        r.bus.drain_until_idle();
+        stop_after = -1;
+    }
+
+    /// Until the answer to `corr` arrives, bounded by a hundred beats.
+    void pump_until(std::uint64_t corr) {
+        stop_on = corr;
+        pump_for(100 * zengine::timer::kBeatCapMs);
+        stop_on = 0;
+    }
+
+    /// A poke under the live chain: answered within a beat, the pump bounded by the beats.
+    std::string read(const char* field) {
+        const std::uint64_t corr = r.next_corr++;
+        r.bus.send(world, loom::Message(loom::to_value(loom::PokeRead{field}), loom::WeaveId{},
+                                        r.probe, corr));
+        pump_until(corr);
+        const Recorded::Answer* a = r.rec.find(corr);
+        REQUIRE(a != nullptr);
+        return a->text;
+    }
+    void write(const char* field, const char* value) {
+        const std::uint64_t corr = r.next_corr++;
+        r.bus.send(world, loom::Message(loom::to_value(loom::PokeWrite{field, value}),
+                                        loom::WeaveId{}, r.probe, corr));
+        pump_until(corr);
+    }
+    std::int64_t ticks() { return std::stoll(read("ticks")); }
+};
+
+} // namespace
+
+TEST_CASE("a pilot steers through the world's door while the world's own keys are off") {
+    Rig r;
+    const loom::WeaveId world = r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
+    r.tick();
+    v1::SnakeWorldState local;
+    seed(local);
+    REQUIRE(r.poke(world, loom::PokeWrite{"keys", "false"}).kind == 1);
+
+    // A player's key reaches the world and moves nothing: its keys are off.
+    r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(
+                                       zengine::input::KeyPressed{zengine::input::scan::kW, "W"})));
+    r.tick();
+    (void)step(local);
+    CHECK(same_visual(r.rec.visuals.back(), visual_of(local)));
+
+    // The pilot's turn, by role through the open door, steers.
+    r.turn_real(kDown);
+    turn(local, kDown);
+    r.tick();
+    (void)step(local);
+    CHECK(same_visual(r.rec.visuals.back(), visual_of(local)));
+    CHECK(r.rec.visuals.back().snake.front().y == 9);
+}
+
+TEST_CASE("a replay drives the world through its doors while the world's own beat is off") {
+    Timed t;
+    t.write("beat_ms", "0");
+    t.pump_for(1200); // ten paces of virtual time
+    CHECK(t.r.rec.visuals.empty()); // the world took no step of its own
+
+    // The replay's feed: world time and steering, by role, as any driver speaks them.
+    v1::SnakeWorldState local;
+    for (int i = 0; i < 6; ++i) {
+        if (i == 3) {
+            t.r.turn_real(kUp);
+            turn(local, kUp);
+        }
+        t.r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
+        if (local.snake.empty()) {
+            seed(local);
+        } else {
+            (void)step(local);
+        }
+    }
+    t.pump_for(100);
+    REQUIRE(t.r.rec.visuals.size() == 6);
+    CHECK(same_visual(t.r.rec.visuals.back(), visual_of(local)));
+}
+
+TEST_CASE("a faster pace is a field of the world's state: no rebuild, the beat follows it") {
+    Timed t;
+    const std::int64_t start = t.ticks();
+    t.pump_for(1200);
+    const std::int64_t at_120 = t.ticks() - start;
+    CHECK(at_120 >= 9);
+    CHECK(at_120 <= 11);
+
+    t.write("beat_ms", "60");
+    const std::int64_t mid = t.ticks();
+    t.pump_for(1200);
+    const std::int64_t at_60 = t.ticks() - mid;
+    CHECK(at_60 >= 2 * at_120 - 2);
+    CHECK(at_60 <= 2 * at_120 + 2);
+}
+
+TEST_CASE("a reload of the world keeps one beat, not two") {
+    Timed t;
+    const std::int64_t start = t.ticks();
+    t.pump_for(1200);
+    const std::int64_t before = t.ticks() - start;
+
+    const std::uint64_t corr = t.r.next_corr++;
+    t.r.bus.send_as(t.r.probe, t.r.manager,
+                    loom::Message(loom::to_value(loom::ReloadWeave{"snake-world-v1",
+                                                                   SNAKE_SO_WORLD_V1}),
+                                  t.r.probe, t.r.probe, corr));
+    t.pump_until(corr);
+    const Recorded::Answer* reloaded = t.r.rec.find(corr);
+    REQUIRE(reloaded != nullptr);
+    REQUIRE_MESSAGE(reloaded->kind == 1, "reload refused: ", reloaded->text);
+
+    const std::int64_t mid = t.ticks();
+    t.pump_for(1200);
+    const std::int64_t after = t.ticks() - mid;
+    CHECK(after >= before - 1);
+    CHECK(after <= before + 1); // a second beat would double it
 }

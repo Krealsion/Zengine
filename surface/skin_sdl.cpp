@@ -77,29 +77,6 @@ public:
     SdlMedium(const SdlMedium&) = delete;
     SdlMedium& operator=(const SdlMedium&) = delete;
 
-    void frame(const zengine::snake::SnakeVisual& v, bool) {
-        if (!ok_) {
-            return;
-        }
-        if (!ensure_window(v)) {
-            return;
-        }
-        pump();
-        // The window is resizable, so the drawable can be larger than the board: clear it, or
-        // the pixels outside the board are whatever was there before.
-        SDL_SetRenderDrawColor(renderer_, kCanvasBackground.r, kCanvasBackground.g,
-                               kCanvasBackground.b, SDL_ALPHA_OPAQUE);
-        SDL_RenderClear(renderer_);
-        for (const PlanRect& r : plan_frame(v)) {
-            SDL_SetRenderDrawColor(renderer_, r.r, r.g, r.b, SDL_ALPHA_OPAQUE);
-            const SDL_FRect fr{static_cast<float>(r.x), static_cast<float>(r.y),
-                               static_cast<float>(r.w), static_cast<float>(r.h)};
-            SDL_RenderFillRect(renderer_, &fr);
-        }
-        SDL_RenderPresent(renderer_);
-        note_room_given();
-    }
-
     /// The general canvas, in a window. `plan_canvas` hands back each layer's rects and labels
     /// as one list of opaque quads, so nothing here knows what a label is and no second loop can
     /// drop one; glyphs are decided in skin_sdl_plan.hpp and skin_sdl_glyphs.hpp.
@@ -413,10 +390,6 @@ private:
         if (!SDL_MaximizeWindow(window_)) {
             complain("SDL_MaximizeWindow");
         }
-    }
-
-    bool ensure_window(const zengine::snake::SnakeVisual& v) {
-        return ensure_sized_window(window_size_of(v));
     }
 
     /// The window shows all a picture asks for that its display holds, and is otherwise the

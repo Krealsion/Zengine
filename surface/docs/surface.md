@@ -337,14 +337,13 @@ maximized window be resized, so the picture that follows can no longer correct i
 person unmaximizes onto a window they never chose. Hold the offered maximize, let the next
 picture size the window, let that picture be reported, and maximize after it.
 
-The Workshop package is the live consumer that pulled the canvas in. `SnakeVisual`
-remains the V1 payload the skins also accept directly — that named coupling is **not** dissolved:
-re-expressing snake's proven frames through the canvas is its own evidence-carrying move, and a
-general shape existing is not permission to migrate a proven one through it.
+The Workshop package is the live consumer that pulled the canvas in. A Skin paints canvases and
+nothing else: the snake draws into a terminal window of [the Graphics package](../../graphics/docs/graphics.md),
+whose skins are painter code, not Skin weaves.
 
-Three skins ship: **`zengine-skin-tui-classic`** and **`zengine-skin-tui-block`** (the old
-snake drawers' looks, now living where drawing lives — the terminal medium is one header,
-golden-byte tested), and **`zengine-skin-sdl`** — a real window, same intent, zero
+Three skins ship: **`zengine-skin-tui-classic`** and **`zengine-skin-tui-block`** (one terminal
+medium, golden-byte tested, in two libraries so a Skin replaced has another to be replaced by),
+and **`zengine-skin-sdl`** — a real window, same intent, zero
 medium-specific fields added anywhere (the agnosticism proof). The SDL skin is the only
 target that sees SDL: it fetches a **pinned shared SDL3** where none is installed
 (checksum in the build; `-DZENGINE_SDL_SKIN=OFF` declines), plans every frame as pure math
@@ -382,7 +381,7 @@ suites and timer-less hosts.
 case: *a window never shows less than the picture asks for, and is otherwise the person's*. It
 is created at the size its first picture asks for, that size becomes its **minimum**, it
 carries `SDL_WINDOW_RESIZABLE`, and after that it is grown only by a picture that genuinely
-does not fit — which is how a snake board that grew mid-run still comes up whole, while a
+does not fit — which is how a picture that grew mid-run still comes up whole, while a
 canvas publisher that heard `SurfaceExtent` never moves it at all. The alternative is two
 parties resizing each other, and a publisher that clamps or rounds its canvas would then move
 the window every time somebody dragged it. The extent the skin reports is measured from the renderer's own output size, never

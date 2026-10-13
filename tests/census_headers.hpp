@@ -20,7 +20,10 @@
 #include "inventory/inventory-pane/toolbox_file.hpp"
 #include "inventory/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
+#include "examples/snake/board.hpp"
 #include "examples/snake/play_state.hpp"
+#include "graphics/ops.hpp"
+#include "graphics/painting.hpp"
 #include "editor/source-transfer/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
@@ -227,6 +230,28 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::v6::PaneViewRequested>(), // PaneViewRequested v6
         shape<::zengine::composer::ComposerCommandContext>(), // ComposerCommandContext v1
         shape<::zengine::snake::OperatorState>(), // OperatorState v1
+        // What crosses the window's two seams, and the operands of the seven operators: bytes in
+        // process, in no weave's manifest.
+        shape<::zengine::graphics::PaintNode>(), // PaintNode v1
+        shape<::zengine::graphics::PaintTask>(), // PaintTask v1
+        shape<::zengine::graphics::NodePaint>(), // NodePaint v1
+        shape<::zengine::graphics::PaintResult>(), // PaintResult v1
+        shape<::zengine::graphics::ElementEvent>(), // ElementEvent v1
+        shape<::zengine::graphics::ElementOutcome>(), // ElementOutcome v1
+        shape<::zengine::graphics::ElementDescribed>(), // ElementDescribed v1
+        shape<::zengine::graphics::Paint>(), // Paint v1
+        shape<::zengine::graphics::GroupArgs>(), // GroupArgs v1
+        shape<::zengine::graphics::RectArgs>(), // RectArgs v1
+        shape<::zengine::graphics::EllipseArgs>(), // EllipseArgs v1
+        shape<::zengine::graphics::LineArgs>(), // LineArgs v1
+        shape<::zengine::graphics::PathArgs>(), // PathArgs v1
+        shape<::zengine::graphics::TextArgs>(), // TextArgs v1
+        shape<::zengine::graphics::ImageArgs>(), // ImageArgs v1
+        // The snake's board: its data, changes and state, bytes its world and its code exchange.
+        shape<::zengine::snake::SnakeBoardData>(), // SnakeBoardData v1
+        shape<::zengine::snake::SnakeStep>(), // SnakeStep v1
+        shape<::zengine::snake::SnakeNewGame>(), // SnakeNewGame v1
+        shape<::zengine::snake::SnakeBoardState>(), // SnakeBoardState v1
         // Declared by the SDL skin alone, which a build without SDL has no manifest of.
         shape<::zengine::surface::SurfaceCloseRequested>(), // SurfaceCloseRequested v1
     };
