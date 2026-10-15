@@ -30,7 +30,9 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-zengine_weave(zengine-composer composer.cpp)
+# Its manual is compiled in, and answered to whoever asks for it: the pane's page, and a shape's
+# section of it.
+zengine_weave(zengine-composer composer.cpp MANUAL docs/zengine.composer.md)
 target_link_libraries(zengine-composer PRIVATE zengine-composer-draft zengine-activation)
 # The two vocabularies it SPEAKS someone else's sentences in: Workshop's pane
 # protocol (which brings the surface rows with it) and Introspection's one fact.
