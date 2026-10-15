@@ -387,7 +387,7 @@ contribution count, no outcome. Those exist only at runtime, in the executor's
 `ResolvedArtifact`, and are never written back.
 
 **A weaver can see both halves side by side.** The `Project` pane
-([introspection/docs/introspection.md](../../introspection/docs/introspection.md)) pairs each authored row with what this run made
+([introspection/docs/zengine.introspection.md](../../introspection/docs/zengine.introspection.md#arrangement)) pairs each authored row with what this run made
 of it, labelled `authored` and `resolved` so the two are never one. It reads the plan for the
 authored half — a resolved row does not know whether its mount was an overlay — and the executor's
 rows for the other, and it keeps neither.

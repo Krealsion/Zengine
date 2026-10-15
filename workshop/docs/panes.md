@@ -648,7 +648,7 @@ recipe builds against the installed package, loaded by a plan row, and changed w
 [`tests/weavelib/workshop_hello.cpp`](../../tests/weavelib/workshop_hello.cpp) — a test
 fixture, not a product plugin. The shipped one is
 [`introspection/`](../../introspection/loaded.hpp), documented at
-[introspection](../../introspection/docs/introspection.md).
+[introspection](../../introspection/docs/zengine.introspection.md).
 
 ## Starting room
 

@@ -13,7 +13,7 @@
 // discovery door's two asks, one `SampleRequested` per weaver gesture, and the clipboard pair. It
 // links no operator target, so browsing cannot evaluate. The loader binds `allow_any()` to every
 // library, so this is a claim about what the weave does, not containment.
-// Reference: introspection/docs/introspection.md.
+// Reference: introspection/docs/zengine.introspection.md, the manual it carries and answers.
 
 #include "loaded.hpp"
 #include "powers.hpp"
@@ -28,6 +28,7 @@
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_escape.hpp"
@@ -35,6 +36,8 @@
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
+
+#include "manuals/zengine.introspection.hpp" // this weave's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/kernel/manager.hpp>
@@ -125,7 +128,8 @@ class IntrospectionWeave
                        zengine::workshop::PaneCarryAnswered,
                        loom::Refused, ResolvedArrangement, zengine::workshop::v2::ResolvedArrangement,
                        PowersFound, PowerDescribed, SourceSampled,
-                       surface::ClipboardCopy, surface::ClipboardText>,
+                       surface::ClipboardCopy, surface::ClipboardText,
+                       zengine::workshop::PaneDocumentRequested>,
           loom::Emit<PaneOffered, PaneActions, zengine::workshop::v4::PaneContent,
                      zengine::workshop::v5::PaneCanvasContent, zengine::workshop::PaneCaret,
                      zengine::workshop::PanePassRequested, LoadedSelected, loom::ListLoaded,
@@ -133,7 +137,8 @@ class IntrospectionWeave
                      zengine::workshop::PaneOperationRequested,
                      zengine::workshop::PaneValueCarryRequested,
                      zengine::workshop::PaneEscapeUnspent,
-                     surface::ClipboardCopy, surface::ClipboardTextRequested>> {
+                     surface::ClipboardCopy, surface::ClipboardTextRequested,
+                     zengine::workshop::PaneDocumentShown>> {
 public:
     /// First breath, only if Loom says so: `ActivationCursor` requires Loom's attestation and a
     /// sequence not yet acted on, so no weave can make a pane appear by sending `zen.Activated`.
@@ -152,6 +157,19 @@ public:
             return;
         }
         announce(mail);
+    }
+
+    /// THE MANUAL OF A PANE THIS OFFICE OFFERS, to the asker alone: the one page this weave carries,
+    /// answered for whichever of its three pane keys the ask names; any other key is refused.
+    void on(const zengine::workshop::PaneDocumentRequested& ask, loom::Mail& mail) {
+        std::string_view pane = kLoadedPane;
+        for (const char* offered : {kLoadedPane, kArrangementPane, kPowersPane}) {
+            if (ask.pane == offered) {
+                pane = offered;
+            }
+        }
+        (void)mail.answer(zengine::workshop::pane_document(
+            ask, pane, zengine::manual::pages::zengine_introspection::kManual));
     }
 
     /// Workshop granting one pane its prose budget: kept for a host that grants no canvas, and

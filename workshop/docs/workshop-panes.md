@@ -1213,7 +1213,7 @@ and cells are ([`PaneViewRequested`](zengine.workshop.md#paneviewrequested),
 [Workshop's manual](zengine.workshop.md). The carry's shapes are `workshop/pane_carry.hpp`'s, the
 approval's and the lease's `workshop/pane_operation.hpp`'s, and the readings'
 `workshop/pane_view.hpp`'s. The first consumers of the carry are
-[Inventory and Info](../../inventory/docs/inventory.md#inspect-and-edit-through-workshop): the
+[Inventory](../../inventory/docs/zengine.inventory-pane.md) and [Info](../../info/docs/info-views.md): the
 reference route carries an `InventoryReference`, the value route the item itself and its
 metadata, and the two doors keep reference-shaped data from reading as a request to follow it.
 Neither carrying a value nor showing a snapshot grants permission to change its source.
