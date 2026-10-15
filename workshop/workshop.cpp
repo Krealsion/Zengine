@@ -385,13 +385,14 @@ int main(int argc, char** argv) {
     };
     if (args.keymap.empty() && !args.isolated) {
         note_transition(user_paths::import_legacy_file(
-                            host.keymap_path, keymap_persist::kDefaultKeymapFileName, "keymap"),
+                            host.keymap_path, keymap_persist::kDefaultKeymapFileName, "keymap",
+                            keymap_persist::kMaxKeymapBytes),
                         "keymap");
     }
     if (args.session.empty() && !args.isolated) {
         note_transition(user_paths::import_legacy_file(
                             host.session_path, session_persist::kDefaultSessionFileName,
-                            "session"),
+                            "session", session_persist::kMaxSessionBytes),
                         "session");
     }
     host.transition_note = transition;

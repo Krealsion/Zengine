@@ -34,6 +34,7 @@ LAW — `import_legacy_file`: a per-user default whose file does not exist, besi
 
 MEANS
 - an existing user-root file always wins; the legacy file is never deleted, moved or rewritten.
+- the import reads up to the fact's own read ceiling, its loader's: a file the loader takes is imported whole, a larger one is left and said.
 
 WHY — `agents/decisions/three-ownership-domains.md`
 
@@ -123,7 +124,8 @@ default" "the host resolves the weaver's files through the one precedence"
 `tests/test_workshop_persistence.cpp` "a legacy-only file is imported once, and the original is left
 in place" "an existing user-root file always wins over a legacy file" "repeated launches converge --
 the import can never fire twice" "no legacy file, no destination -- the import does nothing,
-silently"
+silently" "a legacy session as large as the session reader takes is imported whole, and a larger
+one or a taken root is left alone"
 
 ### WL-SESSION-04
 `workshop/session_persist.hpp` WorkshopSession setup_in
