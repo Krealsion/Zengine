@@ -10,7 +10,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `pane.cpp` | `zengine-terminal-pane`, a loadable weave: record view, line, recall, completion |
 | `vocabulary.hpp` | its durable names: office `zengine.terminal`, pane, stem, actions, `legend` |
 | `CMakeLists.txt` | builds the weave; skipped where Loom cannot host loadable weaves |
-| `docs/terminal.md` | the weaver's page; its screenshots in `docs/images/` |
+| `docs/zengine.terminal.md` | the pane's manual, compiled into the weave and answered when asked |
+| `docs/terminal.md` | the weaver's how-to; its screenshots in `docs/images/` |
 
 ## Law
 
@@ -44,6 +45,7 @@ text; `workshop_host` (`tests/test_workshop_host.cpp`, the line's completion voc
 
 ## Pages
 
+- [`zengine.terminal`](docs/zengine.terminal.md)
 - [Terminal](docs/terminal.md)
 
 ## Practices

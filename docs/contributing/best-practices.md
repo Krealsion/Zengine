@@ -274,7 +274,7 @@ Its law, pages and suites: [`terminal/AGENTS.md`](../../terminal/AGENTS.md).
 - **The image that presents the Terminal's participant cannot reach it.**
   [WL-TERM-08](../../agents/workshop/terminal.md#wl-term-08--the-image-that-presents-a-participant-cannot-reach-one)
 - **Escape sheds one layer a press**, and is given back only when the pane holds nothing.
-  [Leaving the pane](../../terminal/docs/terminal.md#leaving-the-pane)
+  [`terminal.back`](../../terminal/docs/zengine.terminal.md#terminalback)
 - **A case moved to another consumer is coverage lost.**
   [VM-POP-21](../../agents/verification/population.md#vm-pop-21--a-test-repointed-to-another-consumer-is-coverage-lost-at-the-first)
 

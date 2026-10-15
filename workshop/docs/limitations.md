@@ -279,7 +279,7 @@ carries your document both ways. The honest bounds today:
 
 ### The Terminal's history and its record are this run's, and bounded by the participant
 
-The [Terminal](../../terminal/docs/terminal.md) recalls commands with `↑` and `↓` and reads back through its record;
+The [Terminal](../../terminal/docs/zengine.terminal.md#terminalprevious) recalls commands with `↑` and `↓` and reads back through its record;
 both live in the participant, and the participant lives as long as the run.
 
 | question | answer |

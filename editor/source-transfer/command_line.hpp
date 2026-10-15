@@ -4,7 +4,7 @@
 #define ZENGINE_SOURCE_TRANSFER_COMMAND_LINE_HPP
 
 // A typed command as the Workshop Terminal's line: `send <address> <Shape> <version>` and then
-// `field=value` arguments, read by Loom's own lexer (terminal/docs/terminal.md). Editable text,
+// `field=value` arguments, read by Loom's own lexer (terminal/docs/zengine.terminal.md). Editable text,
 // never an execution: inserting it runs nothing, and running it later is a new send under the
 // sender's current authority.
 // Workshop law: agents/workshop/editor-transfers.md
