@@ -51,10 +51,11 @@ its stem to `WORKSHOP_SO_INFO_PANE`, and `tests/inventory_story.hpp` loads it be
 - The value views ask Workshop's operation and observation doors (`workshop/pane_operation.hpp`,
   `workshop/weave_operation.cpp`) and Inventory (`inventory/pane_client.hpp`,
   `inventory/observation.hpp`).
-- Who addresses its office: the Pane Manager's inspect row sends `InspectPaneRequested` to it
-  (`kInfoRole` in `workshop/desktop-pane/vocabulary.hpp`), a shape this office does not accept;
-  the demo power's reset (`PaneResetRequested`, granted in `workshop/guests.cpp`); and any weave
-  asking a pane's manual (`PaneDocumentRequested`).
+- Who addresses its office: the Pane Manager's inspect row (`kInfoRole` in
+  `workshop/desktop-pane/vocabulary.hpp`), an `InspectPaneRequested` Info takes as its own
+  inspect and answers with the host's `PaneSubjectActed`; the demo power's reset
+  (`PaneResetRequested`, granted in `workshop/guests.cpp`); and any weave asking a pane's manual
+  (`PaneDocumentRequested`).
 
 ## Pages
 
