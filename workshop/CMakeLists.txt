@@ -19,7 +19,9 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-voca
                                                             loom::core
                                                             loom::terminal)
 # ...and the manuals of the host's own offices compiled into it, each office answering a shape's
-# section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
+# section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp): Workshop's own weave
+# (its header, workshop/weave.hpp), and the doors a pane asks about the project.
+zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.workshop.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.project.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.recipes.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.plan.md)
