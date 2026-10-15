@@ -1,17 +1,14 @@
 # The Input package
 
-**Reference.** What the Input weave produces, what each shape preserves, and which backend
-produces it. If you are writing a weave that reacts to a person, this is the vocabulary you
-accept.
+**Reference.** The vocabulary a weave includes to hear a person, and the pieces the Input weaves
+are made of: what each shape preserves, the key, modifier and space numbers, how each platform's
+events become those shapes, and the weave a reader is wrapped in. The office that publishes them,
+its input sessions and its timed pointer motion are [its manual, `zengine.input`](zengine.input.md).
 
 Source: [`input/vocabulary.hpp`](../vocabulary.hpp) ·
 [`input/translate.hpp`](../translate.hpp) ·
 [`input/input_weave.hpp`](../input_weave.hpp). Where a reported position *lands* is
 [pointer spaces](../../workshop/docs/pointer-spaces.md).
-
-The floor games sit on: exactly one Input weave (`zengine-input`, holding the `zengine.input`
-role) is the sole producer of the input shapes and the only code that talks to the platform.
-Consumers only accept; there is no polling API.
 
 **The law: Input reports coherent MOMENTS; applications interpret GESTURES.** A moment
 carries everything the backend already knew when one thing happened, so no consumer has to
@@ -31,7 +28,7 @@ SDL one) so a terminal cell can never be mistaken for an SDL pixel. Editing cont
 never text: Backspace, Enter and Escape arrive as transitions, and what they *mean* is the
 application's.
 
-Backends today are the ones snake and Workshop run on. The **POSIX terminal** parses raw-mode
+The backends are the ones snake and Workshop run on. The **POSIX terminal** parses raw-mode
 bytes with a *stateful, incremental* parser — an OS read boundary is not an event boundary, so a
 mouse report split across reads is rejoined rather than translated into the keystrokes its bytes
 happen to spell; a lone `ESC` is held until an empty poll resolves it as the Escape key. Pointer
@@ -49,85 +46,20 @@ deliberately, not from disinterest: clipboard read follows paste intent, so the 
 read through the Skin when a paste asks with `ClipboardTextRequested` — see
 [surface/docs/surface.md](../../surface/docs/surface.md) — and never watched; no shape leaving this reader carries clipboard
 text. Each backend's exact honest reach — which modifiers it can vouch for on which keys —
-stays documented in `input/translate.hpp`.
+stays documented in `input/translate.hpp`. The terminal readers (`input/terminal_reader.hpp`)
+serve any program reading a terminal, a terminal window among them, not only the Input weave.
 
 **Who turns the terminal's pointer on:** the **Skin**, because terminal modes are output and the
 output stream is already claimed and released on the Skin's own lifetime (`surface/skin_tui.hpp`).
 Input never writes a byte to the terminal; it parses SGR reports whenever they arrive, and they
 only arrive because a Skin asked. The two packages need no coordination surface between them.
 
-The weave arranges its own execution: on the TimerService's hello it asks for a repeating
-role-addressed beat (`zengine.input.pump`, 10ms — the package owns its own pace) and polls on
-each firing; `PumpInput` stays as the same hands on direct request, for suites and timer-less
-hosts.
+## The weave over a reader
 
-## An input session: a second source of moments for the one producer
-
-The floor does not move — one Input weave produces the shapes above. A **session** is a second
-*source* for that producer: a participant on the bus (an agent's proxy across the crossing, a
-test weave, a script) hands the weave moments it composed, and the weave publishes them as the
-same `KeyPressed`, `TextEntered`, `PointerButton` and the rest, in the order handed, from the
-same identity, to the same consumers. Those legacy shapes do not distinguish the sources.
-The input office also publishes `AttributedInput{local, actor, event}` immediately before each
-recognized input event, authored as `zengine.input`. Physical input has `local=true, actor=0`;
-injected input carries its actual session holder's participant id. Synthetic releases on
-session closure retain that holder. Consumers using this companion must verify office
-authorship and avoid processing the legacy copy as a second input. A claimed actor in ordinary
-personal speech proves nothing.
-
-Workshop uses the attributed stream for new inventory operation authorization. Its older
-unattributed input routes still serve their existing interactions, but cannot authorize a new
-inventory operation. This does not claim that every existing application operation has been
-converted to per-actor authorization.
-
-Everything from the bus onward is exercised for real. What is *not* exercised is
-the platform edge — the console reader, the SDL queue, the OS translation — which only a hand
-on a device reaches.
-
-| shape | what it does |
-|---|---|
-| `InputSessionRequested{purpose}` → `InputSessionOpened{session}` / `zen.Refused` | opens the one session; a second opener is refused `busy` and told which session stands |
-| `InjectInput{session, events}` → `InputInjected{admitted, first_seq, last_seq}` / `zen.Refused` | publishes the moments, in order; judged **whole** — one bad moment (an unknown kind, an unknown pointer space, a button outside 1..3, a key outside 1..511, a press that would hold more than 16 keys down, more than 64 moments) publishes nothing and names its index |
-| `InputSessionClosed{session, holder}` → `zen.Ack` / `zen.Refused` | closes it; every key and button the session still held down is **released first**, as ordinary published moments. An office may say `session` 0 for "whatever that holder holds" |
-
-A session belongs to the bus-stamped sender that opened it, never to a name in a payload. It is
-closed by that holder personally, or **on its behalf by an office speaking deliberately** —
-Workshop's guest door closes a guest's session when the guest's connection dies — and never by
-a stranger's personal word. Admitted is not processed: `InputInjected` says the moments are on
-the bus in order; what a consumer makes of them is that consumer's, later, on its own delivery.
-A session is not focus, not a lease on the keyboard and not a claim against the platform: a
-person at the keyboard is still heard while one is open, and the two sources interleave in
-arrival order.
-
-**What a session may hold down is bounded, and so is what closing it costs.** A key moment names
-a scancode in SDL's space, `1..kMaxScancode` (<!-- value kMaxScancode -->511<!-- /value -->; 0 is "unknown key", which nobody presses on
-purpose) — the values every backend already speaks, so an injected key means on every backend
-what a platform one means. A session holds at most `kMaxHeldKeys` (<!-- value kMaxHeldKeys -->16<!-- /value -->) keys down at once;
-buttons are 1..3 already. Each batch is judged against the held state it *would* leave, moment
-by moment, before anything is published: pressing a key that is already down is an auto-repeat
-and holds nothing new, a release makes room, and a batch that would pass the bound at any
-moment — even one that lets the key go again later in the same batch — is refused whole, naming
-that moment. Closing therefore publishes at most sixteen key releases and three button releases.
-The bound is on what a session holds, never on how long: nothing expires, and a key held
-legitimately stays held until it is released or the session closes.
-
-## Timed pointer motion
-
-A session holder may ask `PointerMotionRequested{session,x,y,duration_ms,bend}`. The start is
-that session's last published pointer position; seed it with a pointer event first. Input
-samples a steady clock on its 10 ms pump, publishes attributed PointerMoved events in the
-same space, and answers InputInjected at the endpoint. At most one latest position is emitted
-per pump; a late pump skips missed samples instead of bursting. The answer proves publication,
-not downstream application success. Identical rounded positions are omitted until the endpoint.
-
-Duration is 1..60000 ms; start/end coordinates and finite bend are bounded to +/-1000000.
-Zero bend gives linear motion. Otherwise both cubic control points are offset perpendicular
-to the line by bend units. Parameter time is linear; curve speed is not arc-length constant.
-The pure sampler in [component/motion.hpp](../../component/motion.hpp) retains fractional
-coordinates for animation consumers. Input rounds only when publishing integer coordinates.
-
-Only one motion runs per session. Other injected batches and another motion are refused while
-it runs. Session close cancels it with an authenticated refusal and releases held keys/buttons
-at the last position. That release may finish a partial UI gesture; it is not an atomic abort.
-Physical input still interleaves. No drag meaning, rollback, exclusive
-input lease, or automatic replacement/reconnect recovery is implied.
+`InputWeaveT<Reader, Page>` (`input/input_weave.hpp`) is the whole Input weave around a reader:
+anything with `poll()` returning a vector of a variant of the shapes it publishes. Its Emit set is
+derived from that variant, so a reader that can hand it a further shape (the SDL reader's
+`SurfaceCloseRequested`) declares it and no other weave does. It keeps the office's beat, its
+sessions and its timed motion, as [the manual](zengine.input.md) says. `Page` adds the door that
+answers what each accepted shape does: the two shipped weaves name their office's page, and the
+default, `NoPage`, adds no door, as a suite's weave over a scripted reader is built.

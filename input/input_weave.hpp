@@ -9,8 +9,9 @@
 // feeds scripted batches). It publishes whatever a poll hands back, by shape, and its Emit set
 // is derived from V. It declares a repeating beat on `kPumpTimerId`, addressed to `kInputRole`
 // so a successor inherits it, and the timer binding keeps it established; `PumpInput` is the
-// same hands on direct request, for suites and timer-less hosts.
-// Reference: input/docs/input.md.
+// same hands on direct request, for suites and timer-less hosts. A `Page` (office_page.hpp) adds
+// the door that answers what each accepted shape does; with none the weave has no such door.
+// Reference: input/docs/zengine.input.md.
 
 #include "component/motion.hpp"
 #include "translate.hpp"
@@ -43,38 +44,64 @@ struct InputState {
     ZEN_SHAPE(InputState, 1, ZEN_FIELD(pumped), ZEN_FIELD(emitted));
 };
 
+/// NO PAGE: the weave answers for no shape it accepts. A Page names the ask it answers (`Asked`),
+/// its answer (`Shown`) and `static Shown shown(const Asked&, accepted schemas)`.
+struct NoPage {};
+
 namespace detail {
 
 /// The variant a Reader's poll() hands back.
 template <class Reader>
 using ReaderEvent = typename std::decay_t<decltype(std::declval<Reader&>().poll())>::value_type;
 
+/// What a Page adds to the gate and to the Emit set: its one ask and its one answer, or nothing.
+template <class Page>
+struct PageDoor {
+    using Accepts = loom::Accept<typename Page::Asked>;
+    using Emits = loom::Emit<typename Page::Shown>;
+};
+template <>
+struct PageDoor<NoPage> {
+    using Accepts = loom::Accept<>;
+    using Emits = loom::Emit<>;
+};
+
 /// That variant's alternatives, as the weave's Emit set: derived, not spelled, so each weave
 /// declares exactly what its reader can hand it -- the SDL reader adds the surface close request
 /// without the Input package depending on Surface -- plus the answers the session doors give,
-/// which are this weave's own for every backend.
-template <class V>
+/// which are this weave's own for every backend, and its page's answer.
+template <class V, class PageEmits>
 struct EmitsOf;
-template <class... Ts>
-struct EmitsOf<std::variant<Ts...>> {
-    using type = loom::Emit<Ts..., InputSessionOpened, InputInjected, AttributedInput, loom::Ack, loom::Refused>;
+template <class... Ts, class... P>
+struct EmitsOf<std::variant<Ts...>, loom::Emit<P...>> {
+    using type = loom::Emit<Ts..., InputSessionOpened, InputInjected, AttributedInput, loom::Ack,
+                            loom::Refused, P...>;
+};
+
+/// The doors every Input weave accepts, and its page's ask.
+template <class PageAccepts>
+struct AcceptsOf;
+template <class... P>
+struct AcceptsOf<loom::Accept<P...>> {
+    using type = loom::Accept<PumpInput, InputSessionRequested, InputSessionClosed, InjectInput,
+                              PointerMotionRequested, P...>;
 };
 
 } // namespace detail
 
-template <class Reader>
+template <class Reader, class Page = NoPage>
 class InputWeaveT;
 
 /// The base, named once.
-template <class Reader>
-using InputWeaveBase =
-    zengine::timer::TimedWeave<InputWeaveT<Reader>, InputState,
-                               loom::Accept<PumpInput, InputSessionRequested, InputSessionClosed,
-                                            InjectInput, PointerMotionRequested>,
-                               typename detail::EmitsOf<detail::ReaderEvent<Reader>>::type>;
+template <class Reader, class Page = NoPage>
+using InputWeaveBase = zengine::timer::TimedWeave<
+    InputWeaveT<Reader, Page>, InputState,
+    typename detail::AcceptsOf<typename detail::PageDoor<Page>::Accepts>::type,
+    typename detail::EmitsOf<detail::ReaderEvent<Reader>,
+                             typename detail::PageDoor<Page>::Emits>::type>;
 
-template <class Reader>
-class InputWeaveT : public InputWeaveBase<Reader> {
+template <class Reader, class Page>
+class InputWeaveT : public InputWeaveBase<Reader, Page> {
 public:
     InputWeaveT() { declare_pump(); }
     using Clock = std::chrono::steady_clock;
@@ -85,11 +112,19 @@ public:
     /// The one line of ceremony the binding cannot remove: this weave has its
     /// own `on` handler, which would otherwise HIDE the binding layer's three.
     /// (WeaveBase dispatches via self->on(...) on the derived type.)
-    using InputWeaveBase<Reader>::on;
+    using InputWeaveBase<Reader, Page>::on;
 
     /// The direct door: the same hands, on request, for suites, diagnostics and
     /// timer-less hosts.
     void on(const PumpInput&, loom::Mail& mail) { pump(mail); }
+
+    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: the page's section for it, said against the
+    /// gate's own list. Only a weave built with a page has this door.
+    template <class Asked>
+        requires(!std::is_same_v<Page, NoPage>) && std::is_same_v<Asked, typename Page::Asked>
+    void on(const Asked& ask, loom::Mail& mail) {
+        (void)mail.answer(Page::shown(ask, this->accepted_schemas()));
+    }
 
     // ---- the session doors (vocabulary.hpp says what a session is and is not) ----------
 
@@ -425,7 +460,7 @@ private:
         }
     }
 
-    typename InputWeaveBase<Reader>::Handle pump_;
+    typename InputWeaveBase<Reader, Page>::Handle pump_;
     Reader reader_;
     Session session_;
     Now now_ = [] { return Clock::now(); };
