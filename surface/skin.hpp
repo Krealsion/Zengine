@@ -5,8 +5,8 @@
 #define ZENGINE_SURFACE_SKIN_HPP
 
 // The Skin weave shell over an injected Medium: it counts, delegates, says hello once per
-// incarnation, reports the Medium's extent and placement, and keeps the one captured picture;
-// everything visual is the Medium's. A Medium provides `canvas`, `note`, `pump`,
+// incarnation, reports the Medium's extent and placement, keeps the one captured picture, and
+// answers what a shape it accepts does from its page; everything visual is the Medium's. A Medium provides `canvas`, `note`, `pump`,
 // `extent`, `placement`, `place`, `capture`, `clipboard_copy` and `clipboard_text`, each
 // required rather than detected: a Medium quietly lacking one would look exactly like an honest
 // medium that cannot, on every lane. A real Medium claims its surface RAII-style.
@@ -15,6 +15,8 @@
 #include "vocabulary.hpp"
 
 #include "activation/activation.hpp" // the skin arranges its own time from its activation
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.skin.hpp"  // this office's manual, compiled in from its page
 #include "timer/vocabulary.hpp"      // the skin asks for its own beat now
 
 #include <zen/weave.hpp>
@@ -47,11 +49,13 @@ class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
                                                   SurfaceCaptureChunkRequested,
                                                   loom::Activated,
                                                   zengine::timer::TimerReady,
-                                                  zengine::timer::TimerFired>,
+                                                  zengine::timer::TimerFired,
+                                                  zengine::manual::ShapeDocumentRequested>,
                                      loom::Emit<SurfaceReady, SurfaceExtent, SurfacePlacement,
                                                 ClipboardText, SurfaceCaptured,
                                                 SurfaceCaptureChunk, loom::Refused,
-                                                zengine::timer::StartRoleTimer>> {
+                                                zengine::timer::StartRoleTimer,
+                                                zengine::manual::ShapeDocumentShown>> {
 public:
     SkinT() = default;
     explicit SkinT(Medium medium) : medium_(std::move(medium)) {}
@@ -185,6 +189,12 @@ public:
         // hear the state before the size.
         report_placement(mail);
         report_extent(mail);
+    }
+
+    /// What a shape this Skin accepts does, from its own page, to the one who asked.
+    void on(const zengine::manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(zengine::manual::shape_document(
+            ask, this->accepted_schemas(), zengine::manual::pages::zengine_skin::kManual));
     }
 
     Medium& medium() { return medium_; }

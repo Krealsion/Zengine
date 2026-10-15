@@ -53,7 +53,9 @@ terminal pair, and `input` (`tests/test_input.cpp`) the SDL Skin beside the SDL 
 
 ## Pages
 
-- [The Surface package](docs/surface.md)
+- [The Skin](docs/zengine.skin.md), a manual, compiled into each Skin (`MANUAL` in `CMakeLists.txt`)
+  and answered on ask (`ShapeDocumentRequested`)
+- [The Surface package](docs/surface.md), the drawing vocabulary
 
 ## Practices
 

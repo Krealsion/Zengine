@@ -1,7 +1,9 @@
 # The Surface package
 
-**Reference.** The drawing vocabulary, the rules for choosing between its shapes, and what a
-skin does with each. If you are giving a weave a face, this is what you publish.
+**Reference.** The drawing vocabulary: what a weave publishes to be drawn, the rules for choosing
+between its shapes, and the arithmetic every publisher and Skin shares. If you are giving a weave a
+face, this is what you publish; what the Skin holding `zengine.skin` does with each message is
+[the Skin's manual](zengine.skin.md).
 
 Source: [`surface/vocabulary.hpp`](../vocabulary.hpp) ·
 [`surface/region.hpp`](../region.hpp) ·
@@ -10,10 +12,8 @@ Source: [`surface/vocabulary.hpp`](../vocabulary.hpp) ·
 
 Visual intent in, output out. No game, world, or pane weave talks to the terminal, a window,
 or a renderer: they **publish** intent, and a **Skin** — a replaceable loadable weave holding
-the singleton `zengine.skin` role — claims the actual surface and paints. Claiming is RAII
-(the constructor takes the medium, the destructor gives it back; a swap is release-then-claim
-because the Manager delivers the unload first), and ownership is enforced ground: loading a
-second skin into the held role is a clean refusal.
+the singleton `zengine.skin` office — claims the actual surface and paints it
+([the Skin](zengine.skin.md)).
 
 The vocabulary is deliberately tiny: `SurfaceText{slot, text}` (a line of **plain** text for a
 named slot — "status", "score"; styling is the skin's business) and `SurfaceReady` (the active
@@ -84,20 +84,10 @@ the complete earlier plane, then the complete later one over it. `layers[0]` is 
 `layers[n-1]` front-most. There is deliberately no coordinate transform, no opacity, no clipping
 tree, no layer identity or key, no numeric z, no sorting and no hit testing — a layer is a
 position in a vector, the publisher supplies an already-ordered list, and each Skin executes it.
-It replaced three root lists that made painter's order *global across kinds*, under which a text
-region belonging to a presentation somebody had sent to the back still covered a label belonging
-to the presentation in front. A skin treats a
-canvas exactly as a board (same hello, same first-frame flag, same `frames` counter — it is the
-same act), an unknown role paints as `kFill` rather than vanishing, and elements outside the
-extent are the skin's to clip. **Both media draw labels**: a terminal already owns a font, and
-the SDL medium carries its own 6×6 bitmap face (`surface/skin_sdl_glyphs.hpp`), so a canvas
-whose meaning lives in its labels is readable in a window as well as in a terminal. That face is
-deliberately debug-grade and covers printable ASCII 0x20–0x7E and nothing else; any other byte —
-a control character, or any byte of a multi-byte UTF-8 sequence — renders as a visible unknown
-box and is never dropped, because a character that silently disappeared would be the
-labels-vanish defect again at character granularity. `SurfaceText` — the named *slot*
-lines, which are a different shape — still lands in the window's *title*, because the canvas
-occupies the whole window.
+An unknown role paints as `kFill` rather than vanishing, and elements outside the extent are the
+Skin's to clip. Every medium draws labels, one cell a byte, and draws something visible for a byte
+it has no glyph for rather than nothing; what each Skin draws them in is
+[the Skin's](zengine.skin.md#surfacecanvas).
 
 `SurfaceTextRegion{x, y, w, h, rows, caret_row, caret_col, ground}` is the **one place a canvas admits a medium may set
 its own type**. It is placed in canvas pixels like everything else — so where it sits is
@@ -179,39 +169,92 @@ its anchor floors to, the SDL medium draws it on exactly its pixels, and whole-c
 lands where it always did in both. The prose lattice (rows, columns, carets, selections) stays
 the metric's business, not the canvas's.
 
-## A capture: what the active surface presented, through its own medium
+**A region too small for a medium's own type is a CELL region in that medium**, and
+that is the same sentence a zero metric already means rather than a new rule. A face's line is
+not a cell — this repository's is 18 device pixels against a 12-pixel cell — so a region **one
+cell tall** holds `(12 - 2*inset) / 18` = zero rows of it. Without the fallback such a region
+resolves to a graphical fit with no capacity and both media then draw **nothing**:
+`plan_text_regions` skips a fit with no rows, and `plan_canvas` has already decided the
+regions were the other list's. A bounded region that silently vanishes is the one answer
+`region.hpp` exists to make impossible, so `fit_region` falls back — and because the publisher
+asks the same function for its capacity, the publisher, the window and the terminal all get
+one answer. The split between the two draw lists is the predicate
+`fit_region(r, metric).graphical()` rather than a test on the metric alone, so they remain
+exactly disjoint and exactly complete.
 
-`SurfaceCaptureRequested{after_frame}` → `SurfaceCaptured{ok, capture, frame, width, height,
-cell_px, format, bytes, refusal}`, then `SurfaceCaptureChunkRequested{capture, offset}` →
-`SurfaceCaptureChunk{capture, offset, total, data}` (32 KiB a chunk) or `zen.Refused`. The
-Skin's **Medium** reads back what it drew — the SDL renderer's own pixels as a 24-bit
-`image/bmp`, re-drawn from the last canvas and read before it is presented again, so the
-picture and the window are one drawing; a terminal's cell projection as `text/cells`, one row
-per line — so a capture cannot disagree with the screen and is not a second renderer. One
-picture is retained at a time (the newest replaces it, by number); one over 32 MiB is refused,
-never cut.
+## What the Skin says back
 
-**What a picture proves.** Presentation at one frame, in the medium's units: `frame` is the
-Skin's own count, `cell_px` is the medium's device pixels per canvas cell (12 on the shipped
-window, whose device pixel is a canvas pixel; 0 on a terminal, where a cell is the unit). It proves nothing about asynchronous
-work still pending.
+`SurfaceExtent{width, height, text_advance_px, text_line_px, cell_px}` is the one fact that
+travels the *other* way — a medium answering how much room it has, in canvas pixels, how big
+one character of its own type is, in its own device pixels, and how many of those a canvas cell
+is. Every other shape here is intent flowing publisher → skin; this flows skin → publisher, and
+it exists because "how many cells is there room for" is a fact **only the medium holds**. The
+active skin publishes it when the answer CHANGES and at no other time
+([when each says it](zengine.skin.md#follow)), and a medium with no answer — a window skin before
+its window exists, a terminal skin with no terminal — publishes **nothing** rather than
+publishing zeroes: "I have no opinion" and "there is no room" are different sentences. It is an
+*offer*: a publisher that ignores it keeps publishing whatever extent it likes and the skin clips,
+which is the contract `SurfaceCanvas` already states.
 
-**Ordering a picture after input is the injector's host's job, not this door's.**
-`after_frame` defers the answer until `frames > after_frame` and hands it over on the paint
-that passes it (one may wait at a time) — a *later* frame, which anybody's paint provides. It
-is not the frame that shows a given input, and neither is a picture asked for the moment
-`InputInjected` arrives: that answer says the moments were published, and an input consumer
-that paints only after deliveries of its own has not painted yet. The bus's FIFO orders
-envelopes as they are *queued*; the consumer's follow-ups are queued as they happen, so a
-request that arrives in the middle of them is dispatched in the middle of them.
+How big a terminal is, the one question here put to an operating system, is
+`surface/terminal_size.hpp`'s: `ioctl(TIOCGWINSZ)` on POSIX, `GetConsoleScreenBufferInfo`'s
+**visible window** on Windows (never `dwSize`, which is the 9,001-row scrollback buffer). A
+redirected, piped or captured run has no terminal at the far end, and measures nothing.
 
-What orders it is the host that injected: it fences the injection
-([Loom: fences](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md#fences-when-what-one-send-set-in-motion-has-been-dispatched))
-— across a link, the ask's `settle` — and says when everything the injection set in motion has
-been dispatched: the consumer's handling of each moment and every delivery it caused, the
-repaint among them. A capture asked for after that shows those paints. It says nothing about
-work deferred to a timer, a later turn or another host, and a later unrelated paint may already
-stand on top of it; the picture says which frame it is.
+**The metric exists because exactly one party may measure in a sizing conversation**, and for
+text that party has to be the application: the Terminal pane chooses which transcript entries
+it can show *whole* and then says how many it left out, and a medium that wrapped on its own
+behalf would make that sentence false. So the medium measures its face once and publishes the
+*result*; the application does the arithmetic. **Zero means "text is a cell"** — the honest
+answer for every terminal skin, for a window before its font opens, and for a window whose font
+*failed* to open, because in all three the thing actually being painted is a cell-sized glyph.
+What the metric deliberately does not carry is a family, a filename, a point size, an ascent, a
+hinting mode or a DPI: an application needs the result of measurement, not the mechanism, and
+every one of those fields would be a fact about one backend that a second backend would have to
+fake.
+
+**The skin owns the desktop placement too, in both directions.**
+`SurfacePlacement{x, y, maximized}` is the second skin → publisher fact: where the skin's
+window sits on its desktop, in the *skin's own desktop units* — the **normal** window's
+top-left (sampled only while unmaximized and remembered across a maximized stretch), with the
+current maximized state beside it. Published when it changes, and **before** the extent when both
+changed in one gesture, so a consumer keeping the normal window's room hears the state before the
+size. A publisher may remember these numbers and may hand them back; it may never interpret them
+— a desktop coordinate is a fact about one machine's monitors, and authored canvas geometry stays
+medium-independent. Absence is **silence**, not zeroes: `(0,0)` is a real place on every desktop,
+so a medium with no window — every terminal skin, whose window belongs to the emulator — simply
+never says one. `SurfacePlacementRemembered{x, y, maximized}` is the road back: sent to the skin's
+role once, by a publisher restoring a session, and it is a *want*, not an instruction. The Skin
+judges it against the displays that exist now
+([how](zengine.skin.md#surfaceplacementremembered)), and what the publisher then hears is the truth
+through the ordinary report, never an echo.
+
+## The clipboard
+
+**The skin owns the platform clipboard, in both directions — and the read follows paste
+intent.** `ClipboardCopy{text}` is intent: *a weaver copied this* — published by whichever
+application or pane provider hosted the copy, handed to the platform by the active skin as far as
+its medium honestly can, and mirrored by every other text-holding participant, which is what keeps
+copy-here-paste-there true inside the process even on a medium whose platform cannot answer. A
+mirror means *the freshest copy said in this process* — never the platform's state, because
+nothing here watches the system clipboard: it is ambient host state that may have nothing to do
+with this application, and permission to use its text when a weaver asks to paste is not
+permission to observe it continuously. When a paste is requested, the asker sends
+`ClipboardTextRequested{}` to the skin's role and the skin answers `ClipboardText{readable, text}`
+from its medium at that moment; when `readable` is false the asker pastes its in-process mirror
+instead. The two fields are separate because an empty platform clipboard and an unreadable one are
+different sentences, and collapsing them would paste stale mirror text the platform no longer
+holds. What each Skin can read and set is [the Skin's](zengine.skin.md#clipboardtextrequested).
+
+## A capture
+
+`SurfaceCaptureRequested{after_frame}` asks the Skin for a picture of what its medium presented,
+answered `SurfaceCaptured`; `SurfaceCaptureChunkRequested{capture, offset}` fetches the picture's
+bytes, `kCaptureChunkBytes` a chunk, answered `SurfaceCaptureChunk`. The medium reads back what it
+drew, so a capture cannot disagree with the screen and is not a second renderer. A picture proves
+presentation at one frame and nothing about work still pending. What each Skin's picture is,
+how an ask waits for a frame, and every refusal, are
+[the Skin's](zengine.skin.md#surfacecapturerequested).
 
 ## Current wire versions
 
@@ -232,157 +275,3 @@ one field to a row moves three numbers.
 | `SurfacePlacement` | 1 |
 | `SurfacePlacementRemembered` | 1 |
 
-**A region too small for a medium's own type is a CELL region in that medium**, and
-that is the same sentence a zero metric already means rather than a new rule. A face's line is
-not a cell — this repository's is 18 device pixels against a 12-pixel cell — so a region **one
-cell tall** holds `(12 - 2*inset) / 18` = zero rows of it. Without the fallback such a region
-resolves to a graphical fit with no capacity and both media then draw **nothing**:
-`plan_text_regions` skips a fit with no rows, and `plan_canvas` has already decided the
-regions were the other list's. A bounded region that silently vanishes is the one answer
-`region.hpp` exists to make impossible, so `fit_region` falls back — and because the publisher
-asks the same function for its capacity, the publisher, the window and the terminal all get
-one answer. The split between the two draw lists is the predicate
-`fit_region(r, metric).graphical()` rather than a test on the metric alone, so they remain
-exactly disjoint and exactly complete.
-
-**The skin owns the platform clipboard, in both directions — and the read follows paste
-intent.** `ClipboardCopy{text}` is intent: *a weaver copied this* — published by whichever
-application or pane provider hosted the copy, executed by the active skin with whatever its
-medium honestly has (the SDL medium sets the real platform clipboard; a terminal medium
-writes the OSC 52 set-clipboard sequence to the stream it already owns, which terminals that
-support it honour and the rest ignore — and no terminal offers a way to ask which happened,
-so nothing claims the system took it), and mirrored by every other text-holding participant,
-which is what keeps copy-here-paste-there true inside the process even on a medium whose
-platform cannot answer. A mirror means *the freshest copy said in this process* — never the
-platform's state, because nothing here watches the system clipboard: it is ambient host
-state that may have nothing to do with this application, and permission to use its text when
-a weaver asks to paste is not permission to observe it continuously. When a paste is
-requested, the asker sends `ClipboardTextRequested{}` to the skin's role and the skin
-answers `ClipboardText{readable, text}` from its medium at that moment: the SDL medium reads
-the real platform clipboard (`readable=true`, empty text meaning the platform holds no
-text); a terminal medium answers `readable=false`, because no truthful terminal route reads
-a system clipboard, and the asker then pastes its in-process mirror instead. The two fields
-are separate because an empty platform clipboard and an unreadable one are different
-sentences, and collapsing them would paste stale mirror text the platform no longer holds.
-
-`SurfaceExtent{width, height, text_advance_px, text_line_px, cell_px}` is the one fact that
-travels the *other* way — a medium answering how much room it has, in canvas pixels, how big
-one character of its own type is, in its own device pixels, and how many of those a canvas cell
-is. Every other shape here is intent flowing
-publisher → skin; this is the only one flowing skin → publisher, and it exists because
-"how many cells is there room for" is a fact **only the medium holds**. The active skin
-publishes it when the answer CHANGES and at no other time (its own 10ms beat is what notices
-a person dragging a window edge), and a medium with no answer — a window skin before its window
-exists, a terminal skin with no terminal — publishes **nothing** rather than publishing zeroes:
-"I have no opinion" and "there is no room" are different sentences. It is an *offer*: a
-publisher that ignores it keeps publishing whatever extent it likes and the skin clips, which
-is the contract `SurfaceCanvas` already states.
-
-**A terminal skin answers too.** It owns a stream rather than a drawable, so it asks
-the operating system about the far end of it — `ioctl(TIOCGWINSZ)` on POSIX,
-`GetConsoleScreenBufferInfo`'s **visible window** on Windows (never `dwSize`, which is the
-9,001-row scrollback buffer) — through `surface/terminal_size.hpp`, the one place in this
-repository that names an operating system for this. The question is asked of the **Sink**, because
-the Sink is the thing that holds the terminal: `TuiTerminal` has a real console and answers, a
-`std::string` in a suite has none and says so, and a pipe is a far end that is not a terminal at
-all. What the medium then reports is not the terminal's size but what a **canvas** fits in it,
-in canvas pixels — its cells times twelve, so a terminal's room is derived from its cells and
-nothing it reports can be finer: `kTuiReservedRows` (<!-- value kTuiReservedRows -->3<!-- /value -->) come off the top — two for the status and score slots, and one because
-`canvas_body` ends its last row with a feed and a feed on a terminal's bottom row *scrolls*. The
-text metric stays `0 / 0`, which is not a missing measurement: in a terminal a character IS a
-cell. So a redirected, piped, captured or CI run measures nothing, says nothing, and paints
-Workshop's own documented 78×22 minimum exactly as it always did — and an interactive one paints
-the terminal a weaver actually gave it.
-
-**The metric exists because exactly one party may measure in a sizing conversation**, and for
-text that party has to be the application: the Terminal pane chooses which transcript entries
-it can show *whole* and then says how many it left out, and a medium that wrapped on its own
-behalf would make that sentence false. So the medium measures its face once and publishes the
-*result*; the application does the arithmetic. **Zero means "text is a cell"** — the honest
-answer for every terminal skin, for a window before its font opens, and for a window whose font
-*failed* to open, because in all three the thing actually being painted is a cell-sized glyph.
-What the metric deliberately does not carry is a family, a filename, a point size, an ascent, a
-hinting mode or a DPI: an application needs the result of measurement, not the mechanism, and
-every one of those fields would be a fact about one backend that a second backend would have to
-fake.
-
-**The skin owns the desktop placement too, in both directions.**
-`SurfacePlacement{x, y, maximized}` is the second skin → publisher fact: where the skin's
-window sits on its desktop, in the *skin's own desktop units* — the **normal** window's
-top-left (sampled only while unmaximized and remembered across a maximized stretch), with the
-current maximized state beside it. Published when it changes, on the same beat that notices a
-dragged edge, and **before** the extent when both changed in one gesture, so a consumer
-keeping the normal window's room hears the state before the size. A publisher may remember
-these numbers and may hand them back; it may never interpret them — a desktop coordinate is a
-fact about one machine's monitors, and authored canvas geometry stays medium-independent.
-Absence is **silence**, not zeroes: `(0,0)` is a real place on every desktop, so a medium with
-no window — every terminal skin, whose window belongs to the emulator — simply never says one.
-`SurfacePlacementRemembered{x, y, maximized}` is the road back: sent to the skin's role once,
-by a publisher restoring a session, and it is a *want*, not an instruction. The skin validates
-it against the displays that exist **now** — a position wholly on a display restores verbatim;
-any other moves in only until the whole window, its frame included, is on the usable area of
-the display it overlaps most (a window larger than that area keeps its top-left there); and
-with no display truth at all nothing moves, because an uninformed move is a blind replay. A
-window nobody placed opens centred on its display, and stays centred as pictures grow it until
-someone moves it; a placed one is kept whole as it grows. The maximize
-is applied after the position, so unmaximizing lands where the offer put the frame — and what
-the publisher then hears is the truth through the ordinary report, never an echo.
-
-The maximize also waits for the window's **room**, and a medium of your own has to do the same.
-An offer carries a position and a state, deliberately not a size: sizing the window is the
-canvas conversation's job and no other message may do it. So the normal rectangle a maximize is
-laid over is only half-known when the offer arrives, and a medium that maximizes right then
-freezes the other half at whatever size the window was created at — platforms do not let a
-maximized window be resized, so the picture that follows can no longer correct it, and the
-person unmaximizes onto a window they never chose. Hold the offered maximize, let the next
-picture size the window, let that picture be reported, and maximize after it.
-
-The Workshop package is the live consumer that pulled the canvas in. A Skin paints canvases and
-nothing else: the snake draws into a terminal window of [the Graphics package](../../graphics/docs/graphics.md),
-whose skins are painter code, not Skin weaves.
-
-Three skins ship: **`zengine-skin-tui-classic`** and **`zengine-skin-tui-block`** (one terminal
-medium, golden-byte tested, in two libraries so a Skin replaced has another to be replaced by),
-and **`zengine-skin-sdl`** — a real window, same intent, zero
-medium-specific fields added anywhere (the agnosticism proof). The SDL skin is the only
-target that sees SDL: it fetches a **pinned shared SDL3** where none is installed
-(checksum in the build; `-DZENGINE_SDL_SKIN=OFF` declines), plans every frame as pure math
-(`skin_sdl_plan.hpp`, pinned on every lane), and degrades gracefully with no display — the
-suite drives it under SDL's dummy driver, and the window title carries the text slots.
-
-**It also owns a real typeface, for text regions and nothing else.** A bitmap letterform is
-not good enough for prose: at 5×5, `a`, `e`, `o` and `c` differ by one pixel, so `weave` reads
-`woave` — and scaling that face does not fix it, which was measured rather than assumed. So
-the skin carries JetBrains Mono Regular (SIL OFL 1.1,
-[surface/fonts/PROVENANCE.md](../fonts/PROVENANCE.md)) **embedded in the weave**: the
-build turns the file's bytes into a translation unit (`cmake/EmbedBinary.cmake`) and the medium
-opens them from memory through SDL_ttf. Nothing is installed, nothing is staged, nothing is
-discovered at runtime, and no host font is assumed — a skin either has its face or does not.
-When it does not, it says why on stderr and publishes no metric, which is the same sentence as
-"text is a cell", which is what the bitmap face draws: the pane degrades to the Workshop of
-before rather than to a blank rectangle, and the publisher's wrapping follows it there because
-it is wrapping against the metric it was told. SDL_ttf and its vendored FreeType ride the same
-pinned-and-checksummed fetch as SDL3 itself; see
-[THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
-
-The SDL window **is an ear as well as a surface**: it was created not-focusable while
-the terminal was the game's only ear, and the flag came off when the SDL Reader made the
-window able to hear. It keeps itself answering its OS: a skin's own activation asks the Timer
-package for the `zengine.skin.pump` role beat (10ms), and the beat calls `SDL_PumpEvents` —
-which gathers OS input INTO the process-global queue and removes nothing, so the queue still
-has exactly one owner and it is still the Input reader. That servicing happens even when the
-world publishes nothing (a dead world starves a frame-driven pump; the OS calls the result
-"not responding"). Role-addressed is the load-bearing half: the beat belongs to the SLOT, so a
-swapped-in skin inherits it without asking. Terminal media no-op the beat, exactly as they
-no-op'd the old host-sent pump; `PumpSurface` stays as the same hands on direct request, for
-suites and timer-less hosts.
-
-**The window is the person's to resize**, under one rule with no per-shape special
-case: *a window never shows less than the picture asks for, and is otherwise the person's*. It
-is created at the size its first picture asks for, that size becomes its **minimum**, it
-carries `SDL_WINDOW_RESIZABLE`, and after that it is grown only by a picture that genuinely
-does not fit — which is how a picture that grew mid-run still comes up whole, while a
-canvas publisher that heard `SurfaceExtent` never moves it at all. The alternative is two
-parties resizing each other, and a publisher that clamps or rounds its canvas would then move
-the window every time somebody dragged it. The extent the skin reports is measured from the renderer's own output size, never
-remembered, because a person dragging an edge changes that number and no message says so.

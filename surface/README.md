@@ -10,10 +10,16 @@ a monochrome terminal and in a window alike. A program spells the messages with
 carries `surface/region.hpp`, `surface/cells.hpp`, `surface/pointing.hpp` and
 `surface/terminal_size.hpp`, and the two terminal Skins.
 
+## Manuals
+
+- [The Skin](docs/zengine.skin.md), `zengine.skin`: the office that paints, what each of the three
+  Skins does, and every message it takes and says
+
 ## Pages
 
-- [The Surface package](docs/surface.md): the reference, with every message, which kind of text
-  to choose, the drawing order, what each Skin does with them, captures and the clipboard
+- [The Surface package](docs/surface.md): the drawing vocabulary, with every shape a weave
+  publishes, which kind of text to choose, the drawing order, carets and selections, and what the
+  Skin says back
 
 ## What is in this folder
 
