@@ -249,7 +249,7 @@ Its law, pages and suites: [`flow/AGENTS.md`](../../flow/AGENTS.md).
 Its law, pages and suites: [`info/AGENTS.md`](../../info/AGENTS.md).
 
 - **While a view waits, its draft is frozen and nothing times out.**
-  [While a view waits](../../info/docs/info-views.md#while-a-view-waits)
+  [While a view waits](../../info/docs/zengine.info.md#commands-in-a-value-view)
 - **Only an inspector's own ask names its subject**; selection, keys and Escape never move it.
   [WL-INFO-14](../../agents/workshop/info-body.md#wl-info-14--the-subject-is-a-pane-info-names-and-nothing-else-moves-it)
 - **An ask Loom says never arrived is released.**

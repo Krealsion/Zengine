@@ -10,9 +10,11 @@
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
+#include "census.hpp"
 #include "workshop_support.hpp"
 
 #include "info/vocabulary.hpp"
+#include "manuals/zengine.info.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
 
 #include <algorithm>
@@ -2644,4 +2646,37 @@ TEST_CASE("the image that inspects a pane holds no desk") {
     CHECK(source.find("workshop/inspection_seam_vocabulary.hpp") != std::string::npos);
     // ...AND THE SHARED TEXT HELPERS RATHER THAN ANOTHER COPY OF THEM.
     CHECK(source.find("workshop/pane_text.hpp") != std::string::npos);
+}
+
+TEST_CASE("Info answers its manual for each pane it offers from the page its build embedded, and "
+          "refuses a pane or a section it does not have, naming what is missing") {
+    namespace manual = zengine::manual;
+    const manual::Manual& page = manual::pages::zengine_info::kManual;
+    InfoRig info;
+    info.open();
+    ManualReader reader(info.r, pane::kInfoPaneRole);
+
+    // THE WHOLE PAGE, ASKED WITH NO SECTION: the page this tree's build embedded, in order.
+    const PaneDocumentShown whole = reader.ask(pane::kInfoPane, "");
+    CHECK(whole.refusal.empty());
+    CHECK(whole.content_id == std::string(page.content_id));
+    REQUIRE(whole.sections.size() == page.count);
+    for (std::size_t i = 0; i < page.count; ++i) {
+        CHECK(whole.sections[i].key == std::string(page.sections[i].key));
+        CHECK(whole.sections[i].text == std::string(page.sections[i].text));
+    }
+    // ...THE SAME PAGE FOR A VALUE VIEW'S PANE, one command at a time.
+    const PaneDocumentShown save = reader.ask(pane::view_key(2), pane::kActionSave);
+    CHECK(save.refusal.empty());
+    REQUIRE(save.sections.size() == 1);
+    CHECK(save.sections[0].key == pane::kActionSave);
+    CHECK(save.content_id == whole.content_id);
+
+    const PaneDocumentShown section = reader.ask(pane::kInfoPane, "info.fly");
+    CHECK(section.refusal == "the manual of zengine.info has no section `info.fly`");
+    CHECK(section.sections.empty());
+    const PaneDocumentShown other = reader.ask("info.5", "");
+    CHECK(other.refusal == "zengine.info offers no pane `info.5`");
+    CHECK(other.sections.empty());
+    CHECK(other.content_id.empty());
 }
