@@ -14,14 +14,20 @@ start, ask after and stop the Neovim-backed Editor with
 
 ## Pages
 
-- [The source editor](docs/editor.md): open a file, edit it, save it, carry text in and out, and
-  what the Editor does with every byte
+- [`zengine.editor`](docs/zengine.editor.md): the Editor's manual, both holders of its office: every
+  command, what it answers and refuses, what the pane shows and the files it touches
+- [`zengine.editor-switch`](docs/zengine.editor-switch.md): the editor switch's manual: the four
+  messages a weaver sends, what each answers, and how a switch is followed
+- [The source editor](docs/editor.md): open a file, edit it, save it, carry text in and out, walked
+  through
 - [Neovim in Workshop](docs/neovim.md): edit in Neovim, choose its configuration, switch while
   you work, and run it from a Loom with no Workshop
-- [Editor switch](docs/editor-switch.md): the reference for switching: the choices a load plan
-  offers, the messages a weaver sends, and what crosses with the document
+- [What crosses a switch](docs/editor-switch.md): the reference for the handoff both Editors
+  speak, and what of the document crosses each way
 - [Source material](docs/source-transfer.md): the reference for the text, commands and file
   places the Editors carry to and from Inventory
+
+![The Editor wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.editor-manual.png)
 
 ## What is in this folder
 
