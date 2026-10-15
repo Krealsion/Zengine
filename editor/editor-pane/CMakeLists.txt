@@ -12,7 +12,9 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-zengine_weave(zengine-editor-pane pane.cpp)
+# Its manual is the Editor office's page, compiled in and answered to whoever asks for it; the
+# Neovim-backed Editor carries the same page, since either holds the office.
+zengine_weave(zengine-editor-pane pane.cpp MANUAL ../docs/zengine.editor.md)
 target_link_libraries(zengine-editor-pane PRIVATE zengine-workshop-vocabulary
                                                   zengine-component zengine-input-vocabulary
                                                   zengine-activation zengine-source-transfer)

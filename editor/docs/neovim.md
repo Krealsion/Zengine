@@ -1,10 +1,12 @@
 # Neovim in Workshop
 
-**Walkthrough and reference, current state.** Edit in Neovim inside a running Workshop, switch the
-Editor between Workshop's standard Editor and Neovim while you work, and take your unsaved edits,
-your caret and your selection with you each way. The same Neovim editor also runs from a Loom with
-no Workshop at all, with Neovim's own interface in a second terminal. The exact contract is
-[editor-switch.md](editor-switch.md).
+**Walkthrough.** Edit in Neovim inside a running Workshop, switch the Editor between Workshop's
+standard Editor and Neovim while you work, and take your unsaved edits, your caret and your
+selection with you each way. The same Neovim editor also runs from a Loom with no Workshop at all,
+with Neovim's own interface in a second terminal. The Neovim-backed Editor's commands and asks are
+in the Editor's manual ([Commands in Neovim](zengine.editor.md#commands-in-neovim)), the switch's
+in [`zengine.editor-switch`](zengine.editor-switch.md), and what crosses a switch in
+[What crosses a switch](editor-switch.md).
 
 ## Before you start
 

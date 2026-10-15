@@ -12,6 +12,10 @@
 
 #include "workshop_switch_rig.hpp"
 
+#include "office_manual.hpp"
+
+#include "manuals/zengine.editor-switch.hpp"
+
 namespace {
 
 inline std::vector<load::ChoiceIntent> standard_and_twin() {
@@ -83,6 +87,32 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
     CHECK(s.read("text") == "int one;\nint Xtwo;\n");
     CHECK(s.read("caret_byte") == "5");
     CHECK(s.r.plan_->state_of(pane::kEditorPaneStem) == load::RowState::Resolved);
+}
+
+TEST_CASE("the editor switch answers its page for every shape it accepts, and its page names no other") {
+    namespace manual = zengine::manual;
+    SwitchRig s("switch-manual");
+    s.open(standard_and_twin());
+    const manual::Manual& page = manual::pages::zengine_editor_switch::kManual;
+    // A COMMAND IS ANSWERED FROM `Commands`, A COLLABORATOR'S WORD FROM `Hears`, both from the page
+    // this build embedded...
+    ShapeDocumentReader reader(s.r.bus, kEditorSwitchRole);
+    const manual::ShapeDocumentShown asked =
+        reader.ask(EditorSwitchRequested::zen_name, EditorSwitchRequested::zen_version);
+    CHECK(asked.refusal.empty());
+    CHECK(asked.group == "Commands");
+    CHECK(asked.page == std::string(page.content_id));
+    CHECK(asked.text.find("**Refuses:**") != std::string::npos);
+    CHECK(reader.ask(EditorLive::zen_name, EditorLive::zen_version).group == "Hears");
+    // ...AND A VERSION THE GATE DOES NOT ACCEPT IS REFUSED WITH NO WORDS.
+    const manual::ShapeDocumentShown other = reader.ask(EditorSwitchRequested::zen_name, 2);
+    CHECK(other.refusal == "zengine.editor-switch does not accept `EditorSwitchRequested` v2");
+    CHECK(other.text.empty());
+    // EVERY SHAPE THE OFFICE ACCEPTS IS ON ITS PAGE, AND THE PAGE NAMES NO OTHER.
+    CHECK(check_office_manual(s.r.bus, kEditorSwitchRole) > 0);
+    check_page_names_accepted(page, described_shapes_of(s.r.bus, s.r.bus.role_holder(kEditorSwitchRole)));
+    // ASKING CHANGED NOTHING: no switch began.
+    CHECK(s.switcher->stage() == EditorSwitchCoordinator::Stage::Idle);
 }
 
 TEST_CASE("asking for the choice that already holds the office is harmless: nothing is loaded") {
