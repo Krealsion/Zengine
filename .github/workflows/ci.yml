@@ -13,8 +13,11 @@ on:
 permissions:
   contents: read
 
+# A pull request's newer push cancels its run in progress. A push to `main` has a group of its own,
+# so no run on `main` waits behind another and is replaced before it starts: each judges and builds
+# its own push (VM-LANE-06).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'push' && format('-{0}', github.sha) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
