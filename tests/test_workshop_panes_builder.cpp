@@ -13,6 +13,7 @@
 #include "workshop_support.hpp"
 #include "guest_hand.hpp"
 #include "builder_rig.hpp"
+#include "census.hpp"
 
 #include "builder/builder-pane/vocabulary.hpp"
 #include "workshop/authoring.hpp"
@@ -2994,226 +2995,103 @@ void each_builder_mode(BuilderRig& b, const std::function<void(const char*)>& at
     REQUIRE(declares(pane::kActionBuild));
 }
 
-/// ONE CAUSE AS THE CENSUS SPELLS IT: `<shape>/<version>`, then its subject -- `@<prefix>` for the
-/// part a press lands on, `><office>/<pane>` for one pane.
-std::string census_cause(const ActionCause& c) {
-    std::string out = c.shape + "/" + std::to_string(c.version);
-    if (c.subject.rfind(kCauseOnPart, 0) == 0) out += "@" + c.subject.substr(kCauseOnPart.size());
-    if (c.subject.rfind(kCauseToPane, 0) == 0) out += ">" + c.subject.substr(kCauseToPane.size());
-    return out;
-}
+/// THE BUILDER PANE'S CENSUS: its rows in each mode it is walked through, and what each mode says
+/// of the others; every control it draws in a mode names one of that mode's rows (WL-HAND-07).
+const CensusDriverOf kBuilderCensus{pane::kBuilderPaneRole, [] {
+    OfficeCensus census;
+    BuilderRig b("bld-census");
+    b.tool->catalog = catalog_of({{"tally", "tally"}});
+    b.open();
+    each_builder_mode(b, [&](const char* mode) {
+        const RuntimePane* held = b.row();
+        CHECK(held->mode == mode); // the mode the pane says is the one the census names
+        const std::string unnamed = held_control_parts_problem(b.r.session(), b.kind);
+        CHECK_MESSAGE(unnamed.empty(), "in `" << std::string(mode) << "`: " << unnamed);
+        census_take(census, pane::kBuilderPaneRole, *held);
+    });
+    return census;
+}};
 
-/// ...AND A ROW'S CAUSES: each, `,`-joined, in the order declared; `-` for none.
-std::string census_causes(const std::vector<ActionCause>& causes) {
-    std::string out;
-    for (const ActionCause& c : causes) out += (out.empty() ? "" : ",") + census_cause(c);
-    return out.empty() ? std::string("-") : out;
-}
-
-/// ONE CENSUS LINE: `<office> <mode> <id> <default key, as a keymap file spells it> <causes>
-/// <enters> <label>`.
-std::string census_line(const std::string& office, const std::string& mode, const std::string& id,
-                        std::int64_t scancode, std::int64_t modifiers,
-                        const std::vector<ActionCause>& causes, const std::string& enters,
-                        const std::string& label) {
-    const Gesture g{scancode, modifiers};
-    return office + " " + mode + " " + id + " " +
-           (is_bound(g) ? gesture_word(g) : std::string("unbound")) + " " +
-           census_causes(causes) + " " + (enters.empty() ? std::string("-") : enters) + " " +
-           label;
-}
-
-/// ...A HELD ROW'S, read from what Workshop holds of the declaration.
-std::string census_line(const std::string& office, const std::string& mode,
-                        const v3::PaneActionRow& a) {
-    return census_line(office, mode, a.id, a.scancode, a.modifiers, a.causes, a.enters, a.label);
-}
-
-/// EACH MODE'S CAUSES AS THE CENSUS LINES SAY THEM: of `lines` for `office`, by mode, every cause
-/// token once.
-std::map<std::string, std::set<std::string>> census_causes_by_mode(
-    const std::vector<std::string>& lines, const std::string& office) {
-    std::map<std::string, std::set<std::string>> out;
-    for (const std::string& line : lines) {
-        std::istringstream in(line);
-        std::string who, mode, id, key, causes;
-        in >> who >> mode >> id >> key >> causes;
-        if (who != office) continue;
-        std::set<std::string>& into = out[mode];
-        if (causes == "-") continue;
-        std::size_t from = 0;
-        while (from <= causes.size()) {
-            const std::size_t comma = causes.find(',', from);
-            into.insert(causes.substr(from, comma == std::string::npos ? std::string::npos
-                                                                        : comma - from));
-            if (comma == std::string::npos) break;
-            from = comma + 1;
-        }
+/// THE DESK'S CENSUS, as its weave declares it: the application's rows, the keys a page names to
+/// reach a pane, then the Pane Manager's, the route to every other pane, and the Manual's, the pane
+/// a `?` shows, each in the one mode it has.
+const CensusDriverOf kDesktopCensus{kDesktopRole, [] {
+    OfficeCensus census;
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    REQUIRE(r.load(zengine::desktop_pane::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE, kDesktopRole)
+                .valid());
+    REQUIRE_FALSE(r.session().keymap.app.empty());
+    for (const AppRow& a : r.session().keymap.app) {
+        census.lines.push_back(census_line(kDesktopRole, "desk", a.id, a.gesture.scancode,
+                                           a.gesture.modifiers, a.causes, std::string(), a.label));
     }
-    return out;
-}
-
-/// WHAT EACH MODE SAID OF THE OTHERS, AGAINST THE CENSUS: in every mode a pane was driven into, its
-/// `elsewhere` names exactly the other modes driven, each with the union of that mode's census
-/// causes, and its declared mode is the one the census names.
-void check_elsewhere(const std::string& office,
-                     const std::map<std::string, std::vector<ModeCauses>>& said,
-                     const std::vector<std::string>& census) {
-    const auto by_mode = census_causes_by_mode(census, office);
-    for (const auto& [mode, elsewhere] : said) {
-        std::set<std::string> named;
-        for (const ModeCauses& other : elsewhere) {
-            named.insert(other.mode);
-            const auto expected = by_mode.find(other.mode);
-            REQUIRE_MESSAGE(expected != by_mode.end(),
-                            office << " in `" << mode << "` names the mode `" << other.mode
-                                   << "`, which the census never drove");
-            std::set<std::string> causes;
-            for (const ActionCause& c : other.causes) causes.insert(census_cause(c));
-            CHECK_MESSAGE(causes == expected->second,
-                          office << " in `" << mode << "` says `" << other.mode
-                                 << "` causes other than its census rows do");
-        }
-        for (const auto& [other, causes] : by_mode) {
-            (void)causes;
-            if (other != mode) {
-                CHECK_MESSAGE(named.count(other) == 1,
-                              office << " in `" << mode << "` does not say what `" << other
-                                     << "` may cause");
-            }
-        }
+    for (const char* key : {zengine::desktop_pane::kLauncherPane,
+                            zengine::desktop_pane::kManualPane}) {
+        const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, key);
+        REQUIRE(held != nullptr);
+        REQUIRE_FALSE(held->actions.empty());
+        CHECK(held->elsewhere.empty());
+        census_take(census, kDesktopRole, *held);
     }
-}
-
-/// A READER OF A PANE'S MANUAL: it asks the pane's office and keeps each answer with Loom's word
-/// on whether it answered this asker.
-struct ManualAskerState {
-    std::int64_t heard = 0;
-    ZEN_SHAPE(ManualAskerState, 1, ZEN_FIELD(heard));
-};
-class ManualAsker
-    : public loom::WeaveBase<ManualAsker, ManualAskerState, loom::Accept<PaneDocumentShown>,
-                             loom::Emit<PaneDocumentRequested>> {
-public:
-    void on(const PaneDocumentShown& shown, loom::Mail& mail) {
-        heard.push_back(shown);
-        answers.push_back(mail.answers_ask());
-    }
-    std::vector<PaneDocumentShown> heard;
-    std::vector<bool> answers;
-};
-
-/// ASK THE BUILDER PANE FOR ITS MANUAL, as a weave would, and return its one answer.
-struct ManualReader {
-    PaneRig& r;
-    ManualAsker* asker = nullptr;
-    loom::WeaveId id{};
-    explicit ManualReader(PaneRig& rig) : r(rig) {
-        auto held = std::make_unique<ManualAsker>();
-        asker = held.get();
-        loom::Grant grant;
-        grant.allow_to_role(PaneDocumentRequested::zen_name, PaneDocumentRequested::zen_version,
-                            pane::kBuilderPaneRole);
-        id = r.bus.register_weave(std::move(held), std::move(grant));
-        asker->zen_set_self(id);
-    }
-    PaneDocumentShown ask(const std::string& pane_key, const std::string& section) {
-        asker->heard.clear();
-        asker->answers.clear();
-        (void)r.bus.send_as_to_role(id, pane::kBuilderPaneRole,
-                                    loom::Message(loom::to_value(PaneDocumentRequested{pane_key,
-                                                                                       section}),
-                                                  id, loom::WeaveId{}, 9));
-        r.bus.drain_until_idle();
-        REQUIRE(asker->heard.size() == 1);
-        CHECK(asker->answers[0]); // the answer to this asker's own ask, and to it alone
-        return asker->heard[0];
-    }
-};
-
-std::vector<std::string> census_pinned() {
-    std::vector<std::string> out;
-    std::ifstream in(ZENGINE_ACTIONS);
-    REQUIRE_MESSAGE(in.good(), "tests/actions.txt could not be read");
-    std::string line;
-    while (std::getline(in, line)) {
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-        if (!line.empty() && line[0] != '#') {
-            out.push_back(line);
-        }
-    }
-    return out;
-}
+    return census;
+}};
 
 } // namespace
 
 TEST_CASE("the action census: the rows the Builder declares in each mode, with what each press "
           "causes and the mode it enters, and the desk's, are tests/actions.txt") {
-    std::vector<std::string> census;
-    std::map<std::string, std::vector<ModeCauses>> builder_elsewhere;
-    {
-        BuilderRig b("bld-census");
-        b.tool->catalog = catalog_of({{"tally", "tally"}});
-        b.open();
-        each_builder_mode(b, [&](const char* mode) {
-            const RuntimePane* held = b.row();
-            CHECK(held->mode == mode); // the mode the pane says is the one the census names
-            builder_elsewhere[mode] = held->elsewhere;
-            // ...AND EVERY CONTROL IT DRAWS IN THE MODE NAMES ONE OF THE MODE'S ROWS (WL-HAND-07).
-            const std::string unnamed = held_control_parts_problem(b.r.session(), b.kind);
-            CHECK_MESSAGE(unnamed.empty(), "in `" << std::string(mode) << "`: " << unnamed);
-            for (const v3::PaneActionRow& a : held->actions) {
-                census.push_back(census_line(pane::kBuilderPaneRole, mode, a));
-            }
-        });
+    // EVERY OFFICE'S DRIVER, registered by the suite that drives its panes: once each.
+    CHECK_MESSAGE(census_registered_twice().empty(),
+                  "an office's census is registered twice: " << census_registered_twice().front());
+    REQUIRE(census_drivers().count(pane::kBuilderPaneRole) == 1);
+    std::map<std::string, OfficeCensus> driven;
+    for (const auto& [office, drive] : census_drivers()) {
+        driven[office] = drive();
     }
-    {
-        // THE DESK'S OWN ROWS, as its weave declares them: the keys a page names to reach a pane.
-        PaneRig r;
-        r.mount_workshop();
-        r.ready();
-        r.extent(160, 48);
-        REQUIRE(r.load(zengine::desktop_pane::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE, kDesktopRole)
-                    .valid());
-        REQUIRE_FALSE(r.session().keymap.app.empty());
-        for (const AppRow& a : r.session().keymap.app) {
-            census.push_back(census_line(kDesktopRole, "desk", a.id, a.gesture.scancode,
-                                         a.gesture.modifiers, a.causes, std::string(), a.label));
-        }
-        // ...THE PANE MANAGER'S, the route to every other pane, and the Manual's, the pane a `?`
-        // shows, which a page names the keys of: each in the one mode it has.
-        for (const char* key : {zengine::desktop_pane::kLauncherPane,
-                                zengine::desktop_pane::kManualPane}) {
-            const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, key);
-            REQUIRE(held != nullptr);
-            REQUIRE_FALSE(held->actions.empty());
-            CHECK(held->elsewhere.empty());
-            for (const v3::PaneActionRow& a : held->actions) {
-                census.push_back(census_line(kDesktopRole, held->mode, a));
-            }
-        }
-    }
-    // WRITTEN BESIDE THE BUILD AS IT STANDS, ready to diff, and held to the pinned file line by line.
+    // WRITTEN BESIDE THE BUILD AS IT STANDS, office by office, ready to diff.
     std::ofstream now(ZENGINE_ACTIONS_NOW, std::ios::binary);
-    for (const std::string& line : census) {
-        now << line << "\n";
+    for (const auto& [office, census] : driven) {
+        for (const std::string& line : census.lines) now << line << "\n";
     }
     now.close();
+    // EACH OFFICE'S LINES ARE ITS PINNED ONES, line by line and in order...
     const std::vector<std::string> pinned = census_pinned();
-    for (const std::string& line : census) {
-        CHECK_MESSAGE(std::find(pinned.begin(), pinned.end(), line) != pinned.end(),
-                      "declared and not in tests/actions.txt: `" << line << "` (the census as it "
-                      "stands: " << ZENGINE_ACTIONS_NOW << ")");
+    for (const auto& [office, census] : driven) {
+        CAPTURE(office);
+        const std::vector<std::string> own = census_pinned_of(office);
+        for (const std::string& line : census.lines) {
+            CHECK_MESSAGE(std::find(own.begin(), own.end(), line) != own.end(),
+                          "declared and not in the census: `" << line << "` (the census as it "
+                          "stands: " << ZENGINE_ACTIONS_NOW << ")");
+        }
+        for (const std::string& line : own) {
+            CHECK_MESSAGE(std::find(census.lines.begin(), census.lines.end(), line) !=
+                              census.lines.end(),
+                          "in the census and declared by no shipped pane: `" << line << "`");
+        }
+        CHECK(census.lines == own);
+        // ...AND WHAT EACH MODE SAID OF THE OTHERS IS WHAT THEIR ROWS HERE CAUSE.
+        for (const auto& [pane_key, said] : census.elsewhere) {
+            CAPTURE(pane_key);
+            check_elsewhere(office, said, pinned);
+        }
     }
+    // ...AND NO PINNED ROW IS ABOUT AN OFFICE NO SUITE DRIVES, nor sits in another office's file.
     for (const std::string& line : pinned) {
-        CHECK_MESSAGE(std::find(census.begin(), census.end(), line) != census.end(),
-                      "in tests/actions.txt and declared by no shipped pane: `" << line << "`");
+        CHECK_MESSAGE(driven.count(census_office(line)) == 1,
+                      "in the census, and no suite drives its office: `" << line << "`");
     }
-    CHECK(census == pinned);
-    // ...AND WHAT EACH MODE SAID OF THE OTHERS IS WHAT THEIR ROWS HERE CAUSE.
-    check_elsewhere(pane::kBuilderPaneRole, builder_elsewhere, pinned);
+    for (const std::filesystem::path& file : census_files()) {
+        if (file.parent_path().filename() != "actions") continue;
+        for (const std::string& line : census_lines_of(file)) {
+            CHECK_MESSAGE(census_office(line) + ".txt" == file.filename().string(),
+                          file.generic_string() << " holds a row of another office: `" << line
+                                                << "`");
+        }
+    }
 }
 
 // ============================================================================
@@ -3548,7 +3426,7 @@ TEST_CASE("the manual the Builder answers is the page its build embedded, and na
     BuilderRig b("bld-manual-asked");
     b.tool->catalog = catalog_of({{"tally", "tally"}});
     b.open();
-    ManualReader reader(b.r);
+    ManualReader reader(b.r, pane::kBuilderPaneRole);
 
     // THE WHOLE PAGE, ASKED WITH NO SECTION: the page this tree's build embedded, in order.
     const PaneDocumentShown whole = reader.ask(pane::kBuilderPane, "");
@@ -3589,7 +3467,7 @@ TEST_CASE("a section or a pane the Builder does not have is refused, naming what
     BuilderRig b("bld-manual-refused");
     b.tool->catalog = catalog_of({{"tally", "tally"}});
     b.open();
-    ManualReader reader(b.r);
+    ManualReader reader(b.r, pane::kBuilderPaneRole);
 
     const PaneDocumentShown section = reader.ask(pane::kBuilderPane, "builder.fly");
     CHECK(section.refusal == "the manual of zengine.builder-pane has no section `builder.fly`");
@@ -3606,7 +3484,7 @@ TEST_CASE("a Builder reloaded in place with other words answers only the new one
     BuilderRig b("bld-manual-reload");
     b.tool->catalog = catalog_of({{"tally", "tally"}});
     b.open();
-    ManualReader reader(b.r);
+    ManualReader reader(b.r, pane::kBuilderPaneRole);
     const PaneDocumentShown before = reader.ask(pane::kBuilderPane, "");
     REQUIRE(before.refusal.empty());
     REQUIRE(reader.ask(pane::kBuilderPane, pane::kActionBuild).refusal.empty());
