@@ -12,6 +12,8 @@ the form, and only Submit sends it.
 
 ## Pages
 
+- [`zengine.composer`](docs/zengine.composer.md): the manual -- every command, what Compose hears
+  and what its rows show
 - [Reuse a stored command through Compose](../inventory/docs/inventory-compose.md): choose a
   message, fill it, store it, bring it back and send it, step by step
 - [Panes](../workshop/docs/panes.md): how Compose and every other pane is shown, moved and sized
@@ -19,6 +21,8 @@ the form, and only Submit sends it.
   is chosen
 - [Reusable message and value drafts](../message-draft/docs/message-drafts.md): the typed
   values and presets Compose's fields are made of
+
+![Compose wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.composer-manual.png)
 
 ## What is in this folder
 
@@ -29,6 +33,7 @@ the form, and only Submit sends it.
 | `view.hpp` | what the pane shows, row by row, and what each row stands for |
 | `vocabulary.hpp` | the pane's lasting names: its office `zengine.composer` and pane `compose` |
 | `command_context.hpp` | the note kept beside a stored command: which weave it was written for |
+| `docs/` | its manual, `zengine.composer.md`, which the pane carries and answers |
 | `CMakeLists.txt` | how it is built |
 
 Compose is part of Workshop, not of the installed library, so its headers are not installed.

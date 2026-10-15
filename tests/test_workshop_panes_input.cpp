@@ -10,6 +10,8 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
+#include "census.hpp"
+#include "office_manual.hpp"
 #include "input/input_weave.hpp"
 
 // ============================================================================
@@ -2371,7 +2373,89 @@ struct ComposeRig {
     }
 };
 
+/// THE ROWS COMPOSE DECLARES, AS WORKSHOP HOLDS THEM: the one set it declares in every stage,
+/// under no mode.
+const RuntimePane& compose_held(ComposeRig& r) {
+    const RuntimePane* held = r.r.session().panes.runtime.find(kComposerOffice, kComposePane);
+    REQUIRE(held != nullptr);
+    REQUIRE_FALSE(held->actions.empty());
+    return *held;
+}
+
+/// COMPOSE'S CENSUS: its rows with a form open on the Timer's `StartTimer`, in the one mode it has.
+const CensusDriverOf kComposerCensus{kComposerOffice, [] {
+    OfficeCensus census;
+    ComposeRig r;
+    r.with_timer();
+    r.select(kTimerOffice, "zengine-timer");
+    r.focus();
+    r.choose("StartTimer v1");
+    REQUIRE(r.shows("StartTimer v1 -> @zengine.timer"));
+    const RuntimePane& held = compose_held(r);
+    CHECK(held.mode.empty()); // a pane that declares no mode: `-` in the census
+    CHECK(held.elsewhere.empty());
+    census_take(census, kComposerOffice, held);
+    return census;
+}};
+
 } // namespace
+
+TEST_CASE("the manual Compose answers names exactly the commands it declares, with no target, in "
+          "the list and in the form") {
+    ComposeRig r;
+    std::set<std::string> declared;
+    const auto take = [&] {
+        for (const v3::PaneActionRow& a : compose_held(r).actions) declared.insert(a.id);
+    };
+    take();
+    r.with_timer();
+    r.select(kTimerOffice, "zengine-timer");
+    take();
+    r.focus();
+    r.choose("StartTimer v1");
+    REQUIRE(r.shows("StartTimer v1 -> @zengine.timer"));
+    take();
+    CHECK(declared == census_ids(census_pinned_of(kComposerOffice)));
+    ManualReader reader(r.r, kComposerOffice);
+    check_answered_manual(reader, kComposePane, declared);
+    const PaneDocumentShown other = reader.ask("elsewhere", "");
+    CHECK(other.refusal == "zengine.composer offers no pane `elsewhere`");
+    CHECK(other.sections.empty());
+}
+
+TEST_CASE("Compose answers a shape it hears from its page's Hears, and refuses one of the pane "
+          "protocol's, whose words are Workshop's") {
+    ComposeRig r;
+    const loom::WeaveId holder = r.r.bus.role_holder(kComposerOffice);
+    REQUIRE(holder.valid());
+    ShapeDocumentReader reader(r.r.bus, kComposerOffice);
+    std::set<std::string> heard;
+    for (const std::string& name : described_shapes_of(r.r.bus, holder)) {
+        for (const auto& schema : r.r.bus.accepted_schemas(holder)) {
+            if (schema->name() != name) continue;
+            INFO("Compose accepts ", name, " v", schema->version());
+            const zengine::manual::ShapeDocumentShown said =
+                reader.ask(name, static_cast<std::int64_t>(schema->version()));
+            CHECK(said.content_id == zengine::manual::content_id_text(schema->content_id()));
+            if (name.rfind("Pane", 0) == 0) {
+                // THE PANE PROTOCOL'S: accepted, and not this page's to describe.
+                CHECK(said.refusal == "the page of zengine.composer has no section for `" + name +
+                                          "`");
+                CHECK(said.text.empty());
+                continue;
+            }
+            CHECK(said.refusal.empty());
+            CHECK(said.current);
+            CHECK(said.group == "Hears");
+            CHECK_FALSE(said.text.empty());
+            heard.insert(name);
+        }
+    }
+    CHECK(heard == std::set<std::string>{"ClipboardCopy", "ClipboardText", "InventoryEntry",
+                                         "LoadedSelected"});
+    const zengine::manual::ShapeDocumentShown none = reader.ask("NoSuchShapeRequested", 1);
+    CHECK(none.refusal == "zengine.composer does not accept `NoSuchShapeRequested` v1");
+}
 
 TEST_CASE("loading the real Composer puts its pane in the catalog, offered by its office") {
     PaneRig r;
