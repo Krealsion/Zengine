@@ -5,8 +5,9 @@ by hand: drag number fields, buttons and labels onto a canvas, move and size the
 pointer, and type their values where they sit. The canvas is the view's own picture, so what you
 see there is what runs. **Run** asks the view host to make the view a participant of its own, and
 it opens in a pane of its own. Flow composes what happens when the view speaks; the two meet only
-at message shapes, which you drag from one pane to the other. The contract beneath this page is
-the [view reference](view.md).
+at message shapes, which you drag from one pane to the other. Each command the builder declares is
+in [its manual](zengine.view.builder.md); the contract beneath this page is the
+[view reference](view.md).
 
 Open the Pane Manager and press `n`, or choose **View Builder**. The shipped plans include the
 optional `zengine-view-builder` artifact in the `zengine.view.builder` office. The builder takes

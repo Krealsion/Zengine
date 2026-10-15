@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 // The View Builder: a pane beside Flow where a view is made by hand on a design canvas the view
-// draws itself on, and run through the view host. Law: agents/view.md. Guide:
-// view/docs/view-builder.md.
+// draws itself on, and run through the view host. Law: agents/view.md. Manual:
+// view/docs/zengine.view.builder.md.
 #include "view/view-builder/picture.hpp"
 #include "view/view-builder/vocabulary.hpp"
 #include "view/vocabulary.hpp"
@@ -13,10 +13,13 @@
 #include "message-draft/transfer.hpp"
 #include "workshop/actor_scope.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
+
+#include "manuals/zengine.view.builder.hpp" // this pane's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/kernel/schema_codec.hpp>
@@ -69,12 +72,13 @@ class ViewBuilderPane final
                        ws::PaneTextInput, ws::PaneActionRequested, ws::ActionsJudged, ws::PaneQuitRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, loom::DispatchRefused,
-                       ws::ProjectRoot>,
+                       ws::ProjectRoot, ws::PaneDocumentRequested>,
           loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneActions,
                      ws::PaneEscapeUnspent, ws::PanePassRequested, ws::PaneMenuRequested,
                      ws::PaneQuitAnswered, ws::PaneOperationRequested, ws::v2::PaneOperationRequested,
                      ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
-                     view::ViewApply, view::ViewStop, ws::ProjectRootRequested>> {
+                     view::ViewApply, view::ViewStop, ws::ProjectRootRequested,
+                     ws::PaneDocumentShown>> {
 public:
     loom::Value snapshot() const override {
         vb::ViewBuilderState saved;
@@ -146,6 +150,11 @@ public:
     }
     void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
         if (mail.authored_from_role(workshop_role)) offer(mail);
+    }
+    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
+    /// reloaded image answers its own words.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(ws::pane_document(ask, vb::kPane, zengine::manual::pages::zengine_view_builder::kManual));
     }
     void on(const ws::PaneRoom& room, loom::Mail& mail) {
         if (!host(mail, room.pane)) return;

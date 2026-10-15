@@ -1,0 +1,8 @@
+# The action census's rows for zengine.view.builder; the form is tests/actions.txt's. ASCII only.
+zengine.view.builder - save ctrl+s - - Save the view
+zengine.view.builder - open ctrl+o - - Open a view
+zengine.view.builder - run ctrl+r - - Run the view
+zengine.view.builder - new unbound - - Start a new view
+zengine.view.builder - apply unbound - - Apply to the running view
+zengine.view.builder - stop unbound - - Stop the running view
+zengine.view.builder - choices unbound - - More field choices

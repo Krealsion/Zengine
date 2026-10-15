@@ -17,7 +17,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `view-builder/model.hpp` | the semantic edits over one description, each whole or refused |
 | `view-builder/picture.hpp` | its picture: bar, kinds, element list, boxes, design canvas |
 | `view-builder/vocabulary.hpp` | its office, `ViewEdit`, reload state, `view-builder.json` |
-| `docs/` | the reference and the weaver's guide, with their images |
+| `docs/` | the View Builder's manual, the reference and the weaver's guide, with their images |
 
 ## Law
 
@@ -28,7 +28,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 - `view` — the description's format and rules, the view host, the renderer: `tests/test_view.cpp`
 - `view_builder` — edits, canvas, carries, run, files, the weave: `tests/test_view_builder.cpp`
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_canvas.cpp`,
+Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_view_builder.cpp`, its
+census driver and manual witness, `tests/test_workshop_panes_canvas.cpp`,
 `tests/test_workshop_panes_actions.cpp`, `tests/test_workshop_inventory_info.cpp`,
 `tests/test_workshop_panes_guests.cpp`) and `workshop_desk` (`tests/test_workshop_desk.cpp`).
 The builder is also named in `workshop_load` (`tests/test_workshop_load.cpp`), `workshop_files`
@@ -47,6 +48,8 @@ The builder is also named in `workshop_load` (`tests/test_workshop_load.cpp`), `
 
 ## Pages
 
+- [zengine.view.builder](docs/zengine.view.builder.md) — the View Builder's manual, carried by
+  `zengine-view-builder` and answered by it
 - [Make a small panel by hand in the View Builder](docs/view-builder.md)
 - [Described views](docs/view.md)
 
