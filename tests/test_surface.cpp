@@ -20,6 +20,7 @@
 #include "surface/vocabulary.hpp"
 
 #include "lifecycle_door.hpp"
+#include "office_manual.hpp"
 
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
@@ -2772,6 +2773,29 @@ TEST_CASE("linkage pin: load-unload-load across shared vocabulary, no other libr
     CHECK_MESSAGE(u.kind == 0, u.text);
 }
 
+namespace {
+
+/// THE OFFICE WITNESS, for one Skin library loaded into the office as a plan loads it: asked as any
+/// weave asks, it answers its page's section for every shape it accepts and refuses one it does not
+/// (`check_office_manual`), and the page it was built with names no shape it does not accept.
+void check_skin_manual(const char* artifact, const char* path) {
+    Rig r;
+    (void)r.load(artifact, path, kSkinRole);
+    CHECK(check_office_manual(r.bus, kSkinRole) >= 10);
+    check_page_names_accepted(zengine::manual::pages::zengine_skin::kManual,
+                              described_shapes_of(r.bus, r.bus.role_holder(kSkinRole)));
+}
+
+} // namespace
+
+TEST_CASE("the classic terminal Skin answers its office's page for every shape it accepts") {
+    check_skin_manual("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC);
+}
+
+TEST_CASE("the block terminal Skin answers its office's page for every shape it accepts") {
+    check_skin_manual("zengine-skin-tui-block", SKIN_SO_TUI_BLOCK);
+}
+
 // ============================================================================
 // Tier 4a — the terminal MODES a Skin claims, including pointer reporting
 // ============================================================================
@@ -3534,6 +3558,11 @@ TEST_CASE("the same intent drives the SDL skin - a window medium, zero new field
     r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
     r.drain();
     CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "1");
+}
+
+TEST_CASE("the SDL Skin answers its office's page for every shape it accepts") {
+    choose_video_driver("dummy");
+    check_skin_manual("zengine-skin-sdl", SKIN_SO_SDL);
 }
 
 TEST_CASE("the SDL skin services its own window and takes nothing off the queue") {
