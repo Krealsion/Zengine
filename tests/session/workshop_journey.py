@@ -286,7 +286,9 @@ def main():
                      captured["state"] == "passed", captured["failure"] or captured["summary"]):
             return 1
         pair_path = artifacts(captured)["pair.bin"]["path"]
-        read = subprocess.run([args.inventory_reader, pair_path], capture_output=True, text=True)
+        # The reader writes UTF-8, whatever the locale this interpreter decodes by.
+        read = subprocess.run([args.inventory_reader, pair_path], capture_output=True,
+                              encoding="utf-8")
         if not check("I2 the generic reader admits the captured bytes", read.returncode == 0,
                      read.stderr):
             return 1

@@ -1280,7 +1280,9 @@ if(LOOM_SESSION_TOOLS)
         # The population record names the program from the top-level directory, where an
         # imported target found here is otherwise invisible.
         set_target_properties(Python3::Interpreter PROPERTIES IMPORTED_GLOBAL TRUE)
-        zengine_program_test(demo_recipes Python3::Interpreter
+        # UTF-8 mode off: a reader's output is decoded as the locale says unless the suite names
+        # UTF-8, as a Windows Python decodes it by default.
+        zengine_program_test(demo_recipes Python3::Interpreter -X utf8=0
             ${CMAKE_CURRENT_SOURCE_DIR}/session/demo_recipes.py
             --file-reader $<TARGET_FILE:zengine-workshop-file-read>)
         zengine_program_test(workshop_journey Python3::Interpreter
