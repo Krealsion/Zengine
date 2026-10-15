@@ -6,9 +6,12 @@
 #include "activation/activation.hpp"
 #include "input/vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.demo.hpp" // this weave's manual, compiled in from its page
 #include <zen/weave.hpp>
 
 namespace zengine::demo {
@@ -17,9 +20,11 @@ class Control final : public loom::WeaveBase<Control, DemoStatus,
     loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
                  ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneActionRequested,
                  DemoServiceOpened, DemoServiceClosed, DemoWorkRequested, DemoWorkFinished,
-                 DemoResetRequested, DemoStatusRequested, DemoReadyRequested>,
+                 DemoResetRequested, DemoStatusRequested, DemoReadyRequested,
+                 ws::PaneDocumentRequested, manual::ShapeDocumentRequested>,
     loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
-               ws::PanePassRequested, DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
+               ws::PanePassRequested, DemoWork, DemoStatus, loom::Ack, loom::Refused,
+               ws::PaneDocumentShown, manual::ShapeDocumentShown>> {
 public:
     void on(const loom::Activated& a, loom::Mail& m) {
         if (!activation_.accept(m, a)) return;
@@ -57,6 +62,15 @@ public:
     }
     /// A refused picture leaves the last good one showing; a later paint draws again.
     void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
+    /// THE PANE'S MANUAL, AND WHAT A SHAPE IT ACCEPTS DOES, to the one who asked: one page, the
+    /// one this image was built with; the gate's own list says which shapes are its to describe.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& m) {
+        (void)m.answer(ws::pane_document(ask, "controls", manual::pages::zengine_demo::kManual));
+    }
+    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& m) {
+        (void)m.answer(manual::shape_document(ask, accepted_schemas(),
+                                              manual::pages::zengine_demo::kManual));
+    }
     void on(const DemoStatusRequested&, loom::Mail& m) { (void)m.answer(state_); }
     void on(const DemoReadyRequested& r, loom::Mail& m) {
         if (r.generation < 0 || waiters_.size() >= 8) {

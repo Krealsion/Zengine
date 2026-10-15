@@ -3,6 +3,7 @@
 if(NOT TARGET loom::kernel)
     return()
 endif()
-zengine_weave(zengine-demo-control control.cpp)
+# Its manual is compiled in: the pane's, and its office's shapes, answered to whoever asks.
+zengine_weave(zengine-demo-control control.cpp MANUAL ../docs/zengine.demo.md)
 target_link_libraries(zengine-demo-control PRIVATE zengine-pane-vocabulary zengine-activation
     zengine-input-vocabulary zengine-warnings zengine-sanitize)

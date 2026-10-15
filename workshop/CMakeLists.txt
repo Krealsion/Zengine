@@ -142,6 +142,9 @@ target_link_libraries(zengine-workshop-guests
            zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
            zengine-workshop-vocabulary zengine::inventory zengine-builder-vocabulary
     PRIVATE zengine-warnings zengine-sanitize)
+# ...and the door's manual, compiled into whatever mounts the door: it answers a shape's section
+# from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
+zengine_manual(zengine-workshop-guests INTERFACE ../external-host/docs/zengine.guests.md)
 
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
