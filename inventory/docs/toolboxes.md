@@ -96,4 +96,5 @@ snapshot persistence, not a synchronized database or power-loss recovery log.
 Schema descriptions travel with the values, so an absent source is not required to read them.
 Schema migration and automatic command-reference repair are not performed.
 
-See the [Inventory protocol](inventory.md#durable-toolboxes) for owner boundaries.
+See [the toolbox file](zengine.inventory-pane.md#files) and the owner's
+[restore](zengine.inventory.md#inventoryrestore) for owner boundaries.

@@ -103,6 +103,13 @@ BECAUSE — the shapes one change touched, held by hand, leave the next change t
 Loom folds a nested shape's id into its parent's, so a pin a shape names every enclosing shape a
 change reached, and the census written beside the build is the diff.
 
+## VM-CHECK-16 — A test compile names the tree, and carries no path of it
+
+METHOD — A test target reaches its checkout and build tree by name (`zengine_test_definitions`): no test compile carries a path of either as a definition's value, and the lane refuses one that does.
+BECAUSE — a definition's value is on the compile's command line, which a compiler cache keys on
+and never rewrites, so a unit given a path of its tree is served to no second tree; the paths
+stand in one generated unit per target, the one compile each tree pays.
+
 ## Seen
 
 ### VM-CHECK-01
@@ -156,3 +163,9 @@ nowhere yet
 `tests/test_shapes_census.cpp` "every shape this tree publishes is pinned by content id under its
 name and version"
 `tests/shapes.txt`
+
+### VM-CHECK-16
+`tests/CMakeLists.txt` zengine_test_definitions zengine_write_tree_paths
+`tests/tree_path.hpp` tree_path
+`tests/check_test_definitions.cmake` zen_defs_verdict
+`tests/verify.cmake`

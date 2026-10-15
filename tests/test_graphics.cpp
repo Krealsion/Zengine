@@ -207,6 +207,7 @@ bool any_whole(const std::vector<gfx::Drawn>& drawn) {
 struct TermLog {
     std::string typed;
     std::string written;
+    std::vector<std::string> writes; ///< each write, one showing each
 };
 
 class FakeTerminal {
@@ -218,6 +219,7 @@ public:
     void write(std::string_view bytes) {
         if (log_ != nullptr) {
             log_->written += bytes;
+            log_->writes.emplace_back(bytes);
         }
     }
     std::vector<zengine::input::InputEvent> poll() {
@@ -574,6 +576,153 @@ TEST_CASE("the world reloaded: its room asked, its frame drawn whole once, its b
     const std::size_t next = r.log.size();
     r.tick(); // the reloaded world steps its board by a change
     CHECK(r.count(next, "ElementChange", snake::kWorldRole) == 1);
+}
+
+namespace {
+
+/// The pictures a terminal shows, one a write: `grid` (the rows a showing ended on) with each write
+/// laid over it in turn -- a cursor move, an ink, then glyphs -- as a terminal lays them.
+std::vector<std::vector<std::string>> pictures_of(std::vector<std::string> grid,
+                                                  const std::vector<std::string>& writes) {
+    std::vector<std::vector<std::string>> out;
+    for (const std::string& w : writes) {
+        std::size_t row = 0, col = 0;
+        for (std::size_t i = 0; i < w.size(); ++i) {
+            if (w[i] == '\x1b' && i + 1 < w.size() && w[i + 1] == '[') {
+                std::size_t end = i + 2;
+                while (end < w.size() && !(w[end] >= '@' && w[end] <= '~')) {
+                    ++end;
+                }
+                if (end < w.size() && w[end] == 'H') {
+                    const std::string at = w.substr(i + 2, end - i - 2);
+                    const std::size_t semi = at.find(';');
+                    row = static_cast<std::size_t>(std::stoi(at.substr(0, semi)) - 1);
+                    col = static_cast<std::size_t>(std::stoi(at.substr(semi + 1)) - 1);
+                }
+                i = end;
+                continue;
+            }
+            if (grid.size() <= row) {
+                grid.resize(row + 1);
+            }
+            if (grid[row].size() <= col) {
+                grid[row].resize(col + 1, ' ');
+            }
+            grid[row][col++] = w[i];
+        }
+        out.push_back(grid);
+    }
+    return out;
+}
+
+/// How many cells below the score row hold `glyph`: the board and the button beneath it.
+std::size_t board_cells(const std::vector<std::string>& rows, char glyph) {
+    std::size_t n = 0;
+    for (std::size_t r = 1; r < rows.size(); ++r) {
+        for (const char c : rows[r]) {
+            n += c == glyph ? 1u : 0u;
+        }
+    }
+    return n;
+}
+
+std::vector<std::string> trimmed(std::vector<std::string> rows) {
+    for (std::string& r : rows) {
+        r.erase(r.find_last_not_of(' ') + 1);
+    }
+    while (!rows.empty() && rows.back().empty()) {
+        rows.pop_back();
+    }
+    return rows;
+}
+
+} // namespace
+
+TEST_CASE("a grown world shows the old board until its inheritance lands, then the inherited board "
+          "whole, and never a blank or a seeded one") {
+    Typed t;
+    Rig& r = t.r;
+    for (int i = 0; i < 4; ++i) {
+        r.tick();
+    }
+    const gfx::WindowShown before = r.shown();
+    REQUIRE_FALSE(r.heard.visuals.empty());
+    const snake::SnakeVisual old = r.heard.visuals.back();
+    REQUIRE(old.width == 24);
+    const std::size_t length = old.snake.size();
+    REQUIRE(board_cells(before.rows, 'O') == 1);
+    REQUIRE(board_cells(before.rows, 'o') == length - 1);
+    const std::size_t mark = r.log.size();
+    const std::size_t shown_before = t.term.writes.size();
+
+    // THE WORLD GROWS: the graceful swap to the larger world, then its first beat.
+    const auto grown = r.command(
+        loom::SwapWeave{snake::kWorldRole, "snake-world-v2", WORLD_V2_SO, /*graceful=*/true});
+    REQUIRE_MESSAGE(grown.kind == 0, grown.text);
+    r.tick();
+
+    // EVERY PICTURE SHOWN SINCE holds one head and the whole body: the old board, or the
+    // inherited one -- never a board with no snake on it.
+    const std::vector<std::string> writes(t.term.writes.begin() +
+                                              static_cast<std::ptrdiff_t>(shown_before),
+                                          t.term.writes.end());
+    REQUIRE_FALSE(writes.empty());
+    const auto pictures = pictures_of(before.rows, writes);
+    for (std::size_t i = 0; i < pictures.size(); ++i) {
+        CAPTURE(i);
+        CAPTURE(trimmed(pictures[i]));
+        CHECK(board_cells(pictures[i], 'O') == 1);
+        CHECK(board_cells(pictures[i], 'o') == length - 1);
+    }
+    // ...THE LAST OF THEM IS WHAT THE WINDOW SAYS IT SHOWS: the inherited board.
+    const gfx::WindowShown after = r.shown();
+    CHECK(trimmed(pictures.back()) == trimmed(after.rows));
+
+    // THE BOARD WAS SAID WHOLE, ONCE THE INHERITANCE LANDED, and never changed before: the first
+    // word about it from the grown world is the inherited board, at its new size.
+    const auto puts = r.read<gfx::ElementPut>(mark, snake::kWorldRole);
+    CHECK(r.count(mark, "ElementChange", snake::kWorldRole) == 0);
+    REQUIRE(puts.size() == 1);
+    const auto data = loom::claim_item<snake::SnakeBoardData>(puts[0].data);
+    REQUIRE(data.has_value());
+    CHECK(data->cols == 48);
+    CHECK(data->rows == 24);
+    REQUIRE(data->body.size() == length);
+    for (std::size_t i = 0; i < length; ++i) {
+        CHECK(data->body[i] == (old.snake[i].y + 4) * 48 + old.snake[i].x + 12);
+    }
+}
+
+TEST_CASE("a world grown with no letter to inherit starts a fresh game, said whole at its new size") {
+    Typed t;
+    Rig& r = t.r;
+    r.tick();
+    const std::size_t mark = r.log.size();
+    const std::size_t shown_before = t.term.writes.size();
+    const std::vector<std::string> before = r.shown().rows;
+
+    // A SWAP THAT ASKS FOR NO LETTER: the heir's claim is refused, and its game is its own.
+    const auto grown = r.command(
+        loom::SwapWeave{snake::kWorldRole, "snake-world-v2", WORLD_V2_SO, /*graceful=*/false});
+    REQUIRE_MESSAGE(grown.kind == 0, grown.text);
+    r.tick();
+
+    CHECK(r.count(mark, "ElementChange", snake::kWorldRole) == 0);
+    const auto puts = r.read<gfx::ElementPut>(mark, snake::kWorldRole);
+    REQUIRE(puts.size() == 1);
+    const auto data = loom::claim_item<snake::SnakeBoardData>(puts[0].data);
+    REQUIRE(data.has_value());
+    CHECK(data->cols == 48);
+    CHECK(data->rows == 24);
+    CHECK(data->body == std::vector<std::int64_t>{12 * 48 + 24, 12 * 48 + 23, 12 * 48 + 22});
+    // ...AND EVERY PICTURE SHOWN SINCE HOLDS A SNAKE: the old board, then the fresh one.
+    const std::vector<std::string> writes(t.term.writes.begin() +
+                                              static_cast<std::ptrdiff_t>(shown_before),
+                                          t.term.writes.end());
+    for (const auto& picture : pictures_of(before, writes)) {
+        CAPTURE(trimmed(picture));
+        CHECK(board_cells(picture, 'O') == 1);
+    }
 }
 
 TEST_CASE("a drawer that never calls show still shows once a beat, its nodes before its elements") {

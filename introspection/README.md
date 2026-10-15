@@ -11,8 +11,17 @@ the installed package.
 
 ## Pages
 
-- [Introspection — the Loaded, Project and Powers panes](docs/introspection.md): what each pane
-  shows, where each fact comes from, and how to find and sample a power
+- [`zengine.introspection` -- Loaded, Project and Powers](docs/zengine.introspection.md): the
+  panes' manual -- what each pane shows, where each fact comes from, and how to find and sample a
+  power
+- [`zengine.arrangement` -- the arrangement door](docs/zengine.arrangement.md): the office the
+  `Project` pane asks what the project asked for and what came of it
+- [`zengine.powers` -- the discovery door](docs/zengine.powers.md): the office `Powers`, Flow and
+  the Terminal ask to find a power
+- [`zengine.sources` -- the sample door](docs/zengine.sources.md): the one office that may run a
+  Source
+
+![Powers wearing its ? at its top right, and the Manual showing the manual of Loaded, Project and Powers](docs/images/zengine.introspection-manual.png)
 
 ## What is in this folder
 

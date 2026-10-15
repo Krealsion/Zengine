@@ -17,7 +17,7 @@ input                             doctest           always  50
 input                             doctest           sdl     3
 surface                           doctest           always  111
 surface                           doctest           sdl     7
-graphics                          doctest           always  24
+graphics                          doctest           always  26
 ui                                doctest           always  22
 component                         doctest           always  45
 editor                            doctest           always  20
@@ -33,7 +33,7 @@ files_weave                       doctest           always  20
 maker                             doctest           always  29
 # Tripwires in this suite read builder/weave.hpp, builder/runner.hpp and workshop/workshop.cpp as
 # text (VM-WALL-11).
-builder                           doctest           always  64
+builder                           doctest           always  65
 workshop_guests                   doctest           always  39
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
