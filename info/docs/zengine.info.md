@@ -504,6 +504,14 @@ A reset of one view ([`workshop/setup_control.hpp`](../../workshop/setup_control
 with the `demo` power: the default pane drops its drafts and goes back to its lists; another view is
 emptied. Refused, `Info reset needs its pane and no pending commit`, while that view waits on an ask.
 
+### `InspectPaneRequested`
+
+From an office, as the Pane Manager's `inspect in Info` row asks: the default pane inspects that
+pane as [`info.edit`](#infoedit) does and answers with Workshop's `PaneSubjectActed`, or in its
+own words: `finish the edit first -- commit it or cancel it` while a draft is open; an inspect not
+submitted or not delivered, as `info.edit` says; `a newer inspect took its place -- nothing
+changed`.
+
 ## Follow
 
 Info says nothing unasked but its own rows: it publishes no account of what it did. An observer
