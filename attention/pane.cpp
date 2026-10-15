@@ -15,6 +15,7 @@
 
 #include "workshop/attention_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
@@ -23,6 +24,8 @@
 #include "activation/activation.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+
+#include "manuals/zengine.attention.hpp" // this pane's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -134,15 +137,22 @@ class AttentionPaneWeave
           AttentionPaneWeave, pane::AttentionPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
                        ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneActionRequested,
-                       StandingConditions>,
+                       StandingConditions, ws::PaneDocumentRequested>,
           loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
-                     ws::PanePassRequested>> {
+                     ws::PanePassRequested, ws::PaneDocumentShown>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
             return;
         }
         announce(mail);
+    }
+
+    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
+    /// reloaded image answers its own words.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(ws::pane_document(ask, pane::kAttentionPane,
+                                            zengine::manual::pages::zengine_attention::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {

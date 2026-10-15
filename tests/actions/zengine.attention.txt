@@ -1,0 +1,4 @@
+# The action census's rows for zengine.attention; the form is tests/actions.txt's. ASCII only.
+zengine.attention - attention.up up - - row up
+zengine.attention - attention.down down - - row down
+zengine.attention - attention.dismiss d - - hide this one
