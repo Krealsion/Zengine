@@ -5,6 +5,7 @@
 // unloading gives it back. Everything it is lives in the headers; this file is the shipping
 // gesture.
 
+#include "skin.hpp"
 #include "skin_tui.hpp"
 
 #include <zen/kernel/export.hpp>

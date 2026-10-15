@@ -13,9 +13,9 @@
 #include "cells.hpp"
 #include "pointing.hpp"
 #include "region.hpp"
-#include "skin.hpp"
 #include "terminal_size.hpp"
 #include "tui_terminal.hpp"
+#include "vocabulary.hpp"
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -29,10 +29,12 @@
 #include <unistd.h>
 #endif
 
+#include <cstdint>
 #include <cstdio>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace zengine::surface {
