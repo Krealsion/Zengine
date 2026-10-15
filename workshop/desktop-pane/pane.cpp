@@ -24,6 +24,8 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "workshop/desktop-pane/shortcuts.hpp"
 
+#include "manuals/zengine.desktop.hpp" // this weave's manual, compiled in from its page
+
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
@@ -267,7 +269,7 @@ class DesktopWeave
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        PaneMenuAnswered, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText, ws::PaneDocumentShown>,
+                       surface::ClipboardText, ws::PaneDocumentShown, ws::PaneDocumentRequested>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, AppActions,
@@ -275,7 +277,7 @@ class DesktopWeave
                      DeselectRequested, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
-                     ws::PaneEscapeUnspent, ws::PaneDocumentRequested,
+                     ws::PaneEscapeUnspent, ws::PaneDocumentRequested, ws::PaneDocumentShown,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -290,6 +292,15 @@ public:
             return;
         }
         announce(mail);
+    }
+
+    /// THIS WEAVE'S MANUAL, TO THE ONE WHO ASKED, about any of its three panes: the whole page is
+    /// the weave's, from the page this image was built with.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+        const bool offered = ask.pane == pane::kLauncherPane || ask.pane == pane::kHotkeysPane ||
+                             ask.pane == pane::kManualPane;
+        (void)mail.answer(ws::pane_document(ask, offered ? ask.pane : pane::kLauncherPane,
+                                            zengine::manual::pages::zengine_desktop::kManual));
     }
 
     /// WORKSHOP GRANTS ONE OF THIS WEAVE'S THREE PANES ITS PROSE ROOM: kept for a host that grants

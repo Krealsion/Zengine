@@ -9,7 +9,7 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-zengine_weave(zengine-menu-presenter presenter.cpp)
+zengine_weave(zengine-menu-presenter presenter.cpp MANUAL ../docs/zengine.presenter.md)
 target_link_libraries(zengine-menu-presenter PRIVATE zengine-pane-vocabulary
                                                      zengine-surface-vocabulary
                                                      zengine-activation

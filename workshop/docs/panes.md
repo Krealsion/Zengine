@@ -42,13 +42,10 @@ PANES -- 8
   [load] Attention        this run has not finished loading its tool yet
 ```
 
-| key | does |
-|---|---|
-| `↑` `↓` | choose a row |
-| `Enter` | show it and put you in it — or, if it is shown, just go to it |
-| `x` | hide it: take it off the layout |
-| `m` | the row's menu: show / focus / hide, `manage <pane> >`, `inspect in Info` |
-| `n` | make a pane of your own — shows the [View Builder](#a-pane-of-your-own--a-view) |
+`↑` `↓` choose a row, `Enter` shows it and puts you in it (or goes to it when it is shown), `x`
+hides it, `m` opens its menu and `n` makes a pane of your own in the
+[View Builder](#a-pane-of-your-own--a-view): each key, what it asks of Workshop and every refusal it
+can meet are in [the desk's manual](zengine.desktop.md#commands-in-the-pane-manager).
 
 **By mouse.** Click the mark — `[    ]` or `[open]` — and the pane is shown or hidden; click the
 name and the marker moves there, opening nothing; click the marked name **again**, with the keys

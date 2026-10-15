@@ -11,7 +11,8 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-zengine_weave(zengine-desktop-pane pane.cpp)
+# Its manual is compiled in, and answered for each of its three panes to whoever asks.
+zengine_weave(zengine-desktop-pane pane.cpp MANUAL ../docs/zengine.desktop.md)
 target_link_libraries(zengine-desktop-pane PRIVATE zengine-workshop-vocabulary
                                                    zengine-input-vocabulary
                                                    zengine-activation

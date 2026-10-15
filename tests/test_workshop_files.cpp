@@ -8,6 +8,7 @@
 // touches disk uses a temporary directory of its own, which is also Workshop's project root.
 
 #include "workshop_support.hpp"
+#include "office_manual.hpp"
 
 // THE BUILD SIDE OF THE SAME QUESTION. This suite owns "where does source come from",
 // and half that answer is what a RELATIVE authored source means to the thing that
@@ -1374,7 +1375,7 @@ TEST_CASE("fitting a path keeps the end that says which file it is") {
 namespace {
 
 /// This host's two doors, mounted the way `workshop.cpp` mounts them: each in its own
-/// office, each granted exactly the one answer it gives.
+/// office, each granted exactly the answers it gives -- its own, and its page's.
 ///
 /// ⚠ THE STRINGS THE PROJECT DOOR READS LIVE HERE, because the door holds pointers into
 /// `main`'s own locals and derives at every ask rather than keeping a copy.
@@ -1393,6 +1394,8 @@ struct DoorRig {
         project = door.get();
         loom::Grant grant;
         grant.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
+        grant.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                           zengine::manual::ShapeDocumentShown::zen_version);
         const loom::WeaveId id = r.t.bus.register_weave(std::move(door), std::move(grant),
                                                         std::string(kProjectRole));
         project->zen_set_self(id);
@@ -1403,6 +1406,8 @@ struct DoorRig {
         recipes = door.get();
         loom::Grant grant;
         grant.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
+        grant.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                           zengine::manual::ShapeDocumentShown::zen_version);
         const loom::WeaveId id = r.t.bus.register_weave(std::move(door), std::move(grant),
                                                         std::string(kRecipesRole));
         recipes->zen_set_self(id);
@@ -1410,6 +1415,34 @@ struct DoorRig {
 };
 
 } // namespace
+
+TEST_CASE("the project, recipes and plan offices each answer what a shape they accept does from "
+          "their own page, and their pages name no other shape") {
+    namespace pages = zengine::manual::pages;
+    DoorRig d("doormanuals");
+    d.mount_project();
+    d.mount_recipes(nullptr);
+    {
+        auto door = std::make_unique<PlanDoor>(nullptr);
+        PlanDoor* raw = door.get();
+        loom::Grant grant;
+        grant.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
+        grant.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                           zengine::manual::ShapeDocumentShown::zen_version);
+        raw->zen_set_self(
+            d.r.t.bus.register_weave(std::move(door), std::move(grant), std::string(kPlanRole)));
+    }
+    loom::Switchboard& bus = d.r.t.bus;
+    CHECK(check_office_manual(bus, kProjectRole) == 4);
+    CHECK(check_office_manual(bus, kRecipesRole) == 2);
+    CHECK(check_office_manual(bus, kPlanRole) == 1);
+    check_page_names_accepted(pages::zengine_project::kManual,
+                              described_shapes_of(bus, bus.role_holder(kProjectRole)));
+    check_page_names_accepted(pages::zengine_recipes::kManual,
+                              described_shapes_of(bus, bus.role_holder(kRecipesRole)));
+    check_page_names_accepted(pages::zengine_plan::kManual,
+                              described_shapes_of(bus, bus.role_holder(kPlanRole)));
+}
 
 TEST_CASE("the project door answers the weave that asked, and nobody else") {
     // THE SEAM'S WHOLE SHAPE IN ONE CASE: where this run began, and which places file it

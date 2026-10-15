@@ -351,7 +351,7 @@ presenter:
 | `zengine-terminal-pane` | Terminal | `terminal/pane.cpp` |
 | `zengine-introspection` | Loaded, Project, Powers | `introspection/introspection.cpp` |
 | `zengine-composer` | Compose | `composer/composer.cpp` |
-| `zengine-menu-presenter` | no pane of its own: every pane's menu, the way it shows them ([replacing it](panes.md#replacing-the-menu-presenter)) | `workshop/menu-presenter/presenter.cpp` |
+| `zengine-menu-presenter` | no pane of its own: every pane's menu, the way it shows them ([its manual](zengine.presenter.md), [replacing it](panes.md#replacing-the-menu-presenter)) | `workshop/menu-presenter/presenter.cpp` |
 
 **Everything else is deliberately not in it.** The host, the skins, the input readers, the Timer
 and the two operator providers are what every pane stands on, and Workshop's own pane (Layouts)

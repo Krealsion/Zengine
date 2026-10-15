@@ -3,7 +3,9 @@
 **Reference.** The exact contracts behind Workshop's panes: the pane system, the authored pane
 window, the external pane protocol, and the persisted setup. This is the page a *tool author*
 needs; a weaver wants [panes](panes.md) and [setups](setups.md), and the
-task-shaped walkthrough is [making a Workshop tool](make-a-workshop-tool.md).
+task-shaped walkthrough is [making a Workshop tool](make-a-workshop-tool.md). What Workshop does
+with each shape it accepts -- its answer, to whom, and each refusal in its words -- is
+[Workshop's manual](zengine.workshop.md); this page holds what spans them.
 
 Source: [`workshop/pane_vocabulary.hpp`](../pane_vocabulary.hpp) ·
 [`workshop/pane_canvas_vocabulary.hpp`](../pane_canvas_vocabulary.hpp) ·
@@ -1197,174 +1199,27 @@ directory they happened to be browsing when they quit is deliberately not rememb
   going to look.
 
 
-## Authorizing an input operation and carrying data
+## What Workshop answers, and a pane's words
 
-`workshop/pane_operation.hpp` exposes `PaneOperationRequested{pane, role, shape, version, gesture}` and
-`PaneOperationAnswered{allowed, reason}`. A pane sends the request as its office, naming a
-current input gesture or menu choice’s correlation in `gesture`. The request’s own envelope
-uses the pane’s normal conversation counter; that counter is shared with its other requests,
-so permission and owner replies cannot collide with unrelated conversations. Workshop checks that this pane
-still owns that gesture, still the latest of the hand that made it, and consumes it once: each
-hand, the weaver's and each guest's, keeps its own gestures, so another hand's act neither spends
-nor stales it. Authenticated physical input identifies the
-weaver; injected input identifies the actual session holder. For an injected actor, Workshop
-reads that participant's current Loom authority for the named shape and role. Missing
-attribution or permission is a refusal. The answer authorizes this intent at that check; it is
-not a new grant, a reusable approval, or an assertion that the owner operation succeeded.
-The pane must still send the operation under its own ordinary bus grant and handle its result.
+What Workshop does with each shape a pane or another weave sends it -- the approval an act asks
+([`PaneOperationRequested`](zengine.workshop.md#paneoperationrequested),
+[`ActorScopeRequested`](zengine.workshop.md#actorscoperequested)), a lease for repeated reads
+([`PaneObservationRequested`](zengine.workshop.md#paneobservationrequested)), an item carried
+([`PaneCarryRequested`](zengine.workshop.md#panecarryrequested),
+[`PaneValueCarryRequested`](zengine.workshop.md#panevaluecarryrequested)), where a pane's words
+and cells are ([`PaneViewRequested`](zengine.workshop.md#paneviewrequested),
+[`PanePointRequested`](zengine.workshop.md#panepointrequested)) and the desk
+([`DeskViewRequested`](zengine.workshop.md#deskviewrequested)) -- and each answer and refusal, is
+[Workshop's manual](zengine.workshop.md). The carry's shapes are `workshop/pane_carry.hpp`'s, the
+approval's and the lease's `workshop/pane_operation.hpp`'s, and the readings'
+`workshop/pane_view.hpp`'s. The first consumers of the carry are
+[Inventory and Info](../../inventory/docs/inventory.md#inspect-and-edit-through-workshop): the
+reference route carries an `InventoryReference`, the value route the item itself and its
+metadata, and the two doors keep reference-shaped data from reading as a request to follow it.
+Neither carrying a value nor showing a snapshot grants permission to change its source.
 
-**An act that writes a file, builds or opens asks for its classes.**
-`v2::PaneOperationRequested{pane, role, shape, version, gesture, classes, subject}` names every
-action class the act is -- `build`, `write`, `open` -- and, in `subject`, what an `open` opens.
-Workshop judges each class for the gesture's hand: the weaver's own hand, and a participant no
-guest door admitted, are not narrowed; a guest's are judged against the row that admitted it and
-the guests file's host, so `build` needs the row's `build` on either host, and on a weaver's host
-a `write`, or an `open` of the guests file, is refused in words
-([external host](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
-Naming `role`, `shape` and `version` too asks the actor's live authority for that send as well;
-naming none asks the classes alone, for an act the pane does itself, such as a save that writes
-its own file. The answer is `PaneOperationAnswered`. The pane asks once, at the act's first
-beat, and carries the approval to the act's later sends under that gesture, never asking again;
-an act that learns its subject later -- the Builder's edit-source, which learns the source's path
-from the project -- asks at the beat that learns it, under the first beat's gesture. An ask that
-names no send spends its act's record while that record is unspent, whatever its hand did since:
-no send rides on it, so the weaver's next key never makes the weaver's own act stale.
-A class is judged at the ask and is no grant: it lets no guest say a shape its grant lacks.
-
-A message sent straight to an owner, past Workshop's dispatch, crossed no gesture. Before acting
-on a classed act a guest's grant names, sent this way, the owner asks Workshop
-`ActorScopeRequested{session, pane, classes, id}` about that message's sender (`session`) and the
-act (`id`), and acts only when `ActorScopeJudged{allowed, refusal}` allows it; a refusal answers
-the sender in words. The Inventory pane's toolbox save, sent to it directly, asks this. A pane
-that relays a message as its own office -- the Composer's Submit, a stored command -- is not the
-guest, so the relayed send is judged instead at its approval, for the hand that asked, as the
-classes its shape is (`scope::classes_of_send`).
-
-`workshop/pane_carry.hpp` carries an owned reference envelope after an acquisition
-`PaneOperationRequested` approved:
-
-| Message | Direction and meaning |
-|---|---|
-| `PaneCarryRequested{pane, label, data}` | Provider to Workshop, continuing its approved acquisition; at most <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB and a <!-- value kMaxCarryLabelBytes -->128<!-- /value -->-byte label |
-| `PaneValueCarryRequested{pane, label, data, drag}` | Copy acquisition; `drag=true` places on primary release, false uses click-to-place |
-| `PaneValueDrop{pane, data, row, column, picture}` | A value copy, separate from the reference door |
-| `PaneCarryAnswered{carried, reason}` | Authenticated answer to that request |
-| `PaneDrop{pane, data, row, column, picture}` | Workshop to the selected receiver, under a new input correlation; `picture` is the aimed prose picture as for `PanePressed v3` |
-| `PaneCanvasValueDrop{pane, grant, picture, x, y, data, source_office, source_pane, token}` | A value copy placed on a canvas pane: the place in the canvas's local pixels, its room grant and the aimed picture, with v2's attribution |
-| `PaneCanvasDrop{pane, grant, picture, x, y, data}` | A reference placed on a canvas pane, as `PaneDrop` places one on rows: the place in the canvas's local pixels, its room grant and the aimed picture |
-
-The actor picks up the reference and clicks a receiving pane to place it. Escape cancels;
-another actor cannot place or cancel the held reference. If the initiating guest participant
-has left, the next attributed input releases its reference. Closing an input session alone
-does not end a still-connected participant. An unsupported destination leaves the reference held. Workshop interprets no payload fields and keeps no pointer into its provider. The receiver
-owns decoding and the meaning of the drop; subsequent reads or writes need their own authority.
-A request that cannot be queued leaves the reference held. A later Loom dispatch refusal
-is reported with its destination and attempt; it is never retried automatically.
-A successful send is not a completed receiver operation. An item released or clicked onto a
-**canvas** pane reaches a provider that accepts its canvas door -- `PaneCanvasValueDrop` for a
-value, `PaneCanvasDrop` for a reference -- as that place in its local pixels, within the room it
-was granted and against the picture the medium showed, so the provider hit-tests what it drew; a
-canvas provider without that door is sent nothing: a clicked item stays held, as anywhere it is
-not accepted, and a dragged one is let go (below). A drag's drop names the picture and place its release met, even when the carry is
-answered after the canvas repainted, and a canvas granted afresh in between refuses it in words.
-A drop on a canvas is no canvas gesture: it begins no pointer custody.
-
-A value drag starts with the source's primary press, becomes a drag after four pixels or one
-cell of motion, and ends at that same actor's release. A simple click selects without transfer.
-A release can arrive before the source's acquisition reply: Workshop retains its receiver,
-position and aimed picture under the same gesture. A later key, press, text or wheel of that
-actor's hand makes the old continuation stale. An absent or replaced receiver cancels; nothing is automatically retried.
-Escape cancels. Source bytes remain owned copies throughout; a receiver still authorizes its
-own writes. A value release to an unsupported place cancels the drag, rather than leaving an
-invisible item held after the button is up.
-
-The first consumers are [Inventory and Info](../../inventory/docs/inventory.md#inspect-and-edit-through-workshop).
-The reference route carries an `InventoryReference` in the pair codec; the value route carries
-the actual item and its separate metadata. The distinct doors prevent confusing reference-shaped
-user data with a request to follow it.
-Neither carrying that value nor displaying a snapshot grants permission to mutate its source.
-
-### A bounded observation a gesture approves
-
-The same header carries a narrow, retained form of that approval for repeated reads:
-
-| Message | Direction and meaning |
-|---|---|
-| `PaneObservationRequested{pane, role, shape, version, gesture, subject}` | Pane to Workshop: the current gesture's actor approves repeated reads of one shape at one role, about one `subject` string the pane names |
-| `PaneObservationContinued{pane, lease, subject}` | Pane to Workshop before every observation under that lease |
-| `PaneObservationAnswered{allowed, reason, lease}` | Workshop's answer to either; `lease` is zero when refused |
-| `PaneObservationEnded{pane, lease}` | Pane to Workshop when it stops (pause, close, hide, a new subject); unanswered. Lease 0 ends every lease the sender holds on that pane |
-
-A lease is created only through the same current-gesture and actor check as
-`PaneOperationRequested`, and spends that gesture. Workshop keeps at most one lease per pane and
-sixteen in all, and records its holder, office, pane, role, shape, version, subject and actor.
-Every continuation is judged again: the requester must still hold the office that offered the
-pane, the pane must be on the desk, the subject must be the approved one, and an injected actor
-must still be present with Loom authority for that shape and role. Any lapse refuses and forgets
-the lease; only its holder's continuation or ending can end it, so another participant's request
-changes nothing. A new request first forgets every lease whose holder no longer holds its office.
-A lease is not a grant: the pane still sends each read under its own ordinary
-grant. Timers, invalidations and old correlations never create a lease. Leases live in the
-running Workshop only. [Info views](../../info/docs/info-views.md#watch-a-linked-entry) use one to
-watch an Inventory entry.
-
-Ending is the pane's duty on every exit, including two a pane can miss. A pane that stops before
-the answer arrives ends whatever lease that answer grants, and does not start watching again. A
-reloaded provider keeps its WeaveId, so Workshop cannot tell its predecessor's leases from its
-own; an arriving image sends `PaneObservationEnded{pane, 0}` for each pane it may observe from.
-
-### Where a painted cell is
-
-`workshop/pane_view.hpp` answers `PaneViewRequested{provider, pane}` with
-`PaneView{provider, pane, picture, rows}`: each row the pane said, as `PaneViewRow{row, text, x, y,
-space}`. A row's text is the pane's own characters fitted to the body's columns, not the picture.
-Its point is its third cell's, or its last cell's in a body narrower than three, where a
-press names the row. The header also answers `PanePointRequested{provider, pane, picture, row, column}`
-with `PanePoint{provider, pane, picture, row, column, x, y, space}`: the center of that prose cell
-in the input space the medium reads, measured and then resolved by the same press measurer. It is
-refused when the pane's handed-out picture is not `picture`, the cell is outside the visible text,
-or the pane is closed or covered, exactly as `PaneViewRequested` is. A point is not a gesture;
-pressing it is ordinary input.
-
-`v3::PanePointRequested{provider, pane, picture, row, column}` names one cell of the pane's text
-lattice instead, answered with the same `PanePoint`: a text pane's painted cell, as above, or, for
-a pane that draws its rows on its canvas, the centre of that cell of the lattice its room's text
-stands on (`canvas_rows`) -- a blank row's, and the one after a row's last character, too -- read
-back to that cell before it is answered. It is refused outside the lattice, when the picture
-moved, and while the picture shown takes no press (below): a point there is
-read again once the pane draws its own. The guest `capture` power grants every version.
-
-### The desk, and a pane's words
-
-The same header answers the desk and a pane's words from the numbers Workshop owns, none read
-off a picture. Every place is a `DeskRect{x, y, w, h}` in canvas pixels, where the medium draws
-it: a window's pixel is one, a terminal floors a place to the cells it covers, and a point to
-press is in the input space the answer names, as `PanePoint`'s is.
-
-| Message | Meaning |
-|---|---|
-| `DeskViewRequested{}` | Anyone granted it, to Workshop: the desk now |
-| `DeskView{width, height, cell_px, space, room, panes, arranging, menu}` | The canvas's extent, the medium's device pixels to a canvas cell (0 where the cell is its unit), the input space, the room panes stand in, every pane the desk names in its order, whether arranging is open, and the menu on the screen |
-| `DeskPane{provider, pane, name, state, front, resolved, visible, selected, keys}` | One pane: its state word (`open`, `covered`, `off-room`, `unresolved`), its rank from the front (0 in front; -1 when it is not presented), the place its authored intent resolves to and the part of it the canvas has, and whether it is selected or the keyboard points at it (an open menu or arranging takes the keys before it) |
-| `DeskMenu{open, office, pane, picture, place, lines}` | Workshop's own menu (`office` is Workshop's) or a pane's, shown by its presenter, with each line as a word; `v2::DeskView`'s menu names its lines too ([below](#a-pane-names-its-parts)) |
-| `v2::PaneViewRequested{provider, pane}` | A pane's words, text or canvas alike; version 3 adds the parts the pane names ([below](#a-pane-names-its-parts)) |
-| `v2::PaneView{provider, pane, picture, canvas, words}` | A text pane's rows, or a canvas pane's labels and then its text runs as it drew them last, each clipped as the painter clips it; `canvas` says which |
-| `PaneWord{word, text, place, x, y, space}` | One run of words: its number in the answer, its text, the place covering its glyphs, and the centre of its middle character, where a press names it -- or no point, while its canvas picture takes no press |
-| `v2::PanePointRequested{provider, pane, picture, word, column}` | Where one character of one word is now, for a caller that read the words at `picture` |
-| `v2::PanePoint{provider, pane, picture, word, column, x, y, space}` | Its centre: through the press measurer for a text row, checked against the body a press lands in for a canvas word |
-| `v3::PanePointRequested{provider, pane, picture, row, column}` | Where one cell of the pane's text lattice is now, answered as `PanePoint` ([above](#where-a-painted-cell-is)) |
-
-Versions 1 to 3 refuse a pane's words as its rows are: closed, unsettled, overlapping, covered by
-a menu or by arranging, or outside the visible workspace -- and a canvas pane's while a refused
-picture's corner mark covers part of it. Version 4 says what shows of a covered pane instead
-([below](#the-desk-said-whole)). The desk answers whatever is open. A canvas
-picture that takes no press -- the one a managed opening shows, numbered none, until its pane
-draws its own, or one its office's holder no longer holds -- says its words and parts with their
-text and places and no point, as a part with no place of its own is said, and a point asked of it
-is refused: a reader reads the pane again. Workshop names nothing inside a pane: a word's number
-is its place in one answer, and a pane names its own parts; Workshop names only the parts of the
-surfaces it presents itself, its menu's lines and Layouts' tabs.
-The guest `capture` power grants all three queries.
+What follows is what spans those answers: the parts a pane names, what a press may cause, and the
+desk read whole.
 
 ### A pane names its parts
 
@@ -1433,7 +1288,7 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
   its own is said with its words and place and no point: `x` and `y` are 0 and `space` is 0,
   `input::space::kUnknown`, which no consumer reads and `InjectInput` refuses; `workshop/act` never
   presses one. Every part of a canvas picture that takes no press is said so too
-  ([above](#the-desk-and-a-panes-words)). A point is in the medium's own units: a window's pixel, or a terminal's cell. A
+  ([`PaneViewRequested`](zengine.workshop.md#paneviewrequested)). A point is in the medium's own units: a window's pixel, or a terminal's cell. A
   terminal shows a span `[begin, end)` on the cells from `floor(begin / kCanvasCellPx)` up to
   `floor(end / kCanvasCellPx)`, that one left out, so a canvas part it paints on no cell is not
   said there.
@@ -1580,27 +1435,18 @@ sent and holds, never its number.
   (versions 4 and 5), each to `zengine.workshop`, and a row naming `DeskStamps` (version 2, or 1)
   in its `observe` follows the notice only with `capture`.
 
-## Attributed value origins and delegated shortcuts
-
-`v2::PaneValueCarryRequested` adds an opaque source-owned token to the pure copy payload.
-Workshop stamps the actual source office/pane into `v2::PaneValueDrop`, and into every
-`PaneCanvasValueDrop`; receivers supporting only v1 still receive the unchanged copy payload. An empty token remains a copy. The host must explicitly grant the v2 drop alongside v1; adding
-an Emit declaration does not widen a host-authored grant. A receiver must not
-infer a move from user data or metadata. Inventory's image-local tokens bind the exact reference,
-revision and arrangement generation; expired or forged tokens do not move anything.
+## Delegated shortcuts
 
 `workshop/pane_shortcuts.hpp` declares `PaneShortcuts`: a provider's active global bindings,
 proposed to `zengine.desktop`. Each row names a local id, label, pane/action and gesture.
 Desktop composes these with its own defaults and returns `PaneShortcutsAnswered` only after
 Workshop judges the whole application declaration. Refusal retains the prior mapping. A desktop
 activation publishes `PaneShortcutsRequested`; displaced declarations notify registered providers
-with `PaneShortcutsWithdrawn`. Providers own their recovery policy.
-
-On invocation, Desktop continues the current AppAction through `PaneShortcutInvoked`, naming
-the registered holder WeaveId. Workshop checks that holder and the pane's declared
-action, then forwards `PaneActionRequested` under the current attributed gesture. This can reach
-a hidden pane; a subsequent PaneOperationRequested still needs that current actor's exact
-operation authority, and, for a classed act, its classes judged for that actor. Neither shortcut registration nor an old binding transfers authority.
+with `PaneShortcutsWithdrawn`. Providers own their recovery policy. An invocation reaches the pane
+through Workshop ([`PaneShortcutInvoked`](zengine.workshop.md#paneshortcutinvoked)); a value's
+attributed origin is [`PaneValueCarryRequested`](zengine.workshop.md#panevaluecarryrequested)'s
+second version. Inventory's image-local tokens bind the exact reference, revision and arrangement
+generation; expired or forged tokens do not move anything.
 
 A WeaveId is not a code-incarnation token. Generic providers choose their same-id reload policy.
 The shipped Inventory pane keeps its registration acknowledgement flag in the image, not saved

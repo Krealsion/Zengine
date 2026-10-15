@@ -8,6 +8,7 @@
 // real Editor is test_workshop_panes_editor.cpp's. Proved here: manager bookkeeping, the
 // capability's binding and the host's showing boundary, over the real desk, manager and pump.
 
+#include "office_manual.hpp"
 #include "workshop_support.hpp"
 
 #include "workshop/host_pump.hpp"
@@ -1350,4 +1351,14 @@ TEST_CASE("a setting written while an opening prepares survives its publication"
     REQUIRE(row != nullptr);
     CHECK(row->settings == std::vector<PaneSetting>{PaneSetting{"legend", false, {}, {}}});
     CHECK(seat->handed.back().settings == row->settings);
+}
+
+TEST_CASE("the opening office answers what each shape it accepts does from its manual, and its page "
+          "describes no shape it does not accept") {
+    // MOUNTED AS THE HOST MOUNTS IT, beside Workshop and an Editor, and asked as any weave asks.
+    OpeningRig o("open-manual");
+    o.open();
+    CHECK(check_office_manual(o.r.bus, kOpeningRole) >= 4);
+    check_page_names_accepted(zengine::manual::pages::zengine_opening::kManual,
+                              described_shapes_of(o.r.bus, o.r.opening_id));
 }

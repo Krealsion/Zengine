@@ -1,16 +1,19 @@
 # The action census: every action a shipped pane declares, in every mode its suite drives, one row
 # each, `<office> <mode> <id> <default key> <causes> <enters> <label>`, in the order the pane
 # declares them. The key is spelled as a weaver's keymap file spells it, `unbound` for none; the
-# mode is the name the pane declares its rows in force for (the application's rows are `desk`).
+# mode is the name the pane declares its rows in force for (the application's rows are `desk`), `-`
+# for a pane that declares none.
 # The causes are what a press may send beside the pane protocol, `,`-joined, each
 # `<shape>/<version>` with its subject after `@` (the part a press lands on, by its name's opening)
 # or `>` (one pane, `<office>/<pane>`); `-` for none. `enters` is the mode a press leaves its pane
-# in, `-` for none. The census case in tests/test_workshop_panes_builder.cpp holds this file equal
-# to what each pane declares, each mode's `elsewhere` to the union of the other modes' causes here,
-# and writes the census as it stands beside the build to diff; its press witness holds each
-# action's sends to its causes. tests/check_manual.cmake holds every manual's commands, their
-# Answers links and key markers to it. A pane is listed once a manual or a tutorial names its keys.
-# ASCII only.
+# in, `-` for none. This file holds the Builder pane's rows and the desk's; each further office's
+# are in tests/actions/<office>.txt, in the same form. The census case in
+# tests/test_workshop_panes_builder.cpp runs the driver each pane's suite registers (tests/census.hpp)
+# and holds every office's rows to what its panes declare, each mode's `elsewhere` to the union of
+# the pane's other modes' causes here, and writes the census as it stands beside the build to diff;
+# its press witness holds each Builder and desk action's sends to its causes. tests/check_manual.cmake
+# holds every manual's commands, their Answers links and key markers to it. A pane is listed once a
+# manual or a tutorial names its keys. ASCII only.
 zengine.builder-pane browse builder.build b BuildRequested/2 - build
 zengine.builder-pane browse builder.build-realize shift+b BuildRequested/2 - load after build
 zengine.builder-pane browse builder.promote shift+p PromoteArtifact/1 - promote image
@@ -55,6 +58,14 @@ zengine.desktop list launcher.open return PaneLaunchRequested/1@pane: - show or 
 zengine.desktop list launcher.close x PaneCloseRequested/1@pane: - hide
 zengine.desktop list launcher.menu m - - row menu
 zengine.desktop list launcher.new n PaneLaunchRequested/1>zengine.view.builder/view-builder - new pane
+zengine.desktop table hotkeys.up up - - row up
+zengine.desktop table hotkeys.down down - - row down
+zengine.desktop table hotkeys.top home - - top
+zengine.desktop table hotkeys.bottom end - - bottom
+zengine.desktop table hotkeys.menu m - - row menu
+zengine.desktop capture hotkeys.cancel escape - table cancel
+zengine.desktop spell hotkeys.commit return KeymapEditRequested/1 table use this spelling
+zengine.desktop spell hotkeys.cancel escape - table cancel
 zengine.desktop read manual.up up - - line up
 zengine.desktop read manual.down down - - line down
 zengine.desktop read manual.top home - - top
