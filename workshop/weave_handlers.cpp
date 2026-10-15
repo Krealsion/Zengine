@@ -89,7 +89,8 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
     // replaced the whole map, and the declaration the desktop has in force is owed the weaver's
     // overrides now rather than whenever the desktop next happens to speak.
     rejoin_app_rows(refused, mail);
-    rejoin_pane_rows(refused, mail);
+    std::string gaps;
+    rejoin_pane_rows(refused, gaps, mail);
     if (!session_.keymap.authored.empty() || session_.keymap.legend != legend_mode::kDefault) {
         keymap_word_ = "keymap " + host_->keymap_path + " applied -- " +
                        std::to_string(session_.keymap.authored.size()) + " override" +
@@ -98,11 +99,14 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
             keymap_word_ += "; " + session_.keymap.note;
         }
     }
-    if (!refused.empty()) {
+    for (const std::string* part : {&refused, &gaps}) {
+        if (part->empty()) {
+            continue;
+        }
         if (!keymap_word_.empty()) {
             keymap_word_ += "; ";
         }
-        keymap_word_ += refused;
+        keymap_word_ += *part;
     }
 }
 

@@ -86,7 +86,7 @@ LAW — Refused: a gesture outside the grammar, one gesture twice for an action,
 MEANS
 - several rows for one id are several keys: dispatch answers to any, the legend spells the first;
 - an unknown action's row is preserved unjudged;
-- a known POSIX-gap gesture is accepted and the gap said once (`posix_gap`).
+- a known POSIX-gap gesture is accepted, bound as written, and its gap said once (`posix_gap`): a file's at load, a pane row's when it comes into force.
 
 WHY — `agents/decisions/one-binding-truth.md`
 
@@ -208,17 +208,21 @@ keymap_rows_in to_keymap from_text load_file
 defaults"
 
 ### WL-KEY-08
-`workshop/keymap.hpp` posix_gap contexts_intersect component_owns_gesture apply_overrides
-AuthoredOverride AuthoredGestures authored_gestures_for Keymap::row_gestures Keymap::row_answers
-join_app_rows join_pane_rows
+`workshop/keymap.hpp` posix_gap gap_sentence PaneRows::gaps contexts_intersect component_owns_gesture
+apply_overrides AuthoredOverride AuthoredGestures authored_gestures_for Keymap::row_gestures
+Keymap::row_answers join_app_rows join_pane_rows
 `workshop/keymap_persist.hpp` from_text
 `workshop/screen_hotkeys.cpp` keymap_shown
 `workshop/weave_handlers.cpp` load_keymap
+`workshop/weave.hpp` WorkshopWeave::unsaid_gaps
+`workshop/weave_seam.cpp` unsaid_gaps declare_pane_actions rejoin_pane_rows
 `tests/test_workshop_document.cpp` "a same-context collision is refused naming both actions and the
 gesture" "a gesture outside the grammar on a KNOWN action is refused in words" "a known backend gap
 is accepted and said, never silently rewritten"
 `tests/test_workshop_panes_actions.cpp` "an application row answered above every mode cannot take a
-bare printable or a chord the text box owns, whoever wrote it"
+bare printable or a chord the text box owns, whoever wrote it" "WL-KEY-08: a pane row on a gesture the
+terminal cannot produce is joined as it stands, and its gap is kept once" "WL-KEY-08: a pane's row the
+terminal cannot produce is admitted, acts, and is said once, whichever path brought it into force"
 
 ### WL-KEY-09
 `workshop/screen_compose.cpp` band_region

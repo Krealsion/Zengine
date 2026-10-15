@@ -719,8 +719,11 @@ press sends. The host's side is [`workshop/action-causes.md`](workshop/action-ca
   subject its draft was typed for, and the host writes it only while that subject holds
   ([`workshop/info-body.md`](workshop/info-body.md) WL-INFO-15).
 - **Not in this contract:** the contextual surface, which declares over `kActionCatalog` ids at
-  compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane
-  row's authored gesture (said for the file's rows at load, not yet for a pane's at admission).
+  compile time and would need a runtime join on the pane subject.
+- **A pane row the terminal cannot produce is admitted and said**: the join keeps a `posix_gap`
+  sentence for each such row in force, the weaver's overrides included, and the host says each
+  once a pane, at the declaration, the keymap's load or the edit that brought it into force
+  (WL-KEY-08).
 
 ## A pane declares its settings, and is handed its layout's
 

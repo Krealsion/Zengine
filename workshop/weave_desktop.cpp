@@ -130,10 +130,13 @@ void WorkshopWeave::on(const v2::AppActions& actions, loom::Mail& mail) {
     // A pane whose rows the new application rows take is the party judged, told, and left
     // with none -- both load orders end the same way (WL-DESK-07).
     std::string refusals;
-    rejoin_pane_rows(refusals, mail);
+    std::string gaps;
+    rejoin_pane_rows(refusals, gaps, mail);
     app_actions_ = actions.rows;
     if (!refusals.empty()) {
-        say(refusals, true);
+        say(refusals + (gaps.empty() ? "" : "; " + gaps), true);
+    } else if (!gaps.empty()) {
+        say(gaps, false);
     }
     repaint(mail);
 }
@@ -622,6 +625,13 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
     }
     // APPLIED LIVE: the candidate is the map now, and every presenter is told (WL-DESK-11).
     session_.keymap = std::move(candidate);
+    // A pane's row now on a gesture the terminal cannot produce stands, and is said (WL-KEY-08).
+    std::string gaps;
+    for (const RuntimePane& row : session_.panes.runtime.entries) {
+        if (const std::string fresh = unsaid_gaps(row.kind); !fresh.empty()) {
+            gaps += (gaps.empty() ? "" : "; ") + fresh;
+        }
+    }
     answer.accepted = true;
     answer.applied = true;
     std::string how;
@@ -676,7 +686,8 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
     }
     answer.sentence = "`" + asked.action + "` " + how +
                       (answer.written ? " -- written to the keymap file"
-                                      : " -- " + answer.file_refusal);
+                                      : " -- " + answer.file_refusal) +
+                      (gaps.empty() ? std::string() : "; " + gaps);
     keymap_standing_ = answer.written
                            ? "edited -- " + std::to_string(session_.keymap.authored.size()) +
                                  " authored row" +
