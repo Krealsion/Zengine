@@ -13,6 +13,7 @@
 #include "sample_door.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp"
+#include "log_selection.hpp"
 #include "path_admission.hpp"
 #include "recipe_persist.hpp"
 #include "recipes.hpp"
@@ -535,17 +536,9 @@ int main(int argc, char** argv) {
     history.apply_policy(std::move(history_policy));
 
     // ---- ...and what it chooses not to forget ---------------------------------------------------
-    // The Logger keeps a few facts for good: Loom's defaults, a build that finished or never
-    // started, and what the project made of an offered artifact -- the one place a long refusal is
-    // kept whole (builder/docs/zengine.builder.md). Not `BuildStatus`: it is republished on every chunk.
-    loom::LoggerSelection log_selection = loom::default_selection();
-    log_selection.log_refusals = args.log_refusals;
-    for (const char* shape :
-         {builder::BuildFinished::zen_name, builder::BuildNotStarted::zen_name,
-          builder::ArtifactRealized::zen_name}) {
-        log_selection.shapes.push_back(loom::LogRule{std::string(shape), /*cap=*/0});
-    }
-    loom::Logger journal(bus, std::move(log_selection));
+    // The Logger keeps a few facts for good, chosen by `durable_log_selection`: Loom's defaults, a
+    // build's ending and what the project made of an offer, never what a build says as it runs.
+    loom::Logger journal(bus, durable_log_selection(args.log_refusals));
     if (!args.log.empty()) {
         std::string complaint;
         if (!journal.open(args.log, &complaint)) {
