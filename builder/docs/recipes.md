@@ -123,7 +123,7 @@ counts for nothing.
 
 ## Choosing another recipe file while Workshop runs
 
-In [Files](../../files/docs/files.md), put the cursor on a recipe file and press `u` (*use as
+In [Files](../../files/docs/zengine.files.md#filesuse-recipes), put the cursor on a recipe file and press `u` (*use as
 recipes*). The file is read, checked and completed against the project as one step, and only then
 made the recipe file in force:
 

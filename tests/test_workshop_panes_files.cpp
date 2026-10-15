@@ -10,6 +10,7 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
+#include "census.hpp"
 #include "guest_hand.hpp"
 
 #include "files/vocabulary.hpp"
@@ -640,6 +641,66 @@ TEST_CASE("the pane declares its rows with the ids a weaver's keymap already kno
         CHECK_MESSAGE(row_of_id(id.c_str()) == nullptr,
                       "the host still declares an action row for `", id, "`");
     }
+}
+
+// ============================================================================
+// FILES-WEAVE — its rows in each of its three steps, and the manual it answers for them
+// ============================================================================
+
+namespace {
+
+/// WALK THE PANE THROUGH EACH STEP IT DECLARES ROWS FOR, as a weaver does: browsing a folder that
+/// holds one source, the chooser `a` opens, and the recipe fields Return opens on that source.
+/// The pane names no mode, so each step is told apart by an id only it declares.
+void each_files_step(FilesRig& f, const std::function<void(const char*)>& at) {
+    const auto declares = [&f](const char* id) {
+        const std::vector<std::string> ids = f.declared();
+        return std::find(ids.begin(), ids.end(), id) != ids.end();
+    };
+    REQUIRE(declares(files::kActionOpen));
+    at("browse");
+    f.letter(input::scan::kA, "a");
+    REQUIRE(declares(files::kActionChoose));
+    at("chooser");
+    f.r.key(input::scan::kReturn);
+    REQUIRE(declares(files::kActionCommitField));
+    at("fields");
+}
+
+/// THE FILES PANE'S CENSUS: its rows in each step, in the order it declares them there.
+const CensusDriverOf kFilesCensus{files::kFilesRole, [] {
+    OfficeCensus census;
+    FilesRig f("files-census");
+    put_file(f.root / "oven.cpp", "// a weaver's weave\n");
+    f.open();
+    each_files_step(f, [&](const char*) {
+        const RuntimePane* held = f.row();
+        REQUIRE(held != nullptr);
+        CHECK(held->mode.empty()); // the pane declares no mode: each step's rows stand under `-`
+        census_take(census, files::kFilesRole, *held);
+    });
+    return census;
+}};
+
+} // namespace
+
+TEST_CASE("the manual Files answers names exactly the commands it declares in each step, and no "
+          "pane it does not offer") {
+    FilesRig f("files-manual-asked");
+    put_file(f.root / "oven.cpp", "// a weaver's weave\n");
+    f.open();
+    ManualReader reader(f.r, files::kFilesRole);
+    std::set<std::string> declared;
+    each_files_step(f, [&](const char*) {
+        for (const v3::PaneActionRow& a : f.row()->actions) {
+            declared.insert(a.id);
+        }
+    });
+    check_answered_manual(reader, files::kProjectFilesPane, declared);
+
+    const PaneDocumentShown other = reader.ask("elsewhere", "");
+    CHECK(other.refusal == "zengine.files offers no pane `elsewhere`");
+    CHECK(other.sections.empty());
 }
 
 // ============================================================================

@@ -23,7 +23,7 @@ Three things can ask the Editor to open a file, and all of them ask the **same d
 get the same behaviour, the same refusals and the same words:
 
 - the **Files** pane — browse from where you launched Workshop, anywhere your system lets
-  this process read, and open any file you find (see [Files](../../files/docs/files.md));
+  this process read, and open any file you find (see [Files](../../files/docs/zengine.files.md));
 - the **Builder** — choose a recipe (`c` steps through them) and press **`e`**, which asks the
   project which file that recipe names and then opens it;
 - **`edit code`** on a pane's context menu — Workshop follows the pane to the artifact it was

@@ -19,7 +19,8 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-zengine_weave(zengine-files files.cpp)
+# Its manual is compiled in, and answered to whoever asks for it.
+zengine_weave(zengine-files files.cpp MANUAL docs/zengine.files.md)
 target_link_libraries(zengine-files PRIVATE zengine-files-os zengine-workshop-vocabulary
                                             zengine-component zengine-input-vocabulary
                                             zengine-activation)
