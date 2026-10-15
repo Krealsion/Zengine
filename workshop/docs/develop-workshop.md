@@ -137,7 +137,7 @@ holds no file the runtime loads.
 *Why a launch.* It is outside Workshop: nothing in Workshop starts, stops, reloads or relaunches
 the Workshop you are working in, and building the launch starts nothing. The catalog is its
 choice, not the project's: run by hand, Workshop reads the project's `build-recipes.json` or the
-shipped default exactly as it always does, and `u` in [Files](../../files/docs/files.md) switches catalogs while it
+shipped default exactly as it always does, and `u` in [Files](../../files/docs/zengine.files.md#filesuse-recipes) switches catalogs while it
 runs. Without the SDL skin the launch refuses; the runtime script, then the runtime's
 `zengine-workshop --recipes <runtime>/development-build-recipes.json` from a directory of your
 own, gives a terminal Workshop the same setup.
@@ -415,5 +415,5 @@ was written for.
   line far down a pane's source is the wheel.
 
 The pieces, each in depth: [the Builder pane](../../builder/docs/zengine.builder-pane.md) (recipes and their entries, load after build,
-reload, promote, revert), [the Editor](../../editor/docs/editor.md), [Files](../../files/docs/files.md), and the Builder package's
+reload, promote, revert), [the Editor](../../editor/docs/editor.md), [Files](../../files/docs/zengine.files.md), and the Builder package's
 [manual](../../builder/docs/zengine.builder.md) for the build output a build keeps.

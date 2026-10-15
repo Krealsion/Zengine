@@ -271,7 +271,7 @@ under the same collision law, and one that collides is refused: Workshop names t
 actions on its band and keeps the rows it last accepted from that pane, so it goes on naming keys
 by those rows.
 Nothing is sent to the pane, which carries on in its new step, where those names may mean
-nothing. [Files](../../files/docs/files.md#moving-around) says what that means for its chooser and recipe line
+nothing. [Files](../../files/docs/zengine.files.md#use) says what that means for its chooser and recipe line
 today, and how to recover.
 
 **What is kept:** an override whose action id this build does not know is preserved exactly

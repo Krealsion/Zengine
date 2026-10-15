@@ -10,7 +10,10 @@ loadable piece that Workshop loads at startup, not as part of Workshop itself.
 
 ## Pages
 
-- [Files](docs/files.md): how to open the pane, move around, mark places, and what it shows
+- [`zengine.files`](docs/zengine.files.md): the manual -- how to open the pane, every command and
+  row, the marks and the file they are kept in
+
+![Files wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.files-manual.png)
 
 ## What is in this folder
 

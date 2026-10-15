@@ -186,7 +186,7 @@ and there is deliberately no third: no arbitrary shell recipe, no multi-source r
 globbed source list, no dependency solver.
 
 **Which catalog file** is in force can be changed while Workshop runs: point at it in the
-[Files](../../files/docs/files.md) pane and press `u`. That is one explicit choice of one file a weaver selected,
+[Files](../../files/docs/zengine.files.md#filesuse-recipes) pane and press `u`. That is one explicit choice of one file a weaver selected,
 and it is the whole of the automation: nothing searches for catalogs, adopts a conventional
 filename, reads a `CMakeLists.txt` or detects a build system; a recipe is written only when a
 weaver presses `a` and answers. The `u` choice is not remembered — the next launch starts from
@@ -228,14 +228,14 @@ and so does not share them.
 ### The source editor holds one file at a time, in plain ASCII
 
 **Workshop can open, edit and save any file this process can read** — from the
-[Files](../../files/docs/files.md) pane, or from the Builder for a recipe's own source; see [the source
+[Files](../../files/docs/zengine.files.md#filesopen) pane, or from the Builder for a recipe's own source; see [the source
 editor](../../editor/docs/editor.md), a loaded pane that holds the document itself — and
 the loop `edit → save → build → realize → inspect` closes without leaving the application. The
 honest bounds on that capability today:
 
 | question | answer |
 |---|---|
-| Can it open a file outside the project? | **yes** — [Files](../../files/docs/files.md) can browse anywhere your operating system lets this process read, and the file it opens keeps its own absolute path. Opening a file somewhere else does not move your project |
+| Can it open a file outside the project? | **yes** — [Files](../../files/docs/zengine.files.md#about) can browse anywhere your operating system lets this process read, and the file it opens keeps its own absolute path. Opening a file somewhere else does not move your project |
 | More than one file at a time? | **no** — one document; opening another (with the first saved or deliberately discarded) replaces it |
 | Non-ASCII source? | **no** — the shipped media place columns by byte and glyphs by sequence, so a caret over multi-byte text would lie; such a file is refused whole and never rewritten |
 | Mixed line endings? | **no** — one file, one convention (LF or CRLF, preserved exactly); a mixed file is refused rather than normalized |
@@ -366,7 +366,7 @@ participant — that host would see the refusal, and this is what it would look 
 
 ### The Files pane is a snapshot, and two identity questions are unanswered
 
-The [Files](../../files/docs/files.md) listing is taken when the pane opens, when you navigate, when you press
+The [Files](../../files/docs/zengine.files.md#about) listing is taken when the pane opens, when you navigate, when you press
 `r`, and when a build you started finishes. **Nothing watches the filesystem**, so a file
 another program creates or deletes in between is not on screen until one of those moments.
 Press `r` when it matters.
