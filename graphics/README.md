@@ -11,9 +11,14 @@ game's own.
 
 ## Pages
 
-- [The Graphics package](docs/graphics.md): the reference -- who says what, the node and the
-  element record, the seven operators, drawing with a canvas, an element of your own, the window,
-  the two seams, the directory, and what a replacement costs
+- [`zengine.window.terminal`](docs/zengine.window.terminal.md), the terminal window's manual: what
+  it keeps and shows, what an owner sends it and what it refuses, where a key and a press go, the
+  libraries it opens, and what a reload or a replacement costs
+- [`zengine.graphics`](docs/zengine.graphics.md), the directory's manual: what the arranger and a
+  window tell it, and what it says to each window
+- [The Graphics package](docs/graphics.md): drawing into a window -- who says what, the node and the
+  element record, the seven operators, drawing with a canvas, a drawing weave, an element of your
+  own, and the two seams
 
 ## What is in this folder
 
@@ -31,6 +36,6 @@ game's own.
 | `directory.cpp` | the directory, `zengine-graphics` |
 | `paint_classic.cpp`, `paint_block.cpp` | the classic and block skins, `zengine-paint-classic` and `zengine-paint-block` |
 | `CMakeLists.txt` | how it is built |
-| `docs/` | this package's page |
+| `docs/` | the two weaves' manuals and this package's page |
 
 Working on it: [AGENTS.md](AGENTS.md).

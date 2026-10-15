@@ -13,6 +13,7 @@
 
 #include "graphics_rig.hpp"
 #include "lifecycle_door.hpp"
+#include "office_manual.hpp"
 
 #include "board.hpp"
 
@@ -25,6 +26,8 @@
 #include "graphics/vocabulary.hpp"
 #include "graphics/window/window.hpp"
 #include "input/translate.hpp"
+#include "manuals/zengine.graphics.hpp"
+#include "manuals/zengine.window.terminal.hpp"
 
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
@@ -484,6 +487,16 @@ TEST_CASE("the directory replaced mid-game: nothing is drawn") {
     CHECK(r.screen() == before);
 }
 
+TEST_CASE("the directory's page answers for every shape it accepts, and names no other") {
+    Rig r;
+    REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+    const std::vector<std::string> described =
+        described_shapes_of(r.bus, r.bus.role_holder(gfx::kGraphicsRole));
+    REQUIRE_FALSE(described.empty());
+    CHECK(check_office_manual(r.bus, gfx::kGraphicsRole) >= described.size());
+    check_page_names_accepted(zengine::manual::pages::zengine_graphics::kManual, described);
+}
+
 TEST_CASE("the window reloaded: nothing is drawn, and it shows what it kept") {
     Snake s;
     Rig& r = s.r;
@@ -519,6 +532,16 @@ TEST_CASE("the window replaced: the frame drawn whole once and the board said on
     const gfx::WindowShown after = r.shown();
     CHECK(after.epoch != before.epoch);
     CHECK(after.rows == before.rows);
+}
+
+TEST_CASE("the window's page answers for every shape it accepts, and names no other") {
+    Rig r;
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+    const std::vector<std::string> described =
+        described_shapes_of(r.bus, r.bus.role_holder(window_office()));
+    REQUIRE_FALSE(described.empty());
+    CHECK(check_office_manual(r.bus, window_office()) >= described.size());
+    check_page_names_accepted(zengine::manual::pages::zengine_window_terminal::kManual, described);
 }
 
 TEST_CASE("the world reloaded: its room asked, its frame drawn whole once, its board not said again") {
