@@ -15,13 +15,15 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-# The directory, off the path a picture takes.
-zengine_weave(zengine-graphics directory.cpp)
+# The directory, off the path a picture takes. Its manual is compiled in, and answered to whoever
+# asks what a shape it accepts does.
+zengine_weave(zengine-graphics directory.cpp MANUAL docs/zengine.graphics.md)
 target_link_libraries(zengine-graphics PRIVATE zengine-graphics-vocabulary zengine-activation)
 
 # The terminal window: it reads its own terminal on its own beat and opens skins and element code
-# as operator providers are opened (operator/image.hpp), so it needs the dynamic loader too.
-zengine_weave(zengine-window-terminal window/window.cpp)
+# as operator providers are opened (operator/image.hpp), so it needs the dynamic loader too. Its
+# manual is compiled in, and answered as the directory's is.
+zengine_weave(zengine-window-terminal window/window.cpp MANUAL docs/zengine.window.terminal.md)
 target_link_libraries(zengine-window-terminal PRIVATE zengine-graphics-vocabulary
                                                       zengine-input-vocabulary
                                                       zengine-timer-vocabulary

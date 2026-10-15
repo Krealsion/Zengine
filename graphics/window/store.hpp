@@ -7,7 +7,7 @@
 // A window's areas: the one kept copy of what each owner drew -- every node with its place in the
 // paint order, every element record, and each element the window presents with its state -- and
 // the judge that admits a drawing into it, every bound checked before anything changes.
-// Reference: graphics/docs/graphics.md, "The window".
+// Reference: graphics/docs/zengine.window.terminal.md.
 
 #include "graphics/vocabulary.hpp"
 

@@ -9,7 +9,7 @@
 // element from code it loads, paints what changed with the area's skin and keeps it painted,
 // composes the areas, reads its terminal, routes a press, gives keys to the areas that hear them,
 // and tells each owner its room. Nothing it shows passes through the directory.
-// Reference: graphics/docs/graphics.md, "The window".
+// Reference: graphics/docs/zengine.window.terminal.md, its manual, compiled in and answered.
 
 #include "graphics/painting.hpp"
 #include "graphics/vocabulary.hpp"
@@ -19,6 +19,8 @@
 
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.window.terminal.hpp" // this office's manual, compiled in from its page
 #include "surface/terminal_size.hpp"
 #include "surface/tui_terminal.hpp"
 #include "timer/binding.hpp"
@@ -86,9 +88,10 @@ template <class Terminal>
 using WindowBase = zengine::timer::TimedWeave<
     WindowT<Terminal>, WindowState,
     loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
-                 ElementCodeOffered, GraphicsReady, WindowShowAsked>,
+                 ElementCodeOffered, GraphicsReady, WindowShowAsked,
+                 zengine::manual::ShapeDocumentRequested>,
     loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed, ElementPressed,
-               ActionIssued, WindowShown>>;
+               ActionIssued, WindowShown, zengine::manual::ShapeDocumentShown>>;
 
 template <class Terminal>
 class WindowT : public WindowBase<Terminal> {
@@ -251,6 +254,13 @@ public:
         s.refusals = this->state_.refusals;
         s.last_refusal = last_refusal_;
         (void)mail.answer(s);
+    }
+
+    /// What a shape it accepts does, from its page, to the asker alone.
+    void on(const zengine::manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(
+            zengine::manual::shape_document(ask, this->accepted_schemas(),
+                                            zengine::manual::pages::zengine_window_terminal::kManual));
     }
 
     // ---- life ---------------------------------------------------------------------------------
