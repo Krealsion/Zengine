@@ -8,6 +8,16 @@ and inspects a running program without leaving it.** It is optional: the
 Almost every pane is a tool, a weave Workshop loads. The desk's own Pane Manager, Hotkeys pane
 and menus are tools too, and you can change or replace them while Workshop runs.
 
+## Manuals
+
+- [The desk](docs/zengine.desktop.md), `zengine.desktop`: the keys that act everywhere, the Pane
+  Manager, the Hotkeys pane and the Manual, every command by its key
+- [The project office](docs/zengine.project.md), `zengine.project`: where the project is, what it
+  waits on, whether its plan names an artifact, which file a recipe names
+- [The recipes office](docs/zengine.recipes.md), `zengine.recipes`: choosing the recipe file and
+  adding a recipe to it
+- [The plan office](docs/zengine.plan.md), `zengine.plan`: adding a row to the project's load plan
+
 ## Pages
 
 - [Getting started with Workshop](docs/getting-started.md): launch it and find your way around
