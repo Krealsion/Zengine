@@ -20,11 +20,11 @@ element of its own.
 
 ```text
 owner -> its window          Drawn (nodes and records), ElementPut once, then ElementChange
+window -> the owner          AreaRoom (this window, its incarnation, the room, what it holds)
 window -> the owner          DrawnRefused (why, in words), ElementPressed, ActionIssued, KeyPressed
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
 window -> directory          WindowOffered (as its own office, with its incarnation)
 directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered
-directory -> owner           AreaRoom (your window, its incarnation, your room)
 owner -> directory           RoomAsked (an owner that started again)
 directory -> everyone        GraphicsReady (a directory that started afresh)
 ```
@@ -68,12 +68,44 @@ not know is painted as its name, muted, never silently dropped.
 `graphics/canvas.hpp` is what an owner draws with. A `Sketch` collects one picture; a `Canvas`,
 kept for the owner's life, remembers what it last sent its window, so a whole picture drawn again
 sends only the nodes that changed. A beat queues its picture (`draw`), an element it presents
-(`present`) and its elements' changes (`change`), and `show` sends them: every message but the last
-says `more` follows, and the window shows once, after the last. A tick that changes the snake's
-board and its score is one showing.
+(`present`) and its elements' changes (`change`), and `show` sends them, its nodes before its
+elements: every message but the last says `more` follows, and the window shows once, after the
+last. A tick that changes the snake's board and its score is one showing.
 
-A canvas draws whole when its window is new or started again: `AreaRoom` names the window and its
-incarnation, and `set_window` answers whether either changed.
+A canvas draws whole when its window is new or started again. The window tells the room
+(`AreaRoom`): its name, its incarnation, and the references of the owner's elements it still
+presents there. `room` answers whether the window or its incarnation changed, and `holds` whether
+the window presents an element, so an owner says again only what the window does not hold.
+
+## A drawing weave
+
+`graphics/drawing.hpp` owns what every drawer would otherwise repeat, so a drawer writes its
+picture and what it reacts to. A weave opts in as it opts into the Timer's `TimedWeave`:
+
+```cpp
+class ScoreWeave : public graphics::DrawingWeave<ScoreWeave, ScoreState, loom::Accept<FoodEaten>> {
+public:
+    using DrawingWeave::on;
+    ScoreWeave() : DrawingWeave("snake.score") {} // the office it draws as; its area by default
+    void on(const FoodEaten&, loom::Mail&) { ++state_.eaten; }
+    void picture(graphics::Sketch& f) const {
+        f.text("eaten", 0, 0, std::to_string(state_.eaten),
+               graphics::by_role(graphics::role::kFill));
+    }
+};
+```
+
+The drawing weave takes the room from the window it names, asks its room after the first message
+each life delivers it while no room has come (a loaded weave's activation, where it hears one),
+and takes a refusal and does nothing with it. At the end of every delivery, and of every poke that
+wrote the state, it draws the drawer's `picture`, so only what changed is sent, and shows the beat:
+a drawer never calls `show`. An optional `on_room` runs when the window or its incarnation
+changed, where an element the window does not hold is said again (`canvas().holds`). A drawer that
+presents elements emits `ElementPut` and `ElementChange` itself and accepts the presses it wants.
+Over the Timer, a drawer derives
+`DrawingWeave<Self, State, Accept<...>, Emit<...>, zengine::timer::TimedWeave>`. A drawer that
+keeps a handshake of its own derives `loom::WeaveBase` and draws with a `Canvas`; one that defines
+its own `after_delivery` is refused at build time, since nothing it drew would show.
 
 ## An element of your own
 
@@ -90,7 +122,7 @@ the owner as `ElementPressed`.
 struct BoardCode {
     using Data = SnakeBoardData;                       // said once, whole
     using State = SnakeBoardState;                     // kept by the window between events
-    using Changes = std::tuple<SnakeStep, SnakeNewGame>;
+    using Changes = std::tuple<SnakeStep, SnakeNewGame>; // the wire's order: grows at its end
     static State start(const Data& d);
     static void change(State& s, const SnakeStep& step);  // one overload a change
     static void change(State& s, const SnakeNewGame& game);
@@ -103,6 +135,10 @@ ZENGINE_EXPORT_ELEMENT(BoardCode)
 The code draws its whole element from its state each time; the window is handed the difference
 from the drawing before, so only what changed is painted. The window keeps each element's state
 and hands it in with every event, naming the element by a handle of its own.
+
+A change travels as its index in `Changes`, so the list's order is a wire contract: it only grows
+at its end. A change of a type outside the list, or listed twice, does not compile where its owner
+sends it (`Canvas::change`).
 
 ## The window
 
@@ -151,15 +187,16 @@ a pane's.
 ## The directory
 
 The directory introduces an area to its window once the window and the area's skin are known --
-never an introduction a look would have to change after -- and tells the owner its room. It says
-again whatever changes: a skin chosen, an area placed elsewhere, a window that offers itself again.
-A window started afresh is told every element code, then its areas, then each owner its room, in
-that order. A directory started afresh says `GraphicsReady`, and everyone offers, places and
-chooses again; an owner that hears the same room again draws nothing.
+never an introduction a look would have to change after -- and the window answers each
+introduction with the owner's room. The directory says again whatever changes: a skin chosen, an
+area placed elsewhere, a window that offers itself again, an owner that asks its room. A window
+started afresh is told every element code, then its areas, in that order. An area given another
+owner starts empty. A directory started afresh says `GraphicsReady`, and everyone offers, places
+and chooses again; an owner that hears the same room again draws nothing.
 
 ## What it costs
 
 A replaced window draws nothing until its owners hear their room: each draws its picture whole
 once and says each element once. A reloaded window keeps everything and draws nothing. A reloaded
-owner asks its room, draws its picture whole once, and says an element again only if it presented
-it somewhere else. A skin chosen sends no drawing on the bus: the window paints what it keeps.
+owner asks its room, draws its picture whole once, and says an element again only where the window
+does not hold it. A skin chosen sends no drawing on the bus: the window paints what it keeps.

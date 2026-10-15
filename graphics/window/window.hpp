@@ -7,8 +7,8 @@
 // The terminal window: the whole job of showing what its areas' owners drew, over an injected
 // Terminal. It keeps each area's nodes, records and presented elements in its state, presents an
 // element from code it loads, paints what changed with the area's skin and keeps it painted,
-// composes the areas, reads its own terminal, lands a press and routes it, and gives keys to the
-// owners of the areas placed to hear them. Nothing it shows passes through the directory.
+// composes the areas, reads its terminal, routes a press, gives keys to the areas that hear them,
+// and tells each owner its room. Nothing it shows passes through the directory.
 // Reference: graphics/docs/graphics.md, "The window".
 
 #include "graphics/painting.hpp"
@@ -87,7 +87,7 @@ using WindowBase = zengine::timer::TimedWeave<
     WindowT<Terminal>, WindowState,
     loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
                  ElementCodeOffered, GraphicsReady, WindowShowAsked>,
-    loom::Emit<DrawnRefused, WindowOffered, zengine::input::KeyPressed, ElementPressed,
+    loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed, ElementPressed,
                ActionIssued, WindowShown>>;
 
 template <class Terminal>
@@ -129,6 +129,8 @@ public:
 
     // ---- what the directory says --------------------------------------------------------------
 
+    /// An area introduced, or introduced again: kept, painted again where it moved or another skin
+    /// paints it, emptied when another owner draws in it, and its owner told its room.
     void on(const AreaIntroduced& i, loom::Mail& mail) {
         if (!mail.authored_from_role(kGraphicsRole)) {
             return;
@@ -147,9 +149,16 @@ public:
         const bool moved = a->x != i.x || a->y != i.y || a->w != i.w || a->h != i.h ||
                            a->order != i.order;
         const bool repaint = a->library != i.library;
+        const bool handed = a->owner != i.owner;
         const std::string old_library = a->library;
-        if (moved || repaint) {
+        if (moved || repaint || handed) {
             cover_area(*a, dirty_);
+        }
+        if (handed) {
+            cache_.drop_area(a->area);
+            a->nodes.clear();
+            a->records.clear();
+            a->presented.clear();
         }
         a->owner = i.owner;
         a->x = i.x;
@@ -167,6 +176,7 @@ public:
             cover_area(*a, dirty_);
         }
         settle(false);
+        room(mail, *a);
     }
 
     void on(const AreaWithdrawn& w, loom::Mail& mail) {
@@ -619,6 +629,19 @@ private:
     void offer(loom::Mail& mail) {
         (void)mail.as_role(office()).send_to_role(
             kGraphicsRole, WindowOffered{kTerminalWindow, cols_, rows_, this->state_.epoch});
+    }
+
+    /// An area's room, to its owner: this window, its incarnation, the area's size, and the
+    /// references of the elements presented there.
+    void room(loom::Mail& mail, const WinArea& a) {
+        if (a.owner.empty()) {
+            return;
+        }
+        AreaRoom r{a.area, kTerminalWindow, this->state_.epoch, a.w, a.h, {}};
+        for (const Presented& p : a.presented) {
+            r.elements.push_back(p.ref);
+        }
+        (void)mail.as_role(office()).send_to_role(a.owner, r);
     }
 
     void refuse(loom::Mail& mail, const std::string& area, const std::string& reason) {

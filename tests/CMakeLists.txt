@@ -757,6 +757,17 @@ zengine_compile_test(ui_resolved_geometry_refused zengine-cn-ui-resolved
 
 zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 
+# ---- the drawing weave's compile-negative lane --------------------------------------------
+# An element's change outside its code's list, and a drawer replacing the end-of-delivery hook
+# that shows its drawing, are refused at build time, beside a drawer that must build (VM-WALL-04).
+zengine_compile_test(graphics_change_outside_list_refused zengine-cn-graphics-change-outside
+                     "is not one of the element's changes")
+
+zengine_compile_test(graphics_own_after_delivery_refused zengine-cn-graphics-after-delivery
+                     "defines its own after_delivery")
+
+zengine_compile_test(graphics_drawer_compiles zengine-cn-graphics-drawer-ok)
+
 # ---- the Workshop suites --------------------------------------------------------------
 # One entry per subject (VM-POP-11), an entry holding several sources where one object cannot
 # (VM-POP-12), and tests/workshop_support.hpp what several need (VM-POP-13). They prove Workshop

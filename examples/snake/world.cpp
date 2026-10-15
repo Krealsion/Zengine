@@ -16,7 +16,7 @@
 #include "logic.hpp"
 #include "vocabulary.hpp"
 
-#include "graphics/canvas.hpp"
+#include "graphics/drawing.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "timer/binding.hpp"
@@ -47,26 +47,26 @@ using State = v1::SnakeWorldState;
 constexpr const char* kNewGame = "new-game";
 
 class SnakeWorld
-    : public timer::TimedWeave<
+    : public gfx::DrawingWeave<
           SnakeWorld, State,
 #if defined(SNAKE_WORLD_V2)
-          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::AreaRoom, gfx::ActionIssued,
-                       gfx::ElementPressed, gfx::DrawnRefused, loom::PrepareShutdown,
-                       loom::Bequest, loom::Refused>,
-          loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::Drawn, gfx::ElementPut,
-                     gfx::ElementChange, gfx::RoomAsked, loom::Bequest, loom::ClaimBequest>
+          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionIssued,
+                       gfx::ElementPressed, loom::PrepareShutdown, loom::Bequest, loom::Refused>,
+          loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
+                     loom::Bequest, loom::ClaimBequest>,
 #else
-          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::AreaRoom, gfx::ActionIssued,
-                       gfx::ElementPressed, gfx::DrawnRefused, loom::PrepareShutdown>,
-          loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::Drawn, gfx::ElementPut,
-                     gfx::ElementChange, gfx::RoomAsked, loom::Bequest>
+          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionIssued,
+                       gfx::ElementPressed, loom::PrepareShutdown>,
+          loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
+                     loom::Bequest>,
 #endif
-          > {
+          timer::TimedWeave> {
 public:
-    using TimedWeave::on;
+    using DrawingWeave::on;
 
     SnakeWorld()
-        : beat_(timers().repeat(kTickTimerId, std::chrono::milliseconds(kTickMs),
+        : DrawingWeave(kWorldRole, kWorldArea),
+          beat_(timers().repeat(kTickTimerId, std::chrono::milliseconds(kTickMs),
                                 &SnakeWorld::on_beat)) {}
 
     /// Any other driver's tick: a replay, a stepper, a test.
@@ -99,22 +99,9 @@ public:
         }
     }
 
-    /// The window that shows the area: the frame drawn whole when the window is new or started
-    /// again, and the board said again only if it was presented somewhere else.
-    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
-        if (!mail.authored_from_role(gfx::kGraphicsRole) || r.area != kWorldArea) {
-            return;
-        }
-        if (canvas_.set_window(r.window, r.epoch)) {
-            frame();
-            present_board();
-            canvas_.show(mail);
-        }
-    }
-
     /// The new-game button, pressed in the window: a new game, sent to the board as a change.
     void on(const gfx::ActionIssued& a, loom::Mail& mail) {
-        if (!mail.authored_from_role(canvas_.window_office()) || a.action != kNewGame) {
+        if (!mail.authored_from_role(canvas().window_office()) || a.action != kNewGame) {
             return;
         }
         const State keep = state_;
@@ -122,16 +109,11 @@ public:
         copy_bindings(keep);
         seed(state_);
         mail.publish(visual_of(state_));
-        frame();
         new_board();
-        canvas_.show(mail);
     }
 
     /// A press on the board, which takes none, or on the world's own words: nothing to do.
     void on(const gfx::ElementPressed&, loom::Mail&) {}
-
-    /// The window refused a drawing; what it shows stays as it was, and so does the game.
-    void on(const gfx::DrawnRefused&, loom::Mail&) {}
 
     /// "You are being replaced. Say what you want your heir to know": the whole state, as one
     /// item, to the steward that asked, echoing its correlation.
@@ -160,9 +142,7 @@ public:
             }
             retime(mail);
             mail.publish(visual_of(state_));
-            frame();
-            present_board();
-            canvas_.show(mail);
+            present_board(); // the board it inherited, said again whole
             return;
         }
     }
@@ -176,10 +156,28 @@ public:
 #endif
 
     /// Started, or started again (a reload keeps the state): the beat follows the pace the state
-    /// holds, and the world asks its room, since a fresh canvas knows no window.
-    void on_timed_activation(const loom::Activated&, loom::Mail& mail) {
-        retime(mail);
-        (void)mail.as_role(kWorldRole).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{kWorldArea});
+    /// holds.
+    void on_timed_activation(const loom::Activated&, loom::Mail& mail) { retime(mail); }
+
+    /// The world's own nodes: the score, the death notice, the board's place, the new-game button.
+    void picture(gfx::Sketch& f) const {
+        const std::int64_t c = kBoardCellPx;
+        f.text("score", 0, 0, "score " + std::to_string(state_.score),
+               gfx::by_role(gfx::role::kMuted));
+        if (!state_.alive) {
+            f.text("dead", 10 * c, 0, "DEAD", gfx::by_role(gfx::role::kAlert));
+        }
+        f.group("board", 0, c);
+        f.text("new-game", 0, (state_.height + 3) * c, "[ new game ]",
+               gfx::by_role(gfx::role::kAccent));
+        f.action("new-game", kNewGame);
+    }
+
+    /// A window that does not hold the board: the board said there, whole.
+    void on_room(const gfx::AreaRoom&, loom::Mail&) {
+        if (!canvas().holds(kBoardRef)) {
+            present_board();
+        }
     }
 
 private:
@@ -196,8 +194,7 @@ private:
         advance(mail);
     }
 
-    /// One step of world time: the news published, the frame drawn, the board told what changed,
-    /// all shown once.
+    /// One step of world time: the news published and the board told what changed.
     void advance(loom::Mail& mail) {
 #if defined(SNAKE_WORLD_V2)
         claim_once(mail);
@@ -205,9 +202,7 @@ private:
         if (state_.snake.empty()) {
             seed(state_);
             mail.publish(visual_of(state_));
-            frame();
             new_board();
-            canvas_.show(mail);
             return;
         }
         const State before = state_;
@@ -220,26 +215,8 @@ private:
         }
         if (ev.moved || ev.died) {
             mail.publish(visual_of(state_));
-            frame();
             step_board(before);
-            canvas_.show(mail);
         }
-    }
-
-    /// The world's own nodes: the score, the death notice, the board's place, the new-game button.
-    void frame() {
-        const std::int64_t c = kBoardCellPx;
-        gfx::Sketch f;
-        f.text("score", 0, 0, "score " + std::to_string(state_.score),
-               gfx::by_role(gfx::role::kMuted));
-        if (!state_.alive) {
-            f.text("dead", 10 * c, 0, "DEAD", gfx::by_role(gfx::role::kAlert));
-        }
-        f.group("board", 0, c);
-        f.text("new-game", 0, (state_.height + 3) * c, "[ new game ]",
-               gfx::by_role(gfx::role::kAccent));
-        f.action("new-game", kNewGame);
-        canvas_.draw(f);
     }
 
     std::int64_t cell_of(const Pos& p) const { return p.y * state_.width + p.x; }
@@ -254,35 +231,25 @@ private:
         return out;
     }
 
-    bool board_presented() const {
-        return !canvas_.window().empty() && state_.board_window == canvas_.window() &&
-               state_.board_epoch == canvas_.epoch();
-    }
-
-    /// The board said whole, where it is not presented in the window that shows the area.
+    /// The board said whole: where the window does not hold it, or to start it over.
     void present_board() {
-        if (canvas_.window().empty() || board_presented()) {
-            return;
-        }
-        canvas_.present("board/grid", kBoardRef,
-                        SnakeBoardData{state_.width, state_.height, kBoardCellPx, body(),
-                                       state_.snake.empty() ? -1 : food_cell()});
-        state_.board_window = canvas_.window();
-        state_.board_epoch = canvas_.epoch();
+        canvas().present("board/grid", kBoardRef,
+                         SnakeBoardData{state_.width, state_.height, kBoardCellPx, body(),
+                                        state_.snake.empty() ? -1 : food_cell()});
     }
 
-    /// A new game on the board: a change where it is presented.
+    /// A new game on the board: a change where the window holds it.
     void new_board() {
-        if (!board_presented()) {
+        if (!canvas().holds(kBoardRef)) {
             present_board();
             return;
         }
-        canvas_.change<SnakeBoardChanges>(kBoardRef, SnakeNewGame{body(), food_cell()});
+        canvas().change<SnakeBoardChanges>(kBoardRef, SnakeNewGame{body(), food_cell()});
     }
 
-    /// One step's facts on the board: a change where it is presented.
+    /// One step's facts on the board: a change where the window holds it.
     void step_board(const State& before) {
-        if (!board_presented()) {
+        if (!canvas().holds(kBoardRef)) {
             present_board();
             return;
         }
@@ -299,11 +266,10 @@ private:
             s.food = food_cell();
         }
         s.dead = !state_.alive && before.alive;
-        canvas_.change<SnakeBoardChanges>(kBoardRef, s);
+        canvas().change<SnakeBoardChanges>(kBoardRef, s);
     }
 
-    /// What a new game keeps of the state it replaces: the bindings, the beats taken, and where
-    /// the board is presented.
+    /// What a new game keeps of the state it replaces: the bindings and the beats taken.
     void copy_bindings(const State& from) {
         state_.keys = from.keys;
         state_.key_up = from.key_up;
@@ -312,8 +278,6 @@ private:
         state_.key_left = from.key_left;
         state_.beat_ms = from.beat_ms;
         state_.ticks = from.ticks;
-        state_.board_window = from.board_window;
-        state_.board_epoch = from.board_epoch;
     }
 
     /// A pace written since the beat was asked for: the beat given up and asked again at the new
@@ -354,7 +318,6 @@ private:
     Handle beat_;
     std::int64_t armed_ms_ = kTickMs;
     std::int64_t paces_ = 0;
-    gfx::Canvas canvas_{kWorldRole, kWorldArea};
 };
 
 } // namespace

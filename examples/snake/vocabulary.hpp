@@ -77,9 +77,8 @@ namespace v1 {
 
 /// The first world's state: the game (an empty `snake` is a new game, seeded on the next tick),
 /// its bindings -- whether its keys steer and which four, and its pace, 0 for no beat of its own
-/// -- the beats it has taken, and the window and incarnation it presented its board in. Every
-/// field is poke-manipulable: the state holds no secrets, and the suite uses that hand as its
-/// game-master.
+/// -- and the beats it has taken. Every field is poke-manipulable: the state holds no secrets,
+/// and the suite uses that hand as its game-master.
 struct SnakeWorldState {
     std::int64_t width = 24;
     std::int64_t height = 16;
@@ -95,14 +94,11 @@ struct SnakeWorldState {
     std::int64_t key_left = zengine::input::scan::kA;
     std::int64_t beat_ms = kTickMs;
     std::int64_t ticks = 0;
-    std::string board_window;
-    std::int64_t board_epoch = 0;
     ZEN_EXPOSE();
-    ZEN_SHAPE(SnakeWorldState, 3, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(snake),
+    ZEN_SHAPE(SnakeWorldState, 5, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(snake),
               ZEN_FIELD(food), ZEN_FIELD(direction), ZEN_FIELD(alive), ZEN_FIELD(score),
               ZEN_FIELD(keys), ZEN_FIELD(key_up), ZEN_FIELD(key_right), ZEN_FIELD(key_down),
-              ZEN_FIELD(key_left), ZEN_FIELD(beat_ms), ZEN_FIELD(ticks), ZEN_FIELD(board_window),
-              ZEN_FIELD(board_epoch));
+              ZEN_FIELD(key_left), ZEN_FIELD(beat_ms), ZEN_FIELD(ticks));
 };
 
 } // namespace v1
@@ -126,15 +122,12 @@ struct SnakeWorldState {
     std::int64_t key_left = zengine::input::scan::kA;
     std::int64_t beat_ms = kTickMs;
     std::int64_t ticks = 0;
-    std::string board_window;
-    std::int64_t board_epoch = 0;
     std::int64_t growths = 0;
     ZEN_EXPOSE();
-    ZEN_SHAPE(SnakeWorldState, 4, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(snake),
+    ZEN_SHAPE(SnakeWorldState, 6, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(snake),
               ZEN_FIELD(food), ZEN_FIELD(direction), ZEN_FIELD(alive), ZEN_FIELD(score),
               ZEN_FIELD(keys), ZEN_FIELD(key_up), ZEN_FIELD(key_right), ZEN_FIELD(key_down),
-              ZEN_FIELD(key_left), ZEN_FIELD(beat_ms), ZEN_FIELD(ticks), ZEN_FIELD(board_window),
-              ZEN_FIELD(board_epoch), ZEN_FIELD(growths));
+              ZEN_FIELD(key_left), ZEN_FIELD(beat_ms), ZEN_FIELD(ticks), ZEN_FIELD(growths));
 };
 
 } // namespace v2
