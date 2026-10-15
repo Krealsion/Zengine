@@ -4,8 +4,7 @@
 it. Cite these by number.
 
 Zengine owns these truths. Reference:
-[timer-protocol](timer-protocol.md) ·
-[timer-continuity](timer-continuity.md) ·
+[the Timer's manual](zengine.timer.md) ·
 [timer-binding](timer-binding.md). Loom-tier laws they build on:
 [`Loom docs/laws/`](https://github.com/Krealsion/Loom/blob/main/docs/laws/README.md).
 

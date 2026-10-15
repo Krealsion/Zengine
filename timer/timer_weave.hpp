@@ -6,9 +6,9 @@
 
 // The TimerService weave, over an injected Clock: anything with `std::int64_t now_ms()`
 // (monotonic) and `void nap_ms(std::int64_t)` (block; <=0 lets the clock decline). timer.cpp's is
-// the OS clock and the system's one nap; the suite's is virtual. The wire is
-// timer/docs/timer-protocol.md and succession timer/docs/timer-continuity.md; what
-// follows here is what those pages do not carry: the ordering this code depends on, its traps.
+// the OS clock and the system's one nap; the suite's is virtual. The wire and succession are
+// the office's manual, timer/docs/zengine.timer.md; what follows here is what that page does not
+// carry: the ordering this code depends on, its traps.
 // Timer law: timer/docs/timer-laws.md
 
 // The beat chain is authored from the activation (TIMER-01): accept it, decide what was
@@ -32,6 +32,8 @@
 #include "vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.timer.hpp" // this office's manual, compiled in from its page
 #include "operator/catalog.hpp"
 
 #include <zen/weave.hpp>
@@ -78,9 +80,11 @@ class TimerServiceT
           TimerServiceT<Clock>, TimerState,
           loom::Accept<loom::Activated, Drive, StartTimer, StartRoleTimer, EnsureTimer,
                        EnsureRoleTimer, CancelTimer, CancelAllMyTimers, loom::PrepareShutdown,
-                       loom::Bequest, loom::Refused, PrepareTimerHandover>,
+                       loom::Bequest, loom::Refused, PrepareTimerHandover,
+                       manual::ShapeDocumentRequested>,
           loom::Emit<TimerFired, TimerReady, Drive, TimerResolution, loom::Bequest,
-                     loom::ClaimBequest, TimerCandidatePrepared, TimerCandidateDeclined>> {
+                     loom::ClaimBequest, TimerCandidatePrepared, TimerCandidateDeclined,
+                     manual::ShapeDocumentShown>> {
 public:
     TimerServiceT() = default;
     explicit TimerServiceT(Clock clock) : clock_(std::move(clock)) {}
@@ -294,6 +298,14 @@ public:
             return;
         }
         resolve_bootstrap(mail, /*letter=*/nullptr);
+    }
+
+    /// What a shape I accept does, to the asker alone: my page's section for it, said against the
+    /// content id the asker holds. The gate's own list says which shapes are mine to describe,
+    /// and an incarnation answers whether or not it is activated: the words are the image's.
+    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(manual::shape_document(ask, this->accepted_schemas(),
+                                                 manual::pages::zengine_timer::kManual));
     }
 
     Clock& clock() { return clock_; }

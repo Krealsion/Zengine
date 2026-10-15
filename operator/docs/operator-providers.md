@@ -407,4 +407,4 @@ the macro), [`operator/provider_host.hpp`](../provider_host.hpp)
 (mounting), [`operator/migration.hpp`](../migration.hpp) (the conversion
 convention and its lookup), and [`operator/catalog.hpp`](../catalog.hpp) (the layered
 store). The consumer half is [operator/docs/operator-host.md](operator-host.md); the rule the
-Timer supplies is [timer/docs/timer-protocol.md](../../timer/docs/timer-protocol.md).
+Timer supplies is [the Timer's manual](../../timer/docs/zengine.timer.md#about).
