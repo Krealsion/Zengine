@@ -20,8 +20,7 @@ foreach(world snake-world-v1 snake-world-v2)
                                            zengine-timer-vocabulary zengine-activation)
 endforeach()
 zengine_weave(snake-score score.cpp)
-target_link_libraries(snake-score PRIVATE zengine-graphics-vocabulary zengine-input-vocabulary
-                                          zengine-activation)
+target_link_libraries(snake-score PRIVATE zengine-graphics-vocabulary zengine-input-vocabulary)
 
 # The board's code: element code a window opens, not a weave -- no participant lives in it.
 zengine_provider(snake-board board.cpp)

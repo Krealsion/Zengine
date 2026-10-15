@@ -361,7 +361,7 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
     CHECK(schema_of<SnakeDied>()->content_id() ==
           SchemaBuilder("SnakeDied", 1).build()->content_id());
 
-    const auto world = SchemaBuilder("SnakeWorldState", 3)
+    const auto world = SchemaBuilder("SnakeWorldState", 5)
                            .field("width", Kind::Int)
                            .field("height", Kind::Int)
                            .list("snake", loom::type_message(pos))
@@ -376,8 +376,6 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
                            .field("key_left", Kind::Int)
                            .field("beat_ms", Kind::Int)
                            .field("ticks", Kind::Int)
-                           .field("board_window", Kind::Text)
-                           .field("board_epoch", Kind::Int)
                            .build();
     CHECK(schema_of<v1::SnakeWorldState>()->content_id() == world->content_id());
 }
@@ -386,8 +384,8 @@ TEST_CASE("contract: v2 state is a genuinely different identity") {
     CHECK(schema_of<v1::SnakeWorldState>()->content_id() !=
           schema_of<v2::SnakeWorldState>()->content_id());
     CHECK(schema_of<v1::SnakeWorldState>()->name() == schema_of<v2::SnakeWorldState>()->name());
-    CHECK(schema_of<v1::SnakeWorldState>()->version() == 3);
-    CHECK(schema_of<v2::SnakeWorldState>()->version() == 4);
+    CHECK(schema_of<v1::SnakeWorldState>()->version() == 5);
+    CHECK(schema_of<v2::SnakeWorldState>()->version() == 6);
 }
 
 // ============================================================================

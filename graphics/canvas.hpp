@@ -7,8 +7,9 @@
 // What an owner draws with. A Sketch collects one picture's drawing calls; a Canvas, kept for the
 // owner's life, remembers what it last sent its window, so a whole picture drawn again sends only
 // what changed. A beat queues its drawing (`draw`) and its elements' changes (`change`), and `show`
-// sends them, the last saying the beat's drawing is whole, so the window shows once. Element code
-// draws into a Sketch too (graphics/element_export.hpp). Reference: graphics/docs/graphics.md.
+// sends them, the last saying the beat's drawing is whole, so the window shows once; a drawing
+// weave (graphics/drawing.hpp) shows at the end of every delivery. Element code draws into a Sketch
+// too (graphics/element_export.hpp). Reference: graphics/docs/graphics.md.
 
 #include "graphics/implied.hpp"
 #include "graphics/ops.hpp"
@@ -162,24 +163,28 @@ inline Drawn difference(const Sketch& before, const Sketch& after) {
     return d;
 }
 
-/// What an owner keeps for its life: the office it draws as, its area, the window that shows it,
-/// what it last sent there, and what one beat has queued.
+/// What an owner keeps for its life: the office it draws as, its area, the window that shows it
+/// and the elements that window presents, what it last sent there, and what one beat has queued.
 class Canvas {
 public:
     explicit Canvas(std::string office, std::string area = {})
         : office_(std::move(office)), area_(area.empty() ? office_ : std::move(area)) {}
 
-    /// The window that shows the area and its incarnation, from `AreaRoom`. True when they changed:
-    /// that window holds nothing this canvas sent, so the next drawing goes whole.
-    bool set_window(const std::string& window, std::int64_t epoch) {
-        if (window == window_ && epoch == epoch_) {
+    /// The room the window that shows the area told. True when the window or its incarnation
+    /// changed: it holds none of this canvas's nodes, so the next drawing goes whole, and of its
+    /// elements only those the room names.
+    bool room(const AreaRoom& r) {
+        if (r.window == window_ && r.epoch == epoch_) {
             return false;
         }
-        window_ = window;
-        epoch_ = epoch;
+        window_ = r.window;
+        epoch_ = r.epoch;
+        held_ = std::set<std::int64_t>(r.elements.begin(), r.elements.end());
         known_ = false;
         return true;
     }
+    /// Whether the window that shows the area presents the element named `ref`.
+    bool holds(std::int64_t ref) const { return held_.count(ref) != 0; }
     const std::string& window() const { return window_; }
     std::int64_t epoch() const { return epoch_; }
     const std::string& office() const { return office_; }
@@ -217,11 +222,12 @@ public:
         if (!window_.empty()) {
             queued_.emplace_back(ElementPut{area_, path, loom::schema_of<T>()->name(), ref,
                                             loom::bequeath_item(data), false});
+            held_.insert(ref);
         }
     }
 
     /// Queue a change of the element named `ref`: C's index among `Changes`, the changes its code
-    /// takes in order, and C's body alone.
+    /// takes in order, and C's body alone. A C that is not in `Changes` once does not compile.
     template <class Changes, class C>
     void change(std::int64_t ref, const C& c) {
         if (!window_.empty()) {
@@ -229,11 +235,14 @@ public:
         }
     }
 
-    /// Send what this beat queued, the last saying the drawing is whole, so the window shows once.
-    /// Throws, sending nothing more, when this participant does not hold the office it draws as.
+    /// Send what this beat queued, its nodes before its elements, the last saying the drawing is
+    /// whole, so the window shows once. Throws, sending nothing more, when this participant does
+    /// not hold the office it draws as.
     void show(loom::Mail& mail) {
         std::vector<Out> out = std::move(queued_);
         queued_.clear();
+        std::stable_partition(out.begin(), out.end(),
+                              [](const Out& m) { return std::holds_alternative<Drawn>(m); });
         for (std::size_t i = 0; i < out.size(); ++i) {
             const bool more = i + 1 < out.size();
             std::visit(
@@ -254,7 +263,12 @@ private:
     using Out = std::variant<Drawn, ElementPut, ElementChange>;
 
     template <class C, class Changes, std::size_t... I>
-    static std::int64_t index_of(std::index_sequence<I...>) {
+    static constexpr std::size_t count_of(std::index_sequence<I...>) {
+        return (std::size_t{0} + ... +
+                (std::is_same_v<C, std::tuple_element_t<I, Changes>> ? std::size_t{1} : 0));
+    }
+    template <class C, class Changes, std::size_t... I>
+    static constexpr std::int64_t index_of(std::index_sequence<I...>) {
         std::int64_t at = -1;
         ((std::is_same_v<C, std::tuple_element_t<I, Changes>> ? (at = static_cast<std::int64_t>(I),
                                                                  true)
@@ -263,15 +277,20 @@ private:
         return at;
     }
     template <class C, class Changes>
-    static std::int64_t index_in() {
-        static_assert(std::tuple_size_v<Changes> > 0, "an element that takes no change");
-        return index_of<C, Changes>(std::make_index_sequence<std::tuple_size_v<Changes>>{});
+    static constexpr std::int64_t index_in() {
+        constexpr auto all = std::make_index_sequence<std::tuple_size_v<Changes>>{};
+        static_assert(count_of<C, Changes>(all) == 1,
+                      "zengine::graphics::Canvas::change: this change is not one of the element's "
+                      "changes, once -- the `Changes` list its code takes, where a change travels "
+                      "as its index");
+        return index_of<C, Changes>(all);
     }
 
     std::string office_;
     std::string area_;
     std::string window_;
     std::int64_t epoch_ = 0;
+    std::set<std::int64_t> held_;
     bool known_ = false;
     Sketch sent_;
     std::vector<Out> queued_;

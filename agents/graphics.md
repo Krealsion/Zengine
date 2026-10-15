@@ -18,8 +18,10 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   window a word, never a drawing.
 - **One showing a beat, on the drawer's word.** A drawing or a change saying `more` is held back;
   the next message from that drawer without it shows everything since, once. Any other handler of
-  the window shows what it changed. A drawer that sends its beat through `Canvas::show` cannot
-  forget the last word.
+  the window shows what it changed. `Canvas::show` sends a beat's nodes before its elements and
+  cannot forget the last word, and a drawing weave (`graphics/drawing.hpp`) shows at the end of
+  every delivery, so a drawer on it cannot forget to show; one that replaces that hook is refused
+  at build time.
 - **Every bound is judged before anything changes**, and a drawing past one is refused whole, to
   its drawer, in words (`DrawnRefused`): the nodes, records and presented elements of an area, a
   path's bytes and depth, an operator's operands. A record said again at its own path counts as
@@ -27,7 +29,11 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   never-presented element stays.
 - A window's incarnation is a random token drawn on its first activation and carried by its state:
   a loaded weave cannot read its own id. Owners draw whole only when the window or its incarnation
-  changed (`AreaRoom`, `Canvas::set_window`).
+  changed (`AreaRoom`, `Canvas::room`).
+- **The window tells the room.** It answers every introduction of an area with the owner's room,
+  naming the elements it still presents there, so a drawer's state keeps no window or incarnation
+  and a drawer that starts again says only what the window does not hold. An area given another
+  owner starts empty. A drawing weave takes a room only from the office of the window it names.
 
 ## Colour, pixels and operands
 
@@ -37,6 +43,9 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
 - **An operand's shape is implied by its operator** and an element change's by the element's type:
   each travels as its shape's body, and the receiver restores the envelope before the gate reads
   it (`graphics/implied.hpp`), so a body of another shape, version or content is refused there.
+- **An element's changes are a list whose order is the wire**: a change travels as its index, so
+  the list only grows at its end, and a change outside it does not compile where its owner sends
+  it.
 - Every skin draws every operator, natively or by its medium's fallback; an operator it does not
   know is painted as its name, muted.
 
