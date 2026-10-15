@@ -112,17 +112,19 @@ function(zen_doc_read_source path out)
     set(${out} "${content}" PARENT_SCOPE)
 endfunction()
 
-# Every comment in a C/C++ translation unit, as one blob: whole-content extraction, since a file
-# split into a list of lines arrives with its tail welded. String literals go first, bounded to a
-# line, so the `//` in a URL opens no comment; character literals stay, since `'/'` cannot forge
-# a marker and a `'[^']*'` pattern would pair apostrophes in prose. Its limits all read more text,
-# never less (a `//` inside a block comment matches again, a one-line raw string may be stripped
-# as an ordinary one), so a reference is at worst seen twice and the caller de-duplicates.
+# Every comment in a C/C++ translation unit, as one blob, read whole: a file split into lines
+# arrives welded. Read left to right as the language reads it, whichever of a string literal, a
+# character literal, a `//` or a `/*` opens first runs to its end, so a `//` or `/*` in a string or
+# a `/*` in a line comment opens nothing. A literal is bounded to a line, its escapes already gone
+# (zen_doc_read_source): a raw string spanning lines or holding a quote is read as code. Brackets
+# are swapped before the tokens become a list (VM-CHECK-03); no path holds one.
 function(zen_doc_comments content out)
-    string(REGEX REPLACE "\"[^\"\n]*\"" "" code "${content}")
-    string(REGEX MATCHALL "//[^\n]*" line_comments "${code}")
-    string(REGEX MATCHALL "/\\*([^*]|\\*+[^*/])*\\*+/" block_comments "${code}")
-    set(${out} "${line_comments} ${block_comments}" PARENT_SCOPE)
+    string(REPLACE "[" "(" content "${content}")
+    string(REPLACE "]" ")" content "${content}")
+    string(REGEX MATCHALL "\"[^\"\n]*\"|'[^'\n]'|//[^\n]*|/\\*([^*]|\\*+[^*/])*\\*+/"
+           tokens "${content}")
+    list(FILTER tokens INCLUDE REGEX "^/[/*]")
+    set(${out} "${tokens}" PARENT_SCOPE)
 endfunction()
 
 # Every comment in a CMake file, read as zen_doc_read_source leaves it: a `#` outside a quoted
@@ -390,6 +392,31 @@ if(NOT cmake_seen STREQUAL "yes/three.md;yes/four.md;yes/five.md;yes/six.md"
         "manifest reader '${manifest_seen}'; a reader that drops a comment or reads an argument "
         "leaves a broken reference unseen, or invents one.")
 endif()
+# The C/C++ reader: a `/*` in a line comment, and one in a string literal, opens no block comment,
+# with no `*/` after it in the file and with one later and code between; a string's path is not
+# a comment's, and its unbalanced bracket hides no comment after it.
+set(cxx_line "int a = 1 // yes/one.md, a door: <office>/*\nint b = no/two.md\n")
+set(cxx_literal "const char* const kProbe = \"[ no/three.md <office>/*\"\nint c = no/four.md\n")
+set(cxx_later "/* yes/five.md */ int d = no/six.md\n")
+set(cxx_none "")
+foreach(cxx_case "line;none;yes/one.md" "line;later;yes/one.md,yes/five.md"
+                 "literal;none;none" "literal;later;yes/five.md")
+    list(GET cxx_case 0 cxx_form)
+    list(GET cxx_case 1 cxx_tail)
+    list(GET cxx_case 2 cxx_want)
+    string(REPLACE "," ";" cxx_want "${cxx_want}")
+    string(REPLACE "none" "" cxx_want "${cxx_want}")
+    zen_doc_comments("${cxx_${cxx_form}}${cxx_${cxx_tail}}" cxx_seen)
+    string(REGEX MATCHALL "[a-z]+/[a-z]+\\.md" cxx_seen "${cxx_seen}")
+    if(NOT cxx_seen STREQUAL cxx_want)
+        message(FATAL_ERROR
+            "doc-links: SELF-TEST FAILED -- with a `/*` in a ${cxx_form} and "
+            "'${cxx_${cxx_tail}}' after it, the C/C++ comment reader found '${cxx_seen}' (want "
+            "'${cxx_want}'). A `/*` that opens a block where the language opens none takes code "
+            "for a comment, and with no `*/` after it CMake's regular expressions run out of "
+            "stack.")
+    endif()
+endforeach()
 foreach(name_case "a/b/x.hpp;TRUE" "a/b/CMakeLists.txt;TRUE" "a/b/x.cmake.in;TRUE"
                   "a/test_population.txt;TRUE" "a/b/x_hpp;FALSE" "a/b/x.hpp.orig;FALSE"
                   "a/b/notes.txt;FALSE")
@@ -410,8 +437,8 @@ message(STATUS
     "doc-links: self-test OK -- a missing path and a missing anchor are both refused, a "
     "live document and one of its own headings are both accepted; four planted outside paths "
     "are found, a clean sentence is not, and this file carries every declared spelling; CMake "
-    "and manifest comments are read as their own readers read them, and the source names "
-    "match the globs")
+    "and manifest comments are read as their own readers read them, a `/*` in a C/C++ line "
+    "comment or string opens no block, and the source names match the globs")
 
 # ---- gathering the two populations -----------------------------------------------------
 
