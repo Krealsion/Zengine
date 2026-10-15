@@ -22,6 +22,9 @@
 #include "workshop/pane_escape.hpp"
 #include "inventory/codec.hpp"
 #include "inventory/pane_client.hpp"
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.composer.hpp" // this pane's manual, compiled in from its page
+#include "workshop/pane_document.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/registry.hpp>
@@ -98,7 +101,9 @@ public:
                 loom::schema_of<surface::ClipboardCopy>(),
                 loom::schema_of<surface::ClipboardText>(),
                 loom::accepted_shapes_schema(),
-                loom::schema_of<loom::Refused>()};
+                loom::schema_of<loom::Refused>(),
+                loom::schema_of<ws::PaneDocumentRequested>(),
+                loom::schema_of<zengine::manual::ShapeDocumentRequested>()};
     }
 
     /// What this weave says to Workshop. A submitted command is whatever shape the weaver
@@ -108,7 +113,9 @@ public:
         return {loom::schema_of<PaneOffered>(), loom::schema_of<ws::v4::PaneContent>(),
                 loom::schema_of<ws::v5::PaneCanvasContent>(), loom::schema_of<ws::PaneCaret>(),
                 loom::schema_of<ws::PaneActions>(), loom::schema_of<ws::PaneOperationRequested>(),
-                loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>()};
+                loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
+                loom::schema_of<ws::PaneDocumentShown>(),
+                loom::schema_of<zengine::manual::ShapeDocumentShown>()};
     }
 
     void handle(const loom::Message& in, loom::Bus& bus) override {
@@ -123,6 +130,19 @@ public:
             composing_ = zengine::composer::Composing{};
             shown_ = {};
             say(mail); (void)mail.answer(loom::Ack{}); return;
+        }
+        // ITS MANUAL, TO THE ASKER ALONE: the pane's page whole or one section, and a shape's
+        // section from the same page, said against the accept-set the gate enforces.
+        const zengine::manual::Manual& page = zengine::manual::pages::zengine_composer::kManual;
+        if (loom::same_identity(*loom::schema_of<ws::PaneDocumentRequested>(), shape)) {
+            const auto ask = loom::from_value<ws::PaneDocumentRequested>(in.payload);
+            (void)mail.answer(ws::pane_document(ask, kComposePane, page));
+            return;
+        }
+        if (loom::same_identity(*loom::schema_of<zengine::manual::ShapeDocumentRequested>(), shape)) {
+            const auto ask = loom::from_value<zengine::manual::ShapeDocumentRequested>(in.payload);
+            (void)mail.answer(zengine::manual::shape_document(ask, accepted_schemas(), page));
+            return;
         }
         if (loom::same_identity(*loom::schema_of<ws::PaneCanvasPointer>(), shape)) {
             on_pointer(loom::from_value<ws::PaneCanvasPointer>(in.payload), mail); return;

@@ -13,6 +13,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `view.hpp` | what the pane shows and what each row means; also in `zengine-composer-draft` |
 | `command_context.hpp` | `ComposerCommandContext` v1: the target office stored with a command |
 | `composer.cpp` | the Compose pane, `zengine-composer`: a loadable weave |
+| `docs/zengine.composer.md` | its manual, carried by the weave (`MANUAL`) and answered by it |
 
 ## Law
 
@@ -24,7 +25,8 @@ Its law is the section "The Composer is a schema-directed message form" of the p
 
 - `composer` — drafts and views as values: what composes and shows (`tests/test_composer.cpp`)
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_input.cpp`,
+Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_input.cpp`, with its
+action census driver, `tests/actions/zengine.composer.txt`, and its manual witnesses;
 `tests/test_workshop_inventory_info.cpp`), `workshop_document`
 (`tests/test_workshop_document.cpp`), `workshop_shapes` (`tests/census_headers.hpp`) and
 `workshop_files` (`tests/test_workshop_files.cpp`, its development catalog row).
@@ -45,6 +47,7 @@ Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_input.c
 ## Pages
 
 - [Compose](README.md) — this folder's front page
+- [`zengine.composer`](docs/zengine.composer.md) — the manual the pane carries and answers
 - [Reuse a stored command through Compose](../inventory/docs/inventory-compose.md)
 - [Panes](../workshop/docs/panes.md) — where Compose sits among Workshop's panes
 - [Reusable message and value drafts](../message-draft/docs/message-drafts.md)
