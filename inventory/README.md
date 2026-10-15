@@ -11,9 +11,19 @@ messages that add, list, read and capture entries `#include "inventory/vocabular
 permissions a host may give the Inventory office `#include "inventory/grant.hpp"`, and the pane's
 own messages `#include "inventory/inventory-pane/vocabulary.hpp"`.
 
+## Manuals
+
+- [The Inventory pane](docs/zengine.inventory-pane.md), `zengine.inventory-pane`: every command,
+  by its key: browsing folders, picking up and filing entries, portable views and hotkeys, toolbox
+  files
+- [Inventory](docs/zengine.inventory.md), `zengine.inventory`: the office that keeps the entries,
+  and the messages another weave sends it
+
+![Inventory wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.inventory-pane-manual.png)
+
 ## Pages
 
-- [Inventory: stored values with separate typed metadata](docs/inventory.md): the reference: messages, metadata, folders, lifetime
+- [The Inventory pair](docs/inventory.md): the format of one entry, its metadata, and the reader
 - [Organize Inventory in named folders](docs/inventory-folders.md): make, nest and fill folders
 - [Portable inventory toolboxes](docs/inventory-slots.md): boxes, rows, columns and hotkeys
 - [Reuse a stored command through Compose](docs/inventory-compose.md): fill a command from entries

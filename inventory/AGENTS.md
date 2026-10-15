@@ -41,13 +41,15 @@ Its cases in shared suites: `workshop_panes` (`tests/test_workshop_inventory_inf
 `tests/test_workshop_inventory_folders.cpp`, `tests/test_workshop_info_views.cpp`, on the rig
 `tests/inventory_story.hpp`); `workshop_guests` (`tests/test_workshop_guests.cpp`, the guest
 `inventory` and `toolbox` powers). `workshop_journey` reads captured pairs with
-`zengine-inventory-read`.
+`zengine-inventory-read`. The pane's rows are pinned in `tests/actions/zengine.inventory-pane.txt`,
+driven by `kInventoryPaneCensus` in `tests/test_workshop_inventory_info.cpp`.
 
 ## Host side
 
 - `workshop/CMakeLists.txt` stages both weaves; `workshop/default-load-plan.json` and
   `workshop/graphical-load-plan.json` load them at `zengine.inventory`, `zengine.inventory-pane`.
-- `workshop/admission.hpp` admits the `zengine.inventory` office with `inventory_grant()`.
+- `workshop/admission.hpp` admits the `zengine.inventory` office with `inventory_grant()` and the
+  answer to `ShapeDocumentRequested` (`inventory_office_grant()`).
 - The pane asks Workshop through `workshop/pane_operation.hpp` (permission, actor scope),
   `workshop/pane_carry.hpp`, `workshop/pane_shortcuts.hpp` (hotkeys, at the Desktop) and
   `workshop/desktop_seam_vocabulary.hpp` (opening a portable view); `workshop/actor_scope.hpp`
@@ -60,10 +62,16 @@ Its cases in shared suites: `workshop_panes` (`tests/test_workshop_inventory_inf
 
 ## Pages
 
+- [The Inventory pane](docs/zengine.inventory-pane.md), a manual, compiled into the pane
+  (`MANUAL` in `inventory-pane/CMakeLists.txt`) and answered on ask (`PaneDocumentRequested`) for
+  every pane it offers
+- [Inventory](docs/zengine.inventory.md), a manual, compiled into the weave (`MANUAL` in
+  `CMakeLists.txt`); the office answers a shape's section from it, under the grant
+  `workshop/admission.hpp` adds
+- [The Inventory pair](docs/inventory.md), the format one entry is kept in
 - [Reuse a stored command through Compose](docs/inventory-compose.md)
 - [Organize Inventory in named folders](docs/inventory-folders.md)
 - [Portable inventory toolboxes](docs/inventory-slots.md)
-- [Inventory: stored values with separate typed metadata](docs/inventory.md)
 - [Save a toolbox for another session](docs/toolboxes.md)
 
 ## Practices

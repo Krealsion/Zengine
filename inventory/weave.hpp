@@ -5,7 +5,7 @@
 
 // One loadable inventory: complete typed pairs are owned as independent bytes.
 // CaptureDescribe is a narrow acquisition adapter; Set/Get stay schema-generic.
-// See inventory/docs/inventory.md for authority, pending behavior and lifetime.
+// inventory/docs/zengine.inventory.md is its manual: authority, pending behavior and lifetime.
 
 #include "inventory/codec.hpp"
 #include "inventory/archive.hpp"
@@ -14,6 +14,9 @@
 #include "inventory/observation.hpp"
 #include "inventory/vocabulary.hpp"
 #include "activation/activation.hpp"
+#include "manual/vocabulary.hpp"
+
+#include "manuals/zengine.inventory.hpp" // this office's manual, compiled in from its page
 
 #include <zen/weave.hpp>
 #include <zen/weave/ask_book.hpp>
@@ -76,16 +79,23 @@ class InventoryWeave final
                        InventorySnapshotRequested, v2::InventorySnapshotRequested,
                        InventoryRestore, v2::InventoryRestore,
                        InventoryCaptureAdd, InventoryCaptureDescribe, loom::PokeStructure,
-                       loom::DispatchRefused>,
+                       loom::DispatchRefused, manual::ShapeDocumentRequested>,
           loom::Emit<InventoryState, InventoryEntry, InventoryListed, v2::InventoryListed,
                      InventoryFolderState, InventoryChanged,
                      InventorySnapshot, v2::InventorySnapshot, InventoryRestored,
                      InventoryCaptured, loom::Ack, loom::Refused,
-                     loom::PokeDescribe>> {
+                     loom::PokeDescribe, manual::ShapeDocumentShown>> {
 public:
     InventoryWeave() : book_(1) {}
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (activation_.accept(mail, a)) changed(mail);
+    }
+
+    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it, said against the
+    /// content id the asker holds. The gate's own list says which shapes are mine to describe.
+    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
+                                                 manual::pages::zengine_inventory::kManual));
     }
 
     // ---- the generic, schema-opaque doors -------------------------------------------------

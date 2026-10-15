@@ -74,5 +74,5 @@ run it in the dedicated demo host. Each run adds three views, within the bound o
 <!-- value kMaxPortableViews -->36<!-- /value --> views. Restart the demo host for further independent sessions. Reset preserves stored entries;
 it does not undo earlier commands or make view identities reusable by name.
 
-See [Inventory's contract](inventory.md#portable-boxes-strips-and-command-hotkeys)
+See [the Inventory pane's manual](zengine.inventory-pane.md#about)
 for the configuration vocabulary, identity, lifetime and authority boundaries.

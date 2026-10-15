@@ -12,6 +12,8 @@
 #include "workshop/pane_parts.hpp"
 #include "workshop/setup_control.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
+#include "workshop/pane_document.hpp"
+#include "manuals/zengine.inventory-pane.hpp" // this pane's manual, compiled in from its page
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include <zen/kernel/export.hpp>
@@ -41,8 +43,9 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryChanged,
         inv::v2::InventorySnapshot, inv::InventoryRestored,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
-        loom::Ack, loom::Refused, loom::DispatchRefused>,
-    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent, ws::PaneCaret,
+        loom::Ack, loom::Refused, loom::DispatchRefused, ws::PaneDocumentRequested>,
+    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::PaneDocumentShown, ws::v4::PaneContent,
+        ws::v5::PaneCanvasContent, ws::PaneCaret,
         ws::PaneMenuRequested, ws::PaneEscapeUnspent,
         ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested,
         ws::v2::PaneOperationRequested, ws::ActorScopeRequested, ws::PaneCarryRequested,
@@ -75,6 +78,12 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         std::uint64_t correlation; loom::Ticket ticket; std::string launch;
     };
 public:
+    /// THIS WEAVE'S MANUAL, TO THE ONE WHO ASKED, for main Inventory or any view it offers: one page
+    /// for every pane, from the page this image was built with.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& m) {
+        (void)m.answer(ws::pane_document(ask, known(ask.pane) ? ask.pane : std::string(pane),
+                                         zengine::manual::pages::zengine_inventory_pane::kManual));
+    }
     // SENT STRAIGHT HERE, past Workshop's dispatch: no gesture crossed, so Workshop judges the
     // sender's class `write` before the toolbox reads or writes anything.
     void on(const slots::InventoryToolboxSave& request, loom::Mail& m) {
