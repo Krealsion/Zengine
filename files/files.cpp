@@ -16,6 +16,7 @@
 #include "workshop/actor_scope.hpp" // the class an act that opens or writes is judged as
 #include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
@@ -36,6 +37,8 @@
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+
+#include "manuals/zengine.files.hpp" // this pane's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -271,8 +274,9 @@ class FilesWeave
                        PaneMenuAnswered, PaneActionRequested, ProjectRoot,
                        RecipeOutcome, SourceOpened, ws::PaneOperationAnswered,
                        loom::DispatchRefused, zengine::builder::BuildStatus,
-                       surface::ClipboardCopy, surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
+                       surface::ClipboardCopy, surface::ClipboardText, ws::PaneDocumentRequested>,
+          loom::Emit<PaneOffered, PaneActions, ws::PaneDocumentShown, ws::v4::PaneContent,
+                     ws::v5::PaneCanvasContent,
                      ws::PaneCaret, ProjectRootRequested, ws::v2::PaneOperationRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
                      zengine::builder::StatusRequested, PaneMenuRequested, PanePassRequested,
@@ -284,6 +288,13 @@ public:
             return;
         }
         announce(mail);
+    }
+
+    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
+    /// reloaded image answers its own words.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(ws::pane_document(ask, files::kProjectFilesPane,
+                                            zengine::manual::pages::zengine_files::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {

@@ -17,7 +17,7 @@ One part, the folder itself; the pure half keeps `namespace zengine::workshop`.
 | `marks_persist.hpp` | the marks file |
 | `filesystem_roots.hpp` | the filesystem roots, asked of the operating system |
 | `CMakeLists.txt` | both targets; the weave only where the Loom can host loadable weaves |
-| `docs/` | the how-to page and its image |
+| `docs/` | the manual and its image |
 
 ## Law
 
@@ -49,7 +49,7 @@ the doors it asks). Its marks file's shapes are counted by `workshop_shapes`
 
 ## Pages
 
-- [Files](docs/files.md)
+- [`zengine.files`](docs/zengine.files.md), the manual
 
 ## Practices
 

@@ -172,7 +172,8 @@ TEST_CASE("the image links no host target, and the host builds no browser") {
     }
     // ...AND WHAT IT DOES LINK IS SAID, so a green here is a measurement of a real edge set
     // rather than of a file that happens to mention nothing.
-    CHECK(files.find("zengine_weave(zengine-files files.cpp)") != std::string::npos);
+    CHECK(files.find("zengine_weave(zengine-files files.cpp MANUAL docs/zengine.files.md)") !=
+          std::string::npos);
     CHECK(edges.find("zengine-workshop-vocabulary") != std::string::npos);
 
     // THE HOST COMPILES NO BROWSER, said from the other side. The two platform bodies the
