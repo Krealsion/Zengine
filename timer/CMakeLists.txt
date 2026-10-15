@@ -21,7 +21,10 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-zengine_weave(zengine-timer timer.cpp)
+# The weave carries the Timer office's manual and answers a shape's section from it
+# (`ShapeDocumentRequested`, manual/vocabulary.hpp); every target that builds `TimerServiceT`
+# carries the page too, since timer_weave.hpp answers from it.
+zengine_weave(zengine-timer timer.cpp MANUAL docs/zengine.timer.md)
 # The service reads its own activation, and executes its delay rule rather than implementing it:
 # it authors the composition and exports it across the provider seam (`zengine-operator`, also
 # what a fallback Timer assembles its local vocabulary with), and it consumes a host's operator

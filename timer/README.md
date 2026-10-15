@@ -11,12 +11,11 @@ writes `#include "timer/vocabulary.hpp"` for the messages and `#include "timer/b
 
 ## Pages
 
-- [Timer protocol](docs/timer-protocol.md): the reference, every message and field and what the
-  Timer does with each
+- [The Timer](docs/zengine.timer.md): the manual, every message the Timer accepts, what it does
+  with each and what it says, and what a waiting beat does when the Timer is replaced
 - [Using the Timer](docs/timers.md): asking for a beat with the plain messages
 - [TimedWeave](docs/timed-weaves.md): declaring a weave's rhythm once
 - [Timer binding](docs/timer-binding.md): what `TimedWeave` adds to a weave, and where it stops
-- [Timer continuity](docs/timer-continuity.md): what a waiting beat does when the Timer is replaced
 - [Timer laws](docs/timer-laws.md): the numbered promises the Timer keeps
 - [Remaining duration, not absolute
   time](docs/timer-continuity-carries-remaining-duration.md): why continuity works as it does

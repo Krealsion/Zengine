@@ -25,6 +25,7 @@
 #include "timer/normalize.hpp"
 
 #include "input/vocabulary.hpp"
+#include "office_manual.hpp"
 #include "probe_vocabulary.hpp"
 #include "lifecycle_door.hpp"
 #include "examples/snake/vocabulary.hpp"
@@ -896,6 +897,26 @@ TEST_CASE("contract: the handover's preparation conversation is frozen too, and 
 // ============================================================================
 // Tier 2 — the service over a fake clock, through a real bus
 // ============================================================================
+
+// ---- the office's manual ----------------------------------------------------
+
+TEST_CASE("the Timer answers a shape's section from its own page, and its page covers every shape "
+          "it accepts") {
+    // Unactivated, so no beat chain stands and the bus drains: the words are the image's, said
+    // whether or not this incarnation is live.
+    FakeRig r;
+    const std::vector<std::string> described = described_shapes_of(r.bus, r.service);
+    REQUIRE_FALSE(described.empty());
+    CHECK(check_office_manual(r.bus, kTimerRole) >= described.size());
+    check_page_names_accepted(zengine::manual::pages::zengine_timer::kManual, described);
+
+    // A request is answered from Commands, the Timer's own beat from Hears.
+    ShapeDocumentReader reader(r.bus, kTimerRole);
+    CHECK(reader.ask(EnsureTimer::zen_name, EnsureTimer::zen_version).group == "Commands");
+    CHECK(reader.ask(Drive::zen_name, Drive::zen_version).group == "Hears");
+    CHECK(reader.ask(TimerFired::zen_name, TimerFired::zen_version).refusal ==
+          "zengine.timer does not accept `TimerFired` v1");
+}
 
 // ---- the activation law (TIMER-01) ------------------------------------------
 // With no timers standing every beat naps the cap, and a parked pump leaves exactly the

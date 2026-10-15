@@ -69,10 +69,11 @@ class DecliningTimerCandidate
           loom::Accept<loom::Activated, timer::Drive, timer::StartTimer, timer::StartRoleTimer,
                        timer::EnsureTimer, timer::EnsureRoleTimer, timer::CancelTimer,
                        timer::CancelAllMyTimers, loom::PrepareShutdown, loom::Bequest,
-                       loom::Refused, timer::PrepareTimerHandover>,
+                       loom::Refused, timer::PrepareTimerHandover,
+                       zengine::manual::ShapeDocumentRequested>,
           loom::Emit<timer::TimerFired, timer::TimerReady, timer::Drive, timer::TimerResolution,
                      loom::Bequest, loom::ClaimBequest, timer::TimerCandidatePrepared,
-                     timer::TimerCandidateDeclined>> {
+                     timer::TimerCandidateDeclined, zengine::manual::ShapeDocumentShown>> {
 public:
     void on(const timer::PrepareTimerHandover& p, loom::Mail& mail) {
         ++state_.asked;
@@ -94,6 +95,7 @@ public:
     void on(const loom::PrepareShutdown&, loom::Mail&) {}
     void on(const loom::Bequest&, loom::Mail&) {}
     void on(const loom::Refused&, loom::Mail&) {}
+    void on(const zengine::manual::ShapeDocumentRequested&, loom::Mail&) {}
 };
 
 #endif
