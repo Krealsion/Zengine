@@ -12,20 +12,24 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `loaded.hpp` | the Loaded pane's pure view: `parse_loaded`, `project_loaded`, `mark_selected` |
 | `resolved.hpp` | the Project pane's pure view, `project_arrangement`; the budget Powers shares |
 | `powers.hpp` | the Powers pane's pure half: `PowersUi`, `powers_question`, `project_powers_ui` |
-| `CMakeLists.txt` | `zengine-introspection-view` (INTERFACE, the pure headers) and the weave |
-| `docs/introspection.md` | the reference page; `docs/images/` holds its picture |
+| `CMakeLists.txt` | `zengine-introspection-view` (INTERFACE, the pure headers) and the weave, carrying its manual |
+| `docs/zengine.introspection.md` | the weave's manual, answered for each of its panes; `docs/images/` holds its picture |
+| `docs/zengine.arrangement.md`, `docs/zengine.powers.md`, `docs/zengine.sources.md` | the manuals of the three Workshop doors the panes ask, carried by `workshop/CMakeLists.txt`'s targets |
 
 ## Law
 
 No register of its own. Its law is the pane seam's, `agents/panes.md` (the Loaded pane, "The
-system can show what it is", the Powers pane), which the root routes; the reference page is
-[docs/introspection.md](docs/introspection.md).
+system can show what it is", the Powers pane), which the root routes; the manual is
+[docs/zengine.introspection.md](docs/zengine.introspection.md).
 
 ## Suites
 
 No CTest entry of its own. Its cases in shared suites: `workshop_panes`
 (`tests/test_workshop_panes_introspection.cpp` and `tests/test_workshop_panes_sampling.cpp`,
-which also read this folder's sources as text, and `tests/test_workshop_panes_input.cpp`),
+which also read this folder's sources as text, `tests/test_workshop_panes_powers.cpp` and
+`tests/test_workshop_panes_input.cpp`; the panes' manual witness and their census driver, whose
+rows are `tests/actions/zengine.introspection.txt`, are the first file's, and each door's manual
+witness stands beside its cases),
 `workshop_screen` (`tests/test_workshop_screen.cpp`), `workshop_load`
 (`tests/test_workshop_load.cpp`) and `workshop_document` (`tests/test_workshop_document.cpp`,
 a Compose target picked on the Loaded pane).
@@ -41,12 +45,16 @@ a Compose target picked on the Loaded pane).
   (`workshop/arrangement.hpp`, `workshop/arrangement_vocabulary.hpp`), `zengine.powers`
   (`workshop/powers_door.hpp`, `workshop/powers_vocabulary.hpp`) and `zengine.sources`
   (`workshop/sample_door.hpp`, `workshop/sample_vocabulary.hpp`); Loom's Manager answers
-  `zen.ListLoaded`.
+  `zen.ListLoaded`. Each door carries its manual from this folder's `docs/`
+  (`zengine_manual` on `zengine-workshop-load` and `zengine-workshop-vocabulary`) and answers
+  `ShapeDocumentRequested` from it.
 - `composer/composer.cpp` hears its `LoadedSelected`.
 
 ## Pages
 
-- [Introspection — the `Loaded`, `Project` and `Powers` panes](docs/introspection.md)
+- [`zengine.introspection` -- Loaded, Project and Powers](docs/zengine.introspection.md), the manual
+- [`zengine.arrangement`](docs/zengine.arrangement.md), [`zengine.powers`](docs/zengine.powers.md)
+  and [`zengine.sources`](docs/zengine.sources.md), the doors' manuals
 
 ## Practices
 

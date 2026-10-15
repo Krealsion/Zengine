@@ -53,7 +53,7 @@ the original Terminal sender's permission to execute it.
 ## Finding a power
 
 The Terminal may ask the host's
-[discovery door](../../introspection/docs/introspection.md#the-discovery-door-finding-a-power) its two
+[discovery door](../../introspection/docs/zengine.powers.md) its two
 questions — the door Flow's search line and the `Powers` pane ask too, so the same question gets
 the same rows here as there:
 

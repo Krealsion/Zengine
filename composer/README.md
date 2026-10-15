@@ -17,7 +17,7 @@ the form, and only Submit sends it.
 - [Reuse a stored command through Compose](../inventory/docs/inventory-compose.md): choose a
   message, fill it, store it, bring it back and send it, step by step
 - [Panes](../workshop/docs/panes.md): how Compose and every other pane is shown, moved and sized
-- [The Loaded pane](../introspection/docs/introspection.md): where the weave Compose writes to
+- [The Loaded pane](../introspection/docs/zengine.introspection.md#loaded): where the weave Compose writes to
   is chosen
 - [Reusable message and value drafts](../message-draft/docs/message-drafts.md): the typed
   values and presets Compose's fields are made of

@@ -699,7 +699,9 @@ add_dependencies(zengine-flow-tests zengine-flow-thermostat zengine-flow-boundar
     zengine-flow-high_water zengine-flow-empty)
 zengine_doctest_test(flow zengine-flow-tests)
 add_executable(zengine-flow-pane-tests test_flow_pane.cpp doctest_main.cpp)
-target_link_libraries(zengine-flow-pane-tests PRIVATE zengine-flow zengine-activation loom::kernel zengine-warnings zengine-sanitize)
+# ...and Workshop's vocabulary for the discovery door it mounts, whose manual rides that target.
+target_link_libraries(zengine-flow-pane-tests PRIVATE zengine-flow zengine-activation loom::kernel
+    zengine-workshop-vocabulary zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-pane-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 target_compile_definitions(zengine-flow-pane-tests PRIVATE "FLOW_PANE_ARTIFACT=\"$<TARGET_FILE:zengine-flow-pane>\"")
 add_dependencies(zengine-flow-pane-tests zengine-flow-pane)
@@ -1110,6 +1112,9 @@ zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
         # the operator suite's stranger and Source fences.
         "WORKSHOP_SESSION_PERSIST_HPP=\"${CMAKE_SOURCE_DIR}/workshop/session_persist.hpp\""
     NEEDS zengine-workshop-session-history)
+# The panes suite (above) also embeds the introspection panes' page, which their answer is compared
+# to.
+zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/introspection/docs/zengine.introspection.md)
 
 # The load suite asks which artifacts are in the room at all. It stages them into a real
 # directory of its own (so the suites can run at once), since "filesystem presence is not load

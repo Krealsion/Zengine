@@ -11,6 +11,12 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+#include "census.hpp"
+#include "office_manual.hpp"
+
+#include "manuals/zengine.arrangement.hpp"
+#include "manuals/zengine.introspection.hpp"
+
 // ============================================================================
 // The resolved arrangement and the power stack, as two more panes
 // ============================================================================
@@ -2023,6 +2029,65 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
     const std::vector<std::string> loaded = pane_rows(r, intro_row(r, kIntroPane)->kind);
     REQUIRE_FALSE(loaded.empty());
     CHECK(loaded[0] == "loaded weaves -- 1");
+}
+
+// ---- The manual the panes answer, and the census of what they declare ---------------
+
+namespace {
+
+/// THE INTROSPECTION OFFICE'S CENSUS: each pane it offers, in the one mode each declares -- the
+/// Powers pane's rows, and none for Loaded or Project.
+const CensusDriverOf kIntrospectionCensus{kIntroOffice, [] {
+    OfficeCensus census;
+    PaneRig r;
+    (void)open_powers(r);
+    for (const char* pane : {intro::kLoadedPane, intro::kArrangementPane, intro::kPowersPane}) {
+        const RuntimePane* held = intro_row(r, pane);
+        REQUIRE(held != nullptr);
+        census_take(census, kIntroOffice, *held);
+    }
+    return census;
+}};
+
+} // namespace
+
+TEST_CASE("the manual the introspection office answers for each of its panes is the page its build "
+          "embedded, and names exactly the commands its panes declare") {
+    PaneRig r;
+    (void)open_powers(r);
+    const char* const panes[] = {intro::kLoadedPane, intro::kArrangementPane, intro::kPowersPane};
+    // EVERY ID ANY OF ITS PANES DECLARES: the page is the office's, so each pane answers it whole.
+    std::set<std::string> declared;
+    for (const char* pane : panes) {
+        const RuntimePane* held = intro_row(r, pane);
+        REQUIRE(held != nullptr);
+        for (const v3::PaneActionRow& a : held->actions) declared.insert(a.id);
+    }
+    ManualReader reader(r, kIntroOffice);
+    for (const char* pane : panes) {
+        INFO("pane ", std::string(pane));
+        check_answered_manual(reader, pane, declared);
+        // ...THE PAGE THIS TREE'S BUILD EMBEDDED, whichever pane asks.
+        const PaneDocumentShown whole = reader.ask(pane, "");
+        CHECK(whole.content_id ==
+              std::string(zengine::manual::pages::zengine_introspection::kManual.content_id));
+        CHECK(whole.pane == pane);
+    }
+    // A PANE THIS OFFICE DOES NOT OFFER is refused, naming it, with no words.
+    const PaneDocumentShown other = reader.ask("elsewhere", "");
+    CHECK(other.refusal == "zengine.introspection offers no pane `elsewhere`");
+    CHECK(other.sections.empty());
+}
+
+TEST_CASE("the arrangement door answers its page for every shape it accepts") {
+    PaneRig r;
+    r.mount_workshop();
+    const load::Executed done = r.run_plan(pane_plan());
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.mount_arrangement("default-load-plan.json");
+    CHECK(check_office_manual(r.bus, kArrangementRole) >= 1);
+    check_page_names_accepted(zengine::manual::pages::zengine_arrangement::kManual,
+                              described_shapes_of(r.bus, r.bus.role_holder(kArrangementRole)));
 }
 
 // ---- Tier three: Workshop, read as a source file -----------------------------------

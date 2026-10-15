@@ -3321,6 +3321,8 @@ struct PaneRig {
         loom::Grant say;
         say.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
         say.allow_to_any(v2::ResolvedArrangement::zen_name, v2::ResolvedArrangement::zen_version);
+        say.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                         zengine::manual::ShapeDocumentShown::zen_version);
         const loom::WeaveId id = bus.register_weave(std::move(door), std::move(say),
                                                     std::string(kArrangementRole));
         raw->zen_set_self(id);
@@ -3329,13 +3331,15 @@ struct PaneRig {
     }
 
     /// MOUNT THE HOST'S DISCOVERY DOOR over this rig's catalog, with the production grant spelled
-    /// out for `mount_arrangement`'s reason: its two answers, to any.
+    /// out for `mount_arrangement`'s reason: its two answers and its page's sections, to any.
     loom::WeaveId mount_powers() {
         auto door = std::make_unique<PowersDoor>(catalog);
         PowersDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(PowersFound::zen_name, PowersFound::zen_version);
         say.allow_to_any(PowerDescribed::zen_name, PowerDescribed::zen_version);
+        say.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                         zengine::manual::ShapeDocumentShown::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(door), std::move(say), std::string(kPowersRole));
         raw->zen_set_self(id);
@@ -3376,6 +3380,8 @@ struct PaneRig {
         SampleDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
+        say.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                         zengine::manual::ShapeDocumentShown::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(door), std::move(say), std::string(kSampleRole));
         raw->zen_set_self(id);
