@@ -23,12 +23,13 @@ if(NOT TARGET loom::kernel)
 endif()
 
 # Skins ask the Timer package for their own beat (skin.hpp), so every skin
-# speaks that vocabulary alongside its own.
-zengine_weave(zengine-skin-tui-classic skin_tui_classic.cpp)
+# speaks that vocabulary alongside its own. Each carries the one page of the office it holds,
+# `zengine.skin`, and answers a shape's section from it (`ShapeDocumentRequested`).
+zengine_weave(zengine-skin-tui-classic skin_tui_classic.cpp MANUAL docs/zengine.skin.md)
 target_link_libraries(zengine-skin-tui-classic PRIVATE zengine-surface-vocabulary
                                                        zengine-timer-vocabulary
                                                        zengine-activation)
-zengine_weave(zengine-skin-tui-block skin_tui_block.cpp)
+zengine_weave(zengine-skin-tui-block skin_tui_block.cpp MANUAL docs/zengine.skin.md)
 target_link_libraries(zengine-skin-tui-block PRIVATE zengine-surface-vocabulary
                                                      zengine-timer-vocabulary
                                                      zengine-activation)
@@ -59,7 +60,7 @@ if(ZENGINE_SDL_LIB)
         COMMENT "zengine-skin-sdl: embedding JetBrains Mono into the weave"
         VERBATIM)
 
-    zengine_weave(zengine-skin-sdl skin_sdl.cpp ${zengine_font_unit})
+    zengine_weave(zengine-skin-sdl skin_sdl.cpp ${zengine_font_unit} MANUAL docs/zengine.skin.md)
     target_link_libraries(zengine-skin-sdl PRIVATE zengine-surface-vocabulary
                                                    zengine-timer-vocabulary zengine-activation)
     zengine_sdl_weave(zengine-skin-sdl)

@@ -454,6 +454,8 @@ target_compile_definitions(zengine-surface-tests PRIVATE
     "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
     "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\"")
 zengine_doctest_test(surface zengine-surface-tests)
+# ...and the Skin's page, which every Skin the suite mounts carries and its office witness reads.
+zengine_manual(zengine-surface-tests PRIVATE ${PROJECT_SOURCE_DIR}/surface/docs/zengine.skin.md)
 
 # The SDL skin's cases are a conditional subpopulation, declared, not absorbed (VM-POP-08):
 # test_surface.cpp holds them behind SURFACE_HAS_SDL, and the Windows stranger lane builds no SDL
@@ -1204,6 +1206,8 @@ target_link_libraries(zengine-workshop-guests-tests
 target_include_directories(zengine-workshop-guests-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_doctest_test(workshop_guests zengine-workshop-guests-tests)
+# ...and the Skin's page, which the Skin its order cases mount carries.
+zengine_manual(zengine-workshop-guests-tests PRIVATE ${PROJECT_SOURCE_DIR}/surface/docs/zengine.skin.md)
 
 # ---- THE GUEST VOCABULARY SUITE: what an external host boots to speak Workshop's guest shapes --
 #
