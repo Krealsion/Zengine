@@ -20,6 +20,7 @@
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -32,6 +33,8 @@
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+
+#include "manuals/zengine.info.hpp" // this weave's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -252,7 +255,8 @@ class InfoPaneWeave
                        PaneSubjectActed, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        ws::PaneMenuAnswered, ws::PaneObservationAnswered, zengine::inventory::InventoryChanged,
-                       loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered>,
+                       loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered,
+                       ws::PaneDocumentRequested>,
           loom::Emit<ws::PaneValueCarryRequested, PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
                      zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneCommitRequested,
@@ -261,7 +265,7 @@ class InfoPaneWeave
                      ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
                      ws::PaneEscapeUnspent,
                      ws::PaneObservationEnded, loom::PokeDescribe, ws::PaneLaunchRequested,
-                     ws::PaneCloseRequested>> {
+                     ws::PaneCloseRequested, ws::PaneDocumentShown>> {
 public:
     InfoPaneWeave() {
         for (std::size_t slot = 1; slot <= pane::kMaxInfoViews; ++slot) views_.emplace_back(pane::view_key(slot), slot);
@@ -354,6 +358,14 @@ public:
         }
     }
     void on(const ws::PaneCloseAnswered&, loom::Mail&) {}
+
+    /// THIS WEAVE'S MANUAL, TO THE ONE WHO ASKED, for any of its four panes: the whole page is the
+    /// weave's, from the page this image was built with, so a reloaded image answers its own words.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+        const pane::ValueView* v = view_of(ask.pane);
+        (void)mail.answer(ws::pane_document(ask, v != nullptr ? v->key() : pane::kInfoPane,
+                                            zengine::manual::pages::zengine_info::kManual));
+    }
 
     /// A PRESS, ITS MOTION, THE WHEEL AND A RIGHT PRESS ON A VIEW'S CANVAS. A place reads back to
     /// the row and column a prose press would have named. A value view acts only on the picture

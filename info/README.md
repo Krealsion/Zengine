@@ -11,9 +11,12 @@ source for a fresh one, or fill one of its fields by dragging a field from anoth
 
 ## Pages
 
-- [Independent Info views and the inspection workbench](docs/info-views.md): opening, reading and
-  closing views, saving, watching and sampling, filling a field from another view, and a
-  ready-made set of values to try it with
+- [`zengine.info` -- Info](docs/zengine.info.md): the manual -- every command of the lists, a
+  property draft and a value view, what each says, and what the pane shows
+- [Independent Info views and the inspection workbench](docs/info-views.md): one story through
+  several views at once, on a ready-made set of values to try it with
+
+![Info wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.info-manual.png)
 
 ## What is in this folder
 

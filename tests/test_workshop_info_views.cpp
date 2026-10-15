@@ -4,8 +4,9 @@
 // INDEPENDENT INFO VIEWS, through the real loaded Info, Inventory and Inventory pane artifacts:
 // per-view custody of drafts, pictures and pending requests; field-to-field composition; the
 // scoped observation lease a watch spends; Sample Source; and the bounded view lifecycle.
-// agents/inventory.md owns the law; info/docs/info-views.md is the weaver's guide.
+// agents/inventory.md owns the law; info/docs/zengine.info.md is the reference.
 
+#include "census.hpp"
 #include "inventory_story.hpp"
 #include "info/vocabulary.hpp"
 #include "inventory/observation.hpp"
@@ -13,6 +14,7 @@
 #include <zen/weave/poke.hpp>
 
 #include <map>
+#include <set>
 
 using namespace inventory_story;
 namespace info = zengine::info_pane;
@@ -382,6 +384,88 @@ struct StrangerRig {
         self->next = {};
     }
 };
+
+
+/// THE ROWS ONE OF INFO'S PANES HOLDS AT WORKSHOP NOW, required to declare `id`: the state the walk
+/// says it is in is the one the pane says it is in.
+const RuntimePane* info_rows(ScriptedViews& s, const std::string& key, const char* id) {
+    const RuntimePane* held = s.r.session().panes.runtime.find(info::kInfoPaneRole, key);
+    REQUIRE_MESSAGE(held != nullptr, "Info offers no `" << key << "`");
+    const bool declares = std::any_of(held->actions.begin(), held->actions.end(),
+                                      [id](const v3::PaneActionRow& a) { return a.id == id; });
+    REQUIRE_MESSAGE(declares, "`" << key << "` does not declare `" << id << "`");
+    return held;
+}
+
+/// EVERY STATE INFO'S PANES DECLARE ROWS IN, walked by a weaver's own gestures through the real
+/// Info, Workshop and Inventory pane over a scripted Inventory office: the default pane's two
+/// lists and a property draft, its value view with a field edit, a rename and an entry it waits
+/// on, the lists again holding a value, then a value view of its own and that view closed. `at`
+/// is called once in each, with the pane and one id that state alone declares.
+template <class At>
+void each_info_state(ScriptedViews& s, At&& at) {
+    at(info::kInfoPane, info::kActionSwitch); // the pane list: nothing inspected yet
+    // THE PROPERTIES OF THE PANE THE LIST'S CURSOR HOLDS, inspected by Return, the keys sent there.
+    s.click(s.info);
+    s.key(input::scan::kReturn);
+    REQUIRE_FALSE(s.r.said_subjects.empty());
+    const PaneSubjectShown subject = s.r.said_subjects.back();
+    REQUIRE(subject.subject != 0);
+    s.key(input::scan::kTab);
+    at(info::kInfoPane, info::kActionEdit);
+    // ...AND A DRAFT ON ITS FIRST EDITABLE ROW: the cursor walks the rows that hold a value.
+    std::int64_t downs = -1;
+    for (const ShownProperty& p : subject.properties) {
+        if (p.section) continue;
+        ++downs;
+        if (p.editable) break;
+    }
+    REQUIRE(downs >= 0);
+    for (std::int64_t n = 0; n < downs; ++n) s.key(input::scan::kDown);
+    s.key(input::scan::kReturn);
+    at(info::kInfoPane, info::kActionCommit);
+    s.key(input::scan::kEscape);
+    // THE DEFAULT VIEW HOLDING A LINKED ENTRY, then editing its field, then naming itself.
+    s.link_into(s.info, "Alpha");
+    REQUIRE_MESSAGE(s.shows(s.info, "LINKED 'Alpha'"), s.shown(s.info));
+    at(info::kInfoPane, info::kActionPanes);
+    const auto [row, column] = s.where(s.info, "count:");
+    REQUIRE(row >= 0);
+    s.press_at(s.info, row, column);
+    s.key(input::scan::kReturn);
+    at(info::kInfoPane, info::kActionFieldAccept);
+    s.key(input::scan::kEscape);
+    s.key(input::scan::kM, input::mod::kCtrl);
+    at(info::kInfoPane, info::kActionRenameAccept);
+    s.key(input::scan::kEscape);
+    // ...WAITING ON AN ENTRY THAT DOES NOT ANSWER, until the weaver stops waiting.
+    s.inventory->hold = "beta";
+    s.link_into(s.info, "Beta");
+    REQUIRE(s.inventory->held.size() == 1);
+    at(info::kInfoPane, info::kActionStop);
+    s.key(input::scan::kEscape);
+    s.inventory->hold.clear();
+    s.release(0);
+    // THE LISTS AGAIN, the value kept for the way back.
+    s.button(s.info, "Panes");
+    at(info::kInfoPane, info::kActionInventory);
+    // A VALUE VIEW OF ITS OWN, then closed: its slot stays offered, unused.
+    const auto second = s.new_view("info.2", 2, 30);
+    at("info.2", info::kActionViewClose);
+    s.button(second, "Close");
+    at("info.2", info::kActionViewUse);
+}
+
+/// INFO'S CENSUS: the rows its panes declare in each state the walk reaches, in that order. Info
+/// declares no mode, so every state is the census's `-`.
+const CensusDriverOf kInfoCensus{info::kInfoPaneRole, [] {
+    OfficeCensus census;
+    ScriptedViews s;
+    each_info_state(s, [&](const std::string& key, const char* id) {
+        census_take(census, info::kInfoPaneRole, *info_rows(s, key, id));
+    });
+    return census;
+}};
 
 } // namespace
 
@@ -1918,4 +2002,18 @@ TEST_CASE("info views: a watch whose read Loom refuses at dispatch ends at Works
     CHECK(s.r.w->observation_leases() == 0);
     CHECK(s.shows(a, "count: 1")); // the last good value stays
     s.doors_back();
+}
+
+TEST_CASE("the manual Info answers for each of its panes names exactly the commands its panes "
+          "declare in every state") {
+    ScriptedViews s;
+    ManualReader reader(s.r, info::kInfoPaneRole);
+    std::set<std::string> declared;
+    each_info_state(s, [&](const std::string& key, const char* id) {
+        for (const v3::PaneActionRow& a : info_rows(s, key, id)->actions) declared.insert(a.id);
+    });
+    // THE WHOLE PAGE IS THE WEAVE'S, answered for every pane key it offers, used or not yet.
+    for (std::size_t slot = 1; slot <= info::kMaxInfoViews; ++slot) {
+        check_answered_manual(reader, info::view_key(slot), declared);
+    }
 }
