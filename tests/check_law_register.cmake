@@ -175,11 +175,30 @@ function(zen_law_text rel out)
     set(${out} "${content}" PARENT_SCOPE)
 endfunction()
 
+# A C/C++ file's text with every `/*` that opens no block comment unmade. The text is read left to
+# right as the language reads it -- whichever of a string literal, a character literal, a `//` or
+# a `/*` opens first runs to its own end -- and a `/*` inside a literal or a line comment has its
+# `*` swapped for a character no source holds, wherever that token's text stands, so the block
+# pattern after it never starts there. A literal is bounded to a line: one continued with a
+# backslash, or a raw string that spans lines or holds a quote, is read as code.
+function(zen_law_unmake_open_markers content out)
+    string(ASCII 5 unmade)
+    set(literal "\"([^\"\n${ZEN_EOT}]|${ZEN_EOT}.)*\"|'(${ZEN_EOT}.[^'\n]*|[^'\n${ZEN_EOT}])'")
+    string(REGEX MATCHALL "${literal}|//[^\n]*|/\\*([^*]|\\*+[^*/])*\\*+/" tokens "${content}")
+    list(FILTER tokens INCLUDE REGEX "^([\"']|//).*/\\*")
+    foreach(token IN LISTS tokens)
+        string(REPLACE "/*" "/${unmade}" plain "${token}")
+        string(REPLACE "${token}" "${plain}" content "${content}")
+    endforeach()
+    set(${out} "${content}" PARENT_SCOPE)
+endfunction()
+
 # The CODE of a C/C++ file: `/* */` comments go first, then every `//` comment to its line end,
-# by whole-content replacement (a file split into a list arrives welded). String literals are
-# kept, being code, but a `//` inside one is read as a comment start: rule m sees less code,
-# never more.
+# by whole-content replacement (a file split into a list arrives welded), once every `/*` that
+# opens no block is unmade. String literals are kept, being code, but a `//` inside one is read as
+# a comment start: rule m sees less code, never more.
 function(zen_law_strip_comments content out)
+    zen_law_unmake_open_markers("${content}" content)
     string(REGEX REPLACE "/\\*([^*]|\\*+[^*/])*\\*+/" "" code "${content}")
     string(REGEX REPLACE "//[^\n]*" "" code "${code}")
     set(${out} "${code}" PARENT_SCOPE)
@@ -843,11 +862,13 @@ function(zen_law_cited_cases rel text out)
     set(${out} "${found}" PARENT_SCOPE)
 endfunction()
 
-# The WL, MW and VM ids a C/C++ file's comments name, in order. A `//` inside a string literal is
-# read as a comment start, so this reads more comment than there is, never less.
+# The WL, MW and VM ids a C/C++ file's comments name, in order, once every `/*` that opens no
+# block is unmade. A `//` inside a string literal is read as a comment start, so this reads more
+# comment than there is, never less.
 function(zen_law_comment_ids content out)
     set(ids "")
     if(content MATCHES "(WL|MW|VM)-[A-Z]+-[0-9]")
+        zen_law_unmake_open_markers("${content}" content)
         string(REGEX MATCHALL "/\\*([^*]|\\*+[^*/])*\\*+/|//[^\n]*" comments "${content}")
         foreach(comment IN LISTS comments)
             string(REGEX MATCHALL "(^|[^A-Za-z0-9_-])(WL|MW|VM)-[A-Z]+-[0-9]+" hits "${comment}")
@@ -1243,6 +1264,43 @@ if(NOT yes OR NOT yes_code OR no_comment OR no_block OR no_substring OR NOT yes_
         "'present' below would then be meaningless.")
 endif()
 
+# A `/*` in a line comment, and one in a string literal, opens no block comment: with no `*/`
+# after it in the file, and with one later and code between.
+set(slash_line "// a door: <office>/* kNoLine\nint kDelta${ZEN_SOH}\n")
+set(slash_literal "const char* const kProbe = \"<office>/*\"${ZEN_SOH}\nint kDelta${ZEN_SOH}\n")
+set(slash_later "/* kNoBlock */ int kEpsilon${ZEN_SOH}\n")
+foreach(slash_case line literal)
+    foreach(slash_tail "" "${slash_later}")
+        zen_law_strip_comments("${slash_${slash_case}}${slash_tail}" slash_code)
+        set(slash_want "kDelta")
+        set(slash_refuse "kNoLine;kNoBlock")
+        if(slash_case STREQUAL "literal")
+            list(APPEND slash_want kProbe)
+        endif()
+        if(NOT slash_tail STREQUAL "")
+            list(APPEND slash_want kEpsilon)
+        endif()
+        foreach(slash_name IN LISTS slash_want slash_refuse)
+            zen_law_token_in("${slash_code}" "${slash_name}" slash_seen)
+            list(FIND slash_want "${slash_name}" slash_wanted)
+            if(slash_wanted EQUAL -1 AND NOT slash_seen OR NOT slash_wanted EQUAL -1 AND slash_seen)
+                continue()
+            endif()
+            set(slash_said "missed")
+            if(slash_seen)
+                set(slash_said "read as code")
+            endif()
+            zen_law_show("${slash_code}" slash_shown)
+            message(FATAL_ERROR
+                "law-register: SELF-TEST FAILED -- with a `/*` in a ${slash_case} and "
+                "'${slash_tail}' after it, the code reader ${slash_said} '${slash_name}' in "
+                "'${slash_shown}'. A `/*` that opens a block where the language opens none takes "
+                "code for a comment, and with no `*/` after it CMake's regular expressions run out "
+                "of stack.")
+        endforeach()
+    endforeach()
+endforeach()
+
 zen_law_parse_pointer("// WL-AAA-01, WL-AAA-02 -- agents/workshop/a.md${ZEN_SOH} WL-BBB-03 -- agents/workshop/b.md" ok segs why)
 list(LENGTH segs nsegs)
 if(NOT ok OR NOT nsegs EQUAL 2)
@@ -1531,7 +1589,8 @@ message(STATUS
     "pointer, a pointer of a family the table does not name, an undeclared witness, a "
     "one-sided witness debt, a one-sided clause debt, a qualified spelling over a free "
     "function, a phase tag and a bare label are refused; their well-formed twins are accepted; "
-    "the citation grammar and the comment-id reader read their samples exactly")
+    "the citation grammar and the comment-id reader read their samples exactly, and a `/*` in a "
+    "line comment or a string literal opens no block")
 
 # ---- population 2: the registers ---------------------------------------------------------
 #
