@@ -27,7 +27,8 @@ A `ready` issue has five parts, and each one binds:
   line. A path ending in `/` is that folder whole, `*` matches within one folder and `**` across
   folders, and a line beginning `!` names a path the change must not touch. Four files this
   repository's own rules make a change touch lie inside every issue's folders without being named:
-  `tests/test_population.txt`, `tests/code_values.txt`, `tests/shapes.txt` and `tests/actions.txt`.
+  `tests/test_population.txt`, `tests/code_values.txt`, `tests/shapes.txt` and the action census,
+  `tests/actions.txt` and `tests/actions/`.
   A change that needs any other path is a change of scope, raised in a comment as a fence is.
 - **Checked against**: the commit the issue was last checked on, how far that check went
   (reproduced, read in the source, or reasoned from it), and what it did not cover.

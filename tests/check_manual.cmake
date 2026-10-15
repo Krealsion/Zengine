@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 # The `manual` entry (manual/docs/manual.md): every manual in form and carried by a target, a pane's
-# commands exactly its ids in tests/actions.txt, each command's Answers line linking exactly the
-# shapes its rows declare a press causes, and every key marker its declared default.
+# commands exactly its ids in the action census (tests/actions.txt and tests/actions/<office>.txt),
+# each command's Answers line linking exactly the shapes its rows declare a press causes, and every
+# key marker its declared default.
 #   cmake -P tests/check_manual.cmake   (from the root, or -DZEN_REPO=)
 
 cmake_minimum_required(VERSION 3.16)
@@ -36,7 +37,8 @@ endfunction()
 # The census as `office|id|key|shapes` entries, one per row (a key swapped as text is; `shapes` the
 # names of the shapes its press causes, `,`-joined, or empty), from the lines of tests/actions.txt:
 # `<office> <mode> <id> <key> <causes> <enters> <label>`, a cause `<shape>/<version>` and its
-# subject after `@` or `>`, `-` for none.
+# subject after `@` or `>`, `-` for none. tests/actions/<office>.txt holds a further office's lines
+# in the same form.
 function(zen_manual_census text out)
     zen_manual_swap("${text}" text)
     string(REPLACE "\n" ";" lines "${text}")
@@ -183,7 +185,7 @@ function(zen_manual_markers page text census out)
                 endif()
             endforeach()
             if(NOT known)
-                list(APPEND problems "${page}:${line_no}: a key marker names `${id}`, which no shipped pane declares in tests/actions.txt")
+                list(APPEND problems "${page}:${line_no}: a key marker names `${id}`, which no shipped pane declares in the action census")
             elseif(key STREQUAL "unbound" OR NOT key IN_LIST known)
                 string(REPLACE ";" "', '" said "${known}")
                 list(APPEND problems "${page}:${line_no}: the key marker for `${id}` says '${key}', and the census declares '${said}'")
@@ -258,16 +260,28 @@ if(NOT st_problems MATCHES "no target carries it")
 endif()
 
 # ---- the tree ---------------------------------------------------------------------------------
-file(READ "${ZEN_REPO}/tests/actions.txt" census_text)
-zen_manual_census("${census_text}" census)
+# The census: tests/actions.txt, then each office's own file in tests/actions/, by name, each of
+# whose rows is about that office.
 set(problems "")
-foreach(entry IN LISTS census)
-    if(entry MATCHES "^!(.*)$")
-        list(APPEND problems "tests/actions.txt: '${CMAKE_MATCH_1}' is not `office mode id key causes enters label`")
-    endif()
+set(census "")
+file(GLOB census_files RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/tests/actions/*.txt")
+list(SORT census_files)
+foreach(census_file IN ITEMS tests/actions.txt ${census_files})
+    file(READ "${ZEN_REPO}/${census_file}" census_text)
+    zen_manual_census("${census_text}" file_census)
+    get_filename_component(file_office "${census_file}" NAME_WLE)
+    foreach(entry IN LISTS file_census)
+        string(REGEX REPLACE "[|].*$" "" entry_office "${entry}")
+        if(entry MATCHES "^!(.*)$")
+            list(APPEND problems "${census_file}: '${CMAKE_MATCH_1}' is not `office mode id key causes enters label`")
+        elseif(NOT census_file STREQUAL "tests/actions.txt" AND NOT entry_office STREQUAL file_office)
+            list(APPEND problems "${census_file}: a row of ${entry_office}, which is not this file's office")
+        endif()
+    endforeach()
+    list(APPEND census ${file_census})
 endforeach()
 if(NOT census)
-    message(FATAL_ERROR "manual: tests/actions.txt holds no row; an empty census holds nothing (VM-POP-01)")
+    message(FATAL_ERROR "manual: the action census holds no row; an empty census holds nothing (VM-POP-01)")
 endif()
 
 # The pages a target embeds: each `MANUAL <page>` and `zengine_manual(<target> <scope> <page>)`
@@ -341,8 +355,10 @@ endforeach()
 list(LENGTH pages page_count)
 list(LENGTH tutorials tutorial_count)
 list(LENGTH census row_count)
+list(LENGTH census_files file_count)
+math(EXPR file_count "${file_count} + 1")
 message(STATUS "manual: ${page_count} manual(s) and ${tutorial_count} tutorial page(s) read against "
-               "${row_count} census row(s)")
+               "${row_count} census row(s) in ${file_count} file(s)")
 if(problems)
     list(LENGTH problems problem_count)
     string(REPLACE ";" "\n  " shown "${problems}")
