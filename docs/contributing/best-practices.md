@@ -228,7 +228,7 @@ Its law, pages and suites: [`files/AGENTS.md`](../../files/AGENTS.md).
 - **A pane's rows are its mode's, and an id is one operation.**
   [WL-FILES-16](../../agents/workshop/files.md#wl-files-16--a-panes-rows-are-its-modes-and-an-id-is-one-operation)
 - **Files judges no file's contents and no recipe**; it hands over a path or a place.
-  [What it is not](../../files/docs/files.md#what-it-is-not)
+  [About](../../files/docs/zengine.files.md#about)
 
 ### Flow (`flow/flow-pane/`, `flow/`, `flow/flow-host/`)
 
