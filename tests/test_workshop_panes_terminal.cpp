@@ -11,6 +11,7 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
+#include "census.hpp"
 
 #include "terminal/vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
@@ -266,6 +267,18 @@ struct TerminalRig {
     }
 };
 
+/// THE TERMINAL'S CENSUS: its rows in the one mode it has, for it declares none.
+const CensusDriverOf kTerminalCensus{pane::kTerminalPaneRole, [] {
+    OfficeCensus census;
+    TerminalRig t;
+    t.open();
+    const RuntimePane* held = t.row();
+    REQUIRE(held != nullptr);
+    CHECK(held->mode.empty());
+    census_take(census, pane::kTerminalPaneRole, *held);
+    return census;
+}};
+
 } // namespace
 
 // ============================================================================
@@ -332,6 +345,17 @@ TEST_CASE("the five keys are the pane's rows, on the built-in's own spellings") 
     CHECK(gesture_of(pane::kActionScrollDown) == G{input::scan::kDown, input::mod::kCtrl});
     CHECK(gesture_of(pane::kActionOldest) == G{input::scan::kHome, input::mod::kCtrl});
     CHECK(gesture_of(pane::kActionNewest) == G{input::scan::kEnd, input::mod::kCtrl});
+}
+
+TEST_CASE("the manual the Terminal answers names exactly the commands it declares") {
+    TerminalRig t;
+    t.open();
+    ManualReader reader(t.r, pane::kTerminalPaneRole);
+    std::set<std::string> declared;
+    for (const v3::PaneActionRow& a : t.row()->actions) {
+        declared.insert(a.id);
+    }
+    check_answered_manual(reader, pane::kTerminalPane, declared);
 }
 
 TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {

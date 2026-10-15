@@ -9,8 +9,12 @@ shell and starts no programs. Press `Ctrl`+`t` in Workshop to open it.
 
 ## Pages
 
-- [Terminal](docs/terminal.md): open the pane, send and ask, recall a command, read back through
-  the record, choose where a message goes, keep a command or reply in Inventory, and leave the pane
+- [`zengine.terminal`](docs/zengine.terminal.md), the Terminal's manual: open the pane, send and
+  ask, recall a command, read back through the record, choose where a message goes, and leave it
+- [Terminal](docs/terminal.md): hide the legend in one layout, keep a command or a reply in
+  Inventory, and find a power from the line
+
+![The Terminal wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.terminal-manual.png)
 
 ## What is in this folder
 
