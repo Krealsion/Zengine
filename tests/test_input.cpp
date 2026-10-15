@@ -19,6 +19,8 @@
 #include "input/vocabulary.hpp"
 
 #include "lifecycle_door.hpp"
+#include "manuals/zengine.input.hpp" // the office's page, as the suite carries it
+#include "office_manual.hpp"
 
 #include "timer/vocabulary.hpp" // the weave's own beat is part of its contract
 #include "vocabulary.hpp"       // snake's — the chain lane speaks both packages
@@ -1612,6 +1614,25 @@ TEST_CASE("the input .so loads into its role and answers its pump, honestly idle
     CHECK(a.text == "0");
 }
 
+TEST_CASE("the input .so answers what each shape it accepts does, from its office's page") {
+    // THE OFFICE WITNESS, on the artifact a plan loads: asked as any weave asks, it answers every
+    // shape its gate accepts from its page's Commands or Hears, and its page names no other.
+    Rig r;
+    (void)r.load("zengine-input", INPUT_SO, kInputRole);
+    const std::vector<std::string> described =
+        described_shapes_of(r.bus, r.bus.role_holder(kInputRole));
+    CHECK(check_office_manual(r.bus, kInputRole) >= described.size());
+    check_page_names_accepted(zengine::manual::pages::zengine_input::kManual, described);
+    // ...and the words are this page's, the one the suite carries.
+    ShapeDocumentReader reader(r.bus, kInputRole);
+    const zengine::manual::ShapeDocumentShown said =
+        reader.ask(InjectInput::zen_name, InjectInput::zen_version);
+    CHECK(said.group == "Commands");
+    CHECK(said.page == std::string(zengine::manual::pages::zengine_input::kManual.content_id));
+    CHECK(reader.ask(zengine::timer::TimerFired::zen_name, zengine::timer::TimerFired::zen_version)
+              .group == "Hears");
+}
+
 TEST_CASE("keys become turns: KeyPressed steers the real world through its own keys") {
     using namespace zengine::snake;
     Rig r;
@@ -1890,6 +1911,21 @@ TEST_CASE("ambient clipboard text cannot reach the bus — seeded, changed, neve
         CHECK(name.find("Clipboard") == std::string::npos);
     }
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
+TEST_CASE("the SDL input .so answers what each shape it accepts does, from the same page") {
+    // The office's other weave, the same witness: one page is true of both, and its gate (the
+    // terminal weave's doors, the close request emitted beside them) is described by it.
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
+    Rig r;
+    (void)r.load("zengine-input-sdl", INPUT_SDL_SO, kInputRole);
+    const std::vector<std::string> described =
+        described_shapes_of(r.bus, r.bus.role_holder(kInputRole));
+    CHECK(check_office_manual(r.bus, kInputRole) >= described.size());
+    check_page_names_accepted(zengine::manual::pages::zengine_input::kManual, described);
+    ShapeDocumentReader reader(r.bus, kInputRole);
+    CHECK(reader.ask(InjectInput::zen_name, InjectInput::zen_version).page ==
+          std::string(zengine::manual::pages::zengine_input::kManual.content_id));
 }
 
 #endif // INPUT_HAS_SDL

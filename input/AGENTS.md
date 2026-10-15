@@ -10,16 +10,19 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `vocabulary.hpp` | the contract: moments, `scan::`, `mod::`, `space::`, sessions, `kInputRole` |
 | `translate.hpp` | POSIX terminal and Win32 console events to moments, as pure code |
 | `translate_sdl.hpp` | SDL events to moments, pure; the one file using the Surface vocabulary |
-| `input_weave.hpp` | the weave over an injected reader: publish, own beat, sessions, timed motion |
+| `input_weave.hpp` | the weave over an injected reader: publish, own beat, sessions, timed motion, a page |
+| `office_page.hpp` | `OfficePage`: the office manual both loadable weaves answer from; not installed |
 | `terminal_reader.hpp` | the terminal and console readers, the platform's input edge |
 | `input.cpp` | loadable weave `zengine-input` over the platform's reader |
 | `input_sdl.cpp` | the SDL queue's one reader; loadable weave `zengine-input-sdl`, where SDL is |
-| `CMakeLists.txt` | `zengine-input-vocabulary` (header-only, alias `zengine::input`), both weaves |
-| `docs/input.md` | the reference page |
+| `CMakeLists.txt` | `zengine-input-vocabulary` (header-only, alias `zengine::input`), both weaves, each carrying the manual |
+| `docs/zengine.input.md` | the manual of the office both weaves hold |
+| `docs/input.md` | the package reference: the vocabulary, the backends, the weave over a reader |
 
 ## Law
 
-No register of its own. Its law is its reference page, [The Input package](docs/input.md);
+No register of its own. Its law is its manual, [`zengine.input`](docs/zengine.input.md), and its
+package reference, [The Input package](docs/input.md);
 its backends' rules are in the Surface register, `agents/surface.md`, which `surface/` routes.
 
 ## Suites
@@ -48,6 +51,7 @@ is Workshop's side, a press and a key reaching a pane.
 
 ## Pages
 
+- [`zengine.input`](docs/zengine.input.md), the manual
 - [The Input package](docs/input.md)
 
 ## Practices

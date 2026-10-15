@@ -15,6 +15,7 @@
 // cmake/ZengineSdl.cmake refuses one. With no display the reader stays disabled and says why.
 
 #include "input_weave.hpp"
+#include "office_page.hpp"
 #include "translate_sdl.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -177,7 +178,7 @@ static_assert(scan::kDelete == SDL_SCANCODE_DELETE);
 static_assert(scan::kEnd == SDL_SCANCODE_END);
 static_assert(scan::kDown == SDL_SCANCODE_DOWN);
 
-using SdlInputWeave = InputWeaveT<SdlReader>;
+using SdlInputWeave = InputWeaveT<SdlReader, OfficePage>;
 
 } // namespace
 
