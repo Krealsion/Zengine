@@ -169,6 +169,9 @@ public:
             else if (a.id == "compose.store") store(mail);
             else if (a.id == "compose.preset") store(mail, true);
             else if (a.id == "compose.back") back_to_catalog(mail);
+            else if (a.id == "compose.up" && !busy()) { move_cursor(-1); say(mail); }
+            else if (a.id == "compose.down" && !busy()) { move_cursor(+1); say(mail); }
+            else if (a.id == "compose.include" && !busy()) { cycle_field(); say(mail); }
             else if (a.id == "compose.unset" && !busy()) {
                 if (auto* field = field_under_cursor()) {
                     *field = {}; ++draft_generation_;
@@ -381,22 +384,11 @@ private:
             say(mail);
             return;
         }
-        switch (key.scancode) {
-        case input::scan::kUp: move_cursor(-1); break;
-        case input::scan::kDown: move_cursor(+1); break;
-        case input::scan::kReturn: enter(mail); return;
-        case input::scan::kEscape:
-            // Escape means more in a form, which it leaves; at the catalog it goes back.
-            if (composing_.stage == stage::kForm) {
-                back_to_catalog(mail);
-            } else if (ws::pane_escape::bare(key)) {
-                ws::pane_escape::unspent(mail, kComposerRole, key.pane);
-            }
-            return;
-        case input::scan::kTab: cycle_field(); break;
-        default: return; // a key this pane has no word for changes nothing and says nothing
+        // Every other word this pane has is an action row (`say`), asked by id; a key that is
+        // none of them changes nothing, and a bare Escape is handed back to put the pane down.
+        if (ws::pane_escape::bare(key)) {
+            ws::pane_escape::unspent(mail, kComposerRole, key.pane);
         }
-        say(mail);
     }
 
     void on_wheel(double dy, loom::Mail& mail) {
@@ -867,13 +859,20 @@ private:
             (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole,
                 ws::PaneCaret{kComposePane, shown_.caret_row, shown_.caret_col});
         }
+        const bool in_form = composing_.stage == stage::kForm;
         (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, ws::PaneActions{kComposePane, {
             {"compose.enter", "choose", input::scan::kReturn, input::mod::kNone},
             {"compose.submit", "submit", input::scan::kReturn, input::mod::kCtrl},
             {"compose.store", "store command", input::scan::kS, input::mod::kCtrl},
             {"compose.preset", "store preset (may be incomplete)", input::scan::kB, input::mod::kCtrl},
             {"compose.unset", "unset field and discard value", input::scan::kU, input::mod::kCtrl},
-            {"compose.back", "back to the catalog", input::scan::kUnknown, input::mod::kNone}}});
+            // Escape leaves a form; at the catalog it is unbound, so a bare one puts the pane down.
+            {"compose.back", "back to the catalog",
+             in_form ? input::scan::kEscape : input::scan::kUnknown, input::mod::kNone},
+            {"compose.up", "row up", input::scan::kUp, input::mod::kNone},
+            {"compose.down", "row down", input::scan::kDown, input::mod::kNone},
+            {"compose.include", "include or leave out the field",
+             in_form ? input::scan::kTab : input::scan::kUnknown, input::mod::kNone}}});
     }
 
     /// WHAT A PRESS OR A DROP ON EACH ROW WOULD MEAN, spelled: the target, the form, and every
