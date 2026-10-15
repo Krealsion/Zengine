@@ -29,12 +29,14 @@ replaced: a new image keeps only Compose's counters, and starts with no weave se
 ## Use
 
 Open it from the Pane Manager, <!-- key desktop.panes -->`ctrl+p`<!-- /key -->, then press a row in
-the Loaded pane. Its keys act only while it holds your keys: press into it first. The up and down
-arrows move the cursor, and the mouse wheel moves it too; choose a message with
-[`compose.enter`](#composeenter), or press its row. In the form, Tab includes the field under the
-cursor or leaves it absent (a `Bool` field goes absent, `false`, `true`, absent), typing writes its
-value, and the ordinary editing keys move, select, copy and paste inside it. Escape leaves the form
-for the list; at the list it is handed back to Workshop. A right press opens Workshop's pane menu.
+the Loaded pane. Its keys act only while it holds your keys: press into it first.
+[`compose.up`](#composeup) and [`compose.down`](#composedown) move the cursor, and the mouse wheel
+moves it too; choose a message with [`compose.enter`](#composeenter), or press its row. In the
+form, [`compose.include`](#composeinclude) includes the field under the cursor or leaves it absent
+(a `Bool` field goes absent, `false`, `true`, absent), typing writes its value, and the ordinary
+editing keys move, select, copy and paste inside it. [`compose.back`](#composeback) leaves the form
+for the list; at the list a bare Escape is handed back to Workshop. A key no command names changes
+nothing. A right press opens Workshop's pane menu.
 
 Drop an Inventory entry onto a field's row to make it that field's value, or onto any other row to
 fill the whole form with the command or preset it holds. A drop never sends. It is refused, and the
@@ -128,10 +130,46 @@ it empty.
 
 Leaves the form and returns to the list of messages; the form and everything typed in it go.
 
-- **Takes:** the open form. No default key; a press on `[ Back ]`, or Escape in the form.
+- **Takes:** the open form. Default key <!-- key compose.back -->`escape`<!-- /key --> in the form,
+  none in the list; a press on `[ Back ]` does the same.
 - **Answers:** the list, its cursor on the first message.
 - **Refuses:** nothing is said: in the list, or while the form is frozen, nothing happens.
 - **Example:** press `[ Back ]`.
+
+### `compose.up`
+
+Moves the cursor one row up, in the list or in the form; it stops at the first row.
+
+- **Takes:** the cursor. Default key <!-- key compose.up -->`up`<!-- /key -->; the mouse wheel moves it
+  too.
+- **Answers:** the cursor on the row above.
+- **Refuses:** nothing is said: at the first row, while nothing is listed, or while the form is
+  frozen, nothing happens.
+- **Example:** in the form, press <!-- key compose.up -->`up`<!-- /key --> to reach the field above.
+
+### `compose.down`
+
+Moves the cursor one row down, in the list or in the form; it stops at the last row.
+
+- **Takes:** the cursor. Default key <!-- key compose.down -->`down`<!-- /key -->; the mouse wheel moves
+  it too.
+- **Answers:** the cursor on the row below.
+- **Refuses:** nothing is said: at the last row, while nothing is listed, or while the form is
+  frozen, nothing happens.
+- **Example:** in the list, press <!-- key compose.down -->`down`<!-- /key --> to reach the next message.
+
+### `compose.include`
+
+Includes the field under the cursor or leaves it absent; a `Bool` field goes absent, `false`,
+`true`, absent.
+
+- **Takes:** the field under the cursor. Default key <!-- key compose.include -->`tab`<!-- /key --> in
+  the form, none in the list.
+- **Answers:** the row shows the field included, or reads `(required)` or `(absent)` once it is
+  left out.
+- **Refuses:** nothing is said: off a field row, on a field Compose cannot type that holds no
+  value, or while the form is frozen, nothing happens.
+- **Example:** on `repeat`, press <!-- key compose.include -->`tab`<!-- /key --> to make it `false`.
 
 ## Hears
 
