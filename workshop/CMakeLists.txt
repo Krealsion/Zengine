@@ -39,6 +39,11 @@ target_include_directories(zengine-pane-vocabulary INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 add_library(zengine::pane ALIAS zengine-pane-vocabulary)
 target_link_libraries(zengine-pane-vocabulary INTERFACE zengine-surface-vocabulary loom::core)
+# The manuals of two doors among the vocabulary's headers, the discovery door (`powers_door.hpp`)
+# and the sample door (`sample_door.hpp`), compiled into whatever mounts them: each answers a
+# shape's section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
+zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.powers.md)
+zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.sources.md)
 
 # ---- The authored load plan: its shape, its file, its execution, and the observation door ----
 #
@@ -52,6 +57,8 @@ target_link_libraries(zengine-pane-vocabulary INTERFACE zengine-surface-vocabula
 # `load_execute.hpp`'s two shapes, `builder::ArtifactBuilt` and `builder::ArtifactRealized`.
 add_library(zengine-workshop-load INTERFACE)
 target_include_directories(zengine-workshop-load INTERFACE ${CMAKE_SOURCE_DIR})
+# The observation door's manual, compiled into whatever mounts it.
+zengine_manual(zengine-workshop-load INTERFACE ../introspection/docs/zengine.arrangement.md)
 target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabulary
                                                       zengine-builder-vocabulary
                                                       zengine-operator

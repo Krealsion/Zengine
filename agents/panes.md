@@ -5,7 +5,7 @@ protocol, `introspection/` or `composer/` — what crosses the Workshop↔provid
 shipped tools that live entirely on the far side of it. Workshop's own screen and routing law
 is [`workshop.md`](workshop.md); public reference:
 [`workshop/docs/workshop-panes.md`](../workshop/docs/workshop-panes.md) and
-[`introspection/docs/introspection.md`](../introspection/docs/introspection.md).
+[`introspection/docs/zengine.introspection.md`](../introspection/docs/zengine.introspection.md).
 
 ## A press crosses the seam as a place, never as a meaning
 

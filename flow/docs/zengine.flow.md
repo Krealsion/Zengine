@@ -19,7 +19,7 @@ are each asked of the Flow host, the office `zengine.flow.host`, as one request 
 ([its vocabulary](../flow-host/vocabulary.hpp), [the Flow host](flow-runtime.md)); the pane shows
 what it answered. The pane always names one session there, `workshop`. The operators you can
 add are found through the host's discovery door, `zengine.powers`
-([its vocabulary](../../workshop/powers_vocabulary.hpp)), which answers Flow, the Powers pane and
+([its manual](../../introspection/docs/zengine.powers.md)), which answers Flow, the Powers pane and
 the Terminal alike. It asks only for what a contributor offers, with a port selected only for what
 yields its type, and with a fold's body slot open only for what a fold can spend; it asks again when
 the question changes, when Workshop grants it room, and after a run, an apply, a stop or a catalog
