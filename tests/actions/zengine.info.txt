@@ -1,0 +1,76 @@
+# The action census's rows for zengine.info; the form is tests/actions.txt's. ASCII only.
+zengine.info - info.up up - - pane up
+zengine.info - info.down down - - pane down
+zengine.info - info.edit return - - inspect
+zengine.info - info.switch tab - - properties
+zengine.info - info.view.new ctrl+n - - new value view
+zengine.info - info.up up - - row up
+zengine.info - info.down down - - row down
+zengine.info - info.edit return - - edit
+zengine.info - info.switch tab - - panes
+zengine.info - info.view.new ctrl+n - - new value view
+zengine.info - info.commit return - - commit
+zengine.info - info.cancel escape - - cancel
+zengine.info - inventory.up up - - previous field
+zengine.info - inventory.down down - - next field
+zengine.info - inventory.edit return - - edit field
+zengine.info - inventory.save ctrl+s - - save entry
+zengine.info - inventory.save-copy ctrl+shift+s - - save a new copy
+zengine.info - inventory.fresh ctrl+r - - refresh from inventory
+zengine.info - inventory.watch ctrl+l - - watch or pause
+zengine.info - inventory.sample ctrl+e - - sample the source
+zengine.info - inventory.preset ctrl+b - - make independent preset copy
+zengine.info - inventory.unset ctrl+u - - unset preset field
+zengine.info - inventory.grab ctrl+g - - pick up typed field copy
+zengine.info - inventory.discard ctrl+d - - discard local edits
+zengine.info - info.view.new ctrl+n - - new Info view
+zengine.info - info.view.fork ctrl+shift+n - - fork this view
+zengine.info - info.view.rename ctrl+m - - rename this view
+zengine.info - info.view.menu ctrl+. - - all view actions
+zengine.info - inventory.panes ctrl+i - - pane properties
+zengine.info - inventory.field.accept return - - keep field edit
+zengine.info - inventory.field.cancel escape - - cancel field edit
+zengine.info - info.view.rename.accept return - - rename view
+zengine.info - info.view.rename.cancel escape - - cancel rename
+zengine.info - inventory.up up - - previous field
+zengine.info - inventory.down down - - next field
+zengine.info - inventory.edit return - - edit field
+zengine.info - inventory.save ctrl+s - - save entry
+zengine.info - inventory.save-copy ctrl+shift+s - - save a new copy
+zengine.info - inventory.fresh ctrl+r - - refresh from inventory
+zengine.info - inventory.watch ctrl+l - - watch or pause
+zengine.info - inventory.sample ctrl+e - - sample the source
+zengine.info - inventory.preset ctrl+b - - make independent preset copy
+zengine.info - inventory.unset ctrl+u - - unset preset field
+zengine.info - inventory.grab ctrl+g - - pick up typed field copy
+zengine.info - inventory.discard ctrl+d - - discard local edits
+zengine.info - info.view.new ctrl+n - - new Info view
+zengine.info - info.view.fork ctrl+shift+n - - fork this view
+zengine.info - info.view.rename ctrl+m - - rename this view
+zengine.info - info.view.menu ctrl+. - - all view actions
+zengine.info - inventory.panes ctrl+i - - pane properties
+zengine.info - info.view.stop escape - - stop waiting
+zengine.info - info.up up - - row up
+zengine.info - info.down down - - row down
+zengine.info - info.edit return - - edit
+zengine.info - info.switch tab - - panes
+zengine.info - info.inventory ctrl+i - - inventory entry
+zengine.info - info.view.new ctrl+n - - new value view
+zengine.info - inventory.up up - - previous field
+zengine.info - inventory.down down - - next field
+zengine.info - inventory.edit return - - edit field
+zengine.info - inventory.save ctrl+s - - save entry
+zengine.info - inventory.save-copy ctrl+shift+s - - save a new copy
+zengine.info - inventory.fresh ctrl+r - - refresh from inventory
+zengine.info - inventory.watch ctrl+l - - watch or pause
+zengine.info - inventory.sample ctrl+e - - sample the source
+zengine.info - inventory.preset ctrl+b - - make independent preset copy
+zengine.info - inventory.unset ctrl+u - - unset preset field
+zengine.info - inventory.grab ctrl+g - - pick up typed field copy
+zengine.info - inventory.discard ctrl+d - - discard local edits
+zengine.info - info.view.new ctrl+n - - new Info view
+zengine.info - info.view.fork ctrl+shift+n - - fork this view
+zengine.info - info.view.rename ctrl+m - - rename this view
+zengine.info - info.view.menu ctrl+. - - all view actions
+zengine.info - info.view.close ctrl+shift+w - - close this view
+zengine.info - info.view.use return - - use this view

@@ -7,7 +7,7 @@
 // (a copy or a linked entry), field selection, picture, notice, and every request it waits on.
 // Views share code and the correlation counter, never mutable subjects: an answer settles only
 // the record in the view that asked, under Loom's answer provenance and that record's number.
-// The weaver's guide: info/docs/info-views.md.
+// Reference: info/docs/zengine.info.md.
 // Inventory law: agents/inventory.md
 
 // An answer can match its request and still not be safe for the draft, so the view decides per
