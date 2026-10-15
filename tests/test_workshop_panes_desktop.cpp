@@ -1315,6 +1315,124 @@ TEST_CASE("WL-CTX-10: the replacement presenter presents the Pane Manager's menu
     CHECK(d.open("alpha"));
 }
 
+namespace {
+
+/// INFO, loaded beside the Pane Manager: the shipped desk names its row, so it is on the desk.
+std::int64_t load_info(Desk& d) {
+    REQUIRE(d.r.load("zengine-info-pane", WORKSHOP_SO_INFO_PANE, "zengine.info").valid());
+    const std::int64_t info = kind_of(d.r, "zengine.info", "info");
+    REQUIRE(is_runtime_kind(info));
+    return info;
+}
+
+/// Whether Info declares a draft's rows: commit and cancel.
+bool drafting(Desk& d, std::int64_t info) {
+    const RuntimePane* held = d.r.session().panes.runtime.of_kind(info);
+    REQUIRE(held != nullptr);
+    bool commit = false;
+    for (const auto& row : held->actions) {
+        commit = commit || row.id == "info.commit";
+    }
+    return commit;
+}
+
+/// Choose `inspect in Info` on `name`'s row by the keys: its menu, then down to that row.
+void inspect_by_keys(Desk& d, const std::string& name) {
+    d.right(d.row_of(name), kNameCol);
+    REQUIRE(menu_shown(d.r.session()));
+    const std::vector<std::string> rows = context_rows_on(d.r.last_canvas(), d.r.session());
+    const auto at = std::find(rows.begin(), rows.end(), "  inspect in Info");
+    REQUIRE(at != rows.end());
+    for (auto i = rows.begin(); i != at; ++i) {
+        d.r.key(input::scan::kDown);
+    }
+    d.r.key(input::scan::kReturn);
+}
+
+} // namespace
+
+TEST_CASE("WL-DESK-14: choosing `inspect in Info` on a row makes that pane Info's subject -- by the "
+          "keys, by the mouse, and by a replacement presenter's digit -- and says so") {
+    const PaneRef beta{"zengine.test.tools", "beta"};
+    const auto inspected_beta = [&beta](Desk& d) {
+        CHECK(d.r.session().inspected.ref == beta);
+        REQUIRE_FALSE(d.r.said_subjects.empty());
+        CHECK(d.r.said_subjects.back().name == "Beta");
+        CHECK(joined(d.rows()).find("Info inspects Beta") != std::string::npos);
+    };
+    SUBCASE("by the keys") {
+        Desk d;
+        load_info(d);
+        REQUIRE_FALSE(d.r.session().inspected.addressed());
+        inspect_by_keys(d, "Beta");
+        inspected_beta(d);
+    }
+    SUBCASE("by the mouse") {
+        Desk d;
+        load_info(d);
+        d.right(d.row_of("Beta"), kNameCol);
+        REQUIRE(menu_shown(d.r.session()));
+        d.r.press_cell(context_cell_x(d.r.session()), context_entry_cell_y(d.r.session(), 2));
+        inspected_beta(d);
+    }
+    SUBCASE("by a replacement presenter's digit") {
+        Desk d(std::string(), 160, 60, WORKSHOP_SO_NUMBERED_PRESENTER);
+        load_info(d);
+        d.right(d.row_of("Beta"), kNameCol);
+        REQUIRE(menu_shown(d.r.session()));
+        REQUIRE(presented_texts(d.r.session())[2] == "  3 inspect in Info");
+        queue_digit(d.r, input::scan::k3, "3");
+        d.r.bus.drain_until_idle();
+        inspected_beta(d);
+    }
+}
+
+TEST_CASE("WL-DESK-14: an `inspect in Info` that cannot be carried out is said in the Pane Manager, "
+          "and the subject stays where it was") {
+    SUBCASE("Info is not loaded") {
+        Desk d;
+        inspect_by_keys(d, "Beta");
+        CHECK(joined(d.rows()).find("Info could not be asked to inspect Beta") != std::string::npos);
+        CHECK_FALSE(d.r.session().inspected.addressed());
+    }
+    SUBCASE("Info holds a live draft: held back for the weaver's reason, as Info's own inspect is") {
+        Desk d;
+        const std::int64_t info = load_info(d);
+        // ALPHA SHOWN ON THE DESK FIRST, by its row's menu, so Info has its size to draft.
+        d.right(d.row_of("Alpha"), kNameCol);
+        REQUIRE(menu_shown(d.r.session()));
+        d.r.press_cell(context_cell_x(d.r.session()), context_entry_cell_y(d.r.session(), 0));
+        REQUIRE(d.open("alpha"));
+        inspect_by_keys(d, "Alpha");
+        REQUIRE(d.r.session().inspected.ref == (PaneRef{"zengine.test.tools", "alpha"}));
+        // INFO TALL ENOUGH TO SHOW ALPHA'S SIZE, as a weaver grows it.
+        const Written grown = author_pane_size(d.r.session().setup.active,
+                                               PaneRef{"zengine.info", "info"}, PaneSize{},
+                                               PaneSize{pane_unit::kPixels, cells_px(40)});
+        REQUIRE_MESSAGE(grown.accepted, grown.refusal);
+        d.r.extent(160, 61);
+        // A DRAFT IN INFO, on Alpha's width: its row pressed, then Return.
+        const std::vector<std::string> rows = shown_rows(d.r, info);
+        std::int64_t width = -1;
+        for (std::size_t i = 0; i < rows.size() && width < 0; ++i) {
+            if (rows[i].size() > 1 && rows[i].compare(1, 6, "Width ") == 0) {
+                width = static_cast<std::int64_t>(i);
+            }
+        }
+        REQUIRE_MESSAGE(width >= 0, joined(rows));
+        press_pane(d.r, info, width, 3);
+        d.r.key(input::scan::kReturn);
+        REQUIRE_MESSAGE(drafting(d, info), joined(shown_rows(d.r, info)));
+        // ...AND THE PANE MANAGER'S ROW ASKS FOR BETA: Info declines, and says why, as does the
+        // Pane Manager; Alpha stays the subject and the draft stays open.
+        inspect_by_keys(d, "Beta");
+        CHECK(joined(d.rows()).find("Info did not inspect Beta -- finish the edit first") !=
+              std::string::npos);
+        CHECK(d.r.session().inspected.ref == (PaneRef{"zengine.test.tools", "alpha"}));
+        CHECK(drafting(d, info));
+    }
+}
+
 TEST_CASE("WL-CTX-10: the presenter reloaded in place by another image while a menu is open hands the menu over -- shown again the new way with its cursor, answered under the same number, and the Hotkeys edit completes") {
     Keys k("presenter-handoff");
     const std::int64_t others = keys_elsewhere(k.r);

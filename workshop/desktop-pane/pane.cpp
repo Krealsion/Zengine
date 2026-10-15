@@ -74,6 +74,7 @@ using ws::v2::AppActionRow;
 using ws::v2::AppActions;
 using ws::DeselectRequested;
 using ws::InspectPaneRequested;
+using ws::PaneSubjectActed;
 using ws::InventoryPane;
 using ws::KeymapEditAnswered;
 using ws::KeymapEditRequested;
@@ -269,7 +270,8 @@ class DesktopWeave
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        PaneMenuAnswered, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText, ws::PaneDocumentShown, ws::PaneDocumentRequested>,
+                       surface::ClipboardText, ws::PaneDocumentShown, ws::PaneDocumentRequested,
+                       PaneSubjectActed>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, AppActions,
@@ -515,6 +517,16 @@ public:
             say_keys(mail);
             return;
         }
+        // ...AND AN INSPECT INFO NEVER HEARD -- not loaded, or not taking the ask: said.
+        if (refused_ask(inspecting_.asked != 0, inspecting_.sent, inspecting_.asked, refused,
+                        mail, InspectPaneRequested::zen_name, InspectPaneRequested::zen_version,
+                        pane::kInfoRole)) {
+            notice_ = "Info could not be asked to inspect " + inspecting_.name + " (" +
+                      refused.reason + ")";
+            inspecting_ = Inspecting{};
+            say(mail);
+            return;
+        }
         // ...AND A MANUAL ASKED OF AN OFFICE THAT COULD NOT BE REACHED: said, not waited on.
         if (refused_ask(manual_.asked != 0, manual_.sent, manual_.asked, refused, mail,
                         ws::PaneDocumentRequested::zen_name,
@@ -559,6 +571,19 @@ public:
         keys_heard_ = true;
         say_keys(mail);
         say_manual(mail); // a key the weaver moved, or a spelling, shows in the manual at once
+    }
+
+    /// WHAT INFO MADE OF THIS IMAGE'S LATEST INSPECT ASK, and no older one: the pane inspected, or
+    /// the reason it was not -- a live draft, or the host refusing the pane -- in Info's words.
+    void on(const PaneSubjectActed& said, loom::Mail& mail) {
+        if (!mail.answers_ask() || inspecting_.asked == 0 ||
+            mail.correlation() != inspecting_.asked) {
+            return;
+        }
+        notice_ = said.accepted ? "Info inspects " + inspecting_.name
+                                : "Info did not inspect " + inspecting_.name + " -- " + said.refusal;
+        inspecting_ = Inspecting{};
+        say(mail);
     }
 
     /// THE MANUAL A PANE ANSWERED, to this image's latest ask and no older one: a weaver who
@@ -1402,9 +1427,19 @@ private:
             (void)pane_menu::manage(mail, pane::kDesktopRole, pane::kLauncherPane, p->office,
                                     p->pane);
         } else if (a.id == pane::kMenuInspect) {
-            // INSPECTION THROUGH ITS OWNER: Info's door, which judges the reference itself.
-            (void)mail.as_role(pane::kDesktopRole)
-                .send_to_role(pane::kInfoRole, InspectPaneRequested{p->office, p->pane});
+            // INSPECTION THROUGH ITS OWNER: Info takes the ask as its own inspect and answers what
+            // came of it, and only the newest ask is waited on.
+            const std::uint64_t asked = ++inspect_asks_;
+            const loom::Ticket sent =
+                mail.as_role(pane::kDesktopRole)
+                    .send_to_role(pane::kInfoRole, InspectPaneRequested{p->office, p->pane}, asked);
+            inspecting_ = Inspecting{};
+            if (sent.valid()) {
+                inspecting_ = Inspecting{asked, sent, p->name};
+                notice_ = "asking Info to inspect " + p->name;
+            } else {
+                notice_ = "inspect in Info not sent -- nothing was queued";
+            }
         }
         say(mail);
     }
@@ -2100,6 +2135,15 @@ private:
     };
     ManualShown manual_;
     std::uint64_t manual_asks_ = 0;
+    /// THE INSPECT THIS IMAGE ASKED OF INFO and waits on: its number, its queued attempt, which
+    /// a refusal names, and the pane's name for the sentence. Not in `DesktopState`.
+    struct Inspecting {
+        std::uint64_t asked = 0;
+        loom::Ticket sent{};
+        std::string name;
+    };
+    Inspecting inspecting_;
+    std::uint64_t inspect_asks_ = 0;
     std::int64_t manual_room_rows_ = 0;
     std::int64_t manual_room_columns_ = 0;
     bool manual_granted_ = false;
