@@ -8,10 +8,16 @@ A key says which key changed and which modifiers were held; typed text is what t
 layout actually produced. A program spells the messages with `#include "input/vocabulary.hpp"`
 and links `zengine::input`.
 
+## Manuals
+
+- [Input](docs/zengine.input.md), `zengine.input`: the office both Input weaves hold, what it
+  publishes, where the terminal and the window weave differ, and the input session through which
+  an agent or a test speaks for a person
+
 ## Pages
 
-- [The Input package](docs/input.md): the reference, with every message, what it carries and
-  which backend produces it, plus input sessions and timed pointer motion
+- [The Input package](docs/input.md): the vocabulary, with every message, what it carries and
+  what each platform can vouch for, and the weave a reader is wrapped in
 
 ## What is in this folder
 
@@ -21,6 +27,8 @@ and links `zengine::input`.
 | `translate.hpp` | how terminal and console events become those messages |
 | `translate_sdl.hpp` | how SDL window events become those messages |
 | `input_weave.hpp` | the Input weave itself, over any reader |
+| `terminal_reader.hpp` | the terminal and console readers |
+| `office_page.hpp` | the office's manual, as the two shipped weaves answer from it |
 | `input.cpp` | the terminal and console reader, built as the `zengine-input` weave |
 | `input_sdl.cpp` | the window reader, built as `zengine-input-sdl` where SDL is available |
 | `CMakeLists.txt` | the build |

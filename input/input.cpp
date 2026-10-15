@@ -12,13 +12,15 @@
 // The SDL reader is a separate artifact (input_sdl.cpp).
 
 #include "input_weave.hpp"
+#include "office_page.hpp"
 #include "terminal_reader.hpp"
 
 #include <zen/kernel/export.hpp>
 
 namespace {
 
-using InputWeave = zengine::input::InputWeaveT<zengine::input::PlatformReader>;
+using InputWeave =
+    zengine::input::InputWeaveT<zengine::input::PlatformReader, zengine::input::OfficePage>;
 
 } // namespace
 
