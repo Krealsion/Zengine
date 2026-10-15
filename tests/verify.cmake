@@ -67,6 +67,19 @@ include("${CMAKE_CURRENT_LIST_DIR}/check_population.cmake")
 zengine_check_population("${CMAKE_CURRENT_LIST_DIR}/test_population.txt"
                          "${ZEN_BUILD_DIR}" "${registered}")
 
+# ---- guard 2b: no test compile carries a path of the tree --------------------------------
+# Such a value keeps a compiler cache from serving the unit to a second tree; the check says how
+# to give a case the path another way (check_test_definitions.cmake).
+execute_process(
+    COMMAND ${CMAKE_COMMAND} "-DZEN_BUILD_DIR=${ZEN_BUILD_DIR}"
+            -P "${CMAKE_CURRENT_LIST_DIR}/check_test_definitions.cmake"
+    RESULT_VARIABLE defs_rc OUTPUT_VARIABLE defs_said ERROR_VARIABLE defs_said)
+if(NOT defs_rc EQUAL 0)
+    message(FATAL_ERROR "verify: the test compiles' definitions refused (exit ${defs_rc}).\n${defs_said}")
+endif()
+string(REGEX MATCH "test-definitions: PASSED[^\n]*" defs_passed "${defs_said}")
+message(STATUS "verify: ${defs_passed}")
+
 # ---- guard 3: run them, and let CTest refuse a zero too ----------------------------------
 
 # ZEN_CTEST_APART names entries that run alone, one after another, once the rest have run with

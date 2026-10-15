@@ -206,7 +206,7 @@ TEST_CASE("every shape this tree publishes is pinned by content id under its nam
     // THE PINS: one line a shape, `<name> v<version> <content id>`, and nothing pinned that is not
     // published. The census as it stands is written beside the build, ready to diff.
     std::map<Key, std::string> pinned;
-    for (const std::string& line : lines_of(ZENGINE_SOURCE_DIR "/tests/shapes.txt")) {
+    for (const std::string& line : lines_of(std::string(ZENGINE_SOURCE_DIR) + "/tests/shapes.txt")) {
         if (line[0] == '#') continue;
         std::istringstream words(line);
         std::string name, version, id;

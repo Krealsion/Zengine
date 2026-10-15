@@ -2948,7 +2948,7 @@ struct LaunchFixture {
             "set(zengine_default_runtime \"" + (root / "unnamed").generic_string() + "\")\n"
             "set(zengine_copies \"" + copies + "\")\n"
             "set(zengine_replaceable \"\")\n"
-            "include(\"" WORKSHOP_DEVELOPMENT_RUNTIME_RULES "\")\n";
+            "include(\"" + std::string(WORKSHOP_DEVELOPMENT_RUNTIME_RULES) + "\")\n";
         std::string text = "cmake_minimum_required(VERSION 3.16)\n" + mark + "\"entered\\n\")\n";
         if (how == Preparation::failing) {
             text += "message(FATAL_ERROR \"the case's preparation fails\")\n";
