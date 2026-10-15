@@ -75,7 +75,7 @@ and moving folders never turn a hotkey on, never register one and never run a co
 folder beside the portable views and hotkey settings. Restoring it brings the folders back and
 starts browsing at Root; hotkeys stay OFF as for any restore. Files saved before folders existed
 restore with everything at Root. See the
-[Inventory contract](inventory.md#named-folders) for the messages and limits.
+[Inventory manual](zengine.inventory.md#inventoryfoldercreate) for the messages and limits.
 
 ## The organized workbench
 

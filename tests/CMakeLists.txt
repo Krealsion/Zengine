@@ -755,6 +755,8 @@ target_include_directories(zengine-inventory-tests PRIVATE ${CMAKE_CURRENT_SOURC
 target_compile_definitions(zengine-inventory-tests PRIVATE
     "INVENTORY_SO=\"$<TARGET_FILE:zengine-inventory>\"")
 add_dependencies(zengine-inventory-tests zengine-inventory)
+# ...and the office's page as its build embeds it, which the weave mounted here answers from.
+zengine_manual(zengine-inventory-tests PRIVATE ${PROJECT_SOURCE_DIR}/inventory/docs/zengine.inventory.md)
 zengine_doctest_test(inventory zengine-inventory-tests)
 
 
