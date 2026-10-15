@@ -1,7 +1,7 @@
 # Timer continuity carries remaining duration, not absolute time
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the
-behaviour it decided is [timer continuity](timer-continuity.md).
+behaviour it decided is in [the Timer's manual](zengine.timer.md#about).
 
 **Context.** When the Timer service is replaced, standing schedules must cross
 to the successor. What number crosses?

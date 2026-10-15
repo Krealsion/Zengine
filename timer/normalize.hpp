@@ -8,7 +8,7 @@
 // composition over two published primitives, with no C++ body, evaluated by the one evaluator
 // every consumer uses -- so a second consumer needs no copy of it, and cannot disagree with the
 // Timer. A repeating delay below 1 ms becomes 1; a negative delay fires on the next beat
-// (timer/docs/timer-protocol.md).
+// (timer/docs/zengine.timer.md#about).
 // Timer law: timer/docs/timer-laws.md
 
 #include "operator/catalog.hpp"

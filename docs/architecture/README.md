@@ -181,7 +181,7 @@ paying for.
 
 Per-subject design detail lives with the subject:
 
-- [Timer protocol](../../timer/docs/timer-protocol.md), [continuity](../../timer/docs/timer-continuity.md),
+- [The Timer's manual](../../timer/docs/zengine.timer.md),
   [the binding layer](../../timer/docs/timer-binding.md), [laws](../../timer/docs/timer-laws.md), and
   [why durations rather than deadlines](../../timer/docs/timer-continuity-carries-remaining-duration.md).
 - [Operator providers](../../operator/docs/operator-providers.md) — how an artifact supplies rules to a
