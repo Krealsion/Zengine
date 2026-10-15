@@ -378,6 +378,8 @@ target_link_libraries(zengine-input-tests
 target_include_directories(zengine-input-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/examples/snake)
+# ...and the office's page, which the office witness holds the two loaded weaves to.
+zengine_manual(zengine-input-tests PRIVATE ${PROJECT_SOURCE_DIR}/input/docs/zengine.input.md)
 
 target_compile_definitions(zengine-input-tests PRIVATE
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
