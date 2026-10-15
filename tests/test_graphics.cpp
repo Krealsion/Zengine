@@ -938,3 +938,176 @@ TEST_CASE("a tick that changes the board and the score is shown once") {
     }
     FAIL("the snake never ate");
 }
+
+namespace {
+
+inline constexpr zengine::manual::Section kFacetedSections[] = {
+    {"GraphicsTestBeat", "Commands", "One beat for the faceted drawer."},
+};
+
+inline constexpr zengine::manual::Manual kFacetedManual{
+    kDrawer, "faceted drawer", "sha256:test", kFacetedSections, 1};
+
+/// A weave that composes both `DrawingFacet` and `ManualFacet` and defines its own
+/// `after_delivery(loom::Mail&)`. Also repeats `AreaRoom` in its own `Accept` to exercise
+/// deduplication in the mounted schema union.
+class FacetedDrawer
+    : public zengine::With<
+          gfx::DrawingFacet,
+          zengine::manual::ManualFacet<kFacetedManual>>::
+          Weave<FacetedDrawer, GraphicsTestDrawer,
+                loom::Accept<GraphicsTestBeat, gfx::AreaRoom>> {
+public:
+    using Weave::on;
+
+    FacetedDrawer() : Weave(kDrawer) {}
+
+    void on(const GraphicsTestBeat&, loom::Mail&) { ++state_.beats; }
+
+    void on_room(const gfx::AreaRoom&, loom::Mail&) { ++rooms_; }
+
+    void after_delivery(loom::Mail&) {
+        after_hook_beats_ = state_.beats;
+        last_w_ = canvas().width();
+        last_h_ = canvas().height();
+    }
+
+    void picture(gfx::Sketch& f) const {
+        f.text("hook", 0, 0,
+               "hook " + std::to_string(after_hook_beats_) + " " + std::to_string(last_w_) + "x" +
+                   std::to_string(last_h_),
+               gfx::by_role(gfx::role::kFill));
+    }
+
+    std::int64_t rooms() const { return rooms_; }
+
+private:
+    std::int64_t after_hook_beats_ = -1;
+    std::int64_t last_w_ = 0;
+    std::int64_t last_h_ = 0;
+    std::int64_t rooms_ = 0;
+};
+
+struct FacetedRig {
+    Rig r;
+    loom::WeaveId drawer{};
+    FacetedDrawer* raw = nullptr;
+
+    FacetedRig() {
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+        auto d = std::make_unique<FacetedDrawer>();
+        raw = d.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        loom::allow_describe_answers(g);
+        drawer = r.bus.register_weave(std::move(d), std::move(g), kDrawer);
+        raw->zen_set_self(drawer);
+        r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kDrawer, kDrawer, "classic");
+    }
+};
+
+class DescribeAsker : public loom::Weave {
+public:
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
+        return {loom::accepted_shapes_schema()};
+    }
+    void handle(const loom::Message& in, loom::Bus&) override {
+        loom::Registry deps;
+        loom::decode_accepted_referenced(in.payload, deps);
+        for (const auto& s : loom::decode_accepted_roots(in.payload, deps)) {
+            roots.push_back(s->name());
+        }
+    }
+    loom::Value snapshot() const override { return loom::to_value(GraphicsTestDrawer{}); }
+    loom::Value policy() const override { return loom::to_value(GraphicsTestDrawer{}); }
+    void revive(const loom::Value&) override {}
+    std::vector<std::string> roots;
+};
+
+} // namespace
+
+TEST_CASE("a weave with DrawingFacet and ManualFacet runs its own after_delivery before the "
+          "drawing facet flushes in the same delivery") {
+    FacetedRig f;
+    REQUIRE_FALSE(f.r.shown().rows.empty());
+    CHECK(f.r.shown().rows[0] == "hook 0 600x264");
+
+    const std::int64_t showings = f.r.shown().showings;
+    f.r.to_role(kDrawer, GraphicsTestBeat{});
+    f.r.drain();
+    const gfx::WindowShown after = f.r.shown();
+    CHECK(after.showings == showings + 1);
+    CHECK(after.rows[0] == "hook 1 600x264");
+
+    ShapeDocumentReader reader(f.r.bus, kDrawer);
+    const auto doc = reader.ask("GraphicsTestBeat", 1);
+    CHECK(doc.refusal.empty());
+    CHECK(doc.text == "One beat for the faceted drawer.");
+}
+
+TEST_CASE("an AreaRoom with the same window and epoch and a changed w or h updates the canvas's "
+          "room and redraws") {
+    gfx::Canvas canvas("test.owner", "test.area");
+    CHECK(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 240, 120, {3}}));
+    CHECK(canvas.width() == 240);
+    CHECK(canvas.height() == 120);
+    CHECK_FALSE(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 240, 120, {3}}));
+    CHECK(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 360, 120, {3}}));
+    CHECK(canvas.width() == 360);
+    CHECK(canvas.height() == 120);
+    CHECK(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 360, 180, {3}}));
+    CHECK(canvas.width() == 360);
+    CHECK(canvas.height() == 180);
+
+    FacetedRig f;
+    REQUIRE(f.raw->rooms() == 1);
+    const std::size_t mark = f.r.log.size();
+    f.r.to_role(gfx::kGraphicsRole,
+                gfx::AreaPlaced{kDrawer, gfx::kTerminalWindow, kDrawer, 0, 0,
+                                40 * gfx::kCellPx, 18 * gfx::kCellPx, 0, true});
+    f.r.drain();
+    const auto rooms = f.r.read<gfx::AreaRoom>(mark, window_office());
+    REQUIRE(rooms.size() == 1);
+    CHECK(rooms[0].w == 40 * gfx::kCellPx);
+    CHECK(rooms[0].h == 18 * gfx::kCellPx);
+    CHECK(f.raw->rooms() == 2);
+    const auto drawn = f.r.read<gfx::Drawn>(mark, kDrawer);
+    REQUIRE(drawn.size() == 1);
+    CHECK(drawn[0].whole);
+    CHECK(f.r.shown().rows[0] == "hook 0 480x216");
+}
+
+TEST_CASE("zen.DescribeAccepted on a weave with facets reports the exact union of the weave's and "
+          "its facets' accepted shapes") {
+    FacetedRig f;
+    std::vector<std::string> accepted;
+    for (const auto& s : f.r.bus.accepted_schemas(f.drawer)) {
+        accepted.push_back(s->name());
+    }
+    std::sort(accepted.begin(), accepted.end());
+    const std::vector<std::string> expected{
+        "AreaRoom",
+        "DrawnRefused",
+        "GraphicsTestBeat",
+        "ShapeDocumentRequested",
+        "zen.DescribeAccepted",
+        "zen.PokeDescribe",
+        "zen.PokeRead",
+        "zen.PokeResetState",
+        "zen.PokeWrite",
+    };
+    CHECK(accepted == expected);
+
+    auto asker = std::make_unique<DescribeAsker>();
+    DescribeAsker* raw_asker = asker.get();
+    loom::Grant g;
+    g.allow_to_role(loom::DescribeAccepted::zen_name, loom::DescribeAccepted::zen_version, kDrawer);
+    const loom::WeaveId id = f.r.bus.register_weave(std::move(asker), std::move(g));
+    (void)f.r.bus.send_as_to_role(
+        id, kDrawer, loom::Message(loom::to_value(loom::DescribeAccepted{}), id, id, 1));
+    f.r.drain();
+    std::vector<std::string> wire_names = raw_asker->roots;
+    std::sort(wire_names.begin(), wire_names.end());
+    CHECK(wire_names == expected);
+}
+

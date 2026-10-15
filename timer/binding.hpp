@@ -197,7 +197,7 @@ public:
     std::size_t size() const { return bindings_.size(); }
 
 private:
-    template <class S, class State, class A, class E>
+    template <class S, class State, class A, class E, class D>
     friend class TimedWeave;
     friend class TimerHandle<Self>;
 
@@ -322,13 +322,14 @@ private:
 /// The authoring base: `WeaveBase` plus the Timer protocol, already handled. The author's own
 /// Accept/Emit get the binding's prepended; the manifest carries the composed contract and no
 /// wildcard, widened grant or undeclared emission.
-template <class Self, class State, class AcceptList, class EmitList = loom::Emit<>>
+template <class Self, class State, class AcceptList, class EmitList = loom::Emit<>,
+          class Dispatch = Self>
 class TimedWeave;
 
-template <class Self, class State, class... A, class... E>
-class TimedWeave<Self, State, loom::Accept<A...>, loom::Emit<E...>>
+template <class Self, class State, class... A, class... E, class Dispatch>
+class TimedWeave<Self, State, loom::Accept<A...>, loom::Emit<E...>, Dispatch>
     : public loom::WeaveBase<
-          Self, State,
+          Dispatch, State,
           loom::Accept<loom::Activated, TimerReady, TimerFired, TimerResolution, A...>,
           loom::Emit<EnsureTimer, EnsureRoleTimer, CancelTimer, E...>> {
 public:
@@ -462,6 +463,8 @@ private:
     zengine::ActivationCursor activation_; ///< per-incarnation, never state
     Bindings bindings_;
 };
+
+using zengine::With;
 
 } // namespace zengine::timer
 

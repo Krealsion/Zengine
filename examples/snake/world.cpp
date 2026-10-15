@@ -47,7 +47,7 @@ using State = v1::SnakeWorldState;
 constexpr const char* kNewGame = "new-game";
 
 class SnakeWorld
-    : public gfx::DrawingWeave<
+    : public gfx::With<gfx::DrawingFacet>::Weave<
           SnakeWorld, State,
 #if defined(SNAKE_WORLD_V2)
           loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionIssued,
@@ -62,10 +62,10 @@ class SnakeWorld
 #endif
           timer::TimedWeave> {
 public:
-    using DrawingWeave::on;
+    using Weave::on;
 
     SnakeWorld()
-        : DrawingWeave(kWorldRole, kWorldArea),
+        : Weave(kWorldRole, kWorldArea),
           beat_(timers().repeat(kTickTimerId, std::chrono::milliseconds(kTickMs),
                                 &SnakeWorld::on_beat)) {}
 

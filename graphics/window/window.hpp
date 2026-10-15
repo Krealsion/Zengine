@@ -85,13 +85,14 @@ template <class Terminal>
 class WindowT;
 
 template <class Terminal>
-using WindowBase = zengine::timer::TimedWeave<
-    WindowT<Terminal>, WindowState,
-    loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
-                 ElementCodeOffered, GraphicsReady, WindowShowAsked,
-                 zengine::manual::ShapeDocumentRequested>,
-    loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed, ElementPressed,
-               ActionIssued, WindowShown, zengine::manual::ShapeDocumentShown>>;
+using WindowBase = zengine::With<
+    zengine::manual::ManualFacet<zengine::manual::pages::zengine_window_terminal::kManual>>::
+    Weave<WindowT<Terminal>, WindowState,
+          loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
+                       ElementCodeOffered, GraphicsReady, WindowShowAsked>,
+          loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
+                     ElementPressed, ActionIssued, WindowShown>,
+          zengine::timer::TimedWeave>;
 
 template <class Terminal>
 class WindowT : public WindowBase<Terminal> {
@@ -254,13 +255,6 @@ public:
         s.refusals = this->state_.refusals;
         s.last_refusal = last_refusal_;
         (void)mail.answer(s);
-    }
-
-    /// What a shape it accepts does, from its page, to the asker alone.
-    void on(const zengine::manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(
-            zengine::manual::shape_document(ask, this->accepted_schemas(),
-                                            zengine::manual::pages::zengine_window_terminal::kManual));
     }
 
     // ---- life ---------------------------------------------------------------------------------
