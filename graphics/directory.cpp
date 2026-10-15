@@ -6,11 +6,13 @@
 // introduces an area to its window once the window and the area's skin are known, and the window
 // tells the owner its room; it is told again of every change, and it stays off the path a picture
 // takes.
-// Reference: graphics/docs/graphics.md, "The directory".
+// Reference: graphics/docs/zengine.graphics.md, its manual, compiled in and answered.
 
 #include "graphics/vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.graphics.hpp" // this office's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -44,9 +46,10 @@ class Directory
     : public loom::WeaveBase<
           Directory, DirectoryState,
           loom::Accept<gfx::WindowOffered, gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
-                       gfx::ElementCodeOffered, gfx::RoomAsked, loom::Activated>,
+                       gfx::ElementCodeOffered, gfx::RoomAsked, loom::Activated,
+                       zengine::manual::ShapeDocumentRequested>,
           loom::Emit<gfx::AreaIntroduced, gfx::AreaWithdrawn, gfx::ElementCodeOffered,
-                     gfx::GraphicsReady>> {
+                     gfx::GraphicsReady, zengine::manual::ShapeDocumentShown>> {
 public:
     /// A window, as its own office: every code offered, then each of its areas introduced, which
     /// the window answers with each owner's room -- in that order, so an element a fresh window is
@@ -145,6 +148,12 @@ public:
         if (activation_.accept(mail, a)) {
             (void)mail.as_role(gfx::kGraphicsRole).publish(gfx::GraphicsReady{});
         }
+    }
+
+    /// What a shape it accepts does, from its page, to the asker alone.
+    void on(const zengine::manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(zengine::manual::shape_document(
+            ask, accepted_schemas(), zengine::manual::pages::zengine_graphics::kManual));
     }
 
 private:
