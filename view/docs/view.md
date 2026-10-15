@@ -4,7 +4,7 @@ A **view** is a small pane described as data rather than written in C++: its siz
 elements placed inside it in whole pixels, the fields its labels show, and the intents its
 buttons say. The view host
 registers each running view as a participant of its own, and the view renderer draws it on its
-pane's canvas. A view is made and run in the [View Builder](view-builder.md); this
+pane's canvas. A view is made and run in the [View Builder](zengine.view.builder.md); this
 page is the contract beneath it.
 
 ## The description
