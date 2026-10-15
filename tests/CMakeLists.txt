@@ -1096,6 +1096,8 @@ zengine_workshop_suite(panes
                 "SOURCE_TRANSFER_GOLDEN_FOR_PANES=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_ensure_timer.generated.hpp\"")
 # ...and the Builder pane's page as its build embeds it, which the pane's answer is compared to.
 zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/builder/docs/zengine.builder-pane.md)
+# ...and Info's, which it answers for each of its panes.
+zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/info/docs/zengine.info.md)
 
 zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
