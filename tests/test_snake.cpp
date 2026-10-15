@@ -697,7 +697,7 @@ TEST_CASE("moment 3: the world grows - graceful swap, the letter, the migration"
     const Recorded::Answer second = r.command(
         loom::SwapWeave{kWorldRole, "snake-world-v2", SNAKE_SO_WORLD_V2, /*graceful=*/true});
     REQUIRE(second.kind == 0);
-    r.tick(); // heir seeds fresh, then folds the adopted state (last visual wins)
+    r.tick(); // the heir's first beat claims, and the adopted state is its first visual
     CHECK(same_visual(r.rec.visuals.back(), pre_second));
     const loom::WeaveId heir{static_cast<std::uint64_t>(std::stoll(second.text))};
     CHECK(r.poke(heir, loom::PokeRead{"growths"}).text == "1");
