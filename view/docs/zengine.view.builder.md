@@ -1,0 +1,198 @@
+# zengine.view.builder -- the View Builder
+
+**Manual.** The pane where you make a *view* by hand: a small panel of number fields, buttons and
+labels, placed in whole pixels on a design canvas, then run in a pane of its own. It is a *weave*: a
+piece of Workshop that is loaded, replaced and spoken to by messages, built as
+`zengine-view-builder`. Other weaves reach it by its *office*, the name it answers to,
+`zengine.view.builder`; its pane is `view-builder`. New to it? Start with
+[Make a small panel by hand in the View Builder](view-builder.md).
+
+## About
+
+A view is data, not C++: its name, its size, its elements, the field each label shows and the
+message each button says, its *intent* ([the description](view.md#the-description)). The view's name
+is the office it runs under and the namespace of what it says.
+
+The pane draws the view you are making with the view's own picture code, at its own pixels, on the
+design canvas in its middle, so what you see there is what runs. Along the top is the bar, `[New]`
+`[Open]` `[Save]` `[Run]` `[Apply]` `[Stop]`; `[Save*]` says the view is unsaved, `[Running]` that
+it runs. Down the left: the view's name in `View`, its file in `File`, `Add` with `[Label]`
+`[Number]` `[Button]`, its `Size` and the `Grid` in boxes, and the list of its elements. The
+selected element's values sit in boxes on the right in a wide pane, below the list in a narrow one.
+Beneath the canvas a row says the view's name, `running` or `stopped`, and its file; the last two
+rows are the notice, where every answer and refusal is said.
+
+The pane runs nothing itself. It asks the view host, `zengine.view.host`, to run your view, change
+it or stop it, and shows the host's answer on the notice. The running view is a participant of its
+own, under the view's name, in a pane of its own. A save asks Workshop first whether the hand that
+pressed it may write a file. A pane with no canvas shows one row,
+`View Builder: making a view needs a canvas-capable Workshop`.
+
+## Use
+
+Open the Pane Manager, <!-- key desktop.panes -->`ctrl+p`<!-- /key -->, and press
+<!-- key launcher.new -->`n`<!-- /key -->, or choose `View Builder` in its list. Its keys act only
+while it holds your keys.
+
+- **Make** an element by dragging a kind from `Add` onto the canvas; a click on a kind makes one
+  below the last.
+- **Select** one by clicking it on the canvas or in the list; **move** it by dragging it, and
+  **size** it by dragging a handle. A place by hand snaps to the edges near it and to the `Grid`;
+  hold `Alt` to set every snap aside. The arrow keys move it a pixel, a cell with `Shift`; `Delete`
+  removes it; `Escape` puts a choice or the selection down.
+- **Size** the view by its handles, or type into the `Size` boxes. Nothing sits outside the view:
+  a value or a key that would cross its edge is refused in words.
+- **Pan** the canvas with the middle button.
+- **Type** a value: click its box, type, press `Return`; `Tab` keeps it and moves to the next box,
+  `Escape` puts it back. A value the view's rules refuse stays in its box, the reason on the notice.
+- **Make an intent**: select a button and press `[Make intent]`.
+- **Carry** what a button says: drag its `says` words out, or right-press them and choose `Carry`.
+  Drop a shape or a field on a label, on the canvas or its row, and the label shows it.
+
+Then [`run`](#run) it, [`apply`](#apply) each change, and [`save`](#save) it. Each command but
+[`choices`](#choices) is a control on the bar. A value being typed is kept before any command acts; if it is refused, the
+command does nothing.
+
+## Commands
+
+### `save`
+
+Writes the view to the file named in `File`, and remembers it for the next launch.
+
+- **Takes:** the view and the `File` box. Default key <!-- key save -->`ctrl+s`<!-- /key -->; the
+  control `[Save]`.
+- **Answers:** asks Workshop to allow a write for the hand that pressed it, and writes nothing until
+  it answers; then `Saved tally.view`, and the project's `view-builder.json` names that file
+  ([Files](#files)). A write of it that fails is said after the notice,
+  `(not remembered for the next launch: <the reason>)`, and made again at the next chance.
+- **Refuses:** `name a file to save the view to`, with nothing asked; `A save is waiting for
+  Workshop's answer; save again once it comes`; `Saving was refused: <Workshop's reason>`, as a
+  guest's on a weaver's host; `Not saved: File no longer names <the file>; save again`;
+  `Not saved: Workshop could not be asked to allow it`; `The save waiting for Workshop was dropped;
+  save again`, when the pane was reloaded meanwhile; and the file door's reason when it cannot write.
+- **Example:** type `tally.view` under `File`, press <!-- key save -->`ctrl+s`<!-- /key -->.
+
+### `open`
+
+Reads the view in the file named in `File`, in place of the one you have; it is shown from its top
+left corner.
+
+- **Takes:** the `File` box. Default key <!-- key open -->`ctrl+o`<!-- /key -->; the control
+  `[Open]`.
+- **Answers:** `Opened tally.view`.
+- **Refuses:** over an unsaved view, the first press says `The view is unsaved: Save it, or press
+  Open again to discard it`, and the bar says `[Open: discard?]`; `Type the view's file under File,
+  then Open`; `stop the running view before opening another`; and the reason the file could not be
+  read or is not a view ([the description](view.md#the-description)).
+- **Example:** type `tally.view` under `File`, press <!-- key open -->`ctrl+o`<!-- /key -->.
+
+### `run`
+
+Asks the view host to run the view: it becomes a participant of its own, under the view's name, and
+its pane opens.
+
+- **Takes:** the view as it stands. Default key <!-- key run -->`ctrl+r`<!-- /key -->; the control
+  `[Run]`.
+- **Answers:** `run asked of the view host`, then the host's answer, as `registered tally.panel; it
+  waits until told tally.Total`. The bar then says `[Running]`, and `view-builder.json` records
+  that it runs. The asks are `ViewRun` and `ViewAnswer`
+  ([view/vocabulary.hpp](../vocabulary.hpp)).
+- **Refuses:** `run refused: ` and the host's reason, as `this session already runs a view; apply a
+  change or stop it first`, or `` `tally.panel` is already held by a running participant ``;
+  `run was not delivered: <the reason>`; `run could not be queued`; `16 asks are unanswered; wait
+  for the view host`.
+- **Example:** after making the tally panel, press <!-- key run -->`ctrl+r`<!-- /key -->.
+
+### `new`
+
+Starts a new view, `my.view`, empty, with no file.
+
+- **Takes:** nothing. No default key; the control `[New]`.
+- **Answers:** `new complete`; the canvas shows the new view from its corner.
+- **Refuses:** over an unsaved view, the first press says `The view is unsaved: Save it, or press
+  New again to discard it`, and the bar says `[New: discard?]`; `stop the running view before
+  starting another`.
+- **Example:** press `[New]`, then type the view's name under `View`.
+
+### `apply`
+
+Changes the running view to the one you have.
+
+- **Takes:** the view as it stands, and the view running. No default key; the control `[Apply]`.
+- **Answers:** `apply asked of the view host`, then the host's answer. With the same shapes it is
+  `applied in place: tally.panel tells and says the same shapes`, and what was typed into the
+  running view stays; with other shapes, a label bound to a new field say, it is `registered
+  tally.panel afresh: its shapes changed` and what it waits for, and its fields start again from the description. The ask
+  is `ViewApply` ([view/vocabulary.hpp](../vocabulary.hpp)).
+- **Refuses:** `apply refused: ` and the host's reason, as `no view runs in this session for this
+  participant`, or Loom's words when the changed view cannot register beside the one running, which
+  goes on as it was; `apply was not delivered: <the reason>`.
+- **Example:** move a label, press `[Apply]`.
+
+### `stop`
+
+Stops the running view: its pane says it stopped, then the participant is gone.
+
+- **Takes:** the view running. No default key; the control `[Stop]`.
+- **Answers:** `stop asked of the view host`, then `stopped tally.panel`; the bar says `[Run]`
+  again, and `view-builder.json` records that it does not run. The ask is `ViewStop`
+  ([view/vocabulary.hpp](../vocabulary.hpp)).
+- **Refuses:** `stop refused: no view runs in this session for this participant`; `stop was not
+  delivered: <the reason>`.
+- **Example:** press `[Stop]`.
+
+### `choices`
+
+Shows the next of the fields a label could show, when a shape carried onto it has more than the
+pane's rows hold.
+
+- **Takes:** the field choices shown. No default key; the control `[More]`, under the choices.
+- **Answers:** the next choices, each a button; pressing one binds the label, `` `total` shows
+  tally.Total.total ``.
+- **Refuses:** nothing; while no `[More]` shows, nothing moves.
+- **Example:** carry a shape of many fields onto a label, press `[More]`.
+
+## Hears
+
+### `ViewEdit`
+
+`ViewEdit` v1 ([vocabulary.hpp](../view-builder/vocabulary.hpp)), from a weave granted it: one edit
+by name, `action` and its `arguments`, as the controls make them; the edit `describe` says their
+grammar on the notice. Answered to the asker with `ViewEdited` v1: whether it was taken, the
+notice, and the view's bytes. An edit is taken whole or refused whole. Its `save` writes at once:
+only a hand's save asks Workshop.
+
+## Follow
+
+The View Builder publishes nothing. Its asks go to the view host, which answers it alone, and what
+it made of each is on its notice. To follow a running view, follow the view: it is a participant of
+its own, publishing its intents' shapes to whoever accepts them
+([the view renderer](view.md#the-view-renderer)).
+
+## Files
+
+- **The view file**, any path you type under `File`, a path that is not absolute taken from the
+  directory Workshop runs in: the view's description, saved whole
+  ([the description](view.md#the-description)). The pan and the grid are not in it.
+- **`view-builder.json`**, in the project's directory, which `zengine.project` names: the view file
+  the builder has open, relative to the project when it is inside it, and whether its view runs.
+  It names only a file a view was saved to or opened from, never a name typed into `File` and not
+  saved. It is written when either changes.
+- **At a launch** the builder reads it, opens that file, and if its view ran, runs it again, its
+  pane where your desk left it. It says why when it cannot: `No project directory: the view this
+  builder runs is not remembered across a launch`; `view-builder.json is not this builder's file`;
+  `Could not open <the file>: <the reason>`, or `Could not run <the file> again: <the reason>`. A
+  view file it could not open leaves `view-builder.json` as it was until you open, save or start a
+  view, so putting the file back brings the view back.
+
+## See also
+
+- [Make a small panel by hand in the View Builder](view-builder.md): the tally panel, made, run and
+  joined to Flow by dragging its shapes.
+- [Described views](view.md): the description and its file format, the view host, and the
+  renderer a running view is drawn by.
+- The shapes: the view host's asks in [view/vocabulary.hpp](../vocabulary.hpp); the builder's own in
+  [view/view-builder/vocabulary.hpp](../view-builder/vocabulary.hpp); the pane protocol's in
+  [workshop/pane_vocabulary.hpp](../../workshop/pane_vocabulary.hpp),
+  [workshop/pane_operation.hpp](../../workshop/pane_operation.hpp) and
+  [workshop/pane_carry.hpp](../../workshop/pane_carry.hpp).

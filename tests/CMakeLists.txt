@@ -1014,6 +1014,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_actions.cpp
             test_workshop_panes_files.cpp
             test_workshop_panes_builder.cpp
+            test_workshop_panes_view_builder.cpp
             test_workshop_panes_attention.cpp
             test_workshop_panes_info.cpp
             test_workshop_inventory_info.cpp

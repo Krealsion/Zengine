@@ -11,10 +11,14 @@ pane to the other. Workshop runs the views; this folder has no headers for other
 
 ## Pages
 
+- [`zengine.view.builder`](docs/zengine.view.builder.md): the View Builder's manual, each command
+  it declares, what it hears and the files it keeps.
 - [Make a small panel by hand in the View Builder](docs/view-builder.md): the guide to making a
   view, running it, and joining it to Flow by dragging its shapes.
 - [Described views](docs/view.md): the reference beneath the guide: a view's description and its
   file format, the view host, and the renderer that draws a view.
+
+![The View Builder wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.view.builder-manual.png)
 
 ## What is in this folder
 
@@ -26,6 +30,6 @@ pane to the other. Workshop runs the views; this folder has no headers for other
 | `vocabulary.hpp` | what may be asked of the view host: run a view, change it, stop it |
 | `view-builder/` | the View Builder, the pane where a view is made by hand |
 | `CMakeLists.txt` | how the folder builds |
-| `docs/` | these pages and their pictures |
+| `docs/` | the View Builder's manual, these pages and their pictures |
 
 Working on it: [AGENTS.md](AGENTS.md).
