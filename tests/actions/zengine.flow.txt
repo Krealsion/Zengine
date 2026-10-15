@@ -1,0 +1,40 @@
+# The action census's rows for zengine.flow; the form is tests/actions.txt's. ASCII only.
+zengine.flow - ask-save ctrl+s - - Save Flow workspace
+zengine.flow - ask-open ctrl+o - - Open Flow workspace
+zengine.flow - run ctrl+r - - Run Flow
+zengine.flow - ask-generate ctrl+g - - Generate native C++
+zengine.flow - ask-discard unbound - - Discard unsaved marker
+zengine.flow - ask-new unbound - - New Flow workspace
+zengine.flow - ask-import unbound - - Import a Flow definition
+zengine.flow - ask-export unbound - - Export the Flow definition
+zengine.flow - apply unbound - - Apply to the running graph
+zengine.flow - stop unbound - - Stop the running graph
+zengine.flow - inspect unbound - - Inspect the running graph
+zengine.flow - catalog unbound - - Read the catalog
+zengine.flow - page-graph unbound - - Show the graph
+zengine.flow - page-state unbound - - Show the state
+zengine.flow - page-messages unbound - - Show the messages
+zengine.flow - page-library unbound - - Show the library
+zengine.flow - page-events unbound - - Show the events
+zengine.flow - fit unbound - - Reset the view
+zengine.flow - zoom-in unbound - - Zoom in
+zengine.flow - zoom-out unbound - - Zoom out
+zengine.flow - ask-trigger unbound - - Add a trigger
+zengine.flow - ask-emit unbound - - Add an emit
+zengine.flow - add-fold unbound - - Add the form shown
+zengine.flow - ask-state-field unbound - - Add a state field
+zengine.flow - keep-state unbound - - Keep the state
+zengine.flow - ask-message unbound - - New message
+zengine.flow - ask-message-field unbound - - Add a message field
+zengine.flow - ask-emitted-message unbound - - New emitted message
+zengine.flow - ask-emitted-field unbound - - Add an emitted field
+zengine.flow - ask-library-open unbound - - Import into the library
+zengine.flow - ask-library-save unbound - - Export the library
+zengine.flow - ask-preset unbound - - Save the example
+zengine.flow - send unbound - - Send the example
+zengine.flow - drop-send unbound - - Send the dropped value
+zengine.flow - drop-accept unbound - - Declare it as accepted
+zengine.flow - drop-emit unbound - - Declare it as emitted
+zengine.flow - drop-cancel unbound - - Put the dropped value down
+zengine.flow - dialog-confirm return - - Confirm the dialog
+zengine.flow - dialog-cancel unbound - - Cancel the dialog
