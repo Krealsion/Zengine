@@ -87,6 +87,20 @@ struct Stage {
         dir = std::filesystem::path(WORKSHOP_LOAD_STAGE_DIR);
         std::error_code ec;
         std::filesystem::create_directories(dir, ec);
+        // A RUN STARTS WITH NO RELOAD COPIES. A reload copies its product to a name no file holds
+        // in `<stem>.reloads/`, which nothing prunes (staging.hpp), so each run would add its
+        // copies to every earlier run's. Cleared before anything loads, the last run's copies stay
+        // for a reader of its red; a case that needs a name an earlier run took makes that file.
+        for (const std::filesystem::directory_entry& e :
+             std::filesystem::directory_iterator(dir, ec)) {
+            if (e.is_directory() && e.path().extension() == ".reloads") {
+                std::error_code removed;
+                std::filesystem::remove_all(e.path(), removed);
+                REQUIRE_MESSAGE(!removed, "cannot clear ", e.path().string(), ": ",
+                                removed.message());
+            }
+        }
+        REQUIRE_MESSAGE(!ec, "cannot list the stage ", dir.string(), ": ", ec.message());
         // THE FOUR ARTIFACTS THIS SUITE STAGES, and one of them is never named by a
         // plan in tier 6 on purpose.
         put("zengine-operators-basic", PROVIDER_BASIC_SO);
@@ -111,10 +125,10 @@ struct Stage {
     }
 
     /// STAGE `from` UNDER `stem`: the destination holds the source's CURRENT bytes whether or
-    /// not an earlier run left a file there. The stage lives in the build tree and nothing
-    /// deletes it, so a second run of this binary stages over its own output. ⚠ Not "twice
-    /// changes nothing": artifacts are rebuilt between runs, so a repeat must carry the new
-    /// bytes. Both halves are pinned in tier 0 below.
+    /// not an earlier run left a file there. The stage lives in the build tree and only its
+    /// reload copies are cleared, so a second run of this binary stages over its own output.
+    /// ⚠ Not "twice changes nothing": artifacts are rebuilt between runs, so a repeat must carry
+    /// the new bytes. Both halves are pinned in tier 0 below.
     void put(const char* stem, const char* from) const {
         const std::filesystem::path dest = dir / (std::string(stem) + kArtifactSuffix);
         // `put` DELETES its destination, so a source that IS the destination would be
@@ -4921,16 +4935,27 @@ TEST_CASE("a live weave-only row reloads in place -- same WeaveId, state kept, A
 
     // "THE WEAVER REBUILT IT": the product is a copy of the same image, in `products/`.
     rig.product("zengine-plain-weave", PLAIN_WEAVE_SO);
-    // WHAT EARLIER RUNS OF THIS BINARY LEFT IN THE RELOAD DIRECTORY: a reload's copy is a file
-    // nothing wrote before, so it is none of these (WL-PROJ-16).
+    // A NAME ANOTHER RUN TOOK: the first this rig would try, made here unless an earlier case of
+    // this run made it, since each run starts with no reload copies.
+    const std::filesystem::path reloads = stage().dir / "zengine-plain-weave.reloads";
+    const std::string taken =
+        (reloads / ("zengine-plain-weave-1" + std::string(kArtifactSuffix))).generic_string();
+    if (!std::filesystem::exists(std::filesystem::path(taken))) {
+        std::filesystem::create_directories(reloads);
+        write_file(taken, "an earlier run's reload copy\n");
+    }
+    const std::string taken_bytes = file_text(taken);
+    // WHAT IS IN THE RELOAD DIRECTORY BEFORE THE RELOAD: a reload's copy is a file nothing
+    // wrote before, so it is none of these (WL-PROJ-16).
     std::vector<std::string> left;
     {
         std::error_code listed;
-        for (const std::filesystem::directory_entry& e : std::filesystem::directory_iterator(
-                 stage().dir / "zengine-plain-weave.reloads", listed)) {
+        for (const std::filesystem::directory_entry& e :
+             std::filesystem::directory_iterator(reloads, listed)) {
             left.push_back(e.path().generic_string());
         }
     }
+    REQUIRE(std::find(left.begin(), left.end(), taken) != left.end());
     rig.offer("zengine-plain-weave");
 
     // THE SAME WEAVE, STILL THERE, WITH THE STATE IT HAD.
@@ -4960,6 +4985,7 @@ TEST_CASE("a live weave-only row reloads in place -- same WeaveId, state kept, A
           std::string::npos);
     CHECK(std::filesystem::exists(std::filesystem::path(row.image)));
     CHECK(std::find(left.begin(), left.end(), row.image) == left.end());
+    CHECK(file_text(taken) == taken_bytes);
     CHECK(row.previous == rig.plan_file("zengine-plain-weave"));
     CHECK_FALSE(row.default_image);
     CHECK(rig.staging.reloads >= 1);
