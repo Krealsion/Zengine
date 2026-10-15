@@ -12,13 +12,17 @@ for example `#include "flow/graph_edit.hpp"` or `#include "flow/flow-host/vocabu
 
 ## Pages
 
+- [`zengine.flow`](docs/zengine.flow.md): the Flow pane's manual, every command it declares, what
+  each answers and refuses, and the pages it shows.
 - [Author a running graph in Workshop](docs/flow.md): drawing, running and changing a graph in
-  the Flow pane.
+  the Flow pane, step by step.
 - [Make and run a Flow definition](docs/flow-guide.md): the standalone workbench, step by step.
 - [Flow in an existing host](docs/flow-runtime.md): running Flow projects on a program's own bus
   and operators.
 - [Flow authoring and native generation](docs/flow-reference.md): the reference for the library,
   its files and the C++ it generates.
+
+![Flow wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.flow-manual.png)
 
 ## What is in this folder
 

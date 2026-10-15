@@ -238,7 +238,7 @@ Its law, pages and suites: [`flow/AGENTS.md`](../../flow/AGENTS.md).
   [Flow authoring](../../agents/flow.md)
 - **Powers are found only through the discovery door**, and shown as it answered them.
   [Flow authoring](../../agents/flow.md)
-- **An open dialog refuses every `FlowEdit`.** [Other interfaces](../../flow/docs/flow.md#other-interfaces)
+- **An open dialog refuses every `FlowEdit`.** [`FlowEdit`](../../flow/docs/zengine.flow.md#flowedit)
 - **A new semantic boundary joins the named witnesses**, not only a canned example.
   [Flow authoring](../../agents/flow.md)
 - **A Flow session pumps and waits nothing of its own**, and `FlowAnswer.ok` on a send proves
