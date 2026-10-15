@@ -166,7 +166,10 @@ Opens the chosen row's menu beside it: show, focus or hide that pane, manage it,
   a row offers that row's menu.
 - **Answers:** the menu, presented by the menu presenter: `show <name>` (or `focus <name>` and `hide
   <name>`), `manage <name> >`, Workshop's own menu for that pane, and `inspect in Info`, which asks
-  `zengine.info` to inspect it.
+  `zengine.info` to inspect it as its own inspect does: `asking Info to inspect <name>`, then `Info
+  inspects <name>`, `Info did not inspect <name> -- <Info's reason>`, or `Info could not be asked
+  to inspect <name> (<the bus's reason>)` when Info is not loaded; `inspect in Info not sent --
+  nothing was queued`. Only the newest ask is answered.
 - **Refuses:** `no row is chosen -- choose one, then open its menu`; a line chosen after its pane
   left the list, `<pane> left the list -- nothing done`.
 - **Example:** press <!-- key launcher.menu -->`m`<!-- /key --> and choose `hide Info`.
