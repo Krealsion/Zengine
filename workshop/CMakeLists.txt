@@ -99,6 +99,9 @@ target_sources(zengine-workshop-logic PRIVATE grant.cpp)
 
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
                                              PRIVATE zengine-warnings zengine-sanitize)
+# The editor switch's manual, compiled into whatever mounts the office
+# (`editor_switch.hpp`): it answers a shape's section from this page (`ShapeDocumentRequested`).
+zengine_manual(zengine-workshop-vocabulary INTERFACE ../editor/docs/zengine.editor-switch.md)
 
 # The host needs a Loom that can host .so weaves: it loads a Skin and an Input producer.
 if(NOT TARGET loom::kernel)

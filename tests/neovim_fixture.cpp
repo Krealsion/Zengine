@@ -64,6 +64,17 @@ std::string response(std::uint32_t id, const mp::Value& error, const mp::Value& 
     return frame;
 }
 
+/// A NOTIFICATION THE MODULE SENDS, `zengine_mode`: Neovim's mode, as `mode()` spells it.
+std::string mode_said(const std::string& mode) {
+    std::string frame;
+    mp::Writer w(frame);
+    w.array_header(3);
+    w.uinteger(2);
+    w.str("zengine_mode");
+    w.value(rpc::params(mp::Value::str(mode)));
+    return frame;
+}
+
 /// A redraw that draws `text` on row 0 of a 1x40 grid and flushes.
 std::string redraw_of(const std::string& text) {
     std::string frame;
@@ -99,7 +110,7 @@ int main(int argc, char** argv) {
     // `nvim_get_mode`, `nvim_input` echoed as a flush, exit 0 on `qa!`. `old` is level 12; after
     // the first request `garbage` writes non-RPC bytes, `crash` exits 3, `flood` overflows every
     // bound and `stranger` answers an id nobody asked; `silent` answers nothing; `prompt` is
-    // blocked in `r` and never serves the module; `ignore-quit` ignores `qa!`.
+    // blocked in `r` and never serves the module; `ignore-quit` ignores `qa!`; `visual` is `ok` in Visual.
     const char* from_env = std::getenv("ZENGINE_NEOVIM_FIXTURE_MODE");
     const std::string mode = argc > 1 && argv[1][0] != '-' ? std::string(argv[1])
                              : from_env != nullptr && *from_env != '\0' ? std::string(from_env)
@@ -184,7 +195,9 @@ int main(int argc, char** argv) {
                 mp::Value::Map said;
                 said.push_back({mp::Value::str("did_enter"), mp::Value::integer(1)});
                 said.push_back({mp::Value::str("clipboard"), mp::Value::boolean(true)});
-                write_all(response(id, mp::Value::nil(), mp::Value::map(std::move(said))));
+                // ...`visual`'s module says, after each answer, that Neovim is in charwise Visual mode.
+                write_all(response(id, mp::Value::nil(), mp::Value::map(std::move(said))) +
+                          (mode == "visual" ? mode_said("v") : std::string()));
             } else {
                 write_all(response(id, mp::Value::str("fixture: unknown method " + method), mp::Value::nil()));
             }

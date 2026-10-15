@@ -178,7 +178,8 @@ target_link_libraries(zengine-failing-editor
 # once, before anything is activated, for a published path ending in `/b.cpp`. A reload of its
 # record into the normal image is the repair the cases witness; the normal image defines none of
 # it. Loaded by one suite, named in no host's boot list, never installed.
-zengine_weave(zengine-editor-throwing ${PROJECT_SOURCE_DIR}/editor/editor-pane/pane.cpp)
+zengine_weave(zengine-editor-throwing ${PROJECT_SOURCE_DIR}/editor/editor-pane/pane.cpp
+              MANUAL ${PROJECT_SOURCE_DIR}/editor/docs/zengine.editor.md)
 target_compile_definitions(zengine-editor-throwing PRIVATE ZENGINE_EDITOR_TEST_THROW_ON_B_CPP=1)
 target_link_libraries(zengine-editor-throwing PRIVATE zengine-workshop-vocabulary zengine-component
                                                      zengine-input-vocabulary zengine-activation)
@@ -201,7 +202,8 @@ target_link_libraries(zengine-builder-pane-reworded PRIVATE zengine-workshop-voc
 # serve), and one whose switch away loses something that moves with its document, so consent can
 # be asked for and made stale. Each definition compiles into its own image only.
 foreach(switch_variant IN ITEMS "b" "silent" "refusing" "not-live" "losing")
-    zengine_weave(zengine-editor-pane-${switch_variant} ${PROJECT_SOURCE_DIR}/editor/editor-pane/pane.cpp)
+    zengine_weave(zengine-editor-pane-${switch_variant} ${PROJECT_SOURCE_DIR}/editor/editor-pane/pane.cpp
+                  MANUAL ${PROJECT_SOURCE_DIR}/editor/docs/zengine.editor.md)
     target_link_libraries(zengine-editor-pane-${switch_variant}
         PRIVATE zengine-workshop-vocabulary zengine-component zengine-input-vocabulary
                 zengine-activation)
@@ -904,6 +906,8 @@ endif()
 # (`editor_transfer_story.hpp`); every case there rides the `neovim` gate.
 zengine_workshop_suite(neovim SOURCES test_workshop_neovim.cpp test_workshop_neovim_transfers.cpp
     DEFINITIONS ${zengine_neovim_suite_defs}
+                # The action census, whose rows for the Editor's office its manual is held to.
+                "ZENGINE_ACTIONS=\"${CMAKE_SOURCE_DIR}/tests/actions.txt\""
                 "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\""
     NEEDS zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture zengine-inventory
@@ -1026,12 +1030,17 @@ zengine_workshop_suite(panes
             test_workshop_panes_guests.cpp
             test_workshop_panes_guide.cpp
     NEEDS zengine-composer zengine-inventory zengine-inventory-pane zengine-builder-pane-reworded
+          zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
                 # The action census: what every shipped pane declares, pinned, and the census
                 # as it stands written beside the build; and the Builder pane built with other
                 # words, the image a reload in place swaps in.
                 "ZENGINE_ACTIONS=\"${CMAKE_SOURCE_DIR}/tests/actions.txt\""
                 "ZENGINE_ACTIONS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/actions-now-$<CONFIG>.txt\""
+                # ...and the Editor office's other holder, the Neovim-backed Editor, on the fake
+                # Neovim: the census and the manual are the office's, so both holders are driven.
+                "WORKSHOP_SO_NEOVIM_EDITOR=\"$<TARGET_FILE:zengine-neovim-editor>\""
+                "NEOVIM_FIXTURE=\"$<TARGET_FILE:zengine-neovim-fixture>\""
                 "WORKSHOP_SO_BUILDER_PANE_REWORDED=\"$<TARGET_FILE:zengine-builder-pane-reworded>\""
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\"" "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""

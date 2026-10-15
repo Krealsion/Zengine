@@ -1,0 +1,11 @@
+# The action census's rows for zengine.editor; the form is tests/actions.txt's. ASCII only.
+zengine.editor - editor.save ctrl+s - - save source
+zengine.editor - editor.newline return - - newline
+zengine.editor - editor.tab tab - - insert tab
+zengine.editor - editor.discard ctrl+d - - discard source edits
+zengine.editor - editor.extract ctrl+e - - carry the selection
+zengine.editor - editor.location ctrl+l - - carry this file's location
+zengine.editor - neovim.write ctrl+s - - write (:w)
+zengine.editor - neovim.jump-older ctrl+o - - jump back (<C-o>)
+zengine.editor - neovim.location unbound - - carry this file's location
+zengine.editor - neovim.extract ctrl+r - - carry the selection
