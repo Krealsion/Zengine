@@ -122,7 +122,9 @@ An office that carries its page answers `ShapeDocumentRequested` v1 `{shape, ver
 to the asker alone with `ShapeDocumentShown` v1: the page's section for that shape, its group, the
 page's content id, and the shape's content id as the office accepts it (`0x` and sixteen hex
 digits, as `tests/shapes.txt` spells one). `manual::shape_document` answers it from the office's own
-accepted list, so the page describes exactly the shapes the gate lets in.
+accepted list, and `manual::ManualFacet<Page>` (composed with `zengine::With`) contributes the
+`Accept`/`Emit` pair and answers the request automatically, so the page describes exactly the
+shapes the gate lets in.
 
 - The asker names the content id it holds, or none. Another id is another definition of the shape:
   the words are answered, `current` is false, and `said` says they are out of date for it.

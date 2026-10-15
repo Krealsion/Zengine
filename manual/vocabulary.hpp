@@ -101,4 +101,35 @@ ShapeDocumentShown shape_document(const ShapeDocumentRequested& ask, const Schem
 
 } // namespace zengine::manual
 
+namespace loom {
+template <class... S>
+struct Accept;
+template <class... S>
+struct Emit;
+class Mail;
+} // namespace loom
+
+namespace zengine {
+template <class... Facets>
+struct With;
+} // namespace zengine
+
+namespace zengine::manual {
+
+/// The facet that answers `ShapeDocumentRequested` from `Page` against the weave's `accepted_schemas()`.
+template <const Manual& Page>
+struct ManualFacet {
+    using Accept = loom::Accept<ShapeDocumentRequested>;
+    using Emit = loom::Emit<ShapeDocumentShown>;
+
+    template <class Self, class MailT = loom::Mail>
+    void on(Self& self, const ShapeDocumentRequested& ask, MailT& mail) {
+        (void)mail.answer(shape_document(ask, self.accepted_schemas(), Page));
+    }
+};
+
+using zengine::With;
+
+} // namespace zengine::manual
+
 #endif // ZENGINE_MANUAL_VOCABULARY_HPP

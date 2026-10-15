@@ -105,7 +105,7 @@ struct OperatorContext {
 /// and the board's code, chooses the skins, draws the status line, holds the reach (the manager,
 /// target-scoped, and the world's poke-reset door by role), and hears every answer.
 class OperatorWeave
-    : public gfx::DrawingWeave<
+    : public gfx::With<gfx::DrawingFacet>::Weave<
           OperatorWeave, OperatorState,
           loom::Accept<loom::Result, loom::Ack, loom::Refused, input::KeyPressed,
                        gfx::GraphicsReady>,
@@ -113,10 +113,10 @@ class OperatorWeave
                      loom::PokeResetState, gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
                      gfx::ElementCodeOffered>> {
 public:
-    using DrawingWeave::on;
+    using Weave::on;
 
     explicit OperatorWeave(OperatorContext& ctx)
-        : DrawingWeave(kOperatorRole, kStatusArea), ctx_(&ctx) {}
+        : Weave(kOperatorRole, kStatusArea), ctx_(&ctx) {}
 
     // The three standard answers. Refusal-ness is carried as a FLAG from the handler that knows
     // it by TYPE: the shape is the fact.
