@@ -9,6 +9,19 @@ from inventory_slots_demo import first_box
 from workshop_steps import picture
 
 
+def exercise_desk(office, view):
+    """The values desk with the restored view seated below it, at a front rank after every rank
+    the desk holds: Workshop refuses two panes that claim one."""
+    setup = layout("values")
+    panes = setup["fields"]["panes"]
+    panes.append(dict(provider=office, pane=view,
+        place=dict(mode="pixels", x="12", y=str(35 * 12)),
+        width=dict(mode="pixels", amount=str(50 * 12)),
+        height=dict(mode="pixels", amount=str(11 * 12)),
+        front=str(max((int(p["front"]) for p in panes), default=-1) + 1), settings=[]))
+    return setup
+
+
 def run(ctx):
     measured = Measured(ctx)
     hand = Hand(measured, ctx.inputs["link"])
@@ -55,11 +68,7 @@ def run(ctx):
         before = entries()
         command = next(e for e in before if e["label"] == command_name)
         slot = next(v for v in state["views"] if command["reference"] in v["entries"])
-        setup = layout("values")
-        setup["fields"]["panes"].append(dict(provider=office, pane=slot["id"],
-            place=dict(mode="pixels", x="12", y=str(35 * 12)),
-            width=dict(mode="pixels", amount=str(50 * 12)),
-            height=dict(mode="pixels", amount=str(11 * 12)), front="3", settings=[]))
+        setup = exercise_desk(office, slot["id"])
         hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)
         count = sum(e["label"] == output_name for e in before)
         ctx.check(count == 1, "fixture should contain its original output, without an automatic replay")
