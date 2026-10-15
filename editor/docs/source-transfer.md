@@ -12,7 +12,7 @@ and [Neovim in Workshop](neovim.md#carrying-text-commands-and-file-places), and 
 carry are the Editor's manual's ([`editor.extract`](zengine.editor.md#editorextract) and its
 siblings); the carry
 itself is Workshop's typed carry ([Workshop panes](../../workshop/docs/workshop-panes.md)); where the copies are kept
-is [Inventory](../../inventory/docs/inventory.md).
+is [Inventory](../../inventory/docs/zengine.inventory.md).
 
 ## The shapes
 

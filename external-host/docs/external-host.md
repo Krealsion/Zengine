@@ -55,7 +55,7 @@ them is, the pane inventory and the keymap --
 [the desk, read by message](#the-desk-a-panes-words-and-timed-drag-stories)), `inspect` (ask any participant what it accepts or to
 describe its exposed structure again, `zen.PokeDescribe`, and the guest door for the connection inventory) and
 `inventory` (list, add, capture, rename and remove entries, read them, and save against their
-revisions, plus acquiring retained Terminal values and picking up typed fields through Info; the legacy capture slot remains available — [the inventory reference](../../inventory/docs/inventory.md)).
+revisions, plus acquiring retained Terminal values and picking up typed fields through Info; the legacy capture slot remains available — [the Inventory office](../../inventory/docs/zengine.inventory.md)).
 The optional `demo` power reaches the demo service, Workshop setup application and the Info/Compose/Inventory view reset doors; see [demo setups](../../workshop/docs/demo-setups.md). It grants no input, capture or inventory access by itself.
 The separate `open` power lets a guest's own gesture reopen a saved file location dropped on the
 Editor: the Editor asks Workshop to approve opening a source through the managed opening
@@ -286,8 +286,8 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   wrote it or when; pair it with `inspect-capture`'s own settlement for a claim about causation)
   and `workshop/inventory-capture` (asks Workshop's *storage* inventory — a different inventory
   than the connections one above — to capture a named participant's own `zen.PokeStructure`,
-  then verifies Get against that capture's own snapshot; [the inventory
-  reference](../../inventory/docs/inventory.md) owns the pair's own contract and encoding).
+  then verifies Get against that capture's own snapshot; [the Inventory
+  pair](../../inventory/docs/inventory.md) owns the pair's own contract and encoding).
 - **Tools that work the way a weaver's hands do**, in the same package, judged by what Workshop
   says it holds -- each pane's words and the desk's own numbers, which the `capture` power reads
   -- rather than by comparing pictures: `workshop/act` (steps through one input session: press,

@@ -5,9 +5,9 @@
 #define ZENGINE_WORKSHOP_ARRANGEMENT_VOCABULARY_HPP
 
 // Asking a host what its authored project resolved: `ArrangementRequested` ->
-// `ResolvedArrangement`, answered by one office (introspection/docs/introspection.md); which powers
-// resolve is the discovery door's (powers_vocabulary.hpp). Values only: a picture of the owner's
-// facts, which confers no authority over them.
+// `ResolvedArrangement`, answered by one office (introspection/docs/zengine.arrangement.md); which
+// powers resolve is the discovery door's (powers_vocabulary.hpp). Values only: a picture of the
+// owner's facts, which confers no authority over them.
 
 #include <zen/weave/shape.hpp>
 

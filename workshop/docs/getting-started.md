@@ -270,6 +270,6 @@ Neither is a degraded version of the other, and the same published intent produc
 - [The source editor](../../editor/docs/editor.md) — edit the file a recipe names, without leaving.
 - [Edit a running pane](../../builder/docs/edit-a-running-pane.md), and [develop Workshop](develop-workshop.md) —
   change a pane while it runs: one of your own, or one Workshop ships, the desktop included.
-- [Introspection](../../introspection/docs/introspection.md) — `Loaded`, `Project`, `Powers`.
+- [Introspection](../../introspection/docs/zengine.introspection.md) — `Loaded`, `Project`, `Powers`.
 - [Limitations](limitations.md) — read this before planning around Workshop.
 - [Making a Workshop tool](make-a-workshop-tool.md) — if you want to add a pane.

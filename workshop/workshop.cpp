@@ -13,6 +13,7 @@
 #include "sample_door.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp"
+#include "log_selection.hpp"
 #include "path_admission.hpp"
 #include "recipe_persist.hpp"
 #include "recipes.hpp"
@@ -535,17 +536,9 @@ int main(int argc, char** argv) {
     history.apply_policy(std::move(history_policy));
 
     // ---- ...and what it chooses not to forget ---------------------------------------------------
-    // The Logger keeps a few facts for good: Loom's defaults, a build that finished or never
-    // started, and what the project made of an offered artifact -- the one place a long refusal is
-    // kept whole (builder/docs/zengine.builder.md). Not `BuildStatus`: it is republished on every chunk.
-    loom::LoggerSelection log_selection = loom::default_selection();
-    log_selection.log_refusals = args.log_refusals;
-    for (const char* shape :
-         {builder::BuildFinished::zen_name, builder::BuildNotStarted::zen_name,
-          builder::ArtifactRealized::zen_name}) {
-        log_selection.shapes.push_back(loom::LogRule{std::string(shape), /*cap=*/0});
-    }
-    loom::Logger journal(bus, std::move(log_selection));
+    // The Logger keeps a few facts for good, chosen by `durable_log_selection`: Loom's defaults, a
+    // build's ending and what the project made of an offer, never what a build says as it runs.
+    loom::Logger journal(bus, durable_log_selection(args.log_refusals));
     if (!args.log.empty()) {
         std::string complaint;
         if (!journal.open(args.log, &complaint)) {
@@ -1057,11 +1050,14 @@ int main(int argc, char** argv) {
     // ---- What this host resolved, answered to whoever asks --------------------------------------
     // A read-only observation door over the realization owner (workshop/arrangement.hpp), mounted
     // before realization begins: the tool that asks is loaded by this plan and must find it. Its
-    // grant is its answer in either version, to any: Loom picks recipients.
+    // grant is its answer in either version, and its page's section for a shape, to any: Loom
+    // picks recipients.
     loom::Grant say_resolved;
     say_resolved.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
     say_resolved.allow_to_any(v2::ResolvedArrangement::zen_name,
                               v2::ResolvedArrangement::zen_version);
+    say_resolved.allow_to_any(manual::ShapeDocumentShown::zen_name,
+                              manual::ShapeDocumentShown::zen_version);
     mount_in_office<ArrangementDoor>(
         bus, std::move(say_resolved), kArrangementRole, executor, plan_path,
         [&bus](std::string_view role, const loom::Schema& shape) {
@@ -1071,17 +1067,22 @@ int main(int argc, char** argv) {
     // ---- ...which powers resolve, found by what they are for and the shapes they take -----------
     // The discovery door over the catalog (workshop/powers_door.hpp): it derives at every ask,
     // keeps nothing and evaluates nothing. Mounted before realization, as the arrangement door is;
-    // its grant is its two answers, to any.
+    // its grant is its two answers and its page's section for a shape, to any.
     loom::Grant say_found;
     say_found.allow_to_any(PowersFound::zen_name, PowersFound::zen_version);
     say_found.allow_to_any(PowerDescribed::zen_name, PowerDescribed::zen_version);
+    say_found.allow_to_any(manual::ShapeDocumentShown::zen_name,
+                           manual::ShapeDocumentShown::zen_version);
     mount_in_office<PowersDoor>(bus, std::move(say_found), kPowersRole, operators);
 
     // ---- ...and the one office that may run a Source --------------------------------------------
     // A door of its own, so which office can cause evaluation keeps a one-word answer. One shape in
-    // and one out; it caches nothing, and the catalog, declared far above, outlives it.
+    // and one out, beside its page's section for a shape; it caches nothing, and the catalog,
+    // declared far above, outlives it.
     loom::Grant say_sampled;
     say_sampled.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
+    say_sampled.allow_to_any(manual::ShapeDocumentShown::zen_name,
+                             manual::ShapeDocumentShown::zen_version);
     mount_in_office<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);
 
     // ---- ...and the three doors the pane weaves ask (workshop/pane_doors.hpp) -------------------

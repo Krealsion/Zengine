@@ -2,11 +2,11 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The inventory suite: the codec (inventory/codec.hpp, the byte envelope) and the weave
-// (inventory/weave.hpp) mounted directly, with a trusted grant, on an ordinary bus -- the
-// compatibility slot, the named collection and its folders, capture and toolbox files, and a
-// runtime-defined item schema stored and read back with no change here. What a guest reaches
-// through its own grant is test_workshop_guests.cpp's; the live journey from an external Loom
-// host is external-host/tools/workshop/inventory_capture.py, not repeated here.
+// (inventory/weave.hpp) mounted directly, under Workshop's grant, on an ordinary bus -- the slot,
+// the collection and its folders, capture, toolbox files, its manual, and a runtime-defined item
+// schema stored and read back with no change here. What a guest reaches through its own grant
+// is test_workshop_guests.cpp's; the live journey from an external Loom host is
+// external-host/tools/workshop/inventory_capture.py, not repeated here.
 
 #include "doctest.h"
 
@@ -16,6 +16,9 @@
 #include "inventory/inventory-pane/toolbox_file.hpp"
 #include "message-draft/transfer.hpp"
 #include "workshop/admission.hpp"
+#include "office_manual.hpp"
+
+#include "manuals/zengine.inventory.hpp"
 
 #include <zen/kernel/kernel.hpp>
 #include <zen/switchboard.hpp>
@@ -243,7 +246,8 @@ struct Rig {
             auto w = std::make_unique<inv::InventoryWeave>();
             inventory = w.get();
             inventory_id =
-                bus.register_weave(std::move(w), inv::inventory_grant(), std::string(inv::kInventoryRole));
+                bus.register_weave(std::move(w), zengine::workshop::inventory_office_grant(),
+                                   std::string(inv::kInventoryRole));
             inventory->zen_set_self(inventory_id);
         }
         {
@@ -286,6 +290,15 @@ struct Rig {
 };
 
 } // namespace
+
+TEST_CASE("weave: the office answers what each shape it accepts does, from its own page, and its "
+          "page describes no other") {
+    Rig r;
+    const auto described = described_shapes_of(r.bus, r.bus.role_holder(inv::kInventoryRole));
+    REQUIRE_FALSE(described.empty());
+    CHECK(check_office_manual(r.bus, inv::kInventoryRole) >= described.size());
+    check_page_names_accepted(zengine::manual::pages::zengine_inventory::kManual, described);
+}
 
 TEST_CASE("weave: Get before any Set answers a truthful, understandable empty result") {
     Rig r;

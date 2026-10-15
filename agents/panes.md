@@ -5,7 +5,7 @@ protocol, `introspection/` or `composer/` — what crosses the Workshop↔provid
 shipped tools that live entirely on the far side of it. Workshop's own screen and routing law
 is [`workshop.md`](workshop.md); public reference:
 [`workshop/docs/workshop-panes.md`](../workshop/docs/workshop-panes.md) and
-[`introspection/docs/introspection.md`](../introspection/docs/introspection.md).
+[`introspection/docs/zengine.introspection.md`](../introspection/docs/zengine.introspection.md).
 
 ## A press crosses the seam as a place, never as a meaning
 
@@ -850,6 +850,11 @@ The public weaver route is [Inventory to Compose](../inventory/docs/inventory-co
   FieldValue checks the destination's declared type, including empty containers.
   A drop never submits. Submit separately authorizes the exact destination and versioned
   shape through PaneOperationRequested. Permission and storage requests freeze the form.
+- Every word the Composer has beyond a field's own editing is a row it declares and runs by id:
+  `compose.up` and `compose.down` (Up, Down), `compose.enter` (Return, choose), `compose.include`
+  (Tab in a form), `compose.back` (Escape in a form), and the store, preset, unset and submit
+  rows. A raw key no row names changes nothing, so a key a weaver moved a row off no longer does
+  its work, and a bare Escape no row takes is handed back, which puts the pane down.
 - An output ticket proves queuing only. Authenticated dispatch refusals and Refused answers
   are reported; arbitrary application success is not inferred. Pending questions may remain
   pending. New requests do not acquire authority from stored data or metadata.

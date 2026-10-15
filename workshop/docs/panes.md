@@ -55,7 +55,8 @@ keys if it was open and covered. The wheel walks the marker a row per notch. Rig
 and `hide Beta` for a pane on the layout; **`manage Beta >`**, which opens Workshop's own pane
 menu for *that* pane — arrange, order, reset, edit code, hide pane — whether it is covered,
 hidden, or a pane that keeps every right-click for itself; and **`inspect in Info`**, which
-makes it Info's subject through Info's own door. Beneath those rows, under a rule that names
+asks Info to inspect it: Info takes the ask as its own inspect, holds it back while you are
+editing a value there, and the Pane Manager's notice says what came of it. Beneath those rows, under a rule that names
 the Pane Manager, are Workshop's own rows for the Pane Manager itself, as in every pane's menu.
 A right-click on the heading or a `more` marker opens Workshop's menu for the Pane Manager
 itself. A click that arrives after the list moved under it — a pane arrived, a scroll
@@ -647,7 +648,7 @@ recipe builds against the installed package, loaded by a plan row, and changed w
 [`tests/weavelib/workshop_hello.cpp`](../../tests/weavelib/workshop_hello.cpp) — a test
 fixture, not a product plugin. The shipped one is
 [`introspection/`](../../introspection/loaded.hpp), documented at
-[introspection](../../introspection/docs/introspection.md).
+[introspection](../../introspection/docs/zengine.introspection.md).
 
 ## Starting room
 
