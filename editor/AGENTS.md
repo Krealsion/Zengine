@@ -76,9 +76,14 @@ Rigs: `tests/editor_transfer_story.hpp`, `tests/workshop_switch_rig.hpp`.
 
 ## Pages
 
-- [Editor switch](docs/editor-switch.md)
+- [`zengine.editor`](docs/zengine.editor.md) — the Editor's manual, carried by both Editors
+  (`MANUAL` in `editor-pane/CMakeLists.txt` and `neovim-editor/CMakeLists.txt`); its census is
+  `tests/actions/zengine.editor.txt`
+- [`zengine.editor-switch`](docs/zengine.editor-switch.md) — the editor switch's manual, carried by
+  `zengine-workshop-vocabulary` (`workshop/CMakeLists.txt`)
 - [The source editor](docs/editor.md)
 - [Neovim in Workshop](docs/neovim.md)
+- [What crosses a switch](docs/editor-switch.md)
 - [Source material: text, commands and file locations between the Editors and
   Inventory](docs/source-transfer.md)
 

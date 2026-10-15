@@ -8,7 +8,9 @@ line, reading a dropped pair, the C++ generator — live beside it in `editor/so
 Editors' own, not part of the installed package.
 
 How a weaver uses all of this is in [the source editor](editor.md#carrying-text-commands-and-file-places)
-and [Neovim in Workshop](neovim.md#carrying-text-commands-and-file-places); the carry
+and [Neovim in Workshop](neovim.md#carrying-text-commands-and-file-places), and the commands that
+carry are the Editor's manual's ([`editor.extract`](zengine.editor.md#editorextract) and its
+siblings); the carry
 itself is Workshop's typed carry ([Workshop panes](../../workshop/docs/workshop-panes.md)); where the copies are kept
 is [Inventory](../../inventory/docs/inventory.md).
 

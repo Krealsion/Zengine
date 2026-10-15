@@ -12,6 +12,8 @@
 
 #include "workshop_switch_rig.hpp"
 
+#include "census.hpp"
+
 #include "editor/neovim-editor/vocabulary.hpp"
 #include "neovim_environment.hpp"
 #include "editor/neovim/child.hpp"
@@ -23,6 +25,7 @@
 #include <fstream>
 #include <iterator>
 #include <optional>
+#include <set>
 #include <string>
 #include <thread>
 #include <utility>
@@ -165,6 +168,15 @@ TimerSeat* mount_timer(SwitchRig& s) {
                                                     std::string(zengine::timer::kTimerRole));
     raw->zen_set_self(id);
     return raw;
+}
+
+/// THE IDS THE OFFICE'S HOLDER DECLARES NOW, as Workshop holds its rows.
+std::set<std::string> declared_ids(SwitchRig& s) {
+    const RuntimePane* row = s.r.session().panes.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
+    REQUIRE(row != nullptr);
+    std::set<std::string> ids;
+    for (const v3::PaneActionRow& a : row->actions) ids.insert(a.id);
+    return ids;
 }
 
 /// WORKSHOP'S ORDERLY QUIT, the weaver's way: keys back to the workspace, then `q`.
@@ -352,6 +364,29 @@ TEST_CASE("a reload of the Neovim editor is refused while its Neovim runs, said 
     CHECK(s.holder() == before);
     CHECK(s.read("running") == "true");
     CHECK_MESSAGE(s.shows("a reload of the Neovim editor was refused"), s.status());
+}
+
+TEST_CASE("the manual the Neovim editor answers is the Editor office's page, naming exactly the "
+          "commands both holders of the office declare") {
+    // THE STANDARD EDITOR'S IDS, from the office's other holder...
+    std::set<std::string> declared;
+    {
+        SwitchRig other("nvim-manual-standard");
+        other.open(standard_and_neovim(), pane::kEditorPaneStem);
+        declared = declared_ids(other);
+    }
+    // ...AND THIS HOLDER'S, IN VISUAL MODE, where it declares every row it has.
+    SwitchRig s("nvim-manual");
+    NeovimEnvironment env(s.root, NEOVIM_FIXTURE, "visual");
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(beat_until(s, [&] {
+        return s.read("ready") == "true" && declared_ids(s).count(nve::kActionExtract) == 1;
+    }));
+    for (const std::string& id : declared_ids(s)) declared.insert(id);
+    ManualReader reader(s.r, pane::kEditorPaneRole);
+    check_answered_manual(reader, pane::kEditorPane, declared);
+    // ASKING THE MANUAL ASKS NEOVIM NOTHING, and Neovim still runs.
+    CHECK(s.read("running") == "true");
 }
 
 #if defined(NEOVIM_PROGRAM)

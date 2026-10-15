@@ -1,8 +1,9 @@
 # The source editor
 
-**Reference, current state.** Workshop's editor for one source file at a time — open it, edit
-it like an ordinary text document, save exactly what you meant to save, and continue through
-the existing build-and-realize loop without leaving the application.
+**Walkthrough.** Workshop's editor for one source file at a time — open it, edit it like an
+ordinary text document, save exactly what you meant to save, and continue through the existing
+build-and-realize loop without leaving the application. Every command, refusal and row is in the
+Editor's manual, [`zengine.editor`](zengine.editor.md).
 
 **Neovim can be the Editor instead.** Both shipped plans author a second editor for the same
 office, and a weaver switches between them while working, carrying the document: see
@@ -172,12 +173,11 @@ pane draws them, in a window and in a terminal alike -- here the standard Editor
 
 ![The same two Editors in a 120 x 30 terminal: the selection in reverse video, the standard Editor's caret on the cell after it](images/editors-caret-selection-terminal.png)
 
-The editing keys are the Editor's own mechanics and are **not remappable**; the six actions
-that *are* keymap rows (`editor.save`, `editor.newline`, `editor.tab`, `editor.discard`,
-`editor.extract`, `editor.location`) are the pane's declared rows and remap like any other
-pane's. The Hotkeys pane (`Ctrl`+`k`) lists those six under the Editor's own heading
-(`pane Editor @zengine.editor`); the rest of its vocabulary is described as the pane's own, the
-way every loaded pane's is.
+The editing keys are the Editor's own mechanics and are **not remappable**; the six that *are*
+keymap rows are the pane's declared commands ([Commands](zengine.editor.md#commands)) and remap
+like any other pane's. The Hotkeys pane (`Ctrl`+`k`) lists those six under the Editor's own
+heading (`pane Editor @zengine.editor`); the rest of its vocabulary is described as the pane's own,
+the way every loaded pane's is.
 
 An **empty** Editor — no file open — still takes the keys when you press into it, like every
 loaded pane, and does nothing with them; press elsewhere for Workshop's own keys.
@@ -262,28 +262,12 @@ external host's guest needs the `open` power to reopen a location, and on a weav
 key, press, wheel and drop a guest aims at the editor is refused —
 [external host](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
 
-## `Ctrl`+`s` is the Editor's
-
-`Ctrl`+`s` saves **the source** while the Editor holds the keyboard: it is the Editor's own
-`save source` row (`editor.save`), and moves in your keymap file like any pane's row. Anywhere
-else it does nothing. It used to save the prototype **object document** there, and `Ctrl`+`o`
-opened one; both retired with the object canvas, and Workshop has no document of its own left
-for either chord to mean (a desk is written with `s` in command mode — [Setups](../../workshop/docs/setups.md)).
-
-The Editor's row still declares that it stands in for the old `document.save`. In this Workshop
-that declaration stands in for nothing; in one from before the canvas retired it is what keeps
-`Ctrl`+`s` the Editor's while you type in the source rather than a collision — so one Editor
-image loads in both.
-
 ## Save, dirty, and never losing work
 
 The pane's status row says it plainly: **`UNSAVED`** while the buffer differs from the file,
 **`saved`** when they match — computed by comparison, so editing back to the saved text is
-clean again. Beside it: the caret's line and column (`L12:C5/40` — line 12, column 5, of 40
-lines) and the file's path, cut from its *front* when the pane is narrow so the file's name is
-what survives. What the last act came to — `editing ...`, `saved`, a refusal — stands on a row
-of its own under the status row until your next act; in a pane two rows tall it takes the
-status row's place so the document keeps its row.
+clean again. Beside it stand the caret's place and the file; what the last act came to stands on
+a row of its own under it ([Shows](zengine.editor.md#shows)).
 
 A save writes atomically: the previous good file is never at risk from a failed write, and a
 refusal leaves the buffer and its dirty state exactly as they were. The build reads the file
@@ -310,20 +294,13 @@ may not be in the Editor when you read it.
 
 ## Bytes, exactly
 
-The Editor edits what is in the file and writes what you edited — nothing else:
-
-- **tabs are preserved** and displayed at a fixed four-column stop; the caret, the mouse
-  and selections map truthfully between bytes and displayed columns around them;
-- **line endings are preserved** — an LF file stays LF, a CRLF file stays CRLF, inserted
-  newlines follow the file's own convention, and whether the file ends in a final newline
-  survives round trips exactly;
-- a file that **mixes** endings, carries a bare carriage return, a control byte, or bytes
-  outside plain ASCII is **refused whole**, with the offending line named, and the file left
-  untouched — this editor never rewrites bytes you did not edit, and never pretends to show
-  text the media cannot place truthfully (see [limitations](../../workshop/docs/limitations.md));
-- a file over **4 MiB** is refused before a byte of it is judged;
-- pasting text with foreign line breaks converts them to line breaks; pasting bytes outside
-  plain ASCII is refused rather than silently mangled, and so is typing them.
+The Editor edits what is in the file and writes what you edited — nothing else. Tabs and line
+endings are kept as they are, whether the file ends in a newline survives every round trip, and a
+file this editor cannot edit truthfully — mixed line endings, a bare carriage return, a control byte,
+bytes outside plain ASCII, or past the size it opens — is refused whole, naming the line, and left
+untouched. Typed and pasted text obeys the same rules. The rules and their words are the manual's
+[Files](zengine.editor.md#files); why plain ASCII is
+[a limitation](../../workshop/docs/limitations.md).
 
 ## The loop
 

@@ -25,6 +25,7 @@
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
@@ -36,6 +37,8 @@
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+
+#include "manuals/zengine.editor.hpp" // the Editor's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -133,7 +136,7 @@ class EditorPaneWeave
                        EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                       ws::PaneCarryAnswered>,
+                       ws::PaneCarryAnswered, ws::PaneDocumentRequested>,
           loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v5::PaneCanvasContent,
                      ws::v4::PaneContent, ws::v2::PaneCaret,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
@@ -143,7 +146,7 @@ class EditorPaneWeave
                      surface::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
                      EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
                      ws::PaneMenuRequested, ws::PanePassRequested, ws::PaneOperationRequested,
-                     ws::PaneValueCarryRequested>,
+                     ws::PaneValueCarryRequested, ws::PaneDocumentShown>,
           loom::Claims<EditorDocument>> {
     /// One prepared candidate: the whole document a managed opening would install, built beside
     /// the current one for one exact operation, and the identity offered for it. Nothing reads,
@@ -302,7 +305,7 @@ public:
                      EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                      EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                      ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                     ws::PaneCarryAnswered>,
+                     ws::PaneCarryAnswered, ws::PaneDocumentRequested>,
         loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v5::PaneCanvasContent,
                    ws::v4::PaneContent, ws::v2::PaneCaret,
                    ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
@@ -312,7 +315,7 @@ public:
                    EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted,
                    EditorLive, EditorRetired, ws::PaneMenuRequested, ws::PanePassRequested,
                    ws::PaneOperationRequested,
-                   ws::PaneValueCarryRequested>,
+                   ws::PaneValueCarryRequested, ws::PaneDocumentShown>,
         loom::Claims<EditorDocument>>;
 
     // ---- The state a reload carries, and the surface a poke reads ----------------------
@@ -344,6 +347,13 @@ public:
         }
         announce(mail);
         ask_project_root(mail);
+    }
+
+    /// THE EDITOR'S MANUAL, TO THE ONE WHO ASKED: the office's page as this image was built with
+    /// it, answered while a switch holds the document still too, since it touches no document.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(ws::pane_document(ask, pane::kEditorPane,
+                                            zengine::manual::pages::zengine_editor::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
