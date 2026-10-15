@@ -8,9 +8,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | path | what it is |
 |---|---|
 | `CMakeLists.txt` | target `zengine-attention-pane`, a loadable weave; needs `loom::kernel` |
-| `pane.cpp` | the weave: offers the one `attention` pane, hears `StandingConditions`, says rows |
+| `pane.cpp` | the weave: offers the one `attention` pane, hears `StandingConditions`, says rows, answers its manual |
 | `vocabulary.hpp` | office `zengine.attention`, pane key, stem, action ids, `AttentionPaneState` |
-| `docs/attention.md` | the weaver's page; its picture is under `docs/images/` |
+| `docs/zengine.attention.md` | the pane's manual, compiled into the weave and answered when asked |
 
 ## Law
 
@@ -43,7 +43,7 @@ and `attention/pane.cpp` are also sample artifact and source in `workshop_load`
 
 ## Pages
 
-- [What needs your attention](docs/attention.md)
+- [`zengine.attention`](docs/zengine.attention.md), the Attention pane's manual
 
 ## Practices
 

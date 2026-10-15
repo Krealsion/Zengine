@@ -591,7 +591,7 @@ expected to have them:
 - **No widget set.** The component package has one component, earned by working consumers
   (four of them) needing the same machinery. There is no Button, List, Dropdown,
   ScrollView, focus tree, tab order or theme.
-- **No notifications.** [Attention](../../attention/docs/attention.md) shows what is **true right now**, and that
+- **No notifications.** [Attention](../../attention/docs/zengine.attention.md) shows what is **true right now**, and that
   is the whole of it: nothing accumulates, nothing is unread, nothing pops up, nothing expires
   and nothing animates. There is no history of things that stopped being true — a record of
   what happened is `--log` and `--dump`, which are a different question.

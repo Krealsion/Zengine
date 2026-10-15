@@ -11,6 +11,7 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
+#include "census.hpp"
 
 #include "attention/vocabulary.hpp"
 #include "external-host/connections-pane/vocabulary.hpp"
@@ -152,6 +153,18 @@ inline Condition thing(const char* key, const char* compact, const char* detail,
     return Condition{key, compact, detail, role, action};
 }
 
+/// THE ATTENTION PANE'S CENSUS: its rows in the one mode it has, which it declares by no name.
+const CensusDriverOf kAttentionCensus{pane::kAttentionPaneRole, [] {
+    OfficeCensus census;
+    AttentionRig f;
+    f.open();
+    const RuntimePane* held = f.row();
+    REQUIRE(held != nullptr);
+    CHECK(held->mode.empty());
+    census_take(census, pane::kAttentionPaneRole, *held);
+    return census;
+}};
+
 } // namespace
 
 // ============================================================================
@@ -210,6 +223,19 @@ TEST_CASE("the pane declares the three ids a weaver's keymap file already names"
     }
     CHECK(row_of_id("attention.close") == nullptr);
     CHECK(row_of_id("workshop.attention") == nullptr);
+}
+
+TEST_CASE("the manual the Attention pane answers names exactly the commands it declares") {
+    AttentionRig f;
+    f.open();
+    const RuntimePane* held = f.row();
+    REQUIRE(held != nullptr);
+    std::set<std::string> declared;
+    for (const v3::PaneActionRow& row : held->actions) {
+        declared.insert(row.id);
+    }
+    ManualReader reader(f.r, pane::kAttentionPaneRole);
+    check_answered_manual(reader, pane::kAttentionPane, declared);
 }
 
 TEST_CASE("the pane shows every current condition in its owner's own words") {

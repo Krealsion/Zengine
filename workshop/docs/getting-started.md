@@ -154,7 +154,7 @@ Something that is **still true** when you read it — a settings file that could
 pane of yours that is off the screen, a tool that could not load — does not go there. It goes
 to attention: the **Attention** pane leads with the most serious and how many more, and lists
 them all — show it from the Pane Manager. Those disappear when they stop being true and at no
-other moment. See [what needs your attention](../../attention/docs/attention.md).
+other moment. See [the Attention pane](../../attention/docs/zengine.attention.md).
 
 The **first row** is a pane — [the layout selector](setups.md#several-layouts-in-one-workshop),
 called **Layouts**: your layouts as tabs on the left with the one you are on between `>` and
@@ -260,7 +260,7 @@ Neither is a degraded version of the other, and the same published intent produc
 
 ## Next
 
-- [Attention](../../attention/docs/attention.md) — what is true right now, the pane that lists it, and why hiding
+- [Attention](../../attention/docs/zengine.attention.md) — what is true right now, the pane that lists it, and why hiding
   one is not fixing it.
 - [Panes](panes.md) — the Pane Manager, arranging, how to get a bigger one, Info as a pane's
   inspector, and a pane of your own: a view, made in the View Builder.

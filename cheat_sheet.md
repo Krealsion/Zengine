@@ -595,7 +595,7 @@ Hiding one is not fixing it: the condition stays true, the glance still counts i
 reappears if it materially changes. A condition disappears when it stops being true
 and at no other moment. The **notice row** in the bottom band is the other voice and keeps its
 own job: what just happened, replaced by whatever happens next. See
-[what needs your attention](attention/docs/attention.md).
+[the Attention pane](attention/docs/zengine.attention.md).
 
 **Arranging** — right-click a pane → `arrange` binds the interaction to that one pane; `w`
 arranges the whole desk. In either scope the panes wear their handles: drag a body to move, an
