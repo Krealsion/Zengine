@@ -242,13 +242,18 @@ def rows_without_settings(source):
 
 def act_module():
     """workshop/act, imported with Loom's runtime stood in for; its verbs are what a test reads."""
+    return tool_module("act.py", "act_verbs")
+
+
+def tool_module(script, name):
+    """A Workshop tool's script, imported with Loom's runtime stood in for."""
     tool = types.ModuleType("loom_session.tool")
-    for name in ("Refused", "DispatchRefused", "LinkOutcome", "SendRefused"):
-        setattr(tool, name, type(name, (Exception,), {}))
+    for refusal in ("Refused", "DispatchRefused", "LinkOutcome", "SendRefused"):
+        setattr(tool, refusal, type(refusal, (Exception,), {}))
     saved = sys.modules.get("loom_session.tool")
     sys.modules["loom_session.tool"] = tool
     try:
-        spec = importlib.util.spec_from_file_location("act_verbs", REPO / "external-host/tools/workshop/act.py")
+        spec = importlib.util.spec_from_file_location(name, REPO / "external-host/tools/workshop" / script)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
@@ -570,6 +575,18 @@ class Recipes(unittest.TestCase):
                                                                            "height": 9}]))
         path.write_text(json.dumps(shipped.desk(["my-view"])), encoding="utf-8")
         self.assertIn("read setup", self.read_back("setup", path))
+
+    def test_the_toolbox_fixtures_restored_view_takes_a_front_rank_no_pane_holds(self):
+        # THE DESK THE FIXTURE'S EXERCISE APPLIES, as it builds it, read by Workshop's own reader:
+        # the values desk's panes keep their ranks, Layouts among them, and the view comes after.
+        desk = tool_module("toolbox_fixture.py", "toolbox_fixture").exercise_desk(
+            "zengine.inventory-pane", "restored-view")
+        path = Path(self.tmp) / "exercise.json"
+        path.write_text(json.dumps(desk), encoding="utf-8")
+        self.assertIn("read setup", self.read_back("setup", path))
+        panes = desk["fields"]["panes"]
+        self.assertEqual(panes[:-1], layout("values")["fields"]["panes"])
+        self.assertEqual(len({p["front"] for p in panes}), len(panes))
 
     def test_every_tool_writes_workshop_files_through_the_one_owner_of_their_versions(self):
         # A TOOL THAT SPELLS A SETUP OR A SESSION ITSELF KEEPS THE VERSION IT WAS WRITTEN AT, so
