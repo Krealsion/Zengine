@@ -1107,7 +1107,8 @@ TEST_CASE("the desk's own menu opened on a window is answered as tests/session/d
                        std::to_string(read.desk.space) + ",\n \"menu\": ";
     json_value(loom::to_value(read.desk.menu), 1, said);
     said += "\n}\n";
-    std::ifstream file(ZENGINE_SOURCE_DIR "/tests/session/desk_window_menu.json", std::ios::binary);
+    std::ifstream file(std::string(ZENGINE_SOURCE_DIR) + "/tests/session/desk_window_menu.json",
+                       std::ios::binary);
     REQUIRE(file.good());
     std::string kept((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     kept.erase(std::remove(kept.begin(), kept.end(), '\r'), kept.end());
