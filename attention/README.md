@@ -11,8 +11,11 @@ what is true.
 
 ## Pages
 
-- [What needs your attention](docs/attention.md): what the pane shows, its keys, hiding a
-  condition, and what earns a place in it
+- [`zengine.attention`](docs/zengine.attention.md): the pane's manual -- what it shows, its keys,
+  and hiding a condition
+- [What earns attention](docs/conditions.md): every condition Workshop says here, and how loud
+
+![Attention wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.attention-manual.png)
 
 ## What is in this folder
 

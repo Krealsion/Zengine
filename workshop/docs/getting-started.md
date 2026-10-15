@@ -154,7 +154,7 @@ Something that is **still true** when you read it — a settings file that could
 pane of yours that is off the screen, a tool that could not load — does not go there. It goes
 to attention: the **Attention** pane leads with the most serious and how many more, and lists
 them all — show it from the Pane Manager. Those disappear when they stop being true and at no
-other moment. See [what needs your attention](../../attention/docs/attention.md).
+other moment. See [the Attention pane](../../attention/docs/zengine.attention.md).
 
 The **first row** is a pane — [the layout selector](setups.md#several-layouts-in-one-workshop),
 called **Layouts**: your layouts as tabs on the left with the one you are on between `>` and
@@ -237,8 +237,8 @@ how to open one: `^t terminal | ^p panes | ^k hotkeys`.
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | layouts | `s` save · `r` restore · `=` new · `.` `,` next / previous · `Ctrl`+`w` remove ([setups](setups.md)) — the **last** session needs neither |
 | quit | `q` · `Ctrl`+`c` where nothing takes text |
-| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter` `Tab`, the [Builder](../../builder/docs/zengine.builder-pane.md)'s `b` `c` `f` `o`, the [browser](../../files/docs/files.md)'s `u` `m` `a`, [Attention](../../attention/docs/attention.md)'s `↑` `↓` `d`, the [Terminal](../../terminal/docs/terminal.md)'s `Enter` `Tab` `↑` `↓` `Esc` and `Ctrl`+`↑` `Ctrl`+`↓` `Ctrl`+`Home` `Ctrl`+`End` |
-| leaving a pane | `Esc`: the pane first lets go of what you chose in it (a row in Loaded or Powers), Compose leaves its form and the [Terminal](../../terminal/docs/terminal.md) sheds its list and its line; the next `Esc` puts the pane down. Or a press elsewhere. Both editors keep every `Esc`; a press elsewhere is the way out of those |
+| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter` `Tab`, the [Builder](../../builder/docs/zengine.builder-pane.md)'s `b` `c` `f` `o`, the [browser](../../files/README.md)'s `u` `m` `a`, [Attention](../../attention/README.md)'s `↑` `↓` `d`, the [Terminal](../../terminal/README.md)'s `Enter` `Tab` `↑` `↓` `Esc` and `Ctrl`+`↑` `Ctrl`+`↓` `Ctrl`+`Home` `Ctrl`+`End` |
+| leaving a pane | `Esc`: the pane first lets go of what you chose in it (a row in Loaded or Powers), Compose leaves its form and the [Terminal](../../terminal/README.md) sheds its list and its line; the next `Esc` puts the pane down. Or a press elsewhere. Both editors keep every `Esc`; a press elsewhere is the way out of those |
 
 These are the defaults; every binding can be remapped through the keymap file, and the
 on-screen hints and the Hotkeys pane always spell the effective one ([hotkeys](hotkeys.md)).
@@ -260,7 +260,7 @@ Neither is a degraded version of the other, and the same published intent produc
 
 ## Next
 
-- [Attention](../../attention/docs/attention.md) — what is true right now, the pane that lists it, and why hiding
+- [Attention](../../attention/docs/zengine.attention.md) — what is true right now, the pane that lists it, and why hiding
   one is not fixing it.
 - [Panes](panes.md) — the Pane Manager, arranging, how to get a bigger one, Info as a pane's
   inspector, and a pane of your own: a view, made in the View Builder.

@@ -11,7 +11,8 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-zengine_weave(zengine-attention-pane pane.cpp)
+# Its manual is compiled in, and answered to whoever asks for it.
+zengine_weave(zengine-attention-pane pane.cpp MANUAL docs/zengine.attention.md)
 target_link_libraries(zengine-attention-pane PRIVATE zengine-workshop-vocabulary
                                                      zengine-input-vocabulary
                                                      zengine-activation)

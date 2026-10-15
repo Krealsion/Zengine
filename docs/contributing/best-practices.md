@@ -164,11 +164,11 @@ Its law, pages and suites: [`component/AGENTS.md`](../../component/AGENTS.md).
 Its law, pages and suites: [`attention/AGENTS.md`](../../attention/AGENTS.md).
 
 - **A condition leaves only when it stops being true.**
-  [What makes a condition go away](../../attention/docs/attention.md#what-makes-a-condition-go-away)
+  [About](../../attention/docs/zengine.attention.md#about)
 - **Hiding is not fixing**: a condition that materially changes comes back, and the glance still
-  counts what is hidden. [Hiding is not fixing](../../attention/docs/attention.md#hiding-is-not-fixing)
+  counts what is hidden. [`attention.dismiss`](../../attention/docs/zengine.attention.md#attentiondismiss)
 - **Nothing Workshop discovers opens the pane or takes the keys.**
-  [The Attention pane](../../attention/docs/attention.md#the-attention-pane)
+  [Use](../../attention/docs/zengine.attention.md#use)
 
 ### The Builder (`builder/builder-pane/`, `builder/`)
 
