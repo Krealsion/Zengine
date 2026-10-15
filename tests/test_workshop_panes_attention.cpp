@@ -15,6 +15,7 @@
 
 #include "attention/vocabulary.hpp"
 #include "external-host/connections-pane/vocabulary.hpp"
+#include "manuals/zengine.connections.hpp"
 #include "workshop/attention_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 
@@ -750,6 +751,48 @@ TEST_CASE("the Connections pane draws the guest door's reading as its own pictur
     REQUIRE(r.session().context.open);
     CHECK(r.session().context.subject == context_subject::kPane);
     CHECK(r.session().context.pane == ref);
+}
+
+TEST_CASE("the manual the Connections pane answers is the page its build embedded, and names no command, as the pane declares none") {
+    namespace cp = zengine::connections_pane;
+    namespace manual = zengine::manual;
+    const manual::Manual& page = manual::pages::zengine_connections::kManual;
+    PaneRig r;
+    zengine::workshop::v3::GuestConnections said;
+    said.listen = "127.0.0.1:4242";
+    const std::int64_t kind = connections_over(r, said);
+    const RuntimePane* held = r.session().panes.runtime.of_kind(kind);
+    REQUIRE(held != nullptr);
+    CHECK(held->actions.empty()); // nothing in it is acted on, so its page has no Commands
+    ManualReader reader(r, cp::kConnectionsPaneRole);
+
+    // THE WHOLE PAGE, ASKED WITH NO SECTION: the page this tree's build embedded, in order, and no
+    // section of it a command.
+    const PaneDocumentShown whole = reader.ask(cp::kConnectionsPane, "");
+    CHECK(whole.refusal.empty());
+    CHECK(whole.content_id == std::string(page.content_id));
+    REQUIRE(whole.sections.size() == page.count);
+    for (std::size_t i = 0; i < page.count; ++i) {
+        CHECK(whole.sections[i].key == std::string(page.sections[i].key));
+        CHECK(whole.sections[i].text == std::string(page.sections[i].text));
+        CHECK_FALSE(manual::is_command_group(whole.sections[i].group));
+    }
+    // ...EACH ROW IT SHOWS, ASKED ALONE, IS ITS OWN SECTION...
+    for (const char* row : {"heading", "connection", "version", "reach", "more", "refused"}) {
+        INFO("row ", std::string(row));
+        const PaneDocumentShown one = reader.ask(cp::kConnectionsPane, row);
+        CHECK(one.refusal.empty());
+        REQUIRE(one.sections.size() == 1);
+        CHECK(one.sections[0].group == "Shows");
+        CHECK(one.content_id == whole.content_id);
+    }
+    // ...AND A SECTION OR A PANE IT DOES NOT HAVE IS REFUSED, naming what is missing.
+    const PaneDocumentShown missing = reader.ask(cp::kConnectionsPane, "connections.admit");
+    CHECK(missing.refusal == "the manual of zengine.connections has no section `connections.admit`");
+    CHECK(missing.sections.empty());
+    const PaneDocumentShown other = reader.ask("elsewhere", "");
+    CHECK(other.refusal == "zengine.connections offers no pane `elsewhere`");
+    CHECK(other.sections.empty());
 }
 
 TEST_CASE("the Connections pane says a row's version, its losses and its role and doors beneath its connection") {

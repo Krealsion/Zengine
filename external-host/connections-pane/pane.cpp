@@ -13,12 +13,15 @@
 
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "surface/vocabulary.hpp"
+
+#include "manuals/zengine.connections.hpp" // this pane's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -59,9 +62,11 @@ class ConnectionsPaneWeave
     : public loom::WeaveBase<ConnectionsPaneWeave, pane::ConnectionsPaneState,
                              loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom,
                                           ws::PaneCanvasRoom, ws::PaneCanvasPointer,
-                                          ws::PaneCanvasRejected, GuestConnections>,
+                                          ws::PaneCanvasRejected, GuestConnections,
+                                          ws::PaneDocumentRequested>,
                              loom::Emit<PaneOffered, PaneContent, ws::v5::PaneCanvasContent,
-                                        ws::PanePassRequested, GuestConnectionsRequested>> {
+                                        ws::PanePassRequested, GuestConnectionsRequested,
+                                        ws::PaneDocumentShown>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -76,6 +81,12 @@ public:
             return;
         }
         announce(mail);
+    }
+
+    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(ws::pane_document(ask, pane::kConnectionsPane,
+                                            zengine::manual::pages::zengine_connections::kManual));
     }
 
     void on(const PaneRoom& room, loom::Mail& mail) {

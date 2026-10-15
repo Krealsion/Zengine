@@ -122,36 +122,24 @@ Terminal line is then sent by the Terminal as itself, as the weaver's is.
 
 **A version-1 file still mounts**, as a weaver's host, each row keeping its reach less those
 refusals; an old row never has `build`. What each row's powers do not reach is said beside the row:
-at launch, on the Attention pane, and in the Connections pane, which reads the door's inventory at
-version 2 (`GuestConnections` v2: each row's powers, the file's host and version, and its losses).
-A guest that asks for that inventory hears every connection and its own row's powers and losses
-alone, and none may observe it through the relay. What a row's powers reach past what they once
+at launch, on the Attention pane, and in the [Connections pane](zengine.connections.md#version). A
+guest that asks the door for its inventory hears its own row's powers and losses alone
+([`GuestConnectionsRequested`](zengine.guests.md#guestconnectionsrequested)). What a row's powers reach past what they once
 did is said the same way, at launch and on Attention: a row holding `capture` reads the desk said
 whole, the pane inventory and the keymap, which a row written for pictures and pane rows did not,
 so the widening stands beside it as a condition (`guests.gain/<n>`, `n` its place in the file,
 counted from 0) and is never silent.
 
-Any admitted session may also ask the door for its own row, whatever its powers:
-`GuestRowDescribedRequested` (`{}`) is answered by `GuestRowDescribed`, the row the door admitted
-that session under -- its `name`, its powers (`may`), its `observe` list, each entry a
-`GuestObserve{producer, shape, version}`, and the file's `host` -- never its credential and nothing
-of another row. Two rows of one name stay apart: the answer is the row that session came in under.
-A session the door never admitted is refused in words. The file is read once, at launch: a changed
-row applies at the next launch.
+Any admitted session may also ask the door for its own row, whatever its powers
+([`GuestRowDescribedRequested`](zengine.guests.md#guestrowdescribedrequested)). The file is read
+once, at launch: a changed row applies at the next launch.
 
 **Listening is not loaded.** Workshop opens its door, and writes the port it listens on to the
 file's `port_file` when the file names one, before its load plan is realized. A guest can therefore
-be admitted while rows that declare shapes are still loading, and a shape asked of such a row is
-refused `unknown schema: <name> v<n>`, the words a shape this run never declares is refused in too.
-What tells the two apart is Workshop's own word: any admitted session may ask the door
-`GuestPlanRequested` (`{"wait": true}`), answered by `GuestPlanSaid` once the plan is at rest --
-its `state` `complete` (every row settled: a shape still unknown is unknown for this run),
-`waiting` (on a row the weaver has to build) or `refused` -- and with `wait` false at once, its
-`state` `loading` while rows are still to come. The rows it names, `waiting_on` and the optional
-rows stepped over (`unavailable`), are said only to a row with `capture` or `inspect`, which
-already read other rows' names; to any other row they are empty. The door holds a bounded number
-of asks, and refuses one past the bound in words. `workshop/connections` asks it from a Loom
-session with `wait_plan`, and the demo service asks it before its first ask.
+be admitted while rows that declare shapes are still loading; the door says where the plan is
+([`GuestPlanRequested`](zengine.guests.md#guestplanrequested)), so a shape not declared yet is not
+taken for one this run never declares. `workshop/connections` asks it from a Loom session with
+`wait_plan`, and the demo service asks it before its first ask.
 
 ```json
 {
@@ -239,7 +227,7 @@ zengine-workshop - guests: 'tutor' (version 3) role tutor: may capture, guide; r
 ```
 
 Open the **Connections** pane from the Pane Manager (`Ctrl+P`). It says `nobody is connected`,
-and will say who is, as they come and go.
+and will say who is, as they come and go ([the Connections pane](zengine.connections.md)).
 
 Both paths below need this step and nothing more from each other — pick one:
 

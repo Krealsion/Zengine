@@ -13,7 +13,10 @@
 #include "guests.hpp"
 
 #include "input/vocabulary.hpp"
+#include "manual/vocabulary.hpp"
 #include "timer/binding.hpp"
+
+#include "manuals/zengine.guests.hpp" // this office's manual, compiled in from its page
 
 #include <zen/bridge/server.hpp>
 #include <zen/weave.hpp>
@@ -52,11 +55,13 @@ class GuestDoor final
                                                      v3::GuestConnectionsRequested,
                                                      GuestRowDescribedRequested,
                                                      v2::GuestRowDescribedRequested,
-                                                     GuestPlanRequested>,
+                                                     GuestPlanRequested,
+                                                     manual::ShapeDocumentRequested>,
                                         loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections,
                                                    GuestRowDescribed, v2::GuestRowDescribed,
                                                    GuestPlanSaid, loom::Refused,
-                                                   input::InputSessionClosed>> {
+                                                   input::InputSessionClosed,
+                                                   manual::ShapeDocumentShown>> {
 public:
     /// `listener` is a listening socket the host opened (bridge_listen_tcp); `listen` is how
     /// the host spells where it listens, for the inventory; `file` is the guests file whose rows
@@ -78,11 +83,20 @@ public:
                                                   v3::GuestConnectionsRequested,
                                                   GuestRowDescribedRequested,
                                                   v2::GuestRowDescribedRequested,
-                                                  GuestPlanRequested>,
+                                                  GuestPlanRequested,
+                                                  manual::ShapeDocumentRequested>,
                                      loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections,
                                                 GuestRowDescribed, v2::GuestRowDescribed,
                                                 GuestPlanSaid, loom::Refused,
-                                                input::InputSessionClosed>>::on;
+                                                input::InputSessionClosed,
+                                                manual::ShapeDocumentShown>>::on;
+
+    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it, said against the
+    /// content id the asker holds. The gate's own list says which shapes are mine to describe.
+    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(manual::shape_document(ask, this->accepted_schemas(),
+                                                 manual::pages::zengine_guests::kManual));
+    }
 
     /// A presenter that just arrived asks; it is answered with the inventory as it stands.
     void on(const GuestConnectionsRequested&, loom::Mail& mail) {
@@ -441,11 +455,13 @@ private:
                                                      v3::GuestConnectionsRequested,
                                                      GuestRowDescribedRequested,
                                                      v2::GuestRowDescribedRequested,
-                                                     GuestPlanRequested>,
+                                                     GuestPlanRequested,
+                                                     manual::ShapeDocumentRequested>,
                                         loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections,
                                                    GuestRowDescribed, v2::GuestRowDescribed,
                                                    GuestPlanSaid, loom::Refused,
-                                                   input::InputSessionClosed>>::Handle
+                                                   input::InputSessionClosed,
+                                                   manual::ShapeDocumentShown>>::Handle
         beat_;
     bool dirty_ = true; ///< the first beat says the inventory once, empty or not
     std::vector<loom::WeaveId> gone_;
@@ -462,7 +478,7 @@ private:
 };
 
 /// THE DOOR'S GRANT: its beat, its inventory, an asker's own row, where the plan is, a refusal,
-/// and one word to the Input office. Nothing else.
+/// what a shape it accepts does, and one word to the Input office. Nothing else.
 inline loom::Grant guest_door_grant() {
     loom::Grant g;
     g.allow_to_role(zengine::timer::EnsureRoleTimer::zen_name,
@@ -478,6 +494,7 @@ inline loom::Grant guest_door_grant() {
     g.allow_to_any(v2::GuestRowDescribed::zen_name, v2::GuestRowDescribed::zen_version);
     g.allow_to_any(GuestPlanSaid::zen_name, GuestPlanSaid::zen_version);
     g.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
+    g.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     g.allow_to_role(input::InputSessionClosed::zen_name, input::InputSessionClosed::zen_version,
                     input::kInputRole);
     loom::allow_poke_answers(g);
