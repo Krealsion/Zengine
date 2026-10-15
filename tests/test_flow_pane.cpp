@@ -111,6 +111,8 @@ struct Rig {
         loom::Grant say;
         say.allow_to_any(ws::PowersFound::zen_name, ws::PowersFound::zen_version);
         say.allow_to_any(ws::PowerDescribed::zen_name, ws::PowerDescribed::zen_version);
+        say.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                         zengine::manual::ShapeDocumentShown::zen_version);
         finder = bus.register_weave(std::move(discovery), std::move(say), std::string(ws::kPowersRole));
         discovery_raw->zen_set_self(finder);
         auto presentation = std::make_unique<Presenter>();

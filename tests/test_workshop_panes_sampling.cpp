@@ -10,6 +10,10 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+#include "office_manual.hpp"
+
+#include "manuals/zengine.sources.hpp"
+
 // ============================================================================
 // The live seam: browsing runs nothing, sampling runs exactly one
 // ============================================================================
@@ -344,6 +348,17 @@ TEST_CASE("an office may ask the sample door; anonymous speech may not") {
     ask_for(r, asker, book, kProjectAnchorSource);
     CHECK(book.heard.size() == 1);
     CHECK(op::invocations() == before + 1);
+}
+
+TEST_CASE("the sample door answers its page for the shape it accepts, and runs nothing to say it") {
+    PaneRig r;
+    (void)open_powers(r);
+    const std::uint64_t before = op::invocations();
+    CHECK(check_office_manual(r.bus, kSampleRole) >= 1);
+    check_page_names_accepted(zengine::manual::pages::zengine_sources::kManual,
+                              described_shapes_of(r.bus, r.bus.role_holder(kSampleRole)));
+    // ASKED BY A WEAVE THAT HOLDS NO OFFICE, and still no Source ran: the words are not a sample.
+    CHECK(op::invocations() == before);
 }
 
 TEST_CASE("the door quotes the refusal of whoever owns it, and invents none") {

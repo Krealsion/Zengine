@@ -12,7 +12,10 @@
 #include "workshop_support.hpp"
 #include "census.hpp"
 
+#include "office_manual.hpp"
+
 #include "flow/flow-pane/vocabulary.hpp"
+#include "manuals/zengine.powers.hpp"
 
 namespace {
 
@@ -169,6 +172,14 @@ TEST_CASE("the Terminal may ask the discovery door its two questions, and nothin
     s.r.bus.remove_observer(tap);
     REQUIRE(denied.size() == 1);
     CHECK(denied[0].reason == loom::RefusalReason::CapabilityDenied);
+}
+
+TEST_CASE("the discovery door answers its page for every shape it accepts, in every version") {
+    FindingRig s;
+    // BOTH VERSIONS OF THE FINDING QUESTION AND THE DESCRIBING ONE, each from its section.
+    CHECK(check_office_manual(s.r.bus, kPowersRole) >= 3);
+    check_page_names_accepted(zengine::manual::pages::zengine_powers::kManual,
+                              described_shapes_of(s.r.bus, s.r.bus.role_holder(kPowersRole)));
 }
 
 namespace {

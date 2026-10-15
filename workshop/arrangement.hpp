@@ -4,9 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_ARRANGEMENT_HPP
 #define ZENGINE_WORKSHOP_ARRANGEMENT_HPP
 
-// The host's read-only observation door (introspection/docs/introspection.md): a derivation, pure over
-// the live realization owner it reads, and the weave that answers an office that asks. It keeps no
-// store, publishes nothing, and cannot mount,
+// The host's read-only observation door, `zengine.arrangement` (its manual, which it carries and
+// answers: introspection/docs/zengine.arrangement.md): a derivation, pure over the live realization
+// owner it reads, and the weave that answers an office that asks. It keeps no store, publishes
+// nothing, and cannot mount,
 // unmount, overlay, evaluate, load, unload, reload or replace anything. Which powers resolve
 // is the discovery door's (workshop/powers_door.hpp).
 
@@ -15,7 +16,9 @@
 #include "load_persist.hpp" // `mode_word` -- ONE spelling of `normal`/`overlay`
 #include "load_plan.hpp"
 
-#include "operator/host_surface.hpp" // `op::OfferOutcome`, the handoff a row reports
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.arrangement.hpp" // this office's manual, compiled in from its page
+#include "operator/host_surface.hpp"         // `op::OfferOutcome`, the handoff a row reports
 
 #include <zen/weave.hpp>
 
@@ -188,8 +191,9 @@ struct ArrangementDoorState {
 /// office may ask; that rule names nobody and is not containment.
 class ArrangementDoor
     : public loom::WeaveBase<ArrangementDoor, ArrangementDoorState,
-                             loom::Accept<ArrangementRequested>,
-                             loom::Emit<ResolvedArrangement, v2::ResolvedArrangement>> {
+                             loom::Accept<ArrangementRequested, manual::ShapeDocumentRequested>,
+                             loom::Emit<ResolvedArrangement, v2::ResolvedArrangement,
+                                        manual::ShapeDocumentShown>> {
 public:
     /// DOES THE OFFICE THAT ASKED ACCEPT THIS SHAPE NOW? The host's `holder_accepts_on`, wired
     /// by whoever mounts the door. Empty answers no, and every answer crosses in version 1.
@@ -214,6 +218,13 @@ public:
             return;
         }
         (void)mail.answer(in_version_one(said));
+    }
+
+    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it. Words, not the
+    /// arrangement, so anyone who can be answered may ask.
+    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
+                                                 manual::pages::zengine_arrangement::kManual));
     }
 
 private:

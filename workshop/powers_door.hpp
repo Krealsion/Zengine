@@ -4,14 +4,17 @@
 #ifndef ZENGINE_WORKSHOP_POWERS_DOOR_HPP
 #define ZENGINE_WORKSHOP_POWERS_DOOR_HPP
 
-// The host's discovery door (introspection/docs/introspection.md): two derivations, pure over the live
-// `op::Catalog` they read, and the participant that answers them in the office `zengine.powers`.
-// It derives every answer at the ask and keeps nothing between asks, describes and cannot
-// evaluate (sampling is `zengine.sources`'), answers only whoever asked, publishes nothing, and
-// refuses in words an ask past its bounds.
+// The host's discovery door (its manual, which it carries and answers:
+// introspection/docs/zengine.powers.md): two derivations, pure over the live `op::Catalog` they
+// read, and the participant that answers them in the office `zengine.powers`. It derives every
+// answer at the ask and keeps nothing between asks, describes and cannot evaluate (sampling is
+// `zengine.sources`'), answers only whoever asked, publishes nothing, and refuses in words an ask
+// past its bounds.
 
 #include "powers_vocabulary.hpp"
 
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.powers.hpp" // this office's manual, compiled in from its page
 #include "operator/catalog.hpp"
 #include "operator/fold.hpp"      // the fold, the one form a row describes beside the catalog
 #include "operator/migration.hpp" // `declares_migration`, the one spelling of a conversion
@@ -381,10 +384,12 @@ public:
     void zen_set_self(loom::WeaveId id) noexcept { self_ = id; }
 
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {find_powers_schema(), find_powers_v1_schema(), loom::schema_of<DescribePower>()};
+        return {find_powers_schema(), find_powers_v1_schema(), loom::schema_of<DescribePower>(),
+                loom::schema_of<manual::ShapeDocumentRequested>()};
     }
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
-        return {loom::schema_of<PowersFound>(), loom::schema_of<PowerDescribed>()};
+        return {loom::schema_of<PowersFound>(), loom::schema_of<PowerDescribed>(),
+                loom::schema_of<manual::ShapeDocumentShown>()};
     }
 
     void handle(const loom::Message& in, loom::Bus& bus) override {
@@ -399,6 +404,16 @@ public:
             ++state_.found;
             (void)bus.answer(loom::Message(
                 loom::to_value(find_powers(*catalog_, find_powers_from(in.payload))), self_));
+            return;
+        }
+        // What a shape this door accepts does: its page's section, said to the asker alone.
+        if (loom::same_identity(in.payload.schema(),
+                                *loom::schema_of<manual::ShapeDocumentRequested>())) {
+            (void)bus.answer(loom::Message(
+                loom::to_value(manual::shape_document(
+                    loom::from_value<manual::ShapeDocumentRequested>(in.payload),
+                    accepted_schemas(), manual::pages::zengine_powers::kManual)),
+                self_));
             return;
         }
         ++state_.described;
