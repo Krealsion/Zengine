@@ -230,7 +230,7 @@ The file is read once at startup and answered in words. A file that **applied** 
 notice line, with the override count — that happened, once, at this launch. A file that was
 **refused** is a standing condition instead: the defaults stand for the whole run and for
 every run until you change the file, so it goes to attention with the loader's own reason and
-stays there until it is no longer true ([what needs your attention](../../attention/docs/attention.md)). Workshop
+stays there until it is no longer true ([the Attention pane](../../attention/docs/zengine.attention.md)). Workshop
 never trims or "fixes" it; the only thing that writes it is an edit you made in the Hotkeys
 pane, and that never touches a file that was refused or that changed under it
 ([editing a binding](#editing-a-binding)).
