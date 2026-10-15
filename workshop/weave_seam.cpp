@@ -6,6 +6,8 @@
 
 #include "weave.hpp"
 
+#include <algorithm>
+
 namespace zengine::workshop {
 
 // ---- THE EXTERNAL PANE SEAM: an office offers, Workshop grants, an office says
@@ -175,11 +177,35 @@ void WorkshopWeave::declare_pane_actions(const v3::PaneActions& declared, loom::
     session_.keymap = std::move(candidate);
     answer_declaration(std::string(office), ActionsJudged{pane, true, declaration, std::string()},
                        mail);
+    // ...AND A ROW THE TERMINAL CANNOT PRODUCE STANDS, BOUND, AND IS SAID (WL-KEY-08).
+    if (const std::string gaps = unsaid_gaps(admitted.kind); !gaps.empty()) {
+        say(gaps, false);
+    }
     repaint(mail); // the legend and the hotkey view read the map at every paint
 }
 
+// WL-KEY-08 -- agents/workshop/keyboard.md
+std::string WorkshopWeave::unsaid_gaps(std::int64_t kind) {
+    const PaneRows* held = session_.keymap.pane_rows(kind);
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
+    if (held == nullptr || row == nullptr) {
+        return std::string();
+    }
+    std::vector<std::string>& said = gaps_said_[kind];
+    std::string fresh;
+    for (const std::string& gap : held->gaps) {
+        if (std::find(said.begin(), said.end(), gap) != said.end()) {
+            continue;
+        }
+        said.push_back(gap);
+        fresh += (fresh.empty() ? "" : "; ") + gap;
+    }
+    return fresh.empty() ? fresh : row->name + " @" + row->provider + ": " + fresh;
+}
+
 // WL-KEY-15 -- agents/workshop/keyboard.md
-void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
+void WorkshopWeave::rejoin_pane_rows(std::string& refusals, std::string& gaps,
+                                     loom::Mail& mail) {
     session_.keymap.panes.clear();
     // ⚠ THE PANE ROWS ARE COLLECTED BEFORE ANY REFUSAL IS SENT, and the copy is why. Telling a
     // provider inside this walk would let a re-declaration arriving in that delivery mutate
@@ -197,6 +223,9 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
         }
         const Written joined = join_pane_rows(session_.keymap, row.kind, row.actions);
         if (joined.accepted) {
+            if (const std::string fresh = unsaid_gaps(row.kind); !fresh.empty()) {
+                gaps += (gaps.empty() ? "" : "; ") + fresh;
+            }
             continue;
         }
         drop_pane_rows(session_.keymap, row.kind);

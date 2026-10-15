@@ -873,6 +873,203 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
 // The legend and the effective keymap
 // ============================================================================
 
+namespace {
+
+/// AN OFFICE THAT EDITS A BINDING THROUGH THE HOST'S DOOR, as the Pane Manager's keys table does:
+/// it asks `asked` when driven, and keeps each answer.
+class KeymapEditSeat : public loom::WeaveBase<KeymapEditSeat, SeatState,
+                                              loom::Accept<SeatDo, KeymapEditAnswered>,
+                                              loom::Emit<KeymapEditRequested>> {
+public:
+    static constexpr const char* kOffice = "zengine.test.keymap-editor";
+    void on(const SeatDo&, loom::Mail& mail) {
+        (void)mail.as_role(kOffice).send_to_role(kWorkshopProvider, asked);
+    }
+    void on(const KeymapEditAnswered& said, loom::Mail&) { answers.push_back(said); }
+    KeymapEditRequested asked;
+    std::vector<KeymapEditAnswered> answers;
+};
+
+/// Ask the door once, as `KeymapEditSeat::kOffice`, and drain.
+void edit_binding(PaneRig& r, const KeymapEditRequested& asked, KeymapEditSeat*& seat,
+                  loom::WeaveId& id) {
+    if (seat == nullptr) {
+        auto made = std::make_unique<KeymapEditSeat>();
+        seat = made.get();
+        loom::Grant grant;
+        grant.allow_to_role(KeymapEditRequested::zen_name, KeymapEditRequested::zen_version,
+                            kWorkshopProvider);
+        id = r.bus.register_weave(std::move(made), std::move(grant), KeymapEditSeat::kOffice);
+        seat->zen_set_self(id);
+    }
+    seat->asked = asked;
+    (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{},
+                                       0));
+    r.bus.drain_until_idle();
+}
+
+/// How many times `part` stands in `text`.
+std::size_t times_in(const std::string& text, const std::string& part) {
+    std::size_t n = 0;
+    for (std::size_t at = text.find(part); at != std::string::npos; at = text.find(part, at + 1)) {
+        ++n;
+    }
+    return n;
+}
+
+} // namespace
+
+TEST_CASE("WL-KEY-08: a pane row on a gesture the terminal cannot produce is joined as it stands, "
+          "and its gap is kept once") {
+    const Gesture shift_one{input::scan::k1, input::mod::kShift};
+    const std::string gap = gap_sentence(gesture_word(shift_one), "x.r", posix_gap(shift_one));
+    REQUIRE(posix_gap(shift_one) != nullptr);
+    Keymap k;
+    const std::vector<v2::PaneActionRow> rows{
+        declared("x.r", "row", input::scan::k1, input::mod::kShift),
+        declared("x.s", "other row", input::scan::kU, input::mod::kCtrl)};
+
+    SUBCASE("a declared default: bound as declared, its gap kept, an ordinary row's none") {
+        REQUIRE(join_pane_rows(k, kSomePane, rows).accepted);
+        const PaneRows* in_force = k.pane_rows(kSomePane);
+        REQUIRE(in_force != nullptr);
+        CHECK(in_force->rows[0].gesture == shift_one);
+        CHECK(in_force->gaps == std::vector<std::string>{gap});
+        // JOINED AGAIN, as every re-join joins it: the gap neither goes nor doubles.
+        REQUIRE(join_pane_rows(k, kSomePane, rows).accepted);
+        CHECK(k.pane_rows(kSomePane)->gaps == std::vector<std::string>{gap});
+    }
+    SUBCASE("the weaver's override onto such a gesture: the moved row is bound there, and said") {
+        k.authored = {AuthoredOverride{"x.s", "shift+1"}};
+        REQUIRE(join_pane_rows(k, kSomePane, {declared("x.r", "row", input::scan::kDown),
+                                              declared("x.s", "other row", input::scan::kU,
+                                                       input::mod::kCtrl)})
+                    .accepted);
+        const PaneRows* in_force = k.pane_rows(kSomePane);
+        REQUIRE(in_force != nullptr);
+        CHECK(in_force->rows[1].gesture == shift_one);
+        CHECK(in_force->gaps ==
+              std::vector<std::string>{gap_sentence("shift+1", "x.s", posix_gap(shift_one))});
+    }
+    SUBCASE("a refused declaration writes neither rows nor gaps") {
+        REQUIRE(join_pane_rows(k, kSomePane, rows).accepted);
+        Keymap candidate = k;
+        CHECK_FALSE(join_pane_rows(candidate, kSomePane,
+                                   {declared("x.r", "row", input::scan::k1, input::mod::kShift),
+                                    declared("x.t", "twin", input::scan::k1, input::mod::kShift)})
+                        .accepted);
+        CHECK(candidate.pane_rows(kSomePane)->rows.size() == 2);
+        CHECK(candidate.pane_rows(kSomePane)->gaps == std::vector<std::string>{gap});
+    }
+}
+
+TEST_CASE("WL-KEY-08: a pane's row the terminal cannot produce is admitted, acts, and is said once, "
+          "whichever path brought it into force") {
+    const Gesture shift_one{input::scan::k1, input::mod::kShift};
+    const std::string said =
+        "Seat @" + std::string(kHelloOffice) + ": " +
+        gap_sentence("shift+1", "hello.up", posix_gap(shift_one));
+
+    SUBCASE("a declaration: said at admission, and not again for the same rows") {
+        PaneRig r;
+        r.mount_workshop();
+        r.ready();
+        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        const std::vector<v2::PaneActionRow> rows{
+            declared("hello.up", "row up", input::scan::k1, input::mod::kShift),
+            declared("hello.down", "row down", input::scan::kDown)};
+        r.drive(seat, [&rows](ProviderSeat& s, loom::Mail& m) {
+            s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
+            s.declare(m, actions_for(kHelloPane, rows));
+        });
+        CHECK(r.last_notice() == said);
+        CHECK(r.last_notice().find("hello.down") == std::string::npos);
+        r.pick(PaneRef{kHelloOffice, kHelloPane});
+        const std::int64_t kind = r.session().panes.runtime.find(kHelloOffice, kHelloPane)->kind;
+        // BOUND, NOT REWRITTEN: the press is the declared row's.
+        press_body(r, kind);
+        r.key(input::scan::k1, input::mod::kShift);
+        REQUIRE(seat->actions.size() == 1);
+        CHECK(seat->actions[0].id == "hello.up");
+        // THE SAME ROWS AGAIN, and a re-join under a desktop's rows: kept once, said no more.
+        const std::string before = r.last_notice();
+        redeclare(r, seat, kHelloPane, rows);
+        mount_desktop(r);
+        REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
+        CHECK(r.session().keymap.pane_rows(kind)->gaps.size() == 1);
+        CHECK(r.last_notice().find("hello.up") == std::string::npos);
+        CHECK(times_in(r.last_notice() + before, "(hello.up)") <= 1);
+    }
+    SUBCASE("the file's override, the pane first: said with the keymap at the load") {
+        TempDir dir("pane-actions-gap-file");
+        const std::string path = dir.file("keymap.json");
+        write_keymap_file(path, keymap_file_text("default", {{"hello.up", "shift+1"}}));
+        PaneRig r;
+        r.host.keymap_path = path;
+        r.mount_workshop();
+        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+            s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
+            s.declare(m, actions_for(kHelloPane, {declared("hello.up", "row up", input::scan::kUp)}));
+        });
+        const std::int64_t kind = r.session().panes.runtime.find(kHelloOffice, kHelloPane)->kind;
+        CHECK(r.session().keymap.pane_rows(kind)->gaps.empty());
+        r.ready();
+        CHECK(r.session().keymap.pane_rows(kind)->rows[0].gesture == shift_one);
+        CHECK(r.session().keymap.pane_rows(kind)->gaps.size() == 1);
+        CHECK(times_in(r.last_notice(), said) == 1);
+    }
+    SUBCASE("the file's override, the file first: said when the pane declares") {
+        TempDir dir("pane-actions-gap-file-first");
+        const std::string path = dir.file("keymap.json");
+        write_keymap_file(path, keymap_file_text("default", {{"hello.up", "shift+1"}}));
+        PaneRig r;
+        r.host.keymap_path = path;
+        r.mount_workshop();
+        r.ready();
+        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+            s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
+            s.declare(m, actions_for(kHelloPane, {declared("hello.up", "row up", input::scan::kUp)}));
+        });
+        CHECK(r.last_notice() == said);
+    }
+    SUBCASE("the host's door moves a pane's row there: its answer and the band say it") {
+        PaneRig r;
+        r.mount_workshop();
+        r.ready();
+        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        const std::int64_t kind = seat_pane_declared(
+            r, seat, kHelloOffice, kHelloPane, {declared("hello.up", "row up", input::scan::kUp)});
+        KeymapEditSeat* editor = nullptr;
+        loom::WeaveId editor_id{};
+        edit_binding(r, KeymapEditRequested{"hello.up", keymap_edit::kSet, input::scan::k1,
+                                            input::mod::kShift, std::string()},
+                     editor, editor_id);
+        REQUIRE(editor->answers.size() == 1);
+        CHECK_MESSAGE(editor->answers[0].accepted, editor->answers[0].refusal);
+        CHECK(r.session().keymap.pane_rows(kind)->rows[0].gesture == shift_one);
+        CHECK(editor->answers[0].sentence.find(said) != std::string::npos);
+        CHECK(r.last_notice().find(said) != std::string::npos);
+    }
+    SUBCASE("a refused re-declaration leaves the rows in force and their gap") {
+        PaneRig r;
+        r.mount_workshop();
+        r.ready();
+        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        const std::int64_t kind = seat_pane_declared(
+            r, seat, kHelloOffice, kHelloPane,
+            {declared("hello.up", "row up", input::scan::k1, input::mod::kShift)});
+        redeclare(r, seat, kHelloPane,
+                  {declared("hello.up", "row up", input::scan::k1, input::mod::kShift),
+                   declared("hello.twin", "twin", input::scan::k1, input::mod::kShift)});
+        CHECK(r.last_notice().find("one of them must move") != std::string::npos);
+        REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
+        CHECK(r.session().keymap.pane_rows(kind)->rows.size() == 1);
+        CHECK(r.session().keymap.pane_rows(kind)->gaps.size() == 1);
+    }
+}
+
 TEST_CASE("the band's legend and the effective keymap print the pane's rows while it holds the "
           "keys") {
     PaneRig r;
