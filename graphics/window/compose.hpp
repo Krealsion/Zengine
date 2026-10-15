@@ -7,7 +7,7 @@
 // A window's picture: each node painted once, when it changes, by its area's skin, and kept
 // painted, so a change paints only what changed, and the composition and a press read what was
 // painted. What it keeps painted is the window's memory, never its state: a reload paints it
-// again from the nodes its state keeps. Reference: graphics/docs/graphics.md, "The window".
+// again from the nodes its state keeps. Reference: graphics/docs/zengine.window.terminal.md.
 
 #include "graphics/term_paint.hpp"
 #include "graphics/window/store.hpp"

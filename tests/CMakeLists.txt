@@ -1459,6 +1459,9 @@ target_compile_definitions(zengine-graphics-tests PRIVATE
     "PAINT_BLOCK_SO=\"$<TARGET_FILE:zengine-paint-block>\""
     "SNAKE_SO_BOARD=\"$<TARGET_FILE:snake-board>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\"")
+# The suite mounts the window in process, and reads both offices' pages against what they accept.
+zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.terminal.md)
+zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.graphics.md)
 zengine_doctest_test(graphics zengine-graphics-tests)
 
 # ---- the source-tree checks ------------------------------------------------------------

@@ -7,10 +7,13 @@ cells that changed. A **directory** introduces each area to its window and tells
 room; nothing a picture is made of passes through it.
 
 A program spells the vocabulary with `#include "graphics/vocabulary.hpp"` and links
-`zengine::graphics`. This package ships the terminal window (`zengine-window-terminal`), the
-directory (`zengine-graphics`), and two skins (`zengine-paint-classic`, `zengine-paint-block`). The
-snake (`examples/snake/`) is the worked example: it draws its frame as nodes and its board as an
-element of its own.
+`zengine::graphics`. This page is for whoever draws: the vocabulary, the canvas, a drawing weave,
+an element of your own, and the two seams a skin or an element's code is written against. The
+package ships two weaves, each with its manual: the terminal window,
+[`zengine.window.terminal`](zengine.window.terminal.md), built as `zengine-window-terminal`, and
+the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`; and two
+skins, `zengine-paint-classic` and `zengine-paint-block`. The snake (`examples/snake/`) is the
+worked example: it draws its frame as nodes and its board as an element of its own.
 
 ![The snake in a terminal window under the classic skin: the operator's status line, the world's score and board, and the score weave's own area beside it](images/snake-classic.png)
 
@@ -30,6 +33,8 @@ directory -> everyone        GraphicsReady (a directory that started afresh)
 ```
 
 The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator.
+What each message does is the manual of the office that takes it: the window's for what an owner
+sends it, the directory's for what the arranger and a window send it.
 
 ## A node, and an element's record beside it
 
@@ -100,8 +105,10 @@ each life delivers it while no room has come (a loaded weave's activation, where
 and takes a refusal and does nothing with it. At the end of every delivery, and of every poke that
 wrote the state, it draws the drawer's `picture`, so only what changed is sent, and shows the beat:
 a drawer never calls `show`. An optional `on_room` runs when the window or its incarnation
-changed, where an element the window does not hold is said again (`canvas().holds`). A drawer that
-presents elements emits `ElementPut` and `ElementChange` itself and accepts the presses it wants.
+changed, where an element the window does not hold is said again (`canvas().holds`): a drawer
+reloaded in place asks its room, draws its picture whole once, and says an element again only
+where the window does not hold it. A drawer that presents elements emits `ElementPut` and
+`ElementChange` itself and accepts the presses it wants.
 Over the Timer, a drawer derives
 `DrawingWeave<Self, State, Accept<...>, Emit<...>, zengine::timer::TimedWeave>`. A drawer that
 keeps a handshake of its own derives `loom::WeaveBase` and draws with a `Canvas`; one that defines
@@ -140,32 +147,6 @@ A change travels as its index in `Changes`, so the list's order is a wire contra
 at its end. A change of a type outside the list, or listed twice, does not compile where its owner
 sends it (`Canvas::change`).
 
-## The window
-
-A window weave does the whole job of showing. It keeps each area's nodes, records and presented
-elements in its state, so a reload keeps them and draws nothing again. It paints a node once, when
-it changes, with the area's skin, and keeps it painted in its memory. It composes the areas, front
-to back by their order, and writes its terminal only the cells whose picture changed, as runs:
-a cursor move, the role's ink, the glyphs.
-
-It reads its own terminal on its own beat (every
-<!-- value window::kPumpBeatMs -->10<!-- /value --> ms of the Timer) with Zengine's parser. A key goes
-to the owner of each area placed to hear keys. A press lands on the top node painted at its cell:
-an element presented there whose code takes it handles it; else a record's action goes to the
-area's owner as `ActionIssued`; else the press goes to the owner as `ElementPressed`.
-
-Every bound is judged before anything changes, and a drawing past one is refused whole, in words,
-to its drawer (`DrawnRefused`), leaving what the window shows as it was: an area holds at most
-<!-- value kMaxNodesPerArea grouped -->4,096<!-- /value --> nodes and
-<!-- value kMaxElementsPerArea grouped -->1,024<!-- /value --> elements (records, and elements it
-presents, each counted); a path at most <!-- value kMaxPathBytes -->256<!-- /value --> bytes and
-<!-- value kMaxPathDepth -->16<!-- /value --> deep. A record said again at its own path counts as
-itself, so an area at its bound still takes a change. An element whose data does not read as its
-type is refused saying so.
-
-`WindowShowAsked` asks a window what it shows, as rows of text, and what it has spent: its
-showings, the bytes it wrote, and the calls of its skins and element code.
-
 ## The two seams
 
 A skin and an element's code are libraries a window opens by path, as operator providers are
@@ -182,21 +163,5 @@ answer is read through the one gate. Ours and a stranger's are opened and judged
 A skin for a terminal is the shared painter (`graphics/term_paint.hpp`) and a look -- a glyph for
 each role, the glyphs an outline wears -- exported by `ZENGINE_EXPORT_PAINTER`. Which library holds
 a skin or an element's code is the load plan's word, through the arranger and the directory, never
-a pane's.
-
-## The directory
-
-The directory introduces an area to its window once the window and the area's skin are known --
-never an introduction a look would have to change after -- and the window answers each
-introduction with the owner's room. The directory says again whatever changes: a skin chosen, an
-area placed elsewhere, a window that offers itself again, an owner that asks its room. A window
-started afresh is told every element code, then its areas, in that order. An area given another
-owner starts empty. A directory started afresh says `GraphicsReady`, and everyone offers, places
-and chooses again; an owner that hears the same room again draws nothing.
-
-## What it costs
-
-A replaced window draws nothing until its owners hear their room: each draws its picture whole
-once and says each element once. A reloaded window keeps everything and draws nothing. A reloaded
-owner asks its room, draws its picture whole once, and says an element again only where the window
-does not hold it. A skin chosen sends no drawing on the bus: the window paints what it keeps.
+a pane's. What a window says of a library it cannot open or read is
+[the window's manual](zengine.window.terminal.md#files).

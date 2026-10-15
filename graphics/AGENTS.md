@@ -29,7 +29,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 - `graphics` — the vocabulary, the canvas, the painter and every operator; the window, the
   directory, the skins and the snake's board through the real kernel: said once, one change a
   tick shown once, a skin chosen, each participant replaced or reloaded, the room naming what the
-  window holds, a drawing weave shown once a beat, presses and keys, every bound refused in words;
+  window holds, a drawing weave shown once a beat, presses and keys, every bound refused in words,
+  and each office's manual answering for every shape it accepts;
   `tests/test_graphics.cpp`, `tests/graphics_rig.hpp`
 - `graphics_change_outside_list_refused` — an element's change outside its code's list does not
   compile (`tests/compile_negative/drawing_walls.cpp`, case 1)
@@ -53,7 +54,9 @@ rows; it shares the rig.
 
 ## Pages
 
-- [The Graphics package](docs/graphics.md)
+- [`zengine.window.terminal`](docs/zengine.window.terminal.md), the window's manual, compiled in
+- [`zengine.graphics`](docs/zengine.graphics.md), the directory's manual, compiled in
+- [The Graphics package](docs/graphics.md), drawing into a window
 
 ## Practices
 
