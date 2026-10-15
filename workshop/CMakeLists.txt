@@ -20,8 +20,10 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-voca
                                                             loom::terminal)
 # ...and the manuals of the host's own offices compiled into it, each office answering a shape's
 # section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp): Workshop's own weave
-# (its header, workshop/weave.hpp), and the doors a pane asks about the project.
+# (its header, workshop/weave.hpp), the opening manager (`opening.hpp`), and the doors a pane asks
+# about the project.
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.workshop.md)
+zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.opening.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.project.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.recipes.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.plan.md)
@@ -55,6 +57,9 @@ target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabular
                                                       zengine-operator
                                                       loom::core
                                                       loom::switchboard)
+# ...and the realization owner's manual, compiled into whatever mounts the plan booter: it
+# answers a shape's section from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
+zengine_manual(zengine-workshop-load INTERFACE docs/zengine.realization.md)
 
 # ---- The logic, compiled once ----------------------------------------------------------
 #

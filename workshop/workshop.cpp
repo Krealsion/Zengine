@@ -851,6 +851,9 @@ int main(int argc, char** argv) {
     arrange_openings.allow_to_role(v2::PrepareSourceRequested::zen_name,
                                    v2::PrepareSourceRequested::zen_version, kEditorRole);
     arrange_openings.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+    // ...and what a shape it accepts does, from its own page, to the one who asked.
+    arrange_openings.allow_to_any(manual::ShapeDocumentShown::zen_name,
+                                  manual::ShapeDocumentShown::zen_version);
     // ...and it answers pokes: the operation, its stage and whom it waits on are readable.
     loom::allow_poke_answers(arrange_openings);
     {
@@ -882,6 +885,10 @@ int main(int argc, char** argv) {
                          builder::ArtifactRealized::zen_version);
     operate.allow_to_any(builder::ArtifactPromoted::zen_name,
                          builder::ArtifactPromoted::zen_version);
+    // ...and what a shape it accepts does, from its own page, to the one who asked: an answer to
+    // any, never a third rule to the Manager.
+    operate.allow_to_any(manual::ShapeDocumentShown::zen_name,
+                         manual::ShapeDocumentShown::zen_version);
     load::BootAnswers answers;
     auto speaker = std::make_unique<load::PlanBooter>(answers);
     load::PlanBooter& voice = *speaker;

@@ -240,9 +240,9 @@ zengine-workshop - waiting to be built: zengine-oven (build it, and its authored
 
 `PlanExecutor::realize(stem)` performs **the row realization is waiting on**, with the same
 three steps in the same order, at a moment a weaver chose. In Workshop that is `Shift+b` in the
-Builder pane; the offer reaches the realization owner as `builder::OfferArtifact` and its answer
-comes back as `builder::ArtifactRealized`. When the row settles, the frontier moves on by one
-and the walk resumes from exactly the next authored row.
+Builder pane; the offer reaches [the realization owner](zengine.realization.md#offerartifact) as
+`builder::OfferArtifact` and its answer comes back as `builder::ArtifactRealized`. When the row
+settles, the frontier moves on by one and the walk resumes from exactly the next authored row.
 
 Every eligibility rule is about the **authored plan**:
 

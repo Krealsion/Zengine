@@ -165,9 +165,9 @@ The `Project` pane calls the waiting row `pending`, and every row behind it `aut
 ## When a built artifact is loaded again
 
 A build offered to the running project ([load after build](../../builder/docs/zengine.builder-pane.md#builderarm),
-or `f`) is decided by the realization owner, `zengine.realization`. A row that is **waiting** is
-realized: the product is copied into place and loaded. A row that is **already live** is
-**reloaded in place**:
+or `f`) is decided by the realization owner, [`zengine.realization`](zengine.realization.md). A row
+that is **waiting** is realized: the product is copied into place and loaded. A row that is
+**already live** is **reloaded in place**:
 
 - the host copies the rebuilt product to a path of its own beside Workshop,
   `<stem>.reloads/<stem>-<n>`, off the file the process has loaded, under a name no file has yet;
@@ -202,11 +202,9 @@ weave is touched, when the rebuilt weave keeps a different **state** or answers 
 An artifact that also supplies operators to the catalog is not reloaded, and a row that is only a
 provider has no weave to reload; both are refused in words.
 
-Every offer, promotion and revert the owner hears is numbered: it says `RealizationAsked` v1 first,
-taken as ask number N or refused in its own words, and its answer names N (`ArtifactRealized` v3,
-`ArtifactPromoted` v2; 0 for an ask it did not take). A promotion is answered at once, a revert when
-its reload settles. Follow a promotion or a revert by that number: a status that reads `promoted:`
-may be an older promotion's.
+Every offer, promotion and revert the owner hears is numbered, and its answer names that number;
+[follow one](zengine.realization.md#follow) by it, since a status that reads `promoted:` may be an
+older promotion's.
 
 ## What a plan cannot do
 
