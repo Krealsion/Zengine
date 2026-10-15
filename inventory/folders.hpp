@@ -4,9 +4,10 @@
 #define ZENGINE_INVENTORY_FOLDERS_HPP
 
 // Folder rules shared by the collection owner (the authority) and presentations that check a
-// name before asking. inventory/docs/inventory.md#named-folders states them for weavers. A folder
-// organizes; it is never an activation context or an authority (seam: a per-folder hotkey
-// context would be presentation configuration keyed by folder identity, not a rule here).
+// name before asking. inventory/docs/zengine.inventory.md#inventoryfoldercreate states them for
+// weavers. A folder organizes; it is never an activation context or an authority (seam: a
+// per-folder hotkey context would be presentation configuration keyed by folder identity, not a
+// rule here).
 
 #include <algorithm>
 #include <cstddef>

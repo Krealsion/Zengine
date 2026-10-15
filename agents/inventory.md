@@ -1,8 +1,9 @@
 # The inventory weave
 
 Routed behind [AGENTS.md](../AGENTS.md). Public contract:
-[inventory](../inventory/docs/inventory.md). Packaging follows [packaging](packaging.md);
-verification follows [verification](verification.md).
+[zengine.inventory](../inventory/docs/zengine.inventory.md) and
+[zengine.inventory-pane](../inventory/docs/zengine.inventory-pane.md). Packaging follows
+[packaging](packaging.md); verification follows [verification](verification.md).
 
 - `zengine::inventory` exports the codec, vocabulary and explicit `inventory_grant()` helper.
   `zengine-inventory` is an ordinary

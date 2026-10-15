@@ -48,7 +48,7 @@ still decide whether it may participate. There is no automatic plugin discovery 
 | Show rows and receive a named action | Tally; [pane protocol](workshop-panes.md) |
 | Interpret a particular displayed row | [RowMap](../../component/row_map.hpp); the picture and subject you actually showed |
 | Ask another role for data or an effect | The operation pattern below; its destination's published vocabulary |
-| Read or conditionally edit an Inventory entry | [Inventory](../../inventory/docs/inventory.md); its reference and revision |
+| Read or conditionally edit an Inventory entry | [Inventory](../../inventory/docs/zengine.inventory.md); its reference and revision |
 | Edit schema-shaped values | [Message drafts](../../message-draft/docs/message-drafts.md) |
 | Drive the live story from another host | [External host tools](../../external-host/docs/external-host.md) |
 
@@ -192,6 +192,6 @@ instructions for the current tool author.
 ## Where to look next
 
 - [Pane reference](workshop-panes.md): exact current messages, bounds and provenance.
-- [Inventory](../../inventory/docs/inventory.md): data custody, references and conditional updates.
+- [Inventory](../../inventory/docs/zengine.inventory.md): data custody, references and conditional updates.
 - [Architecture](../../docs/architecture/README.md): ownership and dependency direction.
 - [Develop Workshop](develop-workshop.md): edit, build and reload a shipped pane.

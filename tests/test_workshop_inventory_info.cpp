@@ -6,6 +6,7 @@
 // the current actor's own authority.
 
 #include "workshop_support.hpp"
+#include "census.hpp"
 #include "inventory_story.hpp"
 #include "operator/reference.hpp"
 #include "inventory/codec.hpp"
@@ -44,6 +45,66 @@ public:
         if (pending.matches_answer(mail)) pending.forget();
     }
 };
+
+/// EVERY STATE THE INVENTORY PANE'S CENSUS DRIVES IT INTO, each handed to `take` as Workshop holds
+/// the pane's rows there: main Inventory browsing, with an entry picked to move, with a name line
+/// open, and a portable single box.
+void each_inventory_pane_state(InventoryStory& s, const std::function<void(const RuntimePane&)>& take) {
+    const auto held = [&](const std::string& pane) {
+        const RuntimePane* found = s.r.session().panes.runtime.find(slots::kRole, pane);
+        REQUIRE_MESSAGE(found != nullptr, pane << " is not held");
+        return found;
+    };
+    const auto declares = [&](const std::string& id) {
+        for (const auto& a : held("inventory")->actions) if (a.id == id) return true;
+        return false;
+    };
+    take(*held("inventory"));
+    s.click(s.source); // the keys, with the compatibility slot's entry selected
+    REQUIRE(s.r.session().panes.keyboard == s.source);
+    s.key(input::scan::kX, input::mod::kCtrl);
+    REQUIRE(declares("inventory.move.cancel"));
+    take(*held("inventory"));
+    s.key(input::scan::kEscape);
+    REQUIRE_FALSE(declares("inventory.move.cancel"));
+    s.key(input::scan::kN, input::mod::kCtrl);
+    REQUIRE(declares("inventory.name.save"));
+    take(*held("inventory"));
+    s.key(input::scan::kEscape);
+    REQUIRE(declares("inventory.copy"));
+    take(*held(s.create("single")));
+}
+
+/// THE INVENTORY PANE'S CENSUS. The pane declares no modes, so a row it declares in several of the
+/// states driven is one line.
+const CensusDriverOf kInventoryPaneCensus{slots::kRole, [] {
+    OfficeCensus census;
+    InventoryStory s;
+    each_inventory_pane_state(s, [&](const RuntimePane& held) { census_take(census, slots::kRole, held); });
+    std::vector<std::string> once;
+    for (std::string& line : census.lines) {
+        if (std::find(once.begin(), once.end(), line) == once.end()) once.push_back(std::move(line));
+    }
+    census.lines = std::move(once);
+    return census;
+}};
+}
+
+TEST_CASE("the Inventory pane answers its manual for main Inventory and each view, a section for "
+          "every action it declares") {
+    InventoryStory s;
+    std::set<std::string> ids;
+    std::vector<std::string> panes;
+    each_inventory_pane_state(s, [&](const RuntimePane& held) {
+        for (const auto& a : held.actions) ids.insert(a.id);
+        if (std::find(panes.begin(), panes.end(), held.pane) == panes.end()) panes.push_back(held.pane);
+    });
+    REQUIRE(panes.size() == 2);
+    ManualReader reader(s.r, slots::kRole);
+    for (const std::string& pane : panes) {
+        INFO("pane ", pane);
+        check_answered_manual(reader, pane, ids);
+    }
 }
 
 TEST_CASE("loaded toolbox: save restore keeps typed data and inactive views while invalidating old edits") {

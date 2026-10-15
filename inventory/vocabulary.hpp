@@ -5,7 +5,7 @@
 
 // Wire shapes for independent typed entries and the legacy replacement slot. Pair bytes own
 // their schema closure and values (codec.hpp). Entry identity is independent of list position;
-// references confer no authority. inventory/docs/inventory.md owns the public contract.
+// references confer no authority. inventory/docs/zengine.inventory.md is the office's manual.
 
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>

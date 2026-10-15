@@ -690,7 +690,7 @@ the set.
 **And the loader is wider than any of that, which is reported rather than hidden.** `Kernel::load`
 mints no grant of its own: a Kernel asks the admission policy its host installed, and one with no
 policy admits nothing. This pane retains Workshop's permissive artifact baseline. The host's
-`workshop/admission.hpp` separately gives the [inventory office](../../inventory/docs/inventory.md) a bounded grant;
+`workshop/admission.hpp` separately gives the [inventory office](../../inventory/docs/zengine.inventory.md) a bounded grant;
 general per-row authority awaits a weaver-visible policy seat. A host that names a grant at the
 call site (`Kernel::load` with a `Grant`) decides for that load alone. A declared `Emit<...>`
 registers what a shape means

@@ -26,7 +26,7 @@ click-to-place instead. Local command text, notices and completion rows are not 
 
 The copy contains the actual message data with its schema, plus separate historical metadata.
 Open it in Info to inspect/edit it, make an incomplete preset, or copy a typed field into Compose.
-[Inventory](../../inventory/docs/inventory.md) and [inventory slots](../../inventory/docs/inventory-slots.md) describe those
+[Inventory](../../inventory/docs/zengine.inventory-pane.md) and [inventory slots](../../inventory/docs/inventory-slots.md) describe those
 next actions. Capturing does not execute a command; a later run uses current authority.
 
 Payload history is bounded separately from visible text: up to 64 submitted values and 64
