@@ -11,7 +11,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `pane.cpp` | the weave: the panes list, one pane's properties, and the value views it offers |
 | `value_view.hpp` | one value view: its draft, field selection, watch, sample and pending asks |
 | `vocabulary.hpp` | office `zengine.info`, pane keys, stem, action ids, `InfoPaneState` |
-| `docs/info-views.md` | the weaver's page; its pictures are under `docs/images/` |
+| `docs/zengine.info.md` | the weave's manual, compiled in and answered for each of its panes |
+| `docs/info-views.md` | the workbench story; its pictures are under `docs/images/` |
 
 ## Law
 
@@ -50,11 +51,16 @@ its stem to `WORKSHOP_SO_INFO_PANE`, and `tests/inventory_story.hpp` loads it be
 - The value views ask Workshop's operation and observation doors (`workshop/pane_operation.hpp`,
   `workshop/weave_operation.cpp`) and Inventory (`inventory/pane_client.hpp`,
   `inventory/observation.hpp`).
-- Who asks its office: the Pane Manager's inspect row (`kInfoRole` in
-  `workshop/desktop-pane/vocabulary.hpp`), and the demo power's reset in `workshop/guests.cpp`.
+- Who addresses its office: the Pane Manager's inspect row sends `InspectPaneRequested` to it
+  (`kInfoRole` in `workshop/desktop-pane/vocabulary.hpp`), a shape this office does not accept;
+  the demo power's reset (`PaneResetRequested`, granted in `workshop/guests.cpp`); and any weave
+  asking a pane's manual (`PaneDocumentRequested`).
 
 ## Pages
 
+- [`zengine.info` -- Info](docs/zengine.info.md), the manual: its commands are the ids
+  `tests/actions/zengine.info.txt` holds, driven by `kInfoCensus` in
+  `tests/test_workshop_info_views.cpp`
 - [Independent Info views and the inspection workbench](docs/info-views.md)
 
 ## Practices
