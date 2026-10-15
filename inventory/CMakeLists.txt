@@ -12,6 +12,8 @@ add_executable(zengine-inventory-read read.cpp)
 target_link_libraries(zengine-inventory-read PRIVATE zengine::inventory zengine-warnings zengine-sanitize)
 
 if(TARGET loom::kernel)
-    zengine_weave(zengine-inventory inventory.cpp)
+    # Its manual is compiled in: the office answers a shape's section from this page
+    # (`ShapeDocumentRequested`, manual/vocabulary.hpp).
+    zengine_weave(zengine-inventory inventory.cpp MANUAL docs/zengine.inventory.md)
     target_link_libraries(zengine-inventory PRIVATE zengine::inventory zengine-activation)
 endif()
