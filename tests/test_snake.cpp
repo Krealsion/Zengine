@@ -895,7 +895,7 @@ TEST_CASE("the playable host sends no Drive: time is the composition's, not the 
     // against that claim quietly becoming false, not a proof: a wind by another spelling still
     // compiles, and nobody writes one by accident.
     std::ifstream host(HOST_PLAY_CPP);
-    REQUIRE_MESSAGE(host.is_open(), "cannot read the host source: " HOST_PLAY_CPP);
+    REQUIRE_MESSAGE(host.is_open(), "cannot read the host source: ", std::string(HOST_PLAY_CPP));
     const std::string source((std::istreambuf_iterator<char>(host)),
                              std::istreambuf_iterator<char>());
     REQUIRE(source.size() > 1000); // we really did read the host, not an empty path
@@ -914,7 +914,7 @@ TEST_CASE("the world's beat uses the timer binding, not hand-written ceremony") 
     // the no-wind tripwire above, it keeps the claim from quietly becoming false, it does not
     // make the ceremony unwritable.
     std::ifstream world(WORLD_CPP);
-    REQUIRE_MESSAGE(world.is_open(), "cannot read the world source: " WORLD_CPP);
+    REQUIRE_MESSAGE(world.is_open(), "cannot read the world source: ", std::string(WORLD_CPP));
     const std::string source((std::istreambuf_iterator<char>(world)),
                              std::istreambuf_iterator<char>());
     REQUIRE(source.size() > 2000); // we really read the world, not an empty path
