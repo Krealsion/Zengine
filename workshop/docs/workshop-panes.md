@@ -394,7 +394,7 @@ authored setup                 resolved presentation          session interactio
   intent, drawn and met and granted room for the part this screen has, and saved exactly as the
   weaver said it.
 - **Info is an ordinary arranged pane, and so is the Terminal** (its own page is
-  [terminal/docs/terminal.md](../../terminal/docs/terminal.md)). `screen_of` reserves
+  [terminal/docs/zengine.terminal.md](../../terminal/docs/zengine.terminal.md)). `screen_of` reserves
   nothing across the width: `room_w` is the surface, it is what every share of the workspace
   resolves against, and the right column stands on it. Management authors Info's geometry like
   any other pane's. The shipped default setup is what opens it at the right edge, by naming

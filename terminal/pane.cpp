@@ -16,6 +16,7 @@
 #include "terminal/vocabulary.hpp"
 
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_document.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
@@ -36,6 +37,8 @@
 #include <zen/weave/role_request.hpp>
 #include <zen/weave/lifecycle.hpp>
 #include <zen/weave/standard_shapes.hpp>
+
+#include "manuals/zengine.terminal.hpp" // this pane's manual, compiled in from its page
 
 #include <cstddef>
 #include <cstdint>
@@ -218,14 +221,14 @@ class TerminalPaneWeave
                        ws::TerminalValueAnswered, ws::PaneCarryAnswered, loom::DispatchRefused, PaneKey,
                        PaneTextInput, PaneActionRequested, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       surface::ClipboardText, ws::PaneDocumentRequested>,
           loom::Emit<PaneOffered, PaneActions, ws::PaneSettingsDeclared, PaneContent,
                      ws::v4::PaneContent, PaneCaret,
                      ws::v5::PaneCanvasContent, PaneEscapeUnspent,
                      ws::TerminalValueRequested, ws::PaneValueCarryRequested, ws::PaneMenuRequested,
                      ws::PanePassRequested,
                      TerminalActRequested, TerminalCompletionRequested, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested>> {
+                     surface::ClipboardTextRequested, ws::PaneDocumentShown>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -235,6 +238,13 @@ public:
         // completer requires it and where a weaver about to keep typing wants it.
         line_.set(state_.line, state_.line.size());
         announce(mail);
+    }
+
+    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
+    /// reloaded image answers its own words.
+    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(ws::pane_document(ask, pane::kTerminalPane,
+                                            zengine::manual::pages::zengine_terminal::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
