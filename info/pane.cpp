@@ -221,6 +221,7 @@ constexpr const char* kCommitUndelivered = "commit not delivered -- nothing was 
 constexpr const char* kEarlierUndelivered = "earlier commit not delivered -- nothing was written";
 constexpr const char* kActNotQueued = " not submitted -- nothing was queued";
 constexpr const char* kActUndelivered = " not delivered -- nothing changed";
+constexpr const char* kInspectReplaced = "a newer inspect took its place -- nothing changed";
 
 /// WHAT AN INSPECT IS CALLED in the two sentences above.
 constexpr const char* kInspectAct = "inspect";
@@ -250,6 +251,7 @@ class InfoPaneWeave
     : public loom::WeaveBase<
           InfoPaneWeave, pane::InfoPaneState,
           loom::Accept<ws::PaneCarryAnswered, ws::PaneResetRequested, ws::PaneCanvasDrop, ws::PaneCanvasValueDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
+                       InspectPaneRequested,
                        loom::Refused, loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
                        PaneSubjectActed, loom::DispatchRefused, surface::ClipboardCopy,
@@ -259,7 +261,7 @@ class InfoPaneWeave
                        ws::PaneDocumentRequested>,
           loom::Emit<ws::PaneValueCarryRequested, PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
                      zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneInventoryRequested,
-                     PaneSubjectRequested, InspectPaneRequested, PaneCommitRequested,
+                     PaneSubjectRequested, InspectPaneRequested, PaneSubjectActed, PaneCommitRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, ws::PanePassRequested,
                      ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
@@ -549,11 +551,43 @@ public:
             return;
         }
         acting_ = Asked{};
+        settle_relay(said, mail);
         // AN INSPECT CLOSES NO DRAFT: one asked before a draft opened may be answered while it is
         // open, and the picture that follows it is what decides whether the draft still stands.
         if (!said.accepted) {
             notice_ = said.refusal;
             say(mail);
+        }
+    }
+
+    /// AN OFFICE ASKS THIS PANE TO INSPECT A PANE -- the Pane Manager's `inspect in Info` row --
+    /// and the ask is this pane's own inspect (`ask_inspect`): held back while a draft is live,
+    /// for the reason the weaver's own press is, and the host's answer passed back whole.
+    void on(const InspectPaneRequested& asked, loom::Mail& mail) {
+        if (mail.authored_role().empty()) {
+            return; // an office asks; personal speech is answered by nobody
+        }
+        if (draft_.open) {
+            notice_ = kFinishTheEdit;
+            say(mail);
+            (void)mail.answer(PaneSubjectActed{false, kFinishTheEdit});
+            return;
+        }
+        loom::DeferredAnswer due = mail.defer_answer();
+        ask_inspect(asked.office, asked.pane, mail);
+        if (acting_.awaiting) {
+            relay_ = std::move(due);
+        } else {
+            (void)loom::answer_deferred(due, mail, PaneSubjectActed{false, notice_});
+        }
+    }
+
+    /// The office's ask, answered with what became of the inspect it started: once, and only
+    /// while one is held.
+    void settle_relay(const PaneSubjectActed& said, loom::Mail& mail) {
+        if (relay_.valid()) {
+            (void)loom::answer_deferred(relay_, mail, said);
+            relay_ = loom::DeferredAnswer{};
         }
     }
 
@@ -580,6 +614,7 @@ public:
             const std::string act = acting_.act;
             acting_ = Asked{};
             notice_ = act + kActUndelivered + " (" + refused.reason + ")";
+            settle_relay(PaneSubjectActed{false, notice_}, mail);
             say(mail);
         }
     }
@@ -1140,6 +1175,7 @@ private:
     /// answer and no refusal notice can follow, so the record is released at once and the pane
     /// says so.
     void ask_inspect(const std::string& office, const std::string& pane_key, loom::Mail& mail) {
+        settle_relay(PaneSubjectActed{false, kInspectReplaced}, mail);
         const std::uint64_t correlation = ++asked_;
         Asked asking;
         asking.awaiting = true;
@@ -1690,6 +1726,7 @@ private:
     /// own and an answer to somebody else's question is not mistaken for one to ours.
     std::uint64_t asked_ = 0;
     Asked acting_;          ///< an inspect
+    loom::DeferredAnswer relay_; ///< the office that asked for `acting_`, owed its answer
     SentCommit committing_; ///< a commit
 
     std::int64_t rows_ = 0;
