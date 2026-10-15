@@ -8,6 +8,25 @@ and inspects a running program without leaving it.** It is optional: the
 Almost every pane is a tool, a weave Workshop loads. The desk's own Pane Manager, Hotkeys pane
 and menus are tools too, and you can change or replace them while Workshop runs.
 
+## Manuals
+
+- [Workshop](docs/zengine.workshop.md), `zengine.workshop`: the pane protocol, shape by shape --
+  what a pane, a presenter, a skin or an input producer sends Workshop, and what it answers
+- [The desk](docs/zengine.desktop.md), `zengine.desktop`: the keys that act everywhere, the Pane
+  Manager, the Hotkeys pane and the Manual, every command by its key
+- [The project office](docs/zengine.project.md), `zengine.project`: where the project is, what it
+  waits on, whether its plan names an artifact, which file a recipe names
+- [The recipes office](docs/zengine.recipes.md), `zengine.recipes`: choosing the recipe file and
+  adding a recipe to it
+- [The plan office](docs/zengine.plan.md), `zengine.plan`: adding a row to the project's load plan
+- [The menu presenter](docs/zengine.presenter.md), `zengine.presenter`: how a pane's menu is shown,
+  worked and answered
+- [The opening office](docs/zengine.opening.md), `zengine.opening`: how a source opens in the Editor
+- [The realization owner](docs/zengine.realization.md), `zengine.realization`: the load plan
+  performed, and what becomes of a build offered to the running project
+
+![The Pane Manager wearing its ? at its top right, and the Manual showing the desk's own manual](docs/images/zengine.desktop-manual.png)
+
 ## Pages
 
 - [Getting started with Workshop](docs/getting-started.md): launch it and find your way around
@@ -20,7 +39,8 @@ and menus are tools too, and you can change or replace them while Workshop runs.
 - [Develop Workshop from inside Workshop](docs/develop-workshop.md): edit a shipped pane live
 - [Current limitations](docs/limitations.md): what does not work yet
 - [The authored load plan](docs/load-plan.md): the load plan file, in full
-- [Workshop panes and setups — reference](docs/workshop-panes.md): the contracts behind panes
+- [Workshop panes and setups — reference](docs/workshop-panes.md): the contracts that span the
+  pane protocol's shapes -- the window, the room, the setup, the canvas, menus and the desk read
 - [Pointer spaces — reference](docs/pointer-spaces.md): where a pointer position lands
 
 ## What is in this folder

@@ -182,8 +182,8 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   count without its commit and command) and `folder_map` (every top-level folder listed with its
   kind, a front page and a router in every feature, the host and every library, and every
   register and CTest entry routed by exactly one router) and `manual` (every weave's manual in
-  form and carried by a target, a pane's commands exactly its ids in `tests/actions.txt`, and every
-  key marker its declared default). Full contract detail:
+  form and carried by a target, a pane's commands exactly its ids in the action census
+  (`tests/actions.txt`, `tests/actions/`), and every key marker its declared default). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction

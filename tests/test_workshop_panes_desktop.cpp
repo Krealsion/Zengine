@@ -10,6 +10,7 @@
 #include "doctest.h"
 
 #include "workshop_support.hpp"
+#include "census.hpp"
 
 #include "workshop/desktop-pane/vocabulary.hpp"
 
@@ -480,7 +481,61 @@ struct Keys {
     }
 };
 
+/// THE DESK'S CENSUS, as its weave declares it: the application's rows, the keys a page names to
+/// reach a pane; the Pane Manager's list; the Hotkeys pane's table, a key being captured and a
+/// spelling being typed, each entered by a binding's menu and left by Escape; and the Manual's.
+const CensusDriverOf kDesktopCensus{kDesktopRole, [] {
+    OfficeCensus census;
+    Keys k("desktop-census");
+    REQUIRE_FALSE(k.r.session().keymap.app.empty());
+    for (const AppRow& a : k.r.session().keymap.app) {
+        census.lines.push_back(census_line(kDesktopRole, "desk", a.id, a.gesture.scancode,
+                                           a.gesture.modifiers, a.causes, std::string(), a.label));
+    }
+    const auto take = [&](const char* pane_key, const char* mode) {
+        const RuntimePane* held = k.r.session().panes.runtime.find(kDesktopRole, pane_key);
+        REQUIRE(held != nullptr);
+        REQUIRE(held->mode == mode);
+        REQUIRE_FALSE(held->actions.empty());
+        census_take(census, kDesktopRole, *held);
+    };
+    take(dp::kLauncherPane, dp::kLauncherMode);
+    take(dp::kHotkeysPane, dp::kKeysTableMode);
+    const std::int64_t row = k.row_of("desktop.terminal");
+    REQUIRE(row >= 0);
+    k.right(row);
+    k.choose("Modify (press a key)");
+    take(dp::kHotkeysPane, dp::kKeysCaptureMode);
+    k.r.key(input::scan::kEscape);
+    REQUIRE(k.r.session().panes.runtime.find(kDesktopRole, dp::kHotkeysPane)->mode ==
+            std::string(dp::kKeysTableMode));
+    k.right(k.row_of("desktop.terminal"));
+    k.choose("Modify (type a spelling)");
+    take(dp::kHotkeysPane, dp::kKeysSpellMode);
+    k.r.key(input::scan::kEscape);
+    const RuntimePane* manual = k.r.session().panes.runtime.find(kDesktopRole, dp::kManualPane);
+    REQUIRE(manual != nullptr);
+    CHECK(manual->elsewhere.empty());
+    take(dp::kManualPane, dp::kManualMode);
+    return census;
+}};
+
 } // namespace
+
+TEST_CASE("the manual the desk answers for each of its panes names exactly the commands it "
+          "declares, the application's included, in every mode") {
+    const std::set<std::string> declared = census_ids(census_drivers().at(kDesktopRole)().lines);
+    Keys k("desktop-manual");
+    ManualReader reader(k.r, kDesktopRole);
+    for (const char* pane_key : {dp::kLauncherPane, dp::kHotkeysPane, dp::kManualPane}) {
+        CAPTURE(pane_key);
+        check_answered_manual(reader, pane_key, declared);
+    }
+    // ...AND A PANE IT DOES NOT OFFER IS REFUSED, naming the office.
+    const PaneDocumentShown other = reader.ask("elsewhere", "");
+    CHECK(other.refusal == "zengine.desktop offers no pane `elsewhere`");
+    CHECK(other.sections.empty());
+}
 
 TEST_CASE("WL-KEY-17: right-click a binding, Modify (press a key): the change is live at once, written to the file and listed in the table; the keys stayed where they were") {
     Keys k("hotkeys-modify-press");

@@ -74,7 +74,7 @@ owns the terminal by then, so the condition row is where it is said.
 
 ## The Hotkeys pane — `Ctrl`+`k`
 
-`Ctrl`+`k` opens the **Hotkeys** pane, or puts you in it: the desktop's list of every key as it
+`Ctrl`+`k` opens the **Hotkeys** pane, or puts you in it ([its commands](zengine.desktop.md#commands-in-the-hotkeys-table)): the desktop's list of every key as it
 is **in force right now** — a heading for each place a key is answered (command mode, the
 arranging scopes, the contextual menu, the name line, each pane that declared rows, the keys
 above every mode), and under it each row: the key, spelled as your keymap file spells it unless you

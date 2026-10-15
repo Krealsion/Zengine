@@ -511,7 +511,7 @@ of its painter, and a loaded pane's is its provider's own; Info edits no pane's 
 Panes that implement Workshop's carry doors exchange owned typed data: an Inventory entry dragged
 into Info or Compose, a live reference placed in Info, a field dragged from one Info view into
 another or into Compose, and text, commands and file places between either Editor and Inventory
-([the pane reference](workshop-panes.md#authorizing-an-input-operation-and-carrying-data),
+([carrying an item](zengine.workshop.md#panecarryrequested),
 [source material](../../editor/docs/source-transfer.md)).
 Each acquisition needs the actor's permission, and the receiver decides what a drop means. There
 is no shared selection across panes and no general protocol for handing one pane an arbitrary

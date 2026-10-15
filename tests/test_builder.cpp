@@ -16,6 +16,7 @@
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
+#include "office_manual.hpp"
 
 #include "timer/vocabulary.hpp"
 
@@ -1821,6 +1822,10 @@ TEST_CASE("the office answers a shape's section from its own page, said against 
         INFO("section ", std::string(s.key));
         CHECK(std::find(accepted.begin(), accepted.end(), std::string(s.key)) != accepted.end());
     }
+    // ...ASKED AS ANY OFFICE'S PAGE IS ASKED: every version the gate accepts, by message.
+    CHECK(check_office_manual(live.bus, kBuilderRole) >= accepted.size());
+    check_page_names_accepted(page,
+                              described_shapes_of(live.bus, live.bus.role_holder(kBuilderRole)));
 }
 
 TEST_CASE("a presentation opened mid-build learns from the TOOL that one is running") {
