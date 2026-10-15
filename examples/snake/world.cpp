@@ -104,6 +104,11 @@ public:
         if (!mail.authored_from_role(canvas().window_office()) || a.action != kNewGame) {
             return;
         }
+#if defined(SNAKE_WORLD_V2)
+        if (awaiting_claim_) {
+            return; // the inheritance decides what game this is
+        }
+#endif
         const State keep = state_;
         state_ = State{};
         copy_bindings(keep);
@@ -145,12 +150,14 @@ public:
             present_board(); // the board it inherited, said again whole
             return;
         }
+        begin_fresh(mail); // a letter holding nothing this world recognizes
     }
 
-    /// "No bequest is held for you": fresh life is already underway.
+    /// "No bequest is held for you": a fresh game.
     void on(const loom::Refused&, loom::Mail& mail) {
-        if (mail.correlation() == kClaimCorrelation) {
+        if (awaiting_claim_ && mail.correlation() == kClaimCorrelation) {
             awaiting_claim_ = false;
+            begin_fresh(mail);
         }
     }
 #endif
@@ -198,6 +205,9 @@ private:
     void advance(loom::Mail& mail) {
 #if defined(SNAKE_WORLD_V2)
         claim_once(mail);
+        if (awaiting_claim_) {
+            return; // the window shows the board it holds until the inheritance lands
+        }
 #endif
         if (state_.snake.empty()) {
             seed(state_);
@@ -312,6 +322,14 @@ private:
         asked_ = true;
         awaiting_claim_ = true;
         mail.send_to_role(loom::kManagerRole, loom::ClaimBequest{kWorldRole}, kClaimCorrelation);
+    }
+
+    /// No inheritance: a fresh game, its board said whole, since the board the window holds may be
+    /// a predecessor's at another size.
+    void begin_fresh(loom::Mail& mail) {
+        seed(state_);
+        mail.publish(visual_of(state_));
+        present_board();
     }
 #endif
 

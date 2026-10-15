@@ -19,7 +19,8 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-zengine_weave(zengine-introspection introspection.cpp)
+# Its manual is compiled in, and answered for each of its panes to whoever asks for it.
+zengine_weave(zengine-introspection introspection.cpp MANUAL docs/zengine.introspection.md)
 target_link_libraries(zengine-introspection PRIVATE zengine-introspection-view zengine-activation)
 # `input::scan`'s constants, so the numbers in `PaneKey` mean something here.
 target_link_libraries(zengine-introspection PRIVATE zengine-input-vocabulary)

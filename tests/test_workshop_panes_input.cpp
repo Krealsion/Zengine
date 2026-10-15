@@ -2142,8 +2142,10 @@ struct ComposeRig {
     /// answer, untouched -- which is what the desk-level grow witness starts from. Every other
     /// case wants the room its form was composed for and says so below.
     /// `no_canvas`: a host that knows no canvas door, answering that no office accepts a canvas
-    /// room -- the one Compose says its rows to as prose.
-    explicit ComposeRig(bool default_size = false, bool no_canvas = false) {
+    /// room -- the one Compose says its rows to as prose. `keymap`: a keymap file read at launch.
+    explicit ComposeRig(bool default_size = false, bool no_canvas = false,
+                        const std::string& keymap = std::string()) {
+        r.host.keymap_path = keymap;
         r.mount_workshop();
         if (no_canvas) {
             r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
@@ -2547,6 +2549,149 @@ TEST_CASE("a weaver fills a generated form and SUBMITS a real StartTimer") {
     CHECK_FALSE(r.shows("Delivered"));
     CHECK_FALSE(r.shows("Accepted"));
     CHECK_FALSE(r.shows("Timer created"));
+}
+
+namespace {
+
+/// The gesture each of Compose's rows answers to now, by id; `none` for a row with no key.
+std::map<std::string, std::string> compose_keys(ComposeRig& r) {
+    std::map<std::string, std::string> out;
+    const PaneRows* rows = r.r.session().keymap.pane_rows(r.kind);
+    REQUIRE(rows != nullptr);
+    for (const PaneRow& row : rows->rows) {
+        out[row.id] = is_bound(row.gesture) ? gesture_word(row.gesture) : std::string("none");
+    }
+    return out;
+}
+
+/// Press `key` until a row reading `marked` shows, the way a weaver walks the marker.
+void walk_compose(ComposeRig& r, const std::string& marked, std::int64_t key, std::int64_t mods) {
+    for (int i = 0; i < 64 && r.row_of(marked) < 0; ++i) {
+        r.key(key, mods);
+    }
+    REQUIRE(r.row_of(marked) >= 0);
+}
+
+/// How many times Compose has handed an Escape back (`PaneEscapeUnspent`), by the rig's tap.
+std::size_t unspent_said(const ComposeRig& r) {
+    const std::string shape = loom::schema_of<PaneEscapeUnspent>()->name();
+    std::size_t n = 0;
+    for (std::size_t i = 0; i < r.delivered_.size(); ++i) {
+        n += r.delivered_[i] == shape && r.authors_[i] == std::string(kComposerOffice) ? 1u : 0u;
+    }
+    return n;
+}
+
+std::string joined_band(ComposeRig& r) {
+    std::string out;
+    for (const std::string& line : band_lines(r.r)) {
+        out += line + "\n";
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("Compose moves, chooses, includes and goes back by the rows it declares, which the legend "
+          "shows, and a field still edits its own text") {
+    ComposeRig r;
+    r.with_timer();
+    r.select(kTimerOffice, "zengine-timer");
+    r.watch();
+    r.focus();
+    // AT THE CATALOG: the rows move and choose; going back and including are unbound there.
+    std::map<std::string, std::string> keys = compose_keys(r);
+    CHECK(keys["compose.up"] == "up");
+    CHECK(keys["compose.down"] == "down");
+    CHECK(keys["compose.enter"] == "return");
+    CHECK(keys["compose.include"] == "none");
+    CHECK(keys["compose.back"] == "none");
+    CHECK(joined_band(r).find("row down") != std::string::npos);
+    // Down walks the marker onto StartTimer and a row past it, Up brings it back, and Return opens
+    // the form under it.
+    walk_compose(r, "> StartTimer v1", input::scan::kDown, input::mod::kNone);
+    r.key(input::scan::kDown);
+    CHECK_FALSE(r.shows("> StartTimer v1"));
+    r.key(input::scan::kUp);
+    REQUIRE(r.shows("> StartTimer v1"));
+    r.key(input::scan::kReturn);
+    REQUIRE(r.shows("StartTimer v1 -> @zengine.timer"));
+    // IN THE FORM: Tab includes, Escape goes back, and the legend says both.
+    keys = compose_keys(r);
+    CHECK(keys["compose.include"] == "tab");
+    CHECK(keys["compose.back"] == "escape");
+    const std::string band = joined_band(r);
+    CAPTURE(band);
+    CHECK(band.find("back to the catalog") != std::string::npos);
+    // A FIELD STILL EDITS ITS TEXT: Left, Backspace and Home are the field's own, and Up moves to
+    // the field above and leaves its value as it was.
+    r.fill("id", "tick");
+    r.key(input::scan::kLeft);
+    r.key(input::scan::kBackspace);
+    CHECK(r.shows("[tik"));
+    r.key(input::scan::kHome);
+    r.type("a");
+    CHECK(r.shows("[atik"));
+    r.go_to("repeat");
+    r.key(input::scan::kTab);
+    CHECK(r.shows("repeat:Bool  [false]"));
+    walk_compose(r, "> id:", input::scan::kUp, input::mod::kNone);
+    CHECK(r.shows("[atik"));
+    CHECK(r.shows("repeat:Bool  [false]"));
+    // ESCAPE LEAVES THE FORM FOR THE CATALOG, and the next bare one is handed back, which puts the
+    // pane down wherever a desktop answers Escape (no desktop is mounted here).
+    const std::size_t handed_back = unspent_said(r);
+    r.key(input::scan::kEscape);
+    CHECK(r.shows("StartTimer v1"));
+    CHECK_FALSE(r.shows("StartTimer v1 -> @zengine.timer"));
+    CHECK(unspent_said(r) == handed_back);
+    r.key(input::scan::kEscape);
+    CHECK(unspent_said(r) == handed_back + 1);
+}
+
+TEST_CASE("a weaver's keymap moves Compose's navigation, choice, include and back, and the keys "
+          "they left no longer do them") {
+    TempDir dir("compose-remapped");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"compose.up", "ctrl+1"},
+                                                         {"compose.down", "ctrl+2"},
+                                                         {"compose.enter", "ctrl+3"},
+                                                         {"compose.include", "ctrl+4"},
+                                                         {"compose.back", "ctrl+5"}}));
+    ComposeRig r(false, false, path);
+    r.with_timer();
+    r.select(kTimerOffice, "zengine-timer");
+    r.focus();
+    std::map<std::string, std::string> keys = compose_keys(r);
+    CHECK(keys["compose.up"] == "ctrl+1");
+    CHECK(keys["compose.down"] == "ctrl+2");
+    CHECK(keys["compose.enter"] == "ctrl+3");
+    // THE KEYS THEY MOVED TO DO THEM, and the keys they left do nothing: Down moves no row and
+    // Return opens no form.
+    walk_compose(r, "> StartTimer v1", input::scan::k2, input::mod::kCtrl);
+    const std::vector<std::string> before = r.rows();
+    r.key(input::scan::kDown);
+    r.key(input::scan::kReturn);
+    CHECK(r.rows() == before);
+    r.key(input::scan::k3, input::mod::kCtrl);
+    REQUIRE(r.shows("StartTimer v1 -> @zengine.timer"));
+    keys = compose_keys(r);
+    CHECK(keys["compose.include"] == "ctrl+4");
+    CHECK(keys["compose.back"] == "ctrl+5");
+    r.go_to("repeat");
+    r.key(input::scan::kTab);
+    CHECK(r.shows("repeat:Bool  (required)"));
+    r.key(input::scan::k4, input::mod::kCtrl);
+    CHECK(r.shows("repeat:Bool  [false]"));
+    // A BARE ESCAPE IN THE FORM no longer goes back: the form stays as it was.
+    r.key(input::scan::kEscape);
+    CHECK(r.shows("StartTimer v1 -> @zengine.timer"));
+    CHECK(r.shows("repeat:Bool  [false]"));
+    r.focus();
+    r.go_to("repeat");
+    r.key(input::scan::k5, input::mod::kCtrl);
+    CHECK_FALSE(r.shows("StartTimer v1 -> @zengine.timer"));
+    CHECK(r.shows("StartTimer v1"));
 }
 
 TEST_CASE("one coarse grow gives the DEFAULT Compose pane a usable form") {

@@ -194,7 +194,7 @@ real facts this process can reach, and none of them is a door.
 
 ## Sampling one, as a weaver
 
-The `Powers` pane ([introspection/docs/introspection.md](../../introspection/docs/introspection.md)) separates this host's catalog into
+The `Powers` pane ([introspection/docs/zengine.introspection.md](../../introspection/docs/zengine.introspection.md#powers)) separates this host's catalog into
 **Sources** and **Operators** — derived from the classification above, never declared a second
 time — and lets a weaver browse either. Browsing runs nothing: enumeration, search, filtering
 and the selected power's `yields <schema>` line are all reads.
@@ -217,4 +217,4 @@ Read this beside [`operator/source.hpp`](../source.hpp) (the predicate and the
 sample seam) and [`operator/catalog.hpp`](../catalog.hpp) (the one store and the
 one evaluator). Where powers come from is [operator/docs/operator-providers.md](operator-providers.md);
 how a loaded weave spends a host's is [operator/docs/operator-host.md](operator-host.md); what a weaver sees
-of a host's resolution is [introspection/docs/introspection.md](../../introspection/docs/introspection.md).
+of a host's resolution is [introspection/docs/zengine.introspection.md](../../introspection/docs/zengine.introspection.md).

@@ -4,7 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_SAMPLE_DOOR_HPP
 #define ZENGINE_WORKSHOP_SAMPLE_DOOR_HPP
 
-// The one office that may cause a Source to be evaluated: `SampleRequested{identity}` in, then
+// The one office that may cause a Source to be evaluated, `zengine.sources` (its manual, which it
+// carries and answers: introspection/docs/zengine.sources.md): `SampleRequested{identity}` in, then
 // `op::sample`, `render_value` and `SourceSampled` out. Not the arrangement door, which runs
 // nothing and must be able to say so, and not a generic host-RPC door. It holds a const reference
 // to the catalog (`main`'s local, which outlives it) and remembers nothing, so two samples run the
@@ -13,6 +14,8 @@
 #include "sample_presentation.hpp"
 #include "sample_vocabulary.hpp"
 
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.sources.hpp" // this office's manual, compiled in from its page
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"
 #include "operator/source.hpp"
@@ -36,8 +39,9 @@ struct SampleDoorState {
 
 /// THE HOST'S ONE EVALUATION DOOR.
 class SampleDoor : public loom::WeaveBase<SampleDoor, SampleDoorState,
-                                          loom::Accept<SampleRequested>,
-                                          loom::Emit<SourceSampled>> {
+                                          loom::Accept<SampleRequested,
+                                                       manual::ShapeDocumentRequested>,
+                                          loom::Emit<SourceSampled, manual::ShapeDocumentShown>> {
 public:
     explicit SampleDoor(const op::Catalog& catalog) : catalog_(&catalog) {}
 
@@ -68,6 +72,13 @@ public:
         // AND THE VALUE GOES OUT OF SCOPE HERE, which is what makes "this door
         // caches no answer" a fact about this function rather than a promise about
         // the class.
+    }
+
+    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it. Words, which run
+    /// nothing, so anyone who can be answered may ask.
+    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
+                                                 manual::pages::zengine_sources::kManual));
     }
 
 private:

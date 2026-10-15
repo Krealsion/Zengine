@@ -664,7 +664,7 @@ it.
 
 `Loaded` and `Project` deliberately disagree when the plan asked for something that did not
 resolve — that difference is the information. Reference:
-[introspection/docs/introspection.md](introspection/docs/introspection.md).
+[introspection/docs/zengine.introspection.md](introspection/docs/zengine.introspection.md#about).
 
 ⚠ **friction — panes are 9 rows tall by default** and a bigger terminal does not grant more.
 A larger pane is authored in arrangement (`w`, then `Shift`+arrows or `=`), or typed into its

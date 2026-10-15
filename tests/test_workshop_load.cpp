@@ -426,6 +426,8 @@ struct PlanRig {
                          workshop::ResolvedArrangement::zen_version);
         say.allow_to_any(workshop::v2::ResolvedArrangement::zen_name,
                          workshop::v2::ResolvedArrangement::zen_version);
+        say.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                         zengine::manual::ShapeDocumentShown::zen_version);
         door_ = bus.register_weave(std::move(door), std::move(say),
                                    std::string(workshop::kArrangementRole));
         raw->zen_set_self(door_);
@@ -433,7 +435,7 @@ struct PlanRig {
     }
 
     /// MOUNT THE HOST'S DISCOVERY DOOR over this rig's catalog, its grant spelled out as
-    /// `workshop.cpp` writes it: the two answers, to any.
+    /// `workshop.cpp` writes it: the two answers and its page's sections, to any.
     loom::WeaveId mount_finder() {
         auto door = std::make_unique<workshop::PowersDoor>(catalog);
         workshop::PowersDoor* raw = door.get();
@@ -441,6 +443,8 @@ struct PlanRig {
         say.allow_to_any(workshop::PowersFound::zen_name, workshop::PowersFound::zen_version);
         say.allow_to_any(workshop::PowerDescribed::zen_name,
                          workshop::PowerDescribed::zen_version);
+        say.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                         zengine::manual::ShapeDocumentShown::zen_version);
         finder_ = bus.register_weave(std::move(door), std::move(say),
                                      std::string(workshop::kPowersRole));
         raw->zen_set_self(finder_);
