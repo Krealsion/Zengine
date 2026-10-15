@@ -167,10 +167,6 @@ struct SelectBase<
     using type = Base<Self, State, AcceptList, EmitList, Dispatch>;
 };
 
-template <class D, class St, class... A, class Em, class Cl>
-loom::Accept<A...> weave_base_accept_of(
-    const loom::WeaveBase<D, St, loom::Accept<A...>, Em, Cl>*);
-
 template <class Tuple, class... Args>
 struct FirstFacetConstructible : std::false_type {};
 
@@ -215,9 +211,6 @@ class FacetWeave
         typename UnionLists<loom::Emit<>, typename FacetEmit<Facets>::type..., EmitList>::type;
     using SelectedBase =
         typename SelectBase<Base, Self, FacetWeave, State, MergedAccept, MergedEmit>::type;
-    using ProbeBase =
-        typename SelectBase<Base, Self, FacetWeave, State, loom::Accept<>, loom::Emit<>>::type;
-    using BaseOwnAccept = decltype(weave_base_accept_of(static_cast<const ProbeBase*>(nullptr)));
     using Handlers = BaseHandlers<SelectedBase>;
 
 public:
@@ -275,18 +268,36 @@ public:
     }
 
     template <class S>
-        requires (!std::is_reference_v<S> && !Contains<BaseOwnAccept, S>::value)
+        requires (!std::is_reference_v<S> &&
+                  (!requires(Handlers& h, const S& m, loom::Mail& ml) { h.on(m, ml); } ||
+                   (Contains<typename FacetAccept<Facets>::type, S>::value || ...)))
     void on(S&& msg, loom::Mail& mail) {
+        constexpr bool base_handles =
+            requires(Handlers& h, const S& m, loom::Mail& ml) { h.on(m, ml); };
         constexpr bool self_handles =
+            !base_handles &&
             requires(Self& s, const S& m, loom::Mail& ml) { s.on(m, ml); };
-        if constexpr (self_handles) {
+        if constexpr (base_handles) {
+            if constexpr (std::is_same_v<S, loom::Activated> &&
+                          requires { this->activation(); }) {
+                const loom::WeaveId prev_sender = this->activation().sender();
+                const std::int64_t prev_seq = this->activation().sequence();
+                Handlers::on(std::as_const(msg), mail);
+                if (this->activation().sender() == prev_sender &&
+                    this->activation().sequence() == prev_seq) {
+                    return;
+                }
+            } else {
+                Handlers::on(std::as_const(msg), mail);
+            }
+        } else if constexpr (self_handles) {
             static_cast<Self*>(this)->on(std::as_const(msg), mail);
         }
         if constexpr ((Contains<typename FacetAccept<Facets>::type, S>::value || ...)) {
-            if constexpr (!self_handles || Contains<AcceptList, S>::value) {
+            if constexpr (base_handles || !self_handles || Contains<AcceptList, S>::value) {
                 (dispatch_facet<Facets>(*static_cast<Self*>(this), std::as_const(msg), mail), ...);
             }
-        } else if constexpr (!self_handles) {
+        } else if constexpr (!base_handles && !self_handles) {
             static_cast<Self*>(this)->on(std::as_const(msg), mail);
         }
     }

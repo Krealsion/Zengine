@@ -17,7 +17,7 @@ input                             doctest           always  53
 input                             doctest           sdl     4
 surface                           doctest           always  113
 surface                           doctest           sdl     8
-graphics                          doctest           always  31
+graphics                          doctest           always  32
 ui                                doctest           always  22
 component                         doctest           always  45
 editor                            doctest           always  20
