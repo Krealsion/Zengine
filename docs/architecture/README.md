@@ -190,7 +190,7 @@ Per-subject design detail lives with the subject:
   evaluate a rule it did not compile with.
 - [Load plans](../../workshop/docs/load-plan.md) — the execution law, and what a failed artifact rolls
   back.
-- [Introspection](../../introspection/docs/introspection.md) — why three panes rather than one table, and why
+- [Introspection](../../introspection/docs/zengine.introspection.md#about) — why three panes rather than one table, and why
   two of them deliberately disagree.
 - [Pointer spaces](../../workshop/docs/pointer-spaces.md) — where a reported position lands, and which
   package owns each step.
