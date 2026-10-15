@@ -231,8 +231,9 @@ gh pr create --base main --title "<what is true now>" --body-file <file outside 
 
 ## 10. Reading the hosted run
 
-CI runs on every pull request, never on a branch alone, and again on `main` after the merge.
-Read the run job by job until every job has finished:
+CI runs on every pull request, never on a branch alone, and again on `main` after the merge: each
+push to `main` gets a run of its own, which judges and builds that push. Read the run job by job
+until every job has finished:
 
 ```sh
 gh pr checks <n> --watch            # until none is pending; fails if any check failed, advisory too

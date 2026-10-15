@@ -37,9 +37,10 @@ run's conclusion stayed green throughout; a red that cannot fail the run is not 
 
 ## VM-LANE-06 — CI runs on pull requests and on main
 
-METHOD — CI runs on pull requests, on pushes to `main` and nightly on `main`; a branch push alone gets no run, so a claim of "CI green" names the pull request or the merge that ran it.
-BECAUSE — the workflow's triggers are `pull_request`, `push` to `main` and a `schedule`, which runs
-on `main`, and nothing else; a green quoted from a branch push is a green that never ran.
+METHOD — CI runs on pull requests, on each push to `main` in a run of its own that judges and builds that push, and nightly; a branch push gets no run, so "CI green" names the run's pull request or merge.
+BECAUSE — a newer push replaces a run still waiting in its concurrency group, and a run judges
+only its own push, so `main`'s pushes share no group: close merges run at once, and one cancelled
+by hand leaves its push to the nightly, which builds everything; a branch push triggers nothing.
 
 ## VM-LANE-07 — The sanitizer lane is a second kind of evidence
 
