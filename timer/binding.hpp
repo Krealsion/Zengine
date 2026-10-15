@@ -330,8 +330,12 @@ template <class Self, class State, class... A, class... E, class Dispatch>
 class TimedWeave<Self, State, loom::Accept<A...>, loom::Emit<E...>, Dispatch>
     : public loom::WeaveBase<
           Dispatch, State,
-          loom::Accept<loom::Activated, TimerReady, TimerFired, TimerResolution, A...>,
-          loom::Emit<EnsureTimer, EnsureRoleTimer, CancelTimer, E...>> {
+          typename zengine::detail::UnionLists<
+              loom::Accept<loom::Activated, TimerReady, TimerFired, TimerResolution>,
+              loom::Accept<A...>>::type,
+          typename zengine::detail::UnionLists<
+              loom::Emit<EnsureTimer, EnsureRoleTimer, CancelTimer>,
+              loom::Emit<E...>>::type> {
 public:
     using Bindings = TimerBindings<Self>;
     using Handle = TimerHandle<Self>;

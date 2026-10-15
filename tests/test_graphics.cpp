@@ -1024,6 +1024,51 @@ public:
     std::vector<std::string> roots;
 };
 
+struct ActivatedFacet {
+    using Accept = loom::Accept<loom::Activated>;
+
+    void on(const loom::Activated& a, loom::Mail&) {
+        ++activations;
+        last_sequence = a.sequence;
+    }
+
+    std::int64_t activations = 0;
+    std::int64_t last_sequence = 0;
+};
+
+class TimedActivatedDrawer
+    : public zengine::With<gfx::DrawingFacet, ActivatedFacet>::Weave<
+          TimedActivatedDrawer, GraphicsTestDrawer, loom::Accept<GraphicsTestBeat>,
+          loom::Emit<>, zengine::timer::TimedWeave> {
+public:
+    using Weave::on;
+
+    TimedActivatedDrawer() : Weave(kDrawer) {}
+
+    void on(const GraphicsTestBeat&, loom::Mail&) { ++state_.beats; }
+
+    void on_timed_activation(const loom::Activated& a, loom::Mail&) {
+        ++timed_activations_;
+        timed_sequence_ = a.sequence;
+    }
+
+    void picture(gfx::Sketch& f) const {
+        const auto& af = facet<ActivatedFacet>();
+        f.text("act", 0, 0,
+               "timed " + std::to_string(timed_activations_) + ":" +
+                   std::to_string(timed_sequence_) + " facet " +
+                   std::to_string(af.activations) + ":" + std::to_string(af.last_sequence),
+               gfx::by_role(gfx::role::kFill));
+    }
+
+    std::int64_t timed_activations() const { return timed_activations_; }
+    std::int64_t facet_activations() const { return facet<ActivatedFacet>().activations; }
+
+private:
+    std::int64_t timed_activations_ = 0;
+    std::int64_t timed_sequence_ = 0;
+};
+
 } // namespace
 
 TEST_CASE("a weave with DrawingFacet and ManualFacet runs its own after_delivery before the "
@@ -1110,4 +1155,39 @@ TEST_CASE("zen.DescribeAccepted on a weave with facets reports the exact union o
     std::sort(wire_names.begin(), wire_names.end());
     CHECK(wire_names == expected);
 }
+
+TEST_CASE("a facet on Activated composed over TimedWeave deduplicates zen.Activated and runs both "
+          "on_timed_activation and the facet's handler on an accepted activation") {
+    Rig r;
+    REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+    auto d = std::make_unique<TimedActivatedDrawer>();
+    TimedActivatedDrawer* raw = d.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId id = r.bus.register_weave(std::move(d), std::move(g), kDrawer);
+    raw->zen_set_self(id);
+    r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kDrawer, kDrawer, "classic");
+
+    std::size_t activated_count = 0;
+    for (const auto& s : r.bus.accepted_schemas(id)) {
+        if (s->name() == loom::Activated::zen_name) {
+            ++activated_count;
+        }
+    }
+    CHECK(activated_count == 1);
+
+    r.bus.send(id, loom::Message(loom::to_value(loom::Activated{1})));
+    r.drain();
+    CHECK(raw->timed_activations() == 0);
+    CHECK(raw->facet_activations() == 0);
+
+    const loom::WeaveId door = zengine::testing::mount_door(r.bus);
+    zengine::testing::order_activation(r.bus, door, id, 1);
+    r.drain();
+    CHECK(raw->timed_activations() == 1);
+    CHECK(raw->facet_activations() == 1);
+    REQUIRE_FALSE(r.shown().rows.empty());
+    CHECK(r.shown().rows[0] == "timed 1:1 facet 1:1");
+}
+
 
