@@ -10,6 +10,8 @@
 
 #include "doctest.h"
 
+#include "office_manual.hpp"
+
 #include "operator/catalog.hpp"
 #include "operator/provider_host.hpp"
 #include "timer/normalize.hpp"
@@ -5183,6 +5185,37 @@ TEST_CASE("the row is `reloading` while the conversation is open, keeps its reso
     CHECK(after.artifacts[0].state == std::string(workshop::kResolvedToken));
     CHECK(after.artifacts[0].weave == static_cast<std::int64_t>(before.value));
     CHECK(rig.executor.state() == load::Realization::Complete);
+}
+
+TEST_CASE("the realization owner answers what each shape it accepts does from its manual, and its "
+          "page describes no shape it does not accept") {
+    // MOUNTED AS THE HOST MOUNTS IT: in its office, beside a real Manager, under the grant
+    // workshop.cpp writes -- its two lifecycle rules, its three observations and its page's answer.
+    loom::Switchboard bus;
+    loom::Kernel kernel{bus, loom::trust_every_artifact(
+        "Zengine's test harness: it loads only this build tree's output")};
+    const loom::WeaveId manager = loom::mount_manager(loom::mount_control(kernel, bus), bus);
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+    operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
+    operate.allow_to_any(zengine::builder::RealizationAsked::zen_name,
+                         zengine::builder::RealizationAsked::zen_version);
+    operate.allow_to_any(zengine::builder::ArtifactRealized::zen_name,
+                         zengine::builder::ArtifactRealized::zen_version);
+    operate.allow_to_any(zengine::builder::ArtifactPromoted::zen_name,
+                         zengine::builder::ArtifactPromoted::zen_version);
+    operate.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                         zengine::manual::ShapeDocumentShown::zen_version);
+    load::BootAnswers answers;
+    auto speaker = std::make_unique<load::PlanBooter>(answers);
+    load::PlanBooter& voice = *speaker;
+    const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate),
+                                                   zengine::builder::kRealizationRole);
+    voice.zen_set_self(booter);
+    // ...ASKED AS ANY WEAVE ASKS: every shape its gate accepts beside Loom's answers.
+    CHECK(check_office_manual(bus, zengine::builder::kRealizationRole) == 3);
+    check_page_names_accepted(zengine::manual::pages::zengine_realization::kManual,
+                              described_shapes_of(bus, booter));
 }
 
 TEST_CASE("the realization owner numbers each ask it takes, and every answer names its ask -- a "

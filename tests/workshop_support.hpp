@@ -2786,6 +2786,9 @@ struct PaneRig {
         arrange.allow_to_role(v2::PrepareSourceRequested::zen_name,
                               v2::PrepareSourceRequested::zen_version, kEditorRole);
         arrange.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+        // ...and what a shape it accepts does, from its own page, as workshop.cpp grants it.
+        arrange.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                             zengine::manual::ShapeDocumentShown::zen_version);
         loom::allow_poke_answers(arrange); // inspectable, as the host mounts it
         opening_id = bus.register_weave(std::move(opener), std::move(arrange),
                                         std::string(kOpeningRole));

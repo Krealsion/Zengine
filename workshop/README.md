@@ -19,6 +19,13 @@ and menus are tools too, and you can change or replace them while Workshop runs.
 - [The recipes office](docs/zengine.recipes.md), `zengine.recipes`: choosing the recipe file and
   adding a recipe to it
 - [The plan office](docs/zengine.plan.md), `zengine.plan`: adding a row to the project's load plan
+- [The menu presenter](docs/zengine.presenter.md), `zengine.presenter`: how a pane's menu is shown,
+  worked and answered
+- [The opening office](docs/zengine.opening.md), `zengine.opening`: how a source opens in the Editor
+- [The realization owner](docs/zengine.realization.md), `zengine.realization`: the load plan
+  performed, and what becomes of a build offered to the running project
+
+![The Pane Manager wearing its ? at its top right, and the Manual showing the desk's own manual](docs/images/zengine.desktop-manual.png)
 
 ## Pages
 

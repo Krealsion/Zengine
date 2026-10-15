@@ -12,6 +12,9 @@
 #include "pane_seam_vocabulary.hpp"
 #include "setup.hpp"
 
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.opening.hpp" // this office's manual, compiled in from its page
+
 #include <zen/weave.hpp>
 #include <zen/weave/dispatch_refusal.hpp>
 
@@ -61,11 +64,12 @@ class OpeningManager
                                           v2::PresentationTrial, SourcePrepared,
                                           v2::SourcePrepared, PresentationAdmitted,
                                           loom::DispatchRefused, loom::JointEnded,
-                                          loom::JointApplied>,
+                                          loom::JointApplied, manual::ShapeDocumentRequested>,
                              loom::Emit<PresentationTrialRequested, PrepareSourceRequested,
                                         v2::PrepareSourceRequested, PresentationAdmitRequested,
                                         v2::PresentationAdmitRequested, ManagedOpenSettled,
-                                        ManagedOpenProgress, SourceOpened>> {
+                                        ManagedOpenProgress, SourceOpened,
+                                        manual::ShapeDocumentShown>> {
 public:
     /// HOST WIRING, AND ALL OF IT: the two offices it coordinates and the pane the
     /// presentation owner presents the document through; the authority the host mints for
@@ -83,6 +87,12 @@ public:
     void on(const loom::DispatchRefused& refused, loom::Mail& mail);
     void on(const loom::JointEnded& ended, loom::Mail& mail);
     void on(const loom::JointApplied& applied, loom::Mail& mail);
+
+    /// What a shape it accepts does, from its own page, to the one who asked.
+    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
+                                                 manual::pages::zengine_opening::kManual));
+    }
 
     const OpeningState& state() const { return state_; }
 
