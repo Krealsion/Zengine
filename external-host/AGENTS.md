@@ -41,10 +41,10 @@ No register of its own. Workshop's side is in `agents/workshop/guests.md` (a gue
 
 `demo_recipes`, `tutorial_walks` and `workshop_journey` need the `session` gate; the journey also
 runs the `workshop_*_checks.py` and `desk_*_checks.py` beside it. Its parts' cases in shared suites:
-`workshop_panes` (`tests/test_workshop_panes_attention.cpp`, the Connections pane;
-`tests/test_workshop_demo.cpp`, the demo controls); the Connections pane's stem and source in
-`workshop_load` and `workshop_files`. The guest door is `workshop_guests`
-(`tests/test_workshop_guests.cpp`).
+`workshop_panes` (`tests/test_workshop_panes_attention.cpp`, the Connections pane and its manual;
+`tests/test_workshop_demo.cpp`, the demo controls, their census and their manual); the Connections pane's stem and source in
+`workshop_load` and `workshop_files`. The guest door, its manual among its cases, is
+`workshop_guests` (`tests/test_workshop_guests.cpp`).
 
 ## Host side
 
@@ -64,6 +64,10 @@ runs the `workshop_*_checks.py` and `desk_*_checks.py` beside it. Its parts' cas
 
 - [Author and check a recipe through an ELH](docs/elh-recipe-journey.md)
 - [Drive Workshop from another host](docs/external-host.md)
+- The manuals, each carried by the weave it describes: [`zengine.guests`](docs/zengine.guests.md)
+  (by `zengine-workshop-guests`, `workshop/CMakeLists.txt`), [`zengine.connections`](docs/zengine.connections.md)
+  and [`zengine.demo`](docs/zengine.demo.md); the census of the Demo pane's row,
+  `tests/actions/zengine.demo.txt`
 
 ## Practices
 

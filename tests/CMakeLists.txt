@@ -983,7 +983,9 @@ foreach(weave IN LISTS zengine_census_weaves)
 endforeach()
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt"
      CONTENT "${zengine_census_lines}")
+# It links the guests library, whose door tests/census_headers.hpp includes.
 zengine_workshop_suite(shapes SOURCES test_workshop_shapes.cpp test_shapes_census.cpp
+    LINKS zengine-workshop-guests
     DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "ZENGINE_CENSUS_WEAVES=\"${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt\""
                 "ZENGINE_CENSUS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/shapes-now-$<CONFIG>.txt\""
@@ -1114,6 +1116,10 @@ zengine_workshop_suite(load SOURCES test_workshop_load.cpp
                 # description of files.
                 "WORKSHOP_DEFAULT_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/default-load-plan.json\""
                 "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\"")
+# The panes suite (above) also embeds the Connections pane's page and the Demo controls', whose
+# weave it compiles in, which their answers are compared to.
+zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/external-host/docs/zengine.connections.md)
+zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/external-host/docs/zengine.demo.md)
 
 # The Builder suite starts real child processes (success, failure, a missing program, and one
 # still running while the bus works), since the package exists to bound that effect. Every recipe
