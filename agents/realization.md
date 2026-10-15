@@ -297,6 +297,14 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
 - **`take_realization()` IS TAKEN AND NOT READ,** so a realization cannot be announced twice —
   which means a case cannot read it after driving the bus, because the booter already has.
   Read the published `ArtifactRealized` instead.
+- **WORKSHOP'S JOURNAL KEEPS A BUILD'S ENDINGS AND NOTHING IT SAYS AS IT RUNS.** One value,
+  `durable_log_selection` in `workshop/log_selection.hpp`, is what the host's durable log keeps:
+  Loom's `default_selection()` untouched, refusals only under `--log-refusals`, and
+  `kDurableBuildShapes` -- `BuildFinished`, `BuildNotStarted` and `ArtifactRealized` -- uncapped,
+  with their whole payloads. Never `BuildStatus`, republished on every chunk, nor `BuildOutput`.
+  So `ArtifactRealized` is where a realize refusal that a row and a notice both cut is read whole.
+  The Builder's suite drives a Logger with that value, and checks the host builds its journal
+  from it.
 - **THE SUITE DRIVES A REAL CONFIGURED CMAKE TREE (`tests/buildfixture/`, `LANGUAGES NONE`),**
   configured at BUILD time, and only `cmake --build` runs inside a case. Neither production
   nor the suite can invent a build command; a fixture is a project. Every parameterisation is

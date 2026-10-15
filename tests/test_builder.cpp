@@ -17,6 +17,7 @@
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
 #include "office_manual.hpp"
+#include "workshop/log_selection.hpp"
 
 #include "timer/vocabulary.hpp"
 
@@ -2102,19 +2103,14 @@ TEST_CASE("a burst of output does not cost the build its beginning") {
 // ============================================================================
 
 TEST_CASE("a finished build is durable; the thousand lines it printed are not") {
-    // THE HOST'S OWN SELECTION, made falsifiable by a real held build. `Workshop`
-    // adds exactly two application shapes to Loom's default -- the two a weaver
-    // asks about tomorrow -- and deliberately not `BuildOutput`, which is working
-    // memory by the ton.
+    // THE HOST'S OWN SELECTION, made falsifiable by a real held build: the build's ending is
+    // kept, and deliberately not `BuildOutput`, which is working memory by the ton.
     Live live({cmake_recipe("chatty", "fixture-chatty6")});
     const std::string path = "zengine-rth1a-build.log";
     std::remove(path.c_str());
 
-    loom::LoggerSelection selection = loom::default_selection();
-    selection.shapes.push_back(loom::LogRule{std::string(BuildFinished::zen_name), 0});
-    selection.shapes.push_back(loom::LogRule{std::string(BuildNotStarted::zen_name), 0});
     {
-        loom::Logger journal(live.bus, std::move(selection));
+        loom::Logger journal(live.bus, zengine::workshop::durable_log_selection(false));
         REQUIRE(journal.open(path));
         live.tell_tool(BuildRequested{"chatty"});
         live.carry_until_over();
@@ -2143,8 +2139,7 @@ TEST_CASE("the realize refusal a row and a notice both cut is durable, whole") {
     // the notice ONE row of the bottom band, so a load refused deep in the Loom reaches a weaver
     // cut twice, and the half naming WHICH schema collided does not fit. The host keeps
     // `ArtifactRealized`, the owner's once-per-realize answer -- rare by construction, unlike
-    // `BuildStatus`, republished on every chunk. The selection is copied from `workshop.cpp`, as
-    // `tool_grant()` is: a wider one would leave the host's choice untested.
+    // `BuildStatus`, republished on every chunk. The selection is the host's own value.
     loom::Switchboard bus;
     Listener* ears = nullptr;
     const loom::WeaveId ears_id = mount_plain<Listener>(bus, loom::Grant{}, &ears);
@@ -2162,12 +2157,8 @@ TEST_CASE("the realize refusal a row and a notice both cut is durable, whole") {
         "v1 is already published with a different shape (published schemas are immutable)";
     REQUIRE(whole.size() > 46);
 
-    loom::LoggerSelection selection = loom::default_selection();
-    selection.shapes.push_back(loom::LogRule{std::string(BuildFinished::zen_name), 0});
-    selection.shapes.push_back(loom::LogRule{std::string(BuildNotStarted::zen_name), 0});
-    selection.shapes.push_back(loom::LogRule{std::string(ArtifactRealized::zen_name), 0});
     {
-        loom::Logger journal(bus, std::move(selection));
+        loom::Logger journal(bus, zengine::workshop::durable_log_selection(false));
         REQUIRE(journal.open(path));
         (void)bus.send(ears_id, loom::Message(loom::to_value(ArtifactRealized{
                                     std::string("zengine-oven2"), false, whole, false})));
@@ -2194,27 +2185,104 @@ TEST_CASE("the realize refusal a row and a notice both cut is durable, whole") {
     CHECK(answers == 1);
     std::remove(path.c_str());
 
-    // ...AND THE PRODUCTION HOST REALLY NAMES IT. The selection above is copied by hand, proving
-    // nothing about which shapes `workshop.cpp` chose, and `main()` claims a terminal, so no case
-    // runs it: this reads the file, prose stripped, between the two statements that bracket the
-    // host's selection -- deleting the line is a red here, and the window keeps out the grant
-    // that names this shape a second time.
+    // ...AND THE PRODUCTION HOST BUILDS ITS JOURNAL FROM THAT VALUE. `main()` claims a terminal,
+    // so no case runs it: its code, prose stripped, makes the Logger from the policy and spells
+    // no selection of its own beside it.
     const std::string host = code_of(ZENGINE_TEST_HOST_SOURCE);
-    const std::size_t opens = host.find("loom::LoggerSelection log_selection");
-    const std::size_t closes = host.find("loom::Logger journal(");
-    REQUIRE(opens != std::string::npos);
-    REQUIRE(closes != std::string::npos);
-    REQUIRE(opens < closes);
-    const std::string chosen = host.substr(opens, closes - opens);
-    CHECK_MESSAGE(chosen.find("builder::ArtifactRealized::zen_name") != std::string::npos,
-                  "workshop.cpp's log selection does not name ArtifactRealized, so a realize "
-                  "refusal is kept whole nowhere");
-    CHECK(chosen.find("builder::BuildFinished::zen_name") != std::string::npos);
-    CHECK(chosen.find("builder::BuildNotStarted::zen_name") != std::string::npos);
-    // AND NOT THE CHATTY ONE. `BuildStatus` carries the same sentence and is republished
-    // on every chunk of compiler output; naming it here would put the traffic this
-    // whitelist exists to exclude into the file a weaver keeps for good.
-    CHECK(chosen.find("builder::BuildStatus::zen_name") == std::string::npos);
+    CHECK(host.find("loom::Logger journal(bus, durable_log_selection(args.log_refusals))") !=
+          std::string::npos);
+    CHECK(host.find("LoggerSelection") == std::string::npos);
+}
+
+/// WHAT A JOURNAL'S BUS DELIVERS, taken by somebody: a Logger keeps a payload from the delivery
+/// that carried it, so each shape the policy is asked about needs a taker.
+class JournalTaker
+    : public loom::WeaveBase<JournalTaker, HeardState,
+                             loom::Accept<BuildStatus, BuildOutput, BuildFinished, BuildNotStarted,
+                                          ArtifactRealized>,
+                             loom::Emit<>> {
+public:
+    void on(const BuildStatus&, loom::Mail&) { ++state_.heard; }
+    void on(const BuildOutput&, loom::Mail&) { ++state_.heard; }
+    void on(const BuildFinished&, loom::Mail&) { ++state_.heard; }
+    void on(const BuildNotStarted&, loom::Mail&) { ++state_.heard; }
+    void on(const ArtifactRealized&, loom::Mail&) { ++state_.heard; }
+    std::int64_t heard() const { return state_.heard; }
+};
+
+TEST_CASE("Workshop's durable log keeps Loom's defaults and three build facts whole, and nothing a "
+          "build says as it runs") {
+    // THE POLICY AS A VALUE: Loom's default untouched, refusals only when asked, and the three
+    // build facts after it, each uncapped -- and never `BuildStatus` or `BuildOutput`.
+    const loom::LoggerSelection base = loom::default_selection();
+    for (const bool asked : {false, true}) {
+        const loom::LoggerSelection s = zengine::workshop::durable_log_selection(asked);
+        CHECK(s.log_refusals == asked);
+        CHECK(s.log_handler_failures == base.log_handler_failures);
+        CHECK(s.log_lifecycle == base.log_lifecycle);
+        REQUIRE(s.shapes.size() == base.shapes.size() + 3);
+        std::vector<std::string> added;
+        for (std::size_t i = 0; i < s.shapes.size(); ++i) {
+            if (i < base.shapes.size()) {
+                CHECK(s.shapes[i].shape == base.shapes[i].shape);
+                CHECK(s.shapes[i].cap == base.shapes[i].cap);
+                continue;
+            }
+            CHECK(s.shapes[i].cap == 0);
+            added.push_back(s.shapes[i].shape);
+        }
+        CHECK(added == std::vector<std::string>{BuildFinished::zen_name, BuildNotStarted::zen_name,
+                                                ArtifactRealized::zen_name});
+        CHECK(s.rule_for(BuildStatus::zen_name) == nullptr);
+        CHECK(s.rule_for(BuildOutput::zen_name) == nullptr);
+    }
+
+    // ...AND AS A LOGGER KEEPS IT: one of each shape crosses the bus, and the file holds the three
+    // facts with their whole payloads, among them a refusal longer than any row shows.
+    loom::Switchboard bus;
+    JournalTaker* taker = nullptr;
+    const loom::WeaveId taker_id = mount_plain<JournalTaker>(bus, loom::Grant{}, &taker);
+    const std::string path = "zengine-durable-selection.log";
+    std::remove(path.c_str());
+    const std::string refusal =
+        "artifact 'zengine-oven3': weave load refused: load refused: schema 'OvenState' v2 is "
+        "already published with a different shape (published schemas are immutable), and the "
+        "incumbent keeps the office it held";
+    {
+        loom::Logger journal(bus, zengine::workshop::durable_log_selection(false));
+        REQUIRE(journal.open(path));
+        BuildStatus status;
+        status.recipe = "oven";
+        status.detail = "compiling";
+        const std::vector<loom::Value> sent{
+            loom::to_value(status), loom::to_value(BuildOutput{7, "oven", "[1/9] compiling"}),
+            loom::to_value(BuildFinished{7, "oven", 0}),
+            loom::to_value(BuildNotStarted{8, "kiln", "cmake --build", "no build tree"}),
+            loom::to_value(ArtifactRealized{std::string("zengine-oven3"), false, refusal, false})};
+        for (const loom::Value& v : sent) {
+            (void)bus.send(taker_id, loom::Message(v));
+        }
+        bus.drain_until_idle();
+        REQUIRE(taker->heard() == 5);
+    }
+
+    std::vector<loom::LogRecord> back;
+    std::string error;
+    REQUIRE_MESSAGE(loom::Logger::read(path, &back, &error), error);
+    std::vector<std::string> kept;
+    for (const loom::LogRecord& r : back) {
+        if (r.origin != loom::LogOrigin::BusObservation) {
+            continue;
+        }
+        kept.push_back(r.observation.shape);
+        CHECK(r.observation.payload == loom::PayloadDisposition::Retained);
+        if (r.observation.shape == ArtifactRealized::zen_name) {
+            CHECK(r.payload_body.find(refusal) != std::string::npos);
+        }
+    }
+    CHECK(kept == std::vector<std::string>{BuildFinished::zen_name, BuildNotStarted::zen_name,
+                                           ArtifactRealized::zen_name});
+    std::remove(path.c_str());
 }
 
 // ============================================================================
