@@ -2571,7 +2571,7 @@ TEST_CASE("a legacy-only file is imported once, and the original is left in plac
 
     // The destination's parent does not exist yet: the import creates it (first write).
     const user_paths::LegacyImport did =
-        user_paths::import_legacy_file(dest, legacy, "session");
+        user_paths::import_legacy_file(dest, legacy, "session", session_persist::kMaxSessionBytes);
     CHECK(did.imported);
     CHECK_FALSE(did.shadowed);
     CHECK(slurp(dest) == "the weaver's bytes");
@@ -2593,7 +2593,7 @@ TEST_CASE("an existing user-root file always wins over a legacy file") {
     spillout(legacy, "an older local file");
 
     const user_paths::LegacyImport did =
-        user_paths::import_legacy_file(dest, legacy, "keymap");
+        user_paths::import_legacy_file(dest, legacy, "keymap", keymap_persist::kMaxKeymapBytes);
     CHECK_FALSE(did.imported);
     CHECK(did.shadowed);
     // NOTHING MOVED, in either direction.
@@ -2610,18 +2610,19 @@ TEST_CASE("repeated launches converge -- the import can never fire twice") {
     const std::string legacy = dir.file("workshop-session.json");
     const std::string dest = dir.file("root/workshop-session.json");
     spillout(legacy, "first bytes");
-    REQUIRE(user_paths::import_legacy_file(dest, legacy, "session").imported);
+    REQUIRE(user_paths::import_legacy_file(dest, legacy, "session",
+        session_persist::kMaxSessionBytes).imported);
 
     // The legacy file CHANGES afterwards -- a weaver still running an old build from this
     // directory -- and the user root must not be overwritten by it on any later launch.
     spillout(legacy, "second bytes the root must never take");
     const user_paths::LegacyImport again =
-        user_paths::import_legacy_file(dest, legacy, "session");
+        user_paths::import_legacy_file(dest, legacy, "session", session_persist::kMaxSessionBytes);
     CHECK_FALSE(again.imported);
     CHECK(again.shadowed);
     CHECK(slurp(dest) == "first bytes");
     const user_paths::LegacyImport third =
-        user_paths::import_legacy_file(dest, legacy, "session");
+        user_paths::import_legacy_file(dest, legacy, "session", session_persist::kMaxSessionBytes);
     CHECK_FALSE(third.imported);
     CHECK(slurp(dest) == "first bytes");
 }
@@ -2629,11 +2630,66 @@ TEST_CASE("repeated launches converge -- the import can never fire twice") {
 TEST_CASE("no legacy file, no destination -- the import does nothing, silently") {
     TempDir dir("wux3-nothing");
     const user_paths::LegacyImport did = user_paths::import_legacy_file(
-        dir.file("root/workshop-session.json"), dir.file("workshop-session.json"), "session");
+        dir.file("root/workshop-session.json"), dir.file("workshop-session.json"), "session",
+        session_persist::kMaxSessionBytes);
     CHECK_FALSE(did.imported);
     CHECK_FALSE(did.shadowed);
     CHECK(did.note.empty());
     CHECK_FALSE(std::filesystem::exists(dir.file("root")));
+}
+
+TEST_CASE("a legacy session as large as the session reader takes is imported whole, and a larger "
+          "one or a taken root is left alone") {
+    // THE LARGEST LEGAL SESSION: every layout a maximal desk remembering a maximal desk. The
+    // session reader takes it, and it is larger than a mebibyte, so an import read capped there
+    // would leave it behind.
+    std::vector<Layout> run;
+    for (std::size_t i = 0; i < kMaxLayouts; ++i) {
+        Setup s = setup_of(std::string(kMaxSetupNameLen, static_cast<char>('a' + i)), {});
+        fill_to_every_bound(s);
+        run.push_back(Layout{s, SetupLink{std::string(256, 'p') + ".json", s}});
+    }
+    const std::string text = session_persist::to_text(run, kMaxLayouts - 1, cells_px(120),
+                                                      cells_px(44), session_persist::Placement{});
+    REQUIRE(text.size() > (std::size_t{1} << 20));
+    REQUIRE(text.size() <= session_persist::kMaxSessionBytes);
+    TempDir dir("legacy-import-bound");
+    const std::string legacy = dir.file("workshop-session.json");
+    spillout(legacy, text);
+    const session_persist::LoadedSession legacy_read = session_persist::load_file(legacy);
+    REQUIRE_MESSAGE(legacy_read.outcome.accepted, legacy_read.outcome.refusal);
+
+    const std::string dest = dir.file("root/workshop-session.json");
+    const user_paths::LegacyImport did =
+        user_paths::import_legacy_file(dest, legacy, "session", session_persist::kMaxSessionBytes);
+    CHECK_MESSAGE(did.imported, did.note);
+    CHECK(slurp(dest) == text);
+    CHECK(slurp(legacy) == text);
+    const session_persist::LoadedSession imported = session_persist::load_file(dest);
+    REQUIRE(imported.present);
+    CHECK_MESSAGE(imported.outcome.accepted, imported.outcome.refusal);
+
+    // A FILE PAST THE READER'S CEILING is not imported: nothing is written, the original stays.
+    const std::string over = dir.file("over/workshop-session.json");
+    const std::string over_dest = dir.file("over-root/workshop-session.json");
+    std::filesystem::create_directories(dir.file("over"));
+    const std::string too_large(session_persist::kMaxSessionBytes + 1, 'x');
+    spillout(over, too_large);
+    const user_paths::LegacyImport refused =
+        user_paths::import_legacy_file(over_dest, over, "session",
+                                       session_persist::kMaxSessionBytes);
+    CHECK_FALSE(refused.imported);
+    CHECK(refused.note.find("could not read it") != std::string::npos);
+    CHECK_FALSE(std::filesystem::exists(over_dest));
+    CHECK(slurp(over) == too_large);
+
+    // ...AND A ROOT THAT ALREADY HOLDS A SESSION KEEPS IT.
+    spillout(legacy, "a newer local file");
+    const user_paths::LegacyImport shadowed =
+        user_paths::import_legacy_file(dest, legacy, "session", session_persist::kMaxSessionBytes);
+    CHECK_FALSE(shadowed.imported);
+    CHECK(shadowed.shadowed);
+    CHECK(slurp(dest) == text);
 }
 
 // ---- A folder named beyond ASCII ---------------------------------------------------------
@@ -2674,7 +2730,8 @@ TEST_CASE("a weaver's files under a folder named beyond ASCII are written, found
     const std::string legacy = folder + "/workshop-keymap.json";
     const std::string keymap = folder + "/config/zengine-workshop/workshop-keymap.json";
     REQUIRE(persist::write_file(legacy, "the weaver's bytes").accepted);
-    const user_paths::LegacyImport did = user_paths::import_legacy_file(keymap, legacy, "keymap");
+    const user_paths::LegacyImport did =
+        user_paths::import_legacy_file(keymap, legacy, "keymap", keymap_persist::kMaxKeymapBytes);
     CHECK_MESSAGE(did.imported, did.note);
     CHECK(std::filesystem::exists(held(keymap)));
     const persist::FileText back = persist::read_file(keymap, 1024, "a keymap");

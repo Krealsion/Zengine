@@ -124,18 +124,15 @@ struct LegacyImport {
     std::string note;        ///< the human-readable sentence, empty when nothing happened
 };
 
-/// A ceiling for the import's read, spelled once: generous against every durable file's own
-/// ceiling (largest is 64 KiB), tight against a hostile file chosen as a working directory
-/// neighbour. The import moves bytes, not meaning, so the loaders' own ceilings still judge
-/// the file at its new home.
-inline constexpr std::uintmax_t kMaxImportBytes = 1u << 20;
-
 /// Apply the transition rule for one durable fact. `destination` is the resolved per-user
 /// DEFAULT path (the caller must not pass an explicit or isolated resolution here);
 /// `legacy` is the older local file it replaces. `what` names the fact for the note
-/// ("keymap", "session").
+/// ("keymap", "session"). `ceiling` is that fact's own read ceiling, its loader's: a file the
+/// loader would take is imported whole, a larger one is left where it is. The import moves
+/// bytes, not meaning, so the loader still judges the file at its new home.
 inline LegacyImport import_legacy_file(const std::string& destination,
-                                       const std::string& legacy, const char* what) {
+                                       const std::string& legacy, const char* what,
+                                       std::uintmax_t ceiling) {
     LegacyImport result;
     if (destination.empty() || legacy.empty()) {
         return result;
@@ -153,7 +150,7 @@ inline LegacyImport import_legacy_file(const std::string& destination,
                       "; the older local " + legacy + " is not read (delete it to end this note)";
         return result;
     }
-    const persist::FileText read = persist::read_file(legacy, kMaxImportBytes, what);
+    const persist::FileText read = persist::read_file(legacy, ceiling, what);
     if (!read.outcome.accepted) {
         result.note = std::string("found a local ") + what + " at " + legacy +
                       " but could not read it -- it was left untouched and nothing was imported";
