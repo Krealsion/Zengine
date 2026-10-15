@@ -8,6 +8,7 @@
 #include "operator/reference.hpp"
 #include "workshop/actor_scope.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_document.hpp"
 #include "input/vocabulary.hpp"
 #include "operator/host.hpp"
 #include "workshop/pane_menu.hpp"
@@ -15,6 +16,7 @@
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
+#include "manuals/zengine.flow.hpp" // this pane's manual, compiled in from its page
 #include <algorithm>
 #include <cmath>
 #include <deque>
@@ -45,13 +47,14 @@ class FlowPane final
                        fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered,
                        ws::PaneOperationAnswered, ws::PaneCarryAnswered,
-                       loom::DispatchRefused>,
+                       loom::DispatchRefused, ws::PaneDocumentRequested>,
           loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::v4::PaneCanvasContent,
                      ws::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested,
                      ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop,
                      fh::FlowCatalog, ws::PaneMenuRequested, ws::PaneOperationRequested,
-                     ws::v2::PaneOperationRequested, ws::PaneValueCarryRequested>> {
+                     ws::v2::PaneOperationRequested, ws::PaneValueCarryRequested,
+                     ws::PaneDocumentShown>> {
 public:
   loom::Value snapshot() const override {
     pane::FlowPaneState saved;
@@ -124,6 +127,12 @@ public:
     request(fh::FlowCatalog{}, "catalog", mail);
     request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
     find(mail, true);
+  }
+  /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
+  /// reloaded image answers its own words.
+  void on(const ws::PaneDocumentRequested &ask, loom::Mail &mail) {
+    (void)mail.answer(ws::pane_document(ask, pane::kPane,
+                                        zengine::manual::pages::zengine_flow::kManual));
   }
   void on(const ws::PaneCatalogRequested &, loom::Mail &mail) {
     if (mail.authored_from_role(workshop_role))

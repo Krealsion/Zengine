@@ -4,8 +4,9 @@
 `zengine::maker` exports maker definitions, the interpreted runtime and its existing succession
 helpers. Both consume Loom's schemas and operator meaning; Flow introduces no new message bus,
 type system or authority policy. The [workbench guide](flow-guide.md) covers the standalone
-tool; [graphical authoring](flow.md) covers Workshop. Workshop runs projects through
-its [existing-host manager](flow-runtime.md), rather than opening a nested Loom session.
+tool; [graphical authoring](flow.md) covers Workshop, and the pane's commands are
+[its manual](zengine.flow.md). Workshop runs projects through its
+[existing-host manager](flow-runtime.md), rather than opening a nested Loom session.
 The installed `flow/flow-host/vocabulary.hpp` and `flow/flow-pane/vocabulary.hpp` expose their control
 messages through `zengine::flow`; their runtime and presentation implementations remain internal.
 
@@ -53,6 +54,19 @@ their missing input names. Neither makes an unfinished graph executable. `proble
 provides node/port diagnostics before Run or Apply, followed by the existing admission
 and host checks. Saving a draft does not run or apply it.
 
+**A node is added by an operator reference**: an identity and the two content ids it was found
+at, `zengine.OperatorRef`'s three fields, as the Flow pane's [`FlowEdit`](zengine.flow.md#flowedit)
+spells them. `add-node(identity, authored_in, authored_out[, before])` adds a step at the end, or before node `before`, renumbering every node binding, the result and
+the layout places that follow; `add-node-into(identity, authored_in, authored_out, node, port)`
+places it before `node` and wires it into that port in the same edit. A reference the graph's
+ports now describe at other content ids is refused in words and never re-bound, as is one nothing
+supplies. `add-fold([before])` places the evaluator's [fold](../../operator/docs/operator-providers.md#the-fold) with
+its body unchosen and `step` bound to the constant 1, which the maker sees and changes like any
+constant; `fold-body(node, identity, authored_in, authored_out, count, accumulator)` chooses its
+body by reference and names the two body ports it threads. Start, limit and step keep their
+bindings, the initial value too while its type is still the body's answer, and the node's ports
+then derive from the body.
+
 [Message drafts](../../message-draft/docs/message-drafts.md) own the typed values and named reusable library.
 Workspace forms retain their exact schema and editing context independently of that
 library. When an unlaunched schema changes, its old form remains a historical draft;
@@ -64,62 +78,6 @@ Workspace saves use the same 1 MiB and single-writer-per-path discipline as proj
 saves. The complete candidate is validated for reopening before replacement. A workspace
 contains no live session custody, message queue, sender identity or grant. Starting or
 sending after reopening is a fresh host action.
-
-## Workshop control and reload
-
-The installed `flow/flow-pane/vocabulary.hpp` declares `flow_pane::FlowEdit`, whose wire shape is
-`FlowEdit v1` with `action:Text`
-and `arguments:List<Text>`, addressed to `zengine.flow`. Arguments are separate strings, not
-shell text. `FlowEdited v1` answers with `ok:Bool`, `reason:Text`, `workspace:Bytes` and
-`problems:List<Text>`. The workspace uses the codec above. The `describe` action summarizes
-the edit grammar; `list-erase(row,index)` removes an item from the selected form's list.
-
-The pane refuses every `FlowEdit` request while a graphical dialog is open, including
-`describe`. Confirm or cancel through that dialog before issuing another command. A failed
-semantic edit keeps the previous model. For Run, Apply, Send, Stop, Catalog and Inspect, an
-accepted command queues a host-manager request; its `ok` is not the runtime outcome. The pane
-observes the later answer or dispatch refusal through the
-[Flow host protocol](flow-runtime.md). The host's normal message grants still apply.
-
-`FlowPaneState` is the pane's reload snapshot, separate from the workspace file. It retains
-the workspace, save path, dirty flag, page, deliberate-initial-state flag, and an open dialog's
-action, fields, selected field, caret and selection anchor. On activation the replacement
-reconnects to the existing session and reacquires graphical grants. Pending asks, hit maps,
-held gestures, process custody, the search line, a selected port and a preview are not
-restored. A deliberate initial-state edit remains
-protected from newly observed live state until a matching successful Run answer is accepted. Unconfirmed dialog text is
-not included in an ordinary workspace save. An orderly quit refuses an open dialog or unsaved
-work until the weaver resolves it.
-
-The graphical renderer uses the [pane canvas protocol](../../workshop/docs/workshop-panes.md#optional-pane-local-canvas).
-It draws rectangular nodes and orthogonal wires with fixed-size printable-ASCII labels; display
-substitution and ellipses leave stored values intact. Zoom scales node positions and widths
-from 50% to 200%, while glyph size and port-row height remain fixed. Content is clipped before
-the canvas budgets are spent. A view that still exceeds a budget becomes an explicit recovery
-picture, with save/export and zoom controls, rather than a partially drawn graph. Pointer hit
-testing uses the room's device grain and the picture identified by Workshop's input fence.
-
-The pane finds powers through the host's discovery door, `FindPowers` to `zengine.powers`
-([introspection](../../introspection/docs/introspection.md#the-discovery-door-finding-a-power)): it asks only for powers
-their contributors offer and, with an input port selected, only for what yields that port's
-type in Loom's spelling. It shows the latest answer as the door gave it, matched by Loom's answer
-provenance and its correlation, and asks again when the question changes, at a room grant, and
-after a Run, Apply, Stop or Catalog. With a fold's body slot open it asks with `fits=fold` instead.
-The graph's port signatures still come from the Flow host's `FlowCatalog`; an Add for a power
-those signatures do not yet describe reads them again first.
-
-**Add takes an operator reference**: the identity and the two content ids the door's row carried,
-`zengine.OperatorRef`'s three fields. `add-node(identity, authored_in, authored_out[, before])`
-adds a step at the end, or before node `before`, renumbering every node binding, the result and
-the layout places that follow; `add-node-into(identity, authored_in, authored_out, node, port)`
-places it before `node` and wires it into that port in the same edit. A reference the graph's
-ports now describe at other content ids is refused in words and never re-bound, as is one nothing
-supplies. `add-fold([before])` places the evaluator's [fold](../../operator/docs/operator-providers.md#the-fold) with
-its body unchosen and `step` bound to the constant 1, which the maker sees and changes like any
-constant; `fold-body(node, identity, authored_in, authored_out, count, accumulator)` chooses its
-body by reference and names the two body ports it threads. Start, limit and step keep their
-bindings, the initial value too while its type is still the body's answer, and the node's ports
-then derive from the body.
 
 ## What generation means
 

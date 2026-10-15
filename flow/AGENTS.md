@@ -35,8 +35,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   dialogs, gestures, carried shapes and the discovery door, in `tests/test_flow_pane.cpp`
 
 Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_powers.cpp`: Flow
-asking the discovery door; `tests/test_workshop_inventory_info.cpp`: values and shapes dragged
-onto Flow's canvas), `workshop_files` (`tests/test_workshop_files.cpp`: the pane's recipe entry)
+asking the discovery door, its action census driver and its answered manual;
+`tests/test_workshop_inventory_info.cpp`: values and shapes dragged onto Flow's canvas),
+`workshop_files` (`tests/test_workshop_files.cpp`: the pane's recipe entry)
 and `workshop_shapes` (`tests/census_headers.hpp`: its shapes). Outside CTest,
 `tests/package/run.cmake` builds `tests/package/flow_author.cpp` and `tests/package/flow_host.cpp`
 against the installed package.
@@ -57,6 +58,9 @@ against the installed package.
 
 ## Pages
 
+- [`zengine.flow`](docs/zengine.flow.md) -- the pane's manual, carried by `zengine-flow-pane`
+  (`MANUAL`) and answered to `PaneDocumentRequested`; its census rows are
+  `tests/actions/zengine.flow.txt`
 - [Make and run a Flow definition](docs/flow-guide.md)
 - [Flow authoring and native generation](docs/flow-reference.md)
 - [Flow in an existing host](docs/flow-runtime.md)
