@@ -638,6 +638,13 @@ inline const char* posix_gap(const Gesture& g) noexcept {
     return nullptr;
 }
 
+/// The sentence a known gap is said in: the gesture as spelled, the action it moves, and the gap.
+/// The file's overrides at load and a pane's rows at admission say it alike.
+// WL-KEY-08 -- agents/workshop/keyboard.md
+inline std::string gap_sentence(std::string_view spelled, std::string_view id, const char* gap) {
+    return "`" + std::string(spelled) + "` (" + std::string(id) + "): " + gap;
+}
+
 /// THE TEXT A CONSUMED PRINTABLE GESTURE'S OWN KEYSTROKE PRODUCES, or "" when none is
 /// expected.
 // WL-KEY-12 -- agents/workshop/keyboard.md
@@ -723,6 +730,10 @@ struct PaneRow {
 struct PaneRows {
     std::int64_t pane = -1; ///< the pane's runtime handle (`is_runtime_kind`, panes.hpp)
     std::vector<PaneRow> rows;
+    /// A `gap_sentence` for each bound row whose gesture the terminal cannot produce, derived at
+    /// every join from the rows in force, so a re-join neither drops nor repeats one.
+    // WL-KEY-08 -- agents/workshop/keyboard.md
+    std::vector<std::string> gaps;
 };
 
 /// One application row a participating owner declared, as in force: id, label, gesture now, and
@@ -777,7 +788,8 @@ struct Keymap {
     /// `authored` by `apply_overrides`, never authored directly.
     std::vector<std::pair<Act, Gesture>> overrides;
     /// Accepted-with-a-caveat: the honest note about authored gestures with a known
-    /// backend gap (see `posix_gap`), spoken once at load and kept nowhere else.
+    /// backend gap (see `posix_gap`), spoken once at load and kept nowhere else; a pane's rows
+    /// keep their own (`PaneRows::gaps`).
     std::string note;
     /// The rows every pane declared, as in force: derived by `join_pane_rows`, re-joined when
     /// either side changes, and never saved.
@@ -1199,7 +1211,7 @@ inline Written apply_overrides(
             if (!candidate.note.empty()) {
                 candidate.note += "; ";
             }
-            candidate.note += "`" + row.second + "` (" + row.first + "): " + gap;
+            candidate.note += gap_sentence(row.second, row.first, gap);
         }
     }
     // The collision check runs over the effective map: an override can land on another action's
@@ -1479,13 +1491,26 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
             }
         }
     }
+    // ...AND WHAT THE TERMINAL CANNOT PRODUCE, judged on the rows in force, the weaver's
+    // overrides included, as the file's own rows are: each row stays bound as it stands, and is
+    // said (WL-KEY-08).
+    std::vector<std::string> gaps;
+    for (const PaneRow& row : rows) {
+        if (!is_bound(row.gesture)) {
+            continue;
+        }
+        if (const char* gap = posix_gap(row.gesture)) {
+            gaps.push_back(gap_sentence(gesture_word(row.gesture), row.id, gap));
+        }
+    }
     for (PaneRows& p : k.panes) {
         if (p.pane == pane) {
             p.rows = std::move(rows);
+            p.gaps = std::move(gaps);
             return Written::ok();
         }
     }
-    k.panes.push_back(PaneRows{pane, std::move(rows)});
+    k.panes.push_back(PaneRows{pane, std::move(rows), std::move(gaps)});
     return Written::ok();
 }
 
