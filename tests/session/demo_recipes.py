@@ -466,9 +466,24 @@ class Recipes(unittest.TestCase):
         """What Workshop's own reader makes of a file, one fact a line."""
         self.assertIsNotNone(FILE_READER, "run with --file-reader <zengine-workshop-file-read>, "
                                           "as tests/CMakeLists.txt does")
-        done = subprocess.run([FILE_READER, kind, str(path)], capture_output=True, text=True)
+        # The reader writes UTF-8, as every program this repository builds does, whatever the
+        # locale this interpreter decodes by.
+        done = subprocess.run([FILE_READER, kind, str(path)], capture_output=True,
+                              encoding="utf-8")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         return done.stdout.splitlines()
+
+    def test_a_root_named_outside_the_ansi_page_reads_back_exactly(self):
+        # A PATH THE READER PRINTS COMES BACK AS IT WAS, beneath folders named with letters no ANSI
+        # page holds -- whose UTF-8 bytes Windows-1252 reads as other letters, or cannot read --
+        # and beneath an ASCII one alike.
+        for folder in ("ж中-é", "ā", "ascii"):
+            with self.subTest(folder=folder):
+                wdir = Path(self.tmp) / folder / "workshop"
+                wdir.mkdir(parents=True)
+                launcher.first_files(described.Setup(make(self.tmp, "desk-" + folder)), wdir)
+                said = self.read_back("session", wdir / "session.json")
+                self.assertIn("link %s" % (wdir / "setup.json"), said)
 
     def test_a_desk_saved_now_launches_in_a_session_this_workshop_reads_whole(self):
         setup_version = self.owner_version("workshop/setup_persist.hpp")
