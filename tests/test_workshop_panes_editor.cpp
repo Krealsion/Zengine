@@ -12,9 +12,13 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+#include "census.hpp"
+#include "neovim_environment.hpp"
+
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "editor/editor-pane/editor.hpp"
 #include "editor/editor-pane/vocabulary.hpp"
+#include "editor/neovim-editor/vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_doors.hpp"
 #include "workshop/pane_migration.hpp"
@@ -28,6 +32,7 @@
 #include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 
 namespace {
 
@@ -5489,4 +5494,82 @@ TEST_CASE("measurement -- what the managed open retains and how many turns it ta
                 " admission_to_answer_us=", commit_to_answer_us);
         CHECK(e.r.bus.joint_retained_bytes() == 0);
     }
+}
+
+// ============================================================================
+// THE OFFICE'S CENSUS AND ITS MANUAL: both holders of `zengine.editor`
+// ============================================================================
+
+namespace {
+
+namespace nve = zengine::neovim_editor;
+
+/// ONE BEAT TO THE NEOVIM-BACKED EDITOR, as the Timer would give it (no Timer is mounted), then
+/// drain.
+void neovim_beat(EditorRig& e) {
+    (void)e.r.bus.send(e.image, loom::Message(loom::to_value(zengine::timer::TimerFired{
+                                                  "zengine.neovim-editor.beat"}),
+                                              loom::WeaveId{}, loom::WeaveId{}, 0));
+    e.r.bus.drain_until_idle();
+}
+
+/// THE NEOVIM-BACKED EDITOR HOLDING THE EDITOR'S OFFICE, on the fake Neovim whose module says it is
+/// in Visual mode: started, ready, and declaring every row it has, `neovim.extract` among them.
+/// The case's `NeovimEnvironment` names the fake and its `visual` mode.
+void open_neovim_selecting(EditorRig& e) {
+    e.open(160, 48, true, false, EditorRig::Project::kDoor, true, nve::kNeovimEditorStem);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+    const auto declares_extract = [&e] {
+        for (const v3::PaneActionRow& a : e.row()->actions) {
+            if (a.id == nve::kActionExtract) return true;
+        }
+        return false;
+    };
+    while (!(e.read("ready") == "true" && declares_extract())) {
+        REQUIRE_MESSAGE(std::chrono::steady_clock::now() < deadline,
+                        "the Neovim-backed Editor never declared its selection's row");
+        neovim_beat(e);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+}
+
+/// THE EDITOR'S CENSUS, one office with two holders: the standard Editor's rows, then the
+/// Neovim-backed Editor's, each in the one mode its pane has.
+const CensusDriverOf kEditorCensus{pane::kEditorPaneRole, [] {
+    OfficeCensus census;
+    {
+        EditorRig e("edit-census");
+        e.open();
+        census_take(census, pane::kEditorPaneRole, *e.row());
+    }
+    {
+        EditorRig e("edit-census-neovim");
+        NeovimEnvironment env(e.root, NEOVIM_FIXTURE, "visual");
+        open_neovim_selecting(e);
+        census_take(census, pane::kEditorPaneRole, *e.row());
+    }
+    return census;
+}};
+
+} // namespace
+
+TEST_CASE("the manual the standard Editor answers is the office's page, naming exactly the commands "
+          "both holders of the office declare") {
+    // EVERY ID EITHER HOLDER DECLARES: the page is the office's, so it is held to both.
+    std::set<std::string> declared;
+    {
+        EditorRig other("edit-manual-neovim");
+        NeovimEnvironment env(other.root, NEOVIM_FIXTURE, "visual");
+        open_neovim_selecting(other);
+        for (const v3::PaneActionRow& a : other.row()->actions) declared.insert(a.id);
+    }
+    EditorRig e("edit-manual");
+    e.open();
+    for (const v3::PaneActionRow& a : e.row()->actions) declared.insert(a.id);
+    ManualReader reader(e.r, pane::kEditorPaneRole);
+    check_answered_manual(reader, pane::kEditorPane, declared);
+    // ...AND A PANE THE OFFICE DOES NOT OFFER IS REFUSED, naming it.
+    const PaneDocumentShown other = reader.ask("elsewhere", "");
+    CHECK(other.refusal == "zengine.editor offers no pane `elsewhere`");
+    CHECK(other.sections.empty());
 }

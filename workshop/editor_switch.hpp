@@ -14,7 +14,10 @@
 #include "editor_switch_vocabulary.hpp"
 #include "load_plan.hpp"
 
+#include "manual/vocabulary.hpp"
 #include "timer/binding.hpp"
+
+#include "manuals/zengine.editor-switch.hpp" // this office's manual, compiled in from its page
 
 #include <zen/host/prepared_replacement.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -70,6 +73,9 @@ inline loom::Grant editor_switch_grant(const std::string& office) {
     loom::Grant g;
     g.allow_to_any(EditorSwitchAnswered::zen_name, EditorSwitchAnswered::zen_version);
     g.allow_to_any(EditorSwitchProgress::zen_name, EditorSwitchProgress::zen_version);
+    // ...and what a shape it accepts does, from its own page, to the one who asked.
+    g.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                   zengine::manual::ShapeDocumentShown::zen_version);
     g.allow_to_role(EditorHandoffJudgeRequested::zen_name, EditorHandoffJudgeRequested::zen_version,
                     office);
     g.allow_to_role(EditorHandoffRequested::zen_name, EditorHandoffRequested::zen_version,
@@ -114,11 +120,11 @@ using EditorSwitchBase = zengine::timer::TimedWeave<
     loom::Accept<EditorSwitchRequested, EditorSwitchConfirmed, EditorSwitchCancelled,
                  EditorSwitchStatusRequested, EditorHandoffJudged, EditorWarmed,
                  EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
-                 loom::DispatchRefused>,
+                 loom::DispatchRefused, zengine::manual::ShapeDocumentRequested>,
     loom::Emit<EditorSwitchAnswered, EditorSwitchProgress, EditorHandoffJudgeRequested,
                EditorWarmRequested, EditorPreparationTick, EditorHandoffRequested,
                EditorHandoffEnded, EditorAdoptRequested, EditorLiveRequested,
-               EditorRetireRequested>>;
+               EditorRetireRequested, zengine::manual::ShapeDocumentShown>>;
 
 /// How often a warming or adopting candidate is handed a beat (the Timer's own floor).
 inline constexpr std::int64_t kSwitchBeatMs = 10;
@@ -153,6 +159,13 @@ public:
 
     Stage stage() const noexcept { return op_.stage; }
     std::int64_t op() const noexcept { return op_.id; }
+
+    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it, said against the
+    /// content id the asker holds. The gate's own list says which shapes are mine to describe.
+    void on(const zengine::manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(zengine::manual::shape_document(
+            ask, accepted_schemas(), zengine::manual::pages::zengine_editor_switch::kManual));
+    }
 
     // ---- the four doors a weaver's asker uses -------------------------------------------------
 

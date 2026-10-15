@@ -12,7 +12,7 @@
 // Workshop, `NeovimStartRequested` starts Neovim headless and listening, for a second terminal to
 // attach with `nvim --server <address> --remote-ui`; every answer to the three asks is
 // `zen.Result` or `zen.Refused`.
-// Reference: editor/docs/neovim.md.
+// Reference: editor/docs/zengine.editor.md.
 
 #include <zen/weave/shape.hpp>
 
