@@ -4,4 +4,7 @@ zengine.composer - compose.submit ctrl+return - - submit
 zengine.composer - compose.store ctrl+s - - store command
 zengine.composer - compose.preset ctrl+b - - store preset (may be incomplete)
 zengine.composer - compose.unset ctrl+u - - unset field and discard value
-zengine.composer - compose.back unbound - - back to the catalog
+zengine.composer - compose.back escape - - back to the catalog
+zengine.composer - compose.up up - - row up
+zengine.composer - compose.down down - - row down
+zengine.composer - compose.include tab - - include or leave out the field
