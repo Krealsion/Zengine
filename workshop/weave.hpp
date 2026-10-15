@@ -30,6 +30,8 @@
 #include "setup_persist.hpp"
 
 #include "input/vocabulary.hpp"
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.workshop.hpp" // this office's manual, compiled in from its page
 #include "pane_operation.hpp"
 #include "pane_shortcuts.hpp"
 #include "pane_carry.hpp"
@@ -372,7 +374,9 @@ class WorkshopWeave
                                           // ...and the host's own fence behind a menu it
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
-                                          loom::DispatchRefused>,
+                                          loom::DispatchRefused,
+                                          // what a shape this office accepts does, from its page
+                                          zengine::manual::ShapeDocumentRequested>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, v6::PaneView, DeskRead, v2::DeskRead, DeskStamps, v2::DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
@@ -425,7 +429,8 @@ class WorkshopWeave
                                         zengine::workshop::MenuGranted,
                                         zengine::workshop::MenuInput,
                                         zengine::workshop::MenuWithdrawn,
-                                        zengine::workshop::WithdrawalFence>,
+                                        zengine::workshop::WithdrawalFence,
+                                        zengine::manual::ShapeDocumentShown>,
                              // the one latest claim
                              // this host makes -- the managed pane's presentation.
                              loom::Claims<zengine::workshop::PanePresentation>> {
@@ -478,6 +483,13 @@ public:
     /// THE SURFACE WAS ASKED TO CLOSE -- by the window manager, the close box,
     /// the platform. Workshop applies the quit policy it already has.
     void on(const zengine::surface::SurfaceCloseRequested&, loom::Mail&);
+
+    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it, said against the
+    /// content id the asker holds. The gate's own list says which shapes are mine to describe.
+    void on(const zengine::manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
+        (void)mail.answer(zengine::manual::shape_document(
+            ask, accepted_schemas(), zengine::manual::pages::zengine_workshop::kManual));
+    }
 
     void on(const input::AttributedInput& event, loom::Mail& mail);
     void on(const PaneViewRequested& asked, loom::Mail& mail);

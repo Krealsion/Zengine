@@ -10,6 +10,7 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
+#include "office_manual.hpp"
 
 // ============================================================================
 // The office authors the pane; Workshop grants the room
@@ -116,6 +117,23 @@ TEST_CASE("a pane's content round-trips through the wire with its semantics inta
     CHECK(room_back.pane == "hello");
     CHECK(room_back.rows == 7);
     CHECK(room_back.columns == 46);
+}
+
+// ---- The office's manual -------------------------------------------------------
+
+TEST_CASE("Workshop's office answers every shape it accepts from its manual, and the page names no other") {
+    // Asked as any weave asks an office (manual/docs/manual.md#an-office-answers-for-a-shape):
+    // every version Workshop's gate accepts is answered from a section under Commands or Hears,
+    // and every such section is about a shape the gate lets in.
+    PaneRig r;
+    r.mount_workshop();
+    const zengine::manual::Manual& page = zengine::manual::pages::zengine_workshop::kManual;
+    CHECK(std::string(page.office) == kWorkshopProvider);
+    const std::vector<std::string> accepted =
+        described_shapes_of(r.bus, r.bus.role_holder(kWorkshopProvider));
+    REQUIRE(accepted.size() >= 60);
+    CHECK(check_office_manual(r.bus, kWorkshopProvider) >= accepted.size());
+    check_page_names_accepted(page, accepted);
 }
 
 // ---- Descriptor law and the catalog bound ---------------------------------------
