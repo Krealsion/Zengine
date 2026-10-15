@@ -63,7 +63,7 @@ A `TimedWeave`'s orders are re-placed on the successor's `TimerReady` — that
 is the reconciliation designed for the service being replaced beneath it. The
 timers carry the weave's own ids, so `preserved_remaining` vs
 `restarted_delay` receipts tell it exactly what survived
-([timer-protocol](timer-protocol.md)).
+([the Timer's manual](zengine.timer.md#ensuretimer)).
 
 ## Tests
 

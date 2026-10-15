@@ -55,5 +55,5 @@ orders for you at exactly the right moments.
 Remaining *durations* cross to a verified successor (never wall-clock
 deadlines — [TIMER-03](timer-laws.md)); your `preferred/fallback`
 choice is honored per timer, and the receipt tells you what actually happened.
-Deeper: [timer-protocol](timer-protocol.md) ·
-[timer-continuity](timer-continuity.md).
+Deeper: [the Timer's manual](zengine.timer.md), every message it accepts and what it does when
+it is replaced.

@@ -29,9 +29,9 @@ routes; its compile walls are in `agents/verification/walls.md`, which the root 
 
 - `audit_probes` — what the substrate does to a live beat chain when the Timer is swapped,
   reloaded, driven twice or joined late (probes A-D); `tests/test_audit_probes.cpp`
-- `timer` — the contract by content-id, every schedule over a fake clock, the activation law,
-  the shipped clock's grain and what its nap asks of Windows, the real library on the real clock,
-  load order, continuity over a virtual clock;
+- `timer` — the contract by content-id, the office's manual, every schedule over a fake clock,
+  the activation law, the shipped clock's grain and what its nap asks of Windows, the real
+  library on the real clock, load order, continuity over a virtual clock;
   `tests/test_timer.cpp`, `tests/weavelib/timer_virtual.cpp`, `tests/weavelib/oneshot_probe.cpp`
 - `timer_activation_hook_compiles` — the control: a `TimedWeave` using `on_timed_activation`
   builds; `tests/compile_negative/activation_collision.cpp`, case 2
@@ -62,13 +62,14 @@ Outside CTest, the package witness builds `tests/package/oven.cpp` against `zeng
 
 ## Pages
 
+- [zengine.timer -- the Timer](docs/zengine.timer.md), the office's manual: carried by
+  `zengine-timer` (`MANUAL`) and by every target that builds `TimerServiceT`, answered through
+  `ShapeDocumentRequested`; its witness is the `timer` suite's office case
 - [TimedWeave — a weave with an authored rhythm](docs/timed-weaves.md)
 - [Timer binding (`TimedWeave`) — reference](docs/timer-binding.md)
 - [Timer continuity carries remaining duration, not absolute
   time](docs/timer-continuity-carries-remaining-duration.md)
-- [Timer continuity — reference](docs/timer-continuity.md)
 - [Timer laws (TIMER)](docs/timer-laws.md)
-- [Timer protocol — reference](docs/timer-protocol.md)
 - [Using the Timer](docs/timers.md)
 
 ## Practices

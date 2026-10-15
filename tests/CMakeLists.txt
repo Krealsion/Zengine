@@ -31,13 +31,16 @@ endif()
 # loaded through the real kernel. Where one source makes several libraries, the difference under
 # test is one definition and everything else is identical. timer_virtual.cpp is the shipped Timer
 # over a clock whose nap advances virtual time: its claims are about durations.
-zengine_weave(zengine-timer-virtual weavelib/timer_virtual.cpp)
+zengine_weave(zengine-timer-virtual weavelib/timer_virtual.cpp
+              MANUAL ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 target_link_libraries(zengine-timer-virtual PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator zengine-operator-consumer)
 
-zengine_weave(zengine-timer-virtual-v2 weavelib/timer_virtual.cpp)
+zengine_weave(zengine-timer-virtual-v2 weavelib/timer_virtual.cpp
+              MANUAL ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 target_link_libraries(zengine-timer-virtual-v2 PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator zengine-operator-consumer)
 
-zengine_weave(zengine-timer-declines weavelib/timer_virtual.cpp)
+zengine_weave(zengine-timer-declines weavelib/timer_virtual.cpp
+              MANUAL ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 target_link_libraries(zengine-timer-declines PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator zengine-operator-consumer)
 target_compile_definitions(zengine-timer-declines PRIVATE ZENGINE_TIMER_DECLINES=1)
 
@@ -272,6 +275,9 @@ target_compile_definitions(zengine-timer-tests PRIVATE
     # The prepared candidate, and the one that refuses to become the Timer.
     "TIMER_VIRTUAL_V2_SO=\"$<TARGET_FILE:zengine-timer-virtual-v2>\""
     "TIMER_DECLINES_SO=\"$<TARGET_FILE:zengine-timer-declines>\"")
+
+# timer_weave.hpp answers from the Timer office's manual, and the office case reads it.
+zengine_manual(zengine-timer-tests PRIVATE ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 
 zengine_doctest_test(timer zengine-timer-tests)
 
@@ -683,6 +689,8 @@ target_compile_definitions(zengine-flow-tests PRIVATE
     "FLOW_BOUNDARIES=\"$<TARGET_FILE:zengine-flow-boundaries>\""
     "FLOW_HIGH_WATER=\"$<TARGET_FILE:zengine-flow-high_water>\""
     "FLOW_EMPTY=\"$<TARGET_FILE:zengine-flow-empty>\"")
+# test_flow_runtime.cpp mounts the Timer, which answers from its office's manual.
+zengine_manual(zengine-flow-tests PRIVATE ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 add_dependencies(zengine-flow-tests zengine-flow-thermostat zengine-flow-boundaries
     zengine-flow-high_water zengine-flow-empty)
 zengine_doctest_test(flow zengine-flow-tests)
@@ -1421,6 +1429,8 @@ target_include_directories(zengine-audit-probes PRIVATE
 target_compile_definitions(zengine-audit-probes PRIVATE
     "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\"")
+# The probes mount the Timer, which answers from its office's manual.
+zengine_manual(zengine-audit-probes PRIVATE ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 
 zengine_doctest_test(audit_probes zengine-audit-probes)
 

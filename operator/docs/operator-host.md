@@ -7,7 +7,7 @@ ways it can fail.
 A Zengine host may hold an [operator](../catalog.hpp) catalog: named,
 typed, composable semantic rules that more than one surface needs to agree
 about. `timer.normalize_delay` is the first one, and
-[timer/docs/timer-protocol.md](../../timer/docs/timer-protocol.md) says what it means.
+[the Timer's manual](../../timer/docs/zengine.timer.md#about) says what it means.
 
 This page is about the other half: how a **dynamically loaded weave** — one the
 host opened with the Kernel, built with `create(void)`, and never handed a single
@@ -220,7 +220,7 @@ composition across the [provider seam](operator-providers.md), and it CONSUMES
 whatever operator surface its host offered the instance. Those are different roles
 and different exported symbols — what the Timer contributes is one composition,
 and what it spends is decided per instance. See
-[timer/docs/timer-protocol.md](../../timer/docs/timer-protocol.md#what-the-timer-makes-of-a-delay).
+[the Timer's manual](../../timer/docs/zengine.timer.md#about).
 
 A consumer with its own fallback owes one more thing than the stranger does:
 **an accepted offer must be checked before it is accepted.** The Timer describes

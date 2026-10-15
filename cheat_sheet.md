@@ -365,7 +365,7 @@ Continuity spellings for `preferred`/`fallback`: `kPreserveRemaining`, `kRestart
 `kResolutionRefused`.
 
 Deeper: [timers guide](timer/docs/timers.md) · [timed weaves](timer/docs/timed-weaves.md) ·
-[protocol](timer/docs/timer-protocol.md) · [continuity](timer/docs/timer-continuity.md) ·
+[the Timer's manual](timer/docs/zengine.timer.md) ·
 [binding layer](timer/docs/timer-binding.md) · [laws](timer/docs/timer-laws.md).
 
 ---
