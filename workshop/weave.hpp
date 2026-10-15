@@ -751,9 +751,15 @@ public:
     void declare_pane_actions(const v3::PaneActions& declared, loom::Mail& mail);
 
     /// Re-join every pane's retained declaration into the keymap now in force: the file may arrive
-    /// after a pane did, and its overrides are owed to that pane's rows too.
+    /// after a pane did, and its overrides are owed to that pane's rows too. `gaps` gets what
+    /// `unsaid_gaps` gives of each pane's rows.
     // WL-KEY-15 -- agents/workshop/keyboard.md
-    void rejoin_pane_rows(std::string& refusals, loom::Mail& mail);
+    void rejoin_pane_rows(std::string& refusals, std::string& gaps, loom::Mail& mail);
+
+    /// The gap sentences of the pane's rows in force that this run has not said for that pane,
+    /// headed by its name and provider and marked said, or empty: a terminal gap is said once.
+    // WL-KEY-08 -- agents/workshop/keyboard.md
+    std::string unsaid_gaps(std::int64_t kind);
 
     /// The settings a pane takes, judged whole under the office stamp: kept with the weave that
     /// declared them, or refused aloud with the rows in force left standing.
@@ -1842,6 +1848,8 @@ private:
     /// surface. A file that could not be admitted is a standing wall (`kKeymapWallKey`).
     bool keymap_loaded_ = false;
     std::string keymap_word_;
+    /// Each pane's gap sentences this run has said, by the pane's runtime handle (`unsaid_gaps`).
+    std::map<std::int64_t, std::vector<std::string>> gaps_said_;
     /// The application rows the desktop last declared, retained so a keymap file read later applies
     /// the weaver's overrides to them too (WL-DESK-07); `app_declaration_` numbers them (0: none).
     std::vector<v2::AppActionRow> app_actions_;
