@@ -16,6 +16,14 @@ a dedicated Workshop laid out for one task, with a Reset demo button.
 - [Author and check a recipe through an ELH](docs/elh-recipe-journey.md): write a new build
   recipe through Workshop's Files pane from another host's session, then check it
 
+## Manuals
+
+- [`zengine.guests`](docs/zengine.guests.md), the guest door: who is connected, a guest's own row,
+  and where Workshop's plan is
+- [`zengine.connections`](docs/zengine.connections.md), the Connections pane
+- [`zengine.demo`](docs/zengine.demo.md), a setup's Demo pane and the office its demo service
+  attaches to
+
 ## What is in this folder
 
 | | |

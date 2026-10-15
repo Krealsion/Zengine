@@ -9,6 +9,7 @@
 // The capture door is the surface suite's; here, only that `capture` reaches the Skin's office.
 
 #include "doctest.h"
+#include "office_manual.hpp"
 
 #include "workshop/actor_scope.hpp"
 #include "workshop/attention_seam_vocabulary.hpp"
@@ -659,6 +660,20 @@ TEST_CASE("door: a credential admits as its row, and the inventory says both nam
         return false;
     }));
     CHECK(r.inventories.back().listen == "127.0.0.1:" + std::to_string(r.port));
+}
+
+TEST_CASE("door: the door says what each shape it accepts does from its page, and its page names no other") {
+    Scratch f("manual");
+    f.write(kTwoGuests);
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    Rig r(file);
+    // ASKED AS ANY OFFICE'S PAGE IS ASKED: every version the door's gate accepts, by message, under
+    // the grant the host gives the door.
+    const std::vector<std::string> described = described_shapes_of(r.bus, r.door_id);
+    CHECK(check_office_manual(r.bus, ws::kGuestsRole) >= described.size());
+    check_page_names_accepted(zengine::manual::pages::zengine_guests::kManual, described);
 }
 
 TEST_CASE("door: a wrong credential is refused in words and leaves no session; nothing acts") {

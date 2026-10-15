@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The demo controls' reset and readiness waits, pane comfort's budgets and seating in both
-// media, and a semantic setup's refusals before it changes the active layout.
+// The demo controls' reset and readiness waits, their census and manual, pane comfort's budgets
+// and seating in both media, and a semantic setup's refusals before it changes the active layout.
 
 #include "workshop_support.hpp"
+#include "census.hpp"
+#include "office_manual.hpp"
 #include "external-host/demo-control/control.hpp"
 
 namespace {
@@ -91,6 +93,68 @@ struct DemoRig {
         worker.say(demo::kRole, demo::DemoWorkFinished{1, true, "ready"});
     }
 };
+
+/// THE DEMO CONTROLS ON A DESK: the weave in its office in a real Workshop, offered when Workshop
+/// asks for its panes, and picked onto the desk.
+struct DemoDesk {
+    PaneRig r;
+    DemoDesk() {
+        r.mount_workshop();
+        auto w = std::make_unique<demo::Control>(); auto* raw = w.get();
+        auto grant = loom::emit_default_grant(*w);
+        raw->zen_set_self(r.bus.register_weave(std::move(w), std::move(grant), demo::kRole));
+        r.ready();
+        r.extent(160, 48);
+        r.pick(PaneRef{demo::kRole, "controls"});
+    }
+    const RuntimePane* held() { return r.session().panes.runtime.find(demo::kRole, "controls"); }
+};
+
+/// THE DEMO CONTROLS' CENSUS: their one row, in the one mode they have.
+const CensusDriverOf kDemoCensus{demo::kRole, [] {
+    OfficeCensus census;
+    DemoDesk d;
+    const RuntimePane* held = d.held();
+    REQUIRE(held != nullptr);
+    census_take(census, demo::kRole, *held);
+    return census;
+}};
+}
+
+TEST_CASE("the manual the Demo controls answer is the page their build embedded, and names the one action they declare") {
+    namespace manual = zengine::manual;
+    const manual::Manual& page = manual::pages::zengine_demo::kManual;
+    DemoDesk d;
+    const RuntimePane* held = d.held();
+    REQUIRE(held != nullptr);
+    std::set<std::string> ids;
+    for (const v3::PaneActionRow& a : held->actions) ids.insert(a.id);
+    ManualReader reader(d.r, demo::kRole);
+    check_answered_manual(reader, "controls", ids);
+    const PaneDocumentShown whole = reader.ask("controls", "");
+    CHECK(whole.content_id == std::string(page.content_id));
+    CHECK(whole.sections.size() == page.count);
+    CHECK(reader.ask("elsewhere", "").refusal == "zengine.demo offers no pane `elsewhere`");
+}
+
+TEST_CASE("the Demo office says what each shape it accepts does from its page, and its page hears no other") {
+    namespace manual = zengine::manual;
+    const manual::Manual& page = manual::pages::zengine_demo::kManual;
+    DemoRig r;
+    const std::vector<std::string> described =
+        described_shapes_of(r.bus, r.bus.role_holder(demo::kRole));
+    CHECK(check_office_manual(r.bus, demo::kRole) >= described.size());
+    // ...AND EVERY SHAPE IT HEARS IS ONE ITS GATE ACCEPTS. Its Commands are its pane's action ids,
+    // which the pane witness holds to what it declares, so only Hears is held to the gate here.
+    std::size_t heard = 0;
+    for (std::size_t i = 0; i < page.count; ++i) {
+        const manual::Section& s = page.sections[i];
+        if (!manual::is_heard_group(s.group) || s.key == "hears") continue;
+        INFO("hears ", std::string(s.key));
+        CHECK(std::find(described.begin(), described.end(), std::string(s.key)) != described.end());
+        ++heard;
+    }
+    CHECK(heard == described.size());
 }
 
 TEST_CASE("demo reset waits for its owner completion and preserves the service identity") {
