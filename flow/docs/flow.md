@@ -8,7 +8,8 @@ Build and launch [development Workshop](../../workshop/docs/develop-workshop.md)
 **Flow**. The shipped plans include the optional `zengine-flow-pane` artifact in the `zengine.flow`
 office. Enlarge its pane for the graph; room for roughly 100 text columns is comfortable. A host
 without the optional canvas protocol receives a textual summary. The independent
-[Flow workbench](flow-guide.md) remains available without Workshop.
+[Flow workbench](flow-guide.md) remains available without Workshop. Every command, dialog and
+refusal named here is in [the pane's manual](zengine.flow.md).
 
 ## Create a high-water tracker
 
@@ -36,15 +37,13 @@ without the optional canvas protocol receives a textual summary. The independent
 7. Choose **Run**. An unwired port or incompatible type names the place to repair. **Run queued**
    means a request was queued; the host's later answer establishes whether the participant exists.
 
-In a dialog, **Tab** selects the next field, **Ctrl+A** selects its text, **Enter** confirms,
-and **Escape** cancels. Enter is the pane's `dialog-confirm` row while a dialog is open, so it
-moves in your keymap like any pane's row. A refused confirmation keeps the entered text for
-correction. A dialog that writes a file -- Save, Export, Generate native C++, the library's save --
-asks Workshop on confirm whether the confirming hand may write one, and writes nothing and keeps
-the dialog until it is answered; a confirm that reaches Flow as a raw key, before that row is in
-force or after it has moved, asks nothing and says to confirm with the row. On a
-[weaver's host](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there) a guest's
-is refused. Confirm or cancel before changing pages, starting another edit, or quitting.
+In a dialog, **Tab** selects the next field, **Ctrl+A** selects its text,
+<!-- key dialog-confirm -->`return`<!-- /key --> confirms
+([`dialog-confirm`](zengine.flow.md#dialog-confirm)), and **Escape** cancels. A refused
+confirmation keeps the entered text for correction. A dialog that writes a file -- Save, Export,
+Generate native C++, the library's save -- asks Workshop first whether your hand may write one; on
+a [weaver's host](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there)
+a guest's is refused. Confirm or cancel before changing pages, starting another edit, or quitting.
 
 ## Find what to compose
 
@@ -175,7 +174,7 @@ shows retained forms, including those historical shapes.
 Click an absent Message or List field to create it. Clicking a present list appends an item;
 its nested fields become editable rows. A present Message keeps its existing contents. **unset**
 removes a value deliberately. The message-draft C++ API supports structured paths for list
-removal; `FlowEdit` exposes `list-erase(row,index)` for the open form.
+removal; [`FlowEdit`](zengine.flow.md#flowedit) exposes `list-erase(row,index)` for the open form.
 Scalar forms use Loom's existing schema-directed composer. Bytes currently require a typed API
 value; the text editor does not invent a hexadecimal or base64 spelling.
 
@@ -188,12 +187,12 @@ edit is awaiting a fresh run. The Events page continues to show live state indep
 does not save process identity, pending queues, grants or resumable native continuations.
 
 **Export** writes a completed executable Flow project for the standalone workbench and its C++
-generation path. **Import** brings such a project into this editor. **Ctrl+G**, Generate native C++,
-writes the generated project -- `generated.cpp`, its CMake file, `definition.bin` and
-`graph.svg` -- into a directory, as the workbench's `generate` does; a definition with a fold is
-refused in words and nothing is written, because the fold is the evaluator's and runs
-interpreted. Workspace files additionally contain unfinished authoring work and presentation;
-they are not executable projects.
+generation path. **Import** brings such a project into this editor.
+<!-- key ask-generate -->`ctrl+g`<!-- /key -->, Generate native C++, writes the generated project --
+`generated.cpp`, its CMake file, `definition.bin` and `graph.svg` -- into a directory, as the
+workbench's `generate` does; a definition with a fold is refused in words and nothing is written,
+because the fold is the evaluator's and runs interpreted. Workspace files additionally contain
+unfinished authoring work and presentation; they are not executable projects.
 
 ![Generate native C++ refusing a definition with a fold, in words, with nothing written](images/flow-generate-refused.png)
 
@@ -205,33 +204,3 @@ the session through its office. The selected page, unconfirmed dialog text and s
 the distinction between a deliberate initial-state edit and observed live state also survive
 reload. Unconfirmed dialog text is separate from a saved workspace. Drawing grants and hit maps
 are reacquired; a held drag ends rather than resuming in the replacement pane.
-
-## Other interfaces
-
-`FlowEdit` addresses `zengine.flow` with an action and a list of separate string arguments. The
-`describe` action summarizes the editing grammar; `FlowEdited` returns acceptance, the workspace
-and diagnostics. While a dialog is open, all `FlowEdit` requests are refused, including
-`describe`; confirm or cancel the dialog through the pane first. A successful runtime command
-means it was queued, with its later outcome shown in the pane. The
-[Flow reference](flow-reference.md#workshop-control-and-reload) describes this boundary.
-This is the same semantic editing model the controls use. It is not a shell command.
-Runtime requests have their own [Flow host protocol](flow-runtime.md), with explicit
-ownership and authority. [Reusable message drafts](../../message-draft/docs/message-drafts.md) are available
-as a package independently of this pane. The [canvas protocol](../../workshop/docs/workshop-panes.md)
-belongs to any pane that needs bounded local drawing.
-
-Graphical editing uses rectangular nodes, orthogonal wires and measured one-line text. Dialog
-carets and selections use the host's text presentation. Bytes outside printable ASCII appear as
-`?`; this display substitution does not rewrite stored values. An ellipsis marks text shortened
-to fit. Large offscreen graphs do not consume the visible canvas budget. If the visible drawing
-itself exceeds that budget, Flow shows **View
-limit reached** with save/export and zoom controls. Pan or zoom in to reduce visible content;
-the underlying draft remains intact.
-
-The pane exposes input/state schemas and existing trigger graphs; arbitrary C++ deconstruction, authored
-schema migration, general replay, and a visual emission-mapping editor remain separate capabilities.
-
-The complete workspace is bounded to 1 MiB, including its retained forms and library.
-An edit that would exceed this bound is refused before replacing the current draft, so
-reload and save retain the same guarantee. Export reusable examples to a separate library
-and remove unneeded presets before growing a workspace further.

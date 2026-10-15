@@ -4,11 +4,13 @@
 // The Workshop panes suite -- the Terminal finding powers. A source (VM-POP-12) of the
 // `workshop_panes` entry: a live Workshop on a real bus with the basic provider mounted, the
 // discovery door mounted as the host mounts it, and the Terminal participant widened by the host's
-// own call, a line typed through Workshop's own door, from `PaneRig` (`workshop_support.hpp`).
+// own call, a line typed through Workshop's own door, from `PaneRig` (`workshop_support.hpp`); and
+// Flow's pane, loaded beside them, driven for its action census and asked for its manual.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
+#include "census.hpp"
 
 #include "flow/flow-pane/vocabulary.hpp"
 
@@ -282,4 +284,80 @@ TEST_CASE("one question gives the same rows to Flow, Powers and the Terminal") {
 
     // ASKING, ANSWERING AND SHOWING RAN NOTHING.
     CHECK(op::invocations() == spent);
+}
+
+namespace {
+
+/// FLOW'S ROWS AS WORKSHOP HOLDS THEM, for the one pane its office offers.
+const RuntimePane* flow_rows(PaneRig& r) {
+    return r.session().panes.runtime.find(zengine::flow_pane::kRole, zengine::flow_pane::kPane);
+}
+
+/// WHETHER THE ROWS HELD DECLARE ONE ID.
+bool declares(const RuntimePane& held, const std::string& id) {
+    return std::any_of(held.actions.begin(), held.actions.end(),
+                       [&](const v3::PaneActionRow& a) { return a.id == id; });
+}
+
+/// EACH STATE FLOW DECLARES ITS ROWS IN, each pressed into as Workshop presses an action: none
+/// open, then a dialog open, whose confirm and cancel join the others until it closes. Flow names
+/// no mode, so both are the census's `-`.
+void each_flow_state(FindingRig& s, const std::function<void(const RuntimePane&)>& in) {
+    const RuntimePane* held = flow_rows(s.r);
+    REQUIRE(held != nullptr);
+    REQUIRE(declares(*held, "run"));
+    REQUIRE_FALSE(declares(*held, "dialog-confirm"));
+    in(*held);
+    REQUIRE(s.r.workshop_action(zengine::flow_pane::kRole, zengine::flow_pane::kPane, "ask-new")
+                .delivered);
+    held = flow_rows(s.r);
+    REQUIRE(held != nullptr);
+    REQUIRE(declares(*held, "dialog-confirm"));
+    in(*held);
+    REQUIRE(s.r.workshop_action(zengine::flow_pane::kRole, zengine::flow_pane::kPane,
+                                "dialog-cancel")
+                .delivered);
+    held = flow_rows(s.r);
+    REQUIRE(held != nullptr);
+    CHECK_FALSE(declares(*held, "dialog-confirm"));
+}
+
+/// FLOW'S CENSUS: its rows with no dialog open, then the rows a dialog adds, each id once.
+const CensusDriverOf kFlowCensus{zengine::flow_pane::kRole, [] {
+    OfficeCensus census;
+    FindingRig s(plan_with_flow());
+    std::set<std::string> taken;
+    each_flow_state(s, [&](const RuntimePane& held) {
+        CHECK(held.mode.empty()); // Flow declares its rows in no mode
+        if (taken.empty()) {
+            census_take(census, zengine::flow_pane::kRole, held);
+            for (const v3::PaneActionRow& a : held.actions) taken.insert(a.id);
+            return;
+        }
+        for (const v3::PaneActionRow& a : held.actions) {
+            if (taken.insert(a.id).second) {
+                census.lines.push_back(census_line(zengine::flow_pane::kRole, held.mode, a));
+            }
+        }
+    });
+    return census;
+}};
+
+} // namespace
+
+TEST_CASE("the manual Flow answers names exactly the commands it declares, with and without a "
+          "dialog open") {
+    FindingRig s(plan_with_flow());
+    ManualReader reader(s.r, zengine::flow_pane::kRole);
+    std::set<std::string> declared;
+    each_flow_state(s, [&](const RuntimePane& held) {
+        for (const v3::PaneActionRow& a : held.actions) declared.insert(a.id);
+    });
+    CHECK(declared == census_ids(census_pinned_of(zengine::flow_pane::kRole)));
+    check_answered_manual(reader, zengine::flow_pane::kPane, declared);
+
+    // ...AND A PANE FLOW DOES NOT OFFER IS REFUSED, naming it, with no words.
+    const PaneDocumentShown other = reader.ask("elsewhere", "");
+    CHECK(other.refusal == "zengine.flow offers no pane `elsewhere`");
+    CHECK(other.sections.empty());
 }
