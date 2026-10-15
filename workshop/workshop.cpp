@@ -1086,17 +1086,23 @@ int main(int argc, char** argv) {
     say_project.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
     say_project.allow_to_any(PlanNames::zen_name, PlanNames::zen_version);
     say_project.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
+    say_project.allow_to_any(manual::ShapeDocumentShown::zen_name,
+                             manual::ShapeDocumentShown::zen_version);
     mount_in_office<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
                                  marks_path, host.frontier, host.plan_names,
                                  host.recipe_source);
 
     loom::Grant say_recipes;
     say_recipes.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
+    say_recipes.allow_to_any(manual::ShapeDocumentShown::zen_name,
+                             manual::ShapeDocumentShown::zen_version);
     mount_in_office<RecipesDoor>(bus, std::move(say_recipes), kRecipesRole, host.use_recipes,
                                  host.author_recipe);
 
     loom::Grant say_plan;
     say_plan.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
+    say_plan.allow_to_any(manual::ShapeDocumentShown::zen_name,
+                          manual::ShapeDocumentShown::zen_version);
     mount_in_office<PlanDoor>(bus, std::move(say_plan), kPlanRole, host.append_plan_row);
 
     // ---- The editor switch (WL-SWITCH-03, WL-SWITCH-07) -----------------------------------------

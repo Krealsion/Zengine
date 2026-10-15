@@ -3012,33 +3012,6 @@ const CensusDriverOf kBuilderCensus{pane::kBuilderPaneRole, [] {
     return census;
 }};
 
-/// THE DESK'S CENSUS, as its weave declares it: the application's rows, the keys a page names to
-/// reach a pane, then the Pane Manager's, the route to every other pane, and the Manual's, the pane
-/// a `?` shows, each in the one mode it has.
-const CensusDriverOf kDesktopCensus{kDesktopRole, [] {
-    OfficeCensus census;
-    PaneRig r;
-    r.mount_workshop();
-    r.ready();
-    r.extent(160, 48);
-    REQUIRE(r.load(zengine::desktop_pane::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE, kDesktopRole)
-                .valid());
-    REQUIRE_FALSE(r.session().keymap.app.empty());
-    for (const AppRow& a : r.session().keymap.app) {
-        census.lines.push_back(census_line(kDesktopRole, "desk", a.id, a.gesture.scancode,
-                                           a.gesture.modifiers, a.causes, std::string(), a.label));
-    }
-    for (const char* key : {zengine::desktop_pane::kLauncherPane,
-                            zengine::desktop_pane::kManualPane}) {
-        const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, key);
-        REQUIRE(held != nullptr);
-        REQUIRE_FALSE(held->actions.empty());
-        CHECK(held->elsewhere.empty());
-        census_take(census, kDesktopRole, *held);
-    }
-    return census;
-}};
-
 } // namespace
 
 TEST_CASE("the action census: the rows the Builder declares in each mode, with what each press "
@@ -3645,18 +3618,29 @@ TEST_CASE("WL-CHROME-09: a pane whose holder answers its manual wears a `?` and 
         CHECK(b.r.session().panes.external_pane(b.kind)->manual);
         REQUIRE(marks.row.size() >= 3);
         CHECK(marks.row.substr(marks.row.size() - 3) == kChromeMarks);
-        // THE DESKTOP'S OWN PANES ANSWER NO MANUAL, so the Pane Manager wears neither mark.
+        // ...AND SO DOES THE DESK'S OWN PANE MANAGER, whose holder answers its manual too.
         b.unfocus();
         b.r.key(input::scan::kP, input::mod::kCtrl);
         const RuntimePane* manager =
             b.r.session().panes.runtime.find(kDesktopRole, dp::kLauncherPane);
         REQUIRE(manager != nullptr);
         REQUIRE(on_desk(b, manager->kind));
-        CHECK_FALSE(b.r.session().panes.external_pane(manager->kind)->manual);
-        const HeaderMarks bare = header_marks(b, manager->kind);
+        CHECK(b.r.session().panes.external_pane(manager->kind)->manual);
+        const HeaderMarks worn = header_marks(b, manager->kind);
+        REQUIRE(worn.row.size() >= 3);
+        CHECK(worn.row.substr(worn.row.size() - 3) == kChromeMarks);
+        // A PANE WHOSE HOLDER ANSWERS NO MANUAL -- the fixture greeting -- wears neither mark.
+        b.unfocus();
+        REQUIRE(b.r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice).valid());
+        b.r.pick(PaneRef{kHelloOffice, kHelloPane});
+        const RuntimePane* hello = b.r.session().panes.runtime.find(kHelloOffice, kHelloPane);
+        REQUIRE(hello != nullptr);
+        REQUIRE(on_desk(b, hello->kind));
+        CHECK_FALSE(b.r.session().panes.external_pane(hello->kind)->manual);
+        const HeaderMarks bare = header_marks(b, hello->kind);
         CHECK(bare.row.find(kChromeMarks) == std::string::npos);
         CHECK(chrome_mark_at(b.r.session().panes, b.r.session().setup.active,
-                             screen_of(b.r.session()), manager->kind, b.r.session().pane_titles,
+                             screen_of(b.r.session()), hello->kind, b.r.session().pane_titles,
                              input::space::kCells, bare.manual_x, bare.y) == chrome_mark::kNone);
     }
     {

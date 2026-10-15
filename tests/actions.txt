@@ -58,6 +58,14 @@ zengine.desktop list launcher.open return PaneLaunchRequested/1@pane: - show or 
 zengine.desktop list launcher.close x PaneCloseRequested/1@pane: - hide
 zengine.desktop list launcher.menu m - - row menu
 zengine.desktop list launcher.new n PaneLaunchRequested/1>zengine.view.builder/view-builder - new pane
+zengine.desktop table hotkeys.up up - - row up
+zengine.desktop table hotkeys.down down - - row down
+zengine.desktop table hotkeys.top home - - top
+zengine.desktop table hotkeys.bottom end - - bottom
+zengine.desktop table hotkeys.menu m - - row menu
+zengine.desktop capture hotkeys.cancel escape - table cancel
+zengine.desktop spell hotkeys.commit return KeymapEditRequested/1 table use this spelling
+zengine.desktop spell hotkeys.cancel escape - table cancel
 zengine.desktop read manual.up up - - line up
 zengine.desktop read manual.down down - - line down
 zengine.desktop read manual.top home - - top
