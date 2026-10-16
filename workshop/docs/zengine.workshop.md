@@ -616,9 +616,9 @@ must increase within its grant`, a broken budget.
 ### `PaneCaret`
 
 `PaneCaret`, from a pane's office: where its insertion point and selection stand in the rows it last
-sent; v2 adds `generation`. One those rows do not hold leaves the pane with no caret, said nowhere.
-Each medium draws it its own way ([a caret and a
-selection](workshop-panes.md#a-caret-and-a-selection)).
+sent; v2 adds `generation`. One those rows do not hold leaves the pane with no caret, and the
+notice band says why: `Hello @<office>: put a caret on row 2 of a pane showing 2 rows`. Each medium
+draws it its own way ([a caret and a selection](workshop-panes.md#a-caret-and-a-selection)).
 
 ### `PaneEscapeUnspent`
 

@@ -295,6 +295,8 @@ public:
   std::size_t place_node(std::size_t trigger_index, op::Node node,
                          std::optional<std::size_t> before) {
     editable();
+    if (trigger_index >= project.definition.on.size())
+      throw std::invalid_argument("add a trigger before adding a node");
     if (next_id == std::numeric_limits<std::int64_t>::max())
       throw std::invalid_argument("node identity exhausted");
     auto &body = project.definition.on.at(trigger_index).body;

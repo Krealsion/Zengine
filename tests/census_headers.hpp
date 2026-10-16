@@ -160,9 +160,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PaneDragged>(), // PaneDragged v1
         shape<::zengine::workshop::PaneWheel>(), // PaneWheel v1
         shape<::zengine::workshop::PaneValueDrop>(), // PaneValueDrop v1
-        shape<::zengine::workshop::PlanDoorState>(), // PlanDoorState v1
-        shape<::zengine::workshop::ProjectDoorState>(), // ProjectDoorState v2
-        shape<::zengine::workshop::RecipesDoorState>(), // RecipesDoorState v1
+        shape<::zengine::workshop::ProjectDoorState>(), // ProjectDoorState v3
         shape<::zengine::workshop::v2::PaneContent>(), // PaneContent v2
         shape<::zengine::workshop::v3::PaneContent>(), // PaneContent v3
         shape<::zengine::workshop::PaneRevealAnswered>(), // PaneRevealAnswered v1

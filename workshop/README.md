@@ -15,10 +15,8 @@ and menus are tools too, and you can change or replace them while Workshop runs.
 - [The desk](docs/zengine.desktop.md), `zengine.desktop`: the keys that act everywhere, the Pane
   Manager, the Hotkeys pane and the Manual, every command by its key
 - [The project office](docs/zengine.project.md), `zengine.project`: where the project is, what it
-  waits on, whether its plan names an artifact, which file a recipe names
-- [The recipes office](docs/zengine.recipes.md), `zengine.recipes`: choosing the recipe file and
-  adding a recipe to it
-- [The plan office](docs/zengine.plan.md), `zengine.plan`: adding a row to the project's load plan
+  waits on, whether its plan names an artifact, which file a recipe names; choosing the recipe file,
+  adding a recipe to it, and adding a row to the project's load plan
 - [The menu presenter](docs/zengine.presenter.md), `zengine.presenter`: how a pane's menu is shown,
   worked and answered
 - [The opening office](docs/zengine.opening.md), `zengine.opening`: how a source opens in the Editor

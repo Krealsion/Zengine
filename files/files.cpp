@@ -266,7 +266,7 @@ struct FilesMeaning {
 struct FilesAsk {
     enum class Kind {
         kOpen, kUseRecipes, kMark, kAuthor, ///< acts waiting on Workshop's word
-        kRoot, kOpening, kRecipes           ///< the project, opening and recipes offices' asks
+        kRoot, kOpening, kRecipes           ///< the project and opening offices' asks
     };
     Kind kind = Kind::kRoot;
     std::string subject;         ///< the entry or candidate a refusal names
@@ -542,7 +542,7 @@ public:
         // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
         // rows Workshop holds, which are the rows a weaver reads. Most acts say their own picture;
         // one whose answer is still on its way (Workshop's word on an act that opens or writes,
-        // then the opening or recipes office's) or that meant nothing says none, and the spent
+        // then the opening or project office's) or that meant nothing says none, and the spent
         // notice would stand beside the act that spent it. So when a notice stood and the act
         // published nothing, the rows are said here, once, without it.
         const bool spent = !notice_.empty();
@@ -943,7 +943,7 @@ public:
         (void)pane_menu::take_keyboard(mail, files::kFilesRole, files::kProjectFilesPane);
     }
 
-    /// A FILE THE PANE ASKED THE HOST TO USE OR AUTHOR (`zengine.recipes`), answered.
+    /// A FILE THE PANE ASKED THE HOST TO USE OR AUTHOR (`zengine.project`), answered.
     void on(const RecipeOutcome& said, loom::Mail& mail) {
         const std::optional<FilesAsk> asked =
             asks().answered(mail, of_kind(FilesAsk::Kind::kRecipes));
@@ -1437,10 +1437,10 @@ private:
         ask_approval(std::move(next), ws::scope::kWrite, std::string(), mail);
     }
 
-    /// THE APPROVED CATALOG, asked of the recipes office, which installs it or says why not.
+    /// THE APPROVED CATALOG, asked of the project office, which installs it or says why not.
     void take_recipes(const FilesAsk& approved, loom::Mail& mail) {
         (void)asks().forget(of_kind(FilesAsk::Kind::kRecipes));
-        (void)asks().ask(mail, ws::kRecipesRole, RecipeUseRequested{approved.path},
+        (void)asks().ask(mail, ws::kProjectRole, RecipeUseRequested{approved.path},
                          asking(FilesAsk::Kind::kRecipes));
     }
 
@@ -1698,7 +1698,7 @@ private:
         recipes.was_author = true;
         recipes.id = approved.draft.id;
         recipes.artifact = approved.draft.artifact;
-        (void)asks().ask(mail, ws::kRecipesRole, approved.draft, std::move(recipes));
+        (void)asks().ask(mail, ws::kProjectRole, approved.draft, std::move(recipes));
     }
 
     // ---- The chooser's typed fields ----------------------------------------------------------

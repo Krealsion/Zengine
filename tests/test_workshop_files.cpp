@@ -36,8 +36,8 @@
 // share is asserted here directly rather than only through its consumers.
 #include "workshop/path_admission.hpp"
 
-// THE THREE DOORS THE FILES WEAVE ASKS. Two of them are this host's own weaves
-// (`workshop/pane_doors.hpp`); the third is Workshop's, answered where `open_source` lives.
+// THE TWO DOORS THE FILES WEAVE ASKS. One is this host's own weave (`workshop/pane_doors.hpp`);
+// the other is Workshop's, answered where `open_source` lives.
 // The pane is a loaded image, so what this suite owes is the HOST's half of each seam: who
 // may ask, who is answered, and whose words the answer is in.
 #include "workshop/pane_doors.hpp"
@@ -184,9 +184,9 @@ inline void mount_project_door_with_source(ProjectRig& r) {
     raw->zen_set_self(id);
 }
 
-/// CHOOSE A CATALOG THE WAY THE RECIPES DOOR DOES: the one install seam
+/// CHOOSE A CATALOG THE WAY THE PROJECT DOOR DOES: the one install seam
 /// (`HostContext::use_recipes`, WL-PROJ-04), then the republish the Files weave asks the
-/// Builder for after an accepted one. Two acts, exactly as `RecipesDoor` and the weave
+/// Builder for after an accepted one. Two acts, exactly as `ProjectDoor` and the weave
 /// perform them between them -- and neither of them is a browser.
 inline HostContext::RecipeSwap choose_catalog(Live& t, const std::string& path) {
     const HostContext::RecipeSwap done = t.host.use_recipes(path);
@@ -1366,7 +1366,7 @@ TEST_CASE("fitting a path keeps the end that says which file it is") {
 }
 
 // ============================================================================
-// Tier 6c — THE THREE DOORS, FROM THE HOST'S SIDE
+// Tier 6c — THE PROJECT DOOR, FROM THE HOST'S SIDE
 // ============================================================================
 // What a loaded pane can ask this host for, and what it gets: who may ask, who is answered,
 // and whose words the answer is in. The asker is a real weave in a real office (`DoorAsker`,
@@ -1374,8 +1374,9 @@ TEST_CASE("fitting a path keeps the end that says which file it is") {
 
 namespace {
 
-/// This host's two doors, mounted the way `workshop.cpp` mounts them: each in its own
-/// office, each granted exactly the answers it gives -- its own, and its page's.
+/// This host's project door, mounted the way `workshop.cpp` mounts it: in its own office,
+/// granted exactly the answers it gives -- its own, and its page's -- with the recipe acts a
+/// case wires.
 ///
 /// ⚠ THE STRINGS THE PROJECT DOOR READS LIVE HERE, because the door holds pointers into
 /// `main`'s own locals and derives at every ask rather than keeping a copy.
@@ -1383,65 +1384,42 @@ struct DoorRig {
     ProjectRig r;
     std::string marks_path;
     ProjectDoor* project = nullptr;
-    RecipesDoor* recipes = nullptr;
 
     explicit DoorRig(const char* tag) : r(tag) {
         marks_path = (r.root / "workshop-marks.json").generic_string();
     }
 
-    void mount_project() {
-        auto door = std::make_unique<ProjectDoor>(r.t.host.project_dir, marks_path);
+    void mount_project(ProjectDoor::Use use = nullptr, ProjectDoor::Author author = nullptr) {
+        auto door = std::make_unique<ProjectDoor>(
+            r.t.host.project_dir, marks_path, ProjectDoor::Frontier{}, ProjectDoor::Names{},
+            ProjectDoor::Source{}, std::move(use), std::move(author));
         project = door.get();
         loom::Grant grant;
         grant.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
+        grant.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
+        grant.allow_to_any(PlanNames::zen_name, PlanNames::zen_version);
+        grant.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
+        grant.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
+        grant.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
         grant.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
                            zengine::manual::ShapeDocumentShown::zen_version);
         const loom::WeaveId id = r.t.bus.register_weave(std::move(door), std::move(grant),
                                                         std::string(kProjectRole));
         project->zen_set_self(id);
     }
-
-    void mount_recipes(RecipesDoor::Use use, RecipesDoor::Author author = nullptr) {
-        auto door = std::make_unique<RecipesDoor>(std::move(use), std::move(author));
-        recipes = door.get();
-        loom::Grant grant;
-        grant.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
-        grant.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
-                           zengine::manual::ShapeDocumentShown::zen_version);
-        const loom::WeaveId id = r.t.bus.register_weave(std::move(door), std::move(grant),
-                                                        std::string(kRecipesRole));
-        recipes->zen_set_self(id);
-    }
 };
 
 } // namespace
 
-TEST_CASE("the project, recipes and plan offices each answer what a shape they accept does from "
-          "their own page, and their pages name no other shape") {
+TEST_CASE("the project office answers what every shape it accepts does from its own page, and "
+          "its page names no other shape") {
     namespace pages = zengine::manual::pages;
     DoorRig d("doormanuals");
     d.mount_project();
-    d.mount_recipes(nullptr);
-    {
-        auto door = std::make_unique<PlanDoor>(nullptr);
-        PlanDoor* raw = door.get();
-        loom::Grant grant;
-        grant.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
-        grant.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
-                           zengine::manual::ShapeDocumentShown::zen_version);
-        raw->zen_set_self(
-            d.r.t.bus.register_weave(std::move(door), std::move(grant), std::string(kPlanRole)));
-    }
     loom::Switchboard& bus = d.r.t.bus;
-    CHECK(check_office_manual(bus, kProjectRole) == 4);
-    CHECK(check_office_manual(bus, kRecipesRole) == 2);
-    CHECK(check_office_manual(bus, kPlanRole) == 1);
+    CHECK(check_office_manual(bus, kProjectRole) == 7);
     check_page_names_accepted(pages::zengine_project::kManual,
                               described_shapes_of(bus, bus.role_holder(kProjectRole)));
-    check_page_names_accepted(pages::zengine_recipes::kManual,
-                              described_shapes_of(bus, bus.role_holder(kRecipesRole)));
-    check_page_names_accepted(pages::zengine_plan::kManual,
-                              described_shapes_of(bus, bus.role_holder(kPlanRole)));
 }
 
 TEST_CASE("the project door answers the weave that asked, and nobody else") {
@@ -1470,8 +1448,7 @@ TEST_CASE("a door answers an office, and refuses speech with no author") {
     // door and is refused there -- so the refusal is a measurement rather than a bus
     // accident, and the very same asker gets its answer the moment it speaks as an office.
     DoorRig d("anonymous");
-    d.mount_project();
-    d.mount_recipes([](const std::string&) {
+    d.mount_project([](const std::string&) {
         HostContext::RecipeSwap done;
         done.accepted = true;
         return done;
@@ -1483,15 +1460,14 @@ TEST_CASE("a door answers an office, and refuses speech with no author") {
         a.ask(mail, kProjectRole, ProjectRootRequested{});
     });
     asker_do(d.r.t, files, [](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kRecipesRole, RecipeUseRequested{"/anywhere.json"});
+        a.ask(mail, kProjectRole, RecipeUseRequested{"/anywhere.json"});
     });
     CHECK(files->roots.empty());
     CHECK(files->outcomes.empty());
-    // THE DOORS SAW BOTH ASKS AND ANSWERED NEITHER, which is the difference between a rule
+    // THE DOOR SAW BOTH ASKS AND ANSWERED NEITHER, which is the difference between a rule
     // and a delivery that never happened.
-    CHECK(d.project->snapshot().get("refused")->as_int() == 1);
-    CHECK(d.recipes->snapshot().get("refused")->as_int() == 1);
-    CHECK(d.recipes->snapshot().get("used")->as_int() == 0);
+    CHECK(d.project->snapshot().get("refused")->as_int() == 2);
+    CHECK(d.project->snapshot().get("used")->as_int() == 0);
 
     files->personally = false;
     asker_do(d.r.t, files, [](DoorAsker& a, loom::Mail& mail) {
@@ -1501,7 +1477,7 @@ TEST_CASE("a door answers an office, and refuses speech with no author") {
     CHECK(d.project->snapshot().get("answers")->as_int() == 1);
 }
 
-TEST_CASE("the recipes door spends this host's one writer and re-words nothing") {
+TEST_CASE("the project door spends this host's one recipe writer and re-words nothing") {
     // THE ACTING DOOR. It composes no recipe, reads no bytes and invents no refusal: it
     // hands the ask to the closure `workshop.cpp` already wired and puts the owner's own
     // answer on the wire, both halves.
@@ -1509,12 +1485,12 @@ TEST_CASE("the recipes door spends this host's one writer and re-words nothing")
     DoorRig d("recipesdoor");
     put_catalog(d.r.root / "a.json", {authored_recipe("alpha", "src/alpha.cpp")});
     put_file(d.r.root / "notes.txt", "not a catalog\n");
-    d.mount_recipes(host_use_recipes(owner, d.r.root.generic_string(), d.r.t.host.project_dir));
+    d.mount_project(host_use_recipes(owner, d.r.root.generic_string(), d.r.t.host.project_dir));
     DoorAsker* files = mount_door_asker(d.r.t, "zengine.test.files");
 
     const std::string good = (d.r.root / "a.json").generic_string();
     asker_do(d.r.t, files, [good](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kRecipesRole, RecipeUseRequested{good});
+        a.ask(mail, kProjectRole, RecipeUseRequested{good});
     });
     REQUIRE(files->outcomes.size() == 1);
     CHECK(files->outcomes[0].accepted);
@@ -1528,19 +1504,19 @@ TEST_CASE("the recipes door spends this host's one writer and re-words nothing")
     // ask would let a pane say "still using <the file just refused>".
     const std::string bad = (d.r.root / "notes.txt").generic_string();
     asker_do(d.r.t, files, [bad](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kRecipesRole, RecipeUseRequested{bad});
+        a.ask(mail, kProjectRole, RecipeUseRequested{bad});
     });
     REQUIRE(files->outcomes.size() == 2);
     CHECK_FALSE(files->outcomes[1].accepted);
     CHECK_FALSE(files->outcomes[1].refusal.empty());
     CHECK(files->outcomes[1].path == good);
     CHECK(owner.source() == good);
-    CHECK(d.recipes->snapshot().get("refusals")->as_int() == 1);
+    CHECK(d.project->snapshot().get("refusals")->as_int() == 1);
 }
 
 TEST_CASE("a row authored while the shipped catalog is in force goes into a project catalog, "
           "which is installed, and the shipped file keeps its bytes") {
-    // INSTALLATION TRUTH IS NOT A WEAVER'S FILE. Asked through the recipes door while the shipped
+    // INSTALLATION TRUTH IS NOT A WEAVER'S FILE. Asked through the project door while the shipped
     // default is in force, the host's one writer (wired as `workshop.cpp` wires it) writes
     // `<project>/build-recipes.json`, seeded with the shipped rows as written, and installs it.
     CurrentRecipes owner;
@@ -1553,7 +1529,7 @@ TEST_CASE("a row authored while the shipped catalog is in force goes into a proj
     const auto use = host_use_recipes(owner, install.generic_string(), d.r.t.host.project_dir);
     const authoring::RecipeAuthor author{install.generic_string(), d.r.t.host.project_dir, &owner,
                                          use};
-    d.mount_recipes(use, [author](const HostContext::RecipeDraft& draft) {
+    d.mount_project(use, [author](const HostContext::RecipeDraft& draft) {
         return authoring::author_recipe(author, draft);
     });
     REQUIRE(use(shipped.generic_string()).accepted);
@@ -1567,7 +1543,7 @@ TEST_CASE("a row authored while the shipped catalog is in force goes into a proj
     row.source = (d.r.root / "oven.cpp").generic_string();
     row.links = {"loom::kernel"};
     asker_do(d.r.t, files, [row](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kRecipesRole, row);
+        a.ask(mail, kProjectRole, row);
     });
 
     const std::string project =

@@ -20,13 +20,11 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-voca
                                                             loom::terminal)
 # ...and the manuals of the host's own offices compiled into it, each office answering a shape's
 # section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp): Workshop's own weave
-# (its header, workshop/weave.hpp), the opening manager (`opening.hpp`), and the doors a pane asks
+# (its header, workshop/weave.hpp), the opening manager (`opening.hpp`), and the door a pane asks
 # about the project.
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.workshop.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.opening.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.project.md)
-zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.recipes.md)
-zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.plan.md)
 
 # ---- The pane protocol, alone, as a package a stranger links -------------------------
 #
