@@ -330,7 +330,8 @@ public:
                 }
                 notice_=client_.notice;
             } else if(a.id=="inventory.remove" && remove_armed_) {
-                remove_armed_=false; client_.begin(inv::InventoryRemove{target_.reference,target_.revision},current_,office,m,asks_);
+                remove_armed_=false;
+                if(client_.begin(inv::InventoryRemove{target_.reference,target_.revision},current_,office,m,asks_)) removed_="Removed "+target_.label;
             } else if(folder && (a.id=="inventory.rename" || a.id=="inventory.remove" || a.id=="inventory.live")) {
                 if(a.id=="inventory.rename") {
                     m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneKeyboardRequested{current_},m.correlation());
@@ -397,7 +398,12 @@ public:
     void on(const loom::Ack& a, loom::Mail& m) {
         if(command_.hear(a,m)) notice_=command_.notice;
         // The notice belongs to the request this Ack answers, never to an earlier operation's purpose.
-        else if(client_.hear(a,m)) { notice_=std::holds_alternative<inv::InventoryFolderRemove>(client_.request())?organizing_:"Entry updated"; refresh(m); }
+        else if(client_.hear(a,m)) {
+            const auto& request=client_.request();
+            notice_=std::holds_alternative<inv::InventoryFolderRemove>(request)?organizing_
+                   :std::holds_alternative<inv::InventoryRemove>(request)?removed_:"Entry updated";
+            refresh(m);
+        }
         draw(m);
     }
     void on(const loom::Refused& a, loom::Mail& m) {
@@ -1019,7 +1025,7 @@ private:
     std::optional<Registration> registration_;
     loom::Ticket carry_,list_;
     std::uint64_t asks_=0,list_ask_=0,launch_ask_=0,layout_revision_=0;
-    std::string current_=pane,drop_into_=pane,carry_shape_,notice_,duplicate_label_,organizing_,nonce_=nonce();
+    std::string current_=pane,drop_into_=pane,carry_shape_,notice_,duplicate_label_,organizing_,removed_,nonce_=nonce();
     std::string pressed_folder_; // the folder row the last press selected, until any other input
     std::string toolbox_path_="inventory.toolbox";
     Mode mode_=Mode::copy;
