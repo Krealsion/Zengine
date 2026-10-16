@@ -13,6 +13,8 @@ pane to the other. Workshop runs the views; this folder has no headers for other
 
 - [`zengine.view.builder`](docs/zengine.view.builder.md): the View Builder's manual, each command
   it declares, what it hears and the files it keeps.
+- [`zengine.view.host`](docs/zengine.view.host.md): the view host's manual, each message that
+  runs, resumes, changes or stops a view, and what it answers.
 - [Make a small panel by hand in the View Builder](docs/view-builder.md): the guide to making a
   view, running it, and joining it to Flow by dragging its shapes.
 - [Described views](docs/view.md): the reference beneath the guide: a view's description and its

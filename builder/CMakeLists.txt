@@ -13,6 +13,7 @@ target_include_directories(zengine-builder-vocabulary INTERFACE ${CMAKE_SOURCE_D
 target_link_libraries(zengine-builder-vocabulary INTERFACE loom::core
                                                           zengine-timer-vocabulary
                                                           zengine-activation)
-# ...and the Builder office's manual, compiled into whatever mounts the office: it answers a
-# shape's section from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
+# ...and the manuals of the Builder office and its runner, compiled into whatever mounts them:
+# each answers a shape's section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
 zengine_manual(zengine-builder-vocabulary INTERFACE docs/zengine.builder.md)
+zengine_manual(zengine-builder-vocabulary INTERFACE docs/zengine.build-runner.md)

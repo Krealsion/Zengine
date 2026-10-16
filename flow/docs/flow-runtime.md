@@ -11,7 +11,8 @@ remain available separately ([Flow reference](flow-reference.md)).
 
 ## Conversation
 
-The manager holds `zengine.flow.host`. Its message definitions live in
+The manager holds the office [`zengine.flow.host`](zengine.flow.host.md), whose manual says each
+request, its answer and its refusals. Its message definitions live in
 `flow/flow-host/vocabulary.hpp`, installed through `zengine::flow` alongside the graphical pane
 control shapes in `flow/flow-pane/vocabulary.hpp`. These headers let another participant speak
 the protocols. The manager implementation and pane model/view remain Workshop internals.

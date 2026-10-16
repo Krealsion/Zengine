@@ -61,6 +61,9 @@ against the installed package.
 - [`zengine.flow`](docs/zengine.flow.md) -- the pane's manual, carried by `zengine-flow-pane`
   (`MANUAL`) and answered to `PaneDocumentRequested`; its census rows are
   `tests/actions/zengine.flow.txt`
+- [`zengine.flow.host`](docs/zengine.flow.host.md) -- the Flow host's manual, carried by
+  `zengine-workshop-vocabulary` (`zengine_manual` in `workshop/CMakeLists.txt`, since `zengine-flow`
+  is exported and `runtime.hpp` is not) and answered by the host's office
 - [Make and run a Flow definition](docs/flow-guide.md)
 - [Flow authoring and native generation](docs/flow-reference.md)
 - [Flow in an existing host](docs/flow-runtime.md)

@@ -42,6 +42,9 @@ target_link_libraries(zengine-pane-vocabulary INTERFACE zengine-surface-vocabula
 # shape's section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.powers.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.sources.md)
+# ...and the Flow host's (`flow/flow-host/runtime.hpp`, which Workshop mounts and does not
+# install): it rides Workshop's vocabulary, not the exported `zengine-flow`.
+zengine_manual(zengine-workshop-vocabulary INTERFACE ../flow/docs/zengine.flow.host.md)
 
 # ---- The authored load plan: its shape, its file, its execution, and the observation door ----
 #

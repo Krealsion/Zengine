@@ -646,6 +646,8 @@ int main(int argc, char** argv) {
                              timer::kTimerRole);
     run_builds.allow_to_role(timer::CancelTimer::zen_name, timer::CancelTimer::zen_version,
                              timer::kTimerRole);
+    run_builds.allow_to_any(manual::ShapeDocumentShown::zen_name,
+                            manual::ShapeDocumentShown::zen_version);
     const loom::WeaveId runner = mount_in_office<builder::BuildRunnerWeave>(
         bus, std::move(run_builds), builder::kBuildRunnerRole, current_recipes.all(),
         std::string(ZENGINE_BUILDER_CMAKE));

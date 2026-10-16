@@ -33,7 +33,7 @@ files_weave                       doctest           always  20
 maker                             doctest           always  29
 # Tripwires in this suite read builder/weave.hpp, builder/runner.hpp and workshop/workshop.cpp as
 # text (VM-WALL-11).
-builder                           doctest           always  65
+builder                           doctest           always  66
 workshop_guests                   doctest           always  40
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
@@ -89,12 +89,12 @@ source_comments                   script            always
 code_values                       script            always
 folder_map                        script            always
 manual                            script            always
-flow                              doctest           always  60
+flow                              doctest           always  61
 
 message_draft                     doctest           always  11
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 inventory                         doctest           always  41
 flow_pane                         doctest           always  27
-view                              doctest           always  18
+view                              doctest           always  19
 view_builder                      doctest           always  33

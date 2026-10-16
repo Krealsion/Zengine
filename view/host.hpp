@@ -6,10 +6,14 @@
 // The view host, the Flow host's sibling: over the host's existing bus it registers each view as
 // its own participant from its description, granted only what the description declares, applies
 // a change at the same shapes in place, and registers a change of shapes afresh. It owns no
-// Kernel, rendering policy or file policy. Law: agents/view.md. Reference: view/docs/view.md.
+// Kernel, rendering policy or file policy. Law: agents/view.md. Reference: view/docs/view.md;
+// its office's manual is view/docs/zengine.view.host.md.
 
+#include "manual/vocabulary.hpp"
 #include "view/view.hpp"
 #include "view/vocabulary.hpp"
+
+#include "manuals/zengine.view.host.hpp" // this office's manual, compiled in from its page
 
 #include <zen/switchboard/switchboard.hpp>
 
@@ -132,7 +136,8 @@ private:
     }
 };
 
-/// THE VIEW HOST'S OFFICE: run, resume, apply and stop, each for the asker's own session.
+/// THE VIEW HOST'S OFFICE: run, resume, apply and stop, each for the asker's own session; and
+/// what a shape it accepts does, from its page.
 class Manager final : public loom::Weave {
 public:
     explicit Manager(Host& host) : host_(host) {}
@@ -140,10 +145,11 @@ public:
 
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<ViewRun>(), loom::schema_of<ViewResume>(), loom::schema_of<ViewApply>(),
-                loom::schema_of<ViewStop>(), loom::schema_of<detail::ViewRetire>()};
+                loom::schema_of<ViewStop>(), loom::schema_of<detail::ViewRetire>(),
+                loom::schema_of<manual::ShapeDocumentRequested>()};
     }
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
-        return {loom::schema_of<ViewAnswer>()};
+        return {loom::schema_of<ViewAnswer>(), loom::schema_of<manual::ShapeDocumentShown>()};
     }
 
     void handle(const loom::Message& request, loom::Bus& bus) override {
@@ -152,6 +158,16 @@ public:
         if (is(loom::schema_of<detail::ViewRetire>())) {
             if (request.sender == self_)
                 host_.retire(static_cast<std::uint64_t>(loom::from_value<detail::ViewRetire>(request.payload).subject));
+            return;
+        }
+        // What a shape this office accepts does, from its page, to the asker alone.
+        if (is(loom::schema_of<manual::ShapeDocumentRequested>())) {
+            if (!request.sender.valid()) return;
+            (void)bus.answer(loom::Message(
+                loom::to_value(manual::shape_document(
+                    loom::from_value<manual::ShapeDocumentRequested>(request.payload),
+                    accepted_schemas(), manual::pages::zengine_view_host::kManual)),
+                self_));
             return;
         }
         ViewAnswer answer;
@@ -261,6 +277,7 @@ inline loom::WeaveId Host::mount() {
     if (bus_.role_holder(kViewHostRole).valid()) throw std::invalid_argument("the view host's office is already held");
     loom::Grant grant;
     grant.allow_to_any(ViewAnswer::zen_name, ViewAnswer::zen_version);
+    grant.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     grant.allow_to_role(detail::ViewRetire::zen_name, detail::ViewRetire::zen_version, kViewHostRole);
     auto manager = std::make_unique<Manager>(*this);
     auto* raw = manager.get();
