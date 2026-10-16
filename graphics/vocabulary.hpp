@@ -129,18 +129,6 @@ struct ElementChange {
               ZEN_FIELD(more));
 };
 
-/// Window -> the drawer of an element: a press landed in it that its code did not take, or a press
-/// on the drawer's own nodes; `element` is the element's path, or "" where no element was pressed,
-/// and `path` the node pressed. The point is in the area's pixels.
-struct ElementPressed {
-    std::string area;
-    std::string element;
-    std::string path;
-    std::int64_t x = 0, y = 0;
-    ZEN_SHAPE(ElementPressed, 1, ZEN_FIELD(area), ZEN_FIELD(element), ZEN_FIELD(path),
-              ZEN_FIELD(x), ZEN_FIELD(y));
-};
-
 /// Window -> the area's owner: perform this action, named by the element a press landed in.
 struct ActionRequested {
     std::string area;
@@ -161,8 +149,8 @@ struct WindowOffered {
 };
 
 /// The arranger -> the directory: where an area stands, in which window, whose office draws in it,
-/// its order among the window's areas (a higher order stands in front), and whether the window
-/// gives its keys to the owner.
+/// its order among the window's areas (a higher order stands in front), whether the window gives
+/// its keys to the owner, and whether it gives the owner a press nothing drawn there takes.
 struct AreaPlaced {
     std::string area;
     std::string window;
@@ -170,8 +158,10 @@ struct AreaPlaced {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     std::int64_t order = 0;
     bool keys = false;
-    ZEN_SHAPE(AreaPlaced, 1, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(owner), ZEN_FIELD(x),
-              ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys));
+    bool pointer = false;
+    ZEN_SHAPE(AreaPlaced, 2, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(owner), ZEN_FIELD(x),
+              ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
+              ZEN_FIELD(pointer));
 };
 
 /// The arranger -> the directory: a skin is painter code in this library, from the load plan.
@@ -205,11 +195,12 @@ struct AreaIntroduced {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     std::int64_t order = 0;
     bool keys = false;
+    bool pointer = false;
     std::string skin;
     std::string library;
-    ZEN_SHAPE(AreaIntroduced, 1, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(x), ZEN_FIELD(y),
-              ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys), ZEN_FIELD(skin),
-              ZEN_FIELD(library));
+    ZEN_SHAPE(AreaIntroduced, 2, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(x), ZEN_FIELD(y),
+              ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys), ZEN_FIELD(pointer),
+              ZEN_FIELD(skin), ZEN_FIELD(library));
 };
 
 /// The directory -> a window: this area is no longer yours.

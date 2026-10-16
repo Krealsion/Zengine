@@ -120,8 +120,10 @@ class MyPane : public zengine::With<ws::PaneManualFacet<kMyPane,
                    MyPane, MyState, loom::Accept<...>, loom::Emit<...>> { ... };
 ```
 
-An office offering several panes, and so choosing which one an ask is about, answers in its own
-handler.
+A weave that claims, as the Editor claims its document, names its `loom::Claims<...>` after
+`loom::WeaveBase`: `Weave<MyPane, MyState, loom::Accept<...>, loom::Emit<...>, loom::WeaveBase,
+loom::Claims<...>>`. An office offering several panes, and so choosing which one an ask is about,
+answers in its own handler.
 
 - A pane the office does not offer, or a section its page does not have, is refused in `refusal`,
   naming what is missing, with no sections.

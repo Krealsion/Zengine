@@ -125,7 +125,8 @@ constexpr const char* kPasteInFlight =
 // =============================================================================
 
 class EditorPaneWeave
-    : public loom::WeaveBase<
+    : public zengine::With<ws::PaneManualFacet<
+          pane::kEditorPane, zengine::manual::pages::zengine_editor::kManual>>::Weave<
           EditorPaneWeave, pane::EditorPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
                        ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneKey, PaneTextInput,
@@ -137,7 +138,7 @@ class EditorPaneWeave
                        EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                       ws::PaneCarryAnswered, ws::PaneDocumentRequested>,
+                       ws::PaneCarryAnswered>,
           loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent,
                      ws::v4::PaneContent, ws::v2::PaneCaret,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
@@ -147,8 +148,8 @@ class EditorPaneWeave
                      surface::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
                      EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
                      ws::PaneMenuRequested, ws::PanePassRequested, ws::PaneOperationRequested,
-                     ws::PaneValueCarryRequested, ws::PaneDocumentShown>,
-          loom::Claims<EditorDocument>> {
+                     ws::PaneValueCarryRequested>,
+          loom::WeaveBase, loom::Claims<EditorDocument>> {
     /// One prepared candidate: the whole document a managed opening would install, built beside
     /// the current one for one exact operation, and the identity offered for it. Nothing reads,
     /// paints or edits it; it becomes the document only in `on_claim_published`. Nothing is held
@@ -294,30 +295,7 @@ class EditorPaneWeave
     static constexpr const char* kInsertCpp = "editor.insert-cpp";
 
 public:
-    using Base = loom::WeaveBase<
-        EditorPaneWeave, pane::EditorPaneState,
-        loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
-                     ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneKey, PaneTextInput,
-                     PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
-                     PrepareSourceRequested, ws::v2::PrepareSourceRequested,
-                     ManagedOpenProgress, ManagedOpenSettled,
-                     SourceOpened, loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy,
-                     surface::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
-                     EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
-                     EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
-                     ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                     ws::PaneCarryAnswered, ws::PaneDocumentRequested>,
-        loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent,
-                   ws::v4::PaneContent, ws::v2::PaneCaret,
-                   ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
-                   PaneQuitAnswered, SourceOpened, SourcePrepared, ws::v2::SourcePrepared,
-                   OpenSourceRequested,
-                   ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
-                   EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted,
-                   EditorLive, EditorRetired, ws::PaneMenuRequested, ws::PanePassRequested,
-                   ws::PaneOperationRequested,
-                   ws::PaneValueCarryRequested, ws::PaneDocumentShown>,
-        loom::Claims<EditorDocument>>;
+    using Base = Weave;
 
     // ---- The state a reload carries, and the surface a poke reads ----------------------
 
@@ -348,13 +326,6 @@ public:
         }
         announce(mail);
         ask_project_root(mail);
-    }
-
-    /// THE EDITOR'S MANUAL, TO THE ONE WHO ASKED: the office's page as this image was built with
-    /// it, answered while a switch holds the document still too, since it touches no document.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(ws::pane_document(ask, pane::kEditorPane,
-                                            zengine::manual::pages::zengine_editor::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
