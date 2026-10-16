@@ -25,8 +25,11 @@ are. A value is Inventory's: every read, save and copy asks Workshop first wheth
 asks Inventory, and a refusal is said in the owner's words.
 
 A reload of Info keeps where you were in the default pane: the pane the list's cursor holds, the
-property row, which list has the keys. Every value view starts again empty and nothing is watched;
-a restart of Workshop shows only the default pane.
+property row, which list has the keys. It keeps every value view too, as `InfoPaneState` carries
+it: its title, the value or draft it holds with your unsaved edits, the entry it is linked to at
+the revision it read, and the field selected. Nothing is watched after it: a view that was watching
+says `Watch ended when Info was reloaded; Watch follows the entry again`, and `Refresh` or `Watch`
+asks again at your press. A restart of Workshop shows only the default pane.
 
 ## Use
 
@@ -188,44 +191,44 @@ draft is frozen: an edit, a drop, Discard, Unset and Make preset say `wait: this
 entry again -- Stop keeps this draft` (or `opening 'Beta'`, `sampling zengine.input`), and change
 nothing.
 
-### `inventory.up`
+### `info.value.up`
 
 Selects the field before the selected one. The wheel walks the fields too.
 
 - **Takes:** the fields, the value's then its capture's metadata. Default key
-  <!-- key inventory.up -->`up`<!-- /key -->.
+  <!-- key info.value.up -->`up`<!-- /key -->.
 - **Answers:** the `>` moves. A field is held by its path, so new data keeps it selected; a field the
   new data lacks leaves nothing selected until you choose one.
 - **Refuses:** `A field pickup is pending`; at the first field nothing moves.
-- **Example:** <!-- key inventory.up -->`up`<!-- /key -->.
+- **Example:** <!-- key info.value.up -->`up`<!-- /key -->.
 
-### `inventory.down`
+### `info.value.down`
 
 Selects the field after the selected one.
 
-- **Takes:** the fields. Default key <!-- key inventory.down -->`down`<!-- /key -->.
-- **Answers:** the `>` moves, as [`inventory.up`](#inventoryup).
-- **Refuses:** as [`inventory.up`](#inventoryup); at the last field nothing moves.
-- **Example:** <!-- key inventory.down -->`down`<!-- /key -->.
+- **Takes:** the fields. Default key <!-- key info.value.down -->`down`<!-- /key -->.
+- **Answers:** the `>` moves, as [`info.value.up`](#infovalueup).
+- **Refuses:** as [`info.value.up`](#infovalueup); at the last field nothing moves.
+- **Example:** <!-- key info.value.down -->`down`<!-- /key -->.
 
-### `inventory.edit`
+### `info.value.edit`
 
 Opens a line on the selected field ([commands in a field edit](#commands-in-a-field-edit)).
 
 - **Takes:** the selected field, or a press on its row first. Default key
-  <!-- key inventory.edit -->`return`<!-- /key -->.
+  <!-- key info.value.edit -->`return`<!-- /key -->.
 - **Answers:** the line `> 1`, holding the field's value; `Enter keeps it; Escape cancels`.
 - **Refuses:** `Choose a field first`; `The selected field is no longer here; choose a field`;
   `Capture metadata is read-only`; `Select a scalar field inside this value; byte fields are
   read-only here`; frozen, `Edit field unavailable: wait: ...`.
-- **Example:** press the `count` row, then <!-- key inventory.edit -->`return`<!-- /key -->.
+- **Example:** press the `count` row, then <!-- key info.value.edit -->`return`<!-- /key -->.
 
-### `inventory.save`
+### `info.value.save`
 
 Stores the draft. A linked draft is written to its entry only if the entry still has the revision it
 was read at; a copy is stored as a new entry, which the view then links.
 
-- **Takes:** the draft. Default key <!-- key inventory.save -->`ctrl+s`<!-- /key -->; the control
+- **Takes:** the draft. Default key <!-- key info.value.save -->`ctrl+s`<!-- /key -->; the control
   `[Save]`.
 - **Answers:** asks Workshop whether you may (`PaneOperationRequested`), `Checking this operation's
   authority`, then Inventory
@@ -236,14 +239,14 @@ was read at; a copy is stored as a new entry, which the view then links.
 - **Refuses:** `Save unavailable: nothing to save: this draft matches rev 1`; `Save unavailable:
   wait: a save is waiting for its answer`; `Save refused: <the reason>`, and for an entry another
   view changed, `... -- your text is kept. Refresh replaces it; Save copy stores it as a new entry`.
-- **Example:** edit `count`, press <!-- key inventory.save -->`ctrl+s`<!-- /key -->.
+- **Example:** edit `count`, press <!-- key info.value.save -->`ctrl+s`<!-- /key -->.
 
-### `inventory.save-copy`
+### `info.value.save-copy`
 
 Stores the draft as a new, separately named entry, and leaves this view as it was: still linked, its
 edits unsaved.
 
-- **Takes:** the draft. Default key <!-- key inventory.save-copy -->`ctrl+shift+s`<!-- /key -->; the
+- **Takes:** the draft. Default key <!-- key info.value.save-copy -->`ctrl+shift+s`<!-- /key -->; the
   control `[Save copy]`.
 - **Answers:** asks Workshop, then Inventory
   ([`InventoryAdd`](../../inventory/docs/zengine.inventory.md#inventoryadd)), under the entry's name
@@ -251,31 +254,31 @@ edits unsaved.
   independent copy`).
 - **Refuses:** `Save copy refused: <the reason>; nothing was stored`; `Save copy unavailable: wait:
   ...`.
-- **Example:** <!-- key inventory.save-copy -->`ctrl+shift+s`<!-- /key -->.
+- **Example:** <!-- key info.value.save-copy -->`ctrl+shift+s`<!-- /key -->.
 
-### `inventory.fresh`
+### `info.value.fresh`
 
 Reads the linked entry again, replacing the draft. This is where newer data a watch held is taken.
 For a copy, restores the value as it was received.
 
-- **Takes:** the linked entry. Default key <!-- key inventory.fresh -->`ctrl+r`<!-- /key -->; the
+- **Takes:** the linked entry. Default key <!-- key info.value.fresh -->`ctrl+r`<!-- /key -->; the
   control `[Refresh]`.
 - **Answers:** with unsaved edits, first `Unsaved draft: press Refresh again to discard it and read
   the entry again`; then asks Workshop and Inventory
   ([`InventoryRead`](../../inventory/docs/zengine.inventory.md#inventoryread)), `Read rev 3 from
   inventory`. A copy: `Restored the received copy; the source entry is independent`.
 - **Refuses:** `Read refused: <the reason>; the draft is kept`; `Refresh unavailable: wait: ...`.
-- **Example:** after `NEWER rev 3 waiting`, press <!-- key inventory.fresh -->`ctrl+r`<!-- /key -->
+- **Example:** after `NEWER rev 3 waiting`, press <!-- key info.value.fresh -->`ctrl+r`<!-- /key -->
   twice.
 
-### `inventory.watch`
+### `info.value.watch`
 
 Follows the linked entry while the view is on the desk, or pauses following it. When Inventory says
 something changed, the view reads its entry once; a change during that read is one more read, never
 a queue. A clean draft takes the new revision and marks what changed `~`; a draft with edits keeps
 every character and says `NEWER rev 3 waiting (Refresh accepts)`.
 
-- **Takes:** the linked entry. Default key <!-- key inventory.watch -->`ctrl+l`<!-- /key -->; the
+- **Takes:** the linked entry. Default key <!-- key info.value.watch -->`ctrl+l`<!-- /key -->; the
   control `[Watch]`, `[Pause]` while watching.
 - **Answers:** asks Workshop for leave to read the entry on each change
   ([`PaneObservationRequested`](../../workshop/docs/zengine.workshop.md#paneobservationrequested)),
@@ -289,15 +292,15 @@ every character and says `NEWER rev 3 waiting (Refresh accepts)`.
 - **Refuses:** `Watch unavailable: an independent copy has no linked entry to watch; link one
   (right-click Grab live)`; `...: this link is stale: its entry is no longer here`; `...: wait:
   Workshop has not yet answered this view's last watch request`; `Watch refused: <the reason>`.
-- **Example:** link an entry, press <!-- key inventory.watch -->`ctrl+l`<!-- /key -->.
+- **Example:** link an entry, press <!-- key info.value.watch -->`ctrl+l`<!-- /key -->.
 
-### `inventory.sample`
+### `info.value.sample`
 
 Asks the source a captured structure came from to describe its structure again. The answer
 replaces the draft, unsaved; what is stored changes only when you save.
 
 - **Takes:** a value whose capture records the role that described itself. Default key
-  <!-- key inventory.sample -->`ctrl+e`<!-- /key -->; the control `[Sample]`.
+  <!-- key info.value.sample -->`ctrl+e`<!-- /key -->; the control `[Sample]`.
 - **Answers:** asks Workshop whether you may ask that role for `zen.PokeDescribe`, `Checking
   authority to ask zengine.input to describe its structure again`, then the role
   ([`zen.PokeDescribe`](https://github.com/Krealsion/Loom/blob/main/include/zen/weave/poke.hpp));
@@ -309,38 +312,38 @@ replaces the draft, unsaved; what is stored changes only when you save.
   `...: a preset is a draft to finish, not an observation of a source`; `...: unsaved edits: save,
   save a copy or discard before sampling`; `Sample refused: <the reason>`; `Source zengine.input is
   unavailable (<the reason>); showing the stored observation, now stale`.
-- **Example:** <!-- key inventory.sample -->`ctrl+e`<!-- /key -->.
+- **Example:** <!-- key info.value.sample -->`ctrl+e`<!-- /key -->.
 
-### `inventory.preset`
+### `info.value.preset`
 
 Makes the draft an independent preset copy: an unfinished value to finish and store, whose fields
 can be unset. A linked view's watch ends.
 
-- **Takes:** the draft. Default key <!-- key inventory.preset -->`ctrl+b`<!-- /key -->; in the menu,
+- **Takes:** the draft. Default key <!-- key info.value.preset -->`ctrl+b`<!-- /key -->; in the menu,
   `Make preset copy`.
 - **Answers:** `Independent preset copy; Ctrl+U unsets a field, Save stores it`; the title row reads
   `PRESET COPY`. A watch the view held ends, at Workshop too
   ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)).
 - **Refuses:** `Make preset copy unavailable: wait: ...`.
-- **Example:** <!-- key inventory.preset -->`ctrl+b`<!-- /key -->.
+- **Example:** <!-- key info.value.preset -->`ctrl+b`<!-- /key -->.
 
-### `inventory.unset`
+### `info.value.unset`
 
 Unsets the selected field of a preset. Its type stays what it was.
 
 - **Takes:** the selected item field of a preset. Default key
-  <!-- key inventory.unset -->`ctrl+u`<!-- /key -->; in the menu, `Unset field`.
+  <!-- key info.value.unset -->`ctrl+u`<!-- /key -->; in the menu, `Unset field`.
 - **Answers:** `Field unset; the schema is unchanged. Save stores the preset`.
 - **Refuses:** `Make a preset copy with Ctrl+B before unsetting item fields`; `Choose a field first`;
   frozen, `Unset field unavailable: wait: ...`.
-- **Example:** <!-- key inventory.unset -->`ctrl+u`<!-- /key -->.
+- **Example:** <!-- key info.value.unset -->`ctrl+u`<!-- /key -->.
 
-### `inventory.grab`
+### `info.value.grab`
 
 Picks up a typed copy of the selected field, to drop on a field of another view, or of Compose. A
 press on a field row that moves with the button down picks it up the same way.
 
-- **Takes:** the selected field. Default key <!-- key inventory.grab -->`ctrl+g`<!-- /key -->; in the
+- **Takes:** the selected field. Default key <!-- key info.value.grab -->`ctrl+g`<!-- /key -->; in the
   menu, `Pick up field`.
 - **Answers:** asks Workshop whether you may carry a value (`PaneOperationRequested`), `Checking
   field acquisition authority`, then hands Workshop the copy to carry
@@ -348,17 +351,17 @@ press on a field row that moves with the button down picks it up the same way.
 - **Refuses:** `Choose a field first`; `Field pickup refused: <the reason>`; `Wait for the inventory
   operation before picking up a field`; `Field copy exceeds the carry limit`; `Field pickup was not
   delivered: <the bus's reason>`.
-- **Example:** select `target_role`, press <!-- key inventory.grab -->`ctrl+g`<!-- /key -->.
+- **Example:** select `target_role`, press <!-- key info.value.grab -->`ctrl+g`<!-- /key -->.
 
-### `inventory.discard`
+### `info.value.discard`
 
 Throws away the draft's edits: the value is the one last saved or read again.
 
-- **Takes:** the draft. Default key <!-- key inventory.discard -->`ctrl+d`<!-- /key -->; in the menu,
+- **Takes:** the draft. Default key <!-- key info.value.discard -->`ctrl+d`<!-- /key -->; in the menu,
   `Discard edits`.
 - **Answers:** `Local edits discarded; this is the last saved/read copy`.
 - **Refuses:** frozen, `Discard edits unavailable: wait: ...`.
-- **Example:** <!-- key inventory.discard -->`ctrl+d`<!-- /key -->.
+- **Example:** <!-- key info.value.discard -->`ctrl+d`<!-- /key -->.
 
 ### `info.view.fork`
 
@@ -399,18 +402,18 @@ each marked ` (unavailable)` when it cannot act now.
   longer shows, `This view changed -- press again`.
 - **Example:** <!-- key info.view.menu -->`ctrl+.`<!-- /key -->, choose `Discard edits`.
 
-### `inventory.panes`
+### `info.value.panes`
 
 The default pane's way back to its lists. The value stays, for
 [`info.inventory`](#infoinventory). A watch ends, since the view no longer shows the value.
 
-- **Takes:** the default pane. Default key <!-- key inventory.panes -->`ctrl+i`<!-- /key -->; the
+- **Takes:** the default pane. Default key <!-- key info.value.panes -->`ctrl+i`<!-- /key -->; the
   control `[Panes]`.
 - **Answers:** the lists; `Watch ended: this view left for pane properties` when it was watching,
   and the watch ends at Workshop
   ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)).
 - **Refuses:** nothing.
-- **Example:** <!-- key inventory.panes -->`ctrl+i`<!-- /key -->.
+- **Example:** <!-- key info.value.panes -->`ctrl+i`<!-- /key -->.
 
 ### `info.view.close`
 
@@ -446,24 +449,24 @@ stopped, since a write sent cannot be called back.
 
 While a field's line is open these two are declared; every other key edits the line.
 
-### `inventory.field.accept`
+### `info.value.field.accept`
 
 Puts the line's text into the field, in this draft only.
 
 - **Takes:** the line, read as the field's type. Default key
-  <!-- key inventory.field.accept -->`return`<!-- /key -->.
+  <!-- key info.value.field.accept -->`return`<!-- /key -->.
 - **Answers:** `Field changed in this draft (was 1); Save stores it`; the row is marked `*`.
 - **Refuses:** the field's own reason when the text is not of its type; the line stays open.
-- **Example:** type `41`, press <!-- key inventory.field.accept -->`return`<!-- /key -->.
+- **Example:** type `41`, press <!-- key info.value.field.accept -->`return`<!-- /key -->.
 
-### `inventory.field.cancel`
+### `info.value.field.cancel`
 
 Closes the line; the field is as it was.
 
-- **Takes:** the line. Default key <!-- key inventory.field.cancel -->`escape`<!-- /key -->.
+- **Takes:** the line. Default key <!-- key info.value.field.cancel -->`escape`<!-- /key -->.
 - **Answers:** the field's row again.
 - **Refuses:** nothing.
-- **Example:** <!-- key inventory.field.cancel -->`escape`<!-- /key -->.
+- **Example:** <!-- key info.value.field.cancel -->`escape`<!-- /key -->.
 
 ## Commands on the rename line
 

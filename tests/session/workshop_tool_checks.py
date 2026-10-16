@@ -488,8 +488,8 @@ class CanvasInfoView(CanvasPane):
     the weaver to the one after. A press on a control is kept as its id, and a press on a field
     chooses it; a release is kept as the row it lands on and the part there. Once it redraws, the
     acts `on_redraw` names are unavailable."""
-    CONTROLS = [("Save", "inventory.save"), ("Save copy", "inventory.save-copy"),
-                ("Refresh", "inventory.fresh"), ("Watch", "inventory.watch"),
+    CONTROLS = [("Save", "info.value.save"), ("Save copy", "info.value.save-copy"),
+                ("Refresh", "info.value.fresh"), ("Watch", "info.value.watch"),
                 ("Close", "info.view.close")]
 
     def __init__(self, title, state, fields, room=2, **kw):
@@ -2081,7 +2081,7 @@ def run_checks(tools, runtime):
                 where = held.control(*self.PRESET, "Save")
                 workbench.expect(held, self.PRESET, "PRESET LINKED")
                 # Redrawn with Save unavailable, `(Save)`: only `[Save copy]` says Save in brackets.
-                preset.on_redraw, ctx.redraws = {"inventory.save"}, 1
+                preset.on_redraw, ctx.redraws = {"info.value.save"}, 1
                 with self.assertRaisesRegex(ValueError, r"no visible control \[Save\] in "
                                                         r"zengine.info/info.2"):
                     held.control(*self.PRESET, "Save")
@@ -2090,7 +2090,7 @@ def run_checks(tools, runtime):
             finally:
                 held.close()
             self.assertEqual((where["x"], where["y"]), (preset.column_x(1) + 3, preset.row_y(2) + 7))
-            self.assertEqual(preset.chosen, ["inventory.save", "inventory.save-copy"])
+            self.assertEqual(preset.chosen, ["info.value.save", "info.value.save-copy"])
             self.assertEqual(kept["rows"][2]["text"], "(Save) [Save copy] [Refresh] [Watch] [Close]")
             self.assertEqual(set(ctx.asked), self.ASKED)
 

@@ -280,7 +280,12 @@ addressed to whichever build understands it. An id for an action that **retired*
 `p` picker's `workshop.picker` and `picker.*`, the old Pane Manager's `pane-editor.*` and
 `draft.*`, the object canvas's `object.*` — is kept the same way, answered by nothing, and the
 load says what it retired with and where the act went now (`desktop.panes` shows and hides
-panes; arranging a pane orders it; Info's own rows commit and cancel its edits).
+panes; arranging a pane orders it; Info's own rows commit and cancel its edits). The View
+Builder's ids are `view.*` and Info's value views' are `info.value.*`, so an override naming the
+bare `save`, `open`, `new` or `choices`, or an `inventory.*` id the Inventory pane does not
+declare, is kept as any unknown id is and answered by nothing; one naming `run`, `apply` or
+`stop` moves Flow's rows of those ids, and one naming `inventory.up` or `inventory.down` the
+Inventory pane's.
 
 **What is said:** a gesture with a known backend gap is accepted and the gap is named once at
 load. The honest example: a plain POSIX terminal reports `shift` only on letters, never on
